@@ -286,7 +286,7 @@ class QueueProcessesTable extends BaseTable
 	 */
 	public function endProcess(string $pid): void
 	{
-		if (!$pid) {
+		if ($pid === '') {
 			return;
 		}
 
@@ -305,16 +305,16 @@ class QueueProcessesTable extends BaseTable
 	 *
 	 * @return void
 	 */
-	public function terminateProcess(string $pid, int $sig = SIGTERM): void
+	public function terminateProcess(string $pid, ?int $sig = null): void
 	{
 		if (!$pid) {
 			return;
 		}
 
-		if (!is_numeric($pid)) {
+		if (!is_numeric($pid) || (int)$pid <= 0) {
 			return;
 		}
-		$sig = (int)$sig;
+		$sig = (int)($sig ?: (defined('SIGTERM') ? SIGTERM : 15));
 
 		$killed = false;
 		if (function_exists('posix_kill')) {
@@ -343,7 +343,7 @@ class QueueProcessesTable extends BaseTable
 		foreach ($processes as $process) {
 			$pid = (int)$process->pid;
 			if ($pid > 0) {
-				posix_kill($pid, SIGUSR1);
+				posix_kill($pid, defined('SIGUSR1') ? SIGUSR1 : 10);
 			}
 		}
 	}

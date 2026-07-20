@@ -214,7 +214,6 @@ class MemberAuthorizationsCell extends Cell
      * - Comprehensive association data loading
      * 
      * **Association Loading**:
-     * - CurrentPendingApprovals: Active approval workflow information
      * - Activities: Activity name and configuration details
      * - RevokedBy: Revoker identity for accountability
      * - Approvers: Approval workflow participant information
@@ -261,10 +260,6 @@ class MemberAuthorizationsCell extends Cell
                 "revoker_id",
             ])
             ->contain([
-                "CurrentPendingApprovals" => function (SelectQuery $q) {
-                    return $q->select(["Approvers.sca_name", "requested_on"])
-                        ->contain("Approvers");
-                },
                 "Activities" => function (SelectQuery $q) {
                     return $q->select(["Activities.name", "Activities.id"]);
                 },

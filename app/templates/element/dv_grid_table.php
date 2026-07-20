@@ -2,10 +2,10 @@
 
 /**
  * Dataverse Grid Table Data (Loaded via Inner Turbo Frame)
- * 
+ *
  * This template contains only the table and pagination.
  * It gets reloaded when filters, sorting, or pagination changes.
- * 
+ *
  * @var \App\View\AppView $this
  * @var iterable $data The data to display (e.g., $members, $warrants)
  * @var array $gridState Complete grid state object
@@ -16,6 +16,10 @@
 $rowActions = $rowActions ?? [];
 $customElement = $customElement ?? null;
 $customElementOptions = $customElementOptions ?? [];
+// Table-frame responses omit columns.all from JSON; controllers pass full metadata as $columns.
+$tableColumns = $columns ?? $gridState['columns']['all'] ?? [];
+$paginationQueryParams = $this->getRequest()->getQueryParams();
+unset($paginationQueryParams['page']);
 ?>
 <turbo-frame
     id="<?= h($tableFrameId) ?>"
@@ -23,19 +27,20 @@ $customElementOptions = $customElementOptions ?? [];
     <!-- Grid State (JSON) - Read by grid-view-controller on load -->
     <!-- State is here because it changes with filters/sort/pagination -->
     <script type="application/json" id="<?= h($tableFrameId) ?>-state">
-        <?= json_encode($gridState, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?>
+        <?= json_encode($gridState, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
     </script>
 
-    <?php if ($customElement): ?>
+    <?php if ($customElement) : ?>
         <?= $this->element($customElement, array_merge($customElementOptions, [
             'data' => $data,
             'gridState' => $gridState,
             'tableFrameId' => $tableFrameId,
+            'columns' => $tableColumns,
         ])) ?>
-    <?php else: ?>
+    <?php else : ?>
         <!-- Dataverse Table -->
         <?= $this->element('dataverse_table', [
-            'columns' => $gridState['columns']['all'],
+            'columns' => $tableColumns,
             'visibleColumns' => $gridState['columns']['visible'],
             'data' => $data,
             'currentSort' => $gridState['sort'],
@@ -45,11 +50,17 @@ $customElementOptions = $customElementOptions ?? [];
             'rowActions' => $rowActions,
             'enableColumnPicker' => $gridState['config']['enableColumnPicker'] ?? true,
             'enableBulkSelection' => $gridState['config']['enableBulkSelection'] ?? false,
+            'bulkSelectionDataFields' => $gridState['config']['bulkSelectionDataFields'] ?? [],
+            'bulkSelectionDisabledField' => $gridState['config']['bulkSelectionDisabledField'] ?? null,
+            'bulkSelectionDisabledLabel' => $gridState['config']['bulkSelection']['disabledLabel'] ?? null,
+            'bulkSelectionHideDisabledControl' => $gridState['config']['bulkSelectionHideDisabledControl'] ?? false,
+            'tableFrameId' => $tableFrameId,
+            'bulkSelection' => $gridState['config']['bulkSelection'] ?? [],
         ]) ?>
 
         <!-- Pagination -->
         <div class="paginator">
-            <?php $this->Paginator->options(['url' => ['?' => $this->getRequest()->getQueryParams()]]); ?>
+            <?php $this->Paginator->options(['url' => ['?' => $paginationQueryParams]]); ?>
             <ul class="pagination">
                 <?= $this->Paginator->first('<< ' . __('first')) ?>
                 <?= $this->Paginator->prev('< ' . __('previous')) ?>
@@ -57,7 +68,11 @@ $customElementOptions = $customElementOptions ?? [];
                 <?= $this->Paginator->next(__('next') . ' >') ?>
                 <?= $this->Paginator->last(__('last') . ' >>') ?>
             </ul>
-            <p><?= $this->Paginator->counter(__('Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total')) ?></p>
+            <p>
+                <?= $this->Paginator->counter(
+                    __('Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total'),
+                ) ?>
+            </p>
         </div>
     <?php endif; ?>
 </turbo-frame>

@@ -2,17 +2,15 @@
 
 /**
  * Dataverse Table Row Actions Element
- * 
+ *
  * Renders action buttons for a table row based on configuration and user permissions.
  * Supports modal buttons, post links, and regular links with conditions and data attributes.
- * 
+ *
  * @var \App\View\AppView $this
  * @var array $actions Action configurations from GridColumns::getRowActions()
- * @var array|object $row The current row data
+ * @var object|array $row The current row data
  * @var \Authorization\Identity|null $user Current user for permission checks
  */
-
-use App\KMP\StaticHelpers;
 
 $user = $user ?? null;
 
@@ -31,6 +29,7 @@ $getNestedValue = function ($path, $data) {
             return null;
         }
     }
+
     return $value;
 };
 
@@ -46,7 +45,7 @@ $processTemplate = function ($template, $data) use ($getNestedValue) {
 /**
  * Append additional URL path arguments from static values or row fields.
  */
-$appendExtraArgs = function (array &$urlParams, array $extraArgs, $data) use ($getNestedValue) {
+$appendExtraArgs = function (array &$urlParams, array $extraArgs, $data) use ($getNestedValue): void {
     foreach ($extraArgs as $extraArg) {
         if (is_array($extraArg) && isset($extraArg['field'])) {
             $urlParams[] = $getNestedValue($extraArg['field'], $data);
@@ -57,7 +56,7 @@ $appendExtraArgs = function (array &$urlParams, array $extraArgs, $data) use ($g
     }
 };
 
-foreach ($actions as $action):
+foreach ($actions as $action) :
     // Check status filter (only show action for certain statuses)
     if (!empty($action['statusFilter'])) {
         $rowStatus = $getNestedValue('status', $row);
@@ -99,7 +98,7 @@ foreach ($actions as $action):
     // Build button label
     $label = '';
     if (!empty($action['icon'])) {
-        $label .= '<i class="bi ' . h($action['icon']) . '"></i>';
+        $label .= '<i class="bi ' . h($action['icon']) . '" aria-hidden="true"></i>';
         if (!empty($action['label'])) {
             $label .= ' ';
         }
@@ -110,9 +109,11 @@ foreach ($actions as $action):
 
     // Build button class
     $buttonClass = $action['class'] ?? 'btn btn-sm btn-secondary';
+    $title = !empty($action['title']) ? $processTemplate($action['title'], $row) : null;
+    $ariaLabel = !empty($action['ariaLabel']) ? $processTemplate($action['ariaLabel'], $row) : $title;
 
     // Render based on action type
-    switch ($action['type']):
+    switch ($action['type']) :
         case 'modal':
             // Build data attributes for modal buttons
             $dataAttrs = [];
@@ -122,6 +123,11 @@ foreach ($actions as $action):
             if (!empty($action['dataAttributes'])) {
                 foreach ($action['dataAttributes'] as $attrKey => $attrValue) {
                     if (is_array($attrValue)) {
+                        if (array_key_exists('_rowField', $attrValue)) {
+                            $dataAttrs['data-' . $attrKey] = $getNestedValue($attrValue['_rowField'], $row);
+                            continue;
+                        }
+
                         // Build JSON object with row data
                         $jsonData = [];
                         foreach ($attrValue as $jsonKey => $fieldPath) {
@@ -139,6 +145,12 @@ foreach ($actions as $action):
             $attrParts = [];
             $attrParts[] = 'type="button"';
             $attrParts[] = 'class="' . h($buttonClass) . '"';
+            if ($title !== null && $title !== '') {
+                $attrParts[] = 'title="' . h($title) . '"';
+            }
+            if ($ariaLabel !== null && $ariaLabel !== '') {
+                $attrParts[] = 'aria-label="' . h($ariaLabel) . '"';
+            }
             foreach ($dataAttrs as $attrName => $attrValue) {
                 if (is_array($attrValue)) {
                     // JSON encode and HTML escape for attribute
@@ -179,6 +191,12 @@ foreach ($actions as $action):
                 'class' => $buttonClass,
                 'confirm' => $confirmMessage,
             ];
+            if ($title !== null && $title !== '') {
+                $postLinkOptions['title'] = $title;
+            }
+            if ($ariaLabel !== null && $ariaLabel !== '') {
+                $postLinkOptions['aria-label'] = $ariaLabel;
+            }
 
             if (!empty($action['turbo'])) {
                 $postLinkOptions['data-turbo'] = 'true';
@@ -219,12 +237,57 @@ foreach ($actions as $action):
                 $appendExtraArgs($urlParams, $url['extraArgs'], $row);
             }
 
-            echo $this->Html->link($label, $urlParams, [
+            $linkOptions = [
                 'escape' => false,
                 'class' => $buttonClass,
                 'data-turbo-frame' => '_top',
-            ]);
+            ];
+            if ($title !== null && $title !== '') {
+                $linkOptions['title'] = $title;
+            }
+            if ($ariaLabel !== null && $ariaLabel !== '') {
+                $linkOptions['aria-label'] = $ariaLabel;
+            }
+
+            echo $this->Html->link($label, $urlParams, $linkOptions);
             echo ' ';
+            break;
+
+        case 'button':
+            // Generic button with data attributes (no modal, no link)
+            $dataAttrs = [];
+            if (!empty($action['dataAttributes'])) {
+                foreach ($action['dataAttributes'] as $attrKey => $attrValue) {
+                    if (is_array($attrValue)) {
+                        $jsonData = [];
+                        foreach ($attrValue as $jsonKey => $fieldPath) {
+                            $jsonData[$jsonKey] = $getNestedValue($fieldPath, $row);
+                        }
+                        $dataAttrs['data-' . $attrKey] = $jsonData;
+                    } else {
+                        $dataAttrs['data-' . $attrKey] = $processTemplate($attrValue, $row);
+                    }
+                }
+            }
+
+            $attrParts = [];
+            $attrParts[] = 'type="button"';
+            $attrParts[] = 'class="' . h($buttonClass) . '"';
+            if ($title !== null && $title !== '') {
+                $attrParts[] = 'title="' . h($title) . '"';
+            }
+            if ($ariaLabel !== null && $ariaLabel !== '') {
+                $attrParts[] = 'aria-label="' . h($ariaLabel) . '"';
+            }
+            foreach ($dataAttrs as $attrName => $attrValue) {
+                if (is_array($attrValue)) {
+                    $jsonStr = json_encode($attrValue);
+                    $attrParts[] = $attrName . "='" . h($jsonStr) . "'";
+                } else {
+                    $attrParts[] = $attrName . '="' . h($attrValue) . '"';
+                }
+            }
+            echo '<button ' . implode(' ', $attrParts) . '>' . $label . '</button> ';
             break;
     endswitch;
 endforeach;

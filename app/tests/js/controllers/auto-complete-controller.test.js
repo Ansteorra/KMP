@@ -13,7 +13,7 @@ describe('AutoCompleteController', () => {
         const showOnFocus = opts.showOnFocus || false;
         const dataListContent = opts.dataListContent || '';
 
-        return `
+        const autocomplete = `
             <div data-controller="ac"
                  ${url ? `data-auto-complete-url-value="${url}"` : ''}
                  data-auto-complete-min-length-value="${minLength}"
@@ -30,6 +30,20 @@ describe('AutoCompleteController', () => {
                 ${dataListContent ? `<div data-auto-complete-target="dataList" style="display: none;">${dataListContent}</div>` : ''}
             </div>
         `;
+
+        if (opts.inModal) {
+            return `
+                <div class="modal">
+                    <div class="modal-dialog modal-dialog-scrollable">
+                        <div class="modal-content">
+                            <div class="modal-body">${autocomplete}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        return autocomplete;
     }
 
     function setupController(opts = {}) {
@@ -201,6 +215,21 @@ describe('AutoCompleteController', () => {
         expect(controller.inputTarget.disabled).toBe(true);
     });
 
+    test('value setter with matching option keeps allowOther input editable', () => {
+        setupController({ allowOther: true });
+        controller._selectOptions = [
+            { value: '1', text: 'Option One' },
+            { value: '2', text: 'Option Two' }
+        ];
+        controller.value = '2';
+
+        expect(controller.inputTarget.value).toBe('Option Two');
+        expect(controller.hiddenTarget.value).toBe('2');
+        expect(controller.hiddenTextTarget.value).toBe('Option Two');
+        expect(controller.clearBtnTarget.disabled).toBe(false);
+        expect(controller.inputTarget.disabled).toBe(false);
+    });
+
     test('value setter with unknown value and allowOther false clears fields', () => {
         setupController({ allowOther: false });
         controller._selectOptions = [{ value: '1', text: 'Opt' }];
@@ -222,7 +251,7 @@ describe('AutoCompleteController', () => {
         expect(controller.hiddenTarget.value).toBe('custom');
         expect(controller.hiddenTextTarget.value).toBe('custom');
         expect(controller.clearBtnTarget.disabled).toBe(false);
-        expect(controller.inputTarget.disabled).toBe(true);
+        expect(controller.inputTarget.disabled).toBe(false);
     });
 
     test('value setter with empty/null clears all fields', () => {
@@ -313,6 +342,9 @@ describe('AutoCompleteController', () => {
         controller.clearBtnTarget.disabled = false;
         controller.inputTarget.disabled = true;
 
+        const changeHandler = jest.fn();
+        controller.element.addEventListener('autocomplete.change', changeHandler);
+
         controller.clear();
 
         expect(controller.inputTarget.value).toBe('');
@@ -320,6 +352,7 @@ describe('AutoCompleteController', () => {
         expect(controller.hiddenTextTarget.value).toBe('');
         expect(controller.clearBtnTarget.disabled).toBe(true);
         expect(controller.inputTarget.disabled).toBe(false);
+        expect(changeHandler).toHaveBeenCalled();
     });
 
     // ==================== open / close ====================
@@ -341,6 +374,41 @@ describe('AutoCompleteController', () => {
         controller.open();
         expect(handler).toHaveBeenCalled();
         expect(handler.mock.calls[0][0].detail.action).toBe('open');
+    });
+
+    test('open positions modal results as a fixed scrollable list without moving the target', () => {
+        setupController({ inModal: true });
+        const parent = controller.resultsTarget.parentNode;
+        Object.defineProperty(window, 'innerHeight', { value: 500, configurable: true });
+        controller.inputTarget.getBoundingClientRect = jest.fn(() => ({
+            top: 80,
+            right: 260,
+            bottom: 120,
+            left: 40,
+            width: 220,
+            height: 40,
+        }));
+
+        controller.open();
+
+        expect(controller.resultsTarget.parentNode).toBe(parent);
+        expect(controller.resultsTarget.classList.contains('kmp-auto-complete-floating-list')).toBe(true);
+        expect(controller.resultsTarget.style.position).toBe('fixed');
+        expect(controller.resultsTarget.style.left).toBe('40px');
+        expect(controller.resultsTarget.style.width).toBe('220px');
+        expect(controller.resultsTarget.style.maxHeight).toBe('372px');
+        expect(controller.resultsTarget.style.overflowY).toBe('auto');
+        expect(controller.resultsTarget.style.zIndex).toBe('1070');
+    });
+
+    test('open keeps non-modal results in place', () => {
+        setupController();
+        const parent = controller.resultsTarget.parentNode;
+
+        controller.open();
+
+        expect(controller.resultsTarget.parentNode).toBe(parent);
+        expect(controller.resultsTarget.style.position).toBe('');
     });
 
     test('open is idempotent when already shown', () => {
@@ -371,6 +439,25 @@ describe('AutoCompleteController', () => {
         expect(handler.mock.calls[0][0].detail.action).toBe('close');
     });
 
+    test('close restores modal results styling', () => {
+        setupController({ inModal: true });
+        controller.inputTarget.getBoundingClientRect = jest.fn(() => ({
+            top: 80,
+            right: 260,
+            bottom: 120,
+            left: 40,
+            width: 220,
+            height: 40,
+        }));
+
+        controller.open();
+        controller.close();
+
+        expect(controller.element.contains(controller.resultsTarget)).toBe(true);
+        expect(controller.resultsTarget.classList.contains('kmp-auto-complete-floating-list')).toBe(false);
+        expect(controller.resultsTarget.style.cssText).toBe('');
+    });
+
     test('close is idempotent when already hidden', () => {
         setupController();
         controller.resultsShown = false;
@@ -378,6 +465,25 @@ describe('AutoCompleteController', () => {
         controller.element.addEventListener('toggle', handler);
         controller.close();
         expect(handler).not.toHaveBeenCalled();
+    });
+
+    test('disconnect restores a fixed modal results list', () => {
+        setupController({ inModal: true });
+        controller.inputTarget.getBoundingClientRect = jest.fn(() => ({
+            top: 80,
+            right: 260,
+            bottom: 120,
+            left: 40,
+            width: 220,
+            height: 40,
+        }));
+
+        controller.open();
+        controller.disconnect();
+
+        expect(controller.element.contains(controller.resultsTarget)).toBe(true);
+        expect(controller.resultsTarget.hidden).toBe(true);
+        expect(controller.resultsTarget.style.cssText).toBe('');
     });
 
     // ==================== resultsShown getter/setter ====================
@@ -627,6 +733,15 @@ describe('AutoCompleteController', () => {
         expect(controller.clearBtnTarget.disabled).toBe(false);
     });
 
+    test('fireChangeEvent keeps allowOther input editable when value present', () => {
+        setupController({ allowOther: true });
+        controller.inputTarget.value = 'Custom Test';
+        controller.fireChangeEvent('Custom Test', 'Custom Test', null);
+
+        expect(controller.inputTarget.disabled).toBe(false);
+        expect(controller.clearBtnTarget.disabled).toBe(false);
+    });
+
     test('fireChangeEvent enables input and disables clearBtn when input empty', () => {
         setupController();
         controller.inputTarget.value = '';
@@ -846,6 +961,20 @@ describe('AutoCompleteController', () => {
         expect(controller.clearBtnTarget.disabled).toBe(false);
     });
 
+    test('initSelectionValueChanged keeps allowOther input editable', () => {
+        setupController({ allowOther: true });
+        controller._datalistLoaded = false;
+        controller.initSelectionValue = { value: '3', text: 'Three' };
+
+        controller.initSelectionValueChanged();
+
+        expect(controller.hiddenTarget.value).toBe('3');
+        expect(controller.hiddenTextTarget.value).toBe('Three');
+        expect(controller.inputTarget.value).toBe('Three');
+        expect(controller.inputTarget.disabled).toBe(false);
+        expect(controller.clearBtnTarget.disabled).toBe(false);
+    });
+
     // ==================== select ====================
 
     test('select marks target as aria-selected and adds class', () => {
@@ -1000,6 +1129,20 @@ describe('AutoCompleteController', () => {
         } finally {
             jest.useRealTimers();
         }
+    });
+
+    test('onInputChange preserves custom typed text for allowOther fields', () => {
+        setupController({ allowOther: true, dataListContent: JSON.stringify([]) });
+        controller._selectOptions = [];
+        controller._datalistLoaded = true;
+        controller.inputTarget.value = 'Custom Specialty';
+        controller.hiddenTarget.value = 'Old Value';
+        controller.hiddenTextTarget.value = 'Old Text';
+
+        controller.onInputChange();
+
+        expect(controller.hiddenTarget.value).toBe('');
+        expect(controller.hiddenTextTarget.value).toBe('Custom Specialty');
     });
 
     test('onInputBlur without allowOther commits exact text match and fires change event', () => {

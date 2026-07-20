@@ -1,6 +1,6 @@
 ---
 name: code-verification
-description: Comprehensive code verification toolkit for the KMP application. Run all quality checks (PHPUnit, Jest, Webpack, PHPCS, PHPStan) and get guidance on writing tests and verifying production readiness.
+description: Comprehensive code verification toolkit for the KMP application. Run all quality checks (PHPUnit, Jest, Vite build, PHPCS, PHPStan) and get guidance on writing tests and verifying production readiness.
 ---
 
 # Code Verification for KMP
@@ -15,7 +15,7 @@ Run the full verification suite from `/workspaces/KMP/app`:
 bash bin/verify.sh
 ```
 
-This runs PHPUnit, Jest, Webpack, PHPCS, and PHPStan in order and provides a summary.
+This runs PHPUnit, Jest, a Vite build, PHPCS, and PHPStan in order and provides a summary.
 
 ## Individual Checks
 
@@ -23,7 +23,7 @@ This runs PHPUnit, Jest, Webpack, PHPCS, and PHPStan in order and provides a sum
 |-------|---------|----------------|
 | PHPUnit | `composer test` | 1018+ tests, 0 failures |
 | Jest | `npm run test:js` | 27+ tests, 0 failures |
-| Webpack | `npm run dev` | "compiled successfully" |
+| Vite build | `npm run dev` | Successful Vite build |
 | PHPCS | `composer cs-check` | 0 violations in changed files |
 | PHPStan | `composer stan` | 1 known baseline error only |
 
@@ -45,11 +45,11 @@ PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 npm run test:ui
 | Change Type | Minimum Verification |
 |------------|---------------------|
 | PHP code (controller/model/service/policy) | PHPUnit + PHPCS + PHPStan |
-| JavaScript (Stimulus controller) | Jest + Webpack |
-| Template (.php view) | PHPUnit (feature tests) + Webpack |
+| JavaScript (Stimulus controller) | Jest + Vite build |
+| Template (.php view) | PHPUnit (feature tests) + Vite build |
 | Database migration | PHPUnit (full suite) + E2E |
 | Configuration change | Full verify.sh |
-| CSS/asset change | Webpack only |
+| CSS/asset change | Vite build only |
 
 ## Writing Tests for New Code
 
@@ -253,7 +253,7 @@ HTML report: `tests/mutation-reports/infection.html`
 |---------|----------|
 | PHPUnit "table not found" | Run `sudo bash reset_dev_database.sh` |
 | Jest "cannot find module" | Run `cd app && npm install` |
-| Webpack fails | Run `cd app && npm install && npm run dev` |
+| Vite build fails | Run `cd app && npm install && npm run dev` |
 | PHPCS violations | Run `composer cs-fix` to auto-fix |
 | PHPStan > 9 errors | Check if you introduced type errors; baseline handles pre-existing issues |
 | Playwright fails | Ensure server is running: `bash dev-up.sh` |

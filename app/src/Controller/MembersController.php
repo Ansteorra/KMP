@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
@@ -20,6 +19,9 @@ use App\Services\MemberProfileService;
 use App\Services\MemberRegistrationService;
 use App\Services\MemberSearchService;
 use App\Services\QuickLoginDeviceService;
+use App\Services\Security\RequestRateLimiter;
+use App\Services\ServiceResult;
+use App\Services\WorkflowEngine\TriggerDispatcher;
 use Authentication\PasswordHasher\DefaultPasswordHasher;
 use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Event\EventInterface;
@@ -28,10 +30,12 @@ use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
 use Cake\Http\Response;
 use Cake\I18n\DateTime;
+use Cake\Log\Log;
 use Cake\Mailer\MailerAwareTrait;
 use Cake\ORM\Query\SelectQuery;
 use Cake\Routing\Router;
 use Psr\Http\Message\UploadedFileInterface;
+use Throwable;
 
 /**
  * Manages member CRUD, authentication, profiles, and member discovery.
@@ -47,6 +51,7 @@ class MembersController extends AppController
     use QueuedMailerAwareTrait;
     use MailerAwareTrait;
     use DataverseGridTrait;
+    use WorkflowDispatchTrait;
 
     /**
      * @var array<string> Service injection configuration
@@ -66,6 +71,8 @@ class MembersController extends AppController
 
     /** Session key for deferred quick-login PIN setup. */
     private const QUICK_LOGIN_SETUP_SESSION_KEY = 'QuickLoginSetup';
+
+    private const PROFILE_PHOTO_CACHE_CONTROL = 'private, max-age=3600, must-revalidate';
 
     /**
      * Request-scoped flag to instruct login UI to clear stale quick-login config.
@@ -249,7 +256,22 @@ class MembersController extends AppController
         $previousPiiSetting = MembersGridColumns::setIncludePii($canViewPii);
 
         try {
-            $baseQuery = $this->Members->find()->contain(['Branches', 'Parents']);
+            $queryContext = $this->resolveDataverseGridQueryContext([
+                'gridKey' => 'Members.index.main',
+                'gridColumnsClass' => MembersGridColumns::class,
+                'defaultSort' => ['Members.sca_name' => 'asc'],
+            ]);
+            $contain = [];
+            if ($queryContext->loadsColumn('branch_id')) {
+                $contain[] = 'Branches';
+            }
+            if ($queryContext->loadsColumn('parent_id')) {
+                $contain[] = 'Parents';
+            }
+            $baseQuery = $this->Members->find();
+            if ($contain !== []) {
+                $baseQuery->contain($contain);
+            }
             $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
             // Use unified trait for grid processing (saved views mode)
             $result = $this->processDataverseGrid([
@@ -332,7 +354,7 @@ class MembersController extends AppController
 
         // Use unified trait for grid processing (system views mode)
         $result = $this->processDataverseGrid([
-            'gridKey' => "Members.roles.{$memberId}",
+            'gridKey' => 'Members.roles',
             'gridColumnsClass' => MemberRolesGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'MemberRoles',
@@ -402,7 +424,7 @@ class MembersController extends AppController
 
         // Use unified trait for grid processing (system views mode)
         $result = $this->processDataverseGrid([
-            'gridKey' => "Members.gatherings.{$memberId}",
+            'gridKey' => 'Members.gatherings',
             'gridColumnsClass' => GatheringAttendancesGridColumns::class,
             'baseQuery' => $this->fetchTable('GatheringAttendances')
                 ->find()
@@ -944,6 +966,7 @@ class MembersController extends AppController
             'marshal_auth_graphic' => StaticHelpers::getAppSetting(
                 'Member.ViewCard.Graphic',
             ),
+            'marshal_auth_graphic_data_uri' => $this->appSettingImageDataUri('Member.ViewCard.Graphic'),
             'marshal_auth_header_color' => StaticHelpers::getAppSetting(
                 'Member.ViewCard.HeaderColor',
             ),
@@ -1002,13 +1025,7 @@ class MembersController extends AppController
             ),
         ];
 
-        // Prepare watermark image for layout - build full URL for image
-        $graphicPath = WWW_ROOT . 'img' . DS . $message_variables['marshal_auth_graphic'];
-        if (file_exists($graphicPath)) {
-            $watermarkimg = 'data:image/gif;base64,' . base64_encode(file_get_contents($graphicPath));
-        } else {
-            $watermarkimg = null;
-        }
+        $watermarkimg = $this->appSettingImageDataUri('Member.ViewCard.Graphic');
 
         // Build card URL for member-mobile-card-profile controller
         $cardUrl = Router::url(['controller' => 'Members', 'action' => 'viewMobileCardJson'], true);
@@ -1039,7 +1056,7 @@ class MembersController extends AppController
      *
      * @return \\Cake\\Http\\Response|null|void
      */
-    public function add()
+    public function add(TriggerDispatcher $dispatcher)
     {
         $member = $this->Members->newEmptyEntity();
         $this->Authorization->authorize($member);
@@ -1080,46 +1097,70 @@ class MembersController extends AppController
             } else {
                 $member->status = Member::STATUS_ACTIVE;
             }
-            if ($this->Members->save($member)) {
-                if ($member->age < 18) {
-                    $this->Flash->success(__(
-                        'The Member has been saved and the minor '
-                            . 'registration email has been sent for '
-                            . 'verification.',
-                    ));
-                    $this->getMailer('KMP')->send('notifySecretaryOfNewMinorMember', [$member]);
-                } else {
-                    $this->Flash->success(__(
-                        'The Member has been saved. Please ask the '
-                            . "member to use 'forgot password' to set "
-                            . 'their password.',
-                    ));
-                }
+            $connection = $this->Members->getConnection();
+            $connection->begin();
 
-                return $this->redirect(['action' => 'view', $member->id]);
+            if (!$this->Members->save($member)) {
+                $connection->rollback();
+                $this->Flash->error(
+                    __('The Member could not be saved. Please, try again.'),
+                );
+                $this->setAddFormViewVars($member);
+
+                return null;
             }
-            $this->Flash->error(
-                __('The Member could not be saved. Please, try again.'),
-            );
-        }
-        $months = array_reduce(range(1, 12), function ($rslt, $m) {
-            $rslt[$m] = date('F', mktime(0, 0, 0, $m, 10));
 
-            return $rslt;
-        });
-        $years = array_combine(range(date('Y'), date('Y') - 130), range(date('Y'), date('Y') - 130));
-        $treeList = $this->Members->Branches
-            ->find('list', keyPath: function ($entity) {
-                return $entity->id . '|' . ($entity->can_have_members == 1 ? 'true' : 'false');
-            })
-            ->where(['can_have_members' => true])
-            ->orderBy(['name' => 'ASC'])->toArray();
-        $this->set(compact(
-            'member',
-            'treeList',
-            'months',
-            'years',
-        ));
+            try {
+                $results = $this->dispatchWorkflowOrFail(
+                    $dispatcher,
+                    'member-registration',
+                    'Members.Registered',
+                    [
+                        'memberId' => (int)$member->id,
+                        'memberPublicId' => (string)$member->public_id,
+                        'status' => (string)$member->status,
+                        'isMinor' => $member->age < 18,
+                        'source' => 'admin-add',
+                    ],
+                );
+                $workflowError = $this->extractWorkflowDispatchFailure(
+                    $results,
+                    'The member registration workflow could not be completed.',
+                );
+                if ($workflowError !== null) {
+                    $connection->rollback();
+                    $this->Flash->error(__($workflowError));
+                    $this->setAddFormViewVars($member);
+
+                    return null;
+                }
+            } catch (Throwable $e) {
+                $connection->rollback();
+                Log::error('Member registration workflow dispatch failed in add(): ' . $e->getMessage());
+                $this->Flash->error(__('The member registration workflow is not currently available.'));
+                $this->setAddFormViewVars($member);
+
+                return null;
+            }
+
+            $connection->commit();
+            if ($member->age < 18) {
+                $this->Flash->success(__(
+                    'The Member has been saved and the minor '
+                    . 'registration email has been sent for '
+                    . 'verification.',
+                ));
+            } else {
+                $this->Flash->success(__(
+                    'The Member has been saved. Please ask the '
+                    . "member to use 'forgot password' to set "
+                    . 'their password.',
+                ));
+            }
+
+            return $this->redirect(['action' => 'view', $member->id]);
+        }
+        $this->setAddFormViewVars($member);
     }
 
     /**
@@ -1188,7 +1229,7 @@ class MembersController extends AppController
      * @return \Cake\Http\Response|null Redirects to index.
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function delete(?string $id = null)
+    public function delete(TriggerDispatcher $dispatcher, ?string $id = null)
     {
         $this->request->allowMethod(['post', 'delete']);
         $member = $this->Members->get($id);
@@ -1197,9 +1238,13 @@ class MembersController extends AppController
         }
         $this->Authorization->authorize($member);
 
+        $memberId = (int)$id;
         $member->email_address = 'Deleted: ' . $member->email_address;
         if ($this->Members->delete($member)) {
             $this->Flash->success(__('The Member has been deleted.'));
+            $this->dispatchWorkflowEvent($dispatcher, 'Members.Deactivated', [
+                'member_id' => $memberId,
+            ]);
         } else {
             $this->Flash->error(
                 __('The Member could not be deleted. Please, try again.'),
@@ -1226,10 +1271,11 @@ class MembersController extends AppController
         }
         $this->Authorization->authorize($member);
         $url = $profileService->buildMobileCardUrl();
-        $vars = [
-            'url' => $url,
-        ];
-        $this->queueMail('KMP', 'mobileCard', $member->email_address, $vars);
+        $this->queueMail('KMP', 'sendFromTemplate', $member->email_address, [
+            '_templateId' => 'mobile-card-url',
+            'mobileCardUrl' => $url,
+            'siteAdminSignature' => StaticHelpers::getAppSetting('Email.SiteAdminSignature', '', null, true),
+        ]);
         $this->Flash->success(__('The email has been sent.'));
 
         return $this->redirect(['action' => 'view', $member->id]);
@@ -1392,12 +1438,7 @@ class MembersController extends AppController
             throw new NotFoundException();
         }
 
-        $response = $profileService->getProfilePhotoResponse($member, 'member_profile_photo_');
-        if ($response === null) {
-            throw new NotFoundException();
-        }
-
-        return $response;
+        return $this->serveProfilePhoto($profileService, $member, 'member_profile_photo_');
     }
 
     /**
@@ -1431,12 +1472,59 @@ class MembersController extends AppController
             throw new NotFoundException();
         }
 
-        $response = $profileService->getProfilePhotoResponse($member, 'member_mobile_card_photo_');
+        return $this->serveProfilePhoto($profileService, $member, 'member_mobile_card_photo_');
+    }
+
+    /**
+     * Serve a cached profile-photo thumbnail after action-level authorization.
+     */
+    private function serveProfilePhoto(
+        MemberProfileService $profileService,
+        Member $member,
+        string $filenamePrefix,
+    ): Response {
+        $etag = $profileService->getProfilePhotoEtag($member);
+        if ($this->requestEtagMatches($etag)) {
+            return $this->withProfilePhotoCacheHeaders(
+                (new Response())->withStatus(304),
+                $etag,
+            );
+        }
+
+        $response = $profileService->getProfilePhotoResponse($member, $filenamePrefix);
         if ($response === null) {
             throw new NotFoundException();
         }
 
-        return $response;
+        return $this->withProfilePhotoCacheHeaders($response, $etag);
+    }
+
+    /**
+     * Check If-None-Match using weak comparison semantics.
+     */
+    private function requestEtagMatches(string $etag): bool
+    {
+        $requestEtags = explode(',', $this->request->getHeaderLine('If-None-Match'));
+        foreach ($requestEtags as $requestEtag) {
+            $requestEtag = trim($requestEtag);
+            if ($requestEtag === '*' || $requestEtag === $etag || $requestEtag === 'W/' . $etag) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Apply private browser caching and content hardening headers.
+     */
+    private function withProfilePhotoCacheHeaders(Response $response, string $etag): Response
+    {
+        return $response
+            ->withHeader('Cache-Control', self::PROFILE_PHOTO_CACHE_CONTROL)
+            ->withHeader('ETag', $etag)
+            ->withHeader('Vary', 'Cookie')
+            ->withHeader('X-Content-Type-Options', 'nosniff');
     }
 
     /**
@@ -1587,9 +1675,15 @@ class MembersController extends AppController
     /**
      * Search members.
      */
-    public function searchMembers(MemberSearchService $searchService)
+    public function searchMembers(MemberSearchService $searchService, RequestRateLimiter $rateLimiter)
     {
         $this->Authorization->skipAuthorization();
+
+        $rateLimited = $this->enforcePublicLookupRateLimit($rateLimiter, RequestRateLimiter::BUCKET_SEARCH_MEMBERS);
+        if ($rateLimited !== null) {
+            return $rateLimited;
+        }
+
         $this->request->allowMethod(['get']);
         $this->viewBuilder()->setClassName('Ajax');
         $variants = $searchService->buildThornVariants($this->request->getQuery('q'));
@@ -1640,6 +1734,7 @@ class MembersController extends AppController
                 'controller' => 'Members',
                 'action' => 'profilePhoto',
                 $member->id,
+                '?' => ['v' => (int)$member->profile_photo_document_id],
             ], true);
         } else {
             $member->profile_photo_url = null;
@@ -1701,6 +1796,7 @@ class MembersController extends AppController
             $member->profile_photo_url = Router::url([
                 'controller' => 'Members',
                 'action' => 'mobileCardPhoto',
+                '?' => ['v' => (int)$member->profile_photo_document_id],
             ], true);
         } else {
             $member->profile_photo_url = null;
@@ -1754,9 +1850,15 @@ class MembersController extends AppController
     /**
      * Email taken.
      */
-    public function emailTaken(MemberSearchService $searchService)
+    public function emailTaken(MemberSearchService $searchService, RequestRateLimiter $rateLimiter)
     {
         $this->Authorization->skipAuthorization();
+
+        $rateLimited = $this->enforcePublicLookupRateLimit($rateLimiter, RequestRateLimiter::BUCKET_EMAIL_TAKEN);
+        if ($rateLimited !== null) {
+            return $rateLimited;
+        }
+
         $this->request->allowMethod(['get']);
         $this->viewBuilder()->setClassName('Ajax');
         $result = $searchService->isEmailTaken($this->request->getQuery('email'));
@@ -1765,6 +1867,30 @@ class MembersController extends AppController
             ->withStringBody(json_encode($result));
 
         return $this->response;
+    }
+
+    /**
+     * Apply rate limits to anonymous member lookup helpers.
+     *
+     * @param \App\Services\Security\RequestRateLimiter $rateLimiter Rate limiter
+     * @param string $bucket Rate-limit bucket
+     * @return \Cake\Http\Response|null 429 response when limited, otherwise null
+     */
+    private function enforcePublicLookupRateLimit(RequestRateLimiter $rateLimiter, string $bucket): ?Response
+    {
+        $clientIp = $this->request->clientIp();
+        $result = $rateLimiter->attempt($bucket, $clientIp ?? 'unknown');
+        if ($result->allowed) {
+            return null;
+        }
+
+        return $this->response
+            ->withStatus(429)
+            ->withType('application/json')
+            ->withHeader('Retry-After', (string)$result->retryAfterSeconds)
+            ->withStringBody(json_encode([
+                'error' => 'Too many requests. Please try again later.',
+            ]));
     }
 
     #endregion
@@ -1818,12 +1944,15 @@ class MembersController extends AppController
                 (string)$this->request->getData('email_address'),
             );
             if ($result['found']) {
-                $vars = ['url' => $result['resetUrl']];
-                $this->queueMail('KMP', 'resetPassword', $result['email'], $vars);
+                $this->queueMail('KMP', 'sendFromTemplate', $result['email'], [
+                    '_templateId' => 'password-reset',
+                    'email' => $result['email'],
+                    'passwordResetUrl' => $result['resetUrl'],
+                    'siteAdminSignature' => StaticHelpers::getAppSetting('Email.SiteAdminSignature', '', null, true),
+                ]);
                 $this->Flash->success(
                     __(
-                        'Password reset request sent to ' .
-                            $result['email'],
+                        'If your email is on file, a password reset link has been sent.',
                     ),
                 );
 
@@ -2404,7 +2533,7 @@ class MembersController extends AppController
     /**
      * Register.
      */
-    public function register(MemberRegistrationService $regService)
+    public function register(MemberRegistrationService $regService, TriggerDispatcher $dispatcher)
     {
         $allowRegistration = StaticHelpers::getAppSetting(
             'KMP.EnablePublicRegistration',
@@ -2425,7 +2554,7 @@ class MembersController extends AppController
                 $uploadResult = $regService->processCardUpload($file);
                 if (!$uploadResult['success']) {
                     $this->Flash->error($uploadResult['message']);
-                    $this->set(compact('member'));
+                    $this->setRegisterFormViewVars($member);
 
                     return;
                 }
@@ -2440,24 +2569,52 @@ class MembersController extends AppController
 
                 return $this->redirect(['action' => 'login']);
             }
+            $connection = $this->Members->getConnection();
+            $connection->begin();
+
             if ($regService->saveMember($member)) {
-                if ($member->age > 17) {
-                    $emailVars = $regService->buildAdultRegistrationEmailVars($member);
-                    $this->queueMail('KMP', 'newRegistration', $member->email_address, $emailVars['registrationVars']);
-                    $this->queueMail(
-                        'KMP',
-                        'notifySecretaryOfNewMember',
-                        $member->email_address,
-                        $emailVars['secretaryVars'],
+                try {
+                    $results = $this->dispatchWorkflowOrFail(
+                        $dispatcher,
+                        'member-registration',
+                        'Members.Registered',
+                        [
+                            'memberId' => (int)$member->id,
+                            'memberPublicId' => (string)$member->public_id,
+                            'status' => (string)$member->status,
+                            'isMinor' => $member->age <= 17,
+                            'source' => 'self-register',
+                        ],
                     );
+                    $workflowError = $this->extractWorkflowDispatchFailure(
+                        $results,
+                        'The member registration workflow could not be completed.',
+                    );
+                    if ($workflowError !== null) {
+                        $connection->rollback();
+                        $this->Flash->error(__($workflowError));
+                        $this->setRegisterFormViewVars($member);
+
+                        return;
+                    }
+                } catch (Throwable $e) {
+                    $connection->rollback();
+                    Log::error('Member registration workflow dispatch failed in register(): ' . $e->getMessage());
+                    $this->Flash->error(__('The member registration workflow is not currently available.'));
+                    $this->setRegisterFormViewVars($member);
+
+                    return;
+                }
+
+                $connection->commit();
+
+                if ($member->age > 17) {
                     $this->Flash->success(__(
                         'Your registration has been submitted. '
                             . 'Please check your email for a link '
                             . 'to set up your password.',
                     ));
                 } else {
-                    $secretaryVars = $regService->buildMinorRegistrationEmailVars($member);
-                    $this->queueMail('KMP', 'notifySecretaryOfNewMinorMember', $member->email_address, $secretaryVars);
                     $this->Flash->success(__(
                         'Your registration has been submitted. '
                             . 'The Kingdom Secretary will need to '
@@ -2468,10 +2625,91 @@ class MembersController extends AppController
 
                 return $this->redirect(['action' => 'login']);
             }
+
+            $connection->rollback();
             $this->Flash->error(
                 __('The Member could not be saved. Please, try again.'),
             );
         }
+        $this->setRegisterFormViewVars($member);
+    }
+
+    /**
+     * Extract the first workflow dispatch failure from trigger results.
+     *
+     * @param array<int, mixed> $results Workflow dispatch results.
+     * @param string $defaultMessage Fallback error message.
+     * @return string|null
+     */
+    private function extractWorkflowDispatchFailure(array $results, string $defaultMessage): ?string
+    {
+        if ($results === []) {
+            return $defaultMessage;
+        }
+
+        foreach ($results as $result) {
+            if ($result instanceof ServiceResult) {
+                if (!$result->success) {
+                    return $result->reason ?? $defaultMessage;
+                }
+
+                $workflowResult = is_array($result->data ?? null)
+                    ? ($result->data['workflowResult'] ?? null)
+                    : null;
+                if (
+                    is_array($workflowResult)
+                    && array_key_exists('success', $workflowResult)
+                    && $workflowResult['success'] === false
+                ) {
+                    return (string)($workflowResult['error'] ?? $workflowResult['reason'] ?? $defaultMessage);
+                }
+
+                continue;
+            }
+
+            if (
+                is_array($result)
+                && array_key_exists('success', $result)
+                && $result['success'] === false
+            ) {
+                return (string)($result['error'] ?? $result['reason'] ?? $defaultMessage);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Populate shared view vars for the admin add-member form.
+     *
+     * @param \App\Model\Entity\Member $member Current form entity
+     * @return void
+     */
+    private function setAddFormViewVars(Member $member): void
+    {
+        $months = array_reduce(range(1, 12), function ($rslt, $m) {
+            $rslt[$m] = date('F', mktime(0, 0, 0, $m, 10));
+
+            return $rslt;
+        });
+        $years = array_combine(range(date('Y'), date('Y') - 130), range(date('Y'), date('Y') - 130));
+        $treeList = $this->Members->Branches
+            ->find('list', keyPath: function ($entity) {
+                return $entity->id . '|' . ($entity->can_have_members == 1 ? 'true' : 'false');
+            })
+            ->where(['can_have_members' => true])
+            ->orderBy(['name' => 'ASC'])->toArray();
+        $this->set(compact('member', 'treeList', 'months', 'years'));
+    }
+
+    /**
+     * Populate shared view vars for the public registration form.
+     *
+     * @param \App\Model\Entity\Member $member Current form entity
+     * @return void
+     */
+    private function setRegisterFormViewVars(Member $member): void
+    {
         $headerImage = StaticHelpers::getAppSetting(
             'KMP.Login.Graphic',
         );
@@ -2551,7 +2789,7 @@ class MembersController extends AppController
      *
      * @param mixed $id
      */
-    public function verifyMembership($id = null)
+    public function verifyMembership(TriggerDispatcher $dispatcher, $id = null)
     {
         $member = $this->Members->get($id);
         $this->Authorization->authorize($member);
@@ -2649,6 +2887,10 @@ class MembersController extends AppController
                 );
                 $this->redirect(['action' => 'view', $member->id]);
             }
+            $this->dispatchWorkflowEvent($dispatcher, 'Members.MembershipVerified', [
+                'member_id' => $member->id,
+                'verified_by' => $this->Authentication->getIdentity()->getIdentifier(),
+            ]);
             if ($image != null && $deleteImage) {
                 $image = WWW_ROOT . '../images/uploaded/' . $image;
                 $member->membership_card_path = null;
@@ -2700,4 +2942,39 @@ class MembersController extends AppController
     }
 
     #endregion
+
+    /**
+     * Build a data URI for an image app setting, supporting legacy filenames.
+     *
+     * @param string $settingName App setting name
+     * @return string|null
+     */
+    private function appSettingImageDataUri(string $settingName): ?string
+    {
+        $appSettings = $this->fetchTable('AppSettings');
+        $payload = $appSettings->getAssetPayload($settingName);
+        if ($payload !== null) {
+            return sprintf('data:%s;base64,%s', (string)$payload['mime'], (string)$payload['data']);
+        }
+
+        $value = StaticHelpers::getAppSetting($settingName);
+        if (!is_string($value) || $value === '' || str_starts_with($value, '/')) {
+            return null;
+        }
+
+        $path = WWW_ROOT . 'img' . DS . $value;
+        if (!is_file($path)) {
+            return null;
+        }
+
+        $contents = file_get_contents($path);
+        if ($contents === false) {
+            return null;
+        }
+
+        $mime = getimagesize($path);
+        $mimeType = is_array($mime) && isset($mime['mime']) ? (string)$mime['mime'] : 'image/png';
+
+        return sprintf('data:%s;base64,%s', $mimeType, base64_encode($contents));
+    }
 }

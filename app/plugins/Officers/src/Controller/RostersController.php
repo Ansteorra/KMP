@@ -1,6 +1,7 @@
 <?php
-
 declare(strict_types=1);
+
+// phpcs:disable Generic.Files.LineLength.TooLong
 
 namespace Officers\Controller;
 
@@ -12,12 +13,12 @@ namespace Officers\Controller;
  * @property \Officers\Model\Table\OfficersTable $Officers
  */
 
-use Cake\ORM\TableRegistry;
-use Cake\I18n\DateTime;
 use App\Services\WarrantManager\WarrantManagerInterface;
 use App\Services\WarrantManager\WarrantRequest;
-use App\Services\ServiceResult;
+use Cake\I18n\DateTime;
+use Cake\ORM\TableRegistry;
 use Officers\Model\Entity\Officer;
+use stdClass;
 
 class RostersController extends AppController
 {
@@ -50,7 +51,7 @@ class RostersController extends AppController
             ->select(['id', 'start_date', 'end_date'])
             ->where(['end_date >=' => DateTime::now()])
             ->all();
-        $warrantPeriods = ["-1" => "Select Warrant Period"];
+        $warrantPeriods = ['-1' => 'Select Warrant Period'];
         $warrantPeriod = null;
         $department = null;
         foreach ($warrantPeriodsQuery as $warrantPeriod) {
@@ -70,15 +71,16 @@ class RostersController extends AppController
                     'Offices' => function ($q) use ($warrantOnly) {
                         $q = $q->select(['id', 'name', 'department_id', 'requires_warrant'])
                             ->where(['requires_warrant' => 1]);
+
                         return $q;
                     },
                     'Offices.Officers' => function ($q) use ($warrantPeriodObj) {
                         return $q->where([
                             'Officers.status IN' => [Officer::CURRENT_STATUS, Officer::UPCOMING_STATUS],
-                            "or" => [
-                                "Officers.expires_on >=" => $warrantPeriodObj->start_date,
-                                "Officers.expires_on IS" => null
-                            ]
+                            'or' => [
+                                'Officers.expires_on >=' => $warrantPeriodObj->start_date,
+                                'Officers.expires_on IS' => null,
+                            ],
                         ]);
                     },
                     'Offices.Officers.Members' => function ($q) {
@@ -97,7 +99,7 @@ class RostersController extends AppController
                             'zip',
                             'warrantable',
                             'birth_month',
-                            'birth_year'
+                            'birth_year',
                         ]);
                     },
                     'Offices.Officers.Branches' => function ($q) {
@@ -105,12 +107,12 @@ class RostersController extends AppController
                     },
                     'Offices.Officers.Offices' => function ($q) {
                         return $q->select(['name']);
-                    }
+                    },
                 ]);
             $deptTempData = $deptTempQuery->all();
             //organize the data so we can display it in the view departmentData should have the department name, id, and then an array of officers called dept_officers
             foreach ($deptTempData as $dept) {
-                $deptData = new \stdClass();
+                $deptData = new stdClass();
                 $deptData->name = $dept->name;
                 $deptData->id = $dept->id;
                 $deptData->dept_officers = [];
@@ -127,7 +129,7 @@ class RostersController extends AppController
                         $officer->end_date_message = [];
                         if ($officer->member->membership_expires_on < $warrantPeriodObj->start_date) {
                             $officer->danger = true;
-                            $officer->start_date_message[] = "Membership will be expired before Warrant Start";
+                            $officer->start_date_message[] = 'Membership will be expired before Warrant Start';
                         }
                         //TODO: Reactiviate when we have reliable membership date
                         //if ($officer->member->membership_expires_on < $officer->new_warrant_exp_date) {
@@ -149,13 +151,14 @@ class RostersController extends AppController
                     if ($a->branch->name == $b->branch->name) {
                         return $a->office->name <=> $b->office->name;
                     }
+
                     return $a->branch->name <=> $b->branch->name;
                 });
                 $departmentsData[] = $deptData;
             }
         }
         $departmentQuery = $departmentTbl->find()->orderBy(['name' => 'ASC']);
-        $departmentList = ["-1" => "Select Department"];
+        $departmentList = ['-1' => 'Select Department'];
         foreach ($departmentQuery as $dept) {
             $departmentList[$dept->id] = $dept->name;
         }
@@ -176,22 +179,32 @@ class RostersController extends AppController
         $officerTbl = TableRegistry::getTableLocator()->get('Officers.Officers');
         $department = TableRegistry::getTableLocator()->get('Officers.Departments')->get($data['department']);
         $warrantPeriod = TableRegistry::getTableLocator()->get('WarrantPeriods')->get($data['warrantPeriod']);
+        $selectedOfficerIds = array_values(array_unique(array_map('intval', (array)$data['check_list'])));
         $officers = $officerTbl->find()
             ->where([
-                'Officers.id IN' => $data['check_list']
+                'Officers.id IN' => $selectedOfficerIds,
             ])
             ->contain([
                 'Offices',
                 'Branches',
                 'Members' => function ($q) {
                     return $q->select(['id', 'warrantable', 'membership_expires_on']);
-                }
+                },
             ])
             ->all();
-        $officerData = [];
         $warrants = [];
         $user = $this->Authentication->getIdentity();
+        if ($officers->count() !== count($selectedOfficerIds)) {
+            $this->Flash->error(__('One or more selected officers could not be found.'));
+
+            return $this->redirect($this->referer());
+        }
         foreach ($officers as $officer) {
+            if (!$user->checkCan('requestWarrant', $officer)) {
+                $this->Flash->error(__('You are not authorized to create warrants for one or more selected officers.'));
+
+                return $this->redirect($this->referer());
+            }
             $startOn = new DateTime($warrantPeriod->start_date->toDateTimeString());
             if ($officer->start_on > $startOn) {
                 $startOn = $officer->start_on;
@@ -201,22 +214,29 @@ class RostersController extends AppController
                 $endOn = $officer->expires_on;
             }
             $warrants[] = new WarrantRequest(
-                "Renewal: " . $officer->branch->name . " " . $officer->office->name,
+                'Renewal: ' . $officer->branch->name . ' ' . $officer->office->name,
                 'Officers.Officers',
                 $officer->id,
                 $user->id,
                 $officer->member_id,
                 $startOn,
                 $endOn,
-                $officer->granted_member_role_id
+                $officer->granted_member_role_id,
             );
         }
-        $wmResult = $warrantManager->request("$department->name roster for " . $warrantPeriod->name, "", $warrants);
+        if ($warrants === []) {
+            $this->Flash->error(__('You are not authorized to create warrants for the selected officers.'));
+
+            return $this->redirect($this->referer());
+        }
+        $wmResult = $warrantManager->request("$department->name roster for " . $warrantPeriod->name, '', $warrants, $user->id);
         if (!$wmResult->success) {
             $this->Flash->error($wmResult->reason);
-            return $this->redirect->referer();
+
+            return $this->redirect($this->referer());
         }
-        $this->Flash->success("Roster Created");
+        $this->Flash->success('Roster Created');
+
         return $this->redirect(['plugin' => null, 'controller' => 'warrant-rosters', 'action' => 'view', $wmResult->data]);
     }
 }

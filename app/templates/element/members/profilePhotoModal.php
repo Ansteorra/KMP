@@ -23,8 +23,14 @@ if ($canPartialEdit) {
 echo $this->Modal->create(__("Update Profile Photo"), [
     "id" => "profilePhotoModal",
     "close" => true,
+    "form" => true,
+    "size" => "modal-lg",
 ]); ?>
-<fieldset>
+<fieldset class="border rounded-3 bg-white shadow-sm p-3">
+    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+        <i class="bi bi-person-square text-primary me-1" aria-hidden="true"></i>
+        <?= __("Profile Photo") ?>
+    </legend>
     <?php if ($canPartialEdit): ?>
     <div class="mb-3 form-group">
         <label class="form-label"><?= __("Upload Face Photo") ?></label>

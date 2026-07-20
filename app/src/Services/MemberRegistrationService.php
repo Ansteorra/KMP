@@ -154,11 +154,13 @@ class MemberRegistrationService
      */
     public function assignStatusAndTokens(Member $member): void
     {
-        if ($member->age > 17) {
+        if ($member->age > 17 && empty($member->password_token)) {
             $member->password_token = StaticHelpers::generateToken(32);
             $member->password_token_expires_on = DateTime::now()->addDays(1);
         }
-        $member->password = StaticHelpers::generateToken(12);
+        if (empty($member->password)) {
+            $member->password = StaticHelpers::generateToken(12);
+        }
 
         if ($member->age > 17) {
             $member->status = Member::STATUS_ACTIVE;
@@ -186,31 +188,27 @@ class MemberRegistrationService
      */
     public function buildAdultRegistrationEmailVars(Member $member): array
     {
-        $resetUrl = Router::url([
-            'controller' => 'Members',
-            'action' => 'resetPassword',
-            'plugin' => null,
-            '_full' => true,
-            $member->password_token,
-        ]);
+        $siteAdminSignature = StaticHelpers::getAppSetting('Email.SiteAdminSignature', '', null, true);
+        $portalName = StaticHelpers::getAppSetting('KMP.LongSiteTitle', '', null, true);
+        $resetUrl = '';
+        if (!empty($member->password_token)) {
+            $resetUrl = Router::url('/members/reset-password/' . $member->password_token, true);
+        }
 
         $registrationVars = [
-            'url' => $resetUrl,
-            'sca_name' => $member->sca_name,
+            'passwordResetUrl' => $resetUrl,
+            'memberScaName' => $member->sca_name,
+            'portalName' => $portalName,
+            'siteAdminSignature' => $siteAdminSignature,
         ];
 
-        $viewUrl = Router::url([
-            'controller' => 'Members',
-            'action' => 'view',
-            'plugin' => null,
-            '_full' => true,
-            $member->id,
-        ]);
+        $viewUrl = Router::url('/members/view/' . $member->id, true);
 
         $secretaryVars = [
-            'url' => $viewUrl,
-            'sca_name' => $member->sca_name,
-            'membershipCardPresent' => !empty($member->membership_card_path),
+            'memberViewUrl' => $viewUrl,
+            'memberScaName' => $member->sca_name,
+            'memberCardPresent' => !empty($member->membership_card_path) ? 'uploaded' : 'not uploaded',
+            'siteAdminSignature' => $siteAdminSignature,
         ];
 
         return [
@@ -228,18 +226,14 @@ class MemberRegistrationService
      */
     public function buildMinorRegistrationEmailVars(Member $member): array
     {
-        $viewUrl = Router::url([
-            'controller' => 'Members',
-            'action' => 'view',
-            'plugin' => null,
-            '_full' => true,
-            $member->id,
-        ]);
+        $siteAdminSignature = StaticHelpers::getAppSetting('Email.SiteAdminSignature', '', null, true);
+        $viewUrl = Router::url('/members/view/' . $member->id, true);
 
         return [
-            'url' => $viewUrl,
-            'sca_name' => $member->sca_name,
-            'membershipCardPresent' => !empty($member->membership_card_path),
+            'memberViewUrl' => $viewUrl,
+            'memberScaName' => $member->sca_name,
+            'memberCardPresent' => !empty($member->membership_card_path) ? 'uploaded' : 'not uploaded',
+            'siteAdminSignature' => $siteAdminSignature,
         ];
     }
 }

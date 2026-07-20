@@ -26,7 +26,7 @@ $gridFrameId = 'activity-awards-grid-' . $gatheringActivity->id;
         </div>
 
         <?= $this->element('dv_grid', [
-            'gridKey' => 'Awards.Awards.activity.' . $gatheringActivity->id,
+            'gridKey' => 'Awards.Awards.activity',
             'frameId' => $gridFrameId,
             'dataUrl' => $this->Url->build([
                 'plugin' => 'Awards',
@@ -55,8 +55,10 @@ $gridFrameId = 'activity-awards-grid-' . $gatheringActivity->id;
     <?= $this->Modal->create('Add Award', [
         'id' => 'addAwardModal',
         'close' => true,
+        'form' => true,
+        'size' => 'modal-lg',
     ]) ?>
-    <div class="mb-3">
+    <div class="border rounded-3 bg-white shadow-sm p-3">
         <label for="award_id" class="form-label"><?= __('Select Award') ?></label>
         <?= $this->Form->control('award_id', [
             'options' => $availableAwards,

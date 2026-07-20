@@ -1,0 +1,41 @@
+---
+description: CakePHP and PHP conventions for KMP
+globs: app/**/*.php
+alwaysApply: false
+---
+
+# KMP PHP Conventions
+
+Follow CakePHP 5.x patterns. Full examples: `.github/copilot-instructions.md`.
+
+## Structure
+
+- Controllers: thin — orchestrate services, authorize, render
+- Services: `app/src/Services/` or `plugins/*/src/Services/` for business logic
+- Policies: `canAccess`, `canEdit`, `canDelete` in `src/Policy/` and plugin policies
+- Migrations: `bin/cake bake migration Name`; never edit committed migrations
+
+## Standards
+
+```php
+<?php
+declare(strict_types=1);
+```
+
+- PSR-12 via PHPCS (CakePHP ruleset); 4 spaces; 120 char lines
+- Type hints on parameters and returns; PHPDoc for classes/methods
+- Inline docs explain *why*; usage examples belong in `docs/`
+
+## Mailers
+
+Pre-format dates with `TimezoneHelper` before passing to mailers — templates display strings only.
+
+## Authorization
+
+Call `$this->Authorization->authorizeModel()` in controller `initialize()` for model-level checks.
+
+## Testing
+
+- Extend `HttpIntegrationTestCase` for controller tests (CSRF, security token, auth helpers)
+- Extend `BaseTestCase` for unit/service tests
+- Plugin tests: `PluginIntegrationTestCase` with `PLUGIN_NAME` constant

@@ -210,14 +210,13 @@ describe('CodeEditorController', () => {
     });
 
     // beforeSubmit
-    test('beforeSubmit prevents submission on errors with confirm false', () => {
-        global.confirm = jest.fn(() => false);
+    test('beforeSubmit prevents submission on errors with confirm false', async () => {
+        window.KMP_accessibility.confirm.mockResolvedValue(false);
         controller.languageValue = 'json';
         controller.textareaTarget.value = '{invalid';
         const event = { preventDefault: jest.fn() };
-        controller.beforeSubmit(event);
+        await controller.beforeSubmit(event);
         expect(event.preventDefault).toHaveBeenCalled();
-        delete global.confirm;
     });
 
     test('beforeSubmit allows submission when valid', () => {
@@ -228,14 +227,16 @@ describe('CodeEditorController', () => {
         expect(event.preventDefault).not.toHaveBeenCalled();
     });
 
-    test('beforeSubmit allows submission on errors with confirm true', () => {
-        global.confirm = jest.fn(() => true);
+    test('beforeSubmit resubmits on errors with confirm true', async () => {
+        window.KMP_accessibility.confirm.mockResolvedValue(true);
         controller.languageValue = 'json';
         controller.textareaTarget.value = '{invalid';
-        const event = { preventDefault: jest.fn() };
-        controller.beforeSubmit(event);
-        expect(event.preventDefault).not.toHaveBeenCalled();
-        delete global.confirm;
+        const form = document.createElement('form');
+        form.requestSubmit = jest.fn();
+        const event = { preventDefault: jest.fn(), target: form };
+        await controller.beforeSubmit(event);
+        expect(event.preventDefault).toHaveBeenCalled();
+        expect(form.requestSubmit).toHaveBeenCalled();
     });
 
     // disconnect

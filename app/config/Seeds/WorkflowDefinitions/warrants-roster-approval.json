@@ -1,0 +1,140 @@
+{
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
+    "nodes": {
+        "trigger-roster": {
+            "type": "trigger",
+            "label": "Warrant Roster Created",
+            "config": {
+                "event": "Warrants.RosterCreated",
+                "entityIdField": "rosterId"
+            },
+            "position": {
+                "x": 50,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "approval-gate"
+                }
+            ]
+        },
+        "approval-gate": {
+            "type": "approval",
+            "label": "Warrant Roster Approval",
+            "config": {
+                "approverType": "policy",
+                "permission": "Can Approve Warrant Rosters",
+                "policyClass": "App\\Policy\\WarrantRosterPolicy",
+                "policyAction": "canApprove",
+                "entityTable": "WarrantRosters",
+                "entityIdKey": "trigger.rosterId",
+                "requiredCount": {
+                    "type": "app_setting",
+                    "key": "Warrant.RosterApprovalsRequired"
+                },
+                "parallel": true,
+                "deadline": "14d",
+                "allowComments": true
+            },
+            "position": {
+                "x": 350,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "approved",
+                    "target": "activate-warrants"
+                },
+                {
+                    "port": "rejected",
+                    "target": "decline-roster"
+                }
+            ]
+        },
+        "activate-warrants": {
+            "type": "action",
+            "label": "Activate Warrants",
+            "config": {
+                "action": "Warrants.ActivateWarrants",
+                "params": {
+                    "rosterId": "$.trigger.rosterId"
+                }
+            },
+            "position": {
+                "x": 650,
+                "y": 100
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "notify-each-warrant"
+                }
+            ]
+        },
+        "notify-each-warrant": {
+            "type": "action",
+            "label": "Notify Each Warrant Holder",
+            "config": {
+                "action": "Warrants.NotifyWarrantIssued",
+                "params": {
+                    "rosterId": "$.trigger.rosterId"
+                }
+            },
+            "position": {
+                "x": 950,
+                "y": 100
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "end-approved"
+                }
+            ]
+        },
+        "decline-roster": {
+            "type": "action",
+            "label": "Decline Warrants",
+            "config": {
+                "action": "Warrants.DeclineRoster",
+                "params": {
+                    "rosterId": "$.trigger.rosterId",
+                    "reason": "$.nodes.approval-gate.comment",
+                    "rejecterId": "$.nodes.approval-gate.approverId"
+                }
+            },
+            "position": {
+                "x": 650,
+                "y": 300
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "end-declined"
+                }
+            ]
+        },
+        "end-approved": {
+            "type": "end",
+            "label": "Roster Approved",
+            "config": {},
+            "position": {
+                "x": 1250,
+                "y": 100
+            },
+            "outputs": []
+        },
+        "end-declined": {
+            "type": "end",
+            "label": "Roster Declined",
+            "config": {},
+            "position": {
+                "x": 950,
+                "y": 300
+            },
+            "outputs": []
+        }
+    },
+    "startNode": "trigger-roster"
+}

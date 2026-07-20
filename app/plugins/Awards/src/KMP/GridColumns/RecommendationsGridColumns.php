@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Awards\KMP\GridColumns;
 
 use App\KMP\GridColumns\BaseGridColumns;
-use App\KMP\StaticHelpers;
 use Awards\Model\Entity\Recommendation;
+use Cake\I18n\DateTime;
+use Cake\ORM\Query\SelectQuery;
+use Cake\ORM\TableRegistry;
 
 /**
  * Recommendations Grid Column Metadata
@@ -43,12 +45,34 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'class' => 'btn-sm btn btn-primary edit-rec',
                 'modalTarget' => '#editRecommendationModal',
                 'permission' => 'edit',
+                'condition' => [
+                    'bestowal_linked' => false,
+                ],
                 'dataAttributes' => [
                     'controller' => 'outlet-btn',
                     'action' => 'click->outlet-btn#fireNotice',
                     'outlet-btn-btn-data-value' => [
                         'id' => 'id',
                     ],
+                ],
+            ],
+            'bestowal' => [
+                'key' => 'bestowal',
+                'type' => 'link',
+                'label' => '',
+                'icon' => 'bi-award-fill',
+                'class' => 'btn-sm btn btn-outline-primary',
+                'permission' => 'view',
+                'title' => 'Open linked bestowal',
+                'ariaLabel' => 'Open linked bestowal',
+                'condition' => [
+                    'bestowal_viewable' => true,
+                ],
+                'url' => [
+                    'plugin' => 'Awards',
+                    'controller' => 'Bestowals',
+                    'action' => 'view',
+                    'idField' => 'bestowal_id',
                 ],
             ],
             'view' => [
@@ -63,6 +87,46 @@ class RecommendationsGridColumns extends BaseGridColumns
                     'controller' => 'Recommendations',
                     'action' => 'view',
                     'idField' => 'id',
+                ],
+            ],
+            'workflow-decision' => [
+                'key' => 'workflow-decision',
+                'type' => 'modal',
+                'label' => '',
+                'icon' => 'bi-check2-circle',
+                'class' => 'btn-sm btn btn-success',
+                'modalTarget' => '#recommendationWorkflowDecisionModal',
+                'title' => 'Approve or decline recommendation workflow',
+                'ariaLabel' => 'Approve or decline recommendation workflow',
+                'condition' => [
+                    'can_workflow_decide' => true,
+                ],
+                'dataAttributes' => [
+                    'controller' => 'outlet-btn',
+                    'action' => 'click->outlet-btn#fireNotice',
+                    'outlet-btn-btn-data-value' => [
+                        'id' => 'id',
+                        'approvalId' => 'pending_approval_id',
+                        'approverConfig' => 'pending_approval_approver_config',
+                        'requiredCount' => 'pending_approval_required_count',
+                        'approvedCount' => 'pending_approval_approved_count',
+                    ],
+                ],
+            ],
+            'request-feedback' => [
+                'key' => 'request-feedback',
+                'type' => 'modal',
+                'label' => '',
+                'icon' => 'bi-chat-left-text',
+                'class' => 'btn-sm btn btn-outline-primary',
+                'modalTarget' => '#requestRecommendationFeedbackModal',
+                'permission' => 'requestFeedback',
+                'dataAttributes' => [
+                    'controller' => 'outlet-btn',
+                    'action' => 'click->outlet-btn#fireNotice',
+                    'outlet-btn-btn-data-value' => [
+                        'id' => 'id',
+                    ],
                 ],
             ],
         ];
@@ -88,6 +152,28 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'defaultVisible' => false,
                 'width' => '60px',
                 'alignment' => 'right',
+            ],
+
+            'group_children_count' => [
+                'key' => 'group_children_count',
+                'label' => '',
+                'type' => 'number',
+                'sortable' => false,
+                'filterable' => false,
+                'defaultVisible' => true,
+                'width' => '80px',
+                'alignment' => 'center',
+                'description' => 'Total recommendations in this group (including the head)',
+                'clickAction' => 'toggleSubRow:group-children',
+                'clickActionUrl' => '/awards/recommendations/group-children/:id',
+                'cellRenderer' => function ($value, $row, $view) {
+                    $count = (int)($value ?? 0);
+                    if ($count === 0) {
+                        return '';
+                    }
+
+                    return '<span class="badge bg-info">' . $count . '</span>';
+                },
             ],
 
             'created' => [
@@ -458,6 +544,59 @@ class RecommendationsGridColumns extends BaseGridColumns
                 // Filter options are generated dynamically based on permissions
             ],
 
+            'approval_queue' => [
+                'key' => 'approval_queue',
+                'label' => 'Approval Workflow',
+                'type' => 'relation',
+                'sortable' => true,
+                'searchable' => false,
+                'filterable' => true,
+                'filterType' => 'text',
+                'defaultVisible' => true,
+                'width' => '160px',
+                'alignment' => 'left',
+                'renderField' => 'current_approval_run.current_step_label',
+                'queryField' => 'CurrentApprovalRun.current_step_label',
+                'description' => 'Current workflow approval step, when this recommendation is under active approval',
+            ],
+
+            'approval_queue_present' => [
+                'key' => 'approval_queue_present',
+                'label' => 'Has Approval Workflow',
+                'type' => 'number',
+                'sortable' => false,
+                'filterable' => true,
+                'filterType' => 'is-populated',
+                'defaultVisible' => false,
+                'exportable' => false,
+                'queryField' => 'CurrentApprovalRun.id',
+                'description' => 'Whether this recommendation has an active approval workflow',
+            ],
+
+            'bestowal_linked' => [
+                'key' => 'bestowal_linked',
+                'label' => 'Linked to Bestowal',
+                'type' => 'number',
+                'sortable' => false,
+                'filterable' => true,
+                'filterType' => 'is-populated',
+                'defaultVisible' => false,
+                'exportable' => false,
+                'queryField' => 'Recommendations.bestowal_id',
+                'description' => 'Whether this recommendation has already been converted to a bestowal',
+            ],
+            'bestowal_given' => [
+                'key' => 'bestowal_given',
+                'label' => 'Bestowal Given',
+                'type' => 'string',
+                'sortable' => false,
+                'filterable' => false,
+                'defaultVisible' => false,
+                'exportable' => false,
+                'queryField' => 'Bestowals.lifecycle_status',
+                'description' => 'Whether the linked bestowal has already been given',
+            ],
+
             'close_reason' => [
                 'key' => 'close_reason',
                 'label' => 'Close Reason',
@@ -543,13 +682,12 @@ class RecommendationsGridColumns extends BaseGridColumns
     /**
      * Get system views for recommendations
      *
-     * Defines the status-based tabs and their filter configurations.
+     * Defines workflow-centric system views and their filter configurations.
      *
      * Supported contexts (via $options['context']):
      * - index (default): main recommendations grid
      * - memberSubmitted: member profile "Submitted Award Recs" tab
      * - recsForMember: member profile "Recs For Member" tab
-     * - gatheringAwards: gathering detail "Awards" tab
      *
      * @return array<string, array<string, mixed>>
      */
@@ -604,159 +742,173 @@ class RecommendationsGridColumns extends BaseGridColumns
             ];
         }
 
-        if ($context === 'gatheringAwards') {
-            return [
-                'sys-recs-gathering' => [
-                    'id' => 'sys-recs-gathering',
-                    'name' => __('Gathering Awards'),
-                    'description' => __('Awards scheduled for this gathering'),
-                    'canManage' => false,
-                    'config' => [
-                        'filters' => [],
-                        'columns' => [
-                            'member_sca_name',
-                            'op_links',
-                            'branch_id',
-                            'domain_name',
-                            'award_name',
-                            'specialty',
-                            'reason',
-                            'status',
-                            'state',
-                        ],
-                    ],
-                ],
-            ];
-        }
+        $coreColumns = [
+            'group_children_count',
+            'created',
+            'member_sca_name',
+            'op_links',
+            'branch_id',
+            'domain_name',
+            'award_name',
+            'reason',
+            'gatherings',
+            'notes',
+        ];
 
         return [
-            'sys-recs-all' => [
-                'id' => 'sys-recs-all',
-                'name' => __('All'),
-                'description' => __('All recommendations'),
+            'sys-recs-in-approval' => [
+                'id' => 'sys-recs-in-approval',
+                'name' => __('Pending Review'),
+                'description' => __('Recommendations currently routed through an approval workflow'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [],
+                    'columns' => array_merge($coreColumns, [
+                        'approval_queue',
+                    ]),
+                ],
+            ],
+            'sys-recs-needs-my-approval' => [
+                'id' => 'sys-recs-needs-my-approval',
+                'name' => __('My Queue'),
+                'description' => __('Recommendations currently waiting for your approval decision'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [],
+                    'columns' => array_merge($coreColumns, [
+                        'approval_queue',
+                    ]),
+                ],
+            ],
+            'sys-recs-approved-by-me' => [
+                'id' => 'sys-recs-approved-by-me',
+                'name' => __('Approved by Me'),
+                'description' => __('Recommendations in active approval workflows that you have approved'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [],
+                    'columns' => array_merge($coreColumns, [
+                        'approval_queue',
+                    ]),
+                ],
+            ],
+            'sys-recs-converted' => [
+                'id' => 'sys-recs-converted',
+                'name' => __('Converted to Bestowals'),
+                'description' => __('Recommendations now managed through a bestowal workflow'),
                 'canManage' => false,
                 'config' => [
                     'filters' => [],
                     'columns' => [
-                        'created',
                         'member_sca_name',
-                        'op_links',
                         'branch_id',
                         'domain_name',
                         'award_name',
-                        'reason',
                         'gatherings',
                         'notes',
+                    ],
+                    'skipFilterColumns' => ['bestowal_linked'],
+                ],
+            ],
+            'sys-recs-archived' => [
+                'id' => 'sys-recs-archived',
+                'name' => __('Archived'),
+                'description' => __(
+                    'Closed recommendation records and recommendations whose linked bestowals were given',
+                ),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [],
+                    'columns' => array_diff(array_merge($coreColumns, [
                         'status',
                         'state',
                         'close_reason',
-                        'assigned_gathering',
-                    ],
+                        'given',
+                    ]), ['reason', 'gatherings', 'notes']), // Remove reason and gatherings from archived view to reduce clutter
+                    'skipFilterColumns' => ['state'],
                 ],
             ],
-            'sys-recs-in-progress' => [
-                'id' => 'sys-recs-in-progress',
-                'name' => __('In Progress'),
-                'description' => __('Recommendations in progress'),
+            'sys-recs-all' => [
+                'id' => 'sys-recs-all',
+                'name' => __('All / Audit'),
+                'description' => __('All recommendations, including archival state and status data'),
                 'canManage' => false,
                 'config' => [
-                    'filters' => [
-                        ['field' => 'status', 'operator' => 'eq', 'value' => 'In Progress'],
-                    ],
-                    'columns' => [
-                        'created',
-                        'member_sca_name',
-                        'op_links',
-                        'branch_id',
-                        'domain_name',
-                        'award_name',
-                        'reason',
-                        'notes',
+                    'filters' => [],
+                    'columns' => array_merge($coreColumns, [
+                        'status',
                         'state',
-                    ],
-                ],
-            ],
-            'sys-recs-scheduling' => [
-                'id' => 'sys-recs-scheduling',
-                'name' => __('Scheduling'),
-                'description' => __('Recommendations being scheduled'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'status', 'operator' => 'eq', 'value' => 'Scheduling'],
-                    ],
-                    'columns' => [
-                        'created',
-                        'member_sca_name',
-                        'branch_id',
-                        'call_into_court',
-                        'court_availability',
-                        'person_to_notify',
-                        'award_name',
-                        'gatherings',
-                        'notes',
-                        'state',
-                        'assigned_gathering',
-                    ],
-                ],
-            ],
-            'sys-recs-to-give' => [
-                'id' => 'sys-recs-to-give',
-                'name' => __('To Give'),
-                'description' => __('Recommendations ready to give'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'status', 'operator' => 'eq', 'value' => 'To Give'],
-                    ],
-                    'columns' => [
-                        'created',
-                        'member_sca_name',
-                        'branch_id',
-                        'call_into_court',
-                        'court_availability',
-                        'person_to_notify',
-                        'award_name',
-                        'reason',
-                        'notes',
-                        'state',
-                        'assigned_gathering',
-                    ],
-                ],
-            ],
-            'sys-recs-closed' => [
-                'id' => 'sys-recs-closed',
-                'name' => __('Closed'),
-                'description' => __('Closed recommendations'),
-                'canManage' => false,
-                'config' => [
-                    'filters' => [
-                        ['field' => 'status', 'operator' => 'eq', 'value' => 'Closed'],
-                    ],
-                    'columns' => [
-                        'created',
-                        'member_sca_name',
-                        'branch_id',
-                        'award_name',
-                        'reason',
-                        'notes',
-                        'state',
+                        'approval_queue',
                         'close_reason',
                         'assigned_gathering',
-                        'state_date',
-                        'given',
-                    ],
+                    ]),
                 ],
             ],
         ];
     }
 
     /**
+     * Return recommendation states considered archived for system-view filtering.
+     *
+     * @return array<int, string>
+     */
+    public static function getArchivedStates(): array
+    {
+        return self::statesForStatuses(Recommendation::getStatuses(), ['Closed']);
+    }
+
+    /**
+     * @param array<string, array<int, string>> $statuses
+     * @param array<int, string> $statusNames
+     * @return array<int, string>
+     */
+    private static function statesForStatuses(array $statuses, array $statusNames): array
+    {
+        $states = [];
+        foreach ($statusNames as $statusName) {
+            foreach ($statuses[$statusName] ?? [] as $state) {
+                $states[] = $state;
+            }
+        }
+
+        return array_values(array_unique($states));
+    }
+
+    /**
+     * @param array<string, array<int, string>> $statuses
+     * @param array<int, string> $preferredStates
+     * @param array<int, string> $fallbackStatuses
+     * @return array<int, string>
+     */
+    private static function configuredStates(array $statuses, array $preferredStates, array $fallbackStatuses): array
+    {
+        $configuredStates = [];
+        foreach ($statuses as $states) {
+            foreach ($states as $state) {
+                $configuredStates[$state] = true;
+            }
+        }
+
+        $states = [];
+        foreach ($preferredStates as $state) {
+            if (isset($configuredStates[$state])) {
+                $states[] = $state;
+            }
+        }
+
+        if ($states !== []) {
+            return $states;
+        }
+
+        return self::statesForStatuses($statuses, $fallbackStatuses);
+    }
+
+    /**
      * Get state filter options based on user permissions
      *
      * Returns state options that respect the canViewHidden permission.
-     * States configured in Awards.RecommendationStatesRequireCanViewHidden
-     * are excluded if user lacks the ViewHidden permission.
+     * States marked as is_hidden in the database are excluded if user
+     * lacks the ViewHidden permission.
      *
      * @param bool $canViewHidden Whether the user can view hidden states
      * @return array<array<string, string>> Filter options for state dropdown
@@ -764,12 +916,10 @@ class RecommendationsGridColumns extends BaseGridColumns
     public static function getStateFilterOptions(bool $canViewHidden = false): array
     {
         $statuses = Recommendation::getStatuses();
-        $hiddenStates = $canViewHidden ? [] : (StaticHelpers::getAppSetting(
-            'Awards.RecommendationStatesRequireCanViewHidden'
-        ) ?? []);
+        $hiddenStates = $canViewHidden ? [] : Recommendation::getHiddenStates();
 
         $options = [];
-        foreach ($statuses as $status => $states) {
+        foreach ($statuses as $states) {
             foreach ($states as $state) {
                 if (!in_array($state, $hiddenStates)) {
                     $options[] = ['value' => $state, 'label' => $state];
@@ -787,9 +937,7 @@ class RecommendationsGridColumns extends BaseGridColumns
      */
     public static function getHiddenStates(): array
     {
-        return StaticHelpers::getAppSetting(
-            'Awards.RecommendationStatesRequireCanViewHidden'
-        ) ?? ['No Action'];
+        return Recommendation::getHiddenStates();
     }
 
     /**
@@ -808,6 +956,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                 $exportable[] = $key;
             }
         }
+
         return $exportable;
     }
 
@@ -823,19 +972,22 @@ class RecommendationsGridColumns extends BaseGridColumns
      */
     public static function getGatheringsFilterOptions(): array
     {
-        $gatheringsTable = \Cake\ORM\TableRegistry::getTableLocator()->get('Gatherings');
-        $now = new \Cake\I18n\DateTime();
+        $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
+        $now = new DateTime();
 
         // Query 1: Future gatherings with at least one award-capable activity.
         $futureGatherings = $gatheringsTable->find()
             ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date', 'Gatherings.cancelled_at'])
             ->innerJoin(
                 ['GatheringsGatheringActivities' => 'gatherings_gathering_activities'],
-                ['GatheringsGatheringActivities.gathering_id = Gatherings.id']
+                ['GatheringsGatheringActivities.gathering_id = Gatherings.id'],
             )
             ->innerJoin(
                 ['AwardGatheringActivities' => 'award_gathering_activities'],
-                ['AwardGatheringActivities.gathering_activity_id = GatheringsGatheringActivities.gathering_activity_id']
+                [
+                    'AwardGatheringActivities.gathering_activity_id = '
+                        . 'GatheringsGatheringActivities.gathering_activity_id',
+                ],
             )
             ->where(['Gatherings.start_date >=' => $now])
             ->orderBy(['Gatherings.start_date' => 'ASC'])
@@ -849,7 +1001,7 @@ class RecommendationsGridColumns extends BaseGridColumns
             ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date', 'Gatherings.cancelled_at'])
             ->innerJoin(
                 ['Recommendations' => 'awards_recommendations'],
-                ['Recommendations.gathering_id = Gatherings.id']
+                ['Recommendations.gathering_id = Gatherings.id'],
             )
             ->where([
                 'Gatherings.start_date <' => $now,
@@ -869,11 +1021,11 @@ class RecommendationsGridColumns extends BaseGridColumns
             ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date', 'Gatherings.cancelled_at'])
             ->innerJoin(
                 ['RecommendationEvents' => 'awards_recommendations_events'],
-                ['RecommendationEvents.event_id = Gatherings.id']
+                ['RecommendationEvents.event_id = Gatherings.id'],
             )
             ->innerJoin(
                 ['Recommendations' => 'awards_recommendations'],
-                ['Recommendations.id = RecommendationEvents.recommendation_id']
+                ['Recommendations.id = RecommendationEvents.recommendation_id'],
             )
             ->where([
                 'Gatherings.start_date <' => $now,
@@ -964,11 +1116,11 @@ class RecommendationsGridColumns extends BaseGridColumns
      * filter is applied (either from query params or saved view config).
      *
      * @param \Cake\ORM\Query\SelectQuery $query The query to filter
-     * @param string|array $filterValue One or more gathering IDs to filter by
+     * @param array|string $filterValue One or more gathering IDs to filter by
      * @param array $context Additional context (tableName, columnKey, columnMeta)
      * @return \Cake\ORM\Query\SelectQuery The filtered query
      */
-    public static function applyGatheringsFilter($query, $filterValue, array $context = [])
+    public static function applyGatheringsFilter($query, $filterValue, array $context = []): SelectQuery
     {
         // Normalize to array
         if (!is_array($filterValue)) {
@@ -984,7 +1136,7 @@ class RecommendationsGridColumns extends BaseGridColumns
             return $query;
         }
 
-        $tableLocator = \Cake\ORM\TableRegistry::getTableLocator();
+        $tableLocator = TableRegistry::getTableLocator();
         $recommendationsTable = $tableLocator->get('Awards.Recommendations');
         $attendanceTable = $tableLocator->get('GatheringAttendances');
 

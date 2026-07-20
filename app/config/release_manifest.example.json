@@ -1,0 +1,22 @@
+{
+  "format_version": 1,
+  "app": {
+    "version": "2026.05.16-example",
+    "image": "ghcr.io/example/kmp:2026.05.16-example",
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "tenant_schema": {
+    "min": "20260516000000",
+    "max": "20260516009999",
+    "compatible_previous": [
+      "20260515000000"
+    ]
+  },
+  "migration_policy": {
+    "mode": "expand-contract",
+    "online": true,
+    "tenant_batching": "single-or-ring",
+    "gate_command": "bin/cake platform release_check --manifest config/release_manifest.json --all"
+  },
+  "rollback_notes": "Roll back the image only while tenants remain at min/max or compatible_previous schema versions; restore tenant backups before downgrading past compatible_previous."
+}

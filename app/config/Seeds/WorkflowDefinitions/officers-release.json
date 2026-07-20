@@ -1,0 +1,109 @@
+{
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
+    "nodes": {
+        "trigger-release": {
+            "type": "trigger",
+            "label": "Officer Released",
+            "config": {
+                "event": "Officers.Released",
+                "entityIdField": "officerId"
+            },
+            "position": {
+                "x": 50,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "release-officer"
+                }
+            ]
+        },
+        "release-officer": {
+            "type": "action",
+            "label": "Release Officer (stop active window, cancel warrants)",
+            "config": {
+                "action": "Officers.ReleaseOfficer",
+                "params": {
+                    "officerId": "$.trigger.officerId",
+                    "releasedById": "$.trigger.releasedById",
+                    "expiresOn": "$.trigger.expiresOn",
+                    "reason": "$.trigger.reason",
+                    "releaseStatus": "$.trigger.releaseStatus"
+                }
+            },
+            "position": {
+                "x": 350,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "prepare-release-notification-vars"
+                }
+            ]
+        },
+        "prepare-release-notification-vars": {
+            "type": "action",
+            "label": "Prepare Release Notification Vars",
+            "config": {
+                "action": "Officers.PrepareReleaseNotificationVars",
+                "params": {
+                    "officerId": "$.trigger.officerId",
+                    "reason": "$.trigger.reason"
+                }
+            },
+            "position": {
+                "x": 650,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "send-release-notification"
+                }
+            ]
+        },
+        "send-release-notification": {
+            "type": "action",
+            "label": "Send Release Notification",
+            "config": {
+                "action": "Core.SendEmail",
+                "params": {
+                    "to": "$.nodes.prepare-release-notification-vars.result.data.to",
+                    "template": "officer-release-notification",
+                    "vars": {
+                        "memberScaName": "$.nodes.prepare-release-notification-vars.result.data.memberScaName",
+                        "officeName": "$.nodes.prepare-release-notification-vars.result.data.officeName",
+                        "branchName": "$.nodes.prepare-release-notification-vars.result.data.branchName",
+                        "reason": "$.nodes.prepare-release-notification-vars.result.data.reason",
+                        "releaseDate": "$.nodes.prepare-release-notification-vars.result.data.releaseDate",
+                        "siteAdminSignature": "$.nodes.prepare-release-notification-vars.result.data.siteAdminSignature"
+                    }
+                }
+            },
+            "position": {
+                "x": 950,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "end-complete"
+                }
+            ]
+        },
+        "end-complete": {
+            "type": "end",
+            "label": "Release Complete",
+            "config": {},
+            "position": {
+                "x": 1250,
+                "y": 200
+            },
+            "outputs": []
+        }
+    },
+    "startNode": "trigger-release"
+}

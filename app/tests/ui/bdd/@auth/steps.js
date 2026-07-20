@@ -1,21 +1,29 @@
 const { createBdd } = require('playwright-bdd');
 const { expect } = require('@playwright/test');
+const {
+    getSignOutButton,
+    isLocatorVisible,
+    waitForPageBody,
+    waitForSuccessfulLogin,
+} = require('../../support/ui-helpers.cjs');
 
 const { Given, When, Then } = createBdd();
 
 // Background step
 Given('I am on the login page', async ({ page }) => {
-    await page.goto('/members/login', { waitUntil: 'networkidle' });
+    await page.goto('/members/login', { waitUntil: 'domcontentloaded' });
+    await waitForPageBody(page);
 });
 
 // Given I am already logged in
 Given('I am already logged in', async ({ page }) => {
     // Navigate to the login page
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await waitForPageBody(page);
 
     // Check if already logged in by looking for a logout button or user profile
-    const logoutButton = page.locator('a.btn-outline-secondary').filter({ hasText: /Sign out/i });
-    if (await logoutButton.count() > 0) {
+    const logoutButton = getSignOutButton(page);
+    if (await isLocatorVisible(logoutButton)) {
         console.log('User is already logged in.');
         return;
     }
@@ -24,17 +32,20 @@ Given('I am already logged in', async ({ page }) => {
 // When I Logout
 When('I logout', async ({ page }) => {
     // Navigate to the logout page
-    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await waitForPageBody(page);
 
     // Click the logout button if it exists
-    const logoutButton = page.locator('a.btn-outline-secondary').filter({ hasText: /Sign out/i });
-    if (await logoutButton.count() > 0) {
+    const logoutButton = getSignOutButton(page);
+    if (await isLocatorVisible(logoutButton)) {
         await logoutButton.click();
+        await waitForPageBody(page);
     }
 });
 // Navigation steps
 When('I navigate to a protected route {string}', async ({ page }, route) => {
-    await page.goto(route);
+    await page.goto(route, { waitUntil: 'domcontentloaded' });
+    await waitForPageBody(page);
 });
 
 // Form visibility steps  
@@ -54,7 +65,6 @@ Then('I should see the password field', async ({ page }) => {
 // Form submission steps
 When('I submit the login form without entering credentials', async ({ page }) => {
     await page.locator('input[type="submit"][value="Sign in"]').click();
-    await page.waitForTimeout(1000);
 });
 
 When('I enter invalid credentials', async ({ page }, dataTable) => {
@@ -73,26 +83,21 @@ When('I enter valid admin credentials', async ({ page }, dataTable) => {
 
 When('I submit the login form', async ({ page }) => {
     await page.locator('input[type="submit"][value="Sign in"]').click();
-    await page.waitForTimeout(2000);
 });
 
 // Validation and error steps
 Then('I should see validation error messages', async ({ page }) => {
     const errorMessages = page.locator('.error, .invalid-feedback, .alert-danger');
-    if (await errorMessages.count() > 0) {
-        await expect(errorMessages.first()).toBeVisible();
-    }
+    await expect(errorMessages.first()).toBeVisible({ timeout: 15000 });
 });
 
 Then('I should see an authentication error message', async ({ page }) => {
     const errorMessage = page.locator('.error, .invalid-feedback, .alert-danger, .flash-error');
-    if (await errorMessage.count() > 0) {
-        await expect(errorMessage.first()).toBeVisible();
-    }
+    await expect(errorMessage.first()).toBeVisible({ timeout: 15000 });
 });
 
 // Success steps
 Then('I should be successfully logged in', async ({ page }) => {
-    // Wait for redirect or page change after successful login
-    await page.waitForTimeout(1000);
+    await waitForSuccessfulLogin(page, 15000);
+    await expect(getSignOutButton(page)).toBeVisible({ timeout: 15000 });
 });

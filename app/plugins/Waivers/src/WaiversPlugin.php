@@ -180,6 +180,10 @@ class WaiversPlugin extends BasePlugin implements KMPPluginInterface
         $container->add(WaiverFileService::class);
         $container->add(WaiverDashboardService::class);
         $container->add(WaiverMobileService::class);
+
+        // Register workflow actions and conditions for Waivers plugin
+        $container->add(\Waivers\Services\WaiversWorkflowActions::class);
+        $container->add(\Waivers\Services\WaiversWorkflowConditions::class);
     }
 
     /**

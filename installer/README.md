@@ -1,29 +1,31 @@
-# KMP Installer
+# KMP Installer (Archived)
 
-Standalone management tool for the Kingdom Management Portal (KMP).
+Archived standalone management tool for legacy self-hosted Kingdom Management Portal (KMP) deployments.
 
-## Quick Install
+> The installer is retired for new deployments. KMP is moving to a managed multi-tenant hosting model. This directory is kept so the self-hosted implementation details are not lost.
+
+## Historical Install Bootstrap
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jhandel/KMP/main/installer/scripts/install.sh | bash
 ```
 
-## Usage
+## Legacy Usage
 
 ```
-kmp install              # Deploy KMP to a new environment
-kmp update [--channel X] # Check & apply updates
-kmp status               # Show deployment health
-kmp logs [--follow]      # View application logs
-kmp backup [--now]       # Create a backup
-kmp restore <backup-id>  # Restore from backup
-kmp rollback             # Revert to previous version
-kmp config               # View/edit deployment config
-kmp self-update          # Update this tool
+kmp install              # Retired for new deployments
+kmp update [--channel X] # Legacy self-hosted maintenance
+kmp status               # Legacy self-hosted health view
+kmp logs [--follow]      # Legacy self-hosted logs
+kmp backup [--now]       # Legacy self-hosted backup
+kmp restore <backup-id>  # Legacy self-hosted restore
+kmp rollback             # Legacy self-hosted rollback
+kmp config               # Legacy self-hosted config
+kmp self-update          # Update this archived tool
 kmp version              # Show versions
 ```
 
-## Building
+## Building (Archive / Maintenance)
 
 ```bash
 make build          # Build for current platform

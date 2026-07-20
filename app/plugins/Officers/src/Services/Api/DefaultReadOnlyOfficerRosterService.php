@@ -41,9 +41,9 @@ class DefaultReadOnlyOfficerRosterService implements ReadOnlyOfficerRosterServic
             $query->where(['Officers.office_id' => (int)$filters['office_id']]);
         }
         if (!empty($filters['status'])) {
-            $query->where(['Officers.status' => (string)$filters['status']]);
+            $query->where(['LOWER(Officers.status)' => strtolower((string)$filters['status'])]);
         } else {
-            $query->where(['Officers.status IN' => ['current', 'upcoming']]);
+            $query->where(['LOWER(Officers.status) IN' => ['current', 'upcoming']]);
         }
 
         $total = (clone $query)->count();
@@ -143,4 +143,3 @@ class DefaultReadOnlyOfficerRosterService implements ReadOnlyOfficerRosterServic
         }
     }
 }
-

@@ -17,6 +17,8 @@ use App\Model\Entity\BaseEntity;
  * @property int $recommendation_id
  * @property string $from_state
  * @property string $to_state
+ * @property string $from_status
+ * @property string $to_status
  * @property \Cake\I18n\DateTime $created
  * @property int|null $created_by
  *
@@ -31,6 +33,8 @@ class RecommendationsStatesLog extends BaseEntity
         'recommendation_id' => true,
         'from_state' => true,
         'to_state' => true,
+        'from_status' => true,
+        'to_status' => true,
         'created' => true,
         'created_by' => true,
         'recommendation' => true,

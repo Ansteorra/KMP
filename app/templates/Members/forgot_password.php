@@ -1,19 +1,19 @@
-<?php $this->extend("/layout/TwitterBootstrap/signin");
+<?php $this->extend('/layout/TwitterBootstrap/signin');
 
-echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Forgot Password';
+echo $this->KMP->startBlock('title');
+echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': Forgot Password';
 $this->KMP->endBlock(); ?>
 <div class="card" style="width: 15rem;">
-    <?= $this->Html->image($headerImage, [
-        "class" => "card-img-top",
-        "alt" => "site logo",
+    <?= $this->Html->image($this->KMP->assetUrl($headerImage), [
+        'class' => 'card-img-top',
+        'alt' => 'site logo',
     ]) ?>
     <div class="card-body">
         <h5 class="card-title">Forgot Password</h5>
         <div class="card-text">
             <?= $this->Form->create() ?>
-            <?= $this->Form->control("email_address", ['type' => 'email']) ?>
-            <?= $this->Form->button("Send Password Reset") ?>
+            <?= $this->Form->control('email_address', ['type' => 'email']) ?>
+            <?= $this->Form->button('Send Password Reset') ?>
             <?= $this->Form->end() ?>
         </div>
     </div>

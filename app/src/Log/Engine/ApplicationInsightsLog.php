@@ -9,14 +9,27 @@ use DateTimeImmutable;
 use DateTimeZone;
 use InvalidArgumentException;
 use JsonException;
+use OpenTelemetry\API\Common\Time\Clock;
+use OpenTelemetry\API\Logs\LoggerInterface;
+use OpenTelemetry\API\Logs\Severity;
+use OpenTelemetry\API\Signals;
+use OpenTelemetry\Contrib\Grpc\GrpcTransportFactory;
+use OpenTelemetry\Contrib\Otlp\LogsExporter;
+use OpenTelemetry\Contrib\Otlp\OtlpUtil;
+use OpenTelemetry\SDK\Common\Attribute\Attributes;
+use OpenTelemetry\SDK\Logs\LoggerProvider;
+use OpenTelemetry\SDK\Logs\LoggerProviderInterface;
+use OpenTelemetry\SDK\Logs\Processor\BatchLogRecordProcessor;
+use OpenTelemetry\SDK\Resource\ResourceInfo;
+use OpenTelemetry\SDK\Resource\ResourceInfoFactory;
 use Stringable;
 use Throwable;
 
 /**
  * Sends CakePHP log events to Azure Application Insights.
  *
- * Uses the Application Insights ingestion endpoint from
- * APPINSIGHTS_CONNECTION_STRING and emits logs as trace telemetry.
+ * Emits Application Insights-compatible trace telemetry either directly over
+ * HTTPS or through a local OpenTelemetry collector over OTLP/gRPC.
  */
 class ApplicationInsightsLog extends BaseLog
 {
@@ -41,6 +54,9 @@ class ApplicationInsightsLog extends BaseLog
         'sampleRate' => 100.0,
         'channel' => 'application',
         'transport' => null,
+        'otlpEndpoint' => null,
+        'otlpTimeout' => 0.05,
+        'otlpEmitter' => null,
         // Suppress repeated send-failure log lines for this many seconds across
         // every instance in the process. 0 disables suppression.
         'failureSuppressSeconds' => 60,
@@ -56,6 +72,16 @@ class ApplicationInsightsLog extends BaseLog
     private string $instrumentationKey;
 
     private string $endpoint;
+
+    private bool $otlpEnabled = false;
+
+    private static ?LoggerProviderInterface $sharedOtlpLoggerProvider = null;
+
+    private static ?LoggerInterface $sharedOtlpLogger = null;
+
+    private static int $sharedOtlpInstanceCount = 0;
+
+    private bool $usesSharedOtlpProvider = false;
 
     /**
      * @var array<int, array<string, mixed>>
@@ -76,6 +102,8 @@ class ApplicationInsightsLog extends BaseLog
 
     private bool $selfMetricsEmitted = false;
 
+    private bool $shutdownComplete = false;
+
     /**
      * @param array<string, mixed> $config Configuration array
      */
@@ -83,17 +111,27 @@ class ApplicationInsightsLog extends BaseLog
     {
         parent::__construct($config);
 
-        $parsed = $this->parseConnectionString((string)$this->getConfig('connectionString'));
-        $this->instrumentationKey = $parsed['instrumentationkey'] ?? '';
-        if ($this->instrumentationKey === '') {
-            throw new InvalidArgumentException('APPINSIGHTS_CONNECTION_STRING must include InstrumentationKey.');
-        }
+        $otlpEndpoint = trim((string)$this->getConfig('otlpEndpoint'));
+        $this->otlpEnabled = $otlpEndpoint !== '' || is_callable($this->getConfig('otlpEmitter'));
+        if ($this->otlpEnabled) {
+            $this->instrumentationKey = 'otlp';
+            $this->endpoint = '';
+            if (!is_callable($this->getConfig('otlpEmitter'))) {
+                $this->initializeOtlp($otlpEndpoint);
+            }
+        } else {
+            $parsed = $this->parseConnectionString((string)$this->getConfig('connectionString'));
+            $this->instrumentationKey = $parsed['instrumentationkey'] ?? '';
+            if ($this->instrumentationKey === '') {
+                throw new InvalidArgumentException('APPINSIGHTS_CONNECTION_STRING must include InstrumentationKey.');
+            }
 
-        $ingestionEndpoint = rtrim(
-            $parsed['ingestionendpoint'] ?? 'https://dc.services.visualstudio.com',
-            '/',
-        );
-        $this->endpoint = $ingestionEndpoint . '/v2/track';
+            $ingestionEndpoint = rtrim(
+                $parsed['ingestionendpoint'] ?? 'https://dc.services.visualstudio.com',
+                '/',
+            );
+            $this->endpoint = $ingestionEndpoint . '/v2/track';
+        }
 
         register_shutdown_function([$this, 'shutdown']);
     }
@@ -108,8 +146,21 @@ class ApplicationInsightsLog extends BaseLog
      */
     public function shutdown(): void
     {
+        if ($this->shutdownComplete) {
+            return;
+        }
+
         $this->flush();
         $this->emitSelfMetrics();
+        if ($this->usesSharedOtlpProvider) {
+            self::$sharedOtlpInstanceCount--;
+            if (self::$sharedOtlpInstanceCount === 0) {
+                self::$sharedOtlpLoggerProvider?->shutdown();
+                self::$sharedOtlpLoggerProvider = null;
+                self::$sharedOtlpLogger = null;
+            }
+        }
+        $this->shutdownComplete = true;
     }
 
     /**
@@ -316,6 +367,10 @@ class ApplicationInsightsLog extends BaseLog
      */
     private function send(string $json): bool
     {
+        if ($this->otlpEnabled) {
+            return $this->sendOtlp($json);
+        }
+
         $transport = $this->getConfig('transport');
         if (is_callable($transport)) {
             try {
@@ -371,6 +426,136 @@ class ApplicationInsightsLog extends BaseLog
         }
 
         return true;
+    }
+
+    /**
+     * Configures an OTLP/gRPC logger that exports to the local Container Apps
+     * managed OpenTelemetry agent.
+     */
+    private function initializeOtlp(string $endpoint): void
+    {
+        if (!extension_loaded('grpc')) {
+            throw new InvalidArgumentException('OTLP logging requires the grpc PHP extension.');
+        }
+
+        if (self::$sharedOtlpLoggerProvider === null) {
+            $grpcEndpoint = rtrim($endpoint, '/') . OtlpUtil::method(Signals::LOGS);
+            $timeout = max(0.01, (float)$this->getConfig('otlpTimeout'));
+            $transport = (new GrpcTransportFactory())->create(
+                $grpcEndpoint,
+                timeout: $timeout,
+                maxRetries: 0,
+            );
+            $exporter = new LogsExporter($transport);
+            $batchSize = max(1, (int)$this->getConfig('batchSize'));
+            $processor = new BatchLogRecordProcessor(
+                $exporter,
+                Clock::getDefault(),
+                maxQueueSize: max(4096, $batchSize * 8),
+                scheduledDelayMillis: 60000,
+                exportTimeoutMillis: max(10, (int)ceil($timeout * 1000)),
+                maxExportBatchSize: max(512, $batchSize),
+                autoFlush: false,
+            );
+            $cloudRoleInstance = (string)$this->getConfig('cloudRoleInstance');
+            if ($cloudRoleInstance === '') {
+                $cloudRoleInstance = gethostname() ?: '';
+            }
+            $resource = ResourceInfoFactory::defaultResource()->merge(ResourceInfo::create(Attributes::create([
+                'service.name' => (string)$this->getConfig('cloudRole'),
+                'service.instance.id' => $cloudRoleInstance,
+            ])));
+            self::$sharedOtlpLoggerProvider = LoggerProvider::builder()
+                ->setResource($resource)
+                ->addLogRecordProcessor($processor)
+                ->build();
+            self::$sharedOtlpLogger = self::$sharedOtlpLoggerProvider->getLogger(
+                'kmp.telemetry',
+                self::TELEMETRY_SCHEMA_VERSION,
+            );
+        }
+
+        self::$sharedOtlpInstanceCount++;
+        $this->usesSharedOtlpProvider = true;
+    }
+
+    /**
+     * Sends a buffered Application Insights-compatible batch through OTLP.
+     */
+    private function sendOtlp(string $json): bool
+    {
+        try {
+            $payloads = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+            if (!is_array($payloads)) {
+                throw new JsonException('Telemetry payload is not an array.');
+            }
+
+            $records = array_map([$this, 'toOtlpRecord'], $payloads);
+            $emitter = $this->getConfig('otlpEmitter');
+            if (is_callable($emitter)) {
+                $emitter($records);
+
+                return true;
+            }
+            if (self::$sharedOtlpLogger === null || self::$sharedOtlpLoggerProvider === null) {
+                throw new InvalidArgumentException('OTLP logger is not configured.');
+            }
+
+            foreach ($records as $record) {
+                self::$sharedOtlpLogger->logRecordBuilder()
+                    ->setBody($record['message'])
+                    ->setSeverityNumber($record['severity'])
+                    ->setSeverityText(strtoupper($record['level']))
+                    ->setAttributes($record['attributes'])
+                    ->emit();
+            }
+
+            return true;
+        } catch (Throwable $exception) {
+            $this->reportSendFailure('OpenTelemetry log export failed: ' . $exception->getMessage());
+
+            return false;
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $payload Application Insights envelope
+     * @return array{
+     *   message: string,
+     *   severity: \OpenTelemetry\API\Logs\Severity,
+     *   level: string,
+     *   attributes: array<string, mixed>
+     * }
+     */
+    private function toOtlpRecord(array $payload): array
+    {
+        $baseData = $payload['data']['baseData'] ?? [];
+        $attributes = is_array($baseData['properties'] ?? null) ? $baseData['properties'] : [];
+        if (isset($payload['sampleRate'])) {
+            $attributes['sample_rate'] = (string)$payload['sampleRate'];
+        }
+        $level = (string)($attributes['level'] ?? 'info');
+
+        return [
+            'message' => (string)($baseData['message'] ?? ''),
+            'severity' => $this->otelSeverity((int)($baseData['severityLevel'] ?? 1)),
+            'level' => $level,
+            'attributes' => $attributes,
+        ];
+    }
+
+    /**
+     * Maps the legacy Application Insights severity scale to OpenTelemetry.
+     */
+    private function otelSeverity(int $applicationInsightsSeverity): Severity
+    {
+        return match ($applicationInsightsSeverity) {
+            0 => Severity::DEBUG,
+            2 => Severity::WARN,
+            3 => Severity::ERROR,
+            4 => Severity::FATAL,
+            default => Severity::INFO,
+        };
     }
 
     /**
@@ -529,7 +714,7 @@ class ApplicationInsightsLog extends BaseLog
      */
     private function emitSelfMetrics(): void
     {
-        if ($this->selfMetricsEmitted) {
+        if ($this->selfMetricsEmitted || $this->otlpEnabled) {
             return;
         }
         $this->selfMetricsEmitted = true;

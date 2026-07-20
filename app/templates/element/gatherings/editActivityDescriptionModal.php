@@ -21,10 +21,15 @@
 <?php echo $this->Modal->create(__('Edit Activity Description'), [
     'id' => 'editActivityDescriptionModal',
     'close' => true,
-    'size' => 'lg'
+    'form' => true,
+    'size' => 'modal-lg',
 ]); ?>
 
-<div class="mb-3">
+<fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3">
+    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+        <i class="bi bi-card-text text-primary me-1" aria-hidden="true"></i>
+        <?= __('Activity Description') ?>
+    </legend>
     <input type="hidden"
         name="activity_id"
         id="edit-activity-id"
@@ -65,7 +70,7 @@
             <?= __('Example: Change "Open practice" to "Baronial Championship" for this specific gathering.') ?>
         </small>
     </div>
-</div>
+</fieldset>
 
 <?php echo $this->Modal->end([
     $this->Form->button(__('Save Description'), [

@@ -13,7 +13,6 @@ use Cake\Validation\Validator;
  * Manages warrant roster batches with multi-level approval workflow.
  * Tracks approval status and provides pending counts for dashboard integration.
  *
- * @property \App\Model\Table\WarrantRosterApprovalsTable&\Cake\ORM\Association\HasMany $WarrantRosterApprovals
  * @property \App\Model\Table\WarrantsTable&\Cake\ORM\Association\HasMany $Warrants
  * @method \App\Model\Entity\WarrantRoster newEmptyEntity()
  * @method \App\Model\Entity\WarrantRoster get(mixed $primaryKey, ...)
@@ -40,10 +39,6 @@ class WarrantRostersTable extends BaseTable
         // Audit trail behavior for automatic timestamp management
         $this->addBehavior('Timestamp');
 
-        // Association with approval tracking entities for multi-level approval workflow
-        $this->hasMany('WarrantRosterApprovals', [
-            'foreignKey' => 'warrant_roster_id',
-        ]);
         // Association with warrant entities created from this roster batch
         $this->hasMany('Warrants', [
             'foreignKey' => 'warrant_roster_id',
@@ -83,25 +78,6 @@ class WarrantRostersTable extends BaseTable
             ->maxLength('name', 255)
             ->requirePresence('name', 'create')
             ->notEmptyString('name');
-
-        // Warrant roster description validation - detailed purpose explanation
-        $validator
-            ->scalar('description')
-            ->maxLength('description', 255)
-            ->requirePresence('description', 'create')
-            ->notEmptyString('description');
-
-        // Planned expiration date validation - warrant lifecycle end planning
-        $validator
-            ->dateTime('planned_expires_on')
-            ->requirePresence('planned_expires_on', 'create')
-            ->notEmptyDateTime('planned_expires_on');
-
-        // Planned start date validation - warrant lifecycle begin planning
-        $validator
-            ->dateTime('planned_start_on')
-            ->requirePresence('planned_start_on', 'create')
-            ->notEmptyDateTime('planned_start_on');
 
         // Approval requirements validation - workflow configuration
         $validator

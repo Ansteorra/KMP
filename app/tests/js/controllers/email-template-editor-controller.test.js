@@ -1,6 +1,7 @@
-// Mock EasyMDE before importing the controller
-jest.mock('easymde', () => {
-    return jest.fn().mockImplementation((options) => {
+// Mock EasyMDE before importing the controller - dynamic import needs __esModule + default
+jest.mock('easymde', () => ({
+    __esModule: true,
+    default: jest.fn().mockImplementation((options) => {
         const mockDoc = {
             getCursor: jest.fn(() => ({ line: 0, ch: 0 })),
             replaceRange: jest.fn()
@@ -24,8 +25,8 @@ jest.mock('easymde', () => {
             markdown: jest.fn(text => `<p>${text}</p>`)
         };
         return instance;
-    });
-});
+    }),
+}));
 
 import '../../../assets/js/controllers/email-template-editor-controller.js';
 
@@ -65,60 +66,60 @@ describe('EmailTemplateEditorController', () => {
         jest.restoreAllMocks();
     });
 
-    test('registers on window.Controllers', () => {
+    test('registers on window.Controllers', async () => {
         expect(window.Controllers['email-template-editor']).toBe(EmailTemplateEditorController);
     });
 
-    test('has correct static targets', () => {
+    test('has correct static targets', async () => {
         expect(EmailTemplateEditorController.targets).toEqual(
             expect.arrayContaining(['editor', 'variableButtons'])
         );
     });
 
-    test('has correct static values', () => {
+    test('has correct static values', async () => {
         expect(EmailTemplateEditorController.values).toHaveProperty('variables');
         expect(EmailTemplateEditorController.values).toHaveProperty('placeholder');
         expect(EmailTemplateEditorController.values).toHaveProperty('minHeight');
     });
 
-    test('initialize sets editor to null', () => {
+    test('initialize sets editor to null', async () => {
         controller.initialize();
         expect(controller.editor).toBeNull();
     });
 
-    test('connect creates EasyMDE instance', () => {
-        controller.connect();
+    test('connect creates EasyMDE instance', async () => {
+        await controller.connect();
         expect(controller.editor).not.toBeNull();
     });
 
-    test('connect renders variable buttons when variables exist', () => {
-        controller.connect();
+    test('connect renders variable buttons when variables exist', async () => {
+        await controller.connect();
         const buttons = controller.variableButtonsTarget.querySelectorAll('button');
         expect(buttons.length).toBe(3);
     });
 
-    test('connect does not render variable buttons when no variables', () => {
+    test('connect does not render variable buttons when no variables', async () => {
         controller.variablesValue = [];
-        controller.connect();
+        await controller.connect();
         const buttons = controller.variableButtonsTarget.querySelectorAll('button');
         expect(buttons.length).toBe(0);
     });
 
-    test('disconnect cleans up editor', () => {
-        controller.connect();
+    test('disconnect cleans up editor', async () => {
+        await controller.connect();
         const toTextArea = controller.editor.toTextArea;
         controller.disconnect();
         expect(toTextArea).toHaveBeenCalled();
         expect(controller.editor).toBeNull();
     });
 
-    test('disconnect handles null editor', () => {
+    test('disconnect handles null editor', async () => {
         controller.editor = null;
         expect(() => controller.disconnect()).not.toThrow();
     });
 
     // buildToolbar tests
-    test('buildToolbar includes variable button when variables exist', () => {
+    test('buildToolbar includes variable button when variables exist', async () => {
         const toolbar = controller.buildToolbar();
         const customButton = toolbar.find(item => typeof item === 'object' && item.name === 'insert-variable');
         expect(customButton).toBeDefined();
@@ -126,20 +127,20 @@ describe('EmailTemplateEditorController', () => {
         expect(customButton.title).toBe('Insert Variable');
     });
 
-    test('buildToolbar omits variable button when no variables', () => {
+    test('buildToolbar omits variable button when no variables', async () => {
         controller.variablesValue = [];
         const toolbar = controller.buildToolbar();
         const customButton = toolbar.find(item => typeof item === 'object' && item.name === 'insert-variable');
         expect(customButton).toBeUndefined();
     });
 
-    test('buildToolbar always includes guide', () => {
+    test('buildToolbar always includes guide', async () => {
         const toolbar = controller.buildToolbar();
         expect(toolbar[toolbar.length - 1]).toBe('guide');
     });
 
     // renderVariableButtons tests
-    test('renderVariableButtons creates buttons with correct labels', () => {
+    test('renderVariableButtons creates buttons with correct labels', async () => {
         controller.renderVariableButtons();
         const buttons = controller.variableButtonsTarget.querySelectorAll('button');
         expect(buttons[0].textContent).toBe('{{userName}}');
@@ -147,13 +148,13 @@ describe('EmailTemplateEditorController', () => {
         expect(buttons[2].textContent).toBe('{{siteName}}');
     });
 
-    test('renderVariableButtons sets title from description', () => {
+    test('renderVariableButtons sets title from description', async () => {
         controller.renderVariableButtons();
         const buttons = controller.variableButtonsTarget.querySelectorAll('button');
         expect(buttons[0].title).toBe('User full name');
     });
 
-    test('renderVariableButtons includes syntax help alert', () => {
+    test('renderVariableButtons includes syntax help alert', async () => {
         controller.renderVariableButtons();
         const helpAlert = controller.variableButtonsTarget.querySelector('.alert-info');
         expect(helpAlert).not.toBeNull();
@@ -161,8 +162,8 @@ describe('EmailTemplateEditorController', () => {
     });
 
     // insertVariable tests
-    test('insertVariable calls codemirror replaceRange', () => {
-        controller.connect();
+    test('insertVariable calls codemirror replaceRange', async () => {
+        await controller.connect();
         const mockDoc = controller.editor.codemirror.getDoc();
         controller.insertVariable('userName');
         expect(mockDoc.replaceRange).toHaveBeenCalledWith(
@@ -171,68 +172,63 @@ describe('EmailTemplateEditorController', () => {
         );
     });
 
-    test('insertVariable does nothing when no editor', () => {
+    test('insertVariable does nothing when no editor', async () => {
         controller.editor = null;
         expect(() => controller.insertVariable('test')).not.toThrow();
     });
 
     // renderPreview tests
-    test('renderPreview highlights {{}} variables', () => {
-        controller.connect();
+    test('renderPreview highlights {{}} variables', async () => {
+        await controller.connect();
         const html = controller.renderPreview('Hello {{userName}}!');
         expect(html).toContain('badge bg-primary');
         expect(html).toContain('{{userName}}');
     });
 
-    test('renderPreview highlights ${} variables', () => {
-        controller.connect();
+    test('renderPreview highlights ${} variables', async () => {
+        await controller.connect();
         const html = controller.renderPreview('Hello ${email}!');
         expect(html).toContain('badge bg-success');
         expect(html).toContain('${email}');
     });
 
     // getValue / setValue
-    test('getValue returns editor value', () => {
-        controller.connect();
+    test('getValue returns editor value', async () => {
+        await controller.connect();
         controller.editor.value.mockReturnValue('Template content');
         expect(controller.getValue()).toBe('Template content');
     });
 
-    test('getValue returns empty string when no editor', () => {
+    test('getValue returns empty string when no editor', async () => {
         controller.editor = null;
         expect(controller.getValue()).toBe('');
     });
 
-    test('setValue sets editor value', () => {
-        controller.connect();
+    test('setValue sets editor value', async () => {
+        await controller.connect();
         controller.setValue('New template');
         expect(controller.editor.value).toHaveBeenCalledWith('New template');
     });
 
     // showVariableMenu tests
-    test('showVariableMenu inserts variable on valid selection', () => {
-        controller.connect();
-        global.prompt = jest.fn(() => 'userName');
-        controller.showVariableMenu(controller.editor);
+    test('showVariableMenu inserts variable on valid selection', async () => {
+        await controller.connect();
+        window.KMP_accessibility.prompt.mockResolvedValue('userName');
+        await controller.showVariableMenu(controller.editor);
         expect(controller.editor.codemirror.replaceSelection).toHaveBeenCalledWith('{{userName}}');
-        delete global.prompt;
     });
 
-    test('showVariableMenu alerts on invalid variable', () => {
-        controller.connect();
-        global.prompt = jest.fn(() => 'invalidVar');
-        global.alert = jest.fn();
-        controller.showVariableMenu(controller.editor);
-        expect(global.alert).toHaveBeenCalledWith('Invalid variable name');
-        delete global.prompt;
-        delete global.alert;
+    test('showVariableMenu announces invalid variable', async () => {
+        await controller.connect();
+        window.KMP_accessibility.prompt.mockResolvedValue('invalidVar');
+        await controller.showVariableMenu(controller.editor);
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith('Invalid variable name', { assertive: true });
     });
 
-    test('showVariableMenu does nothing when cancelled', () => {
-        controller.connect();
-        global.prompt = jest.fn(() => null);
-        controller.showVariableMenu(controller.editor);
+    test('showVariableMenu does nothing when cancelled', async () => {
+        await controller.connect();
+        window.KMP_accessibility.prompt.mockResolvedValue(null);
+        await controller.showVariableMenu(controller.editor);
         expect(controller.editor.codemirror.replaceSelection).not.toHaveBeenCalled();
-        delete global.prompt;
     });
 });

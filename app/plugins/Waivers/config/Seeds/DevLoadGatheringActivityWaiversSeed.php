@@ -9,87 +9,67 @@ use Migrations\BaseSeed;
  *
  * Development seed data linking activities to required waiver types.
  * Defines which waivers are required for which activities.
+ *
+ * Uses name-based lookups rather than hard-coded IDs so the seed remains
+ * compatible with both MySQL and Postgres (the latter does not advance
+ * auto-increment sequences for explicit-id inserts, so hard-coded IDs are
+ * fragile). Silently skips link rows for which the activity or waiver type
+ * is missing, since waiver_types are not seeded on a clean install.
  */
 class DevLoadGatheringActivityWaiversSeed extends BaseSeed
 {
     /**
-     * Get seed data
+     * Link definitions keyed by activity name and waiver-type name.
      *
-     * Links template activities to waiver types:
-     * - Combat activities require General Liability waiver
-     * - Youth Combat requires Youth Participation waiver
-     * - Martial activities (archery, thrown weapons) require General Liability
-     * - Arts & Sciences has no waiver requirements
-     *
-     * @return array<int, array<string, mixed>>
+     * @return array<int, array{activity:string, waiver_type:string}>
      */
     public function getData(): array
     {
         return [
-            // Armored Combat requires General Liability waiver
-            [
-                'id' => 1,
-                'gathering_activity_id' => 1, // Armored Combat
-                'waiver_type_id' => 1, // General Liability Waiver
-                'created' => '2025-01-01 10:00:00',
-                'modified' => '2025-01-01 10:00:00',
-            ],
-            // Rapier Combat requires General Liability waiver
-            [
-                'id' => 2,
-                'gathering_activity_id' => 2, // Rapier Combat
-                'waiver_type_id' => 1, // General Liability Waiver
-                'created' => '2025-01-01 10:00:00',
-                'modified' => '2025-01-01 10:00:00',
-            ],
-            // Youth Combat requires Youth Participation waiver
-            [
-                'id' => 3,
-                'gathering_activity_id' => 3, // Youth Combat
-                'waiver_type_id' => 2, // Youth Participation Waiver
-                'created' => '2025-01-01 10:00:00',
-                'modified' => '2025-01-01 10:00:00',
-            ],
-            // Youth Combat also requires General Liability waiver
-            [
-                'id' => 4,
-                'gathering_activity_id' => 3, // Youth Combat
-                'waiver_type_id' => 1, // General Liability Waiver
-                'created' => '2025-01-01 10:00:00',
-                'modified' => '2025-01-01 10:00:00',
-            ],
-            // Archery requires General Liability waiver
-            [
-                'id' => 5,
-                'gathering_activity_id' => 4, // Archery
-                'waiver_type_id' => 1, // General Liability Waiver
-                'created' => '2025-01-01 10:00:00',
-                'modified' => '2025-01-01 10:00:00',
-            ],
-            // Thrown Weapons requires General Liability waiver
-            [
-                'id' => 6,
-                'gathering_activity_id' => 5, // Thrown Weapons
-                'waiver_type_id' => 1, // General Liability Waiver
-                'created' => '2025-01-01 10:00:00',
-                'modified' => '2025-01-01 10:00:00',
-            ],
-            // Arts & Sciences Class has no waiver requirements (not in this seed)
+            ['activity' => 'Armored Combat',   'waiver_type' => 'General Liability Waiver'],
+            ['activity' => 'Rapier Combat',    'waiver_type' => 'General Liability Waiver'],
+            ['activity' => 'Youth Combat',     'waiver_type' => 'Youth Participation Waiver'],
+            ['activity' => 'Youth Combat',     'waiver_type' => 'General Liability Waiver'],
+            ['activity' => 'Archery',          'waiver_type' => 'General Liability Waiver'],
+            ['activity' => 'Thrown Weapons',   'waiver_type' => 'General Liability Waiver'],
         ];
     }
 
     /**
-     * Run Method.
-     *
-     * Write your database seeder using this method.
-     *
-     * @return void
+     * Look up each activity+waiver-type by name and insert a link row for
+     * every pair that resolves. Skips pairs with missing references so the
+     * seed succeeds even when waiver_types has not been populated.
      */
     public function run(): void
     {
-        $data = $this->getData();
+        $activities = [];
+        foreach ($this->fetchAll("SELECT id, name FROM gathering_activities") as $row) {
+            $activities[$row['name']] = (int)$row['id'];
+        }
+        $waiverTypes = [];
+        foreach ($this->fetchAll("SELECT id, name FROM waivers_waiver_types") as $row) {
+            $waiverTypes[$row['name']] = (int)$row['id'];
+        }
 
+        $now = '2025-01-01 10:00:00';
+        $toInsert = [];
+        foreach ($this->getData() as $link) {
+            $actId = $activities[$link['activity']] ?? null;
+            $wtId = $waiverTypes[$link['waiver_type']] ?? null;
+            if ($actId === null || $wtId === null) {
+                continue;
+            }
+            $toInsert[] = [
+                'gathering_activity_id' => $actId,
+                'waiver_type_id' => $wtId,
+                'created' => $now,
+                'modified' => $now,
+            ];
+        }
+        if (empty($toInsert)) {
+            return;
+        }
         $table = $this->table('waivers_gathering_activity_waivers');
-        $table->insert($data)->save();
+        $table->insert($toInsert)->save();
     }
 }

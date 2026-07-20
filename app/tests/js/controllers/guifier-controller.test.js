@@ -1,11 +1,13 @@
-// Guifier is an external dependency - mock it
-jest.mock('guifier', () => {
-    return jest.fn().mockImplementation((params) => {
-        return {
-            getData: jest.fn((type) => '{"key":"value"}'),
-        };
-    });
+// Guifier is dynamically imported - mock with __esModule + default
+const MockGuifier = jest.fn().mockImplementation((params) => {
+    return {
+        getData: jest.fn((type) => '{"key":"value"}'),
+    };
 });
+jest.mock('guifier', () => ({
+    __esModule: true,
+    default: MockGuifier,
+}));
 
 require('../../../assets/js/controllers/guifier-controller.js');
 const GuifierController = window.Controllers['guifier-control'];
@@ -33,29 +35,27 @@ describe('GuifierController', () => {
         jest.restoreAllMocks();
     });
 
-    test('registers on window.Controllers as guifier-control', () => {
+    test('registers on window.Controllers as guifier-control', async () => {
         expect(window.Controllers['guifier-control']).toBe(GuifierController);
     });
 
-    test('has correct static targets', () => {
+    test('has correct static targets', async () => {
         expect(GuifierController.targets).toEqual(['hidden', 'container']);
     });
 
-    test('has correct static values', () => {
+    test('has correct static values', async () => {
         expect(GuifierController.values).toHaveProperty('type', String);
     });
 
-    test('connect initializes Guifier instance', () => {
-        const Guifier = require('guifier');
-        controller.connect();
-        expect(Guifier).toHaveBeenCalled();
+    test('connect initializes Guifier instance', async () => {
+        await controller.connect();
+        expect(MockGuifier).toHaveBeenCalled();
         expect(controller.guifier).toBeDefined();
     });
 
-    test('connect passes correct element selector', () => {
-        const Guifier = require('guifier');
-        controller.connect();
-        expect(Guifier).toHaveBeenCalledWith(
+    test('connect passes correct element selector', async () => {
+        await controller.connect();
+        expect(MockGuifier).toHaveBeenCalledWith(
             expect.objectContaining({
                 elementSelector: '#guifier-container',
                 data: '{"key":"value"}',
@@ -67,7 +67,7 @@ describe('GuifierController', () => {
         );
     });
 
-    test('connect clicks all collapse buttons', () => {
+    test('connect clicks all collapse buttons', async () => {
         // Add some mock collapse buttons
         const btn1 = document.createElement('button');
         btn1.className = 'guifierContainerCollapseButton';
@@ -79,36 +79,34 @@ describe('GuifierController', () => {
         const clickSpy1 = jest.spyOn(btn1, 'click');
         const clickSpy2 = jest.spyOn(btn2, 'click');
 
-        controller.connect();
+        await controller.connect();
 
         expect(clickSpy1).toHaveBeenCalled();
         expect(clickSpy2).toHaveBeenCalled();
     });
 
-    test('onChange callback updates hidden field value', () => {
-        const Guifier = require('guifier');
+    test('onChange callback updates hidden field value', async () => {
         let onChangeCallback;
-        Guifier.mockImplementation((params) => {
+        MockGuifier.mockImplementation((params) => {
             onChangeCallback = params.onChange;
             return { getData: jest.fn(() => '{"updated":"data"}') };
         });
 
-        controller.connect();
+        await controller.connect();
         onChangeCallback();
 
         expect(controller.hiddenTarget.value).toBe('{"updated":"data"}');
     });
 
-    test('onChange callback dispatches change event', () => {
-        const Guifier = require('guifier');
+    test('onChange callback dispatches change event', async () => {
         let onChangeCallback;
-        Guifier.mockImplementation((params) => {
+        MockGuifier.mockImplementation((params) => {
             onChangeCallback = params.onChange;
             return { getData: jest.fn(() => '{}') };
         });
 
         const dispatchSpy = jest.spyOn(controller.hiddenTarget, 'dispatchEvent');
-        controller.connect();
+        await controller.connect();
         onChangeCallback();
 
         expect(dispatchSpy).toHaveBeenCalledWith(expect.any(Event));

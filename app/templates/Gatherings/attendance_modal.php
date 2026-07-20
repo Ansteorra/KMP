@@ -17,18 +17,29 @@ $formId = 'attendanceModalForm';
 $isMinor = $currentUser && $currentUser->age !== null && $currentUser->age < 18;
 ?>
 
+<?php
+$formAttrs = [
+    'type' => 'post',
+    'id' => $formId,
+    'data-turbo' => 'true',
+    'data-controller' => 'turbo-modal',
+    'data-action' => implode(' ', [
+        'submit->turbo-modal#submitAsTurboStream',
+        'turbo:submit-start->turbo-modal#closeModalBeforeSubmit',
+    ]),
+];
+if ($isEdit) {
+    $formAttrs['url'] = ['controller' => 'GatheringAttendances', 'action' => 'edit', $userAttendance->id];
+} else {
+    $formAttrs['url'] = ['controller' => 'GatheringAttendances', 'action' => 'add'];
+}
+?>
 <?php if ($isEdit): ?>
-    <?= $this->Form->create(null, [
-        'type' => 'post',
-        'url' => ['controller' => 'GatheringAttendances', 'action' => 'edit', $userAttendance->id],
-        'id' => $formId
-    ]) ?>
+    <?= $this->Form->create(null, $formAttrs) ?>
+    <?= $this->Form->hidden('page_context_url', ['value' => '']) ?>
 <?php else: ?>
-    <?= $this->Form->create(null, [
-        'type' => 'post',
-        'url' => ['controller' => 'GatheringAttendances', 'action' => 'add'],
-        'id' => $formId
-    ]) ?>
+    <?= $this->Form->create(null, $formAttrs) ?>
+    <?= $this->Form->hidden('page_context_url', ['value' => '']) ?>
 <?php endif; ?>
 
 <div class="modal-header">
@@ -117,7 +128,12 @@ $isMinor = $currentUser && $currentUser->age !== null && $currentUser->age < 18;
 <div class="modal-footer">
     <?php if ($isEdit): ?>
         <button type="button" class="btn btn-outline-danger btn-sm me-auto"
-            onclick="if (confirm('<?= h(__('Are you sure you want to remove your attendance registration?')) ?>')) { document.getElementById('deleteAttendanceForm_<?= $userAttendance->id ?>').submit(); }">
+            data-controller="confirmation"
+            data-action="confirmation#confirm"
+            data-confirmation-message-value="<?= h(__('Are you sure you want to remove your attendance registration?')) ?>"
+            data-confirmation-title-value="<?= h(__('Remove attendance registration')) ?>"
+            data-confirmation-confirm-label-value="<?= h(__('Remove')) ?>"
+            data-confirmation-submit-selector-value="#deleteAttendanceForm_<?= $userAttendance->id ?>">
             <?= __('Remove My Attendance') ?>
         </button>
     <?php endif; ?>
@@ -133,7 +149,11 @@ $isMinor = $currentUser && $currentUser->age !== null && $currentUser->age < 18;
         'type' => 'post',
         'url' => ['controller' => 'GatheringAttendances', 'action' => 'delete', $userAttendance->id],
         'id' => 'deleteAttendanceForm_' . $userAttendance->id,
-        'style' => 'display: none;'
+        'style' => 'display: none;',
+        'data-turbo' => 'true',
+        'data-controller' => 'turbo-modal',
+        'data-action' => 'submit->turbo-modal#submitAsTurboStream',
     ]) ?>
+    <?= $this->Form->hidden('page_context_url', ['value' => '']) ?>
     <?= $this->Form->end() ?>
 <?php endif; ?>

@@ -1,19 +1,22 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Officers\Test\TestCase\Services;
 
+use App\Services\ActiveWindowManager\DefaultActiveWindowManager;
+use App\Services\WarrantManager\DefaultWarrantManager;
+use App\Services\WorkflowEngine\TriggerDispatcher;
 use App\Test\TestCase\BaseTestCase;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
-use Officers\Services\OfficerManagerInterface;
 use Officers\Model\Entity\Officer;
+use Officers\Services\DefaultOfficerManager;
+use RuntimeException;
 
 /**
  * Officers\Services\DefaultOfficerManager Test Case
  *
- * Tests the DefaultOfficerManager service including the new
+ * Tests the DefaultOfficerManager service release and
  * recalculateOfficersForOffice functionality for office configuration changes.
  *
  * @uses \Officers\Services\DefaultOfficerManager
@@ -106,7 +109,6 @@ class DefaultOfficerManagerTest extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
-
         // Get table instances
         $this->Offices = TableRegistry::getTableLocator()->get('Officers.Offices');
         $this->Officers = TableRegistry::getTableLocator()->get('Officers.Officers');
@@ -124,16 +126,17 @@ class DefaultOfficerManagerTest extends BaseTestCase
         ]);
         $this->testBranch = $this->Branches->save($branch);
         if (!$this->testBranch) {
-            throw new \RuntimeException('Failed to create test branch: ' . json_encode($branch->getErrors()));
+            throw new RuntimeException('Failed to create test branch: ' . json_encode($branch->getErrors()));
         }
 
         // Manually create service for testing
-        $activeWindowManager = new \App\Services\ActiveWindowManager\DefaultActiveWindowManager();
-        $warrantManager = new \App\Services\WarrantManager\DefaultWarrantManager($activeWindowManager);
+        $activeWindowManager = new DefaultActiveWindowManager();
+        $triggerDispatcher = $this->createMock(TriggerDispatcher::class);
+        $warrantManager = new DefaultWarrantManager($activeWindowManager, $triggerDispatcher);
 
         // Create a partial mock that doesn't actually queue mail (to avoid Queue plugin config issues)
-        $this->officerManager = $this->getMockBuilder(\Officers\Services\DefaultOfficerManager::class)
-            ->setConstructorArgs([$activeWindowManager, $warrantManager])
+        $this->officerManager = $this->getMockBuilder(DefaultOfficerManager::class)
+            ->setConstructorArgs([$activeWindowManager, $warrantManager, $triggerDispatcher])
             ->onlyMethods(['queueMail'])
             ->getMock();
 
@@ -162,7 +165,44 @@ class DefaultOfficerManagerTest extends BaseTestCase
         parent::tearDown();
     }
 
+    /**
+     * Create a persisted officer fixture for release and recalculation tests.
+     *
+     * @param int $officeId Office identifier.
+     * @param int $memberId Member identifier.
+     * @param int $branchId Branch identifier.
+     * @param \Cake\I18n\DateTime $startOn Officer start date.
+     * @param \Cake\I18n\DateTime|null $expiresOn Officer end date.
+     * @param int $approverId Approver identifier.
+     * @return \Officers\Model\Entity\Officer
+     */
+    private function createOfficerFixture(
+        int $officeId,
+        int $memberId,
+        int $branchId,
+        DateTime $startOn,
+        ?DateTime $expiresOn,
+        int $approverId,
+    ): Officer {
+        $status = $startOn->isFuture() ? Officer::UPCOMING_STATUS : Officer::CURRENT_STATUS;
+        if ($expiresOn !== null && $expiresOn->isPast()) {
+            $status = Officer::EXPIRED_STATUS;
+        }
 
+        $officer = $this->Officers->newEntity([
+            'member_id' => $memberId,
+            'office_id' => $officeId,
+            'branch_id' => $branchId,
+            'approver_id' => $approverId,
+            'approval_date' => DateTime::now(),
+            'start_on' => $startOn,
+            'expires_on' => $expiresOn,
+            'status' => $status,
+            'email_address' => 'officer@example.com',
+        ]);
+
+        return $this->Officers->saveOrFail($officer);
+    }
 
     /**
      * Test recalculateOfficersForOffice with reports_to_id change
@@ -230,7 +270,7 @@ class DefaultOfficerManagerTest extends BaseTestCase
         // Recalculate officers
         $result = $this->officerManager->recalculateOfficersForOffice(
             $office->id,
-            self::TEST_UPDATER_ID
+            self::TEST_UPDATER_ID,
         );
 
         // Assert success
@@ -298,7 +338,7 @@ class DefaultOfficerManagerTest extends BaseTestCase
         // Recalculate officers
         $result = $this->officerManager->recalculateOfficersForOffice(
             $office->id,
-            self::TEST_UPDATER_ID
+            self::TEST_UPDATER_ID,
         );
 
         // Assert success
@@ -361,7 +401,7 @@ class DefaultOfficerManagerTest extends BaseTestCase
         // Recalculate officers
         $result = $this->officerManager->recalculateOfficersForOffice(
             $office->id,
-            self::TEST_UPDATER_ID
+            self::TEST_UPDATER_ID,
         );
 
         // Assert success
@@ -444,7 +484,7 @@ class DefaultOfficerManagerTest extends BaseTestCase
         // Recalculate officers
         $result = $this->officerManager->recalculateOfficersForOffice(
             $office->id,
-            self::TEST_UPDATER_ID
+            self::TEST_UPDATER_ID,
         );
 
         // Assert success
@@ -535,7 +575,7 @@ class DefaultOfficerManagerTest extends BaseTestCase
         // Recalculate officers
         $result = $this->officerManager->recalculateOfficersForOffice(
             $office->id,
-            self::TEST_UPDATER_ID
+            self::TEST_UPDATER_ID,
         );
 
         // Assert success
@@ -606,7 +646,7 @@ class DefaultOfficerManagerTest extends BaseTestCase
         // Recalculate officers
         $result = $this->officerManager->recalculateOfficersForOffice(
             $office->id,
-            self::TEST_UPDATER_ID
+            self::TEST_UPDATER_ID,
         );
 
         // Assert success but no updates
@@ -645,7 +685,7 @@ class DefaultOfficerManagerTest extends BaseTestCase
         // Recalculate officers (there are none)
         $result = $this->officerManager->recalculateOfficersForOffice(
             $office->id,
-            self::TEST_UPDATER_ID
+            self::TEST_UPDATER_ID,
         );
 
         // Assert success with zero updates
@@ -715,7 +755,7 @@ class DefaultOfficerManagerTest extends BaseTestCase
                 if ($entity->isDirty('reports_to_office_id')) {
                     return false;
                 }
-            }
+            },
         );
 
         // Change reports_to_id on the office to trigger recalculation
@@ -725,171 +765,11 @@ class DefaultOfficerManagerTest extends BaseTestCase
         // Attempt recalculation — should fail fast on first officer save
         $result = $this->officerManager->recalculateOfficersForOffice(
             $office->id,
-            self::ADMIN_MEMBER_ID
+            self::ADMIN_MEMBER_ID,
         );
 
         $this->assertFalse($result->success, 'Recalculation should fail when officer save fails');
         $this->assertStringContainsString('Failed to update officer', $result->reason);
-    }
-
-    // ============================================================================
-    // Tests for assign() method - Using seed data
-    // ============================================================================
-
-    /**
-     * Test successful assignment of officer to office without warrant requirement
-     * 
-     * Uses existing seed data:
-     * - Member ID 1 (Admin von Admin)
-     * - Office ID 1 (Crown - no warrant required)
-     * - Creates a test branch since branches table is empty in seed
-     */
-    public function testAssignOfficerSuccessfully(): void
-    {
-        // Create a test branch (branches table is empty in seed data)
-        $Branches = $this->getTableLocator()->get('Branches');
-        $branch = $Branches->newEntity([
-            'name' => 'Kingdom of Test ' . uniqid(),
-            'location' => 'Test Kingdom',
-            'parent_id' => null,
-        ]);
-        $Branches->saveOrFail($branch);
-
-        // Use existing members and office from seed data
-        $member = $this->Members->get(self::ADMIN_MEMBER_ID);
-        $approver = $this->Members->get(self::ADMIN_MEMBER_ID);
-        $office = $this->Offices->get(1); // Crown - no warrant required
-
-        // Assign the officer
-        $startOn = DateTime::now();
-        $endOn = DateTime::now()->addMonths(12); // 12 months from now
-
-        $result = $this->officerManager->assign(
-            $office->id,
-            $member->id,
-            $branch->id,
-            $startOn,
-            $endOn,
-            null, // no deputy description
-            $approver->id,
-            'officer@example.com'
-        );
-
-        // Verify success
-        $this->assertTrue($result->success, 'Assignment should succeed');
-
-        // Verify officer was created
-        $officers = $this->Officers->find()
-            ->where([
-                'office_id' => $office->id,
-                'member_id' => $member->id,
-                'status IN' => ['current', 'upcoming'],
-            ])
-            ->orderBy(['created' => 'DESC'])
-            ->all();
-        $this->assertGreaterThan(0, count($officers), 'Should have created officer record');
-
-        $officer = $officers->first();
-        $this->assertEquals($branch->id, $officer->branch_id);
-        $this->assertEquals($approver->id, $officer->approver_id);
-        $this->assertEquals('officer@example.com', $officer->email_address);
-        $this->assertNotNull($officer->approval_date);
-    }
-
-    /**
-     * Test assignment to office requiring warrant for non-warrantable member fails
-     * 
-     * NOTE: This test is marked incomplete because `warrantable` is a virtual calculated
-     * field based on multiple factors (background check, membership status, etc.), not a
-     * simple database column that can be directly set. To properly test this scenario,
-     * we would need to set up all the conditions that make a member non-warrantable
-     * (expired background check, expired membership, etc.).
-     * 
-     * The validation logic IS present in DefaultOfficerManager::assign() lines 228-233,
-     * which checks if office requires_warrant and member is not warrantable.
-     */
-    public function testAssignNonWarrantableMemberToWarrantRequiredOfficeFails(): void
-    {
-        // Set admin member as non-warrantable via direct SQL (bypasses beforeSave recalculation)
-        $this->Members->getConnection()->execute(
-            'UPDATE members SET warrantable = 0 WHERE id = ?',
-            [self::ADMIN_MEMBER_ID]
-        );
-
-        // Office 2 (Kingdom Earl Marshal) requires_warrant = true in seed data
-        $warrantOffice = $this->Offices->get(2);
-        $this->assertTrue((bool)$warrantOffice->requires_warrant, 'Office should require warrant');
-
-        // Attempt to assign non-warrantable member to warrant-required office
-        $result = $this->officerManager->assign(
-            $warrantOffice->id,
-            self::ADMIN_MEMBER_ID,
-            $this->testBranch->id,
-            DateTime::now(),
-            DateTime::now()->addMonths(12),
-            null,
-            self::ADMIN_MEMBER_ID,
-            'test@example.com'
-        );
-
-        $this->assertFalse($result->success, 'Assignment should fail for non-warrantable member');
-        $this->assertStringContainsString('not warrantable', $result->reason);
-    }
-
-    /**
-     * Test assignment calculates end date from term_length when not provided
-     * 
-     * Uses Kingdom Earl Marshal (office ID 2) which has a 24-month term
-     */
-    public function testAssignCalculatesEndDateFromTermLength(): void
-    {
-        // Create a test branch (branches table is empty in seed data)
-        $Branches = $this->getTableLocator()->get('Branches');
-        $branch = $Branches->newEntity([
-            'name' => 'Kingdom of Test 3 ' . uniqid(),
-            'location' => 'Test Kingdom 3',
-            'parent_id' => null,
-        ]);
-        $Branches->saveOrFail($branch);
-
-        // Use existing seed data
-        $member = $this->Members->get(self::ADMIN_MEMBER_ID);
-        $approver = $this->Members->get(self::ADMIN_MEMBER_ID);
-        $office = $this->Offices->get(2); // Kingdom Earl Marshal with 24-month term
-
-        // Assign officer with no end date
-        $startOn = DateTime::now();
-        $result = $this->officerManager->assign(
-            $office->id,
-            $member->id,
-            $branch->id,
-            $startOn,
-            null, // Let it calculate from term_length
-            null,
-            $approver->id,
-            'officer@example.com'
-        );
-
-        // Verify success
-        $this->assertTrue($result->success, 'Assignment should succeed');
-
-        // Verify officer has calculated end date
-        $officer = $this->Officers->find()
-            ->where([
-                'office_id' => $office->id,
-                'member_id' => $member->id,
-            ])
-            ->orderBy(['created' => 'DESC'])
-            ->first();
-
-        $this->assertNotNull($officer);
-        $this->assertNotNull($officer->expires_on);
-
-        // The end date should be approximately term_length months from start
-        // Office 2 has term_length = 24 months
-        $expectedEnd = $startOn->addMonths($office->term_length);
-        $daysDiff = abs($expectedEnd->diffInDays($officer->expires_on));
-        $this->assertLessThanOrEqual(1, $daysDiff, 'End date should be calculated from term_length');
     }
 
     // ============================================================================
@@ -898,7 +778,7 @@ class DefaultOfficerManagerTest extends BaseTestCase
 
     /**
      * Test successful release of officer
-     * 
+     *
      * First assigns an officer, then releases them
      */
     public function testReleaseOfficerSuccessfully(): void
@@ -912,35 +792,20 @@ class DefaultOfficerManagerTest extends BaseTestCase
         ]);
         $Branches->saveOrFail($branch);
 
-        // Setup: Create an officer to release
         $member = $this->Members->get(self::ADMIN_MEMBER_ID);
         $approver = $this->Members->get(self::ADMIN_MEMBER_ID);
         $office = $this->Offices->get(2); // Kingdom Earl Marshal
 
-        // First assign the officer
         $startOn = DateTime::now();
         $endOn = DateTime::now()->addMonths(24);
-        $assignResult = $this->officerManager->assign(
+        $officer = $this->createOfficerFixture(
             $office->id,
             $member->id,
             $branch->id,
             $startOn,
             $endOn,
-            null,
             $approver->id,
-            'release@example.com'
         );
-        $this->assertTrue($assignResult->success, 'Assignment should succeed');
-
-        // Get the created officer
-        $officer = $this->Officers->find()
-            ->where([
-                'office_id' => $office->id,
-                'member_id' => $member->id,
-                'status IN' => ['current', 'upcoming'],
-            ])
-            ->orderBy(['created' => 'DESC'])
-            ->first();
         $this->assertNotNull($officer, 'Officer should have been created');
 
         // Now release the officer
@@ -950,7 +815,7 @@ class DefaultOfficerManagerTest extends BaseTestCase
             $approver->id,
             $revokedOn,
             'Resigned from position',
-            Officer::RELEASED_STATUS
+            Officer::RELEASED_STATUS,
         );
 
         // Verify success
@@ -965,9 +830,7 @@ class DefaultOfficerManagerTest extends BaseTestCase
     }
 
     /**
-     * Test release with custom status (REPLACED_STATUS)
-     * 
-     * Assigns an officer then releases with "replaced" status
+     * Test release with custom status (REPLACED_STATUS).
      */
     public function testReleaseOfficerWithReplacedStatus(): void
     {
@@ -980,33 +843,18 @@ class DefaultOfficerManagerTest extends BaseTestCase
         ]);
         $Branches->saveOrFail($branch);
 
-        // Setup: Create an officer to replace
         $member = $this->Members->get(self::ADMIN_MEMBER_ID);
         $approver = $this->Members->get(self::ADMIN_MEMBER_ID);
         $office = $this->Offices->get(2); // Kingdom Earl Marshal
 
-        // Assign officer
-        $assignResult = $this->officerManager->assign(
+        $officer = $this->createOfficerFixture(
             $office->id,
             $member->id,
             $branch->id,
             DateTime::now()->subMonths(3),
             DateTime::now()->addMonths(9),
-            null,
             $approver->id,
-            'replaced@example.com'
         );
-        $this->assertTrue($assignResult->success);
-
-        // Get the officer
-        $officer = $this->Officers->find()
-            ->where([
-                'office_id' => $office->id,
-                'member_id' => $member->id,
-                'status IN' => ['current', 'upcoming'],
-            ])
-            ->orderBy(['created' => 'DESC'])
-            ->first();
 
         // Release with REPLACED status
         $revokedOn = DateTime::now();
@@ -1015,7 +863,7 @@ class DefaultOfficerManagerTest extends BaseTestCase
             $approver->id,
             $revokedOn,
             'Replaced by new officer',
-            Officer::REPLACED_STATUS
+            Officer::REPLACED_STATUS,
         );
 
         // Verify success

@@ -4,13 +4,15 @@ Deploy KMP to Fly.io's global edge network with managed Postgres.
 
 [← Back to Deployment Guide](README.md)
 
+> Legacy note: the automated `kmp install` flow is retired for new deployments. This page is kept as archived self-hosted reference.
+
 ## Prerequisites
 
 - [Fly.io account](https://fly.io/app/sign-up)
 - [`flyctl` CLI](https://fly.io/docs/hands-on/install-flyctl/) installed and authenticated
 - A credit card on file (Fly.io requires one even for free-tier usage)
 
-## Option A: Automated Install (Recommended)
+## Legacy Automated Install (Retired)
 
 ```bash
 # Install the KMP management tool
@@ -122,7 +124,7 @@ fly logs -i abc123 # Logs from a specific instance
 ## Updates
 
 ```bash
-# Using the management tool
+# Legacy management tool
 kmp update
 
 # Or manually

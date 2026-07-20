@@ -1,0 +1,280 @@
+{
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
+    "nodes": {
+        "trigger": {
+            "type": "trigger",
+            "label": "Existing Recommendation Approval Requested",
+            "config": {
+                "event": "Awards.ExistingRecommendationApprovalRequested",
+                "entityIdField": "recommendationId"
+            },
+            "position": {
+                "x": 50,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "start-approval-process"
+                }
+            ]
+        },
+        "start-approval-process": {
+            "type": "action",
+            "label": "Start Approval Process",
+            "config": {
+                "action": "Awards.StartApprovalProcess",
+                "params": {
+                    "recommendationId": "$.trigger.recommendationId",
+                    "actorId": "$.trigger.actorId"
+                }
+            },
+            "position": {
+                "x": 350,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "start-approval-succeeded"
+                }
+            ]
+        },
+        "start-approval-succeeded": {
+            "type": "condition",
+            "label": "Approval Process Started?",
+            "config": {
+                "condition": "Core.FieldEquals",
+                "field": "$.nodes.start-approval-process.result.success",
+                "value": true
+            },
+            "position": {
+                "x": 650,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "award-approval-gate",
+                    "label": "Started"
+                },
+                {
+                    "port": "false",
+                    "target": "end-failed",
+                    "label": "Failed"
+                }
+            ]
+        },
+        "award-approval-gate": {
+            "type": "approval",
+            "label": "Award Approval",
+            "config": {
+                "approverType": "dynamic",
+                "approverConfig": {
+                    "service": "$.awardApprovalCurrentStep.approvalApproverConfig.service",
+                    "method": "$.awardApprovalCurrentStep.approvalApproverConfig.method",
+                    "award_approval_run_id": "$.awardApprovalCurrentStep.approvalApproverConfig.award_approval_run_id",
+                    "award_approval_step_key": "$.awardApprovalCurrentStep.approvalApproverConfig.award_approval_step_key",
+                    "award_approval_approver_type": "$.awardApprovalCurrentStep.approvalApproverConfig.award_approval_approver_type",
+                    "award_approval_approver_source_id": "$.awardApprovalCurrentStep.approvalApproverConfig.award_approval_approver_source_id",
+                    "award_approval_approver_source_key": "$.awardApprovalCurrentStep.approvalApproverConfig.award_approval_approver_source_key",
+                    "award_approval_branch_mode": "$.awardApprovalCurrentStep.approvalApproverConfig.award_approval_branch_mode",
+                    "award_approval_branch_type": "$.awardApprovalCurrentStep.approvalApproverConfig.award_approval_branch_type",
+                    "award_approval_threshold_mode": "$.awardApprovalCurrentStep.approvalApproverConfig.award_approval_threshold_mode",
+                    "award_approval_required_count": "$.awardApprovalCurrentStep.approvalApproverConfig.award_approval_required_count",
+                    "member_id": "$.awardApprovalCurrentStep.approvalApproverConfig.member_id",
+                    "retain_read_visibility": "$.awardApprovalCurrentStep.approvalApproverConfig.retain_read_visibility",
+                    "on_reject": "$.awardApprovalCurrentStep.approvalApproverConfig.on_reject",
+                    "on_request_changes": "$.awardApprovalCurrentStep.approvalApproverConfig.on_request_changes",
+                    "award_approval_is_final_step": "$.awardApprovalCurrentStep.approvalApproverConfig.award_approval_is_final_step",
+                    "requires_bestowal_gathering": "$.awardApprovalCurrentStep.approvalApproverConfig.award_approval_is_final_step"
+                },
+                "requiredCount": "$.awardApprovalCurrentStep.requiredCount"
+            },
+            "position": {
+                "x": 950,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "approved",
+                    "target": "advance-approval-process",
+                    "label": "Approved"
+                },
+                {
+                    "port": "rejected",
+                    "target": "advance-approval-process",
+                    "label": "Rejected"
+                }
+            ]
+        },
+        "advance-approval-process": {
+            "type": "action",
+            "label": "Advance Approval Process",
+            "config": {
+                "action": "Awards.AdvanceApprovalProcess",
+                "params": {
+                    "approvalNodeId": "award-approval-gate",
+                    "actorId": "$.nodes.award-approval-gate.approverId"
+                }
+            },
+            "position": {
+                "x": 1250,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "approval-process-complete"
+                }
+            ]
+        },
+        "approval-process-complete": {
+            "type": "condition",
+            "label": "Approval Process Complete?",
+            "config": {
+                "condition": "Core.FieldEquals",
+                "field": "$.nodes.advance-approval-process.result.completed",
+                "value": true
+            },
+            "position": {
+                "x": 1550,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "create-bestowal",
+                    "label": "Complete"
+                },
+                {
+                    "port": "false",
+                    "target": "approval-process-closed",
+                    "label": "Continue"
+                }
+            ]
+        },
+        "approval-process-closed": {
+            "type": "condition",
+            "label": "Approval Process Closed?",
+            "config": {
+                "condition": "Core.FieldEquals",
+                "field": "$.nodes.advance-approval-process.result.closed",
+                "value": true
+            },
+            "position": {
+                "x": 1850,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "end-rejected",
+                    "label": "Closed"
+                },
+                {
+                    "port": "false",
+                    "target": "award-approval-gate",
+                    "label": "Next Step"
+                }
+            ]
+        },
+        "create-bestowal": {
+            "type": "action",
+            "label": "Create Bestowal",
+            "config": {
+                "action": "Awards.CreateBestowal",
+                "params": {
+                    "recommendationId": "$.nodes.advance-approval-process.result.recommendationId",
+                    "actorId": "$.nodes.award-approval-gate.approverId",
+                    "gatheringId": "$.nodes.award-approval-gate.bestowalGatheringId"
+                }
+            },
+            "position": {
+                "x": 1850,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "bestowal-created"
+                }
+            ]
+        },
+        "bestowal-created": {
+            "type": "condition",
+            "label": "Bestowal Created?",
+            "config": {
+                "condition": "Core.FieldEquals",
+                "field": "$.nodes.create-bestowal.result.success",
+                "value": true
+            },
+            "position": {
+                "x": 2150,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "end-created",
+                    "label": "Created"
+                },
+                {
+                    "port": "false",
+                    "target": "end-bestowal-failed",
+                    "label": "Failed"
+                }
+            ]
+        },
+        "end-rejected": {
+            "type": "end",
+            "label": "Approval Rejected",
+            "config": {
+                "result": "$.nodes.advance-approval-process.result"
+            },
+            "position": {
+                "x": 2450,
+                "y": 150
+            },
+            "outputs": []
+        },
+        "end-created": {
+            "type": "end",
+            "label": "Approval Complete",
+            "config": {
+                "result": "$.nodes.create-bestowal.result"
+            },
+            "position": {
+                "x": 2450,
+                "y": 250
+            },
+            "outputs": []
+        },
+        "end-bestowal-failed": {
+            "type": "end",
+            "label": "Bestowal Creation Failed",
+            "config": {
+                "result": "$.nodes.create-bestowal.result"
+            },
+            "position": {
+                "x": 2450,
+                "y": 375
+            },
+            "outputs": []
+        },
+        "end-failed": {
+            "type": "end",
+            "label": "Approval Start Failed",
+            "config": {
+                "result": "$.nodes.start-approval-process.result"
+            },
+            "position": {
+                "x": 950,
+                "y": 400
+            },
+            "outputs": []
+        }
+    },
+    "startNode": "trigger"
+}

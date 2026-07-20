@@ -1,27 +1,27 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Officers\Services;
 
+use App\KMP\StaticHelpers;
 use App\KMP\TimezoneHelper;
-use App\Model\Entity\Warrant;
-use Cake\I18n\DateTime;
-use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
-use App\Services\WarrantManager\WarrantManagerInterface;
-use Cake\ORM\TableRegistry;
-use Officers\Model\Entity\Officer;
-use App\Services\ServiceResult;
-use Cake\Mailer\MailerAwareTrait;
-use App\Services\WarrantManager\WarrantRequest;
 use App\Mailer\QueuedMailerAwareTrait;
+use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
+use App\Services\ServiceResult;
+use App\Services\WarrantManager\WarrantManagerInterface;
+use App\Services\WorkflowEngine\TriggerDispatcher;
+use Cake\I18n\DateTime;
+use Cake\Log\Log;
+use Cake\ORM\TableRegistry;
+use Exception;
+use Officers\Model\Entity\Officer;
 
 /**
- * Default implementation of OfficerManagerInterface for officer lifecycle management.
- * 
- * Handles officer assignment, release, and recalculation operations with integrated
- * warrant management, role assignment, and notification processing.
- * 
+ * Default implementation of OfficerManagerInterface for officer release management.
+ *
+ * Handles workflow-shared officer release and recalculation operations with integrated
+ * warrant management and notification processing.
+ *
  * @package Officers\Services
  * @see \Officers\Services\OfficerManagerInterface
  * @see /docs/5.1.1-officers-services.md for detailed documentation
@@ -29,148 +29,37 @@ use App\Mailer\QueuedMailerAwareTrait;
 class DefaultOfficerManager implements OfficerManagerInterface
 {
     use QueuedMailerAwareTrait;
-    use MailerAwareTrait;
 
-    /** @var ActiveWindowManagerInterface */
+    /**
+     * @var \App\Services\ActiveWindowManager\ActiveWindowManagerInterface
+     */
     private ActiveWindowManagerInterface $activeWindowManager;
 
-    /** @var WarrantManagerInterface */
+    /**
+     * @var \App\Services\WarrantManager\WarrantManagerInterface
+     */
     private WarrantManagerInterface $warrantManager;
 
     /**
-     * @param ActiveWindowManagerInterface $activeWindowManager Temporal assignment management
-     * @param WarrantManagerInterface $warrantManager Warrant lifecycle coordination
+     * @var \App\Services\WorkflowEngine\TriggerDispatcher
      */
-    public function __construct(ActiveWindowManagerInterface $activeWindowManager, WarrantManagerInterface $warrantManager)
+    private TriggerDispatcher $triggerDispatcher;
+
+    /**
+     * @param \App\Services\ActiveWindowManager\ActiveWindowManagerInterface $activeWindowManager Temporal assignment management
+     * @param \App\Services\WarrantManager\WarrantManagerInterface $warrantManager Warrant lifecycle coordination
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Workflow trigger dispatcher
+     */
+    public function __construct(ActiveWindowManagerInterface $activeWindowManager, WarrantManagerInterface $warrantManager, TriggerDispatcher $triggerDispatcher)
     {
         $this->activeWindowManager = $activeWindowManager;
         $this->warrantManager = $warrantManager;
-    }
-    /**
-     * Assign a member to an office within a branch, persisting the Officer record,
-     * establishing reporting/deputy relationships, starting the ActiveWindow lifecycle,
-     * optionally requesting a warrant, and queuing a hire notification.
-     *
-     * @param int $officeId Office identifier for the assignment target.
-     * @param int $memberId Member identifier being assigned to the office.
-     * @param int $branchId Branch identifier providing organizational context.
-     * @param DateTime $startOn Assignment start date.
-     * @param DateTime|null $endOn Optional assignment end date; if null, may be derived from the office term length.
-     * @param string|null $deputyDescription Optional deputy description for deputy assignments.
-     * @param int $approverId Identifier of the approver performing the assignment.
-     * @param string|null $emailAddress Optional email address to store on the Officer record and use for notifications.
-     * @return ServiceResult ServiceResult with `success === true` on success; on failure `success === false` and `reason` contains an error message.
-     */
-    public function assign(
-        int $officeId,
-        int $memberId,
-        int $branchId,
-        DateTime $startOn,
-        ?DateTime $endOn,
-        ?string $deputyDescription,
-        int $approverId,
-        ?string $emailAddress
-    ): ServiceResult {
-        //get officer table
-        $officerTable = TableRegistry::getTableLocator()->get('Officers.Officers');
-        $newOfficer = $officerTable->newEmptyEntity();
-        //get office table
-        $officeTable = TableRegistry::getTableLocator()->get('Officers.Offices');
-        //get the office
-        $office = $officeTable->get($officeId);
-        if ($office->requires_warrant) {
-            $member = TableRegistry::getTableLocator()->get('Members')->get($memberId);
-            if (!$member->warrantable) {
-                return new ServiceResult(false, "Member is not warrantable");
-            }
-        }
-
-        if ($endOn === null) {
-            if ($office->term_length == 0) {
-                $endOn = null;
-            } else {
-                $endOn = $startOn->addMonths($office->term_length);
-            }
-        }
-        $status = Officer::UPCOMING_STATUS;
-        if ($startOn->isToday() || $startOn->isPast()) {
-            $status = Officer::CURRENT_STATUS;
-        }
-        if ($endOn != null && $endOn->isPast()) {
-            $status = Officer::EXPIRED_STATUS;
-        }
-        $newOfficer->member_id = $memberId;
-        $newOfficer->office_id = $officeId;
-        $newOfficer->branch_id = $branchId;
-        $newOfficer->approver_id = $approverId;
-        $newOfficer->approval_date = DateTime::now();
-        $newOfficer->status = $status;
-        $newOfficer->email_address = $emailAddress ? $emailAddress : "";
-        $newOfficer->deputy_description = $deputyDescription;
-
-        // Calculate and apply reporting relationships using helper method
-        $reportingFields = $this->_calculateOfficerReportingFields($office, $newOfficer);
-        $newOfficer->reports_to_office_id = $reportingFields['reports_to_office_id'];
-        $newOfficer->reports_to_branch_id = $reportingFields['reports_to_branch_id'];
-        $newOfficer->deputy_to_office_id = $reportingFields['deputy_to_office_id'];
-        $newOfficer->deputy_to_branch_id = $reportingFields['deputy_to_branch_id'];
-
-        //release current officers if they exist for this office
-        if ($office->only_one_per_branch) {
-            $currentOfficers = $officerTable->find()
-                ->where([
-                    'office_id' => $officeId,
-                    'branch_id' => $branchId,
-                    'status' => Officer::CURRENT_STATUS
-                ])
-                ->all();
-            foreach ($currentOfficers as $currentOfficer) {
-                $oResult = $this->release($currentOfficer->id, $approverId, $startOn, "Replaced by new officer", Officer::REPLACED_STATUS);
-                if (!$oResult->success) {
-                    return new ServiceResult(false, $oResult->reason);
-                }
-            }
-        }
-        if (!$officerTable->save($newOfficer)) {
-            return new ServiceResult(false, "Failed to save officer");
-        }
-        $awResult = $this->activeWindowManager->start('Officers.Officers', $newOfficer->id, $approverId, $startOn, $endOn, $office->term_length, $office->grants_role_id, $office->only_one_per_branch, $branchId);
-        if (!$awResult->success) {
-            return new ServiceResult(false, $awResult->reason);
-        }
-
-        $newOfficer = $officerTable->get($newOfficer->id);
-        $branchTable = TableRegistry::getTableLocator()->get('Branches');
-        $branch = $branchTable->get($branchId);
-        $member = TableRegistry::getTableLocator()->get('Members')->get($memberId);
-        if ($office->requires_warrant) {
-
-            $officeName = $office->name;
-            if ($deputyDescription != null and $deputyDescription != "") {
-                $officeName = $officeName . " (" . $deputyDescription . ")";
-            }
-            $warrantRequest = new WarrantRequest("Hiring Warrant: $branch->name - $officeName", 'Officers.Officers', $newOfficer->id, $approverId, $memberId, $startOn, $endOn, $newOfficer->granted_member_role_id);
-
-            $wmResult = $this->warrantManager->request("$office->name : $member->sca_name", "", [$warrantRequest]);
-            if (!$wmResult->success) {
-                return new ServiceResult(false, $wmResult->reason);
-            }
-        }
-        $vars = [
-            "memberScaName" => $member->sca_name,
-            "officeName" => $office->name,
-            "branchName" => $branch->name,
-            "hireDate" => TimezoneHelper::formatDate($newOfficer->start_on),
-            "endDate" => TimezoneHelper::formatDate($newOfficer->expires_on),
-            "requiresWarrant" => $office->requires_warrant
-        ];
-        $this->queueMail("Officers.Officers", "notifyOfHire", $member->email_address, $vars);
-        return new ServiceResult(true);
+        $this->triggerDispatcher = $triggerDispatcher;
     }
 
     /**
      * Calculate reporting relationship fields for an officer based on office configuration.
-     * 
+     *
      * @param object $office The office entity with deputy_to_id, reports_to_id, and can_skip_report fields
      * @param object $officer The officer entity with branch_id
      * @return array Associative array with reports_to_office_id, reports_to_branch_id,
@@ -208,7 +97,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
                     // starting from the immediate parent
                     $compatibleBranchId = $officesTable->findCompatibleBranchForOffice(
                         $branch->parent_id,
-                        $office->reports_to_id
+                        $office->reports_to_id,
                     );
                     $result['reports_to_branch_id'] = $compatibleBranchId;
                 } else {
@@ -237,7 +126,7 @@ class DefaultOfficerManager implements OfficerManagerInterface
                     if (!$setReportsToBranch) {
                         $compatibleBranchId = $officesTable->findCompatibleBranchForOffice(
                             $previousBranchId,
-                            $office->reports_to_id
+                            $office->reports_to_id,
                         );
                         $result['reports_to_branch_id'] = $compatibleBranchId;
                     }
@@ -252,17 +141,17 @@ class DefaultOfficerManager implements OfficerManagerInterface
 
     /**
      * Recalculate reporting relationships and roles for all current/upcoming officers of an office.
-     * 
+     *
      * Call when office deputy_to_id, reports_to_id, or grants_role_id changes.
      * Uses fail-fast error handling - stops on first failure.
      *
      * @param int $officeId The office ID for officers requiring recalculation
      * @param int $updaterId The updater ID for audit trail and role change tracking
-     * @return ServiceResult Result with updated_count, current_count, upcoming_count on success
+     * @return \App\Services\ServiceResult Result with updated_count, current_count, upcoming_count on success
      */
     public function recalculateOfficersForOffice(
         int $officeId,
-        int $updaterId
+        int $updaterId,
     ): ServiceResult {
         $officerTable = TableRegistry::getTableLocator()->get('Officers.Officers');
         $officeTable = TableRegistry::getTableLocator()->get('Officers.Offices');
@@ -311,14 +200,15 @@ class DefaultOfficerManager implements OfficerManagerInterface
                         $updaterId,
                         'released',
                         'Office no longer grants this role',
-                        $today
+                        $today,
                     );
                     if (!$awResult->success) {
                         $member = $memberTable->get($officer->member_id);
                         $branch = $branchTable->get($officer->branch_id);
+
                         return new ServiceResult(
                             false,
-                            "Failed to end role for $member->sca_name ($office->name at $branch->name): {$awResult->reason}"
+                            "Failed to end role for $member->sca_name ($office->name at $branch->name): {$awResult->reason}",
                         );
                     }
                     $officer->granted_member_role_id = null;
@@ -330,14 +220,15 @@ class DefaultOfficerManager implements OfficerManagerInterface
                         $updaterId,
                         'replaced',
                         'Office role configuration changed',
-                        $today
+                        $today,
                     );
                     if (!$awResult->success) {
                         $member = $memberTable->get($officer->member_id);
                         $branch = $branchTable->get($officer->branch_id);
+
                         return new ServiceResult(
                             false,
-                            "Failed to end old role for $member->sca_name ($office->name at $branch->name): {$awResult->reason}"
+                            "Failed to end old role for $member->sca_name ($office->name at $branch->name): {$awResult->reason}",
                         );
                     }
 
@@ -355,9 +246,10 @@ class DefaultOfficerManager implements OfficerManagerInterface
                     if (!$memberRoleTable->save($newRole)) {
                         $member = $memberTable->get($officer->member_id);
                         $branch = $branchTable->get($officer->branch_id);
+
                         return new ServiceResult(
                             false,
-                            "Failed to create new role for $member->sca_name ($office->name at $branch->name)"
+                            "Failed to create new role for $member->sca_name ($office->name at $branch->name)",
                         );
                     }
                     $officer->granted_member_role_id = $newRole->id;
@@ -378,9 +270,10 @@ class DefaultOfficerManager implements OfficerManagerInterface
                 if (!$memberRoleTable->save($newRole)) {
                     $member = $memberTable->get($officer->member_id);
                     $branch = $branchTable->get($officer->branch_id);
+
                     return new ServiceResult(
                         false,
-                        "Failed to create role for $member->sca_name ($office->name at $branch->name)"
+                        "Failed to create role for $member->sca_name ($office->name at $branch->name)",
                     );
                 }
                 $officer->granted_member_role_id = $newRole->id;
@@ -390,9 +283,10 @@ class DefaultOfficerManager implements OfficerManagerInterface
             if (!$officerTable->save($officer)) {
                 $member = $memberTable->get($officer->member_id);
                 $branch = $branchTable->get($officer->branch_id);
+
                 return new ServiceResult(
                     false,
-                    "Failed to update officer for $member->sca_name ($office->name at $branch->name)"
+                    "Failed to update officer for $member->sca_name ($office->name at $branch->name)",
                 );
             }
 
@@ -423,14 +317,15 @@ class DefaultOfficerManager implements OfficerManagerInterface
                         $updaterId,
                         'released',
                         'Office no longer grants this role',
-                        $today
+                        $today,
                     );
                     if (!$awResult->success) {
                         $member = $memberTable->get($officer->member_id);
                         $branch = $branchTable->get($officer->branch_id);
+
                         return new ServiceResult(
                             false,
-                            "Failed to end role for $member->sca_name ($office->name at $branch->name): {$awResult->reason}"
+                            "Failed to end role for $member->sca_name ($office->name at $branch->name): {$awResult->reason}",
                         );
                     }
                     $officer->granted_member_role_id = null;
@@ -442,14 +337,15 @@ class DefaultOfficerManager implements OfficerManagerInterface
                         $updaterId,
                         'replaced',
                         'Office role configuration changed',
-                        $today
+                        $today,
                     );
                     if (!$awResult->success) {
                         $member = $memberTable->get($officer->member_id);
                         $branch = $branchTable->get($officer->branch_id);
+
                         return new ServiceResult(
                             false,
-                            "Failed to end old role for $member->sca_name ($office->name at $branch->name): {$awResult->reason}"
+                            "Failed to end old role for $member->sca_name ($office->name at $branch->name): {$awResult->reason}",
                         );
                     }
 
@@ -467,9 +363,10 @@ class DefaultOfficerManager implements OfficerManagerInterface
                     if (!$memberRoleTable->save($newRole)) {
                         $member = $memberTable->get($officer->member_id);
                         $branch = $branchTable->get($officer->branch_id);
+
                         return new ServiceResult(
                             false,
-                            "Failed to create new role for $member->sca_name ($office->name at $branch->name)"
+                            "Failed to create new role for $member->sca_name ($office->name at $branch->name)",
                         );
                     }
                     $officer->granted_member_role_id = $newRole->id;
@@ -489,9 +386,10 @@ class DefaultOfficerManager implements OfficerManagerInterface
                 if (!$memberRoleTable->save($newRole)) {
                     $member = $memberTable->get($officer->member_id);
                     $branch = $branchTable->get($officer->branch_id);
+
                     return new ServiceResult(
                         false,
-                        "Failed to create role for $member->sca_name ($office->name at $branch->name)"
+                        "Failed to create role for $member->sca_name ($office->name at $branch->name)",
                     );
                 }
                 $officer->granted_member_role_id = $newRole->id;
@@ -501,9 +399,10 @@ class DefaultOfficerManager implements OfficerManagerInterface
             if (!$officerTable->save($officer)) {
                 $member = $memberTable->get($officer->member_id);
                 $branch = $branchTable->get($officer->branch_id);
+
                 return new ServiceResult(
                     false,
-                    "Failed to update officer for $member->sca_name ($office->name at $branch->name)"
+                    "Failed to update officer for $member->sca_name ($office->name at $branch->name)",
                 );
             }
 
@@ -521,23 +420,23 @@ class DefaultOfficerManager implements OfficerManagerInterface
 
     /**
      * Release an officer from their position.
-     * 
+     *
      * Handles ActiveWindow termination, warrant cancellation for warrant-required offices,
      * and sends release notification to the member.
      *
      * @param int $officerId Officer identifier
      * @param int $revokerId Administrator performing the release
-     * @param DateTime $revokedOn Effective release date
+     * @param \Cake\I18n\DateTime $revokedOn Effective release date
      * @param string|null $revokedReason Optional reason for release
      * @param string|null $releaseStatus Status to set (defaults to RELEASED_STATUS)
-     * @return ServiceResult Success or failure with reason
+     * @return \App\Services\ServiceResult Success or failure with reason
      */
     public function release(
         int $officerId,
         int $revokerId,
         DateTime $revokedOn,
         ?string $revokedReason,
-        ?string $releaseStatus = Officer::RELEASED_STATUS
+        ?string $releaseStatus = Officer::RELEASED_STATUS,
     ): ServiceResult {
         $awResult = $this->activeWindowManager->stop('Officers.Officers', $officerId, $revokerId, $releaseStatus, $revokedReason, $revokedOn);
         if (!$awResult->success) {
@@ -555,13 +454,29 @@ class DefaultOfficerManager implements OfficerManagerInterface
         $office = $officer->office;
         $branch = TableRegistry::getTableLocator()->get('Branches')->get($officer->branch_id);
         $vars = [
-            "memberScaName" => $member->sca_name,
-            "officeName" => $office->name,
-            "branchName" => $branch->name,
-            "reason" => $revokedReason,
-            "releaseDate" => TimezoneHelper::formatDate($revokedOn),
+            'memberScaName' => $member->sca_name,
+            'officeName' => $office->name,
+            'branchName' => $branch->name,
+            'reason' => $revokedReason,
+            'releaseDate' => TimezoneHelper::formatDate($revokedOn),
+            'siteAdminSignature' => StaticHelpers::getAppSetting('Email.SiteAdminSignature', '', null, true),
         ];
-        $this->queueMail("Officers.Officers", "notifyOfRelease", $member->email_address, $vars);
+        $this->queueMail('KMP', 'sendFromTemplate', $member->email_address, array_merge(
+            ['_templateId' => 'officer-release-notification'],
+            $vars,
+        ));
+
+        try {
+            $this->triggerDispatcher->dispatch('Officers.Released', [
+                'officerId' => $officer->id,
+                'memberId' => $officer->member_id,
+                'officeId' => $officer->office_id,
+                'reason' => $revokedReason ?? 'Released',
+            ]);
+        } catch (Exception $e) {
+            Log::warning('Workflow trigger dispatch failed for Officers.Released: ' . $e->getMessage());
+        }
+
         return new ServiceResult(true);
     }
 }

@@ -73,26 +73,30 @@ describe('DeleteConfirmationController', () => {
         expect(message).not.toContain('referenced by');
     });
 
-    test('confirm prevents default when user cancels', () => {
-        jest.spyOn(window, 'confirm').mockReturnValue(false);
-        const event = { preventDefault: jest.fn(), stopPropagation: jest.fn() };
-        const result = controller.confirm(event);
+    test('confirm prevents default when user cancels', async () => {
+        window.KMP_accessibility.confirm.mockResolvedValue(false);
+        const event = { preventDefault: jest.fn(), stopPropagation: jest.fn(), currentTarget: document.querySelector('button') };
+        const result = await controller.confirm(event);
         expect(event.preventDefault).toHaveBeenCalled();
         expect(event.stopPropagation).toHaveBeenCalled();
         expect(result).toBe(false);
     });
 
-    test('confirm allows action when user confirms', () => {
-        jest.spyOn(window, 'confirm').mockReturnValue(true);
-        const event = { preventDefault: jest.fn(), stopPropagation: jest.fn() };
-        const result = controller.confirm(event);
-        expect(event.preventDefault).not.toHaveBeenCalled();
+    test('confirm allows action when user confirms', async () => {
+        window.KMP_accessibility.confirm.mockResolvedValue(true);
+        const event = { preventDefault: jest.fn(), stopPropagation: jest.fn(), currentTarget: document.querySelector('button') };
+        const result = await controller.confirm(event);
+        expect(event.preventDefault).toHaveBeenCalled();
         expect(result).toBe(true);
     });
 
-    test('confirm passes built message to window.confirm', () => {
-        const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
-        controller.confirm({ preventDefault: jest.fn(), stopPropagation: jest.fn() });
-        expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('Test Member'));
+    test('confirm passes built message to accessible confirmation helper', async () => {
+        await controller.confirm({
+            preventDefault: jest.fn(),
+            stopPropagation: jest.fn(),
+            currentTarget: document.querySelector('button')
+        });
+        const confirmSpy = window.KMP_accessibility.confirm;
+        expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('Test Member'), expect.any(Object));
     });
 });

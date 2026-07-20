@@ -1,12 +1,15 @@
-// Mock qrcode library before import
-jest.mock('qrcode', () => ({
+// Mock qrcode library before import - dynamic import needs __esModule + default
+const MockQRCode = {
     toCanvas: jest.fn((canvas, url, options, callback) => {
         if (callback) callback(null);
     })
+};
+jest.mock('qrcode', () => ({
+    __esModule: true,
+    default: MockQRCode,
 }));
 
 import '../../../assets/js/controllers/qrcode-controller.js';
-import QRCode from 'qrcode';
 const QrcodeController = window.Controllers['qrcode'];
 
 describe('QrcodeController', () => {
@@ -36,6 +39,7 @@ describe('QrcodeController', () => {
         controller.hasModalIdValue = false;
         controller.modalIdValue = '';
         controller.generated = false;
+        controller._QRCode = MockQRCode;
     });
 
     afterEach(() => {
@@ -45,11 +49,11 @@ describe('QrcodeController', () => {
 
     // --- Static properties ---
 
-    test('has correct static targets', () => {
+    test('has correct static targets', async () => {
         expect(QrcodeController.targets).toEqual(['canvas']);
     });
 
-    test('has correct static values', () => {
+    test('has correct static values', async () => {
         expect(QrcodeController.values).toHaveProperty('url', String);
         expect(QrcodeController.values).toHaveProperty('size');
         expect(QrcodeController.values).toHaveProperty('modalId', String);
@@ -58,19 +62,19 @@ describe('QrcodeController', () => {
         expect(QrcodeController.values).toHaveProperty('errorCorrectionLevel');
     });
 
-    test('registers on window.Controllers', () => {
+    test('registers on window.Controllers', async () => {
         expect(window.Controllers['qrcode']).toBe(QrcodeController);
     });
 
     // --- connect ---
 
-    test('connect generates immediately when no modal', () => {
+    test('connect generates immediately when no modal', async () => {
         const genSpy = jest.spyOn(controller, 'generate');
-        controller.connect();
+        await controller.connect();
         expect(genSpy).toHaveBeenCalled();
     });
 
-    test('connect waits for modal shown event when modalId provided', () => {
+    test('connect waits for modal shown event when modalId provided', async () => {
         const modal = document.createElement('div');
         modal.id = 'qrModal';
         document.body.appendChild(modal);
@@ -79,14 +83,14 @@ describe('QrcodeController', () => {
         controller.hasModalIdValue = true;
         controller.modalIdValue = 'qrModal';
 
-        controller.connect();
+        await controller.connect();
 
         expect(addSpy).toHaveBeenCalledWith('shown.bs.modal', expect.any(Function));
     });
 
     // --- disconnect ---
 
-    test('disconnect removes modal listener', () => {
+    test('disconnect removes modal listener', async () => {
         const modal = document.createElement('div');
         modal.id = 'qrModal';
         document.body.appendChild(modal);
@@ -94,7 +98,7 @@ describe('QrcodeController', () => {
 
         controller.hasModalIdValue = true;
         controller.modalIdValue = 'qrModal';
-        controller.connect();
+        await controller.connect();
         controller.disconnect();
 
         expect(removeSpy).toHaveBeenCalledWith('shown.bs.modal', expect.any(Function));
@@ -103,10 +107,10 @@ describe('QrcodeController', () => {
 
     // --- generate ---
 
-    test('generate calls QRCode.toCanvas with correct options', async () => {
+    test('generate calls MockQRCode.toCanvas with correct options', async () => {
         await controller.generate();
 
-        expect(QRCode.toCanvas).toHaveBeenCalledWith(
+        expect(MockQRCode.toCanvas).toHaveBeenCalledWith(
             expect.any(HTMLCanvasElement),
             'https://example.com',
             expect.objectContaining({
@@ -123,21 +127,21 @@ describe('QrcodeController', () => {
     test('generate only runs once', async () => {
         await controller.generate();
         await controller.generate();
-        expect(QRCode.toCanvas).toHaveBeenCalledTimes(1);
+        expect(MockQRCode.toCanvas).toHaveBeenCalledTimes(1);
     });
 
-    test('generate throws when URL value is missing', () => {
+    test('generate throws when URL value is missing', async () => {
         controller.hasUrlValue = false;
         expect(() => controller.generate()).toThrow('URL value is required');
     });
 
-    test('generate throws when canvas target is missing', () => {
+    test('generate throws when canvas target is missing', async () => {
         controller.hasCanvasTarget = false;
         expect(() => controller.generate()).toThrow('Canvas target is required');
     });
 
     test('generate shows error message on QRCode failure', async () => {
-        QRCode.toCanvas.mockImplementationOnce((canvas, url, options, callback) => {
+        MockQRCode.toCanvas.mockImplementationOnce((canvas, url, options, callback) => {
             callback(new Error('QR error'));
         });
 
@@ -154,7 +158,7 @@ describe('QrcodeController', () => {
 
     // --- regenerate ---
 
-    test('regenerate resets generated flag and calls generate', () => {
+    test('regenerate resets generated flag and calls generate', async () => {
         controller.generated = true;
         const genSpy = jest.spyOn(controller, 'generate').mockResolvedValue(undefined);
 

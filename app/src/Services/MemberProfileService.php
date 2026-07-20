@@ -32,6 +32,8 @@ class MemberProfileService
      */
     private $Members;
 
+    private ?DocumentService $documentService = null;
+
     /**
      * Initialize the profile service.
      */
@@ -78,7 +80,7 @@ class MemberProfileService
             ];
         }
 
-        $documentService = new DocumentService();
+        $documentService = $this->getDocumentService();
         $uploadResult = $documentService->createDocument(
             $file,
             'Members.ProfilePhoto',
@@ -87,6 +89,7 @@ class MemberProfileService
             ['type' => 'profile_photo'],
             'member-profile-photos',
             ['png', 'jpg', 'jpeg'],
+            verifiedMimeType: (string)$actualMimeType,
         );
         if (!$uploadResult->success) {
             $reason = $uploadResult->reason ?? (string)__('Unable to upload profile photo.');
@@ -138,7 +141,7 @@ class MemberProfileService
                 $member->profile_photo_document_id = null;
                 $this->Members->saveOrFail($member);
 
-                $documentService = new DocumentService();
+                $documentService = $this->getDocumentService();
                 $deleteResult = $documentService->deleteDocument($oldDocumentId);
                 if (!$deleteResult->success) {
                     throw new RuntimeException((string)__('Unable to remove profile photo. Please try again.'));
@@ -162,12 +165,20 @@ class MemberProfileService
      */
     public function getProfilePhotoResponse(Member $member, string $filenamePrefix): ?Response
     {
-        $documentService = new DocumentService();
+        $documentService = $this->getDocumentService();
 
-        return $documentService->getDocumentInlineResponse(
+        return $documentService->getImageThumbnailInlineResponse(
             $member->profile_photo,
             $filenamePrefix . $member->id . '.jpg',
         );
+    }
+
+    /**
+     * Return the cache validator for the current profile-photo thumbnail.
+     */
+    public function getProfilePhotoEtag(Member $member): string
+    {
+        return $this->getDocumentService()->getImageThumbnailEtag($member->profile_photo);
     }
 
     /**
@@ -183,5 +194,13 @@ class MemberProfileService
             'plugin' => null,
             '_full' => true,
         ]);
+    }
+
+    /**
+     * Reuse document storage initialization throughout the request.
+     */
+    private function getDocumentService(): DocumentService
+    {
+        return $this->documentService ??= new DocumentService();
     }
 }

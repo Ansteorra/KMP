@@ -209,16 +209,13 @@ abstract class BaseTestCase extends TestCase
     }
 
     /**
-     * Skip this test when running on PostgreSQL (no MySQL seed data).
+     * Compatibility shim for older tests that skipped PostgreSQL seed gaps.
      *
-     * @param string $reason Optional reason message
+     * @param string $reason Unused legacy reason message.
      * @return void
      */
-    protected function skipIfPostgres(string $reason = 'Requires MySQL seed data (dev_seed_clean.sql)'): void
+    protected function skipIfPostgres(string $reason = 'PostgreSQL seed parity is available'): void
     {
-        if (SeedManager::isPostgres('test')) {
-            $this->markTestSkipped($reason);
-        }
     }
 
     // ==================================================

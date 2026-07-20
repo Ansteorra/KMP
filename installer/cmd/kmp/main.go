@@ -22,8 +22,8 @@ var version = "dev"
 func main() {
 	rootCmd := &cobra.Command{
 		Use:   "kmp",
-		Short: "KMP Manager — deploy and manage Kingdom Management Portal",
-		Long:  "Standalone management tool for the Kingdom Management Portal (KMP).\nDeploy, update, monitor, and back up KMP installations.",
+		Short: "KMP Manager — maintain legacy self-hosted KMP deployments",
+		Long:  "Archived management tool for legacy self-hosted Kingdom Management Portal (KMP) deployments.\nNew environments should use the managed multi-tenant hosting approach.",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			// Skip update check when running self-update itself
 			if cmd.Name() != "self-update" {
@@ -60,7 +60,7 @@ func loadDeployment() (*config.Deployment, providers.Provider, error) {
 	// For now, use "default" deployment. Later: support multiple deployments via --name flag
 	dep, ok := cfg.Deployments["default"]
 	if !ok {
-		return nil, nil, fmt.Errorf("no deployment found. Run `kmp install` first")
+		return nil, nil, fmt.Errorf("no deployment found. New installs via `kmp install` are retired; use the archived self-hosted deployment docs if you need to reconstruct a legacy environment")
 	}
 
 	provider, err := providers.GetProvider(dep.Provider, dep)
@@ -83,13 +83,12 @@ func confirmPrompt(msg string) bool {
 func newInstallCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "install",
-		Short: "Deploy KMP to a new environment",
+		Short: "Retired: deploy KMP to a new environment",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			p := tea.NewProgram(tui.NewInstallModel(), tea.WithAltScreen())
-			if _, err := p.Run(); err != nil {
-				return fmt.Errorf("install TUI error: %w", err)
-			}
-			return nil
+			fmt.Fprintln(cmd.ErrOrStderr(), "kmp install has been retired for new deployments.")
+			fmt.Fprintln(cmd.ErrOrStderr(), "KMP is moving to a managed multi-tenant hosting model.")
+			fmt.Fprintln(cmd.ErrOrStderr(), "The legacy self-hosted deployment notes remain in docs/deployment/README.md.")
+			return fmt.Errorf("installer retired")
 		},
 	}
 }
@@ -405,7 +404,7 @@ func newConfigCmd() *cobra.Command {
 			data, err := os.ReadFile(path)
 			if err != nil {
 				if os.IsNotExist(err) {
-					fmt.Println("No configuration file found. Run `kmp install` first.")
+					fmt.Println("No configuration file found. New installs via `kmp install` are retired.")
 					return nil
 				}
 				return err

@@ -13,6 +13,7 @@ namespace App\Model\Entity;
  * @property int $gathering_id
  * @property string $name
  * @property string|null $description
+ * @property bool $is_circle
  * @property string|null $instructions
  * @property \Cake\I18n\DateTime $created
  * @property \Cake\I18n\DateTime $modified
@@ -30,6 +31,7 @@ class GatheringActivity extends BaseEntity
     protected array $_accessible = [
         'name' => true,
         'description' => true,
+        'is_circle' => true,
         'created' => true,
         'modified' => true,
     ];

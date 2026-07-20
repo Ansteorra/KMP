@@ -9,88 +9,172 @@
 #
 # Services:
 #   - app: PHP 8.3 + Apache (your code mounted at /var/www/html)
-#   - db: MariaDB with persistent volume
+#   - scheduler: Timed work and queue processing using the app image
+#   - db: PostgreSQL with persistent volume
+#   - pgadmin: PostgreSQL administration UI (development only)
 #   - mailpit: Email testing (UI at http://localhost:8025)
+
+name: kmp
+
+x-app-base: &app-base
+  image: kmp-app:dev
+  build:
+    context: .
+    dockerfile: docker/Dockerfile.app
+  env_file:
+    - path: app/config/.env
+      required: false
+  depends_on:
+    db:
+      condition: service_healthy
+    mailpit:
+      condition: service_started
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  volumes:
+    - ./app:/var/www/html:cached
+    - ./dev_seed_clean.sql:/var/www/dev_seed_clean.sql:ro
+    - composer-cache:/root/.composer/cache
+    - node-modules:/var/www/html/node_modules
+  environment: &app-environment
+    APP_NAME: KMP_DOCKER
+    KMP_ENV: ${KMP_ENV:-local}
+    KMP_DB_DRIVER: postgres
+    DB_HOST: db
+    DB_PORT: "5432"
+    DB_USERNAME: ${POSTGRES_USER:-KMPSQLDEV}
+    DB_PASSWORD: ${POSTGRES_PASSWORD:-kmpdevpass}
+    DB_DATABASE: ${POSTGRES_DB:-KMP_DEV}
+    DATABASE_URL: postgres://${POSTGRES_USER:-KMPSQLDEV}:${POSTGRES_PASSWORD:-kmpdevpass}@db:5432/${POSTGRES_DB:-KMP_DEV}
+    DATABASE_TEST_URL: postgres://${POSTGRES_USER:-KMPSQLDEV}:${POSTGRES_PASSWORD:-kmpdevpass}@db:5432/${POSTGRES_DB:-KMP_DEV}_test
+    PLATFORM_DB_HOST: db
+    PLATFORM_DB_PORT: "5432"
+    PLATFORM_DB_USERNAME: ${POSTGRES_USER:-KMPSQLDEV}
+    PLATFORM_DB_PASSWORD: ${POSTGRES_PASSWORD:-kmpdevpass}
+    PLATFORM_DB_DATABASE: ${PLATFORM_DB_DATABASE:-KMP_PLATFORM}
+    PLATFORM_DATABASE_URL: postgres://${POSTGRES_USER:-KMPSQLDEV}:${POSTGRES_PASSWORD:-kmpdevpass}@db:5432/${PLATFORM_DB_DATABASE:-KMP_PLATFORM}
+    PLATFORM_DATABASE_TEST_URL: postgres://${POSTGRES_USER:-KMPSQLDEV}:${POSTGRES_PASSWORD:-kmpdevpass}@db:5432/${PLATFORM_DB_TEST_DATABASE:-KMP_PLATFORM_test}
+    KMP_TENANCY_ENABLED: ${KMP_TENANCY_ENABLED:-true}
+    KMP_REQUIRED_SCHEMA_VERSION: "${KMP_REQUIRED_SCHEMA_VERSION:-}"
+    KMP_PLATFORM_ADMIN_PORTAL_ENABLED: ${KMP_PLATFORM_ADMIN_PORTAL_ENABLED:-false}
+    KMP_PLATFORM_ADMIN_HOSTS: ${KMP_PLATFORM_ADMIN_HOSTS:-platform.kmp.localhost}
+    KMP_PLATFORM_ADMIN_ALLOWED_STATUSES: ${KMP_PLATFORM_ADMIN_ALLOWED_STATUSES:-active}
+    KMP_AUTO_CREATE_DATABASES: ${KMP_AUTO_CREATE_DATABASES:-true}
+    EMAIL_SMTP_HOST: mailpit
+    EMAIL_SMTP_PORT: "1025"
+    EMAIL_SMTP_USERNAME: ""
+    EMAIL_SMTP_PASSWORD: ""
+    XDEBUG_MODE: ${XDEBUG_MODE:-debug,develop}
+    XDEBUG_CONFIG: "client_host=${XDEBUG_CLIENT_HOST:-host.docker.internal} client_port=${XDEBUG_CLIENT_PORT:-9003}"
+    PHP_IDE_CONFIG: "serverName=${PHP_IDE_SERVER_NAME:-KMP-Docker}"
+    KMP_APP_PORT: ${KMP_APP_PORT:-8080}
+    KMP_DEV_TENANT_HOST: ${KMP_DEV_TENANT_HOST:-kmp.localhost}
+    KMP_DB_HOST_PORT: ${KMP_DB_HOST_PORT:-5432}
+    KMP_MAILPIT_WEB_PORT: ${KMP_MAILPIT_WEB_PORT:-8025}
+    PHP_MEMORY_LIMIT: 256M
+    KMP_SCHEDULER_POLL_INTERVAL: ${KMP_SCHEDULER_POLL_INTERVAL:-10}
+    KMP_WORKFLOW_SCHEDULER_INTERVAL: ${KMP_WORKFLOW_SCHEDULER_INTERVAL:-60}
+    KMP_ACTIVE_WINDOW_SYNC_INTERVAL: ${KMP_ACTIVE_WINDOW_SYNC_INTERVAL:-900}
+    KMP_MEMBER_WARRANTABLE_SYNC_INTERVAL: ${KMP_MEMBER_WARRANTABLE_SYNC_INTERVAL:-86400}
+    KMP_AGE_UP_MEMBERS_INTERVAL: ${KMP_AGE_UP_MEMBERS_INTERVAL:-86400}
 
 services:
   db:
-    image: mariadb:11
+    image: postgres:16
     container_name: kmp-db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
-      MYSQL_DATABASE: ${MYSQL_DB_NAME:-KMP_DEV}
-      MYSQL_USER: ${MYSQL_USERNAME:-KMPSQLDEV}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-P@ssw0rd}
+      POSTGRES_DB: ${POSTGRES_DB:-KMP_DEV}
+      POSTGRES_USER: ${POSTGRES_USER:-KMPSQLDEV}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kmpdevpass}
     ports:
-      - "3306:3306"
+      - "${KMP_DB_BIND_ADDR:-127.0.0.1}:${KMP_DB_HOST_PORT:-5432}:5432"
     volumes:
-      - kmp-db-data:/var/lib/mysql
+      - kmp-pg-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-KMPSQLDEV} -d ${POSTGRES_DB:-KMP_DEV}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: kmp-pgadmin
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${KMP_PGADMIN_BIND_ADDR:-127.0.0.1}:${KMP_PGADMIN_PORT:-5050}:80"
+    volumes:
+      - kmp-pgadmin-data:/var/lib/pgadmin
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${KMP_PGADMIN_EMAIL:-admin@kmpdev.org}
+      PGADMIN_DEFAULT_PASSWORD: ${KMP_PGADMIN_PASSWORD:-kmpdevpass}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kmpdevpass}
+      PGADMIN_REPLACE_SERVERS_ON_STARTUP: "True"
+      PGADMIN_DISABLE_POSTFIX: "true"
+      PGADMIN_CONFIG_SERVER_MODE: "${KMP_PGADMIN_SERVER_MODE:-False}"
+      PGADMIN_CONFIG_DESKTOP_USER: "'${KMP_PGADMIN_EMAIL:-admin@kmpdev.org}'"
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "True"
+      PGADMIN_CONFIG_CONSOLE_LOG_LEVEL: "30"
 
   mailpit:
     image: axllent/mailpit:latest
     container_name: kmp-mailpit
     restart: unless-stopped
     ports:
-      - "8025:8025"  # Web UI
-      - "1025:1025"  # SMTP
+      - "${KMP_MAILPIT_BIND_ADDR:-127.0.0.1}:${KMP_MAILPIT_WEB_PORT:-8025}:8025"  # Web UI
+      - "${KMP_MAILPIT_BIND_ADDR:-127.0.0.1}:${KMP_MAILPIT_SMTP_PORT:-1025}:1025"  # SMTP
     environment:
       MP_SMTP_AUTH_ACCEPT_ANY: "true"
       MP_SMTP_AUTH_ALLOW_INSECURE: "true"
 
   app:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.app
+    <<: *app-base
     container_name: kmp-app
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-      mailpit:
-        condition: service_started
     ports:
-      - "8080:80"
-    volumes:
-      # Mount local code - changes reflect immediately
-      - ./app:/var/www/html:cached
-      # Persist composer cache for faster rebuilds
-      - composer-cache:/root/.composer/cache
-      # Persist node_modules to avoid reinstalling
-      - node-modules:/var/www/html/node_modules
+      - "${KMP_APP_BIND_ADDR:-127.0.0.1}:${KMP_APP_PORT:-8080}:80"
     environment:
-      # App identification (prevents .env loading - we use container env vars)
-      APP_NAME: KMP_DOCKER
-      # Database
-      MYSQL_HOST: db
-      MYSQL_USERNAME: ${MYSQL_USERNAME:-KMPSQLDEV}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-P@ssw0rd}
-      MYSQL_DB_NAME: ${MYSQL_DB_NAME:-KMP_DEV}
-      # Email
-      EMAIL_SMTP_HOST: mailpit
-      EMAIL_SMTP_PORT: "1025"
-      EMAIL_SMTP_USERNAME: ""
-      EMAIL_SMTP_PASSWORD: ""
-      # PHP/App settings
-      PHP_MEMORY_LIMIT: 256M
-      APACHE_DOCUMENT_ROOT: /var/www/html
+      <<: *app-environment
+      KMP_SKIP_CRON: "true"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD-SHELL", "curl -f http://localhost/livez"]
+      interval: 60s
+      timeout: 2s
       retries: 3
       start_period: 60s
 
+  scheduler:
+    <<: *app-base
+    container_name: kmp-scheduler
+    restart: unless-stopped
+    command: ["sh", "/usr/local/bin/kmp-scheduler-loop-dev"]
+    volumes:
+      - ./app:/var/www/html:cached
+      - ./dev_seed_clean.sql:/var/www/dev_seed_clean.sql:ro
+      - composer-cache:/root/.composer/cache
+      - node-modules:/var/www/html/node_modules
+      - ./docker/scheduler-loop.sh:/usr/local/bin/kmp-scheduler-loop-dev:ro
+    environment:
+      <<: *app-environment
+      KMP_SKIP_CRON: "true"
+      KMP_SKIP_INITIAL_DB_SETUP: "true"
+    stop_grace_period: 30s
+
 volumes:
-  kmp-db-data:
-    name: kmp-db-data
+  kmp-pg-data:
+    name: kmp-pg-data
+    external: true
   composer-cache:
     name: kmp-composer-cache
+    external: true
   node-modules:
     name: kmp-node-modules
+    external: true
+  kmp-pgadmin-data:
+    name: kmp-pgadmin-data
+    external: true

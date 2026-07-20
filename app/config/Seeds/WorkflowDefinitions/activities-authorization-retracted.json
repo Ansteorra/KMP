@@ -1,0 +1,71 @@
+{
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
+    "nodes": {
+        "trigger-retracted": {
+            "type": "trigger",
+            "label": "Authorization Retracted",
+            "config": {
+                "event": "Activities.AuthorizationRetracted",
+                "entityIdField": "authorizationId"
+            },
+            "position": {
+                "x": 50,
+                "y": 150
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "retract-authorization"
+                }
+            ]
+        },
+        "retract-authorization": {
+            "type": "action",
+            "label": "Retract Authorization",
+            "config": {
+                "action": "Activities.RetractAuthorization",
+                "params": {
+                    "authorizationId": "$.trigger.authorizationId",
+                    "requesterId": "$.trigger.memberId"
+                }
+            },
+            "position": {
+                "x": 350,
+                "y": 150
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "end"
+                }
+            ]
+        },
+        "end": {
+            "type": "end",
+            "label": "Authorization Retracted",
+            "config": {},
+            "position": {
+                "x": 650,
+                "y": 150
+            },
+            "outputs": []
+        }
+    },
+    "connections": [
+        {
+            "source": "trigger-retracted",
+            "sourcePort": "next",
+            "target": "retract-authorization"
+        },
+        {
+            "source": "retract-authorization",
+            "sourcePort": "next",
+            "target": "end"
+        }
+    ],
+    "metadata": {
+        "version": "1.0",
+        "description": "Workflow-owned activity authorization retraction."
+    }
+}

@@ -3,25 +3,29 @@ declare(strict_types=1);
 
 namespace Awards\Services;
 
-use App\KMP\StaticHelpers;
 use Awards\Model\Entity\Recommendation;
 use Cake\ORM\Table;
-use Cake\ORM\TableRegistry;
 
 /**
- * Prepares lookup data for recommendation edit forms (full, quick, and bulk).
+ * Prepares lookup data for recommendation edit forms.
  *
- * Centralises the dropdown, gathering-list, and status-list preparation that is
- * shared by turboEditForm, turboQuickEditForm, and turboBulkEditForm. Keeps the
- * controller methods thin while preserving the exact same data contracts expected
- * by the Turbo Frame templates.
+ * Centralises dropdown preparation used by the Turbo Frame templates.
  *
  * @see \Awards\Controller\RecommendationsController::turboEditForm()
- * @see \Awards\Controller\RecommendationsController::turboQuickEditForm()
- * @see \Awards\Controller\RecommendationsController::turboBulkEditForm()
  */
 class RecommendationFormService
 {
+    private RecommendationBestowalStatePolicyService $statePolicyService;
+
+    /**
+     * @param \Awards\Services\RecommendationBestowalStatePolicyService|null $statePolicyService Optional state policy.
+     */
+    public function __construct(
+        ?RecommendationBestowalStatePolicyService $statePolicyService = null,
+    ) {
+        $this->statePolicyService = $statePolicyService ?? new RecommendationBestowalStatePolicyService();
+    }
+
     /**
      * Build the status list formatted for dropdown display.
      *
@@ -30,7 +34,7 @@ class RecommendationFormService
      *
      * @return array<string, array<string, string>> Grouped status list.
      */
-    public function buildStatusList(): array
+    public function buildStatusList(?string $currentState = null): array
     {
         $statusList = Recommendation::getStatuses();
         foreach ($statusList as $key => $value) {
@@ -41,7 +45,7 @@ class RecommendationFormService
             }
         }
 
-        return $statusList;
+        return $this->statePolicyService->filterUserTargetStatusList($statusList, $currentState);
     }
 
     /**
@@ -64,19 +68,15 @@ class RecommendationFormService
     /**
      * Prepare all view variables for a single-recommendation edit form (full or quick).
      *
-     * Loads awards-by-domain, domains, levels, branches, gatherings, cancelled-gathering
-     * indicators, and state rules. Returns an associative array matching the set of
-     * compact() variables expected by the Turbo Frame edit templates.
+     * Loads the lookup data needed by workflow-centric recommendation edit forms.
      *
      * @param \Cake\ORM\Table $recommendationsTable The Recommendations ORM table.
      * @param \Awards\Model\Entity\Recommendation $recommendation The loaded recommendation entity (with contains).
-     * @param callable $getFilteredGatherings A callback(awardId, memberId, futureOnly, gatheringId, selectedIds) returning filtered gatherings.
-     * @return array<string, mixed> View variables: rules, recommendation, branches, awards, gatheringList, cancelledGatheringIds, awardsDomains, awardsLevels, statusList, assignedGatheringCancelled.
+     * @return array<string, mixed> View variables expected by the edit templates.
      */
     public function prepareEditFormData(
         Table $recommendationsTable,
         Recommendation $recommendation,
-        callable $getFilteredGatherings,
     ): array {
         $recommendation->domain_id = $recommendation->award->domain_id;
 
@@ -91,91 +91,20 @@ class RecommendationFormService
                 'domain_id' => $recommendation->domain_id,
                 'current_award_id' => $recommendation->award_id,
             ])
-            ->select(['id', 'name', 'specialties'])
+            ->select(['id', 'name', 'specialties', 'approval_process_id'])
             ->limit(200)
             ->all();
-
-        // Get filtered gatherings for this award
-        // If status is "Given", show all gatherings (past and future) for retroactive entry
-        $futureOnly = ($recommendation->status !== 'Given');
-        $selectedRecommendationGatheringIds = [];
-        foreach (($recommendation->gatherings ?? []) as $selectedGathering) {
-            $selectedRecommendationGatheringIds[] = (int)$selectedGathering->id;
-        }
-        $gatheringData = $getFilteredGatherings(
-            $recommendation->award_id,
-            $recommendation->member_id,
-            $futureOnly,
-            $recommendation->gathering_id,
-            $selectedRecommendationGatheringIds,
-        );
-        $gatheringList = $gatheringData['gatherings'];
-        $cancelledGatheringIds = $gatheringData['cancelledGatheringIds'];
-
-        // Check if the assigned gathering is cancelled
-        $assignedGatheringCancelled = false;
-        if ($recommendation->assigned_gathering && $recommendation->assigned_gathering->cancelled_at !== null) {
-            $assignedGatheringCancelled = true;
-        }
-
-        $statusList = $this->buildStatusList();
-        $rules = StaticHelpers::getAppSetting('Awards.RecommendationStateRules');
+        $currentApprovalProcessId = $recommendation->current_approval_run?->approval_process_id !== null
+            ? (int)$recommendation->current_approval_run->approval_process_id
+            : null;
 
         return compact(
-            'rules',
             'recommendation',
             'branches',
             'awards',
-            'gatheringList',
-            'cancelledGatheringIds',
             'awardsDomains',
             'awardsLevels',
-            'statusList',
-            'assignedGatheringCancelled',
+            'currentApprovalProcessId',
         );
-    }
-
-    /**
-     * Prepare all view variables for the bulk edit form.
-     *
-     * Loads branches, all gatherings (with cancelled markers), and status/state
-     * rules. Returns an associative array matching the compact() variables expected
-     * by the bulk edit template.
-     *
-     * @param \Cake\ORM\Table $recommendationsTable The Recommendations ORM table.
-     * @return array<string, mixed> View variables: rules, branches, gatheringList, statusList, cancelledGatheringIds.
-     */
-    public function prepareBulkEditFormData(Table $recommendationsTable): array
-    {
-        $branches = $this->buildBranchesList($recommendationsTable->Awards->getTarget());
-
-        // Get gatherings data
-        $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
-        $gatheringsData = $gatheringsTable->find()
-            ->contain(['Branches' => function ($q) {
-                return $q->select(['id', 'name']);
-            }])
-            ->select(['id', 'name', 'start_date', 'end_date', 'cancelled_at', 'Branches.name'])
-            ->orderBy(['start_date' => 'ASC'])
-            ->all();
-
-        $statusList = $this->buildStatusList();
-
-        // Format gathering list for dropdown, tracking cancelled gatherings
-        $gatheringList = [];
-        $cancelledGatheringIds = [];
-        foreach ($gatheringsData as $gathering) {
-            $label = $gathering->name . ' in ' . $gathering->branch->name . ' on '
-                . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
-            if ($gathering->cancelled_at !== null) {
-                $label = '[CANCELLED] ' . $label;
-                $cancelledGatheringIds[] = $gathering->id;
-            }
-            $gatheringList[$gathering->id] = $label;
-        }
-
-        $rules = StaticHelpers::getAppSetting('Awards.RecommendationStateRules');
-
-        return compact('rules', 'branches', 'gatheringList', 'statusList', 'cancelledGatheringIds');
     }
 }

@@ -1,9 +1,11 @@
-name: Build KMP Installer
+name: Archived KMP Installer Build
 
 on:
-  push:
-    tags:
-      - 'installer-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Archive release version (for example 1.2.3)'
+        required: true
 
 permissions:
   contents: write
@@ -22,7 +24,7 @@ jobs:
 
       - name: Extract version
         id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#installer-v}" >> $GITHUB_OUTPUT
+        run: echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
 
       - name: Build all platforms
         working-directory: installer
@@ -37,9 +39,13 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          name: "KMP Installer v${{ steps.version.outputs.VERSION }}"
+          tag_name: installer-v${{ steps.version.outputs.VERSION }}
+          target_commitish: ${{ github.sha }}
+          name: "Archived KMP Installer v${{ steps.version.outputs.VERSION }}"
           body: |
-            ## KMP Installer v${{ steps.version.outputs.VERSION }}
+            ## Archived KMP Installer v${{ steps.version.outputs.VERSION }}
+
+            The standalone installer is retired for new deployments. This release is kept for archival and legacy self-hosted maintenance only.
 
             ### Installation
 

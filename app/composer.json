@@ -8,26 +8,30 @@
         "php": "^8.3",
         "ext-gd": "*",
         "ext-intl": "*",
+        "ext-sodium": "*",
         "ext-yaml": "*",
         "admad/cakephp-glide": "^6.0",
         "azure-oss/storage-blob-flysystem": "^1.2",
         "cakephp/authentication": "^3.0",
         "cakephp/authorization": "^3.1",
-        "cakephp/cakephp": "^5.0.1",
+        "cakephp/cakephp": "5.3.6",
         "cakephp/migrations": "^4.0.0",
         "cakephp/plugin-installer": "^2.0",
         "dereuromark/cakephp-templating": "^0.2.1",
         "dereuromark/cakephp-tools": "^3.9",
+        "dragonmantank/cron-expression": "^3.6",
         "erusev/parsedown": "^1.7",
         "friendsofcake/bootstrap-ui": "^5.0",
         "friendsofcake/cakepdf": "^5.0",
         "friendsofcake/cakephp-csvview": "^5.0",
-        "ishanvyas22/asset-mix": "^2.0",
         "jeremyharris/cakephp-lazyload": "^5.0",
         "league/flysystem": "^3.0",
         "mobiledetect/mobiledetectlib": "^4.8.03",
         "muffin/footprint": "^4.0",
         "muffin/trash": "^4.0",
+        "open-telemetry/exporter-otlp": "^1.4",
+        "open-telemetry/sdk": "^1.15",
+        "open-telemetry/transport-grpc": "^1.2",
         "setasign/fpdf": "^1.8",
         "setasign/fpdi": "^2.6.4",
         "smalot/pdfparser": "^2.12.3",
@@ -41,6 +45,7 @@
         "dereuromark/cakephp-dto": "^2.1.0",
         "dereuromark/cakephp-ide-helper": "^2.0.0",
         "dereuromark/cakephp-tools": "^3.0.0",
+        "infection/infection": "^0.32",
         "josegonzalez/dotenv": "^4.0",
         "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^10.1.0",
@@ -77,7 +82,8 @@
         "allow-plugins": {
             "cakephp/plugin-installer": true,
             "dealerdirect/phpcodesniffer-composer-installer": true,
-            "dereuromark/cakephp-file-storage": true
+            "dereuromark/cakephp-file-storage": true,
+            "infection/extension-installer": false
         },
         "platform-check": true,
         "sort-packages": true
@@ -93,6 +99,22 @@
         "cs-fix": "phpcbf --colors -p",
         "stan": "phpstan analyse",
         "docs:php": "bash bin/run-phpdoc.sh",
-        "test": "phpunit --colors=always"
+        "test": "phpunit --colors=always",
+        "test:coverage": [
+            "Composer\\Config::disableProcessTimeout",
+            "bash bin/run-phpunit-coverage.sh all"
+        ],
+        "test:coverage:security": [
+            "Composer\\Config::disableProcessTimeout",
+            "bash bin/run-phpunit-coverage.sh security"
+        ],
+        "mutate": [
+            "Composer\\Config::disableProcessTimeout",
+            "bash bin/run-infection.sh"
+        ],
+        "mutate:policy": [
+            "Composer\\Config::disableProcessTimeout",
+            "bash bin/run-infection.sh --filter=src/Policy"
+        ]
     }
 }

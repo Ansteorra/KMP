@@ -13,9 +13,12 @@ use Officers\Policy\OfficesTablePolicy;
 use Officers\Policy\ReportsControllerPolicy;
 use Officers\Policy\RostersControllerPolicy;
 use App\Model\Entity\Member;
+use App\Model\Entity\Permission;
 use App\Policy\BasePolicy;
 use App\Test\TestCase\BaseTestCase;
 use Authorization\Policy\BeforePolicyInterface;
+use Cake\Cache\Cache;
+use Cake\I18n\DateTime;
 
 /**
  * Combined policy tests for Officers plugin.
@@ -190,6 +193,102 @@ class OfficersPoliciesTest extends BaseTestCase
         $policy = new OfficerPolicy();
         $entity = $this->getTableLocator()->get('Officers.Officers')->newEmptyEntity();
         $this->assertFalse($policy->canWorkWithOfficerDirectReports($user, $entity));
+    }
+
+    public function testCanWorkWithOfficerDeputiesHonorsMultipleDirectGrantSources(): void
+    {
+        $this->skipIfPostgres();
+        Cache::clearGroup('member_permissions');
+
+        $now = DateTime::now();
+        $roles = $this->getTableLocator()->get('Roles');
+        $permissions = $this->getTableLocator()->get('Permissions');
+        $rolesPermissions = $this->getTableLocator()->get('RolesPermissions');
+        $permissionPolicies = $this->getTableLocator()->get('PermissionPolicies');
+        $memberRoles = $this->getTableLocator()->get('MemberRoles');
+        $officers = $this->getTableLocator()->get('Officers.Officers');
+
+        $role = $roles->newEntity([
+            'name' => 'Multiple Grant Sources Test Role ' . uniqid(),
+            'is_system' => false,
+            'created' => $now,
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]);
+        $roles->saveOrFail($role);
+
+        $permission = $permissions->newEntity([
+            'name' => 'Multiple Grant Sources Test Permission ' . uniqid(),
+            'require_active_membership' => false,
+            'require_active_background_check' => false,
+            'require_min_age' => 0,
+            'is_system' => false,
+            'is_super_user' => false,
+            'requires_warrant' => false,
+            'scoping_rule' => Permission::SCOPE_BRANCH_ONLY,
+            'created' => $now,
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]);
+        $permissions->saveOrFail($permission);
+
+        $rolesPermissions->saveOrFail($rolesPermissions->newEntity([
+            'role_id' => $role->id,
+            'permission_id' => $permission->id,
+            'created' => $now,
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]));
+
+        $permissionPolicies->saveOrFail($permissionPolicies->newEntity([
+            'permission_id' => $permission->id,
+            'policy_class' => OfficerPolicy::class,
+            'policy_method' => 'canWorkWithOfficerDeputies',
+        ]));
+
+        $firstOfficerId = 910001;
+        $secondOfficerId = 910002;
+        foreach (
+            [
+                [$firstOfficerId, self::TEST_BRANCH_LOCAL_ID],
+                [$secondOfficerId, self::TEST_BRANCH_STARGATE_ID],
+            ] as [$officerId, $branchId]
+        ) {
+            $memberRole = $memberRoles->newEmptyEntity();
+            $memberRole->member_id = self::TEST_MEMBER_AGATHA_ID;
+            $memberRole->role_id = $role->id;
+            $memberRole->start_on = DateTime::now()->subDays(1);
+            $memberRole->expires_on = DateTime::now()->addYears(1);
+            $memberRole->approver_id = self::ADMIN_MEMBER_ID;
+            $memberRole->branch_id = $branchId;
+            $memberRole->entity_type = 'Officers.Officers';
+            $memberRole->entity_id = $officerId;
+            $memberRole->created = $now;
+            $memberRole->created_by = self::ADMIN_MEMBER_ID;
+            $memberRoles->saveOrFail($memberRole);
+        }
+
+        Cache::clearGroup('member_permissions');
+
+        $user = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
+        $policy = new OfficerPolicy();
+
+        $firstOfficer = $officers->newEmptyEntity();
+        $firstOfficer->id = $firstOfficerId;
+        $firstOfficer->branch_id = self::TEST_BRANCH_LOCAL_ID;
+
+        $secondOfficer = $officers->newEmptyEntity();
+        $secondOfficer->id = $secondOfficerId;
+        $secondOfficer->branch_id = self::TEST_BRANCH_STARGATE_ID;
+
+        $this->assertTrue(
+            $policy->canWorkWithOfficerDeputies($user, $firstOfficer, self::TEST_BRANCH_LOCAL_ID, true),
+        );
+        $this->assertTrue(
+            $policy->canWorkWithOfficerDeputies($user, $secondOfficer, self::TEST_BRANCH_STARGATE_ID, true),
+        );
+        $this->assertFalse(
+            $policy->canWorkWithOfficerDeputies($user, $firstOfficer, self::TEST_BRANCH_STARGATE_ID, true),
+        );
+
+        Cache::clearGroup('member_permissions');
     }
 
     public function testCanReleaseDenied(): void

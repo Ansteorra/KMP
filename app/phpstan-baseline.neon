@@ -127,90 +127,6 @@ parameters:
 			path: plugins/Activities/src/Controller/Api/V1/AuthorizationsController.php
 
 		-
-			message: '#^Access to an undefined property Activities\\Controller\\AuthorizationApprovalsController\:\:\$Authentication\.$#'
-			identifier: property.notFound
-			count: 9
-			path: plugins/Activities/src/Controller/AuthorizationApprovalsController.php
-
-		-
-			message: '#^Access to an undefined property Activities\\Controller\\AuthorizationApprovalsController\:\:\$Authorization\.$#'
-			identifier: property.notFound
-			count: 8
-			path: plugins/Activities/src/Controller/AuthorizationApprovalsController.php
-
-		-
-			message: '#^Access to an undefined property Cake\\Datasource\\EntityInterface\:\:\$authorization\.$#'
-			identifier: property.notFound
-			count: 3
-			path: plugins/Activities/src/Controller/AuthorizationApprovalsController.php
-
-		-
-			message: '#^Access to an undefined property Cake\\Datasource\\EntityInterface\:\:\$authorization_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: plugins/Activities/src/Controller/AuthorizationApprovalsController.php
-
-		-
-			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
-			path: plugins/Activities/src/Controller/AuthorizationApprovalsController.php
-
-		-
-			message: '#^Call to function is_array\(\) with non\-empty\-array will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
-			path: plugins/Activities/src/Controller/AuthorizationApprovalsController.php
-
-		-
-			message: '#^Method Activities\\Controller\\AuthorizationApprovalsController\:\:mobileApprove\(\) should return Cake\\Http\\Response\|null but return statement is missing\.$#'
-			identifier: return.missing
-			count: 1
-			path: plugins/Activities/src/Controller/AuthorizationApprovalsController.php
-
-		-
-			message: '#^Method Activities\\Controller\\AuthorizationApprovalsController\:\:mobileApproveAuthorizations\(\) with return type void returns Cake\\Http\\Response\|null but should not return anything\.$#'
-			identifier: return.void
-			count: 1
-			path: plugins/Activities/src/Controller/AuthorizationApprovalsController.php
-
-		-
-			message: '#^Method Activities\\Controller\\AuthorizationApprovalsController\:\:mobileDeny\(\) should return Cake\\Http\\Response\|null but return statement is missing\.$#'
-			identifier: return.missing
-			count: 1
-			path: plugins/Activities/src/Controller/AuthorizationApprovalsController.php
-
-		-
-			message: '#^Negated boolean expression is always false\.$#'
-			identifier: booleanNot.alwaysFalse
-			count: 5
-			path: plugins/Activities/src/Controller/AuthorizationApprovalsController.php
-
-		-
-			message: '#^Offset ''skipFilterColumns'' on array\{filters\: array, dateRange\: array, search\: string\|null, skipFilterColumns\: array\} on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: plugins/Activities/src/Controller/AuthorizationApprovalsController.php
-
-		-
-			message: '#^PHPDoc tag @return with type Cake\\Http\\Response\|void\|null is not subtype of native type void\.$#'
-			identifier: return.phpDocType
-			count: 1
-			path: plugins/Activities/src/Controller/AuthorizationApprovalsController.php
-
-		-
-			message: '#^Parameter \#1 \$gridViewsTable of class App\\Services\\GridViewService constructor expects App\\Model\\Table\\GridViewsTable\|null, Cake\\ORM\\Table given\.$#'
-			identifier: argument.type
-			count: 1
-			path: plugins/Activities/src/Controller/AuthorizationApprovalsController.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between mixed and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: plugins/Activities/src/Controller/AuthorizationApprovalsController.php
-
-		-
 			message: '#^Access to an undefined property Activities\\Controller\\AuthorizationsController\:\:\$Authentication\.$#'
 			identifier: property.notFound
 			count: 4
@@ -263,42 +179,6 @@ parameters:
 			identifier: class.notFound
 			count: 1
 			path: plugins/Activities/src/KMP/GridColumns/MemberAuthorizationsGridColumns.php
-
-		-
-			message: '#^Method Activities\\Mailer\\ActivitiesMailer\:\:render\(\) should return array but returns \$this\(Activities\\Mailer\\ActivitiesMailer\)\.$#'
-			identifier: return.type
-			count: 1
-			path: plugins/Activities/src/Mailer/ActivitiesMailer.php
-
-		-
-			message: '#^Offset ''function'' on array\{function\: string, line\?\: int, file\?\: string, class\: class\-string, type\?\: ''\-\>''\|''\:\:'', args\?\: array\<mixed\>, object\?\: object\} in isset\(\) always exists and is not nullable\.$#'
-			identifier: isset.offset
-			count: 1
-			path: plugins/Activities/src/Mailer/ActivitiesMailer.php
-
-		-
-			message: '#^Offset ''html'' on array\{html\: string, text\: string\} on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.offset
-			count: 2
-			path: plugins/Activities/src/Mailer/ActivitiesMailer.php
-
-		-
-			message: '#^Offset ''text'' on array\{html\: string, text\: string\} on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: plugins/Activities/src/Mailer/ActivitiesMailer.php
-
-		-
-			message: '#^PHPDoc tag @param references unknown parameter\: \$ApproverScaName$#'
-			identifier: parameter.notFound
-			count: 1
-			path: plugins/Activities/src/Mailer/ActivitiesMailer.php
-
-		-
-			message: '#^Return type \(array\) of method Activities\\Mailer\\ActivitiesMailer\:\:render\(\) should be compatible with return type \(\$this\(Cake\\Mailer\\Mailer\)\) of method Cake\\Mailer\\Mailer\:\:render\(\)$#'
-			identifier: method.childReturnType
-			count: 1
-			path: plugins/Activities/src/Mailer/ActivitiesMailer.php
 
 		-
 			message: '#^PHPDoc tag @property for property Activities\\Model\\Table\\ActivitiesTable\:\:\$ActivityGroups contains unresolvable type\.$#'
@@ -355,18 +235,6 @@ parameters:
 			path: plugins/Activities/src/Model/Table/ActivityGroupsTable.php
 
 		-
-			message: '#^PHPDoc tag @property for property Activities\\Model\\Table\\AuthorizationApprovalsTable\:\:\$Approvers contains unresolvable type\.$#'
-			identifier: propertyTag.unresolvableType
-			count: 1
-			path: plugins/Activities/src/Model/Table/AuthorizationApprovalsTable.php
-
-		-
-			message: '#^PHPDoc tag @property for property Activities\\Model\\Table\\AuthorizationApprovalsTable\:\:\$Authorizations contains unresolvable type\.$#'
-			identifier: propertyTag.unresolvableType
-			count: 1
-			path: plugins/Activities/src/Model/Table/AuthorizationApprovalsTable.php
-
-		-
 			message: '#^Class Cake\\I18n\\DateTime constructor invoked with 3 parameters, 0\-2 required\.$#'
 			identifier: arguments.count
 			count: 1
@@ -374,18 +242,6 @@ parameters:
 
 		-
 			message: '#^PHPDoc tag @property for property Activities\\Model\\Table\\AuthorizationsTable\:\:\$Activities contains unresolvable type\.$#'
-			identifier: propertyTag.unresolvableType
-			count: 1
-			path: plugins/Activities/src/Model/Table/AuthorizationsTable.php
-
-		-
-			message: '#^PHPDoc tag @property for property Activities\\Model\\Table\\AuthorizationsTable\:\:\$AuthorizationApprovals contains unresolvable type\.$#'
-			identifier: propertyTag.unresolvableType
-			count: 1
-			path: plugins/Activities/src/Model/Table/AuthorizationsTable.php
-
-		-
-			message: '#^PHPDoc tag @property for property Activities\\Model\\Table\\AuthorizationsTable\:\:\$CurrentPendingApprovals contains unresolvable type\.$#'
 			identifier: propertyTag.unresolvableType
 			count: 1
 			path: plugins/Activities/src/Model/Table/AuthorizationsTable.php
@@ -407,48 +263,6 @@ parameters:
 			identifier: propertyTag.unresolvableType
 			count: 1
 			path: plugins/Activities/src/Model/Table/AuthorizationsTable.php
-
-		-
-			message: '#^Access to an undefined property Cake\\Datasource\\EntityInterface\:\:\$activity_id\.$#'
-			identifier: property.notFound
-			count: 2
-			path: plugins/Activities/src/Policy/AuthorizationApprovalPolicy.php
-
-		-
-			message: '#^If condition is always true\.$#'
-			identifier: if.alwaysTrue
-			count: 2
-			path: plugins/Activities/src/Policy/AuthorizationApprovalPolicy.php
-
-		-
-			message: '#^PHPDoc tag @param references unknown parameter\: \$optionalArgs$#'
-			identifier: parameter.notFound
-			count: 1
-			path: plugins/Activities/src/Policy/AuthorizationApprovalPolicy.php
-
-		-
-			message: '#^Parameter \#1 \$user of static method Activities\\Model\\Table\\ActivitiesTable\:\:canAuhtorizeAnyActivity\(\) expects App\\Model\\Entity\\Member, App\\KMP\\KmpIdentityInterface given\.$#'
-			identifier: argument.type
-			count: 1
-			path: plugins/Activities/src/Policy/AuthorizationApprovalPolicy.php
-
-		-
-			message: '#^Parameter \#1 \$user of static method Activities\\Model\\Table\\ActivitiesTable\:\:canAuthorizeActivity\(\) expects App\\Model\\Entity\\Member, App\\KMP\\KmpIdentityInterface given\.$#'
-			identifier: argument.type
-			count: 2
-			path: plugins/Activities/src/Policy/AuthorizationApprovalPolicy.php
-
-		-
-			message: '#^Parameter \#1 \$user of static method Activities\\Model\\Table\\ActivitiesTable\:\:canAuhtorizeAnyActivity\(\) expects App\\Model\\Entity\\Member, App\\KMP\\KmpIdentityInterface given\.$#'
-			identifier: argument.type
-			count: 1
-			path: plugins/Activities/src/Policy/AuthorizationApprovalsTablePolicy.php
-
-		-
-			message: '#^Parameter \#2 \$entity of method Activities\\Policy\\AuthorizationApprovalsTablePolicy\:\:canAllQueues\(\) expects App\\Model\\Entity\\BaseEntity\|Cake\\ORM\\Table, Cake\\Datasource\\EntityInterface given\.$#'
-			identifier: argument.type
-			count: 4
-			path: plugins/Activities/src/Policy/AuthorizationApprovalsTablePolicy.php
 
 		-
 			message: '#^Access to an undefined property Activities\\Services\\DefaultAuthorizationManager\:\:\$activeWindowManager\.$#'
@@ -536,12 +350,6 @@ parameters:
 
 		-
 			message: '#^Access to an undefined property Cake\\Datasource\\EntityInterface\:\:\$status\.$#'
-			identifier: property.notFound
-			count: 2
-			path: plugins/Activities/src/Services/DefaultAuthorizationManager.php
-
-		-
-			message: '#^Access to an undefined property Cake\\ORM\\Table\:\:\$AuthorizationApprovals\.$#'
 			identifier: property.notFound
 			count: 2
 			path: plugins/Activities/src/Services/DefaultAuthorizationManager.php
@@ -1643,36 +1451,6 @@ parameters:
 			identifier: closure.unusedUse
 			count: 1
 			path: plugins/Officers/src/Controller/RostersController.php
-
-		-
-			message: '#^Method Officers\\Mailer\\OfficersMailer\:\:render\(\) should return array but returns \$this\(Officers\\Mailer\\OfficersMailer\)\.$#'
-			identifier: return.type
-			count: 1
-			path: plugins/Officers/src/Mailer/OfficersMailer.php
-
-		-
-			message: '#^Offset ''function'' on array\{function\: string, line\?\: int, file\?\: string, class\: class\-string, type\?\: ''\-\>''\|''\:\:'', args\?\: array\<mixed\>, object\?\: object\} in isset\(\) always exists and is not nullable\.$#'
-			identifier: isset.offset
-			count: 1
-			path: plugins/Officers/src/Mailer/OfficersMailer.php
-
-		-
-			message: '#^Offset ''html'' on array\{html\: string, text\: string\} on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.offset
-			count: 2
-			path: plugins/Officers/src/Mailer/OfficersMailer.php
-
-		-
-			message: '#^Offset ''text'' on array\{html\: string, text\: string\} on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: plugins/Officers/src/Mailer/OfficersMailer.php
-
-		-
-			message: '#^Return type \(array\) of method Officers\\Mailer\\OfficersMailer\:\:render\(\) should be compatible with return type \(\$this\(Cake\\Mailer\\Mailer\)\) of method Cake\\Mailer\\Mailer\:\:render\(\)$#'
-			identifier: method.childReturnType
-			count: 1
-			path: plugins/Officers/src/Mailer/OfficersMailer.php
 
 		-
 			message: '#^Access to an undefined property Officers\\Model\\Entity\\Officer\:\:\$reports_to_office_id\.$#'
@@ -5849,12 +5627,6 @@ parameters:
 			identifier: variable.undefined
 			count: 1
 			path: src/Services/ImpersonationService.php
-
-		-
-			message: '#^Constant ROOT not found\.$#'
-			identifier: constant.notFound
-			count: 1
-			path: src/Services/MailerDiscoveryService.php
 
 		-
 			message: '#^Constant ROOT not found\.$#'

@@ -49,7 +49,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ env.BASE_IMAGE }}:php83
+            ${{ env.BASE_IMAGE }}:php84
             ${{ env.BASE_IMAGE }}:latest
           # Dedicated cache scope so app builds don't pollute it
           cache-from: type=gha,scope=kmp-base

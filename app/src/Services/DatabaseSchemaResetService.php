@@ -15,10 +15,6 @@ use RuntimeException;
  */
 class DatabaseSchemaResetService
 {
-    public function __construct(private readonly string $connectionName = 'default')
-    {
-    }
-
     /**
      * @param array<string, mixed> $manifest
      * @param callable(array<string, mixed>):void|null $progressReporter
@@ -29,7 +25,7 @@ class DatabaseSchemaResetService
             throw new InvalidArgumentException('Backup schema manifest is missing or unsupported.');
         }
 
-        $connection = ConnectionManager::get($this->connectionName);
+        $connection = ConnectionManager::get('default');
         $driver = $connection->getDriver();
         if (!$driver instanceof Mysql && !$driver instanceof Postgres) {
             throw new RuntimeException('Backup schema reset currently supports MySQL and PostgreSQL connections.');
@@ -74,15 +70,12 @@ class DatabaseSchemaResetService
         $tableSql = [];
         foreach ($tables as $tableName => $tableSpec) {
             if (!is_string($tableName) || !is_array($tableSpec)) {
-                throw new InvalidArgumentException('Backup schema manifest contains an invalid table entry.');
+                continue;
             }
             $tableSql[] = [
                 'name' => $tableName,
                 'sql' => $this->createTableSql($driver, $tableName, $tableSpec),
             ];
-        }
-        if ($tableSql === []) {
-            throw new InvalidArgumentException('Backup schema manifest contains no restorable tables.');
         }
 
         return [
@@ -92,6 +85,11 @@ class DatabaseSchemaResetService
         ];
     }
 
+    /**
+     * Drop all existing base tables from the current schema/database.
+     *
+     * @param mixed $connection Database connection
+     */
     private function dropExistingTables($connection, Mysql|Postgres $driver): void
     {
         if ($driver instanceof Mysql) {
@@ -113,7 +111,7 @@ class DatabaseSchemaResetService
         }
 
         $rows = $connection->execute(
-            "SELECT tablename FROM pg_tables WHERE schemaname = ANY(current_schemas(false))",
+            'SELECT tablename FROM pg_tables WHERE schemaname = ANY(current_schemas(false))',
         )->fetchAll(PDO::FETCH_COLUMN) ?: [];
         foreach ($rows as $table) {
             $connection->execute('DROP TABLE IF EXISTS ' . $driver->quoteIdentifier((string)$table) . ' CASCADE');
@@ -133,12 +131,9 @@ class DatabaseSchemaResetService
         $definitions = [];
         foreach ($columns as $columnName => $definition) {
             if (!is_string($columnName) || !is_array($definition)) {
-                throw new InvalidArgumentException("Backup schema table {$tableName} has an invalid column.");
+                continue;
             }
             $definitions[] = $this->columnSql($driver, $columnName, $definition);
-        }
-        if ($definitions === []) {
-            throw new InvalidArgumentException("Backup schema table {$tableName} has no restorable columns.");
         }
 
         foreach (($tableSpec['constraints'] ?? []) as $constraint) {
@@ -211,9 +206,11 @@ class DatabaseSchemaResetService
             'text' => 'TEXT',
             'date' => 'DATE',
             'time' => 'TIME',
-            'timefractional' => 'TIME(6)',
-            'timestampfractional', 'datetimefractional' => $driver instanceof Mysql ? 'DATETIME(6)' : 'TIMESTAMP(6)',
             'datetime', 'timestamp' => $driver instanceof Mysql ? 'DATETIME' : 'TIMESTAMP',
+            'datetimefractional', 'timestampfractional' => $driver instanceof Mysql
+                ? 'DATETIME(6)'
+                : 'TIMESTAMP(6)',
+            'timefractional' => 'TIME(6)',
             'float' => $driver instanceof Mysql ? 'DOUBLE' : 'DOUBLE PRECISION',
             'decimal' => $this->decimalTypeSql($definition),
             'json' => $driver instanceof Mysql ? 'JSON' : 'JSONB',
@@ -232,19 +229,16 @@ class DatabaseSchemaResetService
         return sprintf('DECIMAL(%d,%d)', max(1, $precision), max(0, $scale));
     }
 
+    /**
+     * Format a column default expression for the target database.
+     */
     private function defaultSql(Mysql|Postgres $driver, mixed $default, string $type): string
     {
         if (is_bool($default)) {
             return $driver instanceof Mysql ? ($default ? '1' : '0') : ($default ? 'TRUE' : 'FALSE');
         }
-        if ($driver instanceof Postgres && $type === 'boolean') {
-            $normalized = strtolower(trim((string)$default, "'\""));
-            if (in_array($normalized, ['1', 'true', 't', 'yes', 'y', 'on'], true)) {
-                return 'TRUE';
-            }
-            if (in_array($normalized, ['0', 'false', 'f', 'no', 'n', 'off'], true)) {
-                return 'FALSE';
-            }
+        if ($type === 'boolean' && $driver instanceof Postgres) {
+            return in_array($default, [1, '1', 'true', 'TRUE'], true) ? 'TRUE' : 'FALSE';
         }
         if (is_int($default) || is_float($default)) {
             return (string)$default;
@@ -252,8 +246,44 @@ class DatabaseSchemaResetService
         if (is_string($default) && strtoupper($default) === 'CURRENT_TIMESTAMP') {
             return 'CURRENT_TIMESTAMP';
         }
+        if (is_string($default)) {
+            $default = $this->normalizeMysqlStringLiteralDefault($default);
+        }
+        if ($type === 'json' && $driver instanceof Postgres) {
+            $jsonDefault = (string)$default;
+            json_decode($jsonDefault);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new InvalidArgumentException(sprintf(
+                    'Unsupported JSON default for PostgreSQL restore: %s',
+                    json_last_error_msg(),
+                ));
+            }
+
+            return "'" . str_replace("'", "''", $jsonDefault) . "'::jsonb";
+        }
 
         return "'" . str_replace("'", "''", (string)$default) . "'";
+    }
+
+    /**
+     * Strip MySQL character-set introducers captured by schema manifests.
+     */
+    private function normalizeMysqlStringLiteralDefault(string $default): string
+    {
+        $value = trim($default);
+        if (!preg_match('/^_[A-Za-z0-9]+/', $value, $matches)) {
+            return $default;
+        }
+
+        $literal = substr($value, strlen($matches[0]));
+        if (str_starts_with($literal, "\\'") && str_ends_with($literal, "\\'")) {
+            return str_replace("\\'", "'", substr($literal, 2, -2));
+        }
+        if (str_starts_with($literal, "'") && str_ends_with($literal, "'")) {
+            return str_replace("\\'", "'", substr($literal, 1, -1));
+        }
+
+        return $default;
     }
 
     /**
@@ -281,7 +311,7 @@ class DatabaseSchemaResetService
                 }
                 $sql[] = sprintf(
                     'CREATE UNIQUE INDEX %s ON %s (%s)',
-                    $driver->quoteIdentifier($constraintName),
+                    $driver->quoteIdentifier($this->indexIdentifier($driver, $tableName, $constraintName)),
                     $driver->quoteIdentifier($tableName),
                     $columnsSql,
                 );
@@ -298,7 +328,7 @@ class DatabaseSchemaResetService
                 $sql[] = sprintf(
                     'CREATE %sINDEX %s ON %s (%s)',
                     $unique,
-                    $driver->quoteIdentifier($indexName),
+                    $driver->quoteIdentifier($this->indexIdentifier($driver, $tableName, $indexName)),
                     $driver->quoteIdentifier($tableName),
                     $columnsSql,
                 );
@@ -306,6 +336,20 @@ class DatabaseSchemaResetService
         }
 
         return $sql;
+    }
+
+    private function indexIdentifier(Mysql|Postgres $driver, string $tableName, string $indexName): string
+    {
+        if (!$driver instanceof Postgres) {
+            return $indexName;
+        }
+
+        $identifier = $tableName . '_' . $indexName;
+        if (strlen($identifier) <= 63) {
+            return $identifier;
+        }
+
+        return substr($identifier, 0, 54) . '_' . substr(sha1($identifier), 0, 8);
     }
 
     /**

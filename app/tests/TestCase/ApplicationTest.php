@@ -125,7 +125,7 @@ class ApplicationTest extends HttpIntegrationTestCase
         try {
             $app = new Application(dirname(dirname(__DIR__)) . '/config');
             $middleware = iterator_to_array($app->middleware(new MiddlewareQueue()));
-            $performanceMiddleware = $middleware[1];
+            $performanceMiddleware = $middleware[2];
 
             $logFile = TMP . 'performance-instrumentation-test.log';
             if (file_exists($logFile)) {
@@ -197,6 +197,64 @@ class ApplicationTest extends HttpIntegrationTestCase
                 unset($_ENV['PERF_KINGDOM_TAG']);
             } else {
                 $_ENV['PERF_KINGDOM_TAG'] = $previousEnvKingdom;
+            }
+            unset($_SERVER['PERF_REQUEST_LOG_ENABLED'], $_SERVER['PERF_LOG_ALL_REQUESTS']);
+        }
+    }
+
+    public function testPerformanceMiddlewareSkipsPlatformProbe(): void
+    {
+        $previousEnabled = getenv('PERF_REQUEST_LOG_ENABLED');
+        $previousLogAll = getenv('PERF_LOG_ALL_REQUESTS');
+        putenv('PERF_REQUEST_LOG_ENABLED=true');
+        putenv('PERF_LOG_ALL_REQUESTS=true');
+        $_SERVER['PERF_REQUEST_LOG_ENABLED'] = 'true';
+        $_SERVER['PERF_LOG_ALL_REQUESTS'] = 'true';
+
+        $logFile = TMP . 'performance-probe-test.log';
+        if (file_exists($logFile)) {
+            unlink($logFile);
+        }
+
+        try {
+            Log::drop('performance');
+            Log::setConfig('performance', [
+                'className' => FileLog::class,
+                'path' => TMP,
+                'file' => 'performance-probe-test',
+                'scopes' => ['app.performance'],
+                'levels' => ['info', 'warning'],
+            ]);
+            $app = new Application(dirname(dirname(__DIR__)) . '/config');
+            $middleware = iterator_to_array($app->middleware(new MiddlewareQueue()));
+            $performanceMiddleware = $middleware[2];
+            $request = new ServerRequest([
+                'environment' => [
+                    'REQUEST_METHOD' => 'GET',
+                    'HTTP_HOST' => 'localhost',
+                ],
+                'url' => '/health',
+            ]);
+            $handler = new class () implements RequestHandlerInterface {
+                public function handle(ServerRequestInterface $request): ResponseInterface
+                {
+                    return new Response(['status' => 200]);
+                }
+            };
+
+            $performanceMiddleware->process($request, $handler);
+
+            $this->assertFileDoesNotExist($logFile);
+        } finally {
+            if ($previousEnabled !== false) {
+                putenv("PERF_REQUEST_LOG_ENABLED={$previousEnabled}");
+            } else {
+                putenv('PERF_REQUEST_LOG_ENABLED');
+            }
+            if ($previousLogAll !== false) {
+                putenv("PERF_LOG_ALL_REQUESTS={$previousLogAll}");
+            } else {
+                putenv('PERF_LOG_ALL_REQUESTS');
             }
             unset($_SERVER['PERF_REQUEST_LOG_ENABLED'], $_SERVER['PERF_LOG_ALL_REQUESTS']);
         }

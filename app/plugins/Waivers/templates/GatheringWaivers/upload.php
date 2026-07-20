@@ -7,8 +7,8 @@
  * @var array $waiverStatusSummary
  */
 
-// Include the built waiver upload stylesheet via AssetMix.
-$this->append('css', $this->AssetMix->css('waiver-upload'));
+// Include the built waiver upload stylesheet via Vite.
+$this->append('css', $this->Vite->css('waiver-upload'));
 
 $waiverTypesData = [];
 if (!empty($requiredWaiverTypes)) {

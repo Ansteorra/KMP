@@ -22,7 +22,7 @@ class KmpInstallCommand extends Command
         $parser = parent::buildOptionParser($parser);
 
         return $parser
-            ->setDescription('Run interactive first-time installation helper for KMP deployment.')
+            ->setDescription('Archived legacy deployment helper retained for reference; new installations are retired.')
             ->addOption('profile', [
                 'short' => 'p',
                 'help' => 'Deployment profile: auto, vpc, azure, aws, fly, railway, shared',
@@ -98,9 +98,22 @@ class KmpInstallCommand extends Command
      */
     public function execute(Arguments $args, ConsoleIo $io): ?int
     {
-        $io->out('KMP Deployment Installer');
-        $io->out('This command gathers deployment settings and writes app/config/.env for first-time setup.');
+        $io->error('kmp_install has been retired for new deployments.');
+        $io->out('KMP is moving to a managed multi-tenant hosting model.');
+        $io->out('The legacy self-hosted deployment notes remain in docs/deployment/README.md.');
 
+        return Command::CODE_ERROR;
+    }
+
+    /**
+     * Archived reference implementation for the retired installer flow.
+     *
+     * @param \Cake\Command\Arguments $args
+     * @param \Cake\Console\ConsoleIo $io
+     * @return ?int
+     */
+    private function executeLegacyInstall(Arguments $args, ConsoleIo $io): ?int
+    {
         $profileOption = (string)($args->getOption('profile') ?? '');
         $profile = $this->normalizeChoice(
             $profileOption,

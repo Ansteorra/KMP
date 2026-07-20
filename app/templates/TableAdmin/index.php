@@ -130,7 +130,9 @@ $this->assign('title', __('Table Admin'));
                             <input type="hidden" name="table" value="<?= h($selectedTable) ?>">
                             <input type="hidden" name="page" value="1">
                             <label for="limit" class="small mb-0"><?= __('Rows per page') ?></label>
-                            <select id="limit" name="limit" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <select id="limit" name="limit" class="form-select form-select-sm"
+                                data-controller="form-submit"
+                                data-action="form-submit#submit">
                                 <?php foreach ([25, 50, 100, 200] as $limitOption): ?>
                                     <option value="<?= $limitOption ?>" <?= $limit === $limitOption ? 'selected' : '' ?>><?= $limitOption ?></option>
                                 <?php endforeach; ?>
@@ -214,8 +216,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const confirmationInput = form.querySelector('[name="confirm_mutation"]');
     const mutationPattern = /^\s*(insert|update|delete|truncate)\b/i;
 
-    form.addEventListener('submit', function (event) {
+    let mutationConfirmed = false;
+    form.addEventListener('submit', async function (event) {
         if (!queryInput || !confirmationInput) {
+            return;
+        }
+
+        if (mutationConfirmed) {
+            mutationConfirmed = false;
             return;
         }
 
@@ -230,13 +238,18 @@ document.addEventListener('DOMContentLoaded', function () {
         const confirmMessage = statementType === 'TRUNCATE'
             ? 'This will execute a TRUNCATE statement and remove all rows from the target table. Continue?'
             : `This will execute a ${statementType} statement and modify data. Continue?`;
-        const confirmed = window.confirm(confirmMessage);
+        event.preventDefault();
+        const confirmed = await window.KMP_accessibility.confirm(confirmMessage, {
+            title: 'Confirm data modification',
+            confirmLabel: `Run ${statementType}`,
+        });
         if (!confirmed) {
-            event.preventDefault();
             return;
         }
 
         confirmationInput.value = '1';
+        mutationConfirmed = true;
+        form.requestSubmit();
     });
 });
 </script>

@@ -4,9 +4,15 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\KMP\GridColumns\AppSettingsGridColumns;
+use App\KMP\GridRowDomId;
 use App\KMP\StaticHelpers;
 use App\Services\CsvExportService;
+use Cake\Event\EventInterface;
 use Cake\Http\Exception\NotFoundException;
+use Cake\Http\Response;
+use InvalidArgumentException;
+use Psr\Http\Message\UploadedFileInterface;
+use Traversable;
 
 /**
  * AppSettings Controller
@@ -40,6 +46,18 @@ class AppSettingsController extends AppController
     {
         parent::initialize();
         $this->Authorization->authorizeModel('index', 'gridData', 'toYaml');
+    }
+
+    /**
+     * Allow public reads of stored app setting assets.
+     *
+     * @param \Cake\Event\EventInterface $event
+     * @return void
+     */
+    public function beforeFilter(EventInterface $event): void
+    {
+        parent::beforeFilter($event);
+        $this->Authentication->allowUnauthenticated(['asset']);
     }
 
     /**
@@ -88,6 +106,7 @@ class AppSettingsController extends AppController
         $this->set([
             'appSettings' => $result['data'],
             'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
             'emptyAppSetting' => $this->AppSettings->newEmptyEntity(),
             'rowActions' => AppSettingsGridColumns::getRowActions(),
         ]);
@@ -119,9 +138,30 @@ class AppSettingsController extends AppController
     {
         $appSetting = $this->AppSettings->newEmptyEntity();
         if ($this->request->is('post')) {
+            $data = $this->request->getData();
+            $settingType = (string)($data['type'] ?? 'string');
+            if (in_array($settingType, ['file', 'image'], true)) {
+                $uploadedFile = $this->request->getData('asset_file');
+                if (
+                    !$uploadedFile instanceof UploadedFileInterface
+                    || $uploadedFile->getError() === UPLOAD_ERR_NO_FILE
+                ) {
+                    $this->Flash->error(__('Please upload a file for image and file app settings.'));
+
+                    return $this->redirect(['action' => 'index']);
+                }
+
+                try {
+                    $data['value'] = $this->AppSettings->assetValueFromUpload($settingType, $uploadedFile);
+                } catch (InvalidArgumentException $exception) {
+                    $this->Flash->error(__($exception->getMessage()));
+
+                    return $this->redirect(['action' => 'index']);
+                }
+            }
             $appSetting = $this->AppSettings->patchEntity(
                 $appSetting,
-                $this->request->getData(),
+                $data,
             );
             $this->Authorization->authorize($appSetting);
             if ($this->AppSettings->save($appSetting)) {
@@ -153,39 +193,51 @@ class AppSettingsController extends AppController
         $this->Authorization->authorize($appSetting);
 
         if ($this->request->is(['patch', 'post', 'put'])) {
-            $value = (string)$this->request->getData('raw_value', '');
             $settingType = $appSetting->name === 'Backup.encryptionKey' ? 'password' : ($appSetting->type ?? 'string');
+            if (in_array($settingType, ['file', 'image'], true)) {
+                $uploadedFile = $this->request->getData('asset_file');
+                if (
+                    !$uploadedFile instanceof UploadedFileInterface
+                    || $uploadedFile->getError() === UPLOAD_ERR_NO_FILE
+                ) {
+                    $this->Flash->success(__('No changes were made.'));
+
+                    return $this->renderAppSettingsGridTurboResponse(
+                        $this->getPageContextUrl(),
+                        (int)$appSetting->id,
+                    );
+                }
+
+                try {
+                    $value = $this->AppSettings->assetValueFromUpload($settingType, $uploadedFile);
+                } catch (InvalidArgumentException $exception) {
+                    $this->Flash->error(__($exception->getMessage()));
+                    $this->set(compact('appSetting'));
+                    $this->viewBuilder()->setLayout('turbo_frame');
+
+                    return;
+                }
+            } else {
+                $value = (string)$this->request->getData('raw_value', '');
+            }
 
             if ($settingType === 'password' && trim($value) === '') {
                 $this->Flash->success(__('No changes were made.'));
-                $flashMessages = $this->request->getSession()->read('Flash');
-                $this->request->getSession()->delete('Flash');
 
-                $this->response = $this->response->withType('text/vnd.turbo-stream.html');
-                $this->viewBuilder()->disableAutoLayout();
-                $this->viewBuilder()->setTemplate('turbo_close_modal');
-                $this->set('refreshFrame', 'app-settings-grid-table');
-                $this->set('flashMessages', $flashMessages);
-
-                return;
+                return $this->renderAppSettingsGridTurboResponse(
+                    $this->getPageContextUrl(),
+                    (int)$appSetting->id,
+                );
             }
 
             $result = StaticHelpers::setAppSetting($appSetting->name, $value, $settingType, $appSetting->required);
             if ($result) {
                 $this->Flash->success(__('The app setting has been saved.'));
 
-                // Read and clear flash messages before rendering turbo-stream
-                $flashMessages = $this->request->getSession()->read('Flash');
-                $this->request->getSession()->delete('Flash');
-
-                // Return turbo-stream response to close modal and refresh grid
-                $this->response = $this->response->withType('text/vnd.turbo-stream.html');
-                $this->viewBuilder()->disableAutoLayout();
-                $this->viewBuilder()->setTemplate('turbo_close_modal');
-                $this->set('refreshFrame', 'app-settings-grid-table');
-                $this->set('flashMessages', $flashMessages);
-
-                return;
+                return $this->renderAppSettingsGridTurboResponse(
+                    $this->getPageContextUrl(),
+                    (int)$appSetting->id,
+                );
             }
             $this->Flash->error(
                 __('The app setting could not be saved. Please, try again.'),
@@ -195,6 +247,47 @@ class AppSettingsController extends AppController
         // Render modal form (GET request or validation error)
         $this->set(compact('appSetting'));
         $this->viewBuilder()->setLayout('turbo_frame');
+    }
+
+    /**
+     * Publicly serve a database-backed app setting asset.
+     *
+     * @param string|null $name App setting name
+     * @return \Cake\Http\Response|null
+     * @throws \Cake\Http\Exception\NotFoundException
+     */
+    public function asset(?string $name = null)
+    {
+        $this->Authorization->skipAuthorization();
+        if ($name === null || $name === '') {
+            throw new NotFoundException();
+        }
+
+        $payload = $this->AppSettings->getAssetPayload($name);
+        if ($payload === null) {
+            throw new NotFoundException();
+        }
+
+        $body = base64_decode((string)$payload['data'], true);
+        if ($body === false) {
+            throw new NotFoundException();
+        }
+
+        $etag = '"' . (string)$payload['sha256'] . '"';
+        if ($this->request->getHeaderLine('If-None-Match') === $etag) {
+            return $this->response
+                ->withStatus(304)
+                ->withHeader('ETag', $etag)
+                ->withHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+
+        return $this->response
+            ->withHeader('Content-Type', (string)$payload['mime'])
+            ->withHeader('Content-Length', (string)strlen($body))
+            ->withHeader('Content-Disposition', 'inline; filename="' . addslashes((string)$payload['filename']) . '"')
+            ->withHeader('ETag', $etag)
+            ->withHeader('Cache-Control', 'public, max-age=31536000, immutable')
+            ->withStringBody($body);
     }
 
     /**
@@ -218,21 +311,139 @@ class AppSettingsController extends AppController
             );
         } elseif ($this->AppSettings->deleteAppSetting($appSetting->name)) {
             $this->Flash->success(__('The app setting has been deleted.'));
+
+            return $this->renderAppSettingsGridTurboResponse(
+                $this->getPageContextUrl(),
+                (int)$appSetting->id,
+                true,
+            );
         } else {
             $this->Flash->error(
                 __('The app setting could not be deleted. Please, try again.'),
             );
         }
 
-        // Read and clear flash messages before rendering turbo-stream
-        $flashMessages = $this->request->getSession()->read('Flash');
-        $this->request->getSession()->delete('Flash');
+        return $this->renderAppSettingsGridTurboResponse(
+            $this->getPageContextUrl(),
+            (int)$appSetting->id,
+        );
+    }
 
-        // Return turbo-stream response to refresh grid in-place
-        $this->response = $this->response->withType('text/vnd.turbo-stream.html');
-        $this->viewBuilder()->disableAutoLayout();
-        $this->viewBuilder()->setTemplate('turbo_close_modal');
-        $this->set('refreshFrame', 'app-settings-grid-table');
-        $this->set('flashMessages', $flashMessages);
+    /**
+     * Resolve targeted row sync after a single app setting save.
+     *
+     * @return array{action: string, rowDomId: string, rowHtml?: string}|null Null → full table refresh
+     */
+    private function resolveAppSettingGridRowSync(int $appSettingId, ?string $pageContextUrl): ?array
+    {
+        if (!$this->matchesGridIndexPath($pageContextUrl, '#/app-settings/?$#')) {
+            return null;
+        }
+
+        $tableFrameId = 'app-settings-grid-table';
+        $rowDomId = GridRowDomId::fromTableFrameId($tableFrameId, $appSettingId);
+
+        return $this->withPageContextQuery($pageContextUrl, function () use (
+            $appSettingId,
+            $rowDomId,
+            $tableFrameId,
+        ): ?array {
+            $baseQuery = $this->AppSettings->find()->where(['AppSettings.id' => $appSettingId]);
+            $result = $this->processDataverseGrid([
+                'gridKey' => 'AppSettings.index.main',
+                'gridColumnsClass' => AppSettingsGridColumns::class,
+                'baseQuery' => $baseQuery,
+                'tableName' => 'AppSettings',
+                'defaultSort' => ['AppSettings.name' => 'ASC'],
+                'defaultPageSize' => 50,
+                'showAllTab' => false,
+                'canAddViews' => false,
+                'canFilter' => true,
+                'canExportCsv' => false,
+            ]);
+
+            $gridData = $result['data'];
+            if (is_array($gridData)) {
+                $appSettings = $gridData;
+            } elseif ($gridData instanceof Traversable) {
+                $appSettings = iterator_to_array($gridData, false);
+            } else {
+                $appSettings = [];
+            }
+            if ($appSettings === []) {
+                return [
+                    'action' => 'remove',
+                    'rowDomId' => $rowDomId,
+                ];
+            }
+
+            $appSetting = $appSettings[0];
+            $rowActions = AppSettingsGridColumns::getRowActions();
+            $gridState = $result['gridState'];
+            $visibleColumns = $gridState['columns']['visible'];
+            if (!is_array($visibleColumns)) {
+                $visibleColumns = array_values($visibleColumns);
+            }
+
+            $rowHtml = $this->renderDataverseTableRowElement([
+                'row' => $appSetting,
+                'columns' => $gridState['columns']['all'],
+                'visibleColumns' => $visibleColumns,
+                'controllerName' => 'grid-view',
+                'primaryKey' => $gridState['config']['primaryKey'],
+                'gridKey' => $gridState['config']['gridKey'],
+                'rowActions' => $rowActions,
+                'user' => $this->request->getAttribute('identity'),
+                'enableBulkSelection' => false,
+                'rowDomIdPrefix' => preg_replace('/-table$/', '', $tableFrameId),
+                'showActionsColumn' => $rowActions !== [],
+            ]);
+
+            return [
+                'action' => 'replace',
+                'rowDomId' => $rowDomId,
+                'rowHtml' => $rowHtml,
+            ];
+        });
+    }
+
+    /**
+     * Turbo-stream response for grid-origin app setting saves.
+     */
+    private function renderAppSettingsGridTurboResponse(
+        ?string $pageContext,
+        int $appSettingId,
+        bool $forceRemove = false,
+    ): Response {
+        $gridRoute = ['controller' => 'AppSettings', 'action' => 'gridData'];
+
+        if (
+            $this->wantsTurboStreamRequest()
+            && $pageContext !== null
+            && (
+                $this->isGridOriginRequest($pageContext)
+                || $this->matchesGridIndexPath($pageContext, '#/app-settings/?$#')
+            )
+        ) {
+            if ($forceRemove && $this->matchesGridIndexPath($pageContext, '#/app-settings/?$#')) {
+                $rowDomId = GridRowDomId::fromTableFrameId('app-settings-grid-table', $appSettingId);
+
+                return $this->renderTurboRemoveGridRow($rowDomId);
+            }
+
+            $sync = $this->resolveAppSettingGridRowSync($appSettingId, $pageContext);
+            if ($sync !== null) {
+                if ($sync['action'] === 'remove') {
+                    return $this->renderTurboRemoveGridRow($sync['rowDomId']);
+                }
+
+                return $this->renderTurboReplaceGridRow(
+                    $sync['rowDomId'],
+                    $sync['rowHtml'] ?? '',
+                );
+            }
+        }
+
+        return $this->renderTurboCloseModal('app-settings-grid-table', $gridRoute, $pageContext);
     }
 }

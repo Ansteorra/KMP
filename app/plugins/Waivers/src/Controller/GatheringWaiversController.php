@@ -4,8 +4,11 @@ declare(strict_types=1);
 namespace Waivers\Controller;
 
 use App\Controller\DataverseGridTrait;
+use App\Controller\WorkflowDispatchTrait;
 use App\KMP\StaticHelpers;
 use App\Services\CsvExportService;
+use App\Services\WorkflowEngine\TriggerDispatcher;
+use Cake\Datasource\EntityInterface;
 use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Exception\NotFoundException;
 use Cake\Log\Log;
@@ -28,6 +31,7 @@ use Waivers\Services\WaiverStateService;
 class GatheringWaiversController extends AppController
 {
     use DataverseGridTrait;
+    use WorkflowDispatchTrait;
 
     /**
      * Initialize method
@@ -75,7 +79,9 @@ class GatheringWaiversController extends AppController
             $GatheringWaiverClosures = $this->fetchTable('Waivers.GatheringWaiverClosures');
             $waiverClosure = $GatheringWaiverClosures->getClosureForGathering((int)$gatheringId);
             $waiverCollectionClosed = $waiverClosure !== null && $waiverClosure->isClosed();
-            $waiverReadyToClose = $waiverClosure !== null && $waiverClosure->isReadyToClose() && !$waiverClosure->isClosed();
+            $waiverReadyToClose = $waiverClosure !== null
+                && $waiverClosure->isReadyToClose()
+                && !$waiverClosure->isClosed();
 
             // Get all waivers for this gathering
             $query = $this->GatheringWaivers->find()
@@ -87,14 +93,27 @@ class GatheringWaiversController extends AppController
 
             // Get required waiver types for this gathering's activities
             $GatheringActivityWaivers = $this->fetchTable('Waivers.GatheringActivityWaivers');
-            $requiredWaiverTypes = $GatheringActivityWaivers->find()
+            $requiredWaiverTypeIds = $GatheringActivityWaivers->find()
+                ->select(['waiver_type_id'])
+                ->distinct(['GatheringActivityWaivers.waiver_type_id'])
                 ->innerJoinWith('GatheringActivities.Gatherings', function ($q) use ($gatheringId) {
                     return $q->where(['Gatherings.id' => $gatheringId]);
                 })
-                ->contain(['WaiverTypes'])
                 ->where(['GatheringActivityWaivers.deleted IS' => null])
-                ->groupBy(['GatheringActivityWaivers.waiver_type_id'])
-                ->all();
+                ->enableHydration(false)
+                ->all()
+                ->extract('waiver_type_id')
+                ->toList();
+            $WaiverTypes = $this->fetchTable('Waivers.WaiverTypes');
+            $requiredWaiverTypes = [];
+            if ($requiredWaiverTypeIds !== []) {
+                foreach ($WaiverTypes->find()->where(['id IN' => $requiredWaiverTypeIds])->all() as $waiverType) {
+                    $requiredWaiverTypes[] = (object)[
+                        'waiver_type_id' => $waiverType->id,
+                        'waiver_type' => $waiverType,
+                    ];
+                }
+            }
 
             // Calculate waiver counts per type (excluding declined waivers)
             $waiverCounts = $this->GatheringWaivers->find()
@@ -145,7 +164,7 @@ class GatheringWaiversController extends AppController
      * @param string|null $gatheringId Gathering ID.
      * @return \Cake\Http\Response|null
      */
-    public function close(WaiverStateService $stateService, ?string $gatheringId = null)
+    public function close(TriggerDispatcher $dispatcher, ?string $gatheringId = null)
     {
         $this->request->allowMethod(['post']);
 
@@ -160,15 +179,16 @@ class GatheringWaiversController extends AppController
         $tempWaiver->gathering = $gathering;
         $this->Authorization->authorize($tempWaiver, 'closeWaivers');
 
-        $result = $stateService->close((int)$gatheringId, $this->Authentication->getIdentity()->getIdentifier());
+        $closedBy = $this->Authentication->getIdentity()->getIdentifier();
 
-        if ($result->success) {
-            $this->Flash->success($result->reason);
-        } elseif (stripos($result->reason, 'already') !== false) {
-            $this->Flash->info($result->reason);
-        } else {
-            $this->Flash->error($result->reason);
-        }
+        $this->dispatchWorkflowOrFail(
+            $dispatcher,
+            'waiver-closure',
+            'Waivers.CollectionClosed',
+            $this->buildGatheringWorkflowContext((int)$gatheringId, 'closedBy', $closedBy),
+        );
+
+        $this->Flash->success(__('The waiver collection closure workflow has been initiated.'));
 
         $redirectUrl = $this->request->referer();
         if (!$redirectUrl) {
@@ -190,7 +210,7 @@ class GatheringWaiversController extends AppController
      * @param string|null $gatheringId Gathering ID.
      * @return \Cake\Http\Response|null
      */
-    public function reopen(WaiverStateService $stateService, ?string $gatheringId = null)
+    public function reopen(WaiverStateService $stateService, TriggerDispatcher $dispatcher, ?string $gatheringId = null)
     {
         $this->request->allowMethod(['post']);
 
@@ -209,6 +229,15 @@ class GatheringWaiversController extends AppController
 
         if ($result->success) {
             $this->Flash->success($result->reason);
+            $this->dispatchWorkflowEvent(
+                $dispatcher,
+                'Waivers.CollectionReopened',
+                $this->buildGatheringWorkflowContext(
+                    (int)$gatheringId,
+                    'reopenedBy',
+                    $this->Authentication->getIdentity()->getIdentifier(),
+                ),
+            );
         } elseif (stripos($result->reason, 'already') !== false) {
             $this->Flash->info($result->reason);
         } else {
@@ -235,8 +264,11 @@ class GatheringWaiversController extends AppController
      * @param string|null $gatheringId Gathering ID.
      * @return \Cake\Http\Response|null
      */
-    public function markReadyToClose(WaiverStateService $stateService, ?string $gatheringId = null)
-    {
+    public function markReadyToClose(
+        WaiverStateService $stateService,
+        TriggerDispatcher $dispatcher,
+        ?string $gatheringId = null,
+    ) {
         $this->request->allowMethod(['post']);
 
         if (!$gatheringId) {
@@ -249,10 +281,17 @@ class GatheringWaiversController extends AppController
         // Use edit permission on gathering - editors and stewards can mark ready
         $this->Authorization->authorize($gathering, 'edit');
 
-        $result = $stateService->markReadyToClose((int)$gatheringId, $this->Authentication->getIdentity()->getIdentifier());
+        $markedBy = $this->Authentication->getIdentity()->getIdentifier();
+
+        $result = $stateService->markReadyToClose((int)$gatheringId, $markedBy);
 
         if ($result->success) {
             $this->Flash->success($result->reason);
+            $this->dispatchWorkflowEvent(
+                $dispatcher,
+                'Waivers.ReadyToClose',
+                $this->buildGatheringWorkflowContext((int)$gatheringId, 'markedBy', $markedBy),
+            );
         } elseif (stripos($result->reason, 'already') !== false) {
             $this->Flash->info($result->reason);
         } else {
@@ -1063,7 +1102,7 @@ class GatheringWaiversController extends AppController
      * @return \Cake\Http\Response|null Redirects on success.
      * @throws \Cake\Http\Exception\NotFoundException When record not found.
      */
-    public function decline(WaiverStateService $stateService, ?string $id = null)
+    public function decline(WaiverStateService $stateService, TriggerDispatcher $dispatcher, ?string $id = null)
     {
         $this->request->allowMethod(['post', 'put', 'patch']);
 
@@ -1074,20 +1113,88 @@ class GatheringWaiversController extends AppController
         $this->Authorization->authorize($gatheringWaiver, 'decline');
 
         $declineReason = $this->request->getData('decline_reason') ?? '';
+        $declinedBy = $this->Authentication->getIdentity()->getIdentifier();
 
         $result = $stateService->decline(
             (int)$gatheringWaiver->id,
             $declineReason,
-            $this->Authentication->getIdentity()->getIdentifier(),
+            $declinedBy,
         );
 
         if ($result->success) {
             $this->Flash->success($result->reason);
+            $this->dispatchWorkflowEvent(
+                $dispatcher,
+                'Waivers.WaiverDeclined',
+                $this->buildWaiverDeclinedWorkflowContext($gatheringWaiver, $declinedBy, $declineReason),
+            );
         } else {
             $this->Flash->error($result->reason);
         }
 
         return $this->redirect($this->referer());
+    }
+
+    /**
+     * Build waiver gathering workflow context with current and legacy payload keys.
+     *
+     * @param int $gatheringId Gathering ID.
+     * @param string $actorKey Camel-case actor key expected by workflow schemas.
+     * @param string|int|null $actorId Acting member ID.
+     * @return array<string, mixed>
+     */
+    private function buildGatheringWorkflowContext(int $gatheringId, string $actorKey, int|string|null $actorId): array
+    {
+        $legacyActorKeys = [
+            'closedBy' => 'closed_by',
+            'markedBy' => 'marked_by',
+            'reopenedBy' => 'reopened_by',
+        ];
+
+        $context = [
+            'gatheringId' => $gatheringId,
+            'gathering_id' => $gatheringId,
+        ];
+
+        if ($actorId !== null) {
+            $actorId = (int)$actorId;
+            $context[$actorKey] = $actorId;
+            if (isset($legacyActorKeys[$actorKey])) {
+                $context[$legacyActorKeys[$actorKey]] = $actorId;
+            }
+        }
+
+        return $context;
+    }
+
+    /**
+     * Build waiver decline workflow context with current and legacy payload keys.
+     *
+     * @param \Cake\Datasource\EntityInterface $gatheringWaiver Declined waiver entity.
+     * @param string|int $declinedBy Acting member ID.
+     * @param string $declineReason Decline reason.
+     * @return array<string, mixed>
+     */
+    private function buildWaiverDeclinedWorkflowContext(
+        EntityInterface $gatheringWaiver,
+        int|string $declinedBy,
+        string $declineReason,
+    ): array {
+        $waiverId = (int)$gatheringWaiver->get('id');
+        $gatheringId = (int)$gatheringWaiver->get('gathering_id');
+        $declinedBy = (int)$declinedBy;
+
+        return [
+            'waiverId' => $waiverId,
+            'gatheringId' => $gatheringId,
+            'declinedBy' => $declinedBy,
+            'declineReason' => $declineReason,
+            'waiver_id' => $waiverId,
+            'gathering_id' => $gatheringId,
+            'declined_by' => $declinedBy,
+            'decline_reason' => $declineReason,
+            'reason' => $declineReason,
+        ];
     }
 
     /**

@@ -1,0 +1,94 @@
+{
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
+    "nodes": {
+        "trigger": {
+            "type": "trigger",
+            "label": "Ad Hoc Bestowal Requested",
+            "config": {
+                "event": "Awards.AdHocBestowalRequested"
+            },
+            "position": {
+                "x": 50,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "record-ad-hoc-bestowal"
+                }
+            ]
+        },
+        "record-ad-hoc-bestowal": {
+            "type": "action",
+            "label": "Record Ad Hoc Bestowal",
+            "config": {
+                "action": "Awards.RecordAdHocBestowal",
+                "params": {
+                    "data": "$.trigger.data",
+                    "actorId": "$.trigger.actorId"
+                }
+            },
+            "position": {
+                "x": 350,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "record-succeeded"
+                }
+            ]
+        },
+        "record-succeeded": {
+            "type": "condition",
+            "label": "Record Succeeded?",
+            "config": {
+                "condition": "Core.FieldEquals",
+                "field": "$.nodes.record-ad-hoc-bestowal.result.success",
+                "value": true
+            },
+            "position": {
+                "x": 650,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "end-success",
+                    "label": "Recorded"
+                },
+                {
+                    "port": "false",
+                    "target": "end-failed",
+                    "label": "Failed"
+                }
+            ]
+        },
+        "end-success": {
+            "type": "end",
+            "label": "Ad Hoc Bestowal Recorded",
+            "config": {
+                "result": "$.nodes.record-ad-hoc-bestowal.result"
+            },
+            "position": {
+                "x": 950,
+                "y": 225
+            },
+            "outputs": []
+        },
+        "end-failed": {
+            "type": "end",
+            "label": "Ad Hoc Bestowal Failed",
+            "config": {
+                "result": "$.nodes.record-ad-hoc-bestowal.result"
+            },
+            "position": {
+                "x": 950,
+                "y": 375
+            },
+            "outputs": []
+        }
+    },
+    "startNode": "trigger"
+}

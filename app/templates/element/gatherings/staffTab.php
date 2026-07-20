@@ -258,20 +258,20 @@ foreach ($gathering->gathering_staff as $staff) {
 <!-- Add Staff Modal -->
 <?php if ($user->checkCan('edit', $gathering)) : ?>
     <div class="modal fade" id="addStaffModal" tabindex="-1" aria-labelledby="addStaffModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <?= $this->Form->create(null, [
-                    'url' => ['controller' => 'GatheringStaff', 'action' => 'add', $gathering->id],
-                    'id' => 'addStaffForm'
-                ]) ?>
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+            <?= $this->Form->create(null, [
+                'url' => ['controller' => 'GatheringStaff', 'action' => 'add', $gathering->id],
+                'id' => 'addStaffForm',
+                'class' => 'modal-content',
+            ]) ?>
                 <div class="modal-header">
                     <h5 class="modal-title" id="addStaffModalLabel">
                         <i class="bi bi-person-plus"></i> <?= __('Add Staff Member') ?>
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <div class="alert alert-info">
+                <div class="modal-body bg-light-subtle">
+                    <div class="alert alert-info border-start border-info border-4">
                         <strong><?= __('Staff Types:') ?></strong>
                         <ul class="mb-0">
                             <li><strong><?= __('Stewards') ?></strong> <?= __('must be AMP members and require contact information (email or phone)') ?></li>
@@ -279,53 +279,67 @@ foreach ($gathering->gathering_staff as $staff) {
                         </ul>
                     </div>
 
-                    <?= $this->Form->control('is_steward', [
-                        'type' => 'checkbox',
-                        'label' => __('This person is a Steward'),
-                        'id' => 'add-is-steward'
-                    ]) ?>
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-lg-5">
+                            <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+                                <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                                    <i class="bi bi-person-badge text-primary me-1" aria-hidden="true"></i>
+                                    <?= __('Role') ?>
+                                </legend>
+                                <?= $this->Form->control('is_steward', [
+                                    'type' => 'checkbox',
+                                    'label' => __('This person is a Steward'),
+                                    'id' => 'add-is-steward'
+                                ]) ?>
+                                <?= $this->Form->control('role', [
+                                    'label' => __('Role'),
+                                    'placeholder' => __('e.g., Steward, Herald, List Master, Water Bearer'),
+                                    'required' => true
+                                ]) ?>
+                            </fieldset>
+                        </div>
+                        <div class="col-12 col-lg-7">
+                            <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+                                <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                                    <i class="bi bi-person text-primary me-1" aria-hidden="true"></i>
+                                    <?= __('Staff Member') ?>
+                                </legend>
+                                <?php
+                                $memberUrl = $this->Url->build([
+                                    'controller' => 'Members',
+                                    'action' => 'AutoComplete',
+                                    'plugin' => null
+                                ]);
 
-                    <?= $this->Form->control('role', [
-                        'label' => __('Role'),
-                        'placeholder' => __('e.g., Steward, Herald, List Master, Water Bearer'),
-                        'required' => true
-                    ]) ?>
+                                echo $this->KMP->autoCompleteControl(
+                                    $this->Form,
+                                    'member_sca_name',
+                                    'member_public_id',
+                                    $memberUrl,
+                                    __('AMP Member or SCA Name'),
+                                    true,
+                                    true,
+                                    3,
+                                    [
+                                        'id' => 'add-member-autocomplete',
+                                        'data-action' => 'change->gathering-staff-add#memberSelected'
+                                    ]
+                                );
+                                ?>
+                                <small class="text-muted">
+                                    <?= __('Start typing to search for an AMP member, or type any SCA name if they are not in the system.') ?>
+                                    <br>
+                                    <i class="bi bi-info-circle"></i> <?= __('When you select an AMP member, their email and phone will be automatically copied below.') ?>
+                                </small>
+                            </fieldset>
+                        </div>
+                    </div>
 
-                    <hr>
-                    <h6><?= __('Staff Member') ?></h6>
-
-                    <?php
-                    // Use autocomplete control like Awards recommendations
-                    $memberUrl = $this->Url->build([
-                        'controller' => 'Members',
-                        'action' => 'AutoComplete',
-                        'plugin' => null
-                    ]);
-
-                    echo $this->KMP->autoCompleteControl(
-                        $this->Form,
-                        'member_sca_name',
-                        'member_public_id',
-                        $memberUrl,
-                        __('AMP Member or SCA Name'),
-                        true,  // required
-                        true,  // allowOtherValues - allows entering non-AMP names
-                        3,     // minLength
-                        [
-                            'id' => 'add-member-autocomplete',
-                            'data-action' => 'change->gathering-staff-add#memberSelected'
-                        ]
-                    );
-                    ?>
-
-                    <small class="text-muted">
-                        <?= __('Start typing to search for an AMP member, or type any SCA name if they are not in the system.') ?>
-                        <br>
-                        <i class="bi bi-info-circle"></i> <?= __('When you select an AMP member, their email and phone will be automatically copied below.') ?>
-                    </small>
-
-                    <hr>
-                    <h6><?= __('Contact Information') ?></h6>
+                    <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3">
+                        <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                            <i class="bi bi-envelope text-primary me-1" aria-hidden="true"></i>
+                            <?= __('Contact Information') ?>
+                        </legend>
                     <div class="alert alert-warning" id="add-steward-notice" style="display: none;">
                         <strong><?= __('Steward Requirement:') ?></strong> <?= __('At least one contact method (email or phone) is required for stewards.') ?>
                     </div>
@@ -335,32 +349,44 @@ foreach ($gathering->gathering_staff as $staff) {
                         <?= __('Email and phone copied from AMP member account. You may edit these if needed (e.g., for privacy).') ?>
                     </div>
 
-                    <?= $this->Form->control('email', [
-                        'type' => 'email',
-                        'label' => __('Email Address'),
-                        'id' => 'add-email'
-                    ]) ?>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <?= $this->Form->control('email', [
+                                'type' => 'email',
+                                'label' => __('Email Address'),
+                                'id' => 'add-email'
+                            ]) ?>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <?= $this->Form->control('phone', [
+                                'label' => __('Phone Number'),
+                                'id' => 'add-phone'
+                            ]) ?>
+                        </div>
+                        <div class="col-12">
+                            <?= $this->Form->control('contact_notes', [
+                                'type' => 'textarea',
+                                'label' => __('Contact Notes'),
+                                'rows' => 3,
+                                'placeholder' => __('e.g., "Please text, no calls after 9 PM", "Emergency contact only"')
+                            ]) ?>
+                        </div>
+                    </div>
 
-                    <?= $this->Form->control('phone', [
-                        'label' => __('Phone Number'),
-                        'id' => 'add-phone'
-                    ]) ?>
+                    </fieldset>
 
-                    <?= $this->Form->control('contact_notes', [
-                        'type' => 'textarea',
-                        'label' => __('Contact Notes'),
-                        'rows' => 3,
-                        'placeholder' => __('e.g., "Please text, no calls after 9 PM", "Emergency contact only"')
-                    ]) ?>
-
-                    <hr>
-                    <h6><?= __('Public Visibility') ?></h6>
+                    <fieldset class="border rounded-3 bg-white shadow-sm p-3">
+                        <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                            <i class="bi bi-globe text-primary me-1" aria-hidden="true"></i>
+                            <?= __('Public Visibility') ?>
+                        </legend>
                     <?= $this->Form->control('show_on_public_page', [
                         'type' => 'checkbox',
                         'label' => __('Show on Public Event Page'),
                         'id' => 'add-show-on-public-page',
                         'help' => __('When checked, this staff member will be visible on the public event page. Stewards are always shown.')
                     ]) ?>
+                    </fieldset>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= __('Cancel') ?></button>
@@ -368,82 +394,110 @@ foreach ($gathering->gathering_staff as $staff) {
                         <i class="bi bi-plus-circle"></i> <?= __('Add Staff Member') ?>
                     </button>
                 </div>
-                <?= $this->Form->end() ?>
-            </div>
+            <?= $this->Form->end() ?>
         </div>
     </div>
 
     <!-- Edit Staff Modal -->
     <div class="modal fade" id="editStaffModal" tabindex="-1" aria-labelledby="editStaffModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <?= $this->Form->create(null, [
-                    'url' => ['controller' => 'GatheringStaff', 'action' => 'edit', 'XXX'],
-                    'id' => 'editStaffForm'
-                ]) ?>
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
+            <?= $this->Form->create(null, [
+                'url' => ['controller' => 'GatheringStaff', 'action' => 'edit', 'XXX'],
+                'id' => 'editStaffForm',
+                'class' => 'modal-content',
+            ]) ?>
                 <div class="modal-header">
                     <h5 class="modal-title" id="editStaffModalLabel">
                         <i class="bi bi-pencil"></i> <?= __('Edit Staff Member') ?>
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <div class="alert alert-info" id="edit-steward-info" style="display: none;">
+                <div class="modal-body bg-light-subtle">
+                    <div class="alert alert-info border-start border-info border-4" id="edit-steward-info" style="display: none;">
                         <strong><?= __('Steward:') ?></strong> <?= __('Contact information (email or phone) is required.') ?>
                     </div>
 
-                    <?= $this->Form->control('is_steward', [
-                        'type' => 'checkbox',
-                        'label' => __('This person is a Steward'),
-                        'id' => 'edit-is-steward'
-                    ]) ?>
-
-                    <?= $this->Form->control('role', [
-                        'label' => __('Role'),
-                        'id' => 'edit-role',
-                        'required' => true
-                    ]) ?>
-
-                    <hr>
-                    <h6><?= __('Staff Member') ?></h6>
-                    <div class="form-group">
-                        <label><?= __('Name') ?></label>
-                        <div class="form-control-plaintext" id="edit-staff-name-display"></div>
-                        <small class="text-muted"><?= __('To change the staff member, please remove and add a new entry.') ?></small>
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-lg-5">
+                            <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+                                <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                                    <i class="bi bi-person-badge text-primary me-1" aria-hidden="true"></i>
+                                    <?= __('Role') ?>
+                                </legend>
+                                <?= $this->Form->control('is_steward', [
+                                    'type' => 'checkbox',
+                                    'label' => __('This person is a Steward'),
+                                    'id' => 'edit-is-steward'
+                                ]) ?>
+                                <?= $this->Form->control('role', [
+                                    'label' => __('Role'),
+                                    'id' => 'edit-role',
+                                    'required' => true
+                                ]) ?>
+                            </fieldset>
+                        </div>
+                        <div class="col-12 col-lg-7">
+                            <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+                                <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                                    <i class="bi bi-person text-primary me-1" aria-hidden="true"></i>
+                                    <?= __('Staff Member') ?>
+                                </legend>
+                                <div class="form-group">
+                                    <p class="form-label mb-1"><?= __('Name') ?></p>
+                                    <div class="form-control-plaintext" id="edit-staff-name-display" aria-live="polite"></div>
+                                    <small class="text-muted"><?= __('To change the staff member, please remove and add a new entry.') ?></small>
+                                </div>
+                            </fieldset>
+                        </div>
                     </div>
 
-                    <hr>
-                    <h6><?= __('Contact Information') ?></h6>
+                    <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3">
+                        <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                            <i class="bi bi-envelope text-primary me-1" aria-hidden="true"></i>
+                            <?= __('Contact Information') ?>
+                        </legend>
                     <div class="alert alert-warning" id="edit-steward-notice" style="display: none;">
                         <strong><?= __('Note:') ?></strong> <?= __('At least one contact method (email or phone) is required for stewards.') ?>
                     </div>
 
-                    <?= $this->Form->control('email', [
-                        'type' => 'email',
-                        'label' => __('Email Address'),
-                        'id' => 'edit-email'
-                    ]) ?>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <?= $this->Form->control('email', [
+                                'type' => 'email',
+                                'label' => __('Email Address'),
+                                'id' => 'edit-email'
+                            ]) ?>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <?= $this->Form->control('phone', [
+                                'label' => __('Phone Number'),
+                                'id' => 'edit-phone'
+                            ]) ?>
+                        </div>
+                        <div class="col-12">
+                            <?= $this->Form->control('contact_notes', [
+                                'type' => 'textarea',
+                                'label' => __('Contact Notes'),
+                                'rows' => 3,
+                                'id' => 'edit-contact-notes'
+                            ]) ?>
+                        </div>
+                    </div>
 
-                    <?= $this->Form->control('phone', [
-                        'label' => __('Phone Number'),
-                        'id' => 'edit-phone'
-                    ]) ?>
+                    </fieldset>
 
-                    <?= $this->Form->control('contact_notes', [
-                        'type' => 'textarea',
-                        'label' => __('Contact Notes'),
-                        'rows' => 3,
-                        'id' => 'edit-contact-notes'
-                    ]) ?>
-
-                    <hr>
-                    <h6><?= __('Public Visibility') ?></h6>
+                    <fieldset class="border rounded-3 bg-white shadow-sm p-3">
+                        <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                            <i class="bi bi-globe text-primary me-1" aria-hidden="true"></i>
+                            <?= __('Public Visibility') ?>
+                        </legend>
                     <?= $this->Form->control('show_on_public_page', [
                         'type' => 'checkbox',
                         'label' => __('Show on Public Event Page'),
                         'id' => 'edit-show-on-public-page',
                         'help' => __('When checked, this staff member will be visible on the public event page. Stewards are always shown.')
                     ]) ?>
+                    </fieldset>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= __('Cancel') ?></button>
@@ -451,8 +505,7 @@ foreach ($gathering->gathering_staff as $staff) {
                         <i class="bi bi-check-circle"></i> <?= __('Save Changes') ?>
                     </button>
                 </div>
-                <?= $this->Form->end() ?>
-            </div>
+            <?= $this->Form->end() ?>
         </div>
     </div>
 

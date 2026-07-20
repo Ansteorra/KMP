@@ -55,7 +55,7 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
 ]) : null;
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="<?= h(\Cake\Core\Configure::read('App.language') ?: 'en') ?>">
 
 <head>
     <?= $this->Html->charset() ?>
@@ -83,7 +83,7 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 
     <!-- CSS -->
-    <?= $this->AssetMix->css('app') ?>
+    <?= $this->Vite->css('app') ?>
 
     <style>
     /* ============================================
@@ -116,6 +116,7 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
         --section-events: #1e6f50;      /* Forest Green */
         --section-rsvps: #1e4976;       /* Royal Blue */
         --section-approvals: #8b6914;   /* Heraldic Gold */
+        --section-todos: #946200;       /* Amber */
         --section-request: #1a5f5f;     /* Teal */
         --section-waivers: #8b2252;     /* Burgundy */
 
@@ -396,6 +397,7 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
     body[data-section="events"] { --current-section-color: var(--section-events); }
     body[data-section="rsvps"] { --current-section-color: var(--section-rsvps); }
     body[data-section="approvals"] { --current-section-color: var(--section-approvals); }
+    body[data-section="todos"] { --current-section-color: var(--section-todos); }
     body[data-section="request"] { --current-section-color: var(--section-request); }
     body[data-section="waivers"] { --current-section-color: var(--section-waivers); }
     
@@ -676,6 +678,15 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
     }
     .mobile-menu-item.btn-approvals:hover {
         background: linear-gradient(180deg, var(--btn-dark), color-mix(in srgb, var(--section-approvals) 60%, black));
+    }
+
+    .mobile-menu-item.btn-todos {
+        --btn-base: var(--section-todos);
+        --btn-dark: color-mix(in srgb, var(--section-todos) 75%, black);
+        background: linear-gradient(180deg, var(--btn-base), var(--btn-dark));
+    }
+    .mobile-menu-item.btn-todos:hover {
+        background: linear-gradient(180deg, var(--btn-dark), color-mix(in srgb, var(--section-todos) 60%, black));
     }
 
     .mobile-menu-item.btn-waivers {
@@ -1184,15 +1195,18 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
     </style>
 
     <!-- JavaScript -->
-    <?= $this->AssetMix->script('manifest') ?>
-    <?= $this->AssetMix->script('core') ?>
-    <?= $this->AssetMix->script('controllers') ?>
-    <?= $this->AssetMix->script('index') ?>
+    <?= $this->Vite->script('controllers') ?>
+    <?= $this->Vite->script('index') ?>
     <?= $this->fetch('script') ?>
 </head>
 
 <body class="viewMobileCard"<?php if ($mobileSection): ?> data-section="<?= h($mobileSection) ?>"<?php endif; ?>>
-    <?= $this->Flash->render() ?>
+    <a class="visually-hidden-focusable position-absolute top-0 start-0 z-3 m-2 p-2 bg-body border rounded" href="#main-content">
+        <?= __('Skip to main content') ?>
+    </a>
+    <div id="flash-messages">
+        <?= $this->Flash->render() ?>
+    </div>
     <?php
     // Determine if this is the auth card page and build auth card URL
     $currentController = $this->request->getParam('controller');
@@ -1208,14 +1222,16 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
 
     $authCardUrl = ['controller' => 'Members', 'action' => 'viewMobileCard', 'plugin' => null];
     $authCardUrlBuilt = $this->Url->build($authCardUrl);
+    $logoutUrlBuilt = $this->Url->build(['controller' => 'Members', 'action' => 'logout', 'plugin' => null]);
     ?>
-    <div data-controller="member-mobile-card-pwa mobile-pin-gate<?= isset($cardUrl) ? ' member-mobile-card-profile' : '' ?><?= !$skipOfflineOverlay ? ' mobile-offline-overlay' : '' ?>"
+    <main id="main-content" tabindex="-1" data-controller="member-mobile-card-pwa mobile-pin-gate<?= isset($cardUrl) ? ' member-mobile-card-profile' : '' ?><?= !$skipOfflineOverlay ? ' mobile-offline-overlay' : '' ?>"
         <?php if (isset($cardUrl)): ?> data-member-mobile-card-profile-url-value="<?= h($cardUrl) ?>"
         data-member-mobile-card-profile-pwa-ready-value="false" <?php endif; ?>
         data-member-mobile-card-pwa-sw-url-value="<?= $swUrl ?>" data-member-mobile-card-pwa-pwa-ready-value="false"
         data-member-mobile-card-pwa-auth-card-url-value="<?= h($authCardUrlBuilt) ?>"
         data-member-mobile-card-pwa-is-auth-card-value="<?= $isAuthCard ? 'true' : 'false' ?>"
         data-mobile-pin-gate-email-value="<?= h((string)($currentUser?->email_address ?? '')) ?>"
+        data-mobile-pin-gate-logout-url-value="<?= h($logoutUrlBuilt) ?>"
         <?php if (!$skipOfflineOverlay): ?>
         data-mobile-offline-overlay-auth-card-url-value="<?= h($authCardUrlBuilt) ?>" <?php endif; ?>>
         <div class="mobile-header-bar">
@@ -1327,11 +1343,9 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
             <?php
             $cacheList = [];
             $cacheList[] = $swUrl;
-            $cacheList[] = $this->KMP->getMixScriptUrl('manifest', $this->Url);
-            $cacheList[] = $this->KMP->getMixScriptUrl('core', $this->Url);
-            $cacheList[] = $this->KMP->getMixScriptUrl('controllers', $this->Url);
-            $cacheList[] = $this->KMP->getMixScriptUrl('index', $this->Url);
-            $cacheList[] = $this->KMP->getMixStyleUrl('app', $this->Url);
+            $cacheList[] = $this->Vite->getScriptUrl('controllers');
+            $cacheList[] = $this->Vite->getScriptUrl('index');
+            $cacheList[] = $this->Vite->getStyleUrl('app');
             $cacheList[] = Asset::imageUrl("favicon.ico");
             $cacheList[] = $this->request->getPath();
             if ($cardUrlForManifest) {
@@ -1339,7 +1353,7 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
             }
             echo json_encode($cacheList); ?>
         </json>
-    </div>
+    </main>
 
 </body>
 

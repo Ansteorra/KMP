@@ -19,12 +19,12 @@ class WarrantRequest
     /**
      * @var string Entity type (e.g., 'Branches', 'Activities', 'Direct Grant')
      */
-    public string $entityType;
+    public string $entity_type;
 
     /**
      * @var int Entity primary key ID
      */
-    public int $entityId;
+    public int $entity_id;
 
     /**
      * @var int ID of member requesting this warrant

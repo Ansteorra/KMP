@@ -4,7 +4,7 @@ Verified facts about the KMP codebase for AI agent reference. Each entry include
 
 ## Build & Testing
 
-- **Full verification**: `cd app && bash bin/verify.sh` runs PHPUnit (1018 tests), Jest (27 tests), Webpack, PHPCS (changed files only), PHPStan (level 5, 1 known error). All pass.
+- **Full verification**: `cd app && bash bin/verify.sh` runs PHPUnit (1018 tests), Jest (27 tests), Vite build, PHPCS (changed files only), PHPStan (level 5, 1 known error). All pass.
   _Source: app/bin/verify.sh; verified 2026-03-24_
 
 - **Backend tests**: `cd app && composer test` runs all 1018 PHPUnit tests. Do NOT use `--testsuite all` — it only runs 509/1018 tests due to incomplete suite definition.
@@ -60,10 +60,25 @@ Verified facts about the KMP codebase for AI agent reference. Each entry include
 
 ## Dev Environment
 
-- **Apache** runs HTTP (not HTTPS) on port 8080. SSL is commented out. Mailpit on port 8025.
+- **Docker Compose is the default local dev workflow.** Host checkout is bind-mounted into containers; agents should run PHP/DB/test commands **inside `kmp-app`**, not assume host tooling or `db` hostname resolution.
+  _Source: docs/docker-development.md, docker-compose.yml; verified 2026-05-31_
+
+- **Prefer repo-root scripts** that wrap `docker compose`: `./dev-up.sh`, `./dev-down.sh`, `./dev-reset-db.sh`, `./dev-reset-db.sh --seed` (full migrate + seeded baseline + test DB rebuild).
+  _Source: dev-reset-db.sh, dev-up.sh; verified 2026-05-31_
+
+- **Volume mapping**: `./app` → `/var/www/html` in app/worker/scheduler containers. Edits on host are visible immediately; `node_modules` is a Docker volume — npm/Jest/Vite run in container.
+  _Source: docker-compose.yml x-app-base volumes; verified 2026-05-31_
+
+- **In-container verification**: `docker compose exec app bash -lc 'bash bin/verify.sh'` or `composer test` after `docker compose exec app bash`.
+  _Source: AGENTS.md; verified 2026-05-31_
+
+- **PostgreSQL test DB**: `dev-reset-db.sh` rebuilds test schema via `app/bin/setup_test_database.sh`; reference data (workflows, award/bestowal state machines) comes from Cake seeds in `SeedManager`, not schema-only dumps.
+  _Source: app/tests/TestCase/Support/SeedManager.php; verified 2026-05-31_
+
+- **Apache** runs HTTP (not HTTPS) on port 8080. Mailpit on port 8025.
   _Source: /etc/apache2/sites-enabled/*.conf_
 
-- **DB credentials**: Host=localhost, User=KMPSQLDEV, Password=P@ssw0rd, DB=KMP_DEV (from `app/config/.env`)
+- **DB credentials**: See `app/config/.env` (Docker default: host `db`, PostgreSQL, user `KMPSQLDEV`).
 
 - **Git workflow**: Ansteorra/KMP disallows squash merges; PRs must use merge commits.
   _Source: Discovered 2026-03-05 via gh pr merge failure_

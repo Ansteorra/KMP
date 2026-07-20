@@ -29,18 +29,6 @@ $this->assign('title', __('Email Templates'));
                     ['class' => 'btn btn-primary bi bi-plus-circle me-2']
                 ) ?>
             <?php endif; ?>
-            <?php if ($user->checkCan("sync", "EmailTemplates")) : ?>
-                <?= $this->Html->link(
-                    __('Discover'),
-                    ['action' => 'discover'],
-                    ['class' => 'btn btn-outline-secondary me-2']
-                ) ?>
-                <?= $this->Form->postLink(
-                    __('Sync All'),
-                    ['action' => 'sync'],
-                    ['confirm' => __('Sync will discover all mailer methods and create templates for any that are missing. Continue?'), 'class' => 'btn btn-outline-info']
-                ) ?>
-            <?php endif; ?>
         </div>
     </div>
 

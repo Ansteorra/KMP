@@ -3,13 +3,16 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use App\Model\Entity\GatheringAttendance;
 use ArrayObject;
 use Cake\Datasource\EntityInterface;
 use Cake\Event\EventInterface;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
+use Cake\ORM\TableRegistry;
 use Cake\Validation\Validator;
+use Officers\Model\Entity\Officer;
 
 /**
  * GatheringAttendances Model
@@ -163,6 +166,108 @@ class GatheringAttendancesTable extends Table
         if ($member && $member->age !== null && $member->age < 18) {
             $entity->set('share_with_kingdom', false);
         }
+    }
+
+    /**
+     * Finder for royal progress attendances
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query The query to modify
+     * @return \Cake\ORM\Query\SelectQuery
+     */
+    public function findRoyalProgress($query): SelectQuery
+    {
+        return $query->where(['is_royal_progress' => true]);
+    }
+
+    /**
+     * List a member's current officer assignments for progress-eligible offices.
+     *
+     * Used to offer the "attend as royal progress" option when the member
+     * currently holds a Crown/Coronet style office (offices flagged with
+     * is_royal_progress).
+     *
+     * @param int $memberId Member id
+     * @return array<\Officers\Model\Entity\Officer> Current progress-eligible assignments
+     */
+    public function currentProgressOfficersForMember(int $memberId): array
+    {
+        $officersTable = TableRegistry::getTableLocator()->get('Officers.Officers');
+
+        return $officersTable->find()
+            ->where([
+                'Officers.member_id' => $memberId,
+                'Officers.status' => Officer::CURRENT_STATUS,
+                'Offices.is_royal_progress' => true,
+            ])
+            ->innerJoinWith('Offices')
+            ->contain([
+                'Offices' => function ($q) {
+                    return $q->select(['id', 'name', 'is_royal_progress']);
+                },
+                'Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+            ])
+            ->orderBy(['Offices.name' => 'ASC'])
+            ->all()
+            ->toArray();
+    }
+
+    /**
+     * Apply (or clear) royal progress metadata on an attendance record.
+     *
+     * Verifies the given officer assignment belongs to the member, is current,
+     * and is for a progress-eligible office, then snapshots the office and
+     * branch names so the progress record keeps its meaning after the office
+     * holder changes (issue #62). Progress RSVPs are always shared with the
+     * kingdom — being publicly visible is the point of progress.
+     *
+     * @param \App\Model\Entity\GatheringAttendance $attendance Attendance entity (not yet saved)
+     * @param int|null $officerId officers_officers.id to record progress for, or null to clear
+     * @param int $memberId Member the attendance belongs to
+     * @return bool False when the officer assignment is invalid for progress
+     */
+    public function applyRoyalProgress(GatheringAttendance $attendance, ?int $officerId, int $memberId): bool
+    {
+        if ($officerId === null) {
+            $attendance->set('is_royal_progress', false);
+            $attendance->set('progress_office_id', null);
+            $attendance->set('progress_office_name', null);
+            $attendance->set('progress_branch_name', null);
+
+            return true;
+        }
+
+        $officersTable = TableRegistry::getTableLocator()->get('Officers.Officers');
+        $officer = $officersTable->find()
+            ->where([
+                'Officers.id' => $officerId,
+                'Officers.member_id' => $memberId,
+                'Officers.status' => Officer::CURRENT_STATUS,
+                'Offices.is_royal_progress' => true,
+            ])
+            ->innerJoinWith('Offices')
+            ->contain([
+                'Offices' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+            ])
+            ->first();
+
+        if ($officer === null) {
+            return false;
+        }
+
+        $attendance->set('is_royal_progress', true);
+        $attendance->set('progress_office_id', $officer->office->id);
+        $attendance->set('progress_office_name', $officer->office->name);
+        $attendance->set('progress_branch_name', $officer->branch->name ?? null);
+        $attendance->set('share_with_kingdom', true);
+
+        return true;
     }
 
     /**

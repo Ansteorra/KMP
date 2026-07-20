@@ -44,6 +44,8 @@ class GatheringsCalendarController extends Controller {
         this.modalElement = null
         this.modalInstance = null
         this.turboFrame = null
+        this.attendanceModalElement = null
+        this.attendanceModalInstance = null
     }
 
     /**
@@ -88,87 +90,47 @@ class GatheringsCalendarController extends Controller {
      * 
      * @param {Event} event Click event
      */
-    async showQuickView(event) {
-        event.preventDefault() // Prevent normal navigation
+    showQuickView(event) {
+        event.preventDefault()
 
-        console.log('showQuickView called - opening modal')
-
-        // Get the gathering URL from the link
         const url = event.currentTarget.getAttribute('href')
-        console.log('Loading gathering from:', url)
-
-        // Show the modal first
-        if (this.modalInstance) {
-            this.modalInstance.show()
-            console.log('Modal shown')
-        } else {
+        if (!this.modalInstance) {
             console.error('Modal instance not found')
             return
         }
 
-        // Fetch and load content into turbo-frame
-        if (this.turboFrame) {
-            try {
-                console.log('Fetching content from:', url)
-                const response = await fetch(url, {
-                    headers: {
-                        'Accept': 'text/html',
-                        'Turbo-Frame': 'gatheringQuickView'
-                    }
-                })
+        this.modalInstance.show()
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`)
-                }
-
-                const html = await response.text()
-                console.log('Received HTML, length:', html.length)
-
-                // Parse the HTML to extract just the turbo-frame content
-                const parser = new DOMParser()
-                const doc = parser.parseFromString(html, 'text/html')
-                const turboFrameContent = doc.querySelector('turbo-frame#gatheringQuickView')
-
-                if (turboFrameContent) {
-                    // Clear existing content
-                    while (this.turboFrame.firstChild) {
-                        this.turboFrame.removeChild(this.turboFrame.firstChild)
-                    }
-
-                    // Move child nodes from parsed content to our turbo-frame
-                    // This preserves attributes without HTML encoding
-                    while (turboFrameContent.firstChild) {
-                        this.turboFrame.appendChild(turboFrameContent.firstChild)
-                    }
-
-                    console.log('Content loaded into turbo-frame')
-
-                    // Fix close button - Bootstrap's event delegation doesn't work on dynamically loaded content
-                    const closeButton = this.modalElement.querySelector('.btn-close')
-                    // Remove previous listener if exists to avoid accumulating handlers
-                    if (this._closeButtonHandler && closeButton) {
-                        closeButton.removeEventListener('click', this._closeButtonHandler)
-                    }
-                    if (closeButton) {
-                        this._closeButtonHandler = () => {
-                            if (this.modalInstance) {
-                                this.modalInstance.hide()
-                            }
-                        }
-                        closeButton.addEventListener('click', this._closeButtonHandler)
-                    }
-                } else {
-                    console.error('Could not find turbo-frame in response')
-                    console.log('Response HTML:', html.substring(0, 500))
-                    this.turboFrame.innerHTML = '<div class="alert alert-danger">Failed to load gathering details</div>'
-                }
-            } catch (error) {
-                console.error('Error loading gathering:', error)
-                this.turboFrame.innerHTML = '<div class="alert alert-danger">Error loading gathering details</div>'
-            }
-        } else {
+        if (!this.turboFrame) {
             console.error('Turbo frame not found')
+            return
         }
+
+        const onFrameLoad = () => {
+            this.turboFrame.removeEventListener('turbo:frame-load', onFrameLoad)
+            this.attachQuickViewCloseHandler()
+        }
+        this.turboFrame.addEventListener('turbo:frame-load', onFrameLoad)
+        this.turboFrame.src = url
+    }
+
+    /**
+     * Bootstrap close button in modal header does not delegate to frame-loaded markup.
+     */
+    attachQuickViewCloseHandler() {
+        const closeButton = this.modalElement?.querySelector('.btn-close')
+        if (this._closeButtonHandler && closeButton) {
+            closeButton.removeEventListener('click', this._closeButtonHandler)
+        }
+        if (!closeButton) {
+            return
+        }
+        this._closeButtonHandler = () => {
+            if (this.modalInstance) {
+                this.modalInstance.hide()
+            }
+        }
+        closeButton.addEventListener('click', this._closeButtonHandler)
     }
 
     getCalendarElement() {
@@ -467,6 +429,8 @@ class GatheringsCalendarController extends Controller {
      * @param {Event} event Click event
      */
     async showAttendanceModal(event) {
+        event?.preventDefault?.()
+
         const button = event.currentTarget
         const action = button.dataset.attendanceAction || 'add'
         const gatheringId = button.dataset.gatheringId
@@ -499,9 +463,21 @@ class GatheringsCalendarController extends Controller {
                 </div>
             `
 
-            // Show modal
-            const bsModal = new bootstrap.Modal(attendanceModal)
-            bsModal.show()
+            if (this.attendanceModalElement !== attendanceModal || !this.attendanceModalInstance) {
+                this.attendanceModalElement = attendanceModal
+                this.attendanceModalInstance = new bootstrap.Modal(attendanceModal)
+            }
+
+            const showAttendance = () => {
+                this.attendanceModalInstance?.show()
+            }
+
+            if (this.modalElement?.classList.contains('show') && this.modalInstance) {
+                this.modalElement.addEventListener('hidden.bs.modal', showAttendance, { once: true })
+                this.modalInstance.hide()
+            } else {
+                showAttendance()
+            }
 
             // Fetch the modal content from server
             let url
@@ -821,6 +797,11 @@ class GatheringsCalendarController extends Controller {
 
             if (this.modalInstance) {
                 this.modalInstance.dispose()
+            }
+            if (this.attendanceModalInstance) {
+                this.attendanceModalInstance.dispose()
+                this.attendanceModalInstance = null
+                this.attendanceModalElement = null
             }
         } catch (e) {
             console.warn('Error during disconnect cleanup:', e)

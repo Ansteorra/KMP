@@ -25,6 +25,35 @@ sudo mysql <<EOFMYSQL
     flush privileges;
 EOFMYSQL
 
+# Start PostgreSQL 16 (matches Azure Database for PostgreSQL Flex) so the
+# devcontainer can validate the Postgres code path before pushing to Azure.
+echo "Starting PostgreSQL 16..."
+sudo pg_ctlcluster 16 main start || sudo service postgresql start
+
+# Wait briefly for PG to accept connections before provisioning.
+for i in 1 2 3 4 5 6 7 8 9 10; do
+    if sudo -u postgres pg_isready -q; then break; fi
+    sleep 1
+done
+
+echo "Setting up PostgreSQL role and databases..."
+# Idempotent provisioning: role + dev/test databases mirroring the MySQL pair.
+sudo -u postgres psql -v ON_ERROR_STOP=1 <<EOFPG
+DO \$\$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${MYSQL_DEV_USERNAME}') THEN
+        CREATE ROLE "${MYSQL_DEV_USERNAME}" LOGIN PASSWORD '${MYSQL_DEV_PASSWORD}' CREATEDB;
+    ELSE
+        ALTER ROLE "${MYSQL_DEV_USERNAME}" LOGIN PASSWORD '${MYSQL_DEV_PASSWORD}' CREATEDB;
+    END IF;
+END
+\$\$;
+EOFPG
+sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '${MYSQL_DEV_DB_NAME}'" | grep -q 1 || \
+    sudo -u postgres createdb -O "${MYSQL_DEV_USERNAME}" "${MYSQL_DEV_DB_NAME}"
+sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '${MYSQL_DEV_DB_NAME}_test'" | grep -q 1 || \
+    sudo -u postgres createdb -O "${MYSQL_DEV_USERNAME}" "${MYSQL_DEV_DB_NAME}_test"
+
 # Create environment configuration
 echo "Creating environment configuration..."
 sudo rm -f $(echo $REPO_PATH)/app/config/.env
@@ -38,6 +67,13 @@ export EMAIL_SMTP_USERNAME='$EMAIL_DEV_SMTP_USERNAME'
 export EMAIL_SMTP_PASSWORD='$EMAIL_DEV_SMTP_PASSWORD'
 export PATH_WKHTML='/usr/bin/wkhtmltopdf'
 export AZURE_STORAGE_CONNECTION_STRING='GO GET THIS FROM AZURE PORTAL'
+# -----------------------------------------------------------------------------
+# Engine switching: uncomment DATABASE_URL to run against PostgreSQL 16 (the
+# same major version used by Azure Database for PostgreSQL Flex in deploy/).
+# reset_dev_database.sh and app/config/app_local.php both honour DATABASE_URL.
+# -----------------------------------------------------------------------------
+# export DATABASE_URL='postgres://$MYSQL_DEV_USERNAME:$MYSQL_DEV_PASSWORD@127.0.0.1:5432/$MYSQL_DEV_DB_NAME'
+# export DATABASE_TEST_URL='postgres://$MYSQL_DEV_USERNAME:$MYSQL_DEV_PASSWORD@127.0.0.1:5432/${MYSQL_DEV_DB_NAME}_test'
 EOF
 sudo mv /tmp/.env $(echo $REPO_PATH)/app/config/.env
 
@@ -121,10 +157,6 @@ if [ ! -f /etc/apache2/ssl/dev.crt ] || [ ! -f /etc/apache2/ssl/dev.key ]; then
 fi
 
 #sudo chown -R vscode:vscode /workspaces/KMP
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv tool install specify-cli --from git+https://github.com/github/spec-kit.git
-
 # Start Apache
 echo "Starting Apache..."
 sudo apachectl restart
-

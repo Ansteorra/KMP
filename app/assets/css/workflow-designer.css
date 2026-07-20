@@ -1,0 +1,649 @@
+/* =============================================
+   Workflow Designer — Modern Visual Editor
+   Inspired by Power Automate / n8n / Make.com
+   ============================================= */
+
+/* ----- Layout Shell ----- */
+.workflow-designer-container {
+    display: flex;
+    height: calc(100vh - 130px);
+    min-height: 520px;
+    overflow: hidden;
+}
+
+/* ----- Toolbar ----- */
+.workflow-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--bs-border-color);
+    background: #fff;
+}
+
+.workflow-toolbar .toolbar-separator {
+    width: 1px;
+    height: 1.5rem;
+    background: var(--bs-border-color);
+    margin: 0 0.25rem;
+}
+
+/* ----- Palette Sidebar ----- */
+.workflow-palette {
+    width: 230px;
+    min-width: 230px;
+    border-right: 1px solid var(--bs-border-color);
+    overflow-y: auto;
+    background: #f8f9fb;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.palette-category {
+    margin-bottom: 0.5rem;
+}
+
+.palette-category-title {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #5d6677;
+    padding: 0.5rem 0 0.25rem;
+    margin: 0;
+    border: none;
+}
+
+.palette-node {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.6rem;
+    margin: 2px 0;
+    border: 1px solid #e2e6ea;
+    border-radius: 6px;
+    cursor: grab;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #344054;
+    background: #fff;
+    transition: all 0.15s ease;
+    user-select: none;
+    text-align: left;
+    width: 100%;
+}
+
+.palette-node:hover,
+.palette-node:focus-visible {
+    border-color: #7b61ff;
+    background: #f5f3ff;
+    box-shadow: 0 1px 4px rgba(123, 97, 255, 0.12);
+    transform: translateY(-1px);
+}
+
+.palette-node:focus-visible {
+    outline: 2px solid #6941c6;
+    outline-offset: 2px;
+}
+
+.palette-node:active {
+    cursor: grabbing;
+    transform: scale(0.97);
+}
+
+.palette-node-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 5px;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+}
+
+/* Palette icon colours by type */
+.palette-node[data-node-type="trigger"] .palette-node-icon { background: #eef2ff; color: #4f46e5; }
+.palette-node[data-node-type="action"] .palette-node-icon  { background: #ecfdf5; color: #059669; }
+.palette-node[data-node-type="condition"] .palette-node-icon { background: #fefce8; color: #946200; }
+.palette-node[data-node-type="approval"] .palette-node-icon { background: #eff6ff; color: #2563eb; }
+.palette-node[data-node-type="fork"] .palette-node-icon    { background: #f0fdf4; color: #16a34a; }
+.palette-node[data-node-type="join"] .palette-node-icon    { background: #f0fdf4; color: #16a34a; }
+.palette-node[data-node-type="loop"] .palette-node-icon    { background: #fdf4ff; color: #a21caf; }
+.palette-node[data-node-type="delay"] .palette-node-icon   { background: #fff7ed; color: #ea580c; }
+.palette-node[data-node-type="end"] .palette-node-icon     { background: #fef2f2; color: #dc2626; }
+
+/* ----- Canvas ----- */
+.workflow-canvas {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background-color: #f0f2f5;
+    background-image:
+        radial-gradient(circle, #d0d5dd 1px, transparent 1px);
+    background-size: 24px 24px;
+}
+
+.workflow-canvas.drag-over {
+    outline: 2px dashed #7b61ff;
+    outline-offset: -4px;
+    background-color: #f9f8ff;
+}
+
+/* ----- Config Panel ----- */
+.workflow-config-panel {
+    width: 400px;
+    min-width: 300px;
+    max-width: 60vw;
+    border-left: 1px solid var(--bs-border-color);
+    overflow-y: auto;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+/* ----- Config Panel Resize Handle ----- */
+.config-panel-resize-handle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    cursor: col-resize;
+    background: transparent;
+    z-index: 10;
+}
+.config-panel-resize-handle:hover,
+.config-panel-resize-handle.dragging {
+    background: var(--bs-primary);
+    opacity: 0.3;
+}
+
+.config-panel-header {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--bs-border-color);
+    background: #f8f9fb;
+}
+
+.config-panel-header h6 {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #667085;
+    margin: 0;
+}
+
+.config-panel-body {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.config-panel-body .form-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #344054;
+    margin-bottom: 0.25rem;
+}
+
+.config-panel-body .form-control,
+.config-panel-body .form-select {
+    font-size: 0.8rem;
+    border-radius: 6px;
+    border-color: #d0d5dd;
+}
+
+.config-panel-body .form-control:focus,
+.config-panel-body .form-select:focus {
+    border-color: #7b61ff;
+    box-shadow: 0 0 0 3px rgba(123, 97, 255, 0.12);
+}
+
+.config-panel-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #667085;
+    text-align: center;
+    padding: 2rem;
+}
+
+.config-panel-empty i {
+    font-size: 2rem;
+    margin-bottom: 0.75rem;
+    opacity: 0.4;
+}
+
+.config-panel-empty p {
+    font-size: 0.82rem;
+    margin: 0;
+}
+
+/* =============================================
+   Drawflow Overrides
+   ============================================= */
+
+.drawflow {
+    width: 100%;
+    height: 100%;
+}
+
+/* --- Node Container --- */
+.drawflow .drawflow-node {
+    border: none;
+    background: transparent;
+    padding: 0;
+    min-width: auto;
+    width: auto;
+    border-radius: 0;
+    cursor: grab;
+}
+
+.drawflow .drawflow-node:active {
+    cursor: grabbing;
+}
+
+.drawflow .drawflow-node.selected .wf-node {
+    box-shadow: 0 0 0 2px #7b61ff, 0 4px 16px rgba(123, 97, 255, 0.2);
+}
+
+/* --- Ports --- */
+.drawflow .drawflow-node .inputs,
+.drawflow .drawflow-node .outputs {
+    pointer-events: auto;
+}
+
+.drawflow .drawflow-node .input,
+.drawflow .drawflow-node .output {
+    width: 14px;
+    height: 14px;
+    border: 2.5px solid #fff;
+    background: #98a2b3;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.drawflow .drawflow-node .input:hover,
+.drawflow .drawflow-node .output:hover {
+    transform: scale(1.3);
+    background: #7b61ff;
+}
+
+.drawflow .drawflow-node .output {
+    background: #667085;
+}
+
+/* Typed output ports (legacy class-based) */
+.drawflow .drawflow-node .output.wf-port-true,
+.drawflow .drawflow-node .output.wf-port-approved {
+    background: #16a34a;
+}
+
+.drawflow .drawflow-node .output.wf-port-false,
+.drawflow .drawflow-node .output.wf-port-rejected {
+    background: #dc2626;
+}
+
+/* Approval node output connectors: green / red / blue */
+.drawflow .drawflow-node.wf-type-approval .output.output_1 { background: #16a34a; }
+.drawflow .drawflow-node.wf-type-approval .output.output_2 { background: #dc2626; }
+.drawflow .drawflow-node.wf-type-approval .output.output_3 { background: #2563eb; }
+.drawflow .drawflow-node.wf-type-approval .output.output_1:hover { background: #15803d; }
+.drawflow .drawflow-node.wf-type-approval .output.output_2:hover { background: #b91c1c; }
+.drawflow .drawflow-node.wf-type-approval .output.output_3:hover { background: #1d4ed8; }
+
+/* Condition node output connectors: green (true) / red (false) */
+.drawflow .drawflow-node.wf-type-condition .output.output_1 { background: #16a34a; }
+.drawflow .drawflow-node.wf-type-condition .output.output_2 { background: #dc2626; }
+.drawflow .drawflow-node.wf-type-condition .output.output_1:hover { background: #15803d; }
+.drawflow .drawflow-node.wf-type-condition .output.output_2:hover { background: #b91c1c; }
+
+/* --- Connections --- */
+.drawflow .connection .main-path {
+    stroke: #98a2b3;
+    stroke-width: 2px;
+    fill: none;
+}
+
+.drawflow .connection .main-path:hover {
+    stroke: #7b61ff;
+    stroke-width: 3px;
+}
+
+.drawflow .drawflow-node.selected ~ .connection .main-path {
+    stroke: #7b61ff;
+}
+
+/* =============================================
+   Custom Node Cards
+   ============================================= */
+
+.wf-node {
+    width: 220px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
+    transition: box-shadow 0.2s ease, transform 0.15s ease;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.wf-node:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+/* Coloured left accent stripe */
+.wf-node::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: 10px 0 0 10px;
+}
+
+/* Type-specific accent colours */
+.wf-node-trigger::before  { background: #4f46e5; }
+.wf-node-action::before   { background: #059669; }
+.wf-node-condition::before { background: #ca8a04; }
+.wf-node-approval::before { background: #2563eb; }
+.wf-node-fork::before     { background: #16a34a; }
+.wf-node-join::before     { background: #16a34a; }
+.wf-node-loop::before     { background: #a21caf; }
+.wf-node-delay::before    { background: #ea580c; }
+.wf-node-subworkflow::before { background: #475569; }
+.wf-node-end::before      { background: #dc2626; }
+
+/* Header */
+.wf-node-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 0.75rem 0.45rem 1rem;
+    border-bottom: 1px solid #f2f4f7;
+}
+
+.wf-node-header .wf-node-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+/* Icon bg per type */
+.wf-node-trigger .wf-node-icon  { background: #eef2ff; color: #4f46e5; }
+.wf-node-action .wf-node-icon   { background: #ecfdf5; color: #059669; }
+.wf-node-condition .wf-node-icon { background: #fefce8; color: #946200; }
+.wf-node-approval .wf-node-icon { background: #eff6ff; color: #2563eb; }
+.wf-node-fork .wf-node-icon     { background: #f0fdf4; color: #16a34a; }
+.wf-node-join .wf-node-icon     { background: #f0fdf4; color: #16a34a; }
+.wf-node-loop .wf-node-icon     { background: #fdf4ff; color: #a21caf; }
+.wf-node-delay .wf-node-icon    { background: #fff7ed; color: #ea580c; }
+.wf-node-subworkflow .wf-node-icon { background: #f1f5f9; color: #475569; }
+.wf-node-end .wf-node-icon      { background: #fef2f2; color: #dc2626; }
+
+.wf-node-header .wf-node-title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #1d2939;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 155px;
+}
+
+/* Body */
+.wf-node-body {
+    padding: 0.4rem 0.75rem 0.5rem 1rem;
+}
+
+.wf-node-body .wf-node-type-label {
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: #5d6677;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.wf-node-body .wf-node-description {
+    font-size: 0.72rem;
+    color: #667085;
+    margin-top: 2px;
+    line-height: 1.3;
+}
+
+/* Port labels for branching nodes */
+.wf-port-labels {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 0.75rem 0.4rem 1rem;
+    gap: 0.5rem;
+}
+
+.wf-port-label {
+    font-size: 0.62rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 6px;
+    border-radius: 3px;
+    line-height: 1;
+}
+
+.wf-port-label-yes {
+    background: #ecfdf5;
+    color: #059669;
+}
+
+.wf-port-label-no {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.wf-port-label-mid {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+/* ----- Multi-select ----- */
+.drawflow .drawflow-node.wf-multi-selected .wf-node {
+    box-shadow: 0 0 0 2px #06b6d4, 0 4px 12px rgba(6, 182, 212, 0.18);
+}
+
+/* ----- Zoom Controls ----- */
+.wf-zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.125rem;
+    background: #f2f4f7;
+    border-radius: 6px;
+    padding: 2px;
+}
+
+.wf-zoom-controls .btn {
+    padding: 0.2rem 0.45rem;
+    font-size: 0.72rem;
+    line-height: 1;
+    border: none;
+    border-radius: 4px;
+    color: #475569;
+    background: transparent;
+}
+
+.wf-zoom-controls .btn:hover {
+    background: #e2e6ea;
+}
+
+.wf-zoom-level {
+    min-width: 2.8rem;
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+/* ----- Validation Results ----- */
+.wf-validation-results {
+    padding: 0.5rem 1rem;
+    max-height: 160px;
+    overflow-y: auto;
+    border-top: 1px solid var(--bs-border-color);
+    background: #fafbfc;
+}
+
+.wf-validation-results .alert {
+    font-size: 0.75rem;
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    margin-bottom: 0.35rem;
+}
+
+/* ----- Variable Picker Dropdown ----- */
+.wf-template-variable-card {
+    border-color: #d8dee9 !important;
+}
+
+.wf-template-variable-card .form-label {
+    color: #334155;
+    font-weight: 600;
+}
+
+.wf-template-variable-card .wf-template-variable-remove {
+    flex: 0 0 auto;
+    min-width: 2rem;
+    min-height: 2rem;
+    margin-top: 1.45rem;
+}
+
+.wf-template-variable-value .wf-var-picker-wrapper {
+    width: 100%;
+}
+
+.wf-template-variable-value .wf-var-picker-wrapper input {
+    min-width: 0;
+}
+
+.wf-var-picker-wrapper-open {
+    z-index: 2000;
+}
+
+.wf-var-picker-group-open {
+    position: relative;
+    z-index: 2000;
+}
+
+.wf-var-dropdown {
+    position: fixed;
+    z-index: 2001;
+    min-width: 280px;
+    overflow-y: auto;
+    border-radius: 8px;
+    border: 1px solid #e2e6ea;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    background: #fff;
+}
+
+.wf-var-dropdown .list-group-item {
+    font-size: 0.78rem;
+    border-color: #f2f4f7;
+    padding: 0.4rem 0.6rem;
+}
+
+.wf-var-dropdown .list-group-item:hover {
+    background: #f5f3ff;
+}
+
+.wf-var-dropdown code {
+    font-size: 0.72rem;
+    color: #7b61ff;
+    background: #f5f3ff;
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+
+/* ----- Toast Notifications ----- */
+.wf-toast {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 9999;
+    min-width: 280px;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    animation: wf-slideIn 0.3s ease;
+}
+
+@keyframes wf-slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* ----- Keyboard Shortcut Hints ----- */
+.wf-shortcut-hint {
+    font-size: 0.62rem;
+    color: #5d6677;
+    margin-left: auto;
+    font-family: ui-monospace, monospace;
+    background: #f2f4f7;
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .palette-node,
+    .drawflow .drawflow-node,
+    .wf-toast {
+        animation: none;
+        transition: none;
+    }
+
+    .palette-node:hover,
+    .palette-node:focus-visible {
+        transform: none;
+    }
+}
+
+/* =============================================
+   Responsive Breakpoints
+   ============================================= */
+
+/* Tablet: collapse palette and config panels */
+@media (max-width: 1024px) {
+    .wf-palette {
+        display: none;
+    }
+    .wf-config-panel {
+        display: none;
+    }
+    .workflow-canvas {
+        min-width: 0;
+    }
+}
+
+/* Mobile: stack layout vertically */
+@media (max-width: 768px) {
+    .wf-designer-container {
+        flex-direction: column;
+    }
+    .workflow-toolbar {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .workflow-toolbar .ms-auto {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}

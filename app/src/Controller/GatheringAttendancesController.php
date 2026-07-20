@@ -3,14 +3,17 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\GridColumns\GatheringAttendancesGridColumns;
+use App\KMP\GridRowDomId;
 use App\KMP\TimezoneHelper;
 use Cake\Http\Response;
-use Cake\I18n\Date;
+use Cake\I18n\DateTime as CakeDateTime;
 use Cake\Log\Log;
 use Cake\Routing\Router;
 use DateTime;
 use DateTimeZone;
 use Exception;
+use Traversable;
 
 /**
  * GatheringAttendances Controller
@@ -20,6 +23,8 @@ use Exception;
  */
 class GatheringAttendancesController extends AppController
 {
+    use DataverseGridTrait;
+
     /**
      * Initialize controller
      */
@@ -53,6 +58,36 @@ class GatheringAttendancesController extends AppController
     }
 
     /**
+     * Apply the royal progress selection from request data to an attendance.
+     *
+     * Reads `progress_officer_id` (an officers_officers.id, empty for none)
+     * and delegates to the table, which verifies the assignment and snapshots
+     * the office. Progress fields are guarded against mass assignment, so this
+     * is the only write path.
+     *
+     * @param \App\Model\Entity\GatheringAttendance $gatheringAttendance Attendance being saved
+     * @param array $data Request data
+     * @return bool False when the selected officer assignment is not valid for progress
+     */
+    private function applyProgressFromRequest($gatheringAttendance, array $data): bool
+    {
+        if (!array_key_exists('progress_officer_id', $data)) {
+            return true;
+        }
+
+        $progressOfficerId = $data['progress_officer_id'];
+        $progressOfficerId = $progressOfficerId === null || $progressOfficerId === ''
+            ? null
+            : (int)$progressOfficerId;
+
+        return $this->GatheringAttendances->applyRoyalProgress(
+            $gatheringAttendance,
+            $progressOfficerId,
+            (int)$gatheringAttendance->member_id,
+        );
+    }
+
+    /**
      * Add method - Create new gathering attendance
      *
      * @return \Cake\Http\Response|null|void Redirects on successful add, renders view otherwise.
@@ -78,7 +113,7 @@ class GatheringAttendancesController extends AppController
                 return $this->redirect($this->referer());
             }
 
-            $today = Date::now();
+            $today = CakeDateTime::now()->startOfDay();
 
             // Check if gathering has already ended
             if ($gathering->end_date < $today) {
@@ -107,6 +142,20 @@ class GatheringAttendancesController extends AppController
             // Authorize after patching data so policy can check member_id
             $this->Authorization->authorize($gatheringAttendance);
 
+            if (!$this->applyProgressFromRequest($gatheringAttendance, $data)) {
+                if ($this->wantsJson()) {
+                    return $this->jsonResponse(
+                        ['success' => false, 'error' => 'Invalid royal progress selection'],
+                        400,
+                    );
+                }
+                $this->Flash->error(__(
+                    'You do not currently hold that office, so the RSVP cannot be recorded as royal progress.',
+                ));
+
+                return $this->redirect($this->referer());
+            }
+
             if ($this->GatheringAttendances->save($gatheringAttendance)) {
                 if ($this->wantsJson()) {
                     return $this->jsonResponse([
@@ -120,6 +169,17 @@ class GatheringAttendancesController extends AppController
                     ]);
                 }
                 $this->Flash->success(__('Your attendance has been registered.'));
+                $stream = $this->tryGatheringAttendanceGridTurboResponse(
+                    $this->getPageContextUrl(),
+                    (int)$gatheringAttendance->id,
+                    (int)$gatheringAttendance->member_id,
+                );
+                if ($stream !== null) {
+                    return $stream;
+                }
+                if ($this->wantsTurboStreamRequest()) {
+                    return $this->renderTurboFlashOnly();
+                }
             } else {
                 $errors = $gatheringAttendance->getErrors();
                 $errorMessage = 'Unable to register your attendance. Please try again.';
@@ -163,7 +223,7 @@ class GatheringAttendancesController extends AppController
             $data['is_public'] = '0';
 
             // Validate that the gathering hasn't ended
-            $today = Date::now();
+            $today = CakeDateTime::now()->startOfDay();
             if ($gatheringAttendance->gathering->end_date < $today) {
                 $this->Flash->error(__('Cannot update attendance for a gathering that has already ended.'));
 
@@ -176,8 +236,27 @@ class GatheringAttendancesController extends AppController
 
             $gatheringAttendance = $this->GatheringAttendances->patchEntity($gatheringAttendance, $data);
 
+            if (!$this->applyProgressFromRequest($gatheringAttendance, $data)) {
+                $this->Flash->error(__(
+                    'You do not currently hold that office, so the RSVP cannot be recorded as royal progress.',
+                ));
+
+                return $this->redirect($this->referer());
+            }
+
             if ($this->GatheringAttendances->save($gatheringAttendance)) {
                 $this->Flash->success(__('Your attendance has been updated.'));
+                $stream = $this->tryGatheringAttendanceGridTurboResponse(
+                    $this->getPageContextUrl(),
+                    (int)$gatheringAttendance->id,
+                    (int)$gatheringAttendance->member_id,
+                );
+                if ($stream !== null) {
+                    return $stream;
+                }
+                if ($this->wantsTurboStreamRequest()) {
+                    return $this->renderTurboFlashOnly();
+                }
             } else {
                 $errors = $gatheringAttendance->getErrors();
                 if (!empty($errors)) {
@@ -229,6 +308,18 @@ class GatheringAttendancesController extends AppController
                 ]);
             }
             $this->Flash->success(__('Your attendance has been removed.'));
+            $stream = $this->tryGatheringAttendanceGridTurboResponse(
+                $this->getPageContextUrl(),
+                (int)$gatheringAttendance->id,
+                (int)$gatheringAttendance->member_id,
+                true,
+            );
+            if ($stream !== null) {
+                return $stream;
+            }
+            if ($this->wantsTurboStreamRequest()) {
+                return $this->renderTurboFlashOnly();
+            }
         } else {
             $errors = $gatheringAttendance->getErrors();
             $errorMessage = 'Unable to remove your attendance. Please try again.';
@@ -276,7 +367,7 @@ class GatheringAttendancesController extends AppController
             return $this->jsonResponse(['success' => false, 'error' => 'Gathering not found'], 404);
         }
 
-        $today = Date::now();
+        $today = CakeDateTime::now()->startOfDay();
         if ($gathering->end_date < $today) {
             return $this->jsonResponse(['success' => false, 'error' => 'Cannot RSVP to a past gathering'], 400);
         }
@@ -312,6 +403,10 @@ class GatheringAttendancesController extends AppController
         ]);
 
         $this->Authorization->authorize($gatheringAttendance, 'add');
+
+        if (!$this->applyProgressFromRequest($gatheringAttendance, $data)) {
+            return $this->jsonResponse(['success' => false, 'error' => 'Invalid royal progress selection'], 400);
+        }
 
         if ($this->GatheringAttendances->save($gatheringAttendance)) {
             return $this->jsonResponse([
@@ -356,6 +451,10 @@ class GatheringAttendancesController extends AppController
         $updateData = array_intersect_key($data, array_flip($allowedFields));
 
         $gatheringAttendance = $this->GatheringAttendances->patchEntity($gatheringAttendance, $updateData);
+
+        if (!$this->applyProgressFromRequest($gatheringAttendance, $data)) {
+            return $this->jsonResponse(['success' => false, 'error' => 'Invalid royal progress selection'], 400);
+        }
 
         if ($this->GatheringAttendances->save($gatheringAttendance)) {
             return $this->jsonResponse([
@@ -523,5 +622,167 @@ class GatheringAttendancesController extends AppController
             'plugin' => null,
         ]));
         $this->viewBuilder()->setLayout('mobile_app');
+    }
+
+    /**
+     * @return array{tableFrameId: string, memberId: int}|null
+     */
+    private function resolveMemberGatheringsGridSyncContext(?string $pageContextUrl, int $memberId): ?array
+    {
+        if ($pageContextUrl === null) {
+            return null;
+        }
+
+        $path = parse_url($pageContextUrl, PHP_URL_PATH) ?? $pageContextUrl;
+        if (!preg_match('#/members/view/' . $memberId . '/?$#', $path)) {
+            return null;
+        }
+
+        $parsed = parse_url($pageContextUrl);
+        $tab = null;
+        if (!empty($parsed['query'])) {
+            $params = [];
+            parse_str($parsed['query'], $params);
+            $tab = $params['tab'] ?? null;
+        }
+        if ($tab !== null && $tab !== 'gatherings') {
+            return null;
+        }
+
+        return [
+            'tableFrameId' => 'member-gatherings-grid-' . $memberId . '-table',
+            'memberId' => $memberId,
+        ];
+    }
+
+    /**
+     * @return array{action: string, rowDomId: string, rowHtml?: string}|null
+     */
+    private function resolveGatheringAttendanceGridRowSync(
+        int $attendanceId,
+        int $memberId,
+        ?string $pageContextUrl,
+    ): ?array {
+        $syncContext = $this->resolveMemberGatheringsGridSyncContext($pageContextUrl, $memberId);
+        if ($syncContext === null) {
+            return null;
+        }
+
+        $tableFrameId = $syncContext['tableFrameId'];
+        $rowDomId = GridRowDomId::fromTableFrameId($tableFrameId, $attendanceId);
+
+        return $this->withPageContextQuery($pageContextUrl, function () use (
+            $attendanceId,
+            $memberId,
+            $rowDomId,
+            $tableFrameId,
+        ): ?array {
+            $systemViews = GatheringAttendancesGridColumns::getSystemViews([]);
+            $result = $this->processDataverseGrid([
+                'gridKey' => 'Members.gatherings',
+                'gridColumnsClass' => GatheringAttendancesGridColumns::class,
+                'baseQuery' => $this->GatheringAttendances->find()
+                    ->where([
+                        'GatheringAttendances.member_id' => $memberId,
+                        'GatheringAttendances.id' => $attendanceId,
+                    ])
+                    ->contain([
+                        'Gatherings' => ['Branches', 'GatheringTypes'],
+                    ]),
+                'tableName' => 'GatheringAttendances',
+                'defaultSort' => ['Gatherings.start_date' => 'DESC'],
+                'defaultPageSize' => 25,
+                'systemViews' => $systemViews,
+                'defaultSystemView' => 'sys-gatherings-upcoming',
+                'showAllTab' => false,
+                'canAddViews' => false,
+                'canFilter' => false,
+                'canExportCsv' => false,
+                'lockedFilters' => ['start_date', 'end_date'],
+                'enableColumnPicker' => false,
+                'showFilterPills' => false,
+            ]);
+
+            $gridData = $result['data'];
+            if (is_array($gridData)) {
+                $rows = $gridData;
+            } elseif ($gridData instanceof Traversable) {
+                $rows = iterator_to_array($gridData, false);
+            } else {
+                $rows = [];
+            }
+            if ($rows === []) {
+                return [
+                    'action' => 'remove',
+                    'rowDomId' => $rowDomId,
+                ];
+            }
+
+            $rowActions = GatheringAttendancesGridColumns::getRowActions();
+            $gridState = $result['gridState'];
+            $visibleColumns = $gridState['columns']['visible'];
+            if (!is_array($visibleColumns)) {
+                $visibleColumns = array_values($visibleColumns);
+            }
+
+            $rowHtml = $this->renderDataverseTableRowElement([
+                'row' => $rows[0],
+                'columns' => $gridState['columns']['all'],
+                'visibleColumns' => $visibleColumns,
+                'controllerName' => 'grid-view',
+                'primaryKey' => $gridState['config']['primaryKey'],
+                'gridKey' => $gridState['config']['gridKey'],
+                'rowActions' => $rowActions,
+                'user' => $this->request->getAttribute('identity'),
+                'enableBulkSelection' => false,
+                'rowDomIdPrefix' => preg_replace('/-table$/', '', $tableFrameId),
+                'showActionsColumn' => $rowActions !== [],
+            ]);
+
+            return [
+                'action' => 'replace',
+                'rowDomId' => $rowDomId,
+                'rowHtml' => $rowHtml,
+            ];
+        });
+    }
+
+    /**
+     * Build a Turbo Stream response when the RSVP originated from a supported member grid.
+     */
+    private function tryGatheringAttendanceGridTurboResponse(
+        ?string $pageContext,
+        int $attendanceId,
+        int $memberId,
+        bool $forceRemove = false,
+    ): ?Response {
+        if (!$this->wantsTurboStreamRequest() || $pageContext === null) {
+            return null;
+        }
+
+        if ($forceRemove) {
+            $syncContext = $this->resolveMemberGatheringsGridSyncContext($pageContext, $memberId);
+            if ($syncContext !== null) {
+                $rowDomId = GridRowDomId::fromTableFrameId($syncContext['tableFrameId'], $attendanceId);
+
+                return $this->renderTurboRemoveGridRow($rowDomId);
+            }
+
+            return null;
+        }
+
+        $sync = $this->resolveGatheringAttendanceGridRowSync($attendanceId, $memberId, $pageContext);
+        if ($sync === null) {
+            return null;
+        }
+
+        if ($sync['action'] === 'remove') {
+            return $this->renderTurboRemoveGridRow($sync['rowDomId']);
+        }
+
+        return $this->renderTurboReplaceGridRow(
+            $sync['rowDomId'],
+            $sync['rowHtml'] ?? '',
+        );
     }
 }

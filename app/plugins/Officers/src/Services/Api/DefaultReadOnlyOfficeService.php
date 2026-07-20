@@ -23,8 +23,7 @@ class DefaultReadOnlyOfficeService implements ReadOnlyOfficeServiceInterface
     {
         $table = TableRegistry::getTableLocator()->get('Officers.Offices');
         $query = $table->find()
-            ->contain(['Departments'])
-            ->orderBy(['Offices.name' => 'ASC']);
+            ->contain(['Departments']);
 
         if (!empty($filters['department_id'])) {
             $query->where(['Offices.department_id' => (int)$filters['department_id']]);
@@ -38,16 +37,16 @@ class DefaultReadOnlyOfficeService implements ReadOnlyOfficeServiceInterface
         }
 
         $total = (clone $query)->count();
-        $rows = $query
-            ->limit($limit)
-            ->offset(($page - 1) * $limit)
-            ->all();
-
         $data = [];
-        foreach ($rows as $row) {
+        foreach ($query->all() as $row) {
             $this->assertCanView($identity, $row);
             $data[] = $this->formatOffice($row);
         }
+        usort(
+            $data,
+            static fn(array $left, array $right): int => strcasecmp($left['name'], $right['name']),
+        );
+        $data = array_slice($data, ($page - 1) * $limit, $limit);
 
         return [
             'data' => $data,
@@ -127,4 +126,3 @@ class DefaultReadOnlyOfficeService implements ReadOnlyOfficeServiceInterface
         }
     }
 }
-

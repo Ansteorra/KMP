@@ -46,6 +46,11 @@ $this->KMP->endBlock();
         echo $this->Form->control("can_skip_report", ["switch" => true, 'label' => 'Skip Report']);
         echo $this->Form->control("requires_warrant", ["switch" => true, 'label' => 'Warrant']);
         echo $this->Form->control("only_one_per_branch", ["switch" => true, 'label' => 'One Per Branch']);
+        echo $this->Form->control("is_royal_progress", [
+            "switch" => true,
+            'label' => 'Royal Progress',
+            'tooltip' => 'Event RSVPs by holders of this office are shown as royal progress on the public kingdom calendar.',
+        ]);
         echo $this->Form->control("is_deputy", [
             "type" => "checkbox",
             "switch" => true,

@@ -19,6 +19,7 @@ namespace App\Mailer;
 
 use App\KMP\StaticHelpers;
 use Cake\Core\App;
+use Cake\Datasource\ConnectionManager;
 use Cake\Mailer\Exception\MissingMailerException;
 use Cake\Mailer\Mailer;
 use Cake\Mailer\MailerAwareTrait;
@@ -58,11 +59,12 @@ trait QueuedMailerAwareTrait
             'action' => $action,
             'vars' => $vars,
         ];
-        $useEmailQueue = (StaticHelpers::getAppSetting('Email.UseQueue', 'no', null, true) === 'yes');
-        if (!$useEmailQueue) {
-            $this->sendMailNow($data);
-        } else {
+        $useEmailQueue = (StaticHelpers::getAppSetting('Email.UseQueue', 'yes', null, true) === 'yes');
+        $connection = ConnectionManager::get('default');
+        if ($useEmailQueue || $connection->inTransaction()) {
             $this->queueMailJob($data);
+        } else {
+            $this->sendMailNow($data);
         }
     }
 

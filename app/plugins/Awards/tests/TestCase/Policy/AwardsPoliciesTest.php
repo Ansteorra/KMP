@@ -346,28 +346,12 @@ class AwardsPoliciesTest extends BaseTestCase
         $this->assertFalse($policy->canViewEventRecommendations($user, $entity));
     }
 
-    public function testCanViewGatheringRecommendationsDenied(): void
-    {
-        $user = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
-        $policy = new RecommendationPolicy();
-        $entity = $this->getTableLocator()->get('Awards.Recommendations')->newEmptyEntity();
-        $this->assertFalse($policy->canViewGatheringRecommendations($user, $entity));
-    }
-
     public function testCanExportDenied(): void
     {
         $user = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
         $policy = new RecommendationPolicy();
         $entity = $this->getTableLocator()->get('Awards.Recommendations')->newEmptyEntity();
         $this->assertFalse($policy->canExport($user, $entity));
-    }
-
-    public function testCanUseBoardDenied(): void
-    {
-        $user = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
-        $policy = new RecommendationPolicy();
-        $entity = $this->getTableLocator()->get('Awards.Recommendations')->newEmptyEntity();
-        $this->assertFalse($policy->canUseBoard($user, $entity));
     }
 
     public function testCanViewHiddenDenied(): void
@@ -424,5 +408,24 @@ class AwardsPoliciesTest extends BaseTestCase
         foreach ($methods as $method) {
             $this->assertStringStartsWith('canApproveLevel', $method);
         }
+    }
+
+    public function testCanEditDeniedWhenLinkedToBestowal(): void
+    {
+        $admin = $this->loadMember(self::ADMIN_MEMBER_ID);
+        $policy = new RecommendationPolicy();
+        $entity = $this->getTableLocator()->get('Awards.Recommendations')->newEmptyEntity();
+        $entity->bestowal_id = 99;
+
+        $this->assertFalse($policy->canEdit($admin, $entity));
+    }
+
+    public function testCanEditAllowedWhenNotLinkedToBestowal(): void
+    {
+        $admin = $this->loadMember(self::ADMIN_MEMBER_ID);
+        $policy = new RecommendationPolicy();
+        $entity = $this->getTableLocator()->get('Awards.Recommendations')->newEmptyEntity();
+
+        $this->assertTrue($policy->canEdit($admin, $entity));
     }
 }

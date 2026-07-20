@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/Lib/SeedHelpers.php';
+
 use Migrations\BaseSeed;
 
 /**
@@ -13,18 +15,18 @@ use Migrations\BaseSeed;
 class DevLoadGatheringTypesSeed extends BaseSeed
 {
     /**
-     * Provide predefined seed records for gathering types.
+     * Provide seed records for gathering types.
      *
-     * Each element is an associative array representing a gathering type with keys:
-     * `id`, `name`, `description`, `clonable`, `created`, and `modified`.
+     * Rows are inserted without explicit ids. "Kingdom Calendar Event" is
+     * pre-seeded by the Awards `RunMigrateAwardEvents` migration and is
+     * skipped via name-based duplicate check in run().
      *
-     * @return array<int, array<string, mixed>> Array of gathering type seed records.
+     * @return array<int, array<string, mixed>>
      */
     public function getData(): array
     {
         return [
             [
-                'id' => 1,
                 'name' => 'Fighter Practice',
                 'description' => 'Regular heavy and light armored combat practice',
                 'clonable' => true,
@@ -32,7 +34,6 @@ class DevLoadGatheringTypesSeed extends BaseSeed
                 'modified' => '2025-01-01 10:00:00',
             ],
             [
-                'id' => 2,
                 'name' => 'Arts & Sciences Workshop',
                 'description' => 'Hands-on workshop for various A&S disciplines',
                 'clonable' => true,
@@ -40,7 +41,6 @@ class DevLoadGatheringTypesSeed extends BaseSeed
                 'modified' => '2025-01-01 10:00:00',
             ],
             [
-                'id' => 3,
                 'name' => 'Kingdom Event',
                 'description' => 'Major kingdom-level event with multiple activities',
                 'clonable' => false,
@@ -48,7 +48,6 @@ class DevLoadGatheringTypesSeed extends BaseSeed
                 'modified' => '2025-01-01 10:00:00',
             ],
             [
-                'id' => 4,
                 'name' => 'Archery Range Day',
                 'description' => 'Open archery practice and competitions',
                 'clonable' => true,
@@ -59,15 +58,12 @@ class DevLoadGatheringTypesSeed extends BaseSeed
     }
 
     /**
-     * Inserts development seed records for gathering types into the database.
-     *
-     * Retrieves seed data from getData() and inserts it into the 'gathering_types' table.
+     * Inserts gathering type seed records into the database, skipping any that
+     * already exist by name.
      */
     public function run(): void
     {
-        $data = $this->getData();
-
-        $table = $this->table('gathering_types');
-        $table->insert($data)->save();
+        SeedHelpers::insertIfMissing($this, 'gathering_types', $this->getData());
+        SeedHelpers::resetPostgresSequences($this, ['gathering_types']);
     }
 }

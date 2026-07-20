@@ -94,6 +94,95 @@ return function (RouteBuilder $routes): void {
     $routes->setRouteClass(DashedRoute::class);
 
     /**
+     * Isolated platform-admin portal.
+     *
+     * Disabled by default and guarded again in PlatformAdminAppController. This
+     * prefix is intended for a reserved platform-admin host.
+     */
+    $routes->prefix('PlatformAdmin', ['path' => '/platform-admin'], function (RouteBuilder $builder): void {
+        $builder->connect('/', ['controller' => 'Dashboard', 'action' => 'index']);
+        $builder->connect('/login', ['controller' => 'Auth', 'action' => 'login']);
+        $builder->connect('/logout', ['controller' => 'Auth', 'action' => 'logout']);
+        $builder->connect('/tenants', ['controller' => 'Tenants', 'action' => 'index']);
+        $builder->connect('/tenants/add', ['controller' => 'Tenants', 'action' => 'add']);
+        $builder->connect('/tenants/{slug}/edit', ['controller' => 'Tenants', 'action' => 'edit'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
+            ->setPass(['slug']);
+        $builder->connect('/tenants/{slug}/backups', ['controller' => 'Tenants', 'action' => 'backups'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
+            ->setPass(['slug']);
+        $builder->connect('/tenants/{slug}/backups/import', ['controller' => 'Tenants', 'action' => 'importLegacyBackup'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
+            ->setPass(['slug']);
+        $builder->connect('/tenants/{slug}/backups/create', ['controller' => 'Tenants', 'action' => 'createBackup'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
+            ->setPass(['slug']);
+        $builder->connect('/tenants/{slug}/backups/{backupId}/restore', ['controller' => 'Tenants', 'action' => 'restoreBackup'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?', 'backupId' => '[^/]+'])
+            ->setPass(['slug', 'backupId']);
+        $builder->connect('/tenants/{slug}/backups/{backupId}/download', ['controller' => 'Tenants', 'action' => 'downloadBackup'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?', 'backupId' => '[^/]+'])
+            ->setPass(['slug', 'backupId']);
+        $builder
+            ->connect(
+                '/tenants/{slug}/backups/{backupId}/recovery-key',
+                ['controller' => 'Tenants', 'action' => 'downloadBackupRecoveryKey'],
+            )
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?', 'backupId' => '[^/]+'])
+            ->setPass(['slug', 'backupId']);
+        $builder->connect(
+            '/tenants/{slug}/backups/{backupId}/delete',
+            ['controller' => 'Tenants', 'action' => 'deleteBackup'],
+        )
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?', 'backupId' => '[^/]+'])
+            ->setPass(['slug', 'backupId']);
+        $builder->connect('/tenants/{slug}/config', ['controller' => 'Tenants', 'action' => 'config'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
+            ->setPass(['slug']);
+        $builder->connect('/tenants/{slug}/suspend', ['controller' => 'Tenants', 'action' => 'suspend'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
+            ->setPass(['slug']);
+        $builder->connect('/tenants/{slug}/reactivate', ['controller' => 'Tenants', 'action' => 'reactivate'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
+            ->setPass(['slug']);
+        $builder->connect('/tenants/{slug}/archive', ['controller' => 'Tenants', 'action' => 'archive'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
+            ->setPass(['slug']);
+        $builder->connect('/tenants/{slug}', ['controller' => 'Tenants', 'action' => 'view'])
+            ->setPatterns(['slug' => '[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?'])
+            ->setPass(['slug']);
+        $builder->connect('/health', ['controller' => 'Operations', 'action' => 'health']);
+        $builder->connect('/jobs', ['controller' => 'Operations', 'action' => 'jobs']);
+        $builder->connect('/jobs/{jobId}', ['controller' => 'Operations', 'action' => 'job'])
+            ->setPatterns(['jobId' => '[0-9a-fA-F-]{36}'])
+            ->setPass(['jobId']);
+        $builder->connect('/jobs/{jobId}/retry', ['controller' => 'Operations', 'action' => 'retryJob'])
+            ->setPatterns(['jobId' => '[0-9a-fA-F-]{36}'])
+            ->setPass(['jobId']);
+        $builder->connect('/schedules', ['controller' => 'Operations', 'action' => 'schedules']);
+        $builder->connect('/backups', ['controller' => 'Operations', 'action' => 'backups']);
+        $builder->connect('/backups/policy', ['controller' => 'Operations', 'action' => 'saveBackupPolicy']);
+        $builder->connect('/backups/platform/create', ['controller' => 'Operations', 'action' => 'createPlatformBackup']);
+        $builder->connect('/backups/platform/{backupId}/download', ['controller' => 'Operations', 'action' => 'downloadPlatformBackup'])
+            ->setPatterns(['backupId' => '[^/]+'])
+            ->setPass(['backupId']);
+        $builder
+            ->connect(
+                '/backups/platform/{backupId}/recovery-key',
+                ['controller' => 'Operations', 'action' => 'downloadPlatformBackupRecoveryKey'],
+            )
+            ->setPatterns(['backupId' => '[^/]+'])
+            ->setPass(['backupId']);
+        $builder->connect(
+            '/backups/platform/{backupId}/delete',
+            ['controller' => 'Operations', 'action' => 'deletePlatformBackup'],
+        )
+            ->setPatterns(['backupId' => '[^/]+'])
+            ->setPass(['backupId']);
+        $builder->connect('/data-console', ['controller' => 'DataConsole', 'action' => 'index']);
+    });
+
+    /**
      * Main Application Scope
      *
      * Defines routes within the root scope ("/") for core KMP functionality.
@@ -127,6 +216,12 @@ return function (RouteBuilder $routes): void {
             "controller" => "Health",
             "action" => "index",
         ]);
+        $builder->connect("/app-settings/asset/{name}", [
+            "controller" => "AppSettings",
+            "action" => "asset",
+        ])
+            ->setPatterns(["name" => "[^/]+"])
+            ->setPass(["name"]);
 
         /**
          * Homepage Route
@@ -155,6 +250,19 @@ return function (RouteBuilder $routes): void {
          */
         $builder->connect("/pages/changelog", "Pages::changelog");
         $builder->connect("/pages/*", "Pages::display");
+
+        /**
+         * Public Kingdom Calendar Routes
+         *
+         * Unauthenticated, list-first view of events published to the kingdom
+         * calendar, plus a short URL for each event's public landing page.
+         *
+         * @route "/events" → GatheringsController::publicCalendar()
+         */
+        $builder->connect("/events", [
+            "controller" => "Gatherings",
+            "action" => "publicCalendar",
+        ]);
 
         /**
          * Progressive Web App Manifest Route
@@ -198,6 +306,121 @@ return function (RouteBuilder $routes): void {
             'controller' => 'Warrants',
             'action' => 'gridData'
         ]);
+
+        /**
+         * Legacy Approval Queue Redirects
+         */
+        $builder->redirect('/authorization-approvals/my-queue', '/approvals', ['status' => 302]);
+        $builder->redirect('/authorization-approvals/my-queue/*', '/approvals', ['status' => 302]);
+
+        /**
+         * Unified Approvals Routes
+         */
+        $builder->scope('/approvals', function (RouteBuilder $builder) {
+            $builder->connect('/', ['controller' => 'Approvals', 'action' => 'approvals']);
+            $builder->connect('/grid-data', ['controller' => 'Approvals', 'action' => 'approvalsGridData']);
+            $builder->connect('/kanban-lane', ['controller' => 'Approvals', 'action' => 'approvalsKanbanLaneData']);
+            $builder->connect('/all', ['controller' => 'Approvals', 'action' => 'allApprovals']);
+            $builder->connect('/all/grid-data', ['controller' => 'Approvals', 'action' => 'allApprovalsGridData']);
+            $builder->connect('/respond/{token}', ['controller' => 'Approvals', 'action' => 'approvalByToken'])
+                ->setPass(['token']);
+            $builder->connect('/record', ['controller' => 'Approvals', 'action' => 'recordApproval']);
+            $builder->connect('/eligible-approvers/{approvalId}', ['controller' => 'Approvals', 'action' => 'eligibleApprovers'])
+                ->setPatterns(['approvalId' => '\d+'])
+                ->setPass(['approvalId']);
+            $builder->connect('/detail/{approvalId}', ['controller' => 'Approvals', 'action' => 'approvalDetail'])
+                ->setPatterns(['approvalId' => '\d+'])
+                ->setPass(['approvalId']);
+            $builder->connect('/triage', ['controller' => 'Approvals', 'action' => 'updateTriage']);
+            $builder->connect('/reassign', ['controller' => 'Approvals', 'action' => 'reassignApproval']);
+            $builder->connect('/mobile', ['controller' => 'Approvals', 'action' => 'mobileApprovals']);
+            $builder->connect('/mobile-data', ['controller' => 'Approvals', 'action' => 'mobileApprovalsData']);
+        });
+
+        /**
+         * Action Item Routes
+         */
+        $builder->scope('/action-items', function (RouteBuilder $builder): void {
+            $builder->connect('/mobile', ['controller' => 'ActionItems', 'action' => 'mobileMyTasks']);
+            $builder->connect('/mobile-data', ['controller' => 'ActionItems', 'action' => 'mobileMyTasksData']);
+            $builder->connect('/my-tasks', ['controller' => 'ActionItems', 'action' => 'myTasks']);
+            $builder->connect('/my-tasks-data', ['controller' => 'ActionItems', 'action' => 'myTasksGridData']);
+            $builder->connect('/complete', ['controller' => 'ActionItems', 'action' => 'complete']);
+            $builder->connect('/reopen', ['controller' => 'ActionItems', 'action' => 'reopen']);
+            $builder->connect('/complete/{id}', ['controller' => 'ActionItems', 'action' => 'complete'])
+                ->setPatterns(['id' => '\d+'])
+                ->setPass(['id']);
+            $builder->connect('/reopen/{id}', ['controller' => 'ActionItems', 'action' => 'reopen'])
+                ->setPatterns(['id' => '\d+'])
+                ->setPass(['id']);
+        });
+
+        /**
+         * Workflow Engine Routes
+         */
+        $builder->scope('/workflows', function (RouteBuilder $builder) {
+            // Definition management routes → WorkflowDefinitionsController
+            $builder->connect('/', ['controller' => 'WorkflowDefinitions', 'action' => 'index']);
+            $builder->connect('/add', ['controller' => 'WorkflowDefinitions', 'action' => 'add']);
+            $builder->connect('/designer/{id}', ['controller' => 'WorkflowDefinitions', 'action' => 'designer'])
+                ->setPatterns(['id' => '\d+'])
+                ->setPass(['id']);
+            $builder->connect('/designer', ['controller' => 'WorkflowDefinitions', 'action' => 'designer']);
+            $builder->connect('/save', ['controller' => 'WorkflowDefinitions', 'action' => 'save']);
+            $builder->connect('/update-metadata/{id}', [
+                'controller' => 'WorkflowDefinitions',
+                'action' => 'updateMetadata',
+            ])
+                ->setPass(['id'])
+                ->setPatterns(['id' => '\d+']);
+            $builder->connect('/publish', ['controller' => 'WorkflowDefinitions', 'action' => 'publish']);
+            $builder->connect('/registry', ['controller' => 'WorkflowDefinitions', 'action' => 'registry']);
+            $builder->connect('/load-version/{versionId}', ['controller' => 'WorkflowDefinitions', 'action' => 'loadVersion'])
+                ->setPatterns(['versionId' => '\d+'])
+                ->setPass(['versionId']);
+            $builder->connect('/versions/{definitionId}', ['controller' => 'WorkflowDefinitions', 'action' => 'versions'])
+                ->setPatterns(['definitionId' => '\d+'])
+                ->setPass(['definitionId']);
+            $builder->connect('/compare-versions', ['controller' => 'WorkflowDefinitions', 'action' => 'compareVersions']);
+            $builder->connect('/toggle-active/{id}', ['controller' => 'WorkflowDefinitions', 'action' => 'toggleActive'])
+                ->setPatterns(['id' => '\d+'])
+                ->setPass(['id']);
+            $builder->connect('/archive/{id}', ['controller' => 'WorkflowDefinitions', 'action' => 'archive'])
+                ->setPatterns(['id' => '\d+'])
+                ->setPass(['id']);
+            $builder->connect('/delete/{id}', ['controller' => 'WorkflowDefinitions', 'action' => 'delete'])
+                ->setPatterns(['id' => '\d+'])
+                ->setPass(['id']);
+            $builder->connect('/create-draft', ['controller' => 'WorkflowDefinitions', 'action' => 'createDraft']);
+            $builder->connect('/migrate-instances', ['controller' => 'WorkflowDefinitions', 'action' => 'migrateInstances']);
+            $builder->connect('/policy-classes', ['controller' => 'WorkflowDefinitions', 'action' => 'policyClasses']);
+            $builder->connect('/policy-actions', ['controller' => 'WorkflowDefinitions', 'action' => 'policyActions']);
+            $builder->connect('/app-settings', ['controller' => 'WorkflowDefinitions', 'action' => 'appSettings']);
+
+            // Instance monitoring routes → WorkflowInstancesController
+            $builder->connect('/instances', ['controller' => 'WorkflowInstances', 'action' => 'instances']);
+            $builder->connect('/instances/grid-data', ['controller' => 'WorkflowInstances', 'action' => 'gridData']);
+            $builder->connect('/instances/grid-data/{definitionId}', ['controller' => 'WorkflowInstances', 'action' => 'gridData'])
+                ->setPatterns(['definitionId' => '\d+'])
+                ->setPass(['definitionId']);
+            $builder->connect('/instances/{definitionId}', ['controller' => 'WorkflowInstances', 'action' => 'instances'])
+                ->setPatterns(['definitionId' => '\d+'])
+                ->setPass(['definitionId']);
+            $builder->connect('/instance/{id}', ['controller' => 'WorkflowInstances', 'action' => 'viewInstance'])
+                ->setPatterns(['id' => '\d+'])
+                ->setPass(['id']);
+
+            // Legacy approval routes under /workflows → ApprovalsController (backward compat)
+            $builder->connect('/approvals', ['controller' => 'Approvals', 'action' => 'approvals']);
+            $builder->connect('/approvals-grid-data', ['controller' => 'Approvals', 'action' => 'approvalsGridData']);
+            $builder->connect('/record-approval', ['controller' => 'Approvals', 'action' => 'recordApproval']);
+            $builder->connect('/eligible-approvers/{approvalId}', ['controller' => 'Approvals', 'action' => 'eligibleApprovers'])
+                ->setPatterns(['approvalId' => '\d+'])
+                ->setPass(['approvalId']);
+            $builder->connect('/approval-detail/{approvalId}', ['controller' => 'Approvals', 'action' => 'approvalDetail'])
+                ->setPatterns(['approvalId' => '\d+'])
+                ->setPass(['approvalId']);
+        });
 
         /**
          * RESTful Fallback Routes

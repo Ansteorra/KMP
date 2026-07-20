@@ -58,6 +58,11 @@ class Processor {
 	protected bool $exit = false;
 
 	/**
+	 * @var int
+	 */
+	protected int $processedJobs = 0;
+
+	/**
 	 * @var string|null
 	 */
 	protected ?string $pid = null;
@@ -94,6 +99,7 @@ class Processor {
 	 */
 	public function run(array $args): int {
 		$config = $this->getConfig($args);
+		$this->processedJobs = 0;
 
 		try {
 			$pid = $this->initPid();
@@ -158,7 +164,8 @@ class Processor {
 
 			if ($queuedJob) {
 				$this->runJob($queuedJob, $pid);
-			} elseif (Configure::read('Queue.exitwhennothingtodo')) {
+				$this->processedJobs++;
+			} elseif ($config['exitWhenEmpty']) {
 				$this->io->out('nothing to do, exiting.');
 				$this->exit = true;
 			} else {
@@ -167,9 +174,13 @@ class Processor {
 			}
 
 			// check if we are over the maximum runtime and end processing if so.
-			if (Configure::readOrFail('Queue.workermaxruntime') && (time() - $startTime) >= Configure::readOrFail('Queue.workermaxruntime')) {
+			if ($config['maxJobs'] > 0 && $this->processedJobs >= $config['maxJobs']) {
 				$this->exit = true;
-				$this->io->out('Reached runtime of ' . (time() - $startTime) . ' Seconds (Max ' . Configure::readOrFail('Queue.workermaxruntime') . '), terminating.');
+				$this->io->out('Reached job limit of ' . $config['maxJobs'] . ', terminating.');
+			}
+			if ($config['maxRuntime'] > 0 && (time() - $startTime) >= $config['maxRuntime']) {
+				$this->exit = true;
+				$this->io->out('Reached runtime of ' . (time() - $startTime) . ' Seconds (Max ' . $config['maxRuntime'] . '), terminating.');
 			}
 			if ($this->exit || mt_rand(0, 100) > 100 - (int)Config::gcprob()) {
 				$this->io->out('Performing Old job cleanup.');
@@ -186,6 +197,15 @@ class Processor {
 		}
 
 		return CommandInterface::CODE_SUCCESS;
+	}
+
+	/**
+	 * Return the number of jobs attempted by this processor run.
+	 *
+	 * @return int
+	 */
+	public function getProcessedJobs(): int {
+		return $this->processedJobs;
 	}
 
 	/**
@@ -449,6 +469,12 @@ class Processor {
 			'groups' => [],
 			'types' => [],
 			'verbose' => false,
+			'maxJobs' => max(0, (int)($args['max-jobs'] ?? 0)),
+			'maxRuntime' => isset($args['max-runtime'])
+				? max(0, (int)$args['max-runtime'])
+				: (int)Configure::readOrFail('Queue.workermaxruntime'),
+			'exitWhenEmpty' => !empty($args['exit-when-empty'])
+				|| (bool)Configure::read('Queue.exitwhennothingtodo'),
 		];
 		if (!empty($args['verbose'])) {
 			$config['verbose'] = true;

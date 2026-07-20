@@ -1,15 +1,13 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Awards\Model\Table;
 
+use App\Model\Table\BaseTable;
+use Cake\Database\Schema\TableSchemaInterface;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
-use Cake\ORM\Table;
 use Cake\Validation\Validator;
-use Cake\Database\Schema\TableSchemaInterface;
-use App\Model\Table\BaseTable;
 
 /**
  * Awards Table - Manages award configuration with Domain/Level/Branch hierarchy.
@@ -17,9 +15,9 @@ use App\Model\Table\BaseTable;
  * @property \Awards\Model\Table\DomainsTable&\Cake\ORM\Association\BelongsTo $Domains
  * @property \Awards\Model\Table\LevelsTable&\Cake\ORM\Association\BelongsTo $Levels
  * @property \App\Model\Table\BranchesTable&\Cake\ORM\Association\BelongsTo $Branches
+ * @property \Awards\Model\Table\ApprovalProcessesTable&\Cake\ORM\Association\BelongsTo $ApprovalProcesses
  * @property \Awards\Model\Table\RecommendationsTable&\Cake\ORM\Association\HasMany $Recommendations
  * @property \App\Model\Table\GatheringActivitiesTable&\Cake\ORM\Association\BelongsToMany $GatheringActivities
- *
  * @method \Awards\Model\Entity\Award newEmptyEntity()
  * @method \Awards\Model\Entity\Award newEntity(array $data, array $options = [])
  * @method \Awards\Model\Entity\Award get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)
@@ -27,7 +25,6 @@ use App\Model\Table\BaseTable;
  * @method \Awards\Model\Entity\Award patchEntity(\Cake\Datasource\EntityInterface $entity, array $data, array $options = [])
  * @method \Awards\Model\Entity\Award|false save(\Cake\Datasource\EntityInterface $entity, array $options = [])
  * @method \Awards\Model\Entity\Award saveOrFail(\Cake\Datasource\EntityInterface $entity, array $options = [])
- *
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
  * @mixin \Muffin\Footprint\Model\Behavior\FootprintBehavior
  * @mixin \Muffin\Trash\Model\Behavior\TrashBehavior
@@ -61,6 +58,17 @@ class AwardsTable extends BaseTable
             'joinType' => 'INNER',
             'className' => 'Branches',
         ]);
+        $this->belongsTo('ApprovalProcesses', [
+            'foreignKey' => 'approval_process_id',
+            'joinType' => 'LEFT',
+            'className' => 'Awards.ApprovalProcesses',
+        ]);
+
+        $this->belongsTo('BestowalTodoTemplates', [
+            'foreignKey' => 'bestowal_todo_template_id',
+            'joinType' => 'LEFT',
+            'className' => 'Awards.BestowalTodoTemplates',
+        ]);
 
         // Aliased association for Awards->Branches to avoid conflicts
         // when Recommendations also has a Branches association (member's branch)
@@ -85,15 +93,15 @@ class AwardsTable extends BaseTable
             'through' => 'Awards.AwardGatheringActivities',
         ]);
 
-        $this->addBehavior("Timestamp");
+        $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
-        $this->addBehavior("Muffin/Trash.Trash");
+        $this->addBehavior('Muffin/Trash.Trash');
     }
 
     /**
      * Get schema.
      *
-     * @return TableSchemaInterface
+     * @return \Cake\Database\Schema\TableSchemaInterface
      */
     public function getSchema(): TableSchemaInterface
     {
@@ -102,7 +110,6 @@ class AwardsTable extends BaseTable
 
         return $schema;
     }
-
 
     /**
      * Default validation rules.
@@ -154,6 +161,14 @@ class AwardsTable extends BaseTable
             ->notEmptyString('branch_id');
 
         $validator
+            ->integer('approval_process_id')
+            ->allowEmptyString('approval_process_id');
+
+        $validator
+            ->integer('bestowal_todo_template_id')
+            ->allowEmptyString('bestowal_todo_template_id');
+
+        $validator
             ->boolean('is_active')
             ->notEmptyString('is_active');
 
@@ -184,6 +199,12 @@ class AwardsTable extends BaseTable
         $rules->add($rules->existsIn(['domain_id'], 'Domains'), ['errorField' => 'domain_id']);
         $rules->add($rules->existsIn(['level_id'], 'Levels'), ['errorField' => 'level_id']);
         $rules->add($rules->existsIn(['branch_id'], 'Branches'), ['errorField' => 'branch_id']);
+        $rules->add($rules->existsIn(['approval_process_id'], 'ApprovalProcesses'), [
+            'errorField' => 'approval_process_id',
+        ]);
+        $rules->add($rules->existsIn(['bestowal_todo_template_id'], 'BestowalTodoTemplates'), [
+            'errorField' => 'bestowal_todo_template_id',
+        ]);
 
         return $rules;
     }
@@ -240,8 +261,9 @@ class AwardsTable extends BaseTable
             return $query;
         }
         $query = $query->where([
-            "branch_id IN" => $branchIDs,
+            'branch_id IN' => $branchIDs,
         ]);
+
         return $query;
     }
 }

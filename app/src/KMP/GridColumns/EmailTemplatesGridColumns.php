@@ -7,7 +7,7 @@ namespace App\KMP\GridColumns;
  * Email Templates Grid Column Metadata
  *
  * Defines all available columns for the Email Templates data grid.
- * Includes mailer class, action method, subject, and status information.
+ * Includes slug, subject, and status information.
  */
 class EmailTemplatesGridColumns extends BaseGridColumns
 {
@@ -41,29 +41,40 @@ class EmailTemplatesGridColumns extends BaseGridColumns
                 'alignment' => 'right',
             ],
 
-            'mailer_class' => [
-                'key' => 'mailer_class',
-                'label' => 'Mailer Class',
-                'type' => 'string',
-                'sortable' => true,
-                'filterable' => true,
-                'searchable' => true,
-                'defaultVisible' => true,
-                'required' => true,
-                'width' => '200px',
-                'alignment' => 'left',
-                'clickAction' => 'navigate:/email-templates/edit/:id',
-            ],
-
-            'action_method' => [
-                'key' => 'action_method',
-                'label' => 'Action Method',
+            'slug' => [
+                'key' => 'slug',
+                'label' => 'Slug',
                 'type' => 'string',
                 'sortable' => true,
                 'filterable' => true,
                 'searchable' => true,
                 'defaultVisible' => true,
                 'width' => '180px',
+                'alignment' => 'left',
+                'clickAction' => 'navigate:/email-templates/edit/:id',
+            ],
+
+            'name' => [
+                'key' => 'name',
+                'label' => 'Name',
+                'type' => 'string',
+                'sortable' => true,
+                'filterable' => true,
+                'searchable' => true,
+                'defaultVisible' => true,
+                'width' => '200px',
+                'alignment' => 'left',
+            ],
+
+            'description' => [
+                'key' => 'description',
+                'label' => 'Description',
+                'type' => 'string',
+                'sortable' => false,
+                'filterable' => false,
+                'searchable' => true,
+                'defaultVisible' => true,
+                'width' => '280px',
                 'alignment' => 'left',
             ],
 
@@ -75,7 +86,7 @@ class EmailTemplatesGridColumns extends BaseGridColumns
                 'filterable' => true,
                 'searchable' => true,
                 'defaultVisible' => true,
-                'width' => '300px',
+                'width' => '260px',
                 'alignment' => 'left',
             ],
 

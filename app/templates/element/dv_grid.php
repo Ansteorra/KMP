@@ -28,7 +28,7 @@ if (!empty($queryParams)) {
 ?>
 
 <!-- Grid View Container with Stimulus Controller -->
-<div data-controller="grid-view">
+<div data-controller="grid-view page-context">
 
     <!-- Lazy-Loading Turbo Frame -->
     <!-- The frame loads the complete grid (toolbar + table) from the server -->

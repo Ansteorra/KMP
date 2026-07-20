@@ -47,7 +47,7 @@ Tests branch-scoped permissions with real seed data validating three scoping lev
 
 #### Branch Scoping Tests (9 tests)
 - ✅ `testBryceHasBranchAndChildrenPermissions` - Validates Regional Officer Management role at Stargate (branch 39) grants Branch and Children permissions
-- ✅ `testDevonHasMultiRegionalPermissions` - Confirms Regional Officer role at Southern Region (13) plus Local Landed roles at branches 33 & 38
+- ✅ `testDevonHasMultiRegionalPermissions` - Confirms Regional Officer role at Southern Region (13) plus Landed Nobility roles at branches 33 & 38
 - ✅ `testMemberCanViewMembersInScopedBranches` - Policy presence validation for scoped members
 - ✅ `testGlobalPermissionsWorkAcrossAllBranches` - Admin has global super user permission with null branch_ids
 - ✅ `testPolicyFilteringByBranch` - getPolicies([branchIds]) correctly filters by branch
@@ -88,7 +88,7 @@ Tests critical edge cases and security features validating proper handling of:
 ### Test Members (from dev_seed_clean.sql)
 - **Admin (ID 1)**: Super user with global permissions
 - **Bryce (ID 2872)**: Regional Officer Management @ Stargate (39) - Branch and Children scope
-- **Devon (ID 2874)**: Regional Officer Management @ Southern Region (13) + Local Landed @ branches 33, 38
+- **Devon (ID 2874)**: Regional Officer Management @ Southern Region (13) + Landed Nobility @ branches 33, 38
 - **Eirik (ID 2875)**: Test member with varied permission patterns
 - **Agatha (ID 2871)**: Basic member with no officer roles (empty permissions)
 
@@ -232,7 +232,7 @@ The test suite validates the complete authorization flow:
 All tests use actual seed data (dev_seed_clean.sql):
 - ✅ Stable member IDs (1, 2871-2875)
 - ✅ Real branch hierarchy (Central Region 12, Southern Region 13, Stargate 39)
-- ✅ Actual roles (Regional Officer Management 1118, Local Landed Crown Representative 1117, Greater Officer of State 1116)
+- ✅ Actual roles (Regional Officer Management 1118, Landed Nobility Crown Representative 1117, Greater Officer of State 1116)
 - ✅ Real permissions with scoping (1075, 1076 as Branch and Children; 2-6, 11-14, 21 as warrant-required)
 - ✅ Temporal member_roles with start_on and expires_on
 - ✅ Revoked roles (member_role 362 revoked by user 1073)

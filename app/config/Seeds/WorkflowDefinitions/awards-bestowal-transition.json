@@ -1,0 +1,118 @@
+{
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
+    "nodes": {
+        "trigger": {
+            "type": "trigger",
+            "label": "Bestowal Transition Requested",
+            "config": {
+                "event": "Awards.BestowalTransitionRequested",
+                "entityIdField": "bestowalId"
+            },
+            "position": {
+                "x": 50,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "transition-bestowal"
+                }
+            ]
+        },
+        "transition-bestowal": {
+            "type": "action",
+            "label": "Transition Bestowal",
+            "config": {
+                "action": "Awards.TransitionBestowal",
+                "params": {
+                    "bestowalId": "$.trigger.bestowalId",
+                    "targetState": "$.trigger.targetState",
+                    "data": "$.trigger.data",
+                    "actorId": "$.trigger.actorId"
+                }
+            },
+            "position": {
+                "x": 350,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "transition-succeeded"
+                }
+            ]
+        },
+        "transition-succeeded": {
+            "type": "condition",
+            "label": "Transition Succeeded?",
+            "config": {
+                "condition": "Core.FieldEquals",
+                "field": "$.nodes.transition-bestowal.result.success",
+                "value": true
+            },
+            "position": {
+                "x": 650,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "sync-recommendations",
+                    "label": "Transitioned"
+                },
+                {
+                    "port": "false",
+                    "target": "end-failed",
+                    "label": "Failed"
+                }
+            ]
+        },
+        "sync-recommendations": {
+            "type": "action",
+            "label": "Sync Recommendations From Bestowal",
+            "config": {
+                "action": "Awards.SyncRecommendationsFromBestowal",
+                "params": {
+                    "bestowalId": "$.nodes.transition-bestowal.result.data.bestowalId",
+                    "actorId": "$.trigger.actorId"
+                }
+            },
+            "position": {
+                "x": 950,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "end-success"
+                }
+            ]
+        },
+        "end-success": {
+            "type": "end",
+            "label": "Bestowal Transition Complete",
+            "config": {
+                "result": "$.nodes.transition-bestowal.result"
+            },
+            "position": {
+                "x": 1250,
+                "y": 225
+            },
+            "outputs": []
+        },
+        "end-failed": {
+            "type": "end",
+            "label": "Bestowal Transition Failed",
+            "config": {
+                "result": "$.nodes.transition-bestowal.result"
+            },
+            "position": {
+                "x": 1250,
+                "y": 375
+            },
+            "outputs": []
+        }
+    },
+    "startNode": "trigger"
+}

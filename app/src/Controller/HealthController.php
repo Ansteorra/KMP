@@ -3,11 +3,15 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Services\Cache\TenantAwareCache;
 use Cake\Cache\Cache;
+use Cake\Cache\Engine\RedisEngine;
 use Cake\Core\Configure;
 use Cake\Datasource\ConnectionManager;
 use Cake\Event\EventInterface;
 use Cake\Http\Response;
+use Cake\Log\Log;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -31,7 +35,7 @@ class HealthController extends AppController
     }
 
     /**
-     * Lightweight health probe: DB ping, cache ping, version info.
+     * Readiness probe: DB ping, read-only cache ping, and version info.
      *
      * @return \Cake\Http\Response
      */
@@ -43,20 +47,28 @@ class HealthController extends AppController
             $connection->execute('SELECT 1');
             $dbOk = true;
         } catch (Throwable $e) {
-            // DB is down
+            Log::warning(sprintf('Readiness database check failed: %s', $e::class));
         }
 
         $cacheOk = false;
         try {
-            $key = 'health_check_' . time();
-            Cache::write($key, 'ok', 'default');
-            $cacheOk = Cache::read($key, 'default') === 'ok';
-            Cache::delete($key, 'default');
+            $requestedCacheEngine = Configure::read('Platform.runtime.cache.requestedEngine');
+            if (
+                $requestedCacheEngine === 'redis'
+                && (
+                    !(Cache::pool('default') instanceof RedisEngine)
+                    || Configure::read('Platform.runtime.session.defaults') !== 'cache'
+                )
+            ) {
+                throw new RuntimeException('Required shared Redis cache/session backend is not active.');
+            }
+            Cache::read(TenantAwareCache::tenantScopedKey('health_check'), 'default');
+            $cacheOk = true;
         } catch (Throwable $e) {
-            // Cache is down
+            Log::warning(sprintf('Readiness cache check failed: %s', $e::class));
         }
 
-        $status = $dbOk ? 'ok' : 'degraded';
+        $status = $dbOk && $cacheOk ? 'ok' : 'degraded';
 
         $data = [
             'status' => $status,
@@ -73,7 +85,7 @@ class HealthController extends AppController
             ->withType('application/json')
             ->withStringBody(json_encode($data));
 
-        if (!$dbOk) {
+        if (!$dbOk || !$cacheOk) {
             $response = $response->withStatus(503);
         }
 

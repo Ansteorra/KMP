@@ -91,6 +91,24 @@ class ProcessorTest extends TestCase
 	/**
 	 * @return void
 	 */
+	public function testGetConfigHonorsPerRunBounds()
+	{
+		$this->Processor = new Processor(new Io(new ConsoleIo()), new NullLogger());
+
+		$result = $this->invokeMethod($this->Processor, 'getConfig', [[
+			'max-jobs' => '12',
+			'max-runtime' => '17',
+			'exit-when-empty' => true,
+		]]);
+
+		$this->assertSame(12, $result['maxJobs']);
+		$this->assertSame(17, $result['maxRuntime']);
+		$this->assertTrue($result['exitWhenEmpty']);
+	}
+
+	/**
+	 * @return void
+	 */
 	public function testRun()
 	{
 		$this->_needsConnection();

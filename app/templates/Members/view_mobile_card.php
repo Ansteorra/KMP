@@ -73,15 +73,15 @@ $uploadLimits = $this->KMP->getUploadLimits();
 <div class="modal fade" id="mobileCardPhotoUploadModal" tabindex="-1" aria-labelledby="mobileCardPhotoUploadModalLabel"
     data-member-mobile-card-profile-target="photoUploadModal"
     aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="mobileCardPhotoUploadModalLabel"><?= __('Upload Profile Photo') ?></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"
                     aria-label="<?= __('Close') ?>"></button>
             </div>
-            <div class="modal-body">
-                <div class="card" data-controller="image-preview file-size-validator"
+            <div class="modal-body bg-light-subtle">
+                <div class="card bg-white shadow-sm" data-controller="image-preview file-size-validator"
                     data-image-preview-max-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
                     data-image-preview-max-size-formatted-value="<?= h($uploadLimits['formatted']) ?>"
                     data-file-size-validator-max-size-value="<?= h($uploadLimits['maxFileSize']) ?>"

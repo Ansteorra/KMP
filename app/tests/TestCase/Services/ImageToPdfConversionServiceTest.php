@@ -110,6 +110,18 @@ class ImageToPdfConversionServiceTest extends BaseTestCase
     }
 
     /**
+     * Create a minimal PNG header with large dimensions but no decoded bitmap payload.
+     */
+    private function createMinimalPngHeader(string $path, int $width, int $height): void
+    {
+        $signature = "\x89PNG\r\n\x1a\n";
+        $ihdrData = pack('NNCCCCC', $width, $height, 8, 2, 0, 0, 0);
+        $ihdr = pack('N', strlen($ihdrData)) . 'IHDR' . $ihdrData . pack('N', crc32('IHDR' . $ihdrData));
+        $iend = pack('N', 0) . 'IEND' . pack('N', crc32('IEND'));
+        file_put_contents($path, $signature . $ihdr . $iend);
+    }
+
+    /**
      * Create a multi-color test JPEG (for grayscale conversion testing).
      */
     private function createColorTestJpeg(string $path, int $width = 200, int $height = 200): void
@@ -466,6 +478,24 @@ class ImageToPdfConversionServiceTest extends BaseTestCase
         $this->assertTrue($result->isSuccess(), 'Large image conversion failed: ' . ($result->getError() ?? ''));
         $this->assertFileExists($outputPath);
         $this->assertGreaterThan(0, filesize($outputPath));
+    }
+
+    /**
+     * Test oversized images are rejected before decoding into GD memory.
+     *
+     * @return void
+     */
+    public function testRejectsOversizedImagesBeforeDecode(): void
+    {
+        $largePath = $this->testImagesDir . 'oversized.png';
+        $this->createMinimalPngHeader($largePath, 5000, 5000);
+        $outputPath = $this->outputPath('oversized_output.pdf');
+
+        $result = $this->ImageToPdfConversionService->convertImageToPdf($largePath, $outputPath);
+
+        $this->assertFalse($result->isSuccess());
+        $this->assertStringContainsString('megapixels', $result->getError());
+        $this->assertFileDoesNotExist($outputPath);
     }
 
     /**

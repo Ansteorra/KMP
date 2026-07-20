@@ -1,0 +1,56 @@
+{
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
+    "nodes": {
+        "trigger-registration": {
+            "type": "trigger",
+            "label": "Member Registered",
+            "config": {
+                "event": "Members.Registered",
+                "entityIdField": "memberId"
+            },
+            "position": {
+                "x": 50,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "send-registration-notifications"
+                }
+            ]
+        },
+        "send-registration-notifications": {
+            "type": "action",
+            "label": "Send Registration Notifications",
+            "config": {
+                "action": "Members.SendRegistrationNotifications",
+                "params": {
+                    "memberId": "$.trigger.memberId",
+                    "source": "$.trigger.source"
+                }
+            },
+            "position": {
+                "x": 450,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "end-complete"
+                }
+            ]
+        },
+        "end-complete": {
+            "type": "end",
+            "label": "Registration Complete",
+            "config": {},
+            "position": {
+                "x": 1850,
+                "y": 200
+            },
+            "outputs": []
+        }
+    },
+    "startNode": "trigger-registration"
+}

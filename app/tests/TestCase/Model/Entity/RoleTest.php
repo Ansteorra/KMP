@@ -33,9 +33,8 @@ class RoleTest extends BaseTestCase
 
     public function testLazyLoadPermissions(): void
     {
-        $role = $this->Roles->find()->contain([])->first();
+        $role = $this->Roles->find()->contain(['Permissions'])->first();
         $this->assertNotNull($role);
-        // Accessing permissions should trigger lazy load
         $perms = $role->permissions;
         $this->assertIsIterable($perms);
     }

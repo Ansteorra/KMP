@@ -37,7 +37,7 @@ use Templating\View\Helper\IconHelper;
  *
  * Key Features:
  * - Automatic Bootstrap UI integration via UIViewTrait
- * - Asset versioning through AssetMix
+ * - Asset versioning through Vite
  * - User authentication context via Identity helper
  * - Image processing with Glide
  * - Custom KMP helper for application-specific components
@@ -47,7 +47,7 @@ use Templating\View\Helper\IconHelper;
  * All helpers loaded here are available in templates without additional loading.
  *
  * Helper Dependencies:
- * - AssetMix.AssetMix: Asset compilation and versioning
+ * - Vite: Asset compilation and versioning
  * - Authentication.Identity: User authentication context
  * - Bootstrap.Modal: Modal dialog components
  * - Bootstrap.Navbar: Navigation components
@@ -86,7 +86,7 @@ class AppView extends View
      * 6. Loads additional utility helpers
      *
      * Helper Loading Order:
-     * - AssetMix: Must be loaded early for asset management
+     * - Vite: Must be loaded early for asset management
      * - Identity: Required for permission checks in templates
      * - Bootstrap components: For consistent UI rendering
      * - KMP helper: For application-specific functionality
@@ -111,8 +111,8 @@ class AppView extends View
         $this->initializeUI(['layout' => false]);
 
         // Load asset management helper for versioned CSS/JS files
-        // This integrates with Laravel Mix for development and production builds
-        $this->loadHelper('AssetMix.AssetMix');
+        // This integrates with Vite for development and production builds
+        $this->loadHelper('Vite');
 
         // Load authentication helper for user context in templates
         // Provides $this->Identity->can() and user information access

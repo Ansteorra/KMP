@@ -45,7 +45,7 @@ class CsvDownloadController extends Controller {
         event.preventDefault();
         const url = this.urlValue || this.element.getAttribute('href') || this.element.dataset.url;
         if (!url) {
-            alert("No CSV URL provided.");
+            window.KMP_accessibility.announce("No CSV URL provided.", { assertive: true });
             return;
         }
         try {
@@ -67,7 +67,7 @@ class CsvDownloadController extends Controller {
                 a.remove();
             }, 100);
         } catch (error) {
-            alert("Error downloading CSV: " + error.message);
+            window.KMP_accessibility.announce("Error downloading CSV: " + error.message, { assertive: true });
         }
     }
 

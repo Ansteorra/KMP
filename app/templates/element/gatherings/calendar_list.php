@@ -177,6 +177,18 @@ $today = new DateTime('now', new \DateTimeZone($userTimezone));
                                         </button>
                                     <?php endif; ?>
 
+                                    <?php if (!$isPast && $gathering->is_preregistration_open): ?>
+                                        <a href="<?= h($gathering->preregister_url) ?>"
+                                            target="_blank" rel="noopener"
+                                            class="btn btn-sm btn-warning"
+                                            title="<?= h(__('Pre-register and pay for this event (external site)')) ?>">
+                                            <i class="bi bi-ticket-perforated"></i> Pre-Register
+                                            <?php if ($gathering->preregister_closes_on !== null): ?>
+                                                <small>(<?= __('until {0}', h($gathering->preregister_closes_on->format('M j'))) ?>)</small>
+                                            <?php endif; ?>
+                                        </a>
+                                    <?php endif; ?>
+
                                     <?php if ($hasLocation): ?>
                                         <button type="button"
                                             class="btn btn-sm btn-outline-info"

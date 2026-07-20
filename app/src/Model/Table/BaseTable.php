@@ -14,9 +14,12 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use App\Services\Cache\TenantAwareCache;
 use App\Services\ImpersonationService;
 use Cake\Cache\Cache;
+use Cake\Database\Exception\DatabaseException;
 use Cake\Datasource\EntityInterface;
+use Cake\I18n\FrozenTime;
 use Cake\Log\Log;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\Table;
@@ -36,6 +39,37 @@ class BaseTable extends Table
     protected const CACHE_GROUPS_TO_CLEAR = [];
 
     /**
+     * Mark JSON columns when the table schema is available.
+     *
+     * Some reset/migration flows instantiate table classes before every table
+     * exists. JSON type mapping is optional metadata, so skip it until the schema
+     * can be described instead of failing application bootstrap.
+     *
+     * @param array<int, string> $columns JSON column names.
+     * @return void
+     */
+    protected function setJsonColumnTypesIfPresent(array $columns): void
+    {
+        try {
+            $schema = $this->getSchema();
+        } catch (DatabaseException $exception) {
+            Log::debug(sprintf(
+                'Skipping JSON column type mapping for %s: %s',
+                $this->getTable(),
+                $exception->getMessage(),
+            ));
+
+            return;
+        }
+
+        foreach ($columns as $column) {
+            if ($schema->hasColumn($column)) {
+                $schema->setColumnType($column, 'json');
+            }
+        }
+    }
+
+    /**
      * After-save handler for automatic cache invalidation.
      *
      * @param \Cake\Event\EventInterface $event The afterSave event
@@ -49,7 +83,7 @@ class BaseTable extends Table
         if (!empty($this::CACHES_TO_CLEAR)) {
             foreach ($this::CACHES_TO_CLEAR as $cache) {
                 // Each cache entry: [cache_key, cache_config]
-                Cache::delete($cache[0], $cache[1]);
+                Cache::delete(TenantAwareCache::tenantScopedKey($cache[0]), $cache[1]);
             }
         }
 
@@ -58,7 +92,7 @@ class BaseTable extends Table
             foreach ($this::ID_CACHES_TO_CLEAR as $cache) {
                 // Each cache entry: [prefix, cache_config]
                 // Combines prefix with entity ID: prefix{entity_id}
-                Cache::delete($cache[0] . $entity->id, $cache[1]);
+                Cache::delete(TenantAwareCache::tenantScopedKey($cache[0] . $entity->id), $cache[1]);
             }
         }
 
@@ -67,6 +101,9 @@ class BaseTable extends Table
             foreach ($this::CACHE_GROUPS_TO_CLEAR as $cache) {
                 // Clear all cache entries in the specified group
                 Cache::clearGroup($cache);
+                if ($cache === 'security') {
+                    Cache::write(TenantAwareCache::tenantScopedKey('security_generation'), microtime(true));
+                }
             }
         }
         $this->logImpersonationAction('save', $entity);
@@ -85,14 +122,14 @@ class BaseTable extends Table
         // Phase 1: Clear static cache entries
         if (!empty($this::CACHES_TO_CLEAR)) {
             foreach ($this::CACHES_TO_CLEAR as $cache) {
-                Cache::delete($cache[0], $cache[1]);
+                Cache::delete(TenantAwareCache::tenantScopedKey($cache[0]), $cache[1]);
             }
         }
 
         // Phase 2: Clear entity-ID-based cache entries
         if (!empty($this::ID_CACHES_TO_CLEAR)) {
             foreach ($this::ID_CACHES_TO_CLEAR as $cache) {
-                Cache::delete($cache[0] . $entity->id, $cache[1]);
+                Cache::delete(TenantAwareCache::tenantScopedKey($cache[0] . $entity->id), $cache[1]);
             }
         }
 
@@ -100,6 +137,9 @@ class BaseTable extends Table
         if (!empty($this::CACHE_GROUPS_TO_CLEAR)) {
             foreach ($this::CACHE_GROUPS_TO_CLEAR as $cache) {
                 Cache::clearGroup($cache);
+                if ($cache === 'security') {
+                    Cache::write(TenantAwareCache::tenantScopedKey('security_generation'), microtime(true));
+                }
             }
         }
         $this->logImpersonationAction('delete', $entity);
@@ -210,6 +250,7 @@ class BaseTable extends Table
             'request_url' => $request->getRequestTarget(),
             'ip_address' => $request->clientIp(),
             'metadata' => $metadataJson,
+            'created' => FrozenTime::now(),
         ], ['accessibleFields' => ['*' => true]]);
 
         if ($logEntity->hasErrors()) {

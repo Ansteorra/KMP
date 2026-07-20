@@ -25,7 +25,6 @@ class RecommendationQueryServiceTest extends BaseTestCase
             'main grid' => ['buildMainGridQuery', [true]],
             'member submitted grid' => ['buildMemberSubmittedQuery', [self::ADMIN_MEMBER_ID]],
             'recs for member grid' => ['buildRecsForMemberQuery', [self::ADMIN_MEMBER_ID]],
-            'gathering awards grid' => ['buildGatheringAwardsQuery', [1, true]],
         ];
     }
 

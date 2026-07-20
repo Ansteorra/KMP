@@ -21,8 +21,14 @@ if ($canPartialEdit) {
 echo $this->Modal->create("Submit your SCA Card ", [
     "id" => "submitMemberCardModal",
     "close" => true,
+    "form" => true,
+    "size" => "modal-lg",
 ]); ?>
-<fieldset>
+<fieldset class="border rounded-3 bg-white shadow-sm p-3">
+    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+        <i class="bi bi-card-image text-primary me-1" aria-hidden="true"></i>
+        <?= __("Membership Card") ?>
+    </legend>
     <?php if ($user->checkCan("partialEdit", $member)): ?>
         <div class="mb-3 form-group">
             <label class="form-label">Upload Membership Card</label>

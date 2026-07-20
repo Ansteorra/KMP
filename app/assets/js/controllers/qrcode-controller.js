@@ -1,5 +1,4 @@
 import { Controller } from "@hotwired/stimulus";
-import QRCode from 'qrcode';
 
 /**
  * QR Code Generator Controller
@@ -36,7 +35,8 @@ class QrcodeController extends Controller {
     // Initialize the generated flag
     generated = false;
     
-    connect() {
+    async connect() {
+        this._QRCode = (await import('qrcode')).default
         this.generated = false;
         
         // If modal ID is provided, wait for modal to show
@@ -91,7 +91,7 @@ class QrcodeController extends Controller {
         
         // Return a Promise that resolves when QR code generation is complete
         return new Promise((resolve, reject) => {
-            QRCode.toCanvas(canvas, this.urlValue, {
+            this._QRCode.toCanvas(canvas, this.urlValue, {
                 width: this.sizeValue,
                 margin: 2,
                 color: {

@@ -35,6 +35,15 @@ class ImageZoom extends Controller {
         container.style.overflow = "hidden";
         container.style.cursor = "grab";
         container.style.touchAction = "none";
+        if (!container.hasAttribute("tabindex")) {
+            container.setAttribute("tabindex", "0");
+        }
+        if (!container.hasAttribute("aria-label") && !container.hasAttribute("aria-labelledby")) {
+            container.setAttribute(
+                "aria-label",
+                "Zoomable image. Use plus and minus to zoom, arrow keys to pan when zoomed, and Home, 0, or Escape to reset."
+            );
+        }
 
         const img = this.imageTarget;
         img.style.transformOrigin = "0 0";
@@ -54,6 +63,7 @@ class ImageZoom extends Controller {
         this._onTouchMove = this._onTouchMove.bind(this);
         this._onTouchEnd = this._onTouchEnd.bind(this);
         this._onModalShown = this._onModalShown.bind(this);
+        this._onKeyDown = this._onKeyDown.bind(this);
 
         this.modalElement = this.element.closest(".modal");
         if (this.modalElement) {
@@ -69,6 +79,7 @@ class ImageZoom extends Controller {
         container.addEventListener("touchstart", this._onTouchStart, { passive: false });
         container.addEventListener("touchmove", this._onTouchMove, { passive: false });
         container.addEventListener("touchend", this._onTouchEnd);
+        container.addEventListener("keydown", this._onKeyDown);
 
         this._applyTransform();
     }
@@ -85,6 +96,7 @@ class ImageZoom extends Controller {
         container.removeEventListener("touchstart", this._onTouchStart);
         container.removeEventListener("touchmove", this._onTouchMove);
         container.removeEventListener("touchend", this._onTouchEnd);
+        container.removeEventListener("keydown", this._onKeyDown);
         if (this.modalElement) {
             this.modalElement.removeEventListener("shown.bs.modal", this._onModalShown);
         }
@@ -128,7 +140,7 @@ class ImageZoom extends Controller {
     }
 
     _onDblClick() {
-        this._resetView();
+        this._resetView(true);
     }
 
     _onImageLoad() {
@@ -139,11 +151,37 @@ class ImageZoom extends Controller {
         this._resetView();
     }
 
-    _resetView() {
+    _resetView(announce = false) {
         this.scale = 1;
         this.translateX = 0;
         this.translateY = 0;
         this._applyTransform();
+        if (announce) {
+            this._announce("Image zoom reset.");
+        }
+    }
+
+    _onKeyDown(e) {
+        let handled = true;
+
+        if (e.key === "+" || e.key === "=") {
+            this._zoomAtCenter(1.1);
+        } else if (e.key === "-") {
+            this._zoomAtCenter(0.9);
+        } else if (e.key === "Home" || e.key === "0") {
+            this._resetView(true);
+        } else if (e.key === "Escape") {
+            this._resetView(true);
+            this._handoffFocus();
+        } else if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown") {
+            handled = this._panWithKeyboard(e.key);
+        } else {
+            handled = false;
+        }
+
+        if (handled) {
+            e.preventDefault();
+        }
     }
 
     // Touch pinch-zoom
@@ -219,6 +257,54 @@ class ImageZoom extends Controller {
         this.scale = newScale;
         this._clampTranslation();
         this._applyTransform();
+        this._announceZoom();
+    }
+
+    _zoomAtCenter(factor) {
+        const rect = this.element.getBoundingClientRect();
+        const cx = (this.element.clientWidth || rect.width) / 2;
+        const cy = (this.element.clientHeight || rect.height) / 2;
+        this._zoomAt(cx, cy, factor);
+    }
+
+    _panWithKeyboard(key) {
+        if (this.scale <= 1) {
+            return false;
+        }
+
+        const step = 24;
+        if (key === "ArrowLeft") {
+            this.translateX += step;
+        } else if (key === "ArrowRight") {
+            this.translateX -= step;
+        } else if (key === "ArrowUp") {
+            this.translateY += step;
+        } else if (key === "ArrowDown") {
+            this.translateY -= step;
+        }
+
+        this._clampTranslation();
+        this._applyTransform();
+        return true;
+    }
+
+    _handoffFocus() {
+        const focusTarget = this.modalElement?.querySelector(
+            '[data-bs-dismiss="modal"], .btn-close, button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusTarget && focusTarget !== this.element && typeof focusTarget.focus === "function") {
+            focusTarget.focus();
+        } else if (document.activeElement === this.element && typeof this.element.blur === "function") {
+            this.element.blur();
+        }
+    }
+
+    _announceZoom() {
+        this._announce(`Image zoom ${Math.round(this.scale * 100)}%.`);
+    }
+
+    _announce(message) {
+        window.KMP_accessibility?.announce?.(message);
     }
 
     _clampTranslation() {

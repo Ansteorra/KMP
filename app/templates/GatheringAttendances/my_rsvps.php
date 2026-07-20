@@ -215,13 +215,13 @@ $pastCount = $pastAttendances->count();
     <!-- RSVP Modal -->
     <div class="modal fade" id="rsvpModal" tabindex="-1" aria-labelledby="rsvpModalLabel" aria-hidden="true"
         data-my-rsvps-target="modal">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="rsvpModalLabel">Edit RSVP</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body" data-my-rsvps-target="modalBody">
+                <div class="modal-body bg-light-subtle" data-my-rsvps-target="modalBody">
                     <div class="text-center py-4">
                         <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Loading...</span>

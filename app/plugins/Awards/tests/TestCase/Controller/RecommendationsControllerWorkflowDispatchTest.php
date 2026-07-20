@@ -1,0 +1,928 @@
+<?php
+declare(strict_types=1);
+
+namespace Awards\Test\TestCase\Controller;
+
+use App\Model\Entity\WorkflowApproval;
+use App\Model\Entity\WorkflowApprovalResponse;
+use App\Model\Entity\WorkflowInstance;
+use App\Services\ServiceResult;
+use App\Services\WorkflowEngine\TriggerDispatcher;
+use App\Services\WorkflowEngine\WorkflowEngineInterface;
+use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use Awards\Model\Entity\Recommendation;
+use Awards\Model\Entity\RecommendationApprovalRun;
+use Awards\Services\RecommendationGroupingService;
+use Awards\Services\RecommendationSubmissionService;
+use Awards\Services\RecommendationUpdateService;
+use Cake\Core\ContainerInterface as CakeContainerInterface;
+use Cake\I18n\DateTime;
+use Cake\ORM\TableRegistry;
+use Closure;
+use InvalidArgumentException;
+
+class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestCase
+{
+    private $workflowDefinitions;
+    private $workflowVersions;
+    private $recommendations;
+    private $awards;
+    private $members;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->skipIfPostgres();
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->enableRetainFlashMessages();
+        $this->authenticateAsSuperUser();
+
+        $locator = TableRegistry::getTableLocator();
+        $this->workflowDefinitions = $locator->get('WorkflowDefinitions');
+        $this->workflowVersions = $locator->get('WorkflowVersions');
+        $this->recommendations = $locator->get('Awards.Recommendations');
+        $this->awards = $locator->get('Awards.Awards');
+        $this->members = $locator->get('Members');
+
+        $this->mockServiceClean(CakeContainerInterface::class, function () {
+            return $this->createMock(CakeContainerInterface::class);
+        });
+    }
+
+    public function testAddFailsWhenWorkflowInactive(): void
+    {
+        $this->deactivateWorkflows(['awards-recommendation-submitted']);
+        $reason = 'Workflow-only add should not fall back';
+
+        $this->mockServiceClean(RecommendationSubmissionService::class, function () {
+            $mock = $this->createMock(RecommendationSubmissionService::class);
+            $mock->expects($this->never())
+                ->method('submitAuthenticated');
+
+            return $mock;
+        });
+        $this->mockServiceClean(TriggerDispatcher::class, function () {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->never())->method('dispatch');
+
+            return $mock;
+        });
+
+        $data = $this->buildAuthenticatedSubmissionData();
+        $data['reason'] = $reason;
+        $this->post($this->recommendationsUrl('add'), $data);
+
+        $this->assertResponseOk();
+        $this->assertFlashMessage('The recommendation workflow is not currently available.', 'flash');
+        $this->assertFalse($this->recommendations->exists(['reason' => $reason]));
+    }
+
+    public function testAddDispatchesWorkflowWhenActive(): void
+    {
+        $this->ensureActiveWorkflow('awards-recommendation-submitted');
+        $savedRecommendation = $this->createExistingRecommendation();
+
+        $dispatched = false;
+        $this->mockServiceClean(TriggerDispatcher::class, function () use (&$dispatched, $savedRecommendation) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->once())
+                ->method('dispatch')
+                ->willReturnCallback(function (string $event, array $context) use (&$dispatched, $savedRecommendation): array {
+                    $dispatched = true;
+                    $this->assertSame('Awards.RecommendationCreateRequested', $event);
+                    $this->assertSame('authenticated', $context['submissionMode']);
+                    $this->assertArrayHasKey('data', $context);
+                    $this->assertArrayHasKey('requesterContext', $context);
+
+                    return [$this->successfulWorkflowDispatchResult([
+                        'recommendationId' => (int)$savedRecommendation->id,
+                    ])];
+                });
+
+            return $mock;
+        });
+        $this->mockServiceClean(RecommendationSubmissionService::class, function () {
+            $mock = $this->createMock(RecommendationSubmissionService::class);
+            $mock->expects($this->never())->method('submitAuthenticated');
+
+            return $mock;
+        });
+
+        $this->post($this->recommendationsUrl('add'), $this->buildAuthenticatedSubmissionData());
+
+        $this->assertTrue($dispatched);
+        $this->assertRedirectContains('/awards/recommendations/view/' . $savedRecommendation->id);
+    }
+
+    public function testSubmitRecommendationDispatchesWorkflowWhenActiveForGuestSubmission(): void
+    {
+        $this->logout();
+        $this->ensureActiveWorkflow('awards-recommendation-submitted');
+
+        $dispatched = false;
+        $this->mockServiceClean(TriggerDispatcher::class, function () use (&$dispatched) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->once())
+                ->method('dispatch')
+                ->willReturnCallback(function (string $event, array $context, ?int $triggeredBy) use (&$dispatched): array {
+                    $dispatched = true;
+                    $this->assertSame('Awards.RecommendationCreateRequested', $event);
+                    $this->assertNull($triggeredBy);
+                    $this->assertSame('public', $context['submissionMode']);
+                    $this->assertSame(self::KINGDOM_BRANCH_ID, $context['kingdom_id']);
+                    $this->assertSame(self::TEST_BRANCH_STARGATE_ID, (int)$context['data']['branch_id']);
+
+                    return [$this->successfulWorkflowDispatchResult([
+                        'recommendationId' => 999,
+                    ])];
+                });
+
+            return $mock;
+        });
+        $this->mockServiceClean(RecommendationSubmissionService::class, function () {
+            $mock = $this->createMock(RecommendationSubmissionService::class);
+            $mock->expects($this->never())->method('submitPublic');
+
+            return $mock;
+        });
+
+        $this->post($this->recommendationsUrl('submitRecommendation'), $this->buildPublicSubmissionData());
+
+        $this->assertTrue($dispatched);
+        $this->assertResponseOk();
+        $this->assertResponseContains('The recommendation has been submitted.');
+    }
+
+    public function testEditFailsWhenWorkflowInactive(): void
+    {
+        $this->deactivateWorkflows(['awards-recommendation-updated']);
+        $savedRecommendation = $this->createExistingRecommendation();
+        $originalReason = $savedRecommendation->reason;
+
+        $this->mockServiceClean(RecommendationUpdateService::class, function () {
+            $mock = $this->createMock(RecommendationUpdateService::class);
+            $mock->expects($this->never())
+                ->method('update');
+
+            return $mock;
+        });
+        $this->mockServiceClean(TriggerDispatcher::class, function () {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->never())->method('dispatch');
+
+            return $mock;
+        });
+
+        $this->post($this->recommendationsUrl('edit', [(string)$savedRecommendation->id]), [
+            'reason' => 'Updated through legacy service',
+        ]);
+
+        $this->assertFlashMessage('The recommendation workflow is not currently available.', 'flash');
+        $this->assertRedirectContains('/awards/recommendations/view/' . $savedRecommendation->id);
+        $freshRecommendation = $this->recommendations->get((int)$savedRecommendation->id);
+        $this->assertSame($originalReason, $freshRecommendation->reason);
+    }
+
+    public function testEditDispatchesWorkflowWhenActive(): void
+    {
+        $this->ensureActiveWorkflow('awards-recommendation-updated');
+        $savedRecommendation = $this->createExistingRecommendation();
+
+        $dispatched = false;
+        $this->mockServiceClean(TriggerDispatcher::class, function () use (&$dispatched, $savedRecommendation) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->once())
+                ->method('dispatch')
+                ->willReturnCallback(function (string $event, array $context) use (&$dispatched, $savedRecommendation): array {
+                    $dispatched = true;
+                    $this->assertSame('Awards.RecommendationUpdateRequested', $event);
+                    $this->assertSame((int)$savedRecommendation->id, $context['recommendationId']);
+                    $this->assertArrayHasKey('data', $context);
+
+                    return [$this->successfulWorkflowDispatchResult([
+                        'recommendationId' => (int)$savedRecommendation->id,
+                    ])];
+                });
+
+            return $mock;
+        });
+        $this->mockServiceClean(RecommendationUpdateService::class, function () {
+            $mock = $this->createMock(RecommendationUpdateService::class);
+            $mock->expects($this->never())->method('update');
+
+            return $mock;
+        });
+
+        $this->post($this->recommendationsUrl('edit', [(string)$savedRecommendation->id]), [
+            'reason' => 'Updated through workflow',
+        ]);
+
+        $this->assertTrue($dispatched);
+        $this->assertRedirectContains('/awards/recommendations/view/' . $savedRecommendation->id);
+    }
+
+    public function testEditDispatchesReturnedFollowUpWorkflowWhenActive(): void
+    {
+        $this->ensureActiveWorkflow('awards-recommendation-updated');
+        $savedRecommendation = $this->createExistingRecommendation();
+
+        $events = [];
+        $this->mockServiceClean(TriggerDispatcher::class, function () use (&$events, $savedRecommendation) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->exactly(2))
+                ->method('dispatch')
+                ->willReturnCallback(function (string $event, array $context) use (&$events, $savedRecommendation): array {
+                    $events[] = $event;
+                    if ($event === 'Awards.RecommendationUpdateRequested') {
+                        $this->assertSame((int)$savedRecommendation->id, $context['recommendationId']);
+
+                        return [$this->successfulWorkflowDispatchResult([
+                            'recommendationId' => (int)$savedRecommendation->id,
+                            'eventName' => 'Awards.ExistingRecommendationApprovalRequested',
+                            'eventPayload' => [
+                                'recommendationId' => (int)$savedRecommendation->id,
+                                'restartReason' => 'award_changed',
+                                'cancelledRunIds' => [42],
+                            ],
+                        ])];
+                    }
+
+                    $this->assertSame('Awards.ExistingRecommendationApprovalRequested', $event);
+                    $this->assertSame((int)$savedRecommendation->id, $context['recommendationId']);
+                    $this->assertSame('award_changed', $context['restartReason']);
+                    $this->assertSame([42], $context['cancelledRunIds']);
+                    $this->assertArrayHasKey('actorId', $context);
+
+                    return [];
+                });
+
+            return $mock;
+        });
+        $this->mockServiceClean(RecommendationUpdateService::class, function () {
+            $mock = $this->createMock(RecommendationUpdateService::class);
+            $mock->expects($this->never())->method('update');
+
+            return $mock;
+        });
+
+        $this->post($this->recommendationsUrl('edit', [(string)$savedRecommendation->id]), [
+            'reason' => 'Updated through workflow',
+        ]);
+
+        $this->assertSame(
+            ['Awards.RecommendationUpdateRequested', 'Awards.ExistingRecommendationApprovalRequested'],
+            $events,
+        );
+        $this->assertRedirectContains('/awards/recommendations/view/' . $savedRecommendation->id);
+    }
+
+    public function testEditFromGridReturnsRenderedTurboStreamWhenActive(): void
+    {
+        $this->ensureActiveWorkflow('awards-recommendation-updated');
+        $savedRecommendation = $this->createExistingRecommendation();
+        $this->createActiveApprovalRun((int)$savedRecommendation->id);
+
+        $this->mockServiceClean(TriggerDispatcher::class, function () use ($savedRecommendation) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->once())
+                ->method('dispatch')
+                ->willReturnCallback(function (string $event, array $context) use ($savedRecommendation): array {
+                    $this->assertSame('Awards.RecommendationUpdateRequested', $event);
+                    $this->assertSame((int)$savedRecommendation->id, $context['recommendationId']);
+
+                    return [$this->successfulWorkflowDispatchResult([
+                        'recommendationId' => (int)$savedRecommendation->id,
+                    ])];
+                });
+
+            return $mock;
+        });
+        $this->mockServiceClean(RecommendationUpdateService::class, function () {
+            $mock = $this->createMock(RecommendationUpdateService::class);
+            $mock->expects($this->never())->method('update');
+
+            return $mock;
+        });
+
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'text/vnd.turbo-stream.html',
+            ],
+        ]);
+        $this->post($this->recommendationsUrl('edit', [(string)$savedRecommendation->id]), [
+            'reason' => 'Updated through workflow',
+            'page_context_url' => '/awards/recommendations',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains(
+            '<turbo-stream action="replace" target="recommendations-grid-row-' . $savedRecommendation->id . '"',
+        );
+        $this->assertResponseNotContains('target="recommendations-grid-table"');
+    }
+
+    public function testEditFromMemberSubmittedGridReturnsRowReplaceStream(): void
+    {
+        $this->ensureActiveWorkflow('awards-recommendation-updated');
+        $savedRecommendation = $this->createExistingRecommendation();
+
+        $this->mockServiceClean(TriggerDispatcher::class, function () use ($savedRecommendation) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->once())
+                ->method('dispatch')
+                ->willReturn([$this->successfulWorkflowDispatchResult([
+                    'recommendationId' => (int)$savedRecommendation->id,
+                ])]);
+
+            return $mock;
+        });
+        $this->mockServiceClean(RecommendationUpdateService::class, function () {
+            $mock = $this->createMock(RecommendationUpdateService::class);
+            $mock->expects($this->never())->method('update');
+
+            return $mock;
+        });
+
+        $memberId = (int)$savedRecommendation->requester_id;
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'text/vnd.turbo-stream.html',
+            ],
+        ]);
+        $this->post($this->recommendationsUrl('edit', [(string)$savedRecommendation->id]), [
+            'reason' => 'Updated on member submitted grid',
+            'page_context_url' => '/members/view/' . $memberId . '?tab=member-submitted-recs',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains(
+            '<turbo-stream action="replace" target="member-submitted-recs-grid-' . $memberId . '-row-' . $savedRecommendation->id . '"',
+        );
+    }
+
+    public function testEditFromGridFallsBackToTableRefreshOutsideMainIndex(): void
+    {
+        $this->ensureActiveWorkflow('awards-recommendation-updated');
+        $savedRecommendation = $this->createExistingRecommendation();
+
+        $this->mockServiceClean(TriggerDispatcher::class, function () use ($savedRecommendation) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->once())
+                ->method('dispatch')
+                ->willReturn([$this->successfulWorkflowDispatchResult([
+                    'recommendationId' => (int)$savedRecommendation->id,
+                ])]);
+
+            return $mock;
+        });
+        $this->mockServiceClean(RecommendationUpdateService::class, function () {
+            $mock = $this->createMock(RecommendationUpdateService::class);
+            $mock->expects($this->never())->method('update');
+
+            return $mock;
+        });
+
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'text/vnd.turbo-stream.html',
+            ],
+        ]);
+        $this->post($this->recommendationsUrl('edit', [(string)$savedRecommendation->id]), [
+            'reason' => 'Updated through workflow',
+            'page_context_url' => '/awards/recommendations/table/draft',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('<turbo-stream action="replace" target="recommendations-grid-table"');
+    }
+
+    public function testWorkflowDecisionFromGridPreservesGridQueryOnRefresh(): void
+    {
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'text/vnd.turbo-stream.html',
+            ],
+        ]);
+        $this->post($this->recommendationsUrl('workflowDecisionFromGrid'), [
+            'approvalId' => '999999',
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'comment' => '',
+            'page_context_url' => '/awards/recommendations?sort=member_sca_name&direction=asc&search=needle',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('<turbo-stream action="replace" target="recommendations-grid-table"');
+        $this->assertResponseContains(
+            'src="/awards/recommendations/grid-data?sort=member_sca_name&amp;direction=asc&amp;search=needle"',
+        );
+    }
+
+    public function testRecommendationsIndexApprovalModalIncludesBestowalGatheringAutocomplete(): void
+    {
+        $this->get('/awards/recommendations');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('data-approval-response-target="bestowalGatheringSection"');
+        $this->assertResponseContains('/awards/bestowals/gatherings-for-bestowal-auto-complete');
+    }
+
+    public function testWorkflowDecisionFromGridAllowsAwardApprovalWithoutBestowalGathering(): void
+    {
+        $instanceId = $this->createWorkflowInstance('awards-existing-recommendation-approval');
+        $approvalId = $this->createPendingWorkflowApproval($instanceId, self::ADMIN_MEMBER_ID);
+
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'text/vnd.turbo-stream.html',
+            ],
+        ]);
+        $this->post($this->recommendationsUrl('workflowDecisionFromGrid'), [
+            'approvalId' => (string)$approvalId,
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'comment' => '',
+            'page_context_url' => '/awards/recommendations?search=needs-gathering',
+        ]);
+        $this->assertResponseOk();
+        $this->assertResponseOk();
+        $this->assertResponseContains(
+            'src="/awards/recommendations/grid-data?search=needs-gathering"',
+        );
+        $responses = $this->getTableLocator()->get('WorkflowApprovalResponses');
+        $this->assertSame(1, $responses->find()->where(['workflow_approval_id' => $approvalId])->count());
+    }
+
+    public function testEditFromGridWithoutTurboAcceptRedirectsToPageContext(): void
+    {
+        $this->ensureActiveWorkflow('awards-recommendation-updated');
+        $savedRecommendation = $this->createExistingRecommendation();
+
+        $this->mockServiceClean(TriggerDispatcher::class, function () use ($savedRecommendation) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->once())
+                ->method('dispatch')
+                ->willReturnCallback(function (string $event, array $context) use ($savedRecommendation): array {
+                    $this->assertSame('Awards.RecommendationUpdateRequested', $event);
+                    $this->assertSame((int)$savedRecommendation->id, $context['recommendationId']);
+
+                    return [$this->successfulWorkflowDispatchResult([
+                        'recommendationId' => (int)$savedRecommendation->id,
+                    ])];
+                });
+
+            return $mock;
+        });
+        $this->mockServiceClean(RecommendationUpdateService::class, function () {
+            $mock = $this->createMock(RecommendationUpdateService::class);
+            $mock->expects($this->never())->method('update');
+
+            return $mock;
+        });
+
+        $this->post($this->recommendationsUrl('edit', [(string)$savedRecommendation->id]), [
+            'reason' => 'Updated through workflow',
+            'page_context_url' => '/awards/recommendations?search=needle',
+        ]);
+
+        $this->assertRedirectContains('/awards/recommendations?search=needle');
+    }
+
+    public function testGroupRecommendationsFailWhenWorkflowInactive(): void
+    {
+        $this->deactivateWorkflows(['awards-recommendations-group']);
+        $head = $this->createExistingRecommendation();
+        $child = $this->createExistingRecommendation();
+
+        $this->mockServiceClean(RecommendationGroupingService::class, function () {
+            $mock = $this->createMock(RecommendationGroupingService::class);
+            $mock->expects($this->never())
+                ->method('groupRecommendations');
+
+            return $mock;
+        });
+        $this->mockServiceClean(TriggerDispatcher::class, function () {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->never())->method('dispatch');
+
+            return $mock;
+        });
+
+        $this->post($this->recommendationsUrl('groupRecommendations'), [
+            'recommendation_ids' => [(string)$head->id, (string)$child->id],
+        ]);
+
+        $this->assertFlashMessage('The recommendation workflow is not currently available.', 'flash');
+        $this->assertRedirectContains('/awards/recommendations');
+        $freshChild = $this->recommendations->get((int)$child->id);
+        $this->assertNull($freshChild->recommendation_group_id);
+    }
+
+    public function testGroupRecommendationsPreservesGridQueryOnTurboRefresh(): void
+    {
+        $this->ensureActiveWorkflow('awards-recommendations-group');
+        $head = $this->createExistingRecommendation();
+        $child = $this->createExistingRecommendation();
+
+        $this->mockServiceClean(TriggerDispatcher::class, function () use ($head, $child) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->once())
+                ->method('dispatch')
+                ->willReturnCallback(function (string $event, array $context) use ($head, $child): array {
+                    $this->assertSame('Awards.RecommendationsGroupRequested', $event);
+                    $this->assertSame([(int)$head->id, (int)$child->id], $context['recommendationIds']);
+
+                    return [$this->successfulWorkflowDispatchResult([
+                        'headId' => (int)$head->id,
+                        'childIds' => [(int)$child->id],
+                    ])];
+                });
+
+            return $mock;
+        });
+        $this->mockServiceClean(RecommendationGroupingService::class, function () {
+            $mock = $this->createMock(RecommendationGroupingService::class);
+            $mock->expects($this->never())
+                ->method('groupRecommendations');
+
+            return $mock;
+        });
+
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'text/vnd.turbo-stream.html',
+            ],
+        ]);
+        $this->post($this->recommendationsUrl('groupRecommendations'), [
+            'recommendation_ids' => [(string)$head->id, (string)$child->id],
+            'page_context_url' => '/awards/recommendations?view_id=sys-recs-all&sort=created&direction=desc',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('<turbo-stream action="replace" target="recommendations-grid-table"');
+        $this->assertResponseContains(
+            'src="/awards/recommendations/grid-data?view_id=sys-recs-all&amp;sort=created&amp;direction=desc"',
+        );
+    }
+
+    public function testRemoveFromGroupDispatchesWorkflowWhenActive(): void
+    {
+        $this->ensureActiveWorkflow('awards-recommendation-remove-from-group');
+        $recommendation = $this->createExistingRecommendation();
+
+        $dispatched = false;
+        $this->mockServiceClean(TriggerDispatcher::class, function () use (&$dispatched, $recommendation) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->once())
+                ->method('dispatch')
+                ->willReturnCallback(function (string $event, array $context) use (&$dispatched, $recommendation): array {
+                    $dispatched = true;
+                    $this->assertSame('Awards.RecommendationRemoveFromGroupRequested', $event);
+                    $this->assertSame((int)$recommendation->id, $context['recommendationId']);
+
+                    return [$this->successfulWorkflowDispatchResult([
+                        'recommendationId' => (int)$recommendation->id,
+                        'formerHeadId' => 77,
+                    ])];
+                });
+
+            return $mock;
+        });
+        $this->mockServiceClean(RecommendationGroupingService::class, function () {
+            $mock = $this->createMock(RecommendationGroupingService::class);
+            $mock->expects($this->never())->method('removeFromGroup');
+
+            return $mock;
+        });
+
+        $this->post($this->recommendationsUrl('removeFromGroup'), [
+            'recommendation_id' => (string)$recommendation->id,
+        ]);
+
+        $this->assertTrue($dispatched);
+        $this->assertRedirectContains('/awards/recommendations/view/77');
+    }
+
+    public function testDeleteDispatchesWorkflowWhenActive(): void
+    {
+        $this->ensureActiveWorkflow('awards-recommendation-deleted');
+        $recommendation = $this->createExistingRecommendation();
+
+        $dispatched = false;
+        $this->mockServiceClean(TriggerDispatcher::class, function () use (&$dispatched, $recommendation) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->once())
+                ->method('dispatch')
+                ->willReturnCallback(function (string $event, array $context) use (&$dispatched, $recommendation): array {
+                    $dispatched = true;
+                    $this->assertSame('Awards.RecommendationDeleteRequested', $event);
+                    $this->assertSame((int)$recommendation->id, $context['recommendationId']);
+
+                    return [$this->successfulWorkflowDispatchResult([
+                        'recommendationId' => (int)$recommendation->id,
+                        'restoredChildCount' => 0,
+                    ])];
+                });
+
+            return $mock;
+        });
+
+        $this->post($this->recommendationsUrl('delete', [(string)$recommendation->id]));
+
+        $this->assertTrue($dispatched);
+        $this->assertFlashMessage('The recommendation has been deleted.', 'flash');
+        $this->assertRedirectContains('/awards/recommendations');
+    }
+
+    public function testDeleteFailsWhenWorkflowInactive(): void
+    {
+        $this->deactivateWorkflows(['awards-recommendation-deleted']);
+        $recommendation = $this->createExistingRecommendation();
+
+        $this->mockServiceClean(TriggerDispatcher::class, function () {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->never())->method('dispatch');
+
+            return $mock;
+        });
+
+        $this->post($this->recommendationsUrl('delete', [(string)$recommendation->id]));
+
+        $this->assertFlashMessage('The recommendation workflow is not currently available.', 'flash');
+        $this->assertRedirectContains('/awards/recommendations');
+        $this->assertNotNull($this->recommendations->get((int)$recommendation->id)->id);
+    }
+
+    /**
+     * Mock a service and clear its stale DI constructor arguments.
+     */
+    private function mockServiceClean(string $class, Closure $factory): void
+    {
+        if ($class !== TriggerDispatcher::class) {
+            $this->mockService($class, $factory);
+
+            return;
+        }
+
+        $dispatcher = $factory();
+        $engine = $this->createMock(WorkflowEngineInterface::class);
+        $engine->method('dispatchTrigger')
+            ->willReturnCallback(
+                fn(string $eventName, array $eventData = [], ?int $triggeredBy = null): array => $dispatcher->dispatch(
+                    $eventName,
+                    $eventData,
+                    $triggeredBy,
+                ),
+            );
+        $this->mockService(WorkflowEngineInterface::class, static fn() => $engine);
+    }
+
+    private function ensureActiveWorkflow(string $slug): void
+    {
+        $definition = $this->workflowDefinitions->find()->where(['slug' => $slug])->first();
+
+        if (!$definition) {
+            $definition = $this->workflowDefinitions->newEntity([
+                'name' => "Test {$slug}",
+                'slug' => $slug,
+                'description' => "Test workflow for {$slug}",
+                'trigger_type' => 'event',
+                'is_active' => true,
+                'created_by' => self::ADMIN_MEMBER_ID,
+                'modified_by' => self::ADMIN_MEMBER_ID,
+            ]);
+            $this->workflowDefinitions->saveOrFail($definition);
+        }
+
+        if (!$definition->current_version_id) {
+            $version = $this->workflowVersions->newEntity([
+                'workflow_definition_id' => $definition->id,
+                'version_number' => 1,
+                'status' => 'published',
+                'definition' => ['nodes' => [], 'edges' => []],
+                'created_by' => self::ADMIN_MEMBER_ID,
+                'modified_by' => self::ADMIN_MEMBER_ID,
+            ]);
+            $this->workflowVersions->saveOrFail($version);
+            $definition->current_version_id = $version->id;
+        }
+
+        $definition->is_active = true;
+        $this->workflowDefinitions->saveOrFail($definition);
+    }
+
+    /**
+     * @param array<int, string> $slugs
+     */
+    private function deactivateWorkflows(array $slugs): void
+    {
+        $this->workflowDefinitions->updateAll(['is_active' => false], ['slug IN' => $slugs]);
+    }
+
+    private function recommendationsUrl(string $action, array $pass = []): string
+    {
+        $suffix = $pass === [] ? '' : '/' . implode('/', $pass);
+
+        return match ($action) {
+            'add' => '/awards/recommendations/add',
+            'edit' => '/awards/recommendations/edit' . $suffix,
+            'submitRecommendation' => '/awards/recommendations/submit-recommendation',
+            'workflowDecisionFromGrid' => '/awards/recommendations/workflow-decision-from-grid',
+            'groupRecommendations' => '/awards/recommendations/group-recommendations',
+            'removeFromGroup' => '/awards/recommendations/remove-from-group',
+            'delete' => '/awards/recommendations/delete' . $suffix,
+            default => throw new InvalidArgumentException("Unsupported recommendations action {$action}"),
+        };
+    }
+
+    private function createExistingRecommendation(): Recommendation
+    {
+        $member = $this->members->get(self::ADMIN_MEMBER_ID);
+        $award = $this->awards->find()->select(['id'])->firstOrFail();
+        $statuses = Recommendation::getStatuses();
+        $status = array_key_first($statuses);
+        $state = $statuses[$status][0];
+
+        $recommendation = $this->recommendations->newEntity([
+            'requester_id' => (int)$member->id,
+            'member_id' => (int)$member->id,
+            'branch_id' => (int)$member->branch_id,
+            'award_id' => (int)$award->id,
+            'status' => $status,
+            'state' => $state,
+            'state_date' => DateTime::now(),
+            'requester_sca_name' => (string)$member->sca_name,
+            'member_sca_name' => (string)$member->sca_name,
+            'contact_email' => (string)$member->email_address,
+            'contact_number' => (string)($member->phone_number ?? ''),
+            'reason' => 'Workflow dispatch integration test',
+            'call_into_court' => 'Not Set',
+            'court_availability' => 'Not Set',
+            'person_to_notify' => '',
+            'not_found' => false,
+        ]);
+
+        return $this->recommendations->saveOrFail($recommendation);
+    }
+
+    private function createActiveApprovalRun(int $recommendationId): RecommendationApprovalRun
+    {
+        $approvalProcesses = $this->getTableLocator()->get('Awards.ApprovalProcesses');
+        $approvalProcess = $approvalProcesses->find()->select(['id'])->first();
+        if ($approvalProcess === null) {
+            $approvalProcess = $approvalProcesses->saveOrFail($approvalProcesses->newEntity([
+                'name' => 'Workflow Dispatch Test Process',
+                'description' => 'Seeded by workflow dispatch integration test.',
+                'is_active' => true,
+            ]));
+        }
+        $runs = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns');
+
+        return $runs->saveOrFail($runs->newEntity([
+            'recommendation_id' => $recommendationId,
+            'approval_process_id' => (int)$approvalProcess->id,
+            'workflow_instance_id' => $this->createWorkflowInstance(),
+            'status' => RecommendationApprovalRun::STATUS_IN_PROGRESS,
+            'current_step_key' => 'approval',
+            'current_step_label' => 'Approval',
+            'started' => DateTime::now(),
+        ]));
+    }
+
+    private function createWorkflowInstance(?string $slug = null): int
+    {
+        $definition = null;
+        if ($slug !== null) {
+            $definition = $this->workflowDefinitions->find()->where(['slug' => $slug])->first();
+        }
+        if ($definition === null) {
+            $definition = $this->workflowDefinitions->saveOrFail($this->workflowDefinitions->newEntity([
+                'name' => 'Recommendation Grid Sync Workflow ' . uniqid('', true),
+                'slug' => $slug ?? 'recommendation-grid-sync-workflow-' . uniqid(),
+                'trigger_type' => 'manual',
+                'is_active' => true,
+            ]));
+        }
+        $version = null;
+        if (!empty($definition->current_version_id)) {
+            $version = $this->workflowVersions->get((int)$definition->current_version_id);
+        }
+        if ($version === null) {
+            $version = $this->workflowVersions->saveOrFail($this->workflowVersions->newEntity([
+                'workflow_definition_id' => $definition->id,
+                'version_number' => 1,
+                'definition' => [
+                    'nodes' => [
+                        'trigger' => ['type' => 'trigger', 'outputs' => [['target' => 'end']]],
+                        'end' => ['type' => 'end', 'outputs' => []],
+                    ],
+                ],
+                'status' => 'published',
+            ]));
+        }
+        $instances = $this->getTableLocator()->get('WorkflowInstances');
+        $instance = $instances->saveOrFail($instances->newEntity([
+            'workflow_definition_id' => $definition->id,
+            'workflow_version_id' => $version->id,
+            'status' => WorkflowInstance::STATUS_RUNNING,
+            'context' => [],
+            'started' => DateTime::now(),
+        ]));
+
+        return (int)$instance->id;
+    }
+
+    private function createPendingWorkflowApproval(int $workflowInstanceId, int $memberId): int
+    {
+        $logs = $this->getTableLocator()->get('WorkflowExecutionLogs');
+        $log = $logs->saveOrFail($logs->newEntity([
+            'workflow_instance_id' => $workflowInstanceId,
+            'node_id' => 'award-approval-gate',
+            'node_type' => 'approval',
+            'status' => 'waiting',
+        ]));
+
+        $approvals = $this->getTableLocator()->get('WorkflowApprovals');
+        $approval = $approvals->saveOrFail($approvals->newEntity([
+            'workflow_instance_id' => $workflowInstanceId,
+            'node_id' => 'award-approval-gate',
+            'execution_log_id' => (int)$log->id,
+            'approver_type' => WorkflowApproval::APPROVER_TYPE_MEMBER,
+            'approver_config' => ['member_id' => $memberId],
+            'required_count' => 1,
+            'approved_count' => 0,
+            'rejected_count' => 0,
+            'status' => WorkflowApproval::STATUS_PENDING,
+            'allow_parallel' => false,
+            'version' => 1,
+        ]));
+
+        return (int)$approval->id;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function successfulLegacyMutationResult(Recommendation $recommendation): array
+    {
+        return [
+            'success' => true,
+            'recommendation' => $recommendation,
+            'output' => [
+                'recommendationId' => (int)$recommendation->id,
+            ],
+            'eventName' => null,
+            'eventPayload' => null,
+            'errorCode' => null,
+            'message' => null,
+            'errors' => [],
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function successfulWorkflowDispatchResult(array $data): ServiceResult
+    {
+        return new ServiceResult(true, null, [
+            'workflowResult' => [
+                'success' => true,
+                'data' => $data,
+            ],
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildAuthenticatedSubmissionData(): array
+    {
+        $member = $this->members->get(self::TEST_MEMBER_AGATHA_ID, select: ['public_id', 'sca_name']);
+        $award = $this->awards->find()->select(['id'])->firstOrFail();
+
+        return [
+            'award_id' => (int)$award->id,
+            'member_sca_name' => (string)$member->sca_name,
+            'member_public_id' => (string)$member->public_id,
+            'reason' => 'Workflow dispatch integration test',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildPublicSubmissionData(): array
+    {
+        $award = $this->awards->find()->select(['id'])->firstOrFail();
+
+        return [
+            'requester_sca_name' => 'Guest Requester',
+            'contact_email' => 'guest@example.com',
+            'contact_number' => '555-1212',
+            'member_sca_name' => 'Unknown Candidate',
+            'branch_id' => self::TEST_BRANCH_STARGATE_ID,
+            'award_id' => (int)$award->id,
+            'reason' => 'Guest workflow dispatch integration test',
+            'not_found' => 'on',
+        ];
+    }
+}

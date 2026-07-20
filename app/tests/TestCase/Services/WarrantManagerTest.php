@@ -8,6 +8,7 @@ use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Services\ServiceResult;
 use App\Services\WarrantManager\DefaultWarrantManager;
 use App\Services\WarrantManager\WarrantRequest;
+use App\Services\WorkflowEngine\TriggerDispatcher;
 use App\Test\TestCase\BaseTestCase;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
@@ -18,6 +19,17 @@ class WarrantManagerTest extends BaseTestCase
     {
         parent::setUp();
         $this->skipIfPostgres();
+    }
+
+    /**
+     * Create a DefaultWarrantManager with mock dependencies.
+     */
+    private function createWarrantManager(?ActiveWindowManagerInterface $activeWindowManager = null): DefaultWarrantManager
+    {
+        $activeWindowManager ??= $this->createMock(ActiveWindowManagerInterface::class);
+        $triggerDispatcher = $this->createMock(TriggerDispatcher::class);
+
+        return new DefaultWarrantManager($activeWindowManager, $triggerDispatcher);
     }
 
     // =========================================
@@ -89,10 +101,7 @@ class WarrantManagerTest extends BaseTestCase
 
     public function testGetWarrantPeriodReturnsNullForFarFutureDates(): void
     {
-        $activeWindowManager = $this->createMock(
-            ActiveWindowManagerInterface::class,
-        );
-        $manager = new DefaultWarrantManager($activeWindowManager);
+        $manager = $this->createWarrantManager();
 
         // Use dates far in the future that won't have a warrant period
         $farFuture = new DateTime('2099-01-01');
@@ -102,10 +111,7 @@ class WarrantManagerTest extends BaseTestCase
 
     public function testGetWarrantPeriodReturnsEntityForValidDates(): void
     {
-        $activeWindowManager = $this->createMock(
-            ActiveWindowManagerInterface::class,
-        );
-        $manager = new DefaultWarrantManager($activeWindowManager);
+        $manager = $this->createWarrantManager();
 
         // Check if warrant periods exist in seed data
         $warrantPeriodTable = TableRegistry::getTableLocator()->get('WarrantPeriods');
@@ -127,10 +133,7 @@ class WarrantManagerTest extends BaseTestCase
 
     public function testGetWarrantPeriodRespectsEndOnConstraint(): void
     {
-        $activeWindowManager = $this->createMock(
-            ActiveWindowManagerInterface::class,
-        );
-        $manager = new DefaultWarrantManager($activeWindowManager);
+        $manager = $this->createWarrantManager();
 
         $warrantPeriodTable = TableRegistry::getTableLocator()->get('WarrantPeriods');
         $currentPeriod = $warrantPeriodTable->find()
@@ -152,10 +155,7 @@ class WarrantManagerTest extends BaseTestCase
 
     public function testDeclineRejectsNonPendingRoster(): void
     {
-        $activeWindowManager = $this->createMock(
-            ActiveWindowManagerInterface::class,
-        );
-        $manager = new DefaultWarrantManager($activeWindowManager);
+        $manager = $this->createWarrantManager();
 
         // Find a non-pending roster (approved or declined)
         $warrantRosterTable = TableRegistry::getTableLocator()->get('WarrantRosters');
@@ -172,33 +172,9 @@ class WarrantManagerTest extends BaseTestCase
         $this->assertFalse($result->isSuccess());
     }
 
-    public function testApproveRejectsNonPendingRoster(): void
-    {
-        $activeWindowManager = $this->createMock(
-            ActiveWindowManagerInterface::class,
-        );
-        $manager = new DefaultWarrantManager($activeWindowManager);
-
-        $warrantRosterTable = TableRegistry::getTableLocator()->get('WarrantRosters');
-        $nonPendingRoster = $warrantRosterTable->find()
-            ->where(['status !=' => 'Pending'])
-            ->first();
-
-        if ($nonPendingRoster === null) {
-            $this->markTestSkipped('No non-pending warrant rosters in seed data');
-        }
-
-        $result = $manager->approve($nonPendingRoster->id, self::ADMIN_MEMBER_ID);
-        $this->assertInstanceOf(ServiceResult::class, $result);
-        $this->assertFalse($result->isSuccess());
-    }
-
     public function testCancelNonExistentWarrantReturnsSuccess(): void
     {
-        $activeWindowManager = $this->createMock(
-            ActiveWindowManagerInterface::class,
-        );
-        $manager = new DefaultWarrantManager($activeWindowManager);
+        $manager = $this->createWarrantManager();
 
         // cancel() returns success for non-existent warrants
         // But it does a get() which throws, so let's test cancelByEntity instead
@@ -215,10 +191,7 @@ class WarrantManagerTest extends BaseTestCase
 
     public function testRequestReturnsServiceResult(): void
     {
-        $activeWindowManager = $this->createMock(
-            ActiveWindowManagerInterface::class,
-        );
-        $manager = new DefaultWarrantManager($activeWindowManager);
+        $manager = $this->createWarrantManager();
 
         // Test with a member that is not warrantable - should fail gracefully
         $warrantPeriodTable = TableRegistry::getTableLocator()->get('WarrantPeriods');

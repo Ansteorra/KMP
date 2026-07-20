@@ -11,6 +11,7 @@
  * @var array $gridState Grid state object
  * @var string $tableFrameId Table frame ID
  * @var int $member_id Member ID for action buttons
+ * @var array $columns Full column metadata catalog (table-frame reloads omit gridState columns.all)
  */
 
 $currentViewId = $gridState['view']['currentId'] ?? 'current';
@@ -18,7 +19,8 @@ $isCurrentView = $currentViewId === 'current';
 $isPendingView = $currentViewId === 'pending';
 $isPreviousView = $currentViewId === 'previous';
 $visibleColumns = $gridState['columns']['visible'] ?? [];
-$allColumns = $gridState['columns']['all'] ?? [];
+// Table-frame responses omit columns.all from gridState; fall back to the $columns view var.
+$allColumns = $columns ?? $gridState['columns']['all'] ?? [];
 $hasActions = $isCurrentView || $isPendingView;
 ?>
 
@@ -35,7 +37,7 @@ $hasActions = $isCurrentView || $isPendingView;
                 <?php endif; ?>
                 <?php endforeach; ?>
                 <?php if ($hasActions): ?>
-                <th scope="col" class="actions"></th>
+                <th scope="col" class="actions"><span class="visually-hidden"><?= __('Actions') ?></span></th>
                 <?php endif; ?>
             </tr>
         </thead>
@@ -128,7 +130,11 @@ $hasActions = $isCurrentView || $isPendingView;
                         'style' => 'display:inline;',
                     ]) ?>
                     <button type="submit" class="btn-sm btn btn-warning retract-btn"
-                        onclick="return confirm('<?= h(__("Are you sure you want to retract this authorization request?")) ?>');">
+                        data-controller="confirmation"
+                        data-action="confirmation#confirm"
+                        data-confirmation-message-value="<?= h(__('Are you sure you want to retract this authorization request?')) ?>"
+                        data-confirmation-title-value="<?= h(__('Retract authorization request')) ?>"
+                        data-confirmation-confirm-label-value="<?= h(__('Retract')) ?>">
                         <?= __("Retract") ?>
                     </button>
                     <?= $this->Form->end() ?>

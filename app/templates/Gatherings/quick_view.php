@@ -155,7 +155,10 @@ $showAttendanceControls = isset($canAttend)
                     </div>
 
                     <button type="button" class="btn btn-outline-secondary btn-sm bi bi-clipboard"
-                        onclick='navigator.clipboard.writeText(<?= json_encode($gathering->location) ?>).then(() => alert(<?= json_encode(__(" Address copied to clipboard!")) ?>))'
+                        data-controller="clipboard"
+                        data-action="clipboard#copy"
+                        data-clipboard-text-value="<?= h($gathering->location) ?>"
+                        data-clipboard-success-message-value="<?= h(__('Address copied to clipboard!')) ?>"
                         title="<?= h(__('Copy address to clipboard')) ?>">
                         <?= __(' Copy Address') ?>
                     </button>
@@ -253,6 +256,16 @@ $showAttendanceControls = isset($canAttend)
 
         <!-- Action Buttons -->
         <div class="d-grid gap-2 d-md-flex justify-content-md-start mt-4 pt-3 border-top">
+            <?php if (!$isPastEvent && $gathering->is_preregistration_open): ?>
+                <a href="<?= h($gathering->preregister_url) ?>" target="_blank" rel="noopener"
+                    class="btn btn-warning fw-bold"
+                    title="<?= h(__('Pre-register and pay for this event (external site)')) ?>">
+                    <i class="bi bi-ticket-perforated"></i> Pre-Register
+                    <?php if ($gathering->preregister_closes_on !== null): ?>
+                        <small>(<?= __('until {0}', h($gathering->preregister_closes_on->format('M j'))) ?>)</small>
+                    <?php endif; ?>
+                </a>
+            <?php endif; ?>
             <?php if (!$isPastEvent): ?>
                 <?= $this->Html->link(
                     '<i class="bi bi-calendar-plus"></i> Add to Calendar',

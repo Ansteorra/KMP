@@ -3,11 +3,11 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\KMP\StaticHelpers;
 use Cake\Command\Command;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
+use Cake\Core\Configure;
 use Cake\Datasource\ConnectionManager;
 use Exception;
 use PDO;
@@ -41,11 +41,11 @@ class ResetDatabaseCommand extends Command
     public function execute(Arguments $args, ConsoleIo $io): ?int
     {
         //Database reset is only valid in Dev.. SUPER dangerous in production!!!
-        $isDebug = StaticHelpers::getAppSetting('debug', 'false');
-        if (!$isDebug && $isDebug !== 'false') {
+        $isDebug = (bool)Configure::read('debug');
+        if (!$isDebug) {
             $io->error('Cannot reset database when not in debug.');
 
-            return null;
+            return Command::CODE_ERROR;
         }
 
         $db = ConnectionManager::get('default');
@@ -61,6 +61,22 @@ class ResetDatabaseCommand extends Command
             $remainingTables = true;
             $maxAttempts = 30; // Prevent infinite loops
             $attempts = 0;
+
+            // Disable foreign key checks for MySQL/MariaDB to handle circular dependencies
+            if (stripos($driverName, 'mysql') !== false) {
+                $db->execute('SET FOREIGN_KEY_CHECKS = 0');
+            }
+
+            if (stripos($driverName, 'postgres') !== false) {
+                $io->out('Dropping and recreating public schema.');
+                $db->execute('DROP SCHEMA IF EXISTS public CASCADE');
+                $db->execute('CREATE SCHEMA public');
+                $db->execute('GRANT ALL ON SCHEMA public TO CURRENT_USER');
+                $db->execute('GRANT ALL ON SCHEMA public TO public');
+                $io->success('Database reset.');
+
+                return Command::CODE_SUCCESS;
+            }
 
             // Keep trying to drop tables until all are gone
             while ($remainingTables && $attempts < $maxAttempts) {
@@ -123,14 +139,21 @@ class ResetDatabaseCommand extends Command
             }
 
             if ($remainingTables) {
-                $io->warning("Could not drop all tables after $maxAttempts attempts.");
+                $io->error("Could not drop all tables after $maxAttempts attempts.");
 
-                return null;
+                return Command::CODE_ERROR;
+            }
+
+            // Re-enable foreign key checks
+            if (stripos($driverName, 'mysql') !== false) {
+                $db->execute('SET FOREIGN_KEY_CHECKS = 1');
             }
 
             $io->success('Database reset.');
         } catch (Exception $e) {
             $io->error('Error resetting database: ' . $e->getMessage());
+
+            return Command::CODE_ERROR;
         }
 
         return Command::CODE_SUCCESS;

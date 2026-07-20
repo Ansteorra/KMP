@@ -1,29 +1,27 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Awards\Model\Table;
 
-use App\KMP\StaticHelpers;
+use App\Model\Table\BaseTable;
+use ArrayObject;
 use Awards\Model\Entity\Recommendation;
+use Awards\Model\Entity\RecommendationApprovalRun;
 use Cake\Datasource\EntityInterface;
 use Cake\Event\EventInterface;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
-use Cake\ORM\Table;
 use Cake\Validation\Validator;
-use Cake\ORM\TableRegistry;
-use App\Model\Table\BaseTable;
 
 /**
- * Manages award recommendations with complex state machine and workflow management.
- * 
- * Handles complete recommendation lifecycle from submission through approval to presentation.
- * Implements automated state logging via afterSave() hooks and supports both authenticated
- * and guest recommendation workflows.
- * 
+ * Manages award recommendations and their workflow-facing persistence rules.
+ *
+ * Handles the core recommendation record, associations, validation, and field-level
+ * persistence constraints. Workflow mutation services own audit logging, grouping
+ * side effects, and delete orchestration.
+ *
  * See /docs/5.2.4-awards-recommendations-table.md for complete documentation.
- * 
+ *
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Requesters
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Members
  * @property \Awards\Model\Table\EventsTable&\Cake\ORM\Association\BelongsTo $ScheduledEvent
@@ -32,12 +30,12 @@ use App\Model\Table\BaseTable;
  * @property \Awards\Model\Table\EventsTable&\Cake\ORM\Association\BelongsToMany $Events
  * @property \Awards\Model\Table\EventsTable&\Cake\ORM\Association\BelongsTo $AssignedEvent
  * @property \App\Model\Table\NotesTable&\Cake\ORM\Association\HasMany $Notes
+ * @property \Awards\Model\Table\BestowalsTable&\Cake\ORM\Association\BelongsTo $Bestowals
+ * @property \Awards\Model\Table\RecommendationApprovalRunsTable&\Cake\ORM\Association\HasOne $CurrentApprovalRun
  * @property \Awards\Model\Table\RecommendationsStatesLogsTable&\Cake\ORM\Association\HasMany $RecommendationStateLogs
  * @property \Cake\ORM\Behavior\TimestampBehavior&\Cake\ORM\Behavior $Timestamp
  * @property \Muffin\Footprint\Model\Behavior\FootprintBehavior&\Cake\ORM\Behavior $Footprint
  * @property \Muffin\Trash\Model\Behavior\TrashBehavior&\Cake\ORM\Behavior $Trash
- * @property \Cake\ORM\Behavior\Sortable\SortableBehavior&\Cake\ORM\Behavior $Sortable
- *
  * @method \Awards\Model\Entity\Recommendation newEmptyEntity()
  * @method \Awards\Model\Entity\Recommendation newEntity(array $data, array $options = [])
  * @method array<\Awards\Model\Entity\Recommendation> newEntities(array $data, array $options = [])
@@ -51,7 +49,6 @@ use App\Model\Table\BaseTable;
  * @method iterable<\Awards\Model\Entity\Recommendation>|\Cake\Datasource\ResultSetInterface<\Awards\Model\Entity\Recommendation> saveManyOrFail(iterable $entities, array $options = [])
  * @method iterable<\Awards\Model\Entity\Recommendation>|\Cake\Datasource\ResultSetInterface<\Awards\Model\Entity\Recommendation>|false deleteMany(iterable $entities, array $options = [])
  * @method iterable<\Awards\Model\Entity\Recommendation>|\Cake\Datasource\ResultSetInterface<\Awards\Model\Entity\Recommendation> deleteManyOrFail(iterable $entities, array $options = [])
- *
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
  */
 class RecommendationsTable extends BaseTable
@@ -59,7 +56,7 @@ class RecommendationsTable extends BaseTable
     /**
      * Configure the Recommendations table: table name, display/primary fields, behaviors, and associations.
      *
-     * Sets the database table and primary/display fields, attaches timestamp, footprint, trash, and sortable
+     * Sets the database table and primary/display fields, attaches timestamp, footprint, and trash
      * behaviors, and defines associations used for member links, awards, events/gatherings, notes, and state logs.
      *
      * @param array<string,mixed> $config Table configuration options.
@@ -73,12 +70,9 @@ class RecommendationsTable extends BaseTable
         $this->setDisplayField('member_sca_name');
         $this->setPrimaryKey('id');
 
-        $this->addBehavior("Timestamp");
+        $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
-        $this->addBehavior("Muffin/Trash.Trash");
-        $this->addBehavior("Sortable", [
-            'field' => 'stack_rank',
-        ]);
+        $this->addBehavior('Muffin/Trash.Trash');
 
         $this->belongsTo('Requesters', [
             'foreignKey' => 'requester_id',
@@ -104,36 +98,66 @@ class RecommendationsTable extends BaseTable
             'joinType' => 'INNER',
             'className' => 'Awards.Awards',
         ]);
-        $this->belongsToMany("Events", [
-            "joinTable" => "awards_recommendations_events",
-            "foreignKey" => "recommendation_id",
-            "targetForeignKey" => "event_id",
-            "className" => "Awards.Events",
+        $this->belongsTo('Bestowals', [
+            'foreignKey' => 'bestowal_id',
+            'joinType' => 'LEFT',
+            'className' => 'Awards.Bestowals',
         ]);
-        $this->belongsToMany("Gatherings", [
-            "joinTable" => "awards_recommendations_events",
-            "foreignKey" => "recommendation_id",
-            "targetForeignKey" => "gathering_id",
-            "className" => "Gatherings",
+        $this->hasOne('CurrentApprovalRun', [
+            'foreignKey' => 'recommendation_id',
+            'joinType' => 'LEFT',
+            'className' => 'Awards.RecommendationApprovalRuns',
+            'conditions' => [
+                'CurrentApprovalRun.status IN' => [
+                    RecommendationApprovalRun::STATUS_IN_PROGRESS,
+                    RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
+                ],
+            ],
+            'sort' => ['CurrentApprovalRun.id' => 'DESC'],
         ]);
-        $this->belongsTo("AssignedEvent", [
+        $this->belongsToMany('Events', [
+            'joinTable' => 'awards_recommendations_events',
+            'foreignKey' => 'recommendation_id',
+            'targetForeignKey' => 'event_id',
+            'className' => 'Awards.Events',
+        ]);
+        $this->belongsToMany('Gatherings', [
+            'joinTable' => 'awards_recommendations_events',
+            'foreignKey' => 'recommendation_id',
+            'targetForeignKey' => 'gathering_id',
+            'className' => 'Gatherings',
+        ]);
+        $this->belongsTo('AssignedEvent', [
             'foreignKey' => 'event_id',
             'joinType' => 'LEFT',
-            "className" => "Awards.Events",
+            'className' => 'Awards.Events',
         ]);
-        $this->belongsTo("AssignedGathering", [
+        $this->belongsTo('AssignedGathering', [
             'foreignKey' => 'gathering_id',
             'joinType' => 'LEFT',
-            "className" => "Gatherings",
+            'className' => 'Gatherings',
         ]);
-        $this->hasMany("Notes", [
-            "foreignKey" => "entity_id",
-            "className" => "Notes",
-            "conditions" => ["Notes.entity_type" => "Awards.Recommendations"],
+        $this->belongsTo('GroupHead', [
+            'foreignKey' => 'recommendation_group_id',
+            'joinType' => 'LEFT',
+            'className' => 'Awards.Recommendations',
         ]);
-        $this->hasMany("RecommendationStateLogs", [
-            "foreignKey" => "recommendation_id",
-            "className" => "Awards.RecommendationsStatesLog",
+        $this->hasMany('GroupChildren', [
+            'foreignKey' => 'recommendation_group_id',
+            'className' => 'Awards.Recommendations',
+        ]);
+        $this->hasMany('Notes', [
+            'foreignKey' => 'entity_id',
+            'className' => 'Notes',
+            'conditions' => ['Notes.entity_type' => 'Awards.Recommendations'],
+        ]);
+        $this->hasMany('FeedbackRequestItems', [
+            'foreignKey' => 'recommendation_id',
+            'className' => 'Awards.RecommendationFeedbackRequestItems',
+        ]);
+        $this->hasMany('RecommendationStateLogs', [
+            'foreignKey' => 'recommendation_id',
+            'className' => 'Awards.RecommendationsStatesLog',
         ]);
     }
 
@@ -156,6 +180,10 @@ class RecommendationsTable extends BaseTable
         $validator
             ->integer('branch_id')
             ->allowEmptyString('branch_id');
+
+        $validator
+            ->integer('bestowal_id')
+            ->allowEmptyString('bestowal_id');
 
         $validator
             ->integer('award_id')
@@ -202,7 +230,6 @@ class RecommendationsTable extends BaseTable
             ->dateTime('deleted')
             ->allowEmptyDateTime('deleted');
 
-
         $validator
             ->date('given')
             ->allowEmptyDate('given');
@@ -222,6 +249,7 @@ class RecommendationsTable extends BaseTable
         $rules->add($rules->existsIn(['member_id'], 'Members'), ['errorField' => 'member_id']);
         $rules->add($rules->existsIn(['branch_id'], 'Branches'), ['errorField' => 'branch_id']);
         $rules->add($rules->existsIn(['award_id'], 'Awards'), ['errorField' => 'award_id']);
+        $rules->add($rules->existsIn(['bestowal_id'], 'Bestowals'), ['errorField' => 'bestowal_id']);
         $rules->add(
             fn(EntityInterface $entity) => $this->isAwardSelectableForRecommendation($entity),
             'awardSelection',
@@ -271,9 +299,19 @@ class RecommendationsTable extends BaseTable
      * @param \ArrayObject $options Save operation options.
      * @return void
      */
-    public function beforeSave(EventInterface $event, EntityInterface $entity, \ArrayObject $options): void
+    public function beforeSave(EventInterface $event, EntityInterface $entity, ArrayObject $options): void
     {
         if (!$entity instanceof Recommendation) {
+            return;
+        }
+
+        if ($this->shouldRejectLockedUserChange($entity, $options)) {
+            $event->stopPropagation();
+            $event->setResult(false);
+            $entity->setError('_locked', [
+                'bestowalLocked' => 'This recommendation is linked to a bestowal and cannot be edited here.',
+            ]);
+
             return;
         }
 
@@ -284,37 +322,30 @@ class RecommendationsTable extends BaseTable
     }
 
     /**
-     * After save lifecycle hook for automated state change logging.
+     * Whether a user-initiated save should be rejected due to bestowal lock.
      *
-     * @param bool $created Whether the entity was created (true) or updated (false)
-     * @param \Cake\Datasource\EntityInterface $entity The recommendation entity that was saved
-     * @param \ArrayObject $options Save operation options and configuration
-     * @return void
+     * @param \Awards\Model\Entity\Recommendation $entity Recommendation being saved
+     * @param \ArrayObject $options Save operation options
+     * @return bool
      */
-    public function afterSave($created, $entity, $options): void
+    protected function shouldRejectLockedUserChange(Recommendation $entity, ArrayObject $options): bool
     {
-        //check if the state is marked dirty in the entity->dirty array
-        if ($entity->isDirty('state')) {
-            $this->logStateChange($entity);
+        if (!empty($options['systemSync'])) {
+            return false;
         }
-    }
-    /**
-     * Create audit trail record for state transitions.
-     *
-     * @param \Cake\Datasource\EntityInterface $entity The recommendation entity with state changes
-     * @return void
-     */
-    protected function logStateChange($entity)
-    {
-        $logTbl = TableRegistry::getTableLocator()->get('Awards.RecommendationsStatesLogs');
-        $log = $logTbl->newEmptyEntity();
-        $log->recommendation_id = $entity->id;
-        $log->to_state = $entity->state;
-        $log->to_status = $entity->status;
-        $log->from_status = $entity->beforeStatus ? $entity->beforeStatus : "New";
-        $log->from_state = $entity->beforeState ? $entity->beforeState : "New";
-        $log->created_by = $entity->modified_by;
-        $logTbl->save($log);
+
+        if (!$entity->isLockedByBestowal() || !$entity->isDirty()) {
+            return false;
+        }
+
+        $allowedDirtyFields = ['modified', 'modified_by'];
+        foreach (array_keys($entity->getDirty()) as $field) {
+            if (!in_array($field, $allowedDirtyFields, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -325,7 +356,7 @@ class RecommendationsTable extends BaseTable
      * is returned unchanged.
      *
      * @param \Cake\ORM\Query\SelectQuery $query The query to modify.
-     * @param int[] $branchIDs Array of branch IDs to restrict Awards.branch_id to.
+     * @param array<int> $branchIDs Array of branch IDs to restrict Awards.branch_id to.
      * @return \Cake\ORM\Query\SelectQuery The query with branch filtering applied.
      */
     public function addBranchScopeQuery($query, $branchIDs): SelectQuery
@@ -334,8 +365,9 @@ class RecommendationsTable extends BaseTable
             return $query;
         }
         $query = $query->where([
-            "Awards.branch_id IN" => $branchIDs,
+            'Awards.branch_id IN' => $branchIDs,
         ]);
+
         return $query;
     }
 }

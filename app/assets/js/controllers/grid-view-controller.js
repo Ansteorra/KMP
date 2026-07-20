@@ -49,6 +49,9 @@ class GridViewController extends Controller {
         // Listen for Turbo Frame updates
         document.addEventListener('turbo:frame-load', this.boundHandleFrameLoad)
 
+        this.boundPopState = this.handlePopState.bind(this)
+        window.addEventListener('popstate', this.boundPopState)
+
         // Check if state is already present (inline rendered content)
         this.loadInlineState()
         this.setSearchBusy(false)
@@ -73,7 +76,7 @@ class GridViewController extends Controller {
 
         try {
             const stateJson = stateScript.textContent
-            this.state = JSON.parse(stateJson)
+            this.state = this.mergeStateWithPrevious(JSON.parse(stateJson))
             console.log('Grid state loaded from inline content:', this.state)
 
             // Update toolbar UI based on state
@@ -96,6 +99,19 @@ class GridViewController extends Controller {
             this.searchDebounceTimer = null
         }
         document.removeEventListener('turbo:frame-load', this.boundHandleFrameLoad)
+        if (this.boundPopState) {
+            window.removeEventListener('popstate', this.boundPopState)
+            this.boundPopState = null
+        }
+    }
+
+    /**
+     * Browser back/forward: sync table frame to URL without pushing history again.
+     */
+    handlePopState() {
+        const url = window.location.pathname + window.location.search
+        this.navigate(url, false, { updateHistory: false })
+        window.dispatchEvent(new CustomEvent('page-context:sync'))
     }
 
     /**
@@ -121,7 +137,7 @@ class GridViewController extends Controller {
 
             try {
                 const stateJson = stateScript.textContent
-                this.state = JSON.parse(stateJson)
+                this.state = this.mergeStateWithPrevious(JSON.parse(stateJson))
                 console.log('Grid state updated from table frame:', this.state)
 
                 // Update toolbar UI based on new state
@@ -142,6 +158,72 @@ class GridViewController extends Controller {
             // This happens when dv_grid_content renders with inline data (no nested src)
             this.loadInlineState()
         }
+    }
+
+    /**
+     * Preserve static metadata across table-only refreshes.
+     *
+     * @param {object} nextState
+     * @returns {object}
+     */
+    mergeStateWithPrevious(nextState) {
+        if (!this.state || !nextState || typeof nextState !== 'object') {
+            return nextState
+        }
+
+        const merged = { ...nextState }
+        const previousColumns = this.state.columns || {}
+        const nextColumns = merged.columns || {}
+        const previousVisibleColumns = Array.isArray(previousColumns.visible)
+            ? previousColumns.visible
+            : Object.values(previousColumns.visible || {})
+        const nextVisibleColumns = Array.isArray(nextColumns.visible)
+            ? nextColumns.visible
+            : Object.values(nextColumns.visible || {})
+        if (
+            (!nextColumns.all || Object.keys(nextColumns.all).length === 0)
+            && previousColumns.all
+            && Object.keys(previousColumns.all).length > 0
+        ) {
+            merged.columns = { ...nextColumns, all: previousColumns.all }
+        }
+        if (
+            nextVisibleColumns.length === 0
+            && previousVisibleColumns.length > 0
+        ) {
+            merged.columns = { ...(merged.columns || nextColumns), visible: previousVisibleColumns }
+        }
+
+        const previousView = this.state.view || {}
+        const nextView = merged.view || {}
+        if (
+            (!Array.isArray(nextView.available) || nextView.available.length === 0)
+            && Array.isArray(previousView.available)
+            && previousView.available.length > 0
+        ) {
+            merged.view = { ...nextView, available: previousView.available }
+        }
+
+        // Table-only refreshes (e.g. applying a filter) omit filterOptionsSource-derived
+        // dropdown options because filter metadata is only loaded on full page loads.
+        // Forward-merge the previously known available filters so source-based dropdowns
+        // (which would otherwise disappear and never return) keep their options; fresh
+        // active values and any re-sent definitions still win.
+        const previousFilters = this.state.filters || {}
+        const nextFilters = merged.filters || {}
+        const previousAvailable = previousFilters.available
+        if (previousAvailable && typeof previousAvailable === 'object') {
+            const nextAvailable =
+                nextFilters.available && typeof nextFilters.available === 'object'
+                    ? nextFilters.available
+                    : {}
+            merged.filters = {
+                ...nextFilters,
+                available: { ...previousAvailable, ...nextAvailable },
+            }
+        }
+
+        return merged
     }
 
     /**
@@ -314,8 +396,8 @@ class GridViewController extends Controller {
             const removeBtn = document.createElement('button')
             removeBtn.type = 'button'
             removeBtn.className = 'btn btn-link p-0 m-0 text-decoration-none d-flex align-items-center justify-content-center'
-            removeBtn.style.cssText = 'width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,0.1); color: #202223; font-size: 0.7rem; line-height: 1;'
-            removeBtn.setAttribute('aria-label', 'Remove filter')
+            removeBtn.style.cssText = 'width: 24px; height: 24px; min-width: 24px; min-height: 24px; border-radius: 50%; background: rgba(0,0,0,0.1); color: #202223; font-size: 0.7rem; line-height: 1;'
+            removeBtn.setAttribute('aria-label', `Remove filter ${columnLabel}: ${valueLabel}`)
             removeBtn.setAttribute('data-action', 'click->grid-view#removeFilter')
             removeBtn.setAttribute('data-filter-column', column)
             removeBtn.setAttribute('data-filter-value', value)
@@ -323,6 +405,7 @@ class GridViewController extends Controller {
             const icon = document.createElement('i')
             icon.className = 'bi bi-x'
             icon.style.cssText = 'font-size: 0.9rem; font-weight: bold;'
+            icon.setAttribute('aria-hidden', 'true')
             removeBtn.appendChild(icon)
 
             badge.appendChild(removeBtn)
@@ -433,13 +516,14 @@ class GridViewController extends Controller {
         const removeBtn = document.createElement('button')
         removeBtn.type = 'button'
         removeBtn.className = 'btn btn-link p-0 m-0 text-decoration-none d-flex align-items-center justify-content-center'
-        removeBtn.style.cssText = 'width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,0.1); color: #202223; font-size: 0.7rem; line-height: 1;'
+        removeBtn.style.cssText = 'width: 24px; height: 24px; min-width: 24px; min-height: 24px; border-radius: 50%; background: rgba(0,0,0,0.1); color: #202223; font-size: 0.7rem; line-height: 1;'
         removeBtn.setAttribute('aria-label', 'Remove search')
         removeBtn.setAttribute('data-action', 'click->grid-view#clearSearch')
 
         const icon = document.createElement('i')
         icon.className = 'bi bi-x'
         icon.style.cssText = 'font-size: 0.9rem; font-weight: bold;'
+        icon.setAttribute('aria-hidden', 'true')
         removeBtn.appendChild(icon)
 
         badge.appendChild(removeBtn)
@@ -512,9 +596,9 @@ class GridViewController extends Controller {
 
             if (activeValues !== undefined) {
                 if (Array.isArray(activeValues)) {
-                    isActive = activeValues.includes(value)
+                    isActive = activeValues.some(activeValue => String(activeValue) === String(value))
                 } else {
-                    isActive = activeValues === value
+                    isActive = String(activeValues) === String(value)
                 }
             }
 
@@ -1061,7 +1145,9 @@ class GridViewController extends Controller {
 
                 // Add checkboxes for each option
                 item.meta.options.forEach(option => {
-                    const isChecked = activeFiltered.includes(option.value)
+                    const isChecked = activeFiltered.some(
+                        activeValue => String(activeValue) === String(option.value)
+                    )
 
                     const formCheck = document.createElement('div')
                     formCheck.className = 'form-check mb-1'
@@ -1159,28 +1245,29 @@ class GridViewController extends Controller {
             const isVisible = visibleColumns.includes(column.key)
             const isRequired = column.required || false
 
-            const label = document.createElement('label')
-            label.className = `list-group-item d-flex align-items-center${!isVisible ? ' list-group-item-secondary' : ''}`
-            label.setAttribute('data-sortable-list-target', 'item')
-            label.setAttribute('data-column-key', column.key)
+            const item = document.createElement('div')
+            item.className = `list-group-item d-flex align-items-center gap-2${!isVisible ? ' list-group-item-secondary' : ''}`
+            item.setAttribute('data-sortable-list-target', 'item')
+            item.setAttribute('data-column-key', column.key)
             if (isRequired) {
-                label.setAttribute('data-column-required', 'true')
+                item.setAttribute('data-column-required', 'true')
             }
-            label.draggable = true
-            label.setAttribute('data-action', `dragstart->sortable-list#dragStart 
-                dragover->sortable-list#dragOver 
-                dragenter->sortable-list#dragEnter 
-                dragleave->sortable-list#dragLeave 
-                drop->sortable-list#drop 
+            item.draggable = true
+            item.tabIndex = -1
+            item.setAttribute('data-action', `dragstart->sortable-list#dragStart
+                dragover->sortable-list#dragOver
+                dragenter->sortable-list#dragEnter
+                dragleave->sortable-list#dragLeave
+                drop->sortable-list#drop
                 dragend->sortable-list#dragEnd`)
 
             // Drag handle
             const dragHandle = document.createElement('span')
             dragHandle.className = 'drag-handle me-2'
             dragHandle.style.cursor = 'move'
-            dragHandle.title = 'Drag to reorder'
-            dragHandle.innerHTML = '<i class="bi bi-grip-vertical"></i>'
-            label.appendChild(dragHandle)
+            dragHandle.setAttribute('aria-hidden', 'true')
+            dragHandle.innerHTML = '<i class="bi bi-grip-vertical" aria-hidden="true"></i>'
+            item.appendChild(dragHandle)
 
             // Checkbox
             const checkbox = document.createElement('input')
@@ -1188,19 +1275,24 @@ class GridViewController extends Controller {
             checkbox.type = 'checkbox'
             checkbox.value = column.key
             checkbox.checked = isVisible
+            checkbox.id = `column-picker-${this.state.config.gridKey}-${column.key}`
             if (isRequired) {
                 checkbox.disabled = true
             }
             checkbox.setAttribute('data-action', 'change->grid-view#toggleColumn')
             checkbox.setAttribute('data-column-key', column.key)
-            label.appendChild(checkbox)
+            checkbox.setAttribute('aria-label', `Show ${column.label || column.key} column`)
+            item.appendChild(checkbox)
 
             // Label content
             const contentDiv = document.createElement('div')
             contentDiv.className = 'flex-grow-1'
 
             const columnLabel = column.label && column.label.trim() !== '' ? column.label : column.key
-            const strong = document.createElement('strong')
+            item.setAttribute('data-item-label', columnLabel)
+            const strong = document.createElement('label')
+            strong.setAttribute('for', checkbox.id)
+            strong.className = 'fw-bold'
             strong.textContent = columnLabel
             contentDiv.appendChild(strong)
 
@@ -1219,9 +1311,39 @@ class GridViewController extends Controller {
                 contentDiv.appendChild(desc)
             }
 
-            label.appendChild(contentDiv)
-            container.appendChild(label)
+            item.appendChild(contentDiv)
+
+            const moveControls = document.createElement('div')
+            moveControls.className = 'btn-group btn-group-sm'
+            moveControls.setAttribute('aria-label', `Reorder ${columnLabel} column`)
+
+            const moveUpButton = document.createElement('button')
+            moveUpButton.type = 'button'
+            moveUpButton.className = 'btn btn-outline-secondary'
+            moveUpButton.setAttribute('data-action', 'click->sortable-list#moveUp')
+            moveUpButton.setAttribute('aria-label', `Move ${columnLabel} column up`)
+            moveUpButton.innerHTML = '<i class="bi bi-arrow-up" aria-hidden="true"></i>'
+            moveControls.appendChild(moveUpButton)
+
+            const moveDownButton = document.createElement('button')
+            moveDownButton.type = 'button'
+            moveDownButton.className = 'btn btn-outline-secondary'
+            moveDownButton.setAttribute('data-action', 'click->sortable-list#moveDown')
+            moveDownButton.setAttribute('aria-label', `Move ${columnLabel} column down`)
+            moveDownButton.innerHTML = '<i class="bi bi-arrow-down" aria-hidden="true"></i>'
+            moveControls.appendChild(moveDownButton)
+
+            item.appendChild(moveControls)
+            container.appendChild(item)
         })
+
+        const reorderStatus = document.createElement('div')
+        reorderStatus.className = 'visually-hidden'
+        reorderStatus.setAttribute('role', 'status')
+        reorderStatus.setAttribute('aria-live', 'polite')
+        reorderStatus.setAttribute('aria-atomic', 'true')
+        reorderStatus.setAttribute('data-sortable-list-target', 'status')
+        container.appendChild(reorderStatus)
     }
 
     // ============================================================================
@@ -1259,7 +1381,12 @@ class GridViewController extends Controller {
      * Save current state as new view
      */
     async saveView() {
-        const name = prompt("Enter a name for this view:")
+        const name = await window.KMP_accessibility.prompt("Enter a name for this view:", {
+            title: "Save view",
+            inputLabel: "View name",
+            required: true,
+            confirmLabel: "Save view",
+        })
         if (!name || name.trim() === "") return
 
         const config = this.getCurrentConfig()
@@ -1284,7 +1411,7 @@ class GridViewController extends Controller {
             const data = await response.json()
 
             if (response.ok && data.success) {
-                alert("View saved successfully")
+                window.KMP_accessibility.announce("View saved successfully")
                 // Navigate to the new view
                 const url = this.buildUrl({ view_id: data.data.view.id })
                 window.location.assign(url)
@@ -1293,7 +1420,7 @@ class GridViewController extends Controller {
             }
         } catch (error) {
             console.error("Error saving view:", error)
-            alert("Failed to save view: " + error.message)
+            window.KMP_accessibility.announce("Failed to save view: " + error.message, { assertive: true })
         }
     }
 
@@ -1302,11 +1429,14 @@ class GridViewController extends Controller {
      */
     async updateView() {
         if (!this.state.view.currentId) {
-            alert("No view selected to update")
+            window.KMP_accessibility.announce("No view selected to update", { assertive: true })
             return
         }
 
-        if (!confirm("Update this view with current settings?")) return
+        if (!await window.KMP_accessibility.confirm("Update this view with current settings?", {
+            title: "Update view",
+            confirmLabel: "Update view",
+        })) return
 
         const config = this.getCurrentConfig()
 
@@ -1326,14 +1456,14 @@ class GridViewController extends Controller {
             const data = await response.json()
 
             if (response.ok && data.success) {
-                alert("View updated successfully")
-                window.location.reload()
+                window.KMP_accessibility.announce("View updated successfully")
+                this.navigate(this.buildUrl({ view_id: this.state.view.currentId }), false)
             } else {
                 throw new Error(data.error || "Failed to update view")
             }
         } catch (error) {
             console.error("Error updating view:", error)
-            alert("Failed to update view: " + error.message)
+            window.KMP_accessibility.announce("Failed to update view: " + error.message, { assertive: true })
         }
     }
 
@@ -1342,11 +1472,14 @@ class GridViewController extends Controller {
      */
     async deleteView() {
         if (!this.state.view.currentId) {
-            alert("No view selected to delete")
+            window.KMP_accessibility.announce("No view selected to delete", { assertive: true })
             return
         }
 
-        if (!confirm("Are you sure you want to delete this view?")) return
+        if (!await window.KMP_accessibility.confirm("Are you sure you want to delete this view?", {
+            title: "Delete view",
+            confirmLabel: "Delete view",
+        })) return
 
         try {
             const response = await fetch(`/grid-views/delete/${this.state.view.currentId}`, {
@@ -1364,7 +1497,7 @@ class GridViewController extends Controller {
             const data = await response.json()
 
             if (response.ok && data.success) {
-                alert("View deleted successfully")
+                window.KMP_accessibility.announce("View deleted successfully")
                 const url = this.buildUrl({ view_id: null })
                 window.location.assign(url)
             } else {
@@ -1372,7 +1505,7 @@ class GridViewController extends Controller {
             }
         } catch (error) {
             console.error("Error deleting view:", error)
-            alert("Failed to delete view: " + error.message)
+            window.KMP_accessibility.announce("Failed to delete view: " + error.message, { assertive: true })
         }
     }
 
@@ -1381,7 +1514,7 @@ class GridViewController extends Controller {
      */
     async setDefault() {
         if (!this.state.view.currentId) {
-            alert("No view selected to set as default")
+            window.KMP_accessibility.announce("No view selected to set as default", { assertive: true })
             return
         }
 
@@ -1401,14 +1534,14 @@ class GridViewController extends Controller {
             const data = await response.json()
 
             if (response.ok && data.success) {
-                alert("Default view set successfully")
-                window.location.reload()
+                window.KMP_accessibility.announce("Default view set successfully")
+                this.navigate(window.location.pathname + window.location.search, false)
             } else {
                 throw new Error(data.error || "Failed to set default")
             }
         } catch (error) {
             console.error("Error setting default:", error)
-            alert("Failed to set default: " + error.message)
+            window.KMP_accessibility.announce("Failed to set default: " + error.message, { assertive: true })
         }
     }
 
@@ -1432,14 +1565,14 @@ class GridViewController extends Controller {
             const data = await response.json()
 
             if (response.ok && data.success) {
-                alert("Default view cleared successfully")
-                window.location.reload()
+                window.KMP_accessibility.announce("Default view cleared successfully")
+                this.navigate(window.location.pathname + window.location.search, false)
             } else {
                 throw new Error(data.error || "Failed to clear default")
             }
         } catch (error) {
             console.error("Error clearing default:", error)
-            alert("Failed to clear default: " + error.message)
+            window.KMP_accessibility.announce("Failed to clear default: " + error.message, { assertive: true })
         }
     }
 
@@ -1581,7 +1714,7 @@ class GridViewController extends Controller {
         // Toggle the value
         const newValues = checkbox.checked
             ? [...currentValues, value]
-            : currentValues.filter(v => v !== value)
+            : currentValues.filter(v => String(v) !== String(value))
 
         // Build URL with updated filter
         const filterParams = { ...this.state.filters.active }
@@ -1622,7 +1755,7 @@ class GridViewController extends Controller {
         if (!Array.isArray(currentValues)) {
             currentValues = [currentValues]
         }
-        const newValues = currentValues.filter(v => v !== value)
+        const newValues = currentValues.filter(v => String(v) !== String(value))
 
         // Build URL with updated filter
         const filterParams = { ...this.state.filters.active }
@@ -1661,29 +1794,15 @@ class GridViewController extends Controller {
             }
         }
 
-        // Build URL with only locked filters preserved
-        let url
-        if (Object.keys(preservedFilters).length > 0) {
-            // Has locked filters - use buildUrlWithFilters to preserve them
-            url = this.buildUrlWithFilters(preservedFilters)
-            const urlObj = new URL(url, window.location.origin)
-            // Clear search
-            urlObj.searchParams.delete('search')
-            // If we're on a view, mark filters as dirty
-            if (this.state.view.currentId) {
-                urlObj.searchParams.set('dirty[filters]', '1')
-            }
-            url = urlObj.pathname + urlObj.search
-        } else {
-            // No locked filters - simple clear
-            const updates = { search: null }
-            // If we're on a view, mark filters as dirty instead of removing view
-            if (this.state.view.currentId) {
-                updates['dirty[filters]'] = '1'
-            }
-            url = this.buildUrl(updates)
+        // Rebuild the URL even when no filters remain so stale filter params
+        // cannot cause the table frame to reload the just-cleared state.
+        const urlObj = new URL(this.buildUrlWithFilters(preservedFilters), window.location.origin)
+        urlObj.searchParams.delete('search')
+        if (this.state.view.currentId) {
+            urlObj.searchParams.set('dirty[filters]', '1')
         }
 
+        const url = urlObj.pathname + urlObj.search
         this.navigate(url)
     }
 
@@ -1982,11 +2101,22 @@ class GridViewController extends Controller {
         })
     }
 
+    normalizeGridQueryParams(params) {
+        const keysToDelete = []
+        for (const key of params.keys()) {
+            if (/^\[[^\]]+\]$/.test(key)) {
+                keysToDelete.push(key)
+            }
+        }
+        keysToDelete.forEach(key => params.delete(key))
+    }
+
     /**
      * Build URL with updated parameters
      */
     buildUrl(updates) {
         const params = new URLSearchParams(window.location.search)
+        this.normalizeGridQueryParams(params)
 
         // Apply updates
         for (const [key, value] of Object.entries(updates)) {
@@ -2003,6 +2133,7 @@ class GridViewController extends Controller {
 
         // Ensure sticky parameters persist across navigations
         this.applyStickyParamsToParams(params, updates)
+        this.normalizeGridQueryParams(params)
 
         // Remove filter parameters if not explicitly included
         if (!('filter' in updates)) {
@@ -2020,6 +2151,7 @@ class GridViewController extends Controller {
     buildUrlWithFilters(filterParams) {
         const url = new URL(window.location)
         const params = url.searchParams
+        this.normalizeGridQueryParams(params)
 
         // If we're on a saved view and search hasn't been explicitly dirtied,
         // preserve the current search value in the URL
@@ -2065,6 +2197,7 @@ class GridViewController extends Controller {
 
         // Ensure sticky parameters persist
         this.applyStickyParamsToParams(params)
+        this.normalizeGridQueryParams(params)
 
         const queryString = params.toString()
         return queryString ? `${url.pathname}?${queryString}` : url.pathname
@@ -2073,16 +2206,12 @@ class GridViewController extends Controller {
     /**
      * Navigate to URL via Turbo (frame or full page)
      */
-    navigate(url, fullPage = false) {
+    navigate(url, fullPage = false, options = {}) {
+        const updateHistory = options.updateHistory !== false
         console.log('Navigating to:', url, 'fullPage:', fullPage)
 
         if (fullPage) {
-            // Full page navigation
-            if (window.Turbo) {
-                window.Turbo.visit(url)
-            } else {
-                window.location.assign(url)
-            }
+            window.location.assign(url)
         } else {
             // Frame navigation - find the table frame and update its src
             const tableFrame = this.element.querySelector('turbo-frame[id$="-table"]')
@@ -2108,15 +2237,18 @@ class GridViewController extends Controller {
 
                 // Build final URL starting with base path
                 const finalUrl = new URL(baseGridDataUrl, window.location.origin)
+                this.normalizeGridQueryParams(finalUrl.searchParams)
 
                 // Copy all params from the incoming URL
                 // Use append() instead of set() to preserve multiple values for the same key (e.g., filter[status][])
                 urlObj.searchParams.forEach((value, key) => {
                     finalUrl.searchParams.append(key, value)
                 })
+                this.normalizeGridQueryParams(finalUrl.searchParams)
 
                 // Ensure sticky parameters are carried over for frame requests
                 this.applyStickyParamsToParams(finalUrl.searchParams)
+                this.normalizeGridQueryParams(finalUrl.searchParams)
 
                 // Preserve context params from original src if not in new URL
                 contextParams.forEach(param => {
@@ -2127,11 +2259,11 @@ class GridViewController extends Controller {
 
                 const gridDataUrl = finalUrl.pathname + finalUrl.search
 
-                // Update browser history with the original URL (for page reload)
-                window.history.pushState({}, '', url)
-
-                // Notify other controllers that the URL has changed
-                window.dispatchEvent(new CustomEvent('grid-view:navigated'))
+                if (updateHistory) {
+                    window.history.pushState({}, '', url)
+                    window.dispatchEvent(new CustomEvent('grid-view:navigated'))
+                    window.dispatchEvent(new CustomEvent('page-context:sync'))
+                }
 
                 // Persist sticky parameters based on the navigation URL
                 this.captureStickyParamsFromUrl(finalUrl.toString())
@@ -2140,11 +2272,7 @@ class GridViewController extends Controller {
                 tableFrame.src = gridDataUrl
             } else {
                 console.warn('Table frame not found, falling back to full page navigation')
-                if (window.Turbo) {
-                    window.Turbo.visit(url)
-                } else {
-                    window.location.assign(url)
-                }
+                window.location.assign(url)
             }
         }
     }
@@ -2246,9 +2374,10 @@ class GridViewController extends Controller {
     toggleSubRow(event) {
         event.preventDefault()
 
-        const link = event.currentTarget
-        const rowId = link.dataset.rowId
-        const subRowType = link.dataset.subrowType
+        const toggle = event.currentTarget
+        const rowId = toggle.dataset.rowId
+        const subRowType = toggle.dataset.subrowType
+        const customUrl = toggle.dataset.subrowUrl
 
         if (!rowId || !subRowType) {
             console.error('Missing rowId or subRowType for toggleSubRow')
@@ -2256,7 +2385,7 @@ class GridViewController extends Controller {
         }
 
         // Find the parent table row
-        const mainRow = link.closest('tr')
+        const mainRow = toggle.closest('tr')
         if (!mainRow) {
             console.error('Could not find parent row for toggleSubRow')
             return
@@ -2272,7 +2401,10 @@ class GridViewController extends Controller {
             mainRow.classList.remove('row-expanded')
 
             // Update icon if present
-            const icon = link.querySelector('.toggle-icon')
+            toggle.setAttribute('aria-expanded', 'false')
+            toggle.removeAttribute('aria-busy')
+
+            const icon = toggle.querySelector('.toggle-icon')
             if (icon) {
                 icon.classList.remove('bi-chevron-down')
                 icon.classList.add('bi-chevron-right')
@@ -2280,9 +2412,12 @@ class GridViewController extends Controller {
         } else {
             // Sub-row doesn't exist - expand it
             const colspan = mainRow.querySelectorAll('td').length
+            toggle.setAttribute('aria-busy', 'true')
 
-            // Fetch sub-row content from server
-            const url = `/members/sub-row/${rowId}/${subRowType}`
+            // Use custom URL if provided, otherwise fall back to default pattern
+            const url = customUrl
+                ? customUrl.replace(':id', rowId)
+                : `/members/sub-row/${rowId}/${subRowType}`
 
             fetch(url, {
                 headers: {
@@ -2301,14 +2436,17 @@ class GridViewController extends Controller {
                     const subRow = document.createElement('tr')
                     subRow.id = subRowId
                     subRow.className = 'sub-row'
-                    subRow.innerHTML = `<td colspan="${colspan}" class="sub-row-content">${html}</td>`
+                    subRow.innerHTML = `<td colspan="${colspan}" class="sub-row-content" role="region" aria-live="polite">${html}</td>`
 
                     // Insert after main row
                     mainRow.insertAdjacentElement('afterend', subRow)
                     mainRow.classList.add('row-expanded')
 
                     // Update icon if present
-                    const icon = link.querySelector('.toggle-icon')
+                    toggle.setAttribute('aria-expanded', 'true')
+                    toggle.removeAttribute('aria-busy')
+
+                    const icon = toggle.querySelector('.toggle-icon')
                     if (icon) {
                         icon.classList.remove('bi-chevron-right')
                         icon.classList.add('bi-chevron-down')
@@ -2320,10 +2458,12 @@ class GridViewController extends Controller {
                     const subRow = document.createElement('tr')
                     subRow.id = subRowId
                     subRow.className = 'sub-row sub-row-error'
-                    subRow.innerHTML = `<td colspan="${colspan}" class="sub-row-content text-danger">
+                    subRow.innerHTML = `<td colspan="${colspan}" class="sub-row-content text-danger" role="status" aria-live="assertive">
                     <small>Error loading details. Please try again.</small>
                 </td>`
                     mainRow.insertAdjacentElement('afterend', subRow)
+                    toggle.setAttribute('aria-expanded', 'true')
+                    toggle.removeAttribute('aria-busy')
                 })
         }
     }
@@ -2337,6 +2477,10 @@ class GridViewController extends Controller {
      */
     toggleRowSelection(event) {
         const checkbox = event.target
+        if (checkbox.disabled) {
+            checkbox.checked = false
+            return
+        }
         const id = checkbox.value
 
         if (checkbox.checked) {
@@ -2356,21 +2500,37 @@ class GridViewController extends Controller {
     toggleAllSelection(event) {
         const selectAll = event.target.checked
 
-        if (this.hasRowCheckboxTarget) {
-            this.rowCheckboxTargets.forEach(checkbox => {
-                checkbox.checked = selectAll
-                const id = checkbox.value
-                if (selectAll) {
-                    if (!this.selectedIds.includes(id)) {
-                        this.selectedIds.push(id)
-                    }
-                } else {
-                    this.selectedIds = this.selectedIds.filter(i => i !== id)
+        this.rowCheckboxElements().forEach(checkbox => {
+            if (checkbox.disabled) {
+                checkbox.checked = false
+                return
+            }
+            checkbox.checked = selectAll
+            const id = checkbox.value
+            if (selectAll) {
+                if (!this.selectedIds.includes(id)) {
+                    this.selectedIds.push(id)
                 }
-            })
-        }
+            } else {
+                this.selectedIds = this.selectedIds.filter(i => i !== id)
+            }
+        })
 
         this.updateBulkSelectionUI()
+    }
+
+    /**
+     * Current row checkbox elements in the live grid DOM.
+     */
+    rowCheckboxElements() {
+        return Array.from(this.element.querySelectorAll('[data-grid-view-target~="rowCheckbox"]'))
+    }
+
+    /**
+     * Row checkboxes that participate in bulk selection (not bestowal-locked).
+     */
+    selectableRowCheckboxTargets() {
+        return this.rowCheckboxElements().filter((checkbox) => !checkbox.disabled)
     }
 
     /**
@@ -2380,11 +2540,9 @@ class GridViewController extends Controller {
         this.selectedIds = []
 
         // Uncheck all row checkboxes
-        if (this.hasRowCheckboxTarget) {
-            this.rowCheckboxTargets.forEach(checkbox => {
-                checkbox.checked = false
-            })
-        }
+        this.rowCheckboxElements().forEach(checkbox => {
+            checkbox.checked = false
+        })
 
         // Uncheck select all checkbox
         if (this.hasSelectAllCheckboxTarget) {
@@ -2400,10 +2558,30 @@ class GridViewController extends Controller {
      */
     updateBulkSelectionUI() {
         const hasSelection = this.selectedIds.length > 0
+        const selectedCheckboxes = this.selectedRowCheckboxTargets()
 
         // Enable/disable bulk action buttons
         if (this.hasBulkActionBtnTarget) {
             this.bulkActionBtnTargets.forEach(btn => {
+                const requiredField = btn.dataset.bulkActionRequiresSelectionField || ''
+                if (requiredField) {
+                    const eligibleRowsOnPage = this.selectableRowCheckboxTargets()
+                        .filter((checkbox) => this.isTruthyDatasetValue(checkbox.dataset[requiredField]))
+                    const hideButton = eligibleRowsOnPage.length === 0
+
+                    btn.hidden = hideButton
+                    btn.classList.toggle('d-none', hideButton)
+                    btn.disabled = !hasSelection
+                        || selectedCheckboxes.length === 0
+                        || selectedCheckboxes.some(
+                            (checkbox) => !this.isTruthyDatasetValue(checkbox.dataset[requiredField]),
+                        )
+
+                    return
+                }
+
+                btn.hidden = false
+                btn.classList.remove('d-none')
                 btn.disabled = !hasSelection
             })
         }
@@ -2422,13 +2600,16 @@ class GridViewController extends Controller {
 
         // Update select all checkbox indeterminate state
         if (this.hasSelectAllCheckboxTarget && this.hasRowCheckboxTarget) {
-            const totalRows = this.rowCheckboxTargets.length
-            const selectedCount = this.selectedIds.length
+            const selectableCheckboxes = this.selectableRowCheckboxTargets()
+            const totalRows = selectableCheckboxes.length
+            const selectedOnPage = selectableCheckboxes.filter(
+                (checkbox) => this.selectedIds.includes(checkbox.value),
+            ).length
 
-            if (selectedCount === 0) {
+            if (selectedOnPage === 0 || totalRows === 0) {
                 this.selectAllCheckboxTarget.checked = false
                 this.selectAllCheckboxTarget.indeterminate = false
-            } else if (selectedCount === totalRows) {
+            } else if (selectedOnPage === totalRows) {
                 this.selectAllCheckboxTarget.checked = true
                 this.selectAllCheckboxTarget.indeterminate = false
             } else {
@@ -2436,6 +2617,37 @@ class GridViewController extends Controller {
                 this.selectAllCheckboxTarget.indeterminate = true
             }
         }
+
+        // Dispatch selection-changed event with checkbox data for downstream validation
+        this.element.dispatchEvent(new CustomEvent('grid-view:selection-changed', {
+            bubbles: true,
+            detail: { ids: [...this.selectedIds], checkboxes: this.getSelectedCheckboxData() }
+        }))
+    }
+
+    /**
+     * Selected row checkboxes on the current page.
+     */
+    selectedRowCheckboxTargets() {
+        return this.rowCheckboxElements().filter((checkbox) => checkbox.checked)
+    }
+
+    /**
+     * Interpret HTML data attribute values as booleans for conditional bulk actions.
+     */
+    isTruthyDatasetValue(value) {
+        if (typeof value !== 'string') return Boolean(value)
+
+        return value !== '' && value !== '0' && value !== 'false'
+    }
+
+    /**
+     * Collect data attributes from selected row checkboxes
+     */
+    getSelectedCheckboxData() {
+        return this.rowCheckboxElements()
+            .filter(cb => cb.checked)
+            .map(cb => ({ id: cb.value, ...cb.dataset }))
     }
 
     /**
@@ -2446,8 +2658,12 @@ class GridViewController extends Controller {
             return
         }
 
-        // Dispatch custom event with selected IDs for listeners (e.g., bulk edit modal)
-        const detail = { ids: [...this.selectedIds] }
+        const detail = { ids: [...this.selectedIds], checkboxes: this.getSelectedCheckboxData() }
+        const serializedDetail = JSON.stringify(detail)
+        event.currentTarget.dataset.bulkActionSelection = serializedDetail
+        if (event.currentTarget.dataset.bulkActionKey === 'workflow-decision') {
+            event.currentTarget.dataset.workflowDecisionSelection = serializedDetail
+        }
         
         // Fire event on the button (outlet-btn pattern expects this)
         event.currentTarget.dispatchEvent(new CustomEvent('outlet-btn:notice', {

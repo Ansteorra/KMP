@@ -163,7 +163,7 @@ class RetentionPolicyInputController extends Controller {
         const days = parseInt(this.daysInputTarget.value) || 0
 
         if (years === 0 && months === 0 && days === 0) {
-            alert('Please specify at least one duration value (years, months, or days)')
+            window.KMP_accessibility.announce('Please specify at least one duration value (years, months, or days)', { assertive: true })
             return false
         }
 

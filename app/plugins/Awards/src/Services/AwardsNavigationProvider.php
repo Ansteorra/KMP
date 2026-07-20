@@ -1,36 +1,29 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Awards\Services;
 
-use App\Model\Entity\Member;
 use App\KMP\StaticHelpers;
-use Awards\Model\Entity\Recommendation;
+use App\Model\Entity\Member;
 
 /**
  * Provides navigation integration for the Awards plugin.
- * 
- * Generates navigation items for award recommendation workflows, administrative tools,
- * configuration management, and reporting. Creates dynamic status-based navigation
- * items for each recommendation workflow state.
- * 
+ *
+ * Generates navigation items for award recommendations, bestowals, administrative tools,
+ * configuration management, and reporting. Status filtering for list pages uses in-page
+ * grid tabs (same pattern as Recommendations and Bestowals index).
+ *
  * @see \App\KMP\StaticHelpers Plugin availability checking
- * @see \Awards\Model\Entity\Recommendation Recommendation status definitions
  * @see /docs/5.2.17-awards-services.md Full documentation
  */
 class AwardsNavigationProvider
 {
     /**
-     * Builds the Awards plugin navigation tree with static sections and per-status recommendation links.
-     *
-     * The returned structure contains a parent header and core navigation items (Recommendations, Award Domains,
-     * Award Levels, Awards, Submit Award Rec.) plus additional links generated for each recommendation status that
-     * filter the Recommendations list. Items include mergePath, icon, order, URL, and active path metadata for UI integration.
+     * Builds the Awards plugin navigation tree.
      *
      * @param \App\Model\Entity\Member $user The current authenticated user used for authorization/context.
      * @param array $params Optional request parameters that may influence active path or contextual navigation.
-     * @return array An array of navigation item arrays organized hierarchically, including static items and status-filtered recommendation links.
+     * @return array Navigation item arrays with mergePath, icon, order, URL, and active path metadata.
      */
     public static function getNavigationItems(Member $user, array $params = []): array
     {
@@ -38,99 +31,145 @@ class AwardsNavigationProvider
             return [];
         }
 
-        $statuses = Recommendation::getStatuses();
-        $listLinks = [];
-        $order = 0;
-
-        $appNav = [
+        return [
             [
-                "type" => "parent",
-                "label" => "Award Recs.",
-                "icon" => "bi-patch-exclamation-fill",
-                "id" => "navheader_award_recs",
-                "order" => 40,
+                'type' => 'parent',
+                'label' => 'Award Recs.',
+                'icon' => 'bi-patch-exclamation-fill',
+                'id' => 'navheader_award_recs',
+                'order' => 40,
             ],
             [
-                "type" => "link",
-                "mergePath" => ["Award Recs."],
-                "label" => "Recommendations",
-                "order" => 30,
-                "url" => [
-                    "controller" => "Recommendations",
-                    "plugin" => "Awards",
-                    "action" => "index",
-                    "model" => "Awards.Recommendations",
+                'type' => 'link',
+                'mergePath' => ['Award Recs.'],
+                'label' => 'Recommendations',
+                'order' => 30,
+                'url' => [
+                    'controller' => 'Recommendations',
+                    'plugin' => 'Awards',
+                    'action' => 'index',
+                    'model' => 'Awards.Recommendations',
                 ],
-                "icon" => "bi-megaphone",
-                "activePaths" => [
-                    "awards/Recommendations/view/*",
-                ]
+                'icon' => 'bi-megaphone',
+                'activePaths' => [
+                    'awards/Recommendations/view/*',
+                    'awards/Recommendations/index*',
+                ],
             ],
             [
-                "type" => "link",
-                "mergePath" => ["Config"],
-                "label" => "Award Domains",
-                "order" => 30,
-                "url" => [
-                    "controller" => "Domains",
-                    "plugin" => "Awards",
-                    "action" => "index",
-                    "model" => "Awards.Domains",
+                'type' => 'link',
+                'mergePath' => ['Award Recs.'],
+                'label' => 'Bestowals',
+                'order' => 31,
+                'url' => [
+                    'controller' => 'Bestowals',
+                    'plugin' => 'Awards',
+                    'action' => 'index',
+                    'model' => 'Awards.Bestowals',
                 ],
-                "icon" => "bi-compass",
-                "activePaths" => [
-                    "awards/Domains/view/*",
-                ]
+                'icon' => 'bi-award',
+                'activePaths' => [
+                    'awards/Bestowals/view/*',
+                    'awards/Bestowals/index*',
+                ],
             ],
             [
-                "type" => "link",
-                "mergePath" => ["Config"],
-                "label" => "Award Levels",
-                "order" => 31,
-                "url" => [
-                    "controller" => "Levels",
-                    "plugin" => "Awards",
-                    "action" => "index",
-                    "model" => "Awards.Levels",
+                'type' => 'link',
+                'mergePath' => ['Config'],
+                'label' => 'Award Domains',
+                'order' => 30,
+                'url' => [
+                    'controller' => 'Domains',
+                    'plugin' => 'Awards',
+                    'action' => 'index',
+                    'model' => 'Awards.Domains',
                 ],
-                "icon" => "bi-ladder",
-                "activePaths" => [
-                    "awards/Levels/view/*",
-                ]
+                'icon' => 'bi-compass',
+                'activePaths' => [
+                    'awards/Domains/view/*',
+                ],
             ],
             [
-                "type" => "link",
-                "mergePath" => ["Config"],
-                "label" => "Awards",
-                "order" => 32,
-                "url" => [
-                    "controller" => "Awards",
-                    "plugin" => "Awards",
-                    "action" => "index",
-                    "model" => "Awards.Awards",
+                'type' => 'link',
+                'mergePath' => ['Config'],
+                'label' => 'Award Levels',
+                'order' => 31,
+                'url' => [
+                    'controller' => 'Levels',
+                    'plugin' => 'Awards',
+                    'action' => 'index',
+                    'model' => 'Awards.Levels',
                 ],
-                "icon" => "bi-award",
-                "activePaths" => [
-                    "awards/Awards/view/*",
-                ]
+                'icon' => 'bi-ladder',
+                'activePaths' => [
+                    'awards/Levels/view/*',
+                ],
             ],
             [
-                "type" => "link",
-                "mergePath" => ["Members"],
-                "label" => "Submit Award Rec.",
-                "order" => 30,
-                "url" => [
-                    "controller" => "Recommendations",
-                    "plugin" => "Awards",
-                    "action" => "add",
-                    "model" => "Awards.Recommendations",
+                'type' => 'link',
+                'mergePath' => ['Config'],
+                'label' => 'Awards',
+                'order' => 32,
+                'url' => [
+                    'controller' => 'Awards',
+                    'plugin' => 'Awards',
+                    'action' => 'index',
+                    'model' => 'Awards.Awards',
                 ],
-                "icon" => "bi-megaphone-fill",
-                "linkTypeClass" => "btn",
-                "otherClasses" => StaticHelpers::getAppSetting("Awards.RecButtonClass"),
-            ]
+                'icon' => 'bi-award',
+                'activePaths' => [
+                    'awards/Awards/view/*',
+                ],
+            ],
+            [
+                'type' => 'link',
+                'mergePath' => ['Config'],
+                'label' => 'Award Approval Processes',
+                'order' => 33,
+                'url' => [
+                    'controller' => 'ApprovalProcesses',
+                    'plugin' => 'Awards',
+                    'action' => 'index',
+                    'model' => 'Awards.ApprovalProcesses',
+                ],
+                'icon' => 'bi-ui-checks-grid',
+                'activePaths' => [
+                    'awards/approval-processes/view/*',
+                    'awards/approval-processes/index*',
+                ],
+            ],
+            [
+                'type' => 'link',
+                'mergePath' => ['Config'],
+                'label' => 'Bestowal To-Do Templates',
+                'order' => 34,
+                'url' => [
+                    'controller' => 'BestowalTodoTemplates',
+                    'plugin' => 'Awards',
+                    'action' => 'index',
+                    'model' => 'Awards.BestowalTodoTemplates',
+                ],
+                'icon' => 'bi-list-check',
+                'activePaths' => [
+                    'awards/bestowal-todo-templates/view/*',
+                    'awards/bestowal-todo-templates/index*',
+                ],
+            ],
+            [
+                'type' => 'link',
+                'mergePath' => ['Members'],
+                'label' => 'Submit Award Rec.',
+                'order' => 30,
+                'url' => [
+                    'controller' => 'Recommendations',
+                    'plugin' => 'Awards',
+                    'action' => 'add',
+                    'model' => 'Awards.Recommendations',
+                ],
+                'icon' => 'bi-megaphone-fill',
+                'linkTypeClass' => 'btn',
+                'otherClasses' => StaticHelpers::getAppSetting('Awards.RecButtonClass'),
+            ],
         ];
-
-        return array_merge($appNav, $listLinks);
     }
 }

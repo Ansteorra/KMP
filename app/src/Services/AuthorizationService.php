@@ -47,12 +47,11 @@ class AuthorizationService extends rootAuthorizationService implements Authoriza
      */
     public function checkCan(?KmpIdentityInterface $user, string $action, $resource, ...$optionalArgs): bool
     {
-        $currentAuthCheck = $this->authorizationChecked;
+        $wasAuthorizationChecked = $this->authorizationChecked;
         $result = $this->performCheck($user, $action, $resource, ...$optionalArgs);
-        if (!$currentAuthCheck) {
+        if (!$wasAuthorizationChecked) {
             $this->authorizationChecked = false;
         }
-
         $resultBool = is_bool($result) ? $result : $result->getStatus();
 
         // Only log in debug mode

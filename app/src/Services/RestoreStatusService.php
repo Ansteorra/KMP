@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Services\Cache\TenantAwareCache;
 use Cake\Cache\Cache;
 use DateTimeImmutable;
 use DateTimeInterface;
@@ -17,6 +18,7 @@ class RestoreStatusService
     private const STATUS_KEY = 'restore.status';
     private const DEFAULT_LOCK_TTL_SECONDS = 1800;
     private const STALE_PROGRESS_SECONDS = 900;
+    private const MAX_LOG_ENTRIES = 500;
 
     /**
      * Acquire restore lock and initialize running status.
@@ -37,7 +39,7 @@ class RestoreStatusService
             'expires_at' => $expiresAt,
         ];
 
-        if (!Cache::add(self::LOCK_KEY, array_merge($lockPayload, $context), self::CACHE_CONFIG)) {
+        if (!Cache::add($this->lockKey(), array_merge($lockPayload, $context), self::CACHE_CONFIG)) {
             return false;
         }
 
@@ -64,7 +66,7 @@ class RestoreStatusService
      */
     public function releaseLock(): void
     {
-        Cache::delete(self::LOCK_KEY, self::CACHE_CONFIG);
+        Cache::delete($this->lockKey(), self::CACHE_CONFIG);
     }
 
     /**
@@ -74,13 +76,12 @@ class RestoreStatusService
      */
     public function updateStatus(string $phase, string $message, array $context = []): void
     {
-        $locked = $this->refreshLock($context);
-        $status = $this->readStatus();
+        $status = $this->getStatus();
         $status = array_merge(
             $status,
             $context,
             [
-                'locked' => $locked,
+                'locked' => $this->isLocked(),
                 'status' => 'running',
                 'phase' => $phase,
                 'message' => $message,
@@ -89,26 +90,6 @@ class RestoreStatusService
         );
 
         $this->writeStatus($status);
-    }
-
-    /**
-     * Extend the active restore lock TTL while preserving ownership context.
-     *
-     * @param array<string, mixed> $context
-     */
-    public function refreshLock(array $context = [], ?int $ttlSeconds = null): bool
-    {
-        $lock = $this->readActiveLock();
-        if ($lock === null) {
-            return false;
-        }
-
-        $seconds = max(60, (int)($ttlSeconds ?? self::DEFAULT_LOCK_TTL_SECONDS));
-        Cache::write(self::LOCK_KEY, array_merge($lock, $context, [
-            'expires_at' => $this->isoAfterSeconds($seconds),
-        ]), self::CACHE_CONFIG);
-
-        return true;
     }
 
     /**
@@ -127,7 +108,7 @@ class RestoreStatusService
             'message' => $message,
         ];
 
-        $status['log'] = array_slice($log, -100);
+        $status['log'] = array_slice($log, -self::MAX_LOG_ENTRIES);
         $status['updated_at'] = $this->nowIso();
         $this->writeStatus($status);
     }
@@ -139,7 +120,7 @@ class RestoreStatusService
      */
     public function markCompleted(string $message, array $context = []): void
     {
-        Cache::delete(self::LOCK_KEY, self::CACHE_CONFIG);
+        Cache::delete($this->lockKey(), self::CACHE_CONFIG);
         $now = $this->nowIso();
         $status = $this->readStatus();
 
@@ -154,7 +135,6 @@ class RestoreStatusService
                 'updated_at' => $now,
                 'completed_at' => $now,
                 'expires_at' => null,
-                'maintenance_required' => false,
             ],
         ));
     }
@@ -169,7 +149,7 @@ class RestoreStatusService
      */
     public function markFailed(string $message, array $context = []): void
     {
-        Cache::delete(self::LOCK_KEY, self::CACHE_CONFIG);
+        Cache::delete($this->lockKey(), self::CACHE_CONFIG);
         $now = $this->nowIso();
         $status = $this->readStatus();
 
@@ -208,7 +188,7 @@ class RestoreStatusService
                 )
             ) {
                 $now = $this->nowIso();
-                Cache::delete(self::LOCK_KEY, self::CACHE_CONFIG);
+                Cache::delete($this->lockKey(), self::CACHE_CONFIG);
                 $status['locked'] = false;
                 $status['status'] = 'failed';
                 $status['phase'] = 'stalled';
@@ -296,7 +276,7 @@ class RestoreStatusService
      */
     private function readStatus(): array
     {
-        $status = Cache::read(self::STATUS_KEY, self::CACHE_CONFIG);
+        $status = Cache::read($this->statusKey(), self::CACHE_CONFIG);
         if (!is_array($status)) {
             return $this->defaultStatus();
         }
@@ -309,13 +289,13 @@ class RestoreStatusService
      */
     private function readActiveLock(): ?array
     {
-        $lock = Cache::read(self::LOCK_KEY, self::CACHE_CONFIG);
+        $lock = Cache::read($this->lockKey(), self::CACHE_CONFIG);
         if (!is_array($lock)) {
             return null;
         }
 
         if ($this->isExpired((string)($lock['expires_at'] ?? ''))) {
-            Cache::delete(self::LOCK_KEY, self::CACHE_CONFIG);
+            Cache::delete($this->lockKey(), self::CACHE_CONFIG);
 
             return null;
         }
@@ -338,7 +318,23 @@ class RestoreStatusService
      */
     private function writeStatus(array $status): void
     {
-        Cache::write(self::STATUS_KEY, $status, self::CACHE_CONFIG);
+        Cache::write($this->statusKey(), $status, self::CACHE_CONFIG);
+    }
+
+    /**
+     * Tenant-scoped restore lock cache key.
+     */
+    private function lockKey(): string
+    {
+        return TenantAwareCache::tenantScopedKey(self::LOCK_KEY);
+    }
+
+    /**
+     * Tenant-scoped restore status cache key.
+     */
+    private function statusKey(): string
+    {
+        return TenantAwareCache::tenantScopedKey(self::STATUS_KEY);
     }
 
     /**

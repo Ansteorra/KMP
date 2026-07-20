@@ -1,0 +1,95 @@
+{
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
+    "nodes": {
+        "trigger": {
+            "type": "trigger",
+            "label": "Remove Recommendation From Group Requested",
+            "config": {
+                "event": "Awards.RecommendationRemoveFromGroupRequested",
+                "entityIdField": "recommendationId"
+            },
+            "position": {
+                "x": 50,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "remove-from-group"
+                }
+            ]
+        },
+        "remove-from-group": {
+            "type": "action",
+            "label": "Remove Recommendation From Group",
+            "config": {
+                "action": "Awards.RemoveRecommendationFromGroup",
+                "params": {
+                    "recommendationId": "$.trigger.recommendationId",
+                    "actorId": "$.trigger.actorId"
+                }
+            },
+            "position": {
+                "x": 350,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "remove-succeeded"
+                }
+            ]
+        },
+        "remove-succeeded": {
+            "type": "condition",
+            "label": "Removal Succeeded?",
+            "config": {
+                "condition": "Core.FieldEquals",
+                "field": "$.nodes.remove-from-group.result.success",
+                "value": true
+            },
+            "position": {
+                "x": 650,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "end-success",
+                    "label": "Removed"
+                },
+                {
+                    "port": "false",
+                    "target": "end-failed",
+                    "label": "Failed"
+                }
+            ]
+        },
+        "end-success": {
+            "type": "end",
+            "label": "Removal Complete",
+            "config": {
+                "result": "$.nodes.remove-from-group.result"
+            },
+            "position": {
+                "x": 950,
+                "y": 225
+            },
+            "outputs": []
+        },
+        "end-failed": {
+            "type": "end",
+            "label": "Removal Failed",
+            "config": {
+                "result": "$.nodes.remove-from-group.result"
+            },
+            "position": {
+                "x": 950,
+                "y": 375
+            },
+            "outputs": []
+        }
+    },
+    "startNode": "trigger"
+}

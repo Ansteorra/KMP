@@ -8,8 +8,6 @@ use Activities\Policy\ActivitiesTablePolicy;
 use Activities\Policy\ActivityGroupPolicy;
 use Activities\Policy\ActivityGroupsTablePolicy;
 use Activities\Policy\ActivityPolicy;
-use Activities\Policy\AuthorizationApprovalPolicy;
-use Activities\Policy\AuthorizationApprovalsTablePolicy;
 use Activities\Policy\AuthorizationPolicy;
 use Activities\Policy\ReportsControllerPolicy;
 use App\Model\Entity\Member;
@@ -129,112 +127,6 @@ class ActivitiesPoliciesTest extends BaseTestCase
         $entity = $this->getTableLocator()->get('Activities.Activities')->newEmptyEntity();
         $result = $policy->before($admin, $entity, 'edit');
         $this->assertTrue($result);
-    }
-
-    // =========================================================================
-    // AuthorizationApprovalPolicy
-    // =========================================================================
-
-    public function testAuthorizationApprovalPolicyExtendsBasePolicy(): void
-    {
-        $policy = new AuthorizationApprovalPolicy();
-        $this->assertInstanceOf(BasePolicy::class, $policy);
-        $this->assertInstanceOf(BeforePolicyInterface::class, $policy);
-    }
-
-    public function testAuthorizationApprovalPolicySuperUserBypass(): void
-    {
-        $admin = $this->loadMember(self::ADMIN_MEMBER_ID);
-        $policy = new AuthorizationApprovalPolicy();
-        $entity = $this->getTableLocator()->get('Activities.AuthorizationApprovals')->newEmptyEntity();
-        $result = $policy->before($admin, $entity, 'approve');
-        $this->assertTrue($result);
-    }
-
-    public function testCanViewAsAssignedApprover(): void
-    {
-        $user = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
-        $policy = new AuthorizationApprovalPolicy();
-        $entity = $this->getTableLocator()->get('Activities.AuthorizationApprovals')->newEmptyEntity();
-        $entity->approver_id = self::TEST_MEMBER_AGATHA_ID;
-
-        $this->assertTrue($policy->canView($user, $entity));
-    }
-
-    public function testCanViewDeniedWhenNotApproverAndNoPermission(): void
-    {
-        $user = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
-        $policy = new AuthorizationApprovalPolicy();
-        $entity = $this->getTableLocator()->get('Activities.AuthorizationApprovals')->newEmptyEntity();
-        $entity->approver_id = 99999;
-
-        $this->assertFalse($policy->canView($user, $entity));
-    }
-
-    public function testCanAvailableApproversListAsAssignedApprover(): void
-    {
-        $user = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
-        $policy = new AuthorizationApprovalPolicy();
-        $entity = $this->getTableLocator()->get('Activities.AuthorizationApprovals')->newEmptyEntity();
-        $entity->approver_id = self::TEST_MEMBER_AGATHA_ID;
-
-        $this->assertTrue($policy->canAvailableApproversList($user, $entity));
-    }
-
-    public function testCanAvailableApproversListDeniedWhenNotApprover(): void
-    {
-        $user = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
-        $policy = new AuthorizationApprovalPolicy();
-        $entity = $this->getTableLocator()->get('Activities.AuthorizationApprovals')->newEmptyEntity();
-        $entity->approver_id = 99999;
-
-        $this->assertFalse($policy->canAvailableApproversList($user, $entity));
-    }
-
-    public function testSuperUserCanViewAnyApproval(): void
-    {
-        $admin = $this->loadMember(self::ADMIN_MEMBER_ID);
-        $policy = new AuthorizationApprovalPolicy();
-        $entity = $this->getTableLocator()->get('Activities.AuthorizationApprovals')->newEmptyEntity();
-        $entity->approver_id = 99999;
-        $result = $policy->before($admin, $entity, 'view');
-        $this->assertTrue($result);
-    }
-
-    // =========================================================================
-    // AuthorizationApprovalsTablePolicy
-    // =========================================================================
-
-    public function testAuthorizationApprovalsTablePolicyExtendsBasePolicy(): void
-    {
-        $policy = new AuthorizationApprovalsTablePolicy();
-        $this->assertInstanceOf(BasePolicy::class, $policy);
-        $this->assertInstanceOf(BeforePolicyInterface::class, $policy);
-    }
-
-    public function testCanAllQueuesAdminBypass(): void
-    {
-        $admin = $this->loadMember(self::ADMIN_MEMBER_ID);
-        $policy = new AuthorizationApprovalsTablePolicy();
-        $table = $this->getTableLocator()->get('Activities.AuthorizationApprovals');
-        $result = $policy->before($admin, $table, 'allQueues');
-        $this->assertTrue($result);
-    }
-
-    public function testCanAllQueuesDeniedForUnprivilegedUser(): void
-    {
-        $user = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
-        $policy = new AuthorizationApprovalsTablePolicy();
-        $entity = $this->getTableLocator()->get('Activities.AuthorizationApprovals')->newEmptyEntity();
-        $this->assertFalse($policy->canAllQueues($user, $entity));
-    }
-
-    public function testCanViewGridDataDelegatesToCanAllQueues(): void
-    {
-        $user = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
-        $policy = new AuthorizationApprovalsTablePolicy();
-        $entity = $this->getTableLocator()->get('Activities.AuthorizationApprovals')->newEmptyEntity();
-        $this->assertFalse($policy->canViewGridData($user, $entity));
     }
 
     // =========================================================================

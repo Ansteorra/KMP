@@ -208,6 +208,17 @@ class CoreNavigationProvider
             [
                 'type' => 'link',
                 'mergePath' => ['Config'],
+                'label' => 'All Approvals',
+                'order' => 5,
+                'url' => [
+                    'controller' => 'Approvals',
+                    'action' => 'allApprovals',
+                ],
+                'icon' => 'bi-clipboard-check',
+            ],
+            [
+                'type' => 'link',
+                'mergePath' => ['Config'],
                 'label' => 'App Settings',
                 'order' => 0,
                 'url' => [
@@ -295,17 +306,6 @@ class CoreNavigationProvider
             ],
             [
                 'type' => 'link',
-                'mergePath' => ['Config', 'Email Templates'],
-                'label' => 'Discover',
-                'order' => 10,
-                'url' => [
-                    'controller' => 'EmailTemplates',
-                    'action' => 'discover',
-                ],
-                'icon' => 'bi-search',
-            ],
-            [
-                'type' => 'link',
                 'mergePath' => ['Security'],
                 'label' => 'Warrants',
                 'order' => 0,
@@ -368,6 +368,78 @@ class CoreNavigationProvider
                     'ServicePrincipals/view/*',
                     'ServicePrincipals/add',
                     'ServicePrincipals/edit/*',
+                ],
+            ],
+            [
+                'type' => 'parent',
+                'label' => 'Workflows',
+                'icon' => 'bi-diagram-3',
+                'id' => 'navheader_workflows',
+                'order' => 28,
+            ],
+            [
+                'type' => 'link',
+                'mergePath' => ['Workflows'],
+                'label' => 'Definitions',
+                'order' => 0,
+                'url' => [
+                    'controller' => 'WorkflowDefinitions',
+                    'action' => 'index',
+                ],
+                'icon' => 'bi-list-task',
+                'activePaths' => [
+                    'WorkflowDefinitions/designer/*',
+                    'WorkflowDefinitions/versions/*',
+                ],
+            ],
+            [
+                'type' => 'link',
+                'mergePath' => ['Action Items'],
+                'label' => 'My Approvals',
+                'order' => 10,
+                'url' => [
+                    'controller' => 'Approvals',
+                    'action' => 'approvals',
+                ],
+                'skipAuthorization' => true,
+                'icon' => 'bi-check2-square',
+                'badgeClass' => 'bg-danger',
+                'badgeValue' => [
+                    'class' => "App\Model\Table\WorkflowApprovalsTable",
+                    'method' => 'getPendingApprovalCountForMember',
+                    'argument' => $user->id,
+                ],
+            ],
+            [
+                'type' => 'link',
+                'mergePath' => ['Action Items'],
+                'label' => 'My To-Dos',
+                'order' => 11,
+                'url' => [
+                    'controller' => 'ActionItems',
+                    'action' => 'myTasks',
+                ],
+                'skipAuthorization' => true,
+                'icon' => 'bi-check2-all',
+                'badgeClass' => 'bg-danger',
+                'badgeValue' => [
+                    'class' => "App\Model\Table\ActionItemsTable",
+                    'method' => 'getOpenTaskCountForMember',
+                    'argument' => $user->id,
+                ],
+            ],
+            [
+                'type' => 'link',
+                'mergePath' => ['Workflows'],
+                'label' => 'Instances',
+                'order' => 20,
+                'url' => [
+                    'controller' => 'WorkflowInstances',
+                    'action' => 'instances',
+                ],
+                'icon' => 'bi-play-circle',
+                'activePaths' => [
+                    'WorkflowInstances/viewInstance/*',
                 ],
             ],
         ];

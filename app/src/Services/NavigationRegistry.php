@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Model\Entity\Member;
+use App\Services\Cache\TenantAwareCache;
 use Cake\Core\StaticConfigTrait;
 use Cake\Http\Session;
 use DateTimeImmutable;
@@ -22,7 +23,7 @@ class NavigationRegistry
 {
     use StaticConfigTrait;
 
-    private const NAVIGATION_CACHE_VERSION = 2;
+    private const NAVIGATION_CACHE_VERSION = 5;
 
     /**
      * @var array [source => ['items' => [...], 'callback' => callable|null]]
@@ -97,16 +98,19 @@ class NavigationRegistry
 
         $allItems = [];
         // Check for cached items in session for performance
-        $cached = $session?->read('navigation_items');
-        if ($cached === null && isset($_SESSION['navigation_items']) && is_array($_SESSION['navigation_items'])) {
-            $cached = $_SESSION['navigation_items'];
+        $cacheKey = self::navigationCacheKey();
+        $cached = $session?->read($cacheKey);
+        if ($cached === null && isset($_SESSION[$cacheKey]) && is_array($_SESSION[$cacheKey])) {
+            $cached = $_SESSION[$cacheKey];
         }
+        $registeredSources = self::registeredSourceKeys();
         if (is_array($cached)) {
             if (
                 isset($cached['user_id'], $cached['items'])
                 && (int)$cached['user_id'] === (int)$user->id
                 && is_array($cached['items'])
                 && (int)($cached['nav_version'] ?? 0) === self::NAVIGATION_CACHE_VERSION
+                && ($cached['registered_sources'] ?? []) === $registeredSources
                 && !self::isCachedNavigationStaleForRestore($cached, $latestRestoreCompletion)
                 && (!$hasRegisteredSources || $cached['items'] !== [])
             ) {
@@ -134,18 +138,19 @@ class NavigationRegistry
                 'user_id' => (int)$user->id,
                 'items' => $allItems,
                 'nav_version' => self::NAVIGATION_CACHE_VERSION,
+                'registered_sources' => $registeredSources,
                 'generated_at' => (new DateTimeImmutable('now'))->format(DateTimeInterface::ATOM),
             ];
             if ($session !== null) {
-                $session->write('navigation_items', $payload);
+                $session->write($cacheKey, $payload);
             } else {
-                $_SESSION['navigation_items'] = $payload;
+                $_SESSION[$cacheKey] = $payload;
             }
         } else {
             if ($session !== null) {
-                $session->delete('navigation_items');
+                $session->delete($cacheKey);
             } else {
-                unset($_SESSION['navigation_items']);
+                unset($_SESSION[$cacheKey]);
             }
         }
 
@@ -174,7 +179,7 @@ class NavigationRegistry
     {
         unset(self::$navigationItems[$source]);
         // Clear session cache since navigation has changed
-        unset($_SESSION['navigation_items']);
+        self::clearNavigationSessionCache();
     }
 
     /**
@@ -242,8 +247,47 @@ class NavigationRegistry
     {
         self::$navigationItems = [];
         self::$initialized = false;
-        if (isset($_SESSION['navigation_items'])) {
-            unset($_SESSION['navigation_items']);
+        self::clearNavigationSessionCache();
+    }
+
+    /**
+     * Get the session key for navigation cached in the active tenant context.
+     *
+     * @return string
+     */
+    private static function navigationCacheKey(): string
+    {
+        return TenantAwareCache::tenantScopedKey('navigation_items');
+    }
+
+    /**
+     * Current registered navigation source keys in a stable order.
+     *
+     * @return array<string>
+     */
+    private static function registeredSourceKeys(): array
+    {
+        $sources = array_keys(self::$navigationItems);
+        sort($sources, SORT_STRING);
+
+        return $sources;
+    }
+
+    /**
+     * Clear every tenant-scoped navigation cache entry in the current session.
+     *
+     * @return void
+     */
+    private static function clearNavigationSessionCache(): void
+    {
+        if (!isset($_SESSION) || !is_array($_SESSION)) {
+            return;
+        }
+
+        foreach (array_keys($_SESSION) as $key) {
+            if ($key === 'navigation_items' || str_ends_with((string)$key, ':navigation_items')) {
+                unset($_SESSION[$key]);
+            }
         }
     }
 

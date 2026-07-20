@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>assets/js/controllers/mobile-calendar-controller.js - KMP JavaScript API</title>
+    
+    <meta name="description" content="KMP JavaScript API reference for Stimulus controllers and plugin assets." />
+    
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    <input type="text" id="nav-search" placeholder="Search" />
+    
+    
+    <h2><a href="index.html">Home</a></h2><h2><a href="../php/index.html" target="_self" >PHP API</a></h2><h2><a href="../../index.html" target="_self" >Docs Home</a></h2><h3>Classes</h3><ul><li><a href="ActivitiesApproveAndAssignAuthorization.html">ActivitiesApproveAndAssignAuthorization</a><ul class='methods'><li data-type='method'><a href="ActivitiesApproveAndAssignAuthorization.html#checkReadyToSubmit">checkReadyToSubmit</a></li><li data-type='method'><a href="ActivitiesApproveAndAssignAuthorization.html#connect">connect</a></li><li data-type='method'><a href="ActivitiesApproveAndAssignAuthorization.html#getApprovers">getApprovers</a></li><li data-type='method'><a href="ActivitiesApproveAndAssignAuthorization.html#optionsForFetch">optionsForFetch</a></li><li data-type='method'><a href="ActivitiesApproveAndAssignAuthorization.html#outletBtnOutletConnected">outletBtnOutletConnected</a></li><li data-type='method'><a href="ActivitiesApproveAndAssignAuthorization.html#outletBtnOutletDisconnected">outletBtnOutletDisconnected</a></li><li data-type='method'><a href="ActivitiesApproveAndAssignAuthorization.html#setId">setId</a></li><li data-type='method'><a href="ActivitiesApproveAndAssignAuthorization.html#submitBtnTargetConnected">submitBtnTargetConnected</a></li></ul></li><li><a href="ActivitiesRenewAuthorization.html">ActivitiesRenewAuthorization</a><ul class='methods'><li data-type='method'><a href="ActivitiesRenewAuthorization.html#checkReadyToSubmit">checkReadyToSubmit</a></li><li data-type='method'><a href="ActivitiesRenewAuthorization.html#getApprovers">getApprovers</a></li><li data-type='method'><a href="ActivitiesRenewAuthorization.html#optionsForFetch">optionsForFetch</a></li><li data-type='method'><a href="ActivitiesRenewAuthorization.html#outletBtnOutletConnected">outletBtnOutletConnected</a></li><li data-type='method'><a href="ActivitiesRenewAuthorization.html#outletBtnOutletDisconnected">outletBtnOutletDisconnected</a></li><li data-type='method'><a href="ActivitiesRenewAuthorization.html#setId">setId</a></li><li data-type='method'><a href="ActivitiesRenewAuthorization.html#submitBtnTargetConnected">submitBtnTargetConnected</a></li></ul></li><li><a href="ActivityToggleController.html">ActivityToggleController</a><ul class='methods'><li data-type='method'><a href="ActivityToggleController.html#toggleDescription">toggleDescription</a></li></ul></li><li><a href="ActivityWaiverManagerController.html">ActivityWaiverManagerController</a><ul class='methods'><li data-type='method'><a href="ActivityWaiverManagerController.html#connect">connect</a></li><li data-type='method'><a href="ActivityWaiverManagerController.html#deselectAll">deselectAll</a></li><li data-type='method'><a href="ActivityWaiverManagerController.html#getSelectedWaivers">getSelectedWaivers</a></li><li data-type='method'><a href="ActivityWaiverManagerController.html#selectAll">selectAll</a></li><li data-type='method'><a href="ActivityWaiverManagerController.html#toggleWaiver">toggleWaiver</a></li><li data-type='method'><a href="ActivityWaiverManagerController.html#updateSelectedCount">updateSelectedCount</a></li><li data-type='method'><a href="ActivityWaiverManagerController.html#updateVisualState">updateVisualState</a></li><li data-type='method'><a href="ActivityWaiverManagerController.html#validateSelection">validateSelection</a></li></ul></li><li><a href="AddActivityModalController.html">AddActivityModalController</a><ul class='methods'><li data-type='method'><a href="AddActivityModalController.html#updateDefaultDescription">updateDefaultDescription</a></li></ul></li><li><a href="AppSettingForm.html">AppSettingForm</a><ul class='methods'><li data-type='method'><a href="AppSettingForm.html#enableSubmit">enableSubmit</a></li><li data-type='method'><a href="AppSettingForm.html#submit">submit</a></li></ul></li><li><a href="AppSettingModalController.html">AppSettingModalController</a><ul class='methods'><li data-type='method'><a href="AppSettingModalController.html#connect">connect</a></li><li data-type='method'><a href="AppSettingModalController.html#disconnect">disconnect</a></li><li data-type='method'><a href="AppSettingModalController.html#handleOutletClick">handleOutletClick</a></li><li data-type='method'><a href="AppSettingModalController.html#initialize">initialize</a></li><li data-type='method'><a href="AppSettingModalController.html#loadEditForm">loadEditForm</a></li></ul></li><li><a href="ApprovalDetailController.html">ApprovalDetailController</a></li><li><a href="ApprovalReassignController.html">ApprovalReassignController</a></li><li><a href="ApprovalResponseController.html">ApprovalResponseController</a><ul class='methods'><li data-type='method'><a href="ApprovalResponseController.html#configure">configure</a></li></ul></li><li><a href="AutoComplete.html">AutoComplete</a></li><li><a href="AwardsAwardForm.html">AwardsAwardForm</a><ul class='methods'><li data-type='method'><a href="AwardsAwardForm.html#add">add</a></li><li data-type='method'><a href="AwardsAwardForm.html#connect">connect</a></li><li data-type='method'><a href="AwardsAwardForm.html#createListItem">createListItem</a></li><li data-type='method'><a href="AwardsAwardForm.html#initialize">initialize</a></li><li data-type='method'><a href="AwardsAwardForm.html#remove">remove</a></li></ul></li><li><a href="AwardsRecommendationAddForm.html">AwardsRecommendationAddForm</a><ul class='methods'><li data-type='method'><a href="AwardsRecommendationAddForm.html#acConnected">acConnected</a></li><li data-type='method'><a href="AwardsRecommendationAddForm.html#connect">connect</a></li><li data-type='method'><a href="AwardsRecommendationAddForm.html#getAutocompleteValue">getAutocompleteValue</a></li><li data-type='method'><a href="AwardsRecommendationAddForm.html#loadMember">loadMember</a></li><li data-type='method'><a href="AwardsRecommendationAddForm.html#loadScaMemberInfo">loadScaMemberInfo</a></li><li data-type='method'><a href="AwardsRecommendationAddForm.html#optionsForFetch">optionsForFetch</a></li><li data-type='method'><a href="AwardsRecommendationAddForm.html#populateAwardDescriptions">populateAwardDescriptions</a></li><li data-type='method'><a href="AwardsRecommendationAddForm.html#populateSpecialties">populateSpecialties</a></li><li data-type='method'><a href="AwardsRecommendationAddForm.html#setAward">setAward</a></li><li data-type='method'><a href="AwardsRecommendationAddForm.html#submit">submit</a></li><li data-type='method'><a href="AwardsRecommendationAddForm.html#updateGatherings">updateGatherings</a></li></ul></li><li><a href="AwardsRecommendationBulkEditForm.html">AwardsRecommendationBulkEditForm</a><ul class='methods'><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#connect">connect</a></li><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#disconnect">disconnect</a></li><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#handleGridBulkAction">handleGridBulkAction</a></li><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#outletBtnOutletConnected">outletBtnOutletConnected</a></li><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#outletBtnOutletDisconnected">outletBtnOutletDisconnected</a></li><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#setFieldRules">setFieldRules</a></li><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#setId">setId</a></li><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#setPlanToGiveRequired">setPlanToGiveRequired</a></li><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#stateTargetConnected">stateTargetConnected</a></li><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#submit">submit</a></li><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#updateGatherings">updateGatherings</a></li></ul></li><li><a href="AwardsRecommendationEditForm.html">AwardsRecommendationEditForm</a><ul class='methods'><li data-type='method'><a href="AwardsRecommendationEditForm.html#connect">connect</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#givenDateTargetConnected">givenDateTargetConnected</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#loadMember">loadMember</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#loadScaMemberInfo">loadScaMemberInfo</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#optionsForFetch">optionsForFetch</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#outletBtnOutletConnected">outletBtnOutletConnected</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#outletBtnOutletDisconnected">outletBtnOutletDisconnected</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#planToGiveGatheringTargetConnected">planToGiveGatheringTargetConnected</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#populateAwardDescriptions">populateAwardDescriptions</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#populateSpecialties">populateSpecialties</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#recIdTargetConnected">recIdTargetConnected</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#scaMemberTargetConnected">scaMemberTargetConnected</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#setAward">setAward</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#setFieldRules">setFieldRules</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#setId">setId</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#setPlanToGiveRequired">setPlanToGiveRequired</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#stateTargetConnected">stateTargetConnected</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#submit">submit</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#updateGatherings">updateGatherings</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#updatePlanToGiveLookupUrl">updatePlanToGiveLookupUrl</a></li></ul></li><li><a href="AwardsRecommendationGroupController.html">AwardsRecommendationGroupController</a><ul class='methods'><li data-type='method'><a href="AwardsRecommendationGroupController.html#canGroup">canGroup</a></li><li data-type='method'><a href="AwardsRecommendationGroupController.html#handleSelectionChanged">handleSelectionChanged</a></li></ul></li><li><a href="AwardsRecommendationQuickEditForm.html">AwardsRecommendationQuickEditForm</a><ul class='methods'><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#connect">connect</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#givenDateTargetConnected">givenDateTargetConnected</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#loadScaMemberInfo">loadScaMemberInfo</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#optionsForFetch">optionsForFetch</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#outletBtnOutletConnected">outletBtnOutletConnected</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#outletBtnOutletDisconnected">outletBtnOutletDisconnected</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#planToGiveGatheringTargetConnected">planToGiveGatheringTargetConnected</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#populateAwardDescriptions">populateAwardDescriptions</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#populateSpecialties">populateSpecialties</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#recIdTargetConnected">recIdTargetConnected</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#setAward">setAward</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#setFieldRules">setFieldRules</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#setId">setId</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#setPlanToGiveRequired">setPlanToGiveRequired</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#stateTargetConnected">stateTargetConnected</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#submit">submit</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#updateGatherings">updateGatherings</a></li></ul></li><li><a href="AwardsRecommendationTable.html">AwardsRecommendationTable</a><ul class='methods'><li data-type='method'><a href="AwardsRecommendationTable.html#checkAll">checkAll</a></li><li data-type='method'><a href="AwardsRecommendationTable.html#checked">checked</a></li><li data-type='method'><a href="AwardsRecommendationTable.html#connect">connect</a></li></ul></li><li><a href="BackupRestoreStatusController.html">BackupRestoreStatusController</a></li><li><a href="BaseGatheringFormController.html">BaseGatheringFormController</a><ul class='methods'><li data-type='method'><a href="BaseGatheringFormController.html#clearValidationMessages">clearValidationMessages</a></li><li data-type='method'><a href="BaseGatheringFormController.html#connect">connect</a></li><li data-type='method'><a href="BaseGatheringFormController.html#endDateChanged">endDateChanged</a></li><li data-type='method'><a href="BaseGatheringFormController.html#showValidationError">showValidationError</a></li><li data-type='method'><a href="BaseGatheringFormController.html#startDateChanged">startDateChanged</a></li><li data-type='method'><a href="BaseGatheringFormController.html#validateDates">validateDates</a></li><li data-type='method'><a href="BaseGatheringFormController.html#validateForm">validateForm</a></li></ul></li><li><a href="BrancheLinks.html">BrancheLinks</a><ul class='methods'><li data-type='method'><a href="BrancheLinks.html#add">add</a></li><li data-type='method'><a href="BrancheLinks.html#connect">connect</a></li><li data-type='method'><a href="BrancheLinks.html#createListItem">createListItem</a></li><li data-type='method'><a href="BrancheLinks.html#initialize">initialize</a></li><li data-type='method'><a href="BrancheLinks.html#remove">remove</a></li><li data-type='method'><a href="BrancheLinks.html#setLinkType">setLinkType</a></li></ul></li><li><a href="CameraCaptureController.html">CameraCaptureController</a><ul class='methods'><li data-type='method'><a href="CameraCaptureController.html#connect">connect</a></li><li data-type='method'><a href="CameraCaptureController.html#detectMobileDevice">detectMobileDevice</a></li><li data-type='method'><a href="CameraCaptureController.html#formatFileSize">formatFileSize</a></li><li data-type='method'><a href="CameraCaptureController.html#handleCapture">handleCapture</a></li><li data-type='method'><a href="CameraCaptureController.html#showImagePreview">showImagePreview</a></li><li data-type='method'><a href="CameraCaptureController.html#triggerCamera">triggerCamera</a></li><li data-type='method'><a href="CameraCaptureController.html#.supportsCameraCapture">supportsCameraCapture</a></li></ul></li><li><a href="CodeEditorController.html">CodeEditorController</a></li><li><a href="CsvDownloadController.html">CsvDownloadController</a><ul class='methods'><li data-type='method'><a href="CsvDownloadController.html#connect">connect</a></li><li data-type='method'><a href="CsvDownloadController.html#disconnect">disconnect</a></li><li data-type='method'><a href="CsvDownloadController.html#download">download</a></li></ul></li><li><a href="DelayForwardController.html">DelayForwardController</a><ul class='methods'><li data-type='method'><a href="DelayForwardController.html#connect">connect</a></li><li data-type='method'><a href="DelayForwardController.html#disconnect">disconnect</a></li><li data-type='method'><a href="DelayForwardController.html#forward">forward</a></li></ul></li><li><a href="DeleteConfirmationController.html">DeleteConfirmationController</a><ul class='methods'><li data-type='method'><a href="DeleteConfirmationController.html#buildConfirmMessage">buildConfirmMessage</a></li><li data-type='method'><a href="DeleteConfirmationController.html#confirm">confirm</a></li></ul></li><li><a href="DetailTabsController.html">DetailTabsController</a><ul class='methods'><li data-type='method'><a href="DetailTabsController.html#getFirstTabByOrder">getFirstTabByOrder</a></li><li data-type='method'><a href="DetailTabsController.html#tabBtnClicked">tabBtnClicked</a></li><li data-type='method'><a href="DetailTabsController.html#tabBtnTargetConnected">tabBtnTargetConnected</a></li><li data-type='method'><a href="DetailTabsController.html#tabBtnTargetDisconnected">tabBtnTargetDisconnected</a></li></ul></li><li><a href="EditActivityDescriptionController.html">EditActivityDescriptionController</a><ul class='methods'><li data-type='method'><a href="EditActivityDescriptionController.html#handleModalShow">handleModalShow</a></li></ul></li><li><a href="EmailTemplateEditorController.html">EmailTemplateEditorController</a><ul class='methods'><li data-type='method'><a href="EmailTemplateEditorController.html#buildToolbar">buildToolbar</a></li><li data-type='method'><a href="EmailTemplateEditorController.html#getValue">getValue</a></li><li data-type='method'><a href="EmailTemplateEditorController.html#insertVariable">insertVariable</a></li><li data-type='method'><a href="EmailTemplateEditorController.html#renderPreview">renderPreview</a></li><li data-type='method'><a href="EmailTemplateEditorController.html#renderVariableButtons">renderVariableButtons</a></li><li data-type='method'><a href="EmailTemplateEditorController.html#setValue">setValue</a></li><li data-type='method'><a href="EmailTemplateEditorController.html#showVariableMenu">showVariableMenu</a></li></ul></li><li><a href="EmailTemplateFormController.html">EmailTemplateFormController</a><ul class='methods'><li data-type='method'><a href="EmailTemplateFormController.html#_extractPlaceholders">_extractPlaceholders</a></li><li data-type='method'><a href="EmailTemplateFormController.html#_refreshParsedPlaceholders">_refreshParsedPlaceholders</a></li><li data-type='method'><a href="EmailTemplateFormController.html#_slugify">_slugify</a></li><li data-type='method'><a href="EmailTemplateFormController.html#nameChanged">nameChanged</a></li><li data-type='method'><a href="EmailTemplateFormController.html#templateChanged">templateChanged</a></li></ul></li><li><a href="ExemptionReasonsController.html">ExemptionReasonsController</a><ul class='methods'><li data-type='method'><a href="ExemptionReasonsController.html#addReason">addReason</a></li><li data-type='method'><a href="ExemptionReasonsController.html#reasonBlurred">reasonBlurred</a></li><li data-type='method'><a href="ExemptionReasonsController.html#reasonChanged">reasonChanged</a></li><li data-type='method'><a href="ExemptionReasonsController.html#removeReason">removeReason</a></li><li data-type='method'><a href="ExemptionReasonsController.html#updateHiddenInput">updateHiddenInput</a></li></ul></li><li><a href="FileSizeValidatorController.html">FileSizeValidatorController</a><ul class='methods'><li data-type='method'><a href="FileSizeValidatorController.html#buildInvalidFilesMessage">buildInvalidFilesMessage</a></li><li data-type='method'><a href="FileSizeValidatorController.html#buildTotalSizeWarningMessage">buildTotalSizeWarningMessage</a></li><li data-type='method'><a href="FileSizeValidatorController.html#checkFileSizes">checkFileSizes</a></li><li data-type='method'><a href="FileSizeValidatorController.html#clearWarning">clearWarning</a></li><li data-type='method'><a href="FileSizeValidatorController.html#connect">connect</a></li><li data-type='method'><a href="FileSizeValidatorController.html#disableSubmit">disableSubmit</a></li><li data-type='method'><a href="FileSizeValidatorController.html#dispatch">dispatch</a></li><li data-type='method'><a href="FileSizeValidatorController.html#enableSubmit">enableSubmit</a></li><li data-type='method'><a href="FileSizeValidatorController.html#escapeHtml">escapeHtml</a></li><li data-type='method'><a href="FileSizeValidatorController.html#formatBytes">formatBytes</a></li><li data-type='method'><a href="FileSizeValidatorController.html#formatWarningMessage">formatWarningMessage</a></li><li data-type='method'><a href="FileSizeValidatorController.html#showInvalidFilesWarning">showInvalidFilesWarning</a></li><li data-type='method'><a href="FileSizeValidatorController.html#showTotalSizeWarning">showTotalSizeWarning</a></li><li data-type='method'><a href="FileSizeValidatorController.html#validateFiles">validateFiles</a></li></ul></li><li><a href="FilterGrid.html">FilterGrid</a><ul class='methods'><li data-type='method'><a href="FilterGrid.html#submitForm">submitForm</a></li></ul></li><li><a href="GWSharingController.html">GWSharingController</a><ul class='methods'><li data-type='method'><a href="GWSharingController.html#submit">submit</a></li></ul></li><li><a href="GatheringCloneController.html">GatheringCloneController</a></li><li><a href="GatheringFormController.html">GatheringFormController</a></li><li><a href="GatheringLocationAutocompleteController.html">GatheringLocationAutocompleteController</a><ul class='methods'><li data-type='method'><a href="GatheringLocationAutocompleteController.html#connect">connect</a></li><li data-type='method'><a href="GatheringLocationAutocompleteController.html#disconnect">disconnect</a></li><li data-type='method'><a href="GatheringLocationAutocompleteController.html#initAutocomplete">initAutocomplete</a></li><li data-type='method'><a href="GatheringLocationAutocompleteController.html#initialize">initialize</a></li><li data-type='method'><a href="GatheringLocationAutocompleteController.html#loadGoogleMapsPlaces">loadGoogleMapsPlaces</a></li></ul></li><li><a href="GatheringMapController.html">GatheringMapController</a><ul class='methods'><li data-type='method'><a href="GatheringMapController.html#connect">connect</a></li><li data-type='method'><a href="GatheringMapController.html#createMarker">createMarker</a></li><li data-type='method'><a href="GatheringMapController.html#disconnect">disconnect</a></li><li data-type='method'><a href="GatheringMapController.html#geocodeAndDisplayGoogle">geocodeAndDisplayGoogle</a></li><li data-type='method'><a href="GatheringMapController.html#getDirections">getDirections</a></li><li data-type='method'><a href="GatheringMapController.html#initGoogleMap">initGoogleMap</a></li><li data-type='method'><a href="GatheringMapController.html#initialize">initialize</a></li><li data-type='method'><a href="GatheringMapController.html#loadGoogleMapsScript">loadGoogleMapsScript</a></li><li data-type='method'><a href="GatheringMapController.html#openInAppleMaps">openInAppleMaps</a></li><li data-type='method'><a href="GatheringMapController.html#openInGoogleMaps">openInGoogleMaps</a></li><li data-type='method'><a href="GatheringMapController.html#showError">showError</a></li></ul></li><li><a href="GatheringScheduleController.html">GatheringScheduleController</a><ul class='methods'><li data-type='method'><a href="GatheringScheduleController.html#connect">connect</a></li><li data-type='method'><a href="GatheringScheduleController.html#createFlashContainer">createFlashContainer</a></li><li data-type='method'><a href="GatheringScheduleController.html#formatDate">formatDate</a></li><li data-type='method'><a href="GatheringScheduleController.html#handleActivityChange">handleActivityChange</a></li><li data-type='method'><a href="GatheringScheduleController.html#handleEditOtherChange">handleEditOtherChange</a></li><li data-type='method'><a href="GatheringScheduleController.html#handleOtherChange">handleOtherChange</a></li><li data-type='method'><a href="GatheringScheduleController.html#normalizeErrors">normalizeErrors</a></li><li data-type='method'><a href="GatheringScheduleController.html#openEditModal">openEditModal</a></li><li data-type='method'><a href="GatheringScheduleController.html#resetAddForm">resetAddForm</a></li><li data-type='method'><a href="GatheringScheduleController.html#setupDateTimeLimits">setupDateTimeLimits</a></li><li data-type='method'><a href="GatheringScheduleController.html#showFlashMessage">showFlashMessage</a></li><li data-type='method'><a href="GatheringScheduleController.html#submitAddForm">submitAddForm</a></li><li data-type='method'><a href="GatheringScheduleController.html#submitEditForm">submitEditForm</a></li><li data-type='method'><a href="GatheringScheduleController.html#toggleEditEndTime">toggleEditEndTime</a></li><li data-type='method'><a href="GatheringScheduleController.html#toggleEndTime">toggleEndTime</a></li><li data-type='method'><a href="GatheringScheduleController.html#validateDatetimeRange">validateDatetimeRange</a></li></ul></li><li><a href="GatheringTypeFormController.html">GatheringTypeFormController</a><ul class='methods'><li data-type='method'><a href="GatheringTypeFormController.html#clearDescriptionError">clearDescriptionError</a></li><li data-type='method'><a href="GatheringTypeFormController.html#clearNameError">clearNameError</a></li><li data-type='method'><a href="GatheringTypeFormController.html#connect">connect</a></li><li data-type='method'><a href="GatheringTypeFormController.html#disableSubmit">disableSubmit</a></li><li data-type='method'><a href="GatheringTypeFormController.html#enableSubmit">enableSubmit</a></li><li data-type='method'><a href="GatheringTypeFormController.html#showDescriptionError">showDescriptionError</a></li><li data-type='method'><a href="GatheringTypeFormController.html#showNameError">showNameError</a></li><li data-type='method'><a href="GatheringTypeFormController.html#showValidationSummary">showValidationSummary</a></li><li data-type='method'><a href="GatheringTypeFormController.html#updateDescriptionCount">updateDescriptionCount</a></li><li data-type='method'><a href="GatheringTypeFormController.html#validateForm">validateForm</a></li><li data-type='method'><a href="GatheringTypeFormController.html#validateName">validateName</a></li></ul></li><li><a href="GatheringsCalendarController.html">GatheringsCalendarController</a><ul class='methods'><li data-type='method'><a href="GatheringsCalendarController.html#connect">connect</a></li><li data-type='method'><a href="GatheringsCalendarController.html#disconnect">disconnect</a></li><li data-type='method'><a href="GatheringsCalendarController.html#getCsrfToken">getCsrfToken</a></li><li data-type='method'><a href="GatheringsCalendarController.html#initialize">initialize</a></li><li data-type='method'><a href="GatheringsCalendarController.html#markAttendance">markAttendance</a></li><li data-type='method'><a href="GatheringsCalendarController.html#showAttendanceModal">showAttendanceModal</a></li><li data-type='method'><a href="GatheringsCalendarController.html#showLocation">showLocation</a></li><li data-type='method'><a href="GatheringsCalendarController.html#showQuickView">showQuickView</a></li><li data-type='method'><a href="GatheringsCalendarController.html#showToast">showToast</a></li><li data-type='method'><a href="GatheringsCalendarController.html#toggleAttendance">toggleAttendance</a></li><li data-type='method'><a href="GatheringsCalendarController.html#updateAttendance">updateAttendance</a></li><li data-type='method'><a href="GatheringsCalendarController.html#updateFeedUrl">updateFeedUrl</a></li></ul></li><li><a href="GitHubSubmitter.html">GitHubSubmitter</a><ul class='methods'><li data-type='method'><a href="GitHubSubmitter.html#connect">connect</a></li><li data-type='method'><a href="GitHubSubmitter.html#modalTargetConnected">modalTargetConnected</a></li><li data-type='method'><a href="GitHubSubmitter.html#modalTargetDisconnected">modalTargetDisconnected</a></li><li data-type='method'><a href="GitHubSubmitter.html#submit">submit</a></li></ul></li><li><a href="GridViewController.html">GridViewController</a><ul class='methods'><li data-type='method'><a href="GridViewController.html#applyColumnChanges">applyColumnChanges</a></li><li data-type='method'><a href="GridViewController.html#applyDateRangeFilter">applyDateRangeFilter</a></li><li data-type='method'><a href="GridViewController.html#applySort">applySort</a></li><li data-type='method'><a href="GridViewController.html#buildUrl">buildUrl</a></li><li data-type='method'><a href="GridViewController.html#buildUrlWithFilters">buildUrlWithFilters</a></li><li data-type='method'><a href="GridViewController.html#clearAllFilters">clearAllFilters</a></li><li data-type='method'><a href="GridViewController.html#clearBulkSelection">clearBulkSelection</a></li><li data-type='method'><a href="GridViewController.html#clearDefault">clearDefault</a></li><li data-type='method'><a href="GridViewController.html#clearSearch">clearSearch</a></li><li data-type='method'><a href="GridViewController.html#connect">connect</a></li><li data-type='method'><a href="GridViewController.html#createFilterPill">createFilterPill</a></li><li data-type='method'><a href="GridViewController.html#createSearchBadge">createSearchBadge</a></li><li data-type='method'><a href="GridViewController.html#createViewTab">createViewTab</a></li><li data-type='method'><a href="GridViewController.html#deleteView">deleteView</a></li><li data-type='method'><a href="GridViewController.html#disconnect">disconnect</a></li><li data-type='method'><a href="GridViewController.html#escapeHtml">escapeHtml</a></li><li data-type='method'><a href="GridViewController.html#exportCsv">exportCsv</a></li><li data-type='method'><a href="GridViewController.html#formatColumnName">formatColumnName</a></li><li data-type='method'><a href="GridViewController.html#getCsrfToken">getCsrfToken</a></li><li data-type='method'><a href="GridViewController.html#getCurrentConfig">getCurrentConfig</a></li><li data-type='method'><a href="GridViewController.html#getFilterColumnLabel">getFilterColumnLabel</a></li><li data-type='method'><a href="GridViewController.html#getFilterValueLabel">getFilterValueLabel</a></li><li data-type='method'><a href="GridViewController.html#getSelectedCheckboxData">getSelectedCheckboxData</a></li><li data-type='method'><a href="GridViewController.html#handleColumnReorder">handleColumnReorder</a></li><li data-type='method'><a href="GridViewController.html#handleFrameLoad">handleFrameLoad</a></li><li data-type='method'><a href="GridViewController.html#handleSearchKeyup">handleSearchKeyup</a></li><li data-type='method'><a href="GridViewController.html#isFilterLocked">isFilterLocked</a></li><li data-type='method'><a href="GridViewController.html#loadInlineState">loadInlineState</a></li><li data-type='method'><a href="GridViewController.html#navigate">navigate</a></li><li data-type='method'><a href="GridViewController.html#performSearch">performSearch</a></li><li data-type='method'><a href="GridViewController.html#removeFilter">removeFilter</a></li><li data-type='method'><a href="GridViewController.html#saveView">saveView</a></li><li data-type='method'><a href="GridViewController.html#selectFilter">selectFilter</a></li><li data-type='method'><a href="GridViewController.html#setDefault">setDefault</a></li><li data-type='method'><a href="GridViewController.html#setSearchBusy">setSearchBusy</a></li><li data-type='method'><a href="GridViewController.html#showAll">showAll</a></li><li data-type='method'><a href="GridViewController.html#switchView">switchView</a></li><li data-type='method'><a href="GridViewController.html#toggleAllSelection">toggleAllSelection</a></li><li data-type='method'><a href="GridViewController.html#toggleColumn">toggleColumn</a></li><li data-type='method'><a href="GridViewController.html#toggleFilter">toggleFilter</a></li><li data-type='method'><a href="GridViewController.html#toggleRowSelection">toggleRowSelection</a></li><li data-type='method'><a href="GridViewController.html#toggleSubRow">toggleSubRow</a></li><li data-type='method'><a href="GridViewController.html#triggerBulkAction">triggerBulkAction</a></li><li data-type='method'><a href="GridViewController.html#updateBulkSelectionUI">updateBulkSelectionUI</a></li><li data-type='method'><a href="GridViewController.html#updateClearFiltersFooter">updateClearFiltersFooter</a></li><li data-type='method'><a href="GridViewController.html#updateColumnPicker">updateColumnPicker</a></li><li data-type='method'><a href="GridViewController.html#updateDateRangeFilter">updateDateRangeFilter</a></li><li data-type='method'><a href="GridViewController.html#updateFilterCount">updateFilterCount</a></li><li data-type='method'><a href="GridViewController.html#updateFilterDropdownCheckboxes">updateFilterDropdownCheckboxes</a></li><li data-type='method'><a href="GridViewController.html#updateFilterNavigation">updateFilterNavigation</a></li><li data-type='method'><a href="GridViewController.html#updateFilterPanels">updateFilterPanels</a></li><li data-type='method'><a href="GridViewController.html#updateFilterPills">updateFilterPills</a></li><li data-type='method'><a href="GridViewController.html#updateSearchDisplay">updateSearchDisplay</a></li><li data-type='method'><a href="GridViewController.html#updateToolbar">updateToolbar</a></li><li data-type='method'><a href="GridViewController.html#updateView">updateView</a></li><li data-type='method'><a href="GridViewController.html#updateViewTabs">updateViewTabs</a></li></ul></li><li><a href="GuifierController.html">GuifierController</a><ul class='methods'><li data-type='method'><a href="GuifierController.html#connect">connect</a></li></ul></li><li><a href="HelloWorldController.html">HelloWorldController</a><ul class='methods'><li data-type='method'><a href="HelloWorldController.html#clear">clear</a></li><li data-type='method'><a href="HelloWorldController.html#clear">clear</a></li><li data-type='method'><a href="HelloWorldController.html#connect">connect</a></li><li data-type='method'><a href="HelloWorldController.html#connect">connect</a></li><li data-type='method'><a href="HelloWorldController.html#countValueChanged">countValueChanged</a></li><li data-type='method'><a href="HelloWorldController.html#countValueChanged">countValueChanged</a></li><li data-type='method'><a href="HelloWorldController.html#disconnect">disconnect</a></li><li data-type='method'><a href="HelloWorldController.html#disconnect">disconnect</a></li><li data-type='method'><a href="HelloWorldController.html#fetchData">fetchData</a></li><li data-type='method'><a href="HelloWorldController.html#fetchData">fetchData</a></li><li data-type='method'><a href="HelloWorldController.html#greet">greet</a></li><li data-type='method'><a href="HelloWorldController.html#greet">greet</a></li><li data-type='method'><a href="HelloWorldController.html#initialize">initialize</a></li><li data-type='method'><a href="HelloWorldController.html#initialize">initialize</a></li><li data-type='method'><a href="HelloWorldController.html#messageValueChanged">messageValueChanged</a></li><li data-type='method'><a href="HelloWorldController.html#messageValueChanged">messageValueChanged</a></li><li data-type='method'><a href="HelloWorldController.html#showMessage">showMessage</a></li><li data-type='method'><a href="HelloWorldController.html#showMessage">showMessage</a></li><li data-type='method'><a href="HelloWorldController.html#updateCounter">updateCounter</a></li><li data-type='method'><a href="HelloWorldController.html#updateCounter">updateCounter</a></li></ul></li><li></li><li><a href="ImagePreview.html">ImagePreview</a><ul class='methods'><li data-type='method'><a href="ImagePreview.html#preview">preview</a></li></ul></li><li><a href="ImageZoom.html">ImageZoom</a></li><li><a href="MarkdownEditorController.html">MarkdownEditorController</a></li><li><a href="MemberCardProfile.html">MemberCardProfile</a><ul class='methods'><li data-type='method'><a href="MemberCardProfile.html#appendToCard">appendToCard</a></li><li data-type='method'><a href="MemberCardProfile.html#connect">connect</a></li><li data-type='method'><a href="MemberCardProfile.html#initialize">initialize</a></li><li data-type='method'><a href="MemberCardProfile.html#loadCard">loadCard</a></li><li data-type='method'><a href="MemberCardProfile.html#optionsForFetch">optionsForFetch</a></li><li data-type='method'><a href="MemberCardProfile.html#startCard">startCard</a></li><li data-type='method'><a href="MemberCardProfile.html#usedSpaceInCard">usedSpaceInCard</a></li></ul></li><li><a href="MemberMobileCardMenu.html">MemberMobileCardMenu</a><ul class='methods'><li data-type='method'><a href="MemberMobileCardMenu.html#closeMenu">closeMenu</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#createMenuItem">createMenuItem</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#handleConnectionStatusEvent">handleConnectionStatusEvent</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#handleOutsideClick">handleOutsideClick</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#loadMenuItems">loadMenuItems</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#onConnect">onConnect</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#onConnectionStateChanged">onConnectionStateChanged</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#onDisconnect">onDisconnect</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#openMenu">openMenu</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#renderMenu">renderMenu</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#toggleMenu">toggleMenu</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#updateOfflineState">updateOfflineState</a></li></ul></li><li><a href="MemberMobileCardPWA.html">MemberMobileCardPWA</a><ul class='methods'><li data-type='method'><a href="MemberMobileCardPWA.html#applyUpdate">applyUpdate</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#createUpdateToast">createUpdateToast</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#dismissUpdate">dismissUpdate</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#dispatchStatusEvent">dispatchStatusEvent</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#handleSwMessage">handleSwMessage</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#notifyServiceWorker">notifyServiceWorker</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#onConnect">onConnect</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#onConnectionStateChanged">onConnectionStateChanged</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#onDisconnect">onDisconnect</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#refreshPageIfOnline">refreshPageIfOnline</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#registerServiceWorker">registerServiceWorker</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#showUpdateToast">showUpdateToast</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#statusTargetConnected">statusTargetConnected</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#updateStatusDisplay">updateStatusDisplay</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#urlCacheTargetConnected">urlCacheTargetConnected</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#waitForActive">waitForActive</a></li></ul></li><li><a href="MemberMobileCardProfile.html">MemberMobileCardProfile</a><ul class='methods'><li data-type='method'><a href="MemberMobileCardProfile.html#handlePwaReady">handlePwaReady</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#loadCard">loadCard</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#onConnect">onConnect</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#onConnectionStateChanged">onConnectionStateChanged</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#onDisconnect">onDisconnect</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#pwaReadyValueChanged">pwaReadyValueChanged</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#renderMemberData">renderMemberData</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#renderPluginSections">renderPluginSections</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#retryLoad">retryLoad</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#showOfflineMessage">showOfflineMessage</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#startCard">startCard</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#updatePhotoActionsForConnection">updatePhotoActionsForConnection</a></li></ul></li><li><a href="MemberUniqueEmail.html">MemberUniqueEmail</a><ul class='methods'><li data-type='method'><a href="MemberUniqueEmail.html#checkEmail">checkEmail</a></li><li data-type='method'><a href="MemberUniqueEmail.html#connect">connect</a></li><li data-type='method'><a href="MemberUniqueEmail.html#disconnect">disconnect</a></li><li data-type='method'><a href="MemberUniqueEmail.html#optionsForFetch">optionsForFetch</a></li></ul></li><li><a href="MemberVerifyForm.html">MemberVerifyForm</a><ul class='methods'><li data-type='method'><a href="MemberVerifyForm.html#toggleMembership">toggleMembership</a></li><li data-type='method'><a href="MemberVerifyForm.html#toggleParent">toggleParent</a></li></ul></li><li><a href="MobileApprovalsController.html">MobileApprovalsController</a></li><li><a href="MobileCalendarController.html">MobileCalendarController</a><ul class='methods'><li data-type='method'><a href="MobileCalendarController.html#applyFilters">applyFilters</a></li><li data-type='method'><a href="MobileCalendarController.html#clearFilters">clearFilters</a></li><li data-type='method'><a href="MobileCalendarController.html#createBottomSheet">createBottomSheet</a></li><li data-type='method'><a href="MobileCalendarController.html#escapeHtml">escapeHtml</a></li><li data-type='method'><a href="MobileCalendarController.html#formatTime">formatTime</a></li><li data-type='method'><a href="MobileCalendarController.html#getWeekStart">getWeekStart</a></li><li data-type='method'><a href="MobileCalendarController.html#groupEventsByWeek">groupEventsByWeek</a></li><li data-type='method'><a href="MobileCalendarController.html#handleAttendanceFormSubmit">handleAttendanceFormSubmit</a></li><li data-type='method'><a href="MobileCalendarController.html#handleDeleteAttendance">handleDeleteAttendance</a></li><li data-type='method'><a href="MobileCalendarController.html#handleRsvpClick">handleRsvpClick</a></li><li data-type='method'><a href="MobileCalendarController.html#handleSearch">handleSearch</a></li><li data-type='method'><a href="MobileCalendarController.html#initYearSelector">initYearSelector</a></li><li data-type='method'><a href="MobileCalendarController.html#loadCalendarData">loadCalendarData</a></li><li data-type='method'><a href="MobileCalendarController.html#onConnect">onConnect</a></li><li data-type='method'><a href="MobileCalendarController.html#onConnectionStateChanged">onConnectionStateChanged</a></li><li data-type='method'><a href="MobileCalendarController.html#onDisconnect">onDisconnect</a></li><li data-type='method'><a href="MobileCalendarController.html#populateFilters">populateFilters</a></li><li data-type='method'><a href="MobileCalendarController.html#queueOfflineRsvp">queueOfflineRsvp</a></li><li data-type='method'><a href="MobileCalendarController.html#renderActivities">renderActivities</a></li><li data-type='method'><a href="MobileCalendarController.html#renderEventList">renderEventList</a></li><li data-type='method'><a href="MobileCalendarController.html#renderWeekEvents">renderWeekEvents</a></li><li data-type='method'><a href="MobileCalendarController.html#restoreFromUrlParams">restoreFromUrlParams</a></li><li data-type='method'><a href="MobileCalendarController.html#setupModalFormHandlers">setupModalFormHandlers</a></li><li data-type='method'><a href="MobileCalendarController.html#setupPullToRefresh">setupPullToRefresh</a></li><li data-type='method'><a href="MobileCalendarController.html#showRsvpSheet">showRsvpSheet</a></li><li data-type='method'><a href="MobileCalendarController.html#syncPendingRsvps">syncPendingRsvps</a></li><li data-type='method'><a href="MobileCalendarController.html#toggleFilters">toggleFilters</a></li><li data-type='method'><a href="MobileCalendarController.html#updateNavigationSelectors">updateNavigationSelectors</a></li><li data-type='method'><a href="MobileCalendarController.html#updatePendingBanner">updatePendingBanner</a></li><li data-type='method'><a href="MobileCalendarController.html#updateResultsCount">updateResultsCount</a></li></ul></li><li><a href="MobileControllerBase.html">MobileControllerBase</a><ul class='methods'><li data-type='method'><a href="MobileControllerBase.html#bindHandler">bindHandler</a></li><li data-type='method'><a href="MobileControllerBase.html#connect">connect</a></li><li data-type='method'><a href="MobileControllerBase.html#disconnect">disconnect</a></li><li data-type='method'><a href="MobileControllerBase.html#dispatchConnectionEvent">dispatchConnectionEvent</a></li><li data-type='method'><a href="MobileControllerBase.html#fetchWithRetry">fetchWithRetry</a></li><li data-type='method'><a href="MobileControllerBase.html#getHandler">getHandler</a></li><li data-type='method'><a href="MobileControllerBase.html#initialize">initialize</a></li><li data-type='method'><a href="MobileControllerBase.html#onConnectionStateChanged">onConnectionStateChanged</a></li><li data-type='method'><a href="MobileControllerBase.html#.initializeConnectionListeners">initializeConnectionListeners</a></li><li data-type='method'><a href="MobileControllerBase.html#.notifyListeners">notifyListeners</a></li><li data-type='method'><a href="MobileControllerBase.html#.setOnlineState">setOnlineState</a></li><li data-type='method'><a href="MobileControllerBase.html#.syncOnlineState">syncOnlineState</a></li></ul></li><li><a href="MobileOfflineOverlayController.html">MobileOfflineOverlayController</a><ul class='methods'><li data-type='method'><a href="MobileOfflineOverlayController.html#handleConnectionStatusEvent">handleConnectionStatusEvent</a></li><li data-type='method'><a href="MobileOfflineOverlayController.html#hideOverlay">hideOverlay</a></li><li data-type='method'><a href="MobileOfflineOverlayController.html#onConnect">onConnect</a></li><li data-type='method'><a href="MobileOfflineOverlayController.html#onConnectionStateChanged">onConnectionStateChanged</a></li><li data-type='method'><a href="MobileOfflineOverlayController.html#onDisconnect">onDisconnect</a></li><li data-type='method'><a href="MobileOfflineOverlayController.html#showOverlay">showOverlay</a></li></ul></li><li><a href="MobileRequestAuthController.html">MobileRequestAuthController</a><ul class='methods'><li data-type='method'><a href="MobileRequestAuthController.html#handleSubmit">handleSubmit</a></li><li data-type='method'><a href="MobileRequestAuthController.html#loadApprovers">loadApprovers</a></li><li data-type='method'><a href="MobileRequestAuthController.html#onConnect">onConnect</a></li><li data-type='method'><a href="MobileRequestAuthController.html#onConnectionStateChanged">onConnectionStateChanged</a></li><li data-type='method'><a href="MobileRequestAuthController.html#onDisconnect">onDisconnect</a></li><li data-type='method'><a href="MobileRequestAuthController.html#updateOnlineUI">updateOnlineUI</a></li><li data-type='method'><a href="MobileRequestAuthController.html#validateForm">validateForm</a></li></ul></li><li><a href="ModalOpener.html">ModalOpener</a><ul class='methods'><li data-type='method'><a href="ModalOpener.html#modalBtnValueChanged">modalBtnValueChanged</a></li></ul></li><li><a href="MyRsvpsController.html">MyRsvpsController</a><ul class='methods'><li data-type='method'><a href="MyRsvpsController.html#editRsvp">editRsvp</a></li><li data-type='method'><a href="MyRsvpsController.html#filterPastEvents">filterPastEvents</a></li><li data-type='method'><a href="MyRsvpsController.html#handleDeleteSubmit">handleDeleteSubmit</a></li><li data-type='method'><a href="MyRsvpsController.html#handleFormSubmit">handleFormSubmit</a></li><li data-type='method'><a href="MyRsvpsController.html#onConnectionStateChanged">onConnectionStateChanged</a></li><li data-type='method'><a href="MyRsvpsController.html#onModalHidden">onModalHidden</a></li><li data-type='method'><a href="MyRsvpsController.html#setupFormHandlers">setupFormHandlers</a></li><li data-type='method'><a href="MyRsvpsController.html#transformCardForPast">transformCardForPast</a></li><li data-type='method'><a href="MyRsvpsController.html#updateBadgeCounts">updateBadgeCounts</a></li><li data-type='method'><a href="MyRsvpsController.html#updateOnlineButtons">updateOnlineButtons</a></li></ul></li><li><a href="NavBarController.html">NavBarController</a><ul class='methods'><li data-type='method'><a href="NavBarController.html#navHeaderClicked">navHeaderClicked</a></li><li data-type='method'><a href="NavBarController.html#navHeaderTargetConnected">navHeaderTargetConnected</a></li><li data-type='method'><a href="NavBarController.html#navHeaderTargetDisconnected">navHeaderTargetDisconnected</a></li><li data-type='method'><a href="NavBarController.html#optionsForFetch">optionsForFetch</a></li></ul></li><li><a href="OutletButton.html">OutletButton</a><ul class='methods'><li data-type='method'><a href="OutletButton.html#addBtnData">addBtnData</a></li><li data-type='method'><a href="OutletButton.html#addListener">addListener</a></li><li data-type='method'><a href="OutletButton.html#btnDataValueChanged">btnDataValueChanged</a></li><li data-type='method'><a href="OutletButton.html#fireNotice">fireNotice</a></li><li data-type='method'><a href="OutletButton.html#removeListener">removeListener</a></li></ul></li><li><a href="PermissionAddRole.html">PermissionAddRole</a><ul class='methods'><li data-type='method'><a href="PermissionAddRole.html#checkSubmitEnable">checkSubmitEnable</a></li></ul></li><li><a href="PermissionImport.html">PermissionImport</a><ul class='methods'><li data-type='method'><a href="PermissionImport.html#cancelImport">cancelImport</a></li><li data-type='method'><a href="PermissionImport.html#confirmImport">confirmImport</a></li><li data-type='method'><a href="PermissionImport.html#connect">connect</a></li><li data-type='method'><a href="PermissionImport.html#disconnect">disconnect</a></li><li data-type='method'><a href="PermissionImport.html#displayPreview">displayPreview</a></li><li data-type='method'><a href="PermissionImport.html#escapeHtml">escapeHtml</a></li><li data-type='method'><a href="PermissionImport.html#formatPolicyName">formatPolicyName</a></li><li data-type='method'><a href="PermissionImport.html#getFileInput">getFileInput</a></li><li data-type='method'><a href="PermissionImport.html#handleFileSelect">handleFileSelect</a></li><li data-type='method'><a href="PermissionImport.html#hideLoadingOverlay">hideLoadingOverlay</a></li><li data-type='method'><a href="PermissionImport.html#hideModal">hideModal</a></li><li data-type='method'><a href="PermissionImport.html#previewImport">previewImport</a></li><li data-type='method'><a href="PermissionImport.html#resetFileInput">resetFileInput</a></li><li data-type='method'><a href="PermissionImport.html#resetModalContent">resetModalContent</a></li><li data-type='method'><a href="PermissionImport.html#showLoadingOverlay">showLoadingOverlay</a></li><li data-type='method'><a href="PermissionImport.html#showModal">showModal</a></li><li data-type='method'><a href="PermissionImport.html#triggerFileSelect">triggerFileSelect</a></li></ul></li><li><a href="PermissionManagePolicies.html">PermissionManagePolicies</a><ul class='methods'><li data-type='method'><a href="PermissionManagePolicies.html#changeMethod">changeMethod</a></li><li data-type='method'><a href="PermissionManagePolicies.html#checkClass">checkClass</a></li><li data-type='method'><a href="PermissionManagePolicies.html#classClicked">classClicked</a></li><li data-type='method'><a href="PermissionManagePolicies.html#connect">connect</a></li><li data-type='method'><a href="PermissionManagePolicies.html#disconnect">disconnect</a></li><li data-type='method'><a href="PermissionManagePolicies.html#hideLoadingOverlay">hideLoadingOverlay</a></li><li data-type='method'><a href="PermissionManagePolicies.html#methodClicked">methodClicked</a></li><li data-type='method'><a href="PermissionManagePolicies.html#policyClassTargetConnected">policyClassTargetConnected</a></li><li data-type='method'><a href="PermissionManagePolicies.html#policyMethodTargetConnected">policyMethodTargetConnected</a></li><li data-type='method'><a href="PermissionManagePolicies.html#processQueue">processQueue</a></li><li data-type='method'><a href="PermissionManagePolicies.html#showLoadingOverlay">showLoadingOverlay</a></li></ul></li><li><a href="PopoverController.html">PopoverController</a></li><li><a href="QrcodeController.html">QrcodeController</a><ul class='methods'><li data-type='method'><a href="QrcodeController.html#copyToClipboard">copyToClipboard</a></li><li data-type='method'><a href="QrcodeController.html#download">download</a></li><li data-type='method'><a href="QrcodeController.html#generate">generate</a></li><li data-type='method'><a href="QrcodeController.html#regenerate">regenerate</a></li></ul></li><li><a href="RetentionPolicyInputController.html">RetentionPolicyInputController</a><ul class='methods'><li data-type='method'><a href="RetentionPolicyInputController.html#connect">connect</a></li><li data-type='method'><a href="RetentionPolicyInputController.html#formatPreviewText">formatPreviewText</a></li><li data-type='method'><a href="RetentionPolicyInputController.html#parseJson">parseJson</a></li><li data-type='method'><a href="RetentionPolicyInputController.html#updatePreview">updatePreview</a></li><li data-type='method'><a href="RetentionPolicyInputController.html#validate">validate</a></li></ul></li><li><a href="RevokeForm.html">RevokeForm</a><ul class='methods'><li data-type='method'><a href="RevokeForm.html#checkReadyToSubmit">checkReadyToSubmit</a></li><li data-type='method'><a href="RevokeForm.html#connect">connect</a></li><li data-type='method'><a href="RevokeForm.html#outletBtnOutletConnected">outletBtnOutletConnected</a></li><li data-type='method'><a href="RevokeForm.html#outletBtnOutletDisconnected">outletBtnOutletDisconnected</a></li><li data-type='method'><a href="RevokeForm.html#setId">setId</a></li></ul></li><li><a href="RoleAddMember.html">RoleAddMember</a><ul class='methods'><li data-type='method'><a href="RoleAddMember.html#checkSubmitEnable">checkSubmitEnable</a></li></ul></li><li><a href="RoleAddPermission.html">RoleAddPermission</a><ul class='methods'><li data-type='method'><a href="RoleAddPermission.html#checkSubmitEnable">checkSubmitEnable</a></li></ul></li><li><a href="SecurityDebugController.html">SecurityDebugController</a><ul class='methods'><li data-type='method'><a href="SecurityDebugController.html#hide">hide</a></li><li data-type='method'><a href="SecurityDebugController.html#initialize">initialize</a></li><li data-type='method'><a href="SecurityDebugController.html#show">show</a></li><li data-type='method'><a href="SecurityDebugController.html#toggle">toggle</a></li></ul></li><li><a href="SelectAllListController.html">SelectAllListController</a><ul class='methods'><li data-type='method'><a href="SelectAllListController.html#connect">connect</a></li><li data-type='method'><a href="SelectAllListController.html#updateSelectAll">updateSelectAll</a></li></ul></li><li><a href="SessionExtender.html">SessionExtender</a><ul class='methods'><li data-type='method'><a href="SessionExtender.html#urlValueChanged">urlValueChanged</a></li></ul></li><li><a href="SidebarToggleController.html">SidebarToggleController</a></li><li><a href="SortableListController.html">SortableListController</a><ul class='methods'><li data-type='method'><a href="SortableListController.html#dragEnd">dragEnd</a></li><li data-type='method'><a href="SortableListController.html#dragEnter">dragEnter</a></li><li data-type='method'><a href="SortableListController.html#dragLeave">dragLeave</a></li><li data-type='method'><a href="SortableListController.html#dragOver">dragOver</a></li><li data-type='method'><a href="SortableListController.html#dragStart">dragStart</a></li><li data-type='method'><a href="SortableListController.html#drop">drop</a></li><li data-type='method'><a href="SortableListController.html#emitReorderedEvent">emitReorderedEvent</a></li><li data-type='method'><a href="SortableListController.html#getOrder">getOrder</a></li></ul></li><li><a href="TimezoneInputController.html">TimezoneInputController</a><ul class='methods'><li data-type='method'><a href="TimezoneInputController.html#connect">connect</a></li><li data-type='method'><a href="TimezoneInputController.html#convertUtcToLocal">convertUtcToLocal</a></li><li data-type='method'><a href="TimezoneInputController.html#disconnect">disconnect</a></li><li data-type='method'><a href="TimezoneInputController.html#getTimezone">getTimezone</a></li><li data-type='method'><a href="TimezoneInputController.html#handleReset">handleReset</a></li><li data-type='method'><a href="TimezoneInputController.html#handleSubmit">handleSubmit</a></li><li data-type='method'><a href="TimezoneInputController.html#updateNotice">updateNotice</a></li><li data-type='method'><a href="TimezoneInputController.html#updateTimezone">updateTimezone</a></li></ul></li><li><a href="TurboModal.html">TurboModal</a><ul class='methods'><li data-type='method'><a href="TurboModal.html#closeModalBeforeSubmit">closeModalBeforeSubmit</a></li><li data-type='method'><a href="TurboModal.html#connect">connect</a></li></ul></li><li><a href="VariableInsertController.html">VariableInsertController</a><ul class='methods'><li data-type='method'><a href="VariableInsertController.html#insert">insert</a></li></ul></li><li><a href="WaiverAttestationController.html">WaiverAttestationController</a><ul class='methods'><li data-type='method'><a href="WaiverAttestationController.html#clearMessages">clearMessages</a></li><li data-type='method'><a href="WaiverAttestationController.html#connect">connect</a></li><li data-type='method'><a href="WaiverAttestationController.html#escapeHtml">escapeHtml</a></li><li data-type='method'><a href="WaiverAttestationController.html#getCsrfToken">getCsrfToken</a></li><li data-type='method'><a href="WaiverAttestationController.html#populateReasons">populateReasons</a></li><li data-type='method'><a href="WaiverAttestationController.html#resetSubmitButton">resetSubmitButton</a></li><li data-type='method'><a href="WaiverAttestationController.html#showError">showError</a></li><li data-type='method'><a href="WaiverAttestationController.html#showModal">showModal</a></li><li data-type='method'><a href="WaiverAttestationController.html#showSuccess">showSuccess</a></li><li data-type='method'><a href="WaiverAttestationController.html#submitAttestation">submitAttestation</a></li></ul></li><li><a href="WaiverCalendarController.html">WaiverCalendarController</a></li><li><a href="WaiverTemplateController.html">WaiverTemplateController</a><ul class='methods'><li data-type='method'><a href="WaiverTemplateController.html#connect">connect</a></li><li data-type='method'><a href="WaiverTemplateController.html#fileSelected">fileSelected</a></li><li data-type='method'><a href="WaiverTemplateController.html#sourceValueChanged">sourceValueChanged</a></li><li data-type='method'><a href="WaiverTemplateController.html#toggleSource">toggleSource</a></li><li data-type='method'><a href="WaiverTemplateController.html#updateDisplay">updateDisplay</a></li></ul></li><li><a href="WaiverUploadController.html">WaiverUploadController</a><ul class='methods'><li data-type='method'><a href="WaiverUploadController.html#connect">connect</a></li><li data-type='method'><a href="WaiverUploadController.html#escapeHtml">escapeHtml</a></li><li data-type='method'><a href="WaiverUploadController.html#formatFileSize">formatFileSize</a></li><li data-type='method'><a href="WaiverUploadController.html#handleFileSelect">handleFileSelect</a></li><li data-type='method'><a href="WaiverUploadController.html#handleSubmit">handleSubmit</a></li><li data-type='method'><a href="WaiverUploadController.html#hidePreview">hidePreview</a></li><li data-type='method'><a href="WaiverUploadController.html#removeFile">removeFile</a></li><li data-type='method'><a href="WaiverUploadController.html#showPreview">showPreview</a></li><li data-type='method'><a href="WaiverUploadController.html#simulateProgress">simulateProgress</a></li><li data-type='method'><a href="WaiverUploadController.html#updateProgress">updateProgress</a></li><li data-type='method'><a href="WaiverUploadController.html#validateFile">validateFile</a></li></ul></li><li><a href="WaiverUploadWizardController.html">WaiverUploadWizardController</a><ul class='methods'><li data-type='method'><a href="WaiverUploadWizardController.html#formatBytes">formatBytes</a></li><li data-type='method'><a href="WaiverUploadWizardController.html#updateTotalSizeDisplay">updateTotalSizeDisplay</a></li></ul></li><li><a href="WorkflowDesignerController.html">WorkflowDesignerController</a></li><li><a href="WorkflowIndexController.html">WorkflowIndexController</a></li><li><a href="WorkflowToolbarController.html">WorkflowToolbarController</a></li><li><a href="WorkflowVersionsController.html">WorkflowVersionsController</a></li><li><a href="module.exports.html">exports</a></li><li></li><li></li><li></li><li></li><li></li></ul><h3>Namespaces</h3><ul><li><a href="KMP_Timezone.html">KMP_Timezone</a><ul class='methods'><li data-type='method'><a href="KMP_Timezone.html#.convertFormDatetimesToUTC">convertFormDatetimesToUTC</a></li><li data-type='method'><a href="KMP_Timezone.html#.detectTimezone">detectTimezone</a></li><li data-type='method'><a href="KMP_Timezone.html#.formatDate">formatDate</a></li><li data-type='method'><a href="KMP_Timezone.html#.formatDateTime">formatDateTime</a></li><li data-type='method'><a href="KMP_Timezone.html#.formatTime">formatTime</a></li><li data-type='method'><a href="KMP_Timezone.html#.getAbbreviation">getAbbreviation</a></li><li data-type='method'><a href="KMP_Timezone.html#.getTimezone">getTimezone</a></li><li data-type='method'><a href="KMP_Timezone.html#.getTimezoneOffset">getTimezoneOffset</a></li><li data-type='method'><a href="KMP_Timezone.html#.initializeDatetimeInputs">initializeDatetimeInputs</a></li><li data-type='method'><a href="KMP_Timezone.html#.toLocalInput">toLocalInput</a></li><li data-type='method'><a href="KMP_Timezone.html#.toUTC">toUTC</a></li></ul></li></ul><h3>Global</h3><ul><li><a href="global.html#DB_NAME">DB_NAME</a></li><li><a href="global.html#_buildVariableInfo">_buildVariableInfo</a></li><li><a href="global.html#_escHtml">_escHtml</a></li><li><a href="global.html#_loadEmailTemplateOptions">_loadEmailTemplateOptions</a></li><li><a href="global.html#_renderEmailTemplateSelect">_renderEmailTemplateSelect</a></li><li><a href="global.html#_renderKeyValueEditor">_renderKeyValueEditor</a></li><li><a href="global.html#_renderTemplateAnalysis">_renderTemplateAnalysis</a></li><li><a href="global.html#_variableCatalogHTML">_variableCatalogHTML</a></li><li><a href="global.html#_variableListHTML">_variableListHTML</a></li><li><a href="global.html#attachPickers">attachPickers</a></li><li><a href="global.html#buildVariableList">buildVariableList</a></li><li><a href="global.html#getCurrentSnapshot">getCurrentSnapshot</a></li><li><a href="global.html#getNodeOutputSchema">getNodeOutputSchema</a></li><li><a href="global.html#getUpstreamNodes">getUpstreamNodes</a></li><li><a href="global.html#onEmailTemplateChange">onEmailTemplateChange</a></li><li><a href="global.html#push">push</a></li><li><a href="global.html#redo">redo</a></li><li><a href="global.html#renderAutoComplete">renderAutoComplete</a></li><li><a href="global.html#renderConfigHTML">renderConfigHTML</a></li><li><a href="global.html#renderEmptyHTML">renderEmptyHTML</a></li><li><a href="global.html#renderValuePicker">renderValuePicker</a></li><li><a href="global.html#showDropdown">showDropdown</a></li><li><a href="global.html#undo">undo</a></li><li><a href="global.html#validate">validate</a></li></ul>
+    
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">assets/js/controllers/mobile-calendar-controller.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import MobileControllerBase from "./mobile-controller-base.js";
+import offlineQueueService from "../services/offline-queue-service.js";
+import rsvpCacheService from "../services/rsvp-cache-service.js";
+
+/**
+ * Mobile Events Controller
+ * 
+ * Touch-optimized event list for viewing gatherings on mobile devices.
+ * Extends MobileControllerBase for offline handling and retry logic.
+ * 
+ * Features:
+ * - Weekly grouped event list
+ * - Search and filtering (type, branch, RSVP status)
+ * - Quick month navigation
+ * - RSVP with offline queue support
+ * - Pull-to-refresh support
+ */
+class MobileCalendarController extends MobileControllerBase {
+    static targets = [
+        "loading", "error", "errorMessage", 
+        "eventList", "emptyState", "emptyMessage", "resultsCount",
+        "searchInput", "filterPanel", "filterToggle",
+        "typeFilter", "activityFilter", "branchFilter", "rsvpFilter",
+        "monthSelect", "yearSelect",
+        "rsvpSheet", "rsvpContent",
+        "pendingBanner", "pendingCount", "syncBtn"
+    ]
+    
+    static values = {
+        year: Number,
+        month: Number,
+        dataUrl: String,
+        rsvpUrl: String,
+        unrsvpUrl: String,
+        updateRsvpUrl: String
+    }
+
+    initialize() {
+        super.initialize();
+        this.calendarData = null;
+        this.filteredEvents = [];
+        this.searchDebounce = null;
+        this.filters = {
+            search: '',
+            type: '',
+            activity: '',
+            branch: '',
+            rsvpOnly: false
+        };
+    }
+
+    /**
+     * Called after base class connect
+     */
+    onConnect() {
+        console.log("Mobile Events connected");
+        
+        // Initialize RSVP cache service
+        rsvpCacheService.init().catch(err => {
+            console.warn('[Calendar] Failed to init RSVP cache:', err);
+        });
+        
+        // Check for month/year in URL params (for returning from public page)
+        this.restoreFromUrlParams();
+        
+        // Set up swipe handlers for navigation
+        this._handleTouchStart = this.bindHandler('touchStart', this.handleTouchStart);
+        this._handleTouchEnd = this.bindHandler('touchEnd', this.handleTouchEnd);
+        
+        this.element.addEventListener('touchstart', this._handleTouchStart, { passive: true });
+        this.element.addEventListener('touchend', this._handleTouchEnd, { passive: true });
+        
+        // Initialize year selector
+        this.initYearSelector();
+        
+        // Set initial month/year in selectors
+        this.updateNavigationSelectors();
+        
+        // Set up pull-to-refresh
+        this.setupPullToRefresh();
+        
+        // Create bottom sheet
+        this.createBottomSheet();
+        
+        // Load initial data
+        this.loadCalendarData();
+    }
+
+    /**
+     * Restore month/year from URL parameters
+     */
+    restoreFromUrlParams() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const month = urlParams.get('month');
+        const year = urlParams.get('year');
+        
+        if (month &amp;&amp; year) {
+            const monthNum = parseInt(month, 10);
+            const yearNum = parseInt(year, 10);
+            
+            if (monthNum >= 1 &amp;&amp; monthNum &lt;= 12 &amp;&amp; yearNum >= 2000 &amp;&amp; yearNum &lt;= 2100) {
+                this.monthValue = monthNum;
+                this.yearValue = yearNum;
+                
+                // Clean up URL without reloading
+                const newUrl = window.location.pathname;
+                window.history.replaceState({}, '', newUrl);
+            }
+        }
+    }
+
+    /**
+     * Called after base class disconnect
+     */
+    onDisconnect() {
+        this.element.removeEventListener('touchstart', this._handleTouchStart);
+        this.element.removeEventListener('touchend', this._handleTouchEnd);
+    }
+
+    /**
+     * Initialize year selector with range
+     */
+    initYearSelector() {
+        if (!this.hasYearSelectTarget) return;
+        
+        const currentYear = new Date().getFullYear();
+        const startYear = currentYear - 1;
+        const endYear = currentYear + 2;
+        
+        let html = '';
+        for (let year = startYear; year &lt;= endYear; year++) {
+            html += `&lt;option value="${year}">${year}&lt;/option>`;
+        }
+        this.yearSelectTarget.innerHTML = html;
+    }
+
+    /**
+     * Update navigation selectors to current values
+     */
+    updateNavigationSelectors() {
+        if (this.hasMonthSelectTarget) {
+            this.monthSelectTarget.value = this.monthValue;
+        }
+        if (this.hasYearSelectTarget) {
+            this.yearSelectTarget.value = this.yearValue;
+        }
+    }
+
+    /**
+     * Set up pull-to-refresh
+     */
+    setupPullToRefresh() {
+        this.pullStartY = 0;
+        this.isPulling = false;
+        this.pullThreshold = 80;
+        
+        this.pullIndicator = document.createElement('div');
+        this.pullIndicator.className = 'pull-to-refresh-indicator';
+        this.pullIndicator.innerHTML = `
+            &lt;div class="pull-spinner">
+                &lt;i class="bi bi-arrow-down-circle">&lt;/i>
+            &lt;/div>
+            &lt;span class="pull-text">Pull to refresh&lt;/span>
+        `;
+        this.element.insertBefore(this.pullIndicator, this.element.firstChild);
+    }
+
+    /**
+     * Called when connection state changes
+     */
+    onConnectionStateChanged(isOnline) {
+        if (isOnline) {
+            // Re-render to show/hide online-only buttons
+            if (this.calendarData) {
+                this.showEventList();
+            } else {
+                this.loadCalendarData();
+            }
+            // Update pending banner (show sync button)
+            this.updatePendingBanner();
+        } else {
+            // Re-render to hide online-only buttons
+            if (this.calendarData) {
+                this.showEventList();
+            }
+            // Update pending banner (hide sync button)
+            this.updatePendingBanner();
+        }
+    }
+
+    /**
+     * Load calendar data from server
+     */
+    async loadCalendarData() {
+        this.showLoading();
+        
+        const url = `${this.dataUrlValue}?year=${this.yearValue}&amp;month=${this.monthValue}`;
+        
+        try {
+            const response = await this.fetchWithRetry(url);
+            const data = await response.json();
+            
+            if (data.success) {
+                this.calendarData = data.data;
+                
+                // Cache user's RSVPs when online
+                if (navigator.onLine &amp;&amp; data.data.events) {
+                    rsvpCacheService.cacheUserRsvps(data.data.events).catch(err => {
+                        console.warn('[Calendar] Failed to cache RSVPs:', err);
+                    });
+                }
+                
+                this.populateFilters();
+                this.applyFilters();
+                this.showEventList();
+                
+                // Check for pending RSVPs
+                this.updatePendingBanner();
+            } else {
+                this.showError('Failed to load events');
+            }
+        } catch (error) {
+            console.error('Calendar load error:', error);
+            this.showError(this.online ? 'Failed to load events' : 'You\'re offline');
+        }
+    }
+
+    /**
+     * Update the pending RSVPs banner visibility
+     */
+    async updatePendingBanner() {
+        if (!this.hasPendingBannerTarget) return;
+        
+        try {
+            const count = await rsvpCacheService.getPendingCount();
+            
+            if (count > 0) {
+                this.pendingBannerTarget.hidden = false;
+                if (this.hasPendingCountTarget) {
+                    this.pendingCountTarget.textContent = count;
+                }
+                // Hide sync button when offline
+                if (this.hasSyncBtnTarget) {
+                    this.syncBtnTarget.hidden = !navigator.onLine;
+                }
+            } else {
+                this.pendingBannerTarget.hidden = true;
+            }
+        } catch (error) {
+            console.warn('[Calendar] Failed to check pending RSVPs:', error);
+            this.pendingBannerTarget.hidden = true;
+        }
+    }
+
+    /**
+     * Sync pending RSVPs to server
+     */
+    async syncPendingRsvps() {
+        if (!navigator.onLine) {
+            this.showToast('Cannot sync while offline', 'warning');
+            return;
+        }
+        
+        if (this.hasSyncBtnTarget) {
+            this.syncBtnTarget.disabled = true;
+            this.syncBtnTarget.innerHTML = '&lt;span class="spinner-border spinner-border-sm">&lt;/span>';
+        }
+        
+        try {
+            const result = await rsvpCacheService.syncPendingRsvps();
+            
+            if (result.success > 0) {
+                this.showToast(`Synced ${result.success} RSVP(s)!`, 'success');
+            }
+            if (result.failed > 0) {
+                this.showToast(`${result.failed} RSVP(s) failed to sync`, 'warning');
+            }
+            
+            // Refresh the calendar data
+            await this.loadCalendarData();
+            
+        } catch (error) {
+            console.error('Sync failed:', error);
+            this.showToast('Failed to sync RSVPs', 'danger');
+        } finally {
+            if (this.hasSyncBtnTarget) {
+                this.syncBtnTarget.disabled = false;
+                this.syncBtnTarget.innerHTML = '&lt;i class="bi bi-arrow-repeat">&lt;/i> Sync';
+            }
+            this.updatePendingBanner();
+        }
+    }
+
+    // ==================== Display States ====================
+
+    showLoading() {
+        this.loadingTarget.hidden = false;
+        this.errorTarget.hidden = true;
+        this.eventListTarget.hidden = true;
+        this.emptyStateTarget.hidden = true;
+        if (this.hasResultsCountTarget) this.resultsCountTarget.hidden = true;
+    }
+
+    showError(message) {
+        this.loadingTarget.hidden = true;
+        this.errorTarget.hidden = false;
+        this.eventListTarget.hidden = true;
+        this.errorMessageTarget.textContent = message;
+    }
+
+    showEventList() {
+        this.loadingTarget.hidden = true;
+        this.errorTarget.hidden = true;
+        
+        if (this.filteredEvents.length === 0) {
+            this.eventListTarget.hidden = true;
+            this.emptyStateTarget.hidden = false;
+            if (this.hasResultsCountTarget) this.resultsCountTarget.hidden = true;
+        } else {
+            this.eventListTarget.hidden = false;
+            this.emptyStateTarget.hidden = true;
+            this.renderEventList();
+        }
+    }
+
+    reload() {
+        this.loadCalendarData();
+    }
+
+    // ==================== Navigation ====================
+
+    previousMonth() {
+        if (this.monthValue === 1) {
+            this.monthValue = 12;
+            this.yearValue--;
+        } else {
+            this.monthValue--;
+        }
+        this.updateNavigationSelectors();
+        this.loadCalendarData();
+    }
+
+    nextMonth() {
+        if (this.monthValue === 12) {
+            this.monthValue = 1;
+            this.yearValue++;
+        } else {
+            this.monthValue++;
+        }
+        this.updateNavigationSelectors();
+        this.loadCalendarData();
+    }
+
+    goToToday() {
+        const today = new Date();
+        this.yearValue = today.getFullYear();
+        this.monthValue = today.getMonth() + 1;
+        this.updateNavigationSelectors();
+        this.loadCalendarData();
+    }
+
+    jumpToMonth() {
+        this.monthValue = parseInt(this.monthSelectTarget.value);
+        this.yearValue = parseInt(this.yearSelectTarget.value);
+        this.loadCalendarData();
+    }
+
+    // ==================== Filtering ====================
+
+    /**
+     * Populate filter dropdowns from event data
+     */
+    populateFilters() {
+        if (!this.calendarData?.events) return;
+        
+        // Collect unique types, activities, and branches
+        const types = new Map();
+        const activities = new Map();
+        const branches = new Map();
+        
+        this.calendarData.events.forEach(event => {
+            if (event.type?.name) {
+                types.set(event.type.name, event.type);
+            }
+            if (event.branch) {
+                branches.set(event.branch, event.branch);
+            }
+            // Collect activity types from activities array
+            if (event.activities &amp;&amp; Array.isArray(event.activities)) {
+                event.activities.forEach(activity => {
+                    if (activity?.name) {
+                        activities.set(activity.name, activity);
+                    }
+                });
+            }
+        });
+        
+        // Populate type filter
+        if (this.hasTypeFilterTarget) {
+            let html = '&lt;option value="">All Types&lt;/option>';
+            types.forEach((type, name) => {
+                html += `&lt;option value="${this.escapeHtml(name)}">${this.escapeHtml(name)}&lt;/option>`;
+            });
+            this.typeFilterTarget.innerHTML = html;
+            this.typeFilterTarget.value = this.filters.type;
+        }
+        
+        // Populate activity filter
+        if (this.hasActivityFilterTarget) {
+            let html = '&lt;option value="">All Activities&lt;/option>';
+            // Sort activities alphabetically
+            const sortedActivities = Array.from(activities.keys()).sort();
+            sortedActivities.forEach(name => {
+                html += `&lt;option value="${this.escapeHtml(name)}">${this.escapeHtml(name)}&lt;/option>`;
+            });
+            this.activityFilterTarget.innerHTML = html;
+            this.activityFilterTarget.value = this.filters.activity;
+        }
+        
+        // Populate branch filter
+        if (this.hasBranchFilterTarget) {
+            let html = '&lt;option value="">All Branches&lt;/option>';
+            branches.forEach((branch) => {
+                html += `&lt;option value="${this.escapeHtml(branch)}">${this.escapeHtml(branch)}&lt;/option>`;
+            });
+            this.branchFilterTarget.innerHTML = html;
+            this.branchFilterTarget.value = this.filters.branch;
+        }
+    }
+
+    /**
+     * Toggle filter panel visibility
+     */
+    toggleFilters() {
+        this.filterPanelTarget.hidden = !this.filterPanelTarget.hidden;
+        
+        // Update filter toggle button appearance
+        if (this.hasFilterToggleTarget) {
+            const hasActiveFilters = this.filters.type || this.filters.branch || this.filters.rsvpOnly;
+            this.filterToggleTarget.classList.toggle('filter-active', hasActiveFilters);
+        }
+    }
+
+    /**
+     * Apply current filters
+     */
+    applyFilters() {
+        if (!this.calendarData?.events) {
+            this.filteredEvents = [];
+            return;
+        }
+        
+        // Update filter values from inputs
+        if (this.hasSearchInputTarget) {
+            this.filters.search = this.searchInputTarget.value.toLowerCase().trim();
+        }
+        if (this.hasTypeFilterTarget) {
+            this.filters.type = this.typeFilterTarget.value;
+        }
+        if (this.hasActivityFilterTarget) {
+            this.filters.activity = this.activityFilterTarget.value;
+        }
+        if (this.hasBranchFilterTarget) {
+            this.filters.branch = this.branchFilterTarget.value;
+        }
+        if (this.hasRsvpFilterTarget) {
+            this.filters.rsvpOnly = this.rsvpFilterTarget.checked;
+        }
+        
+        // Filter events
+        this.filteredEvents = this.calendarData.events.filter(event => {
+            // Search filter
+            if (this.filters.search) {
+                const searchText = `${event.name} ${event.location || ''} ${event.branch || ''}`.toLowerCase();
+                if (!searchText.includes(this.filters.search)) {
+                    return false;
+                }
+            }
+            
+            // Type filter
+            if (this.filters.type &amp;&amp; event.type?.name !== this.filters.type) {
+                return false;
+            }
+            
+            // Activity filter - check if event has the selected activity
+            if (this.filters.activity) {
+                const hasActivity = event.activities?.some(
+                    activity => activity?.name === this.filters.activity
+                );
+                if (!hasActivity) {
+                    return false;
+                }
+            }
+            
+            // Branch filter
+            if (this.filters.branch &amp;&amp; event.branch !== this.filters.branch) {
+                return false;
+            }
+            
+            // RSVP filter
+            if (this.filters.rsvpOnly &amp;&amp; !event.user_attending) {
+                return false;
+            }
+            
+            return true;
+        });
+        
+        // Update filter indicator
+        if (this.hasFilterToggleTarget) {
+            const hasActiveFilters = this.filters.type || this.filters.activity || this.filters.branch || this.filters.rsvpOnly;
+            this.filterToggleTarget.classList.toggle('filter-active', hasActiveFilters);
+        }
+        
+        // Update results count
+        this.updateResultsCount();
+        
+        // Re-render
+        this.showEventList();
+    }
+
+    /**
+     * Handle search input with debounce
+     */
+    handleSearch() {
+        clearTimeout(this.searchDebounce);
+        this.searchDebounce = setTimeout(() => {
+            this.applyFilters();
+        }, 300);
+    }
+
+    /**
+     * Clear all filters
+     */
+    clearFilters() {
+        if (this.hasSearchInputTarget) this.searchInputTarget.value = '';
+        if (this.hasTypeFilterTarget) this.typeFilterTarget.value = '';
+        if (this.hasActivityFilterTarget) this.activityFilterTarget.value = '';
+        if (this.hasBranchFilterTarget) this.branchFilterTarget.value = '';
+        if (this.hasRsvpFilterTarget) this.rsvpFilterTarget.checked = false;
+        
+        this.filters = { search: '', type: '', activity: '', branch: '', rsvpOnly: false };
+        this.applyFilters();
+    }
+
+    /**
+     * Update results count display
+     */
+    updateResultsCount() {
+        if (!this.hasResultsCountTarget) return;
+        
+        const total = this.calendarData?.events?.length || 0;
+        const filtered = this.filteredEvents.length;
+        
+        if (total !== filtered) {
+            this.resultsCountTarget.innerHTML = `&lt;small class="text-muted">Showing ${filtered} of ${total} events&lt;/small>`;
+            this.resultsCountTarget.hidden = false;
+        } else {
+            this.resultsCountTarget.innerHTML = `&lt;small class="text-muted">${total} events&lt;/small>`;
+            this.resultsCountTarget.hidden = false;
+        }
+    }
+
+    // ==================== Rendering ====================
+
+    /**
+     * Render the event list grouped by week
+     */
+    renderEventList() {
+        if (this.filteredEvents.length === 0) return;
+        
+        // Group events by week
+        const weeks = this.groupEventsByWeek(this.filteredEvents);
+        
+        let html = '';
+        weeks.forEach((weekEvents, weekLabel) => {
+            html += `
+                &lt;div class="mobile-week-section mb-3">
+                    &lt;div class="mobile-week-header">
+                        &lt;span>${weekLabel}&lt;/span>
+                        &lt;span class="mobile-week-count">${weekEvents.length} event${weekEvents.length !== 1 ? 's' : ''}&lt;/span>
+                    &lt;/div>
+                    ${this.renderWeekEvents(weekEvents)}
+                &lt;/div>
+            `;
+        });
+        
+        this.eventListTarget.innerHTML = html;
+    }
+
+    /**
+     * Group events by week
+     */
+    groupEventsByWeek(events) {
+        const weeks = new Map();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // Sort events by date
+        const sortedEvents = [...events].sort((a, b) => {
+            return new Date(a.start_date) - new Date(b.start_date);
+        });
+        
+        sortedEvents.forEach(event => {
+            const eventDate = new Date(event.start_date + 'T00:00:00');
+            const weekStart = this.getWeekStart(eventDate);
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+            
+            // Format week label
+            const startMonth = weekStart.toLocaleDateString('en-US', { month: 'short' });
+            const endMonth = weekEnd.toLocaleDateString('en-US', { month: 'short' });
+            const startDay = weekStart.getDate();
+            const endDay = weekEnd.getDate();
+            
+            let weekLabel;
+            if (startMonth === endMonth) {
+                weekLabel = `${startMonth} ${startDay} - ${endDay}`;
+            } else {
+                weekLabel = `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
+            }
+            
+            // Check if this week contains today
+            if (today >= weekStart &amp;&amp; today &lt;= weekEnd) {
+                weekLabel = `This Week (${weekLabel})`;
+            }
+            
+            if (!weeks.has(weekLabel)) {
+                weeks.set(weekLabel, []);
+            }
+            weeks.get(weekLabel).push(event);
+        });
+        
+        return weeks;
+    }
+
+    /**
+     * Get the start of the week (Sunday)
+     */
+    getWeekStart(date) {
+        const d = new Date(date);
+        const day = d.getDay();
+        d.setDate(d.getDate() - day);
+        return d;
+    }
+
+    /**
+     * Render events for a week
+     */
+    renderWeekEvents(events) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const isOnline = navigator.onLine;
+        
+        return events.map(event => {
+            const eventDate = new Date(event.start_date + 'T00:00:00');
+            const eventEnd = event.end_date ? new Date(event.end_date + 'T23:59:59') : eventDate;
+            const isPast = eventEnd &lt; today;
+            const isToday = eventDate.getTime() === today.getTime();
+            
+            const cardClasses = ['mobile-event-card'];
+            if (event.is_cancelled) cardClasses.push('cancelled');
+            if (event.user_attending) cardClasses.push('attending');
+            
+            const typeStyle = event.type?.color 
+                ? `background-color: ${event.type.color}; color: white;` 
+                : 'background-color: var(--bs-secondary); color: white;';
+            
+            // Show RSVP button for future events; when offline only show for new RSVPs (not edit)
+            const canRsvpOffline = !event.user_attending;
+            const showRsvpButton = !event.is_cancelled &amp;&amp; !isPast &amp;&amp; (isOnline || canRsvpOffline);
+            
+            // For edit mode when attending - only show when online
+            const showEditButton = !event.is_cancelled &amp;&amp; !isPast &amp;&amp; event.user_attending &amp;&amp; isOnline;
+            
+            const rsvpBtnClass = event.user_attending 
+                ? 'btn btn-outline-success mobile-event-rsvp-btn' 
+                : 'btn btn-success mobile-event-rsvp-btn';
+            const rsvpBtnText = event.user_attending ? 'Edit' : 'RSVP';
+            
+            // Format date
+            const dateStr = eventDate.toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric' 
+            });
+            
+            // Render activities
+            const activitiesHtml = this.renderActivities(event.activities);
+            
+            // Only show View Details when online
+            const showViewDetails = event.public_page_enabled &amp;&amp; isOnline;
+            
+            return `
+                &lt;div class="${cardClasses.join(' ')}">
+                    ${event.is_cancelled ? `
+                        &lt;div class="mobile-event-cancelled-banner">
+                            &lt;i class="bi bi-x-circle-fill me-2">&lt;/i>CANCELLED
+                        &lt;/div>
+                    ` : ''}
+                    &lt;div class="mobile-event-header">
+                        &lt;div class="mobile-event-info">
+                            ${event.type ? `&lt;span class="mobile-event-type-badge mb-1" style="${typeStyle}">${this.escapeHtml(event.type.name)}&lt;/span>` : ''}
+                            &lt;a href="/gatherings/view/${event.public_id}" 
+                               class="mobile-event-name ${event.is_cancelled ? 'cancelled' : ''} text-decoration-none">
+                                ${this.escapeHtml(event.name)}
+                            &lt;/a>
+                            &lt;div class="mobile-event-meta">
+                                &lt;span>&lt;i class="bi bi-calendar3">&lt;/i> ${dateStr}${isToday ? ' &lt;strong>(Today)&lt;/strong>' : ''}&lt;/span>
+                                ${event.start_time ? `&lt;span>&lt;i class="bi bi-clock">&lt;/i> ${this.formatTime(event.start_time)}&lt;/span>` : ''}
+                            &lt;/div>
+                            &lt;div class="mobile-event-meta">
+                                ${event.branch ? `&lt;span>&lt;i class="bi bi-building">&lt;/i> ${this.escapeHtml(event.branch)}&lt;/span>` : ''}
+                                ${event.location ? `&lt;span>&lt;i class="bi bi-geo-alt">&lt;/i> ${this.escapeHtml(event.location)}&lt;/span>` : ''}
+                            &lt;/div>
+                            ${activitiesHtml}
+                            ${showViewDetails ? `
+                                &lt;a href="/gatherings/public-landing/${event.public_id}?from=mobile&amp;month=${this.monthValue}&amp;year=${this.yearValue}" 
+                                   class="btn btn-sm btn-outline-secondary mt-2">
+                                    &lt;i class="bi bi-info-circle me-1">&lt;/i>View Details
+                                &lt;/a>
+                            ` : ''}
+                        &lt;/div>
+                        &lt;div class="mobile-event-actions">
+                            ${showEditButton ? `
+                                &lt;button type="button" 
+                                        class="${rsvpBtnClass}"
+                                        data-event-id="${event.id}"
+                                        data-action="click->mobile-calendar#showRsvpSheet">
+                                    Edit
+                                &lt;/button>
+                            ` : ''}
+                            ${(showRsvpButton &amp;&amp; !event.user_attending) ? `
+                                &lt;button type="button" 
+                                        class="${rsvpBtnClass}"
+                                        data-event-id="${event.id}"
+                                        data-action="click->mobile-calendar#handleRsvpClick">
+                                    RSVP
+                                &lt;/button>
+                            ` : ''}
+                            ${event.user_attending ? '&lt;i class="bi bi-check-circle-fill text-success">&lt;/i>' : ''}
+                        &lt;/div>
+                    &lt;/div>
+                &lt;/div>
+            `;
+        }).join('');
+    }
+
+    /**
+     * Render activities list for an event
+     */
+    renderActivities(activities) {
+        if (!activities || activities.length === 0) return '';
+        
+        const activityNames = activities.map(a => this.escapeHtml(a.name)).join(', ');
+        
+        return `
+            &lt;div class="mobile-event-activities">
+                &lt;i class="bi bi-list-check">&lt;/i>
+                &lt;span>${activityNames}&lt;/span>
+            &lt;/div>
+        `;
+    }
+
+    /**
+     * Format time for display
+     */
+    formatTime(time) {
+        if (!time) return '';
+        const [hours, minutes] = time.split(':');
+        const hour = parseInt(hours);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const hour12 = hour % 12 || 12;
+        return `${hour12}:${minutes} ${ampm}`;
+    }
+
+    /**
+     * Escape HTML entities
+     */
+    escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ==================== Touch Handlers ====================
+
+    handleTouchStart(event) {
+        this.touchStartX = event.touches[0].clientX;
+        this.touchStartY = event.touches[0].clientY;
+        
+        if (window.scrollY === 0) {
+            this.isPulling = true;
+            this.pullStartY = event.touches[0].clientY;
+        }
+    }
+
+    handleTouchEnd(event) {
+        // Pull to refresh
+        if (this.isPulling &amp;&amp; this.pullIndicator) {
+            const touchEndY = event.changedTouches[0].clientY;
+            const pullDistance = touchEndY - this.pullStartY;
+            
+            if (pullDistance >= this.pullThreshold) {
+                this.pullIndicator.querySelector('.pull-text').textContent = 'Refreshing...';
+                this.pullIndicator.querySelector('.pull-spinner i').className = 'bi bi-arrow-clockwise spin';
+                this.loadCalendarData().then(() => this.resetPullIndicator());
+            } else {
+                this.resetPullIndicator();
+            }
+            this.isPulling = false;
+        }
+        
+        // Swipe navigation
+        if (!this.touchStartX || !this.touchStartY) return;
+        
+        const touchEndX = event.changedTouches[0].clientX;
+        const diffX = this.touchStartX - touchEndX;
+        const diffY = this.touchStartY - event.changedTouches[0].clientY;
+        
+        if (Math.abs(diffX) > Math.abs(diffY) &amp;&amp; Math.abs(diffX) > 50) {
+            if (diffX > 0) {
+                this.nextMonth();
+            } else {
+                this.previousMonth();
+            }
+        }
+        
+        this.touchStartX = 0;
+        this.touchStartY = 0;
+    }
+
+    resetPullIndicator() {
+        if (!this.pullIndicator) return;
+        this.pullIndicator.style.height = '0';
+        this.pullIndicator.style.opacity = '0';
+        this.pullIndicator.classList.remove('ready');
+        this.pullIndicator.querySelector('.pull-text').textContent = 'Pull to refresh';
+        this.pullIndicator.querySelector('.pull-spinner i').className = 'bi bi-arrow-down-circle';
+    }
+
+    // ==================== RSVP Methods ====================
+
+    /**
+     * Create RSVP modal container
+     */
+    createBottomSheet() {
+        // Create a Bootstrap modal container for RSVP
+        if (document.getElementById('mobileRsvpModal')) return;
+        
+        const modal = document.createElement('div');
+        modal.className = 'modal fade';
+        modal.id = 'mobileRsvpModal';
+        modal.tabIndex = -1;
+        modal.setAttribute('aria-labelledby', 'mobileRsvpModalLabel');
+        modal.setAttribute('aria-hidden', 'true');
+        modal.innerHTML = `
+            &lt;div class="modal-dialog modal-dialog-centered">
+                &lt;div class="modal-content" data-mobile-calendar-target="rsvpContent">
+                    &lt;div class="modal-body text-center py-5">
+                        &lt;div class="spinner-border text-primary">&lt;/div>
+                        &lt;p class="mt-2 text-muted">Loading...&lt;/p>
+                    &lt;/div>
+                &lt;/div>
+            &lt;/div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Listen for modal hidden to refresh data
+        modal.addEventListener('hidden.bs.modal', () => {
+            this.loadCalendarData();
+        });
+    }
+
+    /**
+     * Handle RSVP button click - online uses modal, offline queues RSVP
+     */
+    async handleRsvpClick(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const button = event.currentTarget;
+        const eventId = button.dataset.eventId;
+        const eventData = this.filteredEvents.find(e => e.id == eventId) 
+            || this.calendarData?.events?.find(e => e.id == eventId);
+        
+        if (!eventData) return;
+        
+        if (navigator.onLine) {
+            // When online, show the modal for full RSVP options
+            this.showRsvpSheet(event);
+        } else {
+            // When offline, queue a simple RSVP
+            await this.queueOfflineRsvp(eventData, button);
+        }
+    }
+
+    /**
+     * Queue an RSVP for sync when back online
+     */
+    async queueOfflineRsvp(eventData, button) {
+        try {
+            // Disable button and show loading
+            const originalHtml = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '&lt;span class="spinner-border spinner-border-sm">&lt;/span>';
+            
+            await rsvpCacheService.queueOfflineRsvp({
+                gathering_id: eventData.id,
+                gathering_name: eventData.name,
+                share_with_kingdom: false,
+                share_with_hosting_group: false,
+                share_with_crown: false,
+                public_note: ''
+            });
+            
+            // Update local state to show as attending
+            eventData.user_attending = true;
+            
+            // Update button to show success
+            button.innerHTML = '&lt;i class="bi bi-check">&lt;/i> Queued';
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-success');
+            
+            this.showToast('RSVP queued - will sync when online', 'info');
+            
+            // Re-render after short delay
+            setTimeout(() => {
+                this.showEventList();
+            }, 1000);
+            
+        } catch (error) {
+            console.error('Failed to queue offline RSVP:', error);
+            this.showToast('Failed to queue RSVP', 'danger');
+            button.disabled = false;
+        }
+    }
+
+    /**
+     * Show RSVP modal by loading attendance modal content from server
+     */
+    async showRsvpSheet(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const button = event.currentTarget;
+        const eventId = button.dataset.eventId;
+        const eventData = this.filteredEvents.find(e => e.id == eventId) 
+            || this.calendarData?.events?.find(e => e.id == eventId);
+        
+        if (!eventData) return;
+        
+        this.currentRsvpEvent = eventData;
+        
+        // Show modal with loading state
+        const modalEl = document.getElementById('mobileRsvpModal');
+        if (!modalEl) return;
+        
+        const modalContent = modalEl.querySelector('.modal-content');
+        modalContent.innerHTML = `
+            &lt;div class="modal-body text-center py-5">
+                &lt;div class="spinner-border text-primary">&lt;/div>
+                &lt;p class="mt-2 text-muted">Loading...&lt;/p>
+            &lt;/div>
+        `;
+        
+        // Show the modal
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+        
+        // Load attendance modal content from server
+        try {
+            let url = `/gatherings/attendance-modal/${eventData.id}`;
+            if (eventData.attendance_id) {
+                url += `?attendance_id=${eventData.attendance_id}`;
+            }
+            
+            const response = await this.fetchWithRetry(url);
+            const html = await response.text();
+            
+            modalContent.innerHTML = html;
+            
+            // Handle form submission via AJAX instead of regular submit
+            this.setupModalFormHandlers(modalContent);
+            
+        } catch (error) {
+            console.error('Failed to load attendance modal:', error);
+            modalContent.innerHTML = `
+                &lt;div class="modal-header">
+                    &lt;h5 class="modal-title">Error&lt;/h5>
+                    &lt;button type="button" class="btn-close" data-bs-dismiss="modal">&lt;/button>
+                &lt;/div>
+                &lt;div class="modal-body">
+                    &lt;div class="alert alert-danger">
+                        Failed to load attendance form. Please try again.
+                    &lt;/div>
+                &lt;/div>
+                &lt;div class="modal-footer">
+                    &lt;button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close&lt;/button>
+                &lt;/div>
+            `;
+        }
+    }
+
+    /**
+     * Setup form handlers for the attendance modal
+     */
+    setupModalFormHandlers(modalContent) {
+        const mainForm = modalContent.querySelector('#attendanceModalForm');
+        const deleteForm = modalContent.querySelector('[id^="deleteAttendanceForm_"]');
+        
+        if (mainForm) {
+            mainForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await this.handleAttendanceFormSubmit(mainForm);
+            });
+        }
+        
+        if (deleteForm) {
+            deleteForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await this.handleDeleteAttendance(deleteForm);
+            });
+        }
+    }
+
+    /**
+     * Handle attendance form submission
+     */
+    async handleAttendanceFormSubmit(form) {
+        const submitBtn = form.closest('.modal-content').querySelector('button[type="submit"][form]');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '&lt;span class="spinner-border spinner-border-sm me-2">&lt;/span>Saving...';
+        }
+        
+        const formData = new FormData(form);
+        
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (response.ok || response.redirected) {
+                // Update RSVP cache with new data
+                if (this.currentRsvpEvent) {
+                    rsvpCacheService.updateCachedRsvp(this.currentRsvpEvent.id, {
+                        share_with_kingdom: formData.get('share_with_kingdom') === '1',
+                        share_with_hosting_group: formData.get('share_with_hosting_group') === '1',
+                        share_with_crown: formData.get('share_with_crown') === '1',
+                        public_note: formData.get('public_note') || ''
+                    }).catch(err => console.warn('[Calendar] Failed to update RSVP cache:', err));
+                }
+                
+                this.showToast('Attendance saved!', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('mobileRsvpModal'))?.hide();
+            } else {
+                throw new Error('Form submission failed');
+            }
+        } catch (error) {
+            this.showToast('Failed to save attendance', 'danger');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Register';
+            }
+        }
+    }
+
+    /**
+     * Handle delete attendance
+     */
+    async handleDeleteAttendance(form) {
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (response.ok || response.redirected) {
+                // Remove from RSVP cache
+                if (this.currentRsvpEvent) {
+                    rsvpCacheService.removeCachedRsvp(this.currentRsvpEvent.id)
+                        .catch(err => console.warn('[Calendar] Failed to remove from RSVP cache:', err));
+                }
+                
+                this.showToast('Attendance removed!', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('mobileRsvpModal'))?.hide();
+            } else {
+                throw new Error('Delete failed');
+            }
+        } catch (error) {
+            this.showToast('Failed to remove attendance', 'danger');
+        }
+    }
+
+    // Legacy methods kept for compatibility (not used with new modal)
+    openBottomSheet() {}
+    closeBottomSheet() {
+        bootstrap.Modal.getInstance(document.getElementById('mobileRsvpModal'))?.hide();
+    }
+
+    // ==================== Utilities ====================
+
+    getCsrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]') 
+            || document.querySelector('meta[name="csrfToken"]');
+        return meta?.getAttribute('content') || '';
+    }
+
+    showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type} position-fixed bottom-0 start-50 translate-middle-x mb-3`;
+        toast.style.cssText = 'z-index: 9999; opacity: 0; transform: translateX(-50%) translateY(20px); transition: all 0.3s;';
+        
+        const icon = type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-circle' : 'info-circle';
+        toast.innerHTML = `&lt;i class="bi bi-${icon} me-2">&lt;/i>${message}`;
+        document.body.appendChild(toast);
+        
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(20px)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+}
+
+// Register controller
+if (!window.Controllers) {
+    window.Controllers = {};
+}
+window.Controllers["mobile-calendar"] = MobileCalendarController;
+
+export default MobileCalendarController;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.5</a> on Sat May 30 2026 21:20:34 GMT-0500 (Central Daylight Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+<script src="scripts/search.js" defer></script>
+
+
+
+</body>
+</html>

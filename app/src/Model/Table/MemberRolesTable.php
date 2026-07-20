@@ -3,8 +3,12 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use App\Model\Entity\Permission;
+use App\Services\Cache\TenantAwareCache;
 use Cake\Cache\Cache;
+use Cake\Datasource\EntityInterface;
 use Cake\ORM\RulesChecker;
+use Cake\ORM\TableRegistry;
 use Cake\Validation\Validator;
 
 /**
@@ -72,30 +76,42 @@ class MemberRolesTable extends BaseTable
         $this->addBehavior('ActiveWindow');
     }
 
-    /**
-     * Run after an entity is saved.
-     *
-     * @param mixed $event
-     * @param mixed $entity
-     * @param mixed $options
-     * @return void
-     */
     protected const CACHE_GROUPS_TO_CLEAR = ['security'];
 
+    /**
+     * Clear tenant-scoped member permission caches after a role is saved.
+     *
+     * @param mixed $event Event object
+     * @param mixed $entity Saved entity
+     * @param mixed $options Save options
+     * @return void
+     */
     public function afterSave($event, $entity, $options): void
     {
         parent::afterSave($event, $entity, $options);
         $memberId = $entity->member_id;
-        Cache::delete('permissions_policies' . $memberId, 'member_permissions');
-        Cache::delete('member_permissions' . $memberId, 'member_permissions');
+        Cache::delete(TenantAwareCache::tenantScopedKey('permissions_policies' . $memberId), 'member_permissions');
+        Cache::delete(TenantAwareCache::tenantScopedKey('member_permissions' . $memberId), 'member_permissions');
+        Cache::delete(TenantAwareCache::tenantScopedKey('member_roles' . $memberId), 'member_permissions');
+        WorkflowApprovalsTable::clearApprovalScopeCache();
     }
 
+    /**
+     * Clear tenant-scoped member permission caches after a role is deleted.
+     *
+     * @param mixed $event Event object
+     * @param mixed $entity Deleted entity
+     * @param mixed $options Delete options
+     * @return void
+     */
     public function afterDelete($event, $entity, $options): void
     {
         parent::afterDelete($event, $entity, $options);
         $memberId = $entity->member_id;
-        Cache::delete('permissions_policies' . $memberId, 'member_permissions');
-        Cache::delete('member_permissions' . $memberId, 'member_permissions');
+        Cache::delete(TenantAwareCache::tenantScopedKey('permissions_policies' . $memberId), 'member_permissions');
+        Cache::delete(TenantAwareCache::tenantScopedKey('member_permissions' . $memberId), 'member_permissions');
+        Cache::delete(TenantAwareCache::tenantScopedKey('member_roles' . $memberId), 'member_permissions');
+        WorkflowApprovalsTable::clearApprovalScopeCache();
     }
 
     /**
@@ -106,7 +122,7 @@ class MemberRolesTable extends BaseTable
      */
     public function validationDefault(Validator $validator): Validator
     {
-        $validator->integer('Member_id')->notEmptyString('Member_id');
+        $validator->integer('member_id')->notEmptyString('member_id');
 
         $validator->integer('role_id')->notEmptyString('role_id');
 
@@ -128,8 +144,8 @@ class MemberRolesTable extends BaseTable
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->existsIn(['Member_id'], 'Members'), [
-            'errorField' => 'Member_id',
+        $rules->add($rules->existsIn(['member_id'], 'Members'), [
+            'errorField' => 'member_id',
         ]);
         $rules->add($rules->existsIn(['role_id'], 'Roles'), [
             'errorField' => 'role_id',
@@ -137,7 +153,45 @@ class MemberRolesTable extends BaseTable
         $rules->add($rules->existsIn(['approver_id'], 'Members'), [
             'errorField' => 'approver_id',
         ]);
+        $rules->add(
+            function (EntityInterface $entity): bool {
+                // Only gate grants being created or re-pointed; edits to legacy
+                // rows (expiry, release) must stay saveable so they can be cleaned up.
+                if (!$entity->isNew() && !$entity->isDirty('role_id') && !$entity->isDirty('branch_id')) {
+                    return true;
+                }
+                if ($entity->branch_id !== null) {
+                    return true;
+                }
+                $roleId = (int)($entity->role_id ?? 0);
+
+                return $roleId <= 0 || !$this->roleHasBranchScopedPermissions($roleId);
+            },
+            'branchRequiredForScopedRole',
+            [
+                'errorField' => 'branch_id',
+                'message' => 'This role grants branch-scoped permissions; assign it at a branch '
+                    . 'or the grant will have no effect.',
+            ],
+        );
 
         return $rules;
+    }
+
+    /**
+     * Whether a role carries any permission whose scoping rule resolves through the
+     * assignment branch (a branchless grant of such a role is silently inert).
+     *
+     * @param int $roleId Role ID.
+     * @return bool
+     */
+    public function roleHasBranchScopedPermissions(int $roleId): bool
+    {
+        return TableRegistry::getTableLocator()->get('Permissions')->find()
+            ->innerJoinWith('Roles', function ($q) use ($roleId) {
+                return $q->where(['Roles.id' => $roleId]);
+            })
+            ->where(['Permissions.scoping_rule !=' => Permission::SCOPE_GLOBAL])
+            ->count() > 0;
     }
 }

@@ -1,5 +1,15 @@
 import { Controller } from "@hotwired/stimulus";
-import * as faceapi from "face-api.js";
+
+let _faceapi = null;
+let _faceapiPromise = null;
+
+async function loadFaceApi() {
+    if (_faceapi) return _faceapi;
+    if (!_faceapiPromise) {
+        _faceapiPromise = import('face-api.js').then(m => { _faceapi = m; return m; });
+    }
+    return _faceapiPromise;
+}
 
 let modelsReadyPromise = null;
 
@@ -126,6 +136,7 @@ class FacePhotoValidatorController extends Controller {
             : "/models/face-api";
 
         modelsReadyPromise = (async () => {
+            const faceapi = await loadFaceApi();
             this.logDebug("Loading face-api models", { modelBaseUrl });
             await faceapi.nets.tinyFaceDetector.loadFromUri(modelBaseUrl);
             await faceapi.nets.faceLandmark68TinyNet.loadFromUri(modelBaseUrl);
@@ -141,6 +152,7 @@ class FacePhotoValidatorController extends Controller {
     }
 
     async analyzeFace(imageElement) {
+        const faceapi = await loadFaceApi();
         const analysisImage = this.createAnalysisImage(imageElement);
         const options = new faceapi.TinyFaceDetectorOptions({
             inputSize: 416,
@@ -384,7 +396,7 @@ class FacePhotoValidatorController extends Controller {
 
     showError(message) {
         if (!this.hasWarningTarget) {
-            alert(message);
+            window.KMP_accessibility.announce(message, { assertive: true });
             return;
         }
         this.warningTarget.textContent = message;

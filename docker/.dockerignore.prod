@@ -42,7 +42,9 @@ dev-up.sh
 dev-down.sh
 dev-reset-db.sh
 dev-seed-db.sh
-dev_seed_clean.sql
+# dev_seed_clean.sql is intentionally bundled in the prod image so the
+# Azure "reset" Container Apps Job can restore a known demo state.
+!dev_seed_clean.sql
 reset_dev_database.sh
 create_erd.sh
 create_todo_list.sh

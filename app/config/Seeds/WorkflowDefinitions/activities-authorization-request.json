@@ -1,0 +1,263 @@
+{
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
+    "nodes": {
+        "trigger-auth": {
+            "type": "trigger",
+            "label": "Authorization Requested",
+            "config": {
+                "event": "Activities.AuthorizationRequested",
+                "entityIdField": "authorizationId"
+            },
+            "position": {
+                "x": 50,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "validate-request"
+                }
+            ]
+        },
+        "validate-request": {
+            "type": "action",
+            "label": "Validate Authorization Request",
+            "config": {
+                "action": "Activities.CreateAuthorizationRequest",
+                "params": {
+                    "authorizationId": "$.trigger.authorizationId",
+                    "memberId": "$.trigger.memberId",
+                    "activityId": "$.trigger.activityId",
+                    "approverId": "$.trigger.approverId",
+                    "isRenewal": "$.trigger.isRenewal"
+                }
+            },
+            "position": {
+                "x": 350,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "resolve-approvers"
+                }
+            ]
+        },
+        "resolve-approvers": {
+            "type": "action",
+            "label": "Resolve Approvers",
+            "config": {
+                "action": "Activities.ResolveApprovers",
+                "params": {
+                    "activityId": "$.trigger.activityId",
+                    "branchId": "$.trigger.branchId",
+                    "excludeMemberIds": []
+                }
+            },
+            "position": {
+                "x": 650,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "notify-approver"
+                }
+            ]
+        },
+        "notify-approver": {
+            "type": "action",
+            "label": "Notify Approver",
+            "config": {
+                "action": "Activities.NotifyApprover",
+                "params": {
+                    "activityId": "$.trigger.activityId",
+                    "requesterId": "$.trigger.memberId",
+                    "approverId": "$.trigger.approverId",
+                    "authorizationToken": "$.nodes.validate-request.result.authorizationToken"
+                }
+            },
+            "position": {
+                "x": 950,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "approval-gate"
+                }
+            ]
+        },
+        "approval-gate": {
+            "type": "approval",
+            "label": "Authorization Approval Gate",
+            "config": {
+                "approverType": "permission",
+                "approverConfig": {
+                    "permission": "$.trigger.approvalPermission"
+                },
+                "requiredCount": "$.trigger.requiredApprovals",
+                "serialPickNext": true,
+                "allowParallel": false,
+                "allowComments": true,
+                "deadline": "30d",
+                "commentWarning": "Comments may be visible to the person who submitted this request.",
+                "initialApproverId": "$.trigger.approverId"
+            },
+            "position": {
+                "x": 1250,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "approved",
+                    "target": "activate-authorization"
+                },
+                {
+                    "port": "rejected",
+                    "target": "handle-denial"
+                },
+                {
+                    "port": "on_each_approval",
+                    "target": "notify-step-approved"
+                },
+                {
+                    "port": "on_reassigned",
+                    "target": null
+                }
+            ]
+        },
+        "notify-step-approved": {
+            "type": "action",
+            "label": "Notify Step Approved",
+            "config": {
+                "action": "Activities.NotifyRequester",
+                "params": {
+                    "activityId": "$.trigger.activityId",
+                    "requesterId": "$.trigger.memberId",
+                    "approverId": "$.nodes.approval-gate.approverId",
+                    "status": "Pending",
+                    "nextApproverId": "$.nodes.approval-gate.nextApproverId"
+                }
+            },
+            "position": {
+                "x": 1250,
+                "y": 450
+            },
+            "outputs": []
+        },
+        "activate-authorization": {
+            "type": "action",
+            "label": "Activate Authorization",
+            "config": {
+                "action": "Activities.ActivateAuthorization",
+                "params": {
+                    "authorizationId": "$.nodes.validate-request.result.authorizationId",
+                    "approverId": "$.resumeData.approverId"
+                }
+            },
+            "position": {
+                "x": 1550,
+                "y": 100
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "notify-approved"
+                }
+            ]
+        },
+        "notify-approved": {
+            "type": "action",
+            "label": "Notify Requester (Approved)",
+            "config": {
+                "action": "Activities.NotifyRequester",
+                "params": {
+                    "activityId": "$.trigger.activityId",
+                    "requesterId": "$.trigger.memberId",
+                    "approverId": "$.resumeData.approverId",
+                    "status": "Approved",
+                    "nextApproverId": null
+                }
+            },
+            "position": {
+                "x": 1850,
+                "y": 100
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "end-approved"
+                }
+            ]
+        },
+        "handle-denial": {
+            "type": "action",
+            "label": "Handle Denial",
+            "config": {
+                "action": "Activities.HandleDenial",
+                "params": {
+                    "authorizationId": "$.nodes.validate-request.result.authorizationId",
+                    "approverId": "$.resumeData.approverId",
+                    "denyReason": "$.resumeData.comment"
+                }
+            },
+            "position": {
+                "x": 1550,
+                "y": 300
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "notify-denied"
+                }
+            ]
+        },
+        "notify-denied": {
+            "type": "action",
+            "label": "Notify Requester (Denied)",
+            "config": {
+                "action": "Activities.NotifyRequester",
+                "params": {
+                    "activityId": "$.trigger.activityId",
+                    "requesterId": "$.trigger.memberId",
+                    "approverId": "$.resumeData.approverId",
+                    "status": "Denied",
+                    "nextApproverId": null
+                }
+            },
+            "position": {
+                "x": 1850,
+                "y": 300
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "end-denied"
+                }
+            ]
+        },
+        "end-approved": {
+            "type": "end",
+            "label": "Approved Complete",
+            "config": {},
+            "position": {
+                "x": 2150,
+                "y": 100
+            },
+            "outputs": []
+        },
+        "end-denied": {
+            "type": "end",
+            "label": "Denied Complete",
+            "config": {},
+            "position": {
+                "x": 2150,
+                "y": 300
+            },
+            "outputs": []
+        }
+    },
+    "startNode": "trigger-auth"
+}

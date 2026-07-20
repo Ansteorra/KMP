@@ -111,7 +111,7 @@
                 <div class="d-flex justify-content-between text-center">
                     <div class="wizard-step-mobile" data-waiver-upload-wizard-target="stepIndicator" data-step="1">
                         <div class="step-circle">
-                            <span class="badge rounded-pill" style="background: var(--mobile-accent, #3b82f6);">1</span>
+                            <span class="badge rounded-pill" style="background: var(--mobile-accent, #c9a227); color: var(--medieval-ink, #212529);">1</span>
                         </div>
                         <small class="d-block mt-1"><?= __('Waiver Type') ?></small>
                     </div>

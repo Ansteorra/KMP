@@ -4,13 +4,15 @@ Deploy KMP on any server with Docker — your own VPC, a cloud VM, or even a loc
 
 [← Back to Deployment Guide](README.md)
 
+> Legacy note: the automated `kmp install` flow is retired for new deployments. This page is kept as archived self-hosted reference.
+
 ## Prerequisites
 
 - Docker Engine 24+ and Docker Compose v2
 - A domain name pointing to your server (for automatic SSL)
 - Ports 80 and 443 open
 
-## Option A: Automated Install (Recommended)
+## Legacy Automated Install (Retired)
 
 ```bash
 # Install the KMP management tool
@@ -108,7 +110,7 @@ Set up a cron job for automated backups:
 0 3 * * * /opt/kmp/backup.sh --upload s3 >> /var/log/kmp-backup.log 2>&1
 ```
 
-Or use the management tool:
+For legacy installations that still have the management tool:
 
 ```bash
 kmp backup
@@ -119,7 +121,7 @@ See [Backup & Restore](backup-restore.md) for full details.
 ## Updates
 
 ```bash
-# Using the management tool
+# Legacy management tool
 kmp update
 
 # Or manually

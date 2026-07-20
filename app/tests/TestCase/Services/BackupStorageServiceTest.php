@@ -5,7 +5,11 @@ namespace App\Test\TestCase\Services;
 
 use App\Services\BackupStorageService;
 use App\Test\TestCase\BaseTestCase;
+use Cake\Core\Configure;
 use Exception;
+use League\Flysystem\Filesystem as FlysystemFilesystem;
+use League\Flysystem\Local\LocalFilesystemAdapter;
+use RuntimeException;
 
 class BackupStorageServiceTest extends BaseTestCase
 {
@@ -165,5 +169,59 @@ class BackupStorageServiceTest extends BaseTestCase
         // In dev environment without cloud config, should default to local
         $type = $this->service->getAdapterType();
         $this->assertEquals('local', $type);
+    }
+
+    public function testAzureManagedIdentityConfigurationInitializesAdapter(): void
+    {
+        $originalConfig = Configure::read('Documents.storage');
+        $path = TMP . 'backup-managed-identity-test';
+        Configure::write('Documents.storage', [
+            'adapter' => 'azure',
+            'azure' => [
+                'authMode' => 'managedIdentity',
+                'accountName' => 'kmpteststorage',
+                'container' => 'documents',
+            ],
+        ]);
+
+        try {
+            $service = new class ($path) extends BackupStorageService {
+                public function __construct(private readonly string $path)
+                {
+                    parent::__construct();
+                }
+
+                protected function createAzureFilesystem(array $azureConfig): FlysystemFilesystem
+                {
+                    return new FlysystemFilesystem(new LocalFilesystemAdapter($this->path));
+                }
+            };
+
+            $this->assertSame('azure', $service->getAdapterType());
+        } finally {
+            Configure::write('Documents.storage', $originalConfig);
+        }
+    }
+
+    public function testAzureManagedIdentityRequiresAccountName(): void
+    {
+        $originalConfig = Configure::read('Documents.storage');
+        Configure::write('Documents.storage', [
+            'adapter' => 'azure',
+            'azure' => [
+                'authMode' => 'managedIdentity',
+                'accountName' => '',
+            ],
+        ]);
+
+        try {
+            $this->expectException(RuntimeException::class);
+            $this->expectExceptionMessage(
+                'Azure backup storage requires a connection string or managed identity account name.',
+            );
+            new BackupStorageService();
+        } finally {
+            Configure::write('Documents.storage', $originalConfig);
+        }
     }
 }

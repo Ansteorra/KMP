@@ -142,6 +142,43 @@ $this->KMP->endBlock();
         </div>
 
         <div class="mb-3">
+            <?= $this->Form->control('website_url', [
+                'type' => 'url',
+                'class' => 'form-control',
+                'label' => __('Event Website'),
+                'placeholder' => 'https://...',
+                'data-gathering-form-target' => 'websiteUrl',
+            ]) ?>
+            <small class="form-text text-muted">
+                <?= __('External web page for the event. Disabled while the public landing page is enabled - the public page is used as the event\'s web link instead.') ?>
+            </small>
+        </div>
+
+        <div class="mb-3">
+            <?= $this->Form->control('preregister_url', [
+                'type' => 'url',
+                'class' => 'form-control',
+                'label' => __('Pre-Registration Link'),
+                'placeholder' => 'https://...',
+            ]) ?>
+            <small class="form-text text-muted">
+                <?= __('External pre-registration / payment link, shown prominently on the public event page.') ?>
+            </small>
+        </div>
+
+        <div class="mb-3">
+            <?= $this->Form->control('preregister_closes_on', [
+                'type' => 'date',
+                'class' => 'form-control',
+                'label' => __('Pre-Registration Closes'),
+                'empty' => true,
+            ]) ?>
+            <small class="form-text text-muted">
+                <?= __('Last day the pre-registration link is shown. Leave blank to keep it open until the event.') ?>
+            </small>
+        </div>
+
+        <div class="mb-3">
             <?= $this->Form->control('timezone', [
                 'type' => 'select',
                 'options' => $this->Timezone->getTimezoneOptions(),
@@ -175,7 +212,9 @@ $this->KMP->endBlock();
                 <?= $this->Form->checkbox('public_page_enabled', [
                     'checked' => true,
                     'id' => 'public_page_enabled',
-                    'class' => 'form-check-input'
+                    'class' => 'form-check-input',
+                    'data-gathering-form-target' => 'publicPageToggle',
+                    'data-action' => 'change->gathering-form#publicPageToggled',
                 ]) ?>
                 <label class="form-check-label" for="public_page_enabled">
                     <?= __('Enable Public Landing Page') ?>

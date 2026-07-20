@@ -116,6 +116,8 @@ describe('WaiverAttestationController', () => {
     test('populateReasons renders radio buttons for each reason', () => {
         controller.reasonsValue = ['Reason A', 'Reason B'];
         controller.populateReasons();
+        expect(controller.reasonListTarget.querySelector('fieldset')).not.toBeNull();
+        expect(controller.reasonListTarget.querySelector('legend')).not.toBeNull();
         const radios = controller.reasonListTarget.querySelectorAll('input[type="radio"]');
         expect(radios).toHaveLength(2);
         expect(radios[0].value).toBe('Reason A');

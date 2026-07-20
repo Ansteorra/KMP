@@ -9,13 +9,13 @@ use App\KMP\TimezoneHelper;
  * MemberRole Entity
  *
  * @property int $id
- * @property int $Member_id
+ * @property int $member_id
  * @property int $role_id
  * @property \Cake\I18n\Date|null $expires_on
  * @property \Cake\I18n\Date $start_on
  * @property int $approver_id
  *
- * @property \App\Model\Entity\Member $Member
+ * @property \App\Model\Entity\Member $member
  * @property \App\Model\Entity\Role $role
  * @property \App\Model\Entity\Member $approved_by
  */
@@ -32,13 +32,13 @@ class MemberRole extends ActiveWindowBaseEntity
      * @var array<string, bool>
      */
     protected array $_accessible = [
-        'Member_id' => true,
+        'member_id' => true,
         'role_id' => true,
         'expires_on' => true,
         'start_on' => true,
         'approver_id' => true,
         'revoker_id' => true,
-        'Member' => true,
+        'member' => true,
         'role' => true,
         'approved_by' => true,
         'branch_id' => true,

@@ -164,13 +164,15 @@ describe('MyRsvpsController', () => {
 
     test('editRsvp prevents editing when offline', async () => {
         Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
-        const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
 
         await controller.editRsvp({
             currentTarget: { dataset: { gatheringId: '1', attendanceId: '2' } }
         });
 
-        expect(alertSpy).toHaveBeenCalledWith('You need to be online to edit RSVPs.');
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith(
+            'You need to be online to edit RSVPs.',
+            { assertive: true }
+        );
     });
 
     test('editRsvp loads modal content on success', async () => {

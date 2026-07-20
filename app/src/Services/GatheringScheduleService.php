@@ -5,7 +5,10 @@ namespace App\Services;
 
 use App\KMP\TimezoneHelper;
 use App\Model\Entity\Gathering;
+use App\Services\ActionItems\ActionItemService;
+use Awards\Model\Entity\Bestowal;
 use Cake\ORM\Locator\LocatorAwareTrait;
+use RuntimeException;
 
 /**
  * Manages scheduled activity CRUD for gatherings.
@@ -151,7 +154,15 @@ class GatheringScheduleService
             ];
         }
 
-        if ($table->delete($entity)) {
+        $deleted = $table->getConnection()->transactional(
+            function () use ($table, $entity, $scheduledActivityId): bool {
+                $this->releaseCourtAssignments($scheduledActivityId);
+
+                return (bool)$table->delete($entity);
+            },
+        );
+
+        if ($deleted) {
             return [
                 'success' => true,
                 'message' => __('Scheduled activity deleted successfully.'),
@@ -162,6 +173,52 @@ class GatheringScheduleService
             'success' => false,
             'message' => __('Could not delete scheduled activity. Please try again.'),
         ];
+    }
+
+    /**
+     * Clear award court assignments that depend on a scheduled activity being deleted.
+     *
+     * @param int $scheduledActivityId Scheduled gathering activity ID.
+     * @return void
+     */
+    private function releaseCourtAssignments(int $scheduledActivityId): void
+    {
+        $bestowals = $this->fetchTable('Awards.Bestowals');
+        $affectedRows = $bestowals->find()
+            ->select(['id'])
+            ->where(['gathering_scheduled_activity_id' => $scheduledActivityId])
+            ->enableHydration(false)
+            ->all();
+        $affectedBestowalIds = [];
+        foreach ($affectedRows as $row) {
+            $affectedBestowalIds[] = (int)$row['id'];
+        }
+
+        $bestowals->updateAll(
+            [
+                'gathering_scheduled_activity_id' => null,
+                'roaming_court' => false,
+            ],
+            ['gathering_scheduled_activity_id' => $scheduledActivityId],
+        );
+        $actionItemService = new ActionItemService();
+        foreach ($affectedBestowalIds as $bestowalId) {
+            $syncResult = $actionItemService->syncRequiredFieldCompletionStates(
+                Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                $bestowalId,
+            );
+            if (!$syncResult->success) {
+                throw new RuntimeException((string)$syncResult->reason);
+            }
+        }
+
+        $segments = $this->fetchTable('Awards.CourtAgendaSegments');
+        $linkedSegments = $segments->find()
+            ->where(['gathering_scheduled_activity_id' => $scheduledActivityId])
+            ->all();
+        foreach ($linkedSegments as $segment) {
+            $segments->deleteOrFail($segment);
+        }
     }
 
     /**

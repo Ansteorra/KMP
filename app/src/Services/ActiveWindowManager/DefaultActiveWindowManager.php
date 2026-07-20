@@ -60,16 +60,15 @@ class DefaultActiveWindowManager implements ActiveWindowManagerInterface
             }
             $previousEntities = $peQuery->all();
             foreach ($previousEntities as $pe) {
-                if (
-                    !$this->stop(
-                        $entityType,
-                        $pe->id,
-                        $memberId,
-                        ActiveWindowBaseEntity::REPLACED_STATUS,
-                        '',
-                        $startOn,
-                    )
-                ) {
+                $stopResult = $this->stop(
+                    $entityType,
+                    $pe->id,
+                    $memberId,
+                    ActiveWindowBaseEntity::REPLACED_STATUS,
+                    '',
+                    $startOn,
+                );
+                if (!$stopResult->success) {
                     return new ServiceResult(false, "Failed to expire current $entityType");
                 }
             }

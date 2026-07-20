@@ -7,9 +7,7 @@ use App\Model\Entity\EmailTemplate;
 use App\Services\EmailTemplateRendererService;
 use Cake\Log\Log;
 use Cake\Mailer\Message;
-use Cake\ORM\Locator\LocatorAwareTrait;
 use Cake\Utility\Inflector;
-use Exception;
 
 /**
  * Trait for using database-stored email templates
@@ -19,7 +17,11 @@ use Exception;
  */
 trait TemplateAwareMailerTrait
 {
-    use LocatorAwareTrait;
+    /**
+     * Pre-loaded template for generic workflow emails.
+     * When set, render() uses this DB template instead of the file-based template.
+     */
+    protected ?EmailTemplate $_preloadedTemplate = null;
 
     /**
      * Override the render method to use database templates
@@ -30,9 +32,9 @@ trait TemplateAwareMailerTrait
     public function render(string $content = ''): array
     {
         Log::debug('TemplateAwareMailerTrait::render() called', [
-            'mailer_class' => static::class,
             'current_action' => $this->getCurrentAction(),
             'content_length' => strlen($content),
+            'has_preloaded_template' => $this->_preloadedTemplate !== null,
         ]);
 
         $dbTemplate = $this->getDbTemplate();
@@ -105,6 +107,8 @@ trait TemplateAwareMailerTrait
 
         $result = [Message::MESSAGE_HTML => '', Message::MESSAGE_TEXT => ''];
 
+        $renderer->assertValidForSend($template, $vars);
+
         // Render subject
         $subject = $renderer->renderSubject($template, $vars);
         if (!empty($subject)) {
@@ -155,52 +159,21 @@ trait TemplateAwareMailerTrait
     }
 
     /**
-     * Get database template for current mailer and action
-     *
-     * @return \App\Model\Entity\EmailTemplate|null
-     */
+         * Get the preloaded database template for slug-based sending.
+         *
+         * @return \App\Model\Entity\EmailTemplate|null
+         */
     protected function getDbTemplate(): ?EmailTemplate
     {
-        $action = $this->getCurrentAction();
+        if ($this->_preloadedTemplate === null) {
+            return null;
+        }
 
-        Log::debug('getDbTemplate() called', [
-            'mailer_class' => static::class,
-            'action' => $action,
+        Log::debug('Using preloaded template', [
+            'template_id' => $this->_preloadedTemplate->id,
         ]);
 
-        if (empty($action)) {
-            Log::debug('No action found (empty), cannot load template');
-
-            return null;
-        }
-
-        try {
-            /** @var \App\Model\Table\EmailTemplatesTable $templatesTable */
-            $templatesTable = $this->fetchTable('EmailTemplates');
-            $className = static::class;
-
-            Log::debug('Searching for template', [
-                'mailer_class' => $className,
-                'action' => $action,
-            ]);
-
-            $template = $templatesTable->findForMailer($className, $action);
-
-            Log::debug('Template search result', [
-                'found' => $template !== null,
-                'template_id' => $template !== null ? $template->id : null,
-            ]);
-
-            return $template;
-        } catch (Exception $e) {
-            Log::error('Failed to fetch email template from database', [
-                'mailer_class' => static::class,
-                'action' => $action,
-                'error' => $e->getMessage(),
-            ]);
-
-            return null;
-        }
+        return $this->_preloadedTemplate;
     }
 
     /**

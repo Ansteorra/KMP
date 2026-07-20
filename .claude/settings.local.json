@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(grep:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git -C /Users/jhandel/code/KMP status --short)",
+      "Bash(git -C /Users/jhandel/code/KMP diff --stat main...HEAD)",
+      "Bash(git -C /Users/jhandel/code/KMP log --oneline main..HEAD)"
     ]
   }
 }

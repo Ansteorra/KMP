@@ -5,17 +5,26 @@ declare(strict_types=1);
 namespace Officers\Controller;
 
 use App\Controller\DataverseGridTrait;
-use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
-use App\Services\CsvExportService;
-use Officers\Services\OfficerManagerInterface;
-use App\Services\WarrantManager\WarrantManagerInterface;
-use App\Services\ServiceResult;
-use App\Services\WarrantManager\WarrantRequest;
-use App\Model\Entity\Warrant;
-use Cake\I18n\DateTime;
-use Cake\I18n\Date;
-use Officers\Model\Entity\Officer;
+use App\Controller\WorkflowDispatchTrait;
+use App\KMP\DataverseGridQueryContext;
+use App\KMP\GridRowDomId;
+use Cake\Http\Response;
+use Cake\ORM\TableRegistry;
+use Cake\Routing\Router;
 use App\Model\Entity\Member;
+use App\Model\Entity\Warrant;
+use App\Services\CsvExportService;
+use App\Services\ServiceResult;
+use App\Services\WarrantManager\WarrantManagerInterface;
+use App\Services\WarrantManager\WarrantRequest;
+use App\Services\WorkflowEngine\TriggerDispatcher;
+use Cake\Http\Exception\ForbiddenException;
+use Cake\Http\Exception\NotFoundException;
+use Cake\I18n\DateTime;
+use Cake\Log\Log;
+use Officers\KMP\GridColumns\OfficersGridColumns;
+use Officers\Model\Entity\Officer;
+use Throwable;
 
 /**
  * Officers Controller
@@ -28,6 +37,7 @@ use App\Model\Entity\Member;
 class OfficersController extends AppController
 {
     use DataverseGridTrait;
+    use WorkflowDispatchTrait;
 
     /**
      * Initialize controller with authentication and authorization settings.
@@ -44,18 +54,16 @@ class OfficersController extends AppController
     /**
      * Assign an officer to an office position.
      *
-     * @param \Officers\Services\OfficerManagerInterface $oManager Officer business logic service
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $dispatcher Workflow trigger dispatcher
      * @return \Cake\Http\Response|null|void Redirects on completion or error
      */
-    public function assign(OfficerManagerInterface $oManager)
+    public function assign(TriggerDispatcher $dispatcher)
     {
         if ($this->request->is('post')) {
             $officer = $this->Officers->newEmptyEntity();
             $user = $this->Authentication->getIdentity();
             $branchId = (int)$this->request->getData('branch_id');
             $this->Authorization->authorize($officer);
-            $user = $this->Authentication->getIdentity();
-            //begin transaction
 
             $memberId = (int)$this->request->getData('member_id');
             $officeId = (int)$this->request->getData('office_id');
@@ -64,45 +72,74 @@ class OfficersController extends AppController
             if (!in_array($officeId, $canHireOffices)) {
                 $this->Flash->error(__('You do not have permission to assign this officer.'));
                 $this->redirect($this->referer());
+
                 return;
             }
             $startOn = new DateTime($this->request->getData('start_on'));
             $emailAddress = $this->request->getData('email_address');
             $endOn = null;
-            if ($this->request->getData('end_on') !== null && $this->request->getData('end_on') !== "") {
+            if ($this->request->getData('end_on') !== null && $this->request->getData('end_on') !== '') {
                 $endOn = new DateTime($this->request->getData('end_on'));
-            } else {
-                $endOn = null;
             }
             $approverId = (int)$user->id;
             $deputyDescription = $this->request->getData('deputy_description');
-            $this->Officers->getConnection()->begin();
-            $omResult = $oManager->assign($officeId, $memberId, $branchId, $startOn, $endOn, $deputyDescription, $approverId, $emailAddress);
-            if (!$omResult->success) {
-                $this->Officers->getConnection()->rollback();
-                $this->Flash->error(__($omResult->reason));
-                $this->redirect($this->referer());
-                return;
+
+            $context = [
+                'memberId' => $memberId,
+                'officeId' => $officeId,
+                'branchId' => $branchId,
+                'startOn' => $startOn->toDateTimeString(),
+                'expiresOn' => $endOn?->toDateTimeString(),
+                'deputyDescription' => $deputyDescription,
+                'approverId' => $approverId,
+                'emailAddress' => $emailAddress,
+                'member_id' => $memberId,
+                'office_id' => $officeId,
+                'branch_id' => $branchId,
+                'start_on' => $startOn->toDateTimeString(),
+                'end_on' => $endOn?->toDateTimeString(),
+                'deputy_description' => $deputyDescription,
+                'approver_id' => $approverId,
+                'email_address' => $emailAddress,
+            ];
+
+            try {
+                $result = $this->dispatchWorkflowOrFail(
+                    $dispatcher,
+                    'officer-hire',
+                    'Officers.HireRequested',
+                    $context,
+                );
+                $workflowError = $this->extractWorkflowDispatchFailure(
+                    $result,
+                    'The officer assignment workflow could not be completed.',
+                );
+                if ($workflowError !== null) {
+                    $this->Flash->error(__($workflowError));
+                } else {
+                    $this->Flash->success(__('The officer has been saved.'));
+                }
+            } catch (Throwable $e) {
+                Log::error('Officer hire workflow dispatch failed: ' . $e->getMessage());
+                $this->Flash->error(__('The officer assignment workflow is not currently available.'));
             }
-            //commit transaction
-            $this->Officers->getConnection()->commit();
-            $this->Flash->success(__('The officer has been saved.'));
-            $this->redirect($this->referer());
+
+            return $this->redirect($this->referer());
         }
     }
 
     /**
      * Release an officer from their assignment.
      *
-     * @param \Officers\Services\OfficerManagerInterface $oManager Officer business logic service
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $dispatcher Workflow trigger dispatcher
      * @return \Cake\Http\Response|null|void Redirects on completion or error
      * @throws \Cake\Http\Exception\NotFoundException When officer not found
      */
-    public function release(OfficerManagerInterface $oManager)
+    public function release(TriggerDispatcher $dispatcher)
     {
         $officer = $this->Officers->get($this->request->getData('id'));
         if (!$officer) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
         $this->Authorization->authorize($officer);
         if ($this->request->is('post')) {
@@ -110,18 +147,37 @@ class OfficersController extends AppController
             $revokeDate = new DateTime($this->request->getData('revoked_on'));
             $revokerId = $this->Authentication->getIdentity()->getIdentifier();
 
-            //begin transaction
-            $this->Officers->getConnection()->begin();
-            $omResult = $oManager->release($officer->id, $revokerId, $revokeDate, $revokeReason);
-            if (!$omResult->success) {
-                $this->Officers->getConnection()->rollback();
-                $this->Flash->error(__('The officer could not be released. Please, try again.'));
-                $this->redirect($this->referer());
+            $context = [
+                'officerId' => $officer->id,
+                'memberId' => $officer->member_id,
+                'officeId' => $officer->office_id,
+                'releasedById' => $revokerId,
+                'reason' => $revokeReason,
+                'expiresOn' => $revokeDate->toDateTimeString(),
+                'releaseStatus' => Officer::RELEASED_STATUS,
+                // Keep legacy-shaped keys during the migration window for older drafts/tests.
+                'officer_id' => $officer->id,
+                'released_by' => $revokerId,
+                'revoked_on' => $revokeDate->toDateTimeString(),
+            ];
+
+            try {
+                $result = $this->dispatchWorkflowOrFail($dispatcher, 'officers-release', 'Officers.Released', $context);
+                $workflowError = $this->extractWorkflowDispatchFailure(
+                    $result,
+                    'The officer release workflow could not be completed.',
+                );
+                if ($workflowError !== null) {
+                    $this->Flash->error(__($workflowError));
+                } else {
+                    $this->Flash->success(__('The officer release workflow has been initiated.'));
+                }
+            } catch (Throwable $e) {
+                Log::error('Officer release workflow dispatch failed: ' . $e->getMessage());
+                $this->Flash->error(__('The officer release workflow is not currently available.'));
             }
-            //commit transaction
-            $this->Officers->getConnection()->commit();
-            $this->Flash->success(__('The officer has been released.'));
-            $this->redirect($this->referer());
+
+            return $this->redirect($this->referer());
         }
     }
 
@@ -133,20 +189,28 @@ class OfficersController extends AppController
      */
     public function edit()
     {
-        $this->request->allowMethod(["post"]);
+        $this->request->allowMethod(['post']);
         $officer = $this->Officers->get($this->request->getData('id'));
         if (!$officer) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
         $this->Authorization->authorize($officer);
         $officer->deputy_description = $this->request->getData('deputy_description');
         $officer->email_address = $this->request->getData('email_address');
         if ($this->Officers->save($officer)) {
             $this->Flash->success(__('The officer has been saved.'));
+            $stream = $this->tryOfficersGridTurboResponse(
+                $this->getPageContextUrl(),
+                (int)$officer->id,
+            );
+            if ($stream !== null) {
+                return $stream;
+            }
         } else {
             $this->Flash->error(__('The officer could not be saved. Please, try again.'));
         }
-        $this->redirect($this->referer());
+
+        return $this->redirect($this->referer());
     }
 
     /**
@@ -159,30 +223,90 @@ class OfficersController extends AppController
      */
     public function requestWarrant(WarrantManagerInterface $wManager, $id)
     {
-        $officer = $this->Officers->find()->where(['Officers.id' => $id])->contain(["Offices", "Branches", "Members"])->first();
+        $officer = $this->Officers->find()
+            ->where(['Officers.id' => $id])
+            ->contain(['Offices', 'Branches', 'Members'])
+            ->first();
         $userid = $this->Authentication->getIdentity()->getIdentifier();
         if (!$officer) {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
         $this->Authorization->authorize($officer);
         if ($this->request->is('post')) {
             $officeName = $officer->office->name;
-            if ($officer->deputy_description != null && $officer->deputy_description != "") {
-                $officeName = $officeName . " (" . $officer->deputy_description . ")";
+            if ($officer->deputy_description != null && $officer->deputy_description != '') {
+                $officeName = $officeName . ' (' . $officer->deputy_description . ')';
             }
             $branchName = $officer->branch->name;
-            $warrantRequest = new WarrantRequest("Manual Request Warrant: $branchName - $officeName", 'Officers.Officers', $officer->id, $userid, $officer->member_id, $officer->start_on, $officer->expires_on, $officer->granted_member_role_id);
+            $warrantRequest = new WarrantRequest(
+                "Manual Request Warrant: $branchName - $officeName",
+                'Officers.Officers',
+                $officer->id,
+                $userid,
+                $officer->member_id,
+                $officer->start_on,
+                $officer->expires_on,
+                $officer->granted_member_role_id,
+            );
             $memberName = $officer->member->sca_name;
-            $wmResult = $wManager->request("$officeName : $memberName", "", [$warrantRequest]);
+
+            $wmResult = $wManager->request("$officeName : $memberName", '', [$warrantRequest], (int)$userid);
             if (!$wmResult->success) {
-                $this->Flash->error("Could not request Warrant: " . __($wmResult->reason));
-                $this->redirect($this->referer());
+                $this->Flash->error('Could not request Warrant: ' . __($wmResult->reason));
+
                 return;
             }
-            $this->Flash->success(__('The warrant request has been sent.'));
+
+            $this->Flash->success(__('The warrant request workflow has been initiated.'));
             $this->redirect($this->referer());
+
             return;
         }
+    }
+
+    /**
+     * Extract the first workflow dispatch failure message from trigger results.
+     *
+     * @param array<int, mixed> $results Workflow dispatch results from TriggerDispatcher.
+     * @param string $defaultMessage Fallback message when no explicit error is available.
+     * @return string|null
+     */
+    private function extractWorkflowDispatchFailure(array $results, string $defaultMessage): ?string
+    {
+        if ($results === []) {
+            return $defaultMessage;
+        }
+
+        foreach ($results as $result) {
+            if ($result instanceof ServiceResult) {
+                if (!$result->success) {
+                    return $result->reason ?? $defaultMessage;
+                }
+
+                $workflowResult = is_array($result->data ?? null)
+                    ? ($result->data['workflowResult'] ?? null)
+                    : null;
+                if (
+                    is_array($workflowResult)
+                    && array_key_exists('success', $workflowResult)
+                    && $workflowResult['success'] === false
+                ) {
+                    return (string)($workflowResult['error'] ?? $workflowResult['reason'] ?? $defaultMessage);
+                }
+
+                continue;
+            }
+
+            if (
+                is_array($result)
+                && array_key_exists('success', $result)
+                && $result['success'] === false
+            ) {
+                return (string)($result['error'] ?? $result['reason'] ?? $defaultMessage);
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -197,30 +321,30 @@ class OfficersController extends AppController
     {
         //TODO: Audit for Privacy
         $memberTbl = $this->getTableLocator()->get('Members');
-        $q = $this->request->getQuery("q");
+        $q = $this->request->getQuery('q');
         //detect th and replace with Þ
         $nq = $q;
-        if (preg_match("/th/", $q)) {
-            $nq = str_replace("th", "Þ", $q);
+        if (preg_match('/th/', $q)) {
+            $nq = str_replace('th', 'Þ', $q);
         }
         //detect Þ and replace with th
         $uq = $q;
-        if (preg_match("/Þ/", $q)) {
-            $uq = str_replace("Þ", "th", $q);
+        if (preg_match('/Þ/', $q)) {
+            $uq = str_replace('Þ', 'th', $q);
         }
         $office = $this->Officers->Offices->get($officeId);
         $this->Authorization->skipAuthorization();
-        $this->request->allowMethod(["get"]);
-        $this->viewBuilder()->setClassName("Ajax");
+        $this->request->allowMethod(['get']);
+        $this->viewBuilder()->setClassName('Ajax');
         $query = $memberTbl
-            ->find("all")
+            ->find('all')
             ->where([
                 'status <>' => Member::STATUS_DEACTIVATED,
-                'OR' => [["sca_name LIKE" => "%$q%"], ["sca_name LIKE" => "%$nq%"], ["sca_name LIKE" => "%$uq%"]]
+                'OR' => [['sca_name LIKE' => "%$q%"], ['sca_name LIKE' => "%$nq%"], ['sca_name LIKE' => "%$uq%"]],
             ])
-            ->select(["id", "sca_name", "warrantable", "status"])
+            ->select(['id', 'sca_name', 'warrantable', 'status'])
             ->limit(50);
-        $this->set(compact("query", "q", "nq", "uq", "office"));
+        $this->set(compact('query', 'q', 'nq', 'uq', 'office'));
     }
 
     /**
@@ -236,7 +360,7 @@ class OfficersController extends AppController
     /**
      * Provide grid data for officers listing with filtering and export support.
      *
-     * @param CsvExportService $csvExportService CSV export service
+     * @param \App\Services\CsvExportService $csvExportService CSV export service
      * @return \Cake\Http\Response|null|void
      */
     public function gridData(CsvExportService $csvExportService)
@@ -244,7 +368,6 @@ class OfficersController extends AppController
         // Determine context from query parameters
         $memberId = $this->request->getQuery('member_id');
         $branchId = $this->request->getQuery('branch_id');
-        $search = $this->request->getQuery('search');
 
         // Authorization: check context-specific permissions
         $newOfficer = $this->Officers->newEmptyEntity();
@@ -258,37 +381,49 @@ class OfficersController extends AppController
             $this->Authorization->authorize($newOfficer, 'BranchOfficers');
             $context = 'branch';
         } else {
-            throw new \Cake\Http\Exception\ForbiddenException();
+            throw new ForbiddenException();
         }
 
         // Get system views for temporal/warrant filtering with context-specific columns
-        $systemViews = \Officers\KMP\GridColumns\OfficersGridColumns::getSystemViews(['context' => $context]);
+        $systemViews = OfficersGridColumns::getSystemViews(['context' => $context]);
+        $queryContext = $this->resolveDataverseGridQueryContext([
+            'gridKey' => $context === 'member'
+                ? 'Officers.Officers.member.main'
+                : 'Officers.Officers.branch.main',
+            'gridColumnsClass' => OfficersGridColumns::class,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-officers-current',
+            'defaultSort' => ['Officers.start_on' => 'DESC'],
+        ]);
 
-        // Build base query with required associations
+        // Build base query with context-aware associations.
+        $contain = [
+            'Members' => function ($q) {
+                return $q->select(['id', 'sca_name']);
+            },
+            'Offices' => function ($q) {
+                return $q->select(['id', 'name', 'requires_warrant', 'deputy_to_id']);
+            },
+            'Offices.Departments' => function ($q) {
+                return $q->select(['id', 'name']);
+            },
+        ];
+        if ($queryContext->loadsColumn('warrant_state')) {
+            $contain['CurrentWarrants'] = function ($q) {
+                return $q->select(['id', 'start_on', 'expires_on', 'entity_id']);
+            };
+            $contain['PendingWarrants'] = function ($q) {
+                return $q->select(['id', 'start_on', 'expires_on', 'entity_id']);
+            };
+        }
+        if ($queryContext->loadsColumn('branch_name') || $context === 'branch') {
+            $contain['Branches'] = function ($q) {
+                return $q->select(['id', 'name']);
+            };
+        }
+
         $baseQuery = $this->Officers->find()
-            ->contain([
-                'Members' => function ($q) {
-                    return $q->select(['id', 'sca_name']);
-                },
-                'Offices' => function ($q) {
-                    return $q->select(['id', 'name', 'requires_warrant', 'deputy_to_id']);
-                },
-                'Offices.Departments' => function ($q) {
-                    return $q->select(['id', 'name']);
-                },
-                'Branches' => function ($q) {
-                    return $q->select(['id', 'name']);
-                },
-                'CurrentWarrants' => function ($q) {
-                    return $q->select(['id', 'start_on', 'expires_on', 'entity_id']);
-                },
-                'PendingWarrants' => function ($q) {
-                    return $q->select(['id', 'start_on', 'expires_on', 'entity_id']);
-                },
-                'RevokedBy' => function ($q) {
-                    return $q->select(['id', 'sca_name']);
-                },
-            ]);
+            ->contain($contain);
 
         // Apply context filters
         if ($memberId) {
@@ -298,42 +433,22 @@ class OfficersController extends AppController
             $baseQuery->where(['Officers.branch_id' => (int)$branchId]);
         }
 
-        // Apply special character search (Þ/th handling for SCA names)
-        if (!empty($search)) {
-            $nsearch = str_replace("Þ", "th", $search);
-            $nsearch = str_replace("þ", "th", $nsearch);
-            $usearch = str_replace("th", "Þ", $search);
-            $usearch = str_replace("TH", "Þ", $usearch);
-            $usearch = str_replace("Th", "Þ", $usearch);
-
-            $baseQuery->where([
-                'OR' => [
-                    ['Members.sca_name LIKE' => '%' . $search . '%'],
-                    ['Members.sca_name LIKE' => '%' . $nsearch . '%'],
-                    ['Members.sca_name LIKE' => '%' . $usearch . '%'],
-                    ['Offices.name LIKE' => '%' . $search . '%'],
-                    ['Offices.name LIKE' => '%' . $nsearch . '%'],
-                    ['Offices.name LIKE' => '%' . $usearch . '%'],
-                    ['Departments.name LIKE' => '%' . $search . '%'],
-                    ['Departments.name LIKE' => '%' . $nsearch . '%'],
-                    ['Departments.name LIKE' => '%' . $usearch . '%'],
-                ],
-            ]);
-        }
-
         // Build query callback for system view processing
-        $queryCallback = $this->buildOfficerQueryCallback();
+        $queryCallback = $this->buildOfficerQueryCallback($queryContext);
 
         // Determine frame ID based on context
         $frameId = 'officers-grid';
+        $gridKey = 'Officers.Officers.index.main';
         if ($memberId) {
             $frameId = 'member-officers-grid';
+            $gridKey = 'Officers.Officers.member.main';
         } elseif ($branchId) {
             $frameId = 'branch-officers-grid';
+            $gridKey = 'Officers.Officers.branch.main';
         }
         $gridConfig = [
-            'gridKey' => 'Officers.Officers.index.main',
-            'gridColumnsClass' => \Officers\KMP\GridColumns\OfficersGridColumns::class,
+            'gridKey' => $gridKey,
+            'gridColumnsClass' => OfficersGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'Officers',
             'defaultSort' => ['Officers.start_on' => 'DESC'],
@@ -363,50 +478,19 @@ class OfficersController extends AppController
         }
 
         // Get row actions from grid columns
-        $rowActions = \Officers\KMP\GridColumns\OfficersGridColumns::getRowActions();
+        $rowActions = OfficersGridColumns::getRowActions();
 
-        // Set view variables
-        $this->set([
-            'officers' => $result['data'],
-            'gridState' => $result['gridState'],
-            'columns' => $result['columnsMetadata'],
-            'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => \Officers\KMP\GridColumns\OfficersGridColumns::getSearchableColumns(),
-            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
-            'filterOptions' => $result['filterOptions'],
-            'currentFilters' => $result['currentFilters'],
-            'currentSearch' => $result['currentSearch'],
-            'currentView' => $result['currentView'],
-            'availableViews' => $result['availableViews'],
-            'gridKey' => $result['gridKey'],
-            'currentSort' => $result['currentSort'],
-            'currentMember' => $result['currentMember'],
-            'memberId' => $memberId,
-            'branchId' => $branchId,
-            'rowActions' => $rowActions,
-        ]);
-
-        // Determine which template to render based on Turbo-Frame header
-        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
-
-        // Use main app's element templates (not plugin templates)
-        $this->viewBuilder()->setPlugin(null);
-
-        if ($turboFrame === $frameId . '-table') {
-            // Inner frame request - render table data only
-            $this->set('data', $result['data']);
-            $this->set('tableFrameId', $frameId . '-table');
-            $this->viewBuilder()->disableAutoLayout();
-            $this->viewBuilder()->setTemplatePath('element');
-            $this->viewBuilder()->setTemplate('dv_grid_table');
-        } else {
-            // Outer frame request (or no frame) - render toolbar + table frame
-            $this->set('data', $result['data']);
-            $this->set('frameId', $frameId);
-            $this->viewBuilder()->disableAutoLayout();
-            $this->viewBuilder()->setTemplatePath('element');
-            $this->viewBuilder()->setTemplate('dv_grid_content');
-        }
+        $this->renderDataverseGridResponse(
+            result: $result,
+            frameId: $frameId,
+            collectionVar: 'officers',
+            extraViewVars: [
+                'searchableColumns' => OfficersGridColumns::getSearchableColumns(),
+                'memberId' => $memberId,
+                'branchId' => $branchId,
+                'rowActions' => $rowActions,
+            ],
+        );
     }
 
     /**
@@ -414,9 +498,9 @@ class OfficersController extends AppController
      *
      * @return callable
      */
-    protected function buildOfficerQueryCallback(): callable
+    protected function buildOfficerQueryCallback(?DataverseGridQueryContext $queryContext = null): callable
     {
-        return function ($query, $selectedSystemView) {
+        return function ($query, $selectedSystemView) use ($queryContext) {
             // Determine the display type based on the selected view
             $viewId = $selectedSystemView['id'] ?? 'sys-officers-current';
 
@@ -429,7 +513,10 @@ class OfficersController extends AppController
             }
 
             // Add reporting relationships for current/upcoming views
-            if ($type === 'current' || $type === 'upcoming') {
+            if (
+                ($type === 'current' || $type === 'upcoming')
+                && ($queryContext === null || $queryContext->loadsColumn('reports_to_list'))
+            ) {
                 $query->contain([
                     'ReportsToCurrently' => function ($q) {
                         return $q
@@ -472,14 +559,10 @@ class OfficersController extends AppController
     public function officersByWarrantStatus($state)
     {
         if ($state != 'current' && $state == 'pending' && $state == 'previous') {
-            throw new \Cake\Http\Exception\NotFoundException();
+            throw new NotFoundException();
         }
         //$securityOfficer = $this->Officers->newEmptyEntity();
         $this->Authorization->skipAuthorization();
-
-
-        $membersTable = $this->fetchTable('Members');
-        $warrantsTable = $this->fetchTable('Warrants');
 
         $officersQuery = $this->Officers->find()
             ->select([
@@ -497,15 +580,15 @@ class OfficersController extends AppController
             ])
             ->innerJoin(
                 ['Offices' => 'officers_offices'],
-                ['Offices.id = Officers.office_id']
+                ['Offices.id = Officers.office_id'],
             )
             ->innerJoin(
                 ['Branches' => 'branches'],
-                ['Branches.id = Officers.branch_id']
+                ['Branches.id = Officers.branch_id'],
             )
             ->innerJoin(
                 ['Members' => 'members'],
-                ['Members.id = Officers.member_id']
+                ['Members.id = Officers.member_id'],
             )
             ->join([
                 'table' => 'members',
@@ -515,7 +598,10 @@ class OfficersController extends AppController
             ])
             ->leftJoin(
                 ['Warrants' => 'warrants'],
-                ['Members.id = Warrants.member_id AND Officers.id = Warrants.entity_id']
+                [
+                    'Members.id = Warrants.member_id',
+                    'Officers.id = Warrants.entity_id',
+                ],
             )
             ->order(['sca_name' => 'ASC'])
             ->order(['office_name' => 'ASC']);
@@ -523,17 +609,26 @@ class OfficersController extends AppController
         $today = new DateTime();
         switch ($state) {
             case 'current':
-                $officersQuery = $officersQuery->where(['Warrants.expires_on >=' => $today, 'Warrants.start_on <=' => $today, 'Warrants.status' => Warrant::CURRENT_STATUS]);
+                $officersQuery = $officersQuery->where([
+                    'Warrants.expires_on >=' => $today,
+                    'Warrants.start_on <=' => $today,
+                    'Warrants.status' => Warrant::CURRENT_STATUS,
+                ]);
                 break;
             case 'unwarranted':
-                $officersQuery = $officersQuery->where("Warrants.id IS NULL");
+                $officersQuery = $officersQuery->where('Warrants.id IS NULL');
 
                 break;
             case 'pending':
                 $officersQuery = $officersQuery->where(['Warrants.status' => Warrant::PENDING_STATUS]);
                 break;
             case 'previous':
-                $officersQuery = $officersQuery->where(["OR" => ['Warrants.expires_on <' => $today, 'Warrants.status IN ' => [Warrant::DEACTIVATED_STATUS, Warrant::EXPIRED_STATUS]]]);
+                $officersQuery = $officersQuery->where([
+                    'OR' => [
+                        'Warrants.expires_on <' => $today,
+                        'Warrants.status IN ' => [Warrant::DEACTIVATED_STATUS, Warrant::EXPIRED_STATUS],
+                    ],
+                ]);
                 break;
         }
         //$officersQuery = $this->addConditions($officersQuery);
@@ -554,37 +649,40 @@ class OfficersController extends AppController
         $this->autoRender = false;
 
         header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename=officers-' . date("Y-m-d-h-i-s") . '.csv');
+        header('Content-Disposition: attachment; filename=officers-' . date('Y-m-d-h-i-s') . '.csv');
         $output = fopen('php://output', 'w');
 
         $status = $this->request->getQuery('status');
         $endsIn = $this->request->getQuery('endsIn');
 
         $officers = $this->Officers->find()
-            ->contain(['Offices' => ["Departments"], 'Members', 'Branches']);
+            ->contain(['Offices' => ['Departments'], 'Members', 'Branches']);
         if ($status !== null) {
-            $officers = $officers->where(["Officers.status" => $status]);
+            $officers = $officers->where(['Officers.status' => $status]);
         }
         if ($endsIn !== null) {
             $endDate = new DateTime('+' . $endsIn . ' days');
 
-            $officers = $officers->where([
-                "Officers.expires_on >=" => DateTime::now(),
-                "Officers.expires_on <=" => $endDate
-            ]);
+            // Include officers that either have no expiry (landed nobility)
+            // or whose expiry falls within the requested window.
+            $officers = $officers->where(function ($exp, $q) use ($endDate) {
+                return $exp->or_([
+                    $exp->isNull('Officers.expires_on'),
+                    ['Officers.expires_on >=' => DateTime::now(), 'Officers.expires_on <=' => $endDate]
+                ]);
+            });
         }
-        fputcsv($output, array('Office', 'Name', 'email', 'Branch', 'Department', 'Start', 'End'));
+        fputcsv($output, ['Office', 'Name', 'email', 'Branch', 'Department', 'Start', 'End']);
 
         $officers = $officers->toArray();
 
         if (count($officers) > 0) {
             foreach ($officers as $officer) {
-
                 //DateTime::createFromFormat('yyyy-mm-dd hh:mm:ss', $officer['start_on']);
                 $memberData = $officer['member']->publicData();
                 $officeName = $officer['office']['name'];
-                if ($officer['deputy_description'] != null && $officer['deputy_description'] != "") {
-                    $officeName = $officeName . " (" . $officer['deputy_description'] . ")";
+                if ($officer['deputy_description'] != null && $officer['deputy_description'] != '') {
+                    $officeName = $officeName . ' (' . $officer['deputy_description'] . ')';
                 }
                 $officer_row = [
                     $officeName,
@@ -595,12 +693,270 @@ class OfficersController extends AppController
                     $officer['start_on']->i18nFormat('MM-dd-yyyy'),
                     $officer['expires_on']->i18nFormat('MM-dd-yyyy'),
 
-
                 ];
 
                 fputcsv($output, $officer_row);
             }
         }
         //return ($officers);
+    }
+
+    /**
+     * Tab query param from page context URL (detail pages).
+     */
+    private function pageContextQueryTab(?string $pageContextUrl): ?string
+    {
+        if ($pageContextUrl === null) {
+            return null;
+        }
+
+        $parsed = parse_url($pageContextUrl);
+        if (empty($parsed['query'])) {
+            return null;
+        }
+
+        $params = [];
+        parse_str($parsed['query'], $params);
+
+        $tab = $params['tab'] ?? null;
+
+        return is_string($tab) && $tab !== '' ? $tab : null;
+    }
+
+    /**
+     * @return array{contextKey: string, tableFrameId: string, gridKey: string, memberId?: int, branchId?: int}|null
+     */
+    private function resolveOfficersGridSyncContext(?string $pageContextUrl): ?array
+    {
+        if ($pageContextUrl === null) {
+            return null;
+        }
+
+        $path = parse_url($pageContextUrl, PHP_URL_PATH) ?? $pageContextUrl;
+        $tab = $this->pageContextQueryTab($pageContextUrl);
+
+        if ($this->matchesGridIndexPath($pageContextUrl, '#/officers/officers/?$#')) {
+            return [
+                'contextKey' => 'index',
+                'tableFrameId' => 'officers-grid-table',
+                'gridKey' => 'Officers.Officers.index.main',
+            ];
+        }
+
+        if (preg_match('#/members/profile/?$#', $path)) {
+            $memberId = (int)$this->request->getAttribute('identity')->id;
+            if ($tab !== null && $tab !== 'member-officers') {
+                return null;
+            }
+
+            return [
+                'contextKey' => 'member',
+                'tableFrameId' => 'member-officers-grid-table',
+                'gridKey' => 'Officers.Officers.member.main',
+                'memberId' => $memberId,
+            ];
+        }
+
+        if (preg_match('#/members/view/(\d+)/?$#', $path, $matches)) {
+            if ($tab !== null && $tab !== 'member-officers') {
+                return null;
+            }
+
+            $memberId = (int)$matches[1];
+
+            return [
+                'contextKey' => 'member',
+                'tableFrameId' => 'member-officers-grid-table',
+                'gridKey' => 'Officers.Officers.member.main',
+                'memberId' => $memberId,
+            ];
+        }
+
+        if (preg_match('#/branches/view/([^/]+)/?$#', $path, $matches)) {
+            if ($tab !== null && $tab !== 'branch-officers') {
+                return null;
+            }
+
+            $branchesTable = TableRegistry::getTableLocator()->get('Branches');
+            try {
+                $branch = $branchesTable->find('byPublicId', [$matches[1]])->firstOrFail();
+            } catch (\Cake\Datasource\Exception\RecordNotFoundException) {
+                return null;
+            }
+
+            return [
+                'contextKey' => 'branch',
+                'tableFrameId' => 'branch-officers-grid-table',
+                'gridKey' => 'Officers.Officers.branch.main',
+                'branchId' => (int)$branch->id,
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{action: string, rowDomId: string, rowHtml?: string}|null
+     */
+    private function resolveOfficerGridRowSync(int $officerId, ?string $pageContextUrl): ?array
+    {
+        $syncContext = $this->resolveOfficersGridSyncContext($pageContextUrl);
+        if ($syncContext === null) {
+            return null;
+        }
+
+        $tableFrameId = $syncContext['tableFrameId'];
+        $rowDomId = GridRowDomId::fromTableFrameId($tableFrameId, $officerId);
+
+        return $this->withPageContextQuery($pageContextUrl, function () use (
+            $officerId,
+            $rowDomId,
+            $tableFrameId,
+            $syncContext,
+        ): ?array {
+            $newOfficer = $this->Officers->newEmptyEntity();
+            $context = $syncContext['contextKey'];
+            if ($context === 'member') {
+                $newOfficer->member_id = $syncContext['memberId'];
+                $this->Authorization->authorize($newOfficer, 'MemberOfficers');
+            } elseif ($context === 'branch') {
+                $newOfficer->branch_id = $syncContext['branchId'];
+                $this->Authorization->authorize($newOfficer, 'BranchOfficers');
+            } else {
+                $this->Authorization->authorizeModel('index');
+            }
+
+            $systemViewContext = match ($context) {
+                'member' => 'member',
+                'branch' => 'branch',
+                default => null,
+            };
+            $systemViews = OfficersGridColumns::getSystemViews(
+                $systemViewContext !== null ? ['context' => $systemViewContext] : [],
+            );
+            $queryContext = $this->resolveDataverseGridQueryContext([
+                'gridKey' => $syncContext['gridKey'],
+                'gridColumnsClass' => OfficersGridColumns::class,
+                'systemViews' => $systemViews,
+                'defaultSystemView' => 'sys-officers-current',
+                'defaultSort' => ['Officers.start_on' => 'DESC'],
+            ]);
+            $contain = [
+                'Members' => fn($q) => $q->select(['id', 'sca_name']),
+                'Offices' => fn($q) => $q->select(['id', 'name', 'requires_warrant', 'deputy_to_id']),
+                'Offices.Departments' => fn($q) => $q->select(['id', 'name']),
+            ];
+            if ($queryContext->loadsColumn('branch_name')) {
+                $contain['Branches'] = fn($q) => $q->select(['id', 'name']);
+            }
+            if ($queryContext->loadsColumn('warrant_state')) {
+                $contain['CurrentWarrants'] = fn($q) => $q->select(['id', 'start_on', 'expires_on', 'entity_id']);
+                $contain['PendingWarrants'] = fn($q) => $q->select(['id', 'start_on', 'expires_on', 'entity_id']);
+            }
+            $baseQuery = $this->Officers->find()
+                ->where(['Officers.id' => $officerId])
+                ->contain($contain);
+
+            if ($context === 'member') {
+                $baseQuery->where(['Officers.member_id' => $syncContext['memberId']]);
+            } elseif ($context === 'branch') {
+                $baseQuery->where(['Officers.branch_id' => $syncContext['branchId']]);
+            }
+
+            $gridConfig = [
+                'gridKey' => $syncContext['gridKey'],
+                'gridColumnsClass' => OfficersGridColumns::class,
+                'baseQuery' => $baseQuery,
+                'tableName' => 'Officers',
+                'defaultSort' => ['Officers.start_on' => 'DESC'],
+                'defaultPageSize' => 25,
+                'systemViews' => $systemViews,
+                'defaultSystemView' => 'sys-officers-current',
+                'queryCallback' => $this->buildOfficerQueryCallback($queryContext),
+                'showAllTab' => false,
+                'canAddViews' => false,
+                'canFilter' => true,
+                'canExportCsv' => false,
+                'showFilterPills' => false,
+            ];
+            if ($context === 'member') {
+                $gridConfig['lockedFilters'] = ['status'];
+                $gridConfig['enableColumnPicker'] = false;
+            }
+
+            $directOfficer = (clone $baseQuery)->first();
+            $result = $this->processDataverseGrid($gridConfig);
+
+            $gridData = $result['data'];
+            if (is_array($gridData)) {
+                $officers = $gridData;
+            } elseif ($gridData instanceof \Traversable) {
+                $officers = iterator_to_array($gridData, false);
+            } else {
+                $officers = [];
+            }
+            if ($officers === [] && $directOfficer !== null) {
+                $officers = [$directOfficer];
+            }
+            if ($officers === []) {
+                return [
+                    'action' => 'remove',
+                    'rowDomId' => $rowDomId,
+                ];
+            }
+
+            $rowActions = OfficersGridColumns::getRowActions();
+            $gridState = $result['gridState'];
+            $visibleColumns = $gridState['columns']['visible'];
+            if (!is_array($visibleColumns)) {
+                $visibleColumns = array_values($visibleColumns);
+            }
+
+            $rowHtml = $this->renderDataverseTableRowElement([
+                'row' => $officers[0],
+                'columns' => $gridState['columns']['all'],
+                'visibleColumns' => $visibleColumns,
+                'controllerName' => 'grid-view',
+                'primaryKey' => $gridState['config']['primaryKey'],
+                'gridKey' => $gridState['config']['gridKey'],
+                'rowActions' => $rowActions,
+                'user' => $this->request->getAttribute('identity'),
+                'enableBulkSelection' => false,
+                'rowDomIdPrefix' => preg_replace('/-table$/', '', $tableFrameId),
+                'showActionsColumn' => $rowActions !== [],
+            ]);
+
+            return [
+                'action' => 'replace',
+                'rowDomId' => $rowDomId,
+                'rowHtml' => $rowHtml,
+            ];
+        });
+    }
+
+    private function tryOfficersGridTurboResponse(?string $pageContext, int $officerId): ?Response
+    {
+        if (!$this->wantsTurboStreamRequest() || $pageContext === null) {
+            return null;
+        }
+
+        $syncContext = $this->resolveOfficersGridSyncContext($pageContext);
+        if ($syncContext === null) {
+            return null;
+        }
+
+        $sync = $this->resolveOfficerGridRowSync($officerId, $pageContext);
+        if ($sync === null) {
+            return null;
+        }
+
+        if ($sync['action'] === 'remove') {
+            return $this->renderTurboRemoveGridRow($sync['rowDomId']);
+        }
+
+        return $this->renderTurboReplaceGridRow(
+            $sync['rowDomId'],
+            $sync['rowHtml'] ?? '',
+        );
     }
 }

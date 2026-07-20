@@ -1,15 +1,27 @@
-# KMP Application Container - PHP 8.3 + Apache
+# KMP Application Container - PHP 8.4 + Apache
 # Slimmed version of .devcontainer/Dockerfile for multi-container setup
 #
 # This container expects:
-#   - MySQL provided by separate 'db' service
+#   - PostgreSQL provided by separate 'db' service
 #   - Code mounted at /var/www/html
 #   - Environment variables for configuration
 
-FROM php:8.3-apache-bookworm
+FROM php:8.4-apache-bookworm
+
+ARG NODE_VERSION=24.15.0
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    gnupg \
+    && install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+        | gpg --dearmor -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
     # PHP build dependencies
     libfreetype6-dev \
     libjpeg62-turbo-dev \
@@ -24,12 +36,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
     unzip \
-    nodejs \
-    npm \
+    xz-utils \
     default-mysql-client \
+    libpq-dev \
+    postgresql-client-16 \
     cron \
     # Cleanup
     && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js from the official distribution to pin the exact version used by Vite.
+RUN ARCH="$(dpkg --print-architecture)" && \
+    case "$ARCH" in \
+        amd64) NODE_ARCH='x64' ;; \
+        arm64) NODE_ARCH='arm64' ;; \
+        *) echo "Unsupported architecture for Node.js: $ARCH"; exit 1 ;; \
+    esac && \
+    curl -fsSLO "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" && \
+    tar -xJf "node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" -C /usr/local --strip-components=1 --no-same-owner && \
+    rm "node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" && \
+    node --version && \
+    npm --version
 
 # Install PHP extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
@@ -39,13 +65,15 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
         intl \
         gd \
         mysqli \
+        pcntl \
         pdo_mysql \
+        pdo_pgsql \
         zip \
         opcache
 
 # Install PECL extensions
-RUN pecl install apcu yaml xdebug \
-    && docker-php-ext-enable apcu yaml xdebug
+RUN pecl install apcu grpc-1.82.0 protobuf yaml xdebug \
+    && docker-php-ext-enable apcu grpc protobuf yaml xdebug
 
 # Configure PHP
 RUN mv "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini" \
@@ -83,7 +111,8 @@ COPY docker/app_local.php /opt/docker/app_local.php
 
 # Copy entrypoint script
 COPY docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+COPY docker/scheduler-loop.sh /usr/local/bin/kmp-scheduler-loop
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/kmp-scheduler-loop
 
 # Expose port 80
 EXPOSE 80

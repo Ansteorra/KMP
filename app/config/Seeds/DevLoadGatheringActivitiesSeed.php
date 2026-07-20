@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/Lib/SeedHelpers.php';
+
 use Migrations\BaseSeed;
 
 /**
@@ -19,52 +21,47 @@ class DevLoadGatheringActivitiesSeed extends BaseSeed
     /**
      * Provide template gathering activity seed records.
      *
-     * Each record contains `id`, `name`, `description`, `created`, and `modified`
-     * fields and represents a reusable activity template that can be linked to
-     * gatherings via the gatherings_gathering_activities join table.
+     * Rows are inserted without explicit ids so the underlying sequence
+     * assigns them. A "Kingdom Court" activity is already created by the
+     * Awards `RunMigrateAwardEvents` migration and is skipped here via a
+     * name-based duplicate check in run().
      *
-     * @return array<int, array<string, mixed>> Array of seed records keyed by numeric index.
+     * @return array<int, array<string, mixed>>
      */
     public function getData(): array
     {
         return [
             [
-                'id' => 1,
                 'name' => 'Armored Combat',
                 'description' => 'Heavy armored fighting with rattan weapons. Full armor required. No live steel.',
                 'created' => '2025-01-01 10:00:00',
                 'modified' => '2025-01-01 10:00:00',
             ],
             [
-                'id' => 2,
                 'name' => 'Rapier Combat',
                 'description' => 'Light armored fighting with rapier and dagger. Gorget and protective gear required.',
                 'created' => '2025-01-01 10:00:00',
                 'modified' => '2025-01-01 10:00:00',
             ],
             [
-                'id' => 3,
                 'name' => 'Youth Combat',
                 'description' => 'Combat activities for participants under 18. Parent/guardian signature required on waiver.',
                 'created' => '2025-01-01 10:00:00',
                 'modified' => '2025-01-01 10:00:00',
             ],
             [
-                'id' => 4,
                 'name' => 'Archery',
                 'description' => 'Target archery practice. Range safety briefing required.',
                 'created' => '2025-01-01 10:00:00',
                 'modified' => '2025-01-01 10:00:00',
             ],
             [
-                'id' => 5,
                 'name' => 'Thrown Weapons',
                 'description' => 'Axe and knife throwing. Safety briefing required.',
                 'created' => '2025-01-01 10:00:00',
                 'modified' => '2025-01-01 10:00:00',
             ],
             [
-                'id' => 6,
                 'name' => 'Arts & Sciences Class',
                 'description' => 'Various A&S workshops and demonstrations.',
                 'created' => '2025-01-01 10:00:00',
@@ -74,13 +71,12 @@ class DevLoadGatheringActivitiesSeed extends BaseSeed
     }
 
     /**
-     * Inserts predefined gathering activity seed records into the 'gathering_activities' table for development and testing.
+     * Inserts predefined gathering activity seed records, skipping any that
+     * already exist by name.
      */
     public function run(): void
     {
-        $data = $this->getData();
-
-        $table = $this->table('gathering_activities');
-        $table->insert($data)->save();
+        SeedHelpers::insertIfMissing($this, 'gathering_activities', $this->getData());
+        SeedHelpers::resetPostgresSequences($this, ['gathering_activities']);
     }
 }

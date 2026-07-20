@@ -1,14 +1,15 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Awards\Model\Entity;
 
-use Cake\ORM\Entity;
 use App\KMP\StaticHelpers;
-use Cake\I18n\DateTime;
 use App\Model\Entity\BaseEntity;
+use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
+use DateTime as NativeDateTime;
+use DateTimeInterface;
+use InvalidArgumentException;
 
 /**
  * Recommendation Entity - Award recommendation workflow with state machine.
@@ -18,12 +19,16 @@ use Cake\ORM\TableRegistry;
  * - State: specific workflow position within the status category
  *
  * @property int $id
+ * @property int|null $recommendation_group_id
+ * @property string|null $group_origin_state
+ * @property string|null $group_origin_status
  * @property int $requester_id
  * @property int|null $member_id
  * @property int|null $branch_id
  * @property int $award_id
  * @property int|null $event_id
  * @property int|null $gathering_id
+ * @property int|null $bestowal_id
  * @property string $status
  * @property string $state
  * @property \Cake\I18n\DateTime|null $state_date
@@ -50,6 +55,10 @@ use Cake\ORM\TableRegistry;
  * @property \Awards\Model\Entity\Award $award
  * @property \Awards\Model\Entity\Event $event
  * @property \App\Model\Entity\Branch $branch
+ * @property \Awards\Model\Entity\Recommendation|null $group_head
+ * @property \Awards\Model\Entity\Recommendation[] $group_children
+ * @property \Awards\Model\Entity\Bestowal|null $bestowal
+ * @property \Awards\Model\Entity\RecommendationApprovalRun|null $current_approval_run
  */
 class Recommendation extends BaseEntity
 {
@@ -64,13 +73,17 @@ class Recommendation extends BaseEntity
      * @var array<string, bool>
      */
     protected array $_accessible = [
+        'recommendation_group_id' => true,
+        'group_origin_state' => true,
+        'group_origin_status' => true,
         'requester_id' => true,
         'stack_rank' => true,
         'member_id' => true,
         'branch_id' => true,
         'award_id' => true,
-        'event_id' => true,  // Deprecated - kept for migration compatibility, use gathering_id instead
+        'event_id' => true, // Deprecated - kept for migration compatibility, use gathering_id instead
         'gathering_id' => true,
+        'bestowal_id' => true,
         'given' => true,
         'status' => true,
         'state' => true,
@@ -100,33 +113,37 @@ class Recommendation extends BaseEntity
      * Handle date format conversion for given date.
      *
      * @param mixed $value Date value
-     * @return \DateTime
+     * @return \DateTimeInterface|null
      */
-    protected function _setGiven($value)
+    protected function _setGiven($value): ?DateTimeInterface
     {
-        if (is_string($value)) {
-            $value = new \DateTime($value);
+        if ($value === null || $value === '') {
+            return null;
         }
+        if (is_string($value)) {
+            $value = new NativeDateTime($value);
+        }
+
         return $value;
     }
 
     /**
      * State machine setter - validates state and auto-updates status.
      *
-     * Applies configuration-driven state rules from Awards.RecommendationStateRules.
+     * Reads valid states and field rules from Awards.* YAML app settings.
      *
      * @param string $value New state value
      * @return string Validated state value
      * @throws \InvalidArgumentException When state is invalid
      */
-    protected function _setState($value)
+    protected function _setState($value): string
     {
         $this->beforeState = $this->state;
         $this->beforeStatus = $this->status;
 
         $states = self::getStates();
         if (!in_array($value, $states)) {
-            throw new \InvalidArgumentException("Invalid State");
+            throw new InvalidArgumentException('Invalid State');
         }
         $statuses = self::getStatuses();
         $nextStatus = $this->status;
@@ -140,53 +157,83 @@ class Recommendation extends BaseEntity
             $this->status = $nextStatus;
         }
         $this->state_date = new DateTime();
-        $stateRules = StaticHelpers::getAppSetting("Awards.RecommendationStateRules");
-        if (isset($stateRules[$value])) {
-            $rule = $stateRules[$value];
-            if (isset($rule['Set'])) {
-                $fieldsToSet = $rule['Set'];
-                foreach ($fieldsToSet as $field => $fieldValue) {
-                    $this->$field = $fieldValue;
-                }
+
+        // Apply field set rules from database
+        $stateRules = self::getStateRules();
+        if (isset($stateRules[$value]['Set'])) {
+            foreach ($stateRules[$value]['Set'] as $field => $fieldValue) {
+                $this->$field = $fieldValue;
             }
         }
+
         if (!self::supportsGatheringAssignmentForState((string)$value)) {
             $this->gathering_id = null;
         }
+
         return $value;
     }
 
     /**
      * Get status categories and their state mappings from configuration.
      *
-     * @return array Status configuration
+     * @return array<string, array<int, string>> Status name => [state names]
      */
     public static function getStatuses(): array
     {
-        $statusList = StaticHelpers::getAppSetting("Awards.RecommendationStatuses");
-        return $statusList;
+        $statusList = StaticHelpers::getAppSetting('Awards.RecommendationStatuses');
+
+        return is_array($statusList) ? $statusList : [];
     }
 
     /**
      * Get valid states, optionally filtered by status.
      *
      * @param string|null $status Optional status filter
-     * @return array Valid states list
+     * @return array<int, string> Valid states list
      */
     public static function getStates($status = null): array
     {
+        $statusList = self::getStatuses();
+
         if ($status) {
-            $statusList = self::getStatuses();
-            return $statusList[$status];
+            return $statusList[$status] ?? [];
         }
-        $statuses = self::getStatuses();
+
         $states = [];
-        foreach ($statuses as $status) {
-            foreach ($status as $state) {
+        foreach ($statusList as $statusStates) {
+            foreach ($statusStates as $state) {
                 $states[] = $state;
             }
         }
+
         return $states;
+    }
+
+    /**
+     * Get field rules grouped by state name from configuration.
+     *
+     * Returns an array keyed by state name where each value contains
+     * rule type groups: Visible, Optional, Required, Disabled, Set.
+     *
+     * @return array<string, array<string, mixed>> State name => rules
+     */
+    public static function getStateRules(): array
+    {
+        $rules = StaticHelpers::getAppSetting('Awards.RecommendationStateRules');
+
+        return is_array($rules) ? $rules : [];
+    }
+
+    /**
+     * Get hidden states that require ViewHidden permission.
+     *
+     * @return array<int, string> List of hidden state names
+     */
+    public static function getHiddenStates(): array
+    {
+        $hidden = StaticHelpers::getAppSetting('Awards.RecommendationStatesRequireCanViewHidden');
+
+        return is_array($hidden) ? $hidden : [];
     }
 
     /**
@@ -201,26 +248,90 @@ class Recommendation extends BaseEntity
     }
 
     /**
+     * Get valid transitions from a given state.
+     *
+     * The YAML-based state machine permits transitioning from any state to any
+     * other state, so this returns every configured state except the current one.
+     *
+     * @param string $fromState The current state name
+     * @return array<int, string> List of state names that can be transitioned to
+     */
+    public static function getValidTransitionsFrom(string $fromState): array
+    {
+        $states = self::getStates();
+
+        return array_values(array_filter($states, static fn($state): bool => $state !== $fromState));
+    }
+
+    /**
+     * Preserve the state-machine cache reset contract used by tests/services.
+     *
+     * Recommendation states are YAML-backed app settings, so there is no entity-local cache to clear.
+     *
+     * @return void
+     */
+    public static function clearCache(): void
+    {
+    }
+
+    /**
      * Get the branch ID from the associated award.
      *
      * @return int|null Branch ID or null if not determinable
      */
     public function getBranchId(): ?int
     {
-        if ($this->award)
+        if ($this->hasValue('award')) {
             return $this->award->branch_id;
+        }
 
-        if ($this->award_id == null) {
+        if ($this->award_id === null) {
             return null;
         }
         $awardTbl = TableRegistry::getTableLocator()->get('Awards.Awards');
         $award = $awardTbl->find()
-            ->where(['id' => $this->award_id])
-            ->select('branch_id')
+            ->select(['branch_id'])
+            ->where(['id' => (int)$this->award_id])
             ->first();
         if ($award) {
-            return $award->branch_id;
+            return $award->branch_id !== null ? (int)$award->branch_id : null;
         }
+
         return null;
+    }
+
+    /**
+     * Whether this recommendation is locked because it is linked to a bestowal.
+     *
+     * Linked recommendations are read-only in the recommendation UI; changes flow
+     * through the bestowal workflow until the link is cleared (e.g. cancellation).
+     *
+     * @return bool
+     */
+    public function isLockedByBestowal(): bool
+    {
+        return $this->bestowal_id !== null && (int)$this->bestowal_id > 0;
+    }
+
+    /**
+     * Whether this recommendation is a group head (has children grouped under it).
+     *
+     * @return bool
+     */
+    public function isGroupHead(): bool
+    {
+        return $this->recommendation_group_id === null
+            && isset($this->group_children_count)
+            && $this->group_children_count > 0;
+    }
+
+    /**
+     * Whether this recommendation is a child in a group.
+     *
+     * @return bool
+     */
+    public function isGroupChild(): bool
+    {
+        return $this->recommendation_group_id !== null;
     }
 }

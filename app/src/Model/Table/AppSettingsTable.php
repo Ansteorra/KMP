@@ -3,13 +3,20 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use App\Services\Cache\TenantAwareCache;
 use Cake\Cache\Cache;
+use Cake\Database\Exception\DatabaseException;
+use Cake\Database\Exception\QueryException;
 use Cake\Datasource\EntityInterface;
 use Cake\Log\Log;
 use Cake\ORM\RulesChecker;
 use Cake\Utility\Security;
 use Cake\Validation\Validator;
 use Exception;
+use finfo;
+use InvalidArgumentException;
+use JsonException;
+use Psr\Http\Message\UploadedFileInterface;
 
 /**
  * AppSettings Model
@@ -31,6 +38,37 @@ use Exception;
 class AppSettingsTable extends BaseTable
 {
     private const PASSWORD_VALUE_PREFIX = 'enc:v1:';
+    private const MAX_ASSET_BYTES = 2097152;
+    private const ALL_SETTINGS_CACHE_KEY = 'app_settings_all';
+    private const IMAGE_MIME_TYPES = [
+        'image/gif' => 'gif',
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+    ];
+
+    private const FILE_MIME_TYPES = [
+        'application/pdf' => 'pdf',
+        'image/gif' => 'gif',
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+        'text/plain' => 'txt',
+    ];
+
+    /**
+     * Request-local sensitive settings keyed by tenant-aware cache key.
+     *
+     * @var array<string, mixed>
+     */
+    private static array $sensitiveSettingRequestCache = [];
+
+    /**
+     * Request-local all-settings payload keyed by tenant-aware cache key.
+     *
+     * @var array<string, array{values: array<string, mixed>, raw: array<string, mixed>}>
+     */
+    private static array $settingsPayloadRequestCache = [];
 
     /**
      * Initialize method
@@ -63,7 +101,7 @@ class AppSettingsTable extends BaseTable
             ->requirePresence('name', 'create')
             ->notEmptyString('name')
             ->add('name', 'unique', [
-                'rule' => 'validateUnique',
+                'rule' => ['validateUnique'],
                 'provider' => 'table',
             ]);
 
@@ -82,7 +120,10 @@ class AppSettingsTable extends BaseTable
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        $rules->add($rules->isUnique(['name']), ['errorField' => 'name']);
+        $rules->add(
+            $rules->isUnique(['name']),
+            ['errorField' => 'name'],
+        );
 
         return $rules;
     }
@@ -120,6 +161,34 @@ class AppSettingsTable extends BaseTable
     }
 
     /**
+     * Clear app setting caches after direct saves.
+     *
+     * @param mixed $event Event
+     * @param \Cake\Datasource\EntityInterface $entity Saved setting
+     * @param mixed $options Save options
+     * @return void
+     */
+    public function afterSave($event, $entity, $options): void
+    {
+        parent::afterSave($event, $entity, $options);
+        $this->clearSettingCaches((string)$entity->name);
+    }
+
+    /**
+     * Clear app setting caches after direct deletes.
+     *
+     * @param mixed $event Event
+     * @param \Cake\Datasource\EntityInterface $entity Deleted setting
+     * @param mixed $options Delete options
+     * @return void
+     */
+    public function afterDelete($event, $entity, $options): void
+    {
+        parent::afterDelete($event, $entity, $options);
+        $this->clearSettingCaches((string)$entity->name);
+    }
+
+    /**
      * Get an app setting by name, using cache.
      *
      * @param string $name The name of the setting.
@@ -128,36 +197,49 @@ class AppSettingsTable extends BaseTable
     public function getSetting(string $name): mixed
     {
         $isSensitive = $this->isSensitiveSetting($name);
-        $cacheKey = 'app_setting_' . $name;
-        $setting = $isSensitive ? null : Cache::read($cacheKey, 'default');
+        if (!$isSensitive) {
+            $settings = $this->getCachedSettingsPayload();
 
-        if ($setting === null) {
-            $settingEntity = $this->find()
-                ->where(['name' => $name])
-                ->first();
-
-            if ($settingEntity) {
-                $resolvedValue = $this->resolveValueForRead($settingEntity->type ?? 'string', $settingEntity->value);
-                if (!$isSensitive) {
-                    Cache::write($cacheKey, $resolvedValue, 'default');
-                }
-
-                if (
-                    $name === 'Backup.encryptionKey'
-                    && ($settingEntity->type ?? 'string') !== 'password'
-                    && is_string($resolvedValue)
-                    && $resolvedValue !== ''
-                ) {
-                    $this->updateSetting($name, 'password', $resolvedValue, false);
-                }
-
-                return $resolvedValue;
+            if (array_key_exists($name, $settings['values'])) {
+                return $settings['values'][$name];
             }
 
             return null;
         }
 
-        return $setting;
+        $cacheKey = $this->cacheKey($name);
+        if (array_key_exists($cacheKey, self::$sensitiveSettingRequestCache)) {
+            return self::$sensitiveSettingRequestCache[$cacheKey];
+        }
+
+        $settingEntity = $this->find()
+            ->where(['name' => $name])
+            ->first();
+
+        if (!$settingEntity) {
+            self::$sensitiveSettingRequestCache[$cacheKey] = null;
+
+            return null;
+        }
+
+        $resolvedValue = $this->resolveValueForRead(
+            $settingEntity->type ?? 'string',
+            $settingEntity->value,
+            $name,
+        );
+
+        if (
+            $name === 'Backup.encryptionKey'
+            && ($settingEntity->type ?? 'string') !== 'password'
+            && is_string($resolvedValue)
+            && $resolvedValue !== ''
+        ) {
+            $this->updateSetting($name, 'password', $resolvedValue, false);
+        }
+
+        self::$sensitiveSettingRequestCache[$cacheKey] = $resolvedValue;
+
+        return $resolvedValue;
     }
 
     /**
@@ -174,34 +256,88 @@ class AppSettingsTable extends BaseTable
         $setting = $this->find()
             ->where(['name' => $name])
             ->first();
+        $isNewSetting = $setting === null;
         $effectiveType = $type ?? ($setting?->type ?? 'string');
         $encodedValue = $this->resolveValueForWrite($effectiveType, $value, $setting !== null);
 
         if ($setting) {
-            $setting->saving = true;
-            if ($encodedValue !== null) {
-                $setting->value = $encodedValue;
-            }
-            $setting->type = $effectiveType;
-            $setting->required = $required;
+            $this->assignSettingValues($setting, $effectiveType, $encodedValue, $required);
         } else {
             $setting = $this->newEmptyEntity();
-            $setting->saving = true;
             $setting->name = $name;
-            $setting->type = $effectiveType;
-            $setting->value = $encodedValue;
-            $setting->required = $required;
+            $this->assignSettingValues($setting, $effectiveType, $encodedValue, $required);
         }
-        if ($this->save($setting)) {
+
+        try {
+            $savedSetting = $this->save($setting);
+        } catch (DatabaseException | QueryException $exception) {
+            if (!$isNewSetting || !$this->isUniqueSettingConflict($exception)) {
+                throw $exception;
+            }
+
+            $setting = $this->find()
+                ->where(['name' => $name])
+                ->first();
+            if (!$setting) {
+                throw $exception;
+            }
+            $this->assignSettingValues($setting, $effectiveType, $encodedValue, $required);
+            $savedSetting = $this->save($setting);
+        }
+
+        if ($savedSetting) {
             if (!$this->isSensitiveSetting($name)) {
-                $cacheKey = 'app_setting_' . $name;
-                Cache::write($cacheKey, $this->resolveValueForRead($effectiveType, $setting->value), 'default');
+                $cacheKey = $this->cacheKey($name);
+                Cache::delete($this->assetCacheKey($name), 'default');
+                Cache::write($cacheKey, $this->resolveValueForRead($effectiveType, $setting->value, $name), 'default');
             }
 
             return true;
         }
 
         return false;
+    }
+
+    /**
+     * Assign mutable setting fields before saving.
+     *
+     * @param \Cake\Datasource\EntityInterface $setting App setting entity
+     * @param string $type Effective setting type
+     * @param string|null $encodedValue Encoded value to persist
+     * @param bool $required Required flag
+     * @return void
+     */
+    private function assignSettingValues(
+        EntityInterface $setting,
+        string $type,
+        ?string $encodedValue,
+        bool $required,
+    ): void {
+        $setting->saving = true;
+        if ($encodedValue !== null) {
+            $setting->value = $encodedValue;
+        }
+        $setting->type = $type;
+        $setting->required = $required;
+    }
+
+    /**
+     * Detect duplicate-name conflicts from read-then-insert setting creation.
+     *
+     * @param \Cake\Database\Exception\DatabaseException $exception Database exception
+     * @return bool
+     */
+    private function isUniqueSettingConflict(DatabaseException|QueryException $exception): bool
+    {
+        $messages = [$exception->getMessage()];
+        if ($exception->getPrevious()) {
+            $messages[] = $exception->getPrevious()->getMessage();
+        }
+        $message = strtolower(implode(' ', $messages));
+
+        return str_contains($message, 'app_settings_name')
+            || str_contains($message, 'duplicate entry')
+            || str_contains($message, 'unique constraint');
     }
 
     /**
@@ -222,8 +358,7 @@ class AppSettingsTable extends BaseTable
             }
             if ($this->delete($setting)) {
                 if (!$this->isSensitiveSetting($name)) {
-                    $cacheKey = 'app_setting_' . $name;
-                    Cache::delete($cacheKey, 'default');
+                    $this->clearSettingCaches($name);
                 }
 
                 return true;
@@ -271,6 +406,89 @@ class AppSettingsTable extends BaseTable
     }
 
     /**
+     * Build a safe database asset payload from an uploaded app setting file.
+     *
+     * @param string $type App setting type: image or file
+     * @param \Psr\Http\Message\UploadedFileInterface $file Uploaded file
+     * @return string JSON payload for app_settings.value
+     */
+    public function assetValueFromUpload(string $type, UploadedFileInterface $file): string
+    {
+        if (!$this->isAssetType($type)) {
+            throw new InvalidArgumentException('Only image and file app setting types can store uploaded assets.');
+        }
+        if ($file->getError() !== UPLOAD_ERR_OK) {
+            throw new InvalidArgumentException($this->uploadErrorMessage($file->getError()));
+        }
+
+        $size = $file->getSize();
+        if ($size === null || $size <= 0) {
+            throw new InvalidArgumentException('The uploaded file was empty.');
+        }
+        if ($size > self::MAX_ASSET_BYTES) {
+            throw new InvalidArgumentException('The uploaded file must be 2 MB or smaller.');
+        }
+
+        $contents = $file->getStream()->getContents();
+        if ($contents === '') {
+            throw new InvalidArgumentException('The uploaded file was empty.');
+        }
+
+        $mimeType = $this->detectMimeType($contents);
+        $extension = $this->allowedAssetTypes($type)[$mimeType] ?? null;
+        if ($extension === null) {
+            throw new InvalidArgumentException($this->unsupportedAssetMessage($type));
+        }
+        if ($type === 'image' && getimagesizefromstring($contents) === false) {
+            throw new InvalidArgumentException('File content does not match an allowed image type.');
+        }
+
+        $filename = $this->assetFilename((string)$file->getClientFilename(), $extension);
+        $payload = [
+            'storage' => 'database',
+            'filename' => $filename,
+            'mime' => $mimeType,
+            'size' => strlen($contents),
+            'sha256' => hash('sha256', $contents),
+            'data' => base64_encode($contents),
+        ];
+
+        return json_encode($payload, JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * Read a decoded app setting asset payload for public delivery.
+     *
+     * @param string $name App setting name
+     * @return array<string, mixed>|null
+     */
+    public function getAssetPayload(string $name): ?array
+    {
+        $cacheKey = $this->assetCacheKey($name);
+        $cached = Cache::read($cacheKey, 'default');
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        $setting = $this->find()
+            ->select(['name', 'type', 'value'])
+            ->where(['name' => $name])
+            ->first();
+        if (!$setting || !$this->isAssetType((string)$setting->type)) {
+            return null;
+        }
+
+        $payload = $this->decodeAssetPayload($setting->value);
+        if ($payload === null) {
+            return null;
+        }
+
+        Cache::write($cacheKey, $payload, 'default');
+
+        return $payload;
+    }
+
+    /**
      * Delete app setting.
      *
      * @param mixed $key
@@ -282,8 +500,6 @@ class AppSettingsTable extends BaseTable
         return $this->deleteSetting($key, $forceDelete);
     }
 
-    //TODO: Create a caching strategy for this
-
     /**
      * Get all app settings start with.
      *
@@ -292,15 +508,29 @@ class AppSettingsTable extends BaseTable
      */
     public function getAllAppSettingsStartWith($key): array
     {
-        $settings = $this->find()
-            ->where(['name LIKE' => $key . '%'])
-            ->all();
+        $settings = $this->getCachedSettingsPayload()['raw'];
         $return = [];
-        foreach ($settings as $setting) {
-            $return[$setting->name] = $setting->value;
+        foreach ($settings as $name => $value) {
+            if (str_starts_with($name, (string)$key)) {
+                $return[$name] = $value;
+            }
         }
 
         return $return;
+    }
+
+    /**
+     * Clear request-local setting memoization.
+     *
+     * Useful for tests and long-running workers that need to simulate a fresh
+     * request after directly manipulating the shared cache or database.
+     *
+     * @return void
+     */
+    public static function clearRequestCaches(): void
+    {
+        self::$sensitiveSettingRequestCache = [];
+        self::$settingsPayloadRequestCache = [];
     }
 
     /**
@@ -315,6 +545,86 @@ class AppSettingsTable extends BaseTable
     }
 
     /**
+     * Read all non-sensitive settings from cache or database.
+     *
+     * @return array{values: array<string, mixed>, raw: array<string, mixed>}
+     */
+    private function getCachedSettingsPayload(): array
+    {
+        $cacheKey = $this->allSettingsCacheKey();
+        if (isset(self::$settingsPayloadRequestCache[$cacheKey])) {
+            return self::$settingsPayloadRequestCache[$cacheKey];
+        }
+
+        $payload = Cache::read($cacheKey, 'default');
+        if (is_array($payload) && isset($payload['values'], $payload['raw'])) {
+            self::$settingsPayloadRequestCache[$cacheKey] = $payload;
+
+            return self::$settingsPayloadRequestCache[$cacheKey];
+        }
+
+        $payload = ['values' => [], 'raw' => []];
+        $settings = $this->find()
+            ->select(['name', 'type', 'value'])
+            ->all();
+        foreach ($settings as $setting) {
+            $name = (string)$setting->name;
+            if ($this->isSensitiveSetting($name)) {
+                continue;
+            }
+            $payload['raw'][$name] = $setting->value;
+            $payload['values'][$name] = $this->resolveValueForRead(
+                $setting->type ?? 'string',
+                $setting->value,
+                $name,
+            );
+        }
+        Cache::write($cacheKey, $payload, 'default');
+        self::$settingsPayloadRequestCache[$cacheKey] = $payload;
+
+        return self::$settingsPayloadRequestCache[$cacheKey];
+    }
+
+    /**
+     * Clear tenant-scoped caches affected by setting mutation.
+     */
+    private function clearSettingCaches(?string $name = null): void
+    {
+        $allSettingsCacheKey = $this->allSettingsCacheKey();
+        Cache::delete($allSettingsCacheKey, 'default');
+        unset(self::$settingsPayloadRequestCache[$allSettingsCacheKey]);
+        if ($name !== null) {
+            Cache::delete($this->cacheKey($name), 'default');
+            Cache::delete($this->assetCacheKey($name), 'default');
+            unset(self::$sensitiveSettingRequestCache[$this->cacheKey($name)]);
+        }
+    }
+
+    /**
+     * Build a tenant-safe cache key for a setting name.
+     */
+    private function cacheKey(string $name): string
+    {
+        return TenantAwareCache::tenantScopedKey('app_setting_' . $name);
+    }
+
+    /**
+     * Build a tenant-safe cache key for all non-sensitive settings.
+     */
+    private function allSettingsCacheKey(): string
+    {
+        return TenantAwareCache::tenantScopedKey(self::ALL_SETTINGS_CACHE_KEY);
+    }
+
+    /**
+     * Build a tenant-safe cache key for decoded asset payloads.
+     */
+    private function assetCacheKey(string $name): string
+    {
+        return TenantAwareCache::tenantScopedKey('app_setting_asset_' . $name);
+    }
+
+    /**
      * Resolve value for write.
      *
      * @param string $type
@@ -324,6 +634,9 @@ class AppSettingsTable extends BaseTable
      */
     private function resolveValueForWrite(string $type, mixed $value, bool $settingExists): mixed
     {
+        if ($this->isAssetType($type)) {
+            return is_string($value) ? $value : '';
+        }
         if ($type !== 'password') {
             return $value;
         }
@@ -357,8 +670,16 @@ class AppSettingsTable extends BaseTable
      * @param mixed $value
      * @return mixed
      */
-    private function resolveValueForRead(string $type, mixed $value): mixed
+    private function resolveValueForRead(string $type, mixed $value, ?string $name = null): mixed
     {
+        if ($this->isAssetType($type)) {
+            $payload = $this->decodeAssetPayload($value);
+            if ($payload === null || $name === null) {
+                return $value;
+            }
+
+            return $this->assetUrl($name, $payload);
+        }
         if ($type !== 'password') {
             return $value;
         }
@@ -400,5 +721,115 @@ class AppSettingsTable extends BaseTable
         }
 
         return $key;
+    }
+
+    /**
+     * Check if a setting type is a stored public asset.
+     */
+    private function isAssetType(string $type): bool
+    {
+        return in_array($type, ['file', 'image'], true);
+    }
+
+    /**
+     * Decode and validate a stored database asset payload.
+     *
+     * @param mixed $value
+     * @return array<string, mixed>|null
+     */
+    private function decodeAssetPayload(mixed $value): ?array
+    {
+        if (!is_string($value) || $value === '') {
+            return null;
+        }
+
+        try {
+            $payload = json_decode($value, true, flags: JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return null;
+        }
+        if (!is_array($payload) || ($payload['storage'] ?? null) !== 'database') {
+            return null;
+        }
+        foreach (['filename', 'mime', 'sha256', 'data'] as $field) {
+            if (!isset($payload[$field]) || !is_string($payload[$field])) {
+                return null;
+            }
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Build a public URL for a stored app setting asset.
+     *
+     * @param string $name App setting name
+     * @param array<string, mixed> $payload Decoded asset payload
+     * @return string
+     */
+    private function assetUrl(string $name, array $payload): string
+    {
+        return '/app-settings/asset/' . rawurlencode($name) . '?v=' . substr((string)$payload['sha256'], 0, 12);
+    }
+
+    /**
+     * Detect MIME type from file content.
+     */
+    private function detectMimeType(string $contents): string
+    {
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mimeType = $finfo->buffer($contents);
+
+        return is_string($mimeType) ? $mimeType : 'application/octet-stream';
+    }
+
+    /**
+     * Get allowed MIME types for a public asset setting type.
+     *
+     * @return array<string, string>
+     */
+    private function allowedAssetTypes(string $type): array
+    {
+        return $type === 'image' ? self::IMAGE_MIME_TYPES : self::FILE_MIME_TYPES;
+    }
+
+    /**
+     * Build a safe filename with the detected extension.
+     */
+    private function assetFilename(string $clientFilename, string $extension): string
+    {
+        $basename = pathinfo($clientFilename, PATHINFO_FILENAME);
+        $basename = preg_replace('/[^A-Za-z0-9_.-]+/', '-', $basename) ?? 'asset';
+        $basename = trim($basename, '.-');
+        if ($basename === '') {
+            $basename = 'asset';
+        }
+
+        return substr($basename, 0, 80) . '.' . $extension;
+    }
+
+    /**
+     * Build upload error message.
+     */
+    private function uploadErrorMessage(int $errorCode): string
+    {
+        return match ($errorCode) {
+            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'The uploaded file exceeds the maximum upload size.',
+            UPLOAD_ERR_PARTIAL => 'The uploaded file was only partially uploaded.',
+            UPLOAD_ERR_NO_FILE => 'No file was uploaded.',
+            default => 'The uploaded file could not be processed.',
+        };
+    }
+
+    /**
+     * Build unsupported asset message.
+     */
+    private function unsupportedAssetMessage(string $type): string
+    {
+        if ($type === 'image') {
+            return 'Images must be PNG, JPEG, GIF, or WebP files.';
+        }
+
+        return 'Files must be PNG, JPEG, GIF, WebP, PDF, or plain text files.';
     }
 }

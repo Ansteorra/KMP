@@ -81,8 +81,12 @@ return [
         'storage' => [
             'adapter' => env('DOCUMENT_STORAGE_ADAPTER', 'local'),
             'azure' => [
+                'authMode' => env('AZURE_STORAGE_AUTH_MODE', 'connectionString'),
+                'accountName' => env('AZURE_STORAGE_ACCOUNT_NAME'),
+                'managedIdentityClientId' => env('AZURE_CLIENT_ID'),
                 'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
                 'container' => env('AZURE_STORAGE_CONTAINER', 'documents'),
+                'containerPrefix' => env('AZURE_STORAGE_CONTAINER_PREFIX', 'documents'),
                 'prefix' => '',
             ],
             's3' => [
@@ -281,26 +285,42 @@ run_migrations() {
 }
 
 # Use flock for atomic locking to prevent concurrent migrations
-echo "Acquiring migration lock..."
-(
-    if flock -w "$LOCK_TIMEOUT" 200; then
-        echo "Migration lock acquired (PID $$)"
-        run_migrations
-        echo "Migration lock released."
-    else
-        echo "WARNING: Could not acquire migration lock after ${LOCK_TIMEOUT}s, skipping migrations."
-    fi
-) 200>"$LOCK_FILE"
+if [ "${KMP_SKIP_MIGRATIONS:-false}" != "true" ]; then
+    echo "Acquiring migration lock..."
+    (
+        if flock -w "$LOCK_TIMEOUT" 200; then
+            echo "Migration lock acquired (PID $$)"
+            run_migrations
+            echo "Migration lock released."
+        else
+            echo "WARNING: Could not acquire migration lock after ${LOCK_TIMEOUT}s, skipping migrations."
+        fi
+    ) 200>"$LOCK_FILE"
+else
+    echo "KMP_SKIP_MIGRATIONS=true — skipping migrations (running as short-lived Azure Container Apps Job)."
+fi
 
 # ---------------------------------------------------------------------------
 # 6. Cron for queue processing and scheduled backups
 # ---------------------------------------------------------------------------
-echo "Configuring cron jobs..."
-QUEUE_CRON="*/2 * * * * cd /var/www/html && bin/cake queue run -q >> /var/log/cron.log 2>&1"
-BACKUP_CRON="0 3 * * * cd /var/www/html && bin/cake backup_check >> /var/log/cron.log 2>&1"
-(crontab -l 2>/dev/null | grep -v "queue run" | grep -v "backup_check"; echo "$QUEUE_CRON"; echo "$BACKUP_CRON") | crontab -
+if [ "${KMP_SKIP_CRON:-false}" != "true" ]; then
+    echo "Configuring cron jobs..."
+    QUEUE_CRON="*/5 * * * * cd /var/www/html && QUEUE_EXIT_WHEN_NOTHING_TO_DO=true bin/cake queue run -q >> /var/log/cron.log 2>&1"
+    # Managed tenant backups are driven by the platform scheduler
+    # (tenant-backup-fleet schedule); this cron is a tenancy-mode safety net.
+    if [ "${KMP_TENANCY_ENABLED:-false}" = "true" ]; then
+        BACKUP_CRON="30 4 * * * cd /var/www/html && bin/cake platform schedule run tenant-backup-fleet >> /var/log/cron.log 2>&1"
+    else
+        BACKUP_CRON=""
+    fi
+    IMAGE_CACHE_GC_CRON="15 3 * * * cd /var/www/html && bin/cake image_cache_gc --days \"${KMP_IMAGE_CACHE_GC_DAYS:-7}\" >> /var/log/cron.log 2>&1"
+    # grep -v backup_check scrubs stale legacy entries from upgraded crontabs.
+    (crontab -l 2>/dev/null | grep -v "queue run" | grep -v "backup_check" | grep -v "platform schedule run backup-check" | grep -v "platform schedule run tenant-backup-fleet" | grep -v "image_cache_gc"; echo "$QUEUE_CRON"; if [ -n "$BACKUP_CRON" ]; then echo "$BACKUP_CRON"; fi; echo "$IMAGE_CACHE_GC_CRON") | crontab -
 
-service cron start
+    service cron start
+else
+    echo "KMP_SKIP_CRON=true — skipping cron setup (running as Azure Container Apps Job)."
+fi
 
 # ---------------------------------------------------------------------------
 # 7. Ensure exactly one Apache MPM is enabled

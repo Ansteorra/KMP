@@ -125,10 +125,19 @@ class QueueProcessesController extends AppController
 		$queueProcess = $this->QueueProcesses->get($id);
 
 		if (!Configure::read('Queue.multiserver')) {
-			$this->QueueProcesses->terminateProcess($queueProcess->pid, $sig ?: SIGTERM);
+			$this->QueueProcesses->terminateProcess($queueProcess->pid, $sig ?: (defined('SIGTERM') ? SIGTERM : 15));
 		}
 
-		if ($this->QueueProcesses->delete($queueProcess)) {
+		$deleted = $this->QueueProcesses->delete($queueProcess);
+		$deletedRows = $queueProcess->id !== null
+			? $this->QueueProcesses->deleteAll(['id' => (int)$queueProcess->id])
+			: 0;
+		if ($deletedRows === 0) {
+			$deletedRows = $this->QueueProcesses->deleteAll(['pid' => (string)$queueProcess->pid]);
+		}
+		$deleted = $deleted || $deletedRows > 0;
+
+		if ($deleted) {
 			$this->Flash->success(__d('queue', 'The queue process has been deleted.'));
 		} else {
 			$this->Flash->error(__d('queue', 'The queue process could not be deleted. Please, try again.'));

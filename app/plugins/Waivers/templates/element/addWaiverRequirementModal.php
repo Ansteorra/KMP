@@ -22,8 +22,14 @@ echo $this->Form->create(null, [
 echo $this->Modal->create("Add Waiver Requirement", [
     "id" => "addWaiverRequirementModal",
     "close" => true,
+    "form" => true,
+    "size" => "modal-lg",
 ]); ?>
-<fieldset>
+<fieldset class="border rounded-3 bg-white shadow-sm p-3">
+    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+        <i class="bi bi-file-earmark-check text-primary me-1" aria-hidden="true"></i>
+        <?= __("Waiver Requirement") ?>
+    </legend>
     <?php
     echo $this->Form->control("gathering_activity_id", [
         "type" => "hidden",

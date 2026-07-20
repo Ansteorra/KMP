@@ -1,0 +1,96 @@
+{
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
+    "nodes": {
+        "trigger": {
+            "type": "trigger",
+            "label": "Recommendation Update Requested",
+            "config": {
+                "event": "Awards.RecommendationUpdateRequested",
+                "entityIdField": "recommendationId"
+            },
+            "position": {
+                "x": 50,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "update-recommendation"
+                }
+            ]
+        },
+        "update-recommendation": {
+            "type": "action",
+            "label": "Update Recommendation",
+            "config": {
+                "action": "Awards.UpdateRecommendation",
+                "params": {
+                    "recommendationId": "$.trigger.recommendationId",
+                    "data": "$.trigger.data",
+                    "actorId": "$.trigger.actorId"
+                }
+            },
+            "position": {
+                "x": 350,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "update-succeeded"
+                }
+            ]
+        },
+        "update-succeeded": {
+            "type": "condition",
+            "label": "Update Succeeded?",
+            "config": {
+                "condition": "Core.FieldEquals",
+                "field": "$.nodes.update-recommendation.result.success",
+                "value": true
+            },
+            "position": {
+                "x": 650,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "end-success",
+                    "label": "Updated"
+                },
+                {
+                    "port": "false",
+                    "target": "end-failed",
+                    "label": "Failed"
+                }
+            ]
+        },
+        "end-success": {
+            "type": "end",
+            "label": "Update Complete",
+            "config": {
+                "result": "$.nodes.update-recommendation.result"
+            },
+            "position": {
+                "x": 950,
+                "y": 225
+            },
+            "outputs": []
+        },
+        "end-failed": {
+            "type": "end",
+            "label": "Update Failed",
+            "config": {
+                "result": "$.nodes.update-recommendation.result"
+            },
+            "position": {
+                "x": 950,
+                "y": 375
+            },
+            "outputs": []
+        }
+    },
+    "startNode": "trigger"
+}

@@ -3,12 +3,17 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Model\Table;
 
+use App\KMP\TenantContext;
+use App\KMP\TenantMetadata;
 use App\Model\Table\AppSettingsTable;
+use App\Services\Cache\TenantAwareCache;
 use App\Test\TestCase\BaseTestCase;
 use Cake\Cache\Cache;
 use Cake\Datasource\EntityInterface;
 use Cake\Datasource\Exception\RecordNotFoundException;
 use Exception;
+use InvalidArgumentException;
+use Laminas\Diactoros\UploadedFile;
 
 /**
  * App\Model\Table\AppSettingsTable Test Case
@@ -186,6 +191,7 @@ class AppSettingsTableTest extends BaseTestCase
 
         // Clear cache before test
         Cache::clear();
+        AppSettingsTable::clearRequestCaches();
 
         // First call should populate cache
         $value = $this->AppSettings->getSetting($uniqueName);
@@ -205,8 +211,42 @@ class AppSettingsTableTest extends BaseTestCase
 
         // Clear cache and test again
         Cache::clear();
+        AppSettingsTable::clearRequestCaches();
         $freshValue = $this->AppSettings->getSetting($uniqueName);
         $this->assertEquals('modified-value', $freshValue);
+    }
+
+    /**
+     * Test getSetting caches all non-sensitive settings in one payload.
+     *
+     * @return void
+     * @uses \App\Model\Table\AppSettingsTable::getSetting()
+     */
+    public function testGetSettingUsesCachedSettingsPayload(): void
+    {
+        $prefix = 'test.cached.payload.' . uniqid();
+        $firstName = $prefix . '.first';
+        $secondName = $prefix . '.second';
+        $this->AppSettings->updateSetting($firstName, 'string', 'first-value', false);
+        $this->AppSettings->updateSetting($secondName, 'string', 'second-value', false);
+        Cache::clear();
+        AppSettingsTable::clearRequestCaches();
+
+        $this->assertSame('first-value', $this->AppSettings->getSetting($firstName));
+
+        $this->AppSettings->getConnection()->update(
+            'app_settings',
+            ['value' => 'updated-second-value'],
+            ['name' => $secondName],
+        );
+
+        $this->assertSame('second-value', $this->AppSettings->getSetting($secondName));
+
+        Cache::clear();
+        $this->assertSame('second-value', $this->AppSettings->getSetting($secondName));
+
+        $this->AppSettings->updateSetting($secondName, 'string', 'updated-second-value', false);
+        $this->assertSame('updated-second-value', $this->AppSettings->getSetting($secondName));
     }
 
     /**
@@ -259,6 +299,81 @@ class AppSettingsTableTest extends BaseTestCase
         $this->AppSettings->deleteSetting('test.new.setting');
     }
 
+    public function testSettingCacheIsTenantScoped(): void
+    {
+        $key = 'test.tenant.cache.' . time() . rand(1000, 9999);
+        $tenantA = $this->tenant('tenant-a', 'tenant-a-id');
+        $tenantB = $this->tenant('tenant-b', 'tenant-b-id');
+
+        TenantContext::with($tenantA, function () use ($key): void {
+            $this->assertTrue($this->AppSettings->updateSetting($key, 'string', 'Tenant A', false));
+            $this->assertSame('Tenant A', $this->AppSettings->getSetting($key));
+        });
+
+        TenantContext::with($tenantB, function () use ($key): void {
+            $this->assertTrue($this->AppSettings->updateSetting($key, 'string', 'Tenant B', false));
+            $this->assertSame('Tenant B', $this->AppSettings->getSetting($key));
+        });
+
+        TenantContext::with($tenantA, function () use ($key): void {
+            $this->assertSame('Tenant A', $this->AppSettings->getSetting($key));
+            $this->assertSame(
+                'Tenant A',
+                Cache::read(TenantAwareCache::tenantScopedKey('app_setting_' . $key), 'default'),
+            );
+        });
+
+        TenantContext::with($tenantB, function () use ($key): void {
+            $this->assertSame('Tenant B', $this->AppSettings->getSetting($key));
+            $this->assertSame(
+                'Tenant B',
+                Cache::read(TenantAwareCache::tenantScopedKey('app_setting_' . $key), 'default'),
+            );
+        });
+
+        $this->AppSettings->deleteSetting($key, true);
+    }
+
+    /**
+     * Image app settings store uploaded content as public asset URLs.
+     *
+     * @return void
+     */
+    public function testImageSettingStoresUploadedAsset(): void
+    {
+        $key = 'test.image.setting.' . time() . rand(1000, 9999);
+        $file = $this->uploadedPngFile('login-graphic.png');
+        $assetValue = $this->AppSettings->assetValueFromUpload('image', $file);
+
+        $this->assertTrue($this->AppSettings->updateSetting($key, 'image', $assetValue, false));
+        $publicUrl = $this->AppSettings->getSetting($key);
+
+        $this->assertIsString($publicUrl);
+        $this->assertStringContainsString('/app-settings/asset/' . $key, $publicUrl);
+
+        $payload = $this->AppSettings->getAssetPayload($key);
+        $this->assertIsArray($payload);
+        $this->assertSame('login-graphic.png', $payload['filename']);
+        $this->assertSame('image/png', $payload['mime']);
+        $this->assertSame($this->tinyPngBytes(), base64_decode((string)$payload['data'], true));
+
+        $this->AppSettings->deleteSetting($key, true);
+    }
+
+    /**
+     * Image app settings reject spoofed non-image uploads.
+     *
+     * @return void
+     */
+    public function testImageSettingRejectsSpoofedUpload(): void
+    {
+        $file = $this->uploadedFile('spoofed.png', 'not an image', 'image/png');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Images must be PNG, JPEG, GIF, or WebP files.');
+        $this->AppSettings->assetValueFromUpload('image', $file);
+    }
+
     /**
      * Password-type settings are encrypted in storage and decrypted on read.
      *
@@ -290,6 +405,42 @@ class AppSettingsTableTest extends BaseTestCase
         $this->assertSame($plainValue, $this->AppSettings->getSetting($key));
 
         $this->AppSettings->deleteSetting($key, true);
+    }
+
+    private function tenant(string $slug, string $id): TenantMetadata
+    {
+        return new TenantMetadata($id, $slug, ucfirst($slug), 'active', 'db', $slug . '_db', $slug . '_role');
+    }
+
+    /**
+     * Create an uploaded PNG file test object.
+     */
+    private function uploadedPngFile(string $clientFilename): UploadedFile
+    {
+        return $this->uploadedFile($clientFilename, $this->tinyPngBytes(), 'image/png');
+    }
+
+    /**
+     * Create an uploaded file test object.
+     */
+    private function uploadedFile(string $clientFilename, string $contents, string $mimeType): UploadedFile
+    {
+        $path = tempnam(sys_get_temp_dir(), 'kmp-app-setting-upload-');
+        $this->assertIsString($path);
+        file_put_contents($path, $contents);
+
+        return new UploadedFile($path, strlen($contents), UPLOAD_ERR_OK, $clientFilename, $mimeType);
+    }
+
+    /**
+     * Tiny valid PNG bytes.
+     */
+    private function tinyPngBytes(): string
+    {
+        return base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+            true,
+        ) ?: '';
     }
 
     /**
@@ -483,5 +634,49 @@ class AppSettingsTableTest extends BaseTestCase
         $settings = $this->AppSettings->getAllAppSettingsStartWith('nonexistent');
         $this->assertIsArray($settings);
         $this->assertEmpty($settings);
+    }
+
+    /**
+     * Test prefixed app setting reads use the shared settings cache.
+     *
+     * @return void
+     * @uses \App\Model\Table\AppSettingsTable::getAllAppSettingsStartWith()
+     */
+    public function testGetAllAppSettingsStartWithUsesCache(): void
+    {
+        $prefix = 'test.cached.prefix.' . uniqid() . '.';
+        $firstName = $prefix . 'first';
+        $secondName = $prefix . 'second';
+        $this->AppSettings->updateSetting($firstName, 'string', 'first-value', false);
+        $this->AppSettings->updateSetting($secondName, 'string', 'second-value', false);
+        Cache::clear();
+
+        $settings = $this->AppSettings->getAllAppSettingsStartWith($prefix);
+        $this->assertSame('first-value', $settings[$firstName]);
+        $this->assertSame('second-value', $settings[$secondName]);
+
+        $this->AppSettings->getConnection()->update(
+            'app_settings',
+            ['value' => 'updated-first-value'],
+            ['name' => $firstName],
+        );
+        $this->AppSettings->getConnection()->insert('app_settings', [
+            'name' => $prefix . 'third',
+            'value' => 'third-value',
+            'type' => 'string',
+            'required' => 0,
+            'created' => date('Y-m-d H:i:s'),
+            'modified' => date('Y-m-d H:i:s'),
+        ]);
+
+        $cachedSettings = $this->AppSettings->getAllAppSettingsStartWith($prefix);
+        $this->assertSame('first-value', $cachedSettings[$firstName]);
+        $this->assertArrayNotHasKey($prefix . 'third', $cachedSettings);
+
+        Cache::clear();
+        AppSettingsTable::clearRequestCaches();
+        $freshSettings = $this->AppSettings->getAllAppSettingsStartWith($prefix);
+        $this->assertSame('updated-first-value', $freshSettings[$firstName]);
+        $this->assertSame('third-value', $freshSettings[$prefix . 'third']);
     }
 }

@@ -6,7 +6,6 @@ namespace App\View\Helper;
 use App\KMP\StaticHelpers;
 use App\Model\Entity\Member;
 use App\View\AppView;
-use AssetMix\Mix;
 use Cake\Event\Event;
 use Cake\View\Helper;
 use Cake\View\Helper\HtmlHelper;
@@ -23,6 +22,13 @@ use Cake\View\Helper\HtmlHelper;
  */
 class KmpHelper extends Helper
 {
+    /**
+     * Helpers used by KMP helper methods.
+     *
+     * @var array<string>
+     */
+    protected array $helpers = ['Url'];
+
     /**
      * Main view reference for block management across view cells.
      *
@@ -236,6 +242,31 @@ class KmpHelper extends Helper
     }
 
     /**
+     * Resolve an app-setting asset value to a browser URL.
+     *
+     * Supports new public asset URLs and legacy webroot/img filenames.
+     *
+     * @param string|null $asset App setting asset value
+     * @return string
+     */
+    public function assetUrl(?string $asset): string
+    {
+        if ($asset === null || $asset === '') {
+            return '';
+        }
+        if (
+            str_starts_with($asset, '/')
+            || str_starts_with($asset, 'http://')
+            || str_starts_with($asset, 'https://')
+            || str_starts_with($asset, 'data:')
+        ) {
+            return $asset;
+        }
+
+        return $this->Url->image($asset);
+    }
+
+    /**
      * Get application settings that start with a specific key prefix.
      *
      * @param string $key The prefix to search for in setting keys
@@ -244,34 +275,6 @@ class KmpHelper extends Helper
     public function getAppSettingsStartWith(string $key): array
     {
         return StaticHelpers::getAppSettingsStartWith($key);
-    }
-
-    /**
-     * Get Mix script URL with versioning for cache busting.
-     *
-     * @param string $script The script filename/path relative to webroot/js
-     * @param mixed $Url CakePHP URL helper instance
-     * @return string Versioned script URL with hash parameter
-     */
-    public function getMixScriptUrl(string $script, $Url): string
-    {
-        $url = $Url->script($script);
-
-        return (new Mix())($url);
-    }
-
-    /**
-     * Get Mix style URL with versioning for cache busting.
-     *
-     * @param string $css The CSS filename/path relative to webroot/css
-     * @param mixed $Url CakePHP URL helper instance
-     * @return string Versioned CSS URL with hash parameter
-     */
-    public function getMixStyleUrl(string $css, $Url): string
-    {
-        $url = $Url->css($css);
-
-        return (new Mix())($url);
     }
 
     /**
@@ -347,6 +350,38 @@ class KmpHelper extends Helper
         }
 
         return round($bytes, $precision) . $units[$i];
+    }
+
+    /**
+     * Render a Bootstrap status badge for workflow statuses.
+     *
+     * @param string $status Status string (e.g., 'running', 'approved', 'draft')
+     * @return string HTML badge markup
+     */
+    public function workflowStatusBadge(string $status): string
+    {
+        $map = [
+            'draft' => 'bg-secondary',
+            'published' => 'bg-success',
+            'archived' => 'bg-dark',
+            'running' => 'bg-primary',
+            'completed' => 'bg-success',
+            'failed' => 'bg-danger',
+            'cancelled' => 'bg-secondary',
+            'waiting' => 'bg-warning text-dark',
+            'pending' => 'bg-warning text-dark',
+            'approved' => 'bg-success',
+            'rejected' => 'bg-danger',
+            'approve' => 'bg-success',
+            'reject' => 'bg-danger',
+            'abstain' => 'bg-secondary',
+            'request_changes' => 'bg-warning text-dark',
+            'expired' => 'bg-dark',
+        ];
+        $badgeClass = $map[$status] ?? 'bg-light text-dark';
+        $label = ucwords(str_replace('_', ' ', $status));
+
+        return '<span class="badge ' . $badgeClass . '">' . h($label) . '</span>';
     }
 
     /**

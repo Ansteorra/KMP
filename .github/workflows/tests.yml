@@ -1,17 +1,22 @@
-name: PHPUnit Tests
+name: Quality Gates
 
 on:
   push:
     branches: [main, develop]
   pull_request:
 
+concurrency:
+  group: quality-gates-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+
 jobs:
-  test:
+  phpunit:
+    name: PHPUnit (${{ matrix.database.type }})
     runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.database.type == 'postgres' }}
-    permissions:
-      contents: read
-      checks: write
 
     strategy:
       fail-fast: false
@@ -21,7 +26,7 @@ jobs:
             image: mariadb:10
             port: 3306
             driver: Cake\Database\Driver\Mysql
-            php_extensions: mbstring, intl, pdo_mysql, gd, apcu, yaml
+            php_extensions: mbstring, intl, pdo_mysql, gd, apcu, grpc, protobuf, yaml
             health_cmd: healthcheck.sh --connect --innodb_initialized
             env:
               MARIADB_ROOT_PASSWORD: root
@@ -30,7 +35,7 @@ jobs:
             image: postgres:16
             port: 5432
             driver: Cake\Database\Driver\Postgres
-            php_extensions: mbstring, intl, pdo_pgsql, gd, apcu, yaml
+            php_extensions: mbstring, intl, pdo_pgsql, gd, apcu, grpc, protobuf, yaml
             health_cmd: pg_isready -U root -d kmp_test
             env:
               POSTGRES_USER: root
@@ -53,10 +58,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup PHP 8.3
+      - name: Setup PHP 8.4
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
           extensions: ${{ matrix.database.php_extensions }}
           ini-values: apc.enable_cli=1
           coverage: none
@@ -138,6 +143,9 @@ jobs:
             vendor/bin/phpunit --testsuite all --no-coverage --log-junit ../test-results/junit.xml
           fi
 
+      - name: Enforce skipped-test budget
+        run: cd app && bash bin/enforce_skip_budget.sh
+
       - name: Upload test results
         if: success() || failure()
         uses: actions/upload-artifact@v4
@@ -152,3 +160,315 @@ jobs:
           files: test-results/junit.xml
           check_name: PHPUnit Test Results (${{ matrix.database.type }})
           comment_mode: off
+
+  jest:
+    name: Jest
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install Node dependencies
+        run: cd app && npm install --no-audit --no-fund
+
+      - name: Run Jest tests
+        run: |
+          mkdir -p test-results
+          cd app
+          npm run test:js -- --ci --runInBand --json --outputFile=../test-results/jest-results.json
+
+      - name: Validate workflow definition JSON
+        run: cd app && npm run validate:workflows
+
+      - name: Upload Jest results
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jest-results
+          path: test-results/jest-results.json
+
+  playwright-smoke:
+    name: Playwright smoke
+    runs-on: ubuntu-latest
+    env:
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:8080
+      PLAYWRIGHT_MAILPIT_URL: http://127.0.0.1:8025
+      PLAYWRIGHT_WEB_SERVER_COMMAND: php -S 127.0.0.1:8080 -t webroot webroot/index.php
+
+    services:
+      database:
+        image: mariadb:10
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: kmp_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      mailpit:
+        image: axllent/mailpit:latest
+        ports:
+          - 1025:1025
+          - 8025:8025
+        env:
+          MP_SMTP_AUTH_ACCEPT_ANY: "true"
+          MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_mysql, gd, apcu, grpc, protobuf, yaml
+          ini-values: apc.enable_cli=1
+          coverage: none
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Create test .env
+        run: |
+          printf "%s\n" \
+            "export MYSQL_HOST='127.0.0.1'" \
+            "export MYSQL_USERNAME='root'" \
+            "export MYSQL_PASSWORD='root'" \
+            "export MYSQL_DB_NAME='kmp'" \
+            "export EMAIL_SMTP_HOST='localhost'" \
+            "export EMAIL_SMTP_PORT='1025'" \
+            "export EMAIL_SMTP_USERNAME=''" \
+            "export EMAIL_SMTP_PASSWORD=''" \
+            > app/config/.env
+
+      - name: Create app_local.php
+        run: |
+          cat > app/config/app_local.php << 'APPLOCAL'
+          <?php
+          return [
+              'debug' => true,
+              'Security' => [
+                  'salt' => env('SECURITY_SALT', 'ci-playwright-smoke-salt'),
+              ],
+              'Datasources' => [
+                  'default' => [
+                      'driver' => \Cake\Database\Driver\Mysql::class,
+                      'host' => env('MYSQL_HOST', '127.0.0.1'),
+                      'port' => '3306',
+                      'username' => env('MYSQL_USERNAME'),
+                      'password' => env('MYSQL_PASSWORD'),
+                      'database' => env('MYSQL_DB_NAME'),
+                      'url' => env('DATABASE_URL', null),
+                  ],
+                  'test' => [
+                      'driver' => \Cake\Database\Driver\Mysql::class,
+                      'host' => env('MYSQL_HOST', '127.0.0.1'),
+                      'port' => '3306',
+                      'username' => env('MYSQL_USERNAME'),
+                      'password' => env('MYSQL_PASSWORD'),
+                      'database' => env('MYSQL_DB_NAME') . '_test',
+                      'url' => env('DATABASE_URL', null),
+                  ],
+              ],
+              'EmailTransport' => [
+                  'default' => [
+                      'host' => 'localhost',
+                      'port' => 1025,
+                      'username' => null,
+                      'password' => null,
+                      'client' => null,
+                      'url' => env('EMAIL_TRANSPORT_DEFAULT_URL', null),
+                  ],
+              ],
+          ];
+          APPLOCAL
+
+      - name: Install Composer dependencies
+        run: cd app && composer install --no-interaction --prefer-dist
+
+      - name: Install Node dependencies
+        run: cd app && npm install --no-audit --no-fund
+
+      - name: Build frontend assets
+        run: cd app && npm run dev
+
+      - name: Ensure databases exist
+        run: mysql -h 127.0.0.1 -u root -proot -e "CREATE DATABASE IF NOT EXISTS kmp; CREATE DATABASE IF NOT EXISTS kmp_test;"
+
+      - name: Wait for Mailpit
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8025/api/v1/info >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Mailpit did not become ready on http://127.0.0.1:8025" >&2
+          exit 1
+
+      - name: Install Playwright browser
+        run: cd app && npx playwright install --with-deps chromium
+
+      - name: Run Playwright smoke tests
+        run: cd app && npm run test:ui:smoke
+
+      - name: Upload Playwright smoke artifacts
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-smoke-artifacts
+          path: |
+            app/tests/ui-reports
+            app/tests/ui-results
+
+  playwright-journey:
+    name: Playwright journey
+    runs-on: ubuntu-latest
+    env:
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:8080
+      PLAYWRIGHT_MAILPIT_URL: http://127.0.0.1:8025
+      PLAYWRIGHT_WEB_SERVER_COMMAND: php -S 127.0.0.1:8080 -t webroot webroot/index.php
+
+    services:
+      database:
+        image: mariadb:10
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: kmp_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      mailpit:
+        image: axllent/mailpit:latest
+        ports:
+          - 1025:1025
+          - 8025:8025
+        env:
+          MP_SMTP_AUTH_ACCEPT_ANY: "true"
+          MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_mysql, gd, apcu, grpc, protobuf, yaml
+          ini-values: apc.enable_cli=1
+          coverage: none
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Create test .env
+        run: |
+          printf "%s\n" \
+            "export MYSQL_HOST='127.0.0.1'" \
+            "export MYSQL_USERNAME='root'" \
+            "export MYSQL_PASSWORD='root'" \
+            "export MYSQL_DB_NAME='kmp'" \
+            "export EMAIL_SMTP_HOST='localhost'" \
+            "export EMAIL_SMTP_PORT='1025'" \
+            "export EMAIL_SMTP_USERNAME=''" \
+            "export EMAIL_SMTP_PASSWORD=''" \
+            > app/config/.env
+
+      - name: Create app_local.php
+        run: |
+          cat > app/config/app_local.php << 'APPLOCAL'
+          <?php
+          return [
+              'debug' => true,
+              'Security' => [
+                  'salt' => env('SECURITY_SALT', 'ci-playwright-journey-salt'),
+              ],
+              'Datasources' => [
+                  'default' => [
+                      'driver' => \Cake\Database\Driver\Mysql::class,
+                      'host' => env('MYSQL_HOST', '127.0.0.1'),
+                      'port' => '3306',
+                      'username' => env('MYSQL_USERNAME'),
+                      'password' => env('MYSQL_PASSWORD'),
+                      'database' => env('MYSQL_DB_NAME'),
+                      'url' => env('DATABASE_URL', null),
+                  ],
+                  'test' => [
+                      'driver' => \Cake\Database\Driver\Mysql::class,
+                      'host' => env('MYSQL_HOST', '127.0.0.1'),
+                      'port' => '3306',
+                      'username' => env('MYSQL_USERNAME'),
+                      'password' => env('MYSQL_PASSWORD'),
+                      'database' => env('MYSQL_DB_NAME') . '_test',
+                      'url' => env('DATABASE_URL', null),
+                  ],
+              ],
+              'EmailTransport' => [
+                  'default' => [
+                      'host' => 'localhost',
+                      'port' => 1025,
+                      'username' => null,
+                      'password' => null,
+                      'client' => null,
+                      'url' => env('EMAIL_TRANSPORT_DEFAULT_URL', null),
+                  ],
+              ],
+          ];
+          APPLOCAL
+
+      - name: Install Composer dependencies
+        run: cd app && composer install --no-interaction --prefer-dist
+
+      - name: Install Node dependencies
+        run: cd app && npm install --no-audit --no-fund
+
+      - name: Build frontend assets
+        run: cd app && npm run dev
+
+      - name: Ensure databases exist
+        run: mysql -h 127.0.0.1 -u root -proot -e "CREATE DATABASE IF NOT EXISTS kmp; CREATE DATABASE IF NOT EXISTS kmp_test;"
+
+      - name: Wait for Mailpit
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8025/api/v1/info >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Mailpit did not become ready on http://127.0.0.1:8025" >&2
+          exit 1
+
+      - name: Install Playwright browser
+        run: cd app && npx playwright install --with-deps chromium
+
+      - name: Run Playwright journey tests
+        run: cd app && npm run test:ui:journey
+
+      - name: Upload Playwright journey artifacts
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-journey-artifacts
+          path: |
+            app/tests/ui-reports
+            app/tests/ui-results

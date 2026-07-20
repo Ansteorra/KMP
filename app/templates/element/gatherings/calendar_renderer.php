@@ -78,7 +78,7 @@ if ($identity) {
                         <span><?= __('I\'m Attending') ?></span>
                     </div>
                     <div class="d-flex align-items-center gap-2">
-                        <span class="badge bg-info"><i class="bi bi-geo-alt"></i></span>
+                        <span class="badge bg-info text-dark"><i class="bi bi-geo-alt"></i></span>
                         <span><?= __('Has Location') ?></span>
                     </div>
                     <div class="d-flex align-items-center gap-2">

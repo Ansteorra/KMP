@@ -1,0 +1,96 @@
+{
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
+    "nodes": {
+        "trigger": {
+            "type": "trigger",
+            "label": "Bulk Bestowal Transition Requested",
+            "config": {
+                "event": "Awards.BestowalBulkTransitionRequested"
+            },
+            "position": {
+                "x": 50,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "bulk-transition"
+                }
+            ]
+        },
+        "bulk-transition": {
+            "type": "action",
+            "label": "Bulk Transition Bestowals",
+            "config": {
+                "action": "Awards.BulkTransitionBestowals",
+                "params": {
+                    "bestowalIds": "$.trigger.bestowalIds",
+                    "targetState": "$.trigger.targetState",
+                    "data": "$.trigger.data",
+                    "actorId": "$.trigger.actorId"
+                }
+            },
+            "position": {
+                "x": 350,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "bulk-succeeded"
+                }
+            ]
+        },
+        "bulk-succeeded": {
+            "type": "condition",
+            "label": "Bulk Transition Succeeded?",
+            "config": {
+                "condition": "Core.FieldEquals",
+                "field": "$.nodes.bulk-transition.result.success",
+                "value": true
+            },
+            "position": {
+                "x": 650,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "end-success",
+                    "label": "Transitioned"
+                },
+                {
+                    "port": "false",
+                    "target": "end-failed",
+                    "label": "Failed"
+                }
+            ]
+        },
+        "end-success": {
+            "type": "end",
+            "label": "Bulk Transition Complete",
+            "config": {
+                "result": "$.nodes.bulk-transition.result"
+            },
+            "position": {
+                "x": 950,
+                "y": 225
+            },
+            "outputs": []
+        },
+        "end-failed": {
+            "type": "end",
+            "label": "Bulk Transition Failed",
+            "config": {
+                "result": "$.nodes.bulk-transition.result"
+            },
+            "position": {
+                "x": 950,
+                "y": 375
+            },
+            "outputs": []
+        }
+    },
+    "startNode": "trigger"
+}

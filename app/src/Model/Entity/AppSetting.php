@@ -37,6 +37,9 @@ class AppSetting extends BaseEntity
         if (($this->type ?? 'string') === 'password' || $this->name === 'Backup.encryptionKey') {
             return '';
         }
+        if (in_array($this->type ?? 'string', ['file', 'image'], true)) {
+            return '';
+        }
 
         switch ($this->type) {
             case 'json':
@@ -127,6 +130,17 @@ class AppSetting extends BaseEntity
         if (($this->type ?? 'string') === 'password' || $this->name === 'Backup.encryptionKey') {
             return '********';
         }
+        if (in_array($this->type ?? 'string', ['file', 'image'], true)) {
+            $payload = $this->decodedAssetPayload();
+            if ($payload !== null) {
+                return sprintf(
+                    '[%s: %s, %s bytes]',
+                    ucfirst((string)$this->type),
+                    (string)$payload['filename'],
+                    (string)($payload['size'] ?? 'unknown'),
+                );
+            }
+        }
 
         $value = $this->value;
 
@@ -147,5 +161,24 @@ class AppSetting extends BaseEntity
         }
 
         return $stringValue;
+    }
+
+    /**
+     * Decode stored asset metadata for grid display.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function decodedAssetPayload(): ?array
+    {
+        if (!is_string($this->value) || $this->value === '') {
+            return null;
+        }
+
+        $payload = json_decode($this->value, true);
+        if (!is_array($payload) || ($payload['storage'] ?? null) !== 'database') {
+            return null;
+        }
+
+        return $payload;
     }
 }

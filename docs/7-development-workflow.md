@@ -114,6 +114,21 @@ vendor/bin/phpunit --filter testIndex tests/TestCase/Controller/MembersControlle
 vendor/bin/phpunit --coverage-html tmp/coverage
 ```
 
+For the current repo-level testing contract, use these higher-level entry points before review:
+
+```bash
+cd /workspaces/KMP/app
+
+# Standard local verification (PHPUnit, Jest, Vite, PHPCS, PHPStan)
+bash bin/verify.sh
+
+# Add focused coverage hardening for security/authorization-heavy work
+bash bin/verify.sh --with-coverage
+
+# Add focused mutation analysis for security/authorization-heavy work
+bash bin/verify.sh --with-mutation
+```
+
 ### JavaScript Tests
 
 ```bash
@@ -122,9 +137,41 @@ cd /workspaces/KMP/app
 # Unit tests (Jest)
 npm run test:js
 
-# UI/E2E tests (Playwright)
+# Fast browser smoke lane (used by PR gates)
+npm run test:ui:smoke
+
+# Full browser regression lane (used for UAT/nightly validation)
 npm run test:ui
+
+# Focused JS coverage for security-critical controllers
+npm run test:js:coverage:security
+
+# Focused JS mutation analysis
+npm run test:mutate
 ```
+
+Before opening a PR, declare the affected coverage layers using the repo testing contract in `app/docs/testing-suite.md`. Code changes should normally finish with `bash bin/verify.sh`, and any change that declares E2E or critical-path browser coverage must also run `npm run test:ui` because `bin/verify.sh` does not currently execute Playwright.
+
+### Playwright Helper Patterns
+
+When adding new browser coverage, reuse the shared helpers instead of duplicating waits or environment parsing:
+
+- `tests/ui/support/test-environment.cjs` - shared base URL, Mailpit, and DB cleanup config
+- `tests/ui/support/ui-helpers.cjs` - shared login, tab, network-idle, and visibility helpers
+- `app/bin/run-playwright-lane.sh` - standard smoke vs UAT Playwright entrypoint
+
+Prefer event-, locator-, or response-driven waits over `waitForTimeout(...)`, and add new domain-specific step definitions under `tests/ui/bdd/<domain>/steps.js`.
+
+### Future Feature Testing Checklist
+
+For every feature, bug fix, or risky refactor:
+
+1. Declare the required test layers using `app/docs/testing-suite.md`.
+2. Add the lowest-level reliable coverage first (PHP unit/feature or Jest).
+3. Add Playwright coverage for critical-path or cross-page workflows.
+4. Run `bash bin/verify.sh`.
+5. If the change is security-, authorization-, or workflow-heavy, also run `bash bin/verify.sh --with-coverage` and `bash bin/verify.sh --with-mutation`.
+6. If the change declares browser-critical coverage, run `npm run test:ui:smoke` for fast validation and `npm run test:ui` for release-path validation.
 
 ### Test Structure
 

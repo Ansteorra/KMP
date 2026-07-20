@@ -9,10 +9,10 @@
  * 
  * Features:
  * - Block-based content organization with configurable sections
- * - Laravel Mix asset integration with automatic versioning
+ * - Vite asset integration with automatic versioning
  * - Bootstrap UI framework support with responsive design
  * - CSRF protection and security headers
- * - Turbo framework integration for enhanced navigation
+ * - Hotwired Turbo (Frames and Streams; Drive disabled in app/assets/js/index.js)
  * - Configurable meta tags and application settings
  * - Flash message system integration
  * - Modular script and stylesheet loading
@@ -33,14 +33,14 @@
  * 
  * Asset Loading Strategy:
  * - Core assets loaded in head for immediate availability
- * - Bundle splitting with manifest, core, controllers, and index chunks
- * - AssetMix helper provides cache-busting and optimization
+ * - Bundle splitting with core vendor chunk and application chunks
+ * - Vite helper provides cache-busting via content hashes
  * - CSRF token embedded for AJAX request protection
  * 
  * Integration Points:
  * - KMP helper for block management and application settings
  * - Flash component for user notifications
- * - AssetMix helper for Laravel Mix asset compilation
+ * - Vite helper for asset compilation and versioning
  * - CakePHP URL helper for base URL generation
  * - Bootstrap UI framework for consistent styling
  * 
@@ -66,7 +66,7 @@
  * @var string|null $modals Modal dialog content
  * 
  * @see \App\View\Helper\KmpHelper For block management and application settings
- * @see \AssetMix\View\Helper\AssetMixHelper For asset compilation integration
+ * @see \App\View\Helper\ViteHelper For asset compilation integration
  * @see /templates/layout/TwitterBootstrap/ For specialized layout variants
  */
 
@@ -155,7 +155,7 @@ $this->prepend(
 );
 
 echo $this->KMP->startBlock("css");
-echo $this->AssetMix->css('app');
+echo $this->Vite->css('app');
 $this->KMP->endBlock();
 
 /**
@@ -163,10 +163,8 @@ $this->KMP->endBlock();
  * Change popper.min and bootstrap.min to use the compressed version
  */
 echo $this->KMP->startBlock("topscript");
-echo $this->AssetMix->script('manifest');
-echo $this->AssetMix->script('core');
-echo $this->AssetMix->script('controllers');
-echo $this->AssetMix->script('index');
+echo $this->Vite->script('controllers');
+echo $this->Vite->script('index');
 $this->KMP->endBlock();
 
 ?>
@@ -191,6 +189,7 @@ $this->KMP->endBlock();
 
 <?php
 echo $this->fetch("tb_body_start");
+echo '<a class="visually-hidden-focusable position-absolute top-0 start-0 z-3 m-2 p-2 bg-body border rounded" href="#main-content">' . __('Skip to main content') . '</a>';
 echo $this->fetch("tb_flash");
 if (!empty($impersonationState)) {
     $startedAgo = null;
@@ -227,7 +226,13 @@ if (!empty($impersonationState)) {
     </div>
 <?php
 }
-echo $this->fetch("content");
+if ($this->fetch("main_content_wrapped")) {
+    echo $this->fetch("content");
+} else {
+    echo '<main id="main-content" tabindex="-1">';
+    echo $this->fetch("content");
+    echo '</main>';
+}
 echo $this->fetch("tb_footer");
 echo $this->fetch("modals");
 echo $this->fetch("tb_body_end");

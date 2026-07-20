@@ -198,12 +198,11 @@ class BasePolicy implements BeforePolicyInterface
 
             return false;
         }
-        //check if we have a grant source to check
-        if ($grantSource != null && $policyMethodData->entity_type != 'Direct Grant') {
-            if (
-                $grantSource->entity_type != $policyMethodData->entity_type
-                || $grantSource->entity_id != $policyMethodData->entity_id
-            ) {
+        if ($entity instanceof BaseEntity && $branchId == null) {
+            $branchId = $entity->getBranchId();
+        }
+        if ($grantSource != null) {
+            if (!$this->_matchesGrantSource($policyMethodData, $grantSource, $branchId)) {
                 Log::write('debug', 'Grant source does not match policy method data');
                 Log::write('debug', 'User: ' . $user->getIdentifier());
                 Log::write('debug', 'Policy class: ' . $policyClass);
@@ -218,9 +217,6 @@ class BasePolicy implements BeforePolicyInterface
 
         //we check and filter by branch id if the call is not for a table
         if ($entity instanceof BaseEntity || $branchId != null) {
-            if ($branchId == null) {
-                $branchId = $entity->getBranchId();
-            }
             if (empty($branchId)) {
                 return true;
             }
@@ -266,12 +262,8 @@ class BasePolicy implements BeforePolicyInterface
         if (empty($policyMethodData)) {
             return false;
         }
-        //check if we have a grant source to check
-        if ($grantSource != null && $policyMethodData->entity_type != 'Direct Grant') {
-            if (
-                $grantSource->entity_type != $policyMethodData->entity_type
-                || $grantSource->entity_id != $policyMethodData->entity_id
-            ) {
+        if ($grantSource != null) {
+            if (!$this->_matchesGrantSource($policyMethodData, $grantSource, $branchId)) {
                 return false;
             }
         }
@@ -326,6 +318,56 @@ class BasePolicy implements BeforePolicyInterface
         }
 
         return $policies;
+    }
+
+    /**
+     * Check whether a policy method was granted by a compatible source entity.
+     *
+     * @param object $policyMethodData Policy method authorization data
+     * @param object $grantSource Source entity being checked
+     * @param int|null $branchId Branch context for the authorization check
+     * @return bool
+     */
+    protected function _matchesGrantSource(object $policyMethodData, object $grantSource, ?int $branchId = null): bool
+    {
+        $sources = $policyMethodData->grant_sources ?? [
+            (object)[
+                'entity_type' => $policyMethodData->entity_type ?? null,
+                'entity_id' => $policyMethodData->entity_id ?? null,
+                'branch_ids' => $policyMethodData->branch_ids ?? null,
+            ],
+        ];
+
+        foreach ($sources as $source) {
+            if (($source->entity_type ?? null) === 'Direct Grant') {
+                return true;
+            }
+
+            if (
+                ($source->entity_type ?? null) == ($grantSource->entity_type ?? null)
+                && ($source->entity_id ?? null) == ($grantSource->entity_id ?? null)
+            ) {
+                return $this->_grantSourceIncludesBranch($source, $branchId);
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check whether a matching source grants the requested branch.
+     *
+     * @param object $source Matching grant source
+     * @param int|null $branchId Branch context for the authorization check
+     * @return bool
+     */
+    protected function _grantSourceIncludesBranch(object $source, ?int $branchId): bool
+    {
+        if ($branchId === null || !property_exists($source, 'branch_ids') || $source->branch_ids === null) {
+            return true;
+        }
+
+        return in_array($branchId, $source->branch_ids);
     }
 
     /**

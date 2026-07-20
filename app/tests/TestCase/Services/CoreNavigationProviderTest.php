@@ -159,4 +159,18 @@ class CoreNavigationProviderTest extends BaseTestCase
             $this->assertIsInt($item['order']);
         }
     }
+
+    public function testNavigationDoesNotIncludeStaleEmailTemplateDiscoverLink(): void
+    {
+        $member = $this->getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID);
+        $items = CoreNavigationProvider::getNavigationItems($member);
+
+        foreach ($items as $item) {
+            $url = $item['url'] ?? [];
+            $this->assertFalse(
+                ($url['controller'] ?? null) === 'EmailTemplates' && ($url['action'] ?? null) === 'discover',
+                'Core navigation should not include the stale EmailTemplates discover link.',
+            );
+        }
+    }
 }

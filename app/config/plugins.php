@@ -1,6 +1,6 @@
 <?php
 
-return [
+$plugins = [
     'DebugKit' => [
         'onlyDebug' => true,
         'optional' => true,
@@ -17,7 +17,6 @@ return [
     'Muffin/Trash' => [],
     'BootstrapUI' => [],
     'Bootstrap' => [],
-    'AssetMix' => [],
     'Authentication' => [],
     'Authorization' => [],
     'ADmad/Glide' => [],
@@ -43,3 +42,9 @@ return [
     //    'migrationOrder' => 6,
     //],
 ];
+
+if (($_SERVER['HTTP_X_KMP_E2E'] ?? '') === '1') {
+    unset($plugins['DebugKit']);
+}
+
+return $plugins;

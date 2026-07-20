@@ -22,6 +22,27 @@ declare(strict_types=1);
 require __DIR__ . DIRECTORY_SEPARATOR . "paths.php";
 
 /*
+ * Trust reverse-proxy TLS termination when TRUST_PROXY=true (e.g. Azure
+ * Container Apps, AWS ALB, Nginx ingress). Azure's ingress sets
+ * X-Forwarded-Proto: https; without this, CakePHP generates http://
+ * Location headers which violates CSP `form-action 'self'` after POST
+ * redirects.
+ */
+$trustedProxies = array_values(array_filter(array_map(
+    'trim',
+    explode(",", (string)(getenv("TRUSTED_PROXY_IPS") ?: ($_ENV["TRUSTED_PROXY_IPS"] ?? ""))),
+)));
+$remoteAddr = (string)($_SERVER["REMOTE_ADDR"] ?? "");
+if (
+    (getenv("TRUST_PROXY") === "true" || ($_ENV["TRUST_PROXY"] ?? null) === "true")
+    && ($trustedProxies === [] || in_array($remoteAddr, $trustedProxies, true))
+    && empty($_SERVER["HTTPS"])
+    && (($_SERVER["HTTP_X_FORWARDED_PROTO"] ?? "") === "https")
+) {
+    $_SERVER["HTTPS"] = "on";
+}
+
+/*
  * Bootstrap CakePHP.
  *
  * Does the various bits of setup that CakePHP needs to do.
@@ -67,10 +88,16 @@ require CAKE . "functions.php";
  * security risks. See https://github.com/josegonzalez/php-dotenv#general-security-information
  * for more information for recommended practices.
  */
-if (!env("APP_NAME") && file_exists(CONFIG . ".env")) {
+$loadLocalDotenv = file_exists(CONFIG . ".env")
+    && (
+        !env("APP_NAME")
+        || env("KMP_ENV") === "local"
+        || filter_var(env("KMP_LOAD_DOTENV", false), FILTER_VALIDATE_BOOLEAN)
+    );
+if ($loadLocalDotenv) {
     $overwrite = true;
     $dotenv = new \josegonzalez\Dotenv\Loader([CONFIG . ".env"]);
-    $dotenv->parse()->putenv($overwrite)->toEnv()->toServer();
+    $dotenv->parse()->putenv($overwrite)->toEnv($overwrite)->toServer($overwrite);
 }
 
 Configure::write("CakePdf", [
@@ -108,6 +135,9 @@ if (file_exists(CONFIG . "app_local.php")) {
 
 if (file_exists(CONFIG . "app_queue.php")) {
     Configure::load("app_queue", "default");
+}
+if (file_exists(CONFIG . "secrets.php")) {
+    Configure::load("secrets", "default");
 }
 
 #if (Configure::read('debug')) {

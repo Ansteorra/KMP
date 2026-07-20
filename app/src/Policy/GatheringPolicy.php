@@ -53,6 +53,68 @@ class GatheringPolicy extends BasePolicy
     }
 
     /**
+     * Check if user can create scheduled activities for a gathering.
+     *
+     * Users can create scheduled activities if they can edit the gathering, are
+     * a steward for the gathering, or have the dedicated schedule creation policy.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user
+     * @param \App\Model\Entity\BaseEntity $entity The gathering entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
+    public function canCreateScheduledActivity(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        return $this->canEdit($user, $entity, ...$optionalArgs)
+            || $this->_hasPolicy($user, __FUNCTION__, $entity);
+    }
+
+    /**
+     * Check if user can edit a scheduled activity on a gathering.
+     *
+     * Full gathering editors and stewards can edit any schedule row. Dedicated
+     * court schedule managers can edit only rows they created.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user
+     * @param \App\Model\Entity\BaseEntity $entity The gathering entity
+     * @param mixed ...$optionalArgs First argument should be a scheduled activity
+     * @return bool
+     */
+    public function canEditScheduledActivity(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        $scheduledActivity = $optionalArgs[0] ?? null;
+        if ($scheduledActivity === null || (int)($scheduledActivity->gathering_id ?? 0) !== (int)($entity->id ?? 0)) {
+            return false;
+        }
+
+        if ($this->canEdit($user, $entity)) {
+            return true;
+        }
+
+        if (!$this->_hasPolicy($user, __FUNCTION__, $entity)) {
+            return false;
+        }
+
+        $createdBy = $scheduledActivity->created_by ?? null;
+        $userId = $user->getIdentifier();
+
+        return $createdBy !== null && $userId !== null && (int)$createdBy === (int)$userId;
+    }
+
+    /**
+     * Check if user can edit an activity description on a gathering.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user
+     * @param \App\Model\Entity\BaseEntity $entity The gathering entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
+    public function canEditActivityDescription(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        return $this->canEdit($user, $entity, ...$optionalArgs);
+    }
+
+    /**
      * Check if user can cancel.
      *
      * @param \App\KMP\KmpIdentityInterface $user
@@ -147,7 +209,9 @@ class GatheringPolicy extends BasePolicy
 
         // Check if user is a steward for this gathering
         if ($entity instanceof BaseEntity) {
-            return $this->_isGatheringSteward($user, $entity);
+            return $this->_isGatheringSteward($user, $entity)
+                || $this->canCreateScheduledActivity($user, $entity)
+                || $this->_hasPolicy($user, 'canEditScheduledActivity', $entity);
         }
 
         return false;
@@ -186,5 +250,25 @@ class GatheringPolicy extends BasePolicy
             ->first();
 
         return $stewardRecord !== null;
+    }
+
+    /**
+     * Check if user can publish the gathering
+     *
+     * Users can publish the gathering if they have the standard publish permission
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user
+     * @param \App\Model\Entity\BaseEntity $entity The gathering entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
+    public function canPublish(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        // Check standard permission first
+        if ($this->_hasPolicy($user, __FUNCTION__, $entity)) {
+            return true;
+        }
+
+        return false;
     }
 }

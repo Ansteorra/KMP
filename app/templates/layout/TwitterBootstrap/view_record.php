@@ -91,6 +91,8 @@
 
 use Cake\Core\Configure;
 
+$this->assign('main_content_wrapped', '1');
+
 $this->prepend(
     'tb_body_attrs',
     ' class="' .
@@ -112,7 +114,14 @@ $url = $fullBaseUrl . '/keepalive';
 
     <header class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
         <div class="navbar-brand col-md-3 col-lg-2 me-0 px-3">
-            <?= $this->Html->image($this->KMP->getAppSetting('KMP.BannerLogo'), [
+            <button class="sidebar-toggle-btn d-none d-md-inline-block me-1" type="button"
+                data-controller="sidebar-toggle"
+                data-action="click->sidebar-toggle#toggle"
+                title="Toggle sidebar"
+                aria-label="Toggle sidebar">
+                <i class="bi bi-chevron-bar-left" data-sidebar-toggle-target="icon"></i>
+            </button>
+            <?= $this->Html->image($this->KMP->assetUrl($this->KMP->getAppSetting('KMP.BannerLogo')), [
                 'alt' => 'Logo',
                 'height' => '24',
                 'class' => 'd-inline-block mb-1',
@@ -133,14 +142,14 @@ $url = $fullBaseUrl . '/keepalive';
                 if (count($parts) > 1) {
                     $css = $parts[1];
                 }
-            ?>
+                ?>
             <li class="nav-item text-nowrap mx-1">
                 <a class="btn btn-outline-secondary <?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
             </li>
             <?php endforeach; ?>
             <li class="nav-item text-nowrap mx-1">
                 <?= $this->Html->link(
-                    '<i class="bi bi-phone"></i> ' . __("Mobile"),
+                    '<i class="bi bi-phone"></i> ' . __('Mobile'),
                     ['controller' => 'App', 'action' => 'switchView', 'plugin' => null, '?' => ['mode' => 'mobile']],
                     ['class' => 'btn btn-outline-secondary', 'escape' => false, 'title' => __('Switch to mobile view')],
                 ) ?>
@@ -171,7 +180,7 @@ $url = $fullBaseUrl . '/keepalive';
                 </div>
             </nav>
 
-            <main role="main" class="col-md-9 ms-sm-auto col-lg-10 px-md-4 my-3">
+            <main id="main-content" tabindex="-1" class="col-md-9 ms-sm-auto col-lg-10 px-md-4 my-3">
                 <div class="row align-items-start">
                     <div class="col">
                         <h3>
@@ -234,7 +243,9 @@ $this->KMP->endBlock();
 if (!$this->fetch('tb_flash')) {
     echo $this->KMP->startBlock('tb_flash');
     if (isset($this->Flash)) {
+        echo '<div id="flash-messages">';
         echo $this->Flash->render();
+        echo '</div>';
     }
     $this->KMP->endBlock();
 }

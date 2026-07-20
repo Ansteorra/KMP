@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace App\KMP\GridColumns;
 
+use App\KMP\TimezoneHelper as TzHelper;
 use App\Model\Entity\ActiveWindowBaseEntity;
 use App\Model\Entity\Warrant;
-use Cake\I18n\FrozenDate;
 
 /**
  * Warrants Grid Column Metadata
@@ -199,10 +199,12 @@ class WarrantsGridColumns extends BaseGridColumns
      */
     public static function getSystemViews(array $options = []): array
     {
-        $today = FrozenDate::today();
-        $todayString = $today->format('Y-m-d');
-        $tomorrowString = $today->addDays(1)->format('Y-m-d');
-        $yesterdayString = $today->subDays(1)->format('Y-m-d');
+        // Use kingdom's configured timezone for "today" boundaries
+        $kingdomTz = TzHelper::getAppTimezone() ?? 'UTC';
+        $now = new \DateTime('now', new \DateTimeZone($kingdomTz));
+        $todayString = $now->format('Y-m-d');
+        $tomorrowString = (clone $now)->modify('+1 day')->format('Y-m-d');
+        $yesterdayString = (clone $now)->modify('-1 day')->format('Y-m-d');
 
         return [
             'sys-warrants-current' => [
@@ -255,6 +257,7 @@ class WarrantsGridColumns extends BaseGridColumns
                             ['field' => 'status', 'operator' => 'in', 'value' => [
                                 Warrant::DEACTIVATED_STATUS,
                                 Warrant::EXPIRED_STATUS,
+                                Warrant::DECLINED_STATUS,
                             ]],
                         ],
                     ],
@@ -262,6 +265,7 @@ class WarrantsGridColumns extends BaseGridColumns
                         ['field' => 'status', 'operator' => 'in', 'value' => [
                             Warrant::DEACTIVATED_STATUS,
                             Warrant::EXPIRED_STATUS,
+                            Warrant::DECLINED_STATUS,
                         ]],
                         ['field' => 'expires_on', 'operator' => 'dateRange', 'value' => [null, $yesterdayString]],
                     ],

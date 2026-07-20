@@ -5,11 +5,11 @@ layout: default
 
 # 2. Getting Started
 
-This section guides developers through the process of setting up the Kingdom Management Portal (KMP) for development using Dev Containers.
+This section guides developers through the process of setting up the Kingdom Management Portal (KMP) for local development using Docker Compose.
 
 ## 2.1 Installation
 
-KMP uses Dev Containers to provide a consistent, fully-configured development environment. This approach eliminates the need to manually install PHP, MySQL, Node.js, or any other dependencies on your local machine.
+KMP uses Docker Compose as the default local development environment. Your source code stays in the local repository folder, while PHP, Apache, MariaDB, Mailpit, Node, Xdebug, queue processing, and scheduled CakePHP jobs run in containers.
 
 ### Prerequisites
 
@@ -19,128 +19,112 @@ Before you begin, install the following:
    - Windows/Mac: Install Docker Desktop
    - Linux: Install Docker Engine and Docker Compose
 
-2. **[Visual Studio Code](https://code.visualstudio.com/)** - Code editor
+2. **A code editor** - VS Code is supported, but not required
 
-3. **[Dev Containers Extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)** - VS Code extension for container-based development
-
-> **Tip:** You can install the Dev Containers extension by searching for "Dev Containers" in the VS Code Extensions panel or by pressing `Ctrl+P` and running `ext install ms-vscode-remote.remote-containers`.
-
-### Option 1: Open Directly from GitHub (Recommended)
-
-The fastest way to start developing is to open the repository directly in a Dev Container without cloning first.
-
-#### Step 1: Open Repository in Dev Container
-
-1. Open VS Code
-2. Press `F1` (or `Ctrl+Shift+P` / `Cmd+Shift+P`) to open the Command Palette
-3. Type and select: **Dev Containers: Clone Repository in Container Volume...**
-4. Enter the repository URL: `https://github.com/Ansteorra/KMP`
-5. Select the branch you want to work on (e.g., `main`)
-6. VS Code will clone the repository into a Docker volume and open it in a Dev Container
-
-**Why use a container volume?** Cloning into a Docker volume provides significantly better file system performance compared to bind-mounting your local file system, especially on Windows and macOS.
-
-#### Step 2: Wait for Container Initialization
-
-The Dev Container will automatically:
-- Build the container image with PHP 8.x, MySQL, and Node.js
-- Install all PHP dependencies via Composer
-- Install all Node.js packages via npm
-- Initialize and seed the development database
-- Run database migrations
-
-Watch the VS Code terminal for progress. The container is ready when you see the VS Code window fully load with the project files.
-
-### Option 2: Clone First, Then Open in Container
-
-If you prefer to have the repository on your local file system:
-
-#### Step 1: Clone the Repository
+### Step 1: Clone the Repository
 
 ```bash
 git clone https://github.com/Ansteorra/KMP.git
 cd KMP
 ```
 
-#### Step 2: Open in VS Code
+### Step 2: Start the Local Stack
 
 ```bash
-code .
+./dev-up.sh --build
 ```
 
-#### Step 3: Reopen in Container
-
-When VS Code opens, you'll see a notification in the bottom-right corner:
-
-> **Folder contains a Dev Container configuration file. Reopen folder to develop in a container.**
-
-Click **"Reopen in Container"** to start the Dev Container.
-
-Alternatively:
-1. Press `F1` to open the Command Palette
-2. Type and select: **Dev Containers: Reopen in Container**
-
-### Option 3: Open from GitHub.com
-
-You can also start a Dev Container directly from the GitHub website:
-
-1. Navigate to the [KMP GitHub repository](https://github.com/Ansteorra/KMP)
-2. Click the green **"Code"** button
-3. Select the **"Local"** tab
-4. Click **"Open with VS Code"** (requires the [GitHub Repositories extension](https://marketplace.visualstudio.com/items?itemName=GitHub.remotehub))
-
-Or use the direct URL pattern:
-```
-vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/Ansteorra/KMP
-```
+If `app/config/.env` does not exist yet, `./dev-up.sh` creates it from `app/config/.env.example`. After the app is healthy, it runs `./dev-reset-db.sh --seed` by default so the database matches the current code and seeded dev users. After the first build, use `./dev-up.sh` for normal startup.
 
 ### First-Time Setup Verification
 
-After the container initializes, verify everything is working:
+After Docker Compose initializes, verify everything is working:
 
-1. **Check the terminal** - You should see successful completion messages
-2. **Verify the database** - The development database should be seeded with test data
-3. **Check forwarded ports** - Look at the "Ports" tab in VS Code (usually port 8080)
+1. **Check the terminal** - `./dev-up.sh` should print the app, Mailpit, database, and cron log locations.
+2. **Verify the app** - Open http://localhost:8080.
+3. **Verify services** - Run `docker compose ps`.
+4. **Check scheduled jobs** - Run `docker compose exec app tail -f /var/log/cron.log` to inspect queue and cron output.
 
 If you need to manually reset the development environment:
 
 ```bash
 # From the repository root
-./reset_dev_database.sh
+./dev-reset-db.sh
 ```
 
 This script will:
-- Drop and recreate the development database
-- Load seed data from `dev_seed_clean.sql`
-- Apply all pending migrations
+- Drop and recreate the development and test databases
+- Run migrations and `updateDatabase`
+- Load `dev_seed_clean.sql` when you pass `--seed`
 - Reset all member passwords to `TestPassword`
+- Print member emails that exist after reset (without `--seed`, usually `admin@test.com`; with `--seed`, includes `admin@amp.ansteorra.org`)
 
 ### Accessing the Application
 
-Once the Dev Container is running, the application is available at:
+Once Docker Compose is running, the application is available at:
 
 **http://localhost:8080**
 
-VS Code automatically forwards the container's port 8080 to your local machine. You can see all forwarded ports in the **"Ports"** tab at the bottom of VS Code.
+Mailpit is available at **http://localhost:8025** and MariaDB is available at **127.0.0.1:3306** by default.
+
+To test multiple local hostnames, add entries to `/etc/hosts`:
+
+```text
+127.0.0.1 kmp.localhost kmp2.localhost platform.kmp.localhost
+```
+
+Then open http://kmp.localhost:8080, http://kmp2.localhost:8080, or
+http://platform.kmp.localhost:8080 when the platform-admin portal is enabled.
+
+### Running Commands
+
+Run Composer, CakePHP, npm, tests, and other tooling inside the app container:
+
+```bash
+docker compose exec app composer install
+docker compose exec app bin/cake migrations status
+docker compose exec app npm run build
+docker compose exec app vendor/bin/phpunit
+```
+
+### Xdebug
+
+Xdebug is configured for port `9003` with container-to-host callbacks through `host.docker.internal`. The VS Code launch configuration maps `/var/www/html` in the container to `${workspaceFolder}/app` on the host. Start an IDE listener and trigger debugging with an `XDEBUG_TRIGGER` cookie/query parameter or browser extension.
+
+### Scheduled Local Jobs
+
+The Docker scheduler service owns all background work. With tenancy enabled it
+polls `bin/cake platform schedule due`; stored schedules fan out workflow,
+maintenance, backup, platform-job, default-queue, and tenant-queue processing.
+In single-database/legacy cron mode, the equivalent commands are:
+
+- `bin/cake queue run -q` every 2 minutes
+- `bin/cake workflow_scheduler` every minute
+- `bin/cake sync_active_window_statuses` every 15 minutes
+- `bin/cake sync_member_warrantable_statuses` daily
+- `bin/cake age_up_members` daily
 
 ### Troubleshooting Container Startup
 
 **Container fails to build:**
 - Ensure Docker Desktop is running
 - Check available disk space (containers need several GB)
-- Try rebuilding: `F1` → **Dev Containers: Rebuild Container**
+- Try rebuilding: `./dev-up.sh --build`
 
 **Database connection errors:**
-- Wait for the MySQL service to fully initialize (can take 30-60 seconds)
-- Run `./reset_dev_database.sh` to reinitialize
+- Wait for MariaDB to fully initialize
+- Run `./dev-reset-db.sh` to reinitialize
 
 **Port 8080 already in use:**
 - Stop other services using port 8080
-- Or modify the port forwarding in `.devcontainer/devcontainer.json`
+- Or set `KMP_APP_PORT` in `app/config/.env`
 
-**Slow file system performance (Windows/macOS):**
-- Use Option 1 (Clone Repository in Container Volume) for best performance
-- Container volumes are significantly faster than bind mounts on non-Linux systems
+**Cron jobs are noisy while debugging:**
+- Set `KMP_SKIP_CRON=true` in `app/config/.env` and restart with `./dev-up.sh`
+
+### Optional Devcontainer
+
+The `.devcontainer/` configuration remains available as optional legacy tooling. Docker Compose is the default local development path. Avoid running both environments at the same time unless you change ports, because they can compete for host bindings.
 
 ## 2.2 Configuration
 
@@ -171,14 +155,18 @@ The container environment creates a database with these settings pre-populated.
 
 ### Environment Variables
 
-In the Dev Container environment, environment variables are pre-configured in the container definition:
+In the Docker Compose environment, variables are configured in `app/config/.env`:
 
-- `DEBUG`: Set to `true` for development environments
-- `APP_ENCODING`: Set to `UTF-8`
-- `APP_DEFAULT_LOCALE`: Set to `en_US`
-- `SECURITY_SALT`: Automatically generated
+- `KMP_APP_PORT`: App host port, default `8080`
+- `KMP_DB_HOST_PORT`: MariaDB host port, default `3306`
+- `KMP_MAILPIT_WEB_PORT`: Mailpit UI host port, default `8025`
+- `KMP_HOST_ALIASES`: Space-separated local hostnames printed by `./dev-up.sh`
+- `XDEBUG_MODE`, `XDEBUG_CLIENT_HOST`, `XDEBUG_CLIENT_PORT`: Xdebug runtime settings
+- `KMP_SKIP_CRON`: Set to `true` to disable local cron startup
+- `KMP_RESET_DB_ON_UP`: Set to `false` to skip the automatic `dev-reset-db.sh` run after startup
+- `KMP_RESET_DB_ON_UP_ARGS`: Arguments passed to `dev-reset-db.sh`, default `--seed`
 
-You can modify these variables by editing the `.devcontainer/devcontainer.json` file or the `config/.env` file within the container.
+See [Docker Development](docker-development.md) for the complete local Docker reference.
 
 ## 2.3 CakePHP Basics
 
@@ -237,34 +225,31 @@ sequenceDiagram
 
 ### Development Workflow in Containers
 
-When working in containerized environments, you can use the CakePHP CLI tools directly without additional setup:
+When working with the local Docker stack, run CakePHP CLI tools through the app container:
 
 ```bash
-# Start the development server (already running in container)
-bin/cake server
-
 # Create a migration
-bin/cake bake migration CreateNewTable
+docker compose exec app bin/cake bake migration CreateNewTable
 
 # Apply migrations
-bin/cake migrations migrate
+docker compose exec app bin/cake migrations migrate
 
 # Generate code (controller, model, etc.)
-bin/cake bake controller MyController
+docker compose exec app bin/cake bake controller MyController
 
 # List all routes
-bin/cake routes
+docker compose exec app bin/cake routes
 ```
 
-These commands are executed within the container environment, ensuring consistency across all development setups.
+These commands execute inside the container environment, ensuring consistency without requiring PHP dependencies on the host.
 
 ### Container-Specific Tools
 
 The development container includes additional scripts to simplify common tasks:
 
 ```bash
-# Reset development database (drops, reseeds, migrates, resets passwords)
-./reset_dev_database.sh
+# Reset Docker development database
+./dev-reset-db.sh
 
 # Update from upstream repository
 ./merge_from_upstream.sh

@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 /**
@@ -42,7 +41,7 @@ class AppController extends BaseController
         // if needed for shared functionality across all Officers controllers
 
         // Service container access is available for Officers plugin services:
-        // - OfficerManagerInterface for officer assignment business logic
+        // - OfficerManagerInterface for officer recalculation and release logic
         // - ActiveWindowManager for temporal assignment management
         // - WarrantManager for warrant lifecycle operations
 

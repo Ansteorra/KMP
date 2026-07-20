@@ -51,6 +51,11 @@ class Member extends BaseEntity implements
     use MemberAuthorizationsTrait;
 
     /**
+     * @var \Authorization\AuthorizationServiceInterface|null
+     */
+    protected ?AuthorizationServiceInterface $authorization = null;
+
+    /**
      * @var array|null Cached permissions
      */
     protected ?array $_permissions = null;
@@ -59,6 +64,16 @@ class Member extends BaseEntity implements
      * @var array|null Cached permission IDs
      */
     protected ?array $_permissionIDs = null;
+
+    /**
+     * @var array|null Request-cached unfiltered policies
+     */
+    protected ?array $_policies = null;
+
+    /**
+     * @var array<string, array> Request-cached branch-filtered policies
+     */
+    protected array $_branchPolicies = [];
 
     /**
      * @var \Cake\I18n\DateTime|null Last permissions update
@@ -340,6 +355,9 @@ class Member extends BaseEntity implements
                 // if the above fails, then the url is not to a controller that maps to a table
                 return $this->authorization->checkCan($this, $url['action'], $url);
             }
+            if ($tableClass === self::class && isset($url[0]) && (int)$url[0] === (int)$this->id) {
+                return $this->authorization->checkCan($this, $url['action'], $this);
+            }
             if (isset($url[0])) {
                 $entity = $table->get($url[0]);
             } else {
@@ -454,9 +472,11 @@ class Member extends BaseEntity implements
      */
     public function getPermissions(): array
     {
-        $permissions = PermissionsLoader::getPermissions($this->id);
+        if ($this->_permissions === null) {
+            $this->_permissions = PermissionsLoader::getPermissions($this->id);
+        }
 
-        return $permissions;
+        return $this->_permissions;
     }
 
     /**
@@ -466,9 +486,11 @@ class Member extends BaseEntity implements
      */
     public function getPermissionIDs(): array
     {
-        $permissionIDs = Hash::extract(PermissionsLoader::getPermissions($this->id), '{n}.id');
+        if ($this->_permissionIDs === null) {
+            $this->_permissionIDs = Hash::extract($this->getPermissions(), '{n}.id');
+        }
 
-        return $permissionIDs;
+        return $this->_permissionIDs;
     }
 
     /**
@@ -479,15 +501,22 @@ class Member extends BaseEntity implements
      */
     public function getPolicies(?array $branchIds = null): array
     {
-        if ($branchIds == null || empty($branchIds)) {
-            $policies = PermissionsLoader::getPolicies($this->id);
+        if ($branchIds === null || $branchIds === []) {
+            if ($this->_policies === null) {
+                $this->_policies = PermissionsLoader::getPolicies($this->id);
+            }
 
-            return $policies;
-        } else {
-            $policies = PermissionsLoader::getPolicies($this->id, $branchIds);
-
-            return $policies;
+            return $this->_policies;
         }
+
+        $normalizedBranchIds = array_values(array_unique(array_map('intval', $branchIds)));
+        sort($normalizedBranchIds);
+        $cacheKey = implode(',', $normalizedBranchIds);
+        if (!array_key_exists($cacheKey, $this->_branchPolicies)) {
+            $this->_branchPolicies[$cacheKey] = PermissionsLoader::getPolicies($this->id, $normalizedBranchIds);
+        }
+
+        return $this->_branchPolicies[$cacheKey];
     }
 
     /**
@@ -809,15 +838,14 @@ class Member extends BaseEntity implements
      */
     protected function _getAge(): ?int
     {
-        $now = new DateTime();
-        $date = new DateTime();
         if ($this->birth_month == null) {
             return null;
         }
         if ($this->birth_year == null) {
             return null;
         }
-        $date = $date->setDate($this->birth_year, $this->birth_month, 1);
+        $now = new DateTime('today');
+        $date = new DateTime(sprintf('%04d-%02d-01', $this->birth_year, $this->birth_month));
         $interval = $now->diff($date);
 
         return $interval->y;

@@ -119,39 +119,42 @@ describe('CsvDownloadController', () => {
         expect(global.fetch).toHaveBeenCalled();
     });
 
-    test('download alerts when no URL provided', async () => {
+    test('download announces when no URL provided', async () => {
         controller.urlValue = '';
         controller.element.removeAttribute('href');
         controller.element.removeAttribute('data-url');
 
-        const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
         const event = { preventDefault: jest.fn() };
         await controller.download(event);
 
-        expect(alertSpy).toHaveBeenCalledWith('No CSV URL provided.');
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith('No CSV URL provided.', { assertive: true });
     });
 
-    test('download alerts on fetch error', async () => {
+    test('download announces on fetch error', async () => {
         global.fetch = jest.fn().mockResolvedValue({
             ok: false,
             status: 500
         });
 
-        const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
         const event = { preventDefault: jest.fn() };
         await controller.download(event);
 
-        expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('Error downloading CSV'));
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith(
+            expect.stringContaining('Error downloading CSV'),
+            { assertive: true }
+        );
     });
 
-    test('download alerts on network error', async () => {
+    test('download announces on network error', async () => {
         global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
 
-        const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
         const event = { preventDefault: jest.fn() };
         await controller.download(event);
 
-        expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('Network error'));
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith(
+            expect.stringContaining('Network error'),
+            { assertive: true }
+        );
     });
 
     test('download falls back to href attribute when no urlValue', async () => {

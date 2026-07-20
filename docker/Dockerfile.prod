@@ -10,32 +10,32 @@
 # Expected app-image build time: 5-10 min (vs ~90 min previously).
 
 # Base image with all PHP extensions pre-compiled.
-# Falls back to php:8.3-apache-bookworm if the base image hasn't been built yet.
-ARG BASE_IMAGE=ghcr.io/jhandel/kmp-base:php83
+# Falls back to the prebuilt PHP 8.4 base image when no override is supplied.
+ARG BASE_IMAGE=ghcr.io/jhandel/kmp-base:php84
 ARG APP_VERSION=dev
+ARG NODE_VERSION=24.15.0
 
 # =============================================================================
 # Stage 1: Frontend assets
 # --platform=$BUILDPLATFORM: always runs on the CI runner's native arch (amd64)
-# No QEMU penalty for Node.js/webpack even in multi-platform builds.
+# No QEMU penalty for Node.js/Vite even in multi-platform builds.
 # =============================================================================
-FROM --platform=$BUILDPLATFORM node:20-alpine AS node-builder
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS node-builder
 
 WORKDIR /build
 
 # Layer-cache npm installs separately from app code
 COPY app/package.json app/package-lock.json ./
-COPY app/patches ./patches
 RUN npm ci --no-audit --no-fund
 
-# Copy everything webpack needs
+# Copy everything Vite needs
 COPY app/assets ./assets
 COPY app/plugins ./plugins
-COPY app/webpack.mix.js ./
+COPY app/vite.config.js ./
 COPY app/webroot ./webroot
 
-RUN npm run prod
-# Result: /build/webroot/ has compiled JS, CSS, fonts, and mix-manifest.json
+RUN npm run build
+# Result: /build/webroot/ has compiled JS, CSS, fonts, and .vite/manifest.json
 
 # =============================================================================
 # Stage 2: PHP dependencies
@@ -100,7 +100,27 @@ RUN mkdir -p \
     /var/www/html/logs \
     /var/www/html/tmp \
     /var/www/html/images/uploaded \
-    /var/www/html/images/cache
+    /var/www/html/images/cache \
+    /opt/kmp
+
+# Expose plugin webroot assets directly through Apache; AssetMiddleware remains
+# as a runtime fallback for development and unusual plugin layouts.
+RUN for plugin_webroot in plugins/*/webroot; do \
+        [ -d "$plugin_webroot" ] || continue; \
+        plugin_name="$(basename "$(dirname "$plugin_webroot")" | tr '[:upper:]' '[:lower:]')"; \
+        ln -sfn "../$plugin_webroot" "webroot/$plugin_name"; \
+    done
+
+# Bundle the dev seed + reset script so the Azure nightly "reset" job can
+# restore a known demo state inside the container (no external dump load).
+# These are not served by Apache (outside DocumentRoot).
+# Bundled nightly seed payload (engine-agnostic encrypted backup). The
+# directory is copied whole so the image still builds when the .kmpbackup
+# hasn't been baked yet — reset-and-seed.sh will fail fast with a helpful
+# message if someone tries to run a data restore in that state.
+COPY deploy/azure/seed/ /opt/kmp/seed/
+COPY docker/reset-and-seed.sh /opt/kmp/reset-and-seed.sh
+RUN chmod +x /opt/kmp/reset-and-seed.sh
 
 VOLUME ["/var/www/html/logs", "/var/www/html/tmp", "/var/www/html/images/uploaded", "/var/www/html/images/cache"]
 
@@ -108,8 +128,8 @@ RUN chown -R www-data:www-data /var/www/html
 
 EXPOSE 80
 
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=60s \
-    CMD curl -f http://localhost/health || exit 1
+HEALTHCHECK --interval=60s --timeout=2s --retries=3 --start-period=60s \
+    CMD curl -f http://localhost/livez || exit 1
 
 COPY docker/entrypoint.prod.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh

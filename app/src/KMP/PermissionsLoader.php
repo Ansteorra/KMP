@@ -6,6 +6,7 @@ namespace App\KMP;
 use App\Model\Entity\Member;
 use App\Model\Entity\Permission;
 use App\Model\Entity\Warrant;
+use App\Services\Cache\TenantAwareCache;
 use Cake\Cache\Cache;
 use Cake\Database\Expression\IdentifierExpression;
 use Cake\I18n\DateTime;
@@ -39,9 +40,9 @@ class PermissionsLoader
     public static function getPermissions(int $memberId): array
     {
         // 1. Cache Strategy - Check for cached permissions first
-        $cacheKey = 'member_permissions' . $memberId;
+        $cacheKey = TenantAwareCache::tenantScopedKey('member_permissions' . $memberId);
         $cache = Cache::read($cacheKey, 'member_permissions');
-        if ($cache) {
+        if (is_array($cache) && $cache !== []) {
             return $cache; // Return cached result if available
         }
 
@@ -73,11 +74,16 @@ class PermissionsLoader
         foreach ($query as $permission) {
             // Extract role assignment context from matching data
             $branch_id = $permission->_matchingData['MemberRoles']->branch_id;
+            $branch_id = $branch_id === null ? null : (int)$branch_id;
             $entity_id = $permission->_matchingData['MemberRoles']->entity_id;
+            $entity_id = $entity_id === null ? null : (int)$entity_id;
             $entity_type = $permission->_matchingData['MemberRoles']->entity_type;
+            $sourceBranchIds = self::buildBranchScopeIds($branchTable, $permission->scoping_rule, $branch_id);
 
             // Check if permission already exists (from multiple role assignments)
             if (isset($permissions[$permission->id])) {
+                self::addGrantSource($permissions[$permission->id], $entity_type, $entity_id, $sourceBranchIds);
+
                 // Merge branch access based on scoping rule
                 switch ($permission->scoping_rule) {
                     case Permission::SCOPE_GLOBAL:
@@ -109,6 +115,7 @@ class PermissionsLoader
                     'branch_ids' => [],
                     'entity_id' => $entity_id,
                     'entity_type' => $entity_type,
+                    'grant_sources' => self::buildGrantSources($entity_type, $entity_id, $sourceBranchIds),
                 ];
 
                 // 5. Policy Framework Integration
@@ -141,9 +148,94 @@ class PermissionsLoader
         }
 
         // 6. Cache Result for Performance
-        Cache::write($cacheKey, $permissions, 'member_permissions');
+        if ($permissions !== []) {
+            Cache::write($cacheKey, $permissions, 'member_permissions');
+        }
 
         return $permissions;
+    }
+
+    /**
+     * Get the active roles held by a member, with branch scope.
+     *
+     * Companion to {@see self::getPermissions()} so callers can resolve a member's
+     * roles (and the branches each role is assigned in) through the same cached,
+     * temporally-validated path instead of querying `member_roles` directly. Only
+     * current (started, not expired) and non-revoked role assignments are returned.
+     *
+     * Roles have no scoping rule of their own, so `branch_ids` lists the exact
+     * branch(es) where the member holds the role. Use a coverage check such as
+     * `in_array($branchId, $role->branch_ids, true)` to test a branch-scoped match.
+     *
+     * Results are cached with key `member_roles{memberId}` in the `member_permissions`
+     * config (security group), so role/permission/member-role writes invalidate them
+     * alongside {@see self::getPermissions()}.
+     *
+     * @param int $memberId The member ID to load roles for.
+     * @return array<int, object> Role objects keyed by role ID: {id, name, branch_ids}.
+     */
+    public static function getRoles(int $memberId): array
+    {
+        // 1. Cache Strategy - Check for cached roles first
+        $cacheKey = TenantAwareCache::tenantScopedKey('member_roles' . $memberId);
+        $cache = Cache::read($cacheKey, 'member_permissions');
+        if (is_array($cache) && $cache !== []) {
+            return $cache;
+        }
+
+        // 2. Query current, non-revoked role assignments for the member
+        $memberRolesTable = TableRegistry::getTableLocator()->get('MemberRoles');
+        $now = DateTime::now();
+
+        $rows = $memberRolesTable->find()
+            ->innerJoinWith('Roles')
+            ->select([
+                'role_id' => 'MemberRoles.role_id',
+                'branch_id' => 'MemberRoles.branch_id',
+                'role_name' => 'Roles.name',
+            ])
+            ->where([
+                'MemberRoles.member_id' => $memberId,
+                'MemberRoles.start_on <=' => $now, // Role assignment has started
+                'OR' => [
+                    'MemberRoles.expires_on IS' => null, // Permanent assignment
+                    'MemberRoles.expires_on >=' => $now, // Or not yet expired
+                ],
+                'MemberRoles.revoker_id IS' => null, // Exclude explicitly revoked assignments
+            ])
+            ->enableHydration(false)
+            ->all()
+            ->toList();
+
+        // 3. Merge assignments into role objects, collecting assignment branches
+        $roles = [];
+        foreach ($rows as $row) {
+            $roleId = (int)($row['role_id'] ?? 0);
+            if ($roleId <= 0) {
+                continue;
+            }
+            if (!isset($roles[$roleId])) {
+                $roles[$roleId] = (object)[
+                    'id' => $roleId,
+                    'name' => (string)($row['role_name'] ?? ''),
+                    'branch_ids' => [],
+                ];
+            }
+            $branchId = $row['branch_id'];
+            if ($branchId !== null) {
+                $branchId = (int)$branchId;
+                if (!in_array($branchId, $roles[$roleId]->branch_ids, true)) {
+                    $roles[$roleId]->branch_ids[] = $branchId;
+                }
+            }
+        }
+
+        // 4. Cache Result for Performance
+        if ($roles !== []) {
+            Cache::write($cacheKey, $roles, 'member_permissions');
+        }
+
+        return $roles;
     }
 
     /**
@@ -159,10 +251,13 @@ class PermissionsLoader
     public static function getPolicies($id, ?array $branchIds = null): array
     {
         // 1. Cache Strategy - Check for cached policy mappings
-        $cacheKey = 'permissions_policies' . $id;
-        $cache = Cache::read($cacheKey, 'member_permissions');
-        if ($cache) {
-            return $cache; // Return cached result if available
+        $useCache = $branchIds === null || empty($branchIds);
+        $cacheKey = TenantAwareCache::tenantScopedKey('permissions_policies' . $id);
+        if ($useCache) {
+            $cache = Cache::read($cacheKey, 'member_permissions');
+            if (is_array($cache) && $cache !== []) {
+                return $cache; // Return cached result if available
+            }
         }
 
         // 2. Load Base Permissions - Get complete permission set
@@ -187,8 +282,14 @@ class PermissionsLoader
                                 'branch_ids' => $permission->branch_ids,
                                 'entity_id' => $permission->entity_id,
                                 'entity_type' => $permission->entity_type,
+                                'grant_sources' => $permission->grant_sources ?? self::buildGrantSources(
+                                    $permission->entity_type,
+                                    $permission->entity_id,
+                                ),
                             ];
                         } else {
+                            self::mergeGrantSources($policies[$policyClass][$method], $permission);
+
                             // Merge multiple permissions for same policy method
                             if ($permission->scoping_rule == Permission::SCOPE_GLOBAL) {
                                 // Global permissions override all branch restrictions
@@ -247,9 +348,130 @@ class PermissionsLoader
         }
 
         // 8. Cache Result for Performance
-        Cache::write($cacheKey, $policies, 'member_permissions');
+        if ($useCache) {
+            if ($policies !== []) {
+                Cache::write($cacheKey, $policies, 'member_permissions');
+            }
+        }
 
         return $policies;
+    }
+
+    /**
+     * Build the grant-source list for a role assignment.
+     *
+     * @param string|null $entityType Entity type recorded on the role assignment
+     * @param int|null $entityId Entity ID recorded on the role assignment
+     * @param array<int>|null $branchIds Branch IDs granted by this source, or null for global scope
+     * @return array<int, object>
+     */
+    private static function buildGrantSources(?string $entityType, ?int $entityId, ?array $branchIds = null): array
+    {
+        if ($entityType === null && $entityId === null) {
+            return [];
+        }
+
+        return [
+            (object)[
+                'entity_type' => $entityType,
+                'entity_id' => $entityId,
+                'branch_ids' => $branchIds,
+            ],
+        ];
+    }
+
+    /**
+     * Build branch IDs granted by one role assignment for a permission scope.
+     *
+     * @param \Cake\ORM\Table $branchTable Branch table used for descendant lookup
+     * @param string $scopingRule Permission scoping rule
+     * @param int|null $branchId Role-assignment branch ID
+     * @return array<int>|null Null means global branch scope
+     */
+    private static function buildBranchScopeIds($branchTable, string $scopingRule, ?int $branchId): ?array
+    {
+        switch ($scopingRule) {
+            case Permission::SCOPE_GLOBAL:
+                return null;
+            case Permission::SCOPE_BRANCH_ONLY:
+                return $branchId === null ? [] : [$branchId];
+            case Permission::SCOPE_BRANCH_AND_CHILDREN:
+                if ($branchId === null) {
+                    return [];
+                }
+                $decendents = $branchTable->getAllDecendentIds($branchId);
+                $decendents[] = $branchId;
+
+                return array_unique($decendents);
+        }
+
+        return [];
+    }
+
+    /**
+     * Add a grant source to an accumulated permission object.
+     *
+     * @param object $target Permission or policy object receiving sources
+     * @param string|null $entityType Entity type recorded on the role assignment
+     * @param int|null $entityId Entity ID recorded on the role assignment
+     * @param array<int>|null $branchIds Branch IDs granted by this source, or null for global scope
+     * @return void
+     */
+    private static function addGrantSource(
+        object $target,
+        ?string $entityType,
+        ?int $entityId,
+        ?array $branchIds = null,
+    ): void {
+        if ($entityType === null && $entityId === null) {
+            return;
+        }
+
+        if (!isset($target->grant_sources)) {
+            $target->grant_sources = self::buildGrantSources($target->entity_type ?? null, $target->entity_id ?? null);
+        }
+
+        foreach ($target->grant_sources as $source) {
+            if ($source->entity_type === $entityType && $source->entity_id === $entityId) {
+                if (($source->branch_ids ?? null) === null || $branchIds === null) {
+                    $source->branch_ids = null;
+                } else {
+                    $source->branch_ids = array_unique(array_merge($source->branch_ids, $branchIds));
+                }
+
+                return;
+            }
+        }
+
+        $target->grant_sources[] = (object)[
+            'entity_type' => $entityType,
+            'entity_id' => $entityId,
+            'branch_ids' => $branchIds,
+        ];
+    }
+
+    /**
+     * Merge grant sources from a permission into a policy method object.
+     *
+     * @param object $target Policy method object receiving sources
+     * @param object $permission Permission object providing sources
+     * @return void
+     */
+    private static function mergeGrantSources(object $target, object $permission): void
+    {
+        $sources = $permission->grant_sources ?? self::buildGrantSources(
+            $permission->entity_type ?? null,
+            $permission->entity_id ?? null,
+        );
+
+        foreach ($sources as $source) {
+            self::addGrantSource(
+                $target,
+                $source->entity_type ?? null,
+                $source->entity_id ?? null,
+                $source->branch_ids ?? null,
+            );
+        }
     }
 
     /**
@@ -275,7 +497,7 @@ class PermissionsLoader
         // 3. Build Subquery with Validation Chain
         $subquery = $permissionsTable
             ->find()
-            ->cache('permissions_members' . $permissionId, 'permissions_structure');
+            ->cache(TenantAwareCache::tenantScopedKey('permissions_members' . $permissionId), 'permissions_structure');
 
         // Apply comprehensive validation chain (same as getPermissions)
         $subquery = self::validPermissionClauses($subquery)
@@ -535,9 +757,9 @@ class PermissionsLoader
     public static function getServicePrincipalPermissions(int $servicePrincipalId): array
     {
         // 1. Cache Strategy - Check for cached permissions first
-        $cacheKey = 'sp_permissions_' . $servicePrincipalId;
+        $cacheKey = TenantAwareCache::tenantScopedKey('sp_permissions_' . $servicePrincipalId);
         $cache = Cache::read($cacheKey, 'member_permissions');
-        if ($cache) {
+        if (is_array($cache)) {
             return $cache;
         }
 
@@ -579,10 +801,15 @@ class PermissionsLoader
 
         foreach ($query as $permission) {
             $branch_id = $permission->_matchingData['ServicePrincipalRoles']->branch_id;
+            $branch_id = $branch_id === null ? null : (int)$branch_id;
             $entity_id = $permission->_matchingData['ServicePrincipalRoles']->entity_id;
+            $entity_id = $entity_id === null ? null : (int)$entity_id;
             $entity_type = $permission->_matchingData['ServicePrincipalRoles']->entity_type;
+            $sourceBranchIds = self::buildBranchScopeIds($branchTable, $permission->scoping_rule, $branch_id);
 
             if (isset($permissions[$permission->id])) {
+                self::addGrantSource($permissions[$permission->id], $entity_type, $entity_id, $sourceBranchIds);
+
                 switch ($permission->scoping_rule) {
                     case Permission::SCOPE_GLOBAL:
                         break;
@@ -608,6 +835,7 @@ class PermissionsLoader
                     'branch_ids' => [],
                     'entity_id' => $entity_id,
                     'entity_type' => $entity_type,
+                    'grant_sources' => self::buildGrantSources($entity_type, $entity_id, $sourceBranchIds),
                 ];
 
                 if ($permission->permission_policies) {
@@ -652,10 +880,13 @@ class PermissionsLoader
     public static function getServicePrincipalPolicies(int $servicePrincipalId, ?array $branchIds = null): array
     {
         // 1. Cache Strategy
-        $cacheKey = 'sp_policies_' . $servicePrincipalId;
-        $cache = Cache::read($cacheKey, 'member_permissions');
-        if ($cache) {
-            return $cache;
+        $useCache = $branchIds === null || empty($branchIds);
+        $cacheKey = TenantAwareCache::tenantScopedKey('sp_policies_' . $servicePrincipalId);
+        if ($useCache) {
+            $cache = Cache::read($cacheKey, 'member_permissions');
+            if (is_array($cache)) {
+                return $cache;
+            }
         }
 
         // 2. Load Base Permissions
@@ -677,8 +908,14 @@ class PermissionsLoader
                                 'branch_ids' => $permission->branch_ids,
                                 'entity_id' => $permission->entity_id,
                                 'entity_type' => $permission->entity_type,
+                                'grant_sources' => $permission->grant_sources ?? self::buildGrantSources(
+                                    $permission->entity_type,
+                                    $permission->entity_id,
+                                ),
                             ];
                         } else {
+                            self::mergeGrantSources($policies[$policyClass][$method], $permission);
+
                             if ($permission->scoping_rule == Permission::SCOPE_GLOBAL) {
                                 $policies[$policyClass][$method]->branch_ids = null;
                                 $policies[$policyClass][$method]->scoping_rule = Permission::SCOPE_GLOBAL;
@@ -731,7 +968,9 @@ class PermissionsLoader
         }
 
         // 8. Cache Result
-        Cache::write($cacheKey, $policies, 'member_permissions');
+        if ($useCache) {
+            Cache::write($cacheKey, $policies, 'member_permissions');
+        }
 
         return $policies;
     }

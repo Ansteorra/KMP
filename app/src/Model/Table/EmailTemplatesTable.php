@@ -47,18 +47,19 @@ class EmailTemplatesTable extends Table
     }
 
     /**
-     * Configure database schema with JSON field support
+     * Configure database schema with JSON field support for available_vars and variables_schema.
      *
-     * Extends the base schema configuration to properly handle JSON fields,
-     * specifically the available_vars field used for storing template variable metadata.
-     * This ensures proper data type handling and serialization for JSON content.
-     *
-     * @return \Cake\Database\Schema\TableSchemaInterface Configured schema with JSON field types
+     * @return \Cake\Database\Schema\TableSchemaInterface
      */
     public function getSchema(): TableSchemaInterface
     {
         $schema = parent::getSchema();
-        $schema->setColumnType('available_vars', 'json');
+        if ($schema->hasColumn('available_vars')) {
+            $schema->setColumnType('available_vars', 'json');
+        }
+        if ($schema->hasColumn('variables_schema')) {
+            $schema->setColumnType('variables_schema', 'json');
+        }
 
         return $schema;
     }
@@ -71,24 +72,28 @@ class EmailTemplatesTable extends Table
      */
     public function validationDefault(Validator $validator): Validator
     {
+        // --- Workflow-native slug identity ---
         $validator
-            ->scalar('mailer_class')
-            ->maxLength('mailer_class', 255)
-            ->requirePresence('mailer_class', 'create')
-            ->notEmptyString('mailer_class', 'Please specify the Mailer class')
-            ->add('mailer_class', 'validClass', [
-                'rule' => function ($value) {
-                    return class_exists($value);
-                },
-                'message' => 'The specified Mailer class does not exist',
-            ]);
+            ->scalar('slug')
+            ->maxLength('slug', 100)
+            ->requirePresence('slug', 'create')
+            ->notEmptyString('slug', 'Please provide a slug')
+            ->regex(
+                'slug',
+                '/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
+                'Slug must contain only lowercase letters, digits, and hyphens',
+            );
 
         $validator
-            ->scalar('action_method')
-            ->maxLength('action_method', 255)
-            ->requirePresence('action_method', 'create')
-            ->notEmptyString('action_method', 'Please specify the action method');
+            ->scalar('name')
+            ->maxLength('name', 255)
+            ->allowEmptyString('name');
 
+        $validator
+            ->scalar('description')
+            ->allowEmptyString('description');
+
+        // --- Template content ---
         $validator
             ->scalar('subject_template')
             ->maxLength('subject_template', 500)
@@ -104,7 +109,6 @@ class EmailTemplatesTable extends Table
             ->allowEmptyString('text_template')
             ->add('text_template', 'atLeastOne', [
                 'rule' => function ($value, $context) {
-                    // At least one of html_template or text_template must be provided
                     return !empty($value) || !empty($context['data']['html_template']);
                 },
                 'message' => 'Either HTML template or text template must be provided',
@@ -118,12 +122,10 @@ class EmailTemplatesTable extends Table
                         return true;
                     }
 
-                    // Accept arrays (will be auto-converted to JSON by the json type)
                     if (is_array($value)) {
                         return true;
                     }
 
-                    // Accept valid JSON strings
                     if (is_string($value)) {
                         json_decode($value);
 
@@ -136,6 +138,29 @@ class EmailTemplatesTable extends Table
             ]);
 
         $validator
+            ->allowEmptyString('variables_schema')
+            ->add('variables_schema', 'validJsonOrArray', [
+                'rule' => function ($value) {
+                    if (empty($value)) {
+                        return true;
+                    }
+
+                    if (is_array($value)) {
+                        return true;
+                    }
+
+                    if (is_string($value)) {
+                        json_decode($value);
+
+                        return json_last_error() === JSON_ERROR_NONE;
+                    }
+
+                    return false;
+                },
+                'message' => 'Variables schema must be valid JSON or an array',
+            ]);
+
+        $validator
             ->boolean('is_active')
             ->notEmptyString('is_active');
 
@@ -143,74 +168,57 @@ class EmailTemplatesTable extends Table
     }
 
     /**
-     * Returns a rules checker object that will be used for validating
-     * application integrity.
+     * Returns a rules checker object that will be used for validating application integrity.
      *
      * @param \Cake\ORM\RulesChecker $rules The rules object to be modified.
      * @return \Cake\ORM\RulesChecker
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        // Ensure unique combination of mailer_class and action_method
         $rules->add(
-            $rules->isUnique(
-                ['mailer_class', 'action_method'],
-                'A template for this mailer and action already exists',
-            ),
-            ['errorField' => 'action_method'],
+            function ($entity) {
+                if (empty($entity->slug)) {
+                    return true;
+                }
+
+                $query = $this->find()->where(['slug' => $entity->slug]);
+
+                if (!$entity->isNew()) {
+                    $query->where(['id !=' => $entity->id]);
+                }
+
+                return !$query->count();
+            },
+            [
+                'errorField' => 'slug',
+                    'message' => 'A template with this slug already exists',
+            ],
         );
 
         return $rules;
     }
 
     /**
-     * Find template for a specific mailer class and action
+     * Find an active template by its workflow-native slug.
      *
-     * @param string $mailerClass Fully qualified mailer class name
-     * @param string $actionMethod Action method name
+     * @param string $slug Template slug
      * @return \App\Model\Entity\EmailTemplate|null
      */
-    public function findForMailer(string $mailerClass, string $actionMethod): ?object
+    public function findForSlug(string $slug): ?object
     {
         return $this->find()
-            ->where([
-                'mailer_class' => $mailerClass,
-                'action_method' => $actionMethod,
-                'is_active' => true,
-            ])
+            ->where(['slug' => $slug, 'is_active' => true])
             ->first();
     }
 
     /**
-     * Get all active templates
+     * Custom finder for active templates.
      *
+     * @param \Cake\ORM\Query\SelectQuery $query
      * @return \Cake\ORM\Query\SelectQuery
      */
     public function findActive(SelectQuery $query): SelectQuery
     {
         return $query->where(['is_active' => true]);
-    }
-
-    /**
-     * Get templates grouped by mailer class
-     *
-     * @return array
-     */
-    public function getTemplatesByMailer(): array
-    {
-        $templates = $this->find()
-            ->orderBy(['mailer_class' => 'ASC', 'action_method' => 'ASC'])
-            ->all();
-
-        $grouped = [];
-        foreach ($templates as $template) {
-            $className = $template->mailer_class;
-            if (!isset($grouped[$className])) {
-                $grouped[$className] = [];
-            }
-            $grouped[$className][] = $template;
-        }
-
-        return $grouped;
     }
 }

@@ -1,5 +1,4 @@
 import { Controller } from "@hotwired/stimulus"
-import EasyMDE from "easymde"
 
 /**
  * Email Template Editor Controller
@@ -32,7 +31,8 @@ class EmailTemplateEditorController extends Controller {
         this.editor = null
     }
 
-    connect() {
+    async connect() {
+        const { default: EasyMDE } = await import('easymde')
         // Initialize EasyMDE on the textarea
         this.editor = new EasyMDE({
             element: this.editorTarget,
@@ -106,21 +106,28 @@ class EmailTemplateEditorController extends Controller {
     /**
      * Show variable insertion menu
      */
-    showVariableMenu(editor) {
+    async showVariableMenu(editor) {
         // Get cursor position
         const cm = editor.codemirror;
         const cursor = cm.getCursor();
         
         // Create a simple prompt with variable options
         const varNames = this.variablesValue.map(v => v.name).join(', ');
-        const selectedVar = prompt(`Available variables:\n${varNames}\n\nEnter variable name to insert:`);
+        const selectedVar = await window.KMP_accessibility.prompt(
+            `Available variables: ${varNames}`,
+            {
+                title: 'Insert variable',
+                inputLabel: 'Variable name',
+                confirmLabel: 'Insert',
+            },
+        );
         
         if (selectedVar) {
             const variable = this.variablesValue.find(v => v.name === selectedVar);
             if (variable) {
                 cm.replaceSelection(`{{${variable.name}}}`);
             } else {
-                alert('Invalid variable name');
+                window.KMP_accessibility.announce('Invalid variable name', { assertive: true });
             }
         }
     }

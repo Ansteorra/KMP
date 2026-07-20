@@ -29,7 +29,7 @@ namespace App\Model\Entity;
  * - Configurable number of required approvals (approvals_required field)
  * - Real-time approval count tracking (approval_count field)
  * - Automatic status determination based on approval workflow state
- * - Integration with WarrantRosterApproval entities for detailed tracking
+ * - Integration with workflow engine for detailed approval tracking
  * - Support for decline actions that immediately affect roster status
  *
  * **Status Management System:**
@@ -47,7 +47,7 @@ namespace App\Model\Entity;
  * - Supports organizational scheduling and resource management
  *
  * **Approval Workflow Integration:**
- * - Links to WarrantRosterApproval entities for detailed approval tracking
+ * - Links to workflow engine for detailed approval tracking
  * - Supports multiple authorized signers with individual approval records
  * - Provides hasRequiredApprovals() method for workflow status checking
  * - Enables administrative oversight of approval progress
@@ -119,19 +119,13 @@ namespace App\Model\Entity;
  *     ->toArray();
  *
  * // Approval workflow management
- * $approvalsTable = TableRegistry::getTableLocator()->get('WarrantRosterApprovals');
- * $pendingApprovals = $approvalsTable->find()
- *     ->where([
- *         'warrant_roster_id' => $rosterId,
- *         'approved' => null  // Pending approvals
- *     ])
- *     ->contain(['Members'])
- *     ->toArray();
+ * // Approval tracking is now handled by the workflow engine
+ * // See WorkflowApprovals and WorkflowApprovalResponses tables
  * ```
  *
  * **Integration Points:**
  * - **Warrants**: Multiple warrants belong to a single roster
- * - **WarrantRosterApprovals**: Detailed approval tracking records
+ * - **WorkflowApprovals**: Detailed approval tracking records (via workflow engine)
  * - **Members**: Creator and modifier tracking through audit trail
  * - **Authorization System**: Integration with KMP RBAC for signer validation
  * - **Temporal System**: Coordinate with warrant period management
@@ -151,7 +145,7 @@ namespace App\Model\Entity;
  *
  * @see \App\Model\Table\WarrantRostersTable For roster data management
  * @see \App\Model\Entity\Warrant For individual warrant functionality
- * @see \App\Model\Entity\WarrantRosterApproval For approval tracking
+ * @see \App\Services\ApprovalContext\WarrantRosterApprovalContextRenderer For approval context
  * @property int $id
  * @property string $name
  * @property string $description
@@ -162,7 +156,6 @@ namespace App\Model\Entity;
  * @property int|null $created_by
  * @property \Cake\I18n\DateTime $created
  *
- * @property \App\Model\Entity\WarrantRosterApproval[] $warrant_roster_approvals
  * @property \App\Model\Entity\Warrant[] $warrants
  */
 class WarrantRoster extends BaseEntity
@@ -198,7 +191,7 @@ class WarrantRoster extends BaseEntity
      * - **approval_count**: Current approval status tracking
      * - **created_by**: Administrative accountability tracking
      * - **created**: Timestamp management for audit trail
-     * - **warrant_roster_approvals**: Associated approval records
+     * - **workflow engine**: Approval records now managed by workflow tables
      * - **warrants**: Associated warrant entities
      *
      * **Security Considerations:**
@@ -222,7 +215,6 @@ class WarrantRoster extends BaseEntity
         'approval_count' => true,
         'created_by' => true,
         'created' => true,
-        'warrant_roster_approvals' => true,
         'warrants' => true,
     ];
 
@@ -270,7 +262,7 @@ class WarrantRoster extends BaseEntity
      * ```
      *
      * **Integration Points:**
-     * - WarrantRosterApproval entities for detailed approval tracking
+     * - Workflow engine for detailed approval tracking
      * - Administrative interfaces for status display
      * - Warrant activation workflows for conditional processing
      * - Approval notification systems for workflow coordination

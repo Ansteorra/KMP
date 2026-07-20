@@ -6,6 +6,8 @@
 # [Choice] Debian version: bullseye, buster, stretch
 FROM mcr.microsoft.com/devcontainers/base:bookworm
 
+ARG NODE_VERSION=24.15.0
+
 # Install system packages and PHP repository
 RUN apt-get update && \
     apt-get install -y socat lsb-release apt-transport-https ca-certificates && \
@@ -17,13 +19,48 @@ RUN apt-get update && \
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive && \
     apt-get -y install --no-install-recommends \
     cron supervisor \
-    php8.3 php8.3-bcmath php8.3-bz2 php8.3-intl php8.3-gd php8.3-mbstring \
-    php8.3-mysql php8.3-pgsql php8.3-zip php8.3-dom php8.3-yaml php8.3-curl php8.3-sqlite \
-    php8.3-apcu php8.3-xdebug \
-    mariadb-server apache2 nodejs npm \
+    php8.4 php8.4-bcmath php8.4-bz2 php8.4-intl php8.4-gd php8.4-mbstring \
+    php8.4-mysql php8.4-pgsql php8.4-zip php8.4-dom php8.4-yaml php8.4-curl php8.4-sqlite \
+    php8.4-apcu php8.4-xdebug \
+    mariadb-server apache2 \
     patch python3-pip ruby-full build-essential zlib1g-dev \
-    default-jdk libnet-ssleay-perl perl-modules libwhisker2-perl git && \
+    default-jdk libnet-ssleay-perl perl-modules libwhisker2-perl git \
+    xz-utils gnupg && \
     rm -rf /var/lib/apt/lists/*
+
+# Install PostgreSQL 16 from the PGDG repository to match Azure Database for
+# PostgreSQL Flexible Server (deploy/azure/main.bicep pins version '16'). Both
+# the server and client are installed so the devcontainer can run PG-backed
+# tests side-by-side with MariaDB; callers switch engines via DATABASE_URL.
+RUN install -d /usr/share/postgresql-common/pgdg && \
+    curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+        https://www.postgresql.org/media/keys/ACCC4CF8.asc && \
+    echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -sc)-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list && \
+    apt-get update && export DEBIAN_FRONTEND=noninteractive && \
+    apt-get -y install --no-install-recommends \
+    postgresql-16 postgresql-client-16 postgresql-contrib-16 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Allow the vscode user to manage PostgreSQL peer-auth operations without a
+# password (mirrors the pattern used for MariaDB + Apache elsewhere in this
+# environment). Needed by .devcontainer/init_env/config_space.sh to run
+# `sudo -u postgres psql` during post-start provisioning.
+RUN echo 'vscode ALL=(postgres) NOPASSWD: ALL' > /etc/sudoers.d/vscode-postgres && \
+    chmod 0440 /etc/sudoers.d/vscode-postgres
+
+# Install Node.js from the official distribution to pin the exact version used by Vite.
+RUN ARCH=$(dpkg --print-architecture) && \
+    case "$ARCH" in \
+    amd64) NODE_ARCH="x64" ;; \
+    arm64) NODE_ARCH="arm64" ;; \
+    *) echo "Unsupported architecture for Node.js: $ARCH"; exit 1 ;; \
+    esac && \
+    curl -fsSLO "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" && \
+    tar -xJf "node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" -C /usr/local --strip-components=1 --no-same-owner && \
+    rm "node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" && \
+    node --version && \
+    npm --version
 
 # Configure Java
 RUN export JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:/bin/java::") && \
@@ -40,19 +77,19 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 RUN echo "Listen 8080" >> /etc/apache2/ports.conf && \
     a2enmod rewrite
 
-# Configure PHP 8.3 (APCu, assertions, and file upload limits)
-RUN echo "extension=apcu.so" >> /etc/php/8.3/cli/php.ini && \
-    echo "extension=apcu.so" >> /etc/php/8.3/apache2/php.ini && \
-    echo "apc.enable_cli=1" >> /etc/php/8.3/cli/php.ini && \
-    echo "zend.assertions=1" >> /etc/php/8.3/apache2/php.ini && \
-    echo "zend.assertions=1" >> /etc/php/8.3/cli/php.ini && \
-    sed -i 's/^upload_max_filesize = 2M/upload_max_filesize = 5M/' /etc/php/8.3/cli/php.ini && \
-    sed -i 's/^upload_max_filesize = 2M/upload_max_filesize = 5M/' /etc/php/8.3/apache2/php.ini && \
-    sed -i 's/^post_max_size = 8M/post_max_size = 20M/' /etc/php/8.3/cli/php.ini && \
-    sed -i 's/^post_max_size = 8M/post_max_size = 20M/' /etc/php/8.3/apache2/php.ini
+# Configure PHP 8.4 (APCu, assertions, and file upload limits)
+RUN echo "extension=apcu.so" >> /etc/php/8.4/cli/php.ini && \
+    echo "extension=apcu.so" >> /etc/php/8.4/apache2/php.ini && \
+    echo "apc.enable_cli=1" >> /etc/php/8.4/cli/php.ini && \
+    echo "zend.assertions=1" >> /etc/php/8.4/apache2/php.ini && \
+    echo "zend.assertions=1" >> /etc/php/8.4/cli/php.ini && \
+    sed -i 's/^upload_max_filesize = 2M/upload_max_filesize = 5M/' /etc/php/8.4/cli/php.ini && \
+    sed -i 's/^upload_max_filesize = 2M/upload_max_filesize = 5M/' /etc/php/8.4/apache2/php.ini && \
+    sed -i 's/^post_max_size = 8M/post_max_size = 20M/' /etc/php/8.4/cli/php.ini && \
+    sed -i 's/^post_max_size = 8M/post_max_size = 20M/' /etc/php/8.4/apache2/php.ini
 
 # Copy and configure Xdebug
-COPY init_env/20-xdebug.ini /etc/php/8.3/cli/conf.d/20-xdebug.ini
+COPY init_env/20-xdebug.ini /etc/php/8.4/cli/conf.d/20-xdebug.ini
 
 # Set up supervisor and logging
 RUN mkdir -p /var/log/supervisor && \
@@ -158,7 +195,7 @@ RUN apt-get update && \
     apt-get install -y xauth x11-apps gh && \
     rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g @anthropic-ai/claude-code @beads/bd
+RUN npm install -g @anthropic-ai/claude-code
 
 # Usage:
 # 1. On your macOS, run an X server (e.g., XQuartz) and enable network connections.

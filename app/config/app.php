@@ -17,20 +17,36 @@ declare(strict_types=1);
  * Environment-specific overrides should be in app_local.php or .env
  */
 
+use App\Services\Security\SessionCookieConfig;
 use App\KMP\Telemetry\SqlRedactor;
 use App\Log\Engine\ApplicationInsightsLog;
+use App\Log\Formatter\QueryLogFormatter;
 use Cake\Cache\Engine\ApcuEngine;
 use Cake\Cache\Engine\ArrayEngine;
 use Cake\Cache\Engine\FileEngine;
 use Cake\Cache\Engine\RedisEngine;
 use Cake\Database\Connection;
 use Cake\Database\Driver\Mysql;
+use Cake\Database\Driver\Postgres;
+use Cake\Http\Session\CacheSession;
 use Cake\Log\Engine\FileLog;
+use Cake\Mailer\Mailer;
 use Cake\Mailer\Transport\MailTransport;
 use Templating\View\Icon\BootstrapIcon;
 
 // Determine cache engine and Redis config from environment
-$cacheEngine = env('CACHE_ENGINE', 'apcu') === 'redis' ? RedisEngine::class : ApcuEngine::class;
+$runtimeEnvironment = strtolower((string)env('KMP_ENV', env('APP_ENV', '')));
+$localHttpEnvironment = in_array(
+    $runtimeEnvironment,
+    ['dev', 'development', 'local', 'test'],
+    true,
+);
+$defaultCacheEngine = $localHttpEnvironment ? 'apcu' : 'redis';
+$requestedCacheEngine = strtolower((string)env('CACHE_ENGINE', $defaultCacheEngine));
+$redisFallbackWarnings = [];
+$localFallbackCacheEngine = extension_loaded('apcu') ? ApcuEngine::class : FileEngine::class;
+$localFallbackCacheEngineName = $localFallbackCacheEngine === ApcuEngine::class ? 'APCu' : 'file cache';
+$cacheEngine = $requestedCacheEngine === 'redis' ? RedisEngine::class : ApcuEngine::class;
 $cliArgs = array_map('strtolower', $_SERVER['argv'] ?? []);
 $isSetupCommand = PHP_SAPI === 'cli' && (in_array('migrations', $cliArgs, true) || in_array('update_database', $cliArgs, true));
 if ($cacheEngine === RedisEngine::class && $isSetupCommand) {
@@ -38,13 +54,21 @@ if ($cacheEngine === RedisEngine::class && $isSetupCommand) {
 }
 $redisExtensionLoaded = extension_loaded('redis');
 if ($cacheEngine === RedisEngine::class && !$redisExtensionLoaded) {
-    $cacheEngine = ApcuEngine::class;
+    $redisFallbackWarnings[] = sprintf(
+        'CACHE_ENGINE=redis was requested but the redis PHP extension is not loaded; falling back to %s.',
+        $localFallbackCacheEngineName,
+    );
+    $cacheEngine = $localFallbackCacheEngine;
 }
 $redisConfig = [];
 if ($cacheEngine === RedisEngine::class) {
     $redisUrl = trim((string)env('REDIS_URL', ''));
     if ($redisUrl === '') {
-        $cacheEngine = ApcuEngine::class;
+        $redisFallbackWarnings[] = sprintf(
+            'CACHE_ENGINE=redis was requested but REDIS_URL is empty; falling back to %s.',
+            $localFallbackCacheEngineName,
+        );
+        $cacheEngine = $localFallbackCacheEngine;
     } else {
         $parsed = parse_url($redisUrl) ?: [];
         $redisConfig = [
@@ -53,18 +77,103 @@ if ($cacheEngine === RedisEngine::class) {
             'password' => ($parsed['pass'] ?? null) ?: env('REDIS_PASSWORD', null),
             'database' => (int)(ltrim($parsed['path'] ?? '/0', '/') ?: '0'),
             'timeout'  => 0,
-            'persistent' => false,
+            'persistent' => filter_var(
+                (string)env('REDIS_PERSISTENT', false),
+                FILTER_VALIDATE_BOOLEAN,
+            ),
+            'tls' => ($parsed['scheme'] ?? '') === 'rediss',
         ];
     }
 }
+if ($cacheEngine === ApcuEngine::class && !extension_loaded('apcu')) {
+    error_log('[KMP config] CACHE_ENGINE=apcu was requested but the apcu PHP extension is not loaded; falling back to file cache.');
+    $cacheEngine = FileEngine::class;
+}
+foreach ($redisFallbackWarnings as $redisFallbackWarning) {
+    error_log('[KMP config] ' . $redisFallbackWarning);
+}
+$databaseDriverName = strtolower((string)env('KMP_DB_DRIVER', 'mysql'));
+$databaseDriver = match ($databaseDriverName) {
+    'postgres', 'pgsql' => Postgres::class,
+    'mysql', 'mariadb', '' => Mysql::class,
+    default => throw new RuntimeException(
+        sprintf(
+            'Unsupported KMP_DB_DRIVER value "%s"; supported values are mysql, mariadb, postgres, pgsql.',
+            $databaseDriverName,
+        ),
+    ),
+};
+$isPostgres = $databaseDriver === Postgres::class;
+$defaultDatabaseName = env("DB_DATABASE", $isPostgres ? env("POSTGRES_DB", "kmp") : env("MYSQL_DB_NAME", "kmp"));
+$platformDatabaseName = env("PLATFORM_DB_DATABASE", $defaultDatabaseName . "_platform");
+$platformAdminAllowedStatuses = array_values(array_filter(array_map(
+    static fn(string $value): string => trim($value),
+    explode(',', (string)env('KMP_PLATFORM_ADMIN_ALLOWED_STATUSES', 'active')),
+)));
+$platformAdminHosts = array_values(array_filter(array_map(
+    static fn(string $value): string => strtolower(rtrim(trim($value), '.')),
+    explode(',', (string)env('KMP_PLATFORM_ADMIN_HOSTS', '')),
+)));
+$detailedPlatformAdminLoginErrorsDefault = in_array(
+    strtolower((string)env('KMP_ENV', env('APP_ENV', ''))),
+    ['dev', 'development', 'local', 'test', 'staging'],
+    true,
+);
 $restoreStatusPath = env('RESTORE_STATUS_CACHE_PATH', TMP . 'restore_status' . DS);
 if (!is_dir($restoreStatusPath)) {
-    @mkdir($restoreStatusPath, 0777, true);
+    @mkdir($restoreStatusPath, 0770, true);
 }
-@chmod($restoreStatusPath, 0777);
+@chmod($restoreStatusPath, 0770);
+$tenantHostMapCachePath = env('TENANT_HOST_MAP_CACHE_PATH', CACHE . 'tenant_host_map' . DS);
+if (!is_dir($tenantHostMapCachePath)) {
+    @mkdir($tenantHostMapCachePath, 0770, true);
+}
+@chmod($tenantHostMapCachePath, 0770);
+$tenantHostMapCacheConfig = $cacheEngine === RedisEngine::class
+    ? $redisConfig + [
+        "className" => RedisEngine::class,
+        "duration" => "+999 days",
+    ]
+    : [
+        "className" => FileEngine::class,
+        "duration" => "+999 days",
+        "path" => $tenantHostMapCachePath,
+    ];
+$restoreStatusCacheConfig = $cacheEngine === RedisEngine::class
+    ? $redisConfig + [
+        "className" => RedisEngine::class,
+        "duration" => "+2 days",
+        "prefix" => "kmp_restore_",
+    ]
+    : [
+        "className" => FileEngine::class,
+        "duration" => "+2 days",
+        "prefix" => "kmp_restore_",
+        "path" => $restoreStatusPath,
+        "mask" => 0666,
+        "dirMask" => 0770,
+    ];
+$sessionDefaults = strtolower((string)env(
+    'KMP_SESSION_DEFAULTS',
+    $cacheEngine === RedisEngine::class ? 'cache' : 'php',
+));
+$sessionHandler = $sessionDefaults === 'cache'
+    ? [
+        "engine" => CacheSession::class,
+        "config" => env('KMP_SESSION_CACHE_CONFIG', 'default'),
+    ]
+    : null;
+$dbQueryLogEnabled = filter_var(env('PERF_DB_QUERY_LOG_ENABLED', false), FILTER_VALIDATE_BOOLEAN);
 
 $appInsightsConnectionString = trim((string)env('APPINSIGHTS_CONNECTION_STRING', ''));
-$appInsightsLogEnabled = $appInsightsConnectionString !== '' &&
+$appInsightsTransport = strtolower(trim((string)env('APPINSIGHTS_TRANSPORT', 'direct')));
+$appInsightsOtlpEndpoint = $appInsightsTransport === 'otlp'
+    ? trim((string)env('OTEL_EXPORTER_OTLP_ENDPOINT', ''))
+    : '';
+$appInsightsDestinationConfigured = $appInsightsTransport === 'otlp'
+    ? $appInsightsOtlpEndpoint !== ''
+    : $appInsightsConnectionString !== '';
+$appInsightsLogEnabled = $appInsightsDestinationConfigured &&
     filter_var((string)env('APPINSIGHTS_LOG_ENABLED', false), FILTER_VALIDATE_BOOLEAN);
 $appInsightsErrorLogEnabled = $appInsightsLogEnabled &&
     filter_var((string)env('APPINSIGHTS_ERROR_LOG_ENABLED', true), FILTER_VALIDATE_BOOLEAN);
@@ -76,12 +185,58 @@ $appInsightsLogConfig = [
     'cloudRole' => env('APPINSIGHTS_CLOUD_ROLE', 'kmp'),
     'cloudRoleInstance' => env('APPINSIGHTS_CLOUD_ROLE_INSTANCE', gethostname() ?: ''),
     'timeout' => (float)env('APPINSIGHTS_LOG_TIMEOUT', 2.0),
-    'batchSize' => (int)env('APPINSIGHTS_LOG_BATCH_SIZE', 25),
+    'batchSize' => (int)env(
+        'APPINSIGHTS_LOG_BATCH_SIZE',
+        $appInsightsTransport === 'otlp' ? 512 : 25,
+    ),
+    'otlpEndpoint' => $appInsightsOtlpEndpoint,
+    'otlpTimeout' => (float)env('APPINSIGHTS_OTLP_TIMEOUT', 0.05),
 ];
 
 return [
     /** @var bool Enable debug mode - set via DEBUG environment variable */
     "debug" => filter_var(env("DEBUG", false), FILTER_VALIDATE_BOOLEAN),
+
+    /** @var array Platform metadata health/degraded-mode settings */
+    "Platform" => [
+        "health" => [
+            "retryAttempts" => (int)env("PLATFORM_HEALTH_RETRY_ATTEMPTS", 0),
+            "retryDelayMs" => (int)env("PLATFORM_HEALTH_RETRY_DELAY_MS", 0),
+        ],
+        "telemetry" => [
+            "enabled" => filter_var(env("PLATFORM_TENANT_TELEMETRY_ENABLED", true), FILTER_VALIDATE_BOOLEAN),
+            "slowRequestMs" => (int)env("PLATFORM_TENANT_SLOW_REQUEST_MS", 1000),
+        ],
+        "runtime" => [
+            "cache" => [
+                "requestedEngine" => $requestedCacheEngine,
+                "effectiveEngine" => $cacheEngine,
+            ],
+            "session" => [
+                "defaults" => $sessionDefaults,
+            ],
+        ],
+        "adminMfa" => [
+            "window" => (int)env("PLATFORM_ADMIN_TOTP_WINDOW", 1),
+            "period" => (int)env("PLATFORM_ADMIN_TOTP_PERIOD", 30),
+            "digits" => (int)env("PLATFORM_ADMIN_TOTP_DIGITS", 6),
+            "algorithm" => env("PLATFORM_ADMIN_TOTP_ALGORITHM", "sha1"),
+        ],
+        "adminPortal" => [
+            "enabled" => filter_var(env("KMP_PLATFORM_ADMIN_PORTAL_ENABLED", false), FILTER_VALIDATE_BOOLEAN),
+            "hosts" => $platformAdminHosts,
+            "allowedStatuses" => $platformAdminAllowedStatuses === []
+                ? ['active']
+                : $platformAdminAllowedStatuses,
+            "detailedLoginErrors" => filter_var(
+                env("KMP_PLATFORM_ADMIN_DETAILED_LOGIN_ERRORS", $detailedPlatformAdminLoginErrorsDefault),
+                FILTER_VALIDATE_BOOLEAN,
+            ),
+            "dataConsole" => [
+                "enabled" => filter_var(env("KMP_PLATFORM_DATA_CONSOLE_ENABLED", false), FILTER_VALIDATE_BOOLEAN),
+            ],
+        ],
+    ],
 
     /** @see docs/2-configuration.md#application-settings */
     "App" => [
@@ -181,6 +336,12 @@ return [
             'duration' => '+1 hours',
         ],
 
+        /**
+         * Platform tenant host map cache.
+         * Shared across all tenants/users and explicitly cleared when platform tenant registry changes.
+         */
+        "tenant_host_map" => $tenantHostMapCacheConfig,
+
         /** 
          * Member Permissions Cache
          * Stores individual member permission data for fast authorization checks.
@@ -215,17 +376,20 @@ return [
         ],
 
         /**
-         * Restore Status Cache
-         * Uses file cache so restore lock/progress state is shared between web and CLI.
+         * Grid Filter Options Cache
+         * Stores relatively static dropdown option lists used by dataverse grids.
+         * Short TTL keeps admin edits visible without re-querying on every frame refresh.
          */
-        "restore_status" => [
-            "className" => FileEngine::class,
-            "duration" => "+2 days",
-            "prefix" => "kmp_restore_",
-            "path" => $restoreStatusPath,
-            "mask" => 0666,
-            "dirMask" => 0777,
+        "grid_filter_options" => $redisConfig + [
+            "className" => $cacheEngine,
+            "duration" => "+10 minutes",
         ],
+
+        /**
+         * Restore Status Cache
+         * Uses Redis when available so restore lock/progress state is shared across replicas.
+         */
+        "restore_status" => $restoreStatusCacheConfig,
 
         /**
          * CakePHP Translation Cache
@@ -329,6 +493,11 @@ return [
         ],
     ],
 
+    "Queue" => [
+        // Avoid the incompatible legacy Tools mailer fallback in Queue.Email.
+        "mailerClass" => Mailer::class,
+    ],
+
     /** @see docs/2-configuration.md#database-configuration and docs/8.1-environment-setup.md#database-configuration */
     "Datasources" => [
         /**
@@ -342,23 +511,23 @@ return [
             /** @var string Connection class for database abstraction */
             "className" => Connection::class,
 
-            /** @var string Database driver (MySQL/MariaDB) */
-            "driver" => Mysql::class,
+            /** @var string Database driver selected by KMP_DB_DRIVER */
+            "driver" => $databaseDriver,
 
             /** @var string Database hostname */
             "host" => env("DB_HOST", env("MYSQL_HOST", "localhost")),
 
             /** @var int Database port */
-            "port" => env("DB_PORT", env("MYSQL_PORT", 3306)),
+            "port" => env("DB_PORT", $isPostgres ? env("POSTGRES_PORT", 5432) : env("MYSQL_PORT", 3306)),
 
             /** @var string Database username */
-            "username" => env("DB_USERNAME", env("MYSQL_USERNAME", "root")),
+            "username" => env("DB_USERNAME", $isPostgres ? env("POSTGRES_USER", "root") : env("MYSQL_USERNAME", "root")),
 
             /** @var string Database password */
-            "password" => env("DB_PASSWORD", env("MYSQL_PASSWORD", "")),
+            "password" => env("DB_PASSWORD", $isPostgres ? env("POSTGRES_PASSWORD", "") : env("MYSQL_PASSWORD", "")),
 
             /** @var string Database name */
-            "database" => env("DB_DATABASE", env("MYSQL_DB_NAME", "kmp")),
+            "database" => env("DB_DATABASE", $isPostgres ? env("POSTGRES_DB", "kmp") : env("MYSQL_DB_NAME", "kmp")),
 
             /** @var string|null Complete database DSN URL */
             "url" => env("DATABASE_URL", null),
@@ -378,8 +547,8 @@ return [
             /** @var bool Cache database metadata for performance */
             "cacheMetadata" => true,
 
-            /** @var bool Log database queries (disabled unless perf query logging enabled) */
-            "log" => filter_var((string)env("PERF_DB_QUERY_LOG_ENABLED", false), FILTER_VALIDATE_BOOLEAN),
+            /** @var bool Log database queries for performance debugging */
+            "log" => $dbQueryLogEnabled,
 
             /** @var bool Quote identifiers for reserved words/special characters */
             "quoteIdentifiers" => false,
@@ -399,23 +568,23 @@ return [
             /** @var string Connection class for database abstraction */
             "className" => Connection::class,
 
-            /** @var string Database driver (MySQL/MariaDB) */
-            "driver" => Mysql::class,
+            /** @var string Database driver selected by KMP_DB_DRIVER */
+            "driver" => $databaseDriver,
 
             /** @var string Test database hostname */
             "host" => env("DB_HOST", env("MYSQL_HOST", "localhost")),
 
             /** @var int Test database port */
-            "port" => env("DB_PORT", env("MYSQL_PORT", 3306)),
+            "port" => env("DB_PORT", $isPostgres ? env("POSTGRES_PORT", 5432) : env("MYSQL_PORT", 3306)),
 
             /** @var string Test database username */
-            "username" => env("DB_USERNAME", env("MYSQL_USERNAME", "root")),
+            "username" => env("DB_USERNAME", $isPostgres ? env("POSTGRES_USER", "root") : env("MYSQL_USERNAME", "root")),
 
             /** @var string Test database password */
-            "password" => env("DB_PASSWORD", env("MYSQL_PASSWORD", "")),
+            "password" => env("DB_PASSWORD", $isPostgres ? env("POSTGRES_PASSWORD", "") : env("MYSQL_PASSWORD", "")),
 
             /** @var string Test database name */
-            "database" => env("DB_DATABASE", env("MYSQL_DB_NAME", "kmp")) . "_test",
+            "database" => env("DB_DATABASE", $isPostgres ? env("POSTGRES_DB", "kmp") : env("MYSQL_DB_NAME", "kmp")) . "_test",
 
             /** @var string|null Complete test database DSN URL */
             "url" => env("DATABASE_TEST_URL", env("DATABASE_URL", null)),
@@ -438,11 +607,55 @@ return [
             /** @var bool Quote identifiers */
             "quoteIdentifiers" => false,
 
-            /** @var bool Log queries (disabled for test performance) */
-            "log" => false,
+            /** @var bool Log database queries for performance debugging */
+            "log" => $dbQueryLogEnabled,
 
             /** @var array Database initialization commands */
             //'init' => ['SET GLOBAL innodb_stats_on_metadata = 0'],
+        ],
+
+        /**
+         * Platform metadata database connection.
+         *
+         * This connection is reserved for tenant registry, platform-admin
+         * identity, secrets metadata, audit, and operational job state. Tenant
+         * application data must remain on the default/tenant database track.
+         */
+        "platform" => [
+            "className" => Connection::class,
+            "driver" => $databaseDriver,
+            "host" => env("PLATFORM_DB_HOST", env("DB_HOST", env("MYSQL_HOST", "localhost"))),
+            "port" => env("PLATFORM_DB_PORT", env("DB_PORT", $isPostgres ? env("POSTGRES_PORT", 5432) : env("MYSQL_PORT", 3306))),
+            "username" => env("PLATFORM_DB_USERNAME", env("DB_USERNAME", $isPostgres ? env("POSTGRES_USER", "root") : env("MYSQL_USERNAME", "root"))),
+            "password" => env("PLATFORM_DB_PASSWORD", env("DB_PASSWORD", $isPostgres ? env("POSTGRES_PASSWORD", "") : env("MYSQL_PASSWORD", ""))),
+            "database" => $platformDatabaseName,
+            "url" => env("PLATFORM_DATABASE_URL", null),
+            "persistent" => false,
+            "timezone" => "UTC",
+            "flags" => [],
+            "cacheMetadata" => true,
+            "quoteIdentifiers" => false,
+            "log" => $dbQueryLogEnabled,
+        ],
+
+        /**
+         * Test platform metadata database connection.
+         */
+        "test_platform" => [
+            "className" => Connection::class,
+            "driver" => $databaseDriver,
+            "host" => env("PLATFORM_DB_HOST", env("DB_HOST", env("MYSQL_HOST", "localhost"))),
+            "port" => env("PLATFORM_DB_PORT", env("DB_PORT", $isPostgres ? env("POSTGRES_PORT", 5432) : env("MYSQL_PORT", 3306))),
+            "username" => env("PLATFORM_DB_USERNAME", env("DB_USERNAME", $isPostgres ? env("POSTGRES_USER", "root") : env("MYSQL_USERNAME", "root"))),
+            "password" => env("PLATFORM_DB_PASSWORD", env("DB_PASSWORD", $isPostgres ? env("POSTGRES_PASSWORD", "") : env("MYSQL_PASSWORD", ""))),
+            "database" => env("PLATFORM_DB_TEST_DATABASE", $platformDatabaseName . "_test"),
+            "url" => env("PLATFORM_DATABASE_TEST_URL", null),
+            "persistent" => false,
+            "timezone" => "UTC",
+            "flags" => [],
+            "cacheMetadata" => true,
+            "quoteIdentifiers" => false,
+            "log" => $dbQueryLogEnabled,
         ],
     ],
 
@@ -512,6 +725,11 @@ return [
         "queries" => [
             /** @var string Log engine class */
             "className" => FileLog::class,
+
+            /** @var array Formatter that adds HTTP request correlation details */
+            "formatter" => [
+                "className" => QueryLogFormatter::class,
+            ],
 
             /** @var string Log file directory path */
             "path" => LOGS,
@@ -619,9 +837,12 @@ return [
      * @see docs/7.1-security-best-practices.md#session-security-configuration
      */
     /** @see docs/7.1-security-best-practices.md#session-security-configuration */
-    "Session" => [
+    "Session" => array_filter([
         /** @var string Session handler type */
-        "defaults" => "php",
+        "defaults" => $sessionDefaults,
+
+        /** @var array|null Cache-backed session handler configuration */
+        "handler" => $sessionHandler,
 
         /** @var int Session timeout in minutes */
         "timeout" => 30,
@@ -630,9 +851,12 @@ return [
         "cookie" => "PHPSESSID",
 
         /** @var array PHP session ini settings for security */
-        "ini" => [
+        "ini" => SessionCookieConfig::withDomainOverride([
             /** @var bool Require HTTPS for session cookies */
-            "session.cookie_secure" => true,
+            "session.cookie_secure" => filter_var(
+                env('KMP_SESSION_COOKIE_SECURE', $localHttpEnvironment ? 'false' : 'true'),
+                FILTER_VALIDATE_BOOLEAN,
+            ),
 
             /** @var bool Prevent JavaScript access to session cookies */
             "session.cookie_httponly" => true,
@@ -642,8 +866,8 @@ return [
 
             /** @var bool Validate session IDs for security */
             "session.use_strict_mode" => true,
-        ],
-    ],
+        ]),
+    ], static fn(mixed $value): bool => $value !== null),
 
     'Icon' => [
         /** @see docs/9.2-bootstrap-icons.md */
@@ -701,11 +925,14 @@ return [
              */
             'azure' => [
                 /**
-                 * Azure Storage Connection String
+                 * Azure Storage Authentication
                  *
-                 * Format: DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net
-                 * Should be set via environment variable AZURE_STORAGE_CONNECTION_STRING
+                 * Prefer managedIdentity in Azure Container Apps. connectionString
+                 * remains available for legacy/dev setups that cannot use Entra ID.
                  */
+                'authMode' => env('AZURE_STORAGE_AUTH_MODE', 'connectionString'),
+                'accountName' => env('AZURE_STORAGE_ACCOUNT_NAME'),
+                'managedIdentityClientId' => env('AZURE_CLIENT_ID'),
                 'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
 
                 /**
@@ -715,6 +942,7 @@ return [
                  * Default: 'documents'
                  */
                 'container' => 'documents',
+                'containerPrefix' => env('AZURE_STORAGE_CONTAINER_PREFIX', 'documents'),
 
                 /**
                  * Path Prefix (optional)

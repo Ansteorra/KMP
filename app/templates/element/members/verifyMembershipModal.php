@@ -8,9 +8,14 @@ if ($user->checkCan("verifyMembership", "Members") && $needVerification) :
     echo $this->Modal->create("Verify Membership", [
         "id" => "verifyMembershipModal",
         "close" => true,
+        "form" => true,
     ]);
 ?>
-    <fieldset>
+    <fieldset class="border rounded-3 bg-white shadow-sm p-3">
+        <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+            <i class="bi bi-card-checklist text-primary me-1" aria-hidden="true"></i>
+            <?= __("Membership Verification") ?>
+        </legend>
         <?php
 
         echo $this->Form->control("member_id", [

@@ -48,16 +48,27 @@ namespace App;
 
 // Authentication usings
 
+use App\Command\PlatformQueuesRunCommand;
+use App\Command\PlatformScheduleRunCommand;
+use App\Command\PlatformSchedulesRunDueCommand;
+use App\Command\PlatformWorkerRunCommand;
+use App\Controller\ApprovalsController;
+use App\Controller\WorkflowDefinitionsController;
+use App\Controller\WorkflowInstancesController;
 use App\KMP\KmpIdentityInterface;
-// Add this line
-use App\KMP\StaticHelpers;
-use App\Middleware\RestoreMaintenanceMiddleware;
 use App\KMP\Telemetry\RequestQueryCounter;
+use App\Middleware\RestoreMaintenanceMiddleware;
+use App\Middleware\TenantResolutionMiddleware;
 // Authorization usings
 use App\Policy\ControllerResolver;
+use App\Services\ActionItems\ActionItemAssigneeResolver;
+use App\Services\ActionItems\ActionItemService;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Services\ActiveWindowManager\DefaultActiveWindowManager;
+use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
 use App\Services\AuthorizationService as KmpAuthorizationService;
+use App\Services\Cache\TenantAwareCache;
+use App\Services\Cache\TenantAwareCacheInterface;
 use App\Services\CoreNavigationProvider;
 use App\Services\CoreViewCellProvider;
 use App\Services\CsvExportService;
@@ -71,10 +82,38 @@ use App\Services\MemberProfileService;
 use App\Services\MemberRegistrationService;
 use App\Services\MemberSearchService;
 use App\Services\NavigationRegistry;
+use App\Services\Platform\AllowlistedPlatformScheduleDispatcher;
+use App\Services\Platform\PlatformHealthService;
+use App\Services\Platform\PlatformJobRunner;
+use App\Services\Platform\PlatformQueueDrainService;
+use App\Services\Platform\PlatformScheduleRunner;
+use App\Services\Platform\PlatformWorkerService;
+use App\Services\Platform\QueueDrainService;
 use App\Services\QuickLoginDeviceService;
+use App\Services\Secrets\SecretStoreFactory;
+use App\Services\Secrets\SecretStoreInterface;
+use App\Services\Security\RequestRateLimiter;
+use App\Services\Security\TenantCsrfTokenScope;
+use App\Services\TenantConnectionManager;
+use App\Services\TenantDefaultSettingsInitializer;
 use App\Services\ViewCellRegistry;
 use App\Services\WarrantManager\DefaultWarrantManager;
 use App\Services\WarrantManager\WarrantManagerInterface;
+use App\Services\WorkflowEngine\Actions\CoreActions;
+use App\Services\WorkflowEngine\Conditions\CoreConditions;
+use App\Services\WorkflowEngine\DefaultWorkflowApprovalManager;
+use App\Services\WorkflowEngine\DefaultWorkflowEngine;
+use App\Services\WorkflowEngine\DefaultWorkflowVersionManager;
+use App\Services\WorkflowEngine\ExpressionEvaluator;
+use App\Services\WorkflowEngine\Providers\MembersWorkflowActions;
+use App\Services\WorkflowEngine\Providers\MembersWorkflowConditions;
+use App\Services\WorkflowEngine\Providers\WarrantWorkflowActions;
+use App\Services\WorkflowEngine\StateMachine\StateMachineHandler;
+use App\Services\WorkflowEngine\TriggerDispatcher;
+use App\Services\WorkflowEngine\WorkflowApprovalManagerInterface;
+use App\Services\WorkflowEngine\WorkflowEngineInterface;
+use App\Services\WorkflowEngine\WorkflowVersionManagerInterface;
+use App\Services\WorkflowRegistry\WorkflowPluginLoader;
 use Authentication\AuthenticationService;
 use Authentication\AuthenticationServiceInterface;
 use Authentication\AuthenticationServiceProviderInterface;
@@ -87,7 +126,7 @@ use Authorization\Exception\MissingIdentityException;
 use Authorization\Middleware\AuthorizationMiddleware;
 use Authorization\Policy\OrmResolver;
 use Authorization\Policy\ResolverCollection;
-use Cake\Cache\Cache;
+use Cake\Controller\ComponentRegistry;
 use Cake\Core\Configure;
 use Cake\Core\ContainerInterface;
 use Cake\Datasource\ConnectionManager;
@@ -97,7 +136,7 @@ use Cake\Http\BaseApplication;
 use Cake\Http\Middleware\BodyParserMiddleware;
 use Cake\Http\Middleware\CsrfProtectionMiddleware;
 use Cake\Http\MiddlewareQueue;
-use Cake\I18n\DateTime;
+use Cake\Http\ServerRequest;
 use Cake\Log\Log;
 use Cake\ORM\Locator\TableLocator;
 use Cake\Routing\Middleware\AssetMiddleware;
@@ -238,77 +277,14 @@ class Application extends BaseApplication implements
             [CoreViewCellProvider::class, 'getViewCells'],
         );
 
+        // Load workflow providers from plugins and core
+        WorkflowPluginLoader::loadFromPlugins($this->getPlugins());
+        $this->getContainer()->get(TriggerDispatcher::class)->attachToEventManager();
+
         // Version-based application configuration management
         // This system allows automatic updates to application settings when KMP is upgraded
         // Each time the version changes, new default settings are applied
-        $currentConfigVersion = '25.11.06.a'; // Update this with each configuration change
-
-        $configVersion = StaticHelpers::getAppSetting('KMP.configVersion', '0.0.0', null, true);
-        if ($configVersion != $currentConfigVersion) {
-            $modelCacheCleared = Cache::clear('_cake_model_');
-            if (!$modelCacheCleared) {
-                Log::warning('Failed clearing _cake_model_ cache during config version update.');
-            } else {
-                StaticHelpers::setAppSetting('KMP.configVersion', $currentConfigVersion, null, true);
-            }
-
-            // Core KMP Settings - Basic application configuration
-            StaticHelpers::getAppSetting('KMP.BranchInitRun', '', null, true); // Tracks branch initialization
-            StaticHelpers::getAppSetting('KMP.KingdomName', 'please_set', null, true); // Primary kingdom identifier
-            StaticHelpers::getAppSetting('KMP.LongSiteTitle', 'Kingdom Management Portal', null, true); // Full application name
-            StaticHelpers::getAppSetting('KMP.ShortSiteTitle', 'KMP', null, true); // Abbreviated name for headers
-            StaticHelpers::getAppSetting('KMP.BannerLogo', 'badge.png', null, true); // Main site logo
-            StaticHelpers::getAppSetting('KMP.Login.Graphic', 'populace_badge.png', null, true); // Login page graphic
-            StaticHelpers::getAppSetting('KMP.EnablePublicRegistration', 'yes', null, true); // Allow public sign-ups
-            StaticHelpers::getAppSetting('KMP.DefaultTimezone', 'America/Chicago', null, true); // Default timezone for date/time display
-            StaticHelpers::getAppSetting('App.version', '0.0.0', null, true); // Application version tracking
-
-            // Member Card Display Settings - Visual presentation of member information
-            StaticHelpers::getAppSetting('Member.ViewCard.Graphic', 'auth_card_back.gif', null, true); // Card background image
-            StaticHelpers::getAppSetting('Member.ViewCard.HeaderColor', 'gold', null, true); // Card header color scheme
-            StaticHelpers::getAppSetting('Member.ViewCard.Template', 'view_card', null, true); // Desktop card template
-            StaticHelpers::getAppSetting('Member.ViewMobileCard.Template', 'view_mobile_card', null, true); // Mobile card template
-            StaticHelpers::getAppSetting('Member.MobileCard.ThemeColor', 'gold', null, true); // Mobile theme color
-            StaticHelpers::getAppSetting('Member.MobileCard.BgColor', 'gold', null, true); // Mobile background color
-
-            // Member Management Email Settings - Contact addresses for various member processes
-            StaticHelpers::getAppSetting('Members.AccountVerificationContactEmail', 'please_set', null, true); // Account verification support
-            StaticHelpers::getAppSetting('Members.AccountDisabledContactEmail', 'please_set', null, true); // Disabled account support
-            StaticHelpers::getAppSetting('Members.NewMemberSecretaryEmail', 'member@test.com', null, true); // New member notifications
-            StaticHelpers::getAppSetting('Members.NewMinorSecretaryEmail', 'minorSet@test.com', null, true); // Minor member notifications
-
-            // Email System Configuration - Global email settings
-            StaticHelpers::getAppSetting('Email.SystemEmailFromAddress', 'site@test.com', null, true); // System sender address
-            StaticHelpers::getAppSetting('Email.SiteAdminSignature', 'site', null, true); // Default email signature
-
-            // Activity Management Settings - Event and activity coordination
-            StaticHelpers::getAppSetting('Activity.SecretaryEmail', 'please_set', null, true); // Activity coordinator email
-            StaticHelpers::getAppSetting('Activity.SecretaryName', 'please_set', null, true); // Activity coordinator name
-
-            // Warrant System Configuration - Officer warrant management
-            StaticHelpers::getAppSetting('Warrant.LastCheck', DateTime::now()->subDays(1)->toDateString(), null, true); // Last warrant validation
-            StaticHelpers::getAppSetting('KMP.RequireActiveWarrantForSecurity', 'yes', null, true); // Warrant requirement for security roles
-            StaticHelpers::getAppSetting('Warrant.RosterApprovalsRequired', '2', null, true); // Number of approvals needed for roster changes
-
-            // Help and Documentation Settings
-            StaticHelpers::getAppSetting(
-                'KMP.AppSettings.HelpUrl',
-                'https://github.com/Ansteorra/KMP/wiki/App-Settings',
-                null,
-                true,
-            ); // Settings help URL
-
-            // Branch Type Configuration - Organizational structure definitions
-            // Uses YAML format for complex data structures
-            StaticHelpers::getAppSetting('Branches.Types', yaml_emit([
-                'Kingdom', // Top-level organization
-                'Principality', // Major subdivision of kingdom
-                'Region', // Geographic grouping of local groups
-                'Local Group', // Individual chapters (Barony, Shire, etc.)
-                'N/A', // Special case for non-geographic roles
-            ]), 'yaml', true);
-        }
-
+        (new TenantDefaultSettingsInitializer())->initialize();
         $this->installQueryCounter();
     }
 
@@ -408,8 +384,35 @@ class Application extends BaseApplication implements
             // Converts exceptions to appropriate HTTP error responses
             ->add(new ErrorHandlerMiddleware(Configure::read('Error'), $this))
 
-            // 2. Request performance logging (optional via env flags)
+            // 2. Request query log context for correlating SQL entries to HTTP requests.
             ->add(function ($request, $handler) {
+                $requestId = bin2hex(random_bytes(8));
+                $queryCounter = RequestQueryCounter::instance();
+                $requestPath = $request->getUri()->getPath();
+                $queryCounter->beginRequest(
+                    $requestId,
+                    $request->getMethod(),
+                    $request->getUri()->getHost(),
+                    $requestPath,
+                    $request->getRequestTarget(),
+                    $request->getHeaderLine('Turbo-Frame'),
+                    strtolower($request->getHeaderLine('X-Requested-With')) === 'xmlhttprequest',
+                    $this->isPlatformProbePath($requestPath),
+                );
+                $request = $request->withAttribute('kmp_request_id', $requestId);
+
+                try {
+                    return $handler->handle($request);
+                } finally {
+                    $queryCounter->clearRequest();
+                }
+            })
+
+            // 3. Request performance logging (optional via env flags)
+            ->add(function ($request, $handler) {
+                if ($this->isPlatformProbePath($request->getUri()->getPath())) {
+                    return $handler->handle($request);
+                }
                 if (!filter_var((string)env('PERF_REQUEST_LOG_ENABLED', false), FILTER_VALIDATE_BOOLEAN)) {
                     return $handler->handle($request);
                 }
@@ -455,6 +458,7 @@ class Application extends BaseApplication implements
                 $context = [
                     'scope' => ['app.performance'],
                     'method' => $request->getMethod(),
+                    'request_id' => (string)$request->getAttribute('kmp_request_id', 'unknown'),
                     'host' => $request->getUri()->getHost(),
                     'path' => $request->getUri()->getPath(),
                     'route_template' => $routeTemplate,
@@ -477,13 +481,14 @@ class Application extends BaseApplication implements
                     $level,
                     sprintf(
                         '[request_timing] method=%s host=%s path=%s route=%s status=%d'
-                        . ' duration_ms=%.2f memory_peak_mb=%.2f cpu_user_ms=%.2f cpu_sys_ms=%.2f'
+                        . ' request_id=%s duration_ms=%.2f memory_peak_mb=%.2f cpu_user_ms=%.2f cpu_sys_ms=%.2f'
                         . ' query_count=%d db_total_ms=%.2f response_bytes=%d kingdom=%s',
                         $context['method'],
                         $context['host'],
                         $context['path'],
                         $context['route_template'],
                         $context['status'],
+                        $context['request_id'],
                         $context['duration_ms'],
                         $context['memory_peak_mb'],
                         $context['cpu_user_ms'],
@@ -526,7 +531,7 @@ class Application extends BaseApplication implements
                 // Build CSP policy
                 $csp = "default-src 'self'; "
                     // Allow CDN scripts, Leaflet (unpkg), and Google Maps
-                    . "script-src 'self' 'unsafe-inline' 'unsafe-eval' "
+                    . "script-src 'self' 'unsafe-inline' "
                     . 'https://cdn.jsdelivr.net https://unpkg.com '
                     . 'https://maps.googleapis.com; '
                     // Allow Google Fonts and Leaflet CSS
@@ -571,13 +576,25 @@ class Application extends BaseApplication implements
                 ]),
             )
 
-            // 4b. Restore maintenance gate - blocks normal traffic while DB schema is being reset.
-            ->add(new RestoreMaintenanceMiddleware())
-
             // 5. Routing Middleware - URL to controller/action mapping
             // For large applications, consider enabling route caching in production
             // See: https://github.com/CakeDC/cakephp-cached-routing
             ->add(new RoutingMiddleware($this))
+
+            // 5a. Tenant resolution is disabled by default until platform mode is enabled.
+            ->add(new TenantResolutionMiddleware(
+                filter_var((string)env('KMP_TENANCY_ENABLED', 'false'), FILTER_VALIDATE_BOOLEAN),
+                new TenantConnectionManager(SecretStoreFactory::fromConfig()),
+                (string)env('KMP_REQUIRED_SCHEMA_VERSION', ''),
+                new PlatformHealthService(
+                    'platform',
+                    (int)Configure::read('Platform.health.retryAttempts', 0),
+                    (int)Configure::read('Platform.health.retryDelayMs', 0),
+                ),
+            ))
+
+            // 5b. Tenant-scoped restore gate must run after tenant resolution.
+            ->add(new RestoreMaintenanceMiddleware())
 
             // 6. Body Parser Middleware - Request body parsing
             // Parses JSON, XML, and form data into $request->getData()
@@ -729,11 +746,15 @@ class Application extends BaseApplication implements
         );
 
         // Register WarrantManager for warrant lifecycle management
-        // Depends on ActiveWindowManager for handling warrant validity periods
+        // Depends on ActiveWindowManager and TriggerDispatcher. It fires triggers only;
+        // workflows react to those triggers and drive the engine — the manager never does.
         $container->add(
             WarrantManagerInterface::class, // Interface for dependency injection
             DefaultWarrantManager::class, // Concrete implementation
-        )->addArgument(ActiveWindowManagerInterface::class); // Inject ActiveWindowManager dependency
+        )->addArguments([
+            ActiveWindowManagerInterface::class,
+            TriggerDispatcher::class,
+        ]);
 
         // Register CSV export service for data export functionality
         // No dependencies required - provides standalone export capabilities
@@ -747,17 +768,146 @@ class Application extends BaseApplication implements
             ImpersonationService::class,
         );
 
+        // Reusable to-do / action-item subsystem (My To-Dos surface + entity checklists)
+        $container->add(ActionItemAssigneeResolver::class);
+        $container->add(ActionItemService::class)
+            ->addArgument(ActionItemAssigneeResolver::class);
+
         // Member services extracted from MembersController
         $container->add(MemberAuthenticationService::class);
         $container->add(MemberRegistrationService::class);
         $container->add(MemberProfileService::class);
         $container->add(MemberSearchService::class);
+        $container->add(RequestRateLimiter::class);
         $container->add(QuickLoginDeviceService::class);
+        $cacheFactory = fn() => new TenantAwareCache(filter_var(
+            (string)env('KMP_TENANT_CACHE_REQUIRE_CONTEXT', 'false'),
+            FILTER_VALIDATE_BOOLEAN,
+        ));
+        $container->addShared(TenantAwareCacheInterface::class, $cacheFactory);
+        $container->addShared(TenantAwareCache::class, $cacheFactory);
+        $container->add(TenantCsrfTokenScope::class);
+        $container->addShared(SecretStoreInterface::class, fn() => SecretStoreFactory::fromConfig());
+        $container->add(TenantConnectionManager::class)
+            ->addArgument(SecretStoreInterface::class);
+        $container->add(QueueDrainService::class)
+            ->addArgument(ContainerInterface::class);
+        $container->add(PlatformQueueDrainService::class)
+            ->addArguments([
+                QueueDrainService::class,
+                TenantConnectionManager::class,
+            ]);
+        $container->add(PlatformJobRunner::class);
+        $container->add(PlatformQueuesRunCommand::class)
+            ->addArguments([
+                PlatformQueueDrainService::class,
+                PlatformJobRunner::class,
+            ]);
+        $container->add(AllowlistedPlatformScheduleDispatcher::class)
+            ->addArgument(QueueDrainService::class);
+        $container->add(PlatformScheduleRunner::class)
+            ->addArguments([
+                AllowlistedPlatformScheduleDispatcher::class,
+                TenantConnectionManager::class,
+            ]);
+        $container->add(PlatformScheduleRunCommand::class)
+            ->addArgument(PlatformScheduleRunner::class);
+        $container->add(PlatformSchedulesRunDueCommand::class)
+            ->addArgument(PlatformScheduleRunner::class);
+        $container->add(PlatformWorkerService::class)
+            ->addArguments([
+                PlatformScheduleRunner::class,
+                PlatformQueueDrainService::class,
+                PlatformJobRunner::class,
+            ]);
+        $container->add(PlatformWorkerRunCommand::class)
+            ->addArgument(PlatformWorkerService::class);
 
         // Gathering services extracted from GatheringsController
         $container->add(GatheringActivityService::class);
         $container->add(GatheringScheduleService::class);
         $container->add(GatheringCloneService::class);
+
+        // Register WorkflowApprovalManager for approval gate lifecycle management
+        $container->add(
+            WorkflowApprovalManagerInterface::class,
+            DefaultWorkflowApprovalManager::class,
+        )->addArgument(ContainerInterface::class);
+
+        // Register WorkflowVersionManager for workflow version lifecycle management
+        $container->add(
+            WorkflowVersionManagerInterface::class,
+            DefaultWorkflowVersionManager::class,
+        );
+
+        // Workflow Engine — depends on ContainerInterface for dynamic service resolution
+        if (!$container->has(WorkflowEngineInterface::class)) {
+            $container->add(
+                WorkflowEngineInterface::class,
+                DefaultWorkflowEngine::class,
+            )->addArgument(ContainerInterface::class);
+        }
+
+        // TriggerDispatcher — depends on WorkflowEngineInterface
+        if (!$container->has(TriggerDispatcher::class)) {
+            $container->add(
+                TriggerDispatcher::class,
+            )->addArgument(WorkflowEngineInterface::class);
+        }
+
+        // Expression evaluator for workflow templates, dates, and conditionals
+        $container->add(ExpressionEvaluator::class);
+
+        // Approval context renderers for unified approvals UI
+        $container->add(ApprovalContextRendererRegistry::class);
+
+        // Core workflow actions and conditions
+        $container->add(CoreActions::class)
+            ->addArguments([
+                ActiveWindowManagerInterface::class,
+                ExpressionEvaluator::class,
+            ]);
+        $container->add(CoreConditions::class)
+            ->addArgument(ExpressionEvaluator::class);
+
+        // StateMachineHandler — state transition logic for stateMachine nodes
+        $container->add(StateMachineHandler::class);
+
+        // WarrantWorkflowActions — workflow actions delegating to WarrantManager
+        $container->add(WarrantWorkflowActions::class)
+            ->addArgument(WarrantManagerInterface::class);
+
+        // MembersWorkflowActions — member lifecycle workflow actions
+        $container->add(MembersWorkflowActions::class);
+
+        // MembersWorkflowConditions — member condition evaluators
+        $container->add(MembersWorkflowConditions::class);
+
+        // Register WorkflowDefinitionsController for constructor injection
+        $container->add(WorkflowDefinitionsController::class)
+            ->addArguments([
+                ServerRequest::class,
+                WorkflowEngineInterface::class,
+                WorkflowVersionManagerInterface::class,
+                ComponentRegistry::class,
+            ]);
+
+        // Register WorkflowInstancesController for constructor injection
+        $container->add(WorkflowInstancesController::class)
+            ->addArguments([
+                ServerRequest::class,
+                WorkflowEngineInterface::class,
+                ComponentRegistry::class,
+            ]);
+
+        // Register ApprovalsController for constructor injection
+        $container->add(ApprovalsController::class)
+            ->addArguments([
+                ServerRequest::class,
+                WorkflowEngineInterface::class,
+                WorkflowApprovalManagerInterface::class,
+                ComponentRegistry::class,
+            ]);
     }
 
     /**
@@ -1000,6 +1150,14 @@ class Application extends BaseApplication implements
         $delta = $endMs - $startMs;
 
         return round($delta < 0.0 ? 0.0 : $delta, 2);
+    }
+
+    /**
+     * Return whether the request is generated by platform health infrastructure.
+     */
+    private function isPlatformProbePath(string $path): bool
+    {
+        return in_array(rtrim($path, '/'), ['/health', '/livez'], true);
     }
 
     /**

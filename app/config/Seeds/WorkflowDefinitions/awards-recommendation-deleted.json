@@ -1,0 +1,95 @@
+{
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
+    "nodes": {
+        "trigger": {
+            "type": "trigger",
+            "label": "Recommendation Delete Requested",
+            "config": {
+                "event": "Awards.RecommendationDeleteRequested",
+                "entityIdField": "recommendationId"
+            },
+            "position": {
+                "x": 50,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "delete-recommendation"
+                }
+            ]
+        },
+        "delete-recommendation": {
+            "type": "action",
+            "label": "Delete Recommendation",
+            "config": {
+                "action": "Awards.DeleteRecommendation",
+                "params": {
+                    "recommendationId": "$.trigger.recommendationId",
+                    "actorId": "$.trigger.actorId"
+                }
+            },
+            "position": {
+                "x": 350,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "delete-succeeded"
+                }
+            ]
+        },
+        "delete-succeeded": {
+            "type": "condition",
+            "label": "Delete Succeeded?",
+            "config": {
+                "condition": "Core.FieldEquals",
+                "field": "$.nodes.delete-recommendation.result.success",
+                "value": true
+            },
+            "position": {
+                "x": 650,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "end-success",
+                    "label": "Deleted"
+                },
+                {
+                    "port": "false",
+                    "target": "end-failed",
+                    "label": "Failed"
+                }
+            ]
+        },
+        "end-success": {
+            "type": "end",
+            "label": "Delete Complete",
+            "config": {
+                "result": "$.nodes.delete-recommendation.result"
+            },
+            "position": {
+                "x": 950,
+                "y": 225
+            },
+            "outputs": []
+        },
+        "end-failed": {
+            "type": "end",
+            "label": "Delete Failed",
+            "config": {
+                "result": "$.nodes.delete-recommendation.result"
+            },
+            "position": {
+                "x": 950,
+                "y": 375
+            },
+            "outputs": []
+        }
+    },
+    "startNode": "trigger"
+}

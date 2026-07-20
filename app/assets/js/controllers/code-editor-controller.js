@@ -368,11 +368,29 @@ class CodeEditorController extends Controller {
     }
 
     // Check validation before form submit
-    beforeSubmit(event) {
+    async beforeSubmit(event) {
+        if (this.allowInvalidSubmit) {
+            this.allowInvalidSubmit = false
+            return
+        }
+
         if (!this.validateContent()) {
-            const proceed = confirm('There are syntax errors in the content. Do you want to save anyway?')
+            event.preventDefault()
+            const proceed = await window.KMP_accessibility.confirm(
+                'There are syntax errors in the content. Do you want to save anyway?',
+                {
+                    title: 'Syntax errors detected',
+                    confirmLabel: 'Save anyway',
+                },
+            )
             if (!proceed) {
-                event.preventDefault()
+                return
+            }
+
+            const form = event.target
+            if (form instanceof HTMLFormElement) {
+                this.allowInvalidSubmit = true
+                form.requestSubmit()
             }
         }
     }

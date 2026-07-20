@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Model\Entity\Member;
+use App\Services\Cache\TenantAwareCache;
 use Cake\Cache\Cache;
 use Cake\Http\Session;
 use Cake\I18n\FrozenTime;
@@ -65,17 +66,20 @@ class ImpersonationService
             return null;
         }
 
+        $impersonatorId = (int)($state['impersonator_id'] ?? 0);
+        $impersonatedId = (int)($state['impersonated_member_id'] ?? 0);
+
         try {
             $impersonator = TableRegistry::getTableLocator()->get('Members')
-                ->get((int)($state['impersonator_id'] ?? 0));
+                ->get($impersonatorId);
             $impersonated = TableRegistry::getTableLocator()->get('Members')
-                ->get((int)($state['impersonated_member_id'] ?? 0));
+                ->get($impersonatedId);
             $this->logSessionEvent('stop', $impersonator, $impersonated);
         } catch (Throwable $exception) {
             Log::warning('Failed to record impersonation session stop: ' . $exception->getMessage());
         }
 
-        $this->clearIdentityCaches($session, $impersonator->id, $impersonated->id);
+        $this->clearIdentityCaches($session, $impersonatorId, $impersonatedId);
 
         return $state;
     }
@@ -131,6 +135,7 @@ class ImpersonationService
             'request_url' => $request?->getRequestTarget(),
             'ip_address' => $request?->clientIp(),
             'user_agent' => $request?->getHeaderLine('User-Agent'),
+            'created' => FrozenTime::now(),
         ];
 
         $log = $logsTable->newEntity($data, ['accessibleFields' => ['*' => true]]);
@@ -149,18 +154,19 @@ class ImpersonationService
     protected function clearIdentityCaches(Session $session, int ...$memberIds): void
     {
         try {
-            Cache::delete('navigation_items');
+            Cache::delete(TenantAwareCache::tenantScopedKey('navigation_items'));
         } catch (Throwable $exception) {
             Log::warning('Failed clearing navigation cache: ' . $exception->getMessage());
         }
 
+        $session->delete(TenantAwareCache::tenantScopedKey('navigation_items'));
         $session->delete('navigation_items');
         $session->delete('pageStack');
         $session->delete('viewMode');
 
         foreach ($memberIds as $memberId) {
-            Cache::delete('member_permissions' . $memberId, 'member_permissions');
-            Cache::delete('permissions_policies' . $memberId, 'member_permissions');
+            Cache::delete(TenantAwareCache::tenantScopedKey('member_permissions' . $memberId), 'member_permissions');
+            Cache::delete(TenantAwareCache::tenantScopedKey('permissions_policies' . $memberId), 'member_permissions');
         }
     }
 }

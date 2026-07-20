@@ -28,10 +28,10 @@ foreach ($availableActivities as $activity) {
 <?php echo $this->Modal->create(__('Add Activity to {0}', $gathering->name), [
     'id' => 'addActivityModal',
     'close' => true,
-    'size' => 'lg'
+    'form' => true,
 ]); ?>
 
-<div class="mb-3">
+<div class="border rounded-3 bg-white shadow-sm p-3">
     <?php if (!empty($availableActivities)): ?>
         <div class="mb-3">
             <label for="activity-id" class="form-label">

@@ -11,7 +11,7 @@ layout: default
 | **1. [Introduction](1-introduction.md)** | |
 | 1.1 About KMP | Overview of the Kingdom Management Portal project |
 | 1.2 Project Purpose | Membership management system for SCA Kingdoms |
-| 1.3 System Requirements | PHP 8.3+, MySQL/MariaDB, etc. |
+| 1.3 System Requirements | PHP 8.4+, MySQL/MariaDB, etc. |
 | **2. [Getting Started](2-getting-started.md)** | |
 | 2.1 Installation | Setting up development environment |
 | **2.2 [Configuration](2-configuration.md)** | **NEW** Application configuration overview |

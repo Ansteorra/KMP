@@ -1,0 +1,292 @@
+{
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
+    "nodes": {
+        "trigger-hire": {
+            "type": "trigger",
+            "label": "Officer Hire Requested",
+            "config": {
+                "event": "Officers.HireRequested",
+                "entityIdField": "officerId"
+            },
+            "position": {
+                "x": 50,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "check-requires-warrant-before-create"
+                }
+            ]
+        },
+        "check-only-one-per-branch": {
+            "type": "condition",
+            "label": "Is Only One Per Branch?",
+            "config": {
+                "condition": "Officers.IsOnlyOnePerBranch",
+                "officeId": "$.trigger.officeId"
+            },
+            "position": {
+                "x": 350,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "check-has-conflict",
+                    "label": "Yes"
+                },
+                {
+                    "port": "false",
+                    "target": "create-officer",
+                    "label": "No"
+                }
+            ]
+        },
+        "check-has-conflict": {
+            "type": "condition",
+            "label": "Has Conflicting Officer?",
+            "config": {
+                "condition": "Officers.HasConflictingOfficer",
+                "officeId": "$.trigger.officeId",
+                "branchId": "$.trigger.branchId",
+                "newOfficerStartDate": "$.trigger.startOn",
+                "newOfficerEndDate": "$.trigger.expiresOn"
+            },
+            "position": {
+                "x": 650,
+                "y": 150
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "release-conflicting",
+                    "label": "Conflict Found"
+                },
+                {
+                    "port": "false",
+                    "target": "create-officer",
+                    "label": "No Conflict"
+                }
+            ]
+        },
+        "release-conflicting": {
+            "type": "action",
+            "label": "Release Conflicting Officers",
+            "config": {
+                "action": "Officers.ReleaseConflictingOfficers",
+                "params": {
+                    "officeId": "$.trigger.officeId",
+                    "branchId": "$.trigger.branchId",
+                    "newOfficerStartDate": "$.trigger.startOn",
+                    "newOfficerEndDate": "$.trigger.expiresOn"
+                }
+            },
+            "position": {
+                "x": 950,
+                "y": 50
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "create-officer"
+                }
+            ]
+        },
+        "check-requires-warrant-before-create": {
+            "type": "condition",
+            "label": "Office Requires Warrant?",
+            "config": {
+                "condition": "Officers.OfficeRequiresWarrant",
+                "officeId": "$.trigger.officeId"
+            },
+            "position": {
+                "x": 950,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "check-warrantable",
+                    "label": "Yes"
+                },
+                {
+                    "port": "false",
+                    "target": "check-only-one-per-branch",
+                    "label": "No"
+                }
+            ]
+        },
+        "check-warrantable": {
+            "type": "condition",
+            "label": "Member Warrantable?",
+            "config": {
+                "condition": "Officers.IsMemberWarrantable",
+                "memberId": "$.trigger.memberId"
+            },
+            "position": {
+                "x": 1250,
+                "y": 150
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "check-only-one-per-branch",
+                    "label": "Yes"
+                },
+                {
+                    "port": "false",
+                    "target": "end-rejected",
+                    "label": "No"
+                }
+            ]
+        },
+        "create-officer": {
+            "type": "action",
+            "label": "Create Officer with Active Window",
+            "config": {
+                "action": "Officers.CreateOfficerRecord",
+                "params": {
+                    "memberId": "$.trigger.memberId",
+                    "officeId": "$.trigger.officeId",
+                    "branchId": "$.trigger.branchId",
+                    "startOn": "$.trigger.startOn",
+                    "expiresOn": "$.trigger.expiresOn",
+                    "emailAddress": "$.trigger.emailAddress",
+                    "deputyDescription": "$.trigger.deputyDescription"
+                }
+            },
+            "position": {
+                "x": 1550,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "check-requires-warrant-after-create"
+                }
+            ]
+        },
+        "check-requires-warrant-after-create": {
+            "type": "condition",
+            "label": "Office Requires Warrant After Hire?",
+            "config": {
+                "condition": "Officers.OfficeRequiresWarrant",
+                "officeId": "$.trigger.officeId"
+            },
+            "position": {
+                "x": 1850,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "request-warrant-roster",
+                    "label": "Yes"
+                },
+                {
+                    "port": "false",
+                    "target": "prepare-hire-notification-vars",
+                    "label": "No"
+                }
+            ]
+        },
+        "request-warrant-roster": {
+            "type": "action",
+            "label": "Request Warrant Roster",
+            "config": {
+                "action": "Officers.RequestWarrantRoster",
+                "params": {
+                    "officerId": "$.nodes.create-officer.result.officerId"
+                }
+            },
+            "position": {
+                "x": 2150,
+                "y": 120
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "prepare-hire-notification-vars"
+                }
+            ]
+        },
+        "prepare-hire-notification-vars": {
+            "type": "action",
+            "label": "Prepare Hire Notification Vars",
+            "config": {
+                "action": "Officers.PrepareHireNotificationVars",
+                "params": {
+                    "officerId": "$.nodes.create-officer.result.officerId"
+                }
+            },
+            "position": {
+                "x": 2150,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "send-hire-notification"
+                }
+            ]
+        },
+        "send-hire-notification": {
+            "type": "action",
+            "label": "Send Hire Notification",
+            "config": {
+                "action": "Core.SendEmail",
+                "params": {
+                    "to": "$.nodes.prepare-hire-notification-vars.result.data.to",
+                    "template": "officer-hire-notification",
+                    "vars": {
+                        "memberScaName": "$.nodes.prepare-hire-notification-vars.result.data.memberScaName",
+                        "officeName": "$.nodes.prepare-hire-notification-vars.result.data.officeName",
+                        "branchName": "$.nodes.prepare-hire-notification-vars.result.data.branchName",
+                        "hireDate": "$.nodes.prepare-hire-notification-vars.result.data.hireDate",
+                        "endDate": "$.nodes.prepare-hire-notification-vars.result.data.endDate",
+                        "requiresWarrantNotice": "$.nodes.prepare-hire-notification-vars.result.data.requiresWarrantNotice",
+                        "siteAdminSignature": "$.nodes.prepare-hire-notification-vars.result.data.siteAdminSignature"
+                    }
+                }
+            },
+            "position": {
+                "x": 2450,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "end-complete"
+                }
+            ]
+        },
+        "end-complete": {
+            "type": "end",
+            "label": "Hire Complete",
+            "config": {},
+            "position": {
+                "x": 2750,
+                "y": 250
+            },
+            "outputs": []
+        },
+        "end-rejected": {
+            "type": "end",
+            "label": "Rejected — Not Warrantable",
+            "config": {
+                "result": {
+                    "success": false,
+                    "error": "Member is not warrantable"
+                }
+            },
+            "position": {
+                "x": 1550,
+                "y": 50
+            },
+            "outputs": []
+        }
+    },
+    "startNode": "trigger-hire"
+}

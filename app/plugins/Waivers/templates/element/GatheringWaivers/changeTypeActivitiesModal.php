@@ -13,7 +13,7 @@
 
 <!-- Change Type/Activities Modal -->
 <div class="modal fade" id="changeTypeActivitiesModal" tabindex="-1" aria-labelledby="changeTypeActivitiesModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="changeTypeActivitiesModalLabel">
@@ -27,15 +27,15 @@
                 'id' => 'changeTypeActivitiesForm'
             ]) ?>
 
-            <div class="modal-body">
-                <div class="alert alert-warning" role="alert">
+            <div class="modal-body bg-light-subtle">
+                <div class="alert alert-warning border-start border-warning border-4" role="alert">
                     <i class="bi bi-exclamation-triangle"></i>
                     <strong><?= __('Warning:') ?></strong>
                     <?= __('Changing the waiver type or activity associations should be done carefully. This action affects which activities this waiver fulfills requirements for.') ?>
                 </div>
 
                 <!-- Waiver Type Selection -->
-                <div class="mb-3">
+                <div class="border rounded-3 bg-white shadow-sm p-3">
                     <label for="waiver-type-select" class="form-label">
                         <i class="bi bi-file-earmark-text"></i> <?= __('Waiver Type') ?>
                         <span class="text-danger">*</span>

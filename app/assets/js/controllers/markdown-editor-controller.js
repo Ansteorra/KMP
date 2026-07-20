@@ -1,5 +1,4 @@
 import { Controller } from "@hotwired/stimulus"
-import EasyMDE from "easymde"
 
 /**
  * Markdown Editor Controller
@@ -27,7 +26,8 @@ class MarkdownEditorController extends Controller {
     }
 
     // Connect function - runs when controller connects to DOM
-    connect() {
+    async connect() {
+        const { default: EasyMDE } = await import('easymde')
         // Initialize EasyMDE on the textarea
         this.editor = new EasyMDE({
             element: this.element,

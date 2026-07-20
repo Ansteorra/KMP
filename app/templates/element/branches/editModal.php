@@ -11,91 +11,129 @@ echo $this->Form->create($branch, [
 echo $this->Modal->create("Edit Branch", [
     "id" => "editModal",
     "close" => true,
-    "size" => "lg",
+    "form" => true,
 ]);
 ?>
-<fieldset>
-    <?php
-    echo $this->Form->control("name");
-    echo $this->Form->control("type", [
-        "options" => $branch_types,
-        "empty" => true,
+<?php
+$contactUrl = $this->Url->build([
+    'controller' => 'Members',
+    'action' => 'AutoComplete',
+    'plugin' => null,
+]);
+$contactAttrs = [];
+if (!empty($branch->contact)) {
+    $contactAttrs['data-ac-init-selection-value'] = json_encode([
+        'value' => $branch->contact->public_id,
+        'text' => $branch->contact->sca_name,
     ]);
-    echo $this->Form->control("location");
-    echo $this->Form->control("can_have_members", [
-        "switch" => true,
-        "label" => "Can Have Members",
-    ]);
-    echo $this->Form->control("can_have_officers", [
-        "switch" => true,
-        "label" => "Can Have Officers",
-    ]);
-    ?>
-    <?php
-    $contactUrl = $this->Url->build([
-        'controller' => 'Members',
-        'action' => 'AutoComplete',
-        'plugin' => null,
-    ]);
-    $contactAttrs = [];
-    if (!empty($branch->contact)) {
-        $contactAttrs['data-ac-init-selection-value'] = json_encode([
-            'value' => $branch->contact->public_id,
-            'text' => $branch->contact->sca_name,
-        ]);
-    }
-    echo $this->KMP->autoCompleteControl(
-        $this->Form,
-        'sca_name',
-        'contact_id',
-        $contactUrl,
-        'Point of Contact',
-        false,
-        false,
-        3,
-        $contactAttrs
-    );
-    ?><?php
-    echo $this->Form->control("parent_id", [
-        "options" => $treeList,
-        "empty" => true,
-    ]);
-    $links = json_encode($branch->links);
-    if ($links === 'null') {
-        $links = '[]';
-    }
-    echo $this->Form->control("domain", ['label' => 'Email Domain', 'placeholder' => 'e.g. branch.example.com']);
-    echo $this->Form->hidden('branch_links', ['value' => $links, 'id' => 'links', 'data-branch-links-target' => 'formValue']); ?>
-    <div class="mb-3 form-group links">
-        <label class="form-label" for="links">Links</label>
-        <div data-branch-links-target='displayList' class="mb-3"></div>
-        <div class="input-group">
-            <button class="btn btn-outline-secondary dropdown-toggle bi bi-link" type="button" data-value="link"
-                data-branch-links-target="linkType" data-bs-toggle="dropdown" aria-expanded="false"></button>
-            <ul class="dropdown-menu">
-                <li><a class="dropdown-item bi bi-link" href="#" data-value="link"
-                        data-action="branch-links#setLinkType"></a></li>
-                <li><a class="dropdown-item bi bi-discord" href="#" data-value="discord"
-                        data-action="branch-links#setLinkType"></a></li>
-                <li><a class="dropdown-item bi bi-facebook" href="#" data-value="facebook"
-                        data-action="branch-links#setLinkType"></a></li>
-                <li><a class="dropdown-item bi bi-instagram" href="#" data-value="instagram"
-                        data-action="branch-links#setLinkType"></a></li>
-                <li><a class="dropdown-item bi bi-tiktok" href="#" data-value="tiktok"
-                        data-action="branch-links#setLinkType"></a></li>
-                <li><a class="dropdown-item bi bi-threads" href="#" data-value="threads"
-                        data-action="branch-links#setLinkType"></a></li>
-                <li><a class="dropdown-item bi bi-twitter-x" href="#" data-value="twitter-x"
-                        data-action="branch-links#setLinkType"></a></li>
-                <li><a class="dropdown-item bi bi-youtube" href="#" data-value="youtube"
-                        data-action="branch-links#setLinkType"></a></li>
-            </ul>
-            <input type="url" data-branch-links-target="new" class="form-control col-8"
-                placeholder="https://example.com">
-            <button type="button" class="btn btn-primary btn-sm" data-action="branch-links#add">Add</button>
-        </div>
+}
+$links = json_encode($branch->links);
+if ($links === 'null') {
+    $links = '[]';
+}
+echo $this->Form->hidden('branch_links', ['value' => $links, 'id' => 'links', 'data-branch-links-target' => 'formValue']);
+?>
+<div class="row g-3">
+    <div class="col-12 col-lg-6">
+        <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+            <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                <i class="bi bi-diagram-3 text-primary me-1" aria-hidden="true"></i>
+                <?= __("Branch Details") ?>
+            </legend>
+            <?php
+            echo $this->Form->control("name");
+            echo $this->Form->control("type", [
+                "options" => $branch_types,
+                "empty" => true,
+            ]);
+            echo $this->Form->control("location");
+            ?>
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <?php
+                    echo $this->Form->control("can_have_members", [
+                        "switch" => true,
+                        "label" => "Can Have Members",
+                    ]);
+                    ?>
+                </div>
+                <div class="col-12 col-md-6">
+                    <?php
+                    echo $this->Form->control("can_have_officers", [
+                        "switch" => true,
+                        "label" => "Can Have Officers",
+                    ]);
+                    ?>
+                </div>
+            </div>
+        </fieldset>
     </div>
-</fieldset>
+    <div class="col-12 col-lg-6">
+        <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
+            <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                <i class="bi bi-person-lines-fill text-success me-1" aria-hidden="true"></i>
+                <?= __("Hierarchy & Contact") ?>
+            </legend>
+            <?php
+            echo $this->KMP->autoCompleteControl(
+                $this->Form,
+                'sca_name',
+                'contact_id',
+                $contactUrl,
+                'Point of Contact',
+                false,
+                false,
+                3,
+                $contactAttrs
+            );
+            echo $this->Form->control("parent_id", [
+                "options" => $treeList,
+                "empty" => true,
+            ]);
+            echo $this->Form->control("domain", ['label' => 'Email Domain', 'placeholder' => 'e.g. branch.example.com']);
+            ?>
+        </fieldset>
+    </div>
+    <div class="col-12">
+        <fieldset class="border rounded-3 bg-white shadow-sm p-3">
+            <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                <i class="bi bi-link-45deg text-info me-1" aria-hidden="true"></i>
+                <?= __("Public Links") ?>
+            </legend>
+            <div class="mb-3 form-group links">
+                <label class="form-label" for="links">Links</label>
+                <div data-branch-links-target='displayList' class="mb-3"></div>
+                <div class="input-group">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button"
+                        data-bs-toggle="dropdown" aria-expanded="false" aria-label="<?= h(__('Select branch link type')) ?>">
+                        <i class="bi bi-link" data-value="link" data-branch-links-target="linkType" aria-hidden="true"></i>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><button type="button" class="dropdown-item" data-value="link"
+                                data-action="branch-links#setLinkType"><i class="bi bi-link" data-value="link" aria-hidden="true"></i> Website</button></li>
+                        <li><button type="button" class="dropdown-item" data-value="discord"
+                                data-action="branch-links#setLinkType"><i class="bi bi-discord" data-value="discord" aria-hidden="true"></i> Discord</button></li>
+                        <li><button type="button" class="dropdown-item" data-value="facebook"
+                                data-action="branch-links#setLinkType"><i class="bi bi-facebook" data-value="facebook" aria-hidden="true"></i> Facebook</button></li>
+                        <li><button type="button" class="dropdown-item" data-value="instagram"
+                                data-action="branch-links#setLinkType"><i class="bi bi-instagram" data-value="instagram" aria-hidden="true"></i> Instagram</button></li>
+                        <li><button type="button" class="dropdown-item" data-value="tiktok"
+                                data-action="branch-links#setLinkType"><i class="bi bi-tiktok" data-value="tiktok" aria-hidden="true"></i> TikTok</button></li>
+                        <li><button type="button" class="dropdown-item" data-value="threads"
+                                data-action="branch-links#setLinkType"><i class="bi bi-threads" data-value="threads" aria-hidden="true"></i> Threads</button></li>
+                        <li><button type="button" class="dropdown-item" data-value="twitter-x"
+                                data-action="branch-links#setLinkType"><i class="bi bi-twitter-x" data-value="twitter-x" aria-hidden="true"></i> X/Twitter</button></li>
+                        <li><button type="button" class="dropdown-item" data-value="youtube"
+                                data-action="branch-links#setLinkType"><i class="bi bi-youtube" data-value="youtube" aria-hidden="true"></i> YouTube</button></li>
+                    </ul>
+                    <input type="url" data-branch-links-target="new" class="form-control col-8"
+                        placeholder="https://example.com">
+                    <button type="button" class="btn btn-primary btn-sm" data-action="branch-links#add">Add</button>
+                </div>
+            </div>
+        </fieldset>
+    </div>
+</div>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [
         "class" => "btn btn-primary",

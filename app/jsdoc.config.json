@@ -13,16 +13,23 @@
     "destination": "../docs/api/js",
     "recurse": true,
     "readme": "../docs/10-javascript-development.md",
-    "template": "./node_modules/clean-jsdoc-theme",
-    "theme_opts": {
-      "default_theme": "dark",
+    "template": "./node_modules/docdash"
+  },
+  "docdash": {
+    "search": true,
+    "meta": {
       "title": "KMP JavaScript API",
-      "homepageTitle": "KMP JavaScript API Reference",
-      "menu": [
-        { "title": "PHP API", "link": "../php/index.html" },
-        { "title": "Docs Home", "link": "../../index.html" }
-      ],
-      "search": true
+      "description": "KMP JavaScript API reference for Stimulus controllers and plugin assets."
+    },
+    "menu": {
+      "PHP API": {
+        "href": "../php/index.html",
+        "target": "_self"
+      },
+      "Docs Home": {
+        "href": "../../index.html",
+        "target": "_self"
+      }
     }
   },
   "tags": {

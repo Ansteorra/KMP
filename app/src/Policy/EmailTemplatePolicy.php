@@ -94,34 +94,6 @@ class EmailTemplatePolicy extends BasePolicy
     }
 
     /**
-     * Check if $user can discover mailers
-     *
-     * @param \App\KMP\KmpIdentityInterface $user The user.
-     * @param \Cake\ORM\Table $entity
-     * @param mixed ...$optionalArgs Optional arguments
-     * @return bool
-     */
-    public function canDiscover(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
-    {
-        // Same permission as viewing templates
-        return $this->_hasPolicy($user, 'canView', $entity, ...$optionalArgs);
-    }
-
-    /**
-     * Check if $user can sync templates
-     *
-     * @param \App\KMP\KmpIdentityInterface $user The user.
-     * @param \Cake\ORM\Table $entity
-     * @param mixed ...$optionalArgs Optional arguments
-     * @return bool
-     */
-    public function canSync(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
-    {
-        // Sync requires create permission
-        return $this->_hasPolicy($user, 'canCreate', $entity, ...$optionalArgs);
-    }
-
-    /**
      * Check if $user can preview templates
      *
      * @param \App\KMP\KmpIdentityInterface $user The user.

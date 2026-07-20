@@ -22,7 +22,7 @@ import { Controller } from "@hotwired/stimulus"
  *   detail: { order: ['id1', 'id2', 'id3'], items: [...DOMElements] }
  */
 class SortableListController extends Controller {
-    static targets = ["item", "handle"]
+    static targets = ["item", "handle", "status"]
 
     initialize() {
         this.draggedElement = null;
@@ -39,16 +39,20 @@ class SortableListController extends Controller {
 
     connect() {
         // Make items draggable
-        this.itemTargets.forEach(item => {
+        this.currentItems.forEach(item => {
             item.setAttribute('draggable', 'true');
             this.addDragListeners(item);
         });
     }
 
     disconnect() {
-        this.itemTargets.forEach(item => {
+        this.currentItems.forEach(item => {
             this.removeDragListeners(item);
         });
+    }
+
+    get currentItems() {
+        return Array.from(this.element.querySelectorAll('[data-sortable-list-target~="item"]'));
     }
 
     /**
@@ -130,7 +134,7 @@ class SortableListController extends Controller {
      */
     dragEnd(event) {
         // Remove all drag-related classes
-        this.itemTargets.forEach(item => {
+        this.currentItems.forEach(item => {
             item.classList.remove('dragging', 'drag-over');
         });
 
@@ -142,14 +146,15 @@ class SortableListController extends Controller {
      * Emit custom event with new order
      */
     emitReorderedEvent() {
-        const order = this.itemTargets.map(item => {
+        const items = this.currentItems;
+        const order = items.map(item => {
             return item.dataset.itemId || item.dataset.columnKey || item.id;
         });
 
         const event = new CustomEvent('sortable-list:reordered', {
             detail: {
                 order: order,
-                items: this.itemTargets
+                items: items
             },
             bubbles: true,
             cancelable: true
@@ -162,9 +167,52 @@ class SortableListController extends Controller {
      * Get current order of items
      */
     getOrder() {
-        return this.itemTargets.map(item => {
+        return this.currentItems.map(item => {
             return item.dataset.itemId || item.dataset.columnKey || item.id;
         });
+    }
+
+    moveUp(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        const item = event.currentTarget.closest('[data-sortable-list-target~="item"]');
+        const items = this.currentItems;
+        const index = items.indexOf(item);
+        if (!item || index <= 0) {
+            return;
+        }
+
+        item.parentNode.insertBefore(item, items[index - 1]);
+        item.focus({ preventScroll: true });
+        this.emitReorderedEvent();
+        this.announceMove(item);
+    }
+
+    moveDown(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        const item = event.currentTarget.closest('[data-sortable-list-target~="item"]');
+        const items = this.currentItems;
+        const index = items.indexOf(item);
+        if (!item || index === -1 || index >= items.length - 1) {
+            return;
+        }
+
+        item.parentNode.insertBefore(items[index + 1], item);
+        item.focus({ preventScroll: true });
+        this.emitReorderedEvent();
+        this.announceMove(item);
+    }
+
+    announceMove(item) {
+        if (!this.hasStatusTarget) {
+            return;
+        }
+
+        const items = this.currentItems;
+        const position = items.indexOf(item) + 1;
+        const label = item.dataset.itemLabel || item.textContent.trim();
+        this.statusTarget.textContent = `${label} moved to position ${position} of ${items.length}.`;
     }
 
     addDragListeners(item) {

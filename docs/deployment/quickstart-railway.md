@@ -4,12 +4,14 @@ Deploy KMP to Railway with managed MySQL — zero infrastructure configuration r
 
 [← Back to Deployment Guide](README.md)
 
+> Legacy note: the automated `kmp install` flow is retired for new deployments. This page is kept as archived self-hosted reference.
+
 ## Prerequisites
 
 - [Railway account](https://railway.app/)
 - [`railway` CLI](https://docs.railway.app/develop/cli) installed and authenticated (`railway login`)
 
-## Option A: Automated Install (Recommended)
+## Legacy Automated Install (Retired)
 
 ```bash
 # Install the KMP management tool
@@ -110,7 +112,7 @@ railway logs --follow
 ## Updates
 
 ```bash
-# Using the management tool
+# Legacy management tool
 kmp update
 
 # Or redeploy with the latest image

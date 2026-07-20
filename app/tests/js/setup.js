@@ -28,6 +28,20 @@ global.window.KMP_utils = {
   urlParam: jest.fn()
 };
 
+global.window.KMP_accessibility = {
+  alert: jest.fn(() => Promise.resolve()),
+  announce: jest.fn(),
+  confirm: jest.fn(() => Promise.resolve(true)),
+  prompt: jest.fn(() => Promise.resolve('')),
+};
+
+beforeEach(() => {
+  global.window.KMP_accessibility.alert.mockResolvedValue(undefined);
+  global.window.KMP_accessibility.announce.mockClear();
+  global.window.KMP_accessibility.confirm.mockResolvedValue(true);
+  global.window.KMP_accessibility.prompt.mockResolvedValue('');
+});
+
 // Mock console methods to reduce noise in tests
 global.console = {
   ...console,

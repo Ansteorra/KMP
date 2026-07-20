@@ -1,10 +1,8 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Officers\Model\Entity;
 
-use Cake\ORM\Entity;
 use App\Model\Entity\BaseEntity;
 
 /**
@@ -19,6 +17,7 @@ use App\Model\Entity\BaseEntity;
  * @property bool $requires_warrant Warrant requirement flag
  * @property bool $required_office Organizational requirement flag
  * @property bool $only_one_per_branch Branch-level uniqueness constraint
+ * @property bool $is_royal_progress Holders' RSVPs count as royal progress on the public calendar
  * @property bool $can_skip_report Reporting exemption permission
  * @property int|null $deputy_to_id Foreign key for deputy office relationships
  * @property int|null $reports_to_id Foreign key for reporting hierarchy
@@ -46,7 +45,6 @@ use App\Model\Entity\BaseEntity;
  * @property \Officers\Model\Entity\Office[] $deputies Child deputy offices
  * @property \Officers\Model\Entity\Office[] $direct_reports Child offices in reporting hierarchy
  * @property \Officers\Model\Entity\Officer[] $officers All officer assignments
- *
  * @see /docs/5.1-officers-plugin.md
  * @see \Officers\Model\Table\OfficesTable
  */
@@ -64,6 +62,7 @@ class Office extends BaseEntity
         'can_skip_report' => true,
         'required_office' => true,
         'only_one_per_branch' => true,
+        'is_royal_progress' => true,
         'deputy_to_id' => true,
         'reports_to_id' => true,
         'grants_role_id' => true,
@@ -79,11 +78,11 @@ class Office extends BaseEntity
      * Set deputy_to_id and automatically set reports_to_id to maintain hierarchy.
      *
      * @param int|null $deputy_to_id The office ID this office is deputy to
-     * @return int|null
      */
     protected function _setDeputyToId($deputy_to_id)
     {
-        $this->reports_to_id = $deputy_to_id;
+        $this->set('reports_to_id', $deputy_to_id, ['setter' => false]);
+
         return $deputy_to_id;
     }
 
@@ -91,11 +90,11 @@ class Office extends BaseEntity
      * Set reports_to_id and clear deputy_to_id to prevent conflicts.
      *
      * @param int|null $reports_to_id The office ID this office reports to
-     * @return int|null
      */
     protected function _setReportsToId($reports_to_id)
     {
-        $this->deputy_to_id = null;
+        $this->set('deputy_to_id', null, ['setter' => false]);
+
         return $reports_to_id;
     }
 
@@ -119,10 +118,11 @@ class Office extends BaseEntity
         if (empty($this->applicable_branch_types)) {
             return [];
         }
-        $returnVals = explode(",", $this->applicable_branch_types);
+        $returnVals = explode(',', $this->applicable_branch_types);
         $returnVals = array_map(function ($branchType) {
-            return ltrim(rtrim($branchType, "\""), "\"");
+            return ltrim(rtrim($branchType, '"'), '"');
         }, $returnVals);
+
         return $returnVals;
     }
 
@@ -174,8 +174,8 @@ class Office extends BaseEntity
             }
         }
         $branchTypes = array_map(function ($branchType) {
-            return "\"$branchType\"";
+            return '"' . $branchType . '"';
         }, $branchTypes);
-        $this->applicable_branch_types = implode(",", $branchTypes);
+        $this->set('applicable_branch_types', implode(',', $branchTypes), ['setter' => false]);
     }
 }

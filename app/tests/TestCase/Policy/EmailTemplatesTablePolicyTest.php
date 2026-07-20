@@ -37,7 +37,7 @@ class EmailTemplatesTablePolicyTest extends BaseTestCase
         $admin = $this->loadMember(self::ADMIN_MEMBER_ID);
         $table = $this->getTable();
 
-        $actions = ['index', 'add', 'edit', 'delete', 'discover', 'sync'];
+        $actions = ['index', 'add', 'edit', 'delete'];
         foreach ($actions as $action) {
             $result = $this->policy->before($admin, $table, $action);
             $this->assertTrue($result, "Super user before() should return true for '$action'");
@@ -94,23 +94,4 @@ class EmailTemplatesTablePolicyTest extends BaseTestCase
         $this->assertFalse($this->policy->canDelete($agatha, $entity));
     }
 
-    public function testCanDiscoverDelegatesToCanIndex(): void
-    {
-        $agatha = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
-        $table = $this->getTable();
-
-        $discoverResult = $this->policy->canDiscover($agatha, $table);
-        $indexResult = $this->policy->canIndex($agatha, $table);
-        $this->assertSame($indexResult, $discoverResult, 'canDiscover should delegate to canIndex');
-    }
-
-    public function testCanSyncDelegatesToCanAdd(): void
-    {
-        $agatha = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
-        $table = $this->getTable();
-
-        $syncResult = $this->policy->canSync($agatha, $table);
-        $addResult = $this->policy->canAdd($agatha, $table);
-        $this->assertSame($addResult, $syncResult, 'canSync should delegate to canAdd');
-    }
 }

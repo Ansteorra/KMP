@@ -1,0 +1,94 @@
+{
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
+    "nodes": {
+        "trigger": {
+            "type": "trigger",
+            "label": "Recommendations Group Requested",
+            "config": {
+                "event": "Awards.RecommendationsGroupRequested"
+            },
+            "position": {
+                "x": 50,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "group-recommendations"
+                }
+            ]
+        },
+        "group-recommendations": {
+            "type": "action",
+            "label": "Group Recommendations",
+            "config": {
+                "action": "Awards.GroupRecommendations",
+                "params": {
+                    "recommendationIds": "$.trigger.recommendationIds",
+                    "actorId": "$.trigger.actorId"
+                }
+            },
+            "position": {
+                "x": 350,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "group-succeeded"
+                }
+            ]
+        },
+        "group-succeeded": {
+            "type": "condition",
+            "label": "Group Succeeded?",
+            "config": {
+                "condition": "Core.FieldEquals",
+                "field": "$.nodes.group-recommendations.result.success",
+                "value": true
+            },
+            "position": {
+                "x": 650,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "end-success",
+                    "label": "Grouped"
+                },
+                {
+                    "port": "false",
+                    "target": "end-failed",
+                    "label": "Failed"
+                }
+            ]
+        },
+        "end-success": {
+            "type": "end",
+            "label": "Grouping Complete",
+            "config": {
+                "result": "$.nodes.group-recommendations.result"
+            },
+            "position": {
+                "x": 950,
+                "y": 225
+            },
+            "outputs": []
+        },
+        "end-failed": {
+            "type": "end",
+            "label": "Grouping Failed",
+            "config": {
+                "result": "$.nodes.group-recommendations.result"
+            },
+            "position": {
+                "x": 950,
+                "y": 375
+            },
+            "outputs": []
+        }
+    },
+    "startNode": "trigger"
+}

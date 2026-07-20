@@ -126,10 +126,11 @@ use App\KMP\StaticHelpers;
                                 <td class="align-top"><?php
 
                                                         $record = StaticHelpers::getValue($value, $data);
-                                                        //if the value is a DateTime then format it with timezone support
+                                                        //if the value is a DateTime then format it
                                                         if ($record instanceof Cake\I18n\DateTime) {
-                                                            // Use timezone helper for proper formatting
-                                                            echo $this->Timezone->format($record, 'Y-m-d', false);
+                                                            // Format as date-only without timezone conversion;
+                                                            // these represent calendar dates, not specific moments in time
+                                                            echo $record->format('Y-m-d');
                                                         } elseif (is_string($value)) {
                                                             if (strpos($value, "{{") !== false) {
                                                                 $record = StaticHelpers::processTemplate($value, $data);

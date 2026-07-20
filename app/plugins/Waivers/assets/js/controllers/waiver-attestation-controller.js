@@ -105,7 +105,11 @@ class WaiverAttestationController extends Controller {
         }
 
         // Build radio buttons
-        let html = '<div class="list-group">'
+        let html = `
+            <fieldset>
+                <legend id="attestation-reason-legend" class="visually-hidden">Why was this waiver not needed?</legend>
+                <div class="list-group" aria-labelledby="attestation-reason-legend">
+        `
         reasons.forEach((reason, index) => {
             const id = `reason_${index}`
             html += `
@@ -116,7 +120,10 @@ class WaiverAttestationController extends Controller {
                 </label>
             `
         })
-        html += '</div>'
+        html += `
+                </div>
+            </fieldset>
+        `
 
         this.reasonListTarget.innerHTML = html
 

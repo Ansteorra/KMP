@@ -4,18 +4,8 @@ import { Controller } from "@hotwired/stimulus";
 /**
  * Awards Recommendation Edit Form Controller
  *
- * Manages edit interface for award recommendations with state-driven form behavior,
- * dynamic field validation, member discovery, and Turbo Frame integration.
- *
- * Targets: scaMember, notFound, branch, externalLinks, domain, award, reason,
- *          gatherings, specialty, state, planToGiveBlock, planToGiveGathering,
- *          givenBlock, recId, turboFrame, givenDate, closeReason, closeReasonBlock,
- *          stateRulesBlock
- * Values: publicProfileUrl (String), awardListUrl (String), formUrl (String),
- *         turboFrameUrl (String), gatheringsUrl (String)
- * Outlets: outlet-btn
- *
- * State rules parsed from stateRulesBlock JSON control field Visible/Required/Disabled states.
+ * Manages workflow-centric recommendation edits: member lookup, award/specialty
+ * selection, approval-workflow restart confirmation, and Turbo Frame integration.
  */
 class AwardsRecommendationEditForm extends Controller {
     static targets = [
@@ -26,205 +16,70 @@ class AwardsRecommendationEditForm extends Controller {
         "domain",
         "award",
         "currentAwardId",
+        "currentApprovalProcessId",
+        "approvalWorkflowRestartConfirmed",
         "reason",
-        "gatherings",
         "specialty",
-        "state",
-        "planToGiveBlock",
-        "planToGiveGathering",
-        "givenBlock",
         "recId",
         "turboFrame",
-        "givenDate",
-        "closeReason",
-        "closeReasonBlock",
-        "stateRulesBlock",
     ];
     static values = {
         publicProfileUrl: String,
         awardListUrl: String,
         formUrl: String,
         turboFrameUrl: String,
-        gatheringsUrl: String,
-        gatheringsLookupUrl: String
     };
     static outlets = ['outlet-btn'];
 
-    /** Set recommendation ID and update Turbo Frame source and form action URL. */
     setId(event) {
-        this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
-        this.element.setAttribute("action", this.formUrlValue + "/" + event.detail.id);
+        if (event.detail.id) {
+            this.turboFrameTarget.setAttribute("src", this.turboFrameUrlValue + "/" + event.detail.id);
+            const form = this.formElement();
+            if (form) {
+                form.action = this.formUrlValue + "/" + event.detail.id;
+            }
+        }
     }
 
-    /** Register listener when outlet-btn connects. */
     outletBtnOutletConnected(outlet, element) {
         outlet.addListener(this.setId.bind(this));
     }
 
-    /** Remove listener when outlet-btn disconnects. */
     outletBtnOutletDisconnected(outlet) {
         outlet.removeListener(this.setId.bind(this));
     }
 
-    /** Enable disabled fields before form submission. */
-    submit(event) {
+    onTurboFrameLoad() {
+        const locked = this.turboFrameTarget.querySelector('[data-recommendation-locked]');
+        const submitBtn = document.getElementById('recommendation_submit');
+        if (submitBtn) {
+            submitBtn.disabled = Boolean(locked);
+        }
+        window.dispatchEvent(new CustomEvent('page-context:sync'));
+    }
+
+    async submit(event) {
+        if (this.turboFrameTarget.querySelector('[data-recommendation-locked]')) {
+            event.preventDefault?.();
+            event.stopImmediatePropagation?.();
+            return;
+        }
+        if (this.shouldConfirmApprovalWorkflowRestart() && await this.confirmApprovalWorkflowRestart(event)) {
+            return;
+        }
         this.notFoundTarget.disabled = false;
         this.scaMemberTarget.disabled = false;
         this.specialtyTarget.disabled = false;
     }
 
-    /** Handle award selection, populate specialties, and update gatherings list. */
     setAward(event) {
-        let awardId = event.target.dataset.awardId;
-        this.awardTarget.value = awardId;
-        if (this.awardTarget.value != "") {
+        this.awardTarget.value = event.target.dataset.awardId;
+        this.resetApprovalWorkflowRestartConfirmation();
+        if (this.awardTarget.value !== "") {
             this.populateSpecialties(event);
-            this.updateGatherings(awardId);
         }
     }
 
-    /** Fetch gatherings filtered by award and update checkboxes and dropdown. */
-    updateGatherings(awardId) {
-        if (!awardId) {
-            return;
-        }
-
-        // Get member_id if available
-        let memberId = this.hasScaMemberTarget ? this.scaMemberTarget.value : '';
-
-        // Get status if available
-        let status = this.hasStateTarget ? this.stateTarget.value : '';
-
-        // Build URL with query params
-        let url = this.gatheringsUrlValue + '/' + awardId;
-        let params = new URLSearchParams();
-        if (memberId) {
-            params.append('member_id', memberId);
-        }
-        if (status) {
-            params.append('status', status);
-        }
-        if (params.toString()) {
-            url += '?' + params.toString();
-        }
-
-        this.updatePlanToGiveLookupUrl(awardId, memberId, status);
-
-        fetch(url, this.optionsForFetch())
-            .then(response => response.json())
-            .then(data => {
-                if (data.gatherings) {
-                    // Update the gatherings checkboxes
-                    const gatheringsContainer = document.getElementById('recommendation__gathering_ids');
-                    if (gatheringsContainer) {
-                        // Save currently selected values
-                        const selectedValues = [];
-                        gatheringsContainer.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
-                            selectedValues.push(cb.value);
-                        });
-
-                        // Clear existing options
-                        gatheringsContainer.innerHTML = '';
-
-                        // Add new options as checkboxes
-                        data.gatherings.forEach(gathering => {
-                            const div = document.createElement('div');
-                            div.className = 'form-check';
-
-                            const input = document.createElement('input');
-                            input.type = 'checkbox';
-                            input.className = 'form-check-input';
-                            input.name = 'gatherings[_ids][]';
-                            input.value = gathering.id;
-                            input.id = `gathering-${gathering.id}`;
-
-                            // Disable cancelled gatherings
-                            if (gathering.cancelled) {
-                                input.disabled = true;
-                            }
-
-                            // Restore checked state if it was previously selected
-                            if (selectedValues.includes(gathering.id.toString())) {
-                                input.checked = true;
-                            }
-
-                            const label = document.createElement('label');
-                            label.className = 'form-check-label';
-                            label.htmlFor = `gathering-${gathering.id}`;
-                            label.textContent = gathering.display;
-
-                            // Style cancelled gatherings
-                            if (gathering.cancelled) {
-                                label.classList.add('text-danger');
-                            }
-
-                            div.appendChild(input);
-                            div.appendChild(label);
-                            gatheringsContainer.appendChild(div);
-                        });
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching gatherings:', error);
-            });
-    }
-
-    /** Update autocomplete endpoint URL for "Plan to Give At" gathering lookups. */
-    updatePlanToGiveLookupUrl(awardId, memberId = '', status = '') {
-        if (!this.hasPlanToGiveGatheringTarget || !this.hasGatheringsLookupUrlValue || !awardId) {
-            return;
-        }
-
-        const awardKey = String(awardId);
-        if (
-            this.planToGiveGatheringTarget.dataset.lookupAwardId &&
-            this.planToGiveGatheringTarget.dataset.lookupAwardId !== awardKey
-        ) {
-            this.planToGiveGatheringTarget.value = '';
-            this.planToGiveGatheringTarget.dataset.initialValue = '';
-        }
-        this.planToGiveGatheringTarget.dataset.lookupAwardId = awardKey;
-
-        const currentValue = this.planToGiveGatheringTarget.value ||
-            this.planToGiveGatheringTarget.dataset.initialValue ||
-            '';
-
-        const params = new URLSearchParams();
-        if (memberId) {
-            params.append('member_id', memberId);
-        }
-        if (status) {
-            params.append('status', status);
-        }
-        if (this.hasRecIdTarget && this.recIdTarget.value) {
-            params.append('recommendation_id', this.recIdTarget.value);
-        }
-        if (currentValue) {
-            params.append('selected_id', currentValue);
-            this.planToGiveGatheringTarget.dataset.initialValue = currentValue;
-        }
-
-        let lookupUrl = `${this.gatheringsLookupUrlValue}/${awardId}`;
-        if (params.toString()) {
-            lookupUrl += `?${params.toString()}`;
-        }
-        this.planToGiveGatheringTarget.setAttribute('data-ac-url-value', lookupUrl);
-    }
-
-    /** Sync required state to autocomplete text input. */
-    setPlanToGiveRequired(required) {
-        if (!this.hasPlanToGiveGatheringTarget) {
-            return;
-        }
-        this.planToGiveGatheringTarget.required = required;
-        const input = this.planToGiveGatheringTarget.querySelector("[data-ac-target='input']");
-        if (input) {
-            input.required = required;
-        }
-    }
-
-    /** Fetch awards for domain and populate award selection with autocomplete. */
     populateAwardDescriptions(event) {
         let url = this.awardListUrlValue + "/" + event.target.value;
         if (this.hasCurrentAwardIdTarget && this.currentAwardIdTarget.value) {
@@ -234,10 +89,7 @@ class AwardsRecommendationEditForm extends Controller {
             .then(response => response.json())
             .then(data => {
                 this.awardTarget.value = "";
-                let active = "active";
-                let show = "show";
-                let selected = "true";
-                let awardList = [];
+                const awardList = [];
                 if (data.length > 0) {
                     data.forEach(function (award) {
                         awardList.push({ value: award.id, text: award.name, data: award });
@@ -245,9 +97,10 @@ class AwardsRecommendationEditForm extends Controller {
                     this.awardTarget.options = awardList;
                     this.awardTarget.disabled = false;
                     if (this.awardTarget.dataset.acInitSelectionValue) {
-                        let val = JSON.parse(this.awardTarget.dataset.acInitSelectionValue);
+                        const val = JSON.parse(this.awardTarget.dataset.acInitSelectionValue);
                         this.awardTarget.value = val.value;
-                        if (this.awardTarget.value != "") {
+                        this.resetApprovalWorkflowRestartConfirmation();
+                        if (this.awardTarget.value !== "") {
                             this.populateSpecialties({ target: { value: val.value } });
                         }
                     }
@@ -257,18 +110,16 @@ class AwardsRecommendationEditForm extends Controller {
                     this.awardTarget.disabled = true;
                     this.specialtyTarget.options = [{ value: "No specialties available", text: "No specialties available" }];
                     this.specialtyTarget.value = "No specialties available";
-                    this.specialtyTarget.disabled = true
+                    this.specialtyTarget.disabled = true;
                     this.specialtyTarget.hidden = true;
                 }
             });
     }
 
-    /** Update specialty dropdown based on selected award's configuration. */
     populateSpecialties(event) {
-        let awardId = this.awardTarget.value;
-        let options = this.awardTarget.options;
-        let award = this.awardTarget.options.find(award => award.value == awardId);
-        let specialtyArray = [];
+        const awardId = this.awardTarget.value;
+        const award = this.awardTarget.options.find(award => award.value == awardId);
+        const specialtyArray = [];
         if (award.data.specialties != null && award.data.specialties.length > 0) {
             award.data.specialties.forEach(function (specialty) {
                 specialtyArray.push({ value: specialty, text: specialty });
@@ -278,18 +129,76 @@ class AwardsRecommendationEditForm extends Controller {
             this.specialtyTarget.disabled = false;
             this.specialtyTarget.hidden = false;
             if (this.specialtyTarget.dataset.acInitSelectionValue) {
-                let val = JSON.parse(this.specialtyTarget.dataset.acInitSelectionValue);
+                const val = JSON.parse(this.specialtyTarget.dataset.acInitSelectionValue);
                 this.specialtyTarget.value = val.value;
             }
         } else {
             this.specialtyTarget.options = [{ value: "No specialties available", text: "No specialties available" }];
             this.specialtyTarget.value = "No specialties available";
-            this.specialtyTarget.disabled = true
+            this.specialtyTarget.disabled = true;
             this.specialtyTarget.hidden = true;
         }
     }
 
-    /** Handle member field change, load profile or show branch field if not found. */
+    shouldConfirmApprovalWorkflowRestart() {
+        if (
+            !this.hasCurrentApprovalProcessIdTarget ||
+            !this.hasApprovalWorkflowRestartConfirmedTarget ||
+            this.approvalWorkflowRestartConfirmedTarget.value === "1"
+        ) {
+            return false;
+        }
+
+        const currentProcessId = String(this.currentApprovalProcessIdTarget.value || "");
+        if (currentProcessId === "") {
+            return false;
+        }
+
+        const currentAwardId = this.hasCurrentAwardIdTarget ? String(this.currentAwardIdTarget.value || "") : "";
+        const selectedAwardId = String(this.awardTarget.value || "");
+        if (selectedAwardId === "" || selectedAwardId === currentAwardId) {
+            return false;
+        }
+
+        const award = this.awardTarget.options?.find((option) => String(option.value) === selectedAwardId);
+        const selectedProcessId = String(award?.data?.approval_process_id || "");
+
+        return selectedProcessId !== currentProcessId;
+    }
+
+    async confirmApprovalWorkflowRestart(event) {
+        if (!this.shouldConfirmApprovalWorkflowRestart()) {
+            return false;
+        }
+
+        event.preventDefault?.();
+        event.stopImmediatePropagation?.();
+        const form = event.target;
+        const confirmed = await window.KMP_accessibility.confirm(
+            "Changing this award will cancel the current approval workflow. If the new award requires approval, a new workflow will be started after the recommendation is saved.",
+            {
+                title: "Restart approval workflow?",
+                confirmLabel: "Save and restart workflow",
+                cancelLabel: "Keep editing",
+            },
+        );
+        if (!confirmed) {
+            window.KMP_accessibility.announce("Award change was not saved.", { assertive: true });
+            return true;
+        }
+
+        this.approvalWorkflowRestartConfirmedTarget.value = "1";
+        form.requestSubmit();
+
+        return true;
+    }
+
+    resetApprovalWorkflowRestartConfirmation() {
+        if (this.hasApprovalWorkflowRestartConfirmedTarget) {
+            this.approvalWorkflowRestartConfirmedTarget.value = "0";
+        }
+    }
+
     loadScaMemberInfo(event) {
         this.externalLinksTarget.innerHTML = "";
 
@@ -298,7 +207,7 @@ class AwardsRecommendationEditForm extends Controller {
             ? hiddenTarget.value.trim()
             : (event?.detail?.selected ? String(event.detail.value ?? "").trim() : "")
                 || (event?.detail ? "" : (typeof event?.target?.value === "string" ? event.target.value.trim() : ""));
-        let memberId = Number(rawMemberValue.replace(/_/g, ""));
+        const memberId = Number(rawMemberValue.replace(/_/g, ""));
         if (memberId > 0) {
             this.notFoundTarget.checked = false;
             this.branchTarget.hidden = true;
@@ -310,10 +219,8 @@ class AwardsRecommendationEditForm extends Controller {
             this.branchTarget.disabled = false;
             this.branchTarget.focus();
         }
-
     }
 
-    /** Get standard fetch options with JSON headers. */
     optionsForFetch() {
         return {
             headers: {
@@ -323,23 +230,21 @@ class AwardsRecommendationEditForm extends Controller {
         }
     }
 
-    /** Fetch and display member profile external links. */
     loadMember(memberId) {
-        let url = this.publicProfileUrlValue + "/" + memberId;
-        fetch(url, this.optionsForFetch())
+        fetch(this.publicProfileUrlValue + "/" + memberId, this.optionsForFetch())
             .then(response => response.json())
             .then(data => {
                 this.externalLinksTarget.innerHTML = "";
-                let keys = Object.keys(data.external_links);
+                const keys = Object.keys(data.external_links);
                 if (keys.length > 0) {
-                    var LinksTitle = document.createElement("div");
-                    LinksTitle.innerHTML = "<h5>Public Links</h5>";
-                    LinksTitle.classList.add("col-12");
-                    this.externalLinksTarget.appendChild(LinksTitle);
-                    for (let key in data.external_links) {
-                        let div = document.createElement("div");
+                    const linksTitle = document.createElement("div");
+                    linksTitle.innerHTML = "<h5>Public Links</h5>";
+                    linksTitle.classList.add("col-12");
+                    this.externalLinksTarget.appendChild(linksTitle);
+                    for (const key in data.external_links) {
+                        const div = document.createElement("div");
                         div.classList.add("col-12");
-                        let a = document.createElement("a");
+                        const a = document.createElement("a");
                         a.href = data.external_links[key];
                         a.text = key;
                         a.target = "_blank";
@@ -347,7 +252,7 @@ class AwardsRecommendationEditForm extends Controller {
                         this.externalLinksTarget.appendChild(div);
                     }
                 } else {
-                    var noLink = document.createElement("div");
+                    const noLink = document.createElement("div");
                     noLink.innerHTML = "<h5>No links available</h5>";
                     noLink.classList.add("col-12");
                     this.externalLinksTarget.appendChild(noLink);
@@ -355,134 +260,32 @@ class AwardsRecommendationEditForm extends Controller {
             });
     }
 
-    /** Load member info when scaMember target connects with existing value. */
     scaMemberTargetConnected() {
-        if (this.scaMemberTarget.value != "") {
+        if (this.scaMemberTarget.value !== "") {
             this.loadScaMemberInfo({ target: { value: this.scaMemberTarget.value } });
         }
     }
 
-    /** Apply field rules when state target connects. */
-    stateTargetConnected() {
-        console.log("status connected");
-        this.setFieldRules();
-    }
-
-    /** Parse JSON state rules and apply Visible/Required/Disabled field states. */
-    setFieldRules() {
-        console.log("setting field rules");
-        var rulesstring = this.stateRulesBlockTarget.textContent;
-        var rules = JSON.parse(rulesstring);
-        if (this.specialtyTarget.options.length == 0) {
-            this.specialtyTarget.hidden = true;
-            this.specialtyTarget.disabled = true;
-        }
-
-        this.planToGiveBlockTarget.style.display = "none";
-        this.givenBlockTarget.style.display = "none";
-
-        // Store the current givenDate value before potentially clearing it
-        if (this.givenDateTarget.value && !this.givenDateTarget.dataset.initialValue) {
-            this.givenDateTarget.dataset.initialValue = this.givenDateTarget.value;
-        }
-
-        // Only clear givenDate if it doesn't have an initial value stored
-        if (!this.givenDateTarget.dataset.initialValue) {
-            this.givenDateTarget.value = "";
-        } else {
-            // Restore the initial value if it was cleared
-            if (!this.givenDateTarget.value) {
-                this.givenDateTarget.value = this.givenDateTarget.dataset.initialValue;
-            }
-        }
-
-        this.domainTarget.disabled = false;
-        this.awardTarget.disabled = false;
-        this.specialtyTarget.disabled = this.specialtyTarget.hidden;
-        this.scaMemberTarget.disabled = false;
-        this.setPlanToGiveRequired(false);
-        this.givenDateTarget.required = false;
-        this.closeReasonBlockTarget.style.display = "none";
-        this.closeReasonTarget.required = false;
-        if (this.notFoundTarget.checked) {
-            this.branchTarget.disabled = false;
-            this.branchTarget.hidden = false;
-        } else {
-            this.branchTarget.disabled = true;
-            this.branchTarget.hidden = true;
-        }
-
-        var state = this.stateTarget.value;
-
-        //check status rules for the status
-        if (rules[state]) {
-            var statusRules = rules[state];
-            var controller = this;
-            if (statusRules["Visible"]) {
-                statusRules["Visible"].forEach(function (field) {
-                    if (controller[field]) {
-                        controller[field].style.display = "block";
-                    }
-                });
-            }
-            if (statusRules["Disabled"]) {
-                statusRules["Disabled"].forEach(function (field) {
-                    if (controller[field]) {
-                        controller[field].disabled = true;
-                    }
-                });
-            }
-            if (statusRules["Required"]) {
-                statusRules["Required"].forEach(function (field) {
-                    if (controller[field]) {
-                        controller[field].required = true;
-                    }
-                });
-            }
-        }
-        this.setPlanToGiveRequired(!!this.planToGiveGatheringTarget.required);
-
-        // Update gatherings when state changes (e.g., to/from "Given")
-        if (this.hasAwardTarget && this.awardTarget.value) {
-            this.updateGatherings(this.awardTarget.value);
-        }
-    }
-
-    /** Store initial gathering value on connect for persistence through updates. */
-    connect() {
-        // Store the initial gathering_id value so it persists through option updates
-        if (this.hasPlanToGiveGatheringTarget && this.planToGiveGatheringTarget.value) {
-            this.planToGiveGatheringTarget.dataset.initialValue = this.planToGiveGatheringTarget.value;
-        }
-    }
-
-    /** Update form action URL when recId target connects. */
     recIdTargetConnected() {
-        let recId = this.recIdTarget.value;
-        let actionUrl = this.element.getAttribute("action");
-        //trim the last / off of the end of the action url
+        const form = this.formElement();
+        if (!form) {
+            return;
+        }
+        const recId = this.recIdTarget.value;
+        let actionUrl = form.getAttribute("action");
         actionUrl = actionUrl.replace(/\/\d+$/, "");
-        actionUrl = actionUrl + "/" + recId;
-        this.element.setAttribute("action", actionUrl);
+        form.setAttribute("action", actionUrl + "/" + recId);
     }
 
-    /** Store initial gathering value on target connect. */
-    planToGiveGatheringTargetConnected() {
-        // Store the initial value from the server-rendered form
-        if (this.planToGiveGatheringTarget.value) {
-            this.planToGiveGatheringTarget.dataset.initialValue = this.planToGiveGatheringTarget.value;
+    formElement() {
+        if (this.element instanceof HTMLFormElement) {
+            return this.element;
         }
-    }
 
-    /** Store initial given date value on target connect. */
-    givenDateTargetConnected() {
-        // Store the initial value from the server-rendered form
-        if (this.givenDateTarget.value) {
-            this.givenDateTarget.dataset.initialValue = this.givenDateTarget.value;
-        }
+        return this.element.querySelector('form');
     }
 }
-// add to window.Controllers with a name of the controller
+
 if (!window.Controllers) {
     window.Controllers = {};
 }

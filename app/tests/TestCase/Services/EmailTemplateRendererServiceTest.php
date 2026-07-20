@@ -3,9 +3,13 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
 
+use App\KMP\TimezoneHelper;
 use App\Model\Entity\EmailTemplate;
 use App\Services\EmailTemplateRendererService;
 use App\Test\TestCase\BaseTestCase;
+use Cake\I18n\DateTime;
+use ReflectionClass;
+use RuntimeException;
 
 class EmailTemplateRendererServiceTest extends BaseTestCase
 {
@@ -15,7 +19,23 @@ class EmailTemplateRendererServiceTest extends BaseTestCase
     {
         parent::setUp();
         $this->skipIfPostgres();
+        $this->forceAppTimezone('America/Chicago');
         $this->service = new EmailTemplateRendererService();
+    }
+
+    protected function tearDown(): void
+    {
+        $this->forceAppTimezone(null);
+
+        parent::tearDown();
+    }
+
+    private function forceAppTimezone(?string $timezone): void
+    {
+        $reflection = new ReflectionClass(TimezoneHelper::class);
+        $property = $reflection->getProperty('appTimezoneCache');
+        $property->setAccessible(true);
+        $property->setValue(null, $timezone);
     }
 
     // =========================================
@@ -76,6 +96,46 @@ class EmailTemplateRendererServiceTest extends BaseTestCase
         $vars = ['val' => null];
         $result = $this->service->renderTemplate($template, $vars);
         $this->assertEquals('Value is: ', $result);
+    }
+
+    public function testRenderTemplateFormatsDateTimeInKingdomTimezone(): void
+    {
+        $template = 'Expires: {{expires_on}}';
+        $vars = ['expires_on' => new DateTime('2026-06-02T20:00:00Z')];
+
+        $result = $this->service->renderTemplate($template, $vars);
+
+        $this->assertSame('Expires: June 2, 2026 3:00 PM CDT', $result);
+    }
+
+    public function testRenderSubjectFormatsSchemaDateTimeStringInKingdomTimezone(): void
+    {
+        $template = new EmailTemplate();
+        $template->subject_template = 'Expires: {{expires_on}}';
+        $template->variables_schema = [
+            ['name' => 'expires_on', 'type' => 'date_time'],
+        ];
+
+        $result = $this->service->renderSubject($template, [
+            'expires_on' => '2026-06-02T20:00:00+00:00',
+        ]);
+
+        $this->assertSame('Expires: June 2, 2026 3:00 PM CDT', $result);
+    }
+
+    public function testRenderSubjectFormatsSchemaDateStringInKingdomTimezone(): void
+    {
+        $template = new EmailTemplate();
+        $template->subject_template = 'Event date: {{event_date}}';
+        $template->variables_schema = [
+            ['name' => 'event_date', 'type' => 'date'],
+        ];
+
+        $result = $this->service->renderSubject($template, [
+            'event_date' => '2026-06-02T20:00:00+00:00',
+        ]);
+
+        $this->assertSame('Event date: June 2, 2026', $result);
     }
 
     public function testRenderTemplateBoolValues(): void
@@ -152,6 +212,25 @@ class EmailTemplateRendererServiceTest extends BaseTestCase
         $vars = ['status' => 'Approved', 'name' => 'Alice'];
         $result = $this->service->renderTemplate($template, $vars);
         $this->assertEquals('Welcome Alice!', $result);
+    }
+
+    public function testConditionalBareVariableRendersWhenUseful(): void
+    {
+        $template = '{{#if awardReason}}Reason: {{awardReason}}{{/if}}';
+        $vars = ['awardReason' => 'Long service'];
+        $result = $this->service->renderTemplate($template, $vars);
+        $this->assertEquals('Reason: Long service', $result);
+    }
+
+    public function testConditionalBareVariableSkipsWhenMissingOrEmpty(): void
+    {
+        $template = '{{#if awardReason}}Reason: {{awardReason}}{{/if}}';
+
+        $this->assertSame('', $this->service->renderTemplate($template, []));
+        $this->assertSame('', $this->service->renderTemplate($template, ['awardReason' => '']));
+        $this->assertSame('', $this->service->renderTemplate($template, ['awardReason' => null]));
+        $this->assertSame('', $this->service->renderTemplate($template, ['awardReason' => false]));
+        $this->assertSame('', $this->service->renderTemplate($template, ['awardReason' => []]));
     }
 
     // =========================================
@@ -258,10 +337,12 @@ class EmailTemplateRendererServiceTest extends BaseTestCase
 
     public function testExtractVariablesFromConditionals(): void
     {
-        $template = '{{#if status == "Approved"}}Done{{/if}} {{name}}';
+        $template = '{{#if status == "Approved" && awardReason}}Done{{/if}} {{name}}';
         $vars = $this->service->extractVariables($template);
         $this->assertContains('status', $vars);
+        $this->assertContains('awardReason', $vars);
         $this->assertContains('name', $vars);
+        $this->assertNotContains('Approved', $vars);
     }
 
     public function testExtractVariablesDeduplicates(): void
@@ -329,6 +410,215 @@ class EmailTemplateRendererServiceTest extends BaseTestCase
         $html = '   <p>  spaced  out  </p>   ';
         $text = $this->service->htmlToText($html);
         $this->assertEquals('spaced out', $text);
+    }
+
+    // =========================================
+    // extractAllPlaceholders tests
+    // =========================================
+
+    public function testExtractAllPlaceholdersCombinesAllFields(): void
+    {
+        $template = new EmailTemplate();
+        $template->subject_template = 'Hello {{name}}';
+        $template->html_template = 'Dear {{name}}, your warrant {{warrantName}} is ready.';
+        $template->text_template = 'Role: {{role}}';
+
+        $placeholders = $this->service->extractAllPlaceholders($template);
+        $this->assertContains('name', $placeholders);
+        $this->assertContains('warrantName', $placeholders);
+        $this->assertContains('role', $placeholders);
+        $this->assertCount(3, $placeholders, 'Duplicate "name" should be deduplicated');
+    }
+
+    public function testExtractAllPlaceholdersHandlesNullFields(): void
+    {
+        $template = new EmailTemplate();
+        $template->subject_template = 'Hello {{name}}';
+        // html_template and text_template are null/empty
+
+        $placeholders = $this->service->extractAllPlaceholders($template);
+        $this->assertEquals(['name'], $placeholders);
+    }
+
+    // =========================================
+    // validateForSend tests
+    // =========================================
+
+    public function testValidateForSendReturnsEmptyOnSuccess(): void
+    {
+        $template = new EmailTemplate();
+        $template->subject_template = 'Hello {{name}}';
+        $template->html_template = 'Dear {{name}}, your role is {{role}}.';
+
+        $result = $this->service->validateForSend($template, ['name' => 'Alice', 'role' => 'Admin']);
+        $this->assertEmpty($result['errors']);
+        $this->assertEmpty($result['warnings']);
+    }
+
+    public function testValidateForSendErrorsOnMissingPlaceholderValue(): void
+    {
+        $template = new EmailTemplate();
+        $template->subject_template = 'Hello {{name}}';
+        $template->html_template = 'Role: {{role}}';
+
+        $result = $this->service->validateForSend($template, ['name' => 'Alice']);
+        $this->assertCount(1, $result['errors']);
+        $this->assertStringContainsString('role', $result['errors'][0]);
+    }
+
+    public function testValidateForSendErrorsOnMissingRequiredSchemaVar(): void
+    {
+        $template = new EmailTemplate();
+        $template->subject_template = 'Hello {{name}}';
+        $template->html_template = 'Body here.';
+        $template->variables_schema = [
+            ['name' => 'name', 'type' => 'string', 'required' => true],
+            ['name' => 'requiredExtra', 'type' => 'string', 'required' => true],
+        ];
+
+        // 'requiredExtra' is required by schema but not provided and not in template
+        $result = $this->service->validateForSend($template, ['name' => 'Alice']);
+        $errorMessages = implode(' ', $result['errors']);
+        $this->assertStringContainsString('requiredExtra', $errorMessages);
+    }
+
+    public function testValidateForSendSupportsAssociativeSchemaFormat(): void
+    {
+        $template = new EmailTemplate();
+        $template->subject_template = 'Hello {{name}}';
+        $template->html_template = 'Body here.';
+        $template->variables_schema = [
+            'name' => ['type' => 'string', 'required' => true],
+            'requiredExtra' => ['type' => 'string', 'required' => true],
+        ];
+
+        $result = $this->service->validateForSend($template, ['name' => 'Alice']);
+        $this->assertStringContainsString('requiredExtra', implode(' ', $result['errors']));
+    }
+
+    public function testValidateForSendDoesNotErrorOnConditionOnlyVariable(): void
+    {
+        $template = new EmailTemplate();
+        $template->subject_template = 'Hello {{name}}';
+        $template->html_template = '{{#if status == "Approved"}}Done{{/if}}';
+
+        $result = $this->service->validateForSend($template, ['name' => 'Alice']);
+        $this->assertEmpty($result['errors']);
+    }
+
+    public function testValidateForSendNoErrorForOptionalSchemaVar(): void
+    {
+        $template = new EmailTemplate();
+        $template->subject_template = 'Hello {{name}}';
+        $template->html_template = 'Body.';
+        $template->variables_schema = [
+            ['name' => 'name', 'type' => 'string', 'required' => true],
+            ['name' => 'optional', 'type' => 'string', 'required' => false],
+        ];
+
+        $result = $this->service->validateForSend($template, ['name' => 'Alice']);
+        $this->assertEmpty($result['errors']);
+    }
+
+    public function testValidateForSendWarnsOnUndeclaredPlaceholder(): void
+    {
+        $template = new EmailTemplate();
+        $template->subject_template = 'Hello {{name}}';
+        $template->html_template = '{{undeclared}} is here.';
+        $template->variables_schema = [
+            ['name' => 'name', 'type' => 'string', 'required' => false],
+        ];
+
+        $result = $this->service->validateForSend($template, ['name' => 'Alice', 'undeclared' => 'X']);
+        $this->assertEmpty($result['errors']);
+        $warningMessages = implode(' ', $result['warnings']);
+        $this->assertStringContainsString('undeclared', $warningMessages);
+    }
+
+    public function testValidateForSendNoWarningWhenNoSchema(): void
+    {
+        // When variables_schema is empty there is no schema to drift against
+        $template = new EmailTemplate();
+        $template->subject_template = 'Hello {{name}}';
+        $template->html_template = 'Body.';
+        // variables_schema defaults to []
+
+        $result = $this->service->validateForSend($template, ['name' => 'Alice']);
+        $this->assertEmpty($result['errors']);
+        $this->assertEmpty($result['warnings']);
+    }
+
+    // =========================================
+    // assertValidForSend tests
+    // =========================================
+
+    public function testAssertValidForSendPassesOnValidTemplate(): void
+    {
+        $template = new EmailTemplate();
+        $template->subject_template = 'Hi {{name}}';
+        $template->html_template = 'Body.';
+
+        // Should not throw
+        $this->service->assertValidForSend($template, ['name' => 'Bob']);
+        $this->assertTrue(true); // reached
+    }
+
+    public function testAssertValidForSendThrowsOnMissingVar(): void
+    {
+        $template = new EmailTemplate();
+        $template->slug = 'test-slug';
+        $template->subject_template = 'Hi {{name}}';
+        $template->html_template = 'Role: {{role}}';
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessageMatches('/role/');
+        $this->service->assertValidForSend($template, ['name' => 'Bob']);
+    }
+
+    // =========================================
+    // validateSchemaConsistency tests
+    // =========================================
+
+    public function testValidateSchemaConsistencyWarnsOnUnusedSchemaVar(): void
+    {
+        $template = new EmailTemplate();
+        $template->subject_template = 'Hello {{name}}';
+        $template->html_template = 'Body.';
+        $template->variables_schema = [
+            ['name' => 'name', 'type' => 'string'],
+            ['name' => 'neverUsed', 'type' => 'string'],
+        ];
+
+        $result = $this->service->validateSchemaConsistency($template);
+        $this->assertEmpty($result['errors']);
+        $warningMessages = implode(' ', $result['warnings']);
+        $this->assertStringContainsString('neverUsed', $warningMessages);
+    }
+
+    public function testValidateSchemaConsistencyNoWarningWhenSchemaEmpty(): void
+    {
+        $template = new EmailTemplate();
+        $template->subject_template = 'Hello {{name}}';
+        $template->html_template = 'Body.';
+
+        $result = $this->service->validateSchemaConsistency($template);
+        $this->assertEmpty($result['errors']);
+        $this->assertEmpty($result['warnings']);
+    }
+
+    public function testValidateSchemaConsistencyNoWarningWhenAllVarsUsed(): void
+    {
+        $template = new EmailTemplate();
+        $template->subject_template = 'Hello {{name}}';
+        $template->html_template = 'Role: {{role}}';
+        $template->variables_schema = [
+            ['name' => 'name', 'type' => 'string'],
+            ['name' => 'role', 'type' => 'string'],
+        ];
+
+        $result = $this->service->validateSchemaConsistency($template);
+        $this->assertEmpty($result['errors']);
+        $this->assertEmpty($result['warnings']);
     }
 
     // =========================================

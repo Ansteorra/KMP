@@ -282,8 +282,7 @@ class FileSizeValidatorController extends Controller {
      */
     showInvalidFilesWarning(validation) {
         if (!this.showWarningValue || !this.hasWarningTarget) {
-            // Still show browser alert if no warning target
-            alert(validation.message)
+            window.KMP_accessibility.announce(validation.message, { assertive: true })
             return
         }
         
@@ -299,8 +298,7 @@ class FileSizeValidatorController extends Controller {
      */
     showTotalSizeWarning(validation) {
         if (!this.showWarningValue || !this.hasWarningTarget) {
-            // Still show browser alert if no warning target
-            alert(validation.message)
+            window.KMP_accessibility.announce(validation.message, { assertive: true })
             return
         }
         

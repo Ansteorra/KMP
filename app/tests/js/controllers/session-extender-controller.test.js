@@ -20,9 +20,11 @@ describe('SessionExtenderController', () => {
     });
 
     afterEach(() => {
+        jest.clearAllTimers();
         document.body.innerHTML = '';
         jest.useRealTimers();
         jest.restoreAllMocks();
+        window.KMP_accessibility.confirm.mockClear();
         if (global.fetch) {
             delete global.fetch;
         }
@@ -58,8 +60,7 @@ describe('SessionExtenderController', () => {
         expect(controller.timer).not.toBe(firstTimer);
     });
 
-    test('timer fires after exactly 25 minutes', () => {
-        const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
+    test('timer prompts after exactly 25 minutes', () => {
         global.fetch = jest.fn().mockResolvedValue({
             json: () => Promise.resolve({ success: true }),
         });
@@ -67,23 +68,25 @@ describe('SessionExtenderController', () => {
         controller.urlValueChanged();
         jest.advanceTimersByTime(25 * 60000);
 
-        expect(alertSpy).toHaveBeenCalledWith('Session Expiring! Click ok to extend session.');
+        expect(window.KMP_accessibility.confirm).toHaveBeenCalledWith(
+            'Session expiring. Extend your session?',
+            expect.any(Object)
+        );
     });
 
-    test('timer calls fetch to extend session endpoint', () => {
-        jest.spyOn(window, 'alert').mockImplementation(() => {});
+    test('timer calls fetch to extend session endpoint', async () => {
         global.fetch = jest.fn().mockResolvedValue({
             json: () => Promise.resolve({ success: true }),
         });
 
         controller.urlValueChanged();
         jest.advanceTimersByTime(25 * 60000);
+        await Promise.resolve();
 
         expect(global.fetch).toHaveBeenCalledWith('/api/extend-session');
     });
 
     test('successful fetch restarts the timer via urlValueChanged', async () => {
-        jest.spyOn(window, 'alert').mockImplementation(() => {});
         global.fetch = jest.fn().mockResolvedValue({
             json: () => Promise.resolve({ success: true }),
         });
@@ -105,13 +108,12 @@ describe('SessionExtenderController', () => {
     // --- Edge cases ---
 
     test('does not fire timer before 25 minutes', () => {
-        const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
         global.fetch = jest.fn();
 
         controller.urlValueChanged();
         jest.advanceTimersByTime(24 * 60000 + 59999);
 
-        expect(alertSpy).not.toHaveBeenCalled();
+        expect(window.KMP_accessibility.confirm).not.toHaveBeenCalled();
         expect(global.fetch).not.toHaveBeenCalled();
     });
 

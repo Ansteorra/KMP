@@ -16,7 +16,7 @@ use Cake\ORM\TableRegistry;
  * Foundation for all Activities plugin controllers providing shared security configuration,
  * component loading, and integration patterns for activity management and authorization workflows.
  *
- * Child controllers: ActivitiesController, AuthorizationsController, AuthorizationApprovalsController,
+ * Child controllers: ActivitiesController, AuthorizationsController,
  * ActivityGroupsController, ReportsController
  *
  * @package Activities\Controller

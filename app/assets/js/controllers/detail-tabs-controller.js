@@ -102,11 +102,13 @@ class DetailTabsController extends Controller {
         if (this.updateUrlValue) {
             if (firstTabId != eventTabId) {
                 window.history.pushState({}, '', '?tab=' + tab);
+                window.dispatchEvent(new CustomEvent('page-context:sync'));
             } else {
                 //only push state if there is a tab in the querystring
                 var urlTab = KMP_utils.urlParam('tab');
                 if (urlTab) {
                     window.history.pushState({}, '', window.location.pathname);
+                    window.dispatchEvent(new CustomEvent('page-context:sync'));
                 }
             }
         }

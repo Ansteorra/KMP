@@ -7,7 +7,7 @@
  */
 
 $this->extend("/layout/TwitterBootstrap/dashboard");
-$this->append('css', $this->AssetMix->css('waivers'));
+$this->append('css', $this->Vite->css('waivers'));
 
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Waiver Types';

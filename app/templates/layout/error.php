@@ -16,7 +16,7 @@
  */
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="<?= h(\Cake\Core\Configure::read('App.language') ?: 'en') ?>">
 
 <head>
     <?= $this->Html->charset() ?>
@@ -25,7 +25,7 @@
     </title>
     <?= $this->Html->meta("icon") ?>
 
-    <?= $this->Html->css(["normalize.min", "milligram.min", "fonts", "cake"]) ?>
+    <?= $this->Vite->css('error') ?>
 
     <?= $this->fetch("meta") ?>
     <?= $this->fetch("css") ?>
@@ -34,9 +34,13 @@
 
 <body>
     <div class="error-container">
-        <?= $this->Flash->render() ?>
-        <?= $this->fetch("content") ?>
-        <?= $this->Html->link(__("Back"), "javascript:history.back()") ?>
+        <div id="flash-messages">
+            <?= $this->Flash->render() ?>
+        </div>
+        <main id="main-content" tabindex="-1">
+            <?= $this->fetch("content") ?>
+        </main>
+        <button type="button" data-controller="history-back" data-action="history-back#go"><?= __("Back") ?></button>
     </div>
 </body>
 

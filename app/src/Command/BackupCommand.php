@@ -14,7 +14,13 @@ use Exception;
 use RuntimeException;
 
 /**
- * CLI backup management: create and restore backups.
+ * CLI backup management: create and restore passphrase-encrypted .kmpbackup files.
+ *
+ * Dev/seed tooling, not production scheduling: production tenant backups are
+ * platform-managed (tenant-backup-fleet schedule + `tenant backup` command).
+ * This command is retained for the Azure nightly-seed flow
+ * (docker/reset-and-seed.sh, deploy/azure/seed/bake-seed.sh) and ad-hoc
+ * single-database work.
  *
  * Usage:
  *   bin/cake backup create --key "my-secret-key"
@@ -54,6 +60,20 @@ class BackupCommand extends Command
             ->addOption('key', [
                 'help' => 'Encryption key (or set Backup.encryptionKey in AppSettings)',
                 'short' => 'k',
+            ])
+            ->addOption('yes', [
+                'help' => 'Assume "RESTORE" confirmation (non-interactive). Also implied by --no-interaction.',
+                'short' => 'y',
+                'boolean' => true,
+            ])
+            ->addOption('ignore-schema-mismatch', [
+                'help' => 'Suppress schema fingerprint mismatch warnings while compatibility upgrades run.',
+                'boolean' => true,
+            ])
+            ->addOption('fail-on-not-valid-fk', [
+                'help' => 'Exit non-zero if any Postgres FK constraint was left NOT VALID after restore. Default: on.',
+                'boolean' => true,
+                'default' => true,
             ]);
 
         return $parser;
@@ -168,11 +188,16 @@ class BackupCommand extends Command
         }
 
         $io->warning('⚠️  This will REPLACE ALL current data with the backup contents.');
-        $confirm = $io->ask('Type "RESTORE" to confirm:');
-        if ($confirm !== 'RESTORE') {
-            $io->out('Restore cancelled.');
+        $assumeYes = (bool)$args->getOption('yes') || $args->getOption('no-interaction');
+        if (!$assumeYes) {
+            $confirm = $io->ask('Type "RESTORE" to confirm:');
+            if ($confirm !== 'RESTORE') {
+                $io->out('Restore cancelled.');
 
-            return self::CODE_SUCCESS;
+                return self::CODE_SUCCESS;
+            }
+        } else {
+            $io->out('Skipping interactive confirmation (--yes / --no-interaction).');
         }
 
         $backupService = new BackupService();
@@ -235,6 +260,9 @@ class BackupCommand extends Command
                         $lastPhase = $phase;
                     }
                 },
+                [
+                    'ignoreSchemaMismatch' => (bool)$args->getOption('ignore-schema-mismatch'),
+                ],
                 function () use ($io): void {
                     $exitCode = $this->executeCommand(UpdateDatabaseCommand::class, [], $io);
                     if ($exitCode !== null && $exitCode !== self::CODE_SUCCESS) {
@@ -242,6 +270,9 @@ class BackupCommand extends Command
                     }
                 },
             );
+
+            $notValidCount = (int)($stats['constraints_not_valid'] ?? 0);
+            $failOnNotValid = (bool)$args->getOption('fail-on-not-valid-fk');
 
             $restoreStatusService->markCompleted(sprintf(
                 'CLI restore completed from %s: %d tables, %d rows.',
@@ -262,6 +293,20 @@ class BackupCommand extends Command
                 $stats['table_count'],
                 number_format($stats['row_count']),
             ));
+
+            if ($notValidCount > 0) {
+                $msg = sprintf(
+                    '%d Postgres foreign key constraint(s) left NOT VALID after restore '
+                    . '(orphaned data in the backup).',
+                    $notValidCount,
+                );
+                if ($failOnNotValid) {
+                    $io->error($msg . ' Failing per --fail-on-not-valid-fk.');
+
+                    return self::CODE_ERROR;
+                }
+                $io->warning($msg);
+            }
 
             return self::CODE_SUCCESS;
         } catch (Exception $e) {

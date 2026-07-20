@@ -9,8 +9,12 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
- * Re-throws authorization exceptions for API routes so that
- * ApiExceptionRenderer returns JSON; redirects all other routes.
+ * Re-throws authorization exceptions for API routes and XHR/fetch requests so
+ * the exception renderer returns a proper 403; redirects normal navigations.
+ *
+ * Redirecting an XHR to the unauthorized page returns 200 HTML that embedded
+ * consumers (autocompletes, turbo modals) render inline — and that page's
+ * "redirecting you to your profile" script then hijacks the whole window.
  */
 class ApiAwareRedirectHandler extends RedirectHandler
 {
@@ -23,7 +27,8 @@ class ApiAwareRedirectHandler extends RedirectHandler
         array $options = [],
     ): ResponseInterface {
         $path = $request->getUri()->getPath();
-        if (str_contains($path, '/api/')) {
+        $isXhr = strcasecmp($request->getHeaderLine('X-Requested-With'), 'XMLHttpRequest') === 0;
+        if ($isXhr || str_contains($path, '/api/')) {
             throw $exception;
         }
 

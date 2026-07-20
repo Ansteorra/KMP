@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Controller;
 
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use Cake\ORM\TableRegistry;
 
 /**
  * Tests for WarrantRostersController, focusing on grid sorting.
@@ -88,5 +89,20 @@ class WarrantRostersControllerTest extends HttpIntegrationTestCase
     {
         $this->get('/warrant-rosters/grid-data?ignore_default=1&sort=nonexistent_field&direction=asc');
         $this->assertResponseOk();
+    }
+
+    public function testViewUsesApprovalsQueueInsteadOfLegacyRosterActions(): void
+    {
+        $pendingRoster = TableRegistry::getTableLocator()->get('WarrantRosters')
+            ->find()
+            ->where(['status' => 'Pending'])
+            ->firstOrFail();
+
+        $this->get('/warrant-rosters/view/' . $pendingRoster->id);
+        $this->assertResponseOk();
+        $this->assertResponseContains('Open My Approvals');
+        $this->assertResponseNotContains('data-controller="roster-approval"');
+        $this->assertResponseNotContains('/warrant-rosters/approve/');
+        $this->assertResponseNotContains('/warrant-rosters/decline/');
     }
 }

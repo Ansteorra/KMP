@@ -7,7 +7,7 @@
 ?>
 <?php
 $this->extend("/layout/TwitterBootstrap/dashboard");
-$this->append('css', $this->AssetMix->css('waivers'));
+$this->append('css', $this->Vite->css('waivers'));
 
 // Get PHP upload limits for client-side validation
 $uploadLimits = $this->KMP->getUploadLimits();

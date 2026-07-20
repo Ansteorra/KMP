@@ -3,9 +3,12 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\KMP\TimezoneHelper;
 use App\Model\Entity\EmailTemplate;
 use Cake\Log\Log;
+use DateTimeInterface;
 use Parsedown;
+use RuntimeException;
 
 /**
  * Service for rendering email templates with variable substitution
@@ -57,6 +60,26 @@ class EmailTemplateRendererService
     }
 
     /**
+     * Render a template for the HTML pipeline, escaping substituted values only.
+     *
+     * @param string $template Template string with variable placeholders
+     * @param array $vars Variable values
+     * @return string Rendered template with HTML-escaped values
+     */
+    protected function renderTemplateHtmlEscaped(string $template, array $vars): string
+    {
+        $rendered = $this->processConditionals($template, $vars);
+
+        foreach ($vars as $key => $value) {
+            $escaped = htmlspecialchars($this->formatValue($value), ENT_QUOTES, 'UTF-8');
+            $rendered = str_replace('{{' . $key . '}}', $escaped, $rendered);
+            $rendered = str_replace('${' . $key . '}', $escaped, $rendered);
+        }
+
+        return $rendered;
+    }
+
+    /**
      * Render subject template
      *
      * @param \App\Model\Entity\EmailTemplate $emailTemplate
@@ -65,6 +88,8 @@ class EmailTemplateRendererService
      */
     public function renderSubject(EmailTemplate $emailTemplate, array $vars): string
     {
+        $vars = $this->normalizeTemplateVars($emailTemplate, $vars);
+
         return $this->renderTemplate($emailTemplate->subject_template, $vars);
     }
 
@@ -85,9 +110,10 @@ class EmailTemplateRendererService
 
             return null;
         }
+        $vars = $this->normalizeTemplateVars($template, $vars);
 
         // Step 1: Replace variables in the markdown template
-        $markdown = $this->renderTemplate($template->html_template, $vars);
+        $markdown = $this->renderTemplateHtmlEscaped($template->html_template, $vars);
 
         // Step 2: Convert markdown to HTML
         $htmlBody = $this->parsedown->text($markdown);
@@ -121,9 +147,10 @@ class EmailTemplateRendererService
         if (empty($template->html_template)) {
             return null;
         }
+        $vars = $this->normalizeTemplateVars($template, $vars);
 
         // Replace variables in the markdown template
-        $markdown = $this->renderTemplate($template->html_template, $vars);
+        $markdown = $this->renderTemplateHtmlEscaped($template->html_template, $vars);
 
         // Convert markdown to HTML (body only, no wrapper)
         return $this->parsedown->text($markdown);
@@ -141,16 +168,47 @@ class EmailTemplateRendererService
         if (empty($emailTemplate->text_template)) {
             return null;
         }
+        $vars = $this->normalizeTemplateVars($emailTemplate, $vars);
 
         return $this->renderTemplate($emailTemplate->text_template, $vars);
+    }
+
+    /**
+     * Normalize send-time variables using the template contract.
+     *
+     * @param \App\Model\Entity\EmailTemplate $template
+     * @param array $vars Variable name => value pairs
+     * @return array
+     */
+    protected function normalizeTemplateVars(EmailTemplate $template, array $vars): array
+    {
+        foreach ($template->variables_schema as $entry) {
+            if (!isset($entry['name'], $entry['type']) || !is_string($entry['name'])) {
+                continue;
+            }
+            $name = $entry['name'];
+            if (!array_key_exists($name, $vars)) {
+                continue;
+            }
+
+            $type = strtolower((string)$entry['type']);
+            if (in_array($type, ['date_time', 'datetime', 'date-time', 'timestamp'], true)) {
+                $vars[$name] = $this->formatDateTimeValue($vars[$name]);
+            } elseif ($type === 'date') {
+                $vars[$name] = $this->formatDateValue($vars[$name]);
+            }
+        }
+
+        return $vars;
     }
 
     /**
      * Process conditional blocks in template before variable substitution.
      *
      * Parses {{#if condition}}...{{/if}} blocks as a safe DSL.
-     * Supports ==, !=, || (OR), and && (AND) operators.
+     * Supports ==, !=, bare variable presence, || (OR), and && (AND) operators.
      *
+     * Example: {{#if awardReason}}...{{/if}}
      * Example: {{#if status == "Approved" || status == "Revoked"}}...{{/if}}
      *
      * @param string $template Template with conditional blocks
@@ -241,7 +299,7 @@ class EmailTemplateRendererService
     }
 
     /**
-     * Evaluate a single comparison: varName == "value" or varName != "value"
+     * Evaluate a single comparison or bare variable presence check.
      *
      * Supports both == (equality) and != (not-equal) operators.
      * Variable names do not use a $ prefix in the {{#if}} syntax.
@@ -268,9 +326,32 @@ class EmailTemplateRendererService
             return $actualValue === $expectedValue;
         }
 
+        if (preg_match('/^\$?(\w+)$/', $comparison, $matches)) {
+            return $this->hasUsefulValue($vars[$matches[1]] ?? null);
+        }
+
         Log::warning('EmailTemplateRendererService: unsupported conditional expression: ' . $comparison);
 
         return false;
+    }
+
+    /**
+     * Determine whether a value is useful enough to render a bare {{#if variable}} block.
+     *
+     * @param mixed $value Value to test
+     * @return bool
+     */
+    protected function hasUsefulValue(mixed $value): bool
+    {
+        if ($value === null || $value === false) {
+            return false;
+        }
+
+        if (is_array($value) && $value === []) {
+            return false;
+        }
+
+        return trim($this->formatValue($value)) !== '';
     }
 
     /**
@@ -335,13 +416,16 @@ class EmailTemplateRendererService
             return implode(', ', $value);
         }
 
+        if ($value instanceof DateTimeInterface) {
+            return $this->formatDateTimeValue($value);
+        }
+
         if (is_object($value)) {
+            if (method_exists($value, 'format')) {
+                return $this->formatDateTimeValue($value);
+            }
             if (method_exists($value, '__toString')) {
                 return (string)$value;
-            }
-            if (method_exists($value, 'format')) {
-                // Handle DateTime objects
-                return $value->format('Y-m-d H:i:s');
             }
 
             return '[Object]';
@@ -378,7 +462,8 @@ class EmailTemplateRendererService
         preg_match_all('/\{\{#if\s+(.+?)\}\}/s', $template, $condMatches);
         if (!empty($condMatches[1])) {
             foreach ($condMatches[1] as $condition) {
-                preg_match_all('/\b(\w+)\s*(?:==|!=)/', $condition, $varMatches);
+                $conditionWithoutStrings = preg_replace('/["\'][^"\']*["\']/', '', $condition) ?? $condition;
+                preg_match_all('/\$?\b(\w+)\b/', $conditionWithoutStrings, $varMatches);
                 if (!empty($varMatches[1])) {
                     $variables = array_merge($variables, $varMatches[1]);
                 }
@@ -386,6 +471,36 @@ class EmailTemplateRendererService
         }
 
         return array_unique($variables);
+    }
+
+    /**
+     * Format a date/time value in the kingdom default timezone.
+     *
+     * @param mixed $value Date/time value
+     * @return string
+     */
+    protected function formatDateTimeValue(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        return TimezoneHelper::formatForDisplay($value, null, TimezoneHelper::DISPLAY_DATETIME_FORMAT, true);
+    }
+
+    /**
+     * Format a date value in the kingdom default timezone.
+     *
+     * @param mixed $value Date value
+     * @return string
+     */
+    protected function formatDateValue(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        return TimezoneHelper::formatForDisplay($value, null, TimezoneHelper::DISPLAY_DATE_FORMAT);
     }
 
     /**
@@ -425,6 +540,171 @@ class EmailTemplateRendererService
             'html' => $this->renderHtml($emailTemplate, $sampleVars),
             'text' => $this->renderText($emailTemplate, $sampleVars),
         ];
+    }
+
+    /**
+     * Validate a template against provided send-time variables.
+     *
+     * Performs a three-way comparison:
+     *  1. Placeholders extracted from subject + html + text vs $vars provided → errors for any
+     *     placeholder that has no value (it would render as a raw {{...}} token).
+     *  2. variables_schema required entries vs $vars → errors for any required schema var absent.
+     *  3. Placeholders used in template vs variables_schema declared names → warnings for any
+     *     placeholder not declared in the schema (undocumented variable drift).
+     *
+     * Returns ['errors' => string[], 'warnings' => string[]].
+     * Errors are blocking (use assertValidForSend to throw); warnings are advisory.
+     *
+     * @param \App\Model\Entity\EmailTemplate $template
+     * @param array $vars Variable name => value pairs to be used at send time
+     * @return array{errors: string[], warnings: string[]}
+     */
+    public function validateForSend(EmailTemplate $template, array $vars): array
+    {
+        $errors = [];
+        $warnings = [];
+        $providedKeys = array_keys($vars);
+
+        // Distinguish between rendered placeholders and conditional vars.
+        $renderedPlaceholders = $this->extractRenderedPlaceholders($template);
+        $allPlaceholders = $this->extractAllPlaceholders($template);
+
+        // 1. Rendered placeholders in template content but no value in $vars
+        $unresolved = array_diff($renderedPlaceholders, $providedKeys);
+        foreach ($unresolved as $placeholder) {
+            $errors[] = "Placeholder '{{{{$placeholder}}}}' is used in the template but no value was provided; " .
+                'it will render as a literal token.';
+        }
+
+        // 2. Schema required vars missing from $vars
+        $schema = $template->variables_schema;
+        $schemaDeclaredNames = [];
+        foreach ($schema as $entry) {
+            if (!isset($entry['name'])) {
+                continue;
+            }
+            $name = $entry['name'];
+            $schemaDeclaredNames[] = $name;
+            $required = isset($entry['required']) && $entry['required'] === true;
+            if ($required && !array_key_exists($name, $vars)) {
+                $errors[] = "Required variable '{$name}' declared in variables_schema was not provided.";
+            }
+        }
+
+        // 3. Template placeholders not declared in schema (advisory drift warning)
+        if (!empty($schemaDeclaredNames)) {
+            foreach ($allPlaceholders as $placeholder) {
+                if (!in_array($placeholder, $schemaDeclaredNames, true)) {
+                    $warnings[] = "Placeholder '{{{{$placeholder}}}}' is used in the template but not declared " .
+                        'in variables_schema.';
+                }
+            }
+        }
+
+        return ['errors' => array_values($errors), 'warnings' => array_values($warnings)];
+    }
+
+    /**
+     * Like validateForSend() but throws a RuntimeException when there are any errors.
+     *
+     * @param \App\Model\Entity\EmailTemplate $template
+     * @param array $vars Variable name => value pairs
+     * @return void
+     * @throws \RuntimeException
+     */
+    public function assertValidForSend(EmailTemplate $template, array $vars): void
+    {
+        $result = $this->validateForSend($template, $vars);
+        if (!empty($result['errors'])) {
+            $slug = $template->slug ?? $template->display_name;
+            throw new RuntimeException(
+                "Email template '{$slug}' failed send-time validation: "
+                . implode(' | ', $result['errors']),
+            );
+        }
+    }
+
+    /**
+     * Extract all unique placeholder names from every content field of a template.
+     *
+     * Combines subject_template, html_template, and text_template so callers
+     * get a unified view of what the template actually needs.
+     *
+     * @param \App\Model\Entity\EmailTemplate $template
+     * @return array<string> Unique placeholder names
+     */
+    public function extractAllPlaceholders(EmailTemplate $template): array
+    {
+        $all = [];
+        foreach (['subject_template', 'html_template', 'text_template'] as $field) {
+            if (!empty($template->$field)) {
+                $all = array_merge($all, $this->extractVariables($template->$field));
+            }
+        }
+
+        return array_values(array_unique($all));
+    }
+
+    /**
+     * Extract placeholders that render literal output tokens.
+     *
+     * Unlike extractAllPlaceholders(), this excludes variables referenced only
+     * inside conditional expressions because missing condition vars safely
+     * evaluate false and do not render literal tokens.
+     *
+     * @param \App\Model\Entity\EmailTemplate $template
+     * @return array<string>
+     */
+    protected function extractRenderedPlaceholders(EmailTemplate $template): array
+    {
+        $all = [];
+        foreach (['subject_template', 'html_template', 'text_template'] as $field) {
+            if (empty($template->$field)) {
+                continue;
+            }
+
+            preg_match_all('/\{\{(?!#if\s|\/if\})([^}]+)\}\}/', $template->$field, $matches);
+            if (!empty($matches[1])) {
+                $all = array_merge($all, $matches[1]);
+            }
+
+            preg_match_all('/\$\{([^}]+)\}/', $template->$field, $matches);
+            if (!empty($matches[1])) {
+                $all = array_merge($all, $matches[1]);
+            }
+        }
+
+        return array_values(array_unique($all));
+    }
+
+    /**
+     * Validate that a template's variables_schema is consistent with its placeholders.
+     *
+     * A schema-consistency check for template authoring time (not send time).
+     * Returns ['errors' => [], 'warnings' => []] where:
+     *  - warnings include schema vars not referenced by any template placeholder.
+     *
+     * @param \App\Model\Entity\EmailTemplate $template
+     * @return array{errors: string[], warnings: string[]}
+     */
+    public function validateSchemaConsistency(EmailTemplate $template): array
+    {
+        $warnings = [];
+        $allPlaceholders = $this->extractAllPlaceholders($template);
+        $schema = $template->variables_schema;
+
+        foreach ($schema as $entry) {
+            if (!isset($entry['name'])) {
+                continue;
+            }
+            $name = $entry['name'];
+            if (!in_array($name, $allPlaceholders, true)) {
+                $warnings[] = "Schema variable '{$name}' is declared in variables_schema but not used in any " .
+                    'template content.';
+            }
+        }
+
+        return ['errors' => [], 'warnings' => array_values($warnings)];
     }
 
     /**

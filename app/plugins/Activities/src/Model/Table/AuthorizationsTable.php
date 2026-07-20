@@ -24,8 +24,6 @@ use App\Model\Table\BaseTable;
  * @property \App\Model\Table\MemberRolesTable&\Cake\ORM\Association\BelongsTo $MemberRoles
  * @property \Activities\Model\Table\ActivitiesTable&\Cake\ORM\Association\BelongsTo $Activities
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $RevokedBy
- * @property \Activities\Model\Table\AuthorizationApprovalsTable&\Cake\ORM\Association\HasMany $AuthorizationApprovals
- * @property \Activities\Model\Table\AuthorizationApprovalsTable&\Cake\ORM\Association\HasOne $CurrentPendingApprovals
  * 
  * @method \Activities\Model\Entity\Authorization newEmptyEntity()
  * @method \Activities\Model\Entity\Authorization newEntity(array $data, array $options = [])
@@ -52,6 +50,7 @@ class AuthorizationsTable extends BaseTable
         $this->setTable("activities_authorizations");
         $this->setDisplayField("id");
         $this->setPrimaryKey("id");
+        $this->addBehavior("Timestamp");
 
         $this->belongsTo("Members", [
             "foreignKey" => "member_id",
@@ -73,15 +72,6 @@ class AuthorizationsTable extends BaseTable
             "propertyName" => "revoked_by",
         ]);
 
-        $this->hasMany("AuthorizationApprovals", [
-            "className" => "Activities.AuthorizationApprovals",
-            "foreignKey" => "authorization_id",
-        ]);
-        $this->hasOne("CurrentPendingApprovals", [
-            "className" => "Activities.AuthorizationApprovals",
-            "conditions" => ["CurrentPendingApprovals.responded_on IS" => null],
-            "foreignKey" => "authorization_id",
-        ]);
         $this->addBehavior("ActiveWindow");
 
         $lastExpCheck = new DateTime(StaticHelpers::getAppSetting("Activities.NextStatusCheck", DateTime::now()->subDays(1)->toDateString()), null, true);

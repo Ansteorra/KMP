@@ -36,7 +36,7 @@ class GitHubSubmitter extends Controller {
             })
             .then(data => {
                 if (data.message) {
-                    alert("Error: " + data.message);
+                    window.KMP_accessibility.announce("Error: " + data.message, { assertive: true });
                     return;
                 }
                 form.reset();
@@ -47,7 +47,7 @@ class GitHubSubmitter extends Controller {
             })
             .catch(error => {
                 console.error(error);
-                alert('An error occurred while creating the issue.');
+                window.KMP_accessibility.announce('An error occurred while creating the issue.', { assertive: true });
             });
     }
 

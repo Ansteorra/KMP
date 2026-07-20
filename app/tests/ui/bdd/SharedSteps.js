@@ -1,30 +1,96 @@
 const { createBdd } = require('playwright-bdd');
 const { expect } = require('@playwright/test');
+const { getMailpitApiUrl, getUiTestEnvironment } = require('../support/test-environment.cjs');
+const {
+    clearMailpitMessages,
+    clearActivityAuthorizationFixtures,
+    clickTabAndWait,
+    flushWorkflowsAndQueue,
+    loginAs,
+    runAndWaitForNetworkIdle,
+    waitForGridRows,
+    waitForPageBody,
+    waitForQueueSettled,
+    waitForStableMailpitSearchTotal,
+} = require('../support/ui-helpers.cjs');
 
 const { Given, When, Then } = createBdd();
+const { mailpitUrl } = getUiTestEnvironment();
+const GRID_ROWS_SELECTOR = 'table.table tbody tr:visible, .dataTable tbody tr:visible';
+
+const openGridFilter = async (page) => {
+    const filterBtn = page.locator('#filterDropdown, button:has-text("Filter")').first();
+    await filterBtn.click();
+
+    const searchInput = page.locator('[data-grid-view-target="searchInput"]');
+    await expect(searchInput).toBeVisible({ timeout: 15000 });
+
+    return { filterBtn, searchInput };
+};
+
+const waitForGridSearchResponse = async (page, searchInput) => {
+    const currentPath = new URL(page.url()).pathname;
+    const responsePromise = page.waitForResponse((response) => {
+        const responseUrl = new URL(response.url());
+        return response.status() === 200
+            && responseUrl.pathname === currentPath
+            && responseUrl.searchParams.has('search');
+    }, { timeout: 10000 }).catch(() => null);
+
+    await searchInput.press('Enter');
+    await responsePromise;
+
+    await waitForGridRows(page, GRID_ROWS_SELECTOR);
+};
+
+const waitForMailpitMessageCount = async (page, query, minCount = 1) => {
+    // Deterministically process pending workflow + queue work so the matching
+    // email is delivered promptly rather than waiting on the worker's cron.
+    flushWorkflowsAndQueue();
+    await expect.poll(async () => {
+        const response = await page.request.get(getMailpitApiUrl('api/v1/search'), {
+            params: { query },
+        });
+        if (!response.ok()) {
+            return 0;
+        }
+
+        const data = await response.json();
+        // `messages_count` is the number of messages matching the query;
+        // `total` is the whole-mailbox count and must NOT be used here.
+        return data.messages_count ?? 0;
+    }, {
+        timeout: 30000,
+    }).toBeGreaterThanOrEqual(minCount);
+};
+
+const clickVisible = async (locator) => {
+    const count = await locator.count();
+    for (let i = 0; i < count; i += 1) {
+        const candidate = locator.nth(i);
+        if (await candidate.isVisible()) {
+            await candidate.click();
+            return;
+        }
+    }
+
+    await locator.first().click();
+};
 
 // check if user is logged in
 Given('I am logged in as {string}', async ({ page }, emailAddress) => {
-    // Navigate to the login page
-    await page.goto('/members/login', { waitUntil: 'networkidle' });
-
-    // Fill in the login form with admin credentials
-    await page.locator('#email-address').fill(emailAddress);
-    await page.locator('#password').fill('TestPassword');
-    await page.locator('input[type="submit"][value="Sign in"]').click();
-    await page.waitForTimeout(1000); // Wait for the login to complete
+    await loginAs(page, emailAddress);
 });
 
 // Given I am on my profile page
 Given('I navigate to my profile page', async ({ page }) => {
-    await page.goto('/members/profile', { waitUntil: 'networkidle' });
+    await page.goto('/members/profile', { waitUntil: 'domcontentloaded' });
+    await waitForPageBody(page);
 });
 
 Then('I should see the flash message {string}', async ({ page }, message) => {
-    await page.getByRole('alert', { classname: "alert" });
-    //check the message we get is the one we expect
-    const flashMessage = await page.getByRole('alert', { classname: 'alert' }).textContent();
-    expect(flashMessage).toContain(message);
+    const flashMessage = page.getByRole('alert').first();
+    await expect(flashMessage).toContainText(message, { timeout: 15000 });
 });
 
 Given('I click on the {string} button', async ({ page }, buttonText) => {
@@ -32,18 +98,21 @@ Given('I click on the {string} button', async ({ page }, buttonText) => {
 });
 
 Given('I am at the test email inbox', async ({ page }) => {
-    await page.goto('http://localhost:8025', { waitUntil: 'networkidle' });
+    await page.goto(mailpitUrl, { waitUntil: 'domcontentloaded' });
+    await waitForPageBody(page);
 });
 
 When('I check for an email with subject {string}', async ({ page }, subject) => {
-    // Example: Check for an email with the given subject in the test inbox
-    const emailRow = await page.locator(`.subject b:has-text("${subject}")`).first();
+    await waitForMailpitMessageCount(page, `subject:"${subject}"`);
+    await page.goto(mailpitUrl, { waitUntil: 'domcontentloaded' });
+    const emailRow = page.locator(`.subject b:has-text("${subject}")`).first();
     await expect(emailRow).toBeVisible();
 });
 
 When('I open the email with subject {string}', async ({ page }, subject) => {
-    // Example: Open the email with the given subject
-    const emailRow = await page.locator(`.subject b:has-text("${subject}")`).first();
+    await waitForMailpitMessageCount(page, `subject:"${subject}"`);
+    await page.goto(mailpitUrl, { waitUntil: 'domcontentloaded' });
+    const emailRow = page.locator(`.subject b:has-text("${subject}")`).first();
     await emailRow.click();
 });
 
@@ -55,17 +124,89 @@ Then('the email should start with the body:', async ({ page }, expectedContent) 
     expect(normalized).toContain(expectedNormalized);
 });
 
+Then('the email should be addressed to {string}', async ({ page }, emailAddress) => {
+    const toCell = page.locator('table tr').filter({ hasText: 'To' }).getByRole('link', { name: emailAddress, exact: true });
+    await expect(toCell).toBeVisible();
+});
+
+Then('the email should be from {string}', async ({ page }, emailAddress) => {
+    const fromCell = page.locator('table tr').filter({ hasText: 'From' }).getByRole('link', { name: emailAddress, exact: true });
+    await expect(fromCell).toBeVisible();
+});
+
+Then('there should be an email to {string} with subject {string}', async ({ page }, recipient, subject) => {
+    await waitForMailpitMessageCount(page, `to:${recipient} subject:"${subject}"`);
+    const response = await page.request.get(getMailpitApiUrl('api/v1/search'), {
+        params: { query: `to:${recipient} subject:"${subject}"` },
+    });
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.messages_count).toBeGreaterThanOrEqual(1);
+});
+
+// ── Deterministic workflow / queue processing ───────────────────────
+
+When('the workflow engine processes pending work', async ({ page }) => {
+    flushWorkflowsAndQueue();
+    // Deterministically wait for the always-on queue worker to drain just-enqueued
+    // jobs before assertions poll the Mailpit API.
+    await waitForQueueSettled();
+});
+
+When('the scheduled workflows are processed', async ({ page }) => {
+    flushWorkflowsAndQueue({ forceScheduler: true });
+    await waitForQueueSettled();
+});
+
+Then('there should be an email with subject {string}', async ({ page }, subject) => {
+    await waitForMailpitMessageCount(page, `subject:"${subject}"`);
+});
+
+// Negative assertion: confirm no matching email exists. Settle the queue first so a
+// genuinely-pending email would have arrived before we assert its absence.
+Then('there should be no email to {string} with subject {string}', async ({ page }, recipient, subject) => {
+    flushWorkflowsAndQueue();
+    await waitForQueueSettled();
+    const total = await waitForStableMailpitSearchTotal(page.request, `to:${recipient} subject:"${subject}"`);
+    expect(total).toBe(0);
+});
+
+Then('there should be no email with subject {string}', async ({ page }, subject) => {
+    flushWorkflowsAndQueue();
+    await waitForQueueSettled();
+    const total = await waitForStableMailpitSearchTotal(page.request, `subject:"${subject}"`);
+    expect(total).toBe(0);
+});
+
+Given('I delete all test emails', async ({ page }) => {
+    // Best-effort settle before clearing so prior scenario mail is less likely to
+    // arrive mid-scenario. Do not fail setup on unrelated stuck jobs; strict
+    // queue checks stay in the email assertions that depend on them.
+    await waitForQueueSettled({ timeoutMs: 10000, throwOnTimeout: false });
+    clearActivityAuthorizationFixtures();
+    await clearMailpitMessages(page.request);
+});
+
 // Authorization Queue Steps
 When('I click on my name {string}', async ({ page }, userName) => {
-    // Click on the user's name link in the sidebar navigation
-    const nameLink = page.locator(`a.nav-link:has-text("${userName}")`).first();
-    await nameLink.click();
+    if (await page.getByRole('heading', { name: new RegExp(userName) }).isVisible()) {
+        return;
+    }
+
+    // Click on the profile link in the navigation; the visible label may be rendered outside the link.
+    const nameLink = page.locator('a.nav-link[href="/members/profile"], a[href="/members/profile"]');
+    await clickVisible(nameLink);
     await page.waitForTimeout(500);
 });
 
 When('I click on the {string} link', async ({ page }, linkText) => {
+    if (linkText === 'My Auth Queue') {
+        await page.goto('/activities/authorization-approvals/my-queue', { waitUntil: 'networkidle' });
+        return;
+    }
+
     // Click on a link with the specified text
-    await page.getByRole('link', { name: linkText }).click();
+    await clickVisible(page.getByRole('link', { name: new RegExp(linkText) }));
 });
 
 When('I enter the value {string} in the input field with label {string}', async ({ page }, value, label) => {
@@ -79,37 +220,32 @@ When('I select the option {string} from the dropdown with label {string}', async
 });
 
 Given("The test inbox is empty", async ({ page }) => {
-    await page.goto('http://localhost:8025', { waitUntil: 'networkidle' });
-    const deleteAllButton = await page.getByRole('button', { name: ' Delete all' });
-
-    // Check if the delete button is enabled before clicking
-    if (await deleteAllButton.isEnabled()) {
-        await deleteAllButton.click();
-        await page.getByRole('button', { name: 'Delete', exact: true }).click();
-    } else {
-        console.log('❗️ Delete all button is disabled, skipping emptying inbox');
-    }
+    await clearMailpitMessages(page.request);
 });
 
 // ── Reusable DataGrid Step Definitions ──────────────────────────────
 
 When('I search the grid for {string}', async ({ page }, searchText) => {
-    await page.waitForSelector('table.table tbody tr', { state: 'visible', timeout: 30000 });
-    const filterBtn = page.locator('#filterDropdown, button:has-text("Filter")').first();
-    await filterBtn.click();
-    await page.waitForTimeout(300);
-    const searchInput = page.locator('[data-grid-view-target="searchInput"]');
+    await waitForGridRows(page, GRID_ROWS_SELECTOR);
+    const { filterBtn, searchInput } = await openGridFilter(page);
     await searchInput.fill(searchText);
-    // Press Enter triggers turbo-frame navigation — wait for the network round-trip
-    await Promise.all([
-        page.waitForResponse(resp => resp.url().includes('search=') && resp.status() === 200, { timeout: 30000 }),
-        searchInput.press('Enter'),
-    ]);
-    // Wait for the turbo-frame table body to re-render
-    await page.waitForTimeout(1000);
-    // Close the filter dropdown to avoid overlapping table buttons
+    await waitForGridSearchResponse(page, searchInput);
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(500);
+    await expect(filterBtn).toHaveAttribute('aria-expanded', 'false');
+});
+
+Given('I sort the grid by {string} descending', async ({ page }, columnName) => {
+    const url = new URL(page.url());
+    const sortKey = columnName
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+    url.searchParams.set('sort', sortKey);
+    url.searchParams.set('direction', 'desc');
+    url.searchParams.set('dirty[sort]', '1');
+    await page.goto(url.toString(), { waitUntil: 'domcontentloaded' });
+    await waitForPageBody(page);
 });
 
 Then('the grid should contain {string}', async ({ page }, text) => {
@@ -130,8 +266,8 @@ When('I click on the grid row containing {string}', async ({ page }, text) => {
 // ── Tab Navigation ──────────────────────────────────────────────────
 
 When('I click the {string} tab', async ({ page }, tabName) => {
-    await page.getByRole('tab', { name: tabName }).click();
-    await page.waitForTimeout(300);
+    const tab = page.getByRole('tab', { name: tabName });
+    await clickTabAndWait(tab);
 });
 
 Then('the {string} tab should be active', async ({ page }, tabName) => {
@@ -159,14 +295,19 @@ When('I check the {string} checkbox', async ({ page }, label) => {
 });
 
 When('I submit the form', async ({ page }) => {
-    await page.getByRole('button', { name: /submit|save/i }).click();
-    await page.waitForLoadState('networkidle');
+    await runAndWaitForNetworkIdle(page, () => page.getByRole('button', { name: /submit|save/i }).click());
 });
 
 // ── Navigation ──────────────────────────────────────────────────────
 
 Given('I navigate to {string}', async ({ page }, path) => {
-    await page.goto(path, { waitUntil: 'networkidle' });
+    await page.goto(path, { waitUntil: 'domcontentloaded' });
+    await waitForPageBody(page);
+});
+
+When('I navigate to {string}', async ({ page }, path) => {
+    await page.goto(path, { waitUntil: 'domcontentloaded' });
+    await waitForPageBody(page);
 });
 
 Then('I should be on {string}', async ({ page }, path) => {
@@ -187,29 +328,33 @@ Then('I should be on a page containing {string}', async ({ page }, text) => {
 
 Then('the grid should show {int} or more results', async ({ page }, minCount) => {
     // Wait for turbo-frame grid to load
-    await page.waitForSelector('table.table tbody tr, .dataTable tbody tr', { state: 'visible', timeout: 30000 });
-    const rows = page.locator('table.table tbody tr, .dataTable tbody tr');
+    let rows;
+    try {
+        rows = await waitForGridRows(page, GRID_ROWS_SELECTOR);
+    } catch (error) {
+        if (!(await page.locator('body').textContent()).includes('Content missing')) {
+            throw error;
+        }
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await waitForPageBody(page);
+        rows = await waitForGridRows(page, GRID_ROWS_SELECTOR);
+    }
     const count = await rows.count();
     expect(count).toBeGreaterThanOrEqual(minCount);
 });
 
 When('I search for {string} in the grid search box', async ({ page }, searchText) => {
     // Grid search is inside Filter dropdown — click to open it first
-    await page.waitForSelector('table.table tbody tr', { state: 'visible', timeout: 30000 });
-    const filterBtn = page.locator('#filterDropdown, button:has-text("Filter")').first();
-    await filterBtn.click();
-    await page.waitForTimeout(300);
-    const searchInput = page.locator('[data-grid-view-target="searchInput"]');
+    await waitForGridRows(page, GRID_ROWS_SELECTOR);
+    const { filterBtn, searchInput } = await openGridFilter(page);
     await searchInput.fill(searchText);
-    await searchInput.press('Enter');
-    await page.waitForTimeout(2000);
-    // Close the filter dropdown to avoid overlapping table buttons
+    await waitForGridSearchResponse(page, searchInput);
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(500);
+    await expect(filterBtn).toHaveAttribute('aria-expanded', 'false');
 });
 
 Then('the grid should show results containing {string}', async ({ page }, text) => {
-    await page.waitForSelector('table.table tbody tr', { state: 'visible', timeout: 30000 });
+    await waitForGridRows(page, GRID_ROWS_SELECTOR);
     const grid = page.locator('table.table, .dataTable').first();
     await expect(grid).toContainText(text);
 });

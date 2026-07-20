@@ -33,8 +33,12 @@ $newToken = $this->request->getSession()->consume('ServicePrincipal.newToken');
             <div class="input-group mb-2">
                 <input type="text" class="form-control font-monospace" 
                        value="<?= h($newToken['bearer_token']) ?>" id="newToken" readonly>
-                <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('newToken')">
-                    <i class="bi bi-clipboard"></i> <?= __('Copy') ?>
+                <button class="btn btn-outline-secondary" type="button"
+                    data-controller="clipboard"
+                    data-action="clipboard#copy"
+                    data-clipboard-source-selector-value="#newToken"
+                    data-clipboard-success-message-value="<?= h(__('Token copied to clipboard.')) ?>">
+                    <i class="bi bi-clipboard" aria-hidden="true"></i> <?= __('Copy') ?>
                 </button>
             </div>
             <small><?= __('This token will not be shown again.') ?></small>
@@ -244,14 +248,19 @@ $newToken = $this->request->getSession()->consume('ServicePrincipal.newToken');
 
 <!-- New Token Modal -->
 <div class="modal fade" id="newTokenModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <?= $this->Form->create(null, ['url' => ['action' => 'regenerateToken', $servicePrincipal->id]]) ?>
             <div class="modal-header">
                 <h5 class="modal-title"><?= __('Create New API Token') ?></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body bg-light-subtle">
+                <fieldset class="border rounded-3 bg-white shadow-sm p-3">
+                    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+                        <i class="bi bi-key text-primary me-1" aria-hidden="true"></i>
+                        <?= __('Token Details') ?>
+                    </legend>
                 <div class="mb-3">
                     <?= $this->Form->control('name', [
                         'label' => __('Token Name'),
@@ -267,6 +276,7 @@ $newToken = $this->request->getSession()->consume('ServicePrincipal.newToken');
                     ]) ?>
                     <div class="form-text"><?= __('Leave blank for no expiration.') ?></div>
                 </div>
+                </fieldset>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= __('Cancel') ?></button>
@@ -276,19 +286,3 @@ $newToken = $this->request->getSession()->consume('ServicePrincipal.newToken');
         </div>
     </div>
 </div>
-
-<script>
-function copyToClipboard(elementId) {
-    const input = document.getElementById(elementId);
-    const text = input.value;
-
-    navigator.clipboard.writeText(text).then(() => {
-        const btn = input.nextElementSibling;
-        const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<i class="bi bi-check"></i> <?= h(__("Copied!")) ?>';
-        setTimeout(() => {
-            btn.innerHTML = originalHtml;
-        }, 1500);
-    });
-}
-</script>

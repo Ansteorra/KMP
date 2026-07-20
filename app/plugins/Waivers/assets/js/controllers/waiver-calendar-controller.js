@@ -149,13 +149,13 @@ class WaiverCalendarController extends Controller {
                 badges += `<span class="badge bg-success">${evt.uploaded} Uploaded</span>`
             }
             if (evt.exempted > 0) {
-                badges += `<span class="badge bg-info">${evt.exempted} Exempted</span>`
+                badges += `<span class="badge bg-info text-dark">${evt.exempted} Exempted</span>`
             }
             if (evt.pending > 0) {
                 badges += `<span class="badge bg-warning text-dark">${evt.pending} Pending</span>`
             }
             if (evt.ready_to_close) {
-                badges += '<span class="badge bg-info"><i class="bi bi-check2-square"></i> Ready to Close</span>'
+                badges += '<span class="badge bg-info text-dark"><i class="bi bi-check2-square"></i> Ready to Close</span>'
             }
             if (evt.uploaded === 0 && evt.exempted === 0 && evt.pending === 0) {
                 badges += '<span class="badge bg-danger">No Waivers</span>'
@@ -164,7 +164,7 @@ class WaiverCalendarController extends Controller {
 
         return `<a href="${this.escapeHtml(evt.url)}" class="waiver-calendar-item${multiDayClass}" style="background-color: ${color}22; border-left-color: ${color};" title="${this.escapeHtml(title)}">` +
             `<div class="fw-bold">${this.escapeHtml(evt.name)}</div>` +
-            `<div class="text-muted small text-truncate">${this.escapeHtml(evt.branch)}</div>` +
+            `<div class="waiver-calendar-meta small text-truncate">${this.escapeHtml(evt.branch)}</div>` +
             `<div class="waiver-calendar-badges">${badges}</div>` +
             `</a>`
     }

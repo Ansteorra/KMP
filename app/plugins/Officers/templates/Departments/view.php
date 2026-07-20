@@ -115,15 +115,26 @@ echo $this->Form->create($department, [
 echo $this->Modal->create("Edit Department", [
     "id" => "editModal",
     "close" => true,
+    "form" => true,
+    "size" => "modal-lg",
 ]);
 ?>
-<fieldset>
-    <?php
-
-    echo $this->Form->control("name");
-    echo $this->Form->control("domain", ['label' => 'Email Domain', 'placeholder' => 'e.g. branch.example.com']);
-
-    ?>
+<fieldset class="border rounded-3 bg-white shadow-sm p-3">
+    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+        <i class="bi bi-building text-primary me-1" aria-hidden="true"></i>
+        <?= __("Department Details") ?>
+    </legend>
+    <div class="row g-3">
+        <div class="col-12 col-md-6">
+            <?php echo $this->Form->control("name"); ?>
+        </div>
+        <div class="col-12 col-md-6">
+            <?php echo $this->Form->control("domain", [
+                'label' => 'Email Domain',
+                'placeholder' => 'e.g. branch.example.com',
+            ]); ?>
+        </div>
+    </div>
 </fieldset>
 <?php echo $this->Modal->end([
     $this->Form->button("Submit", [

@@ -819,4 +819,23 @@ class PermissionsController extends AppController
                 'results' => $results,
             ]));
     }
+
+    /**
+     * Autocomplete search for permissions by name.
+     *
+     * @return void
+     */
+    public function autoComplete()
+    {
+        $this->Authorization->skipAuthorization();
+        $this->request->allowMethod(['get']);
+        $this->viewBuilder()->setClassName('Ajax');
+        $q = $this->request->getQuery('q');
+        $query = $this->Permissions
+            ->find('all')
+            ->where(['name LIKE' => "%$q%"])
+            ->select(['id', 'name'])
+            ->limit(50);
+        $this->set(compact('query', 'q'));
+    }
 }

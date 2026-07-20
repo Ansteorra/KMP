@@ -28,11 +28,19 @@ use Cake\Http\Response;
 
 class AppController extends Controller
 {
+    use TurboResponseTrait;
+
     /** @var string Event for plugin view cell registration */
     public const VIEW_PLUGIN_EVENT = 'KMP.plugins.callForViewCells';
 
     /** @var string Event for plugin view data enhancement */
     public const VIEW_DATA_EVENT = 'KMP.plugins.callForViewData';
+
+    /** @var int Shared default page size for mobile actionable queues. */
+    public const MOBILE_QUEUE_DEFAULT_PER_PAGE = 25;
+
+    /** @var int Shared maximum page size for mobile actionable queues. */
+    public const MOBILE_QUEUE_MAX_PER_PAGE = 50;
 
     /**
      * @var array View cells from plugins for current request
@@ -52,6 +60,45 @@ class AppController extends Controller
     public function isCsvRequest(): bool
     {
         return $this->isCsvRequest;
+    }
+
+    /**
+     * Build shared pagination values for mobile actionable queues.
+     *
+     * @param int $total Total actionable records
+     * @return array<string, int|bool>
+     */
+    protected function mobileQueuePagination(int $total): array
+    {
+        $page = max(1, (int)$this->request->getQuery('page', 1));
+        $perPage = min(
+            self::MOBILE_QUEUE_MAX_PER_PAGE,
+            max(1, (int)$this->request->getQuery('per_page', self::MOBILE_QUEUE_DEFAULT_PER_PAGE)),
+        );
+        $pageCount = (int)max(1, ceil($total / $perPage));
+        $page = min($page, $pageCount);
+
+        return [
+            'page' => $page,
+            'perPage' => $perPage,
+            'total' => $total,
+            'pageCount' => $pageCount,
+            'hasNextPage' => $page < $pageCount,
+            'offset' => ($page - 1) * $perPage,
+        ];
+    }
+
+    /**
+     * Remove internal pagination values before sending the mobile JSON payload.
+     *
+     * @param array<string, int|bool> $pagination Pagination data
+     * @return array<string, int|bool>
+     */
+    protected function mobileQueuePaginationPayload(array $pagination): array
+    {
+        unset($pagination['offset']);
+
+        return $pagination;
     }
 
     /**
@@ -140,24 +187,28 @@ class AppController extends Controller
         if ($params['controller'] == 'NavBar') {
             $isNoStack = true;
         }
+        if ($params['controller'] == 'AppSettings' && $params['action'] == 'asset') {
+            $isNoStack = true;
+        }
+        // The public kingdom calendar is meant to be embedded (iframed) into
+        // external pages, so it must not pollute the back-navigation stack.
+        if ($params['controller'] == 'Gatherings' && $params['action'] == 'publicCalendar') {
+            $isNoStack = true;
+        }
 
         $pageStack = $session->read('pageStack', []);
         if ($params['action'] == 'index') {
             $pageStack = [];
         }
 
-        // Exclude AJAX/Turbo/POST requests from history
-        $isAjax = $this->request
-            ->is('ajax') || $this->request->is('json') || $this->request->is('xml') || $this->request->is('csv');
-        $turboRequest = $this->request->getHeader('Turbo-Frame') != null;
-        $isAjax = $isAjax || $turboRequest;
+        $isFragmentRequest = $this->isFragmentRequest();
         if (!$isNoStack) {
             $isNoStack = $this->request->getQuery('nostack') != null;
         }
         $isPostType = $this->request->is('post') || $this->request->is('put') || $this->request->is('delete');
 
         // Update page stack
-        if (!$isAjax && !$isPostType && !$isNoStack) {
+        if (!$isFragmentRequest && !$isPostType && !$isNoStack) {
             if (empty($pageStack)) {
                 $pageStack[] = $currentUrl;
             }
@@ -174,26 +225,17 @@ class AppController extends Controller
             }
         }
 
-        $session->write('pageStack', $pageStack);
+        if (!$isFragmentRequest) {
+            $session->write('pageStack', $pageStack);
+        }
         $this->set('pageStack', $pageStack);
 
-        // Load view cells from registry
-        $urlParams = [
-            'controller' => $this->request->getParam('controller'),
-            'action' => $this->request->getParam('action'),
-            'plugin' => $this->request->getParam('plugin'),
-            'prefix' => $this->request->getParam('prefix'),
-            'pass' => $this->request->getParam('pass') ?? [],
-            'query' => $this->request->getQueryParams(),
-        ];
-
-        $currentUser = $this->request->getAttribute('identity');
-        // ViewCellRegistry expects a Member entity; pass null for non-Member identities (e.g. ServicePrincipal)
-        $memberUser = $currentUser instanceof Member ? $currentUser : null;
         $impersonationService = new ImpersonationService();
         $impersonationState = $impersonationService->getState($session);
-        $this->pluginViewCells = ViewCellRegistry::getViewCells($urlParams, $memberUser);
-        $this->set('pluginViewCells', $this->pluginViewCells);
+
+        if ($isFragmentRequest) {
+            $session->close();
+        }
 
         // Turbo Frame handling
         if ($this->request->getHeader('Turbo-Frame')) {
@@ -359,6 +401,42 @@ class AppController extends Controller
     }
 
     /**
+     * Finalize view-only data after the action has run.
+     *
+     * Deferring view cells prevents redirect-only requests from executing badge callbacks.
+     *
+     * @param \Cake\Event\EventInterface<\Cake\Controller\Controller> $event Event.
+     * @return \Cake\Http\Response|null|void
+     */
+    public function beforeRender(EventInterface $event)
+    {
+        parent::beforeRender($event);
+
+        if ($this->viewBuilder()->hasVar('pluginViewCells')) {
+            return;
+        }
+
+        if ($this->isFragmentRequest()) {
+            $this->pluginViewCells = [];
+        } else {
+            $urlParams = [
+                'controller' => $this->request->getParam('controller'),
+                'action' => $this->request->getParam('action'),
+                'plugin' => $this->request->getParam('plugin'),
+                'prefix' => $this->request->getParam('prefix'),
+                'pass' => $this->request->getParam('pass') ?? [],
+                'query' => $this->request->getQueryParams(),
+            ];
+            $currentUser = $this->request->getAttribute('identity');
+            // ViewCellRegistry expects a Member entity; pass null for non-Member identities (e.g. ServicePrincipal)
+            $memberUser = $currentUser instanceof Member ? $currentUser : null;
+            $this->pluginViewCells = ViewCellRegistry::getViewCells($urlParams, $memberUser);
+        }
+
+        $this->set('pluginViewCells', $this->pluginViewCells);
+    }
+
+    /**
      * Switch between mobile and desktop view modes.
      *
      * Stores preference in session and redirects to appropriate interface.
@@ -409,5 +487,25 @@ class AppController extends Controller
             'action' => 'profile',
             'plugin' => null,
         ]);
+    }
+
+    /**
+     * Fragment requests render into existing pages and should not build app chrome.
+     *
+     * @return bool
+     */
+    private function isFragmentRequest(): bool
+    {
+        $isAjax = $this->request
+            ->is('ajax') || $this->request->is('json') || $this->request->is('xml') || $this->request->is('csv');
+        $turboRequest = $this->request->getHeader('Turbo-Frame') != null;
+        $acceptHeader = $this->request->getHeaderLine('Accept');
+        $turboStreamRequest = str_contains($acceptHeader, 'text/vnd.turbo-stream.html');
+        $controllerName = (string)$this->request->getParam('controller');
+        $actionName = (string)$this->request->getParam('action');
+        $gridDataRequest = str_ends_with($actionName, 'GridData') || str_ends_with($actionName, 'gridData');
+        $assetRequest = $controllerName === 'AppSettings' && $actionName === 'asset';
+
+        return $isAjax || $turboRequest || $turboStreamRequest || $gridDataRequest || $assetRequest;
     }
 }

@@ -23,6 +23,8 @@ class ImageToPdfConversionService
      * Note: WEBP support depends on GD library compilation options
      */
     private const SUPPORTED_FORMATS = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'wbmp'];
+    private const MAX_IMAGE_MEGAPIXELS = 20;
+    private const MAX_IMAGE_LONG_EDGE = 2000;
 
     /**
      * Convert an image file to PDF format
@@ -61,6 +63,9 @@ class ImageToPdfConversionService
         if ($image === false) {
             return new ServiceResult(false, 'Failed to load image file');
         }
+        $image = $this->downscaleImageIfNeeded($image);
+        $width = imagesx($image);
+        $height = imagesy($image);
 
         $orientation = $this->determinePageOrientation($width, $height);
         [$pageWidth, $pageHeight] = $this->getPageDimensions($pageSize, $orientation);
@@ -111,7 +116,6 @@ class ImageToPdfConversionService
             return new ServiceResult(false, 'GD extension is not available for image processing');
         }
 
-        $processedImages = [];
         $jpegDataArray = [];
         $firstPageJpegData = null;
 
@@ -130,8 +134,9 @@ class ImageToPdfConversionService
                 if ($image === false) {
                     throw new Exception("Failed to load image: $imagePath");
                 }
-
-                $processedImages[] = $image;
+                $image = $this->downscaleImageIfNeeded($image);
+                $width = imagesx($image);
+                $height = imagesy($image);
 
                 $orientation = $this->determinePageOrientation($width, $height);
                 [$pageWidth, $pageHeight] = $this->getPageDimensions($pageSize, $orientation);
@@ -158,6 +163,7 @@ class ImageToPdfConversionService
                 if ($firstPageJpegData === null) {
                     $firstPageJpegData = $result['jpeg_data'];
                 }
+                unset($image);
             }
 
             // Create multi-page PDF with per-page dimensions
@@ -168,19 +174,11 @@ class ImageToPdfConversionService
                 throw new Exception('Failed to write PDF file');
             }
 
-            // Clean up image resources
-            foreach ($processedImages as $image) {
-                unset($image);
-            }
-
             $previewPath = $this->createPreviewFromJpegData($firstPageJpegData);
 
             return new ServiceResult(true, 'Images successfully converted to multi-page PDF', $outputPath);
         } catch (Exception $e) {
-            // Clean up any loaded images on error
-            foreach ($processedImages as $image) {
-                unset($image);
-            }
+            unset($image);
 
             $previewPath = $this->createPreviewFromJpegData($firstPageJpegData);
 
@@ -282,6 +280,19 @@ class ImageToPdfConversionService
         }
 
         [$width, $height, $type] = $imageInfo;
+        $megapixels = $width * $height / 1000000;
+        if ($megapixels > self::MAX_IMAGE_MEGAPIXELS) {
+            $error = sprintf(
+                'Image is too large (%0.1f megapixels). Please upload an image no larger than %d megapixels.',
+                $megapixels,
+                self::MAX_IMAGE_MEGAPIXELS,
+            );
+            if ($throwException) {
+                throw new Exception($error);
+            }
+
+            return ['success' => false, 'error' => $error];
+        }
 
         // Build list of supported IMAGETYPE constants
         $supportedTypes = [
@@ -345,6 +356,34 @@ class ImageToPdfConversionService
         }
 
         return false;
+    }
+
+    /**
+     * Downscale decoded images before expensive filtering/PDF work.
+     *
+     * @param \GdImage $image Source image
+     * @return \GdImage Original or downscaled image
+     */
+    private function downscaleImageIfNeeded(GdImage $image): GdImage
+    {
+        $width = imagesx($image);
+        $height = imagesy($image);
+        $longEdge = max($width, $height);
+        if ($longEdge <= self::MAX_IMAGE_LONG_EDGE) {
+            return $image;
+        }
+
+        $scale = self::MAX_IMAGE_LONG_EDGE / $longEdge;
+        $scaledWidth = max(1, (int)round($width * $scale));
+        $scaledHeight = max(1, (int)round($height * $scale));
+        $scaledImage = imagescale($image, $scaledWidth, $scaledHeight);
+        if ($scaledImage === false) {
+            return $image;
+        }
+
+        unset($image);
+
+        return $scaledImage;
     }
 
     /**

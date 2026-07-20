@@ -3,6 +3,7 @@
 /**
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Role $role
+ * @var bool $canViewPermissions
  */
 ?>
 <?php
@@ -131,7 +132,20 @@ echo $this->KMP->startBlock("pageTitle") ?>
             </thead>
             <?php foreach ($role->permissions as $permission) : ?>
             <tr>
-                <td><?= h($permission->name) ?></td>
+                <td>
+                    <?php if ($canViewPermissions) : ?>
+                        <?= $this->Html->link(
+                            $permission->name,
+                            [
+                                'controller' => 'Permissions',
+                                'action' => 'view',
+                                $permission->id,
+                            ],
+                        ) ?>
+                    <?php else : ?>
+                        <?= h($permission->name) ?>
+                    <?php endif; ?>
+                </td>
                 <td><?= h($permission->scoping_rule) ?></td>
 
                 <td class="text-center"><?= $this->Kmp->bool(

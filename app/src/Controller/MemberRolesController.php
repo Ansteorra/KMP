@@ -75,6 +75,18 @@ class MemberRolesController extends AppController
                 return $this->redirect($this->referer());
             }
         }
+        $grantor = $this->Authentication->getIdentity();
+        if ($branch_id === null) {
+            if (!$grantor->isSuperUser()) {
+                $this->Flash->error(__('You are not authorized to grant this role.'));
+
+                return $this->redirect($this->referer());
+            }
+        } elseif (!$grantor->checkCan('add', $this->MemberRoles, (int)$branch_id)) {
+            $this->Flash->error(__('You are not authorized to grant this role in the selected branch.'));
+
+            return $this->redirect($this->referer());
+        }
         $this->request->allowMethod(['post']);
         // begin transaction
         $this->MemberRoles->getConnection()->begin();
@@ -93,7 +105,8 @@ class MemberRolesController extends AppController
 
             return $this->redirect($this->referer());
         }
-        if (!$awService->start('MemberRoles', $newMemberRole->id, $newMemberRole->approver_id, DateTime::now())) {
+        $awResult = $awService->start('MemberRoles', $newMemberRole->id, $newMemberRole->approver_id, DateTime::now());
+        if (!$awResult->success) {
             $this->Flash->error(
                 __('The Member role could not be saved. Please, try again.'),
             );
@@ -169,16 +182,15 @@ class MemberRolesController extends AppController
         }
         $this->Authorization->authorize($memberRole, 'Deactivate');
 
-        if (
-            !$awService->stop(
-                'MemberRoles',
-                (int)$id,
-                $this->Authentication->getIdentity()->get('id'),
-                MemberRole::DEACTIVATED_STATUS,
-                '',
-                DateTime::now(),
-            )
-        ) {
+        $awResult = $awService->stop(
+            'MemberRoles',
+            (int)$id,
+            $this->Authentication->getIdentity()->get('id'),
+            MemberRole::DEACTIVATED_STATUS,
+            '',
+            DateTime::now(),
+        );
+        if (!$awResult->success) {
             $this->Flash->error(
                 __(
                     'The Member role could not be deactivated. Please, try again.',

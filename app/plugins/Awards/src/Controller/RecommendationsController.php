@@ -1,52 +1,80 @@
 <?php
-
 declare(strict_types=1);
+
+// phpcs:disable Generic.Files.LineLength.TooLong
 
 namespace Awards\Controller;
 
-use Awards\Controller\AppController;
-use Awards\Model\Entity\Recommendation;
-use Awards\KMP\GridColumns\RecommendationsGridColumns;
-use Cake\I18n\DateTime;
-use Cake\Routing\Router;
-use App\KMP\StaticHelpers;
 use App\Controller\DataverseGridTrait;
-use Authorization\Exception\ForbiddenException;
+use App\Controller\WorkflowDispatchTrait;
+use App\KMP\GridRowDomId;
+use App\KMP\GridViewConfig;
+use App\KMP\StaticHelpers;
+use App\Model\Entity\Member;
+use App\Model\Entity\WorkflowApproval;
+use App\Model\Entity\WorkflowApprovalResponse;
+use App\Model\Table\GridViewsTable;
+use App\Services\CsvExportService;
+use App\Services\GridViewService;
+use App\Services\ServiceResult;
+use App\Services\WorkflowEngine\DefaultWorkflowApprovalManager;
+use App\Services\WorkflowEngine\TriggerDispatcher;
+use Awards\KMP\GridColumns\RecommendationsGridColumns;
+use Awards\Model\Entity\Recommendation;
+use Awards\Services\BestowalGatheringLookupService;
+use Awards\Services\RecommendationApprovalDecisionService;
+use Awards\Services\RecommendationApprovalProcessService;
+use Awards\Services\RecommendationFeedbackService;
+use Awards\Services\RecommendationFormService;
+use Awards\Services\RecommendationGroupingService;
+use Awards\Services\RecommendationQueryService;
+use Awards\Services\RecommendationSubmissionService;
+use Awards\Services\RecommendationUiModeService;
+use Awards\Services\RecommendationUpdateService;
+use Awards\Services\RecommendationWorkflowUiService;
+use Cake\Datasource\Exception\RecordNotFoundException;
+use Cake\Event\EventInterface;
+use Cake\Http\Exception\NotFoundException;
+use Cake\Http\Response;
+use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\TableRegistry;
+use Cake\Routing\Router;
 use Exception;
-use PhpParser\Node\Stmt\TryCatch;
-use App\Services\CsvExportService;
-use Awards\Services\RecommendationStateService;
-use Awards\Services\RecommendationFormService;
-use Awards\Services\RecommendationQueryService;
-use Cake\Error\Debugger;
-
+use Throwable;
+use Traversable;
 
 /**
  * Recommendations Controller
- * 
+ *
  * Manages the complete award recommendation lifecycle from submission through final
- * disposition. Implements state machine-based workflow with table and kanban views.
+ * disposition. Implements state machine-based workflow with table views.
  * Supports authenticated and public submission workflows.
- * 
+ *
  * Uses DataverseGridTrait for table-based data display.
- * 
+ *
  * @property \Awards\Model\Table\RecommendationsTable $Recommendations
  * @package Awards\Controller
  */
 class RecommendationsController extends AppController
 {
     use DataverseGridTrait;
+    use WorkflowDispatchTrait;
+
+    private const BESTOWAL_GATHERING_REQUIRED_KEY = 'requires_bestowal_gathering';
+    private const BESTOWAL_GATHERING_WORKFLOW_SLUGS = [
+        'awards-recommendation-submitted',
+        'awards-existing-recommendation-approval',
+    ];
 
     /**
      * Configure authentication for public recommendation submission helpers.
-     * 
+     *
      * @param \Cake\Event\EventInterface $event The beforeFilter event instance
      * @return \Cake\Http\Response|null|void
      */
-    public function beforeFilter(\Cake\Event\EventInterface $event): ?\Cake\Http\Response
+    public function beforeFilter(EventInterface $event): ?Response
     {
         parent::beforeFilter($event);
 
@@ -60,13 +88,13 @@ class RecommendationsController extends AppController
 
     /**
      * Recommendation system landing page.
-     * 
+     *
      * Primary entry point rendering the Dataverse grid interface.
      * Grid data is loaded lazily via gridData() action.
-     * 
+     *
      * @return \Cake\Http\Response|null|void
      */
-    public function index(): ?\Cake\Http\Response
+    public function index(): ?Response
     {
         $emptyRecommendation = $this->Recommendations->newEmptyEntity();
         $user = $this->request->getAttribute('identity');
@@ -84,8 +112,8 @@ class RecommendationsController extends AppController
                 }
             }
 
-            // Get state transition rules for form field visibility
-            $rules = StaticHelpers::getAppSetting('Awards.RecommendationStateRules');
+            // Get explicit UI mode rules for form field visibility
+            $rules = (new RecommendationUiModeService())->buildStateRules();
 
             // Empty gathering list initially - will be populated via AJAX
             $gatheringList = [];
@@ -105,7 +133,7 @@ class RecommendationsController extends AppController
      * recommendation data with proper filtering, sorting, pagination, and authorization.
      * It supports status-based system views and permission-based state filtering.
      *
-     * @param CsvExportService $csvExportService Injected CSV export service
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
      * @return \Cake\Http\Response|null|void Renders view or returns CSV response
      */
     public function gridData(CsvExportService $csvExportService, RecommendationQueryService $queryService)
@@ -118,9 +146,20 @@ class RecommendationsController extends AppController
         $canViewHidden = $user->checkCan('ViewHidden', $emptyRecommendation);
 
         // Build via service
+        $systemViews = RecommendationsGridColumns::getSystemViews([]);
+        $queryContext = $this->resolveDataverseGridQueryContext([
+            'gridKey' => 'Awards.Recommendations.index.main',
+            'gridColumnsClass' => RecommendationsGridColumns::class,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-recs-in-approval',
+            'defaultSort' => ['Recommendations.created' => 'desc'],
+        ]);
         $built = $queryService->buildMainGridQuery(
             $this->Recommendations,
             $user->checkCan('edit', $emptyRecommendation),
+            $queryContext->loadsColumn('notes'),
+            $queryContext->queryVisibleColumns(),
+            (int)$user->id,
         );
         $baseQuery = $built['query'];
         $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
@@ -130,80 +169,36 @@ class RecommendationsController extends AppController
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid($built['gridOptions']);
         $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
+        $result = $this->filterRecommendationGridActionsForResult($result);
 
         // Handle CSV export using trait's unified method with data mode
         if (!empty($result['isCsvExport'])) {
             // Fetch all data from query (not paginated) and process computed fields
-            $exportData = $this->prepareRecommendationsForExport($result['query'], ['includeAttendance' => true]);
+            $exportData = $this->prepareRecommendationsForExport($result['query'], ['includeAttendance' => true, 'includeGroupedChildren' => true]);
+
             return $this->handleCsvExport($result, $csvExportService, 'recommendations', 'Awards.Recommendations', $exportData);
         }
 
         // Post-process data to add computed fields for display
         $recommendations = $result['data'];
+        $this->enrichRecommendationsForGrid($recommendations, (array)$result['visibleColumns']);
 
-        // Fetch member attendance gatherings for all members in the result set
-        // These are gatherings where the member has marked attendance with share_with_crown or share_with_kingdom
-        $memberAttendanceGatherings = $this->getMemberAttendanceGatherings($recommendations);
+        $rowActions = $this->filterRecommendationRowActionsForGridResult(
+            RecommendationsGridColumns::getRowActions(),
+            $result,
+        );
 
-        foreach ($recommendations as $recommendation) {
-            // Build OP links HTML
-            $recommendation->op_links = $this->buildOpLinksHtml($recommendation);
-
-            // Merge recommendation-linked gatherings with member attendance gatherings
-            $attendanceGatherings = $memberAttendanceGatherings[$recommendation->member_id] ?? [];
-
-            // Build gatherings HTML (combines recommendation events and member attendance)
-            $recommendation->gatherings = $this->buildGatheringsHtml($recommendation, $attendanceGatherings);
-
-            // Build notes HTML
-            $recommendation->notes = $this->buildNotesHtml($recommendation);
-
-            // Build reason HTML with truncation
-            $recommendation->reason = $this->buildReasonHtml($recommendation);
-        }
-
-        // Get row actions from grid columns
-        $rowActions = RecommendationsGridColumns::getRowActions();
-
-        // Set view variables
-        $this->set([
-            'recommendations' => $recommendations,
-            'data' => $recommendations,
-            'rowActions' => $rowActions,
-            'gridState' => $result['gridState'],
-            'columns' => $result['columnsMetadata'],
-            'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => RecommendationsGridColumns::getSearchableColumns(),
-            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
-            'filterOptions' => $result['filterOptions'],
-            'currentFilters' => $result['currentFilters'],
-            'currentSearch' => $result['currentSearch'],
-            'currentView' => $result['currentView'],
-            'availableViews' => $result['availableViews'],
-            'gridKey' => $result['gridKey'],
-            'currentSort' => $result['currentSort'],
-            'currentMember' => $result['currentMember'],
-            'canViewHidden' => $canViewHidden,
-        ]);
-
-        // Determine which template to render based on Turbo-Frame header
-        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
-
-        if ($turboFrame === 'recommendations-grid-table') {
-            // Inner frame request - render table data only
-            $this->set('tableFrameId', 'recommendations-grid-table');
-            $this->viewBuilder()->setPlugin(null);
-            $this->viewBuilder()->disableAutoLayout();
-            $this->viewBuilder()->setTemplatePath('element');
-            $this->viewBuilder()->setTemplate('dv_grid_table');
-        } else {
-            // Outer frame request (or no frame) - render toolbar + table frame
-            $this->set('frameId', 'recommendations-grid');
-            $this->viewBuilder()->setPlugin(null);
-            $this->viewBuilder()->disableAutoLayout();
-            $this->viewBuilder()->setTemplatePath('element');
-            $this->viewBuilder()->setTemplate('dv_grid_content');
-        }
+        $this->renderDataverseGridResponse(
+            result: $result,
+            frameId: 'recommendations-grid',
+            collectionVar: 'recommendations',
+            extraViewVars: [
+                'data' => $recommendations,
+                'rowActions' => $rowActions,
+                'searchableColumns' => RecommendationsGridColumns::getSearchableColumns(),
+                'canViewHidden' => $canViewHidden,
+            ],
+        );
     }
 
     /**
@@ -299,7 +294,7 @@ class RecommendationsController extends AppController
             ->contain([
                 'Gatherings' => function ($q) {
                     return $q->select(['id', 'name', 'start_date', 'end_date']);
-                }
+                },
             ])
             ->where([
                 'GatheringAttendances.member_id IN' => $memberIds,
@@ -410,13 +405,15 @@ class RecommendationsController extends AppController
         $uniqueId = 'gatherings-' . $recommendation->id;
         $html = '<span class="gatherings-list">';
         $html .= implode(', ', $visibleNames);
-        $html .= '<span id="' . $uniqueId . '-hidden" style="display:none;">, ' . implode(', ', $hiddenNames) . '</span>';
-        $html .= ' <a href="#" class="text-primary small" onclick="';
-        $html .= "var el=document.getElementById('" . $uniqueId . "-hidden');";
-        $html .= "var link=this;";
-        $html .= "if(el.style.display==='none'){el.style.display='inline';link.textContent='less';}";
-        $html .= "else{el.style.display='none';link.textContent='+" . $hiddenCount . " more';}";
-        $html .= 'return false;">+' . $hiddenCount . ' more</a>';
+        $hiddenId = $uniqueId . '-hidden';
+        $moreLabel = '+' . $hiddenCount . ' more';
+        $html .= '<span id="' . $hiddenId . '" hidden style="display:none;">, ' . implode(', ', $hiddenNames) . '</span>';
+        $html .= ' <a href="#" class="text-primary small" data-controller="show-more"';
+        $html .= ' data-action="show-more#toggle"';
+        $html .= ' data-show-more-target-selector-value="#' . $hiddenId . '"';
+        $html .= ' data-show-more-more-label-value="' . h($moreLabel) . '"';
+        $html .= ' data-show-more-less-label-value="' . __('less') . '">';
+        $html .= h($moreLabel) . '</a>';
         $html .= '</span>';
 
         return $html;
@@ -606,6 +603,7 @@ class RecommendationsController extends AppController
         // Execute query to get all matching records (not paginated)
         $recommendations = $query->all()->toList();
         $includeAttendance = $options['includeAttendance'] ?? false;
+        $includeGroupedChildren = $options['includeGroupedChildren'] ?? false;
 
         $memberAttendanceGatherings = [];
         if ($includeAttendance) {
@@ -622,7 +620,70 @@ class RecommendationsController extends AppController
             $recommendation->gatherings = $this->buildGatheringsExportValue($recommendation, $attendanceGatherings);
         }
 
-        return $recommendations;
+        if (!$includeGroupedChildren) {
+            return $recommendations;
+        }
+
+        // Interleave grouped children after their group head
+        $headIds = [];
+        foreach ($recommendations as $rec) {
+            $headIds[] = $rec->id;
+        }
+
+        $children = [];
+        if (!empty($headIds)) {
+            $children = $this->Recommendations->find()
+                ->where(['Recommendations.recommendation_group_id IN' => $headIds])
+                ->contain([
+                    'Requesters' => function ($q) {
+                        return $q->select(['id', 'sca_name']);
+                    },
+                    'Members' => function ($q) {
+                        return $q->select(['id', 'sca_name', 'title', 'pronouns', 'pronunciation']);
+                    },
+                    'Branches' => function ($q) {
+                        return $q->select(['id', 'name', 'type']);
+                    },
+                    'Awards' => function ($q) {
+                        return $q->select(['id', 'abbreviation', 'branch_id']);
+                    },
+                    'Awards.Domains' => function ($q) {
+                        return $q->select(['id', 'name']);
+                    },
+                    'AssignedGathering' => function ($q) {
+                        return $q->select(['id', 'name', 'cancelled_at']);
+                    },
+                ])
+                ->orderBy(['Recommendations.recommendation_group_id' => 'asc', 'Recommendations.created' => 'asc'])
+                ->all()
+                ->toList();
+        }
+
+        if (empty($children)) {
+            return $recommendations;
+        }
+
+        // Group children by their head ID
+        $childrenByHead = [];
+        foreach ($children as $child) {
+            $childrenByHead[$child->recommendation_group_id][] = $child;
+        }
+
+        // Build final list with children interleaved after their head
+        $result = [];
+        foreach ($recommendations as $rec) {
+            $result[] = $rec;
+            if (isset($childrenByHead[$rec->id])) {
+                foreach ($childrenByHead[$rec->id] as $child) {
+                    // Prefix member name to visually indicate linked child in export
+                    $child->member_sca_name = '↳ ' . ($child->member_sca_name ?? '');
+                    $child->gatherings = '';
+                    $result[] = $child;
+                }
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -631,18 +692,18 @@ class RecommendationsController extends AppController
      * Provides recommendation data for recommendations submitted by a specific member.
      * Used in the member profile's "Submitted Award Recs" tab.
      *
-     * @param CsvExportService $csvExportService Injected CSV export service
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
      * @param int|null $memberId The member ID whose submissions to show (-1 for current user)
      * @return \Cake\Http\Response|null|void Renders view or returns CSV response
      */
     public function memberSubmittedRecsGridData(CsvExportService $csvExportService, RecommendationQueryService $queryService, ?int $memberId = null)
     {
+        $user = $this->request->getAttribute('identity');
+
         // Resolve member ID
         if ($memberId === null || $memberId === -1) {
-            $memberId = $this->request->getAttribute('identity')->id;
+            $memberId = $user->id;
         }
-
-        $user = $this->request->getAttribute('identity');
         $emptyRecommendation = $this->Recommendations->newEmptyEntity();
         $emptyRecommendation->requester_id = $memberId;
 
@@ -652,7 +713,19 @@ class RecommendationsController extends AppController
         $canViewHidden = $isOwnSubmissions || $user->checkCan('ViewHidden', $emptyRecommendation);
 
         // Build via service
-        $built = $queryService->buildMemberSubmittedQuery($this->Recommendations, $memberId);
+        $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'memberSubmitted']);
+        $queryContext = $this->resolveDataverseGridQueryContext([
+            'gridKey' => 'Awards.Recommendations.memberSubmitted',
+            'gridColumnsClass' => RecommendationsGridColumns::class,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-recs-submitted-by',
+            'defaultSort' => ['Recommendations.created' => 'desc'],
+        ]);
+        $built = $queryService->buildMemberSubmittedQuery(
+            $this->Recommendations,
+            $memberId,
+            $queryContext->queryVisibleColumns(),
+        );
         $baseQuery = $built['query'];
         $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
         $built['gridOptions']['baseQuery'] = $baseQuery;
@@ -671,6 +744,7 @@ class RecommendationsController extends AppController
         // Handle CSV export using trait's unified method with data mode
         if (!empty($result['isCsvExport'])) {
             $exportData = $this->prepareRecommendationsForExport($result['query']);
+
             return $this->handleCsvExport($result, $csvExportService, 'recommendations-submitted', 'Awards.Recommendations', $exportData);
         }
 
@@ -719,7 +793,7 @@ class RecommendationsController extends AppController
      * Provides recommendation data for recommendations about a specific member.
      * Used in the member profile's "Recs For Member" tab.
      *
-     * @param CsvExportService $csvExportService Injected CSV export service
+     * @param \App\Services\CsvExportService $csvExportService Injected CSV export service
      * @param int|null $memberId The member ID whose received recommendations to show
      * @return \Cake\Http\Response|null|void Renders view or returns CSV response
      */
@@ -729,18 +803,26 @@ class RecommendationsController extends AppController
         if ($memberId === null || $memberId === -1) {
             $memberId = $this->request->getAttribute('identity')->id;
         }
-
-        $user = $this->request->getAttribute('identity');
         $emptyRecommendation = $this->Recommendations->newEmptyEntity();
-
-
 
         $this->Authorization->authorize($emptyRecommendation, 'ViewSubmittedForMember');
         // If the user can see this tab at all, they should see all states
         $canViewHidden = true;
 
         // Build via service
-        $built = $queryService->buildRecsForMemberQuery($this->Recommendations, $memberId);
+        $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'recsForMember']);
+        $queryContext = $this->resolveDataverseGridQueryContext([
+            'gridKey' => 'Awards.Recommendations.forMember',
+            'gridColumnsClass' => RecommendationsGridColumns::class,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-recs-for-member',
+            'defaultSort' => ['Recommendations.created' => 'desc'],
+        ]);
+        $built = $queryService->buildRecsForMemberQuery(
+            $this->Recommendations,
+            $memberId,
+            $queryContext->queryVisibleColumns(),
+        );
         $baseQuery = $built['query'];
 
         // Apply authorization scope
@@ -799,183 +881,93 @@ class RecommendationsController extends AppController
     }
 
     /**
-     * Grid Data for "Gathering Awards" context
-     *
-     * Provides recommendation data for recommendations scheduled at a specific gathering.
-     * Used in the gathering detail's "Awards" tab.
-     *
-     * @param CsvExportService $csvExportService Injected CSV export service
-     * @param int|null $gatheringId The gathering ID whose scheduled recommendations to show
-     * @return \Cake\Http\Response|null|void Renders view or returns CSV response
+     * Request feedback on selected recommendations or recommendation groups.
      */
-    public function gatheringAwardsGridData(CsvExportService $csvExportService, RecommendationQueryService $queryService, ?int $gatheringId = null)
+    public function requestFeedback(RecommendationFeedbackService $feedbackService): ?Response
     {
-        if ($gatheringId === null) {
-            throw new \Cake\Http\Exception\BadRequestException(__('Gathering ID is required.'));
-        }
+        $this->request->allowMethod(['post']);
+        $recommendation = $this->Recommendations->newEmptyEntity();
+        $this->Authorization->authorize($recommendation, 'requestFeedback');
 
+        $ids = $this->parseIdList((string)$this->request->getData('ids'));
+        $recipientIds = $this->parseMemberIdList((string)$this->request->getData('recipient_ids'));
+        $message = $this->request->getData('message');
+        $deadline = $this->request->getData('deadline');
         $user = $this->request->getAttribute('identity');
 
-        // Load gathering for permission check
-        $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
-        $gathering = $gatheringsTable->get($gatheringId);
-
-        // blank recommendation for authorization
-        $recommendation = $this->Recommendations->newEmptyEntity();
-        $recommendation->gathering_id = $gatheringId;
-        $recommendation->gathering = $gathering;
-
-        $this->Authorization->authorize($recommendation, 'ViewGatheringRecommendations');
-        $canViewHidden = $user->checkCan('ViewHidden', $recommendation);
-
-        // Build via service
-        $built = $queryService->buildGatheringAwardsQuery(
-            $this->Recommendations,
-            $gatheringId,
-            $user->checkCan('edit', $recommendation),
+        $result = $feedbackService->createRequests(
+            $ids,
+            $recipientIds,
+            (int)$user->id,
+            is_string($message) ? $message : null,
+            is_string($deadline) && $deadline !== '' ? $deadline : null,
         );
-        $baseQuery = $built['query'];
-        $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
-        $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
-        $built['gridOptions']['baseQuery'] = $baseQuery;
 
-        // Use unified trait for grid processing
-        $result = $this->processDataverseGrid($built['gridOptions']);
-        $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
-
-        // Handle CSV export using trait's unified method with data mode
-        if (!empty($result['isCsvExport'])) {
-            $exportData = $this->prepareRecommendationsForExport($result['query']);
-            return $this->handleCsvExport($result, $csvExportService, 'gathering-awards', 'Awards.Recommendations', $exportData);
-        }
-
-        // Post-process paginated data to add computed fields for display
-        $recommendations = $result['data'];
-        foreach ($recommendations as $recommendation) {
-            // Build OP links HTML
-            $recommendation->op_links = $this->buildOpLinksHtml($recommendation);
-
-            // Build gatherings HTML (member attendance)
-            $recommendation->gatherings = $this->buildGatheringsHtml($recommendation);
-
-            // Build notes HTML
-            $recommendation->notes = $this->buildNotesHtml($recommendation);
-
-            // Build reason HTML with truncation
-            $recommendation->reason = $this->buildReasonHtml($recommendation);
-        }
-
-        // Set view variables
-        $this->set([
-            'recommendations' => $recommendations,
-            'data' => $recommendations,
-            'rowActions' => RecommendationsGridColumns::getRowActions(),
-            'gridState' => $result['gridState'],
-            'columns' => $result['columnsMetadata'],
-            'visibleColumns' => $result['visibleColumns'],
-            'searchableColumns' => RecommendationsGridColumns::getSearchableColumns(),
-            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
-            'filterOptions' => $result['filterOptions'],
-            'currentFilters' => $result['currentFilters'],
-            'currentSearch' => $result['currentSearch'],
-            'currentView' => $result['currentView'],
-            'availableViews' => $result['availableViews'],
-            'gridKey' => $result['gridKey'],
-            'currentSort' => $result['currentSort'],
-            'currentMember' => $result['currentMember'],
-        ]);
-
-        // Render grid content
-        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
-        $frameId = 'gathering-awards-grid-' . $gatheringId;
-
-        // Build URLs for grid
-        $queryParams = $this->request->getQueryParams();
-        $dataUrl = Router::url([
-            'plugin' => 'Awards',
-            'controller' => 'Recommendations',
-            'action' => 'gatheringAwardsGridData',
-            $gatheringId,
-        ]);
-        $tableDataUrl = $dataUrl;
-        if (!empty($queryParams)) {
-            $tableDataUrl .= '?' . http_build_query($queryParams);
-        }
-
-        if ($turboFrame === $frameId . '-table') {
-            $this->set('tableFrameId', $frameId . '-table');
-            $this->viewBuilder()->setPlugin(null);
-            $this->viewBuilder()->disableAutoLayout();
-            $this->viewBuilder()->setTemplatePath('element');
-            $this->viewBuilder()->setTemplate('dv_grid_table');
+        if ($result->isSuccess()) {
+            $this->Flash->success(__('Feedback request sent.'));
         } else {
-            $this->set('frameId', $frameId);
-            $this->set('dataUrl', $dataUrl);
-            $this->set('tableDataUrl', $tableDataUrl);
-            $this->viewBuilder()->setPlugin(null);
-            $this->viewBuilder()->disableAutoLayout();
-            $this->viewBuilder()->setTemplatePath('element');
-            $this->viewBuilder()->setTemplate('dv_grid_content');
+            $this->Flash->error($result->getError() ?? __('Feedback request could not be sent.'));
         }
+
+        $pageContext = $this->getPageContextUrl();
+        if ($this->request->getData('feedback_origin') === 'detail' && $ids !== []) {
+            $pageContext = Router::url([
+                'plugin' => 'Awards',
+                'controller' => 'Recommendations',
+                'action' => 'view',
+                $ids[0],
+            ]);
+        }
+        $pageContextPath = $pageContext === null ? null : (parse_url($pageContext, PHP_URL_PATH) ?: $pageContext);
+        if (
+            $pageContextPath === null
+            || !preg_match('#^/awards/recommendations(?:/|$)#', (string)$pageContextPath)
+        ) {
+            $pageContext = $ids === []
+                ? Router::url(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'index'])
+                : Router::url([
+                    'plugin' => 'Awards',
+                    'controller' => 'Recommendations',
+                    'action' => 'view',
+                    $ids[0],
+                ]);
+        }
+        if ($this->wantsTurboStreamRequest()) {
+            if ($pageContext !== null && !$this->isGridOriginRequest($pageContext)) {
+                return $this->renderTurboFlashOnly();
+            }
+
+            return $this->renderTurboCloseModal(
+                'recommendations-grid-table',
+                ['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'gridData'],
+                $pageContext,
+            );
+        }
+
+        return $this->redirect($pageContext ?: ['action' => 'index']);
     }
 
     /**
-     * Perform a transactional bulk state transition and related updates for multiple recommendations.
-     *
-     * Updates the selected recommendations' state and corresponding status, and optionally sets
-     * gathering assignment, given date, and close reason. When a note is provided, an administrative
-     * note is created for each affected recommendation attributed to the current user. All changes
-     * are applied inside a transaction and will be committed on success or rolled back on failure.
-     *
-     * Redirects to the provided current_page request value when present, otherwise redirects to the
-     * table view for the current view/status. Flash messages are set to indicate success or failure.
-     *
-     * @return \Cake\Http\Response|null Redirects to configured page or back to table view
-     * @see \Awards\Model\Entity\Recommendation::getStatuses() For state → status mapping
-     * @see \Awards\Model\Table\NotesTable For note creation and management
+     * Retract a pending recommendation feedback request.
      */
-    public function updateStates(RecommendationStateService $stateService): ?\Cake\Http\Response
+    public function retractFeedback(RecommendationFeedbackService $feedbackService): ?Response
     {
-        $view = $this->request->getData('view') ?? 'Index';
-        $status = $this->request->getData('status') ?? 'All';
-
-        $this->request->allowMethod(['post', 'get']);
-        $user = $this->request->getAttribute('identity');
+        $this->request->allowMethod(['post', 'delete']);
         $recommendation = $this->Recommendations->newEmptyEntity();
-        $this->Authorization->authorize($recommendation);
+        $this->Authorization->authorize($recommendation, 'retractFeedback');
 
-        $ids = explode(',', $this->request->getData('ids'));
-        $newState = $this->request->getData('newState');
+        $user = $this->request->getAttribute('identity');
+        $requestId = (int)$this->request->getData('feedback_request_id');
+        $adminOverride = $user->checkCan('administerFeedback', $recommendation);
+        $result = $feedbackService->retractRequest($requestId, (int)$user->id, $adminOverride);
 
-        if (empty($ids) || empty($newState)) {
-            $this->Flash->error(__('No recommendations selected or new state not specified.'));
+        if ($result->isSuccess()) {
+            $this->Flash->success(__('Feedback request retracted.'));
         } else {
-            $success = $stateService->bulkUpdateStates(
-                $this->Recommendations,
-                [
-                    'ids' => $ids,
-                    'newState' => $newState,
-                    'gathering_id' => $this->request->getData('gathering_id'),
-                    'given' => $this->request->getData('given'),
-                    'note' => $this->request->getData('note'),
-                    'close_reason' => $this->request->getData('close_reason'),
-                ],
-                $user->id,
-            );
-            if (!$this->request->getHeader('Turbo-Frame')) {
-                if ($success) {
-                    $this->Flash->success(__('The recommendations have been updated.'));
-                } else {
-                    $this->Flash->error(__('The recommendations could not be updated. Please, try again.'));
-                }
-            }
-        }
-        $currentPage = $this->request->getData('current_page');
-        if ($currentPage) {
-            return $this->redirect($currentPage);
+            $this->Flash->error($result->getError() ?? __('Feedback request could not be retracted.'));
         }
 
-        return $this->redirect(['action' => 'table', $view, $status]);
+        return $this->redirect($this->referer(['action' => 'index']));
     }
 
     /**
@@ -988,16 +980,48 @@ class RecommendationsController extends AppController
      * @return \Cake\Http\Response|null The response for the rendered view, or null if the controller does not return a response.
      * @throws \Cake\Http\Exception\NotFoundException If the recommendation does not exist or is inaccessible.
      */
-    public function view(?string $id = null): ?\Cake\Http\Response
+    public function view(?string $id = null): ?Response
     {
         try {
-            $recommendation = $this->Recommendations->get($id, contain: ['Requesters', 'Members', 'Branches', 'Awards', 'Gatherings', 'AssignedGathering']);
+            $workflowUiService = new RecommendationWorkflowUiService();
+            $recommendation = $this->Recommendations->get($id, contain: [
+                'Requesters',
+                'Members',
+                'Branches',
+                'Awards',
+                'Gatherings',
+                'AssignedGathering',
+                'Bestowals',
+                'GroupHead' => ['Awards'],
+                'GroupChildren' => ['Awards', 'Requesters'],
+                'FeedbackRequestItems' => [
+                    'FeedbackRequests' => [
+                        'Requesters',
+                        'Recipients' => [
+                            'RecipientMembers',
+                            'WorkflowApprovals',
+                            'WorkflowApprovalResponses',
+                        ],
+                    ],
+                ],
+            ]);
             if (!$recommendation) {
-                throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
+                throw new NotFoundException(__('Recommendation not found'));
             }
 
             $this->Authorization->authorize($recommendation, 'view');
             $recommendation->domain_id = $recommendation->award->domain_id;
+            $workflowContext = $workflowUiService->buildContext(
+                $recommendation,
+                $this->request->getAttribute('identity'),
+            );
+            if (!empty($workflowContext['pendingApproval']) && $workflowContext['pendingApproval'] instanceof WorkflowApproval) {
+                $workflowContext['pendingApproval']->approver_config = $this->augmentApproverConfigForResponse(
+                    $this->normalizeApproverConfig($workflowContext['pendingApproval']->approver_config),
+                    $workflowContext['pendingApproval'],
+                    $recommendation,
+                );
+            }
 
             // Fetch member's self-selected attendance gatherings (where they've shared with crown/kingdom)
             $memberAttendanceGatherings = [];
@@ -1007,7 +1031,7 @@ class RecommendationsController extends AppController
                     ->contain([
                         'Gatherings' => function ($q) {
                             return $q->select(['id', 'name', 'start_date', 'end_date', 'public_id']);
-                        }
+                        },
                     ])
                     ->where([
                         'GatheringAttendances.member_id' => $recommendation->member_id,
@@ -1026,11 +1050,603 @@ class RecommendationsController extends AppController
                 }
             }
 
-            $this->set(compact('recommendation', 'memberAttendanceGatherings'));
+            $this->set(compact('recommendation', 'memberAttendanceGatherings', 'workflowContext'));
+
             return null;
-        } catch (\Cake\Datasource\Exception\RecordNotFoundException $e) {
-            throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
+        } catch (RecordNotFoundException $e) {
+            throw new NotFoundException(__('Recommendation not found'));
         }
+    }
+
+    /**
+     * Record the current user's approval decision from a recommendation screen.
+     *
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Trigger dispatcher.
+     * @param string|null $id Recommendation ID.
+     * @return \Cake\Http\Response|null
+     */
+    public function workflowDecision(
+        TriggerDispatcher $triggerDispatcher,
+        ?string $id = null,
+    ): ?Response {
+        $this->request->allowMethod(['post']);
+        if ($id === null) {
+            throw new NotFoundException(__('Recommendation not found'));
+        }
+
+        $recommendation = $this->Recommendations->get($id, contain: ['Awards']);
+        $this->Authorization->authorize($recommendation, 'decideApproval');
+
+        $identity = $this->request->getAttribute('identity');
+        $workflowUiService = new RecommendationWorkflowUiService();
+        $approval = $workflowUiService->pendingApprovalForRecommendation($recommendation, $identity);
+        if (!$approval instanceof WorkflowApproval) {
+            $this->Flash->error(__('There is no pending approval assigned to you for this recommendation.'));
+
+            return $this->redirect(['action' => 'view', $recommendation->id]);
+        }
+
+        $decision = (string)$this->request->getData('decision');
+        $comment = trim((string)$this->request->getData('comment'));
+        $bestowalGatheringId = $this->getPostedBestowalGatheringId();
+        $validationError = RecommendationApprovalDecisionService::validateApprovalDecision($approval, $decision, $comment);
+        if ($validationError !== null) {
+            $this->Flash->error($validationError);
+
+            return $this->redirect(['action' => 'view', $recommendation->id]);
+        }
+
+        $gatheringError = $this->validateBestowalGatheringSelection(
+            $approval,
+            $decision,
+            $bestowalGatheringId,
+            $recommendation,
+        );
+        if ($gatheringError !== null) {
+            $this->Flash->error($gatheringError);
+
+            return $this->redirect(['action' => 'view', $recommendation->id]);
+        }
+
+        $result = $this->recordWorkflowApprovalDecision(
+            $approval,
+            (int)$identity->getAsMember()->id,
+            $decision,
+            $comment !== '' ? $comment : null,
+            $triggerDispatcher,
+            $bestowalGatheringId,
+        );
+
+        if ($result->isSuccess()) {
+            $this->Flash->success(__('Approval response recorded.'));
+        } else {
+            $this->Flash->error($result->getError() ?? __('Approval response could not be recorded.'));
+        }
+
+        return $this->redirect(['action' => 'view', $recommendation->id]);
+    }
+
+    /**
+     * Record a grid approval decision for the current user's pending recommendation approval.
+     *
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Trigger dispatcher.
+     * @return \Cake\Http\Response|null
+     */
+    public function workflowDecisionFromGrid(TriggerDispatcher $triggerDispatcher): ?Response
+    {
+        $this->request->allowMethod(['post']);
+        $this->Authorization->authorize($this->Recommendations->newEmptyEntity(), 'index');
+
+        $pageContext = $this->getPageContextUrl();
+        $identity = $this->request->getAttribute('identity');
+        $approvalId = (int)$this->request->getData('approvalId');
+        $recommendationId = $this->getPostedRecommendationId();
+        $decision = (string)$this->request->getData('decision');
+        $comment = trim((string)$this->request->getData('comment'));
+        $bestowalGatheringId = $this->getPostedBestowalGatheringId();
+        $memberId = (int)$identity->getAsMember()->id;
+
+        $approval = $this->getPendingApprovalForMember($approvalId, $memberId);
+        if (!$approval instanceof WorkflowApproval) {
+            $this->Flash->error(__('There is no pending approval assigned to you for this recommendation.'));
+
+            return $this->recommendationsGridRefreshResponse($pageContext)
+                ?? $this->redirect($pageContext ?: ['action' => 'index']);
+        }
+
+        $validationError = $this->validateWorkflowDecision($approval, $decision, $comment);
+        if ($validationError !== null) {
+            $this->Flash->error($validationError);
+
+            return $this->recommendationsGridRefreshResponse($pageContext)
+                ?? $this->redirect($pageContext ?: ['action' => 'index']);
+        }
+
+        $recommendation = $this->getRecommendationForApproval($approval, $recommendationId);
+        $gatheringError = $this->validateBestowalGatheringSelection(
+            $approval,
+            $decision,
+            $bestowalGatheringId,
+            $recommendation,
+        );
+        if ($gatheringError !== null) {
+            $this->Flash->error($gatheringError);
+
+            return $this->recommendationsGridRefreshResponse($pageContext)
+                ?? $this->redirect($pageContext ?: ['action' => 'index']);
+        }
+
+        $result = $this->recordWorkflowApprovalDecision(
+            $approval,
+            $memberId,
+            $decision,
+            $comment !== '' ? $comment : null,
+            $triggerDispatcher,
+            $bestowalGatheringId,
+        );
+
+        if ($result->isSuccess()) {
+            $this->Flash->success(__('Approval response recorded.'));
+        } else {
+            $this->Flash->error($result->getError() ?? __('Approval response could not be recorded.'));
+        }
+
+        return $this->recommendationsGridRefreshResponse($pageContext)
+            ?? $this->redirect($pageContext ?: ['action' => 'index']);
+    }
+
+    /**
+     * Record one decision against multiple selected recommendation workflow approvals.
+     *
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Trigger dispatcher.
+     * @return \Cake\Http\Response|null
+     */
+    public function bulkWorkflowDecision(TriggerDispatcher $triggerDispatcher): ?Response
+    {
+        $this->request->allowMethod(['post']);
+        $this->Authorization->authorize($this->Recommendations->newEmptyEntity(), 'index');
+
+        $pageContext = $this->getPageContextUrl();
+        $identity = $this->request->getAttribute('identity');
+        $memberId = (int)$identity->getAsMember()->id;
+        $decision = (string)$this->request->getData('decision');
+        $comment = trim((string)$this->request->getData('comment'));
+        $bestowalGatheringId = $this->getPostedBestowalGatheringId();
+        $approvalIds = array_values(array_unique(array_map(
+            'intval',
+            (array)$this->request->getData('approval_ids'),
+        )));
+        $approvalIds = array_filter($approvalIds);
+
+        if ($approvalIds === []) {
+            $this->Flash->error(__('Select at least one recommendation that is pending your approval.'));
+
+            return $this->recommendationsGridRefreshResponse($pageContext)
+                ?? $this->redirect($pageContext ?: ['action' => 'index']);
+        }
+
+        $eligibleApprovals = $this->getPendingApprovalsForMember($memberId, $approvalIds);
+        if ($eligibleApprovals === []) {
+            $this->Flash->error(__('None of the selected recommendations are pending your approval.'));
+
+            return $this->recommendationsGridRefreshResponse($pageContext)
+                ?? $this->redirect($pageContext ?: ['action' => 'index']);
+        }
+
+        $recorded = 0;
+        $failed = 0;
+        foreach ($eligibleApprovals as $approval) {
+            $validationError = $this->validateWorkflowDecision($approval, $decision, $comment);
+            if ($validationError !== null) {
+                $failed++;
+                continue;
+            }
+            $gatheringError = $this->validateBestowalGatheringSelection(
+                $approval,
+                $decision,
+                $bestowalGatheringId,
+            );
+            if ($gatheringError !== null) {
+                $failed++;
+                continue;
+            }
+
+            $result = $this->recordWorkflowApprovalDecision(
+                $approval,
+                $memberId,
+                $decision,
+                $comment !== '' ? $comment : null,
+                $triggerDispatcher,
+                $bestowalGatheringId,
+            );
+            if ($result->isSuccess()) {
+                $recorded++;
+            } else {
+                $failed++;
+            }
+        }
+
+        $skipped = count($approvalIds) - count($eligibleApprovals);
+        if ($recorded > 0 && ($failed > 0 || $skipped > 0)) {
+            $this->Flash->warning(__(
+                '{0} approval response(s) recorded. {1} selected item(s) could not be processed.',
+                $recorded,
+                $failed + $skipped,
+            ));
+        } elseif ($recorded > 0) {
+            $this->Flash->success(__('{0} approval response(s) recorded.', $recorded));
+        } else {
+            $this->Flash->error(__('No approval responses could be recorded for the selected recommendations.'));
+        }
+
+        return $this->recommendationsGridRefreshResponse($pageContext)
+            ?? $this->redirect($pageContext ?: ['action' => 'index']);
+    }
+
+    /**
+     * @param \App\Model\Entity\WorkflowApproval $approval Approval entity.
+     * @param string $decision Decision value.
+     * @param string $comment Comment text.
+     * @return string|null Validation error, if any.
+     */
+    private function validateWorkflowDecision(WorkflowApproval $approval, string $decision, string $comment): ?string
+    {
+        return RecommendationApprovalDecisionService::validateApprovalDecision($approval, $decision, $comment);
+    }
+
+    /**
+     * @param mixed $approverConfig Approval config.
+     * @return array<string, mixed>
+     */
+    private function normalizeApproverConfig(mixed $approverConfig): array
+    {
+        return is_array($approverConfig) ? $approverConfig : [];
+    }
+
+    /**
+     * @param array<string, mixed> $approverConfig Approval config.
+     * @return array<string, mixed>
+     */
+    private function augmentApproverConfigForResponse(
+        array $approverConfig,
+        ?WorkflowApproval $approval = null,
+        ?Recommendation $recommendation = null,
+    ): array {
+        if (!$this->approvalRequiresBestowalGatheringSelection($approval, $approverConfig)) {
+            unset(
+                $approverConfig[self::BESTOWAL_GATHERING_REQUIRED_KEY],
+                $approverConfig['requiresBestowalGathering'],
+                $approverConfig['bestowal_gathering_options'],
+                $approverConfig['bestowalGatheringOptions'],
+                $approverConfig['bestowal_gathering_url'],
+                $approverConfig['bestowalGatheringUrl'],
+            );
+
+            return $approverConfig;
+        }
+
+        $approverConfig[self::BESTOWAL_GATHERING_REQUIRED_KEY] = true;
+        if ($recommendation !== null) {
+            $lookupUrl = $this->buildBestowalGatheringLookupUrl($recommendation);
+            $approverConfig['bestowal_gathering_url'] = $lookupUrl;
+            $approverConfig['bestowalGatheringUrl'] = $lookupUrl;
+        }
+
+        return $approverConfig;
+    }
+
+    /**
+     * @param array<string, mixed> $approverConfig Approval config.
+     * @return bool
+     */
+    private function requiresBestowalGatheringSelection(array $approverConfig): bool
+    {
+        return !empty($approverConfig[self::BESTOWAL_GATHERING_REQUIRED_KEY])
+            || !empty($approverConfig['requiresBestowalGathering']);
+    }
+
+    /**
+     * Determine whether this recommendation approval must schedule the created bestowal.
+     *
+     * Older pending approvals may predate requires_bestowal_gathering in node config,
+     * so the award workflow slug remains the compatibility fallback.
+     *
+     * @param \App\Model\Entity\WorkflowApproval|null $approval Approval.
+     * @param array<string, mixed> $approverConfig Approval config.
+     * @return bool
+     */
+    private function approvalRequiresBestowalGatheringSelection(
+        ?WorkflowApproval $approval,
+        array $approverConfig,
+    ): bool {
+        $finalStepState = $approval !== null
+            ? $this->awardApprovalFinalStepState($approval, $approverConfig)
+            : null;
+        if ($finalStepState === false) {
+            return false;
+        }
+
+        if ($this->requiresBestowalGatheringSelection($approverConfig)) {
+            return true;
+        }
+
+        $slug = (string)($approval?->workflow_instance?->workflow_definition?->slug ?? '');
+
+        return $finalStepState === true && in_array($slug, self::BESTOWAL_GATHERING_WORKFLOW_SLUGS, true);
+    }
+
+    /**
+     * @param \App\Model\Entity\WorkflowApproval $approval Approval.
+     * @param array<string, mixed> $approverConfig Approval config.
+     * @return bool|null
+     */
+    private function awardApprovalFinalStepState(WorkflowApproval $approval, array $approverConfig): ?bool
+    {
+        $isAwardRecommendationWorkflow = in_array(
+            (string)($approval->workflow_instance?->workflow_definition?->slug ?? ''),
+            self::BESTOWAL_GATHERING_WORKFLOW_SLUGS,
+            true,
+        );
+        if (
+            !$isAwardRecommendationWorkflow
+            && empty($approverConfig['award_approval_run_id'])
+            && empty($approverConfig['award_approval_step_key'])
+            && !array_key_exists('award_approval_is_final_step', $approverConfig)
+        ) {
+            return null;
+        }
+
+        return (new RecommendationApprovalProcessService())->isFinalApprovalStep($approval, $approverConfig);
+    }
+
+    /**
+     * @return int|null
+     */
+    private function getPostedBestowalGatheringId(): ?int
+    {
+        $rawId = $this->request->getData('bestowal_gathering_id') ?? $this->request->getData('gathering_id');
+        $gatheringId = (int)$rawId;
+
+        return $gatheringId > 0 ? $gatheringId : null;
+    }
+
+    /**
+     * @return int|null
+     */
+    private function getPostedRecommendationId(): ?int
+    {
+        $recommendationId = (int)$this->request->getData('recommendation_id');
+
+        return $recommendationId > 0 ? $recommendationId : null;
+    }
+
+    /**
+     * @param \App\Model\Entity\WorkflowApproval|null $approval Approval.
+     * @param string $decision Submitted decision.
+     * @param int|null $gatheringId Selected gathering ID.
+     * @param \Awards\Model\Entity\Recommendation|null $recommendation Recommendation context.
+     * @return string|null
+     */
+    private function validateBestowalGatheringSelection(
+        ?WorkflowApproval $approval,
+        string $decision,
+        ?int $gatheringId,
+        ?Recommendation $recommendation = null,
+    ): ?string {
+        if ($approval === null || $decision !== WorkflowApprovalResponse::DECISION_APPROVE) {
+            return null;
+        }
+
+        $approverConfig = $this->normalizeApproverConfig($approval->approver_config);
+        if (!$this->approvalRequiresBestowalGatheringSelection($approval, $approverConfig)) {
+            return null;
+        }
+
+        if ($gatheringId === null) {
+            return null;
+        }
+
+        $isSelectable = $recommendation !== null
+            ? $this->isSelectableBestowalGatheringForRecommendation($recommendation, $gatheringId)
+            : $this->isSelectableBestowalGathering($gatheringId);
+        if (!$isSelectable) {
+            return (string)__('Select a valid, future gathering for the bestowal.');
+        }
+
+        return null;
+    }
+
+    /**
+     * @param int $gatheringId Gathering ID.
+     * @return bool
+     */
+    private function isSelectableBestowalGathering(int $gatheringId): bool
+    {
+        return $this->fetchTable('Gatherings')->exists([
+            'Gatherings.id' => $gatheringId,
+            'Gatherings.deleted IS' => null,
+            'Gatherings.cancelled_at IS' => null,
+            'Gatherings.start_date >' => DateTime::now(),
+        ]);
+    }
+
+    /**
+     * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation context.
+     * @param int $gatheringId Gathering ID.
+     * @return bool
+     */
+    private function isSelectableBestowalGatheringForRecommendation(Recommendation $recommendation, int $gatheringId): bool
+    {
+        $bestowalsTable = TableRegistry::getTableLocator()->get('Awards.Bestowals');
+        $bestowal = $bestowalsTable->newEmptyEntity();
+        $bestowal->award_id = $recommendation->award_id !== null ? (int)$recommendation->award_id : null;
+        $bestowal->member_id = $recommendation->member_id !== null ? (int)$recommendation->member_id : null;
+        $bestowal->set('recommendations', [$recommendation]);
+
+        $gatheringData = (new BestowalGatheringLookupService())->getFilteredGatheringsForBestowal(
+            $bestowal,
+            true,
+            null,
+            $bestowal->award_id !== null ? (int)$bestowal->award_id : null,
+        );
+
+        return isset($gatheringData['gatherings'][$gatheringId]);
+    }
+
+    /**
+     * @param \App\Model\Entity\WorkflowApproval $approval Approval entity.
+     * @param int|null $recommendationId Submitted recommendation ID.
+     * @return \Awards\Model\Entity\Recommendation|null
+     */
+    private function getRecommendationForApproval(WorkflowApproval $approval, ?int $recommendationId): ?Recommendation
+    {
+        $query = TableRegistry::getTableLocator()->get('Awards.RecommendationApprovalRuns')->find()
+            ->contain(['Recommendations'])
+            ->where(['RecommendationApprovalRuns.workflow_instance_id' => (int)$approval->workflow_instance_id]);
+        if ($recommendationId !== null) {
+            $query->where(['RecommendationApprovalRuns.recommendation_id' => $recommendationId]);
+        }
+
+        $run = $query->first();
+        $recommendation = $run?->recommendation ?? null;
+
+        return $recommendation instanceof Recommendation ? $recommendation : null;
+    }
+
+    /**
+     * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation context.
+     * @return string
+     */
+    private function buildBestowalGatheringLookupUrl(Recommendation $recommendation): string
+    {
+        return Router::url([
+            'plugin' => 'Awards',
+            'controller' => 'Bestowals',
+            'action' => 'gatheringsForBestowalAutoComplete',
+            '?' => [
+                'recommendation_id' => (int)$recommendation->id,
+            ],
+        ]);
+    }
+
+    /**
+     * @param int $approvalId Approval ID.
+     * @param int $memberId Member ID.
+     * @return \App\Model\Entity\WorkflowApproval|null
+     */
+    private function getPendingApprovalForMember(int $approvalId, int $memberId): ?WorkflowApproval
+    {
+        $approvals = $this->getPendingApprovalsForMember($memberId, [$approvalId]);
+
+        return $approvals[$approvalId] ?? null;
+    }
+
+    /**
+     * @param int $memberId Member ID.
+     * @param array<int> $approvalIds Approval IDs.
+     * @return array<int, \App\Model\Entity\WorkflowApproval>
+     */
+    private function getPendingApprovalsForMember(int $memberId, array $approvalIds): array
+    {
+        if ($approvalIds === []) {
+            return [];
+        }
+
+        $approvalIdSet = array_flip(array_map('intval', $approvalIds));
+        $approvals = [];
+        $workflowApprovalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
+        foreach (
+            $workflowApprovalsTable::getPendingApprovalsForMember(
+                $memberId,
+                ['WorkflowInstances' => ['WorkflowDefinitions']],
+            ) as $approval
+        ) {
+            $approvalId = (int)$approval->id;
+            if (isset($approvalIdSet[$approvalId])) {
+                $approvals[$approvalId] = $approval;
+            }
+        }
+
+        return $approvals;
+    }
+
+    /**
+     * @param \App\Model\Entity\WorkflowApproval $approval Approval entity.
+     * @param int $memberId Approver member ID.
+     * @param string $decision Decision value.
+     * @param string|null $comment Optional comment.
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Trigger dispatcher.
+     * @return \App\Services\ServiceResult
+     */
+    private function recordWorkflowApprovalDecision(
+        WorkflowApproval $approval,
+        int $memberId,
+        string $decision,
+        ?string $comment,
+        TriggerDispatcher $triggerDispatcher,
+        ?int $bestowalGatheringId = null,
+    ): ServiceResult {
+        return $this->getApprovalDecisionService($triggerDispatcher)->decide(
+            $approval,
+            $memberId,
+            $decision,
+            $comment,
+            $bestowalGatheringId,
+        );
+    }
+
+    /**
+     * Build the approval decision service using the current workflow dispatcher.
+     *
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Trigger dispatcher
+     * @return \Awards\Services\RecommendationApprovalDecisionService
+     */
+    private function getApprovalDecisionService(
+        TriggerDispatcher $triggerDispatcher,
+    ): RecommendationApprovalDecisionService {
+        return new RecommendationApprovalDecisionService(
+            new DefaultWorkflowApprovalManager(),
+            $triggerDispatcher->getEngine(),
+        );
+    }
+
+    /**
+     * Start a fresh approval workflow from a recommendation screen.
+     *
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Trigger dispatcher.
+     * @param string|null $id Recommendation ID.
+     * @return \Cake\Http\Response|null
+     */
+    public function startApprovalWorkflow(
+        TriggerDispatcher $triggerDispatcher,
+        ?string $id = null,
+    ): ?Response {
+        $this->request->allowMethod(['post']);
+        if ($id === null) {
+            throw new NotFoundException(__('Recommendation not found'));
+        }
+
+        $recommendation = $this->Recommendations->get($id, contain: ['Awards']);
+        $this->Authorization->authorize($recommendation, 'startApprovalWorkflow');
+
+        try {
+            $this->dispatchWorkflowOrFail(
+                $triggerDispatcher,
+                'awards-existing-recommendation-approval',
+                'Awards.ExistingRecommendationApprovalRequested',
+                [
+                    'recommendationId' => (int)$recommendation->id,
+                    'actorId' => (int)$this->request->getAttribute('identity')->getAsMember()->id,
+                    'restartReason' => (string)$this->request->getData('restart_reason', 'manual_restart'),
+                ],
+            );
+            $this->Flash->success(__('Approval workflow started.'));
+        } catch (Exception $e) {
+            Log::error('Recommendation approval workflow start failed: ' . $e->getMessage());
+            $this->Flash->error(__('The approval workflow could not be started.'));
+        }
+
+        return $this->redirect(['action' => 'view', $recommendation->id]);
     }
 
     /**
@@ -1045,99 +1661,62 @@ class RecommendationsController extends AppController
      * @see view() For recommendation detail display after submission
      * @see \Awards\Model\Entity\Recommendation For recommendation entity structure
      */
-    public function add(): ?\Cake\Http\Response
-    {
+    public function add(
+        RecommendationSubmissionService $submissionService,
+        TriggerDispatcher $triggerDispatcher,
+    ): ?Response {
         try {
             $user = $this->request->getAttribute('identity');
             $recommendation = $this->Recommendations->newEmptyEntity();
             $this->Authorization->authorize($recommendation);
 
             if ($this->request->is('post')) {
-                $data = $this->request->getData();
+                $result = $this->dispatchRecommendationMutation(
+                    $triggerDispatcher,
+                    'awards-recommendation-submitted',
+                    'Awards.RecommendationCreateRequested',
+                    [
+                        'data' => $this->request->getData(),
+                        'requesterContext' => [
+                            'id' => (int)$user->id,
+                            'sca_name' => (string)$user->sca_name,
+                            'email_address' => (string)$user->email_address,
+                            'phone_number' => $user->phone_number !== null ? (string)$user->phone_number : null,
+                        ],
+                        'submissionMode' => 'authenticated',
+                        'actorId' => (int)$user->id,
+                    ],
+                );
 
-                // Convert member_public_id to member_id if provided
-                if (!empty($data['member_public_id'])) {
-                    $member = $this->Recommendations->Members->find('byPublicId', [$data['member_public_id']])->first();
-                    if (!$member) {
-                        $this->Flash->error(__('Member with provided public_id not found.'));
-                        $this->response = $this->response->withStatus(400);
-                        return $this->response;
-                    }
-                    $data['member_id'] = $member->id;
-                    unset($data['member_public_id']);
-                }
-
-                $recommendation = $this->Recommendations->patchEntity($recommendation, $data, [
-                    'associated' => ['Gatherings']
-                ]);
-                $recommendation->requester_id = $user->id;
-                $recommendation->requester_sca_name = $user->sca_name;
-                $recommendation->contact_email = $user->email_address;
-                $recommendation->contact_number = $user->phone_number;
-
-                $statuses = Recommendation::getStatuses();
-                $recommendation->status = array_key_first($statuses);
-                $recommendation->state = $statuses[$recommendation->status][0];
-                $recommendation->state_date = DateTime::now();
-                $recommendation->not_found = $this->request->getData('not_found') === 'on';
-
-                if ($recommendation->specialty === 'No specialties available') {
-                    $recommendation->specialty = null;
-                }
-
-                if ($recommendation->not_found) {
-                    $recommendation->member_id = null;
-                } else {
-                    $this->Recommendations->getConnection()->begin();
-                    try {
-                        $member = $this->Recommendations->Members->get(
-                            $recommendation->member_id,
-                            select: ['branch_id', 'additional_info']
-                        );
-
-                        $recommendation->branch_id = $member->branch_id;
-
-                        if (!empty($member->additional_info)) {
-                            $addInfo = $member->additional_info;
-                            if (isset($addInfo['CallIntoCourt'])) {
-                                $recommendation->call_into_court = $addInfo['CallIntoCourt'];
-                            }
-                            if (isset($addInfo['CourtAvailability'])) {
-                                $recommendation->court_availability = $addInfo['CourtAvailability'];
-                            }
-                            if (isset($addInfo['PersonToGiveNoticeTo'])) {
-                                $recommendation->person_to_notify = $addInfo['PersonToGiveNoticeTo'];
-                            }
-                        }
-                    } catch (\Exception $e) {
-                        $this->Recommendations->getConnection()->rollback();
-                        Log::error('Error loading member data: ' . $e->getMessage());
-                        $this->Flash->error(__('Could not load member information. Please try again.'));
-                    }
-                }
-
-                // Set default values for court preferences
-                $recommendation->call_into_court = $recommendation->call_into_court ?? 'Not Set';
-                $recommendation->court_availability = $recommendation->court_availability ?? 'Not Set';
-                $recommendation->person_to_notify = $recommendation->person_to_notify ?? '';
-
-                if ($this->Recommendations->save($recommendation)) {
-                    $this->Recommendations->getConnection()->commit();
+                if ($result['success']) {
                     $this->Flash->success(__('The recommendation has been saved.'));
 
-                    if ($user->checkCan('view', $recommendation)) {
-                        return $this->redirect(['action' => 'view', $recommendation->id]);
+                    $recommendationId = $this->extractRecommendationIdFromResult($result);
+                    if ($recommendationId !== null) {
+                        $savedRecommendation = $this->Recommendations->get($recommendationId);
+                        if ($user->checkCan('view', $savedRecommendation)) {
+                            return $this->redirect(['action' => 'view', $recommendationId]);
+                        }
                     }
 
                     return $this->redirect([
                         'controller' => 'members',
                         'plugin' => null,
                         'action' => 'view',
-                        $user->id
+                        $user->id,
                     ]);
                 }
-                $this->Recommendations->getConnection()->rollback();
-                $this->Flash->error(__('The recommendation could not be saved. Please, try again.'));
+
+                if ($result['recommendation'] instanceof Recommendation) {
+                    $recommendation = $result['recommendation'];
+                }
+
+                $this->Flash->error($result['error'] ?? __('The recommendation could not be saved. Please, try again.'));
+                if ($result['errorCode'] === 'member_public_id_not_found') {
+                    $this->response = $this->response->withStatus(400);
+
+                    return $this->response;
+                }
             }
 
             // Get data for dropdowns
@@ -1158,11 +1737,12 @@ class RecommendationsController extends AppController
             $gatherings = [];
 
             $this->set(compact('recommendation', 'branches', 'awards', 'gatherings', 'awardsDomains', 'awardsLevels'));
+
             return null;
-        } catch (\Exception $e) {
-            $this->Recommendations->getConnection()->rollback();
+        } catch (Exception $e) {
             Log::error('Error in add recommendation: ' . $e->getMessage());
             $this->Flash->error(__('An unexpected error occurred. Please try again.'));
+
             return $this->redirect(['action' => 'index']);
         }
     }
@@ -1178,8 +1758,10 @@ class RecommendationsController extends AppController
      * @see add() For authenticated member submission workflow
      * @see beforeFilter() For authentication bypass configuration
      */
-    public function submitRecommendation(): ?\Cake\Http\Response
-    {
+    public function submitRecommendation(
+        RecommendationSubmissionService $submissionService,
+        TriggerDispatcher $triggerDispatcher,
+    ): ?Response {
         $this->Authorization->skipAuthorization();
         $user = $this->request->getAttribute('identity');
 
@@ -1191,91 +1773,31 @@ class RecommendationsController extends AppController
 
         if ($this->request->is(['post', 'put'])) {
             try {
-                $this->Recommendations->getConnection()->begin();
+                $result = $this->dispatchRecommendationMutation(
+                    $triggerDispatcher,
+                    'awards-recommendation-submitted',
+                    'Awards.RecommendationCreateRequested',
+                    [
+                        'data' => $this->request->getData(),
+                        'submissionMode' => 'public',
+                    ],
+                );
 
-                $data = $this->request->getData();
-
-                // Convert member_public_id to member_id if provided
-                if (!empty($data['member_public_id'])) {
-                    $member = $this->Recommendations->Members->find('byPublicId', [$data['member_public_id']])->first();
-                    if (!$member) {
-                        $this->Flash->error(__('Member with provided public_id not found.'));
-                        $this->response = $this->response->withStatus(400);
-                        $this->Recommendations->getConnection()->rollback();
-                        return $this->response;
-                    }
-                    $data['member_id'] = $member->id;
-                    unset($data['member_public_id']);
-                }
-
-                $recommendation = $this->Recommendations->patchEntity($recommendation, $data, [
-                    'associated' => ['Gatherings']
-                ]);
-
-                if ($recommendation->requester_id !== null) {
-                    $requester = $this->Recommendations->Requesters->get(
-                        $recommendation->requester_id,
-                        fields: ['sca_name']
-                    );
-                    $recommendation->requester_sca_name = $requester->sca_name;
-                }
-
-                $statuses = Recommendation::getStatuses();
-                $recommendation->status = array_key_first($statuses);
-                $recommendation->state = $statuses[$recommendation->status][0];
-                $recommendation->state_date = DateTime::now();
-
-                if ($recommendation->specialty === 'No specialties available') {
-                    $recommendation->specialty = null;
-                }
-
-                $recommendation->not_found = $this->request->getData('not_found') === 'on';
-
-                if ($recommendation->not_found) {
-                    $recommendation->member_id = null;
-                } else {
-                    try {
-                        $member = $this->Recommendations->Members->get(
-                            $recommendation->member_id,
-                            select: ['branch_id', 'additional_info']
-                        );
-
-                        $recommendation->branch_id = $member->branch_id;
-
-                        if (!empty($member->additional_info)) {
-                            $addInfo = $member->additional_info;
-
-                            if (isset($addInfo['CallIntoCourt'])) {
-                                $recommendation->call_into_court = $addInfo['CallIntoCourt'];
-                            }
-
-                            if (isset($addInfo['CourtAvailability'])) {
-                                $recommendation->court_availability = $addInfo['CourtAvailability'];
-                            }
-
-                            if (isset($addInfo['PersonToGiveNoticeTo'])) {
-                                $recommendation->person_to_notify = $addInfo['PersonToGiveNoticeTo'];
-                            }
-                        }
-                    } catch (\Exception $e) {
-                        Log::error('Error loading member data: ' . $e->getMessage());
-                    }
-                }
-
-                // Set default values for court preferences
-                $recommendation->call_into_court = $recommendation->call_into_court ?? 'Not Set';
-                $recommendation->court_availability = $recommendation->court_availability ?? 'Not Set';
-                $recommendation->person_to_notify = $recommendation->person_to_notify ?? '';
-
-                if ($this->Recommendations->save($recommendation)) {
-                    $this->Recommendations->getConnection()->commit();
+                if ($result['success']) {
                     $this->Flash->success(__('The recommendation has been submitted.'));
                 } else {
-                    $this->Recommendations->getConnection()->rollback();
-                    $this->Flash->error(__('The recommendation could not be submitted. Please, try again.'));
+                    if ($result['recommendation'] instanceof Recommendation) {
+                        $recommendation = $result['recommendation'];
+                    }
+
+                    $this->Flash->error($result['error'] ?? __('The recommendation could not be submitted. Please, try again.'));
+                    if ($result['errorCode'] === 'member_public_id_not_found') {
+                        $this->response = $this->response->withStatus(400);
+
+                        return $this->response;
+                    }
                 }
-            } catch (\Exception $e) {
-                $this->Recommendations->getConnection()->rollback();
+            } catch (Exception $e) {
                 Log::error('Error submitting recommendation: ' . $e->getMessage());
                 $this->Flash->error(__('An error occurred while submitting the recommendation. Please try again.'));
             }
@@ -1307,8 +1829,9 @@ class RecommendationsController extends AppController
             'gatherings',
             'awardsDomains',
             'awardsLevels',
-            'headerImage'
+            'headerImage',
         ));
+
         return null;
     }
 
@@ -1322,126 +1845,71 @@ class RecommendationsController extends AppController
      * @return \Cake\Http\Response|null|void Redirects on successful edit or to current page
      * @throws \Cake\Http\Exception\NotFoundException When recommendation not found
      */
-    public function edit(?string $id = null): ?\Cake\Http\Response
-    {
+    public function edit(
+        RecommendationUpdateService $updateService,
+        TriggerDispatcher $triggerDispatcher,
+        RecommendationQueryService $queryService,
+        ?string $id = null,
+    ): ?Response {
+        $id = $id ?? $this->request->getData('id');
+        if (!$id || is_array($id)) {
+            throw new NotFoundException(__('Recommendation not found'));
+        }
+
         try {
-            $recommendation = $this->Recommendations->get($id);
+            $recommendation = $this->Recommendations->get($id, contain: ['Gatherings']);
             if (!$recommendation) {
-                throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
+                throw new NotFoundException(__('Recommendation not found'));
             }
 
             $this->Authorization->authorize($recommendation, 'edit');
 
+            $pageContext = $this->getPageContextUrl();
+
             if ($this->request->is(['patch', 'post', 'put'])) {
-                $beforeMemberId = $recommendation->member_id;
+                $identity = $this->request->getAttribute('identity');
+                $result = $this->dispatchRecommendationMutation(
+                    $triggerDispatcher,
+                    'awards-recommendation-updated',
+                    'Awards.RecommendationUpdateRequested',
+                    [
+                        'recommendationId' => (int)$recommendation->id,
+                        'data' => $this->request->getData(),
+                        'actorId' => (int)$identity->id,
+                    ],
+                );
 
-                $data = $this->request->getData();
-
-                // Convert member_public_id to member_id if provided
-                if (!empty($data['member_public_id'])) {
-                    $member = $this->Recommendations->Members->find('byPublicId', [$data['member_public_id']])->first();
-                    if (!$member) {
-                        $this->Flash->error(__('Member with provided public_id not found.'));
-                        $this->response = $this->response->withStatus(400);
-                        return $this->response;
+                if ($result['success']) {
+                    $this->dispatchRecommendationFollowUpWorkflow(
+                        $triggerDispatcher,
+                        $result,
+                        (int)$identity->id,
+                    );
+                    $stream = $this->tryRecommendationsGridTurboResponse(
+                        $pageContext,
+                        true,
+                        null,
+                        (int)$recommendation->id,
+                        $queryService,
+                    );
+                    if ($stream !== null) {
+                        return $stream;
                     }
-                    $data['member_id'] = $member->id;
-                    unset($data['member_public_id']);
-                }
-
-                $recommendation = $this->Recommendations->patchEntity($recommendation, $data, [
-                    'associated' => ['Gatherings']
-                ]);
-
-                if ($recommendation->specialty === 'No specialties available') {
-                    $recommendation->specialty = null;
-                }
-
-                // Handle member related fields
-                if ($recommendation->member_id == 0 || $recommendation->member_id == null) {
-                    $recommendation->member_id = null;
-                    $recommendation->call_into_court = null;
-                    $recommendation->court_availability = null;
-                    $recommendation->person_to_notify = null;
-                } elseif ($recommendation->member_id != $beforeMemberId) {
-                    // Reset member-related fields when member changes
-                    $recommendation->call_into_court = null;
-                    $recommendation->court_availability = null;
-                    $recommendation->person_to_notify = null;
-
-                    try {
-                        $member = $this->Recommendations->Members->get(
-                            $recommendation->member_id,
-                            select: ['branch_id', 'additional_info']
-                        );
-
-                        $recommendation->branch_id = $member->branch_id;
-
-                        if (!empty($member->additional_info)) {
-                            $addInfo = $member->additional_info;
-                            if (isset($addInfo['CallIntoCourt'])) {
-                                $recommendation->call_into_court = $addInfo['CallIntoCourt'];
-                            }
-                            if (isset($addInfo['CourtAvailability'])) {
-                                $recommendation->court_availability = $addInfo['CourtAvailability'];
-                            }
-                            if (isset($addInfo['PersonToGiveNoticeTo'])) {
-                                $recommendation->person_to_notify = $addInfo['PersonToGiveNoticeTo'];
-                            }
-                        }
-                    } catch (\Exception $e) {
-                        Log::error('Error loading member data in edit: ' . $e->getMessage());
-                    }
-                }
-
-                // Set default values for court preferences
-                $recommendation->call_into_court = $recommendation->call_into_court ?? 'Not Set';
-                $recommendation->court_availability = $recommendation->court_availability ?? 'Not Set';
-                $recommendation->person_to_notify = $recommendation->person_to_notify ?? '';
-
-                // Handle given date - treat as midnight UTC to avoid timezone shifts
-                // Since the form input is date-only, we store it as the date at midnight UTC
-                if ($this->request->getData('given') !== null && $this->request->getData('given') !== '') {
-                    $dateString = $this->request->getData('given');
-                    // Create DateTime at midnight UTC to preserve the exact date
-                    $recommendation->given = new DateTime($dateString . ' 00:00:00', new \DateTimeZone('UTC'));
-                } else {
-                    $recommendation->given = null;
-                }
-
-                // Begin transaction
-                $this->Recommendations->getConnection()->begin();
-
-                try {
-                    if (!$this->Recommendations->save($recommendation)) {
-                        throw new \Exception('Failed to save recommendation');
-                    }
-
-                    $note = $this->request->getData('note');
-                    if ($note) {
-                        $newNote = $this->Recommendations->Notes->newEmptyEntity();
-                        $newNote->entity_id = $recommendation->id;
-                        $newNote->subject = 'Recommendation Updated';
-                        $newNote->entity_type = 'Awards.Recommendations';
-                        $newNote->body = $note;
-                        $newNote->author_id = $this->request->getAttribute('identity')->id;
-
-                        if (!$this->Recommendations->Notes->save($newNote)) {
-                            throw new \Exception('Failed to save note');
-                        }
-                    }
-
-                    $this->Recommendations->getConnection()->commit();
-
                     if (!$this->request->getHeader('Turbo-Frame')) {
                         $this->Flash->success(__('The recommendation has been saved.'));
                     }
-                } catch (\Exception $e) {
-                    $this->Recommendations->getConnection()->rollback();
-                    Log::error('Error saving recommendation: ' . $e->getMessage());
+                } else {
+                    $this->Flash->error($result['error'] ?? __('The recommendation could not be saved. Please, try again.'));
 
-                    if (!$this->request->getHeader('Turbo-Frame')) {
-                        $this->Flash->error(__('The recommendation could not be saved. Please, try again.'));
+                    if ($result['errorCode'] === 'member_public_id_not_found') {
+                        $this->response = $this->response->withStatus(400);
+
+                        return $this->response;
+                    }
+
+                    $stream = $this->tryRecommendationsGridTurboResponse($pageContext, false, (int)$id);
+                    if ($stream !== null) {
+                        return $stream;
                     }
                 }
             }
@@ -1449,57 +1917,18 @@ class RecommendationsController extends AppController
             if ($this->request->getData('current_page')) {
                 return $this->redirect($this->request->getData('current_page'));
             }
+            if ($pageContext !== null) {
+                return $this->redirect($pageContext);
+            }
 
             return $this->redirect(['action' => 'view', $id]);
-        } catch (\Cake\Datasource\Exception\RecordNotFoundException $e) {
-            throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
-        } catch (\Exception $e) {
+        } catch (RecordNotFoundException $e) {
+            throw new NotFoundException(__('Recommendation not found'));
+        } catch (Exception $e) {
             Log::error('Error in edit recommendation: ' . $e->getMessage());
             $this->Flash->error(__('An error occurred while editing the recommendation.'));
+
             return $this->redirect(['action' => 'index']);
-        }
-    }
-
-    /**
-     * Handle AJAX kanban board state transitions via drag-and-drop.
-     *
-     * Updates recommendation state and position within kanban columns.
-     * Supports placeBefore/placeAfter positioning for stack ranking.
-     *
-     * @param string|null $id Recommendation ID to update
-     * @return \Cake\Http\Response JSON response indicating success or failure
-     * @throws \Cake\Http\Exception\NotFoundException When recommendation not found
-     */
-    public function kanbanUpdate(RecommendationStateService $stateService, ?string $id = null): \Cake\Http\Response
-    {
-        try {
-            $recommendation = $this->Recommendations->get($id);
-            if (!$recommendation) {
-                throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
-            }
-
-            $this->Authorization->authorize($recommendation, 'edit');
-            $message = 'failed';
-
-            if ($this->request->is(['patch', 'post', 'put'])) {
-                $message = $stateService->kanbanMove(
-                    $this->Recommendations,
-                    $recommendation,
-                    $this->request->getData('newCol'),
-                    $this->request->getData('placeBefore'),
-                    $this->request->getData('placeAfter'),
-                );
-            }
-
-            return $this->response
-                ->withType('application/json')
-                ->withStringBody(json_encode($message));
-        } catch (\Cake\Datasource\Exception\RecordNotFoundException $e) {
-            Log::error('Kanban update failed - recommendation not found: ' . $id);
-            return $this->response
-                ->withType('application/json')
-                ->withStatus(404)
-                ->withStringBody(json_encode('not_found'));
         }
     }
 
@@ -1512,52 +1941,53 @@ class RecommendationsController extends AppController
      * @return \Cake\Http\Response|null Redirects to index page after deletion
      * @throws \Cake\Http\Exception\NotFoundException When recommendation not found
      */
-    public function delete(?string $id = null): ?\Cake\Http\Response
+    public function delete(TriggerDispatcher $triggerDispatcher, ?string $id = null): ?Response
     {
         try {
             $this->request->allowMethod(['post', 'delete']);
 
             $recommendation = $this->Recommendations->get($id);
             if (!$recommendation) {
-                throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
+                throw new NotFoundException(__('Recommendation not found'));
             }
 
             $this->Authorization->authorize($recommendation);
+            $identity = $this->request->getAttribute('identity');
+            $result = $this->dispatchRecommendationMutation(
+                $triggerDispatcher,
+                'awards-recommendation-deleted',
+                'Awards.RecommendationDeleteRequested',
+                [
+                    'recommendationId' => (int)$recommendation->id,
+                    'actorId' => (int)$identity->id,
+                ],
+            );
 
-            $this->Recommendations->getConnection()->begin();
-            try {
-                if (!$this->Recommendations->delete($recommendation)) {
-                    throw new \Exception('Failed to delete recommendation');
-                }
-
-                $this->Recommendations->getConnection()->commit();
+            if ($result['success']) {
                 $this->Flash->success(__('The recommendation has been deleted.'));
-            } catch (\Exception $e) {
-                $this->Recommendations->getConnection()->rollback();
-                Log::error('Error deleting recommendation: ' . $e->getMessage());
-                $this->Flash->error(__('The recommendation could not be deleted. Please, try again.'));
+            } else {
+                $this->Flash->error($result['error'] ?? __('The recommendation could not be deleted. Please, try again.'));
             }
 
             return $this->redirect(['action' => 'index']);
-        } catch (\Cake\Datasource\Exception\RecordNotFoundException $e) {
-            throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
+        } catch (RecordNotFoundException $e) {
+            throw new NotFoundException(__('Recommendation not found'));
         }
     }
 
     #region JSON calls
+
     /**
      * Render a populated edit form for a recommendation intended for Turbo Frame partial updates.
      *
-     * Loads the recommendation and related lookup data (awards, domains, branches, gatherings, state rules)
-     * and exposes them to the view so the Turbo Frame can display an in-place edit form.
+     * Loads the recommendation and related lookup data so the Turbo Frame can display an in-place edit form.
      *
      * @param string|null $id Recommendation ID to load for the form
      * @return \Cake\Http\Response|null A Response when the action issues an explicit response, or null after setting view variables for rendering
      * @throws \Cake\Http\Exception\NotFoundException If the recommendation cannot be found
      * @see edit() For form submission handling
-     * @see turboQuickEditForm() For a streamlined quick-edit variant
      */
-    public function turboEditForm(RecommendationFormService $formService, ?string $id = null): ?\Cake\Http\Response
+    public function turboEditForm(RecommendationFormService $formService, ?string $id = null): ?Response
     {
         try {
             $recommendation = $this->Recommendations->get($id, contain: [
@@ -1565,100 +1995,27 @@ class RecommendationsController extends AppController
                 'Members',
                 'Branches',
                 'Awards',
-                'Gatherings',
-                'AssignedGathering',
                 'Awards.Domains',
+                'CurrentApprovalRun',
             ]);
 
             if (!$recommendation) {
-                throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
+                throw new NotFoundException(__('Recommendation not found'));
             }
 
             $this->Authorization->authorize($recommendation, 'view');
             $viewVars = $formService->prepareEditFormData(
                 $this->Recommendations,
                 $recommendation,
-                [$this, 'getFilteredGatheringsForAward'],
             );
             $this->set($viewVars);
+
             return null;
-        } catch (\Cake\Datasource\Exception\RecordNotFoundException $e) {
-            throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
+        } catch (RecordNotFoundException $e) {
+            throw new NotFoundException(__('Recommendation not found'));
         }
     }
 
-    /**
-     * Render a streamlined Turbo Frame quick-edit form for a recommendation.
-     *
-     * Provides a minimal edit form containing the most commonly changed fields,
-     * populated with essential dropdowns (awards, branches, gatherings, status)
-     * and state rules to support rapid in-place edits.
-     *
-     * @param string|null $id Recommendation ID to load for the quick-edit form.
-     * @return \Cake\Http\Response|null Renders the quick-edit template or null when rendering within a Turbo Frame.
-     * @throws \Cake\Http\Exception\NotFoundException If the recommendation cannot be found.
-     * @see turboEditForm() For the full edit interface
-     * @see edit() For form submission handling
-     * @see kanbanUpdate() For drag-and-drop state transitions
-     */
-    public function turboQuickEditForm(RecommendationFormService $formService, ?string $id = null): ?\Cake\Http\Response
-    {
-        try {
-            $recommendation = $this->Recommendations->get($id, contain: [
-                'Requesters',
-                'Members',
-                'Branches',
-                'Awards',
-                'Gatherings',
-                'AssignedGathering',
-                'Awards.Domains',
-            ]);
-
-            if (!$recommendation) {
-                throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
-            }
-
-            $this->Authorization->authorize($recommendation, 'view');
-            $viewVars = $formService->prepareEditFormData(
-                $this->Recommendations,
-                $recommendation,
-                [$this, 'getFilteredGatheringsForAward'],
-            );
-            $this->set($viewVars);
-            return null;
-        } catch (\Cake\Datasource\Exception\RecordNotFoundException $e) {
-            throw new \Cake\Http\Exception\NotFoundException(__('Recommendation not found'));
-        }
-    }
-
-    /**
-     * Render the Turbo Frame bulk edit form for modifying multiple recommendations at once.
-     *
-     * Prepares dropdowns and supporting data for bulk operations (branches, gatherings,
-     * state/status options and state rules) and exposes them to the view as
-     * `rules`, `branches`, `gatheringList`, and `statusList`.
-     *
-     * @return \Cake\Http\Response|null|void The response when rendering the bulk edit form template, or null when rendering proceeds in-controller.
-     * @throws \Cake\Http\Exception\InternalErrorException When preparation of bulk form data fails.
-     * @see updateStates() For bulk state transition processing
-     * @see turboEditForm() For individual recommendation editing
-     * @see \App\KMP\StaticHelpers::getAppSetting() For configuration loading
-     */
-    public function turboBulkEditForm(RecommendationFormService $formService): ?\Cake\Http\Response
-    {
-        try {
-            $recommendation = $this->Recommendations->newEmptyEntity();
-            $this->Authorization->authorize($recommendation, 'view');
-
-            $viewVars = $formService->prepareBulkEditFormData($this->Recommendations);
-            $this->set($viewVars);
-
-            return null;
-        } catch (\Exception $e) {
-            Log::error('Error in bulk edit form: ' . $e->getMessage());
-            throw new \Cake\Http\Exception\InternalErrorException(__('An error occurred while preparing the bulk edit form.'));
-        }
-    }
     #endregion
 
     /**
@@ -1676,11 +2033,11 @@ class RecommendationsController extends AppController
         ?int $memberId = null,
         bool $futureOnly = true,
         ?int $includeGatheringId = null,
-        array $includeGatheringIds = []
+        array $includeGatheringIds = [],
     ): array {
         $includeGatheringIds = array_values(array_unique(array_filter(array_map('intval', array_merge(
             $includeGatheringIds,
-            $includeGatheringId ? [$includeGatheringId] : []
+            $includeGatheringId ? [$includeGatheringId] : [],
         )))));
 
         // Get all gathering activities linked to this award
@@ -1701,7 +2058,7 @@ class RecommendationsController extends AppController
                 ->contain([
                     'Branches' => function ($q) {
                         return $q->select(['id', 'name']);
-                    }
+                    },
                 ])
                 ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id', 'Gatherings.cancelled_at'])
                 ->orderBy(['start_date' => 'DESC']);
@@ -1727,7 +2084,7 @@ class RecommendationsController extends AppController
             $attendances = $attendanceTable->find()
                 ->where([
                     'member_id' => $memberId,
-                    'deleted IS' => null
+                    'deleted IS' => null,
                 ])
                 ->select(['gathering_id', 'share_with_crown'])
                 ->toArray();
@@ -1832,7 +2189,7 @@ class RecommendationsController extends AppController
 
             // Get the award to verify it exists
             $awardsTable = $this->fetchTable('Awards.Awards');
-            $award = $awardsTable->get($awardId);
+            $awardsTable->get($awardId);
 
             // Get all gathering activities linked to this award
             $awardGatheringActivitiesTable = $this->fetchTable('Awards.AwardGatheringActivities');
@@ -1851,7 +2208,7 @@ class RecommendationsController extends AppController
                 ->contain([
                     'Branches' => function ($q) {
                         return $q->select(['id', 'name']);
-                    }
+                    },
                 ])
                 ->select(['Gatherings.id', 'Gatherings.name', 'Gatherings.start_date', 'Gatherings.end_date', 'Gatherings.branch_id', 'Gatherings.cancelled_at']);
 
@@ -1872,9 +2229,10 @@ class RecommendationsController extends AppController
                 // If no activities are linked to the award, return empty array
                 $this->set([
                     'gatherings' => [],
-                    '_serialize' => ['gatherings']
+                    '_serialize' => ['gatherings'],
                 ]);
                 $this->viewBuilder()->setOption('serialize', ['gatherings']);
+
                 return;
             }
 
@@ -1892,7 +2250,7 @@ class RecommendationsController extends AppController
                     $attendances = $attendanceTable->find()
                         ->where([
                             'member_id' => $member->id,
-                            'deleted IS' => null
+                            'deleted IS' => null,
                         ])
                         ->select(['gathering_id', 'share_with_crown'])
                         ->toArray();
@@ -1929,21 +2287,21 @@ class RecommendationsController extends AppController
                     'display' => $displayName,
                     'has_attendance' => $hasAttendance,
                     'share_with_crown' => $shareWithCrown,
-                    'cancelled' => $isCancelled
+                    'cancelled' => $isCancelled,
                 ];
             }
 
             $this->set([
                 'gatherings' => $gatherings,
-                '_serialize' => ['gatherings']
+                '_serialize' => ['gatherings'],
             ]);
             $this->viewBuilder()->setClassName('Json');
             $this->viewBuilder()->setOption('serialize', ['gatherings']);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error in gatheringsForAward: ' . $e->getMessage());
             $this->set([
                 'error' => 'An error occurred while fetching gatherings',
-                '_serialize' => ['error']
+                '_serialize' => ['error'],
             ]);
             $this->viewBuilder()->setClassName('Json');
             $this->viewBuilder()->setOption('serialize', ['error']);
@@ -2014,7 +2372,7 @@ class RecommendationsController extends AppController
                     $memberId,
                     $futureOnly,
                     $selectedId,
-                    $includeGatheringIds
+                    $includeGatheringIds,
                 );
                 $gatherings = $gatheringData['gatherings'] ?? [];
                 $cancelledGatheringIds = $gatheringData['cancelledGatheringIds'] ?? [];
@@ -2022,7 +2380,7 @@ class RecommendationsController extends AppController
 
             $stickyGatheringIds = array_values(array_unique(array_filter(array_map('intval', array_merge(
                 $includeGatheringIds,
-                $selectedId ? [$selectedId] : []
+                $selectedId ? [$selectedId] : [],
             )))));
             $stickyLookup = array_fill_keys($stickyGatheringIds, true);
 
@@ -2035,7 +2393,7 @@ class RecommendationsController extends AppController
                     return isset($stickyLookup[(int)$id]) || mb_stripos((string)$display, $q) !== false;
                 }, ARRAY_FILTER_USE_BOTH);
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error in gatheringsAutoComplete: ' . $e->getMessage());
             $gatherings = [];
             $cancelledGatheringIds = [];
@@ -2045,335 +2403,1118 @@ class RecommendationsController extends AppController
     }
 
     /**
-     * Return gathering autocomplete options for bulk edit modal.
+     * Group selected recommendations together.
      *
-     * Returns Ajax HTML list items consumed by the shared auto-complete controller.
+     * Validates that all selected recommendations share the same member_id
+     * or have null member_id. If one selected rec is already a group head,
+     * others join it. Otherwise, the lowest-ID rec becomes the head.
+     * Children transition to "Linked" state.
      *
-     * @return void
+     * @return \Cake\Http\Response|null
      */
-    public function gatheringsForBulkEditAutoComplete(): void
-    {
-        $this->request->allowMethod(['get']);
+    public function groupRecommendations(
+        RecommendationGroupingService $groupingService,
+        TriggerDispatcher $triggerDispatcher,
+    ): ?Response {
+        $this->request->allowMethod(['post']);
         $emptyRecommendation = $this->Recommendations->newEmptyEntity();
-        $this->Authorization->authorize($emptyRecommendation, 'index');
-        $this->viewBuilder()->setClassName('Ajax');
-        $this->viewBuilder()->setTemplate('gatherings_auto_complete');
+        $this->Authorization->authorize($emptyRecommendation, 'group');
 
-        $q = trim((string)$this->request->getQuery('q', ''));
-        $status = (string)$this->request->getQuery('status', '');
-        $futureOnly = ($status !== 'Given');
-        $selectedId = $this->request->getQuery('selected_id');
-        $selectedId = is_numeric((string)$selectedId) ? (int)$selectedId : null;
+        $pageContext = $this->getPageContextUrl();
+        $ids = $this->request->getData('recommendation_ids');
+        if (!is_array($ids) || count($ids) < 2) {
+            $this->Flash->error(__('At least 2 recommendations are required to group.'));
 
-        $idsQuery = $this->request->getQuery('ids', []);
-        if (is_string($idsQuery)) {
-            $ids = array_filter(array_map('intval', explode(',', $idsQuery)));
-        } elseif (is_array($idsQuery)) {
-            $ids = array_filter(array_map('intval', $idsQuery));
+            return $this->recommendationsGridRefreshResponse($pageContext)
+                ?? $this->redirect($pageContext ?: ['action' => 'index']);
+        }
+
+        $ids = array_map('intval', $ids);
+        $identity = $this->request->getAttribute('identity');
+        $uniqueIds = array_values(array_unique($ids));
+        $scopedRecommendations = $this->Authorization->applyScope(
+            $this->Recommendations->find()
+                ->where(['Recommendations.id IN' => $uniqueIds])
+                ->contain(['Awards' => fn($q) => $q->select(['id', 'branch_id'])]),
+            'index',
+        )->all();
+        if (
+            $scopedRecommendations->count() !== count($uniqueIds)
+            || !$scopedRecommendations->every(fn($recommendation) => $identity->checkCan('group', $recommendation))
+        ) {
+            $this->Flash->error(__('You are not authorized to group one or more of the selected recommendations.'));
+
+            return $this->recommendationsGridRefreshResponse($pageContext)
+                ?? $this->redirect($pageContext ?: ['action' => 'index']);
+        }
+        $result = $this->dispatchRecommendationMutation(
+            $triggerDispatcher,
+            'awards-recommendations-group',
+            'Awards.RecommendationsGroupRequested',
+            [
+                'recommendationIds' => $ids,
+                'actorId' => (int)$identity->id,
+            ],
+        );
+
+        if ($result['success']) {
+            $this->Flash->success(__('Recommendations have been grouped.'));
         } else {
-            $ids = [];
+            $this->Flash->error($result['error'] ?? __('An error occurred while grouping recommendations.'));
         }
 
-        $gatherings = [];
-        $cancelledGatheringIds = [];
-
-        try {
-            if (!empty($ids)) {
-                $recommendationsQuery = $this->Recommendations->find()
-                    ->where(['Recommendations.id IN' => $ids])
-                    ->contain(['Awards', 'Members']);
-                $recommendations = $this->Authorization->applyScope($recommendationsQuery, 'index')
-                    ->all();
-
-                if (!$recommendations->isEmpty()) {
-                    $awardIds = [];
-                    $memberIds = [];
-                    foreach ($recommendations as $rec) {
-                        $awardIds[] = $rec->award_id;
-                        if ($rec->member_id) {
-                            $memberIds[] = $rec->member_id;
-                        }
-                    }
-                    $awardIds = array_unique($awardIds);
-                    $memberIds = array_unique($memberIds);
-
-                    $awardGatheringActivitiesTable = $this->fetchTable('Awards.AwardGatheringActivities');
-                    $activityIdsByAward = [];
-                    foreach ($awardIds as $awardId) {
-                        $linkedActivities = $awardGatheringActivitiesTable->find()
-                            ->where(['award_id' => $awardId])
-                            ->select(['gathering_activity_id'])
-                            ->toArray();
-                        $activityIdsByAward[$awardId] = array_map(function ($row) {
-                            return $row->gathering_activity_id;
-                        }, $linkedActivities);
-                    }
-
-                    $commonActivityIds = null;
-                    foreach ($activityIdsByAward as $activityIds) {
-                        if ($commonActivityIds === null) {
-                            $commonActivityIds = $activityIds;
-                        } else {
-                            $commonActivityIds = array_intersect($commonActivityIds, $activityIds);
-                        }
-                    }
-
-                    if (!empty($commonActivityIds)) {
-                        $query = $this->fetchTable('Gatherings')->find()
-                            ->contain(['Branches' => function ($q) {
-                                return $q->select(['id', 'name']);
-                            }])
-                            ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id', 'Gatherings.cancelled_at'])
-                            ->orderBy(['start_date' => 'DESC']);
-
-                        if ($futureOnly) {
-                            $query->where(['start_date >' => DateTime::now()]);
-                            $query->orderBy(['start_date' => 'ASC']);
-                        }
-
-                        $query->matching('GatheringActivities', function ($q) use ($commonActivityIds) {
-                            return $q->where(['GatheringActivities.id IN' => $commonActivityIds]);
-                        });
-
-                        $gatheringsData = $query->all();
-
-                        $attendanceMap = [];
-                        if (!empty($memberIds)) {
-                            $attendances = $this->fetchTable('GatheringAttendances')->find()
-                                ->where([
-                                    'member_id IN' => $memberIds,
-                                    'deleted IS' => null,
-                                    'share_with_crown' => true
-                                ])
-                                ->select(['gathering_id', 'member_id'])
-                                ->toArray();
-
-                            foreach ($attendances as $attendance) {
-                                if (!isset($attendanceMap[$attendance->gathering_id])) {
-                                    $attendanceMap[$attendance->gathering_id] = 0;
-                                }
-                                $attendanceMap[$attendance->gathering_id]++;
-                            }
-                        }
-
-                        foreach ($gatheringsData as $gathering) {
-                            $isCancelled = $gathering->cancelled_at !== null;
-                            $displayName = $gathering->name . ' in ' . $gathering->branch->name . ' on '
-                                . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
-                            if (isset($attendanceMap[$gathering->id])) {
-                                $displayName .= ' *(' . $attendanceMap[$gathering->id] . ')';
-                            }
-                            if ($isCancelled) {
-                                $displayName = '[CANCELLED] ' . $displayName;
-                                $cancelledGatheringIds[] = $gathering->id;
-                            }
-                            $gatherings[$gathering->id] = $displayName;
-                        }
-                    }
-                }
-            }
-
-            if ($q !== '') {
-                $gatherings = array_filter($gatherings, function ($display) use ($q) {
-                    return mb_stripos((string)$display, $q) !== false;
-                });
-            }
-        } catch (\Exception $e) {
-            Log::error('Error in gatheringsForBulkEditAutoComplete: ' . $e->getMessage());
-            $gatherings = [];
-            $cancelledGatheringIds = [];
-        }
-
-        $this->set(compact('gatherings', 'q', 'cancelledGatheringIds', 'selectedId'));
+        return $this->recommendationsGridRefreshResponse($pageContext)
+            ?? $this->redirect($pageContext ?: ['action' => 'index']);
     }
 
     /**
-     * Build and return a JSON list of gatherings suitable for bulk-editing the selected recommendations.
+     * Ungroup all children from a group head.
      *
-     * Determines gatherings that offer activities common to all awards referenced by the provided recommendation IDs,
-     * optionally limits to future gatherings depending on the supplied status, and includes attendance counts for members
-     * referenced by the recommendations when they share attendance with Crown. Expects a POST request with `ids` (array
-     * of recommendation ids) and optional `status`; skips authorization and renders a JSON payload with a `gatherings`
-     * array (each item contains `id`, `name`, `display`, and `attendance_count`).
+     * Restores each child to its pre-linked state using the state change log.
+     *
+     * @return \Cake\Http\Response|null
      */
-    public function gatheringsForBulkEdit(): void
-    {
+    public function ungroupRecommendations(
+        RecommendationGroupingService $groupingService,
+        TriggerDispatcher $triggerDispatcher,
+    ): ?Response {
         $this->request->allowMethod(['post']);
+        $headId = (int)$this->request->getData('recommendation_id');
+        $recommendation = $this->Authorization->applyScope(
+            $this->Recommendations->find()
+                ->where(['Recommendations.id' => $headId])
+                ->contain(['Awards' => fn($q) => $q->select(['id', 'branch_id'])]),
+            'index',
+        )->first();
+        if ($recommendation === null) {
+            $this->Flash->error(__('You are not authorized to modify this recommendation.'));
 
-        // Skip authorization - this is a data endpoint for bulk edit form
-        $this->Authorization->skipAuthorization();
+            return $this->redirect(['action' => 'view', $headId]);
+        }
+        $this->Authorization->authorize($recommendation, 'group');
 
+        $identity = $this->request->getAttribute('identity');
+        $result = $this->dispatchRecommendationMutation(
+            $triggerDispatcher,
+            'awards-recommendations-ungroup',
+            'Awards.RecommendationsUngroupRequested',
+            [
+                'recommendationId' => $headId,
+                'actorId' => (int)$identity->id,
+            ],
+        );
+
+        if ($result['success']) {
+            $this->Flash->success(__('Recommendations have been ungrouped.'));
+        } else {
+            $this->Flash->error($result['error'] ?? __('An error occurred while ungrouping recommendations.'));
+        }
+
+        return $this->redirect(['action' => 'view', $headId]);
+    }
+
+    /**
+     * Remove a single child from its group.
+     *
+     * If only one child remains after removal, auto-ungroups entirely.
+     *
+     * @return \Cake\Http\Response|null
+     */
+    public function removeFromGroup(
+        RecommendationGroupingService $groupingService,
+        TriggerDispatcher $triggerDispatcher,
+    ): ?Response {
+        $this->request->allowMethod(['post']);
+        $childId = (int)$this->request->getData('recommendation_id');
+        $recommendation = $this->Authorization->applyScope(
+            $this->Recommendations->find()
+                ->where(['Recommendations.id' => $childId])
+                ->contain(['Awards' => fn($q) => $q->select(['id', 'branch_id'])]),
+            'index',
+        )->first();
+        if ($recommendation === null) {
+            $this->Flash->error(__('You are not authorized to modify this recommendation.'));
+
+            return $this->redirect(['action' => 'view', $childId]);
+        }
+        $this->Authorization->authorize($recommendation, 'group');
+
+        $identity = $this->request->getAttribute('identity');
+        $result = $this->dispatchRecommendationMutation(
+            $triggerDispatcher,
+            'awards-recommendation-remove-from-group',
+            'Awards.RecommendationRemoveFromGroupRequested',
+            [
+                'recommendationId' => $childId,
+                'actorId' => (int)$identity->id,
+            ],
+        );
+
+        if ($result['success']) {
+            $this->Flash->success(__('Recommendation removed from group.'));
+        } else {
+            $this->Flash->error($result['error'] ?? __('An error occurred while removing the recommendation from the group.'));
+        }
+
+        return $this->redirect([
+            'action' => 'view',
+            $result['data']['formerHeadId'] ?? $childId,
+        ]);
+    }
+
+    /**
+     * AJAX endpoint: return grouped children HTML for a recommendation sub-row.
+     *
+     * @param int $headId The group head recommendation ID
+     * @return void
+     */
+    public function groupChildren(int $headId): void
+    {
+        $emptyRecommendation = $this->Recommendations->newEmptyEntity();
+        $this->Authorization->authorize($emptyRecommendation, 'index');
+
+        $children = $this->Recommendations->find()
+            ->where(['Recommendations.recommendation_group_id' => $headId])
+            ->contain([
+                'Awards' => function ($q) {
+                    return $q->select(['id', 'abbreviation']);
+                },
+                'Requesters' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                },
+            ])
+            ->orderBy(['Recommendations.created' => 'asc'])
+            ->all()
+            ->toArray();
+
+        $user = $this->request->getAttribute('identity');
+        $canEdit = $user->checkCan('edit', $emptyRecommendation);
+
+        $this->set(compact('children', 'headId', 'canEdit'));
+        $this->viewBuilder()->disableAutoLayout();
+        $this->viewBuilder()->setTemplate('group_children_subrow');
+    }
+
+    /**
+     * Dispatch a workflow-backed recommendation mutation and normalize its result.
+     *
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Workflow dispatcher.
+     * @param string $slug Workflow definition slug.
+     * @param string $triggerEvent Workflow trigger event name.
+     * @param array<string, mixed> $context Workflow context payload.
+     * @return array{success: bool, data: array<string, mixed>, error: ?string, errorCode: ?string, errors: array, recommendation: ?\Awards\Model\Entity\Recommendation}
+     */
+    private function dispatchRecommendationMutation(
+        TriggerDispatcher $triggerDispatcher,
+        string $slug,
+        string $triggerEvent,
+        array $context,
+    ): array {
         try {
-            // Get recommendation IDs from request
-            $ids = $this->request->getData('ids');
-            if (empty($ids) || !is_array($ids)) {
-                $this->set([
-                    'gatherings' => [],
-                    '_serialize' => ['gatherings']
-                ]);
-                $this->viewBuilder()->setClassName('Json');
-                $this->viewBuilder()->setOption('serialize', ['gatherings']);
-                return;
+            return $this->normalizeRecommendationMutationResult(
+                $this->dispatchWorkflowOrFail($triggerDispatcher, $slug, $triggerEvent, $context),
+            );
+        } catch (Throwable $e) {
+            Log::error("Recommendation workflow dispatch failed for {$slug}: " . $e->getMessage());
+
+            return [
+                'success' => false,
+                'data' => [],
+                'error' => 'The recommendation workflow is not currently available.',
+                'errorCode' => 'workflow_unavailable',
+                'errors' => [],
+                'recommendation' => null,
+            ];
+        }
+    }
+
+    /**
+     * Parse comma or whitespace separated numeric IDs.
+     *
+     * @return array<int>
+     */
+    private function parseIdList(string $value): array
+    {
+        $ids = [];
+        foreach (preg_split('/[,\s]+/', $value) ?: [] as $id) {
+            if ($id !== '' && ctype_digit($id)) {
+                $ids[(int)$id] = true;
             }
+        }
 
-            // Get status from request to determine if we should show all gatherings
-            $status = $this->request->getData('status');
-            $futureOnly = ($status !== 'Given');
+        return array_keys($ids);
+    }
 
-            // Fetch the selected recommendations with their awards and members
-            $recommendations = $this->Recommendations->find()
-                ->where(['Recommendations.id IN' => $ids])
-                ->contain(['Awards', 'Members'])
+    /**
+     * Parse member IDs from normal member lookup values.
+     *
+     * The member autocomplete returns public_id values; numeric IDs are still
+     * accepted for callers that do not use the lookup control.
+     *
+     * @return array<int>
+     */
+    private function parseMemberIdList(string $value): array
+    {
+        $ids = [];
+        $publicIds = [];
+        foreach (preg_split('/[,\s]+/', $value) ?: [] as $id) {
+            if ($id === '') {
+                continue;
+            }
+            if (ctype_digit($id)) {
+                $ids[(int)$id] = true;
+            } else {
+                $publicIds[$id] = true;
+            }
+        }
+
+        if ($publicIds !== []) {
+            $members = $this->fetchTable('Members')->find()
+                ->select(['id'])
+                ->where(['public_id IN' => array_keys($publicIds)])
+                ->disableHydration()
                 ->all();
+            foreach ($members as $member) {
+                $ids[(int)$member['id']] = true;
+            }
+        }
 
-            if ($recommendations->isEmpty()) {
-                $this->set([
-                    'gatherings' => [],
-                    '_serialize' => ['gatherings']
-                ]);
-                $this->viewBuilder()->setClassName('Json');
-                $this->viewBuilder()->setOption('serialize', ['gatherings']);
-                return;
+        return array_keys($ids);
+    }
+
+    /**
+     * Normalize legacy service results and workflow-dispatch results to one controller shape.
+     *
+     * @param mixed $result Shared service result or workflow dispatch output.
+     * @return array{success: bool, data: array<string, mixed>, error: ?string, errorCode: ?string, errors: array, recommendation: ?\Awards\Model\Entity\Recommendation}
+     */
+    private function normalizeRecommendationMutationResult(mixed $result): array
+    {
+        if (is_array($result) && $this->isWorkflowDispatchResult($result)) {
+            return $this->normalizeWorkflowDispatchResult($result);
+        }
+
+        if (is_array($result) && array_key_exists('success', $result)) {
+            $data = [];
+            if (isset($result['output']) && is_array($result['output'])) {
+                $data = $result['output'];
+            } elseif (isset($result['data']) && is_array($result['data'])) {
+                $data = $result['data'];
             }
 
-            // Get all unique award IDs and member IDs
-            $awardIds = [];
-            $memberIds = [];
-            foreach ($recommendations as $rec) {
-                $awardIds[] = $rec->award_id;
-                if ($rec->member_id) {
-                    $memberIds[] = $rec->member_id;
-                }
-            }
-            $awardIds = array_unique($awardIds);
-            $memberIds = array_unique($memberIds);
-
-            // For each award, get the gathering activities that can give it out
-            $awardGatheringActivitiesTable = $this->fetchTable('Awards.AwardGatheringActivities');
-            $activityIdsByAward = [];
-
-            foreach ($awardIds as $awardId) {
-                $linkedActivities = $awardGatheringActivitiesTable->find()
-                    ->where(['award_id' => $awardId])
-                    ->select(['gathering_activity_id'])
-                    ->toArray();
-
-                $activityIds = array_map(function ($row) {
-                    return $row->gathering_activity_id;
-                }, $linkedActivities);
-
-                $activityIdsByAward[$awardId] = $activityIds;
+            $recommendation = $result['recommendation'] ?? null;
+            if (!$recommendation instanceof Recommendation) {
+                $recommendation = null;
             }
 
-            // Find intersection - gatherings must have activities for ALL awards
-            $commonActivityIds = null;
-            foreach ($activityIdsByAward as $awardId => $activityIds) {
-                if ($commonActivityIds === null) {
-                    $commonActivityIds = $activityIds;
-                } else {
-                    // Keep only activities that exist in both arrays
-                    $commonActivityIds = array_intersect($commonActivityIds, $activityIds);
-                }
+            $errors = $result['errors'] ?? ($data['errors'] ?? []);
+
+            return [
+                'success' => (bool)$result['success'],
+                'data' => $data,
+                'error' => $result['error'] ?? $result['message'] ?? null,
+                'errorCode' => $result['errorCode'] ?? ($data['errorCode'] ?? null),
+                'errors' => is_array($errors) ? $errors : [],
+                'recommendation' => $recommendation,
+            ];
+        }
+
+        return [
+            'success' => false,
+            'data' => [],
+            'error' => 'Workflow did not return a result.',
+            'errorCode' => null,
+            'errors' => [],
+            'recommendation' => null,
+        ];
+    }
+
+    /**
+     * Determine whether the result is a list of workflow engine service results.
+     *
+     * @param array<int, mixed> $result Result payload to inspect.
+     * @return bool
+     */
+    private function isWorkflowDispatchResult(array $result): bool
+    {
+        if ($result === []) {
+            return false;
+        }
+
+        foreach ($result as $item) {
+            if (!$item instanceof ServiceResult) {
+                return false;
             }
+        }
 
-            // If no common activities, return empty
-            if (empty($commonActivityIds)) {
-                $this->set([
-                    'gatherings' => [],
-                    '_serialize' => ['gatherings']
-                ]);
-                $this->viewBuilder()->setClassName('Json');
-                $this->viewBuilder()->setOption('serialize', ['gatherings']);
-                return;
-            }
+        return true;
+    }
 
-            // Get gatherings that have these activities
-            $gatheringsTable = $this->fetchTable('Gatherings');
-            $query = $gatheringsTable->find()
-                ->contain([
-                    'Branches' => function ($q) {
-                        return $q->select(['id', 'name']);
-                    }
-                ])
-                ->select(['id', 'name', 'start_date', 'end_date', 'Gatherings.branch_id', 'Gatherings.cancelled_at'])
-                ->orderBy(['start_date' => 'DESC']);
-
-            // Only filter by date if futureOnly is true
-            if ($futureOnly) {
-                $query->where(['start_date >' => DateTime::now()]);
-                $query->orderBy(['start_date' => 'ASC']);
-            }
-
-            // Filter by common activities
-            $query->matching('GatheringActivities', function ($q) use ($commonActivityIds) {
-                return $q->where(['GatheringActivities.id IN' => $commonActivityIds]);
-            });
-
-            $gatheringsData = $query->all();
-
-            // Get attendance information for all members if any provided
-            $attendanceMap = [];
-            if (!empty($memberIds)) {
-                $attendanceTable = $this->fetchTable('GatheringAttendances');
-                $attendances = $attendanceTable->find()
-                    ->where([
-                        'member_id IN' => $memberIds,
-                        'deleted IS' => null,
-                        'share_with_crown' => true
-                    ])
-                    ->select(['gathering_id', 'member_id'])
-                    ->toArray();
-
-                foreach ($attendances as $attendance) {
-                    if (!isset($attendanceMap[$attendance->gathering_id])) {
-                        $attendanceMap[$attendance->gathering_id] = 0;
-                    }
-                    $attendanceMap[$attendance->gathering_id]++;
-                }
-            }
-
-            // Build the response array
-            $gatherings = [];
-            foreach ($gatheringsData as $gathering) {
-                $isCancelled = $gathering->cancelled_at !== null;
-                $displayName = $gathering->name . ' in ' . $gathering->branch->name . ' on '
-                    . $gathering->start_date->toDateString() . ' - ' . $gathering->end_date->toDateString();
-
-                // Add indicator if any members are attending and sharing with crown
-                if (isset($attendanceMap[$gathering->id])) {
-                    $count = $attendanceMap[$gathering->id];
-                    $displayName .= ' *(' . $count . ')';
-                }
-
-                // Add cancelled indicator
-                if ($isCancelled) {
-                    $displayName = '[CANCELLED] ' . $displayName;
-                }
-
-                $gatherings[] = [
-                    'id' => $gathering->id,
-                    'name' => $gathering->name,
-                    'display_name' => $displayName,
-                    'attendance_count' => $attendanceMap[$gathering->id] ?? 0,
-                    'cancelled' => $isCancelled
+    /**
+     * Collapse workflow dispatch results down to the workflow end-node result payload.
+     *
+     * @param array<int, \App\Services\ServiceResult> $results Workflow dispatch results.
+     * @return array{success: bool, data: array<string, mixed>, error: ?string, errorCode: ?string, errors: array, recommendation: ?\Awards\Model\Entity\Recommendation}
+     */
+    private function normalizeWorkflowDispatchResult(array $results): array
+    {
+        foreach ($results as $dispatchResult) {
+            if (!$dispatchResult->isSuccess()) {
+                return [
+                    'success' => false,
+                    'data' => [],
+                    'error' => $dispatchResult->getError(),
+                    'errorCode' => null,
+                    'errors' => [],
+                    'recommendation' => null,
                 ];
             }
 
-            $this->set([
-                'gatherings' => $gatherings,
-                '_serialize' => ['gatherings']
-            ]);
-            $this->viewBuilder()->setClassName('Json');
-            $this->viewBuilder()->setOption('serialize', ['gatherings']);
-        } catch (\Exception $e) {
-            Log::error('Error in gatheringsForBulkEdit: ' . $e->getMessage());
-            $this->set([
-                'error' => 'An error occurred while fetching gatherings',
-                '_serialize' => ['error']
-            ]);
-            $this->viewBuilder()->setClassName('Json');
-            $this->viewBuilder()->setOption('serialize', ['error']);
-            $this->response = $this->response->withStatus(500);
+            $data = $dispatchResult->getData();
+            $workflowResult = is_array($data) ? ($data['workflowResult'] ?? null) : null;
+            if (is_array($workflowResult)) {
+                return $this->normalizeRecommendationMutationResult($workflowResult);
+            }
         }
+
+        return [
+            'success' => false,
+            'data' => [],
+            'error' => 'Workflow did not return a result.',
+            'errorCode' => null,
+            'errors' => [],
+            'recommendation' => null,
+        ];
+    }
+
+    /**
+     * Extract the saved recommendation ID from a normalized mutation result.
+     *
+     * @param array{data?: array<string, mixed>, recommendation?: mixed} $result Normalized mutation result.
+     * @return int|null
+     */
+    private function extractRecommendationIdFromResult(array $result): ?int
+    {
+        $recommendationId = $result['data']['recommendationId'] ?? null;
+        if (is_numeric($recommendationId)) {
+            return (int)$recommendationId;
+        }
+
+        $recommendation = $result['recommendation'] ?? null;
+        if ($recommendation instanceof Recommendation && $recommendation->id !== null) {
+            return (int)$recommendation->id;
+        }
+
+        return null;
+    }
+
+    /**
+     * Dispatch a post-commit workflow event returned by the recommendation mutation.
+     *
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $triggerDispatcher Workflow trigger dispatcher.
+     * @param array<string, mixed> $result Normalized recommendation mutation result.
+     * @param int $actorId Actor ID.
+     * @return void
+     */
+    private function dispatchRecommendationFollowUpWorkflow(
+        TriggerDispatcher $triggerDispatcher,
+        array $result,
+        int $actorId,
+    ): void {
+        $eventName = $result['data']['eventName'] ?? null;
+        if (!is_string($eventName) || $eventName === '') {
+            return;
+        }
+
+        $eventPayload = $result['data']['eventPayload'] ?? $result['data'];
+        if (!is_array($eventPayload)) {
+            $eventPayload = [];
+        }
+        $eventPayload['actorId'] = $actorId;
+
+        $this->dispatchWorkflowEvent($triggerDispatcher, $eventName, $eventPayload);
+    }
+
+    /**
+     * Add computed display fields used by the recommendations Dataverse grid.
+     *
+     * @param iterable<\Awards\Model\Entity\Recommendation> $recommendations
+     */
+    private function enrichRecommendationsForGrid(iterable $recommendations, array $visibleColumns = []): void
+    {
+        $includeGroupCount = $this->isRecommendationColumnVisible('group_children_count', $visibleColumns);
+        $includeOpLinks = $this->isRecommendationColumnVisible('op_links', $visibleColumns);
+        $includeGatherings = $this->isRecommendationColumnVisible('gatherings', $visibleColumns);
+        $includeNotes = $this->isRecommendationColumnVisible('notes', $visibleColumns);
+        $includeReason = $this->isRecommendationColumnVisible('reason', $visibleColumns);
+
+        $recIds = [];
+        foreach ($recommendations as $recommendation) {
+            $recIds[] = $recommendation->id;
+        }
+
+        $groupCounts = [];
+        if ($includeGroupCount && $recIds !== []) {
+            $countQuery = $this->Recommendations->find()
+                ->select([
+                    'recommendation_group_id',
+                    'child_count' => $this->Recommendations->find()->func()->count('*'),
+                ])
+                ->where(['recommendation_group_id IN' => $recIds])
+                ->groupBy(['recommendation_group_id'])
+                ->disableHydration()
+                ->all();
+            foreach ($countQuery as $row) {
+                $groupCounts[(int)$row['recommendation_group_id']] = (int)$row['child_count'];
+            }
+        }
+
+        $memberAttendanceGatherings = $includeGatherings
+            ? $this->getMemberAttendanceGatherings($recommendations)
+            : [];
+        $this->decoratePendingWorkflowApprovals($recommendations);
+        $identity = $this->request->getAttribute('identity');
+
+        foreach ($recommendations as $recommendation) {
+            $recommendation->bestowal_linked = !empty($recommendation->bestowal_id);
+            $recommendation->bestowal_viewable = $this->canViewLinkedBestowal($recommendation, $identity);
+
+            if ($includeGroupCount) {
+                $recommendation->group_children_count = isset($groupCounts[$recommendation->id])
+                    ? $groupCounts[$recommendation->id] + 1
+                    : 0;
+            }
+            if ($includeOpLinks) {
+                $recommendation->op_links = $this->buildOpLinksHtml($recommendation);
+            }
+            if ($includeGatherings) {
+                $attendanceGatherings = $memberAttendanceGatherings[$recommendation->member_id] ?? [];
+                $recommendation->gatherings = $this->buildGatheringsHtml($recommendation, $attendanceGatherings);
+            }
+            if ($includeNotes) {
+                $recommendation->notes = $this->buildNotesHtml($recommendation);
+            }
+            if ($includeReason) {
+                $recommendation->reason = $this->buildReasonHtml($recommendation);
+            }
+        }
+    }
+
+    /**
+     * Check whether the current identity can view the linked bestowal for a recommendation row.
+     *
+     * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation row.
+     * @param mixed $identity Current identity.
+     * @return bool
+     */
+    private function canViewLinkedBestowal(Recommendation $recommendation, mixed $identity): bool
+    {
+        if (empty($recommendation->bestowal_id) || empty($recommendation->bestowal)) {
+            return false;
+        }
+
+        if ($identity === null || !method_exists($identity, 'checkCan')) {
+            return false;
+        }
+
+        return $identity->checkCan('view', $recommendation->bestowal);
+    }
+
+    /**
+     * Add current-user pending approval metadata for recommendation grid actions.
+     *
+     * @param iterable<\Awards\Model\Entity\Recommendation> $recommendations Recommendations to decorate.
+     * @return void
+     */
+    private function decoratePendingWorkflowApprovals(iterable $recommendations): void
+    {
+        $identity = $this->request->getAttribute('identity');
+        $member = $identity?->getAsMember();
+        if (!$member instanceof Member) {
+            return;
+        }
+
+        $workflowInstanceIds = [];
+        foreach ($recommendations as $recommendation) {
+            $recommendation->pending_approval_id = null;
+            $recommendation->pending_approval_approver_config = [];
+            $recommendation->pending_approval_required_count = 0;
+            $recommendation->pending_approval_approved_count = 0;
+            $recommendation->can_workflow_decide = false;
+
+            $run = $recommendation->current_approval_run ?? null;
+            if ($run && !empty($run->workflow_instance_id)) {
+                $workflowInstanceIds[] = (int)$run->workflow_instance_id;
+            }
+        }
+
+        $workflowInstanceIds = array_values(array_unique($workflowInstanceIds));
+        if ($workflowInstanceIds === []) {
+            return;
+        }
+
+        $approvalsByInstance = [];
+        $workflowApprovalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
+        $approvals = $workflowApprovalsTable::getPendingApprovalsForMember(
+            (int)$member->id,
+            ['WorkflowInstances' => ['WorkflowDefinitions']],
+            $workflowInstanceIds,
+        );
+        foreach ($approvals as $approval) {
+            $approvalsByInstance[(int)$approval->workflow_instance_id] = $approval;
+        }
+
+        foreach ($recommendations as $recommendation) {
+            $run = $recommendation->current_approval_run ?? null;
+            $workflowInstanceId = $run && !empty($run->workflow_instance_id)
+                ? (int)$run->workflow_instance_id
+                : null;
+            if ($workflowInstanceId === null || !isset($approvalsByInstance[$workflowInstanceId])) {
+                continue;
+            }
+
+            $approval = $approvalsByInstance[$workflowInstanceId];
+            $recommendation->pending_approval_id = (int)$approval->id;
+            $recommendation->pending_approval_approver_config = $this->augmentApproverConfigForResponse(
+                $this->normalizeApproverConfig($approval->approver_config),
+                $approval,
+                $recommendation,
+            );
+            $recommendation->pending_approval_required_count = (int)($approval->required_count ?? 1);
+            $recommendation->pending_approval_approved_count = (int)($approval->approved_count ?? 0);
+            $recommendation->can_workflow_decide = true;
+        }
+    }
+
+    /**
+     * Determine whether a recommendation column should be treated as visible.
+     *
+     * @param string $columnKey
+     * @param array<int,string> $visibleColumns
+     * @return bool
+     */
+    private function isRecommendationColumnVisible(string $columnKey, array $visibleColumns = []): bool
+    {
+        if ($visibleColumns !== []) {
+            return in_array($columnKey, $visibleColumns, true);
+        }
+
+        $column = RecommendationsGridColumns::getColumns()[$columnKey] ?? null;
+
+        return (bool)($column['defaultVisible'] ?? false);
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $rowActions
+     * @param array<string, mixed> $gridResult
+     * @return array<string, array<string, mixed>>
+     */
+    private function filterRecommendationRowActionsForGridResult(array $rowActions, array $gridResult): array
+    {
+        $currentViewId = $gridResult['gridState']['view']['currentId'] ?? null;
+        if ($currentViewId !== 'sys-recs-archived') {
+            return $rowActions;
+        }
+
+        return array_intersect_key($rowActions, array_flip(['bestowal', 'view']));
+    }
+
+    /**
+     * @param array<string, mixed> $gridResult
+     * @return array<string, mixed>
+     */
+    private function filterRecommendationGridActionsForResult(array $gridResult): array
+    {
+        $currentViewId = $gridResult['gridState']['view']['currentId'] ?? null;
+        if ($currentViewId !== 'sys-recs-archived') {
+            return $gridResult;
+        }
+
+        $gridResult['gridState']['config']['bulkActions'] = [];
+
+        return $gridResult;
+    }
+
+    /**
+     * Determine whether a column is requested for the current grid request.
+     *
+     * @param string $columnKey
+     * @return bool
+     */
+    private function shouldIncludeRecommendationColumn(string $columnKey, ?array $visibleColumns = null): bool
+    {
+        if ($visibleColumns !== null) {
+            return $this->isRecommendationColumnVisible($columnKey, $visibleColumns);
+        }
+
+        $columnsParam = (string)$this->request->getQuery('columns', '');
+        if ($columnsParam !== '') {
+            $requested = array_filter(explode(',', $columnsParam));
+
+            return in_array($columnKey, $requested, true);
+        }
+
+        return $this->isRecommendationColumnVisible($columnKey);
+    }
+
+    /**
+     * Resolve visible columns early so recommendation queries can skip hidden display-only associations.
+     *
+     * @param string $gridKey Grid identifier.
+     * @param array<string,array<string,mixed>> $systemViews System view definitions.
+     * @param string $defaultSystemView Default system view key.
+     * @return array<int,string>|null Null means all display data is required.
+     */
+    private function resolveRecommendationVisibleColumns(
+        string $gridKey,
+        array $systemViews,
+        string $defaultSystemView,
+    ): ?array {
+        if ($this->isCsvExportRequest()) {
+            return null;
+        }
+
+        $columnsParam = (string)$this->request->getQuery('columns', '');
+        if ($columnsParam !== '') {
+            return $this->appendActiveRecommendationColumns(array_values(array_filter(explode(',', $columnsParam))));
+        }
+
+        if ($this->request->getQuery('ignore_default')) {
+            return $this->appendActiveRecommendationColumns($this->defaultRecommendationVisibleColumns());
+        }
+
+        $currentMember = $this->request->getAttribute('identity');
+        $viewId = $this->request->getQuery('view_id');
+        $requestedViewId = is_string($viewId) && $viewId !== '' ? $viewId : null;
+        if ($requestedViewId === null && $currentMember instanceof Member) {
+            $gridViewsTable = $this->fetchTable('GridViews');
+            $requestedViewId = (new GridViewService(
+                $gridViewsTable instanceof GridViewsTable ? $gridViewsTable : null,
+            ))
+                ->getUserPreferenceViewId($gridKey, $currentMember);
+        }
+        $requestedViewId ??= $defaultSystemView;
+
+        if (is_string($requestedViewId) && isset($systemViews[$requestedViewId])) {
+            return $this->appendActiveRecommendationColumns(
+                $this->normalizeRecommendationColumns($systemViews[$requestedViewId]['config']['columns'] ?? []),
+            );
+        }
+
+        if (is_numeric($requestedViewId)) {
+            $customColumns = $this->loadRecommendationGridViewColumns(
+                $gridKey,
+                (int)$requestedViewId,
+                $currentMember instanceof Member ? (int)$currentMember->id : null,
+            );
+            if ($customColumns !== null) {
+                return $this->appendActiveRecommendationColumns($customColumns);
+            }
+        }
+
+        if (isset($systemViews[$defaultSystemView])) {
+            return $this->appendActiveRecommendationColumns(
+                $this->normalizeRecommendationColumns($systemViews[$defaultSystemView]['config']['columns'] ?? []),
+            );
+        }
+
+        return $this->appendActiveRecommendationColumns($this->defaultRecommendationVisibleColumns());
+    }
+
+    /**
+     * @param string $gridKey Grid identifier.
+     * @param int $viewId Grid view id.
+     * @param int|null $memberId Current member id.
+     * @return array<int,string>|null
+     */
+    private function loadRecommendationGridViewColumns(string $gridKey, int $viewId, ?int $memberId): ?array
+    {
+        $query = $this->fetchTable('GridViews')
+            ->find()
+            ->where([
+                'id' => $viewId,
+                'grid_key' => $gridKey,
+            ]);
+
+        if ($memberId !== null) {
+            $query->where([
+                'OR' => [
+                    'member_id' => $memberId,
+                    [
+                        'is_system_default' => true,
+                        'member_id IS' => null,
+                    ],
+                ],
+            ]);
+        } else {
+            $query->where([
+                'is_system_default' => true,
+                'member_id IS' => null,
+            ]);
+        }
+
+        $view = $query->first();
+        if ($view === null || !method_exists($view, 'getConfigArray')) {
+            return null;
+        }
+
+        $config = $view->getConfigArray();
+        if (empty($config['columns']) || !is_array($config['columns'])) {
+            return null;
+        }
+
+        return $this->normalizeRecommendationColumns($config['columns']);
+    }
+
+    /**
+     * @param array<int,mixed> $columns
+     * @return array<int,string>
+     */
+    private function normalizeRecommendationColumns(array $columns): array
+    {
+        $firstColumn = reset($columns);
+        if (is_string($firstColumn)) {
+            return array_values(array_filter($columns, 'is_string'));
+        }
+
+        return GridViewConfig::extractVisibleColumns(
+            ['columns' => $columns],
+            RecommendationsGridColumns::getColumns(),
+        );
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function defaultRecommendationVisibleColumns(): array
+    {
+        $columns = [];
+        foreach (RecommendationsGridColumns::getColumns() as $key => $column) {
+            if (!empty($column['defaultVisible'])) {
+                $columns[] = $key;
+            }
+        }
+
+        return $columns;
+    }
+
+    /**
+     * @param array<int,string> $columns
+     * @return array<int,string>
+     */
+    private function appendActiveRecommendationColumns(array $columns): array
+    {
+        $activeColumns = $columns;
+        $sortColumn = $this->request->getQuery('sort');
+        if (is_string($sortColumn) && $sortColumn !== '') {
+            $activeColumns[] = $sortColumn;
+        }
+
+        $filters = $this->request->getQuery('filter', []);
+        if (is_array($filters)) {
+            foreach (array_keys($filters) as $filterColumn) {
+                if (is_string($filterColumn) && $filterColumn !== '') {
+                    $activeColumns[] = $filterColumn;
+                }
+            }
+        }
+
+        return array_values(array_unique($activeColumns));
+    }
+
+    /**
+     * Tab query param from page context URL (detail pages).
+     */
+    private function pageContextQueryTab(?string $pageContextUrl): ?string
+    {
+        if ($pageContextUrl === null) {
+            return null;
+        }
+
+        $parsed = parse_url($pageContextUrl);
+        if (empty($parsed['query'])) {
+            return null;
+        }
+
+        $params = [];
+        parse_str($parsed['query'], $params);
+
+        $tab = $params['tab'] ?? null;
+
+        return is_string($tab) && $tab !== '' ? $tab : null;
+    }
+
+    /**
+     * Match page context to a recommendation grid row-sync context.
+     *
+     * @return array{contextKey: string, tableFrameId: string, memberId?: int, gatheringId?: int}|null
+     */
+    private function resolveRecommendationGridSyncContext(?string $pageContextUrl): ?array
+    {
+        if ($pageContextUrl === null) {
+            return null;
+        }
+
+        $path = parse_url($pageContextUrl, PHP_URL_PATH) ?? $pageContextUrl;
+        $tab = $this->pageContextQueryTab($pageContextUrl);
+
+        if ($this->matchesGridIndexPath($pageContextUrl, '#/awards/recommendations/?$#')) {
+            return [
+                'contextKey' => 'main',
+                'tableFrameId' => 'recommendations-grid-table',
+            ];
+        }
+
+        if (preg_match('#/members/profile/?$#', $path)) {
+            $memberId = (int)$this->request->getAttribute('identity')->id;
+            if ($tab === null || $tab === 'member-submitted-recs') {
+                return [
+                    'contextKey' => 'memberSubmitted',
+                    'tableFrameId' => 'member-submitted-recs-grid-' . $memberId . '-table',
+                    'memberId' => $memberId,
+                ];
+            }
+
+            return null;
+        }
+
+        if (preg_match('#/members/view/(\d+)/?$#', $path, $matches)) {
+            $memberId = (int)$matches[1];
+            if ($tab === 'member-submitted-recs') {
+                return [
+                    'contextKey' => 'memberSubmitted',
+                    'tableFrameId' => 'member-submitted-recs-grid-' . $memberId . '-table',
+                    'memberId' => $memberId,
+                ];
+            }
+            if ($tab === 'recs-for-member') {
+                return [
+                    'contextKey' => 'recsForMember',
+                    'tableFrameId' => 'recs-for-member-grid-' . $memberId . '-table',
+                    'memberId' => $memberId,
+                ];
+            }
+
+            return null;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<int, \Awards\Model\Entity\Recommendation> $recommendations
+     */
+    private function enrichRecommendationsForGridContext(array $recommendations, string $contextKey): void
+    {
+        if ($contextKey === 'main') {
+            $this->enrichRecommendationsForGrid($recommendations);
+
+            return;
+        }
+
+        foreach ($recommendations as $recommendation) {
+            $recommendation->gatherings = $this->buildGatheringsHtml($recommendation);
+            $recommendation->reason = $this->buildReasonHtml($recommendation);
+        }
+    }
+
+    /**
+     * Resolve targeted row sync after a single recommendation save.
+     *
+     * @return array{action: string, rowDomId: string, rowHtml?: string}|null Null → full table refresh
+     */
+    private function resolveRecommendationGridRowSync(
+        int $recommendationId,
+        ?string $pageContextUrl,
+        RecommendationQueryService $queryService,
+    ): ?array {
+        $syncContext = $this->resolveRecommendationGridSyncContext($pageContextUrl);
+        if ($syncContext === null) {
+            return null;
+        }
+
+        $tableFrameId = $syncContext['tableFrameId'];
+        $rowDomId = GridRowDomId::fromTableFrameId($tableFrameId, $recommendationId);
+
+        return $this->withPageContextQuery($pageContextUrl, function () use (
+            $recommendationId,
+            $rowDomId,
+            $queryService,
+            $tableFrameId,
+            $syncContext,
+        ): ?array {
+            $emptyRecommendation = $this->Recommendations->newEmptyEntity();
+            $user = $this->request->getAttribute('identity');
+            $contextKey = $syncContext['contextKey'];
+
+            if ($contextKey === 'main') {
+                $canViewHidden = $user->checkCan('ViewHidden', $emptyRecommendation);
+                $canEdit = $user->checkCan('edit', $emptyRecommendation);
+                $built = $queryService->buildMainGridQuery($this->Recommendations, $canEdit);
+                $baseQuery = $built['query'];
+                $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
+                $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
+            } elseif ($contextKey === 'memberSubmitted') {
+                $memberId = $syncContext['memberId'];
+                $emptyRecommendation->requester_id = $memberId;
+                $this->Authorization->authorize($emptyRecommendation, 'ViewSubmittedByMember');
+                $isOwnSubmissions = ($user->id === $memberId);
+                $canViewHidden = $isOwnSubmissions || $user->checkCan('ViewHidden', $emptyRecommendation);
+                $built = $queryService->buildMemberSubmittedQuery($this->Recommendations, $memberId);
+                $baseQuery = $built['query'];
+                $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
+            } elseif ($contextKey === 'recsForMember') {
+                $memberId = $syncContext['memberId'];
+                $this->Authorization->authorize($emptyRecommendation, 'ViewSubmittedForMember');
+                $canViewHidden = true;
+                $built = $queryService->buildRecsForMemberQuery($this->Recommendations, $memberId);
+                $baseQuery = $built['query'];
+                $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
+                $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
+            }
+
+            $baseQuery = $baseQuery->where(['Recommendations.id' => $recommendationId]);
+            $built['gridOptions']['baseQuery'] = $baseQuery;
+
+            $result = $this->processDataverseGrid($built['gridOptions']);
+            if ($contextKey === 'main') {
+                $canViewHidden = $canViewHidden ?? $user->checkCan('ViewHidden', $emptyRecommendation);
+                $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
+            } elseif ($contextKey === 'memberSubmitted') {
+                $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
+            } else {
+                $result = $this->applyStateFilterOptionsToGridResult($result, true);
+            }
+
+            $gridData = $result['data'];
+            if (is_array($gridData)) {
+                $recommendations = $gridData;
+            } elseif ($gridData instanceof Traversable) {
+                $recommendations = iterator_to_array($gridData, false);
+            } else {
+                $recommendations = [];
+            }
+            if ($recommendations === []) {
+                return [
+                    'action' => 'remove',
+                    'rowDomId' => $rowDomId,
+                ];
+            }
+
+            $this->enrichRecommendationsForGridContext($recommendations, $contextKey);
+            $recommendation = $recommendations[0];
+            $rowActions = $contextKey === 'main'
+                ? $this->filterRecommendationRowActionsForGridResult(
+                    RecommendationsGridColumns::getRowActions(),
+                    $result,
+                )
+                : [];
+            $gridState = $result['gridState'];
+            $enableColumnPicker = $gridState['config']['enableColumnPicker'] ?? true;
+            $visibleColumns = $gridState['columns']['visible'];
+            if (!is_array($visibleColumns)) {
+                $visibleColumns = array_values($visibleColumns);
+            }
+
+            $rowHtml = $this->renderDataverseTableRowElement([
+                'row' => $recommendation,
+                'columns' => $gridState['columns']['all'],
+                'visibleColumns' => $visibleColumns,
+                'controllerName' => 'grid-view',
+                'primaryKey' => $gridState['config']['primaryKey'],
+                'gridKey' => $gridState['config']['gridKey'],
+                'rowActions' => $rowActions,
+                'user' => $user,
+                'enableBulkSelection' => $gridState['config']['enableBulkSelection'] ?? false,
+                'bulkSelectionDataFields' => $gridState['config']['bulkSelectionDataFields'] ?? [],
+                'bulkSelectionDisabledField' => $gridState['config']['bulkSelectionDisabledField'] ?? null,
+                'bulkSelectionDisabledLabel' => $gridState['config']['bulkSelection']['disabledLabel'] ?? null,
+                'bulkSelectionHideDisabledControl' => $gridState['config']['bulkSelectionHideDisabledControl'] ?? false,
+                'rowDomIdPrefix' => preg_replace('/-table$/', '', $tableFrameId),
+                'showActionsColumn' => $enableColumnPicker || $rowActions !== [],
+            ]);
+
+            return [
+                'action' => 'replace',
+                'rowDomId' => $rowDomId,
+                'rowHtml' => $rowHtml,
+            ];
+        });
+    }
+
+    /**
+     * Turbo-stream response for grid-origin recommendation saves.
+     */
+    private function tryRecommendationsGridTurboResponse(
+        ?string $pageContext,
+        bool $success,
+        ?int $reloadQuickEditId = null,
+        ?int $updatedRecommendationId = null,
+        ?RecommendationQueryService $queryService = null,
+    ): ?Response {
+        if (!$this->wantsTurboStreamRequest() || $pageContext === null) {
+            return null;
+        }
+
+        $syncContext = $this->resolveRecommendationGridSyncContext($pageContext);
+        if (!$this->isGridOriginRequest($pageContext) && $syncContext === null) {
+            return null;
+        }
+
+        $gridRoute = ['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'gridData'];
+
+        if ($success) {
+            $this->Flash->success(__('The recommendation has been saved.'));
+
+            if ($updatedRecommendationId !== null) {
+                $queryService ??= new RecommendationQueryService();
+                $sync = $this->resolveRecommendationGridRowSync(
+                    $updatedRecommendationId,
+                    $pageContext,
+                    $queryService,
+                );
+                if ($sync !== null) {
+                    if ($sync['action'] === 'remove') {
+                        return $this->renderTurboRemoveGridRow($sync['rowDomId']);
+                    }
+
+                    return $this->renderTurboReplaceGridRow(
+                        $sync['rowDomId'],
+                        $sync['rowHtml'] ?? '',
+                    );
+                }
+            }
+
+            return $this->renderTurboCloseModal('recommendations-grid-table', $gridRoute, $pageContext);
+        }
+
+        if ($reloadQuickEditId !== null) {
+            $frameSrc = Router::url([
+                'plugin' => 'Awards',
+                'controller' => 'Recommendations',
+                'action' => 'turboEditForm',
+                $reloadQuickEditId,
+            ]);
+
+            return $this->renderTurboReloadFrame('editRecommendation', $frameSrc)->withStatus(422);
+        }
+
+        return null;
+    }
+
+    /**
+     * Turbo-stream table refresh for recommendation grid actions.
+     */
+    private function recommendationsGridRefreshResponse(?string $pageContext): ?Response
+    {
+        if (!$this->wantsTurboStreamRequest() || $pageContext === null) {
+            return null;
+        }
+
+        return $this->renderTurboCloseModal(
+            'recommendations-grid-table',
+            ['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'gridData'],
+            $pageContext,
+        );
     }
 }

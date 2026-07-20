@@ -1,0 +1,95 @@
+{
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
+    "nodes": {
+        "trigger": {
+            "type": "trigger",
+            "label": "Recommendations Ungroup Requested",
+            "config": {
+                "event": "Awards.RecommendationsUngroupRequested",
+                "entityIdField": "recommendationId"
+            },
+            "position": {
+                "x": 50,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "ungroup-recommendations"
+                }
+            ]
+        },
+        "ungroup-recommendations": {
+            "type": "action",
+            "label": "Ungroup Recommendations",
+            "config": {
+                "action": "Awards.UngroupRecommendations",
+                "params": {
+                    "recommendationId": "$.trigger.recommendationId",
+                    "actorId": "$.trigger.actorId"
+                }
+            },
+            "position": {
+                "x": 350,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "ungroup-succeeded"
+                }
+            ]
+        },
+        "ungroup-succeeded": {
+            "type": "condition",
+            "label": "Ungroup Succeeded?",
+            "config": {
+                "condition": "Core.FieldEquals",
+                "field": "$.nodes.ungroup-recommendations.result.success",
+                "value": true
+            },
+            "position": {
+                "x": 650,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "end-success",
+                    "label": "Ungrouped"
+                },
+                {
+                    "port": "false",
+                    "target": "end-failed",
+                    "label": "Failed"
+                }
+            ]
+        },
+        "end-success": {
+            "type": "end",
+            "label": "Ungroup Complete",
+            "config": {
+                "result": "$.nodes.ungroup-recommendations.result"
+            },
+            "position": {
+                "x": 950,
+                "y": 225
+            },
+            "outputs": []
+        },
+        "end-failed": {
+            "type": "end",
+            "label": "Ungroup Failed",
+            "config": {
+                "result": "$.nodes.ungroup-recommendations.result"
+            },
+            "position": {
+                "x": 950,
+                "y": 375
+            },
+            "outputs": []
+        }
+    },
+    "startNode": "trigger"
+}

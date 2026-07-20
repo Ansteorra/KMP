@@ -3,14 +3,20 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\KMP\DataverseGridQueryContext;
 use App\KMP\GridViewConfig;
 use App\KMP\StaticHelpers;
+use App\KMP\TimezoneHelper as TzHelper;
 use App\Model\Entity\Member;
+use App\Services\Cache\TenantAwareCache;
 use App\Services\GridViewService;
+use Cake\Cache\Cache;
 use Cake\Http\Response;
 use Cake\Log\Log;
 use Cake\Utility\Inflector;
+use DateTime;
 use DateTimeInterface;
+use DateTimeZone;
 
 /**
  * Unified grid processing for dataverse-style grids with saved views, filters, and sorting.
@@ -51,6 +57,9 @@ trait DataverseGridTrait
      *       cleared via query string parameters. Useful for embedded grids where context
      *       filters (e.g., member_id) must always be applied.
      *   - enableBulkSelection (bool): Whether row selection checkboxes are shown (default: false)
+     *   - bulkSelection (array): Bulk selection accessibility label configuration.
+     *       Keys: selectAllLabel, rowLabelTemplate, disabledLabel. rowLabelTemplate supports
+     *       {field_key} placeholders resolved from each row, including dotted paths and column renderField aliases.
      *   - bulkActions (array): Array of bulk action button configurations when enableBulkSelection is true.
      *       Each action is an array with keys: label, icon, modalTarget, permission.
      *   - disablePagination (bool): When true, bypasses the paginator and returns all matching
@@ -91,7 +100,15 @@ trait DataverseGridTrait
         $enableColumnPicker = $config['enableColumnPicker'] ?? true;
         $lockedFilters = $config['lockedFilters'] ?? [];
         $enableBulkSelection = $config['enableBulkSelection'] ?? false;
+        $bulkSelection = $config['bulkSelection'] ?? [];
         $bulkActions = $config['bulkActions'] ?? [];
+        $bulkSelectionDataFields = $config['bulkSelectionDataFields'] ?? [];
+        $bulkSelectionDisabledField = $config['bulkSelectionDisabledField'] ?? null;
+        $bulkSelectionHideDisabledControl = $config['bulkSelectionHideDisabledControl'] ?? false;
+        $metadataMode = $config['metadataMode'] ?? ($this->isDataverseTableFrameRequest() ? 'table' : 'full');
+        // System-view grids (e.g. Officers warrant tabs) need view metadata even when custom views are disabled.
+        $loadViewMetadata = $metadataMode === 'full' && ($canAddViews || $systemViews !== null);
+        $loadFilterMetadata = $metadataMode === 'full';
 
         // Load column metadata
         $columnsMetadata = $gridColumnsClass::getColumns();
@@ -159,6 +176,9 @@ trait DataverseGridTrait
             'search' => null,
             'skipFilterColumns' => [],
         ];
+        if ($currentMember instanceof Member) {
+            $preferredViewId = $gridViewService->getUserPreferenceViewId($gridKey, $currentMember);
+        }
 
         if ($systemViews !== null) {
             // System views mode (Warrants-style) - now supports user views too
@@ -169,11 +189,6 @@ trait DataverseGridTrait
                 $selectedSystemView = null;
                 $requestedViewId = null;
             } else {
-                // Get user preference
-                if ($currentMember instanceof Member) {
-                    $preferredViewId = $gridViewService->getUserPreferenceViewId($gridKey, $currentMember);
-                }
-
                 // Determine which view to use
                 if ($viewId !== null) {
                     $requestedViewId = $viewId;
@@ -217,12 +232,8 @@ trait DataverseGridTrait
                 $currentView = $gridViewService->getEffectiveView($gridKey, $currentMember, $viewId);
             }
 
-            // Track preferred view (user-selected default)
-            if ($currentMember instanceof Member) {
-                $preference = $gridViewService->getUserPreferenceViewId($gridKey, $currentMember);
-                if (is_int($preference)) {
-                    $preferredViewId = $preference;
-                }
+            if (!is_int($preferredViewId)) {
+                $preferredViewId = null;
             }
         }
 
@@ -230,11 +241,11 @@ trait DataverseGridTrait
             $systemViewDefaults = $this->extractSystemViewDefaults($selectedSystemView['config']);
         }
 
-        // Get available user views (load even in system views mode to show alongside)
+        // Get available user views for toolbar metadata (skip on table-frame refreshes).
         $availableViews = [];
-        $availableViews = $this->fetchTable('GridViews')
-            ->find('byGrid', ['gridKey' => $gridKey, 'memberId' => $currentMember->id])
-            ->all();
+        if ($loadViewMetadata && $currentMember instanceof Member) {
+            $availableViews = $this->loadAvailableViews($gridKey, (int)$currentMember->id);
+        }
 
         // Extract search term from URL or view config
         $searchTerm = $this->request->getQuery('search', '');
@@ -263,7 +274,14 @@ trait DataverseGridTrait
                 // or just a column key (e.g., 'name')
                 if (str_contains($columnKey, '.')) {
                     // It's a full queryField path - use directly
-                    $searchConditions['OR'][$columnKey . ' LIKE'] = '%' . $searchTerm . '%';
+                    $searchCondition = $this->buildDataverseGridSearchCondition(
+                        $columnKey,
+                        null,
+                        (string)$searchTerm,
+                    );
+                    if ($searchCondition !== null) {
+                        $searchConditions['OR'][] = $searchCondition;
+                    }
                     continue;
                 }
 
@@ -272,20 +290,47 @@ trait DataverseGridTrait
                 if ($columnMeta) {
                     if ($columnMeta['type'] === 'relation' && !empty($columnMeta['renderField'])) {
                         if (!empty($columnMeta['queryField'])) {
-                            // Prefer explicit queryField when provided by grid metadata
-                            $searchConditions['OR'][$columnMeta['queryField'] . ' LIKE'] = '%'
-                                . $searchTerm . '%';
+                            $searchCondition = $this->buildDataverseGridSearchCondition(
+                                (string)$columnMeta['queryField'],
+                                $columnMeta,
+                                (string)$searchTerm,
+                            );
+                            if ($searchCondition !== null) {
+                                $searchConditions['OR'][] = $searchCondition;
+                            }
                         } else {
                             $relationParts = explode('.', $columnMeta['renderField']);
                             if (count($relationParts) === 2) {
                                 $associationName = Inflector::pluralize(Inflector::camelize($relationParts[0]));
                                 $fieldName = $relationParts[1];
-                                $searchConditions['OR'][$associationName . '.' . $fieldName . ' LIKE'] = '%'
-                                    . $searchTerm . '%';
+                                $searchCondition = $this->buildDataverseGridSearchCondition(
+                                    $associationName . '.' . $fieldName,
+                                    $columnMeta,
+                                    (string)$searchTerm,
+                                );
+                                if ($searchCondition !== null) {
+                                    $searchConditions['OR'][] = $searchCondition;
+                                }
                             }
                         }
+                    } elseif (!empty($columnMeta['queryField'])) {
+                        $searchCondition = $this->buildDataverseGridSearchCondition(
+                            (string)$columnMeta['queryField'],
+                            $columnMeta,
+                            (string)$searchTerm,
+                        );
+                        if ($searchCondition !== null) {
+                            $searchConditions['OR'][] = $searchCondition;
+                        }
                     } else {
-                        $searchConditions['OR'][$tableName . '.' . $columnKey . ' LIKE'] = '%' . $searchTerm . '%';
+                        $searchCondition = $this->buildDataverseGridSearchCondition(
+                            $tableName . '.' . $columnKey,
+                            $columnMeta,
+                            (string)$searchTerm,
+                        );
+                        if ($searchCondition !== null) {
+                            $searchConditions['OR'][] = $searchCondition;
+                        }
                     }
                 }
             }
@@ -395,8 +440,10 @@ trait DataverseGridTrait
                         continue;
                     }
 
-                    // Use queryField if available (for relation columns), otherwise use column key
-                    $fieldToFilter = $columnMeta['queryField'] ?? $columnKey;
+                    // Use filterQueryField for filter value matching when provided.
+                    // This lets relation columns sort/search on a display field while
+                    // filtering against the underlying foreign key value.
+                    $fieldToFilter = $columnMeta['filterQueryField'] ?? $columnMeta['queryField'] ?? $columnKey;
                     $qualifiedField = strpos(
                         $fieldToFilter,
                         '.',
@@ -471,35 +518,35 @@ trait DataverseGridTrait
 
                     if ($startDate !== null && $startDate !== '') {
                         if (!in_array($columnKey, $skipFilterColumns, true)) {
+                            // Convert date-only strings from kingdom timezone to UTC
+                            // so SQL comparisons work correctly against UTC-stored datetimes.
+                            $effectiveStartDate = $this->convertDateBoundaryToUtc($startDate, true);
+
                             // For lower bound (start >= value), check nullMeansActive flag
                             // If true, NULL means "never expires" so include it in results
                             if ($nullMeansActive) {
-                                $baseQuery->where(function ($exp) use ($qualifiedField, $startDate) {
+                                $baseQuery->where(function ($exp) use ($qualifiedField, $effectiveStartDate) {
                                     return $exp->or([
-                                        $qualifiedField . ' >=' => $startDate,
+                                        $qualifiedField . ' >=' => $effectiveStartDate,
                                         $qualifiedField . ' IS' => null,
                                     ]);
                                 });
                             } else {
-                                $baseQuery->where([$qualifiedField . ' >=' => $startDate]);
+                                $baseQuery->where([$qualifiedField . ' >=' => $effectiveStartDate]);
                             }
                         }
-                        // Add to current filters for display as pill
+                        // Add to current filters for display as pill (original kingdom-tz value)
                         $currentFilters[$startParam] = $startDate;
                     }
                     if ($endDate !== null && $endDate !== '') {
                         if (!in_array($columnKey, $skipFilterColumns, true)) {
-                            // When end date is date-only (no time), extend to end of day
-                            // so DATETIME columns include all records from that day.
-                            // Without this, '2026-03-25' becomes '2026-03-25 00:00:00'
-                            // excluding any records with a time after midnight.
-                            $effectiveEndDate = $endDate;
-                            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $endDate)) {
-                                $effectiveEndDate = $endDate . ' 23:59:59';
-                            }
+                            // Convert date-only strings from kingdom timezone to UTC
+                            // so SQL comparisons work correctly against UTC-stored datetimes.
+                            $effectiveEndDate = $this->convertDateBoundaryToUtc($endDate, false);
+
                             $baseQuery->where([$qualifiedField . ' <=' => $effectiveEndDate]);
                         }
-                        // Add to current filters for display as pill
+                        // Add to current filters for display as pill (original kingdom-tz value)
                         $currentFilters[$endParam] = $endDate;
                     }
                 }
@@ -521,30 +568,13 @@ trait DataverseGridTrait
             );
         }
 
-        // Get visible columns from URL, system view config, user view config, or defaults
-        $columnsParam = $this->request->getQuery('columns');
-        if ($columnsParam) {
-            $visibleColumns = explode(',', $columnsParam);
-            if (method_exists($gridColumnsClass, 'getRequiredColumns')) {
-                $requiredColumns = $gridColumnsClass::getRequiredColumns();
-                foreach ($requiredColumns as $requiredCol) {
-                    if (!in_array($requiredCol, $visibleColumns)) {
-                        $visibleColumns[] = $requiredCol;
-                    }
-                }
-            }
-        } elseif ($selectedSystemView && !empty($selectedSystemView['config']['columns'])) {
-            // System view with explicit column configuration
-            $visibleColumns = $selectedSystemView['config']['columns'];
-        } elseif ($currentView) {
-            $config = new GridViewConfig();
-            $viewConfig = $currentView->getConfigArray();
-            $visibleColumns = $config->extractVisibleColumns($viewConfig, $columnsMetadata);
-        } else {
-            $visibleColumns = array_filter(array_keys($columnsMetadata), function ($key) use ($columnsMetadata) {
-                return $columnsMetadata[$key]['defaultVisible'] ?? false;
-            });
-        }
+        $queryContext = $this->resolveDataverseGridQueryContext(
+            $config + ['columnsMetadata' => $columnsMetadata],
+            $selectedSystemView,
+            $currentView,
+            true,
+        );
+        $visibleColumns = $queryContext->gridVisibleColumns();
 
         // Apply expression tree from system view (if present and not dirty)
         if ($selectedSystemView && !$dirtyFilters && !empty($selectedSystemView['config']['expression'])) {
@@ -731,8 +761,8 @@ trait DataverseGridTrait
             foreach ($dropdownFilterColumns as $columnKey => $columnMeta) {
                 if (!empty($columnMeta['filterOptions'])) {
                     $filterOptions[$columnKey] = $columnMeta['filterOptions'];
-                } elseif (!empty($columnMeta['filterOptionsSource'])) {
-                    $filterOptions[$columnKey] = $this->loadFilterOptions($columnMeta['filterOptionsSource']);
+                } elseif (!empty($columnMeta['filterOptionsSource']) && $loadFilterMetadata) {
+                    $filterOptions[$columnKey] = $this->loadFilterOptionsCached($columnMeta['filterOptionsSource']);
                 }
             }
         }
@@ -810,7 +840,13 @@ trait DataverseGridTrait
             enableColumnPicker: $enableColumnPicker,
             lockedFilters: $lockedFilters,
             enableBulkSelection: $enableBulkSelection,
+            bulkSelection: $bulkSelection,
             bulkActions: $bulkActions,
+            bulkSelectionDataFields: $bulkSelectionDataFields,
+            bulkSelectionDisabledField: $bulkSelectionDisabledField,
+            bulkSelectionHideDisabledControl: $bulkSelectionHideDisabledControl,
+            includeViewMetadata: $loadViewMetadata,
+            includeAllColumns: $metadataMode === 'full',
         );
 
         // Return all results
@@ -824,11 +860,361 @@ trait DataverseGridTrait
             'currentFilters' => $currentFilters,
             'currentSearch' => $currentSearch,
             'currentView' => $currentView,
-            'availableViews' => $availableViews,
+            'availableViews' => is_array($availableViews) ? $availableViews : iterator_to_array($availableViews),
             'gridKey' => $gridKey,
             'currentSort' => $currentSort,
             'currentMember' => $currentMember,
         ];
+    }
+
+    /**
+     * Build a search condition for one Dataverse grid column.
+     *
+     * @param string $field Fully-qualified database field.
+     * @param array<string,mixed>|null $columnMeta Column metadata, when available.
+     * @param string $searchTerm User-entered search term.
+     * @return array<string,mixed>|null
+     */
+    protected function buildDataverseGridSearchCondition(
+        string $field,
+        ?array $columnMeta,
+        string $searchTerm,
+    ): ?array {
+        $searchTerm = trim($searchTerm);
+        if ($searchTerm === '') {
+            return null;
+        }
+
+        if ($this->isDataverseGridNumericSearchColumn($columnMeta)) {
+            if (!preg_match('/^-?\d+$/', $searchTerm)) {
+                return null;
+            }
+
+            return [$field => (int)$searchTerm];
+        }
+
+        return [$field . ' LIKE' => '%' . $searchTerm . '%'];
+    }
+
+    /**
+     * @param array<string,mixed>|null $columnMeta Column metadata.
+     * @return bool
+     */
+    private function isDataverseGridNumericSearchColumn(?array $columnMeta): bool
+    {
+        return in_array($columnMeta['type'] ?? null, ['integer', 'number'], true);
+    }
+
+    /**
+     * Resolve Dataverse grid column context for early query construction.
+     *
+     * @param array<string,mixed> $config Grid configuration.
+     * @param array<string,mixed>|null $selectedSystemView Already-resolved system view when called from processDataverseGrid().
+     * @param mixed $currentView Already-resolved saved view when called from processDataverseGrid().
+     * @param bool $viewContextResolved Whether null selected/current view values are already authoritative.
+     */
+    protected function resolveDataverseGridQueryContext(
+        array $config,
+        ?array $selectedSystemView = null,
+        mixed $currentView = null,
+        bool $viewContextResolved = false,
+    ): DataverseGridQueryContext {
+        $gridColumnsClass = $config['gridColumnsClass'];
+        $columnsMetadata = $config['columnsMetadata'] ?? $gridColumnsClass::getColumns();
+
+        if (!$viewContextResolved) {
+            $viewContext = $this->resolveDataverseGridViewContext($config);
+            $selectedSystemView = $viewContext['selectedSystemView'];
+            $currentView = $viewContext['currentView'];
+        }
+
+        $gridVisibleColumns = $this->resolveDataverseGridVisibleColumns(
+            $gridColumnsClass,
+            $columnsMetadata,
+            $selectedSystemView,
+            $currentView,
+        );
+
+        if ($this->isCsvExportRequest()) {
+            return new DataverseGridQueryContext($gridVisibleColumns, null, $columnsMetadata);
+        }
+
+        $activeColumns = $this->resolveDataverseGridActiveColumns(
+            $config,
+            $columnsMetadata,
+            $selectedSystemView,
+            $currentView,
+        );
+        $queryVisibleColumns = array_values(array_unique(array_merge($gridVisibleColumns, $activeColumns)));
+
+        return new DataverseGridQueryContext($gridVisibleColumns, $queryVisibleColumns, $columnsMetadata);
+    }
+
+    /**
+     * Resolve active saved/system view enough for pre-query column dependency planning.
+     *
+     * @param array<string,mixed> $config Grid configuration.
+     * @return array{selectedSystemView: array<string,mixed>|null, currentView: mixed}
+     */
+    private function resolveDataverseGridViewContext(array $config): array
+    {
+        $gridKey = $config['gridKey'];
+        $systemViews = $config['systemViews'] ?? null;
+        $defaultSystemView = $config['defaultSystemView'] ?? null;
+        $currentMember = $this->request->getAttribute('identity');
+        $viewId = $this->request->getQuery('view_id');
+        $ignoreDefault = $this->request->getQuery('ignore_default');
+        $gridViewService = new GridViewService(
+            $this->fetchTable('GridViews'),
+            new GridViewConfig(),
+        );
+        $preferredViewId = $currentMember instanceof Member
+            ? $gridViewService->getUserPreferenceViewId($gridKey, $currentMember)
+            : null;
+
+        if ($viewId !== null && $viewId !== '') {
+            $viewId = $systemViews !== null ? (string)$viewId : (int)$viewId;
+        }
+
+        if ($systemViews !== null) {
+            if ($ignoreDefault) {
+                return ['selectedSystemView' => null, 'currentView' => null];
+            }
+
+            $requestedViewId = $viewId ?? $preferredViewId ?? $defaultSystemView;
+            if (is_numeric($requestedViewId)) {
+                $currentView = $gridViewService->getEffectiveView($gridKey, $currentMember, (int)$requestedViewId);
+                if ($currentView !== null) {
+                    return ['selectedSystemView' => null, 'currentView' => $currentView];
+                }
+                $requestedViewId = $defaultSystemView;
+            }
+
+            if (!is_string($requestedViewId) || !isset($systemViews[$requestedViewId])) {
+                $requestedViewId = $defaultSystemView;
+            }
+
+            return [
+                'selectedSystemView' => is_string($requestedViewId) && isset($systemViews[$requestedViewId])
+                    ? $systemViews[$requestedViewId]
+                    : null,
+                'currentView' => null,
+            ];
+        }
+
+        if ($ignoreDefault) {
+            return ['selectedSystemView' => null, 'currentView' => null];
+        }
+
+        return [
+            'selectedSystemView' => null,
+            'currentView' => $gridViewService->getEffectiveView($gridKey, $currentMember, $viewId),
+        ];
+    }
+
+    /**
+     * Resolve UI-visible columns using the same precedence as processDataverseGrid().
+     *
+     * @param class-string $gridColumnsClass
+     * @param array<string,array<string,mixed>> $columnsMetadata
+     * @param array<string,mixed>|null $selectedSystemView
+     * @param mixed $currentView
+     * @return array<int,string>
+     */
+    private function resolveDataverseGridVisibleColumns(
+        string $gridColumnsClass,
+        array $columnsMetadata,
+        ?array $selectedSystemView,
+        mixed $currentView,
+    ): array {
+        $columnsParam = $this->request->getQuery('columns');
+        if (is_string($columnsParam) && $columnsParam !== '') {
+            $visibleColumns = array_values(array_filter(explode(',', $columnsParam), 'strlen'));
+        } elseif ($selectedSystemView && !empty($selectedSystemView['config']['columns'])) {
+            $visibleColumns = $this->normalizeDataverseGridColumnConfig($selectedSystemView['config']['columns']);
+        } elseif ($currentView && method_exists($currentView, 'getConfigArray')) {
+            $config = new GridViewConfig();
+            $visibleColumns = $config->extractVisibleColumns($currentView->getConfigArray(), $columnsMetadata);
+        } else {
+            $visibleColumns = array_values(array_filter(
+                array_keys($columnsMetadata),
+                fn($key) => $columnsMetadata[$key]['defaultVisible'] ?? false,
+            ));
+        }
+
+        if (method_exists($gridColumnsClass, 'getRequiredColumns')) {
+            $visibleColumns = array_merge($visibleColumns, $gridColumnsClass::getRequiredColumns());
+        }
+
+        $visibleColumns = array_values(array_unique(array_filter(
+            $visibleColumns,
+            fn($key) => is_string($key) && isset($columnsMetadata[$key]),
+        )));
+
+        if ($visibleColumns === []) {
+            $visibleColumns = array_values(array_filter(
+                array_keys($columnsMetadata),
+                fn($key) => !($columnsMetadata[$key]['exportOnly'] ?? false)
+                    && ($columnsMetadata[$key]['defaultVisible'] ?? false),
+            ));
+        }
+
+        if ($visibleColumns === []) {
+            $visibleColumns = array_values(array_filter(
+                array_keys($columnsMetadata),
+                fn($key) => !($columnsMetadata[$key]['exportOnly'] ?? false),
+            ));
+        }
+
+        return $visibleColumns;
+    }
+
+    /**
+     * Resolve hidden-but-active query dependency columns.
+     *
+     * @param array<string,mixed> $config Grid configuration.
+     * @param array<string,array<string,mixed>> $columnsMetadata
+     * @param array<string,mixed>|null $selectedSystemView
+     * @param mixed $currentView
+     * @return array<int,string>
+     */
+    private function resolveDataverseGridActiveColumns(
+        array $config,
+        array $columnsMetadata,
+        ?array $selectedSystemView,
+        mixed $currentView,
+    ): array {
+        $activeColumns = [];
+
+        $sort = $this->request->getQuery('sort');
+        if (is_string($sort) && $sort !== '') {
+            $activeColumns[] = $sort;
+        }
+
+        foreach (array_keys((array)$config['defaultSort']) as $sortField) {
+            if (is_string($sortField)) {
+                $activeColumns[] = $this->columnKeyForDataverseField($sortField, $columnsMetadata);
+            }
+        }
+
+        $filters = $this->request->getQuery('filter', []);
+        if (is_array($filters)) {
+            $activeColumns = array_merge($activeColumns, array_filter(array_keys($filters), 'is_string'));
+        }
+
+        foreach ($this->request->getQueryParams() as $key => $value) {
+            if (!is_string($key) || $value === null || $value === '') {
+                continue;
+            }
+            if (str_ends_with($key, '_start') || str_ends_with($key, '_end')) {
+                $activeColumns[] = preg_replace('/_(start|end)$/', '', $key) ?? $key;
+            }
+        }
+
+        $search = $this->request->getQuery('search');
+        if (is_string($search) && $search !== '') {
+            foreach ($columnsMetadata as $columnKey => $columnMeta) {
+                if (!empty($columnMeta['searchable'])) {
+                    $activeColumns[] = $columnKey;
+                }
+            }
+        }
+
+        $viewConfigs = [];
+        if ($selectedSystemView && isset($selectedSystemView['config']) && is_array($selectedSystemView['config'])) {
+            $viewConfigs[] = $selectedSystemView['config'];
+        }
+        if ($currentView && method_exists($currentView, 'getConfigArray')) {
+            $viewConfigs[] = $currentView->getConfigArray();
+        }
+
+        foreach ($viewConfigs as $viewConfig) {
+            $activeColumns = array_merge($activeColumns, $this->extractDataverseGridConfigColumnKeys($viewConfig));
+        }
+
+        return array_values(array_unique(array_filter($activeColumns, 'is_string')));
+    }
+
+    /**
+     * @param mixed $columns
+     * @return array<int,string>
+     */
+    private function normalizeDataverseGridColumnConfig(mixed $columns): array
+    {
+        if (!is_array($columns)) {
+            return [];
+        }
+
+        $firstColumn = reset($columns);
+        if (is_string($firstColumn)) {
+            return array_values(array_filter($columns, 'is_string'));
+        }
+
+        return GridViewConfig::extractVisibleColumns(['columns' => $columns]);
+    }
+
+    /**
+     * @param array<string,mixed> $config
+     * @return array<int,string>
+     */
+    private function extractDataverseGridConfigColumnKeys(array $config): array
+    {
+        $columns = [];
+
+        foreach (($config['filters'] ?? []) as $filter) {
+            if (is_array($filter) && isset($filter['field']) && is_string($filter['field'])) {
+                $columns[] = $filter['field'];
+            }
+        }
+
+        foreach (($config['sort'] ?? []) as $sort) {
+            if (is_array($sort) && isset($sort['field']) && is_string($sort['field'])) {
+                $columns[] = $sort['field'];
+            }
+        }
+
+        $this->collectDataverseExpressionColumnKeys($config['expression'] ?? [], $columns);
+
+        return $columns;
+    }
+
+    /**
+     * @param mixed $expression
+     * @param array<int,string> $columns
+     */
+    private function collectDataverseExpressionColumnKeys(mixed $expression, array &$columns): void
+    {
+        if (!is_array($expression)) {
+            return;
+        }
+
+        foreach ($expression as $key => $value) {
+            if (($key === 'field' || $key === 'column' || $key === 'columnKey') && is_string($value)) {
+                $columns[] = $value;
+            }
+            $this->collectDataverseExpressionColumnKeys($value, $columns);
+        }
+    }
+
+    /**
+     * @param array<string,array<string,mixed>> $columnsMetadata
+     */
+    private function columnKeyForDataverseField(string $field, array $columnsMetadata): string
+    {
+        if (isset($columnsMetadata[$field])) {
+            return $field;
+        }
+
+        foreach ($columnsMetadata as $columnKey => $columnMeta) {
+            if (($columnMeta['queryField'] ?? null) === $field) {
+                return $columnKey;
+            }
+        }
+
+        $fieldParts = explode('.', $field);
+        $fieldName = end($fieldParts);
+
+        return is_string($fieldName) && $fieldName !== '' ? $fieldName : $field;
     }
 
     /**
@@ -858,6 +1244,7 @@ trait DataverseGridTrait
      * @param bool $enableColumnPicker Whether column picker is available
      * @param array $skipFilterColumns Columns with filter UI but not query application
      * @param array $lockedFilters Filter column keys that cannot be removed by users
+     * @param array $bulkSelection Bulk selection accessibility label configuration
      * @return array Complete grid state
      */
     protected function buildDataverseGridState(
@@ -890,7 +1277,13 @@ trait DataverseGridTrait
         bool $enableColumnPicker,
         array $lockedFilters = [],
         bool $enableBulkSelection = false,
+        array $bulkSelection = [],
         array $bulkActions = [],
+        array $bulkSelectionDataFields = [],
+        ?string $bulkSelectionDisabledField = null,
+        bool $bulkSelectionHideDisabledControl = false,
+        bool $includeViewMetadata = true,
+        bool $includeAllColumns = true,
     ): array {
         // Format views based on whether we're using system or saved views
         $formattedViews = [];
@@ -898,20 +1291,29 @@ trait DataverseGridTrait
         $currentId = null;
         $currentName = 'All';
 
+        // Resolve the active view's id/name independent of whether the full view
+        // catalog is serialized. Table-frame (minimal metadata) responses still
+        // apply the selected view to the underlying query, so the state must
+        // report which view is active. Otherwise the toolbar loses its
+        // selected-tab indication after a view switch (a11y: WCAG 4.1.2 — the
+        // tab's selected state is no longer conveyed). The available-views
+        // catalog stays gated on $includeViewMetadata below (perf optimization).
         if ($systemViews !== null) {
-            // System views mode - add system views first
-            $effectiveDefaultId = $preferredViewId ?? array_key_first($systemViews);
-
-            // Set current view info (could be system view OR user view)
             if ($currentView) {
-                // User view is active
                 $currentId = $currentView->id;
                 $currentName = $currentView->name;
             } elseif ($selectedSystemView) {
-                // System view is active
                 $currentId = $selectedSystemView['id'];
                 $currentName = $selectedSystemView['name'];
             }
+        } elseif ($currentView) {
+            $currentId = $currentView->id;
+            $currentName = $currentView->name;
+        }
+
+        if ($includeViewMetadata && $systemViews !== null) {
+            // System views mode - add system views first
+            $effectiveDefaultId = $preferredViewId ?? array_key_first($systemViews);
 
             foreach ($systemViews as $view) {
                 $isPreferred = $preferredViewId !== null && $view['id'] === $preferredViewId;
@@ -941,7 +1343,7 @@ trait DataverseGridTrait
                     'canManage' => $currentMember instanceof Member && $view->member_id === $currentMember->id,
                 ];
             }
-        } else {
+        } elseif ($includeViewMetadata) {
             // Saved views mode
             foreach ($availableViews as $view) {
                 $isPreferred = $preferredViewId !== null && (int)$view->id === $preferredViewId;
@@ -959,11 +1361,6 @@ trait DataverseGridTrait
                     'isSystemDefault' => $view->isSystemDefault(),
                     'canManage' => $currentMember instanceof Member && $view->member_id === $currentMember->id,
                 ];
-            }
-
-            if ($currentView) {
-                $currentId = $currentView->id;
-                $currentName = $currentView->name;
             }
         }
 
@@ -1023,14 +1420,14 @@ trait DataverseGridTrait
                     : ($selectedSystemView && $preferredViewId !== null
                         && $selectedSystemView['id'] === $preferredViewId),
                 'isUserDefault' => $currentView ? $currentView->isUserDefault() : ($preferredViewId !== null),
-                'available' => $formattedViews,
+                'available' => $includeViewMetadata ? $formattedViews : [],
             ],
             'search' => $search,
             'filters' => $filterState,
             'sort' => $sort,
             'columns' => [
                 'visible' => $visibleColumns,
-                'all' => $allColumns,
+                'all' => $includeAllColumns ? $allColumns : [],
             ],
             'config' => [
                 'gridKey' => $gridKey,
@@ -1048,10 +1445,137 @@ trait DataverseGridTrait
                 'enableColumnPicker' => $enableColumnPicker,
                 'lockedFilters' => $lockedFilters,
                 'enableBulkSelection' => $enableBulkSelection,
+                'bulkSelection' => $bulkSelection,
                 'bulkActions' => $bulkActions,
+                'bulkSelectionDataFields' => $bulkSelectionDataFields,
+                'bulkSelectionDisabledField' => $bulkSelectionDisabledField,
+                'bulkSelectionHideDisabledControl' => $bulkSelectionHideDisabledControl,
             ],
             'dateRangeFilterColumns' => $dateRangeFilterColumns,
         ];
+    }
+
+    /**
+     * Render consistent dataverse grid responses for outer/table turbo frames.
+     *
+     * @param array<string,mixed> $result processDataverseGrid() result
+     * @param string $frameId Outer frame id (e.g. members-grid)
+     * @param string|null $collectionVar Optional collection variable name to set (e.g. members)
+     * @param array<string,mixed> $extraViewVars Additional vars to expose to template
+     * @return void
+     */
+    protected function renderDataverseGridResponse(
+        array $result,
+        string $frameId,
+        ?string $collectionVar = null,
+        array $extraViewVars = [],
+    ): void {
+        $data = $result['data'];
+        $viewVars = [
+            'data' => $data,
+            'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
+        ];
+
+        if ($collectionVar !== null) {
+            $viewVars[$collectionVar] = $data;
+        }
+        if ($extraViewVars !== []) {
+            $viewVars = array_merge($viewVars, $extraViewVars);
+        }
+
+        $this->set($viewVars);
+
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+        $tableFrameId = $frameId . '-table';
+        $this->viewBuilder()->setPlugin(null);
+        $this->viewBuilder()->disableAutoLayout();
+        $this->viewBuilder()->setTemplatePath('element');
+        if ($turboFrame === $tableFrameId) {
+            $this->set('tableFrameId', $tableFrameId);
+            $this->viewBuilder()->setTemplate('dv_grid_table');
+
+            return;
+        }
+
+        $this->set('frameId', $frameId);
+        $this->viewBuilder()->setTemplate('dv_grid_content');
+    }
+
+    /**
+     * @return bool Whether request is for inner table frame.
+     */
+    protected function isDataverseTableFrameRequest(): bool
+    {
+        $turboFrame = $this->request->getHeaderLine('Turbo-Frame');
+
+        return is_string($turboFrame) && str_ends_with($turboFrame, '-table');
+    }
+
+    /**
+     * Load and cache available views for the current request.
+     *
+     * @param string $gridKey Grid identifier
+     * @param int $memberId Authenticated member id
+     * @return array<int,mixed>
+     */
+    protected function loadAvailableViews(string $gridKey, int $memberId): array
+    {
+        $cache = (array)$this->request->getAttribute('__dataverse_grid_cache', []);
+        $cacheKey = "views:$gridKey:$memberId";
+        if (isset($cache[$cacheKey]) && is_array($cache[$cacheKey])) {
+            return $cache[$cacheKey];
+        }
+
+        $views = $this->fetchTable('GridViews')
+            ->find('byGrid', ['gridKey' => $gridKey, 'memberId' => $memberId])
+            ->all()
+            ->toList();
+        $cache[$cacheKey] = $views;
+        $this->request = $this->request->withAttribute('__dataverse_grid_cache', $cache);
+
+        return $views;
+    }
+
+    /**
+     * Load filter options with per-request cache.
+     *
+     * @param array|string $source filterOptionsSource configuration
+     * @return array<int,array{value:string,label:string}>
+     */
+    protected function loadFilterOptionsCached(string|array $source): array
+    {
+        $cache = (array)$this->request->getAttribute('__dataverse_grid_cache', []);
+        $cacheKey = 'filter-options:' . md5(json_encode($source));
+        if (isset($cache[$cacheKey]) && is_array($cache[$cacheKey])) {
+            return $cache[$cacheKey];
+        }
+
+        $persistentCacheKey = TenantAwareCache::tenantScopedKey($cacheKey);
+        $persistentOptions = Cache::read($persistentCacheKey, 'grid_filter_options');
+        if (is_array($persistentOptions)) {
+            $cache[$cacheKey] = $persistentOptions;
+            $this->request = $this->request->withAttribute('__dataverse_grid_cache', $cache);
+
+            return $persistentOptions;
+        }
+
+        $options = $this->loadFilterOptions($source);
+        $cache[$cacheKey] = $options;
+        Cache::write($persistentCacheKey, $options, 'grid_filter_options');
+        $this->request = $this->request->withAttribute('__dataverse_grid_cache', $cache);
+
+        return $options;
     }
 
     /**
@@ -1172,6 +1696,43 @@ trait DataverseGridTrait
             array_keys($results),
             $results,
         );
+    }
+
+    /**
+     * Convert a date boundary string from kingdom timezone to UTC for SQL comparison.
+     *
+     * The database stores datetimes in UTC. Date-range filters use kingdom-timezone dates
+     * (e.g., "today" = 2026-04-09 in US/Eastern). Without conversion, a SQL comparison
+     * like `start_on <= '2026-04-09 23:59:59'` would miss records stored as
+     * '2026-04-10 03:00:00' UTC (which is still April 9 in Eastern).
+     *
+     * @param string $dateValue Date string (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)
+     * @param bool $isStart True for start-of-day boundary (00:00:00), false for end-of-day (23:59:59)
+     * @return string UTC datetime string for SQL comparison
+     */
+    protected function convertDateBoundaryToUtc(string $dateValue, bool $isStart): string
+    {
+        // Only convert date-only strings; full datetime strings pass through as-is
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateValue)) {
+            return $dateValue;
+        }
+
+        $kingdomTz = TzHelper::getAppTimezone() ?? 'UTC';
+
+        // If kingdom timezone is UTC, use the simple approach (no conversion needed)
+        if ($kingdomTz === 'UTC') {
+            return $isStart ? $dateValue : $dateValue . ' 23:59:59';
+        }
+
+        // Build the boundary datetime in the kingdom timezone, then convert to UTC
+        $boundaryTime = $isStart ? '00:00:00' : '23:59:59';
+        $kingdomDatetime = new DateTime(
+            $dateValue . ' ' . $boundaryTime,
+            new DateTimeZone($kingdomTz),
+        );
+        $kingdomDatetime->setTimezone(new DateTimeZone('UTC'));
+
+        return $kingdomDatetime->format('Y-m-d H:i:s');
     }
 
     /**

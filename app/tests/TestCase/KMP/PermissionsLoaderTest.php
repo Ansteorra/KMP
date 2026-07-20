@@ -6,6 +6,7 @@ namespace App\Test\TestCase\KMP;
 use App\KMP\PermissionsLoader;
 use App\Model\Entity\Permission;
 use App\Test\TestCase\BaseTestCase;
+use Cake\Cache\Cache;
 
 class PermissionsLoaderTest extends BaseTestCase
 {
@@ -60,6 +61,24 @@ class PermissionsLoaderTest extends BaseTestCase
         $this->assertEquals($first[$sampleId]->scoping_rule, $second[$sampleId]->scoping_rule);
     }
 
+    public function testEmptyPermissionCacheEntryIsRecomputed(): void
+    {
+        Cache::write('member_permissions' . self::ADMIN_MEMBER_ID, [], 'member_permissions');
+
+        $permissions = PermissionsLoader::getPermissions(self::ADMIN_MEMBER_ID);
+
+        $this->assertNotEmpty($permissions);
+    }
+
+    public function testEmptyPolicyCacheEntryIsRecomputed(): void
+    {
+        Cache::write('permissions_policies' . self::ADMIN_MEMBER_ID, [], 'member_permissions');
+
+        $policies = PermissionsLoader::getPolicies(self::ADMIN_MEMBER_ID);
+
+        $this->assertNotEmpty($policies);
+    }
+
     public function testBranchScopedPermissionLoadsForBryce(): void
     {
         $this->skipIfPostgres();
@@ -96,6 +115,45 @@ class PermissionsLoaderTest extends BaseTestCase
             }
         }
         $this->assertTrue($foundHierarchical, 'Devon should have hierarchical permissions from multiple regions');
+    }
+
+    public function testBranchFilteredPoliciesDoNotPoisonUnfilteredPolicyCache(): void
+    {
+        $this->skipIfPostgres();
+        Cache::clearGroup('member_permissions');
+
+        $centralPolicies = PermissionsLoader::getPolicies(
+            self::TEST_MEMBER_DEVON_ID,
+            [self::TEST_BRANCH_CENTRAL_REGION_ID],
+        );
+        $centralBranchIds = $this->collectPolicyBranchIds($centralPolicies);
+        $this->assertNotContains(self::TEST_BRANCH_SOUTHERN_REGION_ID, $centralBranchIds);
+
+        $allPolicies = PermissionsLoader::getPolicies(self::TEST_MEMBER_DEVON_ID);
+        $allBranchIds = $this->collectPolicyBranchIds($allPolicies);
+        $this->assertContains(
+            self::TEST_BRANCH_SOUTHERN_REGION_ID,
+            $allBranchIds,
+            'Unfiltered policy loads must not reuse a prior branch-filtered cache entry',
+        );
+    }
+
+    /**
+     * @param array $policies Policy map returned by PermissionsLoader
+     * @return int[]
+     */
+    private function collectPolicyBranchIds(array $policies): array
+    {
+        $branchIds = [];
+        foreach ($policies as $methods) {
+            foreach ($methods as $policy) {
+                if (!empty($policy->branch_ids)) {
+                    $branchIds = array_merge($branchIds, $policy->branch_ids);
+                }
+            }
+        }
+
+        return array_values(array_unique($branchIds));
     }
 
     public function testDifferentMembersHaveDifferentPermissionSets(): void

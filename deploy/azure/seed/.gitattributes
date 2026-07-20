@@ -1,0 +1,3 @@
+# Encrypted, gzipped KMP backups are binary blobs — don't try to diff or merge
+# them, and don't apply text conversion (CRLF/LF).
+*.kmpbackup binary -text -diff -merge

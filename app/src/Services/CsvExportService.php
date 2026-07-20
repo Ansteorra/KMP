@@ -47,12 +47,12 @@ class CsvExportService
                 if ($headers === null) {
                     $headers = array_keys($firstRow);
                 }
-                fputcsv($fh, $headers);
+                fputcsv($fh, array_map([$this, 'sanitizeCell'], $headers));
             }
             // Ensure row is in the same order as headers
             $rowData = [];
             foreach ($headers as $header) {
-                $rowData[] = $row[$header] ?? '';
+                $rowData[] = $this->sanitizeCell($row[$header] ?? '');
             }
             fputcsv($fh, $rowData);
         }
@@ -68,5 +68,24 @@ class CsvExportService
             ->withHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
 
         return $response;
+    }
+
+    /**
+     * Prefix formula-like spreadsheet cells so CSV consumers treat them as text.
+     *
+     * @param mixed $value Cell value
+     * @return mixed Sanitized value
+     */
+    private function sanitizeCell(mixed $value): mixed
+    {
+        if (!is_string($value) || $value === '') {
+            return $value;
+        }
+
+        if (in_array($value[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+            return "'" . $value;
+        }
+
+        return $value;
     }
 }

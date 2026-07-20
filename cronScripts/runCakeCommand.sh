@@ -5,7 +5,7 @@
 # Usage examples:
 #   ./runCakeCommand.sh --workdir /home/user/app sync_active_window_statuses --dry-run
 #   ./runCakeCommand.sh --workdir /home/user/app --php-bin /usr/bin/php queue run -q
-#   CAKE_WORKDIR=/home/user/app ./runCakeCommand.sh queue run --max-jobs 5
+#   CAKE_WORKDIR=/home/user/app ./runCakeCommand.sh queue run -q
 #
 # Optional environment variables:
 #   CAKE_WORKDIR   Default workdir if --workdir is omitted

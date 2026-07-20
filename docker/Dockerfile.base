@@ -3,7 +3,7 @@
 # Contains all PHP extensions pre-compiled. Built infrequently (only when
 # PHP extensions or base OS packages change). Rebuilt via .github/workflows/base.yml.
 #
-# Published to: ghcr.io/jhandel/kmp-base:php83
+# Published to: ghcr.io/jhandel/kmp-base:php84
 # Used by: docker/Dockerfile.prod as the production runtime base
 #
 # Uses mlocati/php-extension-installer — the industry-standard PHP extension
@@ -11,10 +11,10 @@
 # itself, and uses pre-built packages wherever available instead of make.
 # See: https://github.com/mlocati/docker-php-extension-installer
 
-FROM php:8.3-apache-bookworm
+FROM php:8.4-apache-bookworm
 
 LABEL org.opencontainers.image.source="https://github.com/jhandel/KMP"
-LABEL org.opencontainers.image.description="KMP base image - PHP 8.3 + Apache + all extensions"
+LABEL org.opencontainers.image.description="KMP base image - PHP 8.4 + Apache + all extensions"
 
 # Install mlocati/php-extension-installer — handles deps, compilation, and
 # cleanup automatically. Uses pre-built packages when available.
@@ -30,21 +30,31 @@ RUN install-php-extensions \
         bcmath \
         bz2 \
         gd \
+        grpc-1.82.0 \
         intl \
         mysqli \
         opcache \
         pdo_mysql \
         pdo_pgsql \
+        protobuf \
         redis \
         zip \
         apcu \
         yaml \
     # Runtime tools (kept permanently in the image)
     && apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
         curl \
         default-mysql-client \
-        postgresql-client \
         cron \
+    && install -d /usr/share/postgresql-common/pgdg \
+    && curl --fail --silent --show-error \
+        -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+        https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        postgresql-client-16 \
     && rm -rf /var/lib/apt/lists/*
 
 # PHP production configuration

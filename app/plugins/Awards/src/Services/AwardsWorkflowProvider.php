@@ -1,0 +1,785 @@
+<?php
+declare(strict_types=1);
+
+namespace Awards\Services;
+
+use App\Services\WorkflowRegistry\WorkflowActionRegistry;
+use App\Services\WorkflowRegistry\WorkflowApproverResolverRegistry;
+use App\Services\WorkflowRegistry\WorkflowConditionRegistry;
+use App\Services\WorkflowRegistry\WorkflowEntityRegistry;
+use App\Services\WorkflowRegistry\WorkflowTriggerRegistry;
+use Awards\Model\Table\BestowalsTable;
+use Awards\Model\Table\RecommendationsTable;
+
+/**
+ * Registers award recommendation workflow triggers, actions, conditions,
+ * and entities with the workflow registries.
+ */
+class AwardsWorkflowProvider
+{
+    private const SOURCE = 'Awards';
+
+    /**
+     * Register all award workflow components.
+     *
+     * @return void
+     */
+    public static function register(): void
+    {
+        self::registerTriggers();
+        self::registerActions();
+        self::registerConditions();
+        self::registerApproverResolvers();
+        self::registerEntities();
+    }
+
+    /**
+     * Register dynamic approver resolvers supplied by Awards.
+     *
+     * @return void
+     */
+    private static function registerApproverResolvers(): void
+    {
+        WorkflowApproverResolverRegistry::register(self::SOURCE, [
+            [
+                'resolver' => 'Awards.ResolveApprovalStepApprovers',
+                'label' => 'Award approval step approvers',
+                'description' => 'Resolve eligible approvers for the current configured award approval process step.',
+                'serviceClass' => RecommendationApprovalProcessService::class,
+                'serviceMethod' => 'resolveConfiguredApproverIds',
+                'configSchema' => [
+                    'award_approval_run_id' => ['type' => 'integer', 'label' => 'Approval Run ID'],
+                    'award_approval_step_key' => ['type' => 'string', 'label' => 'Approval Step Key'],
+                    'award_approval_approver_type' => ['type' => 'string', 'label' => 'Approval Target Type'],
+                    'award_approval_approver_source_id' => ['type' => 'integer', 'label' => 'Approval Target ID'],
+                    'award_approval_approver_source_key' => ['type' => 'string', 'label' => 'Approval Target Key'],
+                    'award_approval_branch_mode' => ['type' => 'string', 'label' => 'Approval Branch Mode'],
+                    'award_approval_branch_type' => ['type' => 'string', 'label' => 'Approval Branch Type'],
+                    'award_approval_threshold_mode' => ['type' => 'string', 'label' => 'Approval Threshold Mode'],
+                    'award_approval_required_count' => ['type' => 'integer', 'label' => 'Approval Required Count'],
+                    'member_id' => ['type' => 'integer', 'label' => 'Explicit Member ID'],
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * @return void
+     */
+    private static function registerTriggers(): void
+    {
+        WorkflowTriggerRegistry::register(self::SOURCE, [
+            [
+                'event' => 'Awards.RecommendationCreateRequested',
+                'label' => 'Recommendation Create Requested',
+                'description' => 'When a workflow should create a recommendation from submitted form data',
+                'payloadSchema' => [
+                    'data' => ['type' => 'object', 'label' => 'Recommendation Data'],
+                    'requesterContext' => ['type' => 'object', 'label' => 'Authenticated Requester Context'],
+                    'submissionMode' => ['type' => 'string', 'label' => 'Submission Mode'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                    'branchId' => ['type' => 'integer', 'label' => 'Branch ID'],
+                ],
+            ],
+            [
+                'event' => 'Awards.RecommendationSubmitted',
+                'label' => 'Recommendation Submitted',
+                'description' => 'When a new award recommendation is submitted',
+                'payloadSchema' => [
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID'],
+                    'awardId' => ['type' => 'integer', 'label' => 'Award ID'],
+                    'memberId' => ['type' => 'integer', 'label' => 'Member ID'],
+                    'requesterId' => ['type' => 'integer', 'label' => 'Requester ID'],
+                    'branchId' => ['type' => 'integer', 'label' => 'Branch ID'],
+                    'state' => ['type' => 'string', 'label' => 'Initial State'],
+                    'memberScaName' => ['type' => 'string', 'label' => 'Member SCA Name'],
+                    'awardName' => ['type' => 'string', 'label' => 'Award Name'],
+                    'reason' => ['type' => 'string', 'label' => 'Recommendation Reason'],
+                    'contactEmail' => ['type' => 'string', 'label' => 'Contact Email'],
+                ],
+            ],
+            [
+                'event' => 'Awards.RecommendationUpdateRequested',
+                'label' => 'Recommendation Update Requested',
+                'description' => 'When a workflow should update an existing recommendation',
+                'payloadSchema' => [
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID'],
+                    'data' => ['type' => 'object', 'label' => 'Updated Recommendation Data'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+            ],
+            [
+                'event' => 'Awards.ExistingRecommendationApprovalRequested',
+                'label' => 'Existing Recommendation Approval Requested',
+                'description' => 'When a workflow should start the approval process for an existing recommendation',
+                'payloadSchema' => [
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+            ],
+            [
+                'event' => 'Awards.RecommendationsGroupRequested',
+                'label' => 'Recommendations Group Requested',
+                'description' => 'When selected recommendations should be grouped under a shared head',
+                'payloadSchema' => [
+                    'recommendationIds' => ['type' => 'array', 'label' => 'Recommendation IDs'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+            ],
+            [
+                'event' => 'Awards.RecommendationsUngroupRequested',
+                'label' => 'Recommendations Ungroup Requested',
+                'description' => 'When all children should be removed from a recommendation group',
+                'payloadSchema' => [
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Group Head Recommendation ID'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+            ],
+            [
+                'event' => 'Awards.RecommendationRemoveFromGroupRequested',
+                'label' => 'Recommendation Remove From Group Requested',
+                'description' => 'When a single grouped recommendation should be restored to its origin state',
+                'payloadSchema' => [
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Grouped Recommendation ID'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+            ],
+            [
+                'event' => 'Awards.RecommendationDeleteRequested',
+                'label' => 'Recommendation Delete Requested',
+                'description' => 'When a workflow should delete an existing recommendation',
+                'payloadSchema' => [
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+            ],
+            [
+                'event' => RecommendationFeedbackService::EVENT_FEEDBACK_REQUESTED,
+                'label' => 'Recommendation Feedback Requested',
+                'description' => 'When one recipient is asked to provide feedback on a recommendation request',
+                'payloadSchema' => self::feedbackPayloadSchema(),
+            ],
+            [
+                'event' => RecommendationFeedbackService::EVENT_FEEDBACK_RETURNED,
+                'label' => 'Recommendation Feedback Returned',
+                'description' => 'When a feedback recipient submits their feedback comment',
+                'payloadSchema' => self::feedbackPayloadSchema([
+                    'responseComment' => ['type' => 'string', 'label' => 'Feedback Comment'],
+                ]),
+            ],
+            [
+                'event' => RecommendationFeedbackService::EVENT_FEEDBACK_RETRACTED,
+                'label' => 'Recommendation Feedback Retracted',
+                'description' => 'When a pending recommendation feedback request is retracted for one recipient',
+                'payloadSchema' => self::feedbackPayloadSchema([
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ]),
+            ],
+            [
+                'event' => RecommendationFeedbackService::EVENT_FEEDBACK_EXPIRED,
+                'label' => 'Recommendation Feedback Expired',
+                'description' => 'When one recipient misses the recommendation feedback deadline',
+                'payloadSchema' => self::feedbackPayloadSchema(),
+            ],
+            [
+                'event' => 'Awards.BestowalUpdateRequested',
+                'label' => 'Bestowal Update Requested',
+                'description' => 'When a bestowal edit form is submitted',
+                'payloadSchema' => [
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID'],
+                    'data' => ['type' => 'object', 'label' => 'Update Data'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+            ],
+            [
+                'event' => 'Awards.BestowalCreated',
+                'label' => 'Bestowal Created',
+                'description' => 'When a new bestowal is created from recommendations or ad-hoc entry',
+                'payloadSchema' => [
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID'],
+                    'recommendationIds' => ['type' => 'array', 'label' => 'Recommendation IDs'],
+                    'primaryRecommendationId' => ['type' => 'integer', 'label' => 'Primary Recommendation ID'],
+                    'memberId' => ['type' => 'integer', 'label' => 'Member ID'],
+                    'memberScaName' => ['type' => 'string', 'label' => 'Member SCA Name'],
+                    'gatheringId' => ['type' => 'integer', 'label' => 'Gathering ID'],
+                    'status' => ['type' => 'string', 'label' => 'Status'],
+                    'state' => ['type' => 'string', 'label' => 'State'],
+                    'source' => ['type' => 'string', 'label' => 'Source'],
+                ],
+            ],
+            [
+                'event' => 'Awards.BestowalCancelRequested',
+                'label' => 'Bestowal Cancel Requested',
+                'description' => 'When a workflow should cancel an in-flight bestowal',
+                'payloadSchema' => [
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID'],
+                    'closeReason' => ['type' => 'string', 'label' => 'Close Reason'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+            ],
+            [
+                'event' => 'Awards.BestowalCancelled',
+                'label' => 'Bestowal Cancelled',
+                'description' => 'When a bestowal has been cancelled and recommendations unwound',
+                'payloadSchema' => [
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID'],
+                    'recommendationIds' => ['type' => 'array', 'label' => 'Recommendation IDs'],
+                    'closeReason' => ['type' => 'string', 'label' => 'Close Reason'],
+                    'unwindState' => ['type' => 'string', 'label' => 'Unwind Recommendation State'],
+                    'memberId' => ['type' => 'integer', 'label' => 'Member ID'],
+                    'previousState' => ['type' => 'string', 'label' => 'Previous State'],
+                    'newState' => ['type' => 'string', 'label' => 'New State'],
+                ],
+            ],
+            [
+                'event' => 'Awards.AdHocBestowalRequested',
+                'label' => 'Ad Hoc Bestowal Requested',
+                'description' => 'When a workflow should record a bestowal that was granted without a recommendation',
+                'payloadSchema' => [
+                    'data' => ['type' => 'object', 'label' => 'Ad Hoc Bestowal Data'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * Build the common workflow trigger schema for recommendation feedback events.
+     *
+     * @param array<string, array<string, mixed>> $extra Event-specific fields.
+     * @return array<string, array<string, mixed>>
+     */
+    private static function feedbackPayloadSchema(array $extra = []): array
+    {
+        return $extra + [
+            'feedbackRequestId' => ['type' => 'integer', 'label' => 'Feedback Request ID'],
+            'feedbackRequestRecipientId' => ['type' => 'integer', 'label' => 'Feedback Request Recipient ID'],
+            'entityType' => ['type' => 'string', 'label' => 'Entity Type'],
+            'entityId' => ['type' => 'integer', 'label' => 'Entity ID'],
+            'requestStatus' => ['type' => 'string', 'label' => 'Request Status'],
+            'recipientStatus' => ['type' => 'string', 'label' => 'Recipient Status'],
+            'requesterId' => ['type' => 'integer', 'label' => 'Requester Member ID'],
+            'requesterScaName' => ['type' => 'string', 'label' => 'Requester SCA Name'],
+            'requesterEmail' => ['type' => 'string', 'label' => 'Requester Email'],
+            'recipientId' => ['type' => 'integer', 'label' => 'Recipient Member ID'],
+            'recipientScaName' => ['type' => 'string', 'label' => 'Recipient SCA Name'],
+            'recipientEmail' => ['type' => 'string', 'label' => 'Recipient Email'],
+            'workflowInstanceId' => ['type' => 'integer', 'label' => 'Workflow Instance ID'],
+            'workflowApprovalId' => ['type' => 'integer', 'label' => 'Workflow Approval ID'],
+            'workflowApprovalResponseId' => ['type' => 'integer', 'label' => 'Workflow Approval Response ID'],
+            'message' => ['type' => 'string', 'label' => 'Requester Message'],
+            'deadline' => ['type' => 'datetime', 'label' => 'Feedback Deadline'],
+            'expires_on' => ['type' => 'datetime', 'label' => 'Feedback Expires On'],
+            'expiresOn' => ['type' => 'datetime', 'label' => 'Feedback Expires On'],
+            'respondedAt' => ['type' => 'datetime', 'label' => 'Responded At'],
+            'retractedAt' => ['type' => 'datetime', 'label' => 'Retracted At'],
+            'expiredAt' => ['type' => 'datetime', 'label' => 'Expired At'],
+            'responseComment' => ['type' => 'string', 'label' => 'Feedback Comment'],
+            'recommendationIds' => ['type' => 'array', 'label' => 'Recommendation IDs'],
+            'primaryRecommendationId' => ['type' => 'integer', 'label' => 'Primary Recommendation ID'],
+            'recommendationCount' => ['type' => 'integer', 'label' => 'Recommendation Count'],
+            'recommendations' => ['type' => 'array', 'label' => 'Recommendation Snapshots'],
+        ];
+    }
+
+    /**
+     * @return void
+     */
+    private static function registerActions(): void
+    {
+        $actionsClass = AwardsWorkflowActions::class;
+
+        WorkflowActionRegistry::register(self::SOURCE, [
+            [
+                'action' => 'Awards.StartApprovalProcess',
+                'label' => 'Start Award Approval Process',
+                'description' => 'Create or reuse the award approval run projection for a recommendation.',
+                'inputSchema' => [
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID', 'required' => true],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Started'],
+                    'runId' => ['type' => 'integer', 'label' => 'Approval Run ID'],
+                    'currentStepKey' => ['type' => 'string', 'label' => 'Current Step Key'],
+                    'currentStepLabel' => ['type' => 'string', 'label' => 'Current Step Label'],
+                    'approverIds' => ['type' => 'array', 'label' => 'Eligible Approver IDs'],
+                    'requiredCount' => ['type' => 'integer', 'label' => 'Required Approval Count'],
+                    'approvalApproverConfig' => ['type' => 'object', 'label' => 'Approval Approver Config'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'startApprovalProcess',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.AdvanceApprovalProcess',
+                'label' => 'Advance Award Approval Process',
+                'description' => 'Update the approval run projection after the current approval step resolves.',
+                'inputSchema' => [
+                    'approvalNodeId' => [
+                        'type' => 'string',
+                        'label' => 'Approval Node ID',
+                        'description' => 'Approval node whose decision/status should advance this configured step.',
+                    ],
+                    'approvalStatus' => ['type' => 'string', 'label' => 'Approval Status'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Advanced'],
+                    'runId' => ['type' => 'integer', 'label' => 'Approval Run ID'],
+                    'status' => ['type' => 'string', 'label' => 'Run Status'],
+                    'currentStepKey' => ['type' => 'string', 'label' => 'Current Step Key'],
+                    'currentStepLabel' => ['type' => 'string', 'label' => 'Current Step Label'],
+                    'approverIds' => ['type' => 'array', 'label' => 'Eligible Approver IDs'],
+                    'requiredCount' => ['type' => 'integer', 'label' => 'Required Approval Count'],
+                    'completed' => ['type' => 'boolean', 'label' => 'Process Completed'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'advanceApprovalProcess',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.CreateRecommendation',
+                'label' => 'Create Recommendation',
+                'description' => 'Create a new award recommendation with initial status and state',
+                'inputSchema' => [
+                    'awardId' => ['type' => 'integer', 'label' => 'Award ID', 'required' => true],
+                    'requesterScaName' => ['type' => 'string', 'label' => 'Requester SCA Name', 'required' => true],
+                    'memberScaName' => ['type' => 'string', 'label' => 'Member SCA Name', 'required' => true],
+                    'contactEmail' => ['type' => 'string', 'label' => 'Contact Email', 'required' => true],
+                    'reason' => ['type' => 'string', 'label' => 'Reason', 'required' => true],
+                    'requesterId' => ['type' => 'integer', 'label' => 'Requester ID'],
+                    'memberId' => ['type' => 'integer', 'label' => 'Member ID'],
+                    'memberPublicId' => ['type' => 'string', 'label' => 'Member Public ID'],
+                    'branchId' => ['type' => 'integer', 'label' => 'Branch ID'],
+                    'data' => ['type' => 'object', 'label' => 'Recommendation Data'],
+                    'requesterContext' => ['type' => 'object', 'label' => 'Authenticated Requester Context'],
+                    'submissionMode' => ['type' => 'string', 'label' => 'Submission Mode'],
+                    'notFound' => ['type' => 'boolean', 'label' => 'Member Not Found'],
+                    'gatheringIds' => ['type' => 'array', 'label' => 'Gathering IDs'],
+                    'gatherings' => ['type' => 'object', 'label' => 'Gathering Association Data'],
+                    'status' => ['type' => 'string', 'label' => 'Initial Status'],
+                    'state' => ['type' => 'string', 'label' => 'Initial State'],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Creation Successful'],
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID'],
+                    'eventPayload' => ['type' => 'object', 'label' => 'Submission Event Payload'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'createRecommendation',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.UpdateRecommendation',
+                'label' => 'Update Recommendation',
+                'description' => 'Update an existing recommendation using the shared mutation service',
+                'inputSchema' => [
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID', 'required' => true],
+                    'data' => ['type' => 'object', 'label' => 'Recommendation Data'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID', 'required' => true],
+                    'memberPublicId' => ['type' => 'string', 'label' => 'Member Public ID'],
+                    'gatheringIds' => ['type' => 'array', 'label' => 'Gathering IDs'],
+                    'note' => ['type' => 'string', 'label' => 'Update Note'],
+                    'given' => ['type' => 'string', 'label' => 'Given Date'],
+                    'notFound' => ['type' => 'boolean', 'label' => 'Member Not Found'],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Update Successful'],
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID'],
+                    'noteId' => ['type' => 'integer', 'label' => 'Created Note ID'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'updateRecommendation',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.GroupRecommendations',
+                'label' => 'Group Recommendations',
+                'description' => 'Group multiple recommendations under a shared head recommendation',
+                'inputSchema' => [
+                    'recommendationIds' => ['type' => 'array', 'label' => 'Recommendation IDs', 'required' => true],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Grouping Successful'],
+                    'headId' => ['type' => 'integer', 'label' => 'Group Head Recommendation ID'],
+                    'groupedCount' => ['type' => 'integer', 'label' => 'Grouped Count'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'groupRecommendations',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.UngroupRecommendations',
+                'label' => 'Ungroup Recommendations',
+                'description' => 'Restore all grouped children back to their origin states',
+                'inputSchema' => [
+                    'recommendationId' => [
+                        'type' => 'integer',
+                        'label' => 'Group Head Recommendation ID',
+                        'required' => true,
+                    ],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Ungroup Successful'],
+                    'headId' => ['type' => 'integer', 'label' => 'Group Head Recommendation ID'],
+                    'restoredCount' => ['type' => 'integer', 'label' => 'Restored Child Count'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'ungroupRecommendations',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.RemoveRecommendationFromGroup',
+                'label' => 'Remove Recommendation From Group',
+                'description' => 'Restore a single grouped recommendation and auto-restore the final child when needed',
+                'inputSchema' => [
+                    'recommendationId' => [
+                        'type' => 'integer',
+                        'label' => 'Grouped Recommendation ID',
+                        'required' => true,
+                    ],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Removal Successful'],
+                    'formerHeadId' => ['type' => 'integer', 'label' => 'Former Group Head Recommendation ID'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'removeRecommendationFromGroup',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.DeleteRecommendation',
+                'label' => 'Delete Recommendation',
+                'description' => 'Soft-delete a recommendation and restore grouped children when deleting a head',
+                'inputSchema' => [
+                    'recommendationId' => [
+                        'type' => 'integer',
+                        'label' => 'Recommendation ID',
+                        'required' => true,
+                    ],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Delete Successful'],
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID'],
+                    'restoredChildCount' => ['type' => 'integer', 'label' => 'Restored Child Count'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'deleteRecommendation',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.CreateStateLog',
+                'label' => 'Create State Log',
+                'description' => 'Record a state transition in the audit log',
+                'inputSchema' => [
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID', 'required' => true],
+                    'fromState' => ['type' => 'string', 'label' => 'From State', 'required' => true],
+                    'toState' => ['type' => 'string', 'label' => 'To State', 'required' => true],
+                    'fromStatus' => ['type' => 'string', 'label' => 'From Status'],
+                    'toStatus' => ['type' => 'string', 'label' => 'To Status'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID'],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Log Created'],
+                    'logId' => ['type' => 'integer', 'label' => 'Log Entry ID'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'createStateLog',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.AssignGathering',
+                'label' => 'Assign Gathering',
+                'description' => 'Link a recommendation to a gathering for presentation',
+                'inputSchema' => [
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID', 'required' => true],
+                    'gatheringId' => ['type' => 'integer', 'label' => 'Gathering ID', 'required' => true],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Assignment Successful'],
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID'],
+                    'gatheringId' => ['type' => 'integer', 'label' => 'Gathering ID'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'assignGathering',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.PullCourtPreferences',
+                'label' => 'Pull Court Preferences',
+                'description' => 'Look up court availability preferences for the recommendation member',
+                'inputSchema' => [
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID', 'required' => true],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Lookup Successful'],
+                    'courtAvailability' => ['type' => 'string', 'label' => 'Court Availability'],
+                    'callIntoCourt' => ['type' => 'string', 'label' => 'Call Into Court'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'pullCourtPreferences',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.CreateBestowal',
+                'label' => 'Create Bestowal',
+                'description' => 'Create a bestowal from a single recommendation',
+                'inputSchema' => [
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID', 'required' => true],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID', 'required' => true],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Creation Successful'],
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID'],
+                    'eventPayload' => ['type' => 'object', 'label' => 'Creation Event Payload'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'createBestowal',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.CreateBestowalsForRecommendations',
+                'label' => 'Create Bestowals For Recommendations',
+                'description' => 'Create bestowals for each recommendation ID in the payload',
+                'inputSchema' => [
+                    'recommendationIds' => ['type' => 'array', 'label' => 'Recommendation IDs', 'required' => true],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID', 'required' => true],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Creation Successful'],
+                    'processedCount' => ['type' => 'integer', 'label' => 'Processed Count'],
+                    'bestowalIds' => ['type' => 'array', 'label' => 'Created Bestowal IDs'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'createBestowalsForRecommendations',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.UpdateBestowal',
+                'label' => 'Update Bestowal',
+                'description' => 'Update a bestowal from the edit form including link changes',
+                'inputSchema' => [
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID', 'required' => true],
+                    'data' => ['type' => 'object', 'label' => 'Update Data'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID', 'required' => true],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Update Successful'],
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'updateBestowal',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.SyncRecommendationsFromBestowal',
+                'label' => 'Sync Recommendations From Bestowal',
+                'description' => 'Synchronize linked recommendation states from the bestowal state mapping',
+                'inputSchema' => [
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID', 'required' => true],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID', 'required' => true],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Sync Successful'],
+                    'syncedCount' => ['type' => 'integer', 'label' => 'Synced Count'],
+                    'targetState' => ['type' => 'string', 'label' => 'Target Recommendation State'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'syncRecommendationsFromBestowal',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.CancelBestowal',
+                'label' => 'Cancel Bestowal',
+                'description' => 'Cancel an in-flight bestowal and unwind linked recommendations',
+                'inputSchema' => [
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID', 'required' => true],
+                    'closeReason' => ['type' => 'string', 'label' => 'Close Reason', 'required' => true],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID', 'required' => true],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Cancellation Successful'],
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID'],
+                    'eventPayload' => ['type' => 'object', 'label' => 'Cancellation Event Payload'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'cancelBestowal',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.RecordAdHocBestowal',
+                'label' => 'Record Ad Hoc Bestowal',
+                'description' => 'Create a standalone ad-hoc bestowal in one transaction',
+                'inputSchema' => [
+                    'data' => ['type' => 'object', 'label' => 'Ad Hoc Bestowal Data', 'required' => true],
+                    'actorId' => ['type' => 'integer', 'label' => 'Actor ID', 'required' => true],
+                    'memberId' => ['type' => 'integer', 'label' => 'Member ID'],
+                    'memberPublicId' => ['type' => 'string', 'label' => 'Member Public ID'],
+                    'awardId' => ['type' => 'integer', 'label' => 'Award ID'],
+                    'gatheringId' => ['type' => 'integer', 'label' => 'Gathering ID'],
+                    'bestowedAt' => ['type' => 'string', 'label' => 'Bestowed At'],
+                    'state' => ['type' => 'string', 'label' => 'Bestowal State'],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Record Successful'],
+                    'bestowalId' => ['type' => 'integer', 'label' => 'Bestowal ID'],
+                    'eventPayload' => ['type' => 'object', 'label' => 'Creation Event Payload'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'recordAdHocBestowal',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Awards.CreateFeedbackApproval',
+                'label' => 'Create Feedback Approval',
+                'description' => 'Create a workflow approval for a recommendation feedback recipient and link it '
+                    . 'back to the recipient row',
+                'inputSchema' => [
+                    'recipientId' => ['type' => 'integer', 'label' => 'Recipient Member ID', 'required' => true],
+                    'feedbackRequestRecipientId' => [
+                        'type' => 'integer',
+                        'label' => 'Feedback Request Recipient Row ID',
+                        'required' => true,
+                    ],
+                    'deadline' => ['type' => 'string', 'label' => 'Response Deadline (ATOM)'],
+                    'nodeId' => ['type' => 'string', 'label' => 'Action Node ID', 'hidden' => true],
+                    'decisionPromptLabel' => [
+                        'type' => 'string',
+                        'label' => 'Decision Prompt Label',
+                        'description' => 'Optional label shown above the response choices, such as Your View '
+                            . 'or Polling Response.',
+                    ],
+                    'decisionOptions' => [
+                        'type' => 'array',
+                        'label' => 'Decision Options',
+                        'editor' => 'options',
+                        'description' => 'Choices shown to feedback recipients, such as Support, Oppose, '
+                            . 'or Indifferent.',
+                    ],
+                    'requiresComment' => ['type' => 'boolean', 'label' => 'Require Comment'],
+                ],
+                'outputSchema' => [
+                    'success' => ['type' => 'boolean', 'label' => 'Creation Successful'],
+                    'approvalId' => ['type' => 'integer', 'label' => 'Workflow Approval ID'],
+                ],
+                'serviceClass' => $actionsClass,
+                'serviceMethod' => 'createFeedbackApproval',
+                'isAsync' => false,
+            ],
+        ]);
+    }
+
+    /**
+     * @return void
+     */
+    private static function registerConditions(): void
+    {
+        $conditionsClass = AwardsWorkflowConditions::class;
+
+        WorkflowConditionRegistry::register(self::SOURCE, [
+            [
+                'condition' => 'Awards.IsValidTransition',
+                'label' => 'Is Valid Transition',
+                'description' => 'Check if a state transition is allowed per state machine configuration',
+                'inputSchema' => [
+                    'currentState' => ['type' => 'string', 'label' => 'Current State', 'required' => true],
+                    'targetState' => ['type' => 'string', 'label' => 'Target State', 'required' => true],
+                ],
+                'evaluatorClass' => $conditionsClass,
+                'evaluatorMethod' => 'isValidTransition',
+            ],
+            [
+                'condition' => 'Awards.HasRequiredFields',
+                'label' => 'Has Required Fields',
+                'description' => 'Validate that all required fields for the target state are present',
+                'inputSchema' => [
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID', 'required' => true],
+                    'targetState' => ['type' => 'string', 'label' => 'Target State', 'required' => true],
+                ],
+                'evaluatorClass' => $conditionsClass,
+                'evaluatorMethod' => 'hasRequiredFields',
+            ],
+            [
+                'condition' => 'Awards.RequiresGathering',
+                'label' => 'Requires Gathering',
+                'description' => 'Check if the target state needs a gathering_id to be set',
+                'inputSchema' => [
+                    'targetState' => ['type' => 'string', 'label' => 'Target State', 'required' => true],
+                ],
+                'evaluatorClass' => $conditionsClass,
+                'evaluatorMethod' => 'requiresGathering',
+            ],
+            [
+                'condition' => 'Awards.RequiresGivenDate',
+                'label' => 'Requires Given Date',
+                'description' => 'Check if the target state needs a given date to be set',
+                'inputSchema' => [
+                    'targetState' => ['type' => 'string', 'label' => 'Target State', 'required' => true],
+                ],
+                'evaluatorClass' => $conditionsClass,
+                'evaluatorMethod' => 'requiresGivenDate',
+            ],
+            [
+                'condition' => 'Awards.RecommendationHasActiveBestowal',
+                'label' => 'Recommendation Has Active Bestowal',
+                'description' => 'Check whether a recommendation is linked to an active bestowal',
+                'inputSchema' => [
+                    'recommendationId' => ['type' => 'integer', 'label' => 'Recommendation ID', 'required' => true],
+                ],
+                'evaluatorClass' => $conditionsClass,
+                'evaluatorMethod' => 'recommendationHasActiveBestowal',
+            ],
+        ]);
+    }
+
+    /**
+     * @return void
+     */
+    private static function registerEntities(): void
+    {
+        WorkflowEntityRegistry::register(self::SOURCE, [
+            [
+                'entityType' => 'Awards.Recommendations',
+                'label' => 'Recommendation',
+                'description' => 'Award recommendation with state machine workflow',
+                'tableClass' => RecommendationsTable::class,
+                'fields' => [
+                    'id' => ['type' => 'integer', 'label' => 'ID'],
+                    'award_id' => ['type' => 'integer', 'label' => 'Award ID'],
+                    'member_id' => ['type' => 'integer', 'label' => 'Member ID'],
+                    'requester_id' => ['type' => 'integer', 'label' => 'Requester ID'],
+                    'branch_id' => ['type' => 'integer', 'label' => 'Branch ID'],
+                    'status' => ['type' => 'string', 'label' => 'Status'],
+                    'state' => ['type' => 'string', 'label' => 'State'],
+                    'state_date' => ['type' => 'datetime', 'label' => 'State Date'],
+                    'gathering_id' => ['type' => 'integer', 'label' => 'Gathering ID'],
+                    'given' => ['type' => 'date', 'label' => 'Given Date'],
+                    'close_reason' => ['type' => 'string', 'label' => 'Close Reason'],
+                ],
+            ],
+            [
+                'entityType' => 'Awards.Bestowals',
+                'label' => 'Bestowal',
+                'description' => 'Award bestowal with lifecycle and to-do checklist workflow',
+                'tableClass' => BestowalsTable::class,
+                'fields' => [
+                    'id' => ['type' => 'integer', 'label' => 'ID'],
+                    'member_id' => ['type' => 'integer', 'label' => 'Member ID'],
+                    'gathering_id' => ['type' => 'integer', 'label' => 'Gathering ID'],
+                    'gathering_scheduled_activity_id' => ['type' => 'integer', 'label' => 'Scheduled Activity ID'],
+                    'primary_recommendation_id' => ['type' => 'integer', 'label' => 'Primary Recommendation ID'],
+                    'lifecycle_status' => ['type' => 'string', 'label' => 'Lifecycle Status'],
+                    'stack_rank' => ['type' => 'integer', 'label' => 'Stack Rank'],
+                    'bestowed_at' => ['type' => 'datetime', 'label' => 'Bestowed At'],
+                    'source' => ['type' => 'string', 'label' => 'Source'],
+                    'close_reason' => ['type' => 'string', 'label' => 'Close Reason'],
+                ],
+            ],
+        ]);
+    }
+}

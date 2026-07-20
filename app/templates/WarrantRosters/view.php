@@ -1,8 +1,8 @@
 <?php
-
 /**
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\WarrantRoster $warrantRoster
+ * @var \App\Model\Entity\WorkflowApprovalResponse[] $approvalResponses
  */
 
 use App\Model\Entity\WarrantRoster;
@@ -11,8 +11,8 @@ use App\Model\Entity\Warrant;
 <?php $this->extend('/layout/TwitterBootstrap/view_record');
 
 $userApprovedAlready = false;
-foreach ($warrantRoster->warrant_roster_approvals as $approval) {
-    if ($approval->approver_id == $user->id) {
+foreach ($approvalResponses as $response) {
+    if ($response->member_id == $user->id) {
         $userApprovedAlready = true;
     }
 }
@@ -25,15 +25,12 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?= h($warrantRoster->name) ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
-<?php if ($warrantRoster->status == Warrant::PENDING_STATUS && $user->checkCan("approve", $warrantRoster)) :
-    if (!$userApprovedAlready): ?>
-<?= $this->Form->postLink(__('Approve'), ['controller' => 'WarrantRosters', 'action' => 'approve', $warrantRoster->id], ['confirm' => __('Are you sure you want to approve # {0}?', $warrantRoster->name), 'class' => 'btn btn-primary']) ?>
-<?php endif ?>
-<?php endif ?>
-<?php if ($warrantRoster->status == Warrant::PENDING_STATUS && $user->checkCan("decline", $warrantRoster)) :
-    if (!$userApprovedAlready): ?>
-<?= $this->Form->postLink(__('Decline'), ['controller' => 'WarrantRosters', 'action' => 'decline', $warrantRoster->id], ['confirm' => __('Are you sure you want to decline # {0}?', $warrantRoster->name), 'class' => 'btn btn-danger']) ?>
-<?php endif ?>
+<?php if ($warrantRoster->status === WarrantRoster::STATUS_PENDING): ?>
+<?= $this->Html->link(
+    __('Open My Approvals'),
+    ['controller' => 'Approvals', 'action' => 'approvals'],
+    ['class' => 'btn btn-primary']
+) ?>
 <?php endif ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("recordDetails") ?>
@@ -116,18 +113,22 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <div class="related tab-pane fade m-3" id="nav-approvals" role="tabpanel" aria-labelledby="nav-approvals-tab"
         data-detail-tabs-target="tabContent">
 
-        <?php if (!empty($warrantRoster->warrant_roster_approvals)): ?>
+        <?php if (!empty($approvalResponses)): ?>
         <div class="table-responsive">
             <table class="table table-striped">
                 <tr>
                     <th scope="col"><?= __('Approver') ?></th>
+                    <th scope="col"><?= __('Decision') ?></th>
                     <th scope="col"><?= __('Responded On') ?></th>
+                    <th scope="col"><?= __('Comment') ?></th>
                 </tr>
-                <?php foreach ($warrantRoster->warrant_roster_approvals as $warrantRosterApprovals): ?>
+                <?php foreach ($approvalResponses as $response): ?>
                 <tr>
-                    <td><?= h($warrantRosterApprovals->member->sca_name) ?></td>
-                    <td><?= $this->Timezone->format($warrantRosterApprovals->approved_on, null, null, \IntlDateFormatter::SHORT) ?>
+                    <td><?= h($response->member->sca_name) ?></td>
+                    <td><?= h($response->decision) ?></td>
+                    <td><?= $this->Timezone->format($response->responded_at, null, null, \IntlDateFormatter::SHORT) ?>
                     </td>
+                    <td><?= h($response->comment ?? '') ?></td>
                 </tr>
                 <?php endforeach; ?>
             </table>

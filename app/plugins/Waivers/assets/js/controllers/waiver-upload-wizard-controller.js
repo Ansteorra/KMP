@@ -1,5 +1,13 @@
 import { Controller } from "@hotwired/stimulus"
-import * as pdfjsLib from 'pdfjs-dist/webpack.mjs'
+
+let _pdfjsLib = null;
+
+async function loadPdfjsLib() {
+    if (!_pdfjsLib) {
+        _pdfjsLib = await import('pdfjs-dist/webpack.mjs');
+    }
+    return _pdfjsLib;
+}
 
 /**
  * Waiver Upload Wizard Controller
@@ -111,18 +119,17 @@ class WaiverUploadWizardController extends Controller {
     }
 
     showStep(stepNumber) {
-        // Hide all steps
         this.stepTargets.forEach(step => {
-            step.classList.add('d-none')
-        })
+            const isCurrentStep = parseInt(step.dataset.stepNumber) === stepNumber
+            step.classList.toggle('d-none', !isCurrentStep)
+            step.setAttribute('aria-hidden', isCurrentStep ? 'false' : 'true')
 
-        // Show current step
-        const currentStep = this.stepTargets.find(step =>
-            parseInt(step.dataset.stepNumber) === stepNumber
-        )
-        if (currentStep) {
-            currentStep.classList.remove('d-none')
-        }
+            if (isCurrentStep) {
+                step.setAttribute('aria-current', 'step')
+            } else {
+                step.removeAttribute('aria-current')
+            }
+        })
 
         // Update step indicators
         this.updateStepIndicators(stepNumber)
@@ -141,9 +148,11 @@ class WaiverUploadWizardController extends Controller {
         this.stepIndicatorTargets.forEach(indicator => {
             const step = parseInt(indicator.dataset.step)
             indicator.classList.remove('active', 'completed')
+            indicator.removeAttribute('aria-current')
 
             if (step === currentStep) {
                 indicator.classList.add('active')
+                indicator.setAttribute('aria-current', 'step')
             } else if (step < currentStep) {
                 indicator.classList.add('completed')
             }
@@ -155,8 +164,10 @@ class WaiverUploadWizardController extends Controller {
         if (this.hasPrevButtonTarget) {
             if (stepNumber === 1) {
                 this.prevButtonTarget.classList.add('d-none')
+                this.prevButtonTarget.setAttribute('aria-hidden', 'true')
             } else {
                 this.prevButtonTarget.classList.remove('d-none')
+                this.prevButtonTarget.setAttribute('aria-hidden', 'false')
             }
         }
 
@@ -164,8 +175,10 @@ class WaiverUploadWizardController extends Controller {
         if (this.hasNextButtonTarget) {
             if (stepNumber === this.totalStepsValue) {
                 this.nextButtonTarget.classList.add('d-none')
+                this.nextButtonTarget.setAttribute('aria-hidden', 'true')
             } else {
                 this.nextButtonTarget.classList.remove('d-none')
+                this.nextButtonTarget.setAttribute('aria-hidden', 'false')
 
                 // Update button text based on step
                 if (stepNumber === 3) {
@@ -180,12 +193,14 @@ class WaiverUploadWizardController extends Controller {
         if (this.hasSubmitButtonTarget) {
             if (stepNumber === this.totalStepsValue) {
                 this.submitButtonTarget.classList.remove('d-none')
+                this.submitButtonTarget.setAttribute('aria-hidden', 'false')
                 // Update submit button text based on mode
                 if (this.hasSubmitButtonTextTarget) {
                     this.submitButtonTextTarget.textContent = this.isAttestMode ? 'Submit Attestation' : 'Submit Waivers'
                 }
             } else {
                 this.submitButtonTarget.classList.add('d-none')
+                this.submitButtonTarget.setAttribute('aria-hidden', 'true')
             }
         }
     }
@@ -195,6 +210,7 @@ class WaiverUploadWizardController extends Controller {
             const progress = (stepNumber / this.totalStepsValue) * 100
             this.progressBarTarget.style.width = `${progress}%`
             this.progressBarTarget.setAttribute('aria-valuenow', progress)
+            this.progressBarTarget.setAttribute('aria-valuetext', `Step ${stepNumber} of ${this.totalStepsValue}`)
         }
     }
 
@@ -234,6 +250,7 @@ class WaiverUploadWizardController extends Controller {
             // Has exemption reasons - show toggle
             if (this.hasModeToggleTarget) {
                 this.modeToggleTarget.classList.remove('d-none')
+                this.modeToggleTarget.setAttribute('aria-hidden', 'false')
             }
             if (this.hasStep3LeadTarget) {
                 this.step3LeadTarget.textContent = 'Add one or more pages to your waiver document, or attest that a waiver is not needed'
@@ -242,6 +259,7 @@ class WaiverUploadWizardController extends Controller {
             // No exemption reasons - hide toggle, force upload mode
             if (this.hasModeToggleTarget) {
                 this.modeToggleTarget.classList.add('d-none')
+                this.modeToggleTarget.setAttribute('aria-hidden', 'true')
             }
             if (this.hasStep3LeadTarget) {
                 this.step3LeadTarget.textContent = 'Add one or more pages to your waiver document'
@@ -254,7 +272,9 @@ class WaiverUploadWizardController extends Controller {
             }
             if (this.hasUploadSectionTarget && this.hasAttestSectionTarget) {
                 this.uploadSectionTarget.classList.remove('d-none')
+                this.uploadSectionTarget.setAttribute('aria-hidden', 'false')
                 this.attestSectionTarget.classList.add('d-none')
+                this.attestSectionTarget.setAttribute('aria-hidden', 'true')
             }
         }
 
@@ -269,7 +289,9 @@ class WaiverUploadWizardController extends Controller {
         this.isAttestMode = false
         if (this.hasUploadSectionTarget && this.hasAttestSectionTarget) {
             this.uploadSectionTarget.classList.remove('d-none')
+            this.uploadSectionTarget.setAttribute('aria-hidden', 'false')
             this.attestSectionTarget.classList.add('d-none')
+            this.attestSectionTarget.setAttribute('aria-hidden', 'true')
         }
     }
 
@@ -303,7 +325,9 @@ class WaiverUploadWizardController extends Controller {
         this.isAttestMode = true
         if (this.hasUploadSectionTarget && this.hasAttestSectionTarget) {
             this.uploadSectionTarget.classList.add('d-none')
+            this.uploadSectionTarget.setAttribute('aria-hidden', 'true')
             this.attestSectionTarget.classList.remove('d-none')
+            this.attestSectionTarget.setAttribute('aria-hidden', 'false')
         }
         this.populateAttestationReasons()
     }
@@ -335,8 +359,12 @@ class WaiverUploadWizardController extends Controller {
             return
         }
 
-        // Build radio buttons
-        let html = '<div class="list-group">'
+        const legendId = `attest-reason-legend-${this.selectedWaiverType.id}`
+        let html = `
+            <fieldset>
+                <legend id="${legendId}" class="visually-hidden">Why is this waiver not needed?</legend>
+                <div class="list-group" aria-labelledby="${legendId}">
+        `
         let hasMatchingSelection = false
         exemptionReasons.forEach((reason, index) => {
             const id = `attest_reason_${index}`
@@ -354,7 +382,10 @@ class WaiverUploadWizardController extends Controller {
                 </label>
             `
         })
-        html += '</div>'
+        html += `
+                </div>
+            </fieldset>
+        `
 
         this.attestReasonListTarget.innerHTML = html
 
@@ -500,6 +531,7 @@ class WaiverUploadWizardController extends Controller {
                         [])
                     
                     if (pdfData.length > 0) {
+                        const pdfjsLib = await loadPdfjsLib()
                         const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise
                         page.pdfPageCount = pdf.numPages
                         
@@ -609,7 +641,7 @@ class WaiverUploadWizardController extends Controller {
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
                                         <strong>Page ${page.number}</strong><br>
-                                        ${pageInfo}<small class="text-muted">${page.name}</small><br>
+                                        ${pageInfo}<small class="text-muted">${this.escapeHtml(page.name)}</small><br>
                                         <small class="text-muted">${this.formatFileSize(page.size)}</small>
                                     </div>
                                     <button type="button" 
@@ -647,9 +679,11 @@ class WaiverUploadWizardController extends Controller {
             // Attestation Mode
             if (this.hasReviewUploadSectionTarget) {
                 this.reviewUploadSectionTarget.classList.add('d-none')
+                this.reviewUploadSectionTarget.setAttribute('aria-hidden', 'true')
             }
             if (this.hasReviewAttestSectionTarget) {
                 this.reviewAttestSectionTarget.classList.remove('d-none')
+                this.reviewAttestSectionTarget.setAttribute('aria-hidden', 'false')
             }
 
             // Display attestation reason
@@ -667,17 +701,21 @@ class WaiverUploadWizardController extends Controller {
                 if (this.attestNotes && this.attestNotes.trim().length > 0) {
                     this.reviewAttestNotesTarget.textContent = this.attestNotes
                     this.reviewAttestNotesSectionTarget.classList.remove('d-none')
+                    this.reviewAttestNotesSectionTarget.setAttribute('aria-hidden', 'false')
                 } else {
                     this.reviewAttestNotesSectionTarget.classList.add('d-none')
+                    this.reviewAttestNotesSectionTarget.setAttribute('aria-hidden', 'true')
                 }
             }
         } else {
             // Upload Mode
             if (this.hasReviewUploadSectionTarget) {
                 this.reviewUploadSectionTarget.classList.remove('d-none')
+                this.reviewUploadSectionTarget.setAttribute('aria-hidden', 'false')
             }
             if (this.hasReviewAttestSectionTarget) {
                 this.reviewAttestSectionTarget.classList.add('d-none')
+                this.reviewAttestSectionTarget.setAttribute('aria-hidden', 'true')
             }
 
             // Page Count - calculate total pages including multi-page PDFs
@@ -946,7 +984,11 @@ class WaiverUploadWizardController extends Controller {
 
     showProcessingStep() {
         // Hide all regular steps
-        this.stepTargets.forEach(step => step.classList.add('d-none'))
+        this.stepTargets.forEach(step => {
+            step.classList.add('d-none')
+            step.setAttribute('aria-hidden', 'true')
+            step.removeAttribute('aria-current')
+        })
 
         // Show processing message based on mode
         let processingHtml
@@ -1004,6 +1046,7 @@ class WaiverUploadWizardController extends Controller {
 
     // Error Handling
     showError(message) {
+        const escapedMessage = this.escapeHtml(message)
         // Check if we're showing the processing screen (wizard container innerHTML was replaced)
         const container = this.element.querySelector('.wizard-container') || this.element
         const isProcessing = container.querySelector('h2') &&
@@ -1037,7 +1080,7 @@ class WaiverUploadWizardController extends Controller {
             <div class="toast align-items-center text-white bg-danger border-0" role="alert">
                 <div class="d-flex">
                     <div class="toast-body">
-                        <i class="bi bi-exclamation-triangle me-2"></i>${message}
+                        <i class="bi bi-exclamation-triangle me-2"></i>${escapedMessage}
                     </div>
                     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
                 </div>

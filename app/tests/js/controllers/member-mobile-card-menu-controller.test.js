@@ -225,7 +225,7 @@ describe('MemberMobileCardMenuController', () => {
 
     // --- updateOfflineState ---
 
-    test('updateOfflineState disables online-only items when offline', () => {
+    test('updateOfflineState hides online-only items when offline', () => {
         // Render menu items first
         controller.items = JSON.parse(menuItemsJson);
         controller.renderMenu();
@@ -239,8 +239,10 @@ describe('MemberMobileCardMenuController', () => {
             const label = item.dataset.itemLabel;
             if (label === 'Auth Card' || label === 'My RSVPs') {
                 expect(item.classList.contains('disabled')).toBe(false);
+                expect(item.hidden).toBe(false);
             } else {
                 expect(item.classList.contains('disabled')).toBe(true);
+                expect(item.hidden).toBe(true);
             }
         });
     });
@@ -256,6 +258,7 @@ describe('MemberMobileCardMenuController', () => {
 
         controller.menuItemTargets.forEach(item => {
             expect(item.classList.contains('disabled')).toBe(false);
+            expect(item.hidden).toBe(false);
         });
     });
 

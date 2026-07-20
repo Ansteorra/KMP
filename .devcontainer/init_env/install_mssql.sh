@@ -1,4 +1,4 @@
-sudo apt install php8.3-dev
+sudo apt install php8.4-dev
 wget http://pear.php.net/go-pear.phar
 sudo php go-pear.phar
 rm go-pear.phar
@@ -31,8 +31,8 @@ sudo pecl install pdo_sqlsrv
 sudo pecl install sqlsrv
 
 #add the extensions to the mods-available folder
-echo -e "extension=pdo_sqlsrv.so" | sudo tee /etc/php/8.3/mods-available/pdo_sqlsrv.ini
-echo -e "extension=sqlsrv.so" | sudo tee /etc/php/8.3/mods-available/sqlsrv.ini
+echo -e "extension=pdo_sqlsrv.so" | sudo tee /etc/php/8.4/mods-available/pdo_sqlsrv.ini
+echo -e "extension=sqlsrv.so" | sudo tee /etc/php/8.4/mods-available/sqlsrv.ini
 sudo phpenmod sqlsrv pdo_sqlsrv
 sudo phpenmod -s apache2 sqlsrv pdo_sqlsrv
 sudo service apache2 restart

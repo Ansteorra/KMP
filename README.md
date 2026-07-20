@@ -6,24 +6,30 @@ Membership management system for SCA Kingdoms.
 
 Please review the wiki for solution details https://github.com/Ansteorra/KMP/wiki
 
-## 🚀 Deploy KMP
+## Local Development
 
-### One-Line Install
+Local Docker Compose is the default development workflow. Your source stays in this folder, while PHP, Apache, MariaDB, Mailpit, Node, Xdebug, queue workers, and scheduled CakePHP cron jobs run in containers.
 
-**macOS/Linux:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jhandel/KMP/main/installer/scripts/install.sh | bash && kmp install
+./dev-up.sh --build
 ```
 
-**Windows (PowerShell):**
-```powershell
-irm https://raw.githubusercontent.com/jhandel/KMP/main/installer/scripts/install.ps1 | iex; kmp install
+After the app is healthy, `dev-up.sh` runs `dev-reset-db.sh --seed` so the database matches the current code and seeded dev users. The app is available at http://localhost:8080, Mailpit at http://localhost:8025, and MariaDB at 127.0.0.1:3306. Run Composer, CakePHP, npm, and tests inside the app container:
+
+```bash
+docker compose exec app bin/cake migrations status
+docker compose exec app npm run build
+docker compose exec app vendor/bin/phpunit
 ```
 
-### Supported Platforms
-Docker · Fly.io · Railway · Azure · AWS · Any VPS
+See [Docker Development](docs/docker-development.md) for host aliases, Xdebug setup, scheduled jobs, database reset, and troubleshooting.
 
-📖 [Full Deployment Guide](docs/deployment/README.md)
+## Deployment
+
+KMP is moving to a managed multi-tenant hosting model. The standalone installer is retired for new environments and kept in the repository as archived reference only.
+
+- 📖 [Archived self-hosted deployment reference](docs/deployment/README.md)
+- 🛠️ [Legacy installer implementation notes](installer/README.md)
 
 Dev users all have the password "TestPassword"
 
@@ -44,6 +50,20 @@ Dev Users :
 * mel@ampdemo.com - Local Exchequer and Kingdom Social Media
 
 ## Utility Scripts
+
+### dev-up.sh / dev-down.sh
+Starts or stops the local Docker Compose development stack:
+```bash
+./dev-up.sh
+./dev-down.sh
+```
+
+### dev-reset-db.sh
+Resets the Docker development database:
+```bash
+./dev-reset-db.sh
+./dev-reset-db.sh --seed
+```
 
 ### fix_permissions.sh
 Fixes file permissions for Apache web server access. Run this if you encounter permission errors with logs, tmp, or images directories:

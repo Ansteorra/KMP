@@ -40,7 +40,7 @@ class EmailTemplatePolicyTest extends BaseTestCase
         $admin = $this->loadMember(self::ADMIN_MEMBER_ID);
         $entity = $this->getEntity();
 
-        $actions = ['index', 'view', 'create', 'update', 'edit', 'delete', 'discover', 'sync', 'preview'];
+        $actions = ['index', 'view', 'create', 'update', 'edit', 'delete', 'preview'];
         foreach ($actions as $action) {
             $result = $this->policy->before($admin, $entity, $action);
             $this->assertTrue($result, "Super user before() should return true for '$action'");
@@ -105,26 +105,6 @@ class EmailTemplatePolicyTest extends BaseTestCase
         $beforeResult = $this->policy->before($agatha, $entity, 'delete');
         $this->assertNull($beforeResult);
         $this->assertFalse($this->policy->canDelete($agatha, $entity));
-    }
-
-    public function testCanDiscoverDelegatesToCanView(): void
-    {
-        $agatha = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
-        $entity = $this->getEntity();
-
-        $discoverResult = $this->policy->canDiscover($agatha, $entity);
-        $viewResult = $this->policy->canView($agatha, $entity);
-        $this->assertSame($viewResult, $discoverResult, 'canDiscover should delegate to canView');
-    }
-
-    public function testCanSyncDelegatesToCanCreate(): void
-    {
-        $agatha = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
-        $entity = $this->getEntity();
-
-        $syncResult = $this->policy->canSync($agatha, $entity);
-        $createResult = $this->policy->canCreate($agatha, $entity);
-        $this->assertSame($createResult, $syncResult, 'canSync should delegate to canCreate');
     }
 
     public function testCanPreviewDelegatesToCanView(): void

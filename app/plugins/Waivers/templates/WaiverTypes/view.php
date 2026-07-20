@@ -8,7 +8,7 @@
 <?php
 $user = $this->request->getAttribute('identity');
 $this->extend("/layout/TwitterBootstrap/view_record");
-$this->append('css', $this->AssetMix->css('waivers'));
+$this->append('css', $this->Vite->css('waivers'));
 
 echo $this->KMP->startBlock("title");
 echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': View Waiver Type - ' . $waiverType->name;

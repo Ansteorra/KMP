@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
 
+use App\KMP\TenantContext;
+use App\KMP\TenantMetadata;
 use App\Services\RestoreStatusService;
 use App\Test\TestCase\BaseTestCase;
 use Cake\Cache\Cache;
@@ -15,7 +17,6 @@ class RestoreStatusServiceTest extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->skipIfPostgres();
 
         if (!in_array('restore_status', Cache::configured(), true)) {
             Cache::setConfig('restore_status', [
@@ -72,6 +73,35 @@ class RestoreStatusServiceTest extends BaseTestCase
         $this->service->acquireLock();
         $secondAttempt = $this->service->acquireLock();
         $this->assertFalse($secondAttempt);
+    }
+
+    public function testRestoreLocksAreIsolatedBetweenTenants(): void
+    {
+        $firstTenant = $this->tenant('11111111-1111-4111-8111-111111111111', 'first');
+        $secondTenant = $this->tenant('22222222-2222-4222-8222-222222222222', 'second');
+
+        $firstAcquired = TenantContext::with(
+            $firstTenant,
+            fn(): bool => $this->service->acquireLock(['source' => 'first backup']),
+        );
+        $secondIsLocked = TenantContext::with(
+            $secondTenant,
+            fn(): bool => $this->service->isLocked(),
+        );
+        $secondStatus = TenantContext::with(
+            $secondTenant,
+            fn(): array => $this->service->getStatus(),
+        );
+        $firstStatus = TenantContext::with(
+            $firstTenant,
+            fn(): array => $this->service->getStatus(),
+        );
+
+        $this->assertTrue($firstAcquired);
+        $this->assertFalse($secondIsLocked);
+        $this->assertSame('idle', $secondStatus['status']);
+        $this->assertTrue($firstStatus['locked']);
+        $this->assertSame('first backup', $firstStatus['source']);
     }
 
     public function testReleaseLock(): void
@@ -175,6 +205,20 @@ class RestoreStatusServiceTest extends BaseTestCase
         $this->assertFalse($this->service->isLocked());
     }
 
+    public function testAppendLogAddsBoundedStatusEntries(): void
+    {
+        $this->service->acquireLock();
+        $this->service->appendLog('Decrypting backup file.');
+        $this->service->appendLog('Validating backup payload.');
+
+        $status = $this->service->getStatus();
+
+        $this->assertCount(2, $status['log']);
+        $this->assertSame('Decrypting backup file.', $status['log'][0]['message']);
+        $this->assertSame('Validating backup payload.', $status['log'][1]['message']);
+        $this->assertNotEmpty($status['log'][0]['timestamp']);
+    }
+
     public function testGetStatusAfterLockReleasedWithRunningStateDetectsInterrupted(): void
     {
         $this->service->acquireLock();
@@ -251,5 +295,30 @@ class RestoreStatusServiceTest extends BaseTestCase
         $status = $this->service->getStatus();
         $this->assertEquals('completed', $status['status']);
         $this->assertFalse($status['locked']);
+    }
+
+    public function testMarkFailedCanRequireMaintenanceScreenAfterUnsafeRestoreFailure(): void
+    {
+        $this->service->acquireLock();
+        $this->service->markFailed('Schema reset failed', ['maintenance_required' => true]);
+
+        $status = $this->service->getStatus();
+
+        $this->assertFalse($status['locked']);
+        $this->assertEquals('failed', $status['status']);
+        $this->assertTrue($status['maintenance_required']);
+    }
+
+    private function tenant(string $id, string $slug): TenantMetadata
+    {
+        return new TenantMetadata(
+            $id,
+            $slug,
+            ucfirst($slug),
+            'active',
+            'db',
+            $slug . '_db',
+            $slug . '_role',
+        );
     }
 }

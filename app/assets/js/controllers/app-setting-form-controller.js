@@ -1,4 +1,4 @@
-const { Controller } = require("@hotwired/stimulus");
+import { Controller } from "@hotwired/stimulus";
 
 /**
  * **INTERNAL CODE DOCUMENTATION COMPLETE**

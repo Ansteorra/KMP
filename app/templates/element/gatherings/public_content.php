@@ -21,6 +21,7 @@ use Cake\I18n\DateTime;
 // Check if user is authenticated
 $isAuthenticated = isset($user) && $user !== null;
 $kingdomAttendances = $kingdomAttendances ?? [];
+$progressAttendances = $progressAttendances ?? [];
 
 // Get current time in the gathering's timezone for accurate status
 $gatheringTimezone = \App\KMP\TimezoneHelper::getGatheringTimezone($gathering, $this->getRequest()->getAttribute('identity'));
@@ -54,6 +55,7 @@ if (!isset($scheduleByDate)) {
 }
 ?>
 
+<div class="gathering-public-surface" data-controller="public-gathering">
 <?php if ($isCancelled): ?>
 <!-- Cancelled Banner -->
 <div class="alert alert-danger text-center py-4 mb-0" role="alert" style="border-radius: 0; border: none; background: linear-gradient(135deg, #dc3545 0%, #8B0000 100%); color: white;">
@@ -113,11 +115,43 @@ if (!isset($scheduleByDate)) {
                 <i class="bi bi-building"></i>
                 <?= h($gathering->branch->name) ?>
             </span>
+
+            <?php // The public page supersedes the Event Website; only show the
+                  // external site link when the public page is not enabled
+                  // (i.e. the authenticated view_public context) ?>
+            <?php if (!$gathering->public_page_enabled && !empty($gathering->website_url)): ?>
+                <span class="meta-item">
+                    <i class="bi bi-link-45deg"></i>
+                    <a href="<?= h($gathering->website_url) ?>" target="_blank" rel="noopener" class="event-website-link">
+                        <?= __('Event Website') ?>
+                    </a>
+                </span>
+            <?php endif; ?>
         </div>
 
-        <!-- Calendar Download Button (only for current/future events) -->
+        <?php if (!empty($progressAttendances)): ?>
+            <div class="royal-progress-banner" role="note" aria-label="<?= __('Royal Progress') ?>">
+                <span class="royal-progress-icon" aria-hidden="true">&#x1F451;</span>
+                <span class="royal-progress-text">
+                    <strong><?= __('Royal Progress:') ?></strong>
+                    <?= h(implode(', ', array_map(
+                        fn($attendance) => $attendance->progress_title . ' (' . ($attendance->member->sca_name ?? '') . ')',
+                        $progressAttendances,
+                    ))) ?>
+                </span>
+            </div>
+        <?php endif; ?>
+
+        <!-- Pre-Registration / Calendar Download Buttons (only for current/future events) -->
         <?php if (!$isPast): ?>
-            <div class="mt-3">
+            <div class="mt-3 d-flex flex-wrap gap-2 justify-content-center">
+                <?php if ($gathering->is_preregistration_open): ?>
+                    <a href="<?= h($gathering->preregister_url) ?>" target="_blank" rel="noopener"
+                        class="btn btn-warning btn-lg fw-bold"
+                        title="<?= h(__('Pre-register and pay for this event (external site)')) ?>">
+                        <i class="bi bi-ticket-perforated"></i> <?= __('Pre-Register') ?>
+                    </a>
+                <?php endif; ?>
                 <?= $this->Html->link(
                     '<i class="bi bi-calendar-plus"></i> ' . __('Add to Calendar'),
                     ['controller' => 'Gatherings', 'action' => 'downloadCalendar', $gathering->public_id],
@@ -128,6 +162,12 @@ if (!isset($scheduleByDate)) {
                     ]
                 ) ?>
             </div>
+            <?php if ($gathering->is_preregistration_open && $gathering->preregister_closes_on !== null): ?>
+                <p class="mt-2 mb-0 small text-white-50">
+                    <i class="bi bi-clock-history"></i>
+                    <?= __('Pre-registration open until {0}', h($gathering->preregister_closes_on->format('F j, Y'))) ?>
+                </p>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 </div>
@@ -576,30 +616,9 @@ if ($isAuthenticated && ($canCreateAttendance || $canEditAttendance)):
         'gathering' => $gathering,
         'userAttendance' => $userAttendance ?? null,
         'user' => $user,
-        'modalId' => 'attendGatheringModal'
+        'modalId' => 'attendGatheringModal',
+        'progressOfficers' => $progressOfficers ?? [],
     ]);
 endif;
 ?>
-
-<!-- Email obfuscation script -->
-<script>
-    (function() {
-        // Decode and activate email links to prevent bot scraping
-        document.addEventListener('DOMContentLoaded', function() {
-            const emailLinks = document.querySelectorAll('.email-link');
-            emailLinks.forEach(function(link) {
-                const encodedEmail = link.getAttribute('data-email');
-                if (encodedEmail) {
-                    // Decode the base64 encoded email
-                    const email = atob(encodedEmail);
-                    // Set the mailto href
-                    link.href = 'mailto:' + email;
-                    // Display the email address
-                    link.textContent = email;
-                    // Remove the data attribute to further obfuscate
-                    link.removeAttribute('data-email');
-                }
-            });
-        });
-    })();
-</script>
+</div>

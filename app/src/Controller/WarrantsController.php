@@ -199,20 +199,22 @@ class WarrantsController extends AppController
             ->contain(['Members', 'WarrantRosters', 'MemberRoles']);
 
         // Apply temporal filtering based on current date
-        $today = new DateTime();
+        // Use start/end of day to handle datetime columns storing time components
+        $todayStart = DateTime::now()->startOfDay();
+        $todayEnd = DateTime::now()->endOfDay();
         switch ($state) {
             case 'current':
                 // Active warrants providing RBAC temporal validation
                 $warrantsQuery = $warrantsQuery->where([
-                    'Warrants.expires_on >=' => $today, // Not expired
-                    'Warrants.start_on <=' => $today, // Already started
+                    'Warrants.expires_on >=' => $todayStart,      // Not expired (today or later)
+                    'Warrants.start_on <=' => $todayEnd,          // Already started (today or earlier)
                     'Warrants.status' => Warrant::CURRENT_STATUS, // Active status
                 ]);
                 break;
             case 'upcoming':
                 // Future warrants scheduled for activation
                 $warrantsQuery = $warrantsQuery->where([
-                    'Warrants.start_on >' => $today, // Future start date
+                    'Warrants.start_on >' => $todayEnd,           // Starts after today
                     'Warrants.status' => Warrant::CURRENT_STATUS, // Approved status
                 ]);
                 break;
@@ -226,8 +228,8 @@ class WarrantsController extends AppController
                 // Expired or administratively terminated warrants
                 $warrantsQuery = $warrantsQuery->where([
                     'OR' => [
-                        'Warrants.expires_on <' => $today, // Expired by date
-                        'Warrants.status IN ' => [ // Terminated by admin
+                        'Warrants.expires_on <' => $todayStart,   // Expired before today
+                        'Warrants.status IN ' => [                // Terminated by admin
                             Warrant::DEACTIVATED_STATUS,
                             Warrant::EXPIRED_STATUS,
                         ],

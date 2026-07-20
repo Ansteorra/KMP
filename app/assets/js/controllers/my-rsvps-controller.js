@@ -175,7 +175,7 @@ class MyRsvpsController extends MobileControllerBase {
     async editRsvp(event) {
         // Don't allow editing when offline
         if (!navigator.onLine) {
-            alert('You need to be online to edit RSVPs.');
+            window.KMP_accessibility.announce('You need to be online to edit RSVPs.', { assertive: true });
             return;
         }
         
@@ -312,7 +312,10 @@ class MyRsvpsController extends MobileControllerBase {
     async handleDeleteSubmit(event) {
         event.preventDefault();
         
-        if (!confirm('Are you sure you want to cancel your RSVP?')) {
+        if (!await window.KMP_accessibility.confirm('Are you sure you want to cancel your RSVP?', {
+            title: 'Cancel RSVP',
+            confirmLabel: 'Cancel RSVP',
+        })) {
             return;
         }
         
@@ -357,7 +360,7 @@ class MyRsvpsController extends MobileControllerBase {
                 submitButton.innerHTML = '<i class="bi bi-trash me-2"></i>Cancel RSVP';
             }
             
-            alert('Failed to cancel RSVP. Please try again.');
+            window.KMP_accessibility.announce('Failed to cancel RSVP. Please try again.', { assertive: true });
         }
     }
 

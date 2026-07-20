@@ -1,0 +1,64 @@
+{
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
+    "nodes": {
+        "trigger": {
+            "type": "trigger",
+            "label": "Bestowal Cancelled",
+            "config": {
+                "event": "Awards.BestowalCancelled",
+                "entityIdField": "bestowalId"
+            },
+            "position": {
+                "x": 50,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "notify-bestowal-cancelled"
+                }
+            ]
+        },
+        "notify-bestowal-cancelled": {
+            "type": "action",
+            "label": "Notify Bestowal Cancelled",
+            "config": {
+                "action": "Core.SendEmail",
+                "params": {
+                    "to": "awards-coordinator@ansteorra.org",
+                    "template": "award-bestowal-cancelled",
+                    "vars": {
+                        "bestowalId": "$.trigger.bestowalId",
+                        "closeReason": "$.trigger.closeReason",
+                        "unwindState": "$.trigger.unwindState",
+                        "recommendationIds": "$.trigger.recommendationIds",
+                        "previousState": "$.trigger.previousState",
+                        "newState": "$.trigger.newState"
+                    }
+                }
+            },
+            "position": {
+                "x": 350,
+                "y": 250
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "end-complete"
+                }
+            ]
+        },
+        "end-complete": {
+            "type": "end",
+            "label": "Bestowal Cancelled Notification Sent",
+            "config": {},
+            "position": {
+                "x": 650,
+                "y": 250
+            },
+            "outputs": []
+        }
+    },
+    "startNode": "trigger"
+}

@@ -17,6 +17,13 @@ cd "$(dirname "$0")/.."
 COVERAGE_DIR="tmp/infection/infection"
 THREADS="${INFECTION_THREADS:-4}"
 
+if [ ! -x "vendor/bin/infection" ]; then
+    echo "Infection is not installed. Run composer install from /workspaces/KMP/app first." >&2
+    exit 1
+fi
+
+mkdir -p "tests/mutation-reports"
+
 echo "==> Step 1: Generating PHPUnit coverage (testsuite=all)..."
 rm -rf "$COVERAGE_DIR"
 mkdir -p "$COVERAGE_DIR"

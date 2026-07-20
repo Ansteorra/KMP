@@ -174,7 +174,7 @@ describe('WaiverUploadController', () => {
     });
 
     test('handleFileSelect filters out invalid files', () => {
-        const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
+        const announceSpy = jest.spyOn(controller, 'announce').mockImplementation(() => {});
         const goodFile = new File(['img'], 'photo.jpg', { type: 'image/jpeg' });
         const badFile = new File(['x'], 'virus.exe', { type: 'application/x-msdownload' });
 
@@ -182,7 +182,7 @@ describe('WaiverUploadController', () => {
 
         expect(controller.selectedFiles).toHaveLength(1);
         expect(controller.selectedFiles[0].name).toBe('photo.jpg');
-        expect(alertSpy).toHaveBeenCalled();
+        expect(announceSpy).toHaveBeenCalledWith(expect.stringContaining('File validation errors'), true);
     });
 
     test('handleFileSelect appends new files to existing selection', () => {
@@ -259,25 +259,25 @@ describe('WaiverUploadController', () => {
 
     test('handleSubmit prevents submission when no waiver type selected', () => {
         const event = { preventDefault: jest.fn() };
-        const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
+        const announceSpy = jest.spyOn(controller, 'announce').mockImplementation(() => {});
 
         controller.waiverTypeTarget.value = '';
         controller.handleSubmit(event);
 
         expect(event.preventDefault).toHaveBeenCalled();
-        expect(alertSpy).toHaveBeenCalledWith('Please select a waiver type');
+        expect(announceSpy).toHaveBeenCalledWith('Please select a waiver type', true);
     });
 
     test('handleSubmit prevents submission when no files selected', () => {
         const event = { preventDefault: jest.fn() };
-        const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
+        const announceSpy = jest.spyOn(controller, 'announce').mockImplementation(() => {});
 
         controller.waiverTypeTarget.value = '1';
         controller.selectedFiles = [];
         controller.handleSubmit(event);
 
         expect(event.preventDefault).toHaveBeenCalled();
-        expect(alertSpy).toHaveBeenCalledWith('Please select at least one image file to upload');
+        expect(announceSpy).toHaveBeenCalledWith('Please select at least one image file to upload', true);
     });
 
     test('handleSubmit shows progress and disables button on valid submission', () => {

@@ -10,9 +10,10 @@ use App\Services\GatheringActivityService;
 use App\Services\GatheringCloneService;
 use App\Services\GatheringScheduleService;
 use App\Services\ICalendarService;
+use Cake\Cache\Cache;
 use Cake\Event\EventInterface;
+use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
-use Cake\I18n\Date;
 use Cake\I18n\DateTime as CakeDateTime;
 use Cake\Routing\Router;
 use DateTime;
@@ -78,8 +79,8 @@ class GatheringsController extends AppController
     {
         parent::beforeFilter($event);
 
-        // Allow public access to landing page, calendar download, and feed
-        $this->Authentication->allowUnauthenticated(['publicLanding', 'downloadCalendar', 'feed']);
+        // Allow public access to landing page, kingdom calendar, calendar download, and feed
+        $this->Authentication->allowUnauthenticated(['publicLanding', 'publicCalendar', 'downloadCalendar', 'feed']);
     }
 
     /**
@@ -112,6 +113,25 @@ class GatheringsController extends AppController
 
         $systemViews = GatheringsGridColumns::getSystemViews(['timezone' => $userTimezone]);
         $queryCallback = $this->buildGatheringSystemViewQueryCallback($userTimezone);
+        $queryContext = $this->resolveDataverseGridQueryContext([
+            'gridKey' => 'Gatherings.index.main',
+            'gridColumnsClass' => GatheringsGridColumns::class,
+            'systemViews' => $systemViews,
+            'defaultSystemView' => 'sys-gatherings-this-month',
+            'defaultSort' => ['Gatherings.start_date' => 'DESC'],
+        ]);
+        $contain = [];
+        if ($queryContext->loadsColumn('branch_id')) {
+            $contain['Branches'] = ['fields' => ['id', 'name']];
+        }
+        if ($queryContext->loadsColumn('gathering_type_id')) {
+            $contain['GatheringTypes'] = ['fields' => ['id', 'name']];
+        }
+        if ($queryContext->loadsAny(['activity_count', 'activity_filter'])) {
+            $contain['GatheringActivities'] = [
+                'fields' => ['GatheringActivities.id', 'GatheringActivities.name'],
+            ];
+        }
 
         $baseQuery = $this->Gatherings->find()
             ->select([
@@ -127,12 +147,7 @@ class GatheringsController extends AppController
                 'Gatherings.created',
                 'Gatherings.modified',
             ])
-            ->contain([
-                'Branches' => ['fields' => ['id', 'name']],
-                'GatheringTypes' => ['fields' => ['id', 'name']],
-                'GatheringActivities' => ['fields' => ['GatheringActivities.id', 'GatheringActivities.name']],
-                'Creators' => ['fields' => ['id', 'sca_name']],
-            ])
+            ->contain($contain)
             ->leftJoinWith('GatheringActivities')
             ->distinct();
 
@@ -162,6 +177,17 @@ class GatheringsController extends AppController
             'data' => $result['data'],
             'gatherings' => $result['data'],
             'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
+            'visibleColumns' => $result['visibleColumns'],
+            'dropdownFilterColumns' => $result['dropdownFilterColumns'],
+            'filterOptions' => $result['filterOptions'],
+            'currentFilters' => $result['currentFilters'],
+            'currentSearch' => $result['currentSearch'],
+            'currentView' => $result['currentView'],
+            'availableViews' => $result['availableViews'],
+            'gridKey' => $result['gridKey'],
+            'currentSort' => $result['currentSort'],
+            'currentMember' => $result['currentMember'],
             'rowActions' => GatheringsGridColumns::getRowActions(),
         ]);
 
@@ -279,7 +305,12 @@ class GatheringsController extends AppController
         $defaultMonth = (int)$today->format('m');
         $defaultView = $this->request->getQuery('view', 'month');
 
-        $this->set(compact('defaultYear', 'defaultMonth', 'defaultView'));
+        // Progress-eligible offices held by the current user (for the RSVP modal)
+        $progressOfficers = $currentUser
+            ? $this->Gatherings->GatheringAttendances->currentProgressOfficersForMember((int)$currentUser->id)
+            : [];
+
+        $this->set(compact('defaultYear', 'defaultMonth', 'defaultView', 'progressOfficers'));
     }
 
     /**
@@ -363,6 +394,8 @@ class GatheringsController extends AppController
                 'Gatherings.start_date',
                 'Gatherings.end_date',
                 'Gatherings.location',
+                'Gatherings.preregister_url',
+                'Gatherings.preregister_closes_on',
                 'Gatherings.cancelled_at',
                 'Gatherings.created',
                 'Gatherings.modified',
@@ -536,6 +569,9 @@ class GatheringsController extends AppController
                 'location',
                 'latitude',
                 'longitude',
+                'preregister_url',
+                'preregister_closes_on',
+                'cancelled_at',
                 'branch_id',
                 'gathering_type_id',
                 'created',
@@ -561,7 +597,9 @@ class GatheringsController extends AppController
             ->first();
 
         // Check if user can still attend (gathering hasn't ended)
-        $today = Date::now();
+        // Compare against start of today; Cake\I18n\Date is not a DateTimeInterface in
+        // Chronos 3, so DateTime (end_date) vs Date comparisons are unreliable.
+        $today = CakeDateTime::now()->startOfDay();
         $canAttend = $gathering->end_date >= $today;
 
         $this->set(compact('gathering', 'userAttendance', 'canAttend'));
@@ -908,7 +946,7 @@ class GatheringsController extends AppController
         // Group scheduled activities by date
         $scheduleByDate = [];
         foreach ($gathering->gathering_scheduled_activities as $scheduledActivity) {
-            $localStart = \App\KMP\TimezoneHelper::toUserTimezone(
+            $localStart = TimezoneHelper::toUserTimezone(
                 $scheduledActivity->start_datetime,
                 null,
                 null,
@@ -924,6 +962,19 @@ class GatheringsController extends AppController
         // Calculate event duration
         $durationDays = $gathering->start_date->diffInDays($gathering->end_date) + 1;
 
+        // Royal progress attendances (public info) and the current user's
+        // progress-eligible offices for the RSVP modal
+        $progressAttendances = $this->Gatherings->GatheringAttendances
+            ->find('royalProgress')
+            ->contain(['Members' => ['fields' => ['id', 'sca_name']]])
+            ->where(['gathering_id' => $gathering->id])
+            ->orderBy(['progress_office_name' => 'ASC'])
+            ->all()
+            ->toArray();
+        $progressOfficers = $currentUser
+            ? $this->Gatherings->GatheringAttendances->currentProgressOfficersForMember((int)$currentUser->id)
+            : [];
+
         $this->set(compact(
             'gathering',
             'hasWaivers',
@@ -932,6 +983,8 @@ class GatheringsController extends AppController
             'totalAttendanceCount',
             'userAttendance',
             'kingdomAttendances',
+            'progressAttendances',
+            'progressOfficers',
             'scheduleByDate',
             'durationDays',
         ));
@@ -1055,7 +1108,7 @@ class GatheringsController extends AppController
                 'text' => $t->name,
                 'data-description' => $t->description ?? '',
             ],
-            $gatheringTypesRaw
+            $gatheringTypesRaw,
         );
 
         $this->set(compact('gathering', 'branches', 'gatheringTypes', 'lockBranch', 'branchCount'));
@@ -1171,10 +1224,53 @@ class GatheringsController extends AppController
                 'text' => $t->name,
                 'data-description' => $t->description ?? '',
             ],
-            $gatheringTypesRaw
+            $gatheringTypesRaw,
         );
 
         $this->set(compact('gathering', 'branches', 'gatheringTypes', 'lockBranch', 'branchCount'));
+    }
+
+    /**
+     * Publish method
+     *
+     * Publish or unpublish an existing gathering.
+     *
+     * @param string|null $id Gathering id.
+     * @param bool $publish Whether to publish (true) or unpublish (false) the gathering.
+     * @return \Cake\Http\Response|null|void Redirects on successful edit, renders view otherwise.
+     * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
+     */
+    public function publish($id = null)
+    {
+        $publish = $this->request->getQuery('publish');
+        $publish = filter_var($publish, FILTER_VALIDATE_BOOLEAN);
+        $gathering = $this->Gatherings->get($id, contain: ['Branches']);
+        if (!$gathering) {
+            throw new NotFoundException(__('Gathering not found'));
+        }
+        $this->Authorization->authorize($gathering);
+
+        if ($this->request->is(['post'])) {
+            $gathering->published = $publish;
+            if (!$gathering->published) {
+                $gathering->published_by = null;
+                $gathering->published_on = null;
+            } else {
+                $gathering->published_by = $this->Authentication->getIdentity()->id;
+                $gathering->published_on = CakeDateTime::now();
+            }
+
+            if ($this->Gatherings->save($gathering)) {
+                $this->Flash->success(__(
+                    'The gathering "{0}" has been updated successfully.',
+                    $gathering->name,
+                ));
+            } else {
+                $this->Flash->error(__('The gathering could not be saved. Please, try again.'));
+            }
+        }
+
+        return $this->redirect(['action' => 'view', $gathering->public_id]);
     }
 
     /**
@@ -1379,7 +1475,10 @@ class GatheringsController extends AppController
             $waiverAuthorization->gathering_id = $gathering->id;
             $waiverAuthorization->gathering = $gathering;
 
-            if (!$this->Authentication->getIdentity()->checkCan('removeGatheringActivity', $waiverAuthorization, (int)$activityId)) {
+            if (
+                !$this->Authentication->getIdentity()
+                    ->checkCan('removeGatheringActivity', $waiverAuthorization, (int)$activityId)
+            ) {
                 $this->Flash->error(__(
                     'Cannot remove this activity because it is the last one supporting submitted waivers.',
                 ));
@@ -1551,7 +1650,7 @@ class GatheringsController extends AppController
         $this->viewBuilder()->setClassName('Json');
 
         $gathering = $this->Gatherings->find('byPublicId', [$publicId])->firstOrFail();
-        $this->Authorization->authorize($gathering, 'edit');
+        $this->Authorization->authorize($gathering, 'createScheduledActivity');
 
         $result = $scheduleService->add(
             $this->request->getData(),
@@ -1583,7 +1682,19 @@ class GatheringsController extends AppController
         $this->viewBuilder()->setClassName('Json');
 
         $gathering = $this->Gatherings->find('byPublicId', [$gatheringPublicId])->firstOrFail();
-        $this->Authorization->authorize($gathering, 'edit');
+        $scheduledActivity = $this->fetchTable('GatheringScheduledActivities')->get((int)$id);
+        // The AuthorizationComponent::authorize() cannot forward extra arguments to
+        // the policy, so resolve the service directly to pass the scheduled activity
+        // (required for the ownership check in GatheringPolicy::canEditScheduledActivity).
+        $this->Authorization->skipAuthorization();
+        $authorizationService = $this->request->getAttribute('authorization');
+        $identity = $this->Authentication->getIdentity();
+        if (
+            $authorizationService === null
+            || !$authorizationService->can($identity, 'editScheduledActivity', $gathering, $scheduledActivity)
+        ) {
+            throw new ForbiddenException(__('You are not authorized to edit this scheduled activity.'));
+        }
 
         $result = $scheduleService->edit(
             (int)$id,
@@ -1615,7 +1726,15 @@ class GatheringsController extends AppController
         $this->request->allowMethod(['post', 'delete']);
 
         $gathering = $this->Gatherings->find('byPublicId', [$gatheringPublicId])->firstOrFail();
-        $this->Authorization->authorize($gathering, 'edit');
+        // Deleting a scheduled activity requires full gathering edit rights. Delegated
+        // court schedule managers can add/edit their own rows but cannot delete, so a
+        // denial here returns a 403 rather than the silent redirect used for web forms.
+        $this->Authorization->skipAuthorization();
+        $authorizationService = $this->request->getAttribute('authorization');
+        $identity = $this->Authentication->getIdentity();
+        if ($authorizationService === null || !$authorizationService->can($identity, 'edit', $gathering)) {
+            throw new ForbiddenException(__('You are not authorized to delete this scheduled activity.'));
+        }
 
         $result = $scheduleService->delete((int)$id, $gathering);
 
@@ -1697,7 +1816,7 @@ class GatheringsController extends AppController
         // Group scheduled activities by date
         $scheduleByDate = [];
         foreach ($gathering->gathering_scheduled_activities as $scheduledActivity) {
-            $localStart = \App\KMP\TimezoneHelper::toUserTimezone(
+            $localStart = TimezoneHelper::toUserTimezone(
                 $scheduledActivity->start_datetime,
                 null,
                 null,
@@ -1745,6 +1864,20 @@ class GatheringsController extends AppController
                 ->toArray();
         }
 
+        // Royal progress is public information - shown to everyone
+        $progressAttendances = $this->fetchTable('GatheringAttendances')
+            ->find('royalProgress')
+            ->contain(['Members' => ['fields' => ['id', 'sca_name']]])
+            ->where(['gathering_id' => $gathering->id])
+            ->orderBy(['progress_office_name' => 'ASC'])
+            ->all()
+            ->toArray();
+
+        // Progress-eligible offices held by the current user (for the RSVP modal)
+        $progressOfficers = $identity
+            ? $this->fetchTable('GatheringAttendances')->currentProgressOfficersForMember((int)$identity->id)
+            : [];
+
         $this->set(compact(
             'gathering',
             'scheduleByDate',
@@ -1752,7 +1885,89 @@ class GatheringsController extends AppController
             'user',
             'userAttendance',
             'kingdomAttendances',
+            'progressAttendances',
+            'progressOfficers',
         ));
+    }
+
+    /**
+     * Public kingdom calendar - a read-only, list-first view of published events.
+     *
+     * The public replacement for the legacy kingdom events page. Requires no
+     * authentication and only lists gatherings explicitly published to the
+     * kingdom calendar (issues #58/#60). Events are grouped by month and show
+     * royal progress and web links inline (issues #59/#61/#63).
+     *
+     * @return \Cake\Http\Response|null|void Renders view
+     */
+    public function publicCalendar()
+    {
+        $this->Authorization->skipAuthorization();
+        $this->viewBuilder()->setLayout('public_event');
+
+        $today = CakeDateTime::now()->startOfDay();
+        $horizon = new CakeDateTime('+2 years');
+        $publishedConditions = [
+            'Gatherings.published' => true,
+            'Gatherings.end_date >=' => $today,
+            'Gatherings.start_date <=' => $horizon,
+        ];
+
+        // Activity filter - circles are just activities (e.g. "Laurel Circle"),
+        // so filtering by activity covers the circles facet too
+        $selectedActivityIds = array_values(array_unique(array_filter(array_map(
+            'intval',
+            (array)$this->request->getQuery('activities', []),
+        ))));
+
+        $query = $this->Gatherings->find()
+            ->contain([
+                'Branches' => ['fields' => ['id', 'name']],
+                'GatheringTypes' => ['fields' => ['id', 'name', 'color']],
+                'GatheringActivities' => ['fields' => ['id', 'name', 'is_circle']],
+                'GatheringAttendances' => [
+                    'Members' => ['fields' => ['id', 'sca_name']],
+                    'conditions' => ['GatheringAttendances.is_royal_progress' => true],
+                    'sort' => ['GatheringAttendances.progress_office_name' => 'ASC'],
+                ],
+            ])
+            ->where($publishedConditions)
+            ->orderBy(['Gatherings.start_date' => 'ASC']);
+
+        if ($selectedActivityIds !== []) {
+            $activityGatheringIds = $this->fetchTable('GatheringsGatheringActivities')->find()
+                ->select(['gathering_id'])
+                ->where(['gathering_activity_id IN' => $selectedActivityIds]);
+            $query->where(['Gatherings.id IN' => $activityGatheringIds]);
+        }
+
+        $gatherings = $query->all();
+
+        // Filter options: activities present on any upcoming published event,
+        // regardless of the currently applied filter
+        $publishedGatheringIds = $this->Gatherings->find()
+            ->select(['id'])
+            ->where($publishedConditions);
+        $activityIdsOnCalendar = $this->fetchTable('GatheringsGatheringActivities')->find()
+            ->select(['gathering_activity_id'])
+            ->where(['gathering_id IN' => $publishedGatheringIds]);
+        $activityOptions = $this->fetchTable('GatheringActivities')->find('list')
+            ->where(['GatheringActivities.id IN' => $activityIdsOnCalendar])
+            ->orderBy(['GatheringActivities.name' => 'ASC'])
+            ->toArray();
+
+        // Group by month (in each gathering's own timezone for display)
+        $gatheringsByMonth = [];
+        foreach ($gatherings as $gathering) {
+            $localStart = TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
+            $monthKey = $localStart->format('Y-m');
+            if (!isset($gatheringsByMonth[$monthKey])) {
+                $gatheringsByMonth[$monthKey] = [];
+            }
+            $gatheringsByMonth[$monthKey][] = $gathering;
+        }
+
+        $this->set(compact('gatheringsByMonth', 'activityOptions', 'selectedActivityIds'));
     }
 
     /**
@@ -1769,6 +1984,7 @@ class GatheringsController extends AppController
         $this->Authorization->skipAuthorization();
 
         $cutoff = new CakeDateTime('-30 days');
+        $feedUntil = new CakeDateTime('+2 years');
         $query = $this->Gatherings->find()
             ->contain([
                 'Branches',
@@ -1781,7 +1997,10 @@ class GatheringsController extends AppController
             ])
             ->where([
                 'Gatherings.end_date >=' => $cutoff,
-                'Gatherings.public_page_enabled' => true,
+                'Gatherings.start_date <=' => $feedUntil,
+                // Only events explicitly published to the kingdom calendar
+                // appear in the public feed (issue #58).
+                'Gatherings.published' => true,
             ])
             ->orderBy(['Gatherings.start_date' => 'ASC']);
 
@@ -1792,6 +2011,7 @@ class GatheringsController extends AppController
             $incomingFilters = [];
         }
         $calendarNameParts = [];
+        $normalizedFilters = [];
 
         foreach ($incomingFilters as $columnKey => $filterValue) {
             if (empty($filterValue)) {
@@ -1814,9 +2034,16 @@ class GatheringsController extends AppController
                 : $fieldToFilter;
 
             $values = is_array($filterValue) ? $filterValue : [$filterValue];
+            $values = array_values(array_filter($values, static fn($value): bool => $value !== '' && $value !== null));
+            sort($values);
+            if (empty($values)) {
+                continue;
+            }
+            $normalizedFilters[$columnKey] = $values;
             $query->where([$qualifiedField . ' IN' => $values]);
         }
 
+        ksort($normalizedFilters);
         // Build calendar display name from active filter values
         if (!empty($incomingFilters['branch_id'])) {
             $branchIds = (array)$incomingFilters['branch_id'];
@@ -1848,18 +2075,37 @@ class GatheringsController extends AppController
             $calendarName .= ' - ' . implode(' / ', $calendarNameParts);
         }
 
-        $gatherings = $query->all();
-
         $baseUrl = $this->request->scheme() . '://' . $this->request->host()
             . $this->request->getAttribute('base');
 
-        $icsContent = $iCalendarService->generateFeed($gatherings, $calendarName, $baseUrl);
+        $cacheKey = 'gatherings_ical_' . sha1(json_encode([
+            'baseUrl' => $baseUrl,
+            'filters' => $normalizedFilters,
+            'from' => $cutoff->format('Y-m-d'),
+            'until' => $feedUntil->format('Y-m-d'),
+        ]));
+        $icsContent = Cache::remember($cacheKey, function () use (
+            $iCalendarService,
+            $query,
+            $calendarName,
+            $baseUrl,
+        ): string {
+            return $iCalendarService->generateFeed($query->all(), $calendarName, $baseUrl);
+        }, 'grid_filter_options');
+        $etag = '"' . sha1($icsContent) . '"';
 
-        return $this->response
+        $response = $this->response
             ->withType('text/calendar')
             ->withCharset('UTF-8')
             ->withHeader('Content-Disposition', 'inline')
-            ->withHeader('Cache-Control', 'no-cache, must-revalidate')
+            ->withHeader('Cache-Control', 'public, max-age=900')
+            ->withHeader('ETag', $etag);
+
+        if ($this->request->getHeaderLine('If-None-Match') === $etag) {
+            return $response->withStatus(304);
+        }
+
+        return $response
             ->withStringBody($icsContent);
     }
 
@@ -1901,8 +2147,9 @@ class GatheringsController extends AppController
         $fullBaseUrl = $this->request->scheme() . '://' . $this->request->host() . $baseUrl;
         $eventUrl = $fullBaseUrl . '/gatherings/public-landing/' . $gathering->public_id;
 
-        // Check security based on public_page_enabled setting
-        if ($gathering->public_page_enabled === false) {
+        // Calendar downloads are public for gatherings with a public landing
+        // page or published to the kingdom calendar; otherwise require login.
+        if ($gathering->public_page_enabled === false && $gathering->published === false) {
             // Private gathering - require authentication but no policy check
             $identity = $this->Authentication->getIdentity();
             if (!$identity) {

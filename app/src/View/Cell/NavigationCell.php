@@ -3,7 +3,12 @@ declare(strict_types=1);
 
 namespace App\View\Cell;
 
+use App\Services\Cache\TenantAwareCache;
 use App\Services\NavigationRegistry;
+use App\Services\RestoreStatusService;
+use Authorization\Exception\Exception as AuthorizationException;
+use Cake\Cache\Cache;
+use Cake\Log\Log;
 use Cake\Routing\Router;
 use Cake\View\Cell;
 
@@ -32,6 +37,9 @@ use Cake\View\Cell;
  */
 class NavigationCell extends Cell
 {
+    private const FILTERED_NAV_CACHE_VERSION = 1;
+    private const BADGE_CACHE_TTL_SECONDS = 60;
+
     /**
      * List of valid options that can be passed into this cell's constructor.
      *
@@ -41,6 +49,13 @@ class NavigationCell extends Cell
      * @var array<string, mixed>
      */
     protected array $_validCellOptions = [];
+
+    /**
+     * Request-local badge lookup memo keyed by badge configuration.
+     *
+     * @var array<string, int>
+     */
+    protected array $badgeStatusMemo = [];
 
     /**
      * Initialization logic run at the end of object construction.
@@ -90,7 +105,8 @@ class NavigationCell extends Cell
 
         // Get navigation items from the registry instead of dispatching events
         $menuItems = NavigationRegistry::getNavigationItems($user, $params, $this->request->getSession());
-        $menu = $this->organizeMenu($menuItems, $user);
+        $filteredMenuItems = $this->authorizedMenuItems($menuItems, $user);
+        $menu = $this->organizeMenu($filteredMenuItems);
 
         $this->set(compact('menu'));
     }
@@ -135,7 +151,7 @@ class NavigationCell extends Cell
      * ]
      * ```
      */
-    protected function organizeMenu($menuItems, $user): array
+    protected function organizeMenu($menuItems): array
     {
         $currentRequestString = $this->request->getUri()->getPath(); //$this->request->getParam('controller') . '/' . $this->request->getParam('action');
         $currentQueryString = $this->request->getUri()->getQuery();
@@ -151,17 +167,10 @@ class NavigationCell extends Cell
         $parents = [];
         $mainLinks = [];
         $sublinks = [];
+        $activeFound = false;
         foreach ($menuItems as &$item) {
             if (!$item) {
                 continue;
-            }
-
-            if (isset($item['url'])) {
-                $url = $item['url'];
-                $url['plugin'] = $url['plugin'] ?? false;
-                if (!$user->canAccessUrl($url)) {
-                    continue;
-                }
             }
 
             if (isset($item['badgeValue'])) {
@@ -175,13 +184,20 @@ class NavigationCell extends Cell
             $item['expanded'] = false;
             if ($item['type'] === 'parent') {
                 $parents[$item['label']] = $item;
+            } elseif ($item['type'] === 'top-link') {
+                // Top-level clickable link rendered at parent level
+                $item['isTopLink'] = true;
+                if (!$activeFound && $this->isActive($item, $currentRequestString)) {
+                    $item['active'] = true;
+                    $activeFound = true;
+                }
+                $parents[$item['label']] = $item;
             } elseif ($item['type'] === 'link' && count($item['mergePath']) == 1) {
                 $mainLinks[] = $item;
             } elseif ($item['type'] === 'link' && count($item['mergePath']) > 1) {
                 $sublinks[] = $item;
             }
         }
-        $activeFound = false;
         // add mainlinks to parents
         foreach ($mainLinks as &$mainlink) {
             if (!$activeFound && $this->isActive($mainlink, $currentRequestString)) {
@@ -255,6 +271,94 @@ class NavigationCell extends Cell
         }
 
         return $parents;
+    }
+
+    /**
+     * Filter navigation items once per user/session so repeated renders avoid policy/database work.
+     *
+     * @param array $menuItems Navigation items.
+     * @param \App\Model\Entity\Member $user Current user.
+     * @return array
+     */
+    protected function authorizedMenuItems(array $menuItems, $user): array
+    {
+        $session = $this->request->getSession();
+        $cacheKey = TenantAwareCache::tenantScopedKey('filtered_navigation_items');
+        $cached = $session->read($cacheKey);
+        $sourceHash = $this->navigationSourceHash($menuItems);
+        $securityGeneration = Cache::read(TenantAwareCache::tenantScopedKey('security_generation')) ?: '';
+        $restoreGeneration = $this->restoreCompletionGeneration();
+        if (
+            is_array($cached)
+            && (int)($cached['user_id'] ?? 0) === (int)$user->id
+            && (int)($cached['nav_version'] ?? 0) === self::FILTERED_NAV_CACHE_VERSION
+            && ($cached['source_hash'] ?? '') === $sourceHash
+            && ($cached['security_generation'] ?? '') === $securityGeneration
+            && ($cached['restore_generation'] ?? '') === $restoreGeneration
+            && is_array($cached['items'] ?? null)
+        ) {
+            return $cached['items'];
+        }
+
+        $filtered = [];
+        foreach ($menuItems as $item) {
+            if (!$item) {
+                continue;
+            }
+            if (isset($item['url']) && empty($item['skipAuthorization'])) {
+                $url = $item['url'];
+                $url['plugin'] = $url['plugin'] ?? false;
+                try {
+                    $canAccess = $user->canAccessUrl($url);
+                } catch (AuthorizationException $exception) {
+                    Log::warning(sprintf(
+                        'Skipping navigation item "%s": %s',
+                        (string)($item['label'] ?? $item['url']['controller'] ?? 'unknown'),
+                        $exception->getMessage(),
+                    ));
+                    continue;
+                }
+                if (!$canAccess) {
+                    continue;
+                }
+            }
+
+            $filtered[] = $item;
+        }
+
+        $session->write($cacheKey, [
+            'user_id' => (int)$user->id,
+            'nav_version' => self::FILTERED_NAV_CACHE_VERSION,
+            'source_hash' => $sourceHash,
+            'security_generation' => $securityGeneration,
+            'restore_generation' => $restoreGeneration,
+            'items' => $filtered,
+        ]);
+
+        return $filtered;
+    }
+
+    /**
+     * Build a stable hash for generated navigation items without request-active state.
+     *
+     * @param array $menuItems Navigation items.
+     * @return string
+     */
+    private function navigationSourceHash(array $menuItems): string
+    {
+        return hash('sha256', serialize($menuItems));
+    }
+
+    /**
+     * Get the latest restore completion marker for cache invalidation.
+     *
+     * @return string
+     */
+    private function restoreCompletionGeneration(): string
+    {
+        $completedAt = (new RestoreStatusService())->getStatus()['completed_at'] ?? null;
+
+        return is_string($completedAt) ? $completedAt : '';
     }
 
     /**
@@ -347,12 +451,81 @@ class NavigationCell extends Cell
             is_array($badgeConfig)
             && isset($badgeConfig['class'], $badgeConfig['method'], $badgeConfig['argument'])
         ) {
-            return call_user_func(
+            $argument = $badgeConfig['argument'];
+            $argumentKey = is_scalar($argument) || $argument === null
+                ? (string)$argument
+                : md5((string)json_encode($argument));
+            $memoKey = implode('|', [
+                (string)$badgeConfig['class'],
+                (string)$badgeConfig['method'],
+                $argumentKey,
+            ]);
+            if (array_key_exists($memoKey, $this->badgeStatusMemo)) {
+                return $this->badgeStatusMemo[$memoKey];
+            }
+
+            $cachedBadge = $this->readCachedBadgeValue($memoKey);
+            if ($cachedBadge !== null) {
+                return $this->badgeStatusMemo[$memoKey] = $cachedBadge;
+            }
+
+            $badgeValue = (int)call_user_func(
                 [$badgeConfig['class'], $badgeConfig['method']],
                 $badgeConfig['argument'],
             );
+            $this->writeCachedBadgeValue($memoKey, $badgeValue);
+
+            return $this->badgeStatusMemo[$memoKey] = $badgeValue;
         } else {
             return (int)$badgeConfig;
         }
+    }
+
+    /**
+     * Read a short-lived session badge value.
+     *
+     * @param string $memoKey Badge cache key.
+     * @return int|null
+     */
+    private function readCachedBadgeValue(string $memoKey): ?int
+    {
+        $cacheKey = $this->badgeCacheKey($memoKey);
+        $cached = $this->request->getSession()->read($cacheKey);
+        if (!is_array($cached)) {
+            return null;
+        }
+
+        $expires = $cached['expires'] ?? null;
+        if (!is_int($expires) || $expires < time()) {
+            $this->request->getSession()->delete($cacheKey);
+
+            return null;
+        }
+
+        return (int)($cached['value'] ?? 0);
+    }
+
+    /**
+     * Write a short-lived session badge value.
+     *
+     * @param string $memoKey Badge cache key.
+     * @param int $value Badge value.
+     * @return void
+     */
+    private function writeCachedBadgeValue(string $memoKey, int $value): void
+    {
+        $this->request->getSession()->write($this->badgeCacheKey($memoKey), [
+            'value' => $value,
+            'expires' => time() + self::BADGE_CACHE_TTL_SECONDS,
+        ]);
+    }
+
+    /**
+     * @param string $memoKey Badge memo key.
+     * @return string
+     */
+    private function badgeCacheKey(string $memoKey): string
+    {
+        return TenantAwareCache::tenantScopedKey('navigation_badge_' . hash('sha256', $memoKey));
     }
 }

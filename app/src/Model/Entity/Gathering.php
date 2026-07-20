@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Model\Entity;
 
 use App\KMP\TimezoneHelper;
+use Cake\I18n\Date;
 
 /**
  * Gathering Entity
@@ -19,6 +20,9 @@ use App\KMP\TimezoneHelper;
  * @property \Cake\I18n\DateTime $start_date
  * @property \Cake\I18n\DateTime $end_date
  * @property string|null $location
+ * @property string|null $website_url
+ * @property string|null $preregister_url
+ * @property \Cake\I18n\Date|null $preregister_closes_on
  * @property string|null $timezone
  * @property float|null $latitude
  * @property float|null $longitude
@@ -53,6 +57,9 @@ class Gathering extends BaseEntity
         'start_date' => true,
         'end_date' => true,
         'location' => true,
+        'website_url' => true,
+        'preregister_url' => true,
+        'preregister_closes_on' => true,
         'timezone' => true,
         'latitude' => true,
         'longitude' => true,
@@ -71,6 +78,9 @@ class Gathering extends BaseEntity
         'gathering_scheduled_activities' => false,
         'gathering_staff' => false,
         'gathering_waivers' => false,
+        'published' => false,
+        'published_by' => false,
+        'published_on' => false,
     ];
 
     /**
@@ -130,5 +140,29 @@ class Gathering extends BaseEntity
     protected function _getIsCancelled(): bool
     {
         return $this->cancelled_at !== null;
+    }
+
+    /**
+     * Virtual field: is pre-registration currently open?
+     *
+     * Pre-registration is offered when a pre-register URL is set, the gathering
+     * is not cancelled, and the close date (if any) has not passed. A null
+     * close date means pre-registration stays open until the event itself; the
+     * caller is responsible for hiding it once the event is over.
+     *
+     * @return bool
+     */
+    protected function _getIsPreregistrationOpen(): bool
+    {
+        if (empty($this->preregister_url) || $this->is_cancelled) {
+            return false;
+        }
+
+        if ($this->preregister_closes_on === null) {
+            return true;
+        }
+
+        // preregister_closes_on is a date; open through the end of that day.
+        return $this->preregister_closes_on >= Date::now();
     }
 }

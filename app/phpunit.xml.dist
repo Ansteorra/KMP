@@ -3,6 +3,7 @@
          colors="true"
          processIsolation="false"
          stopOnFailure="false"
+         defaultTestSuite="all"
          bootstrap="tests/bootstrap.php"
          cacheDirectory=".phpunit.cache"
          xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.1/phpunit.xsd">

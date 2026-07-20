@@ -35,10 +35,15 @@ echo $this->Modal->create("Submit Issue", [
     "id" => "githubIssueModal",
     "close" => true,
     "data-github-submitter-target" => "modal",
+    "form" => true,
 ]); ?>
 
 <div data-github-submitter-target="formBlock">
-    <fieldset class="text-start">
+    <fieldset class="text-start border rounded-3 bg-white shadow-sm p-3">
+        <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+            <i class="bi bi-github text-primary me-1" aria-hidden="true"></i>
+            <?= __("Issue Details") ?>
+        </legend>
         <div class="mb-3 text-wrap">
             <?= StaticHelpers::getAppSetting("Plugin.GitHubIssueSubmitter.PopupMessage") ?>
         </div>

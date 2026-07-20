@@ -22,15 +22,20 @@
 <?php echo $this->Modal->create(__('Clone "{0}"', $gathering->name), [
     'id' => 'cloneGatheringModal',
     'close' => true,
-    'size' => 'lg'
+    'form' => true,
 ]); ?>
 
-<div class="alert alert-info">
+<div class="alert alert-info border-start border-info border-4">
     <i class="bi bi-info-circle"></i>
     <strong><?= __('Cloning this gathering') ?></strong><br>
     <?= __('This will create a new gathering with the same activities and settings. You can customize the name and dates below.') ?>
 </div>
 
+<fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3">
+    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+        <i class="bi bi-pencil-square text-primary me-1" aria-hidden="true"></i>
+        <?= __('New Gathering Details') ?>
+    </legend>
 <div class="mb-3">
     <?= $this->Form->control('name', [
         'value' => $gathering->name,
@@ -86,8 +91,13 @@
     'value' => $gathering->timezone ?? \App\KMP\TimezoneHelper::getUserTimezone($currentUser)
 ]) ?>
 
-<div class="mb-3">
-    <h6><?= __('Clone Options') ?></h6>
+</fieldset>
+
+<fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3">
+    <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
+        <i class="bi bi-copy text-primary me-1" aria-hidden="true"></i>
+        <?= __('Clone Options') ?>
+    </legend>
     <div class="form-check">
         <?= $this->Form->checkbox('clone_activities', [
             'checked' => true,
@@ -141,9 +151,9 @@
             <?= __('Copies the event schedule with times adjusted to match the new start date') ?>
         </small>
     </div>
-</div>
+</fieldset>
 
-<div class="card bg-light">
+<div class="card bg-white shadow-sm">
     <div class="card-body">
         <h6 class="card-title"><?= __('Original Gathering Details') ?></h6>
         <dl class="row mb-0">

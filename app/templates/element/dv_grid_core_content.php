@@ -28,26 +28,29 @@ $renderInlineTable = isset($data) && isset($gridState);
 $rowActions = $rowActions ?? [];
 $customElement = $customElement ?? null;
 $customElementOptions = $customElementOptions ?? [];
+$tableColumns = $columns ?? $gridState['columns']['all'] ?? [];
+$paginationQueryParams = $this->getRequest()->getQueryParams();
+unset($paginationQueryParams['page']);
 ?>
 <turbo-frame id="<?= h($frameId) ?>">
     <turbo-frame
         id="<?= h($tableFrameId) ?>"
         <?= $renderInlineTable ? '' : 'src="' . h($tableDataUrl) . '"' ?>
         data-grid-src="<?= h($tableDataUrl) ?>">
-        <?php if ($renderInlineTable): ?>
+        <?php if ($renderInlineTable) : ?>
             <script type="application/json" id="<?= h($tableFrameId) ?>-state">
-                <?= json_encode($gridState, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?>
+                <?= json_encode($gridState, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
             </script>
 
-            <?php if ($customElement): ?>
+            <?php if ($customElement) : ?>
                 <?= $this->element($customElement, array_merge($customElementOptions, [
                     'data' => $data,
                     'gridState' => $gridState,
                     'tableFrameId' => $tableFrameId,
                 ])) ?>
-            <?php else: ?>
+            <?php else : ?>
                 <?= $this->element('dataverse_table', [
-                    'columns' => $gridState['columns']['all'],
+                    'columns' => $tableColumns,
                     'visibleColumns' => $gridState['columns']['visible'],
                     'data' => $data,
                     'currentSort' => $gridState['sort'],
@@ -56,10 +59,18 @@ $customElementOptions = $customElementOptions ?? [];
                     'gridKey' => $gridState['config']['gridKey'],
                     'rowActions' => $rowActions,
                     'enableColumnPicker' => $gridState['config']['enableColumnPicker'] ?? true,
+                    'tableFrameId' => $tableFrameId,
+                    'enableBulkSelection' => $gridState['config']['enableBulkSelection'] ?? false,
+                    'bulkSelectionDataFields' => $gridState['config']['bulkSelectionDataFields'] ?? [],
+                    'bulkSelectionDisabledField' => $gridState['config']['bulkSelectionDisabledField'] ?? null,
+                    'bulkSelectionDisabledLabel' => $gridState['config']['bulkSelection']['disabledLabel'] ?? null,
+                    'bulkSelectionHideDisabledControl' =>
+                        $gridState['config']['bulkSelectionHideDisabledControl'] ?? false,
+                    'bulkSelection' => $gridState['config']['bulkSelection'] ?? [],
                 ]) ?>
 
                 <div class="paginator">
-                    <?php $this->Paginator->options(['url' => ['?' => $this->getRequest()->getQueryParams()]]); ?>
+                    <?php $this->Paginator->options(['url' => ['?' => $paginationQueryParams]]); ?>
                     <ul class="pagination">
                         <?= $this->Paginator->first('<< ' . __('first')) ?>
                         <?= $this->Paginator->prev('< ' . __('previous')) ?>
@@ -67,10 +78,14 @@ $customElementOptions = $customElementOptions ?? [];
                         <?= $this->Paginator->next(__('next') . ' >') ?>
                         <?= $this->Paginator->last(__('last') . ' >>') ?>
                     </ul>
-                    <p><?= $this->Paginator->counter(__('Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total')) ?></p>
+                    <p>
+                        <?= $this->Paginator->counter(
+                            __('Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total'),
+                        ) ?>
+                    </p>
                 </div>
             <?php endif; ?>
-        <?php else: ?>
+        <?php else : ?>
             <div class="text-center p-3">
                 <div class="spinner-border spinner-border-sm text-primary" role="status">
                     <span class="visually-hidden">Loading...</span>

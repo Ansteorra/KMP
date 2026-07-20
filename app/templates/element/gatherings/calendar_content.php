@@ -43,7 +43,7 @@ $viewMode = $calendarMeta['view'] ?? 'month';
 
         <!-- Grid State (JSON) - Read by grid-view-controller on load -->
         <script type="application/json" id="<?= h($tableFrameId) ?>-state">
-            <?= json_encode($gridState, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?>
+            <?= json_encode($gridState, JSON_PRETTY_PRINT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
         </script>
 
         <!-- Calendar Renderer -->

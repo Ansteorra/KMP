@@ -8,14 +8,18 @@ use Cake\Command\Command;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
+use Cake\Event\Event;
+use Cake\Event\EventManager;
 use Cake\I18n\FrozenTime;
+use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
 
 /**
  * CLI command to synchronize stored member warrantable flags.
  *
  * Recomputes warrant eligibility for a targeted candidate set and persists only
- * rows where the stored boolean value is stale.
+ * rows where the stored boolean value is stale. Fires a
+ * 'Members.WarrantableSyncTriggered' event after completing the sync.
  *
  * Candidate members are those:
  * - modified in the last 24 hours, OR
@@ -160,6 +164,43 @@ class SyncMemberWarrantableStatusesCommand extends Command
             return Command::CODE_ERROR;
         }
 
+        // Fire workflow event after successful sync
+        if (!$dryRun) {
+            $this->fireWarrantableSyncEvent($summary, $io);
+        }
+
         return Command::CODE_SUCCESS;
+    }
+
+    /**
+     * Fire 'Members.WarrantableSyncTriggered' event via the CakePHP EventManager.
+     *
+     * @param array $summary Sync summary counts.
+     * @param \Cake\Console\ConsoleIo $io Console IO instance.
+     * @return void
+     */
+    protected function fireWarrantableSyncEvent(array $summary, ConsoleIo $io): void
+    {
+        try {
+            $event = new Event('Workflow.trigger', $this, [
+                'eventName' => 'Members.WarrantableSyncTriggered',
+                'eventData' => [
+                    'trigger' => 'cron',
+                    'triggered_at' => date('c'),
+                    'scanned' => $summary['scanned'],
+                    'changed' => $summary['changed'],
+                    'became_warrantable' => $summary['became_warrantable'],
+                    'became_not_warrantable' => $summary['became_not_warrantable'],
+                ],
+                'triggeredBy' => null,
+            ]);
+
+            EventManager::instance()->dispatch($event);
+
+            $io->info('Dispatched Members.WarrantableSyncTriggered event.');
+        } catch (\Throwable $e) {
+            Log::error('SyncMemberWarrantableStatuses: Event dispatch failed: ' . $e->getMessage());
+            $io->warning('Failed to dispatch WarrantableSyncTriggered event: ' . $e->getMessage());
+        }
     }
 }

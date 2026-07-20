@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use App\Services\Cache\TenantAwareCache;
 use Cake\Cache\Cache;
 use Cake\Database\Schema\TableSchemaInterface;
 use Cake\ORM\RulesChecker;
@@ -368,11 +369,11 @@ class BranchesTable extends BaseTable
      */
     public function getAllDecendentIds($id): array
     {
-        $descendants = Cache::read('descendants_' . $id, 'branch_structure');
-        if (!$descendants) {
+        $descendants = Cache::read(TenantAwareCache::tenantScopedKey('descendants_' . $id), 'branch_structure');
+        if (!is_array($descendants)) {
             $descendants = $this->getDescendantsLookup();
             foreach ($descendants as $key => $value) {
-                Cache::write('descendants_' . $key, $value, 'branch_structure');
+                Cache::write(TenantAwareCache::tenantScopedKey('descendants_' . $key), $value, 'branch_structure');
             }
             $descendants = $descendants[$id] ?? [];
         }
@@ -431,11 +432,11 @@ class BranchesTable extends BaseTable
      */
     public function getAllParents($id): array
     {
-        $parents = Cache::read('parents_' . $id, 'branch_structure');
-        if (!$parents) {
+        $parents = Cache::read(TenantAwareCache::tenantScopedKey('parents_' . $id), 'branch_structure');
+        if (!is_array($parents)) {
             $parents = $this->getParentsLookup();
             foreach ($parents as $key => $value) {
-                Cache::write('parents_' . $key, $value, 'branch_structure');
+                Cache::write(TenantAwareCache::tenantScopedKey('parents_' . $key), $value, 'branch_structure');
             }
             $parents = $parents[$id] ?? [];
         }

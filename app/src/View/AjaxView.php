@@ -87,7 +87,7 @@ class AjaxView extends AppView
      * - Compatible with fetch() API and XMLHttpRequest
      *
      * Helper Availability:
-     * - All AppView helpers remain available (Identity, Kmp, AssetMix, etc.)
+     * - All AppView helpers remain available (Identity, Kmp, Vite, etc.)
      * - Bootstrap helpers can be used for partial rendering
      * - Image processing helpers work for dynamic content
      *

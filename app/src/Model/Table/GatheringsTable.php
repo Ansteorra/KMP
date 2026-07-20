@@ -71,6 +71,11 @@ class GatheringsTable extends Table
             'foreignKey' => 'created_by',
             'joinType' => 'INNER',
         ]);
+        $this->belongsTo('PublishedByMember', [
+            'className' => 'Members',
+            'foreignKey' => 'published_by',
+            'joinType' => 'LEFT',
+        ]);
 
         // Many-to-many relationship with GatheringActivities through join table
         $this->belongsToMany('GatheringActivities', [
@@ -159,6 +164,25 @@ class GatheringsTable extends Table
             ->scalar('location')
             ->maxLength('location', 255)
             ->allowEmptyString('location');
+
+        $validator
+            ->scalar('website_url')
+            ->maxLength('website_url', 512)
+            ->allowEmptyString('website_url')
+            ->urlWithProtocol('website_url', __('Website must be a full URL including http:// or https://'));
+
+        $validator
+            ->scalar('preregister_url')
+            ->maxLength('preregister_url', 512)
+            ->allowEmptyString('preregister_url')
+            ->urlWithProtocol(
+                'preregister_url',
+                __('Pre-registration link must be a full URL including http:// or https://'),
+            );
+
+        $validator
+            ->date('preregister_closes_on')
+            ->allowEmptyDate('preregister_closes_on');
 
         $validator
             ->scalar('timezone')

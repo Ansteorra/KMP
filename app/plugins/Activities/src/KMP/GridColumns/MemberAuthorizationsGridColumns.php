@@ -76,43 +76,6 @@ class MemberAuthorizationsGridColumns extends BaseGridColumns
                 'defaultVisible' => false,
                 'filterType' => 'is-populated',
             ],
-            'requested_on' => [
-                'key' => 'requested_on',
-                'queryField' => 'CurrentPendingApprovals.requested_on',
-                'renderField' => 'current_pending_approval.requested_on',
-                'label' => 'Requested Date',
-                'type' => 'date',
-                'sortable' => true,
-                'filterable' => false,
-                'defaultVisible' => false,
-
-            ],
-            'responded_on' => [
-                'key' => 'responded_on',
-                'queryField' => 'CurrentPendingApprovals.responded_on',
-                'renderField' => 'current_pending_approval.responded_on',
-                'label' => 'Responded',
-                'type' => 'date',
-                'sortable' => true,
-                'filterable' => true,
-                'defaultVisible' => false,
-                'filterType' => 'is-populated',
-                'filterOptions' => [
-                    ['value' => 'yes', 'label' => 'Yes'],
-                    ['value' => 'no', 'label' => 'No'],
-                ],
-            ],
-            'approver_sca_name' => [
-                'key' => 'approver_sca_name',
-                'queryField' => 'Approvers.sca_name',
-                'renderField' => 'current_pending_approval.approver.sca_name',
-                'label' => 'Assigned To',
-                'type' => 'relation',
-                'sortable' => false,
-                'filterable' => false,
-                'searchable' => false,
-                'defaultVisible' => false,
-            ],
             'revoked_reason' => [
                 'key' => 'revoked_reason',
                 'queryField' => 'Authorizations.revoked_reason',
@@ -143,7 +106,7 @@ class MemberAuthorizationsGridColumns extends BaseGridColumns
      */
     public static function getPendingViewColumns(): array
     {
-        return ['activity_name', 'requested_on', 'approver_sca_name'];
+        return ['activity_name'];
     }
 
     /**

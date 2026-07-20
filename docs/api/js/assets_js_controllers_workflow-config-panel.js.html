@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>assets/js/controllers/workflow-config-panel.js - KMP JavaScript API</title>
+    
+    <meta name="description" content="KMP JavaScript API reference for Stimulus controllers and plugin assets." />
+    
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    <input type="text" id="nav-search" placeholder="Search" />
+    
+    
+    <h2><a href="index.html">Home</a></h2><h2><a href="../php/index.html" target="_self" >PHP API</a></h2><h2><a href="../../index.html" target="_self" >Docs Home</a></h2><h3>Classes</h3><ul><li><a href="ActivitiesApproveAndAssignAuthorization.html">ActivitiesApproveAndAssignAuthorization</a><ul class='methods'><li data-type='method'><a href="ActivitiesApproveAndAssignAuthorization.html#checkReadyToSubmit">checkReadyToSubmit</a></li><li data-type='method'><a href="ActivitiesApproveAndAssignAuthorization.html#connect">connect</a></li><li data-type='method'><a href="ActivitiesApproveAndAssignAuthorization.html#getApprovers">getApprovers</a></li><li data-type='method'><a href="ActivitiesApproveAndAssignAuthorization.html#optionsForFetch">optionsForFetch</a></li><li data-type='method'><a href="ActivitiesApproveAndAssignAuthorization.html#outletBtnOutletConnected">outletBtnOutletConnected</a></li><li data-type='method'><a href="ActivitiesApproveAndAssignAuthorization.html#outletBtnOutletDisconnected">outletBtnOutletDisconnected</a></li><li data-type='method'><a href="ActivitiesApproveAndAssignAuthorization.html#setId">setId</a></li><li data-type='method'><a href="ActivitiesApproveAndAssignAuthorization.html#submitBtnTargetConnected">submitBtnTargetConnected</a></li></ul></li><li><a href="ActivitiesRenewAuthorization.html">ActivitiesRenewAuthorization</a><ul class='methods'><li data-type='method'><a href="ActivitiesRenewAuthorization.html#checkReadyToSubmit">checkReadyToSubmit</a></li><li data-type='method'><a href="ActivitiesRenewAuthorization.html#getApprovers">getApprovers</a></li><li data-type='method'><a href="ActivitiesRenewAuthorization.html#optionsForFetch">optionsForFetch</a></li><li data-type='method'><a href="ActivitiesRenewAuthorization.html#outletBtnOutletConnected">outletBtnOutletConnected</a></li><li data-type='method'><a href="ActivitiesRenewAuthorization.html#outletBtnOutletDisconnected">outletBtnOutletDisconnected</a></li><li data-type='method'><a href="ActivitiesRenewAuthorization.html#setId">setId</a></li><li data-type='method'><a href="ActivitiesRenewAuthorization.html#submitBtnTargetConnected">submitBtnTargetConnected</a></li></ul></li><li><a href="ActivityToggleController.html">ActivityToggleController</a><ul class='methods'><li data-type='method'><a href="ActivityToggleController.html#toggleDescription">toggleDescription</a></li></ul></li><li><a href="ActivityWaiverManagerController.html">ActivityWaiverManagerController</a><ul class='methods'><li data-type='method'><a href="ActivityWaiverManagerController.html#connect">connect</a></li><li data-type='method'><a href="ActivityWaiverManagerController.html#deselectAll">deselectAll</a></li><li data-type='method'><a href="ActivityWaiverManagerController.html#getSelectedWaivers">getSelectedWaivers</a></li><li data-type='method'><a href="ActivityWaiverManagerController.html#selectAll">selectAll</a></li><li data-type='method'><a href="ActivityWaiverManagerController.html#toggleWaiver">toggleWaiver</a></li><li data-type='method'><a href="ActivityWaiverManagerController.html#updateSelectedCount">updateSelectedCount</a></li><li data-type='method'><a href="ActivityWaiverManagerController.html#updateVisualState">updateVisualState</a></li><li data-type='method'><a href="ActivityWaiverManagerController.html#validateSelection">validateSelection</a></li></ul></li><li><a href="AddActivityModalController.html">AddActivityModalController</a><ul class='methods'><li data-type='method'><a href="AddActivityModalController.html#updateDefaultDescription">updateDefaultDescription</a></li></ul></li><li><a href="AppSettingForm.html">AppSettingForm</a><ul class='methods'><li data-type='method'><a href="AppSettingForm.html#enableSubmit">enableSubmit</a></li><li data-type='method'><a href="AppSettingForm.html#submit">submit</a></li></ul></li><li><a href="AppSettingModalController.html">AppSettingModalController</a><ul class='methods'><li data-type='method'><a href="AppSettingModalController.html#connect">connect</a></li><li data-type='method'><a href="AppSettingModalController.html#disconnect">disconnect</a></li><li data-type='method'><a href="AppSettingModalController.html#handleOutletClick">handleOutletClick</a></li><li data-type='method'><a href="AppSettingModalController.html#initialize">initialize</a></li><li data-type='method'><a href="AppSettingModalController.html#loadEditForm">loadEditForm</a></li></ul></li><li><a href="ApprovalDetailController.html">ApprovalDetailController</a></li><li><a href="ApprovalReassignController.html">ApprovalReassignController</a></li><li><a href="ApprovalResponseController.html">ApprovalResponseController</a><ul class='methods'><li data-type='method'><a href="ApprovalResponseController.html#configure">configure</a></li></ul></li><li><a href="AutoComplete.html">AutoComplete</a></li><li><a href="AwardsAwardForm.html">AwardsAwardForm</a><ul class='methods'><li data-type='method'><a href="AwardsAwardForm.html#add">add</a></li><li data-type='method'><a href="AwardsAwardForm.html#connect">connect</a></li><li data-type='method'><a href="AwardsAwardForm.html#createListItem">createListItem</a></li><li data-type='method'><a href="AwardsAwardForm.html#initialize">initialize</a></li><li data-type='method'><a href="AwardsAwardForm.html#remove">remove</a></li></ul></li><li><a href="AwardsRecommendationAddForm.html">AwardsRecommendationAddForm</a><ul class='methods'><li data-type='method'><a href="AwardsRecommendationAddForm.html#acConnected">acConnected</a></li><li data-type='method'><a href="AwardsRecommendationAddForm.html#connect">connect</a></li><li data-type='method'><a href="AwardsRecommendationAddForm.html#getAutocompleteValue">getAutocompleteValue</a></li><li data-type='method'><a href="AwardsRecommendationAddForm.html#loadMember">loadMember</a></li><li data-type='method'><a href="AwardsRecommendationAddForm.html#loadScaMemberInfo">loadScaMemberInfo</a></li><li data-type='method'><a href="AwardsRecommendationAddForm.html#optionsForFetch">optionsForFetch</a></li><li data-type='method'><a href="AwardsRecommendationAddForm.html#populateAwardDescriptions">populateAwardDescriptions</a></li><li data-type='method'><a href="AwardsRecommendationAddForm.html#populateSpecialties">populateSpecialties</a></li><li data-type='method'><a href="AwardsRecommendationAddForm.html#setAward">setAward</a></li><li data-type='method'><a href="AwardsRecommendationAddForm.html#submit">submit</a></li><li data-type='method'><a href="AwardsRecommendationAddForm.html#updateGatherings">updateGatherings</a></li></ul></li><li><a href="AwardsRecommendationBulkEditForm.html">AwardsRecommendationBulkEditForm</a><ul class='methods'><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#connect">connect</a></li><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#disconnect">disconnect</a></li><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#handleGridBulkAction">handleGridBulkAction</a></li><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#outletBtnOutletConnected">outletBtnOutletConnected</a></li><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#outletBtnOutletDisconnected">outletBtnOutletDisconnected</a></li><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#setFieldRules">setFieldRules</a></li><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#setId">setId</a></li><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#setPlanToGiveRequired">setPlanToGiveRequired</a></li><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#stateTargetConnected">stateTargetConnected</a></li><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#submit">submit</a></li><li data-type='method'><a href="AwardsRecommendationBulkEditForm.html#updateGatherings">updateGatherings</a></li></ul></li><li><a href="AwardsRecommendationEditForm.html">AwardsRecommendationEditForm</a><ul class='methods'><li data-type='method'><a href="AwardsRecommendationEditForm.html#connect">connect</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#givenDateTargetConnected">givenDateTargetConnected</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#loadMember">loadMember</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#loadScaMemberInfo">loadScaMemberInfo</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#optionsForFetch">optionsForFetch</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#outletBtnOutletConnected">outletBtnOutletConnected</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#outletBtnOutletDisconnected">outletBtnOutletDisconnected</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#planToGiveGatheringTargetConnected">planToGiveGatheringTargetConnected</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#populateAwardDescriptions">populateAwardDescriptions</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#populateSpecialties">populateSpecialties</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#recIdTargetConnected">recIdTargetConnected</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#scaMemberTargetConnected">scaMemberTargetConnected</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#setAward">setAward</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#setFieldRules">setFieldRules</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#setId">setId</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#setPlanToGiveRequired">setPlanToGiveRequired</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#stateTargetConnected">stateTargetConnected</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#submit">submit</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#updateGatherings">updateGatherings</a></li><li data-type='method'><a href="AwardsRecommendationEditForm.html#updatePlanToGiveLookupUrl">updatePlanToGiveLookupUrl</a></li></ul></li><li><a href="AwardsRecommendationGroupController.html">AwardsRecommendationGroupController</a><ul class='methods'><li data-type='method'><a href="AwardsRecommendationGroupController.html#canGroup">canGroup</a></li><li data-type='method'><a href="AwardsRecommendationGroupController.html#handleSelectionChanged">handleSelectionChanged</a></li></ul></li><li><a href="AwardsRecommendationQuickEditForm.html">AwardsRecommendationQuickEditForm</a><ul class='methods'><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#connect">connect</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#givenDateTargetConnected">givenDateTargetConnected</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#loadScaMemberInfo">loadScaMemberInfo</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#optionsForFetch">optionsForFetch</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#outletBtnOutletConnected">outletBtnOutletConnected</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#outletBtnOutletDisconnected">outletBtnOutletDisconnected</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#planToGiveGatheringTargetConnected">planToGiveGatheringTargetConnected</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#populateAwardDescriptions">populateAwardDescriptions</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#populateSpecialties">populateSpecialties</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#recIdTargetConnected">recIdTargetConnected</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#setAward">setAward</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#setFieldRules">setFieldRules</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#setId">setId</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#setPlanToGiveRequired">setPlanToGiveRequired</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#stateTargetConnected">stateTargetConnected</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#submit">submit</a></li><li data-type='method'><a href="AwardsRecommendationQuickEditForm.html#updateGatherings">updateGatherings</a></li></ul></li><li><a href="AwardsRecommendationTable.html">AwardsRecommendationTable</a><ul class='methods'><li data-type='method'><a href="AwardsRecommendationTable.html#checkAll">checkAll</a></li><li data-type='method'><a href="AwardsRecommendationTable.html#checked">checked</a></li><li data-type='method'><a href="AwardsRecommendationTable.html#connect">connect</a></li></ul></li><li><a href="BackupRestoreStatusController.html">BackupRestoreStatusController</a></li><li><a href="BaseGatheringFormController.html">BaseGatheringFormController</a><ul class='methods'><li data-type='method'><a href="BaseGatheringFormController.html#clearValidationMessages">clearValidationMessages</a></li><li data-type='method'><a href="BaseGatheringFormController.html#connect">connect</a></li><li data-type='method'><a href="BaseGatheringFormController.html#endDateChanged">endDateChanged</a></li><li data-type='method'><a href="BaseGatheringFormController.html#showValidationError">showValidationError</a></li><li data-type='method'><a href="BaseGatheringFormController.html#startDateChanged">startDateChanged</a></li><li data-type='method'><a href="BaseGatheringFormController.html#validateDates">validateDates</a></li><li data-type='method'><a href="BaseGatheringFormController.html#validateForm">validateForm</a></li></ul></li><li><a href="BrancheLinks.html">BrancheLinks</a><ul class='methods'><li data-type='method'><a href="BrancheLinks.html#add">add</a></li><li data-type='method'><a href="BrancheLinks.html#connect">connect</a></li><li data-type='method'><a href="BrancheLinks.html#createListItem">createListItem</a></li><li data-type='method'><a href="BrancheLinks.html#initialize">initialize</a></li><li data-type='method'><a href="BrancheLinks.html#remove">remove</a></li><li data-type='method'><a href="BrancheLinks.html#setLinkType">setLinkType</a></li></ul></li><li><a href="CameraCaptureController.html">CameraCaptureController</a><ul class='methods'><li data-type='method'><a href="CameraCaptureController.html#connect">connect</a></li><li data-type='method'><a href="CameraCaptureController.html#detectMobileDevice">detectMobileDevice</a></li><li data-type='method'><a href="CameraCaptureController.html#formatFileSize">formatFileSize</a></li><li data-type='method'><a href="CameraCaptureController.html#handleCapture">handleCapture</a></li><li data-type='method'><a href="CameraCaptureController.html#showImagePreview">showImagePreview</a></li><li data-type='method'><a href="CameraCaptureController.html#triggerCamera">triggerCamera</a></li><li data-type='method'><a href="CameraCaptureController.html#.supportsCameraCapture">supportsCameraCapture</a></li></ul></li><li><a href="CodeEditorController.html">CodeEditorController</a></li><li><a href="CsvDownloadController.html">CsvDownloadController</a><ul class='methods'><li data-type='method'><a href="CsvDownloadController.html#connect">connect</a></li><li data-type='method'><a href="CsvDownloadController.html#disconnect">disconnect</a></li><li data-type='method'><a href="CsvDownloadController.html#download">download</a></li></ul></li><li><a href="DelayForwardController.html">DelayForwardController</a><ul class='methods'><li data-type='method'><a href="DelayForwardController.html#connect">connect</a></li><li data-type='method'><a href="DelayForwardController.html#disconnect">disconnect</a></li><li data-type='method'><a href="DelayForwardController.html#forward">forward</a></li></ul></li><li><a href="DeleteConfirmationController.html">DeleteConfirmationController</a><ul class='methods'><li data-type='method'><a href="DeleteConfirmationController.html#buildConfirmMessage">buildConfirmMessage</a></li><li data-type='method'><a href="DeleteConfirmationController.html#confirm">confirm</a></li></ul></li><li><a href="DetailTabsController.html">DetailTabsController</a><ul class='methods'><li data-type='method'><a href="DetailTabsController.html#getFirstTabByOrder">getFirstTabByOrder</a></li><li data-type='method'><a href="DetailTabsController.html#tabBtnClicked">tabBtnClicked</a></li><li data-type='method'><a href="DetailTabsController.html#tabBtnTargetConnected">tabBtnTargetConnected</a></li><li data-type='method'><a href="DetailTabsController.html#tabBtnTargetDisconnected">tabBtnTargetDisconnected</a></li></ul></li><li><a href="EditActivityDescriptionController.html">EditActivityDescriptionController</a><ul class='methods'><li data-type='method'><a href="EditActivityDescriptionController.html#handleModalShow">handleModalShow</a></li></ul></li><li><a href="EmailTemplateEditorController.html">EmailTemplateEditorController</a><ul class='methods'><li data-type='method'><a href="EmailTemplateEditorController.html#buildToolbar">buildToolbar</a></li><li data-type='method'><a href="EmailTemplateEditorController.html#getValue">getValue</a></li><li data-type='method'><a href="EmailTemplateEditorController.html#insertVariable">insertVariable</a></li><li data-type='method'><a href="EmailTemplateEditorController.html#renderPreview">renderPreview</a></li><li data-type='method'><a href="EmailTemplateEditorController.html#renderVariableButtons">renderVariableButtons</a></li><li data-type='method'><a href="EmailTemplateEditorController.html#setValue">setValue</a></li><li data-type='method'><a href="EmailTemplateEditorController.html#showVariableMenu">showVariableMenu</a></li></ul></li><li><a href="EmailTemplateFormController.html">EmailTemplateFormController</a><ul class='methods'><li data-type='method'><a href="EmailTemplateFormController.html#_extractPlaceholders">_extractPlaceholders</a></li><li data-type='method'><a href="EmailTemplateFormController.html#_refreshParsedPlaceholders">_refreshParsedPlaceholders</a></li><li data-type='method'><a href="EmailTemplateFormController.html#_slugify">_slugify</a></li><li data-type='method'><a href="EmailTemplateFormController.html#nameChanged">nameChanged</a></li><li data-type='method'><a href="EmailTemplateFormController.html#templateChanged">templateChanged</a></li></ul></li><li><a href="ExemptionReasonsController.html">ExemptionReasonsController</a><ul class='methods'><li data-type='method'><a href="ExemptionReasonsController.html#addReason">addReason</a></li><li data-type='method'><a href="ExemptionReasonsController.html#reasonBlurred">reasonBlurred</a></li><li data-type='method'><a href="ExemptionReasonsController.html#reasonChanged">reasonChanged</a></li><li data-type='method'><a href="ExemptionReasonsController.html#removeReason">removeReason</a></li><li data-type='method'><a href="ExemptionReasonsController.html#updateHiddenInput">updateHiddenInput</a></li></ul></li><li><a href="FileSizeValidatorController.html">FileSizeValidatorController</a><ul class='methods'><li data-type='method'><a href="FileSizeValidatorController.html#buildInvalidFilesMessage">buildInvalidFilesMessage</a></li><li data-type='method'><a href="FileSizeValidatorController.html#buildTotalSizeWarningMessage">buildTotalSizeWarningMessage</a></li><li data-type='method'><a href="FileSizeValidatorController.html#checkFileSizes">checkFileSizes</a></li><li data-type='method'><a href="FileSizeValidatorController.html#clearWarning">clearWarning</a></li><li data-type='method'><a href="FileSizeValidatorController.html#connect">connect</a></li><li data-type='method'><a href="FileSizeValidatorController.html#disableSubmit">disableSubmit</a></li><li data-type='method'><a href="FileSizeValidatorController.html#dispatch">dispatch</a></li><li data-type='method'><a href="FileSizeValidatorController.html#enableSubmit">enableSubmit</a></li><li data-type='method'><a href="FileSizeValidatorController.html#escapeHtml">escapeHtml</a></li><li data-type='method'><a href="FileSizeValidatorController.html#formatBytes">formatBytes</a></li><li data-type='method'><a href="FileSizeValidatorController.html#formatWarningMessage">formatWarningMessage</a></li><li data-type='method'><a href="FileSizeValidatorController.html#showInvalidFilesWarning">showInvalidFilesWarning</a></li><li data-type='method'><a href="FileSizeValidatorController.html#showTotalSizeWarning">showTotalSizeWarning</a></li><li data-type='method'><a href="FileSizeValidatorController.html#validateFiles">validateFiles</a></li></ul></li><li><a href="FilterGrid.html">FilterGrid</a><ul class='methods'><li data-type='method'><a href="FilterGrid.html#submitForm">submitForm</a></li></ul></li><li><a href="GWSharingController.html">GWSharingController</a><ul class='methods'><li data-type='method'><a href="GWSharingController.html#submit">submit</a></li></ul></li><li><a href="GatheringCloneController.html">GatheringCloneController</a></li><li><a href="GatheringFormController.html">GatheringFormController</a></li><li><a href="GatheringLocationAutocompleteController.html">GatheringLocationAutocompleteController</a><ul class='methods'><li data-type='method'><a href="GatheringLocationAutocompleteController.html#connect">connect</a></li><li data-type='method'><a href="GatheringLocationAutocompleteController.html#disconnect">disconnect</a></li><li data-type='method'><a href="GatheringLocationAutocompleteController.html#initAutocomplete">initAutocomplete</a></li><li data-type='method'><a href="GatheringLocationAutocompleteController.html#initialize">initialize</a></li><li data-type='method'><a href="GatheringLocationAutocompleteController.html#loadGoogleMapsPlaces">loadGoogleMapsPlaces</a></li></ul></li><li><a href="GatheringMapController.html">GatheringMapController</a><ul class='methods'><li data-type='method'><a href="GatheringMapController.html#connect">connect</a></li><li data-type='method'><a href="GatheringMapController.html#createMarker">createMarker</a></li><li data-type='method'><a href="GatheringMapController.html#disconnect">disconnect</a></li><li data-type='method'><a href="GatheringMapController.html#geocodeAndDisplayGoogle">geocodeAndDisplayGoogle</a></li><li data-type='method'><a href="GatheringMapController.html#getDirections">getDirections</a></li><li data-type='method'><a href="GatheringMapController.html#initGoogleMap">initGoogleMap</a></li><li data-type='method'><a href="GatheringMapController.html#initialize">initialize</a></li><li data-type='method'><a href="GatheringMapController.html#loadGoogleMapsScript">loadGoogleMapsScript</a></li><li data-type='method'><a href="GatheringMapController.html#openInAppleMaps">openInAppleMaps</a></li><li data-type='method'><a href="GatheringMapController.html#openInGoogleMaps">openInGoogleMaps</a></li><li data-type='method'><a href="GatheringMapController.html#showError">showError</a></li></ul></li><li><a href="GatheringScheduleController.html">GatheringScheduleController</a><ul class='methods'><li data-type='method'><a href="GatheringScheduleController.html#connect">connect</a></li><li data-type='method'><a href="GatheringScheduleController.html#createFlashContainer">createFlashContainer</a></li><li data-type='method'><a href="GatheringScheduleController.html#formatDate">formatDate</a></li><li data-type='method'><a href="GatheringScheduleController.html#handleActivityChange">handleActivityChange</a></li><li data-type='method'><a href="GatheringScheduleController.html#handleEditOtherChange">handleEditOtherChange</a></li><li data-type='method'><a href="GatheringScheduleController.html#handleOtherChange">handleOtherChange</a></li><li data-type='method'><a href="GatheringScheduleController.html#normalizeErrors">normalizeErrors</a></li><li data-type='method'><a href="GatheringScheduleController.html#openEditModal">openEditModal</a></li><li data-type='method'><a href="GatheringScheduleController.html#resetAddForm">resetAddForm</a></li><li data-type='method'><a href="GatheringScheduleController.html#setupDateTimeLimits">setupDateTimeLimits</a></li><li data-type='method'><a href="GatheringScheduleController.html#showFlashMessage">showFlashMessage</a></li><li data-type='method'><a href="GatheringScheduleController.html#submitAddForm">submitAddForm</a></li><li data-type='method'><a href="GatheringScheduleController.html#submitEditForm">submitEditForm</a></li><li data-type='method'><a href="GatheringScheduleController.html#toggleEditEndTime">toggleEditEndTime</a></li><li data-type='method'><a href="GatheringScheduleController.html#toggleEndTime">toggleEndTime</a></li><li data-type='method'><a href="GatheringScheduleController.html#validateDatetimeRange">validateDatetimeRange</a></li></ul></li><li><a href="GatheringTypeFormController.html">GatheringTypeFormController</a><ul class='methods'><li data-type='method'><a href="GatheringTypeFormController.html#clearDescriptionError">clearDescriptionError</a></li><li data-type='method'><a href="GatheringTypeFormController.html#clearNameError">clearNameError</a></li><li data-type='method'><a href="GatheringTypeFormController.html#connect">connect</a></li><li data-type='method'><a href="GatheringTypeFormController.html#disableSubmit">disableSubmit</a></li><li data-type='method'><a href="GatheringTypeFormController.html#enableSubmit">enableSubmit</a></li><li data-type='method'><a href="GatheringTypeFormController.html#showDescriptionError">showDescriptionError</a></li><li data-type='method'><a href="GatheringTypeFormController.html#showNameError">showNameError</a></li><li data-type='method'><a href="GatheringTypeFormController.html#showValidationSummary">showValidationSummary</a></li><li data-type='method'><a href="GatheringTypeFormController.html#updateDescriptionCount">updateDescriptionCount</a></li><li data-type='method'><a href="GatheringTypeFormController.html#validateForm">validateForm</a></li><li data-type='method'><a href="GatheringTypeFormController.html#validateName">validateName</a></li></ul></li><li><a href="GatheringsCalendarController.html">GatheringsCalendarController</a><ul class='methods'><li data-type='method'><a href="GatheringsCalendarController.html#connect">connect</a></li><li data-type='method'><a href="GatheringsCalendarController.html#disconnect">disconnect</a></li><li data-type='method'><a href="GatheringsCalendarController.html#getCsrfToken">getCsrfToken</a></li><li data-type='method'><a href="GatheringsCalendarController.html#initialize">initialize</a></li><li data-type='method'><a href="GatheringsCalendarController.html#markAttendance">markAttendance</a></li><li data-type='method'><a href="GatheringsCalendarController.html#showAttendanceModal">showAttendanceModal</a></li><li data-type='method'><a href="GatheringsCalendarController.html#showLocation">showLocation</a></li><li data-type='method'><a href="GatheringsCalendarController.html#showQuickView">showQuickView</a></li><li data-type='method'><a href="GatheringsCalendarController.html#showToast">showToast</a></li><li data-type='method'><a href="GatheringsCalendarController.html#toggleAttendance">toggleAttendance</a></li><li data-type='method'><a href="GatheringsCalendarController.html#updateAttendance">updateAttendance</a></li><li data-type='method'><a href="GatheringsCalendarController.html#updateFeedUrl">updateFeedUrl</a></li></ul></li><li><a href="GitHubSubmitter.html">GitHubSubmitter</a><ul class='methods'><li data-type='method'><a href="GitHubSubmitter.html#connect">connect</a></li><li data-type='method'><a href="GitHubSubmitter.html#modalTargetConnected">modalTargetConnected</a></li><li data-type='method'><a href="GitHubSubmitter.html#modalTargetDisconnected">modalTargetDisconnected</a></li><li data-type='method'><a href="GitHubSubmitter.html#submit">submit</a></li></ul></li><li><a href="GridViewController.html">GridViewController</a><ul class='methods'><li data-type='method'><a href="GridViewController.html#applyColumnChanges">applyColumnChanges</a></li><li data-type='method'><a href="GridViewController.html#applyDateRangeFilter">applyDateRangeFilter</a></li><li data-type='method'><a href="GridViewController.html#applySort">applySort</a></li><li data-type='method'><a href="GridViewController.html#buildUrl">buildUrl</a></li><li data-type='method'><a href="GridViewController.html#buildUrlWithFilters">buildUrlWithFilters</a></li><li data-type='method'><a href="GridViewController.html#clearAllFilters">clearAllFilters</a></li><li data-type='method'><a href="GridViewController.html#clearBulkSelection">clearBulkSelection</a></li><li data-type='method'><a href="GridViewController.html#clearDefault">clearDefault</a></li><li data-type='method'><a href="GridViewController.html#clearSearch">clearSearch</a></li><li data-type='method'><a href="GridViewController.html#connect">connect</a></li><li data-type='method'><a href="GridViewController.html#createFilterPill">createFilterPill</a></li><li data-type='method'><a href="GridViewController.html#createSearchBadge">createSearchBadge</a></li><li data-type='method'><a href="GridViewController.html#createViewTab">createViewTab</a></li><li data-type='method'><a href="GridViewController.html#deleteView">deleteView</a></li><li data-type='method'><a href="GridViewController.html#disconnect">disconnect</a></li><li data-type='method'><a href="GridViewController.html#escapeHtml">escapeHtml</a></li><li data-type='method'><a href="GridViewController.html#exportCsv">exportCsv</a></li><li data-type='method'><a href="GridViewController.html#formatColumnName">formatColumnName</a></li><li data-type='method'><a href="GridViewController.html#getCsrfToken">getCsrfToken</a></li><li data-type='method'><a href="GridViewController.html#getCurrentConfig">getCurrentConfig</a></li><li data-type='method'><a href="GridViewController.html#getFilterColumnLabel">getFilterColumnLabel</a></li><li data-type='method'><a href="GridViewController.html#getFilterValueLabel">getFilterValueLabel</a></li><li data-type='method'><a href="GridViewController.html#getSelectedCheckboxData">getSelectedCheckboxData</a></li><li data-type='method'><a href="GridViewController.html#handleColumnReorder">handleColumnReorder</a></li><li data-type='method'><a href="GridViewController.html#handleFrameLoad">handleFrameLoad</a></li><li data-type='method'><a href="GridViewController.html#handleSearchKeyup">handleSearchKeyup</a></li><li data-type='method'><a href="GridViewController.html#isFilterLocked">isFilterLocked</a></li><li data-type='method'><a href="GridViewController.html#loadInlineState">loadInlineState</a></li><li data-type='method'><a href="GridViewController.html#navigate">navigate</a></li><li data-type='method'><a href="GridViewController.html#performSearch">performSearch</a></li><li data-type='method'><a href="GridViewController.html#removeFilter">removeFilter</a></li><li data-type='method'><a href="GridViewController.html#saveView">saveView</a></li><li data-type='method'><a href="GridViewController.html#selectFilter">selectFilter</a></li><li data-type='method'><a href="GridViewController.html#setDefault">setDefault</a></li><li data-type='method'><a href="GridViewController.html#setSearchBusy">setSearchBusy</a></li><li data-type='method'><a href="GridViewController.html#showAll">showAll</a></li><li data-type='method'><a href="GridViewController.html#switchView">switchView</a></li><li data-type='method'><a href="GridViewController.html#toggleAllSelection">toggleAllSelection</a></li><li data-type='method'><a href="GridViewController.html#toggleColumn">toggleColumn</a></li><li data-type='method'><a href="GridViewController.html#toggleFilter">toggleFilter</a></li><li data-type='method'><a href="GridViewController.html#toggleRowSelection">toggleRowSelection</a></li><li data-type='method'><a href="GridViewController.html#toggleSubRow">toggleSubRow</a></li><li data-type='method'><a href="GridViewController.html#triggerBulkAction">triggerBulkAction</a></li><li data-type='method'><a href="GridViewController.html#updateBulkSelectionUI">updateBulkSelectionUI</a></li><li data-type='method'><a href="GridViewController.html#updateClearFiltersFooter">updateClearFiltersFooter</a></li><li data-type='method'><a href="GridViewController.html#updateColumnPicker">updateColumnPicker</a></li><li data-type='method'><a href="GridViewController.html#updateDateRangeFilter">updateDateRangeFilter</a></li><li data-type='method'><a href="GridViewController.html#updateFilterCount">updateFilterCount</a></li><li data-type='method'><a href="GridViewController.html#updateFilterDropdownCheckboxes">updateFilterDropdownCheckboxes</a></li><li data-type='method'><a href="GridViewController.html#updateFilterNavigation">updateFilterNavigation</a></li><li data-type='method'><a href="GridViewController.html#updateFilterPanels">updateFilterPanels</a></li><li data-type='method'><a href="GridViewController.html#updateFilterPills">updateFilterPills</a></li><li data-type='method'><a href="GridViewController.html#updateSearchDisplay">updateSearchDisplay</a></li><li data-type='method'><a href="GridViewController.html#updateToolbar">updateToolbar</a></li><li data-type='method'><a href="GridViewController.html#updateView">updateView</a></li><li data-type='method'><a href="GridViewController.html#updateViewTabs">updateViewTabs</a></li></ul></li><li><a href="GuifierController.html">GuifierController</a><ul class='methods'><li data-type='method'><a href="GuifierController.html#connect">connect</a></li></ul></li><li><a href="HelloWorldController.html">HelloWorldController</a><ul class='methods'><li data-type='method'><a href="HelloWorldController.html#clear">clear</a></li><li data-type='method'><a href="HelloWorldController.html#clear">clear</a></li><li data-type='method'><a href="HelloWorldController.html#connect">connect</a></li><li data-type='method'><a href="HelloWorldController.html#connect">connect</a></li><li data-type='method'><a href="HelloWorldController.html#countValueChanged">countValueChanged</a></li><li data-type='method'><a href="HelloWorldController.html#countValueChanged">countValueChanged</a></li><li data-type='method'><a href="HelloWorldController.html#disconnect">disconnect</a></li><li data-type='method'><a href="HelloWorldController.html#disconnect">disconnect</a></li><li data-type='method'><a href="HelloWorldController.html#fetchData">fetchData</a></li><li data-type='method'><a href="HelloWorldController.html#fetchData">fetchData</a></li><li data-type='method'><a href="HelloWorldController.html#greet">greet</a></li><li data-type='method'><a href="HelloWorldController.html#greet">greet</a></li><li data-type='method'><a href="HelloWorldController.html#initialize">initialize</a></li><li data-type='method'><a href="HelloWorldController.html#initialize">initialize</a></li><li data-type='method'><a href="HelloWorldController.html#messageValueChanged">messageValueChanged</a></li><li data-type='method'><a href="HelloWorldController.html#messageValueChanged">messageValueChanged</a></li><li data-type='method'><a href="HelloWorldController.html#showMessage">showMessage</a></li><li data-type='method'><a href="HelloWorldController.html#showMessage">showMessage</a></li><li data-type='method'><a href="HelloWorldController.html#updateCounter">updateCounter</a></li><li data-type='method'><a href="HelloWorldController.html#updateCounter">updateCounter</a></li></ul></li><li></li><li><a href="ImagePreview.html">ImagePreview</a><ul class='methods'><li data-type='method'><a href="ImagePreview.html#preview">preview</a></li></ul></li><li><a href="ImageZoom.html">ImageZoom</a></li><li><a href="MarkdownEditorController.html">MarkdownEditorController</a></li><li><a href="MemberCardProfile.html">MemberCardProfile</a><ul class='methods'><li data-type='method'><a href="MemberCardProfile.html#appendToCard">appendToCard</a></li><li data-type='method'><a href="MemberCardProfile.html#connect">connect</a></li><li data-type='method'><a href="MemberCardProfile.html#initialize">initialize</a></li><li data-type='method'><a href="MemberCardProfile.html#loadCard">loadCard</a></li><li data-type='method'><a href="MemberCardProfile.html#optionsForFetch">optionsForFetch</a></li><li data-type='method'><a href="MemberCardProfile.html#startCard">startCard</a></li><li data-type='method'><a href="MemberCardProfile.html#usedSpaceInCard">usedSpaceInCard</a></li></ul></li><li><a href="MemberMobileCardMenu.html">MemberMobileCardMenu</a><ul class='methods'><li data-type='method'><a href="MemberMobileCardMenu.html#closeMenu">closeMenu</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#createMenuItem">createMenuItem</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#handleConnectionStatusEvent">handleConnectionStatusEvent</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#handleOutsideClick">handleOutsideClick</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#loadMenuItems">loadMenuItems</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#onConnect">onConnect</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#onConnectionStateChanged">onConnectionStateChanged</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#onDisconnect">onDisconnect</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#openMenu">openMenu</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#renderMenu">renderMenu</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#toggleMenu">toggleMenu</a></li><li data-type='method'><a href="MemberMobileCardMenu.html#updateOfflineState">updateOfflineState</a></li></ul></li><li><a href="MemberMobileCardPWA.html">MemberMobileCardPWA</a><ul class='methods'><li data-type='method'><a href="MemberMobileCardPWA.html#applyUpdate">applyUpdate</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#createUpdateToast">createUpdateToast</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#dismissUpdate">dismissUpdate</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#dispatchStatusEvent">dispatchStatusEvent</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#handleSwMessage">handleSwMessage</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#notifyServiceWorker">notifyServiceWorker</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#onConnect">onConnect</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#onConnectionStateChanged">onConnectionStateChanged</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#onDisconnect">onDisconnect</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#refreshPageIfOnline">refreshPageIfOnline</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#registerServiceWorker">registerServiceWorker</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#showUpdateToast">showUpdateToast</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#statusTargetConnected">statusTargetConnected</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#updateStatusDisplay">updateStatusDisplay</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#urlCacheTargetConnected">urlCacheTargetConnected</a></li><li data-type='method'><a href="MemberMobileCardPWA.html#waitForActive">waitForActive</a></li></ul></li><li><a href="MemberMobileCardProfile.html">MemberMobileCardProfile</a><ul class='methods'><li data-type='method'><a href="MemberMobileCardProfile.html#handlePwaReady">handlePwaReady</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#loadCard">loadCard</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#onConnect">onConnect</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#onConnectionStateChanged">onConnectionStateChanged</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#onDisconnect">onDisconnect</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#pwaReadyValueChanged">pwaReadyValueChanged</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#renderMemberData">renderMemberData</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#renderPluginSections">renderPluginSections</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#retryLoad">retryLoad</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#showOfflineMessage">showOfflineMessage</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#startCard">startCard</a></li><li data-type='method'><a href="MemberMobileCardProfile.html#updatePhotoActionsForConnection">updatePhotoActionsForConnection</a></li></ul></li><li><a href="MemberUniqueEmail.html">MemberUniqueEmail</a><ul class='methods'><li data-type='method'><a href="MemberUniqueEmail.html#checkEmail">checkEmail</a></li><li data-type='method'><a href="MemberUniqueEmail.html#connect">connect</a></li><li data-type='method'><a href="MemberUniqueEmail.html#disconnect">disconnect</a></li><li data-type='method'><a href="MemberUniqueEmail.html#optionsForFetch">optionsForFetch</a></li></ul></li><li><a href="MemberVerifyForm.html">MemberVerifyForm</a><ul class='methods'><li data-type='method'><a href="MemberVerifyForm.html#toggleMembership">toggleMembership</a></li><li data-type='method'><a href="MemberVerifyForm.html#toggleParent">toggleParent</a></li></ul></li><li><a href="MobileApprovalsController.html">MobileApprovalsController</a></li><li><a href="MobileCalendarController.html">MobileCalendarController</a><ul class='methods'><li data-type='method'><a href="MobileCalendarController.html#applyFilters">applyFilters</a></li><li data-type='method'><a href="MobileCalendarController.html#clearFilters">clearFilters</a></li><li data-type='method'><a href="MobileCalendarController.html#createBottomSheet">createBottomSheet</a></li><li data-type='method'><a href="MobileCalendarController.html#escapeHtml">escapeHtml</a></li><li data-type='method'><a href="MobileCalendarController.html#formatTime">formatTime</a></li><li data-type='method'><a href="MobileCalendarController.html#getWeekStart">getWeekStart</a></li><li data-type='method'><a href="MobileCalendarController.html#groupEventsByWeek">groupEventsByWeek</a></li><li data-type='method'><a href="MobileCalendarController.html#handleAttendanceFormSubmit">handleAttendanceFormSubmit</a></li><li data-type='method'><a href="MobileCalendarController.html#handleDeleteAttendance">handleDeleteAttendance</a></li><li data-type='method'><a href="MobileCalendarController.html#handleRsvpClick">handleRsvpClick</a></li><li data-type='method'><a href="MobileCalendarController.html#handleSearch">handleSearch</a></li><li data-type='method'><a href="MobileCalendarController.html#initYearSelector">initYearSelector</a></li><li data-type='method'><a href="MobileCalendarController.html#loadCalendarData">loadCalendarData</a></li><li data-type='method'><a href="MobileCalendarController.html#onConnect">onConnect</a></li><li data-type='method'><a href="MobileCalendarController.html#onConnectionStateChanged">onConnectionStateChanged</a></li><li data-type='method'><a href="MobileCalendarController.html#onDisconnect">onDisconnect</a></li><li data-type='method'><a href="MobileCalendarController.html#populateFilters">populateFilters</a></li><li data-type='method'><a href="MobileCalendarController.html#queueOfflineRsvp">queueOfflineRsvp</a></li><li data-type='method'><a href="MobileCalendarController.html#renderActivities">renderActivities</a></li><li data-type='method'><a href="MobileCalendarController.html#renderEventList">renderEventList</a></li><li data-type='method'><a href="MobileCalendarController.html#renderWeekEvents">renderWeekEvents</a></li><li data-type='method'><a href="MobileCalendarController.html#restoreFromUrlParams">restoreFromUrlParams</a></li><li data-type='method'><a href="MobileCalendarController.html#setupModalFormHandlers">setupModalFormHandlers</a></li><li data-type='method'><a href="MobileCalendarController.html#setupPullToRefresh">setupPullToRefresh</a></li><li data-type='method'><a href="MobileCalendarController.html#showRsvpSheet">showRsvpSheet</a></li><li data-type='method'><a href="MobileCalendarController.html#syncPendingRsvps">syncPendingRsvps</a></li><li data-type='method'><a href="MobileCalendarController.html#toggleFilters">toggleFilters</a></li><li data-type='method'><a href="MobileCalendarController.html#updateNavigationSelectors">updateNavigationSelectors</a></li><li data-type='method'><a href="MobileCalendarController.html#updatePendingBanner">updatePendingBanner</a></li><li data-type='method'><a href="MobileCalendarController.html#updateResultsCount">updateResultsCount</a></li></ul></li><li><a href="MobileControllerBase.html">MobileControllerBase</a><ul class='methods'><li data-type='method'><a href="MobileControllerBase.html#bindHandler">bindHandler</a></li><li data-type='method'><a href="MobileControllerBase.html#connect">connect</a></li><li data-type='method'><a href="MobileControllerBase.html#disconnect">disconnect</a></li><li data-type='method'><a href="MobileControllerBase.html#dispatchConnectionEvent">dispatchConnectionEvent</a></li><li data-type='method'><a href="MobileControllerBase.html#fetchWithRetry">fetchWithRetry</a></li><li data-type='method'><a href="MobileControllerBase.html#getHandler">getHandler</a></li><li data-type='method'><a href="MobileControllerBase.html#initialize">initialize</a></li><li data-type='method'><a href="MobileControllerBase.html#onConnectionStateChanged">onConnectionStateChanged</a></li><li data-type='method'><a href="MobileControllerBase.html#.initializeConnectionListeners">initializeConnectionListeners</a></li><li data-type='method'><a href="MobileControllerBase.html#.notifyListeners">notifyListeners</a></li><li data-type='method'><a href="MobileControllerBase.html#.setOnlineState">setOnlineState</a></li><li data-type='method'><a href="MobileControllerBase.html#.syncOnlineState">syncOnlineState</a></li></ul></li><li><a href="MobileOfflineOverlayController.html">MobileOfflineOverlayController</a><ul class='methods'><li data-type='method'><a href="MobileOfflineOverlayController.html#handleConnectionStatusEvent">handleConnectionStatusEvent</a></li><li data-type='method'><a href="MobileOfflineOverlayController.html#hideOverlay">hideOverlay</a></li><li data-type='method'><a href="MobileOfflineOverlayController.html#onConnect">onConnect</a></li><li data-type='method'><a href="MobileOfflineOverlayController.html#onConnectionStateChanged">onConnectionStateChanged</a></li><li data-type='method'><a href="MobileOfflineOverlayController.html#onDisconnect">onDisconnect</a></li><li data-type='method'><a href="MobileOfflineOverlayController.html#showOverlay">showOverlay</a></li></ul></li><li><a href="MobileRequestAuthController.html">MobileRequestAuthController</a><ul class='methods'><li data-type='method'><a href="MobileRequestAuthController.html#handleSubmit">handleSubmit</a></li><li data-type='method'><a href="MobileRequestAuthController.html#loadApprovers">loadApprovers</a></li><li data-type='method'><a href="MobileRequestAuthController.html#onConnect">onConnect</a></li><li data-type='method'><a href="MobileRequestAuthController.html#onConnectionStateChanged">onConnectionStateChanged</a></li><li data-type='method'><a href="MobileRequestAuthController.html#onDisconnect">onDisconnect</a></li><li data-type='method'><a href="MobileRequestAuthController.html#updateOnlineUI">updateOnlineUI</a></li><li data-type='method'><a href="MobileRequestAuthController.html#validateForm">validateForm</a></li></ul></li><li><a href="ModalOpener.html">ModalOpener</a><ul class='methods'><li data-type='method'><a href="ModalOpener.html#modalBtnValueChanged">modalBtnValueChanged</a></li></ul></li><li><a href="MyRsvpsController.html">MyRsvpsController</a><ul class='methods'><li data-type='method'><a href="MyRsvpsController.html#editRsvp">editRsvp</a></li><li data-type='method'><a href="MyRsvpsController.html#filterPastEvents">filterPastEvents</a></li><li data-type='method'><a href="MyRsvpsController.html#handleDeleteSubmit">handleDeleteSubmit</a></li><li data-type='method'><a href="MyRsvpsController.html#handleFormSubmit">handleFormSubmit</a></li><li data-type='method'><a href="MyRsvpsController.html#onConnectionStateChanged">onConnectionStateChanged</a></li><li data-type='method'><a href="MyRsvpsController.html#onModalHidden">onModalHidden</a></li><li data-type='method'><a href="MyRsvpsController.html#setupFormHandlers">setupFormHandlers</a></li><li data-type='method'><a href="MyRsvpsController.html#transformCardForPast">transformCardForPast</a></li><li data-type='method'><a href="MyRsvpsController.html#updateBadgeCounts">updateBadgeCounts</a></li><li data-type='method'><a href="MyRsvpsController.html#updateOnlineButtons">updateOnlineButtons</a></li></ul></li><li><a href="NavBarController.html">NavBarController</a><ul class='methods'><li data-type='method'><a href="NavBarController.html#navHeaderClicked">navHeaderClicked</a></li><li data-type='method'><a href="NavBarController.html#navHeaderTargetConnected">navHeaderTargetConnected</a></li><li data-type='method'><a href="NavBarController.html#navHeaderTargetDisconnected">navHeaderTargetDisconnected</a></li><li data-type='method'><a href="NavBarController.html#optionsForFetch">optionsForFetch</a></li></ul></li><li><a href="OutletButton.html">OutletButton</a><ul class='methods'><li data-type='method'><a href="OutletButton.html#addBtnData">addBtnData</a></li><li data-type='method'><a href="OutletButton.html#addListener">addListener</a></li><li data-type='method'><a href="OutletButton.html#btnDataValueChanged">btnDataValueChanged</a></li><li data-type='method'><a href="OutletButton.html#fireNotice">fireNotice</a></li><li data-type='method'><a href="OutletButton.html#removeListener">removeListener</a></li></ul></li><li><a href="PermissionAddRole.html">PermissionAddRole</a><ul class='methods'><li data-type='method'><a href="PermissionAddRole.html#checkSubmitEnable">checkSubmitEnable</a></li></ul></li><li><a href="PermissionImport.html">PermissionImport</a><ul class='methods'><li data-type='method'><a href="PermissionImport.html#cancelImport">cancelImport</a></li><li data-type='method'><a href="PermissionImport.html#confirmImport">confirmImport</a></li><li data-type='method'><a href="PermissionImport.html#connect">connect</a></li><li data-type='method'><a href="PermissionImport.html#disconnect">disconnect</a></li><li data-type='method'><a href="PermissionImport.html#displayPreview">displayPreview</a></li><li data-type='method'><a href="PermissionImport.html#escapeHtml">escapeHtml</a></li><li data-type='method'><a href="PermissionImport.html#formatPolicyName">formatPolicyName</a></li><li data-type='method'><a href="PermissionImport.html#getFileInput">getFileInput</a></li><li data-type='method'><a href="PermissionImport.html#handleFileSelect">handleFileSelect</a></li><li data-type='method'><a href="PermissionImport.html#hideLoadingOverlay">hideLoadingOverlay</a></li><li data-type='method'><a href="PermissionImport.html#hideModal">hideModal</a></li><li data-type='method'><a href="PermissionImport.html#previewImport">previewImport</a></li><li data-type='method'><a href="PermissionImport.html#resetFileInput">resetFileInput</a></li><li data-type='method'><a href="PermissionImport.html#resetModalContent">resetModalContent</a></li><li data-type='method'><a href="PermissionImport.html#showLoadingOverlay">showLoadingOverlay</a></li><li data-type='method'><a href="PermissionImport.html#showModal">showModal</a></li><li data-type='method'><a href="PermissionImport.html#triggerFileSelect">triggerFileSelect</a></li></ul></li><li><a href="PermissionManagePolicies.html">PermissionManagePolicies</a><ul class='methods'><li data-type='method'><a href="PermissionManagePolicies.html#changeMethod">changeMethod</a></li><li data-type='method'><a href="PermissionManagePolicies.html#checkClass">checkClass</a></li><li data-type='method'><a href="PermissionManagePolicies.html#classClicked">classClicked</a></li><li data-type='method'><a href="PermissionManagePolicies.html#connect">connect</a></li><li data-type='method'><a href="PermissionManagePolicies.html#disconnect">disconnect</a></li><li data-type='method'><a href="PermissionManagePolicies.html#hideLoadingOverlay">hideLoadingOverlay</a></li><li data-type='method'><a href="PermissionManagePolicies.html#methodClicked">methodClicked</a></li><li data-type='method'><a href="PermissionManagePolicies.html#policyClassTargetConnected">policyClassTargetConnected</a></li><li data-type='method'><a href="PermissionManagePolicies.html#policyMethodTargetConnected">policyMethodTargetConnected</a></li><li data-type='method'><a href="PermissionManagePolicies.html#processQueue">processQueue</a></li><li data-type='method'><a href="PermissionManagePolicies.html#showLoadingOverlay">showLoadingOverlay</a></li></ul></li><li><a href="PopoverController.html">PopoverController</a></li><li><a href="QrcodeController.html">QrcodeController</a><ul class='methods'><li data-type='method'><a href="QrcodeController.html#copyToClipboard">copyToClipboard</a></li><li data-type='method'><a href="QrcodeController.html#download">download</a></li><li data-type='method'><a href="QrcodeController.html#generate">generate</a></li><li data-type='method'><a href="QrcodeController.html#regenerate">regenerate</a></li></ul></li><li><a href="RetentionPolicyInputController.html">RetentionPolicyInputController</a><ul class='methods'><li data-type='method'><a href="RetentionPolicyInputController.html#connect">connect</a></li><li data-type='method'><a href="RetentionPolicyInputController.html#formatPreviewText">formatPreviewText</a></li><li data-type='method'><a href="RetentionPolicyInputController.html#parseJson">parseJson</a></li><li data-type='method'><a href="RetentionPolicyInputController.html#updatePreview">updatePreview</a></li><li data-type='method'><a href="RetentionPolicyInputController.html#validate">validate</a></li></ul></li><li><a href="RevokeForm.html">RevokeForm</a><ul class='methods'><li data-type='method'><a href="RevokeForm.html#checkReadyToSubmit">checkReadyToSubmit</a></li><li data-type='method'><a href="RevokeForm.html#connect">connect</a></li><li data-type='method'><a href="RevokeForm.html#outletBtnOutletConnected">outletBtnOutletConnected</a></li><li data-type='method'><a href="RevokeForm.html#outletBtnOutletDisconnected">outletBtnOutletDisconnected</a></li><li data-type='method'><a href="RevokeForm.html#setId">setId</a></li></ul></li><li><a href="RoleAddMember.html">RoleAddMember</a><ul class='methods'><li data-type='method'><a href="RoleAddMember.html#checkSubmitEnable">checkSubmitEnable</a></li></ul></li><li><a href="RoleAddPermission.html">RoleAddPermission</a><ul class='methods'><li data-type='method'><a href="RoleAddPermission.html#checkSubmitEnable">checkSubmitEnable</a></li></ul></li><li><a href="SecurityDebugController.html">SecurityDebugController</a><ul class='methods'><li data-type='method'><a href="SecurityDebugController.html#hide">hide</a></li><li data-type='method'><a href="SecurityDebugController.html#initialize">initialize</a></li><li data-type='method'><a href="SecurityDebugController.html#show">show</a></li><li data-type='method'><a href="SecurityDebugController.html#toggle">toggle</a></li></ul></li><li><a href="SelectAllListController.html">SelectAllListController</a><ul class='methods'><li data-type='method'><a href="SelectAllListController.html#connect">connect</a></li><li data-type='method'><a href="SelectAllListController.html#updateSelectAll">updateSelectAll</a></li></ul></li><li><a href="SessionExtender.html">SessionExtender</a><ul class='methods'><li data-type='method'><a href="SessionExtender.html#urlValueChanged">urlValueChanged</a></li></ul></li><li><a href="SidebarToggleController.html">SidebarToggleController</a></li><li><a href="SortableListController.html">SortableListController</a><ul class='methods'><li data-type='method'><a href="SortableListController.html#dragEnd">dragEnd</a></li><li data-type='method'><a href="SortableListController.html#dragEnter">dragEnter</a></li><li data-type='method'><a href="SortableListController.html#dragLeave">dragLeave</a></li><li data-type='method'><a href="SortableListController.html#dragOver">dragOver</a></li><li data-type='method'><a href="SortableListController.html#dragStart">dragStart</a></li><li data-type='method'><a href="SortableListController.html#drop">drop</a></li><li data-type='method'><a href="SortableListController.html#emitReorderedEvent">emitReorderedEvent</a></li><li data-type='method'><a href="SortableListController.html#getOrder">getOrder</a></li></ul></li><li><a href="TimezoneInputController.html">TimezoneInputController</a><ul class='methods'><li data-type='method'><a href="TimezoneInputController.html#connect">connect</a></li><li data-type='method'><a href="TimezoneInputController.html#convertUtcToLocal">convertUtcToLocal</a></li><li data-type='method'><a href="TimezoneInputController.html#disconnect">disconnect</a></li><li data-type='method'><a href="TimezoneInputController.html#getTimezone">getTimezone</a></li><li data-type='method'><a href="TimezoneInputController.html#handleReset">handleReset</a></li><li data-type='method'><a href="TimezoneInputController.html#handleSubmit">handleSubmit</a></li><li data-type='method'><a href="TimezoneInputController.html#updateNotice">updateNotice</a></li><li data-type='method'><a href="TimezoneInputController.html#updateTimezone">updateTimezone</a></li></ul></li><li><a href="TurboModal.html">TurboModal</a><ul class='methods'><li data-type='method'><a href="TurboModal.html#closeModalBeforeSubmit">closeModalBeforeSubmit</a></li><li data-type='method'><a href="TurboModal.html#connect">connect</a></li></ul></li><li><a href="VariableInsertController.html">VariableInsertController</a><ul class='methods'><li data-type='method'><a href="VariableInsertController.html#insert">insert</a></li></ul></li><li><a href="WaiverAttestationController.html">WaiverAttestationController</a><ul class='methods'><li data-type='method'><a href="WaiverAttestationController.html#clearMessages">clearMessages</a></li><li data-type='method'><a href="WaiverAttestationController.html#connect">connect</a></li><li data-type='method'><a href="WaiverAttestationController.html#escapeHtml">escapeHtml</a></li><li data-type='method'><a href="WaiverAttestationController.html#getCsrfToken">getCsrfToken</a></li><li data-type='method'><a href="WaiverAttestationController.html#populateReasons">populateReasons</a></li><li data-type='method'><a href="WaiverAttestationController.html#resetSubmitButton">resetSubmitButton</a></li><li data-type='method'><a href="WaiverAttestationController.html#showError">showError</a></li><li data-type='method'><a href="WaiverAttestationController.html#showModal">showModal</a></li><li data-type='method'><a href="WaiverAttestationController.html#showSuccess">showSuccess</a></li><li data-type='method'><a href="WaiverAttestationController.html#submitAttestation">submitAttestation</a></li></ul></li><li><a href="WaiverCalendarController.html">WaiverCalendarController</a></li><li><a href="WaiverTemplateController.html">WaiverTemplateController</a><ul class='methods'><li data-type='method'><a href="WaiverTemplateController.html#connect">connect</a></li><li data-type='method'><a href="WaiverTemplateController.html#fileSelected">fileSelected</a></li><li data-type='method'><a href="WaiverTemplateController.html#sourceValueChanged">sourceValueChanged</a></li><li data-type='method'><a href="WaiverTemplateController.html#toggleSource">toggleSource</a></li><li data-type='method'><a href="WaiverTemplateController.html#updateDisplay">updateDisplay</a></li></ul></li><li><a href="WaiverUploadController.html">WaiverUploadController</a><ul class='methods'><li data-type='method'><a href="WaiverUploadController.html#connect">connect</a></li><li data-type='method'><a href="WaiverUploadController.html#escapeHtml">escapeHtml</a></li><li data-type='method'><a href="WaiverUploadController.html#formatFileSize">formatFileSize</a></li><li data-type='method'><a href="WaiverUploadController.html#handleFileSelect">handleFileSelect</a></li><li data-type='method'><a href="WaiverUploadController.html#handleSubmit">handleSubmit</a></li><li data-type='method'><a href="WaiverUploadController.html#hidePreview">hidePreview</a></li><li data-type='method'><a href="WaiverUploadController.html#removeFile">removeFile</a></li><li data-type='method'><a href="WaiverUploadController.html#showPreview">showPreview</a></li><li data-type='method'><a href="WaiverUploadController.html#simulateProgress">simulateProgress</a></li><li data-type='method'><a href="WaiverUploadController.html#updateProgress">updateProgress</a></li><li data-type='method'><a href="WaiverUploadController.html#validateFile">validateFile</a></li></ul></li><li><a href="WaiverUploadWizardController.html">WaiverUploadWizardController</a><ul class='methods'><li data-type='method'><a href="WaiverUploadWizardController.html#formatBytes">formatBytes</a></li><li data-type='method'><a href="WaiverUploadWizardController.html#updateTotalSizeDisplay">updateTotalSizeDisplay</a></li></ul></li><li><a href="WorkflowDesignerController.html">WorkflowDesignerController</a></li><li><a href="WorkflowIndexController.html">WorkflowIndexController</a></li><li><a href="WorkflowToolbarController.html">WorkflowToolbarController</a></li><li><a href="WorkflowVersionsController.html">WorkflowVersionsController</a></li><li><a href="module.exports.html">exports</a></li><li></li><li></li><li></li><li></li><li></li></ul><h3>Namespaces</h3><ul><li><a href="KMP_Timezone.html">KMP_Timezone</a><ul class='methods'><li data-type='method'><a href="KMP_Timezone.html#.convertFormDatetimesToUTC">convertFormDatetimesToUTC</a></li><li data-type='method'><a href="KMP_Timezone.html#.detectTimezone">detectTimezone</a></li><li data-type='method'><a href="KMP_Timezone.html#.formatDate">formatDate</a></li><li data-type='method'><a href="KMP_Timezone.html#.formatDateTime">formatDateTime</a></li><li data-type='method'><a href="KMP_Timezone.html#.formatTime">formatTime</a></li><li data-type='method'><a href="KMP_Timezone.html#.getAbbreviation">getAbbreviation</a></li><li data-type='method'><a href="KMP_Timezone.html#.getTimezone">getTimezone</a></li><li data-type='method'><a href="KMP_Timezone.html#.getTimezoneOffset">getTimezoneOffset</a></li><li data-type='method'><a href="KMP_Timezone.html#.initializeDatetimeInputs">initializeDatetimeInputs</a></li><li data-type='method'><a href="KMP_Timezone.html#.toLocalInput">toLocalInput</a></li><li data-type='method'><a href="KMP_Timezone.html#.toUTC">toUTC</a></li></ul></li></ul><h3>Global</h3><ul><li><a href="global.html#DB_NAME">DB_NAME</a></li><li><a href="global.html#_buildVariableInfo">_buildVariableInfo</a></li><li><a href="global.html#_escHtml">_escHtml</a></li><li><a href="global.html#_loadEmailTemplateOptions">_loadEmailTemplateOptions</a></li><li><a href="global.html#_renderEmailTemplateSelect">_renderEmailTemplateSelect</a></li><li><a href="global.html#_renderKeyValueEditor">_renderKeyValueEditor</a></li><li><a href="global.html#_renderTemplateAnalysis">_renderTemplateAnalysis</a></li><li><a href="global.html#_variableCatalogHTML">_variableCatalogHTML</a></li><li><a href="global.html#_variableListHTML">_variableListHTML</a></li><li><a href="global.html#attachPickers">attachPickers</a></li><li><a href="global.html#buildVariableList">buildVariableList</a></li><li><a href="global.html#getCurrentSnapshot">getCurrentSnapshot</a></li><li><a href="global.html#getNodeOutputSchema">getNodeOutputSchema</a></li><li><a href="global.html#getUpstreamNodes">getUpstreamNodes</a></li><li><a href="global.html#onEmailTemplateChange">onEmailTemplateChange</a></li><li><a href="global.html#push">push</a></li><li><a href="global.html#redo">redo</a></li><li><a href="global.html#renderAutoComplete">renderAutoComplete</a></li><li><a href="global.html#renderConfigHTML">renderConfigHTML</a></li><li><a href="global.html#renderEmptyHTML">renderEmptyHTML</a></li><li><a href="global.html#renderValuePicker">renderValuePicker</a></li><li><a href="global.html#showDropdown">showDropdown</a></li><li><a href="global.html#undo">undo</a></li><li><a href="global.html#validate">validate</a></li></ul>
+    
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">assets/js/controllers/workflow-config-panel.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import { renderAutoComplete } from '../autocomplete-helper.js'
+
+/**
+ * WorkflowConfigPanel
+ *
+ * Renders per-node-type configuration forms inside the side panel.
+ */
+export default class WorkflowConfigPanel {
+    /**
+     * @param {object} registryData - { triggers, actions, conditions, entities, resolvers }
+     */
+    constructor(registryData, policyClasses) {
+        this.registryData = registryData
+        this.policyClasses = policyClasses || []
+        this.resolvers = registryData.resolvers || []
+    }
+
+    /**
+     * Render the full config panel HTML for a selected node.
+     * @param {string} nodeId
+     * @param {object} nodeData
+     * @param {object} [variableInfo] - { available: [], produced: [] }
+     */
+    renderConfigHTML(nodeId, nodeData, variableInfo) {
+        const type = nodeData.data?.type || 'unknown'
+        const typeLabels = {
+            trigger: 'Trigger', action: 'Action', condition: 'Condition',
+            approval: 'Approval Gate', fork: 'Parallel Fork', join: 'Parallel Join',
+            loop: 'Loop', forEach: 'For Each', delay: 'Delay', subworkflow: 'Sub-workflow', end: 'End'
+        }
+
+        const configTabId = `cfg-tab-${nodeId}`
+        const varsTabId = `vars-tab-${nodeId}`
+        const hasTabs = variableInfo &amp;&amp; (variableInfo.available?.length || variableInfo.produced?.length)
+
+        let html = `&lt;div class="config-panel-header">
+                &lt;h6>&lt;i class="bi bi-sliders me-1">&lt;/i>${typeLabels[type] || type} Configuration&lt;/h6>
+            &lt;/div>`
+
+        if (hasTabs) {
+            html += `&lt;ul class="nav nav-tabs nav-fill small" role="tablist">
+                &lt;li class="nav-item" role="presentation">
+                    &lt;button class="nav-link active py-1 px-2" id="${configTabId}-btn" data-bs-toggle="tab"
+                        data-bs-target="#${configTabId}" type="button" role="tab"
+                        aria-controls="${configTabId}" aria-selected="true">
+                        &lt;i class="bi bi-gear me-1">&lt;/i>Config
+                    &lt;/button>
+                &lt;/li>
+                &lt;li class="nav-item" role="presentation">
+                    &lt;button class="nav-link py-1 px-2" id="${varsTabId}-btn" data-bs-toggle="tab"
+                        data-bs-target="#${varsTabId}" type="button" role="tab"
+                        aria-controls="${varsTabId}" aria-selected="false">
+                        &lt;i class="bi bi-code-slash me-1">&lt;/i>Variables
+                    &lt;/button>
+                &lt;/li>
+            &lt;/ul>`
+        }
+
+        // Config tab content
+        const activeClass = 'show active'
+        html += hasTabs ? `&lt;div class="tab-content">&lt;div class="tab-pane fade ${activeClass}" id="${configTabId}" role="tabpanel">` : ''
+        html += `&lt;div class="config-panel-body" aria-live="polite">
+                &lt;form data-node-id="${nodeId}">
+                    &lt;div class="mb-3">
+                        &lt;label class="form-label">Label&lt;/label>
+                        &lt;input type="text" class="form-control form-control-sm" name="label" value="${nodeData.name || ''}"
+                            data-action="change->workflow-designer#updateNodeConfig">
+                    &lt;/div>`
+        html += this.getTypeSpecificHTML(type, nodeData.data?.config || {})
+        html += `&lt;/form>&lt;/div>`
+        html += hasTabs ? `&lt;/div>` : ''
+
+        // Variables tab content
+        if (hasTabs) {
+            html += `&lt;div class="tab-pane fade" id="${varsTabId}" role="tabpanel">`
+            html += this._variableCatalogHTML(variableInfo)
+            html += `&lt;/div>&lt;/div>`
+        }
+
+        return html
+    }
+
+    /**
+     * Return the empty-state HTML for the config panel.
+     */
+    renderEmptyHTML() {
+        return `
+            &lt;div class="config-panel-header">
+                &lt;h6>&lt;i class="bi bi-sliders me-1">&lt;/i>Configuration&lt;/h6>
+            &lt;/div>
+            &lt;div class="config-panel-empty">
+                &lt;i class="bi bi-hand-index">&lt;/i>
+                &lt;p>Select a node on the canvas to configure it&lt;/p>
+            &lt;/div>`
+    }
+
+    /**
+     * Render the variable catalog tab content.
+     * @param {{ available: Array, produced: Array }} variableInfo
+     */
+    _variableCatalogHTML(variableInfo) {
+        const { available = [], produced = [] } = variableInfo
+        let html = '&lt;div class="p-2">'
+
+        if (produced.length) {
+            html += '&lt;h6 class="small text-muted mb-2">&lt;i class="bi bi-box-arrow-right me-1">&lt;/i>Produced by this Node&lt;/h6>'
+            html += this._variableListHTML(produced)
+        }
+
+        if (available.length) {
+            if (produced.length) html += '&lt;hr class="my-2">'
+            html += '&lt;h6 class="small text-muted mb-2">&lt;i class="bi bi-box-arrow-in-right me-1">&lt;/i>Available Variables&lt;/h6>'
+            html += '&lt;input type="text" class="form-control form-control-sm mb-2" placeholder="Filter variables..." data-action="input->workflow-designer#filterVariableCatalog">'
+            html += this._variableListHTML(available, true)
+        }
+
+        if (!produced.length &amp;&amp; !available.length) {
+            html += '&lt;p class="text-muted small">No variables available for this node.&lt;/p>'
+        }
+
+        html += '&lt;/div>'
+        return html
+    }
+
+    /**
+     * Render a list of variables as copyable badges.
+     * @param {Array&lt;{path:string, label:string, type:string}>} vars
+     * @param {boolean} filterable - add data-var-item for filtering
+     */
+    _variableListHTML(vars, filterable = false) {
+        let html = '&lt;div class="list-group list-group-flush">'
+        for (const v of vars) {
+            const filterAttr = filterable ? ` data-var-item data-var-path="${this._escapeAttr(v.path)}" data-var-label="${this._escapeAttr(v.label)}"` : ''
+            html += `&lt;div class="list-group-item px-0 py-1 border-0"${filterAttr}>
+                &lt;div class="d-flex justify-content-between align-items-start">
+                    &lt;span class="small">${v.label} &lt;span class="text-muted">(${v.type})&lt;/span>&lt;/span>
+                &lt;/div>
+                &lt;code class="small text-primary user-select-all d-block">${v.path}&lt;/code>
+            &lt;/div>`
+        }
+        html += '&lt;/div>'
+        return html
+    }
+
+    getTypeSpecificHTML(type, config) {
+        switch (type) {
+            case 'trigger': return this._triggerHTML(config)
+            case 'action': return this._actionHTML(config)
+            case 'condition': return this._conditionHTML(config)
+            case 'approval': return this._approvalHTML(config)
+            case 'delay': return this._delayHTML(config)
+            case 'loop': return this._loopHTML(config)
+            case 'forEach': return this._forEachHTML(config)
+            case 'subworkflow': return this._subworkflowHTML(config)
+            case 'fork': return this._forkHTML(config)
+            case 'join': return this._joinHTML(config)
+            case 'end': return this._endHTML(config)
+            default: return ''
+        }
+    }
+
+    _triggerHTML(config) {
+        let options = '&lt;option value="">Select a trigger...&lt;/option>'
+        this.registryData.triggers?.forEach(t => {
+            const selected = config.event === t.event ? 'selected' : ''
+            options += `&lt;option value="${t.event}" ${selected}>${t.label}&lt;/option>`
+        })
+        let html = `&lt;div class="mb-3">
+            &lt;label class="form-label">Trigger Event&lt;/label>
+            &lt;select class="form-select form-select-sm" name="event" data-action="change->workflow-designer#updateNodeConfig">${options}&lt;/select>
+        &lt;/div>`
+
+        if (config.event) {
+            const trigger = this.registryData.triggers?.find(t => t.event === config.event)
+            if (trigger?.payloadSchema) {
+                html += '&lt;h6 class="mt-3 mb-2 text-muted small">Trigger Variables&lt;/h6>'
+                html += '&lt;small class="form-text text-muted d-block mb-2">Available as &lt;code>$.trigger.*&lt;/code> in downstream nodes&lt;/small>'
+                html += '&lt;div class="list-group list-group-flush">'
+                for (const [key, meta] of Object.entries(trigger.payloadSchema)) {
+                    html += `&lt;div class="list-group-item px-0 py-1 border-0 d-flex justify-content-between align-items-center">
+                        &lt;span class="small">${meta.label || key} &lt;span class="text-muted">(${meta.type})&lt;/span>&lt;/span>
+                        &lt;code class="small text-primary user-select-all">$.trigger.${key}&lt;/code>
+                    &lt;/div>`
+                }
+                html += '&lt;/div>'
+            }
+        }
+
+        return html
+    }
+
+    _actionHTML(config) {
+        let options = '&lt;option value="">Select an action...&lt;/option>'
+        this.registryData.actions?.forEach(a => {
+            const selected = config.action === a.action ? 'selected' : ''
+            options += `&lt;option value="${a.action}" ${selected}>${a.label}&lt;/option>`
+        })
+
+        let html = `&lt;div class="mb-3">
+            &lt;label class="form-label">Action&lt;/label>
+            &lt;select class="form-select form-select-sm" name="action"
+                data-action="change->workflow-designer#updateNodeConfig">${options}&lt;/select>
+        &lt;/div>`
+
+        if (config.action) {
+            const action = this.registryData.actions?.find(a => a.action === config.action)
+            if (action?.inputSchema) {
+                html += '&lt;h6 class="mt-3 mb-2 text-muted small">Input Parameters&lt;/h6>'
+                const params = config.params || {}
+                for (const [key, meta] of Object.entries(action.inputSchema)) {
+                    const currentVal = params[key] !== undefined ? params[key] : ''
+                    const desc = meta.description ? `&lt;small class="form-text text-muted">${meta.description}&lt;/small>` : ''
+                    if (meta.type === 'emailTemplate') {
+                        html += this._renderEmailTemplateSelect(`params.${key}`, meta, currentVal)
+                        html += desc
+                    } else if (meta.type === 'object') {
+                        html += this._renderKeyValueEditor(`params.${key}`, meta, currentVal)
+                        html += desc
+                    } else {
+                        html += this.renderValuePicker(`params.${key}`, {
+                            label: meta.label || key,
+                            type: meta.type || 'string',
+                            required: meta.required || false,
+                            description: meta.description || ''
+                        }, currentVal, {allowContext: true, allowAppSetting: true})
+                        html += desc
+                    }
+                }
+            }
+        }
+
+        return html
+    }
+
+    _conditionHTML(config) {
+        let options = '&lt;option value="">Select a condition...&lt;/option>'
+        options += '&lt;optgroup label="Built-in">'
+        options += '&lt;option value="Core.FieldEquals">Field Equals Value&lt;/option>'
+        options += '&lt;option value="Core.FieldNotEmpty">Field Is Not Empty&lt;/option>'
+        options += '&lt;option value="Core.Expression">Custom Expression&lt;/option>'
+        options += '&lt;/optgroup>'
+        if (this.registryData.conditions?.length > 0) {
+            options += '&lt;optgroup label="Plugin Conditions">'
+            this.registryData.conditions.forEach(c => {
+                const selected = config.condition === c.condition ? 'selected' : ''
+                options += `&lt;option value="${c.condition}" ${selected}>${c.label}&lt;/option>`
+            })
+            options += '&lt;/optgroup>'
+        }
+        const isCore = !config.condition || config.condition.startsWith('Core.')
+        let html = `&lt;div class="mb-3">
+            &lt;label class="form-label">Condition&lt;/label>
+            &lt;select class="form-select form-select-sm" name="condition" data-action="change->workflow-designer#updateNodeConfig">${options}&lt;/select>
+        &lt;/div>`
+
+        if (isCore) {
+            html += `&lt;div class="mb-3">
+                &lt;label class="form-label">Field Path&lt;/label>
+                &lt;input type="text" class="form-control form-control-sm" name="field" value="${config.field || ''}" placeholder="$.entity.field_name" data-action="change->workflow-designer#updateNodeConfig" data-variable-picker="true">
+            &lt;/div>`
+            html += this.renderValuePicker('expectedValue', {
+                label: 'Expected Value',
+                type: 'string',
+                required: false,
+                description: 'Value to compare against'
+            }, config.expectedValue, {allowContext: true, allowAppSetting: true})
+        }
+
+        if (config.condition &amp;&amp; !config.condition.startsWith('Core.')) {
+            const cond = this.registryData.conditions?.find(c => c.condition === config.condition)
+            if (cond?.inputSchema) {
+                html += '&lt;h6 class="mt-3 mb-2 text-muted small">Condition Parameters&lt;/h6>'
+                const params = config.params || {}
+                for (const [key, meta] of Object.entries(cond.inputSchema)) {
+                    const currentVal = params[key] !== undefined ? params[key] : (config[key] || '')
+                    html += this.renderValuePicker(`params.${key}`, {
+                        label: meta.label || key,
+                        type: meta.type || 'string',
+                        required: meta.required || false,
+                        description: meta.description || ''
+                    }, currentVal, {allowContext: true, allowAppSetting: true})
+                }
+            }
+        }
+
+        return html
+    }
+
+    _approvalHTML(config) {
+        const ac = config.approverConfig || {}
+        const approverType = config.approverType || 'permission'
+
+        // Resolve the effective approver value: prefer approverValue, fall back to approverConfig
+        const typeKeyMap = { permission: 'permission', role: 'role', member: 'member_id' }
+        const effectiveValue = config.approverValue
+            || ac[typeKeyMap[approverType] || '']
+            || ''
+
+        // Detect context variable references (e.g. "$.trigger.approvalPermission")
+        const isContextRef = typeof effectiveValue === 'string' &amp;&amp; effectiveValue.startsWith('$.')
+
+        // Determine the active mode for the value picker
+        const valueMode = isContextRef ? 'context' : 'fixed'
+
+        // Build autocomplete for "fixed" mode
+        const acSharedOpts = {
+            size: 'sm',
+            name: 'approverValue',
+            minLength: 2,
+            hiddenAttrs: 'data-action="change->workflow-designer#updateNodeConfig"',
+        };
+
+        const buildAC = (type, url, allowOther, placeholder) => renderAutoComplete({
+            ...acSharedOpts,
+            url,
+            allowOther,
+            value: approverType === type &amp;&amp; !isContextRef ? effectiveValue : '',
+            placeholder,
+            initSelection: approverType === type &amp;&amp; effectiveValue &amp;&amp; !isContextRef
+                ? { value: effectiveValue, text: effectiveValue } : null,
+        })
+
+        const permissionAC = buildAC('permission', '/permissions/auto-complete', true, 'Search permissions...')
+        const roleAC = buildAC('role', '/roles/auto-complete', true, 'Search roles...')
+        const memberAC = buildAC('member', '/members/auto-complete', false, 'Search members...')
+
+        // Context path input for "context" mode
+        const contextInput = `&lt;input type="text" class="form-control form-control-sm"
+            name="approverValue" value="${this._escapeAttr(isContextRef ? effectiveValue : '')}"
+            placeholder="$.trigger.approvalPermission"
+            data-action="change->workflow-designer#updateNodeConfig"
+            data-variable-picker="true">`
+
+        // Mode toggle dropdown (Fixed Value / Context Variable)
+        const modeToggle = `&lt;select class="form-select form-select-sm" data-approver-value-mode
+                style="max-width: 140px;"
+                data-action="change->workflow-designer#onApproverValueModeChange">
+            &lt;option value="fixed" ${valueMode === 'fixed' ? 'selected' : ''}>Fixed Value&lt;/option>
+            &lt;option value="context" ${valueMode === 'context' ? 'selected' : ''}>Context Variable&lt;/option>
+        &lt;/select>`
+
+        // Build each approver section with the mode toggle
+        const approverSection = (type, label, acHtml) => {
+            const show = approverType === type ? 'block' : 'none'
+            return `&lt;div data-approver-section="${type}" style="display:${show};">
+              &lt;div class="mb-3">
+                &lt;label class="form-label">${label}&lt;/label>
+                &lt;div class="input-group input-group-sm mb-1">
+                    ${modeToggle}
+                &lt;/div>
+                &lt;div data-approver-value-fixed style="display:${valueMode === 'fixed' ? 'block' : 'none'};">
+                    ${acHtml}
+                &lt;/div>
+                &lt;div data-approver-value-context style="display:${valueMode === 'context' ? 'block' : 'none'};">
+                    ${contextInput}
+                &lt;/div>
+              &lt;/div>
+            &lt;/div>`
+        }
+
+        return `&lt;div class="mb-3">
+            &lt;label class="form-label">Approver Type&lt;/label>
+            &lt;select class="form-select form-select-sm" name="approverType" data-action="change->workflow-designer#onApproverTypeChange">
+                &lt;option value="permission" ${approverType === 'permission' ? 'selected' : ''}>By Permission&lt;/option>
+                &lt;option value="role" ${approverType === 'role' ? 'selected' : ''}>By Role&lt;/option>
+                &lt;option value="member" ${approverType === 'member' ? 'selected' : ''}>Specific Member&lt;/option>
+                &lt;option value="dynamic" ${approverType === 'dynamic' ? 'selected' : ''}>Dynamic (from context)&lt;/option>
+                &lt;option value="policy" ${approverType === 'policy' ? 'selected' : ''}>By Policy&lt;/option>
+            &lt;/select>
+        &lt;/div>
+        ${approverSection('permission', 'Permission', permissionAC)}
+        ${approverSection('role', 'Role', roleAC)}
+        ${approverSection('member', 'Member', memberAC)}
+        &lt;div data-approver-section="dynamic" style="display:${approverType === 'dynamic' ? 'block' : 'none'};">
+          ${(() => {
+            const ac = config.approverConfig || {};
+            const selectedResolver = this.resolvers.find(r => r.resolver === ac.service);
+            const schemaKeys = selectedResolver ? Object.keys(selectedResolver.configSchema || {}) : [];
+            const internalKeys = ['service', 'method', 'serial_pick_next', 'exclude_member_ids', 'current_approver_id', 'approval_chain'];
+            const skipKeys = [...internalKeys, ...schemaKeys];
+
+            // Resolver dropdown
+            let resolverHTML = `
+              &lt;div class="mb-3">
+                &lt;label class="form-label">Resolver Service&lt;/label>
+                &lt;select class="form-select form-select-sm" name="resolverKey"
+                        data-action="change->workflow-designer#onResolverChange">
+                    &lt;option value="">Select a resolver...&lt;/option>
+                    ${this.resolvers.map(r =>
+                        `&lt;option value="${this._escapeAttr(r.resolver)}" ${(ac.service === r.resolver) ? 'selected' : ''}>${this._escapeAttr(r.label)} (${this._escapeAttr(r.source)})&lt;/option>`
+                    ).join('')}
+                &lt;/select>
+              &lt;/div>`;
+
+            // Method — read-only, auto-populated from selected resolver
+            resolverHTML += `
+              &lt;div class="mb-3">
+                &lt;label class="form-label text-muted">Method&lt;/label>
+                &lt;input type="text" class="form-control form-control-sm"
+                       name="approverConfig.method" value="${this._escapeAttr(ac.method || '')}" readonly disabled>
+              &lt;/div>`;
+
+            // Config params from schema
+            if (selectedResolver &amp;&amp; selectedResolver.configSchema) {
+                for (const [key, schema] of Object.entries(selectedResolver.configSchema)) {
+                    resolverHTML += this.renderValuePicker('approverConfig.' + key, {
+                        label: schema.label || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+                        type: schema.type || 'string',
+                        required: schema.required || false,
+                        description: schema.description || ''
+                    }, ac[key] || '', {allowContext: true, allowAppSetting: false});
+                }
+            }
+
+
+
+            return resolverHTML;
+          })()}
+        &lt;/div>
+        &lt;div data-approver-section="policy" style="display:${approverType === 'policy' ? 'block' : 'none'};">
+          &lt;div class="mb-3">
+            &lt;label class="form-label">Policy Class&lt;/label>
+            &lt;select class="form-select form-select-sm" name="policyClass"
+                    data-action="change->workflow-designer#onPolicyClassChange">
+              &lt;option value="">Select a policy class...&lt;/option>
+              ${this.policyClasses.map(p =>
+                `&lt;option value="${p.class}" ${config.policyClass === p.class ? 'selected' : ''}>${p.label}&lt;/option>`
+              ).join('')}
+            &lt;/select>
+          &lt;/div>
+          &lt;div class="mb-3">
+            &lt;label class="form-label">Policy Action&lt;/label>
+            &lt;select class="form-select form-select-sm" name="policyAction"
+                    data-action="change->workflow-designer#updateNodeConfig">
+              &lt;option value="">Select a policy class first...&lt;/option>
+              ${config.policyAction ? `&lt;option value="${config.policyAction}" selected>${config.policyAction}&lt;/option>` : ''}
+            &lt;/select>
+          &lt;/div>
+          &lt;div class="mb-3">
+            &lt;label class="form-label">Entity Table&lt;/label>
+            &lt;input type="text" class="form-control form-control-sm" name="entityTable"
+                   value="${config.entityTable || ''}" placeholder="e.g. WarrantRosters"
+                   data-action="change->workflow-designer#updateNodeConfig">
+          &lt;/div>
+          &lt;div class="mb-3">
+            &lt;label class="form-label">Entity ID Key&lt;/label>
+            &lt;input type="text" class="form-control form-control-sm" name="entityIdKey"
+                   value="${config.entityIdKey || ''}" placeholder="e.g. trigger.rosterId"
+                   data-action="change->workflow-designer#updateNodeConfig" data-variable-picker="true">
+          &lt;/div>
+          &lt;div class="mb-3">
+            &lt;label class="form-label">Permission Label&lt;/label>
+            &lt;input type="text" class="form-control form-control-sm" name="permission"
+                   value="${config.permission || ''}" placeholder="e.g. Can Approve Warrant Rosters"
+                   data-action="change->workflow-designer#updateNodeConfig">
+          &lt;/div>
+        &lt;/div>
+        ${this.renderValuePicker('requiredCount', {
+            label: 'Required Approvals',
+            type: 'integer',
+            required: true,
+            description: 'Number of approvals needed'
+        }, config.requiredCount, {allowContext: true, allowAppSetting: true})}
+        &lt;div class="form-check mb-3">
+            &lt;input type="checkbox" class="form-check-input" name="allowParallel" id="allowParallel" ${config.allowParallel !== false &amp;&amp; !config.serialPickNext ? 'checked' : ''} ${config.serialPickNext ? 'disabled' : ''} data-action="change->workflow-designer#updateNodeConfig">
+            &lt;label class="form-check-label" for="allowParallel">Allow Parallel Approvals&lt;/label>
+        &lt;/div>
+        &lt;div data-approver-section="dynamic" style="display:${approverType === 'dynamic' ? 'block' : 'none'};">
+          &lt;div class="form-check form-switch mb-3">
+            &lt;input type="checkbox" class="form-check-input" name="serialPickNext" id="serialPickNext" ${config.serialPickNext ? 'checked' : ''} data-action="change->workflow-designer#onSerialPickNextChange">
+            &lt;label class="form-check-label" for="serialPickNext">
+              Serial Pick Next Approver
+              &lt;i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Each approver picks the next approver from the eligible pool. Approvals happen one at a time in sequence.">&lt;/i>
+            &lt;/label>
+          &lt;/div>
+        &lt;/div>
+        &lt;div class="mb-3">
+            &lt;label class="form-label">Deadline&lt;/label>
+            &lt;input type="text" class="form-control form-control-sm" name="deadline" value="${config.deadline || ''}" placeholder="e.g. 7d, 24h" data-action="change->workflow-designer#updateNodeConfig">
+        &lt;/div>`
+    }
+
+    _delayHTML(config) {
+        return this.renderValuePicker('duration', {
+            label: 'Duration',
+            type: 'string',
+            required: false,
+            description: 'e.g. 1h, 2d, 30m'
+        }, config.duration, {allowContext: true, allowAppSetting: true}) +
+        `&lt;div class="mb-3">
+            &lt;label class="form-label">Wait For Event (optional)&lt;/label>
+            &lt;input type="text" class="form-control form-control-sm" name="waitEvent"
+                value="${config.waitEvent || ''}" placeholder="Event to resume on"
+                data-action="change->workflow-designer#updateNodeConfig" data-variable-picker="true">
+        &lt;/div>`
+    }
+
+    _loopHTML(config) {
+        return this.renderValuePicker('maxIterations', {
+            label: 'Max Iterations',
+            type: 'integer',
+            required: false,
+            description: 'Maximum loop iterations'
+        }, config.maxIterations !== undefined ? config.maxIterations : 100, {allowContext: true, allowAppSetting: true}) +
+        `&lt;div class="mb-3">
+            &lt;label class="form-label">Exit Condition&lt;/label>
+            &lt;input type="text" class="form-control form-control-sm" name="exitCondition" value="${config.exitCondition || ''}" placeholder="Expression to evaluate" data-action="change->workflow-designer#updateNodeConfig" data-variable-picker="true">
+        &lt;/div>`
+    }
+
+    _forEachHTML(config) {
+        return `&lt;div class="mb-3">
+            &lt;label class="form-label">Collection Path&lt;/label>
+            &lt;input type="text" class="form-control form-control-sm" name="collection"
+                value="${config.collection || ''}" placeholder="e.g. $.roster.warrants"
+                data-action="change->workflow-designer#updateNodeConfig" data-variable-picker="true">
+            &lt;small class="form-text text-muted">Context path to the array to iterate over&lt;/small>
+        &lt;/div>
+        &lt;div class="mb-3">
+            &lt;label class="form-label">Item Variable&lt;/label>
+            &lt;input type="text" class="form-control form-control-sm" name="itemVariable"
+                value="${config.itemVariable || 'currentItem'}" placeholder="currentItem"
+                data-action="change->workflow-designer#updateNodeConfig">
+            &lt;small class="form-text text-muted">Context variable name for the current item&lt;/small>
+        &lt;/div>
+        &lt;div class="mb-3">
+            &lt;label class="form-label">Index Variable&lt;/label>
+            &lt;input type="text" class="form-control form-control-sm" name="indexVariable"
+                value="${config.indexVariable || 'currentIndex'}" placeholder="currentIndex"
+                data-action="change->workflow-designer#updateNodeConfig">
+            &lt;small class="form-text text-muted">Context variable name for the current index&lt;/small>
+        &lt;/div>
+        &lt;div class="form-check mb-3">
+            &lt;input type="checkbox" class="form-check-input" name="continueOnError"
+                id="forEach-continueOnError" ${config.continueOnError ? 'checked' : ''}
+                data-action="change->workflow-designer#updateNodeConfig">
+            &lt;label class="form-check-label" for="forEach-continueOnError">Continue on Error&lt;/label>
+            &lt;div>&lt;small class="form-text text-muted">If checked, errors are logged but processing continues&lt;/small>&lt;/div>
+        &lt;/div>`
+    }
+
+    _subworkflowHTML(config) {
+        return `&lt;div class="mb-3">
+            &lt;label class="form-label">Workflow Slug&lt;/label>
+            &lt;input type="text" class="form-control form-control-sm" name="workflowSlug"
+                value="${config.workflowSlug || ''}" placeholder="e.g. warrant-approval"
+                data-action="change->workflow-designer#updateNodeConfig">
+            &lt;small class="form-text text-muted">The slug of the child workflow to execute&lt;/small>
+        &lt;/div>`
+    }
+
+    _forkHTML(config) {
+        return `&lt;div class="mb-3">
+            &lt;small class="form-text text-muted">
+                &lt;i class="bi bi-info-circle me-1">&lt;/i>
+                Executes all connected output paths in parallel. No additional configuration needed.
+            &lt;/small>
+        &lt;/div>`
+    }
+
+    _joinHTML(config) {
+        return `&lt;div class="mb-3">
+            &lt;small class="form-text text-muted">
+                &lt;i class="bi bi-info-circle me-1">&lt;/i>
+                Waits for all incoming paths to complete before advancing.
+            &lt;/small>
+        &lt;/div>`
+    }
+
+    _endHTML(config) {
+        let options = ''
+        const statuses = ['completed', 'cancelled', 'failed']
+        statuses.forEach(s => {
+            const selected = config.status === s ? 'selected' : ''
+            options += `&lt;option value="${s}" ${selected}>${s.charAt(0).toUpperCase() + s.slice(1)}&lt;/option>`
+        })
+        return `&lt;div class="mb-3">
+            &lt;label class="form-label">End Status&lt;/label>
+            &lt;select class="form-select form-select-sm" name="status"
+                data-action="change->workflow-designer#updateNodeConfig">
+                ${options}
+            &lt;/select>
+        &lt;/div>`
+    }
+
+    /**
+     * Render a universal value picker for any parameter field.
+     * @param {string} fieldName - Config key (e.g., 'requiredCount', 'params.memberId', 'duration')
+     * @param {object} fieldMeta - {label, type ('string'|'integer'|'boolean'), required, description}
+     * @param {*} currentValue - Current value (scalar, $.path string, or {type,value|path|key} object)
+     * @param {object} options - {allowContext: true, allowAppSetting: true}
+     * @returns {string} HTML string
+     */
+    renderValuePicker(fieldName, fieldMeta, currentValue, options = {}) {
+        const allowContext = options.allowContext !== false
+        const allowAppSetting = options.allowAppSetting !== false
+
+        // Parse currentValue to determine active type and value
+        let activeType = 'fixed'
+        let fixedValue = ''
+        let contextPath = ''
+        let settingKey = ''
+
+        if (currentValue === null || currentValue === undefined) {
+            activeType = 'fixed'
+            fixedValue = ''
+        } else if (typeof currentValue === 'object' &amp;&amp; currentValue !== null &amp;&amp; currentValue.type) {
+            activeType = currentValue.type
+            if (activeType === 'context') contextPath = currentValue.path || ''
+            else if (activeType === 'app_setting') settingKey = currentValue.key || ''
+            else if (activeType === 'fixed') fixedValue = currentValue.value ?? ''
+        } else if (typeof currentValue === 'string' &amp;&amp; currentValue.startsWith('$.')) {
+            activeType = 'context'
+            contextPath = currentValue
+        } else {
+            activeType = 'fixed'
+            fixedValue = currentValue
+        }
+
+        const label = fieldMeta.label || fieldName
+        const requiredMark = fieldMeta.required ? ' &lt;span class="text-danger">*&lt;/span>' : ''
+        const escapedFieldName = this._escapeAttr(fieldName)
+
+        // Type dropdown options
+        let typeOptions = `&lt;option value="fixed" ${activeType === 'fixed' ? 'selected' : ''}>Fixed Value&lt;/option>`
+        if (allowContext) {
+            typeOptions += `&lt;option value="context" ${activeType === 'context' ? 'selected' : ''}>Context Path&lt;/option>`
+        }
+        if (allowAppSetting) {
+            typeOptions += `&lt;option value="app_setting" ${activeType === 'app_setting' ? 'selected' : ''}>App Setting&lt;/option>`
+        }
+
+        // Build the dynamic input based on active type
+        const inputHTML = this._renderValuePickerInput(fieldName, fieldMeta, activeType, {
+            fixedValue, contextPath, settingKey
+        })
+
+        return `&lt;div class="mb-2 value-picker" data-vp-field="${escapedFieldName}">
+            &lt;label class="form-label form-label-sm mb-0">${label}${requiredMark}&lt;/label>
+            &lt;div class="input-group input-group-sm mb-1">
+                &lt;select class="form-select form-select-sm" data-vp-type="${escapedFieldName}"
+                    data-action="change->workflow-designer#onValuePickerTypeChange"
+                    style="max-width: 140px;">
+                    ${typeOptions}
+                &lt;/select>
+                ${inputHTML}
+            &lt;/div>
+        &lt;/div>`
+    }
+
+    _renderValuePickerInput(fieldName, fieldMeta, activeType, values) {
+        const escapedFieldName = this._escapeAttr(fieldName)
+        const dataType = fieldMeta.type || 'string'
+
+        if (activeType === 'context') {
+            return `&lt;input type="text" class="form-control form-control-sm"
+                name="${escapedFieldName}" value="${this._escapeAttr(values.contextPath)}"
+                placeholder="$.path.to.value"
+                data-action="change->workflow-designer#updateNodeConfig"
+                data-variable-picker="true">`
+        }
+
+        if (activeType === 'app_setting') {
+            const keyEsc = this._escapeAttr(values.settingKey)
+            return `&lt;select class="form-select form-select-sm" name="${escapedFieldName}"
+                data-action="change->workflow-designer#updateNodeConfig"
+                data-vp-settings-select="${escapedFieldName}">
+                &lt;option value="">Loading settings...&lt;/option>
+                ${values.settingKey ? `&lt;option value="${keyEsc}" selected>${keyEsc}&lt;/option>` : ''}
+            &lt;/select>`
+        }
+
+        // Fixed value input
+        if (dataType === 'integer') {
+            return `&lt;input type="number" class="form-control form-control-sm"
+                name="${escapedFieldName}" value="${this._escapeAttr(String(values.fixedValue))}"
+                data-action="change->workflow-designer#updateNodeConfig">`
+        }
+
+        if (dataType === 'boolean') {
+            const checked = values.fixedValue ? 'checked' : ''
+            return `&lt;div class="form-check ms-2 mt-1">
+                &lt;input type="checkbox" class="form-check-input" name="${escapedFieldName}"
+                    ${checked}
+                    data-action="change->workflow-designer#updateNodeConfig">
+            &lt;/div>`
+        }
+
+        // Default: string text input
+        return `&lt;input type="text" class="form-control form-control-sm"
+            name="${escapedFieldName}" value="${this._escapeAttr(String(values.fixedValue))}"
+            data-action="change->workflow-designer#updateNodeConfig">`
+    }
+
+    /**
+     * Render a dropdown for selecting a workflow-native email template.
+     * Options are loaded async from /email-templates/options.json.
+     * When a template is selected, its variable schema and placeholders are
+     * compared against available workflow context variables and surfaced below.
+     */
+    _renderEmailTemplateSelect(fieldName, fieldMeta, currentValue) {
+        const label = fieldMeta.label || fieldName
+        const escaped = this._escapeAttr(fieldName)
+        const currentId = currentValue ? String(currentValue) : ''
+
+        return `&lt;div class="mb-3">
+            &lt;label class="form-label form-label-sm">${label}${fieldMeta.required ? ' &lt;span class="text-danger">*&lt;/span>' : ''}&lt;/label>
+            &lt;select class="form-select form-select-sm" name="${escaped}"
+                data-action="change->workflow-designer#onEmailTemplateChange"
+                data-email-template-select="true">
+                &lt;option value="">Loading templates…&lt;/option>
+                ${currentId ? `&lt;option value="${this._escapeAttr(currentId)}" selected>Template #${this._escapeAttr(currentId)}&lt;/option>` : ''}
+            &lt;/select>
+            &lt;div class="email-template-analysis mt-2" data-template-hint="${escaped}">&lt;/div>
+        &lt;/div>`
+    }
+
+    /**
+     * Render a key-value dictionary editor for object-type fields.
+     * Each row has a variable name input and a value picker (fixed/context/app_setting).
+     */
+    _renderKeyValueEditor(fieldName, fieldMeta, currentValue) {
+        const label = fieldMeta.label || fieldName
+        const escapedFieldName = this._escapeAttr(fieldName)
+        const entries = (typeof currentValue === 'object' &amp;&amp; currentValue !== null &amp;&amp; !currentValue.type)
+            ? Object.entries(currentValue)
+            : []
+
+        let rowsHTML = ''
+        entries.forEach(([key, val], idx) => {
+            rowsHTML += this._renderKvRow(escapedFieldName, idx, key, val)
+        })
+
+        return `&lt;div class="mb-2 kv-editor" data-kv-field="${escapedFieldName}">
+            &lt;label class="form-label form-label-sm mb-1">${label}&lt;/label>
+            &lt;div class="kv-rows" data-kv-rows="${escapedFieldName}">
+                ${rowsHTML}
+            &lt;/div>
+            &lt;button type="button" class="btn btn-outline-secondary btn-sm mt-1"
+                data-action="click->workflow-designer#addKvRow"
+                data-kv-target="${escapedFieldName}">
+                &lt;i class="bi bi-plus-circle">&lt;/i> Add Variable
+            &lt;/button>
+        &lt;/div>`
+    }
+
+    _renderKvRow(fieldName, idx, key, val) {
+        const escapedKey = this._escapeAttr(key)
+
+        // Determine value display
+        let valueDisplay = ''
+        let valueType = 'fixed'
+        if (typeof val === 'string' &amp;&amp; val.startsWith('$.')) {
+            valueDisplay = val
+            valueType = 'context'
+        } else if (typeof val === 'object' &amp;&amp; val !== null &amp;&amp; val.type === 'context') {
+            valueDisplay = val.path || ''
+            valueType = 'context'
+        } else if (typeof val === 'object' &amp;&amp; val !== null &amp;&amp; val.type === 'app_setting') {
+            valueDisplay = val.key || ''
+            valueType = 'app_setting'
+        } else {
+            valueDisplay = String(val ?? '')
+            valueType = 'fixed'
+        }
+
+        const typeOptions = [
+            `&lt;option value="fixed" ${valueType === 'fixed' ? 'selected' : ''}>Fixed&lt;/option>`,
+            `&lt;option value="context" ${valueType === 'context' ? 'selected' : ''}>Context Path&lt;/option>`,
+            `&lt;option value="app_setting" ${valueType === 'app_setting' ? 'selected' : ''}>App Setting&lt;/option>`,
+        ].join('')
+
+        return `&lt;div class="input-group input-group-sm mb-1 kv-row" data-kv-idx="${idx}">
+            &lt;input type="text" class="form-control" style="max-width: 120px;"
+                placeholder="Variable name"
+                name="${fieldName}__key__${idx}" value="${escapedKey}"
+                data-action="change->workflow-designer#updateNodeConfig">
+            &lt;select class="form-select" style="max-width: 110px;"
+                data-kv-vtype="${fieldName}__${idx}"
+                data-action="change->workflow-designer#onKvValueTypeChange">
+                ${typeOptions}
+            &lt;/select>
+            &lt;input type="text" class="form-control"
+                placeholder="${valueType === 'context' ? '$.path.to.value' : 'value'}"
+                name="${fieldName}__val__${idx}" value="${this._escapeAttr(valueDisplay)}"
+                data-action="change->workflow-designer#updateNodeConfig">
+            &lt;button type="button" class="btn btn-outline-danger"
+                data-action="click->workflow-designer#removeKvRow"
+                title="Remove">&lt;i class="bi bi-trash">&lt;/i>&lt;/button>
+        &lt;/div>`
+    }
+
+    _escapeAttr(str) {
+        if (!str) return ''
+        return String(str).replace(/&amp;/g, '&amp;amp;').replace(/"/g, '&amp;quot;').replace(/&lt;/g, '&amp;lt;').replace(/>/g, '&amp;gt;')
+    }
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.5</a> on Sat May 30 2026 21:20:34 GMT-0500 (Central Daylight Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+<script src="scripts/search.js" defer></script>
+
+
+
+</body>
+</html>

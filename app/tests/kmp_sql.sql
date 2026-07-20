@@ -1,1212 +1,6825 @@
-/*M!999999\- enable the sandbox mode */ 
--- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (aarch64)
---
--- Host: localhost    Database: KMP_DEV
--- ------------------------------------------------------
--- Server version	10.11.14-MariaDB-0+deb12u2
-
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8mb4 */;
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-
---
--- Table structure for table `activities_activities`
---
-
-DROP TABLE IF EXISTS `activities_activities`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `activities_activities` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  `term_length` int(11) NOT NULL,
-  `activity_group_id` int(11) NOT NULL,
-  `grants_role_id` int(11) DEFAULT NULL,
-  `minimum_age` int(11) DEFAULT NULL,
-  `maximum_age` int(11) DEFAULT NULL,
-  `num_required_authorizors` int(11) NOT NULL DEFAULT 1,
-  `num_required_renewers` int(11) NOT NULL DEFAULT 1,
-  `permission_id` int(11) DEFAULT NULL,
-  `modified` datetime DEFAULT NULL,
-  `created` datetime NOT NULL,
-  `created_by` int(11) DEFAULT NULL,
-  `modified_by` int(11) DEFAULT NULL,
-  `deleted` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`name`),
-  KEY `activity_group_id` (`activity_group_id`),
-  KEY `deleted` (`deleted`),
-  KEY `permission_id` (`permission_id`),
-  CONSTRAINT `activities_activities_ibfk_1` FOREIGN KEY (`activity_group_id`) REFERENCES `activities_activity_groups` (`id`),
-  CONSTRAINT `activities_activities_ibfk_2` FOREIGN KEY (`permission_id`) REFERENCES `permissions` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=67 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `activities_activity_groups`
---
-
-DROP TABLE IF EXISTS `activities_activity_groups`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `activities_activity_groups` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  `modified` datetime DEFAULT NULL,
-  `created` datetime NOT NULL,
-  `created_by` int(11) DEFAULT NULL,
-  `modified_by` int(11) DEFAULT NULL,
-  `deleted` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`name`),
-  KEY `deleted` (`deleted`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `activities_authorization_approvals`
---
-
-DROP TABLE IF EXISTS `activities_authorization_approvals`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `activities_authorization_approvals` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `authorization_id` int(11) NOT NULL,
-  `approver_id` int(11) NOT NULL,
-  `authorization_token` varchar(255) NOT NULL,
-  `requested_on` datetime NOT NULL,
-  `responded_on` datetime DEFAULT NULL,
-  `approved` tinyint(1) NOT NULL DEFAULT 0,
-  `approver_notes` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `approver_id` (`approver_id`),
-  KEY `authorization_id` (`authorization_id`),
-  CONSTRAINT `activities_authorization_approvals_ibfk_1` FOREIGN KEY (`authorization_id`) REFERENCES `activities_authorizations` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `activities_authorization_approvals_ibfk_2` FOREIGN KEY (`approver_id`) REFERENCES `members` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=9312 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `activities_authorizations`
---
-
-DROP TABLE IF EXISTS `activities_authorizations`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `activities_authorizations` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `member_id` int(11) NOT NULL,
-  `activity_id` int(11) NOT NULL,
-  `granted_member_role_id` int(11) DEFAULT NULL,
-  `expires_on` datetime DEFAULT NULL,
-  `start_on` datetime DEFAULT NULL,
-  `created` timestamp NOT NULL DEFAULT current_timestamp(),
-  `approval_count` int(11) NOT NULL DEFAULT 0,
-  `status` varchar(20) NOT NULL DEFAULT 'pending',
-  `revoked_reason` varchar(255) DEFAULT '',
-  `revoker_id` int(11) DEFAULT NULL,
-  `is_renewal` tinyint(1) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`id`),
-  KEY `activity_id` (`activity_id`),
-  KEY `member_id` (`member_id`),
-  KEY `start_on` (`start_on`),
-  KEY `expires_on` (`expires_on`),
-  KEY `granted_member_role_id` (`granted_member_role_id`),
-  CONSTRAINT `activities_authorizations_ibfk_1` FOREIGN KEY (`activity_id`) REFERENCES `activities_activities` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `activities_authorizations_ibfk_2` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `activities_authorizations_ibfk_3` FOREIGN KEY (`granted_member_role_id`) REFERENCES `member_roles` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=9317 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `activities_phinxlog`
---
-
-DROP TABLE IF EXISTS `activities_phinxlog`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `activities_phinxlog` (
-  `version` bigint(20) NOT NULL,
-  `migration_name` varchar(100) DEFAULT NULL,
-  `start_time` timestamp NULL DEFAULT NULL,
-  `end_time` timestamp NULL DEFAULT NULL,
-  `breakpoint` tinyint(1) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`version`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `app_settings`
---
-
-DROP TABLE IF EXISTS `app_settings`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `app_settings` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  `value` text DEFAULT NULL,
-  `modified` datetime DEFAULT NULL,
-  `created` datetime NOT NULL,
-  `created_by` int(11) DEFAULT NULL,
-  `modified_by` int(11) DEFAULT NULL,
-  `type` varchar(255) DEFAULT NULL,
-  `required` tinyint(1) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=85 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `awards_awards`
---
-
-DROP TABLE IF EXISTS `awards_awards`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `awards_awards` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  `abbreviation` varchar(20) NOT NULL,
-  `specialties` text DEFAULT NULL,
-  `description` text DEFAULT NULL,
-  `insignia` text DEFAULT NULL,
-  `badge` text DEFAULT NULL,
-  `charter` text DEFAULT NULL,
-  `domain_id` int(11) NOT NULL,
-  `level_id` int(11) NOT NULL,
-  `branch_id` int(11) NOT NULL,
-  `modified` datetime DEFAULT NULL,
-  `created` datetime NOT NULL,
-  `created_by` int(11) DEFAULT NULL,
-  `modified_by` int(11) DEFAULT NULL,
-  `deleted` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`name`),
-  KEY `level_id` (`level_id`),
-  KEY `domain_id` (`domain_id`),
-  KEY `branch_id` (`branch_id`),
-  KEY `deleted` (`deleted`),
-  CONSTRAINT `awards_awards_ibfk_1` FOREIGN KEY (`domain_id`) REFERENCES `awards_domains` (`id`),
-  CONSTRAINT `awards_awards_ibfk_2` FOREIGN KEY (`level_id`) REFERENCES `awards_levels` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `awards_awards_ibfk_3` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=81 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `awards_domains`
---
-
-DROP TABLE IF EXISTS `awards_domains`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `awards_domains` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  `modified` datetime DEFAULT NULL,
-  `created` datetime NOT NULL,
-  `created_by` int(11) DEFAULT NULL,
-  `modified_by` int(11) DEFAULT NULL,
-  `deleted` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`name`),
-  KEY `deleted` (`deleted`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `awards_events`
---
-
-DROP TABLE IF EXISTS `awards_events`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `awards_events` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  `description` varchar(255) NOT NULL,
-  `branch_id` int(11) NOT NULL,
-  `start_date` datetime DEFAULT NULL,
-  `end_date` datetime DEFAULT NULL,
-  `modified` datetime DEFAULT NULL,
-  `created` datetime NOT NULL,
-  `created_by` int(11) DEFAULT NULL,
-  `modified_by` int(11) DEFAULT NULL,
-  `deleted` datetime DEFAULT NULL,
-  `closed` tinyint(1) DEFAULT 0,
-  PRIMARY KEY (`id`),
-  KEY `start_date` (`start_date`),
-  KEY `end_date` (`end_date`),
-  KEY `branch_id` (`branch_id`),
-  KEY `deleted` (`deleted`),
-  CONSTRAINT `awards_events_ibfk_1` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=52 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `awards_levels`
---
-
-DROP TABLE IF EXISTS `awards_levels`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `awards_levels` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  `progression_order` int(11) DEFAULT NULL,
-  `modified` datetime DEFAULT NULL,
-  `created` datetime NOT NULL,
-  `created_by` int(11) DEFAULT NULL,
-  `modified_by` int(11) DEFAULT NULL,
-  `deleted` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`name`),
-  KEY `deleted` (`deleted`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `awards_phinxlog`
---
-
-DROP TABLE IF EXISTS `awards_phinxlog`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `awards_phinxlog` (
-  `version` bigint(20) NOT NULL,
-  `migration_name` varchar(100) DEFAULT NULL,
-  `start_time` timestamp NULL DEFAULT NULL,
-  `end_time` timestamp NULL DEFAULT NULL,
-  `breakpoint` tinyint(1) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`version`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `awards_recommendations`
---
-
-DROP TABLE IF EXISTS `awards_recommendations`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `awards_recommendations` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `stack_rank` int(11) NOT NULL,
-  `requester_id` int(11) DEFAULT NULL,
-  `member_id` int(11) DEFAULT NULL,
-  `branch_id` int(11) DEFAULT NULL,
-  `award_id` int(11) NOT NULL,
-  `specialty` varchar(255) DEFAULT NULL,
-  `requester_sca_name` varchar(255) NOT NULL,
-  `member_sca_name` varchar(255) NOT NULL,
-  `contact_number` varchar(100) DEFAULT NULL,
-  `contact_email` varchar(255) NOT NULL,
-  `reason` text DEFAULT NULL,
-  `call_into_court` varchar(100) NOT NULL,
-  `court_availability` varchar(100) NOT NULL,
-  `status` varchar(100) NOT NULL DEFAULT 'submitted',
-  `state_date` datetime DEFAULT NULL,
-  `event_id` int(11) DEFAULT NULL,
-  `given` datetime DEFAULT NULL,
-  `modified` datetime DEFAULT NULL,
-  `created` datetime NOT NULL,
-  `created_by` int(11) DEFAULT NULL,
-  `modified_by` int(11) DEFAULT NULL,
-  `deleted` datetime DEFAULT NULL,
-  `person_to_notify` varchar(255) DEFAULT NULL,
-  `no_action_reason` text DEFAULT NULL,
-  `close_reason` text DEFAULT NULL,
-  `state` varchar(255) NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `stack_rank` (`stack_rank`),
-  KEY `deleted` (`deleted`),
-  KEY `branch_id` (`branch_id`),
-  KEY `requester_id` (`requester_id`),
-  KEY `member_id` (`member_id`),
-  KEY `award_id` (`award_id`),
-  CONSTRAINT `awards_recommendations_ibfk_1` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `awards_recommendations_ibfk_2` FOREIGN KEY (`requester_id`) REFERENCES `members` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `awards_recommendations_ibfk_3` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `awards_recommendations_ibfk_4` FOREIGN KEY (`award_id`) REFERENCES `awards_awards` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=586 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `awards_recommendations_events`
---
-
-DROP TABLE IF EXISTS `awards_recommendations_events`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `awards_recommendations_events` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `recommendation_id` int(11) NOT NULL,
-  `event_id` int(11) NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `recommendation_id` (`recommendation_id`),
-  KEY `event_id` (`event_id`),
-  CONSTRAINT `awards_recommendations_events_ibfk_1` FOREIGN KEY (`recommendation_id`) REFERENCES `awards_recommendations` (`id`),
-  CONSTRAINT `awards_recommendations_events_ibfk_2` FOREIGN KEY (`event_id`) REFERENCES `awards_events` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2091 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `awards_recommendations_states_logs`
---
-
-DROP TABLE IF EXISTS `awards_recommendations_states_logs`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `awards_recommendations_states_logs` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `recommendation_id` int(11) NOT NULL,
-  `from_state` varchar(255) NOT NULL,
-  `to_state` varchar(255) NOT NULL,
-  `from_status` varchar(255) NOT NULL,
-  `to_status` varchar(255) NOT NULL,
-  `created` datetime NOT NULL,
-  `created_by` int(11) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `recommendation_id` (`recommendation_id`),
-  CONSTRAINT `awards_recommendations_states_logs_ibfk_1` FOREIGN KEY (`recommendation_id`) REFERENCES `awards_recommendations` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=1158 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `branches`
---
-
-DROP TABLE IF EXISTS `branches`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `branches` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(128) NOT NULL,
-  `location` varchar(128) NOT NULL,
-  `parent_id` int(11) DEFAULT NULL,
-  `links` text DEFAULT NULL,
-  `can_have_members` tinyint(1) NOT NULL DEFAULT 1,
-  `lft` int(11) DEFAULT NULL,
-  `rght` int(11) DEFAULT NULL,
-  `modified` datetime DEFAULT NULL,
-  `created` datetime NOT NULL,
-  `created_by` int(11) DEFAULT NULL,
-  `modified_by` int(11) DEFAULT NULL,
-  `deleted` datetime DEFAULT NULL,
-  `type` varchar(255) DEFAULT NULL,
-  `domain` varchar(255) NOT NULL DEFAULT '',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`name`),
-  KEY `parent_id` (`parent_id`),
-  KEY `lft` (`lft`),
-  KEY `rght` (`rght`),
-  KEY `deleted` (`deleted`),
-  CONSTRAINT `branches_ibfk_1` FOREIGN KEY (`parent_id`) REFERENCES `branches` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=43 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `documents`
---
-
-DROP TABLE IF EXISTS `documents`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `documents` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `entity_type` varchar(100) NOT NULL COMMENT 'Polymorphic entity type (e.g., Waivers.GatheringWaivers, Members)',
-  `entity_id` int(11) NOT NULL COMMENT 'Polymorphic entity ID',
-  `original_filename` varchar(255) NOT NULL COMMENT 'Original filename from upload',
-  `stored_filename` varchar(255) NOT NULL COMMENT 'Sanitized filename for storage',
-  `file_path` varchar(500) NOT NULL COMMENT 'Full path to file in storage',
-  `mime_type` varchar(100) NOT NULL COMMENT 'File MIME type',
-  `file_size` int(11) NOT NULL COMMENT 'File size in bytes',
-  `checksum` varchar(64) NOT NULL COMMENT 'SHA-256 checksum for integrity verification',
-  `storage_adapter` varchar(50) NOT NULL DEFAULT 'local' COMMENT 'Storage adapter used (local, s3, etc.)',
-  `metadata` text DEFAULT NULL COMMENT 'JSON metadata (conversion info, etc.)',
-  `uploaded_by` int(11) NOT NULL COMMENT 'Member ID who uploaded the document',
-  `created` datetime NOT NULL,
-  `modified` datetime NOT NULL,
-  `created_by` int(11) NOT NULL,
-  `modified_by` int(11) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_documents_file_path` (`file_path`),
-  KEY `idx_documents_entity` (`entity_type`,`entity_id`),
-  KEY `idx_documents_checksum` (`checksum`),
-  KEY `idx_documents_uploaded_by` (`uploaded_by`),
-  KEY `idx_documents_created` (`created`),
-  KEY `fk_documents_created_by` (`created_by`),
-  KEY `fk_documents_modified_by` (`modified_by`),
-  CONSTRAINT `fk_documents_created_by` FOREIGN KEY (`created_by`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk_documents_modified_by` FOREIGN KEY (`modified_by`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk_documents_uploaded_by` FOREIGN KEY (`uploaded_by`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `gathering_activities`
---
-
-DROP TABLE IF EXISTS `gathering_activities`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `gathering_activities` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL COMMENT 'Name of the activity (e.g., Heavy Combat, Archery, A&S Display)',
-  `description` text DEFAULT NULL COMMENT 'Description of the activity',
-  `created` datetime NOT NULL,
-  `modified` datetime NOT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `gathering_types`
---
-
-DROP TABLE IF EXISTS `gathering_types`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `gathering_types` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL COMMENT 'Name of the gathering type (e.g., Tournament, Practice, Feast)',
-  `description` text DEFAULT NULL COMMENT 'Description of this gathering type',
-  `clonable` tinyint(1) NOT NULL DEFAULT 1 COMMENT 'Whether this type can be used as a template for new gatherings',
-  `created` datetime NOT NULL,
-  `modified` datetime NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_gathering_types_name` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `gatherings`
---
-
-DROP TABLE IF EXISTS `gatherings`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `gatherings` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `branch_id` int(11) NOT NULL COMMENT 'Branch hosting this gathering',
-  `gathering_type_id` int(11) NOT NULL COMMENT 'Type of gathering',
-  `name` varchar(255) NOT NULL COMMENT 'Name of the gathering',
-  `description` text DEFAULT NULL COMMENT 'Description of the gathering',
-  `start_date` date NOT NULL COMMENT 'Start date of the gathering',
-  `end_date` date NOT NULL COMMENT 'End date of the gathering',
-  `location` varchar(255) DEFAULT NULL COMMENT 'Location of the gathering',
-  `created_by` int(11) NOT NULL COMMENT 'Member who created this gathering (steward)',
-  `created` datetime NOT NULL,
-  `modified` datetime NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_gatherings_branch` (`branch_id`),
-  KEY `idx_gatherings_type` (`gathering_type_id`),
-  KEY `idx_gatherings_created_by` (`created_by`),
-  KEY `idx_gatherings_start_date` (`start_date`),
-  KEY `idx_gatherings_end_date` (`end_date`),
-  CONSTRAINT `fk_gatherings_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk_gatherings_created_by` FOREIGN KEY (`created_by`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk_gatherings_type` FOREIGN KEY (`gathering_type_id`) REFERENCES `gathering_types` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `member_roles`
---
-
-DROP TABLE IF EXISTS `member_roles`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `member_roles` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `member_id` int(11) NOT NULL,
-  `role_id` int(11) NOT NULL,
-  `expires_on` datetime DEFAULT NULL,
-  `start_on` datetime NOT NULL DEFAULT current_timestamp(),
-  `entity_type` varchar(255) DEFAULT NULL,
-  `entity_id` int(11) DEFAULT NULL,
-  `approver_id` int(11) NOT NULL,
-  `revoker_id` int(11) DEFAULT NULL,
-  `modified` datetime DEFAULT NULL,
-  `created` datetime NOT NULL,
-  `created_by` int(11) DEFAULT NULL,
-  `modified_by` int(11) DEFAULT NULL,
-  `branch_id` int(11) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `member_id` (`member_id`),
-  KEY `role_id` (`role_id`),
-  KEY `approver_id` (`approver_id`),
-  KEY `start_on` (`start_on`),
-  KEY `expires_on` (`expires_on`),
-  KEY `granting_id` (`entity_id`),
-  KEY `granting_model` (`entity_type`),
-  KEY `branch_id` (`branch_id`),
-  CONSTRAINT `member_roles_ibfk_1` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `member_roles_ibfk_2` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `member_roles_ibfk_3` FOREIGN KEY (`approver_id`) REFERENCES `members` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `member_roles_ibfk_4` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=380 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `members`
---
-
-DROP TABLE IF EXISTS `members`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `members` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `password` varchar(512) NOT NULL,
-  `sca_name` varchar(50) NOT NULL,
-  `first_name` varchar(30) NOT NULL,
-  `middle_name` varchar(30) DEFAULT NULL,
-  `last_name` varchar(30) NOT NULL,
-  `street_address` varchar(75) DEFAULT NULL,
-  `city` varchar(30) DEFAULT NULL,
-  `state` varchar(2) DEFAULT NULL,
-  `zip` varchar(5) DEFAULT NULL,
-  `phone_number` varchar(15) DEFAULT NULL,
-  `email_address` varchar(50) NOT NULL,
-  `membership_number` varchar(50) DEFAULT NULL,
-  `membership_expires_on` date DEFAULT NULL,
-  `branch_id` int(11) DEFAULT NULL,
-  `background_check_expires_on` date DEFAULT NULL,
-  `status` varchar(20) DEFAULT 'active',
-  `verified_date` datetime DEFAULT NULL,
-  `verified_by` int(11) DEFAULT NULL,
-  `parent_id` int(11) DEFAULT NULL,
-  `mobile_card_token` varchar(255) DEFAULT NULL,
-  `password_token` varchar(255) DEFAULT NULL,
-  `password_token_expires_on` datetime DEFAULT NULL,
-  `last_login` datetime DEFAULT NULL,
-  `last_failed_login` datetime DEFAULT NULL,
-  `failed_login_attempts` int(11) DEFAULT NULL,
-  `birth_month` int(11) DEFAULT NULL,
-  `birth_year` int(11) DEFAULT NULL,
-  `additional_info` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT _utf8mb3'{}' CHECK (json_valid(`additional_info`)),
-  `membership_card_path` varchar(256) DEFAULT NULL,
-  `profile_photo_document_id` int(11) DEFAULT NULL,
-  `modified` datetime DEFAULT NULL,
-  `created` datetime NOT NULL,
-  `created_by` int(11) DEFAULT NULL,
-  `modified_by` int(11) DEFAULT NULL,
-  `deleted` datetime DEFAULT NULL,
-  `title` varchar(255) DEFAULT NULL,
-  `pronouns` varchar(50) DEFAULT NULL,
-  `pronunciation` varchar(255) DEFAULT NULL,
-  `warrantable` tinyint(1) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `email_address` (`email_address`),
-  KEY `deleted` (`deleted`),
-  KEY `branch_id` (`branch_id`),
-  KEY `idx_members_profile_photo_document_id` (`profile_photo_document_id`),
-  CONSTRAINT `members_ibfk_1` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`),
-  CONSTRAINT `members_ibfk_2` FOREIGN KEY (`profile_photo_document_id`) REFERENCES `documents` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=2884 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `notes`
---
-
-DROP TABLE IF EXISTS `notes`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `notes` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `author_id` int(11) NOT NULL,
-  `created` timestamp NOT NULL DEFAULT current_timestamp(),
-  `entity_type` varchar(255) DEFAULT NULL,
-  `entity_id` int(11) NOT NULL,
-  `subject` varchar(255) DEFAULT NULL,
-  `body` text DEFAULT NULL,
-  `private` tinyint(1) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`id`),
-  KEY `topic_id` (`entity_id`),
-  KEY `topic_model` (`entity_type`)
-) ENGINE=InnoDB AUTO_INCREMENT=802 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `officers_departments`
---
-
-DROP TABLE IF EXISTS `officers_departments`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `officers_departments` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  `modified` datetime DEFAULT NULL,
-  `created` datetime NOT NULL,
-  `created_by` int(11) DEFAULT NULL,
-  `modified_by` int(11) DEFAULT NULL,
-  `deleted` datetime DEFAULT NULL,
-  `domain` varchar(255) NOT NULL DEFAULT '',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`name`),
-  KEY `deleted` (`deleted`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `officers_officers`
---
-
-DROP TABLE IF EXISTS `officers_officers`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `officers_officers` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `member_id` int(11) NOT NULL,
-  `branch_id` int(11) NOT NULL,
-  `office_id` int(11) NOT NULL,
-  `granted_member_role_id` int(11) DEFAULT NULL,
-  `expires_on` datetime DEFAULT NULL,
-  `start_on` datetime DEFAULT NULL,
-  `status` varchar(20) NOT NULL DEFAULT 'new',
-  `deputy_description` varchar(255) DEFAULT NULL,
-  `revoked_reason` varchar(255) DEFAULT '',
-  `revoker_id` int(11) DEFAULT NULL,
-  `approver_id` int(11) NOT NULL,
-  `approval_date` datetime NOT NULL,
-  `reports_to_branch_id` int(11) DEFAULT NULL,
-  `reports_to_office_id` int(11) DEFAULT NULL,
-  `modified` datetime DEFAULT NULL,
-  `created` datetime NOT NULL,
-  `created_by` int(11) DEFAULT NULL,
-  `modified_by` int(11) DEFAULT NULL,
-  `deputy_to_branch_id` int(11) DEFAULT NULL,
-  `deputy_to_office_id` int(11) DEFAULT NULL,
-  `email_address` varchar(255) NOT NULL DEFAULT '',
-  PRIMARY KEY (`id`),
-  KEY `branch_id` (`branch_id`),
-  KEY `office_id` (`office_id`),
-  KEY `member_id` (`member_id`),
-  KEY `start_on` (`start_on`),
-  KEY `expires_on` (`expires_on`),
-  KEY `reports_to_branch_id` (`reports_to_branch_id`),
-  KEY `reports_to_office_id` (`reports_to_office_id`),
-  KEY `deputy_to_branch_id` (`deputy_to_branch_id`),
-  KEY `deputy_to_office_id` (`deputy_to_office_id`),
-  CONSTRAINT `officers_officers_ibfk_1` FOREIGN KEY (`reports_to_branch_id`) REFERENCES `branches` (`id`),
-  CONSTRAINT `officers_officers_ibfk_2` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`),
-  CONSTRAINT `officers_officers_ibfk_3` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`),
-  CONSTRAINT `officers_officers_ibfk_4` FOREIGN KEY (`office_id`) REFERENCES `officers_offices` (`id`),
-  CONSTRAINT `officers_officers_ibfk_5` FOREIGN KEY (`reports_to_office_id`) REFERENCES `officers_offices` (`id`),
-  CONSTRAINT `officers_officers_ibfk_6` FOREIGN KEY (`deputy_to_branch_id`) REFERENCES `branches` (`id`),
-  CONSTRAINT `officers_officers_ibfk_7` FOREIGN KEY (`deputy_to_office_id`) REFERENCES `officers_offices` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=958 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `officers_offices`
---
-
-DROP TABLE IF EXISTS `officers_offices`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `officers_offices` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  `department_id` int(11) DEFAULT NULL,
-  `requires_warrant` tinyint(1) NOT NULL DEFAULT 0,
-  `required_office` tinyint(1) NOT NULL DEFAULT 0,
-  `can_skip_report` tinyint(1) NOT NULL DEFAULT 0,
-  `only_one_per_branch` tinyint(1) NOT NULL DEFAULT 0,
-  `deputy_to_id` int(11) DEFAULT NULL,
-  `grants_role_id` int(11) DEFAULT NULL,
-  `term_length` int(11) NOT NULL,
-  `modified` datetime DEFAULT NULL,
-  `created` datetime NOT NULL,
-  `created_by` int(11) DEFAULT NULL,
-  `modified_by` int(11) DEFAULT NULL,
-  `deleted` datetime DEFAULT NULL,
-  `applicable_branch_types` varchar(255) DEFAULT NULL,
-  `reports_to_id` int(11) DEFAULT NULL,
-  `default_contact_address` varchar(255) NOT NULL DEFAULT '',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`name`),
-  KEY `department_id` (`department_id`),
-  KEY `deleted` (`deleted`),
-  KEY `grants_role_id` (`grants_role_id`),
-  KEY `deputy_to_id` (`deputy_to_id`),
-  KEY `reports_to_id` (`reports_to_id`),
-  CONSTRAINT `officers_offices_ibfk_1` FOREIGN KEY (`department_id`) REFERENCES `officers_departments` (`id`),
-  CONSTRAINT `officers_offices_ibfk_2` FOREIGN KEY (`grants_role_id`) REFERENCES `roles` (`id`),
-  CONSTRAINT `officers_offices_ibfk_3` FOREIGN KEY (`deputy_to_id`) REFERENCES `officers_offices` (`id`),
-  CONSTRAINT `officers_offices_ibfk_4` FOREIGN KEY (`reports_to_id`) REFERENCES `officers_offices` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=96 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `officers_phinxlog`
---
-
-DROP TABLE IF EXISTS `officers_phinxlog`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `officers_phinxlog` (
-  `version` bigint(20) NOT NULL,
-  `migration_name` varchar(100) DEFAULT NULL,
-  `start_time` timestamp NULL DEFAULT NULL,
-  `end_time` timestamp NULL DEFAULT NULL,
-  `breakpoint` tinyint(1) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`version`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `permission_policies`
---
-
-DROP TABLE IF EXISTS `permission_policies`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `permission_policies` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `permission_id` int(11) NOT NULL,
-  `policy_class` varchar(255) NOT NULL,
-  `policy_method` varchar(255) NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `permission_id` (`permission_id`),
-  CONSTRAINT `permission_policies_ibfk_1` FOREIGN KEY (`permission_id`) REFERENCES `permissions` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=782 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `permissions`
---
-
-DROP TABLE IF EXISTS `permissions`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `permissions` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  `require_active_membership` tinyint(1) NOT NULL DEFAULT 0,
-  `require_active_background_check` tinyint(1) NOT NULL DEFAULT 0,
-  `require_min_age` int(11) NOT NULL DEFAULT 0,
-  `is_system` tinyint(1) NOT NULL DEFAULT 0,
-  `is_super_user` tinyint(1) NOT NULL DEFAULT 0,
-  `requires_warrant` tinyint(1) NOT NULL DEFAULT 0,
-  `modified` datetime DEFAULT NULL,
-  `created` datetime NOT NULL,
-  `created_by` int(11) DEFAULT NULL,
-  `modified_by` int(11) DEFAULT NULL,
-  `deleted` datetime DEFAULT NULL,
-  `scoping_rule` varchar(255) NOT NULL DEFAULT 'Global',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`name`),
-  KEY `deleted` (`deleted`)
-) ENGINE=InnoDB AUTO_INCREMENT=1078 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `phinxlog`
---
-
-DROP TABLE IF EXISTS `phinxlog`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `phinxlog` (
-  `version` bigint(20) NOT NULL,
-  `migration_name` varchar(100) DEFAULT NULL,
-  `start_time` timestamp NULL DEFAULT NULL,
-  `end_time` timestamp NULL DEFAULT NULL,
-  `breakpoint` tinyint(1) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`version`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `queue_phinxlog`
---
-
-DROP TABLE IF EXISTS `queue_phinxlog`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `queue_phinxlog` (
-  `version` bigint(20) NOT NULL,
-  `migration_name` varchar(100) DEFAULT NULL,
-  `start_time` timestamp NULL DEFAULT NULL,
-  `end_time` timestamp NULL DEFAULT NULL,
-  `breakpoint` tinyint(1) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`version`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `queue_processes`
---
-
-DROP TABLE IF EXISTS `queue_processes`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `queue_processes` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `pid` varchar(40) NOT NULL,
-  `created` datetime NOT NULL,
-  `modified` datetime NOT NULL,
-  `terminate` tinyint(1) NOT NULL DEFAULT 0,
-  `server` varchar(90) DEFAULT NULL,
-  `workerkey` varchar(45) NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `workerkey` (`workerkey`),
-  UNIQUE KEY `pid` (`pid`,`server`)
-) ENGINE=InnoDB AUTO_INCREMENT=44951 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `queued_jobs`
---
-
-DROP TABLE IF EXISTS `queued_jobs`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `queued_jobs` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `job_task` varchar(90) NOT NULL,
-  `data` text DEFAULT NULL,
-  `job_group` varchar(190) DEFAULT NULL,
-  `reference` varchar(190) DEFAULT NULL,
-  `created` datetime NOT NULL,
-  `notbefore` datetime DEFAULT NULL,
-  `fetched` datetime DEFAULT NULL,
-  `completed` datetime DEFAULT NULL,
-  `progress` float unsigned DEFAULT NULL,
-  `attempts` tinyint(3) unsigned DEFAULT 0,
-  `failure_message` text DEFAULT NULL,
-  `workerkey` varchar(45) DEFAULT NULL,
-  `status` varchar(190) DEFAULT NULL,
-  `priority` int(10) unsigned NOT NULL DEFAULT 5,
-  PRIMARY KEY (`id`),
-  KEY `completed` (`completed`),
-  KEY `job_task` (`job_task`)
-) ENGINE=InnoDB AUTO_INCREMENT=771 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `roles`
---
-
-DROP TABLE IF EXISTS `roles`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `roles` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  `is_system` tinyint(1) NOT NULL DEFAULT 0,
-  `modified` datetime DEFAULT NULL,
-  `created` datetime NOT NULL,
-  `created_by` int(11) DEFAULT NULL,
-  `modified_by` int(11) DEFAULT NULL,
-  `deleted` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`name`),
-  KEY `deleted` (`deleted`)
-) ENGINE=InnoDB AUTO_INCREMENT=1119 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `roles_permissions`
---
-
-DROP TABLE IF EXISTS `roles_permissions`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `roles_permissions` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `permission_id` int(11) NOT NULL,
-  `role_id` int(11) NOT NULL,
-  `created` timestamp NOT NULL DEFAULT current_timestamp(),
-  `created_by` int(11) NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `role_id` (`role_id`),
-  KEY `permission_id` (`permission_id`),
-  CONSTRAINT `roles_permissions_ibfk_1` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `roles_permissions_ibfk_2` FOREIGN KEY (`permission_id`) REFERENCES `permissions` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=350 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `tokens`
---
-
-DROP TABLE IF EXISTS `tokens`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `tokens` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `user_id` int(11) DEFAULT NULL,
-  `type` varchar(20) NOT NULL COMMENT 'e.g.:activate,reactivate',
-  `token_key` varchar(60) NOT NULL,
-  `content` varchar(255) DEFAULT NULL COMMENT 'can transport some information',
-  `used` int(11) NOT NULL DEFAULT 0,
-  `created` datetime DEFAULT NULL,
-  `modified` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `token_key` (`token_key`),
-  KEY `user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `tools_phinxlog`
---
-
-DROP TABLE IF EXISTS `tools_phinxlog`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `tools_phinxlog` (
-  `version` bigint(20) NOT NULL,
-  `migration_name` varchar(100) DEFAULT NULL,
-  `start_time` timestamp NULL DEFAULT NULL,
-  `end_time` timestamp NULL DEFAULT NULL,
-  `breakpoint` tinyint(1) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`version`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `waivers_gathering_activity_waivers`
---
-
-DROP TABLE IF EXISTS `waivers_gathering_activity_waivers`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `waivers_gathering_activity_waivers` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `gathering_activity_id` int(11) NOT NULL COMMENT 'Gathering activity this waiver requirement applies to',
-  `waiver_type_id` int(11) NOT NULL COMMENT 'Type of waiver required for this activity',
-  `created` datetime NOT NULL,
-  `modified` datetime NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_gathering_activity_waivers_unique` (`gathering_activity_id`,`waiver_type_id`),
-  KEY `idx_gathering_activity_waivers_activity` (`gathering_activity_id`),
-  KEY `idx_gathering_activity_waivers_type` (`waiver_type_id`),
-  CONSTRAINT `fk_gathering_activity_waivers_activity` FOREIGN KEY (`gathering_activity_id`) REFERENCES `gathering_activities` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk_gathering_activity_waivers_type` FOREIGN KEY (`waiver_type_id`) REFERENCES `waivers_waiver_types` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `waivers_gathering_waiver_activities`
---
-
-DROP TABLE IF EXISTS `waivers_gathering_waiver_activities`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `waivers_gathering_waiver_activities` (
-  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Unique identifier',
-  `gathering_waiver_id` int(11) NOT NULL COMMENT 'FK to gathering_waivers.id - the waiver document',
-  `gathering_activity_id` int(11) NOT NULL COMMENT 'FK to gathering_activities.id - the activity covered',
-  `created` datetime NOT NULL COMMENT 'Record creation timestamp',
-  `modified` datetime NOT NULL COMMENT 'Last modification timestamp',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_gathering_waiver_activities_unique` (`gathering_waiver_id`,`gathering_activity_id`),
-  KEY `idx_gathering_waiver_activities_waiver` (`gathering_waiver_id`),
-  KEY `idx_gathering_waiver_activities_activity` (`gathering_activity_id`),
-  CONSTRAINT `fk_gathering_waiver_activities_activity` FOREIGN KEY (`gathering_activity_id`) REFERENCES `gathering_activities` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `fk_gathering_waiver_activities_waiver` FOREIGN KEY (`gathering_waiver_id`) REFERENCES `waivers_gathering_waivers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `waivers_gathering_waivers`
---
-
-DROP TABLE IF EXISTS `waivers_gathering_waivers`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `waivers_gathering_waivers` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `gathering_id` int(11) NOT NULL COMMENT 'Gathering this waiver is for',
-  `waiver_type_id` int(11) NOT NULL COMMENT 'Type of waiver (declared at upload time)',
-  `member_id` int(11) DEFAULT NULL COMMENT 'Member who signed the waiver (nullable for anonymous/unknown participants)',
-  `document_id` int(11) NOT NULL COMMENT 'Document entity containing the actual waiver file',
-  `retention_date` date NOT NULL COMMENT 'Date when this waiver can be deleted (calculated at upload time)',
-  `status` varchar(50) NOT NULL DEFAULT 'active' COMMENT 'Status: active, expired, deleted',
-  `notes` text DEFAULT NULL COMMENT 'Optional notes about this waiver',
-  `created` datetime NOT NULL,
-  `modified` datetime NOT NULL,
-  `created_by` int(11) NOT NULL COMMENT 'Member who uploaded this waiver',
-  `modified_by` int(11) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_gathering_waivers_document` (`document_id`),
-  KEY `idx_gathering_waivers_gathering` (`gathering_id`),
-  KEY `idx_gathering_waivers_type` (`waiver_type_id`),
-  KEY `idx_gathering_waivers_member` (`member_id`),
-  KEY `idx_gathering_waivers_retention` (`retention_date`),
-  KEY `idx_gathering_waivers_status` (`status`),
-  KEY `idx_gathering_waivers_created` (`created`),
-  KEY `idx_gathering_waivers_created_by` (`created_by`),
-  KEY `fk_gathering_waivers_modified_by` (`modified_by`),
-  CONSTRAINT `fk_gathering_waivers_created_by` FOREIGN KEY (`created_by`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk_gathering_waivers_document` FOREIGN KEY (`document_id`) REFERENCES `documents` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk_gathering_waivers_gathering` FOREIGN KEY (`gathering_id`) REFERENCES `gatherings` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk_gathering_waivers_member` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk_gathering_waivers_modified_by` FOREIGN KEY (`modified_by`) REFERENCES `members` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk_gathering_waivers_type` FOREIGN KEY (`waiver_type_id`) REFERENCES `waivers_waiver_types` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `waivers_phinxlog`
---
-
-DROP TABLE IF EXISTS `waivers_phinxlog`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `waivers_phinxlog` (
-  `version` bigint(20) NOT NULL,
-  `migration_name` varchar(100) DEFAULT NULL,
-  `start_time` timestamp NULL DEFAULT NULL,
-  `end_time` timestamp NULL DEFAULT NULL,
-  `breakpoint` tinyint(1) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`version`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `waivers_waiver_types`
---
-
-DROP TABLE IF EXISTS `waivers_waiver_types`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `waivers_waiver_types` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL COMMENT 'Name of the waiver type (e.g., General Adult Waiver, Minor Waiver, Equestrian Waiver)',
-  `description` text DEFAULT NULL COMMENT 'Description of this waiver type',
-  `document_id` int(11) DEFAULT NULL COMMENT 'FK to documents.id for uploaded template files (null if using external URL)',
-  `template_path` varchar(500) DEFAULT NULL COMMENT 'External URL to template (e.g., SCA.org link). Use document_id for uploaded files.',
-  `retention_policy` text NOT NULL COMMENT 'JSON: {"anchor": "gathering_end_date", "duration": {"years": 7, "months": 6, "days": 0}}',
-  `convert_to_pdf` tinyint(1) NOT NULL DEFAULT 1 COMMENT 'Whether to convert uploaded waivers to PDF format',
-  `is_active` tinyint(1) NOT NULL DEFAULT 1 COMMENT 'Whether this waiver type is currently active',
-  `created` datetime NOT NULL,
-  `modified` datetime NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_waiver_types_name` (`name`),
-  KEY `idx_waiver_types_active` (`is_active`),
-  KEY `idx_waiver_types_document_id` (`document_id`),
-  CONSTRAINT `waivers_waiver_types_ibfk_1` FOREIGN KEY (`document_id`) REFERENCES `documents` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `warrant_periods`
---
-
-DROP TABLE IF EXISTS `warrant_periods`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `warrant_periods` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `start_date` date NOT NULL,
-  `end_date` date NOT NULL,
-  `created` datetime NOT NULL,
-  `created_by` int(11) DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `warrant_roster_approvals`
---
-
-DROP TABLE IF EXISTS `warrant_roster_approvals`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `warrant_roster_approvals` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `warrant_roster_id` int(11) NOT NULL,
-  `approver_id` int(11) NOT NULL,
-  `approved_on` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `approver_id` (`approver_id`),
-  KEY `warrant_roster_id` (`warrant_roster_id`),
-  CONSTRAINT `warrant_roster_approvals_ibfk_1` FOREIGN KEY (`warrant_roster_id`) REFERENCES `warrant_rosters` (`id`),
-  CONSTRAINT `warrant_roster_approvals_ibfk_2` FOREIGN KEY (`approver_id`) REFERENCES `members` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=605 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `warrant_rosters`
---
-
-DROP TABLE IF EXISTS `warrant_rosters`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `warrant_rosters` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  `approvals_required` int(11) NOT NULL,
-  `approval_count` int(11) DEFAULT NULL,
-  `status` varchar(20) NOT NULL DEFAULT 'Pending',
-  `modified` datetime DEFAULT NULL,
-  `created` datetime NOT NULL,
-  `created_by` int(11) DEFAULT NULL,
-  `modified_by` int(11) DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=418 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `warrants`
---
-
-DROP TABLE IF EXISTS `warrants`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `warrants` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  `member_id` int(11) NOT NULL,
-  `warrant_roster_id` int(11) NOT NULL,
-  `entity_type` varchar(255) DEFAULT NULL,
-  `entity_id` int(11) NOT NULL,
-  `member_role_id` int(11) DEFAULT NULL,
-  `expires_on` datetime DEFAULT NULL,
-  `start_on` datetime DEFAULT NULL,
-  `approved_date` datetime DEFAULT NULL,
-  `status` varchar(20) NOT NULL DEFAULT 'Pending',
-  `revoked_reason` varchar(255) DEFAULT '',
-  `revoker_id` int(11) DEFAULT NULL,
-  `modified` datetime DEFAULT NULL,
-  `created` datetime NOT NULL,
-  `created_by` int(11) DEFAULT NULL,
-  `modified_by` int(11) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `entity_id` (`entity_id`),
-  KEY `entity_type` (`entity_type`),
-  KEY `start_on` (`start_on`),
-  KEY `expires_on` (`expires_on`),
-  KEY `member_id` (`member_id`),
-  KEY `member_role_id` (`member_role_id`),
-  KEY `warrant_roster_id` (`warrant_roster_id`),
-  CONSTRAINT `warrants_ibfk_1` FOREIGN KEY (`member_id`) REFERENCES `members` (`id`),
-  CONSTRAINT `warrants_ibfk_2` FOREIGN KEY (`member_role_id`) REFERENCES `member_roles` (`id`),
-  CONSTRAINT `warrants_ibfk_3` FOREIGN KEY (`warrant_roster_id`) REFERENCES `warrant_rosters` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2512 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
--- Dump completed on 2025-10-23 12:14:08
+--
+-- PostgreSQL database dump
+--
+
+\restrict JX93GigcDtHpyWSMfionzp1D9UQpzYb6g1tUc9RmpJPmwRe6FQV50MCScZQdVpv
+
+-- Dumped from database version 16.14 (Debian 16.14-1.pgdg13+1)
+-- Dumped by pg_dump version 16.14 (Debian 16.14-1.pgdg13+1)
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: activities_activities; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.activities_activities (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    term_length integer NOT NULL,
+    activity_group_id integer NOT NULL,
+    grants_role_id integer,
+    minimum_age integer,
+    maximum_age integer,
+    num_required_authorizors integer DEFAULT 1 NOT NULL,
+    num_required_renewers integer DEFAULT 1 NOT NULL,
+    permission_id integer,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone
+);
+
+
+--
+-- Name: activities_activities_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.activities_activities ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.activities_activities_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: activities_activity_groups; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.activities_activity_groups (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone
+);
+
+
+--
+-- Name: activities_activity_groups_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.activities_activity_groups ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.activities_activity_groups_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: activities_authorization_approvals; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.activities_authorization_approvals (
+    id integer NOT NULL,
+    authorization_id integer NOT NULL,
+    approver_id integer NOT NULL,
+    authorization_token character varying(255) NOT NULL,
+    requested_on timestamp without time zone NOT NULL,
+    responded_on timestamp without time zone,
+    approved boolean DEFAULT false NOT NULL,
+    approver_notes character varying(255)
+);
+
+
+--
+-- Name: activities_authorization_approvals_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.activities_authorization_approvals ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.activities_authorization_approvals_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: activities_authorizations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.activities_authorizations (
+    id integer NOT NULL,
+    member_id integer NOT NULL,
+    activity_id integer NOT NULL,
+    granted_member_role_id integer,
+    expires_on timestamp without time zone,
+    start_on timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    approval_count integer DEFAULT 0 NOT NULL,
+    status character varying(20) DEFAULT 'pending'::character varying NOT NULL,
+    revoked_reason character varying(255) DEFAULT ''::character varying,
+    revoker_id integer,
+    is_renewal boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: activities_authorizations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.activities_authorizations ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.activities_authorizations_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: activities_phinxlog; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.activities_phinxlog (
+    version bigint NOT NULL,
+    migration_name character varying(100),
+    start_time timestamp without time zone,
+    end_time timestamp without time zone,
+    breakpoint boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: app_settings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.app_settings (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    value text NOT NULL,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    type character varying(255),
+    required boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: app_settings_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.app_settings ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.app_settings_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: award_gathering_activities; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.award_gathering_activities (
+    id integer NOT NULL,
+    award_id integer NOT NULL,
+    gathering_activity_id integer NOT NULL,
+    created timestamp without time zone NOT NULL,
+    modified timestamp without time zone,
+    created_by integer,
+    modified_by integer
+);
+
+
+--
+-- Name: COLUMN award_gathering_activities.award_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.award_gathering_activities.award_id IS 'FK to awards table';
+
+
+--
+-- Name: COLUMN award_gathering_activities.gathering_activity_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.award_gathering_activities.gathering_activity_id IS 'FK to gathering_activities table';
+
+
+--
+-- Name: award_gathering_activities_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.award_gathering_activities ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.award_gathering_activities_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: awards_awards; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.awards_awards (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    abbreviation character varying(20) NOT NULL,
+    specialties text,
+    description text,
+    insignia text,
+    badge text,
+    charter text,
+    domain_id integer NOT NULL,
+    level_id integer NOT NULL,
+    branch_id integer NOT NULL,
+    approval_process_id integer,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone
+);
+
+
+--
+-- Name: awards_approval_processes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.awards_approval_processes (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    description text,
+    is_active boolean DEFAULT true NOT NULL,
+    created timestamp without time zone NOT NULL,
+    modified timestamp without time zone,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone
+);
+
+
+--
+-- Name: awards_approval_processes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.awards_approval_processes ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.awards_approval_processes_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: awards_approval_process_steps; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.awards_approval_process_steps (
+    id integer NOT NULL,
+    approval_process_id integer NOT NULL,
+    step_key character varying(100) NOT NULL,
+    label character varying(255) NOT NULL,
+    sequence integer DEFAULT 1 NOT NULL,
+    step_type character varying(30) DEFAULT 'approval'::character varying NOT NULL,
+    approver_type character varying(30) NOT NULL,
+    approver_source_id integer,
+    approver_source_key character varying(100),
+    branch_mode character varying(50) DEFAULT 'award_branch'::character varying NOT NULL,
+    branch_type character varying(50),
+    threshold_mode character varying(20) DEFAULT 'any'::character varying NOT NULL,
+    required_count integer,
+    on_reject character varying(100) DEFAULT 'return_previous'::character varying NOT NULL,
+    on_request_changes character varying(100) DEFAULT 'return_previous'::character varying NOT NULL,
+    retain_read_visibility boolean DEFAULT true NOT NULL,
+    created timestamp without time zone NOT NULL,
+    modified timestamp without time zone,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone
+);
+
+
+--
+-- Name: awards_approval_process_steps_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.awards_approval_process_steps ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.awards_approval_process_steps_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: awards_awards_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.awards_awards ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.awards_awards_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: awards_domains; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.awards_domains (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone
+);
+
+
+--
+-- Name: awards_domains_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.awards_domains ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.awards_domains_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: awards_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.awards_events (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    description character varying(255) NOT NULL,
+    branch_id integer NOT NULL,
+    start_date timestamp without time zone,
+    end_date timestamp without time zone,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone,
+    closed boolean DEFAULT false
+);
+
+
+--
+-- Name: awards_events_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.awards_events ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.awards_events_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: awards_levels; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.awards_levels (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    progression_order integer,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone
+);
+
+
+--
+-- Name: awards_levels_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.awards_levels ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.awards_levels_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: awards_phinxlog; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.awards_phinxlog (
+    version bigint NOT NULL,
+    migration_name character varying(100),
+    start_time timestamp without time zone,
+    end_time timestamp without time zone,
+    breakpoint boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: awards_recommendations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.awards_recommendations (
+    id integer NOT NULL,
+    stack_rank integer DEFAULT 0 NOT NULL,
+    requester_id integer,
+    member_id integer,
+    branch_id integer,
+    award_id integer NOT NULL,
+    specialty character varying(255),
+    requester_sca_name character varying(255) NOT NULL,
+    member_sca_name character varying(255) NOT NULL,
+    contact_number character varying(100),
+    contact_email character varying(255) NOT NULL,
+    reason text,
+    call_into_court character varying(100) NOT NULL,
+    court_availability character varying(100) NOT NULL,
+    status character varying(100) DEFAULT 'submitted'::character varying NOT NULL,
+    state_date timestamp without time zone,
+    event_id integer,
+    given timestamp without time zone,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone,
+    person_to_notify character varying(255),
+    no_action_reason text,
+    close_reason text,
+    state character varying(255) NOT NULL,
+    gathering_id integer,
+    recommendation_group_id integer,
+    group_origin_state character varying(255),
+    group_origin_status character varying(255)
+);
+
+
+--
+-- Name: awards_recommendations_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.awards_recommendations_events (
+    id integer NOT NULL,
+    recommendation_id integer NOT NULL,
+    event_id integer,
+    gathering_id integer
+);
+
+
+--
+-- Name: awards_recommendations_events_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.awards_recommendations_events ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.awards_recommendations_events_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: awards_recommendations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.awards_recommendations ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.awards_recommendations_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: awards_recommendation_approval_runs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.awards_recommendation_approval_runs (
+    id integer NOT NULL,
+    recommendation_id integer NOT NULL,
+    approval_process_id integer NOT NULL,
+    workflow_instance_id integer NOT NULL,
+    status character varying(40) DEFAULT 'in_progress'::character varying NOT NULL,
+    current_step_key character varying(100),
+    current_step_label character varying(255),
+    started timestamp without time zone NOT NULL,
+    completed timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    modified timestamp without time zone,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone
+);
+
+
+--
+-- Name: awards_recommendation_approval_runs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.awards_recommendation_approval_runs ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.awards_recommendation_approval_runs_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: awards_recommendations_states_logs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.awards_recommendations_states_logs (
+    id integer NOT NULL,
+    recommendation_id integer NOT NULL,
+    from_state character varying(255) NOT NULL,
+    to_state character varying(255) NOT NULL,
+    from_status character varying(255) NOT NULL,
+    to_status character varying(255) NOT NULL,
+    created timestamp without time zone NOT NULL,
+    created_by integer
+);
+
+
+--
+-- Name: awards_recommendations_states_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.awards_recommendations_states_logs ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.awards_recommendations_states_logs_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: backups; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.backups (
+    id integer NOT NULL,
+    filename character varying(255) NOT NULL,
+    size_bytes bigint,
+    table_count integer,
+    row_count integer,
+    storage_type character varying(20) DEFAULT 'local'::character varying NOT NULL,
+    status character varying(20) DEFAULT 'pending'::character varying NOT NULL,
+    notes text,
+    created timestamp without time zone NOT NULL,
+    modified timestamp without time zone NOT NULL
+);
+
+
+--
+-- Name: backups_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.backups ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.backups_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: branches; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.branches (
+    id integer NOT NULL,
+    public_id character varying(8),
+    name character varying(128) NOT NULL,
+    location character varying(128) NOT NULL,
+    parent_id integer,
+    links text,
+    can_have_members boolean DEFAULT true NOT NULL,
+    lft integer,
+    rght integer,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone,
+    type character varying(255),
+    domain character varying(255) DEFAULT ''::character varying NOT NULL,
+    can_have_officers boolean DEFAULT true NOT NULL,
+    contact_id integer
+);
+
+
+--
+-- Name: COLUMN branches.can_have_officers; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.branches.can_have_officers IS 'Whether this branch can have officers assigned';
+
+
+--
+-- Name: COLUMN branches.contact_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.branches.contact_id IS 'Point of contact member for hamlet-mode branches';
+
+
+--
+-- Name: branches_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.branches ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.branches_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: documents; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.documents (
+    id integer NOT NULL,
+    entity_type character varying(100) NOT NULL,
+    entity_id integer NOT NULL,
+    original_filename character varying(255) NOT NULL,
+    stored_filename character varying(255) NOT NULL,
+    file_path character varying(500) NOT NULL,
+    mime_type character varying(100) NOT NULL,
+    file_size integer NOT NULL,
+    checksum character varying(64) NOT NULL,
+    storage_adapter character varying(50) DEFAULT 'local'::character varying NOT NULL,
+    metadata text,
+    uploaded_by integer,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone
+);
+
+
+--
+-- Name: COLUMN documents.entity_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.documents.entity_type IS 'Polymorphic entity type (e.g., Waivers.GatheringWaivers, Members)';
+
+
+--
+-- Name: COLUMN documents.entity_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.documents.entity_id IS 'Polymorphic entity ID';
+
+
+--
+-- Name: COLUMN documents.original_filename; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.documents.original_filename IS 'Original filename from upload';
+
+
+--
+-- Name: COLUMN documents.stored_filename; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.documents.stored_filename IS 'Sanitized filename for storage';
+
+
+--
+-- Name: COLUMN documents.file_path; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.documents.file_path IS 'Full path to file in storage';
+
+
+--
+-- Name: COLUMN documents.mime_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.documents.mime_type IS 'File MIME type';
+
+
+--
+-- Name: COLUMN documents.file_size; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.documents.file_size IS 'File size in bytes';
+
+
+--
+-- Name: COLUMN documents.checksum; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.documents.checksum IS 'SHA-256 checksum for integrity verification';
+
+
+--
+-- Name: COLUMN documents.storage_adapter; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.documents.storage_adapter IS 'Storage adapter used (local, s3, etc.)';
+
+
+--
+-- Name: COLUMN documents.metadata; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.documents.metadata IS 'JSON metadata (conversion info, etc.)';
+
+
+--
+-- Name: COLUMN documents.uploaded_by; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.documents.uploaded_by IS 'Member ID who uploaded the file (nullable - NULL if member deleted)';
+
+
+--
+-- Name: COLUMN documents.created_by; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.documents.created_by IS 'Member ID who created the record (nullable - may be system process)';
+
+
+--
+-- Name: COLUMN documents.modified_by; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.documents.modified_by IS 'Member ID who last modified the record (nullable - may be system process)';
+
+
+--
+-- Name: documents_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.documents ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.documents_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: email_templates; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.email_templates (
+    id integer NOT NULL,
+    subject_template character varying(500) NOT NULL,
+    html_template text,
+    text_template text,
+    available_vars text,
+    is_active boolean DEFAULT true NOT NULL,
+    created timestamp without time zone,
+    modified timestamp without time zone,
+    created_by integer,
+    modified_by integer,
+    slug character varying(100) NOT NULL,
+    name character varying(255),
+    description text,
+    variables_schema text
+);
+
+
+--
+-- Name: COLUMN email_templates.subject_template; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.email_templates.subject_template IS 'Email subject line template with variable placeholders';
+
+
+--
+-- Name: COLUMN email_templates.html_template; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.email_templates.html_template IS 'HTML version of email template';
+
+
+--
+-- Name: COLUMN email_templates.text_template; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.email_templates.text_template IS 'Plain text version of email template';
+
+
+--
+-- Name: COLUMN email_templates.available_vars; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.email_templates.available_vars IS 'JSON array of available variables for this template';
+
+
+--
+-- Name: COLUMN email_templates.is_active; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.email_templates.is_active IS 'Whether this template is active and should be used';
+
+
+--
+-- Name: COLUMN email_templates.created_by; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.email_templates.created_by IS 'Member ID who created this template';
+
+
+--
+-- Name: COLUMN email_templates.modified_by; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.email_templates.modified_by IS 'Member ID who last modified this template';
+
+
+--
+-- Name: COLUMN email_templates.slug; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.email_templates.slug IS 'Stable workflow-native key (e.g. warrant-issued).';
+
+
+--
+-- Name: COLUMN email_templates.name; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.email_templates.name IS 'Human-readable admin label for this template';
+
+
+--
+-- Name: COLUMN email_templates.description; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.email_templates.description IS 'Admin-facing description of template purpose';
+
+
+--
+-- Name: COLUMN email_templates.variables_schema; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.email_templates.variables_schema IS 'JSON schema for the explicit variable contract of this template';
+
+
+--
+-- Name: email_templates_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.email_templates ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.email_templates_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: gathering_activities; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.gathering_activities (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    description text,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone
+);
+
+
+--
+-- Name: COLUMN gathering_activities.name; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_activities.name IS 'Name of the activity (e.g., Heavy Combat, Archery, A&S Display)';
+
+
+--
+-- Name: COLUMN gathering_activities.description; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_activities.description IS 'Description of the activity';
+
+
+--
+-- Name: gathering_activities_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.gathering_activities ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.gathering_activities_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: gathering_attendances; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.gathering_attendances (
+    id integer NOT NULL,
+    gathering_id integer NOT NULL,
+    member_id integer NOT NULL,
+    public_note text,
+    share_with_kingdom boolean DEFAULT false NOT NULL,
+    share_with_hosting_group boolean DEFAULT false NOT NULL,
+    share_with_crown boolean DEFAULT false NOT NULL,
+    is_public boolean DEFAULT false NOT NULL,
+    created timestamp without time zone NOT NULL,
+    modified timestamp without time zone,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone
+);
+
+
+--
+-- Name: COLUMN gathering_attendances.gathering_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_attendances.gathering_id IS 'The gathering being attended';
+
+
+--
+-- Name: COLUMN gathering_attendances.member_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_attendances.member_id IS 'The member attending the gathering';
+
+
+--
+-- Name: COLUMN gathering_attendances.public_note; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_attendances.public_note IS 'Public note the member wants to share about their attendance';
+
+
+--
+-- Name: COLUMN gathering_attendances.share_with_kingdom; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_attendances.share_with_kingdom IS 'Share attendance with kingdom officers';
+
+
+--
+-- Name: COLUMN gathering_attendances.share_with_hosting_group; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_attendances.share_with_hosting_group IS 'Share attendance with the hosting group';
+
+
+--
+-- Name: COLUMN gathering_attendances.share_with_crown; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_attendances.share_with_crown IS 'Share attendance with the crown';
+
+
+--
+-- Name: COLUMN gathering_attendances.is_public; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_attendances.is_public IS 'Make attendance public (SCA name only)';
+
+
+--
+-- Name: gathering_attendances_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.gathering_attendances ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.gathering_attendances_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: gathering_scheduled_activities; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.gathering_scheduled_activities (
+    id integer NOT NULL,
+    gathering_id integer NOT NULL,
+    gathering_activity_id integer,
+    start_datetime timestamp without time zone NOT NULL,
+    end_datetime timestamp without time zone,
+    display_title character varying(255) NOT NULL,
+    description text,
+    pre_register boolean DEFAULT false NOT NULL,
+    is_other boolean DEFAULT false NOT NULL,
+    created timestamp without time zone NOT NULL,
+    modified timestamp without time zone,
+    created_by integer,
+    modified_by integer,
+    has_end_time boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: COLUMN gathering_scheduled_activities.gathering_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_scheduled_activities.gathering_id IS 'FK to gatherings table - which gathering this schedule belongs to';
+
+
+--
+-- Name: COLUMN gathering_scheduled_activities.gathering_activity_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_scheduled_activities.gathering_activity_id IS 'FK to gathering_activities table - null for "other" activities';
+
+
+--
+-- Name: COLUMN gathering_scheduled_activities.start_datetime; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_scheduled_activities.start_datetime IS 'When the scheduled activity begins';
+
+
+--
+-- Name: COLUMN gathering_scheduled_activities.end_datetime; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_scheduled_activities.end_datetime IS 'When the scheduled activity ends (optional for activities with only start time)';
+
+
+--
+-- Name: COLUMN gathering_scheduled_activities.display_title; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_scheduled_activities.display_title IS 'Custom title for this scheduled activity';
+
+
+--
+-- Name: COLUMN gathering_scheduled_activities.description; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_scheduled_activities.description IS 'Custom description for this scheduled activity';
+
+
+--
+-- Name: COLUMN gathering_scheduled_activities.pre_register; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_scheduled_activities.pre_register IS 'Whether pre-registration is required/available';
+
+
+--
+-- Name: COLUMN gathering_scheduled_activities.is_other; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_scheduled_activities.is_other IS 'Whether this is an "other" activity (not linked to gathering_activity)';
+
+
+--
+-- Name: COLUMN gathering_scheduled_activities.created_by; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_scheduled_activities.created_by IS 'FK to members table - who created this';
+
+
+--
+-- Name: COLUMN gathering_scheduled_activities.modified_by; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_scheduled_activities.modified_by IS 'FK to members table - who last modified this';
+
+
+--
+-- Name: COLUMN gathering_scheduled_activities.has_end_time; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_scheduled_activities.has_end_time IS 'Whether this scheduled activity has an end time';
+
+
+--
+-- Name: gathering_scheduled_activities_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.gathering_scheduled_activities ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.gathering_scheduled_activities_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: gathering_staff; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.gathering_staff (
+    id integer NOT NULL,
+    gathering_id integer NOT NULL,
+    member_id integer,
+    sca_name character varying(255),
+    role character varying(100) NOT NULL,
+    is_steward boolean DEFAULT false NOT NULL,
+    email character varying(255),
+    phone character varying(50),
+    contact_notes text,
+    sort_order integer DEFAULT 0 NOT NULL,
+    created timestamp without time zone NOT NULL,
+    modified timestamp without time zone,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone,
+    show_on_public_page boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: COLUMN gathering_staff.gathering_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_staff.gathering_id IS 'The gathering this staff member is associated with';
+
+
+--
+-- Name: COLUMN gathering_staff.member_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_staff.member_id IS 'AMP member account (null for non-AMP staff)';
+
+
+--
+-- Name: COLUMN gathering_staff.sca_name; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_staff.sca_name IS 'SCA name for non-AMP staff members';
+
+
+--
+-- Name: COLUMN gathering_staff.role; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_staff.role IS 'Role name (e.g., "Steward", "Herald", "List Master")';
+
+
+--
+-- Name: COLUMN gathering_staff.is_steward; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_staff.is_steward IS 'Whether this staff member is a steward';
+
+
+--
+-- Name: COLUMN gathering_staff.email; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_staff.email IS 'Contact email (copied from member for stewards, editable)';
+
+
+--
+-- Name: COLUMN gathering_staff.phone; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_staff.phone IS 'Contact phone (copied from member for stewards, editable)';
+
+
+--
+-- Name: COLUMN gathering_staff.contact_notes; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_staff.contact_notes IS 'Contact preferences (e.g., "text only", "no calls after 9pm")';
+
+
+--
+-- Name: COLUMN gathering_staff.sort_order; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_staff.sort_order IS 'Display order (stewards first, then others)';
+
+
+--
+-- Name: gathering_staff_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.gathering_staff ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.gathering_staff_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: gathering_type_gathering_activities; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.gathering_type_gathering_activities (
+    id integer NOT NULL,
+    gathering_type_id integer NOT NULL,
+    gathering_activity_id integer NOT NULL,
+    not_removable boolean DEFAULT false NOT NULL,
+    created timestamp without time zone NOT NULL,
+    modified timestamp without time zone,
+    created_by integer,
+    modified_by integer
+);
+
+
+--
+-- Name: COLUMN gathering_type_gathering_activities.gathering_type_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_type_gathering_activities.gathering_type_id IS 'FK to gathering_types table';
+
+
+--
+-- Name: COLUMN gathering_type_gathering_activities.gathering_activity_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_type_gathering_activities.gathering_activity_id IS 'FK to gathering_activities table';
+
+
+--
+-- Name: COLUMN gathering_type_gathering_activities.not_removable; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_type_gathering_activities.not_removable IS 'If true, this activity cannot be removed from gatherings of this type';
+
+
+--
+-- Name: gathering_type_gathering_activities_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.gathering_type_gathering_activities ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.gathering_type_gathering_activities_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: gathering_types; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.gathering_types (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    description text,
+    clonable boolean DEFAULT true NOT NULL,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone,
+    color character varying(7) DEFAULT '#0d6efd'::character varying NOT NULL
+);
+
+
+--
+-- Name: COLUMN gathering_types.name; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_types.name IS 'Name of the gathering type (e.g., Tournament, Practice, Feast)';
+
+
+--
+-- Name: COLUMN gathering_types.description; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_types.description IS 'Description of this gathering type';
+
+
+--
+-- Name: COLUMN gathering_types.clonable; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_types.clonable IS 'Whether this type can be used as a template for new gatherings';
+
+
+--
+-- Name: COLUMN gathering_types.color; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gathering_types.color IS 'Hex color code for calendar display';
+
+
+--
+-- Name: gathering_types_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.gathering_types ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.gathering_types_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: gatherings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.gatherings (
+    id integer NOT NULL,
+    branch_id integer NOT NULL,
+    gathering_type_id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    description text,
+    start_date timestamp without time zone NOT NULL,
+    end_date timestamp without time zone NOT NULL,
+    location character varying(255),
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone,
+    latitude numeric(10,8),
+    longitude numeric(11,8),
+    public_id character varying(8) NOT NULL,
+    public_page_enabled boolean DEFAULT true NOT NULL,
+    timezone character varying(50),
+    cancelled_at timestamp without time zone,
+    cancellation_reason text
+);
+
+
+--
+-- Name: COLUMN gatherings.branch_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gatherings.branch_id IS 'Branch hosting this gathering';
+
+
+--
+-- Name: COLUMN gatherings.gathering_type_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gatherings.gathering_type_id IS 'Type of gathering';
+
+
+--
+-- Name: COLUMN gatherings.name; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gatherings.name IS 'Name of the gathering';
+
+
+--
+-- Name: COLUMN gatherings.description; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gatherings.description IS 'Description of the gathering';
+
+
+--
+-- Name: COLUMN gatherings.start_date; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gatherings.start_date IS 'Start date and time of the gathering (stored in UTC)';
+
+
+--
+-- Name: COLUMN gatherings.end_date; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gatherings.end_date IS 'End date and time of the gathering (stored in UTC)';
+
+
+--
+-- Name: COLUMN gatherings.location; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gatherings.location IS 'Location of the gathering';
+
+
+--
+-- Name: COLUMN gatherings.latitude; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gatherings.latitude IS 'Latitude coordinate from Google Maps geocoding';
+
+
+--
+-- Name: COLUMN gatherings.longitude; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gatherings.longitude IS 'Longitude coordinate from Google Maps geocoding';
+
+
+--
+-- Name: COLUMN gatherings.public_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gatherings.public_id IS 'Non-sequential public identifier safe for client exposure';
+
+
+--
+-- Name: COLUMN gatherings.public_page_enabled; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gatherings.public_page_enabled IS 'Whether the public landing page is enabled for this gathering';
+
+
+--
+-- Name: COLUMN gatherings.timezone; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gatherings.timezone IS 'IANA timezone identifier for the event location (e.g., America/Chicago)';
+
+
+--
+-- Name: gatherings_gathering_activities; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.gatherings_gathering_activities (
+    id integer NOT NULL,
+    gathering_id integer NOT NULL,
+    gathering_activity_id integer NOT NULL,
+    sort_order integer DEFAULT 0 NOT NULL,
+    created timestamp without time zone NOT NULL,
+    modified timestamp without time zone,
+    created_by integer,
+    modified_by integer,
+    custom_description text,
+    not_removable boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: COLUMN gatherings_gathering_activities.gathering_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gatherings_gathering_activities.gathering_id IS 'FK to gatherings table';
+
+
+--
+-- Name: COLUMN gatherings_gathering_activities.gathering_activity_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gatherings_gathering_activities.gathering_activity_id IS 'FK to gathering_activities table';
+
+
+--
+-- Name: COLUMN gatherings_gathering_activities.sort_order; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gatherings_gathering_activities.sort_order IS 'Display order of activities within a gathering';
+
+
+--
+-- Name: COLUMN gatherings_gathering_activities.custom_description; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gatherings_gathering_activities.custom_description IS 'Optional custom description that overrides the default activity description for this specific gathering';
+
+
+--
+-- Name: COLUMN gatherings_gathering_activities.not_removable; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.gatherings_gathering_activities.not_removable IS 'If true, this activity cannot be removed from this gathering';
+
+
+--
+-- Name: gatherings_gathering_activities_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.gatherings_gathering_activities ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.gatherings_gathering_activities_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: gatherings_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.gatherings ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.gatherings_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: grid_view_preferences; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.grid_view_preferences (
+    id integer NOT NULL,
+    member_id integer NOT NULL,
+    grid_key character varying(100) NOT NULL,
+    grid_view_id integer,
+    grid_view_key character varying(100),
+    created timestamp without time zone NOT NULL,
+    modified timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer
+);
+
+
+--
+-- Name: COLUMN grid_view_preferences.member_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.grid_view_preferences.member_id IS 'Member owning the preference record';
+
+
+--
+-- Name: COLUMN grid_view_preferences.grid_key; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.grid_view_preferences.grid_key IS 'Unique identifier for the grid instance (e.g., Members.index.main)';
+
+
+--
+-- Name: COLUMN grid_view_preferences.grid_view_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.grid_view_preferences.grid_view_id IS 'Preferred view ID; supports user views';
+
+
+--
+-- Name: COLUMN grid_view_preferences.grid_view_key; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.grid_view_preferences.grid_view_key IS 'Preferred system view key (string); supports system views by name';
+
+
+--
+-- Name: COLUMN grid_view_preferences.created_by; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.grid_view_preferences.created_by IS 'Audit: member who created the record';
+
+
+--
+-- Name: COLUMN grid_view_preferences.modified_by; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.grid_view_preferences.modified_by IS 'Audit: member who last modified the record';
+
+
+--
+-- Name: grid_view_preferences_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.grid_view_preferences ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.grid_view_preferences_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: grid_views; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.grid_views (
+    id integer NOT NULL,
+    grid_key character varying(100) NOT NULL,
+    member_id integer,
+    name character varying(100) NOT NULL,
+    is_default boolean DEFAULT false NOT NULL,
+    is_system_default boolean DEFAULT false NOT NULL,
+    config text NOT NULL,
+    created timestamp without time zone NOT NULL,
+    modified timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone
+);
+
+
+--
+-- Name: COLUMN grid_views.grid_key; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.grid_views.grid_key IS 'Unique identifier for grid instance (e.g., Members.index.main)';
+
+
+--
+-- Name: COLUMN grid_views.member_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.grid_views.member_id IS 'Owner of view; NULL for system-wide defaults';
+
+
+--
+-- Name: COLUMN grid_views.name; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.grid_views.name IS 'User-friendly name for the view';
+
+
+--
+-- Name: COLUMN grid_views.is_default; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.grid_views.is_default IS 'Whether this is the user''s default view for this grid';
+
+
+--
+-- Name: COLUMN grid_views.is_system_default; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.grid_views.is_system_default IS 'Whether this is the system-wide default (member_id must be NULL)';
+
+
+--
+-- Name: COLUMN grid_views.config; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.grid_views.config IS 'JSON configuration: filters, sort, columns, pageSize';
+
+
+--
+-- Name: COLUMN grid_views.created_by; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.grid_views.created_by IS 'Member who created this view';
+
+
+--
+-- Name: COLUMN grid_views.modified_by; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.grid_views.modified_by IS 'Member who last modified this view';
+
+
+--
+-- Name: COLUMN grid_views.deleted; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.grid_views.deleted IS 'Soft delete timestamp';
+
+
+--
+-- Name: grid_views_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.grid_views ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.grid_views_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: impersonation_action_logs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.impersonation_action_logs (
+    id integer NOT NULL,
+    impersonator_id integer NOT NULL,
+    impersonated_member_id integer NOT NULL,
+    operation character varying(20) NOT NULL,
+    table_name character varying(191) NOT NULL,
+    entity_primary_key character varying(191) NOT NULL,
+    request_method character varying(10),
+    request_url character varying(512),
+    ip_address character varying(45),
+    metadata text,
+    created timestamp without time zone NOT NULL
+);
+
+
+--
+-- Name: impersonation_action_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.impersonation_action_logs ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.impersonation_action_logs_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: impersonation_session_logs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.impersonation_session_logs (
+    id integer NOT NULL,
+    impersonator_id integer NOT NULL,
+    impersonated_member_id integer NOT NULL,
+    event character varying(16) NOT NULL,
+    request_url character varying(512),
+    ip_address character varying(45),
+    user_agent character varying(512),
+    created timestamp without time zone NOT NULL
+);
+
+
+--
+-- Name: impersonation_session_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.impersonation_session_logs ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.impersonation_session_logs_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: member_quick_login_devices; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.member_quick_login_devices (
+    id integer NOT NULL,
+    member_id integer NOT NULL,
+    device_id character varying(128) NOT NULL,
+    pin_hash character varying(255) NOT NULL,
+    failed_attempts integer DEFAULT 0 NOT NULL,
+    last_failed_login timestamp without time zone,
+    last_used timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    modified timestamp without time zone NOT NULL,
+    configured_ip_address character varying(45),
+    configured_location_hint character varying(120),
+    configured_os character varying(120),
+    configured_browser character varying(120),
+    configured_user_agent character varying(512),
+    last_used_ip_address character varying(45),
+    last_used_location_hint character varying(120)
+);
+
+
+--
+-- Name: member_quick_login_devices_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.member_quick_login_devices ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.member_quick_login_devices_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: member_roles; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.member_roles (
+    id integer NOT NULL,
+    member_id integer NOT NULL,
+    role_id integer NOT NULL,
+    expires_on timestamp without time zone,
+    start_on timestamp without time zone NOT NULL,
+    entity_type character varying(255),
+    entity_id integer,
+    approver_id integer NOT NULL,
+    revoker_id integer,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    branch_id integer
+);
+
+
+--
+-- Name: member_roles_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.member_roles ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.member_roles_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: members; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.members (
+    id integer NOT NULL,
+    public_id character varying(8),
+    password character varying(512) NOT NULL,
+    sca_name character varying(50) NOT NULL,
+    first_name character varying(30) NOT NULL,
+    middle_name character varying(30),
+    last_name character varying(30) NOT NULL,
+    street_address character varying(75),
+    city character varying(30),
+    state character varying(2),
+    zip character varying(5),
+    phone_number character varying(15),
+    email_address character varying(50) NOT NULL,
+    membership_number character varying(50),
+    membership_expires_on date,
+    branch_id integer,
+    background_check_expires_on date,
+    status character varying(20) DEFAULT 'active'::character varying,
+    verified_date timestamp without time zone,
+    verified_by integer,
+    parent_id integer,
+    mobile_card_token character varying(255),
+    password_token character varying(255),
+    password_token_expires_on timestamp without time zone,
+    last_login timestamp without time zone,
+    last_failed_login timestamp without time zone,
+    failed_login_attempts integer,
+    birth_month integer,
+    birth_year integer,
+    additional_info character varying(255) DEFAULT '{}'::character varying NOT NULL,
+    membership_card_path character varying(256),
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone,
+    title character varying(255),
+    pronouns character varying(50),
+    pronunciation character varying(255),
+    warrantable boolean DEFAULT false NOT NULL,
+    timezone character varying(50),
+    profile_photo_document_id integer
+);
+
+
+--
+-- Name: COLUMN members.timezone; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.members.timezone IS 'User preferred timezone (IANA identifier, e.g., America/Chicago)';
+
+
+--
+-- Name: COLUMN members.profile_photo_document_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.members.profile_photo_document_id IS 'FK to documents.id for persistent profile photo storage';
+
+
+--
+-- Name: members_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.members ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.members_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: notes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.notes (
+    id integer NOT NULL,
+    author_id integer NOT NULL,
+    created timestamp without time zone NOT NULL,
+    entity_type character varying(255),
+    entity_id integer NOT NULL,
+    subject character varying(255),
+    body text,
+    private boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: notes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.notes ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.notes_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: officers_departments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.officers_departments (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone,
+    domain character varying(255) DEFAULT ''::character varying NOT NULL
+);
+
+
+--
+-- Name: officers_departments_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.officers_departments ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.officers_departments_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: officers_officers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.officers_officers (
+    id integer NOT NULL,
+    member_id integer NOT NULL,
+    branch_id integer NOT NULL,
+    office_id integer NOT NULL,
+    granted_member_role_id integer,
+    expires_on timestamp without time zone,
+    start_on timestamp without time zone,
+    status character varying(20) DEFAULT 'new'::character varying NOT NULL,
+    deputy_description character varying(255),
+    revoked_reason character varying(255) DEFAULT ''::character varying,
+    revoker_id integer,
+    approver_id integer NOT NULL,
+    approval_date timestamp without time zone NOT NULL,
+    reports_to_branch_id integer,
+    reports_to_office_id integer,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deputy_to_branch_id integer,
+    deputy_to_office_id integer,
+    email_address character varying(255) DEFAULT ''::character varying NOT NULL
+);
+
+
+--
+-- Name: officers_officers_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.officers_officers ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.officers_officers_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: officers_offices; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.officers_offices (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    department_id integer,
+    requires_warrant boolean DEFAULT false NOT NULL,
+    required_office boolean DEFAULT false NOT NULL,
+    can_skip_report boolean DEFAULT false NOT NULL,
+    only_one_per_branch boolean DEFAULT false NOT NULL,
+    deputy_to_id integer,
+    grants_role_id integer,
+    term_length integer NOT NULL,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone,
+    applicable_branch_types character varying(255),
+    reports_to_id integer,
+    default_contact_address character varying(255) DEFAULT ''::character varying NOT NULL
+);
+
+
+--
+-- Name: officers_offices_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.officers_offices ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.officers_offices_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: officers_phinxlog; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.officers_phinxlog (
+    version bigint NOT NULL,
+    migration_name character varying(100),
+    start_time timestamp without time zone,
+    end_time timestamp without time zone,
+    breakpoint boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: permission_policies; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.permission_policies (
+    id integer NOT NULL,
+    permission_id integer NOT NULL,
+    policy_class character varying(255) NOT NULL,
+    policy_method character varying(255) NOT NULL
+);
+
+
+--
+-- Name: permission_policies_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.permission_policies ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.permission_policies_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: permissions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.permissions (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    require_active_membership boolean DEFAULT false NOT NULL,
+    require_active_background_check boolean DEFAULT false NOT NULL,
+    require_min_age integer DEFAULT 0 NOT NULL,
+    is_system boolean DEFAULT false NOT NULL,
+    is_super_user boolean DEFAULT false NOT NULL,
+    requires_warrant boolean DEFAULT false NOT NULL,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone,
+    scoping_rule character varying(255) DEFAULT 'Global'::character varying NOT NULL
+);
+
+
+--
+-- Name: permissions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.permissions ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.permissions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: phinxlog; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.phinxlog (
+    version bigint NOT NULL,
+    migration_name character varying(100),
+    start_time timestamp without time zone,
+    end_time timestamp without time zone,
+    breakpoint boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: queue_phinxlog; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.queue_phinxlog (
+    version bigint NOT NULL,
+    migration_name character varying(100),
+    start_time timestamp without time zone,
+    end_time timestamp without time zone,
+    breakpoint boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: queue_processes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.queue_processes (
+    id integer NOT NULL,
+    pid character varying(40) NOT NULL,
+    created timestamp without time zone NOT NULL,
+    modified timestamp without time zone NOT NULL,
+    terminate boolean DEFAULT false NOT NULL,
+    server character varying(90),
+    workerkey character varying(45) NOT NULL
+);
+
+
+--
+-- Name: queue_processes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.queue_processes ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.queue_processes_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: queued_jobs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.queued_jobs (
+    id integer NOT NULL,
+    job_task character varying(90) NOT NULL,
+    data text,
+    job_group character varying(190),
+    reference character varying(190),
+    created timestamp without time zone NOT NULL,
+    notbefore timestamp without time zone,
+    fetched timestamp without time zone,
+    completed timestamp without time zone,
+    progress real,
+    attempts smallint DEFAULT '0'::smallint,
+    failure_message text,
+    workerkey character varying(45),
+    status character varying(190),
+    priority integer DEFAULT 5 NOT NULL
+);
+
+
+--
+-- Name: queued_jobs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.queued_jobs ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.queued_jobs_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: roles; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.roles (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    is_system boolean DEFAULT false NOT NULL,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone
+);
+
+
+--
+-- Name: roles_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.roles ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.roles_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: roles_permissions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.roles_permissions (
+    id integer NOT NULL,
+    permission_id integer NOT NULL,
+    role_id integer NOT NULL,
+    created timestamp without time zone NOT NULL,
+    created_by integer NOT NULL
+);
+
+
+--
+-- Name: roles_permissions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.roles_permissions ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.roles_permissions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: service_principal_audit_logs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_principal_audit_logs (
+    id integer NOT NULL,
+    service_principal_id integer NOT NULL,
+    token_id integer,
+    action character varying(50) NOT NULL,
+    endpoint character varying(512) NOT NULL,
+    http_method character varying(10) NOT NULL,
+    ip_address character varying(45),
+    request_summary text,
+    response_code integer,
+    created timestamp without time zone NOT NULL
+);
+
+
+--
+-- Name: service_principal_audit_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.service_principal_audit_logs ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.service_principal_audit_logs_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: service_principal_roles; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_principal_roles (
+    id integer NOT NULL,
+    service_principal_id integer NOT NULL,
+    role_id integer NOT NULL,
+    branch_id integer,
+    start_on date NOT NULL,
+    expires_on date,
+    entity_type character varying(255) DEFAULT 'Direct Grant'::character varying,
+    entity_id integer,
+    approver_id integer,
+    revoked_on timestamp without time zone,
+    revoker_id integer,
+    created_by integer,
+    modified_by integer,
+    created timestamp without time zone NOT NULL,
+    modified timestamp without time zone NOT NULL
+);
+
+
+--
+-- Name: service_principal_roles_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.service_principal_roles ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.service_principal_roles_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: service_principal_tokens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_principal_tokens (
+    id integer NOT NULL,
+    service_principal_id integer NOT NULL,
+    token_hash character varying(255) NOT NULL,
+    name character varying(100),
+    expires_at timestamp without time zone,
+    last_used_at timestamp without time zone,
+    created_by integer,
+    created timestamp without time zone NOT NULL
+);
+
+
+--
+-- Name: service_principal_tokens_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.service_principal_tokens ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.service_principal_tokens_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: service_principals; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_principals (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    description text,
+    client_id character varying(64) NOT NULL,
+    client_secret_hash character varying(255) NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    ip_allowlist json,
+    last_used_at timestamp without time zone,
+    created_by integer,
+    modified_by integer,
+    created timestamp without time zone NOT NULL,
+    modified timestamp without time zone NOT NULL
+);
+
+
+--
+-- Name: service_principals_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.service_principals ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.service_principals_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: tokens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.tokens (
+    id integer NOT NULL,
+    user_id integer,
+    type character varying(20) NOT NULL,
+    token_key character varying(60) NOT NULL,
+    content character varying(255),
+    used integer DEFAULT 0 NOT NULL,
+    created timestamp without time zone,
+    modified timestamp without time zone
+);
+
+
+--
+-- Name: COLUMN tokens.type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.tokens.type IS 'e.g.:activate,reactivate';
+
+
+--
+-- Name: COLUMN tokens.content; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.tokens.content IS 'can transport some information';
+
+
+--
+-- Name: tokens_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.tokens ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.tokens_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: tools_phinxlog; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.tools_phinxlog (
+    version bigint NOT NULL,
+    migration_name character varying(100),
+    start_time timestamp without time zone,
+    end_time timestamp without time zone,
+    breakpoint boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: waivers_gathering_activity_waivers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.waivers_gathering_activity_waivers (
+    id integer NOT NULL,
+    gathering_activity_id integer NOT NULL,
+    waiver_type_id integer NOT NULL,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone
+);
+
+
+--
+-- Name: COLUMN waivers_gathering_activity_waivers.gathering_activity_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_gathering_activity_waivers.gathering_activity_id IS 'Gathering activity this waiver requirement applies to';
+
+
+--
+-- Name: COLUMN waivers_gathering_activity_waivers.waiver_type_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_gathering_activity_waivers.waiver_type_id IS 'Type of waiver required for this activity';
+
+
+--
+-- Name: waivers_gathering_activity_waivers_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.waivers_gathering_activity_waivers ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.waivers_gathering_activity_waivers_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: waivers_gathering_waiver_closures; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.waivers_gathering_waiver_closures (
+    id integer NOT NULL,
+    gathering_id integer NOT NULL,
+    closed_at timestamp without time zone,
+    closed_by integer,
+    modified timestamp without time zone,
+    created timestamp without time zone,
+    ready_to_close_at timestamp without time zone,
+    ready_to_close_by integer
+);
+
+
+--
+-- Name: COLUMN waivers_gathering_waiver_closures.gathering_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_gathering_waiver_closures.gathering_id IS 'Gathering with waivers closed to new uploads';
+
+
+--
+-- Name: COLUMN waivers_gathering_waiver_closures.closed_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_gathering_waiver_closures.closed_at IS 'Timestamp when waiver collection was closed by secretary';
+
+
+--
+-- Name: COLUMN waivers_gathering_waiver_closures.closed_by; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_gathering_waiver_closures.closed_by IS 'Member who closed waiver collection (waiver secretary)';
+
+
+--
+-- Name: COLUMN waivers_gathering_waiver_closures.ready_to_close_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_gathering_waiver_closures.ready_to_close_at IS 'Timestamp when gathering was marked ready to close';
+
+
+--
+-- Name: COLUMN waivers_gathering_waiver_closures.ready_to_close_by; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_gathering_waiver_closures.ready_to_close_by IS 'Member who marked gathering ready to close';
+
+
+--
+-- Name: waivers_gathering_waiver_closures_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.waivers_gathering_waiver_closures ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.waivers_gathering_waiver_closures_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: waivers_gathering_waivers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.waivers_gathering_waivers (
+    id integer NOT NULL,
+    gathering_id integer NOT NULL,
+    waiver_type_id integer NOT NULL,
+    document_id integer,
+    retention_date date NOT NULL,
+    status character varying(50) DEFAULT 'active'::character varying NOT NULL,
+    notes text,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone,
+    declined_at timestamp without time zone,
+    declined_by integer,
+    decline_reason text,
+    is_exemption boolean DEFAULT false NOT NULL,
+    exemption_reason character varying(500)
+);
+
+
+--
+-- Name: COLUMN waivers_gathering_waivers.gathering_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_gathering_waivers.gathering_id IS 'Gathering this waiver is for';
+
+
+--
+-- Name: COLUMN waivers_gathering_waivers.waiver_type_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_gathering_waivers.waiver_type_id IS 'Type of waiver (declared at upload time)';
+
+
+--
+-- Name: COLUMN waivers_gathering_waivers.document_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_gathering_waivers.document_id IS 'Document entity containing the actual waiver file';
+
+
+--
+-- Name: COLUMN waivers_gathering_waivers.retention_date; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_gathering_waivers.retention_date IS 'Date when this waiver can be deleted (calculated at upload time)';
+
+
+--
+-- Name: COLUMN waivers_gathering_waivers.status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_gathering_waivers.status IS 'Status: active, expired, deleted';
+
+
+--
+-- Name: COLUMN waivers_gathering_waivers.notes; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_gathering_waivers.notes IS 'Optional notes about this waiver';
+
+
+--
+-- Name: COLUMN waivers_gathering_waivers.declined_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_gathering_waivers.declined_at IS 'Timestamp when waiver was declined/rejected';
+
+
+--
+-- Name: COLUMN waivers_gathering_waivers.declined_by; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_gathering_waivers.declined_by IS 'Member ID who declined the waiver';
+
+
+--
+-- Name: COLUMN waivers_gathering_waivers.decline_reason; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_gathering_waivers.decline_reason IS 'Reason for declining the waiver';
+
+
+--
+-- Name: COLUMN waivers_gathering_waivers.is_exemption; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_gathering_waivers.is_exemption IS 'True if this is an exemption (attestation waiver not needed)';
+
+
+--
+-- Name: COLUMN waivers_gathering_waivers.exemption_reason; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_gathering_waivers.exemption_reason IS 'Reason why waiver was not required (only set for exemptions)';
+
+
+--
+-- Name: waivers_gathering_waivers_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.waivers_gathering_waivers ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.waivers_gathering_waivers_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: waivers_phinxlog; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.waivers_phinxlog (
+    version bigint NOT NULL,
+    migration_name character varying(100),
+    start_time timestamp without time zone,
+    end_time timestamp without time zone,
+    breakpoint boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: waivers_waiver_types; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.waivers_waiver_types (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    description text,
+    template_path character varying(500),
+    retention_policy text NOT NULL,
+    convert_to_pdf boolean DEFAULT true NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer,
+    deleted timestamp without time zone,
+    document_id integer,
+    exemption_reasons text
+);
+
+
+--
+-- Name: COLUMN waivers_waiver_types.name; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_waiver_types.name IS 'Name of the waiver type (e.g., General Adult Waiver, Minor Waiver, Equestrian Waiver)';
+
+
+--
+-- Name: COLUMN waivers_waiver_types.description; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_waiver_types.description IS 'Description of this waiver type';
+
+
+--
+-- Name: COLUMN waivers_waiver_types.template_path; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_waiver_types.template_path IS 'External URL to template (e.g., SCA.org link). Use document_id for uploaded files.';
+
+
+--
+-- Name: COLUMN waivers_waiver_types.retention_policy; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_waiver_types.retention_policy IS 'JSON: {"anchor": "gathering_end_date", "duration": {"years": 7, "months": 6, "days": 0}}';
+
+
+--
+-- Name: COLUMN waivers_waiver_types.convert_to_pdf; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_waiver_types.convert_to_pdf IS 'Whether to convert uploaded waivers to PDF format';
+
+
+--
+-- Name: COLUMN waivers_waiver_types.is_active; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_waiver_types.is_active IS 'Whether this waiver type is currently active';
+
+
+--
+-- Name: COLUMN waivers_waiver_types.document_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_waiver_types.document_id IS 'FK to documents.id for uploaded template files (null if using external URL)';
+
+
+--
+-- Name: COLUMN waivers_waiver_types.exemption_reasons; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.waivers_waiver_types.exemption_reasons IS 'JSON array of valid reasons for why a waiver might not be required (e.g., ["No minors present", "Activity cancelled", "Virtual event"])';
+
+
+--
+-- Name: waivers_waiver_types_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.waivers_waiver_types ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.waivers_waiver_types_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: warrant_periods; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.warrant_periods (
+    id integer NOT NULL,
+    start_date date NOT NULL,
+    end_date date NOT NULL,
+    created timestamp without time zone NOT NULL,
+    created_by integer
+);
+
+
+--
+-- Name: warrant_periods_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.warrant_periods ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.warrant_periods_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: warrant_rosters; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.warrant_rosters (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    approvals_required integer NOT NULL,
+    approval_count integer,
+    status character varying(20) DEFAULT 'Pending'::character varying NOT NULL,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer
+);
+
+
+--
+-- Name: warrant_rosters_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.warrant_rosters ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.warrant_rosters_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: warrants; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.warrants (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    member_id integer NOT NULL,
+    warrant_roster_id integer NOT NULL,
+    entity_type character varying(255),
+    entity_id integer NOT NULL,
+    member_role_id integer,
+    expires_on timestamp without time zone,
+    start_on timestamp without time zone,
+    approved_date timestamp without time zone,
+    status character varying(20) DEFAULT 'Pending'::character varying NOT NULL,
+    revoked_reason character varying(255) DEFAULT ''::character varying,
+    revoker_id integer,
+    modified timestamp without time zone,
+    created timestamp without time zone NOT NULL,
+    created_by integer,
+    modified_by integer
+);
+
+
+--
+-- Name: warrants_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.warrants ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.warrants_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: workflow_approval_responses; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workflow_approval_responses (
+    id integer NOT NULL,
+    workflow_approval_id integer NOT NULL,
+    member_id integer NOT NULL,
+    decision character varying(20) NOT NULL,
+    comment text,
+    responded_at timestamp without time zone NOT NULL,
+    created timestamp without time zone
+);
+
+
+--
+-- Name: COLUMN workflow_approval_responses.workflow_approval_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_approval_responses.workflow_approval_id IS 'FK to workflow_approvals';
+
+
+--
+-- Name: COLUMN workflow_approval_responses.member_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_approval_responses.member_id IS 'FK to members — the member who responded';
+
+
+--
+-- Name: COLUMN workflow_approval_responses.decision; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_approval_responses.decision IS 'Decision: approve, reject, abstain, request_changes';
+
+
+--
+-- Name: COLUMN workflow_approval_responses.comment; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_approval_responses.comment IS 'Optional comment explaining the decision';
+
+
+--
+-- Name: COLUMN workflow_approval_responses.responded_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_approval_responses.responded_at IS 'When the response was submitted';
+
+
+--
+-- Name: workflow_approval_responses_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.workflow_approval_responses ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.workflow_approval_responses_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: workflow_approvals; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workflow_approvals (
+    id integer NOT NULL,
+    workflow_instance_id integer NOT NULL,
+    node_id character varying(100) NOT NULL,
+    execution_log_id integer NOT NULL,
+    approver_type character varying(20) DEFAULT 'permission'::character varying NOT NULL,
+    approver_config json,
+    required_count integer DEFAULT 1 NOT NULL,
+    approved_count integer DEFAULT 0 NOT NULL,
+    rejected_count integer DEFAULT 0 NOT NULL,
+    status character varying(20) DEFAULT 'pending'::character varying NOT NULL,
+    allow_parallel boolean DEFAULT true NOT NULL,
+    deadline timestamp without time zone,
+    escalation_config json,
+    created timestamp without time zone,
+    modified timestamp without time zone,
+    version integer DEFAULT 1 NOT NULL,
+    approval_token character varying(64),
+    current_approver_id integer,
+    request_title character varying(255)
+);
+
+
+--
+-- Name: COLUMN workflow_approvals.workflow_instance_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_approvals.workflow_instance_id IS 'FK to workflow_instances';
+
+
+--
+-- Name: COLUMN workflow_approvals.node_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_approvals.node_id IS 'References node key in the workflow definition JSON';
+
+
+--
+-- Name: COLUMN workflow_approvals.execution_log_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_approvals.execution_log_id IS 'FK to workflow_execution_logs for this approval step';
+
+
+--
+-- Name: COLUMN workflow_approvals.request_title; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_approvals.request_title IS 'Cached approval request title for grid search';
+
+
+--
+-- Name: COLUMN workflow_approvals.approver_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_approvals.approver_type IS 'How approvers are resolved: permission, role, member, dynamic';
+
+
+--
+-- Name: COLUMN workflow_approvals.approver_config; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_approvals.approver_config IS 'Approver resolution config, e.g. {permission: "can_approve_warrants"}';
+
+
+--
+-- Name: COLUMN workflow_approvals.required_count; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_approvals.required_count IS 'Number of approvals required to pass this gate';
+
+
+--
+-- Name: COLUMN workflow_approvals.approved_count; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_approvals.approved_count IS 'Current number of approvals received';
+
+
+--
+-- Name: COLUMN workflow_approvals.rejected_count; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_approvals.rejected_count IS 'Current number of rejections received';
+
+
+--
+-- Name: COLUMN workflow_approvals.status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_approvals.status IS 'Approval gate status: pending, approved, rejected, expired, cancelled';
+
+
+--
+-- Name: COLUMN workflow_approvals.allow_parallel; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_approvals.allow_parallel IS 'Whether multiple approvers can review simultaneously';
+
+
+--
+-- Name: COLUMN workflow_approvals.deadline; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_approvals.deadline IS 'Deadline for approval responses before escalation';
+
+
+--
+-- Name: COLUMN workflow_approvals.escalation_config; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_approvals.escalation_config IS 'Escalation rules when deadline is exceeded';
+
+
+--
+-- Name: COLUMN workflow_approvals.version; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_approvals.version IS 'Optimistic lock version for concurrent modification detection';
+
+
+--
+-- Name: workflow_approvals_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.workflow_approvals ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.workflow_approvals_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: workflow_definitions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workflow_definitions (
+    id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    slug character varying(100) NOT NULL,
+    description text,
+    trigger_type character varying(20) DEFAULT 'event'::character varying NOT NULL,
+    trigger_config json,
+    entity_type character varying(100),
+    is_active boolean DEFAULT false NOT NULL,
+    current_version_id integer,
+    created_by integer,
+    modified_by integer,
+    created timestamp without time zone,
+    modified timestamp without time zone,
+    deleted timestamp without time zone,
+    execution_mode character varying(20) DEFAULT 'durable'::character varying NOT NULL
+);
+
+
+--
+-- Name: COLUMN workflow_definitions.name; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_definitions.name IS 'Human-readable workflow name';
+
+
+--
+-- Name: COLUMN workflow_definitions.slug; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_definitions.slug IS 'URL-safe unique identifier for the workflow';
+
+
+--
+-- Name: COLUMN workflow_definitions.description; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_definitions.description IS 'Detailed description of the workflow purpose';
+
+
+--
+-- Name: COLUMN workflow_definitions.trigger_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_definitions.trigger_type IS 'How the workflow is initiated: event, manual, scheduled, api';
+
+
+--
+-- Name: COLUMN workflow_definitions.trigger_config; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_definitions.trigger_config IS 'Trigger configuration: event name, cron schedule, etc.';
+
+
+--
+-- Name: COLUMN workflow_definitions.entity_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_definitions.entity_type IS 'Primary entity type this workflow operates on (e.g. Officers)';
+
+
+--
+-- Name: COLUMN workflow_definitions.is_active; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_definitions.is_active IS 'Whether this workflow is currently active and can be triggered';
+
+
+--
+-- Name: COLUMN workflow_definitions.current_version_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_definitions.current_version_id IS 'FK to workflow_versions — the currently published version';
+
+
+--
+-- Name: COLUMN workflow_definitions.deleted; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_definitions.deleted IS 'Soft delete timestamp';
+
+
+--
+-- Name: workflow_definitions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.workflow_definitions ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.workflow_definitions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: workflow_execution_logs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workflow_execution_logs (
+    id integer NOT NULL,
+    workflow_instance_id integer NOT NULL,
+    node_id character varying(100) NOT NULL,
+    node_type character varying(50) NOT NULL,
+    attempt_number integer DEFAULT 1 NOT NULL,
+    status character varying(20) DEFAULT 'pending'::character varying NOT NULL,
+    input_data json,
+    output_data json,
+    error_message text,
+    started_at timestamp without time zone,
+    completed_at timestamp without time zone,
+    created timestamp without time zone
+);
+
+
+--
+-- Name: COLUMN workflow_execution_logs.workflow_instance_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_execution_logs.workflow_instance_id IS 'FK to workflow_instances';
+
+
+--
+-- Name: COLUMN workflow_execution_logs.node_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_execution_logs.node_id IS 'References node key in the workflow definition JSON';
+
+
+--
+-- Name: COLUMN workflow_execution_logs.node_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_execution_logs.node_type IS 'Type of node: action, condition, approval, etc.';
+
+
+--
+-- Name: COLUMN workflow_execution_logs.attempt_number; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_execution_logs.attempt_number IS 'Retry attempt number for this node execution';
+
+
+--
+-- Name: COLUMN workflow_execution_logs.status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_execution_logs.status IS 'Node execution status: pending, running, completed, failed, skipped, waiting';
+
+
+--
+-- Name: COLUMN workflow_execution_logs.input_data; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_execution_logs.input_data IS 'Data passed into this node';
+
+
+--
+-- Name: COLUMN workflow_execution_logs.output_data; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_execution_logs.output_data IS 'Data produced by this node';
+
+
+--
+-- Name: COLUMN workflow_execution_logs.error_message; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_execution_logs.error_message IS 'Error message if the node execution failed';
+
+
+--
+-- Name: workflow_execution_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.workflow_execution_logs ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.workflow_execution_logs_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: workflow_instance_migrations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workflow_instance_migrations (
+    id integer NOT NULL,
+    workflow_instance_id integer NOT NULL,
+    from_version_id integer NOT NULL,
+    to_version_id integer NOT NULL,
+    migration_type character varying(20) NOT NULL,
+    node_mapping json,
+    migrated_by integer,
+    created timestamp without time zone
+);
+
+
+--
+-- Name: COLUMN workflow_instance_migrations.workflow_instance_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_instance_migrations.workflow_instance_id IS 'FK to workflow_instances';
+
+
+--
+-- Name: COLUMN workflow_instance_migrations.from_version_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_instance_migrations.from_version_id IS 'FK to workflow_versions — version before migration';
+
+
+--
+-- Name: COLUMN workflow_instance_migrations.to_version_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_instance_migrations.to_version_id IS 'FK to workflow_versions — version after migration';
+
+
+--
+-- Name: COLUMN workflow_instance_migrations.migration_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_instance_migrations.migration_type IS 'How the migration was triggered: automatic, manual, admin';
+
+
+--
+-- Name: COLUMN workflow_instance_migrations.node_mapping; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_instance_migrations.node_mapping IS 'How nodes were mapped between versions';
+
+
+--
+-- Name: COLUMN workflow_instance_migrations.migrated_by; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_instance_migrations.migrated_by IS 'Member who triggered the migration (null for automatic)';
+
+
+--
+-- Name: workflow_instance_migrations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.workflow_instance_migrations ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.workflow_instance_migrations_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: workflow_instances; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workflow_instances (
+    id integer NOT NULL,
+    workflow_definition_id integer NOT NULL,
+    workflow_version_id integer NOT NULL,
+    entity_type character varying(100),
+    entity_id integer,
+    status character varying(20) DEFAULT 'pending'::character varying NOT NULL,
+    context json,
+    active_nodes json,
+    error_info json,
+    started_by integer,
+    started_at timestamp without time zone,
+    completed_at timestamp without time zone,
+    created timestamp without time zone,
+    modified timestamp without time zone
+);
+
+
+--
+-- Name: COLUMN workflow_instances.workflow_definition_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_instances.workflow_definition_id IS 'FK to workflow_definitions';
+
+
+--
+-- Name: COLUMN workflow_instances.workflow_version_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_instances.workflow_version_id IS 'FK to workflow_versions — pinned version for this execution';
+
+
+--
+-- Name: COLUMN workflow_instances.entity_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_instances.entity_type IS 'Entity type being processed (e.g. Officers, WarrantRosters)';
+
+
+--
+-- Name: COLUMN workflow_instances.entity_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_instances.entity_id IS 'ID of the entity instance being processed';
+
+
+--
+-- Name: COLUMN workflow_instances.status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_instances.status IS 'Execution status: pending, running, waiting, completed, failed, cancelled';
+
+
+--
+-- Name: COLUMN workflow_instances.context; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_instances.context IS 'Accumulated workflow variables and data';
+
+
+--
+-- Name: COLUMN workflow_instances.active_nodes; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_instances.active_nodes IS 'Array of currently executing node IDs for parallel support';
+
+
+--
+-- Name: COLUMN workflow_instances.error_info; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_instances.error_info IS 'Error details if the workflow failed';
+
+
+--
+-- Name: COLUMN workflow_instances.started_by; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_instances.started_by IS 'Member who initiated this workflow execution';
+
+
+--
+-- Name: workflow_instances_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.workflow_instances ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.workflow_instances_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: workflow_schedules; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workflow_schedules (
+    id integer NOT NULL,
+    workflow_definition_id integer NOT NULL,
+    last_run_at timestamp without time zone,
+    next_run_at timestamp without time zone,
+    is_enabled boolean DEFAULT true NOT NULL,
+    created timestamp without time zone,
+    modified timestamp without time zone
+);
+
+
+--
+-- Name: COLUMN workflow_schedules.workflow_definition_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_schedules.workflow_definition_id IS 'FK to workflow_definitions';
+
+
+--
+-- Name: COLUMN workflow_schedules.last_run_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_schedules.last_run_at IS 'When this schedule last executed';
+
+
+--
+-- Name: COLUMN workflow_schedules.next_run_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_schedules.next_run_at IS 'Pre-computed next execution time';
+
+
+--
+-- Name: COLUMN workflow_schedules.is_enabled; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_schedules.is_enabled IS 'Whether this schedule is active';
+
+
+--
+-- Name: workflow_schedules_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.workflow_schedules ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.workflow_schedules_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: workflow_tasks; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workflow_tasks (
+    id integer NOT NULL,
+    workflow_instance_id integer NOT NULL,
+    node_id character varying(100) NOT NULL,
+    assigned_to integer,
+    assigned_by_role character varying(255),
+    task_title character varying(255),
+    form_definition json,
+    form_data json,
+    status character varying(20) DEFAULT 'pending'::character varying NOT NULL,
+    due_date timestamp without time zone,
+    completed_at timestamp without time zone,
+    completed_by integer,
+    created timestamp without time zone,
+    modified timestamp without time zone
+);
+
+
+--
+-- Name: COLUMN workflow_tasks.workflow_instance_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_tasks.workflow_instance_id IS 'FK to workflow_instances';
+
+
+--
+-- Name: COLUMN workflow_tasks.node_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_tasks.node_id IS 'Node ID within the workflow definition';
+
+
+--
+-- Name: COLUMN workflow_tasks.assigned_to; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_tasks.assigned_to IS 'FK to members — specific assignee';
+
+
+--
+-- Name: COLUMN workflow_tasks.assigned_by_role; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_tasks.assigned_by_role IS 'Permission name — anyone with this permission can complete';
+
+
+--
+-- Name: COLUMN workflow_tasks.task_title; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_tasks.task_title IS 'Human-readable task title';
+
+
+--
+-- Name: COLUMN workflow_tasks.form_definition; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_tasks.form_definition IS 'JSON array of form field definitions';
+
+
+--
+-- Name: COLUMN workflow_tasks.form_data; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_tasks.form_data IS 'JSON object of submitted form values (null until completed)';
+
+
+--
+-- Name: COLUMN workflow_tasks.status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_tasks.status IS 'pending, completed, cancelled, expired';
+
+
+--
+-- Name: COLUMN workflow_tasks.due_date; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_tasks.due_date IS 'Optional deadline for task completion';
+
+
+--
+-- Name: COLUMN workflow_tasks.completed_by; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_tasks.completed_by IS 'FK to members — who submitted the form';
+
+
+--
+-- Name: workflow_tasks_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.workflow_tasks ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.workflow_tasks_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: workflow_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.workflow_versions (
+    id integer NOT NULL,
+    workflow_definition_id integer NOT NULL,
+    version_number integer NOT NULL,
+    definition json NOT NULL,
+    canvas_layout json,
+    status character varying(20) DEFAULT 'draft'::character varying NOT NULL,
+    published_at timestamp without time zone,
+    published_by integer,
+    change_notes text,
+    created_by integer,
+    created timestamp without time zone,
+    modified timestamp without time zone
+);
+
+
+--
+-- Name: COLUMN workflow_versions.workflow_definition_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_versions.workflow_definition_id IS 'FK to workflow_definitions';
+
+
+--
+-- Name: COLUMN workflow_versions.version_number; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_versions.version_number IS 'Sequential version number within a workflow definition';
+
+
+--
+-- Name: COLUMN workflow_versions.definition; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_versions.definition IS 'Full workflow graph: nodes and connections';
+
+
+--
+-- Name: COLUMN workflow_versions.canvas_layout; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_versions.canvas_layout IS 'Drawflow visual positions, separate from execution logic';
+
+
+--
+-- Name: COLUMN workflow_versions.status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_versions.status IS 'Version lifecycle status: draft, published, archived';
+
+
+--
+-- Name: COLUMN workflow_versions.published_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_versions.published_at IS 'Timestamp when this version was published';
+
+
+--
+-- Name: COLUMN workflow_versions.published_by; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_versions.published_by IS 'Member who published this version';
+
+
+--
+-- Name: COLUMN workflow_versions.change_notes; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.workflow_versions.change_notes IS 'Description of changes in this version';
+
+
+--
+-- Name: workflow_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.workflow_versions ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME public.workflow_versions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: activities_activities activities_activities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.activities_activities
+    ADD CONSTRAINT activities_activities_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: activities_activity_groups activities_activity_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.activities_activity_groups
+    ADD CONSTRAINT activities_activity_groups_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: activities_authorization_approvals activities_authorization_approvals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.activities_authorization_approvals
+    ADD CONSTRAINT activities_authorization_approvals_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: activities_authorizations activities_authorizations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.activities_authorizations
+    ADD CONSTRAINT activities_authorizations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: activities_phinxlog activities_phinxlog_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.activities_phinxlog
+    ADD CONSTRAINT activities_phinxlog_pkey PRIMARY KEY (version);
+
+
+--
+-- Name: app_settings app_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.app_settings
+    ADD CONSTRAINT app_settings_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: award_gathering_activities award_gathering_activities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.award_gathering_activities
+    ADD CONSTRAINT award_gathering_activities_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: awards_awards awards_awards_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_awards
+    ADD CONSTRAINT awards_awards_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: awards_approval_processes awards_approval_processes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_approval_processes
+    ADD CONSTRAINT awards_approval_processes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: awards_approval_process_steps awards_approval_process_steps_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_approval_process_steps
+    ADD CONSTRAINT awards_approval_process_steps_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: awards_domains awards_domains_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_domains
+    ADD CONSTRAINT awards_domains_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: awards_events awards_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_events
+    ADD CONSTRAINT awards_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: awards_levels awards_levels_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_levels
+    ADD CONSTRAINT awards_levels_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: awards_phinxlog awards_phinxlog_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_phinxlog
+    ADD CONSTRAINT awards_phinxlog_pkey PRIMARY KEY (version);
+
+
+--
+-- Name: awards_recommendations_events awards_recommendations_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_recommendations_events
+    ADD CONSTRAINT awards_recommendations_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: awards_recommendations awards_recommendations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_recommendations
+    ADD CONSTRAINT awards_recommendations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: awards_recommendation_approval_runs awards_recommendation_approval_runs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_recommendation_approval_runs
+    ADD CONSTRAINT awards_recommendation_approval_runs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: awards_recommendations_states_logs awards_recommendations_states_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_recommendations_states_logs
+    ADD CONSTRAINT awards_recommendations_states_logs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: backups backups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.backups
+    ADD CONSTRAINT backups_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: branches branches_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.branches
+    ADD CONSTRAINT branches_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: documents documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.documents
+    ADD CONSTRAINT documents_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: email_templates email_templates_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_templates
+    ADD CONSTRAINT email_templates_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: gathering_activities gathering_activities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gathering_activities
+    ADD CONSTRAINT gathering_activities_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: gathering_attendances gathering_attendances_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gathering_attendances
+    ADD CONSTRAINT gathering_attendances_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: gathering_scheduled_activities gathering_scheduled_activities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gathering_scheduled_activities
+    ADD CONSTRAINT gathering_scheduled_activities_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: gathering_staff gathering_staff_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gathering_staff
+    ADD CONSTRAINT gathering_staff_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: gathering_type_gathering_activities gathering_type_gathering_activities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gathering_type_gathering_activities
+    ADD CONSTRAINT gathering_type_gathering_activities_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: gathering_types gathering_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gathering_types
+    ADD CONSTRAINT gathering_types_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: gatherings_gathering_activities gatherings_gathering_activities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gatherings_gathering_activities
+    ADD CONSTRAINT gatherings_gathering_activities_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: gatherings gatherings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gatherings
+    ADD CONSTRAINT gatherings_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: grid_view_preferences grid_view_preferences_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.grid_view_preferences
+    ADD CONSTRAINT grid_view_preferences_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: grid_views grid_views_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.grid_views
+    ADD CONSTRAINT grid_views_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: impersonation_action_logs impersonation_action_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.impersonation_action_logs
+    ADD CONSTRAINT impersonation_action_logs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: impersonation_session_logs impersonation_session_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.impersonation_session_logs
+    ADD CONSTRAINT impersonation_session_logs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: member_quick_login_devices member_quick_login_devices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.member_quick_login_devices
+    ADD CONSTRAINT member_quick_login_devices_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: member_roles member_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.member_roles
+    ADD CONSTRAINT member_roles_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: members members_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.members
+    ADD CONSTRAINT members_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: notes notes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notes
+    ADD CONSTRAINT notes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: officers_departments officers_departments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.officers_departments
+    ADD CONSTRAINT officers_departments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: officers_officers officers_officers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.officers_officers
+    ADD CONSTRAINT officers_officers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: officers_offices officers_offices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.officers_offices
+    ADD CONSTRAINT officers_offices_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: officers_phinxlog officers_phinxlog_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.officers_phinxlog
+    ADD CONSTRAINT officers_phinxlog_pkey PRIMARY KEY (version);
+
+
+--
+-- Name: permission_policies permission_policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.permission_policies
+    ADD CONSTRAINT permission_policies_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: permissions permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.permissions
+    ADD CONSTRAINT permissions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: phinxlog phinxlog_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.phinxlog
+    ADD CONSTRAINT phinxlog_pkey PRIMARY KEY (version);
+
+
+--
+-- Name: queue_phinxlog queue_phinxlog_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.queue_phinxlog
+    ADD CONSTRAINT queue_phinxlog_pkey PRIMARY KEY (version);
+
+
+--
+-- Name: queue_processes queue_processes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.queue_processes
+    ADD CONSTRAINT queue_processes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: queued_jobs queued_jobs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.queued_jobs
+    ADD CONSTRAINT queued_jobs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: roles_permissions roles_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.roles_permissions
+    ADD CONSTRAINT roles_permissions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: roles roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.roles
+    ADD CONSTRAINT roles_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_principal_audit_logs service_principal_audit_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_principal_audit_logs
+    ADD CONSTRAINT service_principal_audit_logs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_principal_roles service_principal_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_principal_roles
+    ADD CONSTRAINT service_principal_roles_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_principal_tokens service_principal_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_principal_tokens
+    ADD CONSTRAINT service_principal_tokens_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: service_principals service_principals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_principals
+    ADD CONSTRAINT service_principals_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: tokens tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tokens
+    ADD CONSTRAINT tokens_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: tools_phinxlog tools_phinxlog_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tools_phinxlog
+    ADD CONSTRAINT tools_phinxlog_pkey PRIMARY KEY (version);
+
+
+--
+-- Name: waivers_gathering_activity_waivers waivers_gathering_activity_waivers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.waivers_gathering_activity_waivers
+    ADD CONSTRAINT waivers_gathering_activity_waivers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: waivers_gathering_waiver_closures waivers_gathering_waiver_closures_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.waivers_gathering_waiver_closures
+    ADD CONSTRAINT waivers_gathering_waiver_closures_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: waivers_gathering_waivers waivers_gathering_waivers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.waivers_gathering_waivers
+    ADD CONSTRAINT waivers_gathering_waivers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: waivers_phinxlog waivers_phinxlog_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.waivers_phinxlog
+    ADD CONSTRAINT waivers_phinxlog_pkey PRIMARY KEY (version);
+
+
+--
+-- Name: waivers_waiver_types waivers_waiver_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.waivers_waiver_types
+    ADD CONSTRAINT waivers_waiver_types_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: warrant_periods warrant_periods_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.warrant_periods
+    ADD CONSTRAINT warrant_periods_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: warrant_rosters warrant_rosters_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.warrant_rosters
+    ADD CONSTRAINT warrant_rosters_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: warrants warrants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.warrants
+    ADD CONSTRAINT warrants_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workflow_approval_responses workflow_approval_responses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_approval_responses
+    ADD CONSTRAINT workflow_approval_responses_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workflow_approvals workflow_approvals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_approvals
+    ADD CONSTRAINT workflow_approvals_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workflow_definitions workflow_definitions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_definitions
+    ADD CONSTRAINT workflow_definitions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workflow_execution_logs workflow_execution_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_execution_logs
+    ADD CONSTRAINT workflow_execution_logs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workflow_instance_migrations workflow_instance_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_instance_migrations
+    ADD CONSTRAINT workflow_instance_migrations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workflow_instances workflow_instances_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_instances
+    ADD CONSTRAINT workflow_instances_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workflow_schedules workflow_schedules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_schedules
+    ADD CONSTRAINT workflow_schedules_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workflow_tasks workflow_tasks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_tasks
+    ADD CONSTRAINT workflow_tasks_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: workflow_versions workflow_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_versions
+    ADD CONSTRAINT workflow_versions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: activities_activities_activity_group_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX activities_activities_activity_group_id ON public.activities_activities USING btree (activity_group_id);
+
+
+--
+-- Name: activities_activities_deleted; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX activities_activities_deleted ON public.activities_activities USING btree (deleted);
+
+
+--
+-- Name: activities_activities_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX activities_activities_name ON public.activities_activities USING btree (name);
+
+
+--
+-- Name: activities_activity_groups_deleted; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX activities_activity_groups_deleted ON public.activities_activity_groups USING btree (deleted);
+
+
+--
+-- Name: activities_activity_groups_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX activities_activity_groups_name ON public.activities_activity_groups USING btree (name);
+
+
+--
+-- Name: activities_authorization_approvals_approver_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX activities_authorization_approvals_approver_id ON public.activities_authorization_approvals USING btree (approver_id);
+
+
+--
+-- Name: activities_authorization_approvals_authorization_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX activities_authorization_approvals_authorization_id ON public.activities_authorization_approvals USING btree (authorization_id);
+
+
+--
+-- Name: activities_authorizations_activity_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX activities_authorizations_activity_id ON public.activities_authorizations USING btree (activity_id);
+
+
+--
+-- Name: activities_authorizations_expires_on; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX activities_authorizations_expires_on ON public.activities_authorizations USING btree (expires_on);
+
+
+--
+-- Name: activities_authorizations_member_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX activities_authorizations_member_id ON public.activities_authorizations USING btree (member_id);
+
+
+--
+-- Name: activities_authorizations_start_on; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX activities_authorizations_start_on ON public.activities_authorizations USING btree (start_on);
+
+
+--
+-- Name: app_settings_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX app_settings_name ON public.app_settings USING btree (name);
+
+
+--
+-- Name: awards_awards_branch_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX awards_awards_branch_id ON public.awards_awards USING btree (branch_id);
+
+
+--
+-- Name: awards_awards_deleted; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX awards_awards_deleted ON public.awards_awards USING btree (deleted);
+
+
+--
+-- Name: awards_awards_domain_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX awards_awards_domain_id ON public.awards_awards USING btree (domain_id);
+
+
+--
+-- Name: awards_awards_level_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX awards_awards_level_id ON public.awards_awards USING btree (level_id);
+
+
+--
+-- Name: awards_awards_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX awards_awards_name ON public.awards_awards USING btree (name);
+
+
+--
+-- Name: awards_domains_deleted; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX awards_domains_deleted ON public.awards_domains USING btree (deleted);
+
+
+--
+-- Name: awards_domains_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX awards_domains_name ON public.awards_domains USING btree (name);
+
+
+--
+-- Name: awards_events_branch_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX awards_events_branch_id ON public.awards_events USING btree (branch_id);
+
+
+--
+-- Name: awards_events_deleted; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX awards_events_deleted ON public.awards_events USING btree (deleted);
+
+
+--
+-- Name: awards_events_end_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX awards_events_end_date ON public.awards_events USING btree (end_date);
+
+
+--
+-- Name: awards_events_start_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX awards_events_start_date ON public.awards_events USING btree (start_date);
+
+
+--
+-- Name: awards_levels_deleted; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX awards_levels_deleted ON public.awards_levels USING btree (deleted);
+
+
+--
+-- Name: awards_levels_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX awards_levels_name ON public.awards_levels USING btree (name);
+
+
+--
+-- Name: awards_rec_events_gathering_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX awards_rec_events_gathering_id ON public.awards_recommendations_events USING btree (gathering_id);
+
+
+--
+-- Name: awards_recommendations_deleted; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX awards_recommendations_deleted ON public.awards_recommendations USING btree (deleted);
+
+
+--
+-- Name: awards_recommendations_gathering_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX awards_recommendations_gathering_id ON public.awards_recommendations USING btree (gathering_id);
+
+
+--
+-- Name: awards_recommendations_stack_rank; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX awards_recommendations_stack_rank ON public.awards_recommendations USING btree (stack_rank);
+
+
+--
+-- Name: backups_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX backups_created ON public.backups USING btree (created);
+
+
+--
+-- Name: backups_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX backups_status ON public.backups USING btree (status);
+
+
+--
+-- Name: branches_deleted; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX branches_deleted ON public.branches USING btree (deleted);
+
+
+--
+-- Name: branches_lft; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX branches_lft ON public.branches USING btree (lft);
+
+
+--
+-- Name: branches_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX branches_name ON public.branches USING btree (name);
+
+
+--
+-- Name: branches_parent_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX branches_parent_id ON public.branches USING btree (parent_id);
+
+
+--
+-- Name: branches_rght; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX branches_rght ON public.branches USING btree (rght);
+
+
+--
+-- Name: completed; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX completed ON public.queued_jobs USING btree (completed);
+
+
+--
+-- Name: email_templates_is_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX email_templates_is_active ON public.email_templates USING btree (is_active);
+
+
+--
+-- Name: gathering_staff_deleted; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX gathering_staff_deleted ON public.gathering_staff USING btree (deleted);
+
+
+--
+-- Name: gathering_staff_gathering_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX gathering_staff_gathering_id ON public.gathering_staff USING btree (gathering_id);
+
+
+--
+-- Name: gathering_staff_is_steward; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX gathering_staff_is_steward ON public.gathering_staff USING btree (is_steward);
+
+
+--
+-- Name: gathering_staff_member_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX gathering_staff_member_id ON public.gathering_staff USING btree (member_id);
+
+
+--
+-- Name: gathering_staff_sort_order; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX gathering_staff_sort_order ON public.gathering_staff USING btree (sort_order);
+
+
+--
+-- Name: idx_approvals_instance_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_approvals_instance_status ON public.workflow_approvals USING btree (workflow_instance_id, status);
+
+
+--
+-- Name: idx_approvals_status_deadline; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_approvals_status_deadline ON public.workflow_approvals USING btree (status, deadline);
+
+
+--
+-- Name: idx_awact_activity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_awact_activity ON public.award_gathering_activities USING btree (gathering_activity_id);
+
+
+--
+-- Name: idx_awact_award; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_awact_award ON public.award_gathering_activities USING btree (award_id);
+
+
+--
+-- Name: idx_awact_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_awact_unique ON public.award_gathering_activities USING btree (award_id, gathering_activity_id);
+
+
+--
+-- Name: idx_documents_checksum; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_documents_checksum ON public.documents USING btree (checksum);
+
+
+--
+-- Name: idx_documents_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_documents_created ON public.documents USING btree (created);
+
+
+--
+-- Name: idx_documents_entity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_documents_entity ON public.documents USING btree (entity_type, entity_id);
+
+
+--
+-- Name: idx_documents_file_path; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_documents_file_path ON public.documents USING btree (file_path);
+
+
+--
+-- Name: idx_documents_uploaded_by; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_documents_uploaded_by ON public.documents USING btree (uploaded_by);
+
+
+--
+-- Name: idx_et_slug; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_et_slug ON public.email_templates USING btree (slug);
+
+
+--
+-- Name: idx_exec_logs_instance_node; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_exec_logs_instance_node ON public.workflow_execution_logs USING btree (workflow_instance_id, node_id);
+
+
+--
+-- Name: idx_gathering_activities_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_gathering_activities_name ON public.gathering_activities USING btree (name);
+
+
+--
+-- Name: idx_gathering_activity_waivers_activity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_activity_waivers_activity ON public.waivers_gathering_activity_waivers USING btree (gathering_activity_id);
+
+
+--
+-- Name: idx_gathering_activity_waivers_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_activity_waivers_type ON public.waivers_gathering_activity_waivers USING btree (waiver_type_id);
+
+
+--
+-- Name: idx_gathering_activity_waivers_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_gathering_activity_waivers_unique ON public.waivers_gathering_activity_waivers USING btree (gathering_activity_id, waiver_type_id, deleted);
+
+
+--
+-- Name: idx_gathering_attendances_created_by; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_attendances_created_by ON public.gathering_attendances USING btree (created_by);
+
+
+--
+-- Name: idx_gathering_attendances_gathering; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_attendances_gathering ON public.gathering_attendances USING btree (gathering_id);
+
+
+--
+-- Name: idx_gathering_attendances_member; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_attendances_member ON public.gathering_attendances USING btree (member_id);
+
+
+--
+-- Name: idx_gathering_attendances_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_gathering_attendances_unique ON public.gathering_attendances USING btree (gathering_id, member_id, deleted);
+
+
+--
+-- Name: idx_gathering_scheduled_activities_activity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_scheduled_activities_activity ON public.gathering_scheduled_activities USING btree (gathering_activity_id);
+
+
+--
+-- Name: idx_gathering_scheduled_activities_created_by; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_scheduled_activities_created_by ON public.gathering_scheduled_activities USING btree (created_by);
+
+
+--
+-- Name: idx_gathering_scheduled_activities_end; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_scheduled_activities_end ON public.gathering_scheduled_activities USING btree (end_datetime);
+
+
+--
+-- Name: idx_gathering_scheduled_activities_gathering; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_scheduled_activities_gathering ON public.gathering_scheduled_activities USING btree (gathering_id);
+
+
+--
+-- Name: idx_gathering_scheduled_activities_modified_by; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_scheduled_activities_modified_by ON public.gathering_scheduled_activities USING btree (modified_by);
+
+
+--
+-- Name: idx_gathering_scheduled_activities_start; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_scheduled_activities_start ON public.gathering_scheduled_activities USING btree (start_datetime);
+
+
+--
+-- Name: idx_gathering_types_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_gathering_types_name ON public.gathering_types USING btree (name);
+
+
+--
+-- Name: idx_gathering_waiver_closures_closed_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_waiver_closures_closed_at ON public.waivers_gathering_waiver_closures USING btree (closed_at);
+
+
+--
+-- Name: idx_gathering_waiver_closures_closed_by; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_waiver_closures_closed_by ON public.waivers_gathering_waiver_closures USING btree (closed_by);
+
+
+--
+-- Name: idx_gathering_waiver_closures_gathering; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_gathering_waiver_closures_gathering ON public.waivers_gathering_waiver_closures USING btree (gathering_id);
+
+
+--
+-- Name: idx_gathering_waiver_closures_ready_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_waiver_closures_ready_at ON public.waivers_gathering_waiver_closures USING btree (ready_to_close_at);
+
+
+--
+-- Name: idx_gathering_waiver_closures_ready_by; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_waiver_closures_ready_by ON public.waivers_gathering_waiver_closures USING btree (ready_to_close_by);
+
+
+--
+-- Name: idx_gathering_waivers_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_waivers_created ON public.waivers_gathering_waivers USING btree (created);
+
+
+--
+-- Name: idx_gathering_waivers_created_by; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_waivers_created_by ON public.waivers_gathering_waivers USING btree (created_by);
+
+
+--
+-- Name: idx_gathering_waivers_declined_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_waivers_declined_at ON public.waivers_gathering_waivers USING btree (declined_at);
+
+
+--
+-- Name: idx_gathering_waivers_document; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_gathering_waivers_document ON public.waivers_gathering_waivers USING btree (document_id);
+
+
+--
+-- Name: idx_gathering_waivers_gathering; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_waivers_gathering ON public.waivers_gathering_waivers USING btree (gathering_id);
+
+
+--
+-- Name: idx_gathering_waivers_is_exemption; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_waivers_is_exemption ON public.waivers_gathering_waivers USING btree (is_exemption);
+
+
+--
+-- Name: idx_gathering_waivers_retention; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_waivers_retention ON public.waivers_gathering_waivers USING btree (retention_date);
+
+
+--
+-- Name: idx_gathering_waivers_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_waivers_status ON public.waivers_gathering_waivers USING btree (status);
+
+
+--
+-- Name: idx_gathering_waivers_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gathering_waivers_type ON public.waivers_gathering_waivers USING btree (waiver_type_id);
+
+
+--
+-- Name: idx_gatherings_branch; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gatherings_branch ON public.gatherings USING btree (branch_id);
+
+
+--
+-- Name: idx_gatherings_cancelled_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gatherings_cancelled_at ON public.gatherings USING btree (cancelled_at);
+
+
+--
+-- Name: idx_gatherings_created_by; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gatherings_created_by ON public.gatherings USING btree (created_by);
+
+
+--
+-- Name: idx_gatherings_end_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gatherings_end_date ON public.gatherings USING btree (end_date);
+
+
+--
+-- Name: idx_gatherings_public_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_gatherings_public_id ON public.gatherings USING btree (public_id);
+
+
+--
+-- Name: idx_gatherings_start_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gatherings_start_date ON public.gatherings USING btree (start_date);
+
+
+--
+-- Name: idx_gatherings_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gatherings_type ON public.gatherings USING btree (gathering_type_id);
+
+
+--
+-- Name: idx_ggact_activity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ggact_activity ON public.gatherings_gathering_activities USING btree (gathering_activity_id);
+
+
+--
+-- Name: idx_ggact_gathering; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ggact_gathering ON public.gatherings_gathering_activities USING btree (gathering_id);
+
+
+--
+-- Name: idx_ggact_not_removable; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ggact_not_removable ON public.gatherings_gathering_activities USING btree (not_removable);
+
+
+--
+-- Name: idx_ggact_sort; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ggact_sort ON public.gatherings_gathering_activities USING btree (sort_order);
+
+
+--
+-- Name: idx_ggact_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_ggact_unique ON public.gatherings_gathering_activities USING btree (gathering_id, gathering_activity_id);
+
+
+--
+-- Name: idx_grid_view_preferences_grid; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_grid_view_preferences_grid ON public.grid_view_preferences USING btree (grid_key);
+
+
+--
+-- Name: idx_grid_view_preferences_view; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_grid_view_preferences_view ON public.grid_view_preferences USING btree (grid_view_id);
+
+
+--
+-- Name: idx_grid_views_deleted; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_grid_views_deleted ON public.grid_views USING btree (deleted);
+
+
+--
+-- Name: idx_grid_views_grid_default; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_grid_views_grid_default ON public.grid_views USING btree (grid_key, is_default);
+
+
+--
+-- Name: idx_grid_views_grid_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_grid_views_grid_key ON public.grid_views USING btree (grid_key);
+
+
+--
+-- Name: idx_grid_views_member_grid; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_grid_views_member_grid ON public.grid_views USING btree (member_id, grid_key);
+
+
+--
+-- Name: idx_grid_views_system_default; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_grid_views_system_default ON public.grid_views USING btree (grid_key, is_system_default);
+
+
+--
+-- Name: idx_gtgact_activity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gtgact_activity ON public.gathering_type_gathering_activities USING btree (gathering_activity_id);
+
+
+--
+-- Name: idx_gtgact_not_removable; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gtgact_not_removable ON public.gathering_type_gathering_activities USING btree (not_removable);
+
+
+--
+-- Name: idx_gtgact_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_gtgact_type ON public.gathering_type_gathering_activities USING btree (gathering_type_id);
+
+
+--
+-- Name: idx_gtgact_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_gtgact_unique ON public.gathering_type_gathering_activities USING btree (gathering_type_id, gathering_activity_id);
+
+
+--
+-- Name: idx_impersonation_logs_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_impersonation_logs_created ON public.impersonation_action_logs USING btree (created);
+
+
+--
+-- Name: idx_impersonation_logs_table; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_impersonation_logs_table ON public.impersonation_action_logs USING btree (table_name);
+
+
+--
+-- Name: idx_impersonation_session_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_impersonation_session_created ON public.impersonation_session_logs USING btree (created);
+
+
+--
+-- Name: idx_instances_definition_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_instances_definition_status ON public.workflow_instances USING btree (workflow_definition_id, status);
+
+
+--
+-- Name: idx_instances_entity_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_instances_entity_status ON public.workflow_instances USING btree (entity_type, entity_id, status);
+
+
+--
+-- Name: idx_members_profile_photo_document_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_members_profile_photo_document_id ON public.members USING btree (profile_photo_document_id);
+
+
+--
+-- Name: idx_mqld_device_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_mqld_device_id ON public.member_quick_login_devices USING btree (device_id);
+
+
+--
+-- Name: idx_mqld_member_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_mqld_member_id ON public.member_quick_login_devices USING btree (member_id);
+
+
+--
+-- Name: idx_awards_awards_approval_process; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_awards_awards_approval_process ON public.awards_awards USING btree (approval_process_id);
+
+
+--
+-- Name: idx_awards_approval_processes_is_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_awards_approval_processes_is_active ON public.awards_approval_processes USING btree (is_active);
+
+
+--
+-- Name: idx_awards_approval_processes_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_awards_approval_processes_name ON public.awards_approval_processes USING btree (name);
+
+
+--
+-- Name: idx_awards_process_steps_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_awards_process_steps_key ON public.awards_approval_process_steps USING btree (approval_process_id, step_key);
+
+
+--
+-- Name: idx_awards_process_steps_sequence; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_awards_process_steps_sequence ON public.awards_approval_process_steps USING btree (approval_process_id, sequence);
+
+
+--
+-- Name: idx_awards_rec_approval_runs_recommendation; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_awards_rec_approval_runs_recommendation ON public.awards_recommendation_approval_runs USING btree (recommendation_id);
+
+
+--
+-- Name: idx_awards_rec_approval_runs_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_awards_rec_approval_runs_status ON public.awards_recommendation_approval_runs USING btree (status);
+
+
+--
+-- Name: idx_awards_rec_approval_runs_workflow_instance; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_awards_rec_approval_runs_workflow_instance ON public.awards_recommendation_approval_runs USING btree (workflow_instance_id);
+
+
+--
+-- Name: idx_rec_group_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_rec_group_id ON public.awards_recommendations USING btree (recommendation_group_id);
+
+
+--
+-- Name: idx_service_principals_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_service_principals_active ON public.service_principals USING btree (is_active);
+
+
+--
+-- Name: idx_service_principals_client_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_service_principals_client_id ON public.service_principals USING btree (client_id);
+
+
+--
+-- Name: idx_sp_audit_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_sp_audit_created ON public.service_principal_audit_logs USING btree (created);
+
+
+--
+-- Name: idx_sp_audit_principal_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_sp_audit_principal_created ON public.service_principal_audit_logs USING btree (service_principal_id, created);
+
+
+--
+-- Name: idx_sp_roles_active_window; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_sp_roles_active_window ON public.service_principal_roles USING btree (start_on, expires_on);
+
+
+--
+-- Name: idx_sp_roles_principal_role; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_sp_roles_principal_role ON public.service_principal_roles USING btree (service_principal_id, role_id);
+
+
+--
+-- Name: idx_sp_tokens_expiry; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_sp_tokens_expiry ON public.service_principal_tokens USING btree (expires_at);
+
+
+--
+-- Name: idx_sp_tokens_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_sp_tokens_hash ON public.service_principal_tokens USING btree (token_hash);
+
+
+--
+-- Name: idx_wa_current_approver; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_wa_current_approver ON public.workflow_approvals USING btree (current_approver_id);
+
+
+--
+-- Name: idx_waiver_types_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_waiver_types_active ON public.waivers_waiver_types USING btree (is_active);
+
+
+--
+-- Name: idx_waiver_types_document_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_waiver_types_document_id ON public.waivers_waiver_types USING btree (document_id);
+
+
+--
+-- Name: idx_waiver_types_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_waiver_types_name ON public.waivers_waiver_types USING btree (name);
+
+
+--
+-- Name: idx_wf_approval_resp_approval; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_wf_approval_resp_approval ON public.workflow_approval_responses USING btree (workflow_approval_id);
+
+
+--
+-- Name: idx_wf_approval_resp_member; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_wf_approval_resp_member ON public.workflow_approval_responses USING btree (member_id);
+
+
+--
+-- Name: idx_wf_approval_resp_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_wf_approval_resp_unique ON public.workflow_approval_responses USING btree (workflow_approval_id, member_id);
+
+
+--
+-- Name: idx_wf_approvals_exec_log; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_wf_approvals_exec_log ON public.workflow_approvals USING btree (execution_log_id);
+
+
+--
+-- Name: idx_wf_approvals_instance; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_wf_approvals_instance ON public.workflow_approvals USING btree (workflow_instance_id);
+
+
+--
+-- Name: idx_wf_approvals_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_wf_approvals_status ON public.workflow_approvals USING btree (status);
+
+
+--
+-- Name: idx_wf_definitions_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_wf_definitions_active ON public.workflow_definitions USING btree (is_active);
+
+
+--
+-- Name: idx_wf_definitions_deleted; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_wf_definitions_deleted ON public.workflow_definitions USING btree (deleted);
+
+
+--
+-- Name: idx_wf_definitions_entity_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_wf_definitions_entity_type ON public.workflow_definitions USING btree (entity_type);
+
+
+--
+-- Name: idx_wf_definitions_slug; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_wf_definitions_slug ON public.workflow_definitions USING btree (slug);
+
+
+--
+-- Name: idx_wf_exec_logs_instance; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_wf_exec_logs_instance ON public.workflow_execution_logs USING btree (workflow_instance_id);
+
+
+--
+-- Name: idx_wf_exec_logs_instance_node; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_wf_exec_logs_instance_node ON public.workflow_execution_logs USING btree (workflow_instance_id, node_id);
+
+
+--
+-- Name: idx_wf_exec_logs_node; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_wf_exec_logs_node ON public.workflow_execution_logs USING btree (node_id);
+
+
+--
+-- Name: idx_wf_exec_logs_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_wf_exec_logs_status ON public.workflow_execution_logs USING btree (status);
+
+
+--
+-- Name: idx_wf_inst_migrations_instance; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_wf_inst_migrations_instance ON public.workflow_instance_migrations USING btree (workflow_instance_id);
+
+
+--
+-- Name: idx_wf_instances_definition; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_wf_instances_definition ON public.workflow_instances USING btree (workflow_definition_id);
+
+
+--
+-- Name: idx_wf_instances_entity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_wf_instances_entity ON public.workflow_instances USING btree (entity_type, entity_id);
+
+
+--
+-- Name: idx_wf_instances_started_by; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_wf_instances_started_by ON public.workflow_instances USING btree (started_by);
+
+
+--
+-- Name: idx_wf_instances_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_wf_instances_status ON public.workflow_instances USING btree (status);
+
+
+--
+-- Name: idx_wf_instances_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_wf_instances_version ON public.workflow_instances USING btree (workflow_version_id);
+
+
+--
+-- Name: idx_wf_versions_def_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_wf_versions_def_version ON public.workflow_versions USING btree (workflow_definition_id, version_number);
+
+
+--
+-- Name: idx_wf_versions_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_wf_versions_status ON public.workflow_versions USING btree (status);
+
+
+--
+-- Name: idx_workflow_approvals_token; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_workflow_approvals_token ON public.workflow_approvals USING btree (approval_token);
+
+
+--
+-- Name: job_task; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX job_task ON public.queued_jobs USING btree (job_task);
+
+
+--
+-- Name: member_roles_approver_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX member_roles_approver_id ON public.member_roles USING btree (approver_id);
+
+
+--
+-- Name: member_roles_expires_on; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX member_roles_expires_on ON public.member_roles USING btree (expires_on);
+
+
+--
+-- Name: member_roles_granting_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX member_roles_granting_id ON public.member_roles USING btree (entity_id);
+
+
+--
+-- Name: member_roles_granting_model; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX member_roles_granting_model ON public.member_roles USING btree (entity_type);
+
+
+--
+-- Name: member_roles_member_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX member_roles_member_id ON public.member_roles USING btree (member_id);
+
+
+--
+-- Name: member_roles_role_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX member_roles_role_id ON public.member_roles USING btree (role_id);
+
+
+--
+-- Name: member_roles_start_on; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX member_roles_start_on ON public.member_roles USING btree (start_on);
+
+
+--
+-- Name: members_deleted; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX members_deleted ON public.members USING btree (deleted);
+
+
+--
+-- Name: members_email_address; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX members_email_address ON public.members USING btree (email_address);
+
+
+--
+-- Name: notes_topic_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX notes_topic_id ON public.notes USING btree (entity_id);
+
+
+--
+-- Name: notes_topic_model; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX notes_topic_model ON public.notes USING btree (entity_type);
+
+
+--
+-- Name: officers_departments_deleted; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX officers_departments_deleted ON public.officers_departments USING btree (deleted);
+
+
+--
+-- Name: officers_departments_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX officers_departments_name ON public.officers_departments USING btree (name);
+
+
+--
+-- Name: officers_officers_branch_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX officers_officers_branch_id ON public.officers_officers USING btree (branch_id);
+
+
+--
+-- Name: officers_officers_expires_on; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX officers_officers_expires_on ON public.officers_officers USING btree (expires_on);
+
+
+--
+-- Name: officers_officers_member_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX officers_officers_member_id ON public.officers_officers USING btree (member_id);
+
+
+--
+-- Name: officers_officers_office_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX officers_officers_office_id ON public.officers_officers USING btree (office_id);
+
+
+--
+-- Name: officers_officers_start_on; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX officers_officers_start_on ON public.officers_officers USING btree (start_on);
+
+
+--
+-- Name: officers_offices_deleted; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX officers_offices_deleted ON public.officers_offices USING btree (deleted);
+
+
+--
+-- Name: officers_offices_department_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX officers_offices_department_id ON public.officers_offices USING btree (department_id);
+
+
+--
+-- Name: officers_offices_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX officers_offices_name ON public.officers_offices USING btree (name);
+
+
+--
+-- Name: permissions_deleted; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX permissions_deleted ON public.permissions USING btree (deleted);
+
+
+--
+-- Name: permissions_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX permissions_name ON public.permissions USING btree (name);
+
+
+--
+-- Name: pid; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX pid ON public.queue_processes USING btree (pid, server);
+
+
+--
+-- Name: queued_jobs_workerkey; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX queued_jobs_workerkey ON public.queued_jobs USING btree (workerkey);
+
+
+--
+-- Name: roles_deleted; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX roles_deleted ON public.roles USING btree (deleted);
+
+
+--
+-- Name: roles_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX roles_name ON public.roles USING btree (name);
+
+
+--
+-- Name: tokens_token_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX tokens_token_key ON public.tokens USING btree (token_key);
+
+
+--
+-- Name: tokens_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX tokens_user_id ON public.tokens USING btree (user_id);
+
+
+--
+-- Name: uq_grid_view_preferences_member_grid; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_grid_view_preferences_member_grid ON public.grid_view_preferences USING btree (member_id, grid_key);
+
+
+--
+-- Name: warrants_entity_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX warrants_entity_id ON public.warrants USING btree (entity_id);
+
+
+--
+-- Name: warrants_entity_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX warrants_entity_type ON public.warrants USING btree (entity_type);
+
+
+--
+-- Name: warrants_expires_on; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX warrants_expires_on ON public.warrants USING btree (expires_on);
+
+
+--
+-- Name: warrants_start_on; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX warrants_start_on ON public.warrants USING btree (start_on);
+
+
+--
+-- Name: workerkey; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX workerkey ON public.queue_processes USING btree (workerkey);
+
+
+--
+-- Name: workflow_schedules_is_enabled; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX workflow_schedules_is_enabled ON public.workflow_schedules USING btree (is_enabled);
+
+
+--
+-- Name: workflow_schedules_next_run_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX workflow_schedules_next_run_at ON public.workflow_schedules USING btree (next_run_at);
+
+
+--
+-- Name: workflow_schedules_workflow_definition_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX workflow_schedules_workflow_definition_id ON public.workflow_schedules USING btree (workflow_definition_id);
+
+
+--
+-- Name: workflow_tasks_assigned_to; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX workflow_tasks_assigned_to ON public.workflow_tasks USING btree (assigned_to);
+
+
+--
+-- Name: workflow_tasks_due_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX workflow_tasks_due_date ON public.workflow_tasks USING btree (due_date);
+
+
+--
+-- Name: workflow_tasks_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX workflow_tasks_status ON public.workflow_tasks USING btree (status);
+
+
+--
+-- Name: workflow_tasks_workflow_instance_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX workflow_tasks_workflow_instance_id ON public.workflow_tasks USING btree (workflow_instance_id);
+
+
+--
+-- Name: workflow_tasks_workflow_instance_id_node_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX workflow_tasks_workflow_instance_id_node_id ON public.workflow_tasks USING btree (workflow_instance_id, node_id);
+
+
+--
+-- Name: activities_activities activities_activities_activity_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.activities_activities
+    ADD CONSTRAINT activities_activities_activity_group_id_fkey FOREIGN KEY (activity_group_id) REFERENCES public.activities_activity_groups(id);
+
+
+--
+-- Name: activities_activities activities_activities_permission_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.activities_activities
+    ADD CONSTRAINT activities_activities_permission_id_fkey FOREIGN KEY (permission_id) REFERENCES public.permissions(id);
+
+
+--
+-- Name: activities_authorization_approvals activities_authorization_approvals_approver_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.activities_authorization_approvals
+    ADD CONSTRAINT activities_authorization_approvals_approver_id_fkey FOREIGN KEY (approver_id) REFERENCES public.members(id);
+
+
+--
+-- Name: activities_authorization_approvals activities_authorization_approvals_authorization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.activities_authorization_approvals
+    ADD CONSTRAINT activities_authorization_approvals_authorization_id_fkey FOREIGN KEY (authorization_id) REFERENCES public.activities_authorizations(id);
+
+
+--
+-- Name: activities_authorizations activities_authorizations_activity_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.activities_authorizations
+    ADD CONSTRAINT activities_authorizations_activity_id_fkey FOREIGN KEY (activity_id) REFERENCES public.activities_activities(id);
+
+
+--
+-- Name: activities_authorizations activities_authorizations_granted_member_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.activities_authorizations
+    ADD CONSTRAINT activities_authorizations_granted_member_role_id_fkey FOREIGN KEY (granted_member_role_id) REFERENCES public.member_roles(id);
+
+
+--
+-- Name: activities_authorizations activities_authorizations_member_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.activities_authorizations
+    ADD CONSTRAINT activities_authorizations_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.members(id);
+
+
+--
+-- Name: awards_awards awards_awards_branch_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_awards
+    ADD CONSTRAINT awards_awards_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branches(id);
+
+
+--
+-- Name: awards_awards fk_awards_awards_approval_process; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_awards
+    ADD CONSTRAINT fk_awards_awards_approval_process FOREIGN KEY (approval_process_id) REFERENCES public.awards_approval_processes(id) ON UPDATE NO ACTION ON DELETE SET NULL;
+
+
+--
+-- Name: awards_approval_process_steps fk_awards_process_steps_process; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_approval_process_steps
+    ADD CONSTRAINT fk_awards_process_steps_process FOREIGN KEY (approval_process_id) REFERENCES public.awards_approval_processes(id) ON UPDATE NO ACTION ON DELETE CASCADE;
+
+
+--
+-- Name: awards_awards awards_awards_domain_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_awards
+    ADD CONSTRAINT awards_awards_domain_id_fkey FOREIGN KEY (domain_id) REFERENCES public.awards_domains(id);
+
+
+--
+-- Name: awards_awards awards_awards_level_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_awards
+    ADD CONSTRAINT awards_awards_level_id_fkey FOREIGN KEY (level_id) REFERENCES public.awards_levels(id);
+
+
+--
+-- Name: awards_events awards_events_branch_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_events
+    ADD CONSTRAINT awards_events_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branches(id);
+
+
+--
+-- Name: awards_recommendations awards_recommendations_award_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_recommendations
+    ADD CONSTRAINT awards_recommendations_award_id_fkey FOREIGN KEY (award_id) REFERENCES public.awards_awards(id);
+
+
+--
+-- Name: awards_recommendation_approval_runs awards_recommendation_approval_runs_approval_process_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_recommendation_approval_runs
+    ADD CONSTRAINT awards_recommendation_approval_runs_approval_process_id_fkey FOREIGN KEY (approval_process_id) REFERENCES public.awards_approval_processes(id);
+
+
+--
+-- Name: awards_recommendation_approval_runs awards_recommendation_approval_runs_recommendation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_recommendation_approval_runs
+    ADD CONSTRAINT awards_recommendation_approval_runs_recommendation_id_fkey FOREIGN KEY (recommendation_id) REFERENCES public.awards_recommendations(id);
+
+
+--
+-- Name: awards_recommendation_approval_runs awards_recommendation_approval_runs_workflow_instance_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_recommendation_approval_runs
+    ADD CONSTRAINT awards_recommendation_approval_runs_workflow_instance_id_fkey FOREIGN KEY (workflow_instance_id) REFERENCES public.workflow_instances(id);
+
+
+--
+-- Name: awards_recommendations awards_recommendations_branch_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_recommendations
+    ADD CONSTRAINT awards_recommendations_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branches(id);
+
+
+--
+-- Name: awards_recommendations_events awards_recommendations_events_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_recommendations_events
+    ADD CONSTRAINT awards_recommendations_events_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.awards_events(id);
+
+
+--
+-- Name: awards_recommendations_events awards_recommendations_events_recommendation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_recommendations_events
+    ADD CONSTRAINT awards_recommendations_events_recommendation_id_fkey FOREIGN KEY (recommendation_id) REFERENCES public.awards_recommendations(id);
+
+
+--
+-- Name: awards_recommendations awards_recommendations_member_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_recommendations
+    ADD CONSTRAINT awards_recommendations_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.members(id);
+
+
+--
+-- Name: awards_recommendations awards_recommendations_requester_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_recommendations
+    ADD CONSTRAINT awards_recommendations_requester_id_fkey FOREIGN KEY (requester_id) REFERENCES public.members(id);
+
+
+--
+-- Name: awards_recommendations_states_logs awards_recommendations_states_logs_recommendation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_recommendations_states_logs
+    ADD CONSTRAINT awards_recommendations_states_logs_recommendation_id_fkey FOREIGN KEY (recommendation_id) REFERENCES public.awards_recommendations(id);
+
+
+--
+-- Name: branches branches_parent_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.branches
+    ADD CONSTRAINT branches_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.branches(id);
+
+
+--
+-- Name: award_gathering_activities fk_awact_activity; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.award_gathering_activities
+    ADD CONSTRAINT fk_awact_activity FOREIGN KEY (gathering_activity_id) REFERENCES public.gathering_activities(id) ON DELETE CASCADE;
+
+
+--
+-- Name: award_gathering_activities fk_awact_award; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.award_gathering_activities
+    ADD CONSTRAINT fk_awact_award FOREIGN KEY (award_id) REFERENCES public.awards_awards(id) ON DELETE CASCADE;
+
+
+--
+-- Name: branches fk_branches_contact_member; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.branches
+    ADD CONSTRAINT fk_branches_contact_member FOREIGN KEY (contact_id) REFERENCES public.members(id) ON DELETE SET NULL;
+
+
+--
+-- Name: documents fk_documents_created_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.documents
+    ADD CONSTRAINT fk_documents_created_by FOREIGN KEY (created_by) REFERENCES public.members(id) ON DELETE SET NULL;
+
+
+--
+-- Name: documents fk_documents_modified_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.documents
+    ADD CONSTRAINT fk_documents_modified_by FOREIGN KEY (modified_by) REFERENCES public.members(id) ON DELETE SET NULL;
+
+
+--
+-- Name: documents fk_documents_uploaded_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.documents
+    ADD CONSTRAINT fk_documents_uploaded_by FOREIGN KEY (uploaded_by) REFERENCES public.members(id) ON DELETE SET NULL;
+
+
+--
+-- Name: email_templates fk_email_templates_created_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_templates
+    ADD CONSTRAINT fk_email_templates_created_by FOREIGN KEY (created_by) REFERENCES public.members(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- Name: email_templates fk_email_templates_modified_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_templates
+    ADD CONSTRAINT fk_email_templates_modified_by FOREIGN KEY (modified_by) REFERENCES public.members(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- Name: waivers_gathering_activity_waivers fk_gathering_activity_waivers_activity; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.waivers_gathering_activity_waivers
+    ADD CONSTRAINT fk_gathering_activity_waivers_activity FOREIGN KEY (gathering_activity_id) REFERENCES public.gathering_activities(id);
+
+
+--
+-- Name: waivers_gathering_activity_waivers fk_gathering_activity_waivers_type; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.waivers_gathering_activity_waivers
+    ADD CONSTRAINT fk_gathering_activity_waivers_type FOREIGN KEY (waiver_type_id) REFERENCES public.waivers_waiver_types(id);
+
+
+--
+-- Name: gathering_attendances fk_gathering_attendances_created_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gathering_attendances
+    ADD CONSTRAINT fk_gathering_attendances_created_by FOREIGN KEY (created_by) REFERENCES public.members(id) ON DELETE SET NULL;
+
+
+--
+-- Name: gathering_attendances fk_gathering_attendances_gathering; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gathering_attendances
+    ADD CONSTRAINT fk_gathering_attendances_gathering FOREIGN KEY (gathering_id) REFERENCES public.gatherings(id) ON DELETE CASCADE;
+
+
+--
+-- Name: gathering_attendances fk_gathering_attendances_member; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gathering_attendances
+    ADD CONSTRAINT fk_gathering_attendances_member FOREIGN KEY (member_id) REFERENCES public.members(id) ON DELETE CASCADE;
+
+
+--
+-- Name: gathering_attendances fk_gathering_attendances_modified_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gathering_attendances
+    ADD CONSTRAINT fk_gathering_attendances_modified_by FOREIGN KEY (modified_by) REFERENCES public.members(id) ON DELETE SET NULL;
+
+
+--
+-- Name: gathering_scheduled_activities fk_gathering_scheduled_activities_activity; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gathering_scheduled_activities
+    ADD CONSTRAINT fk_gathering_scheduled_activities_activity FOREIGN KEY (gathering_activity_id) REFERENCES public.gathering_activities(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- Name: gathering_scheduled_activities fk_gathering_scheduled_activities_created_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gathering_scheduled_activities
+    ADD CONSTRAINT fk_gathering_scheduled_activities_created_by FOREIGN KEY (created_by) REFERENCES public.members(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- Name: gathering_scheduled_activities fk_gathering_scheduled_activities_gathering; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gathering_scheduled_activities
+    ADD CONSTRAINT fk_gathering_scheduled_activities_gathering FOREIGN KEY (gathering_id) REFERENCES public.gatherings(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: gathering_scheduled_activities fk_gathering_scheduled_activities_modified_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gathering_scheduled_activities
+    ADD CONSTRAINT fk_gathering_scheduled_activities_modified_by FOREIGN KEY (modified_by) REFERENCES public.members(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- Name: waivers_gathering_waiver_closures fk_gathering_waiver_closures_closed_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.waivers_gathering_waiver_closures
+    ADD CONSTRAINT fk_gathering_waiver_closures_closed_by FOREIGN KEY (closed_by) REFERENCES public.members(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: waivers_gathering_waiver_closures fk_gathering_waiver_closures_gathering; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.waivers_gathering_waiver_closures
+    ADD CONSTRAINT fk_gathering_waiver_closures_gathering FOREIGN KEY (gathering_id) REFERENCES public.gatherings(id) ON DELETE CASCADE;
+
+
+--
+-- Name: waivers_gathering_waiver_closures fk_gathering_waiver_closures_ready_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.waivers_gathering_waiver_closures
+    ADD CONSTRAINT fk_gathering_waiver_closures_ready_by FOREIGN KEY (ready_to_close_by) REFERENCES public.members(id) ON DELETE SET NULL;
+
+
+--
+-- Name: waivers_gathering_waivers fk_gathering_waivers_created_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.waivers_gathering_waivers
+    ADD CONSTRAINT fk_gathering_waivers_created_by FOREIGN KEY (created_by) REFERENCES public.members(id);
+
+
+--
+-- Name: waivers_gathering_waivers fk_gathering_waivers_declined_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.waivers_gathering_waivers
+    ADD CONSTRAINT fk_gathering_waivers_declined_by FOREIGN KEY (declined_by) REFERENCES public.members(id);
+
+
+--
+-- Name: waivers_gathering_waivers fk_gathering_waivers_document; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.waivers_gathering_waivers
+    ADD CONSTRAINT fk_gathering_waivers_document FOREIGN KEY (document_id) REFERENCES public.documents(id);
+
+
+--
+-- Name: waivers_gathering_waivers fk_gathering_waivers_gathering; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.waivers_gathering_waivers
+    ADD CONSTRAINT fk_gathering_waivers_gathering FOREIGN KEY (gathering_id) REFERENCES public.gatherings(id);
+
+
+--
+-- Name: waivers_gathering_waivers fk_gathering_waivers_modified_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.waivers_gathering_waivers
+    ADD CONSTRAINT fk_gathering_waivers_modified_by FOREIGN KEY (modified_by) REFERENCES public.members(id);
+
+
+--
+-- Name: waivers_gathering_waivers fk_gathering_waivers_type; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.waivers_gathering_waivers
+    ADD CONSTRAINT fk_gathering_waivers_type FOREIGN KEY (waiver_type_id) REFERENCES public.waivers_waiver_types(id);
+
+
+--
+-- Name: gatherings fk_gatherings_branch; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gatherings
+    ADD CONSTRAINT fk_gatherings_branch FOREIGN KEY (branch_id) REFERENCES public.branches(id);
+
+
+--
+-- Name: gatherings fk_gatherings_created_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gatherings
+    ADD CONSTRAINT fk_gatherings_created_by FOREIGN KEY (created_by) REFERENCES public.members(id);
+
+
+--
+-- Name: gatherings fk_gatherings_type; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gatherings
+    ADD CONSTRAINT fk_gatherings_type FOREIGN KEY (gathering_type_id) REFERENCES public.gathering_types(id);
+
+
+--
+-- Name: gatherings_gathering_activities fk_ggact_activity; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gatherings_gathering_activities
+    ADD CONSTRAINT fk_ggact_activity FOREIGN KEY (gathering_activity_id) REFERENCES public.gathering_activities(id) ON DELETE CASCADE;
+
+
+--
+-- Name: gatherings_gathering_activities fk_ggact_created_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gatherings_gathering_activities
+    ADD CONSTRAINT fk_ggact_created_by FOREIGN KEY (created_by) REFERENCES public.members(id);
+
+
+--
+-- Name: gatherings_gathering_activities fk_ggact_gathering; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gatherings_gathering_activities
+    ADD CONSTRAINT fk_ggact_gathering FOREIGN KEY (gathering_id) REFERENCES public.gatherings(id) ON DELETE CASCADE;
+
+
+--
+-- Name: gathering_type_gathering_activities fk_gtgact_activity; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gathering_type_gathering_activities
+    ADD CONSTRAINT fk_gtgact_activity FOREIGN KEY (gathering_activity_id) REFERENCES public.gathering_activities(id) ON DELETE CASCADE;
+
+
+--
+-- Name: gathering_type_gathering_activities fk_gtgact_type; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gathering_type_gathering_activities
+    ADD CONSTRAINT fk_gtgact_type FOREIGN KEY (gathering_type_id) REFERENCES public.gathering_types(id) ON DELETE CASCADE;
+
+
+--
+-- Name: impersonation_action_logs fk_impersonation_logs_impersonated_member; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.impersonation_action_logs
+    ADD CONSTRAINT fk_impersonation_logs_impersonated_member FOREIGN KEY (impersonated_member_id) REFERENCES public.members(id) ON DELETE CASCADE;
+
+
+--
+-- Name: impersonation_action_logs fk_impersonation_logs_impersonator; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.impersonation_action_logs
+    ADD CONSTRAINT fk_impersonation_logs_impersonator FOREIGN KEY (impersonator_id) REFERENCES public.members(id) ON DELETE CASCADE;
+
+
+--
+-- Name: impersonation_session_logs fk_impersonation_session_impersonated_member; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.impersonation_session_logs
+    ADD CONSTRAINT fk_impersonation_session_impersonated_member FOREIGN KEY (impersonated_member_id) REFERENCES public.members(id) ON DELETE CASCADE;
+
+
+--
+-- Name: impersonation_session_logs fk_impersonation_session_impersonator; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.impersonation_session_logs
+    ADD CONSTRAINT fk_impersonation_session_impersonator FOREIGN KEY (impersonator_id) REFERENCES public.members(id) ON DELETE CASCADE;
+
+
+--
+-- Name: awards_recommendations fk_rec_group_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_recommendations
+    ADD CONSTRAINT fk_rec_group_id FOREIGN KEY (recommendation_group_id) REFERENCES public.awards_recommendations(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- Name: awards_recommendations_events fk_recommendations_events_gathering_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_recommendations_events
+    ADD CONSTRAINT fk_recommendations_events_gathering_id FOREIGN KEY (gathering_id) REFERENCES public.gatherings(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- Name: awards_recommendations fk_recommendations_gathering_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.awards_recommendations
+    ADD CONSTRAINT fk_recommendations_gathering_id FOREIGN KEY (gathering_id) REFERENCES public.gatherings(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- Name: service_principals fk_service_principals_created_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_principals
+    ADD CONSTRAINT fk_service_principals_created_by FOREIGN KEY (created_by) REFERENCES public.members(id) ON DELETE SET NULL;
+
+
+--
+-- Name: service_principals fk_service_principals_modified_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_principals
+    ADD CONSTRAINT fk_service_principals_modified_by FOREIGN KEY (modified_by) REFERENCES public.members(id) ON DELETE SET NULL;
+
+
+--
+-- Name: service_principal_audit_logs fk_sp_audit_service_principal; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_principal_audit_logs
+    ADD CONSTRAINT fk_sp_audit_service_principal FOREIGN KEY (service_principal_id) REFERENCES public.service_principals(id) ON DELETE CASCADE;
+
+
+--
+-- Name: service_principal_audit_logs fk_sp_audit_token; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_principal_audit_logs
+    ADD CONSTRAINT fk_sp_audit_token FOREIGN KEY (token_id) REFERENCES public.service_principal_tokens(id) ON DELETE SET NULL;
+
+
+--
+-- Name: service_principal_roles fk_sp_roles_approver; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_principal_roles
+    ADD CONSTRAINT fk_sp_roles_approver FOREIGN KEY (approver_id) REFERENCES public.members(id) ON DELETE SET NULL;
+
+
+--
+-- Name: service_principal_roles fk_sp_roles_branch; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_principal_roles
+    ADD CONSTRAINT fk_sp_roles_branch FOREIGN KEY (branch_id) REFERENCES public.branches(id) ON DELETE SET NULL;
+
+
+--
+-- Name: service_principal_roles fk_sp_roles_revoker; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_principal_roles
+    ADD CONSTRAINT fk_sp_roles_revoker FOREIGN KEY (revoker_id) REFERENCES public.members(id) ON DELETE SET NULL;
+
+
+--
+-- Name: service_principal_roles fk_sp_roles_role; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_principal_roles
+    ADD CONSTRAINT fk_sp_roles_role FOREIGN KEY (role_id) REFERENCES public.roles(id) ON DELETE CASCADE;
+
+
+--
+-- Name: service_principal_roles fk_sp_roles_service_principal; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_principal_roles
+    ADD CONSTRAINT fk_sp_roles_service_principal FOREIGN KEY (service_principal_id) REFERENCES public.service_principals(id) ON DELETE CASCADE;
+
+
+--
+-- Name: service_principal_tokens fk_sp_tokens_created_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_principal_tokens
+    ADD CONSTRAINT fk_sp_tokens_created_by FOREIGN KEY (created_by) REFERENCES public.members(id) ON DELETE SET NULL;
+
+
+--
+-- Name: service_principal_tokens fk_sp_tokens_service_principal; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_principal_tokens
+    ADD CONSTRAINT fk_sp_tokens_service_principal FOREIGN KEY (service_principal_id) REFERENCES public.service_principals(id) ON DELETE CASCADE;
+
+
+--
+-- Name: workflow_approval_responses fk_wf_approval_resp_approval; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_approval_responses
+    ADD CONSTRAINT fk_wf_approval_resp_approval FOREIGN KEY (workflow_approval_id) REFERENCES public.workflow_approvals(id) ON DELETE CASCADE;
+
+
+--
+-- Name: workflow_approval_responses fk_wf_approval_resp_member; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_approval_responses
+    ADD CONSTRAINT fk_wf_approval_resp_member FOREIGN KEY (member_id) REFERENCES public.members(id);
+
+
+--
+-- Name: workflow_approvals fk_wf_approvals_exec_log; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_approvals
+    ADD CONSTRAINT fk_wf_approvals_exec_log FOREIGN KEY (execution_log_id) REFERENCES public.workflow_execution_logs(id);
+
+
+--
+-- Name: workflow_approvals fk_wf_approvals_instance; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_approvals
+    ADD CONSTRAINT fk_wf_approvals_instance FOREIGN KEY (workflow_instance_id) REFERENCES public.workflow_instances(id) ON DELETE CASCADE;
+
+
+--
+-- Name: workflow_definitions fk_wf_definitions_created_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_definitions
+    ADD CONSTRAINT fk_wf_definitions_created_by FOREIGN KEY (created_by) REFERENCES public.members(id) ON DELETE SET NULL;
+
+
+--
+-- Name: workflow_definitions fk_wf_definitions_current_version; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_definitions
+    ADD CONSTRAINT fk_wf_definitions_current_version FOREIGN KEY (current_version_id) REFERENCES public.workflow_versions(id) ON DELETE SET NULL;
+
+
+--
+-- Name: workflow_definitions fk_wf_definitions_modified_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_definitions
+    ADD CONSTRAINT fk_wf_definitions_modified_by FOREIGN KEY (modified_by) REFERENCES public.members(id) ON DELETE SET NULL;
+
+
+--
+-- Name: workflow_execution_logs fk_wf_exec_logs_instance; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_execution_logs
+    ADD CONSTRAINT fk_wf_exec_logs_instance FOREIGN KEY (workflow_instance_id) REFERENCES public.workflow_instances(id) ON DELETE CASCADE;
+
+
+--
+-- Name: workflow_instance_migrations fk_wf_inst_migrations_from_ver; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_instance_migrations
+    ADD CONSTRAINT fk_wf_inst_migrations_from_ver FOREIGN KEY (from_version_id) REFERENCES public.workflow_versions(id);
+
+
+--
+-- Name: workflow_instance_migrations fk_wf_inst_migrations_instance; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_instance_migrations
+    ADD CONSTRAINT fk_wf_inst_migrations_instance FOREIGN KEY (workflow_instance_id) REFERENCES public.workflow_instances(id) ON DELETE CASCADE;
+
+
+--
+-- Name: workflow_instance_migrations fk_wf_inst_migrations_migrated_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_instance_migrations
+    ADD CONSTRAINT fk_wf_inst_migrations_migrated_by FOREIGN KEY (migrated_by) REFERENCES public.members(id) ON DELETE SET NULL;
+
+
+--
+-- Name: workflow_instance_migrations fk_wf_inst_migrations_to_ver; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_instance_migrations
+    ADD CONSTRAINT fk_wf_inst_migrations_to_ver FOREIGN KEY (to_version_id) REFERENCES public.workflow_versions(id);
+
+
+--
+-- Name: workflow_instances fk_wf_instances_definition; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_instances
+    ADD CONSTRAINT fk_wf_instances_definition FOREIGN KEY (workflow_definition_id) REFERENCES public.workflow_definitions(id);
+
+
+--
+-- Name: workflow_instances fk_wf_instances_started_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_instances
+    ADD CONSTRAINT fk_wf_instances_started_by FOREIGN KEY (started_by) REFERENCES public.members(id) ON DELETE SET NULL;
+
+
+--
+-- Name: workflow_instances fk_wf_instances_version; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_instances
+    ADD CONSTRAINT fk_wf_instances_version FOREIGN KEY (workflow_version_id) REFERENCES public.workflow_versions(id);
+
+
+--
+-- Name: workflow_versions fk_wf_versions_created_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_versions
+    ADD CONSTRAINT fk_wf_versions_created_by FOREIGN KEY (created_by) REFERENCES public.members(id) ON DELETE SET NULL;
+
+
+--
+-- Name: workflow_versions fk_wf_versions_definition; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_versions
+    ADD CONSTRAINT fk_wf_versions_definition FOREIGN KEY (workflow_definition_id) REFERENCES public.workflow_definitions(id) ON DELETE CASCADE;
+
+
+--
+-- Name: workflow_versions fk_wf_versions_published_by; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_versions
+    ADD CONSTRAINT fk_wf_versions_published_by FOREIGN KEY (published_by) REFERENCES public.members(id) ON DELETE SET NULL;
+
+
+--
+-- Name: gathering_staff gathering_staff_gathering_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gathering_staff
+    ADD CONSTRAINT gathering_staff_gathering_id_fkey FOREIGN KEY (gathering_id) REFERENCES public.gatherings(id) ON DELETE CASCADE;
+
+
+--
+-- Name: gathering_staff gathering_staff_member_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.gathering_staff
+    ADD CONSTRAINT gathering_staff_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.members(id);
+
+
+--
+-- Name: grid_view_preferences grid_view_preferences_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.grid_view_preferences
+    ADD CONSTRAINT grid_view_preferences_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.members(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- Name: grid_view_preferences grid_view_preferences_grid_view_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.grid_view_preferences
+    ADD CONSTRAINT grid_view_preferences_grid_view_id_fkey FOREIGN KEY (grid_view_id) REFERENCES public.grid_views(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: grid_view_preferences grid_view_preferences_member_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.grid_view_preferences
+    ADD CONSTRAINT grid_view_preferences_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.members(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: grid_view_preferences grid_view_preferences_modified_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.grid_view_preferences
+    ADD CONSTRAINT grid_view_preferences_modified_by_fkey FOREIGN KEY (modified_by) REFERENCES public.members(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- Name: grid_views grid_views_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.grid_views
+    ADD CONSTRAINT grid_views_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.members(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- Name: grid_views grid_views_member_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.grid_views
+    ADD CONSTRAINT grid_views_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.members(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: grid_views grid_views_modified_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.grid_views
+    ADD CONSTRAINT grid_views_modified_by_fkey FOREIGN KEY (modified_by) REFERENCES public.members(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+--
+-- Name: member_quick_login_devices member_quick_login_devices_member_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.member_quick_login_devices
+    ADD CONSTRAINT member_quick_login_devices_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.members(id) ON DELETE CASCADE;
+
+
+--
+-- Name: member_roles member_roles_approver_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.member_roles
+    ADD CONSTRAINT member_roles_approver_id_fkey FOREIGN KEY (approver_id) REFERENCES public.members(id);
+
+
+--
+-- Name: member_roles member_roles_branch_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.member_roles
+    ADD CONSTRAINT member_roles_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branches(id);
+
+
+--
+-- Name: member_roles member_roles_member_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.member_roles
+    ADD CONSTRAINT member_roles_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.members(id);
+
+
+--
+-- Name: member_roles member_roles_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.member_roles
+    ADD CONSTRAINT member_roles_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(id);
+
+
+--
+-- Name: members members_branch_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.members
+    ADD CONSTRAINT members_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branches(id);
+
+
+--
+-- Name: members members_profile_photo_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.members
+    ADD CONSTRAINT members_profile_photo_document_id_fkey FOREIGN KEY (profile_photo_document_id) REFERENCES public.documents(id) ON DELETE SET NULL;
+
+
+--
+-- Name: officers_officers officers_officers_branch_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.officers_officers
+    ADD CONSTRAINT officers_officers_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branches(id);
+
+
+--
+-- Name: officers_officers officers_officers_deputy_to_branch_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.officers_officers
+    ADD CONSTRAINT officers_officers_deputy_to_branch_id_fkey FOREIGN KEY (deputy_to_branch_id) REFERENCES public.branches(id);
+
+
+--
+-- Name: officers_officers officers_officers_deputy_to_office_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.officers_officers
+    ADD CONSTRAINT officers_officers_deputy_to_office_id_fkey FOREIGN KEY (deputy_to_office_id) REFERENCES public.officers_offices(id);
+
+
+--
+-- Name: officers_officers officers_officers_member_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.officers_officers
+    ADD CONSTRAINT officers_officers_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.members(id);
+
+
+--
+-- Name: officers_officers officers_officers_office_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.officers_officers
+    ADD CONSTRAINT officers_officers_office_id_fkey FOREIGN KEY (office_id) REFERENCES public.officers_offices(id);
+
+
+--
+-- Name: officers_officers officers_officers_reports_to_branch_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.officers_officers
+    ADD CONSTRAINT officers_officers_reports_to_branch_id_fkey FOREIGN KEY (reports_to_branch_id) REFERENCES public.branches(id);
+
+
+--
+-- Name: officers_officers officers_officers_reports_to_office_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.officers_officers
+    ADD CONSTRAINT officers_officers_reports_to_office_id_fkey FOREIGN KEY (reports_to_office_id) REFERENCES public.officers_offices(id);
+
+
+--
+-- Name: officers_offices officers_offices_department_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.officers_offices
+    ADD CONSTRAINT officers_offices_department_id_fkey FOREIGN KEY (department_id) REFERENCES public.officers_departments(id);
+
+
+--
+-- Name: officers_offices officers_offices_deputy_to_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.officers_offices
+    ADD CONSTRAINT officers_offices_deputy_to_id_fkey FOREIGN KEY (deputy_to_id) REFERENCES public.officers_offices(id);
+
+
+--
+-- Name: officers_offices officers_offices_grants_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.officers_offices
+    ADD CONSTRAINT officers_offices_grants_role_id_fkey FOREIGN KEY (grants_role_id) REFERENCES public.roles(id);
+
+
+--
+-- Name: officers_offices officers_offices_reports_to_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.officers_offices
+    ADD CONSTRAINT officers_offices_reports_to_id_fkey FOREIGN KEY (reports_to_id) REFERENCES public.officers_offices(id);
+
+
+--
+-- Name: permission_policies permission_policies_permission_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.permission_policies
+    ADD CONSTRAINT permission_policies_permission_id_fkey FOREIGN KEY (permission_id) REFERENCES public.permissions(id) ON DELETE CASCADE;
+
+
+--
+-- Name: roles_permissions roles_permissions_permission_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.roles_permissions
+    ADD CONSTRAINT roles_permissions_permission_id_fkey FOREIGN KEY (permission_id) REFERENCES public.permissions(id);
+
+
+--
+-- Name: roles_permissions roles_permissions_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.roles_permissions
+    ADD CONSTRAINT roles_permissions_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(id);
+
+
+--
+-- Name: waivers_waiver_types waivers_waiver_types_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.waivers_waiver_types
+    ADD CONSTRAINT waivers_waiver_types_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id);
+
+
+--
+-- Name: warrants warrants_member_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.warrants
+    ADD CONSTRAINT warrants_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.members(id);
+
+
+--
+-- Name: warrants warrants_member_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.warrants
+    ADD CONSTRAINT warrants_member_role_id_fkey FOREIGN KEY (member_role_id) REFERENCES public.member_roles(id);
+
+
+--
+-- Name: warrants warrants_warrant_roster_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.warrants
+    ADD CONSTRAINT warrants_warrant_roster_id_fkey FOREIGN KEY (warrant_roster_id) REFERENCES public.warrant_rosters(id);
+
+
+--
+-- Name: workflow_schedules workflow_schedules_workflow_definition_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_schedules
+    ADD CONSTRAINT workflow_schedules_workflow_definition_id_fkey FOREIGN KEY (workflow_definition_id) REFERENCES public.workflow_definitions(id) ON DELETE CASCADE;
+
+
+--
+-- Name: workflow_tasks workflow_tasks_workflow_instance_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.workflow_tasks
+    ADD CONSTRAINT workflow_tasks_workflow_instance_id_fkey FOREIGN KEY (workflow_instance_id) REFERENCES public.workflow_instances(id) ON DELETE CASCADE;
+
+
+--
+-- PostgreSQL database dump complete
+--
+
+\unrestrict JX93GigcDtHpyWSMfionzp1D9UQpzYb6g1tUc9RmpJPmwRe6FQV50MCScZQdVpv

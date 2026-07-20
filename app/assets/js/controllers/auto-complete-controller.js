@@ -85,7 +85,7 @@ const optionSelector = "[role='option']:not([aria-disabled='true'])"
 const activeSelector = "[aria-selected='true']"
 
 class AutoComplete extends Controller {
-    static targets = ["input", "hidden", "hiddenText", "results", "dataList", "clearBtn"]
+    static targets = ["input", "hidden", "hiddenText", "results", "dataList", "clearBtn", "status"]
     static classes = ["selected"]
     static values = {
         ready: Boolean,
@@ -95,15 +95,26 @@ class AutoComplete extends Controller {
         allowOther: Boolean,
         required: Boolean,
         showOnFocus: { type: Boolean, default: false },
-        initSelection: Object,
+        initSelection: String,
         delay: { type: Number, default: 300 },
         queryParam: { type: String, default: "q" },
     }
     static uniqOptionId = 0
 
+    static escapeHtml(text) {
+        const div = document.createElement("div")
+        div.textContent = text == null ? "" : String(text)
+        return div.innerHTML
+    }
+
+    static escapeRegExp(text) {
+        return String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    }
+
     initialize() {
         this._selectOptions = [];
         this._datalistLoaded = false;
+        this._resultsPortal = null;
     }
 
     // Getter for the value property
@@ -128,7 +139,7 @@ class AutoComplete extends Controller {
             this.hiddenTarget.value = newValue.value;
             this.hiddenTextTarget.value = newValue.text;
             this.clearBtnTarget.disabled = false;
-            this.inputTarget.disabled = true;
+            this.inputTarget.disabled = !this.allowOtherValue;
             return;
         }
         //if the value matches an option set the input value to the option text
@@ -139,7 +150,7 @@ class AutoComplete extends Controller {
                 this.hiddenTextTarget.value = option.text;
                 this.hiddenTarget.value = option.value;
                 this.clearBtnTarget.disabled = false;
-                this.inputTarget.disabled = true;
+                this.inputTarget.disabled = !this.allowOtherValue;
                 return;
             } else {
                 if (this.allowOtherValue) {
@@ -159,7 +170,7 @@ class AutoComplete extends Controller {
                 }
                 if (newValue != "") {
                     this.clearBtnTarget.disabled = false;
-                    this.inputTarget.disabled = true;
+                    this.inputTarget.disabled = !this.allowOtherValue;
                 } else {
                     this.clearBtnTarget.disabled = true;
                     this.inputTarget.disabled = false;
@@ -180,7 +191,7 @@ class AutoComplete extends Controller {
         this.hiddenTarget.disabled = newValue;
         this.hiddenTextTarget.disabled = newValue;
         if (this.inputTarget.value != "") {
-            this.inputTarget.disabled = true;
+            this.inputTarget.disabled = newValue || !this.allowOtherValue;
             this.clearBtnTarget.disabled = newValue;
         } else {
             this.clearBtnTarget.disabled = true;
@@ -216,6 +227,7 @@ class AutoComplete extends Controller {
 
         if (!this.inputTarget.hasAttribute("autocomplete")) this.inputTarget.setAttribute("autocomplete", "off")
         this.inputTarget.setAttribute("spellcheck", "false")
+        this.ensureAccessibilityAttributes()
 
         this.mouseDown = false
 
@@ -228,6 +240,7 @@ class AutoComplete extends Controller {
         this.inputTarget.addEventListener("change", this.onInputChangeTriggered);
         this.resultsTarget.addEventListener("mousedown", this.onResultsMouseDown)
         this.resultsTarget.addEventListener("click", this.onResultsClick)
+        this.updateFloatingResultsPosition = this.updateFloatingResultsPosition.bind(this)
 
         if (this.inputTarget.hasAttribute("autofocus")) {
             this.inputTarget.focus()
@@ -239,7 +252,23 @@ class AutoComplete extends Controller {
         this.element.dispatchEvent(new CustomEvent("ready", { detail: this.element.dataset }));
     }
 
+    ensureAccessibilityAttributes() {
+        if (!this.resultsTarget.id) {
+            this.resultsTarget.id = `ac-results-${AutoComplete.uniqOptionId++}`
+        }
+
+        this.inputTarget.setAttribute("role", "combobox")
+        this.inputTarget.setAttribute("aria-autocomplete", "list")
+        this.inputTarget.setAttribute("aria-controls", this.resultsTarget.id)
+        this.inputTarget.setAttribute("aria-expanded", this.resultsShown ? "true" : "false")
+        this.resultsTarget.setAttribute("role", "listbox")
+    }
+
     disconnect() {
+        if (this.hasResultsTarget) {
+            this.close()
+        }
+
         if (this.hasInputTarget) {
             this.inputTarget.removeEventListener("keydown", this.onKeydown)
             this.inputTarget.removeEventListener("blur", this.onInputBlur)
@@ -254,12 +283,43 @@ class AutoComplete extends Controller {
         }
     }
 
+  /**
+   * @param {string|null|undefined} raw data-ac-init-selection-value JSON
+   * @return {Record<string, unknown>|null}
+   */
+    parseInitSelection(raw) {
+        if (raw === null || raw === undefined) {
+            return null;
+        }
+
+        if (typeof raw === "object" && !Array.isArray(raw)) {
+            return raw;
+        }
+
+        const trimmed = String(raw).trim();
+        if (trimmed === "") {
+            return null;
+        }
+
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+                return parsed;
+            }
+        } catch (error) {
+            console.warn("ac: invalid init-selection-value JSON", trimmed, error);
+        }
+
+        return null;
+    }
+
     initSelectionValueChanged() {
+        const initSelection = this.parseInitSelection(this.initSelectionValue);
         if (this._datalistLoaded) {
-            if (this.initSelectionValue == null || !this.initSelectionValue.hasOwnProperty("value")) {
+            if (initSelection === null || !initSelection.hasOwnProperty("value")) {
                 return;
             }
-            let newOption = this.initSelectionValue;
+            let newOption = initSelection;
             if (!newOption.value && (!newOption.text || newOption.text == "")) {
                 return;
             }
@@ -271,20 +331,29 @@ class AutoComplete extends Controller {
             let option = this._selectOptions.find(option => option.value == newOption.value);
             if (option) {
                 this.value = option.value;
+                this.fireChangeEvent(String(option.value), option.text, option);
             } else {
                 this.addOption(newOption);
                 this.value = newOption.value;
+                this.fireChangeEvent(String(newOption.value), newOption.text, newOption);
             }
-        } else {
-            //check if there is a value key in the initSelectionValue object
-            if (this.initSelectionValue.hasOwnProperty("value")) {
-                this.hiddenTarget.value = this.initSelectionValue.value;
-                this.hiddenTextTarget.value = this.initSelectionValue.text;
-                this.inputTarget.value = this.initSelectionValue.text;
-                if (this.initSelectionValue.value) {
-                    this.inputTarget.disabled = true;
+        } else if (initSelection !== null) {
+            if (initSelection.hasOwnProperty("value")) {
+                this.hiddenTarget.value = initSelection.value;
+                this.hiddenTextTarget.value = initSelection.text;
+                this.inputTarget.value = initSelection.text;
+                if (initSelection.value) {
+                    this.inputTarget.disabled = !this.allowOtherValue;
                     this.clearBtnTarget.disabled = false;
+                    if (this.hasHiddenTarget) {
+                        this.hiddenTarget.disabled = false;
+                    }
                 }
+                this.fireChangeEvent(
+                    String(initSelection.value ?? ""),
+                    String(initSelection.text ?? ""),
+                    null,
+                );
             }
         }
     }
@@ -569,9 +638,9 @@ class AutoComplete extends Controller {
             this.inputTarget.disabled = false;
         } else {
             this.clearBtnTarget.disabled = false;
-            this.inputTarget.disabled = true;
+            this.inputTarget.disabled = !this.allowOtherValue;
         }
-        this.element.dispatchEvent(new CustomEvent("change"), { bubbles: true });
+        this.element.dispatchEvent(new CustomEvent("change", { bubbles: true }));
         this.state = "finished";
     }
 
@@ -583,6 +652,7 @@ class AutoComplete extends Controller {
         this.clearBtnTarget.disabled = true;
         this.inputTarget.disabled = false;
         this.close();
+        this.fireChangeEvent("", "", null);
     }
 
     onResultsClick = (event) => {
@@ -602,10 +672,12 @@ class AutoComplete extends Controller {
     onInputChange = () => {
         this.hiddenTextTarget.value = this.inputTarget.value;
         if (this.hasHiddenTarget) this.hiddenTarget.value = "";
-        if (this.hasHiddenTextTarget) this.hiddenTextTarget.value = "";
+        if (this.hasHiddenTextTarget) {
+            this.hiddenTextTarget.value = this.allowOtherValue ? this.inputTarget.value : "";
+        }
 
         const query = this.inputTarget.value.trim();
-        if ((query && query.length >= this.minLengthValue) || this.hasDataListTarget) {
+        if ((query && query.length >= this.minLengthValue) || this.hasDataListTarget || (this.showOnFocusValue && this.hasUrlValue)) {
             this.fetchResults(query);
         } else {
             this.hideAndRemoveOptions();
@@ -616,11 +688,17 @@ class AutoComplete extends Controller {
         const prefix = this.resultsTarget.id || "stimulus-autocomplete"
         const optionsWithoutId = this.resultsTarget.querySelectorAll(`${optionSelector}:not([id])`)
         optionsWithoutId.forEach(el => el.id = `${prefix}-option-${AutoComplete.uniqOptionId++}`)
+        this.resultsTarget.querySelectorAll("[role='option']").forEach(option => {
+            if (!option.hasAttribute("aria-selected")) {
+                option.setAttribute("aria-selected", "false")
+            }
+        })
     }
 
     hideAndRemoveOptions() {
         this.close()
         this.resultsTarget.innerHTML = null
+        this.updateStatus("")
     }
 
     fetchResults = async (query) => {
@@ -646,10 +724,14 @@ class AutoComplete extends Controller {
 
                         //add a span around matching string to highlight it
                         if (query != "") {
-                            let filteredOptions = item.text;
-                            itemHtml.innerHTML = filteredOptions.replace(new RegExp(query, 'gi'), match => `<span class="text-primary">${match}</span>`);
+                            const escapedText = AutoComplete.escapeHtml(item.text);
+                            const escapedQuery = AutoComplete.escapeRegExp(AutoComplete.escapeHtml(query));
+                            itemHtml.innerHTML = escapedText.replace(
+                                new RegExp(escapedQuery, 'gi'),
+                                match => `<span class="text-primary">${match}</span>`
+                            );
                         } else {
-                            itemHtml.innerHTML = item.text;
+                            itemHtml.textContent = item.text;
                         }
                         this.resultsTarget.appendChild(itemHtml);
                     }
@@ -657,11 +739,17 @@ class AutoComplete extends Controller {
                 if (this.state != "finished") {
                     this.identifyOptions();
                     this.open();
+                    this.updateStatusForResults()
                     this.state = "open";
                 }
 
                 return
             }
+        }
+
+        // Mark as fetching so async results aren't swallowed after connect/close
+        if (this.state === "finished") {
+            this.state = "fetching";
         }
 
         const url = this.buildURL(query)
@@ -670,6 +758,7 @@ class AutoComplete extends Controller {
             const html = await this.doFetch(url);
             if (this.state != "finished") {
                 this.replaceResults(html)
+                this.updateStatusForResults()
                 this.state = "open";
             }
             this.element.dispatchEvent(new CustomEvent("load"))
@@ -717,8 +806,11 @@ class AutoComplete extends Controller {
     open() {
         if (this.resultsShown) return
 
+        this.enableFloatingResults()
         this.resultsShown = true
+        this.updateFloatingResultsPosition()
         this.element.setAttribute("aria-expanded", "true")
+        this.inputTarget.setAttribute("aria-expanded", "true")
         this.hiddenTextTarget.value = this.inputTarget.value;
         this.element.dispatchEvent(
             new CustomEvent("toggle", {
@@ -729,14 +821,16 @@ class AutoComplete extends Controller {
 
     close() {
         if (!this.resultsShown) {
-
+            this.disableFloatingResults()
             return
         }
         this.state = "finished";
         this.resultsShown = false
         this.inputTarget.removeAttribute("aria-activedescendant")
         this.element.setAttribute("aria-expanded", "false")
+        this.inputTarget.setAttribute("aria-expanded", "false")
         this.hiddenTextTarget.value = this.inputTarget.value;
+        this.disableFloatingResults()
         this.element.dispatchEvent(
             new CustomEvent("toggle", {
                 detail: { action: "close", inputTarget: this.inputTarget, resultsTarget: this.resultsTarget }
@@ -752,6 +846,61 @@ class AutoComplete extends Controller {
         this.resultsTarget.hidden = !value
     }
 
+    enableFloatingResults() {
+        if (!this.element.closest(".modal") || this._resultsPortal) {
+            return
+        }
+
+        this._resultsPortal = {
+            cssText: this.resultsTarget.style.cssText,
+        }
+
+        this.resultsTarget.classList.add("kmp-auto-complete-floating-list")
+        window.addEventListener("resize", this.updateFloatingResultsPosition)
+        window.addEventListener("scroll", this.updateFloatingResultsPosition, true)
+    }
+
+    disableFloatingResults() {
+        if (!this._resultsPortal) {
+            return
+        }
+
+        window.removeEventListener("resize", this.updateFloatingResultsPosition)
+        window.removeEventListener("scroll", this.updateFloatingResultsPosition, true)
+
+        const { cssText } = this._resultsPortal
+        this.resultsTarget.classList.remove("kmp-auto-complete-floating-list")
+        this.resultsTarget.style.cssText = cssText
+
+        this._resultsPortal = null
+    }
+
+    updateFloatingResultsPosition() {
+        if (!this._resultsPortal) {
+            return
+        }
+
+        const rect = this.inputTarget.getBoundingClientRect()
+        const containerRect = this.element.getBoundingClientRect()
+        const left = containerRect.width > 0 ? containerRect.left : rect.left
+        const width = containerRect.width > 0 ? containerRect.width : rect.width
+        const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+        const margin = 8
+        const spaceBelow = viewportHeight - rect.bottom - margin
+        const spaceAbove = rect.top - margin
+        const openAbove = spaceBelow < 160 && spaceAbove > spaceBelow
+        const maxHeight = Math.max(openAbove ? spaceAbove : spaceBelow, 120)
+
+        this.resultsTarget.style.setProperty("position", "fixed", "important")
+        this.resultsTarget.style.left = `${left}px`
+        this.resultsTarget.style.width = `${width}px`
+        this.resultsTarget.style.maxHeight = `${maxHeight}px`
+        this.resultsTarget.style.overflowY = "auto"
+        this.resultsTarget.style.setProperty("z-index", "1070", "important")
+        this.resultsTarget.style.top = openAbove ? "auto" : `${rect.bottom}px`
+        this.resultsTarget.style.bottom = openAbove ? `${viewportHeight - rect.top}px` : "auto"
+    }
+
     get selectedClassesOrDefault() {
         return this.hasSelectedClass ? this.selectedClasses : ["active"]
     }
@@ -762,6 +911,23 @@ class AutoComplete extends Controller {
                 "X-Requested-With": "XMLHttpRequest",
                 "Accept": "application/json"
             }
+        }
+    }
+
+    updateStatusForResults() {
+        const count = this.renderedOptions.length
+        if (count === 0) {
+            this.updateStatus("No results available.")
+        } else if (count === 1) {
+            this.updateStatus("1 result available. Use arrow keys to review options.")
+        } else {
+            this.updateStatus(`${count} results available. Use arrow keys to review options.`)
+        }
+    }
+
+    updateStatus(message) {
+        if (this.hasStatusTarget) {
+            this.statusTarget.textContent = message
         }
     }
 }

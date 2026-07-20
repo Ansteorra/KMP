@@ -11,30 +11,27 @@ use Cake\ORM\TableRegistry;
  * 
  * Extends Member entities with methods for tracking pending approval responsibilities
  * and supporting navigation badges for approval workflow management.
- *
- * @see \Activities\Model\Table\AuthorizationApprovalsTable For approval management
- * @see /docs/5.6.8-authorization-approval-entity-reference.md For usage examples
  */
 trait MemberAuthorizationsTrait
 {
     /**
      * Get the count of pending authorization approvals for this member.
      * 
-     * Counts approvals where this member is the approver and has not yet responded
-     * (responded_on is null). Used for navigation badges and approval workflow management.
+     * Counts workflow approvals where this member is the approver and the
+     * approval is still pending. Used for navigation badges.
      *
      * @return int Number of pending authorization approvals
      */
     public function getPendingApprovalsCount(): int
     {
-        $count = 0;
-        $approvalsTable = TableRegistry::getTableLocator()->get("Activities.AuthorizationApprovals");
-        $query = $approvalsTable->find()
+        $wfApprovalsTable = TableRegistry::getTableLocator()->get("WorkflowApprovals");
+        $count = $wfApprovalsTable->find()
             ->where([
                 "approver_id" => $this->id,
-                "responded_on is" => null,
-            ]);
-        $count = $query->count();
+                "status" => "Pending",
+            ])
+            ->count();
+
         return $count;
     }
 }
