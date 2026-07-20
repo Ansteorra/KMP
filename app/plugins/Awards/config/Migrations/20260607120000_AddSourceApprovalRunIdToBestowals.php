@@ -12,13 +12,15 @@ use Migrations\AbstractMigration;
  */
 class AddSourceApprovalRunIdToBestowals extends AbstractMigration
 {
+    /**
+     * @return void
+     */
     public function up(): void
     {
         $this->table('awards_bestowals')
             ->addColumn('source_approval_run_id', 'integer', [
                 'null' => true,
                 'default' => null,
-                'signed' => false,
                 'after' => 'source',
             ])
             ->addForeignKey(
@@ -36,6 +38,9 @@ class AddSourceApprovalRunIdToBestowals extends AbstractMigration
             ->update();
     }
 
+    /**
+     * @return void
+     */
     public function down(): void
     {
         $this->table('awards_bestowals')

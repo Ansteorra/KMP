@@ -69,6 +69,7 @@ jobs:
       - name: Create test .env
         run: |
           printf "%s\n" \
+            "export KMP_ENV='ci'" \
             "export MYSQL_USERNAME='root'" \
             "export MYSQL_PASSWORD='root'" \
             "export MYSQL_DB_NAME='kmp'" \
@@ -124,17 +125,11 @@ jobs:
       - name: Install Composer dependencies
         run: cd app && composer install --no-interaction --prefer-dist
 
-      - name: Import seed data (MySQL)
-        if: matrix.database.type == 'mysql'
-        run: mysql -h 127.0.0.1 -u root -proot kmp_test < dev_seed_clean.sql
-
       - name: Create default database (Postgres)
         if: matrix.database.type == 'postgres'
-        run: |
-          PGPASSWORD=root psql -h 127.0.0.1 -U root -d kmp_test -v ON_ERROR_STOP=1 \
-            -c "CREATE DATABASE kmp;"
-          PGPASSWORD=root psql -h 127.0.0.1 -U root -d kmp_test -v ON_ERROR_STOP=1 \
-            -f app/config/schema_dump.sql
+        run: >-
+          PGPASSWORD=root psql -h 127.0.0.1 -U root -d kmp_test -v ON_ERROR_STOP=1
+          -c "CREATE DATABASE kmp;"
 
       - name: Run PHPUnit tests
         run: |
