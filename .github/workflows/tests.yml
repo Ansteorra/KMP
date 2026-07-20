@@ -294,13 +294,17 @@ jobs:
           for volume in kmp-pg-data kmp-composer-cache kmp-node-modules kmp-pgadmin-data; do
             docker volume create "$volume" >/dev/null
           done
-          docker compose --env-file app/config/.env up -d --no-build app scheduler mailpit
+          docker compose --env-file app/config/.env up -d --no-build app mailpit
 
       - name: Install Playwright browser
         run: cd app && npx playwright install --with-deps chromium
 
       - name: Run Playwright smoke tests
-        run: cd app && npm run test:ui:smoke
+        run: |
+          bash reset_dev_database.sh
+          docker compose --env-file app/config/.env up -d --no-build scheduler
+          cd app
+          PLAYWRIGHT_RESET_DB=0 npm run test:ui:smoke
 
       - name: Upload Playwright smoke artifacts
         if: success() || failure()
@@ -399,13 +403,17 @@ jobs:
           for volume in kmp-pg-data kmp-composer-cache kmp-node-modules kmp-pgadmin-data; do
             docker volume create "$volume" >/dev/null
           done
-          docker compose --env-file app/config/.env up -d --no-build app scheduler mailpit
+          docker compose --env-file app/config/.env up -d --no-build app mailpit
 
       - name: Install Playwright browser
         run: cd app && npx playwright install --with-deps chromium
 
       - name: Run Playwright journey tests
-        run: cd app && npm run test:ui:journey
+        run: |
+          bash reset_dev_database.sh
+          docker compose --env-file app/config/.env up -d --no-build scheduler
+          cd app
+          PLAYWRIGHT_RESET_DB=0 npm run test:ui:journey
 
       - name: Upload Playwright journey artifacts
         if: success() || failure()
