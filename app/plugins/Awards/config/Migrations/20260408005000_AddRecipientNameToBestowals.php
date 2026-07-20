@@ -32,19 +32,31 @@ class AddRecipientNameToBestowals extends BaseMigration
         }
 
         $this->execute(
-            "UPDATE awards_bestowals b
-                SET member_sca_name = COALESCE(NULLIF(r.member_sca_name, ''), m.sca_name, b.member_sca_name, '')
-               FROM awards_recommendations r
-               LEFT JOIN members m ON m.id = r.member_id
-              WHERE r.id = b.primary_recommendation_id
-                AND (b.member_sca_name IS NULL OR b.member_sca_name = '')",
+            "UPDATE awards_bestowals
+                SET member_sca_name = COALESCE(
+                    (
+                        SELECT COALESCE(NULLIF(r.member_sca_name, ''), m.sca_name)
+                          FROM awards_recommendations r
+                          LEFT JOIN members m ON m.id = r.member_id
+                         WHERE r.id = awards_bestowals.primary_recommendation_id
+                    ),
+                    member_sca_name,
+                    ''
+                )
+              WHERE member_sca_name IS NULL OR member_sca_name = ''",
         );
         $this->execute(
-            "UPDATE awards_bestowals b
-                SET member_sca_name = COALESCE(m.sca_name, b.member_sca_name, '')
-               FROM members m
-              WHERE m.id = b.member_id
-                AND (b.member_sca_name IS NULL OR b.member_sca_name = '')",
+            "UPDATE awards_bestowals
+                SET member_sca_name = COALESCE(
+                    (
+                        SELECT m.sca_name
+                          FROM members m
+                         WHERE m.id = awards_bestowals.member_id
+                    ),
+                    member_sca_name,
+                    ''
+                )
+              WHERE member_sca_name IS NULL OR member_sca_name = ''",
         );
 
         $table = $this->table('awards_bestowals');
@@ -64,12 +76,19 @@ class AddRecipientNameToBestowals extends BaseMigration
         }
 
         $this->execute(
-            "UPDATE awards_bestowals b
-                SET member_id = r.member_id
-               FROM awards_recommendations r
-              WHERE r.id = b.primary_recommendation_id
-                AND b.member_id IS NULL
-                AND r.member_id IS NOT NULL",
+            'UPDATE awards_bestowals
+                SET member_id = (
+                    SELECT r.member_id
+                      FROM awards_recommendations r
+                     WHERE r.id = awards_bestowals.primary_recommendation_id
+                )
+              WHERE member_id IS NULL
+                AND EXISTS (
+                    SELECT 1
+                      FROM awards_recommendations r
+                     WHERE r.id = awards_bestowals.primary_recommendation_id
+                       AND r.member_id IS NOT NULL
+                )',
         );
         $this->execute('DELETE FROM awards_bestowals WHERE member_id IS NULL');
         $table = $this->table('awards_bestowals');

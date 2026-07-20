@@ -130,7 +130,11 @@ jobs:
 
       - name: Create default database (Postgres)
         if: matrix.database.type == 'postgres'
-        run: PGPASSWORD=root psql -h 127.0.0.1 -U root -d kmp_test -c "CREATE DATABASE kmp;"
+        run: |
+          PGPASSWORD=root psql -h 127.0.0.1 -U root -d kmp_test -v ON_ERROR_STOP=1 \
+            -c "CREATE DATABASE kmp;"
+          PGPASSWORD=root psql -h 127.0.0.1 -U root -d kmp_test -v ON_ERROR_STOP=1 \
+            -f app/config/schema_dump.sql
 
       - name: Run PHPUnit tests
         run: |
