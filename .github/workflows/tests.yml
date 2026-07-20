@@ -262,6 +262,9 @@ jobs:
             "export EMAIL_SMTP_PASSWORD=''" \
             > app/config/.env
 
+      - name: Create host app config
+        run: printf "<?php\nreturn [];\n" > app/config/app_local.php
+
       - name: Install Composer dependencies
         run: cd app && composer install --no-interaction --prefer-dist
 
@@ -345,6 +348,9 @@ jobs:
             "export EMAIL_SMTP_USERNAME=''" \
             "export EMAIL_SMTP_PASSWORD=''" \
             > app/config/.env
+
+      - name: Create host app config
+        run: printf "<?php\nreturn [];\n" > app/config/app_local.php
 
       - name: Install Composer dependencies
         run: cd app && composer install --no-interaction --prefer-dist
