@@ -219,6 +219,7 @@ jobs:
 
           docker run -d --name kmp-smoke \
             --network host \
+            -e KMP_DB_DRIVER=mysql \
             -e DEBUG=false \
             -e MYSQL_HOST=127.0.0.1 \
             -e MYSQL_USERNAME=kmpuser \
