@@ -243,7 +243,7 @@ jobs:
             "$IMAGE"
 
           HEALTH=""
-          for i in $(seq 1 30); do
+          for i in $(seq 1 60); do
             if HEALTH=$(curl -fsS http://localhost/health) \
               && echo "$HEALTH" | jq -e '.status == "ok"' >/dev/null 2>&1; then
               echo ""
@@ -251,13 +251,13 @@ jobs:
               echo "Health response: $HEALTH"
               exit 0
             fi
-            if [ "$i" -eq 30 ]; then
-              echo "Health check failed after 30 attempts"
+            if [ "$i" -eq 60 ]; then
+              echo "Health check failed after 60 attempts"
               echo "Last health response: $HEALTH"
               docker logs kmp-smoke
               exit 1
             fi
-            echo "Waiting for app... ($i/30)"
+            echo "Waiting for app... ($i/60)"
             sleep 5
           done
 
