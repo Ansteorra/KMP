@@ -3,8 +3,26 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: d50442a51a9a0f89935f1ef82f9d3b1c2469f23a -->
-<!-- LAST_SYNCED_DATE: 2026-07-19 -->
+<!-- LAST_SYNCED_COMMIT: ba92a72a1be58aae94e1fd40d7ede6db3174b938 -->
+<!-- LAST_SYNCED_DATE: 2026-07-20 -->
+
+## KMP 1.5.1 — July 20, 2026
+
+### PostgreSQL Compatibility and Deployment Hotfix
+
+KMP 1.5.1 restores the case-insensitive behavior users expect for names, email addresses, searches, and filters on PostgreSQL-backed installations while preserving the original capitalization of existing data.
+
+- Login, password reset, quick login, and duplicate-email checks now match email addresses regardless of capitalization
+- Member, officer, award, waiver, autocomplete, API, and grid searches now behave consistently across PostgreSQL and MySQL
+- Saved grid filters remain case-insensitive without applying text operations to numeric relationship fields
+- Human-facing names and labels use case-insensitive PostgreSQL comparisons while security-sensitive tokens, hashes, identifiers, paths, and workflow keys remain case-sensitive
+- Award recommendation grouping states are installed reliably during upgrades
+- Azure deployment now enables required PostgreSQL extensions safely, preserves existing extension settings, and supports POC databases hosted on a shared PostgreSQL server
+- Worker canaries, migrations, health checks, and web cutover now complete through the guarded POC and production deployment pipeline
+
+📅 July 20, 2026 · `Hotfix`
+
+---
 
 ## KMP 1.5 — July 19, 2026
 
