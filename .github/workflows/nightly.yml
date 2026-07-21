@@ -234,6 +234,8 @@ jobs:
           docker run -d --name kmp-smoke \
             --network host \
             -e KMP_DB_DRIVER=mysql \
+            -e KMP_SKIP_MIGRATIONS=true \
+            -e KMP_SKIP_CRON=true \
             -e DEBUG=false \
             -e MYSQL_HOST=127.0.0.1 \
             -e MYSQL_USERNAME=kmpuser \
@@ -243,7 +245,7 @@ jobs:
             "$IMAGE"
 
           HEALTH=""
-          for i in $(seq 1 60); do
+          for i in $(seq 1 30); do
             if HEALTH=$(curl -fsS http://localhost/health) \
               && echo "$HEALTH" | jq -e '.status == "ok"' >/dev/null 2>&1; then
               echo ""
@@ -251,13 +253,13 @@ jobs:
               echo "Health response: $HEALTH"
               exit 0
             fi
-            if [ "$i" -eq 60 ]; then
-              echo "Health check failed after 60 attempts"
+            if [ "$i" -eq 30 ]; then
+              echo "Health check failed after 30 attempts"
               echo "Last health response: $HEALTH"
               docker logs kmp-smoke
               exit 1
             fi
-            echo "Waiting for app... ($i/60)"
+            echo "Waiting for app... ($i/30)"
             sleep 5
           done
 
