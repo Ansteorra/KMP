@@ -5,55 +5,81 @@ on:
     types: [published]
 
 permissions:
+  actions: read
   contents: write
-  checks: write
   packages: write
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ansteorra/kmp
-  BASE_IMAGE: ghcr.io/ansteorra/kmp-base:php84
 
 jobs:
-  quality-gates:
-    name: Quality gates
-    uses: ./.github/workflows/tests.yml
-
-  # Ensure the pre-compiled PHP base image exists (build it if not).
-  # First-run bootstrap: this takes ~60-90 min but only happens once.
-  ensure-base:
-    needs: quality-gates
+  verify-promotion-source:
+    name: Verify POC promotion source
     runs-on: ubuntu-latest
     outputs:
-      base-exists: ${{ steps.check.outputs.exists }}
+      channel: ${{ steps.source.outputs.channel }}
+      channel_version: ${{ steps.source.outputs.channel_version }}
+      digest: ${{ steps.image.outputs.digest }}
+      short_sha: ${{ steps.source.outputs.short_sha }}
+      source_image: ${{ steps.image.outputs.source_image }}
+      source_sha: ${{ steps.source.outputs.source_sha }}
     steps:
-      - name: Log in to ghcr.io
-        uses: docker/login-action@v3
+      - name: Check out the release tag
+        uses: actions/checkout@v4
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          ref: ${{ github.event.release.tag_name }}
 
-      - name: Check if base image exists
-        id: check
+      - name: Resolve and validate the release commit
+        id: source
+        env:
+          PRERELEASE: ${{ github.event.release.prerelease }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          if docker manifest inspect ${{ env.BASE_IMAGE }} > /dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "✅ Base image found"
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "⚠️  Base image missing — building it now"
+          set -euo pipefail
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?([.-][A-Za-z0-9.-]+)?$ ]]; then
+            echo "Release tag must be a semantic v* tag: $RELEASE_TAG" >&2
+            exit 1
           fi
 
-  build-base:
-    needs: ensure-base
-    if: needs.ensure-base.outputs.base-exists == 'false'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+          SOURCE_SHA="$(git rev-parse 'HEAD^{commit}')"
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$SOURCE_SHA" origin/main; then
+            echo "Release commit $SOURCE_SHA is not on official main." >&2
+            exit 1
+          fi
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+          CHANGELOG_VERSION="$(
+            awk '/^## KMP [0-9]+\.[0-9]+(\.[0-9]+)? / { print $3; exit }' app/CHANGELOG.md
+          )"
+          TAG_VERSION="${RELEASE_TAG#v}"
+          if [[ "${TAG_VERSION%%-*}" != "$CHANGELOG_VERSION" ]]; then
+            echo "Release tag $RELEASE_TAG does not match changelog version $CHANGELOG_VERSION." >&2
+            exit 1
+          fi
+
+          if [[ "$PRERELEASE" == "true" ]]; then
+            CHANNEL="beta"
+          else
+            CHANNEL="latest"
+          fi
+          if [[ "$TAG_VERSION" == "$CHANNEL"-* ]]; then
+            CHANNEL_VERSION="$TAG_VERSION"
+          else
+            CHANNEL_VERSION="${CHANNEL}-${TAG_VERSION}"
+          fi
+
+          echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
+          echo "channel_version=$CHANNEL_VERSION" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SOURCE_SHA:0:7}" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Require successful main quality gates
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
+        run: .github/scripts/require-workflow-success.sh tests.yml "$SOURCE_SHA" main push 0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -65,76 +91,33 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push base image (one-time bootstrap)
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/Dockerfile.base
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ env.BASE_IMAGE }}
-          cache-from: type=gha,scope=kmp-base
-          cache-to: type=gha,mode=max,scope=kmp-base
+      - name: Resolve the POC-validated image digest
+        id: image
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          EVIDENCE_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:poc-validated-${SOURCE_SHA:0:12}"
+          DIGEST="$(
+            docker buildx imagetools inspect \
+              "$EVIDENCE_IMAGE" \
+              --format '{{.Manifest.Digest}}'
+          )"
+          if [[ ! "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Unable to resolve the POC-validated digest from $EVIDENCE_IMAGE" >&2
+            exit 1
+          fi
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "source_image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${DIGEST}" >> "$GITHUB_OUTPUT"
 
-  build-and-push:
-    needs: [quality-gates, ensure-base, build-base]
-    if: >-
-      always()
-      && needs.quality-gates.result == 'success'
-      && needs.ensure-base.result == 'success'
-      && (needs.build-base.result == 'success' || needs.build-base.result == 'skipped')
+  promote-image:
+    name: Promote POC-validated image
+    needs: verify-promotion-source
     runs-on: ubuntu-latest
     outputs:
-      digest: ${{ steps.build.outputs.digest }}
       tags: ${{ steps.meta.outputs.tags }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to ghcr.io
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Copy production dockerignore
-        run: cp docker/.dockerignore.prod .dockerignore
-
-      - name: Determine channel tag
-        id: channel
-        run: |
-          TAG="${{ github.event.release.tag_name }}"
-          PRERELEASE="${{ github.event.release.prerelease }}"
-          if [[ "$TAG" == *"nightly"* ]]; then
-            echo "tag=nightly" >> "$GITHUB_OUTPUT"
-          elif [[ "$TAG" == *"dev"* ]]; then
-            echo "tag=dev" >> "$GITHUB_OUTPUT"
-          elif [[ "$PRERELEASE" == "true" ]]; then
-            echo "tag=beta" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=latest" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Determine channel-version tag
-        id: channel_version
-        run: |
-          TAG="${{ github.event.release.tag_name }}"
-          CHANNEL="${{ steps.channel.outputs.tag }}"
-          VERSION="${TAG#v}"
-          if [[ "$VERSION" == "$CHANNEL"-* ]]; then
-            CHANNEL_VERSION_TAG="$VERSION"
-          else
-            CHANNEL_VERSION_TAG="${CHANNEL}-${VERSION}"
-          fi
-          echo "value=${CHANNEL_VERSION_TAG}" >> "$GITHUB_OUTPUT"
-
-      - name: Extract metadata
+      - name: Extract release tags
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -142,130 +125,94 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=sha-
-            type=raw,value=${{ steps.channel.outputs.tag }}
-            type=raw,value=${{ steps.channel_version.outputs.value }}
+            type=raw,value=sha-${{ needs.verify-promotion-source.outputs.short_sha }}
+            type=raw,value=${{ needs.verify-promotion-source.outputs.channel }}
+            type=raw,value=${{ needs.verify-promotion-source.outputs.channel_version }}
 
-      - name: Build and push
-        id: build
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/Dockerfile.prod
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            BASE_IMAGE=${{ env.BASE_IMAGE }}
-            APP_VERSION=${{ github.event.release.tag_name }}
-            RELEASE_CHANNEL=${{ steps.channel.outputs.tag }}
-          cache-from: type=gha,scope=kmp-app
-          cache-to: type=gha,mode=max,scope=kmp-app
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-  smoke-test:
-    needs: build-and-push
-    if: always() && needs.build-and-push.result == 'success'
-    runs-on: ubuntu-latest
-    services:
-      mariadb:
-        image: mariadb:11
-        env:
-          MARIADB_ROOT_PASSWORD: testpass
-          MARIADB_DATABASE: kmp_test
-          MARIADB_USER: kmpuser
-          MARIADB_PASSWORD: kmppass
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="healthcheck.sh --connect --innodb_initialized"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-    steps:
       - name: Log in to ghcr.io
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull and run KMP image
+      - name: Apply release tags without rebuilding
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          EXPECTED_DIGEST: ${{ needs.verify-promotion-source.outputs.digest }}
+          RELEASE_TAGS: ${{ steps.meta.outputs.tags }}
+          SOURCE_IMAGE: ${{ needs.verify-promotion-source.outputs.source_image }}
         run: |
-          IMAGE="ghcr.io/${{ env.IMAGE_NAME }}:sha-${GITHUB_SHA::7}"
-          echo "Pulling $IMAGE"
-          docker pull "$IMAGE"
-
-          docker run -d --name kmp-test \
-            --network host \
-            -e DEBUG=false \
-            -e MYSQL_HOST=127.0.0.1 \
-            -e MYSQL_USERNAME=kmpuser \
-            -e MYSQL_PASSWORD=kmppass \
-            -e MYSQL_DB_NAME=kmp_test \
-            -e SECURITY_SALT=ci-test-salt-for-smoke-testing-only \
-            "$IMAGE"
-
-          # Wait for health
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost/health; then
-              echo ""
-              echo "Health check passed"
-              break
+          set -euo pipefail
+          tag_args=()
+          while IFS= read -r tag; do
+            if [[ -n "$tag" ]]; then
+              tag_args+=(--tag "$tag")
             fi
-            if [ "$i" -eq 30 ]; then
-              echo "Health check failed after 30 attempts"
-              docker logs kmp-test
+          done <<< "$RELEASE_TAGS"
+          if [[ "${#tag_args[@]}" -eq 0 ]]; then
+            echo "No release image tags were generated." >&2
+            exit 1
+          fi
+
+          docker buildx imagetools create "${tag_args[@]}" "$SOURCE_IMAGE"
+
+          while IFS= read -r tag; do
+            if [[ -z "$tag" ]]; then
+              continue
+            fi
+            ACTUAL_DIGEST="$(
+              docker buildx imagetools inspect \
+                "$tag" \
+                --format '{{.Manifest.Digest}}'
+            )"
+            if [[ "$ACTUAL_DIGEST" != "$EXPECTED_DIGEST" ]]; then
+              echo "Promoted tag $tag resolved to $ACTUAL_DIGEST, expected $EXPECTED_DIGEST" >&2
               exit 1
             fi
-            echo "Waiting for app... ($i/30)"
-            sleep 5
-          done
-
-          # Verify health endpoint
-          HEALTH=$(curl -sf http://localhost/health)
-          echo "Health response: $HEALTH"
-          echo "$HEALTH" | jq -e '.status == "ok"'
-
-      - name: Cleanup
-        if: always()
-        run: docker rm -f kmp-test 2>/dev/null || true
+          done <<< "$RELEASE_TAGS"
 
   attach-digest:
-    needs: [build-and-push, smoke-test]
-    if: always() && needs.build-and-push.result == 'success' && needs.smoke-test.result == 'success'
+    name: Attach promoted image digest
+    needs: [verify-promotion-source, promote-image]
     runs-on: ubuntu-latest
     steps:
       - name: Create digest file
+        env:
+          IMAGE_DIGEST: ${{ needs.verify-promotion-source.outputs.digest }}
         run: |
-          echo "${{ needs.build-and-push.outputs.digest }}" > kmp-image-digest.txt
-          echo "Image digest: $(cat kmp-image-digest.txt)"
+          echo "$IMAGE_DIGEST" > kmp-image-digest.txt
+          echo "Image digest: $IMAGE_DIGEST"
 
-      - name: Upload to release
+      - name: Upload digest to release
         uses: softprops/action-gh-release@v2
         with:
           files: kmp-image-digest.txt
 
   prepare-production-deploy:
     name: Prepare production promotion
-    needs: [build-and-push, smoke-test]
-    if: ${{ github.event.release.prerelease == false && startsWith(github.event.release.tag_name, 'v') }}
+    needs: [verify-promotion-source, promote-image]
+    if: >-
+      ${{ needs.verify-promotion-source.result == 'success'
+          && needs.promote-image.result == 'success'
+          && github.event.release.prerelease == false
+          && startsWith(github.event.release.tag_name, 'v') }}
     runs-on: ubuntu-latest
     outputs:
       source_image: ${{ steps.image.outputs.source_image }}
       target_tag: ${{ steps.image.outputs.target_tag }}
     steps:
-      - name: Resolve immutable release image
+      - name: Select the promoted digest
         id: image
         env:
-          IMAGE_DIGEST: ${{ needs.build-and-push.outputs.digest }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
+          SOURCE_IMAGE: ${{ needs.verify-promotion-source.outputs.source_image }}
         run: |
           set -euo pipefail
           SAFE_TAG="$(printf '%s' "$RELEASE_TAG" | tr -c 'A-Za-z0-9_.-' '-')"
-          echo "source_image=ghcr.io/ansteorra/kmp@${IMAGE_DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "source_image=$SOURCE_IMAGE" >> "$GITHUB_OUTPUT"
           echo "target_tag=release-${SAFE_TAG}" >> "$GITHUB_OUTPUT"
 
   deploy-production:

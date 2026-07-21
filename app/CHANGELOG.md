@@ -3,7 +3,7 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: bef99b0fd6e91f90c819e95ddfb1d5e551d5a566 -->
+<!-- LAST_SYNCED_COMMIT: 25664b49ad7e6373183c399f586962a676209de2 -->
 <!-- LAST_SYNCED_DATE: 2026-07-20 -->
 
 ## KMP 1.5.2 — July 20, 2026
@@ -18,6 +18,7 @@ KMP 1.5.2 completes the PostgreSQL case-insensitivity update and fixes public of
 - Officer appointments without an expiration date export with a blank End value instead of truncating the CSV with an application error
 - Upgrade migrations check unique values for case-only collisions before conversion and preserve their original database types for rollback
 - Release image smoke tests now run with production configuration before promotion
+- POC and production releases now reuse the merged commit's quality evidence and promote the exact POC-tested image, avoiding repeated browser suites and image rebuilds
 
 📅 July 20, 2026 · `Hotfix`
 

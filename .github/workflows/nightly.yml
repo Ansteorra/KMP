@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
+  actions: read
   contents: read
-  checks: write
   packages: write
 
 env:
@@ -22,14 +22,21 @@ env:
   BASE_IMAGE: ghcr.io/ansteorra/kmp-base:php84
 
 jobs:
-  quality-gates:
-    name: Quality gates
-    uses: ./.github/workflows/tests.yml
+  quality-gate-evidence:
+    name: Verify main quality gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require successful gates for this commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: .github/scripts/require-workflow-success.sh tests.yml "$GITHUB_SHA" main push
 
   # Check if the pre-compiled base image exists. If not, build it first.
   # This handles first-run bootstrap automatically.
   ensure-base:
-    needs: quality-gates
+    needs: quality-gate-evidence
     runs-on: ubuntu-latest
     outputs:
       base-exists: ${{ steps.check.outputs.exists }}
@@ -84,15 +91,16 @@ jobs:
           cache-to: type=gha,mode=max,scope=kmp-base
 
   build-and-push:
-    needs: [quality-gates, ensure-base, build-base]
+    needs: [quality-gate-evidence, ensure-base, build-base]
     # Run whether build-base was skipped (base exists) or completed (just built)
     if: >-
       always()
-      && needs.quality-gates.result == 'success'
+      && needs.quality-gate-evidence.result == 'success'
       && needs.ensure-base.result == 'success'
       && (needs.build-base.result == 'success' || needs.build-base.result == 'skipped')
     runs-on: ubuntu-latest
     outputs:
+      digest: ${{ steps.build.outputs.digest }}
       image-tag: ${{ steps.tags.outputs.primary }}
     steps:
       - uses: actions/checkout@v4
@@ -116,18 +124,24 @@ jobs:
       - name: Set app semantic version
         id: app-version
         run: |
-          BASE_VERSION="0.0.0"
-          if [[ -f app/config/version.txt ]]; then
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
             BASE_VERSION="$(tr -d '\r\n' < app/config/version.txt)"
+            BASE_VERSION="${BASE_VERSION#v}"
+            MAJOR="$(echo "$BASE_VERSION" | cut -d. -f1)"
+            MINOR="$(echo "$BASE_VERSION" | cut -d. -f2)"
+            if [[ ! "$MAJOR" =~ ^[0-9]+$ ]]; then MAJOR="0"; fi
+            if [[ ! "$MINOR" =~ ^[0-9]+$ ]]; then MINOR="0"; fi
+            APP_VERSION="${MAJOR}.${MINOR}.${GITHUB_RUN_NUMBER}"
+          else
+            APP_VERSION="$(
+              awk '/^## KMP [0-9]+\.[0-9]+(\.[0-9]+)? / { print $3; exit }' app/CHANGELOG.md
+            )"
+            if [[ ! "$APP_VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+              echo "Unable to resolve the release candidate version from app/CHANGELOG.md" >&2
+              exit 1
+            fi
           fi
-          BASE_VERSION="${BASE_VERSION#v}"
-
-          MAJOR="$(echo "$BASE_VERSION" | cut -d. -f1)"
-          MINOR="$(echo "$BASE_VERSION" | cut -d. -f2)"
-          if [[ ! "$MAJOR" =~ ^[0-9]+$ ]]; then MAJOR="0"; fi
-          if [[ ! "$MINOR" =~ ^[0-9]+$ ]]; then MINOR="0"; fi
-
-          APP_VERSION="${MAJOR}.${MINOR}.${GITHUB_RUN_NUMBER}"
           echo "$APP_VERSION" > app/config/version.txt
           echo "app_version=${APP_VERSION}" >> "$GITHUB_OUTPUT"
 
@@ -146,12 +160,12 @@ jobs:
           elif [[ "${{ github.event_name }}" == "push" ]]; then
             TAGS="dev-${SHORT_SHA},dev,dev-${APP_VERSION}"
             PRIMARY="dev-${SHORT_SHA}"
-            CHANNEL="dev"
+            CHANNEL="release"
           else
             # workflow_dispatch: both sets
             TAGS="nightly-${DATE},nightly,nightly-${APP_VERSION},dev-${SHORT_SHA},dev,dev-${APP_VERSION}"
             PRIMARY="dev-${SHORT_SHA}"
-            CHANNEL="dev"
+            CHANNEL="release"
           fi
 
           # Build full image refs
@@ -219,6 +233,7 @@ jobs:
 
           docker run -d --name kmp-smoke \
             --network host \
+            -e KMP_DB_DRIVER=mysql \
             -e DEBUG=false \
             -e MYSQL_HOST=127.0.0.1 \
             -e MYSQL_USERNAME=kmpuser \

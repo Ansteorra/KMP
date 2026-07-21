@@ -281,5 +281,7 @@ Do not run `phpcbf` across the whole codebase. The PHPCS config intentionally ex
   version section is the canonical release body and must also be used for the
   GitHub Release notes.
 - Production releases must use a stable `v*` GitHub Release targeting the exact
-  changelog-bearing commit validated in POC. Never bypass quality gates, digest
-  checks, or the GitHub production environment approval.
+  changelog-bearing commit validated in POC and promote the exact POC-tested
+  image digest without rebuilding or rerunning quality gates. Never bypass the
+  original quality gates, digest checks, or the GitHub production environment
+  approval.
