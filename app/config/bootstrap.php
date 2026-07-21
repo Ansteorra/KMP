@@ -280,10 +280,13 @@ if (!Configure::read('debug')) {
 }
 
 /*
- * Setup detectors for mobile and tablet.
+ * Setup application request detectors.
  * If you don't use these checks you can safely remove this code
  * and the mobiledetect package from composer.json.
  */
+ServerRequest::addDetector("csv", function ($request) {
+    return strpos($request->getRequestTarget(), ".csv") !== false;
+});
 ServerRequest::addDetector("mobile", function ($request) {
     $detector = new \Detection\MobileDetect();
 
