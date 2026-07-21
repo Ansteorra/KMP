@@ -16,16 +16,19 @@ This means release the selected official `main` commit to POC only.
 2. Resolve the requested commit, defaulting to `upstream/main`.
 3. Confirm the commit is on official `main` and that updating `dev` is a
    fast-forward. Never force-push `dev`.
-4. Push the exact commit to `refs/heads/dev`; create the branch if it does not
+4. Confirm `Quality Gates` passed for the exact merged `main` commit.
+5. Push the exact commit to `refs/heads/dev`; create the branch if it does not
    exist.
-5. Watch `Nightly / Dev Docker Image`. It calls the complete reusable quality
-   gates before building and smoke-testing the immutable image.
-6. Watch `POC / Deploy to Azure`. It imports the tested image, verifies its
+6. Watch `Nightly / Dev Docker Image`. It verifies that existing exact-commit
+   evidence instead of rerunning the suites, then builds and smoke-tests one
+   immutable release-candidate image.
+7. Watch `POC / Deploy to Azure`. It imports the tested image, verifies its
    digest, runs the worker canary and migrations, cuts over web traffic, and
-   aligns retained jobs.
-7. Verify POC readiness, tenant and platform hosts, login, queue/worker
+   aligns retained jobs. A successful deployment records the POC-validated
+   digest for production promotion.
+8. Verify POC readiness, tenant and platform hosts, login, queue/worker
    processing, and the changed user journeys.
-8. Do not create a production release or change production.
+9. Do not create a production release or change production.
 
 ## Intent: "do a release"
 
@@ -71,9 +74,10 @@ creates a new candidate and requires another POC deployment.
 1. Publish a non-prerelease GitHub Release with the selected `v*` tag, targeting
    the exact POC-tested commit and using the canonical changelog section as the
    release body.
-2. Watch `Release Docker Image`. It reruns the complete quality gates against
-   the tag, builds the immutable image, smoke-tests it, and records its digest.
-3. Stop and surface any failed gate, image smoke test, or digest mismatch.
+2. Watch `Release Docker Image`. It verifies the successful `main` quality run
+   and POC deployment for the tagged commit, then applies release tags to the
+   exact POC-validated digest without rebuilding or rerunning test suites.
+3. Stop and surface any missing evidence or digest mismatch.
 4. Wait for the user-authorized GitHub `production` environment approval. Never
    bypass or self-remove the approval gate.
 5. Watch the production deployment through image import, digest verification,
@@ -88,7 +92,8 @@ the production Azure environment.
 ## Failure handling
 
 - Never force-push official branches or tags.
-- Never release a commit different from the POC-tested commit.
+- Never release a commit or image digest different from the POC-tested
+  candidate.
 - Never continue past failed quality gates, POC checks, image smoke tests,
   migrations, worker canaries, or digest checks.
 - Preserve deployment snapshots and use the existing Azure cutover rollback

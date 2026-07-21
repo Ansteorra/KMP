@@ -68,26 +68,28 @@ image digests.
 ### Release to POC
 
 1. Merge the approved pull request into `main`.
-2. Fast-forward the official `dev` branch to the exact `main` commit selected for
-   release and push `dev`.
-3. Wait for `Nightly / Dev Docker Image` to complete. It runs the full quality
-   gates before building the image; a failed gate prevents image creation and POC
-   deployment.
-4. Wait for `POC / Deploy to Azure` to import the image digest, run the worker
+2. Wait for the full `Quality Gates` workflow to pass for the merged `main`
+   commit.
+3. Fast-forward the official `dev` branch to that exact commit and push `dev`.
+4. Wait for `Nightly / Dev Docker Image` to verify the existing quality-gate
+   evidence, build the release-candidate image once, and verify its health.
+5. Wait for `POC / Deploy to Azure` to import the image digest, run the worker
    canary and migrations, cut over the web revision, and align retained jobs.
-5. Validate POC health, tenant login, worker/queue processing, and the release's
-   changed user journeys before promoting the commit.
+   A successful deployment records that immutable digest as POC validated.
+6. Validate POC health, tenant login, worker/queue processing, and the release's
+   changed user journeys before promoting the commit and digest.
 
 ### Release to Production
 
 1. Create and publish a non-prerelease GitHub Release with a `v*` tag, targeting
    the exact commit validated in POC.
-2. Wait for `Release Docker Image` to rerun the full quality gates against the
-   tag, build the release image, and verify its health.
+2. Wait for `Release Docker Image` to verify the successful `main` quality run
+   and POC deployment for that commit, then apply release tags to the exact
+   POC-validated digest. It does not rebuild the image or rerun the test suites.
 3. Review the pending `production` environment deployment and approve it.
-4. The deployment imports the exact tested digest into production ACR, verifies
-   the digest, runs the worker canary and migrations, cuts over the web revision,
-   and aligns retained jobs.
+4. The deployment imports the exact POC-tested digest into production ACR,
+   verifies the digest, runs the worker canary and migrations, cuts over the web
+   revision, and aligns retained jobs.
 5. Confirm production readiness, tenant hosts, login, queue processing, and the
    active Container Apps image digest.
 

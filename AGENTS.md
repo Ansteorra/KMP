@@ -91,8 +91,10 @@ Run these from `app/` unless noted.
   verify POC. It never changes production.
 - **"Do a release"** means update `app/CHANGELOG.md` before POC testing, use that
   release section verbatim for the GitHub Release notes, validate the exact
-  changelog-bearing commit in POC, publish a stable `v*` release for that commit,
-  wait for production approval, and verify the production rollout.
+  changelog-bearing commit and image digest in POC, publish a stable `v*`
+  release for that commit, promote the same digest without rebuilding or
+  rerunning quality gates, wait for production approval, and verify the
+  production rollout.
 - Invoke `.github/skills/release-deploy` for either phrase. Never release a
   different commit from the one validated in POC, and never bypass failed gates
   or the production environment approval.
