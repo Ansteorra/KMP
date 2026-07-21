@@ -3,8 +3,25 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: 5b8bc9127d7a46c2e760a4216a7b35338a7a1f9c -->
+<!-- LAST_SYNCED_COMMIT: bef99b0fd6e91f90c819e95ddfb1d5e551d5a566 -->
 <!-- LAST_SYNCED_DATE: 2026-07-20 -->
+
+## KMP 1.5.2 — July 20, 2026
+
+### Case-Insensitive Data and Officer Export Hotfix
+
+KMP 1.5.2 completes the PostgreSQL case-insensitivity update and fixes public officer CSV exports for open-ended appointments and lowercase status filters.
+
+- Human-facing names, contact details, addresses, labels, statuses, and workflow states now compare case-insensitively across core KMP, Activities, Officers, Awards, Waivers, Queue, and platform administration
+- Security-sensitive passwords, salts, hashes, tokens, keys, identifiers, paths, URLs, and serialized values remain case-sensitive
+- Public officer CSV exports accept status values regardless of capitalization
+- Officer appointments without an expiration date export with a blank End value instead of truncating the CSV with an application error
+- Upgrade migrations check unique values for case-only collisions before conversion and preserve their original database types for rollback
+- Release image smoke tests now run with production configuration before promotion
+
+📅 July 20, 2026 · `Hotfix`
+
+---
 
 ## KMP 1.5.1 — July 20, 2026
 
