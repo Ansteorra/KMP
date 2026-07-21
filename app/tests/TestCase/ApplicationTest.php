@@ -66,6 +66,15 @@ class ApplicationTest extends HttpIntegrationTestCase
         );
     }
 
+    public function testCsvRequestDetectorIsRegisteredDuringBootstrap(): void
+    {
+        $healthRequest = new ServerRequest(['url' => '/health']);
+        $csvRequest = new ServerRequest(['url' => '/members/export.csv']);
+
+        $this->assertFalse($healthRequest->is('csv'));
+        $this->assertTrue($csvRequest->is('csv'));
+    }
+
     /**
      * Test bootstrap add DebugKit plugin in debug mode.
      *

@@ -104,7 +104,7 @@ class AppController extends Controller
     /**
      * Pre-action filter for application-wide processing.
      *
-     * Handles: CSV detection, plugin validation, navigation history,
+     * Handles: plugin validation, navigation history,
      * view cell loading, and Turbo Frame detection.
      *
      * @param \Cake\Event\EventInterface $event The beforeFilter event
@@ -112,14 +112,6 @@ class AppController extends Controller
      */
     public function beforeFilter(EventInterface $event)
     {
-        // Register CSV request detector
-        $this->request->addDetector(
-            'csv',
-            function ($request) {
-                return strpos($request->getRequestTarget(), '.csv') !== false;
-            },
-        );
-
         $this->isCsvRequest = $this->request->is('csv');
         $this->set('isCsvRequest', $this->isCsvRequest);
 
