@@ -660,7 +660,9 @@ class OfficersController extends AppController
         $officers = $this->Officers->find()
             ->contain(['Offices' => ['Departments'], 'Members', 'Branches']);
         if ($status !== null) {
-            $officers = $officers->where(['Officers.status' => $status]);
+            $officers = $officers->where(
+                CaseInsensitiveQuery::equals('Officers.status', (string)$status),
+            );
         }
         if ($endsIn !== null) {
             $endDate = new DateTime('+' . $endsIn . ' days');
