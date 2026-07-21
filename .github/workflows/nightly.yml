@@ -236,6 +236,8 @@ jobs:
             -e KMP_DB_DRIVER=mysql \
             -e KMP_SKIP_MIGRATIONS=true \
             -e KMP_SKIP_CRON=true \
+            -e CACHE_ENGINE=apcu \
+            -e KMP_SESSION_DEFAULTS=php \
             -e DEBUG=false \
             -e MYSQL_HOST=127.0.0.1 \
             -e MYSQL_USERNAME=kmpuser \
