@@ -173,6 +173,30 @@ class BestowalsGridSortingFilteringTest extends HttpIntegrationTestCase
         );
     }
 
+    public function testMemberColumnFallsBackToStoredScaNameWithoutLinkedMember(): void
+    {
+        $recipientName = 'Unlinked Recipient ' . uniqid();
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()->select(['id'])->firstOrFail();
+        $gathering = $this->getTableLocator()->get('Gatherings')->find()->select(['id'])->firstOrFail();
+        $bestowal = $this->createBestowal(
+            null,
+            (int)$award->id,
+            (int)$gathering->id,
+            $recipientName,
+        );
+
+        $this->get('/awards/bestowals/grid-data?' . http_build_query([
+            'ignore_default' => 1,
+            'columns' => 'id,member_sca_name',
+            'sort' => 'id',
+            'direction' => 'desc',
+        ]));
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('data-id="' . $bestowal->id . '"');
+        $this->assertResponseContains($recipientName);
+    }
+
     public function testTodoSummarySortsByDisplayedOpenCount(): void
     {
         $prefix = 'bestowal-grid-todos-' . uniqid();
@@ -314,11 +338,16 @@ class BestowalsGridSortingFilteringTest extends HttpIntegrationTestCase
         return $members->saveOrFail($member);
     }
 
-    private function createBestowal(int $memberId, int $awardId, int $gatheringId): Bestowal
-    {
+    private function createBestowal(
+        ?int $memberId,
+        int $awardId,
+        int $gatheringId,
+        ?string $memberScaName = null,
+    ): Bestowal {
         $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
         $bestowal = $bestowals->newEntity([
             'member_id' => $memberId,
+            'member_sca_name' => $memberScaName,
             'award_id' => $awardId,
             'gathering_id' => $gatheringId,
             'lifecycle_status' => Bestowal::LIFECYCLE_OPEN,

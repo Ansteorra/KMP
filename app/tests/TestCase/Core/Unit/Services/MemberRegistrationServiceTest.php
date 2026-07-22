@@ -5,8 +5,10 @@ namespace App\Test\TestCase\Core\Unit\Services;
 
 use App\KMP\StaticHelpers;
 use App\Model\Entity\Member;
+use App\Services\DocumentService;
 use App\Services\MemberRegistrationService;
 use App\Test\TestCase\BaseTestCase;
+use Cake\Core\Configure;
 use Cake\I18n\DateTime;
 use Laminas\Diactoros\UploadedFile;
 
@@ -171,10 +173,77 @@ final class MemberRegistrationServiceTest extends BaseTestCase
             'image/png',
         );
 
-        $result = $this->service->processScaCardUpload($file);
+        $result = $this->service->processScaCardUpload(
+            $file,
+            self::ADMIN_MEMBER_ID,
+            self::ADMIN_MEMBER_ID,
+        );
         $message = $result['message'] ?? null;
 
         $this->assertFalse($result['success']);
         $this->assertSame('File content does not match an allowed image type.', $message);
+    }
+
+    public function testProcessScaCardUploadStoresPersistentDocument(): void
+    {
+        if (!extension_loaded('gd')) {
+            $this->markTestSkipped('GD extension is required to create the image fixture');
+        }
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'member-card-');
+        $image = imagecreatetruecolor(40, 30);
+        imagepng($image, $tempPath);
+        imagedestroy($image);
+
+        $size = filesize($tempPath);
+        $this->assertIsInt($size);
+        $file = new UploadedFile(
+            $tempPath,
+            $size,
+            UPLOAD_ERR_OK,
+            'membership-card.png',
+            'image/png',
+        );
+
+        $documentId = null;
+        try {
+            $result = $this->service->processScaCardUpload(
+                $file,
+                self::ADMIN_MEMBER_ID,
+                self::ADMIN_MEMBER_ID,
+            );
+            $this->assertTrue($result['success']);
+            $this->assertArrayHasKey('documentId', $result);
+            $this->assertArrayHasKey('fileName', $result);
+
+            $documentId = (int)$result['documentId'];
+            $document = $this->getTableLocator()->get('Documents')->get($documentId);
+            $this->assertSame('Members.MembershipCard', $document->entity_type);
+            $this->assertSame(self::ADMIN_MEMBER_ID, $document->entity_id);
+            $this->assertSame('image/png', $document->mime_type);
+
+            $config = Configure::read('Documents.storage', []);
+            $basePath = $config['local']['path'] ?? WWW_ROOT . '../images/uploaded/';
+            $storedPath = $basePath
+                . DIRECTORY_SEPARATOR
+                . str_replace('/', DIRECTORY_SEPARATOR, $document->file_path);
+            $this->assertFileExists($storedPath);
+
+            $deleteResult = $this->service->deleteMembershipCard($documentId, null);
+            $this->assertTrue($deleteResult['success']);
+            $this->assertFileDoesNotExist($storedPath);
+            $this->assertSame(
+                0,
+                $this->getTableLocator()->get('Documents')->find()->where(['id' => $documentId])->count(),
+            );
+            $documentId = null;
+        } finally {
+            if ($documentId !== null) {
+                (new DocumentService())->deleteDocument($documentId);
+            }
+            if (file_exists($tempPath)) {
+                unlink($tempPath);
+            }
+        }
     }
 }

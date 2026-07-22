@@ -1443,6 +1443,34 @@ class MembersController extends AppController
     }
 
     /**
+     * Stream a membership verification card after verifier authorization.
+     */
+    public function membershipCard(MemberRegistrationService $registrationService, ?int $id = null): Response
+    {
+        $member = $this->Members->find()
+            ->contain(['MembershipCard'])
+            ->where(['Members.id' => $id])
+            ->first();
+        if (!$member) {
+            throw new NotFoundException();
+        }
+        $this->Authorization->authorize($member, 'verifyMembership');
+        if (empty($member->membership_card_document_id) && empty($member->membership_card_path)) {
+            throw new NotFoundException();
+        }
+
+        $response = $registrationService->getMembershipCardResponse($member);
+        if ($response === null) {
+            throw new NotFoundException();
+        }
+
+        return $response
+            ->withHeader('Cache-Control', 'private, no-store')
+            ->withHeader('Vary', 'Cookie')
+            ->withHeader('X-Content-Type-Options', 'nosniff');
+    }
+
+    /**
      * Stream the authenticated member's mobile profile photo.
      *
      * @return \Cake\Http\Response Inline file response
@@ -2509,26 +2537,49 @@ class MembersController extends AppController
         $this->Authorization->authorize($member);
         if ($this->request->is('put')) {
             $file = $this->request->getData('member_card');
-            if ($file->getSize() > 0) {
-                $uploadResult = $regService->processScaCardUpload($file);
+            if ($file instanceof UploadedFileInterface && $file->getSize() > 0) {
+                $oldDocumentId = $member->membership_card_document_id
+                    ? (int)$member->membership_card_document_id
+                    : null;
+                $oldLegacyPath = $oldDocumentId === null
+                    ? (string)$member->membership_card_path
+                    : null;
+                $uploadResult = $regService->processScaCardUpload(
+                    $file,
+                    (int)$member->id,
+                    (int)$user->id,
+                );
                 if (!$uploadResult['success']) {
                     $this->Flash->error($uploadResult['message']);
 
                     return $this->redirect($this->referer());
                 }
                 $member->membership_card_path = $uploadResult['fileName'];
+                $member->membership_card_document_id = $uploadResult['documentId'];
                 if ($this->Members->save($member)) {
                     $this->Flash->success(__(
                         'Membership information has been submitted, '
                             . 'please allow several days for our team to '
                             . 'review and update the profile.',
                     ));
+                    $cleanupResult = $regService->deleteMembershipCard($oldDocumentId, $oldLegacyPath);
+                    if (!$cleanupResult['success']) {
+                        $this->Flash->warning(__(
+                            'Membership information was submitted, but the previous card could not be removed.',
+                        ));
+                    }
                 } else {
+                    $this->cleanupMembershipCardUpload(
+                        $regService,
+                        (int)$uploadResult['documentId'],
+                        'member save failure',
+                    );
                     $this->Flash->error('There was an error please try again.');
                 }
             }
         }
-        $this->redirect($this->referer());
+
+        return $this->redirect($this->referer());
     }
 
     /**
@@ -2550,17 +2601,10 @@ class MembersController extends AppController
         $this->Authorization->skipAuthorization();
         $this->Authentication->logout();
         if ($this->request->is('post')) {
-            $file = $this->request->getData('member_card');
-            if ($file->getSize() > 0) {
-                $uploadResult = $regService->processCardUpload($file);
-                if (!$uploadResult['success']) {
-                    $this->Flash->error($uploadResult['message']);
-                    $this->setRegisterFormViewVars($member);
-
-                    return;
-                }
-                $member->membership_card_path = $uploadResult['fileName'];
-            }
+            $uploadedCard = $this->request->getData('member_card');
+            $cardFile = $uploadedCard instanceof UploadedFileInterface && $uploadedCard->getSize() > 0
+                ? $uploadedCard
+                : null;
             $regService->applyRegistrationData($member, $this->request->getData());
             $regService->assignStatusAndTokens($member);
             if ($member->getErrors()) {
@@ -2574,6 +2618,38 @@ class MembersController extends AppController
             $connection->begin();
 
             if ($regService->saveMember($member)) {
+                $cardDocumentId = null;
+                if ($cardFile !== null) {
+                    $uploadResult = $regService->processCardUpload(
+                        $cardFile,
+                        (int)$member->id,
+                        (int)$member->id,
+                    );
+                    if (!$uploadResult['success']) {
+                        $connection->rollback();
+                        $this->Flash->error($uploadResult['message']);
+                        $this->setRegisterFormViewVars($member);
+
+                        return;
+                    }
+
+                    $cardDocumentId = (int)$uploadResult['documentId'];
+                    $member->membership_card_path = $uploadResult['fileName'];
+                    $member->membership_card_document_id = $cardDocumentId;
+                    if (!$this->Members->save($member)) {
+                        $this->cleanupMembershipCardUpload(
+                            $regService,
+                            $cardDocumentId,
+                            'registration save failure',
+                        );
+                        $connection->rollback();
+                        $this->Flash->error(__('The membership card could not be saved. Please try again.'));
+                        $this->setRegisterFormViewVars($member);
+
+                        return;
+                    }
+                }
+
                 try {
                     $results = $this->dispatchWorkflowOrFail(
                         $dispatcher,
@@ -2592,6 +2668,9 @@ class MembersController extends AppController
                         'The member registration workflow could not be completed.',
                     );
                     if ($workflowError !== null) {
+                        if ($cardDocumentId !== null) {
+                            $this->cleanupMembershipCardUpload($regService, $cardDocumentId, 'workflow failure');
+                        }
                         $connection->rollback();
                         $this->Flash->error(__($workflowError));
                         $this->setRegisterFormViewVars($member);
@@ -2599,6 +2678,9 @@ class MembersController extends AppController
                         return;
                     }
                 } catch (Throwable $e) {
+                    if ($cardDocumentId !== null) {
+                        $this->cleanupMembershipCardUpload($regService, $cardDocumentId, 'registration exception');
+                    }
                     $connection->rollback();
                     Log::error('Member registration workflow dispatch failed in register(): ' . $e->getMessage());
                     $this->Flash->error(__('The member registration workflow is not currently available.'));
@@ -2633,6 +2715,23 @@ class MembersController extends AppController
             );
         }
         $this->setRegisterFormViewVars($member);
+    }
+
+    /**
+     * Remove a newly uploaded card after its owning workflow fails.
+     */
+    private function cleanupMembershipCardUpload(
+        MemberRegistrationService $registrationService,
+        int $documentId,
+        string $context,
+    ): void {
+        $result = $registrationService->deleteMembershipCard($documentId, null);
+        if (!$result['success']) {
+            Log::error('Failed to clean up membership card after ' . $context . '.', [
+                'document_id' => $documentId,
+                'error' => $result['message'] ?? null,
+            ]);
+        }
     }
 
     /**
@@ -2790,8 +2889,11 @@ class MembersController extends AppController
      *
      * @param mixed $id
      */
-    public function verifyMembership(TriggerDispatcher $dispatcher, $id = null)
-    {
+    public function verifyMembership(
+        MemberRegistrationService $registrationService,
+        TriggerDispatcher $dispatcher,
+        $id = null,
+    ) {
         $member = $this->Members->get($id);
         $this->Authorization->authorize($member);
         if ($this->request->is(['patch', 'post', 'put'])) {
@@ -2872,7 +2974,12 @@ class MembersController extends AppController
                     $member->status = Member::STATUS_MINOR_MEMBERSHIP_VERIFIED;
                 }
             }
-            $image = $member->membership_card_path;
+            $cardDocumentId = $member->membership_card_document_id
+                ? (int)$member->membership_card_document_id
+                : null;
+            $legacyCardPath = $cardDocumentId === null
+                ? (string)$member->membership_card_path
+                : null;
             $deleteImage = $member->status == Member::STATUS_VERIFIED_MEMBERSHIP ||
                 $member->status == Member::STATUS_VERIFIED_MINOR ||
                 $member->status == Member::STATUS_MINOR_MEMBERSHIP_VERIFIED;
@@ -2881,26 +2988,52 @@ class MembersController extends AppController
             $member->verified_date = DateTime::now();
             if ($deleteImage) {
                 $member->membership_card_path = null;
+                $member->membership_card_document_id = null;
             }
-            if (!$this->Members->save($member)) {
+            $connection = $this->Members->getConnection();
+            $connection->begin();
+            try {
+                if (!$this->Members->save($member)) {
+                    $connection->rollback();
+                    $this->Flash->error(
+                        __('The Member could not be verified. Please, try again.'),
+                    );
+
+                    return $this->redirect(['action' => 'view', $member->id]);
+                }
+                if (($cardDocumentId !== null || $legacyCardPath !== null) && $deleteImage) {
+                    $deleteResult = $registrationService->deleteMembershipCard($cardDocumentId, $legacyCardPath);
+                    if (!$deleteResult['success']) {
+                        $connection->rollback();
+                        $this->Flash->error(
+                            __(
+                                'The membership was not verified because the processed card '
+                                    . 'could not be securely deleted. Please try again.',
+                            ),
+                        );
+
+                        return $this->redirect(['action' => 'view', $member->id]);
+                    }
+                }
+                $connection->commit();
+            } catch (Throwable $e) {
+                if ($connection->inTransaction()) {
+                    $connection->rollback();
+                }
+                Log::error('Membership verification failed during card cleanup.', [
+                    'member_id' => $member->id,
+                    'error' => $e->getMessage(),
+                ]);
                 $this->Flash->error(
                     __('The Member could not be verified. Please, try again.'),
                 );
-                $this->redirect(['action' => 'view', $member->id]);
+
+                return $this->redirect(['action' => 'view', $member->id]);
             }
             $this->dispatchWorkflowEvent($dispatcher, 'Members.MembershipVerified', [
                 'member_id' => $member->id,
                 'verified_by' => $this->Authentication->getIdentity()->getIdentifier(),
             ]);
-            if ($image != null && $deleteImage) {
-                $image = WWW_ROOT . '../images/uploaded/' . $image;
-                $member->membership_card_path = null;
-                if (!StaticHelpers::deleteFile($image)) {
-                    $this->Flash->error('Error deleting image, please try again.');
-
-                    return $this->redirect(['action' => 'view', $member->id]);
-                }
-            }
         }
         $this->Flash->success(__('The Membership has been verified.'));
 
