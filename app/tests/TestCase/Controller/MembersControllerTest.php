@@ -237,13 +237,7 @@ class MembersControllerTest extends HttpIntegrationTestCase
             mkdir(dirname($sourcePath), 0755, true);
         }
 
-        file_put_contents(
-            $sourcePath,
-            base64_decode(
-                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII=',
-                true,
-            ),
-        );
+        $this->assertTrue(copy(WWW_ROOT . 'img/badge.png', $sourcePath));
 
         $documents = $this->getTableLocator()->get('Documents');
         $document = $documents->newEntity([

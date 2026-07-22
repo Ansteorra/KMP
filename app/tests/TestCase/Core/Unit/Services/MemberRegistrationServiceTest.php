@@ -187,13 +187,7 @@ final class MemberRegistrationServiceTest extends BaseTestCase
     public function testProcessScaCardUploadStoresPersistentDocument(): void
     {
         $tempPath = tempnam(sys_get_temp_dir(), 'member-card-');
-        file_put_contents(
-            $tempPath,
-            base64_decode(
-                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII=',
-                true,
-            ),
-        );
+        $this->assertTrue(copy(WWW_ROOT . 'img/badge.png', $tempPath));
 
         $size = filesize($tempPath);
         $this->assertIsInt($size);
