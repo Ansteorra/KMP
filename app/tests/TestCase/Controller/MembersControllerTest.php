@@ -98,6 +98,18 @@ class MembersControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('showing 1 record(s) out of 1 total');
     }
 
+    public function testVerifyQueueTabResponseIncludesTableColumns(): void
+    {
+        $this->configRequest(['headers' => ['Turbo-Frame' => 'verify-queue-grid-table']]);
+        $this->get('/members/verify-queue-grid-data?view_id=sys-verify-with-card');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('<turbo-frame');
+        $this->assertResponseContains('id="verify-queue-grid-table"');
+        $this->assertResponseContains('data-column-key="sca_name"');
+        $this->assertResponseContains('data-column-key="has_membership_card"');
+    }
+
     /**
      * Test view method displays member details
      *
