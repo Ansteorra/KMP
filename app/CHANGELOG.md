@@ -3,8 +3,22 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: ae107c9a2c8ffa43f20afa0beebf3eee32d9b1b8 -->
+<!-- LAST_SYNCED_COMMIT: 5074d8cb5e72ba4bd75f9f4940483e1faa8732b9 -->
 <!-- LAST_SYNCED_DATE: 2026-07-22 -->
+
+## KMP 1.5.4 — July 22, 2026
+
+### Verification Queue and Membership Processing Hotfix
+
+KMP 1.5.4 restores reliable membership verification and ensures Pending Verifications grids populate immediately when reviewers switch tabs.
+
+- Pending Verifications tabs now display their member columns and rows immediately without requiring a page refresh
+- POC and production deployments now clear tenant and platform database schema metadata before starting a new web revision, preventing verification failures after schema-changing upgrades
+- Failed membership verification saves now record validation details for administrators while leaving the member and uploaded card unchanged
+
+📅 July 22, 2026 · `Hotfix`
+
+---
 
 ## KMP 1.5.3 — July 22, 2026
 
