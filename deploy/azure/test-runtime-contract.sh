@@ -31,6 +31,7 @@ assert_contains "$bicep" "'worker'"
 assert_contains "$bicep" "'--cycle-budget'"
 schema_safe_migration_command='bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform'
 assert_contains "$bicep" "$schema_safe_migration_command"
+assert_contains "$here/main.json" "$schema_safe_migration_command"
 assert_contains "$here/cutover-unified-worker.sh" "$schema_safe_migration_command"
 assert_contains "$here/nightly-deploy.sh" "$schema_safe_migration_command"
 assert_contains "$here/nightly-deploy.sh" 'run_migrate_command "app schema cache clear" bin/cake schema_cache clear'

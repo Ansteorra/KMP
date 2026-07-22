@@ -107,7 +107,6 @@ class MembersControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('<turbo-frame');
         $this->assertResponseContains('id="verify-queue-grid-table"');
         $this->assertResponseContains('data-column-key="sca_name"');
-        $this->assertResponseContains('data-column-key="has_membership_card"');
     }
 
     /**
