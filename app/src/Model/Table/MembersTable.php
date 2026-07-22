@@ -32,6 +32,7 @@ use Exception;
  * @property \App\Model\Table\PendingAuthorizationsTable&\Cake\ORM\Association\HasMany $PendingAuthorizations
  * @property \App\Model\Table\GatheringAttendancesTable&\Cake\ORM\Association\HasMany $GatheringAttendances
  * @property \App\Model\Table\MemberQuickLoginDevicesTable&\Cake\ORM\Association\HasMany $MemberQuickLoginDevices
+ * @property \App\Model\Table\DocumentsTable&\Cake\ORM\Association\BelongsTo $MembershipCard
  * @property \App\Model\Table\DocumentsTable&\Cake\ORM\Association\BelongsTo $ProfilePhoto
  * @method \App\Model\Entity\Member newEmptyEntity()
  * @method \App\Model\Entity\Member newEntity(array $data, array $options = [])
@@ -97,6 +98,11 @@ class MembersTable extends BaseTable
         $this->belongsTo('ProfilePhoto', [
             'className' => 'Documents',
             'foreignKey' => 'profile_photo_document_id',
+            'joinType' => 'LEFT',
+        ]);
+        $this->belongsTo('MembershipCard', [
+            'className' => 'Documents',
+            'foreignKey' => 'membership_card_document_id',
             'joinType' => 'LEFT',
         ]);
 
@@ -260,6 +266,7 @@ class MembersTable extends BaseTable
         $validator->integer('birth_month')->notEmptyString('birth_month');
 
         $validator->integer('birth_year')->notEmptyString('birth_year');
+        $validator->integer('membership_card_document_id')->allowEmptyString('membership_card_document_id');
         $validator->integer('profile_photo_document_id')->allowEmptyString('profile_photo_document_id');
 
         $validator
@@ -300,6 +307,10 @@ class MembersTable extends BaseTable
     public function buildRules(RulesChecker $rules): RulesChecker
     {
         $rules->add($rules->isUnique(['email_address']), ['errorField' => 'email_address']);
+        $rules->add(
+            $rules->existsIn(['membership_card_document_id'], 'MembershipCard'),
+            ['errorField' => 'membership_card_document_id'],
+        );
         $rules->add(
             $rules->existsIn(['profile_photo_document_id'], 'ProfilePhoto'),
             ['errorField' => 'profile_photo_document_id'],

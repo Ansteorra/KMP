@@ -18,10 +18,10 @@ use Exception;
 use GdImage;
 use GuzzleHttp\Psr7\Uri;
 use Laminas\Diactoros\Stream;
-use Laminas\Diactoros\UploadedFile;
 use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
 use League\Flysystem\Filesystem as FlysystemFilesystem;
 use League\Flysystem\Local\LocalFilesystemAdapter;
+use Psr\Http\Message\UploadedFileInterface;
 use RuntimeException;
 use Throwable;
 
@@ -520,7 +520,7 @@ class DocumentService
      * 4. Creates the document database record
      * 5. Returns the document ID
      *
-     * @param \Laminas\Diactoros\UploadedFile $file The uploaded file object
+     * @param \Psr\Http\Message\UploadedFileInterface $file The uploaded file object
      * @param string $entityType The entity type (e.g., 'Waivers.WaiverTypes')
      * @param int $entityId The entity ID this document belongs to
      * @param int $uploadedBy The member ID who uploaded the file
@@ -532,7 +532,7 @@ class DocumentService
      * @return \App\Services\ServiceResult Success with document ID, or failure with error message
      */
     public function createDocument(
-        UploadedFile $file,
+        UploadedFileInterface $file,
         string $entityType,
         int $entityId,
         int $uploadedBy,
@@ -1454,15 +1454,6 @@ class DocumentService
             // Delete physical file first using the appropriate filesystem
             if ($filesystem !== null) {
                 try {
-                    if ($filesystem->fileExists($document->file_path)) {
-                        $filesystem->delete($document->file_path);
-                        Log::info('Document file deleted', [
-                            'document_id' => $documentId,
-                            'file_path' => $document->file_path,
-                            'adapter' => $documentAdapter,
-                        ]);
-                    }
-
                     if (
                         $document->entity_type === 'Members.ProfilePhoto'
                         || str_starts_with((string)$document->mime_type, 'image/')
@@ -1473,12 +1464,14 @@ class DocumentService
                                 $filesystem->delete($thumbnailPath);
                             }
                         } catch (Exception $e) {
-                            Log::debug('Failed to delete image thumbnail during document cleanup', [
+                            Log::warning('Failed to delete image thumbnail during document cleanup', [
                                 'document_id' => $documentId,
                                 'thumbnail_path' => $thumbnailPath,
                                 'adapter' => $documentAdapter,
                                 'error' => $e->getMessage(),
                             ]);
+
+                            throw $e;
                         }
                     }
 
@@ -1507,6 +1500,15 @@ class DocumentService
                             ]);
                         }
                     }
+
+                    if ($filesystem->fileExists($document->file_path)) {
+                        $filesystem->delete($document->file_path);
+                        Log::info('Document file deleted', [
+                            'document_id' => $documentId,
+                            'file_path' => $document->file_path,
+                            'adapter' => $documentAdapter,
+                        ]);
+                    }
                 } catch (Exception $e) {
                     Log::warning('Failed to delete physical file', [
                         'document_id' => $documentId,
@@ -1514,12 +1516,22 @@ class DocumentService
                         'adapter' => $documentAdapter,
                         'error' => $e->getMessage(),
                     ]);
+
+                    return new ServiceResult(
+                        false,
+                        __('Failed to delete the stored file.'),
+                    );
                 }
             } else {
                 Log::warning('Could not initialize filesystem for document deletion', [
                     'document_id' => $documentId,
                     'adapter' => $documentAdapter,
                 ]);
+
+                return new ServiceResult(
+                    false,
+                    __('Unable to access document storage for deletion.'),
+                );
             }
 
             // Delete document record

@@ -135,6 +135,15 @@ class MembersControllerTest extends HttpIntegrationTestCase
         $this->assertRedirectContains('/members/login');
     }
 
+    public function testMembershipCardRequiresAuthenticatedSession(): void
+    {
+        $this->logout();
+
+        $this->get('/members/membership-card/' . self::ADMIN_MEMBER_ID);
+
+        $this->assertRedirectContains('/members/login');
+    }
+
     public function testMobileCardPhotoRequiresAuthenticatedSession(): void
     {
         $this->logout();
@@ -209,6 +218,72 @@ class MembersControllerTest extends HttpIntegrationTestCase
             $this->assertResponseCode(304);
             $this->assertHeader('ETag', $etag);
         } finally {
+            if (file_exists($sourcePath)) {
+                unlink($sourcePath);
+            }
+            if (file_exists($thumbnailPath)) {
+                unlink($thumbnailPath);
+            }
+        }
+    }
+
+    public function testMembershipCardUsesAuthorizedPersistentDocumentResponse(): void
+    {
+        $config = Configure::read('Documents.storage', []);
+        $basePath = $config['local']['path'] ?? WWW_ROOT . '../images/uploaded/';
+        $relativePath = 'member-cards/controller-' . uniqid() . '.png';
+        $sourcePath = $basePath . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
+        if (!is_dir(dirname($sourcePath))) {
+            mkdir(dirname($sourcePath), 0755, true);
+        }
+
+        $this->assertTrue(copy(WWW_ROOT . 'img/badge.png', $sourcePath));
+
+        $documents = $this->getTableLocator()->get('Documents');
+        $document = $documents->newEntity([
+            'entity_type' => 'Members.MembershipCard',
+            'entity_id' => self::ADMIN_MEMBER_ID,
+            'uploaded_by' => self::ADMIN_MEMBER_ID,
+            'original_filename' => 'membership-card.png',
+            'stored_filename' => basename($relativePath),
+            'file_path' => $relativePath,
+            'mime_type' => 'image/png',
+            'file_size' => filesize($sourcePath),
+            'checksum' => hash_file('sha256', $sourcePath),
+            'storage_adapter' => 'local',
+        ]);
+        $document = $documents->saveOrFail($document);
+        $members = $this->getTableLocator()->get('Members');
+        $member = $members->get(self::ADMIN_MEMBER_ID);
+        $member->membership_card_path = $relativePath;
+        $member->membership_card_document_id = $document->id;
+        $members->saveOrFail($member);
+
+        $documentService = new DocumentService();
+        $thumbnailPath = $basePath . DIRECTORY_SEPARATOR . str_replace(
+            '/',
+            DIRECTORY_SEPARATOR,
+            $documentService->getImageThumbnailPath($document),
+        );
+
+        try {
+            $this->get('/members/view/' . self::ADMIN_MEMBER_ID);
+            $this->assertResponseOk();
+            $this->assertResponseContains(
+                '/members/membership-card/' . self::ADMIN_MEMBER_ID,
+            );
+            $this->assertResponseContains('Membership card submitted by');
+
+            $this->get('/members/membership-card/' . self::ADMIN_MEMBER_ID);
+            $this->assertResponseOk();
+            $this->assertHeader('Cache-Control', 'private, no-store');
+            $this->assertHeader('X-Content-Type-Options', 'nosniff');
+            $this->assertContentType('image/jpeg');
+        } finally {
+            $member->membership_card_path = null;
+            $member->membership_card_document_id = null;
+            $members->saveOrFail($member);
+            $documents->deleteOrFail($document);
             if (file_exists($sourcePath)) {
                 unlink($sourcePath);
             }

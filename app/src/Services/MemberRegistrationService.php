@@ -4,10 +4,15 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\KMP\StaticHelpers;
+use App\Model\Entity\Document;
 use App\Model\Entity\Member;
+use Cake\Core\Configure;
+use Cake\Http\Response;
 use Cake\I18n\DateTime;
+use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Cake\Routing\Router;
+use Exception;
 use finfo;
 use Psr\Http\Message\UploadedFileInterface;
 
@@ -29,73 +34,156 @@ class MemberRegistrationService
      */
     private $Members;
 
+    private DocumentService $documentService;
+
     /**
      * Initialize the registration service.
      */
-    public function __construct()
+    public function __construct(?DocumentService $documentService = null)
     {
         /** @var \App\Model\Table\MembersTable $members */
         $members = $this->fetchTable('Members');
         $this->Members = $members;
+        $this->documentService = $documentService ?? new DocumentService();
     }
 
     /**
      * Validate and store an uploaded membership card image.
      *
-     * @param \Psr\Http\Message\UploadedFileInterface $file Uploaded card image.
-     * @return array{success:bool,message?:string,fileName?:string}
+     * @return array{success:bool,message?:string,fileName?:string,documentId?:int}
      */
-    public function processCardUpload(UploadedFileInterface $file): array
-    {
-        $allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/pjpeg'];
-        $clientMediaType = $file->getClientMediaType();
-        if (!in_array($clientMediaType, $allowedTypes)) {
-            return [
-                'success' => false,
-                'message' => (string)__('Invalid file type. Only PNG and JPEG images are allowed.'),
-            ];
-        }
-
-        $ext = strtolower(pathinfo((string)$file->getClientFilename(), PATHINFO_EXTENSION));
-        if (!in_array($ext, ['png', 'jpg', 'jpeg'])) {
-            return [
-                'success' => false,
-                'message' => (string)__('Invalid file extension. Only .png, .jpg, .jpeg are allowed.'),
-            ];
-        }
-
-        $storageLoc = WWW_ROOT . '../images/uploaded/';
-        $fileName = StaticHelpers::generateToken(10);
-        StaticHelpers::ensureDirectoryExists($storageLoc, 0755);
-        $file->moveTo(WWW_ROOT . '../images/uploaded/' . $fileName);
-        $fileResult = StaticHelpers::saveScaledImage($fileName, 500, 700, $storageLoc, $storageLoc);
-        if (!$fileResult) {
-            return ['success' => false, 'message' => (string)__('Error saving image, please try again.')];
-        }
-        $fileName = substr($fileResult, strrpos($fileResult, '/') + 1);
-
-        return ['success' => true, 'fileName' => $fileName];
+    public function processCardUpload(
+        UploadedFileInterface $file,
+        int $memberId,
+        int $uploaderId,
+    ): array {
+        return $this->storeMembershipCard($file, $memberId, $uploaderId);
     }
 
     /**
-     * Validate an SCA membership card upload with server-side content verification.
+     * Validate and persist an updated SCA membership card.
      *
-     * @param \Psr\Http\Message\UploadedFileInterface $file Uploaded card image.
-     * @return array{success:bool,message?:string,fileName?:string}
+     * @return array{success:bool,message?:string,fileName?:string,documentId?:int}
      */
-    public function processScaCardUpload(UploadedFileInterface $file): array
+    public function processScaCardUpload(
+        UploadedFileInterface $file,
+        int $memberId,
+        int $uploaderId,
+    ): array {
+        return $this->storeMembershipCard($file, $memberId, $uploaderId);
+    }
+
+    /**
+     * Stream a membership card from persistent storage or the legacy local path.
+     */
+    public function getMembershipCardResponse(Member $member): ?Response
     {
+        if ($member->membership_card instanceof Document) {
+            return $this->documentService->getImageThumbnailInlineResponse(
+                $member->membership_card,
+                'membership_card_' . $member->id . '.jpg',
+            );
+        }
+
+        $legacyPath = (string)$member->membership_card_path;
+        if ($legacyPath === '' || basename($legacyPath) !== $legacyPath) {
+            return null;
+        }
+
+        $storageConfig = (array)Configure::read('Documents.storage.local', []);
+        $basePath = (string)($storageConfig['path'] ?? WWW_ROOT . '../images/uploaded/');
+        $fullPath = realpath(rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $legacyPath);
+        $resolvedBasePath = realpath($basePath);
+        if (
+            $fullPath === false
+            || $resolvedBasePath === false
+            || !is_file($fullPath)
+            || !str_starts_with($fullPath, rtrim($resolvedBasePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)
+        ) {
+            return null;
+        }
+
+        return (new Response())->withFile($fullPath, [
+            'download' => false,
+            'name' => 'membership_card_' . $member->id . '.' . pathinfo($legacyPath, PATHINFO_EXTENSION),
+        ]);
+    }
+
+    /**
+     * Delete a membership card after its member record no longer references it.
+     *
+     * @return array{success:bool,message?:string}
+     */
+    public function deleteMembershipCard(?int $documentId, ?string $legacyPath): array
+    {
+        if ($documentId !== null) {
+            $result = $this->documentService->deleteDocument($documentId);
+
+            return $result->success
+                ? ['success' => true]
+                : [
+                    'success' => false,
+                    'message' => $result->reason ?? (string)__('Unable to delete membership card.'),
+                ];
+        }
+
+        if ($legacyPath === null || $legacyPath === '') {
+            return ['success' => true];
+        }
+        if (basename($legacyPath) !== $legacyPath) {
+            Log::warning('Refused to delete unsafe legacy membership card path.');
+
+            return ['success' => false, 'message' => (string)__('Unable to delete membership card.')];
+        }
+
+        $storageConfig = (array)Configure::read('Documents.storage.local', []);
+        $basePath = (string)($storageConfig['path'] ?? WWW_ROOT . '../images/uploaded/');
+        $fullPath = rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $legacyPath;
+        if (!file_exists($fullPath)) {
+            Log::warning('Legacy membership card file was already missing.', ['file' => $legacyPath]);
+
+            return ['success' => true];
+        }
+
+        try {
+            return StaticHelpers::deleteFile($fullPath)
+                ? ['success' => true]
+                : ['success' => false, 'message' => (string)__('Unable to delete membership card.')];
+        } catch (Exception $e) {
+            Log::warning('Failed to delete legacy membership card file.', [
+                'file' => $legacyPath,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ['success' => false, 'message' => (string)__('Unable to delete membership card.')];
+        }
+    }
+
+    /**
+     * Validate image content and store it through tenant-aware document storage.
+     *
+     * @return array{success:bool,message?:string,fileName?:string,documentId?:int}
+     */
+    private function storeMembershipCard(
+        UploadedFileInterface $file,
+        int $memberId,
+        int $uploaderId,
+    ): array {
+        if ($file->getError() !== UPLOAD_ERR_OK || $file->getSize() <= 0) {
+            return ['success' => false, 'message' => (string)__('Please choose a membership card image.')];
+        }
+
         $allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/pjpeg'];
         $clientMediaType = $file->getClientMediaType();
-        if (!in_array($clientMediaType, $allowedTypes)) {
+        if (!in_array($clientMediaType, $allowedTypes, true)) {
             return [
                 'success' => false,
                 'message' => (string)__('Invalid file type. Only PNG and JPEG images are allowed.'),
             ];
         }
 
-        $ext = strtolower(pathinfo((string)$file->getClientFilename(), PATHINFO_EXTENSION));
-        if (!in_array($ext, ['png', 'jpg', 'jpeg'])) {
+        $extension = strtolower(pathinfo((string)$file->getClientFilename(), PATHINFO_EXTENSION));
+        if (!in_array($extension, ['png', 'jpg', 'jpeg'], true)) {
             return [
                 'success' => false,
                 'message' => (string)__('Invalid file extension. Only .png, .jpg, .jpeg are allowed.'),
@@ -103,23 +191,40 @@ class MemberRegistrationService
         }
 
         $tempPath = $file->getStream()->getMetadata('uri');
+        if (!is_string($tempPath) || !is_file($tempPath)) {
+            return ['success' => false, 'message' => (string)__('Unable to read the uploaded image.')];
+        }
+
         $finfo = new finfo(FILEINFO_MIME_TYPE);
         $actualMimeType = $finfo->file($tempPath);
-        if (!in_array($actualMimeType, ['image/png', 'image/jpeg'])) {
+        if (!in_array($actualMimeType, ['image/png', 'image/jpeg'], true)) {
             return ['success' => false, 'message' => (string)__('File content does not match an allowed image type.')];
         }
 
-        $storageLoc = WWW_ROOT . '../images/uploaded/';
-        $fileName = StaticHelpers::generateToken(10);
-        StaticHelpers::ensureDirectoryExists($storageLoc, 0755);
-        $file->moveTo(WWW_ROOT . '../images/uploaded/' . $fileName);
-        $fileResult = StaticHelpers::saveScaledImage($fileName, 500, 700, $storageLoc, $storageLoc);
-        if (!$fileResult) {
-            return ['success' => false, 'message' => (string)__('Error saving image, please try again.')];
+        $result = $this->documentService->createDocument(
+            $file,
+            'Members.MembershipCard',
+            $memberId,
+            $uploaderId,
+            ['type' => 'membership_card'],
+            'member-cards',
+            ['png', 'jpg', 'jpeg'],
+            verifiedMimeType: $actualMimeType,
+        );
+        if (!$result->success) {
+            return [
+                'success' => false,
+                'message' => $result->reason ?? (string)__('Error saving image, please try again.'),
+            ];
         }
-        $fileName = substr($fileResult, strrpos($fileResult, '/') + 1);
 
-        return ['success' => true, 'fileName' => $fileName];
+        $documentId = (int)$result->data;
+
+        return [
+            'success' => true,
+            'documentId' => $documentId,
+            'fileName' => 'document:' . $documentId,
+        ];
     }
 
     /**

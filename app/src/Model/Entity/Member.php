@@ -39,7 +39,9 @@ use JeremyHarris\LazyLoad\ORM\LazyLoadEntityTrait;
  * @property string $email_address Primary email
  * @property string $status Member status (see STATUS_* constants)
  * @property int|null $branch_id Associated branch
+ * @property int|null $membership_card_document_id Persistent membership card document
  * @property bool $warrantable Calculated warrant eligibility
+ * @property \App\Model\Entity\Document|null $membership_card Membership card document
  * @property \App\Model\Entity\Role[] $roles Assigned roles
  */
 class Member extends BaseEntity implements
@@ -141,6 +143,7 @@ class Member extends BaseEntity implements
         'pronouns' => true,
         'pronunciation' => true,
         'timezone' => true,
+        'membership_card_document_id' => false,
         'profile_photo_document_id' => false,
     ];
 
@@ -195,6 +198,7 @@ class Member extends BaseEntity implements
         unset($data['verified_date']);
         unset($data['verified_by']);
         unset($data['membership_card_path']);
+        unset($data['membership_card_document_id']);
         unset($data['profile_photo_document_id']);
         unset($data['created_by']);
         unset($data['modified_by']);
