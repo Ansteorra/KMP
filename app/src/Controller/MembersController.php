@@ -2564,6 +2564,12 @@ class MembersController extends AppController
                     ));
                     $cleanupResult = $regService->deleteMembershipCard($oldDocumentId, $oldLegacyPath);
                     if (!$cleanupResult['success']) {
+                        Log::error('Failed to remove previous membership card after replacement.', [
+                            'member_id' => (int)$member->id,
+                            'old_document_id' => $oldDocumentId,
+                            'old_legacy_path' => $oldLegacyPath,
+                            'error' => $cleanupResult['message'] ?? null,
+                        ]);
                         $this->Flash->warning(__(
                             'Membership information was submitted, but the previous card could not be removed.',
                         ));
