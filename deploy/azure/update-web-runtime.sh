@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 usage() {
     cat <<'EOF'
 Usage:
@@ -60,11 +62,30 @@ az containerapp show \
 resource_id="$(jq -r '.id' "$current_file")"
 container_name="$(jq -r '.properties.template.containers[0].name' "$current_file")"
 
-jq --arg image "$image" --arg container "$container_name" '
+image_token="$(
+    printf '%s' "${image##*:}" \
+        | tr '[:upper:]_' '[:lower:]-' \
+        | tr -cd 'a-z0-9-' \
+        | sed -E 's/-+/-/g; s/^-+//; s/-+$//' \
+        | cut -c1-24 \
+        | sed -E 's/-+$//'
+)"
+[[ -n "$image_token" ]] || image_token='deploy'
+if [[ ! "$image_token" =~ ^[a-z] ]]; then
+    image_token="r-$image_token"
+fi
+revision_suffix="${image_token}-$(date -u +%s)"
+revision="${web_app}--${revision_suffix}"
+
+jq \
+    --arg image "$image" \
+    --arg container "$container_name" \
+    --arg revision_suffix "$revision_suffix" '
     {
         properties: {
             template: (
                 .properties.template
+                | .revisionSuffix = $revision_suffix
                 | del(.containers[].imageType?)
                 | del(.scale.cooldownPeriod?, .scale.pollingInterval?)
                 | .containers |= map(
@@ -113,4 +134,9 @@ az rest \
     --body "@$patch_file" \
     --output none
 
-echo "Updated $web_app to $image with request-only flags and split probes."
+"$script_dir/verify-web-revision.sh" \
+    --resource-group "$resource_group" \
+    --web-app "$web_app" \
+    --container "$container_name" \
+    --revision "$revision" \
+    --image "$image"

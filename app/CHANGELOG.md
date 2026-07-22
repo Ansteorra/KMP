@@ -3,7 +3,7 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: d2633d888cec07a5301573a77bf5924bf0228a75 -->
+<!-- LAST_SYNCED_COMMIT: ae107c9a2c8ffa43f20afa0beebf3eee32d9b1b8 -->
 <!-- LAST_SYNCED_DATE: 2026-07-22 -->
 
 ## KMP 1.5.3 — July 22, 2026
@@ -17,6 +17,7 @@ KMP 1.5.3 restores reliable access to uploaded membership cards and corrects rec
 - Processed and replaced membership cards, including generated thumbnails, are securely removed when they are no longer needed
 - Membership verification stops and reports an error if the processed card cannot be securely deleted
 - The Bestowal grid now displays the stored recipient SCA name when a Bestowal is not linked to a member record
+- POC and production web cutovers now verify that the intended Azure revision and image are ready before deployment reports success
 
 📅 July 22, 2026 · `Hotfix`
 
