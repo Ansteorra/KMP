@@ -229,10 +229,6 @@ class MembersControllerTest extends HttpIntegrationTestCase
 
     public function testMembershipCardUsesAuthorizedPersistentDocumentResponse(): void
     {
-        if (!extension_loaded('gd')) {
-            $this->markTestSkipped('GD extension is required for thumbnail generation');
-        }
-
         $config = Configure::read('Documents.storage', []);
         $basePath = $config['local']['path'] ?? WWW_ROOT . '../images/uploaded/';
         $relativePath = 'member-cards/controller-' . uniqid() . '.png';
@@ -241,11 +237,13 @@ class MembersControllerTest extends HttpIntegrationTestCase
             mkdir(dirname($sourcePath), 0755, true);
         }
 
-        $sourceImage = imagecreatetruecolor(900, 600);
-        $color = imagecolorallocate($sourceImage, 40, 110, 170);
-        imagefill($sourceImage, 0, 0, $color);
-        imagepng($sourceImage, $sourcePath);
-        imagedestroy($sourceImage);
+        file_put_contents(
+            $sourcePath,
+            base64_decode(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII=',
+                true,
+            ),
+        );
 
         $documents = $this->getTableLocator()->get('Documents');
         $document = $documents->newEntity([

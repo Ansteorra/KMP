@@ -186,14 +186,14 @@ final class MemberRegistrationServiceTest extends BaseTestCase
 
     public function testProcessScaCardUploadStoresPersistentDocument(): void
     {
-        if (!extension_loaded('gd')) {
-            $this->markTestSkipped('GD extension is required to create the image fixture');
-        }
-
         $tempPath = tempnam(sys_get_temp_dir(), 'member-card-');
-        $image = imagecreatetruecolor(40, 30);
-        imagepng($image, $tempPath);
-        imagedestroy($image);
+        file_put_contents(
+            $tempPath,
+            base64_decode(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII=',
+                true,
+            ),
+        );
 
         $size = filesize($tempPath);
         $this->assertIsInt($size);
