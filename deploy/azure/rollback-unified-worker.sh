@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 usage() {
     cat <<'EOF'
 Usage:
@@ -172,12 +174,17 @@ for file in "$snapshot_dir/worker-job.json" "$snapshot_dir"/legacy-*.json; do
 done
 
 web_id="$(jq -r '.id' "$snapshot_dir/web.json")"
+web_container="$(jq -r '.properties.template.containers[0].name' "$snapshot_dir/web.json")"
+web_image="$(jq -r '.properties.template.containers[0].image' "$snapshot_dir/web.json")"
 web_patch="$(mktemp)"
 trap 'rm -f "$web_patch"' EXIT
-jq '{
+rollback_suffix="rollback-$(date -u +%s)"
+rollback_revision="${web_app}--${rollback_suffix}"
+jq --arg revision_suffix "$rollback_suffix" '{
     properties: {
         template: (
             .properties.template
+            | .revisionSuffix = $revision_suffix
             | del(.containers[].imageType?)
             | del(.scale.cooldownPeriod?, .scale.pollingInterval?)
         )
@@ -188,5 +195,12 @@ run az rest \
     --uri "https://management.azure.com${web_id}?api-version=2024-03-01" \
     --body "@$web_patch" \
     --output none
+
+"$script_dir/verify-web-revision.sh" \
+    --resource-group "$resource_group" \
+    --web-app "$web_app" \
+    --container "$web_container" \
+    --revision "$rollback_revision" \
+    --image "$web_image"
 
 echo "ACA runtime definitions restored from $snapshot_dir."
