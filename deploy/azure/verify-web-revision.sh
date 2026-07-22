@@ -51,6 +51,15 @@ done
 attempts="${KMP_REVISION_VERIFY_ATTEMPTS:-120}"
 delay_seconds="${KMP_REVISION_VERIFY_DELAY_SECONDS:-5}"
 
+if [[ ! "$attempts" =~ ^[1-9][0-9]*$ ]]; then
+    echo 'KMP_REVISION_VERIFY_ATTEMPTS must be a positive integer.' >&2
+    exit 64
+fi
+if [[ ! "$delay_seconds" =~ ^[0-9]+$ ]]; then
+    echo 'KMP_REVISION_VERIFY_DELAY_SECONDS must be a non-negative integer.' >&2
+    exit 64
+fi
+
 for attempt in $(seq 1 "$attempts"); do
     revision_state="$(
         az containerapp show \
@@ -98,3 +107,6 @@ for attempt in $(seq 1 "$attempts"); do
     fi
     sleep "$delay_seconds"
 done
+
+echo "Revision verification ended without confirming $revision." >&2
+exit 1

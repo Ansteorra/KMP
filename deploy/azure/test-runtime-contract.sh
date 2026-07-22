@@ -227,6 +227,19 @@ if FAKE_AZ_PATCH="$tmpdir/web-patch.json" \
     echo 'Web revision verification accepted an unexpected image.' >&2
     exit 1
 fi
+for invalid_attempts in 0 -1 invalid; do
+    if KMP_REVISION_VERIFY_ATTEMPTS="$invalid_attempts" \
+        PATH="$tmpdir:$PATH" \
+        "$revision_helper" \
+            --resource-group test-rg \
+            --web-app test-web \
+            --container web \
+            --revision "test-web--$revision_suffix" \
+            --image example.azurecr.io/kmp:test >/dev/null 2>&1; then
+        echo "Web revision verification accepted invalid attempt count: $invalid_attempts" >&2
+        exit 1
+    fi
+done
 
 printf '%s\n' \
     '#!/usr/bin/env bash' \
