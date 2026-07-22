@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.36.1.42791",
-      "templateHash": "1424919296148911865"
+      "templateHash": "1548209670929355948"
     }
   },
   "parameters": {
@@ -571,7 +571,7 @@
         "args": [
           "/bin/sh",
           "-lc",
-          "bin/cake migrations migrate && bin/cake updateDatabase && bin/cake platform_migrate migrate"
+          "bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform"
         ]
       },
       {

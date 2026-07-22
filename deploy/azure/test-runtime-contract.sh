@@ -29,7 +29,13 @@ assert_contains "$bicep" "httpGet: { path: '/livez', port: 80 }"
 assert_contains "$bicep" "periodSeconds: 60"
 assert_contains "$bicep" "'worker'"
 assert_contains "$bicep" "'--cycle-budget'"
-assert_contains "$bicep" 'bin/cake migrations migrate && bin/cake updateDatabase && bin/cake platform_migrate migrate'
+schema_safe_migration_command='bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform'
+assert_contains "$bicep" "$schema_safe_migration_command"
+assert_contains "$here/main.json" "$schema_safe_migration_command"
+assert_contains "$here/cutover-unified-worker.sh" "$schema_safe_migration_command"
+assert_contains "$here/nightly-deploy.sh" "$schema_safe_migration_command"
+assert_contains "$here/nightly-deploy.sh" 'run_migrate_command "app schema cache clear" bin/cake schema_cache clear'
+assert_contains "$here/nightly-deploy.sh" 'run_migrate_command "platform schema cache clear" bin/cake schema_cache clear --connection platform'
 assert_contains "$workflow" 'cutover-unified-worker.sh'
 assert_contains "$workflow" 'Preserve pre-cutover definitions'
 assert_contains "$workflow" 'AZURE_POSTGRES_RESOURCE_GROUP'

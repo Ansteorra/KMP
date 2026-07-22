@@ -994,7 +994,7 @@ var manualShapeJobDefinitions = [
     args: [
       '/bin/sh'
       '-lc'
-      'bin/cake migrations migrate && bin/cake updateDatabase && bin/cake platform_migrate migrate'
+      'bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform'
     ]
   }
   {

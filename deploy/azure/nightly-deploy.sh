@@ -174,7 +174,7 @@ restore_migrate_job_default() {
     patch_job_command \
         "$MIGRATE_JOB" \
         '["/usr/local/bin/docker-entrypoint.sh"]' \
-        '["/bin/sh","-lc","bin/cake migrations migrate && bin/cake updateDatabase && bin/cake platform_migrate migrate"]'
+        '["/bin/sh","-lc","bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform"]'
 }
 
 run_migrate_command() {
@@ -193,8 +193,10 @@ run_migrations() {
     ensure_az
     trap restore_migrate_job_default EXIT
     run_migrate_command "app migrations" bin/cake migrations migrate
+    run_migrate_command "app schema cache clear" bin/cake schema_cache clear
     run_migrate_command "app settings update" bin/cake updateDatabase
     run_migrate_command "platform migrations" bin/cake platform_migrate migrate
+    run_migrate_command "platform schema cache clear" bin/cake schema_cache clear --connection platform
     if [[ "${SKIP_BACKUP_KEY_RECONCILIATION:-0}" == "1" ]]; then
         warn "Skipping platform backup key reconciliation"
     else

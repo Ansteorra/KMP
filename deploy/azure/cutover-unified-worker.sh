@@ -292,7 +292,7 @@ patch_job_runtime \
     1 \
     migrate \
     '["/usr/local/bin/docker-entrypoint.sh"]' \
-    '["/bin/sh","-lc","bin/cake migrations migrate && bin/cake updateDatabase && bin/cake platform_migrate migrate"]'
+    '["/bin/sh","-lc","bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform"]'
 
 start_and_wait "$migrate_job" 'migration'
 

@@ -64,8 +64,8 @@ does not add Azure resources.
 
 Default job shapes:
 - `<prefix>-migrate` — manual migration/canary job; entrypoint applies app
-  migrations, then `bin/cake platform_migrate migrate` applies platform metadata
-  migrations.
+  migrations, clears the app schema cache, applies platform metadata migrations,
+  then clears the platform schema cache before web cutover.
 - `<prefix>-restore` — manual restore-from-seed operation using
   `/opt/kmp/reset-and-seed.sh`.
 - `<prefix>-provision` — manual tenant provision operation shape. The safe
@@ -199,7 +199,8 @@ workflow:
    package into the POC ACR
 3. Captures the current web and Job definitions as a rollback artifact
 4. Repairs and manually canaries the one-minute unified worker
-5. Repairs `kmp-migrate`, runs it, and requires success
+5. Repairs `kmp-migrate`, runs migrations plus both schema-cache clears, and
+   requires success
 6. Runs a post-migration worker verification
 7. Atomically updates the web image, skip flags, and split probes
 8. Requires both `/livez` and `/health` to return 200
@@ -262,12 +263,14 @@ want a stable tag.
 
 The helper temporarily patches the `kmpnightly-migrate` Container Apps Job when
 it needs to run specific commands (`bin/cake migrations migrate`,
-`bin/cake updateDatabase`, `bin/cake platform_migrate migrate`,
+`bin/cake schema_cache clear`, `bin/cake updateDatabase`,
+`bin/cake platform_migrate migrate`,
+`bin/cake schema_cache clear --connection platform`,
 `bin/cake platform backup-keys ensure`, and optionally
 `bin/cake awards migrate_award_recommendations --apply --allow-open-manual-review`).
 It restores the Job to the standard
-`/usr/local/bin/docker-entrypoint.sh /bin/sh -lc "bin/cake platform_migrate
-migrate"` contract afterward, so every deployment repairs migration drift.
+schema-safe migration contract afterward, so every deployment repairs migration
+drift and clears metadata before a new web revision starts.
 
 Current custom-host smoke checks expect:
 

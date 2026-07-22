@@ -663,6 +663,7 @@ class MembersController extends AppController
             'data' => $result['data'],
             'members' => $result['data'],
             'gridState' => $result['gridState'],
+            'columns' => $result['columnsMetadata'],
         ]);
 
         // Determine which template to render based on Turbo-Frame header
@@ -3000,6 +3001,10 @@ class MembersController extends AppController
             $connection->begin();
             try {
                 if (!$this->Members->save($member)) {
+                    Log::error('Membership verification failed to save member.', [
+                        'member_id' => (int)$member->id,
+                        'errors' => $member->getErrors(),
+                    ]);
                     $connection->rollback();
                     $this->Flash->error(
                         __('The Member could not be verified. Please, try again.'),
