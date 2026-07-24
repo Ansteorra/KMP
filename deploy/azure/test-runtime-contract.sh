@@ -6,6 +6,7 @@ repo_root="$(cd "$here/../.." && pwd)"
 bicep="$here/main.bicep"
 workflow="$repo_root/.github/workflows/azure-deploy.yml"
 poc_workflow="$repo_root/.github/workflows/nightly-deploy-azure.yml"
+app_config="$repo_root/app/config/app.php"
 scheduler="$repo_root/docker/scheduler-loop.sh"
 extension_helper="$here/ensure-postgres-extension.sh"
 revision_helper="$here/verify-web-revision.sh"
@@ -29,13 +30,15 @@ assert_contains "$bicep" "httpGet: { path: '/livez', port: 80 }"
 assert_contains "$bicep" "periodSeconds: 60"
 assert_contains "$bicep" "'worker'"
 assert_contains "$bicep" "'--cycle-budget'"
-schema_safe_migration_command='bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform'
+schema_safe_migration_command='bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake cache clear _cake_model_'
 assert_contains "$bicep" "$schema_safe_migration_command"
 assert_contains "$here/main.json" "$schema_safe_migration_command"
 assert_contains "$here/cutover-unified-worker.sh" "$schema_safe_migration_command"
 assert_contains "$here/nightly-deploy.sh" "$schema_safe_migration_command"
 assert_contains "$here/nightly-deploy.sh" 'run_migrate_command "app schema cache clear" bin/cake schema_cache clear'
 assert_contains "$here/nightly-deploy.sh" 'run_migrate_command "platform schema cache clear" bin/cake schema_cache clear --connection platform'
+assert_contains "$here/nightly-deploy.sh" 'run_migrate_command "shared model cache clear" bin/cake cache clear _cake_model_'
+assert_contains "$app_config" '"prefix" => "kmp_model_"'
 assert_contains "$workflow" 'cutover-unified-worker.sh'
 assert_contains "$workflow" 'Preserve pre-cutover definitions'
 assert_contains "$workflow" 'AZURE_POSTGRES_RESOURCE_GROUP'

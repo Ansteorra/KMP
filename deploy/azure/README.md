@@ -65,7 +65,9 @@ does not add Azure resources.
 Default job shapes:
 - `<prefix>-migrate` — manual migration/canary job; entrypoint applies app
   migrations, clears the app schema cache, applies platform metadata migrations,
-  then clears the platform schema cache before web cutover.
+  clears the platform schema cache, then clears the isolated shared model cache
+  so dynamic tenant connection aliases cannot retain stale metadata before web
+  cutover without affecting sessions or application data caches.
 - `<prefix>-restore` — manual restore-from-seed operation using
   `/opt/kmp/reset-and-seed.sh`.
 - `<prefix>-provision` — manual tenant provision operation shape. The safe
@@ -266,11 +268,13 @@ it needs to run specific commands (`bin/cake migrations migrate`,
 `bin/cake schema_cache clear`, `bin/cake updateDatabase`,
 `bin/cake platform_migrate migrate`,
 `bin/cake schema_cache clear --connection platform`,
+`bin/cake cache clear _cake_model_`,
 `bin/cake platform backup-keys ensure`, and optionally
 `bin/cake awards migrate_award_recommendations --apply --allow-open-manual-review`).
 It restores the Job to the standard
 schema-safe migration contract afterward, so every deployment repairs migration
-drift and clears metadata before a new web revision starts.
+drift and clears default, platform, and dynamic tenant metadata before a new web
+revision starts.
 
 Current custom-host smoke checks expect:
 

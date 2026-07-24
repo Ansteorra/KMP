@@ -413,6 +413,7 @@ return [
             "className" => $cacheEngine,
             "duration" => "+1 years",
             "url" => env("CACHE_CAKEMODEL_URL", null),
+            "prefix" => "kmp_model_",
         ],
     ],
 
