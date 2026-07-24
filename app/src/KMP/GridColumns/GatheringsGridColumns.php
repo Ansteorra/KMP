@@ -188,6 +188,25 @@ class GatheringsGridColumns extends BaseGridColumns
                 'alignment' => 'left',
             ],
 
+            'relative_event_date' => [
+                'key' => 'relative_event_date',
+                'label' => 'Event Date',
+                'type' => 'string',
+                'sortable' => false,
+                'filterable' => true,
+                'filterType' => 'dropdown',
+                'filterOptions' => [
+                    ['value' => 'today_or_after', 'label' => 'Today or after'],
+                ],
+                'defaultVisible' => false,
+                'filterOnly' => true,
+                'skipAutoFilter' => true,
+                'customFilterHandler' => [
+                    'class' => self::class,
+                    'method' => 'filterByRelativeEventDate',
+                ],
+            ],
+
             'location' => [
                 'key' => 'location',
                 'label' => 'Location',
@@ -311,6 +330,34 @@ class GatheringsGridColumns extends BaseGridColumns
         }
 
         return $query;
+    }
+
+    /**
+     * Filter gatherings using a date boundary that is recalculated on every request.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query The query to filter
+     * @param mixed $filterValue Selected relative date option
+     * @param array $context Grid context including table name and current identity
+     * @return \Cake\ORM\Query\SelectQuery The filtered query
+     */
+    public static function filterByRelativeEventDate(
+        SelectQuery $query,
+        mixed $filterValue,
+        array $context,
+    ): SelectQuery {
+        $values = is_array($filterValue) ? $filterValue : [$filterValue];
+        if (!in_array('today_or_after', $values, true)) {
+            return $query;
+        }
+
+        $userTimezone = TimezoneHelper::getUserTimezone($context['identity'] ?? null);
+        $today = new DateTime('today', new DateTimeZone($userTimezone));
+        $todayUtc = TimezoneHelper::toUtc($today->format('Y-m-d H:i:s'), $userTimezone);
+        $tableName = $context['tableName'] ?? 'Gatherings';
+
+        return $query->where([
+            $tableName . '.end_date >=' => $todayUtc->format('Y-m-d H:i:s'),
+        ]);
     }
 
     /**

@@ -327,17 +327,25 @@ class GatheringsController extends AppController
         $currentUser = $this->Authentication->getIdentity();
         $userTimezone = TimezoneHelper::getUserTimezone($currentUser);
         $timezone = new DateTimeZone($userTimezone);
+        $today = new DateTime('now', $timezone);
 
-        $year = (int)$this->request->getQuery('year', date('Y'));
-        $month = (int)$this->request->getQuery('month', date('m'));
+        $year = (int)$this->request->getQuery('year', $today->format('Y'));
+        $month = (int)$this->request->getQuery('month', $today->format('m'));
         $view = $this->request->getQuery('view', 'month');
         $weekStartParam = $this->request->getQuery('week_start');
+        $scrollToToday = $this->request->getQuery('scroll_to_today') === '1';
+
+        if ($scrollToToday) {
+            $year = (int)$today->format('Y');
+            $month = (int)$today->format('m');
+            $weekStartParam = $today->format('Y-m-d');
+        }
 
         if ($year < 1900 || $year > 2100) {
-            $year = (int)date('Y');
+            $year = (int)$today->format('Y');
         }
         if ($month < 1 || $month > 12) {
-            $month = (int)date('m');
+            $month = (int)$today->format('m');
         }
         if (!in_array($view, ['month', 'week', 'list'], true)) {
             $view = 'month';
@@ -491,6 +499,7 @@ class GatheringsController extends AppController
             'nextMonth' => $nextMonth,
             'selectedBranch' => $branchName,
             'queryParams' => $queryParams,
+            'todayDate' => $today->format('Y-m-d'),
         ];
 
         $this->set([

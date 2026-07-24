@@ -21,6 +21,8 @@ $calendarStart = $calendarMeta['calendarStart'] ?? null;
 $calendarEnd = $calendarMeta['calendarEnd'] ?? null;
 $startDate = $calendarMeta['startDate'] ?? null;
 $endDate = $calendarMeta['endDate'] ?? null;
+$todayDate = $calendarMeta['todayDate'] ?? date('Y-m-d');
+$scrollToToday = $this->getRequest()->getQuery('scroll_to_today') === '1';
 $weekStartValue = null;
 if ($viewMode === 'week' && $startDate instanceof \DateTimeInterface) {
     $weekStartValue = clone $startDate;
@@ -42,6 +44,8 @@ if ($identity) {
 <div class="gatherings-calendar" data-controller="gatherings-calendar"
     data-gatherings-calendar-year-value="<?= h($year) ?>" data-gatherings-calendar-month-value="<?= h($month) ?>"
     data-gatherings-calendar-view-value="<?= h($viewMode) ?>"
+    data-gatherings-calendar-today-value="<?= h($todayDate) ?>"
+    data-gatherings-calendar-scroll-to-today-value="<?= $scrollToToday ? '1' : '0' ?>"
     <?= $weekStartValue ? 'data-gatherings-calendar-week-start-value="' . h($weekStartValue->format('Y-m-d')) . '"' : '' ?>>
 
     <div class="row g-3">
@@ -53,17 +57,22 @@ if ($identity) {
                     'calendarEnd' => $calendarEnd,
                     'startDate' => $startDate,
                     'endDate' => $endDate,
+                    'todayDate' => $todayDate,
                     'canAddGathering' => $canAddGathering,
                 ]) ?>
             <?php elseif ($viewMode === 'week'): ?>
                 <?= $this->element('gatherings/calendar_week', [
                     'gatherings' => $data,
                     'startDate' => $startDate,
+                    'todayDate' => $todayDate,
                     'canAddGathering' => $canAddGathering,
                 ]) ?>
             <?php else: ?>
                 <?= $this->element('gatherings/calendar_list', [
                     'gatherings' => $data,
+                    'startDate' => $startDate,
+                    'endDate' => $endDate,
+                    'todayDate' => $todayDate,
                 ]) ?>
             <?php endif; ?>
         </div>

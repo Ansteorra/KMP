@@ -24,6 +24,7 @@ $startDate = $calendarMeta['startDate'] ?? null;
 $prevMonth = $calendarMeta['prevMonth'] ?? null;
 $nextMonth = $calendarMeta['nextMonth'] ?? null;
 $queryParams = $calendarMeta['queryParams'] ?? $this->getRequest()->getQueryParams();
+$todayDate = $calendarMeta['todayDate'] ?? date('Y-m-d');
 
 // Remove pagination when building navigation URLs
 unset($queryParams['page']);
@@ -64,18 +65,21 @@ if ($viewMode === 'week' && $weekStartDate instanceof \DateTimeInterface) {
         'year' => $prevWeek->format('Y'),
         'month' => $prevWeek->format('m'),
         'week_start' => $prevWeek->format('Y-m-d'),
+        'scroll_to_today' => null,
     ]);
 
     $nextUrl = $buildFrameUrl([
         'year' => $nextWeek->format('Y'),
         'month' => $nextWeek->format('m'),
         'week_start' => $nextWeek->format('Y-m-d'),
+        'scroll_to_today' => null,
     ]);
 
     $todayUrl = $buildFrameUrl([
-        'year' => date('Y'),
-        'month' => date('m'),
-        'week_start' => date('Y-m-d'),
+        'year' => substr($todayDate, 0, 4),
+        'month' => substr($todayDate, 5, 2),
+        'week_start' => $todayDate,
+        'scroll_to_today' => '1',
     ]);
 } else {
     $prevUrl = $prevMonth
@@ -83,6 +87,7 @@ if ($viewMode === 'week' && $weekStartDate instanceof \DateTimeInterface) {
             'year' => $prevMonth->format('Y'),
             'month' => $prevMonth->format('m'),
             'week_start' => null,
+            'scroll_to_today' => null,
         ])
         : null;
     $nextUrl = $nextMonth
@@ -90,24 +95,27 @@ if ($viewMode === 'week' && $weekStartDate instanceof \DateTimeInterface) {
             'year' => $nextMonth->format('Y'),
             'month' => $nextMonth->format('m'),
             'week_start' => null,
+            'scroll_to_today' => null,
         ])
         : null;
     $todayUrl = $buildFrameUrl([
-        'year' => date('Y'),
-        'month' => date('m'),
+        'year' => substr($todayDate, 0, 4),
+        'month' => substr($todayDate, 5, 2),
         'week_start' => null,
+        'scroll_to_today' => '1',
     ]);
 }
 
 $weekLinkStart = $weekStartDate
     ?? ($startDate instanceof \DateTimeInterface ? $startDate : new \DateTimeImmutable(sprintf('%04d-%02d-01', $year, $month)));
 
-$monthUrl = $buildFrameUrl(['view' => 'month', 'week_start' => null]);
+$monthUrl = $buildFrameUrl(['view' => 'month', 'week_start' => null, 'scroll_to_today' => null]);
 $weekUrl = $buildFrameUrl([
     'view' => 'week',
     'week_start' => $weekLinkStart instanceof \DateTimeInterface ? $weekLinkStart->format('Y-m-d') : date('Y-m-d'),
+    'scroll_to_today' => null,
 ]);
-$listUrl = $buildFrameUrl(['view' => 'list', 'week_start' => null]);
+$listUrl = $buildFrameUrl(['view' => 'list', 'week_start' => null, 'scroll_to_today' => null]);
 
 $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
 $tempGathering = $gatheringsTable->newEmptyEntity();

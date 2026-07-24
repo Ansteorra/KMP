@@ -10,6 +10,8 @@ describe('GatheringsCalendarController', () => {
                  data-gatherings-calendar-year-value="2025"
                  data-gatherings-calendar-month-value="6"
                  data-gatherings-calendar-view-value="month"
+                 data-gatherings-calendar-today-value="2025-06-15"
+                 data-gatherings-calendar-scroll-to-today-value="0"
                  data-gatherings-calendar-week-start-value="">
 
                 <div data-gatherings-calendar-header>June 2025</div>
@@ -19,6 +21,7 @@ describe('GatheringsCalendarController', () => {
                 <a data-gatherings-calendar-nav="next" href="/gatherings/calendar?view=month&year=2025&month=07">Next</a>
 
                 <turbo-frame id="gatherings-calendar-grid-table" src="/gatherings/calendar?view=month&year=2025&month=06"></turbo-frame>
+                <div id="gatherings-calendar-today" data-calendar-date="2025-06-15" tabindex="-1"></div>
 
                 <input id="calendarFeedUrl" data-base-feed-url="https://example.com/feed.ics" value="">
 
@@ -57,10 +60,14 @@ describe('GatheringsCalendarController', () => {
         controller.monthValue = 6;
         controller.viewValue = 'month';
         controller.weekStartValue = '';
+        controller.todayValue = '2025-06-15';
+        controller.scrollToTodayValue = false;
         controller.hasYearValue = true;
         controller.hasMonthValue = true;
         controller.hasViewValue = true;
         controller.hasWeekStartValue = false;
+        controller.hasTodayValue = true;
+        controller.hasScrollToTodayValue = true;
 
         return controller;
     }
@@ -102,6 +109,8 @@ describe('GatheringsCalendarController', () => {
         expect(GatheringsCalendarController.values).toHaveProperty('month');
         expect(GatheringsCalendarController.values).toHaveProperty('view');
         expect(GatheringsCalendarController.values).toHaveProperty('weekStart');
+        expect(GatheringsCalendarController.values).toHaveProperty('today');
+        expect(GatheringsCalendarController.values).toHaveProperty('scrollToToday');
     });
 
     // ==================== Initialize ====================
@@ -319,10 +328,10 @@ describe('GatheringsCalendarController', () => {
         expect(nextHref).toContain('year=2025');
         expect(nextHref).toContain('month=07');
 
-        // Today link should contain current date
         const todayHref = todayLink.getAttribute('href');
-        const now = new Date();
-        expect(todayHref).toContain(`year=${now.getFullYear()}`);
+        expect(todayHref).toContain('year=2025');
+        expect(todayHref).toContain('month=06');
+        expect(todayHref).toContain('scroll_to_today=1');
     });
 
     test('updateCalendarNavigation does nothing when frame is missing', () => {
@@ -346,6 +355,27 @@ describe('GatheringsCalendarController', () => {
         const prevLink = document.querySelector('[data-gatherings-calendar-nav="prev"]');
         const prevHref = prevLink.getAttribute('href');
         expect(prevHref).toContain('week_start=');
+    });
+
+    test('connect scrolls and moves focus to today when requested', () => {
+        setupController();
+        controller.scrollToTodayValue = true;
+        const marker = document.getElementById('gatherings-calendar-today');
+        marker.scrollIntoView = jest.fn();
+        const todayLink = document.querySelector('[data-gatherings-calendar-nav="today"]');
+        todayLink.focus();
+
+        controller.connect();
+
+        expect(marker.scrollIntoView).toHaveBeenCalledWith({
+            behavior: 'smooth',
+            block: 'center',
+            inline: 'nearest'
+        });
+        expect(document.activeElement).toBe(marker);
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith(
+            'Today is now visible in the calendar.'
+        );
     });
 
     // ==================== getCsrfToken ====================

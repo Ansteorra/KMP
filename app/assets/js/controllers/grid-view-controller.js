@@ -1239,8 +1239,8 @@ class GridViewController extends Controller {
 
         // Create list items
         orderedColumns.forEach(column => {
-            // Skip export-only columns - they shouldn't appear in the column picker
-            if (column.exportOnly) return
+            // Skip columns that are not intended for table display.
+            if (column.exportOnly || column.filterOnly) return
 
             const isVisible = visibleColumns.includes(column.key)
             const isRequired = column.required || false

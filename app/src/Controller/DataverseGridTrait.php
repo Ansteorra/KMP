@@ -2289,6 +2289,7 @@ trait DataverseGridTrait
                         'tableName' => $tableName,
                         'columnKey' => $columnKey,
                         'columnMeta' => $columnMeta,
+                        'identity' => $this->request->getAttribute('identity'),
                     ];
                     $query = call_user_func([$handlerClass, $handlerMethod], $query, $filterValue, $context);
                 } else {
