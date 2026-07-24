@@ -3,7 +3,7 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: 7c676e670ef5334cbfa15eb40bc8165028184d3d -->
+<!-- LAST_SYNCED_COMMIT: 106d57c7558dae1d68f9a78463f518366b042f8a -->
 <!-- LAST_SYNCED_DATE: 2026-07-24 -->
 
 ## KMP 1.5.5 — July 24, 2026
