@@ -317,6 +317,26 @@ class MembersControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('Activity Authorization');
     }
 
+    public function testViewMobileCardJsonIncludesPluginAuthorizationSectionsForAjaxRequest(): void
+    {
+        $this->configRequest([
+            'headers' => [
+                'X-Requested-With' => 'XMLHttpRequest',
+                'Accept' => 'application/json',
+            ],
+        ]);
+
+        $this->get('/members/view-mobile-card-json');
+
+        $this->assertResponseOk();
+        $this->assertContentType('application/json');
+        $response = json_decode((string)$this->_response->getBody(), true);
+        $this->assertIsArray($response);
+        $this->assertArrayHasKey('memberAuthorizations', $response);
+        $this->assertArrayHasKey('Can Authorize', $response['memberAuthorizations']);
+        $this->assertArrayHasKey('Authorizations', $response['memberAuthorizations']);
+    }
+
     /**
      * Ensure impersonation button appears for super users on member profile.
      *

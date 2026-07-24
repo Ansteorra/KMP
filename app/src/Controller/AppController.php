@@ -48,6 +48,13 @@ class AppController extends Controller
     protected array $pluginViewCells = [];
 
     /**
+     * Whether an intentionally fragment-style response still needs plugin view cells.
+     *
+     * @var bool
+     */
+    protected bool $pluginViewCellsEnabledForFragment = false;
+
+    /**
      * @var bool Whether current request is for CSV export (.csv extension)
      */
     protected bool $isCsvRequest = false;
@@ -408,7 +415,7 @@ class AppController extends Controller
             return;
         }
 
-        if ($this->isFragmentRequest()) {
+        if ($this->isFragmentRequest() && !$this->pluginViewCellsEnabledForFragment) {
             $this->pluginViewCells = [];
         } else {
             $urlParams = [
@@ -426,6 +433,16 @@ class AppController extends Controller
         }
 
         $this->set('pluginViewCells', $this->pluginViewCells);
+    }
+
+    /**
+     * Include route-matched plugin cells in an AJAX or other fragment response.
+     *
+     * @return void
+     */
+    protected function enablePluginViewCellsForFragment(): void
+    {
+        $this->pluginViewCellsEnabledForFragment = true;
     }
 
     /**
