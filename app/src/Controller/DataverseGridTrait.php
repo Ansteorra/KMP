@@ -1049,13 +1049,16 @@ trait DataverseGridTrait
 
         $visibleColumns = array_values(array_unique(array_filter(
             $visibleColumns,
-            fn($key) => is_string($key) && isset($columnsMetadata[$key]),
+            fn($key) => is_string($key)
+                && isset($columnsMetadata[$key])
+                && !($columnsMetadata[$key]['filterOnly'] ?? false),
         )));
 
         if ($visibleColumns === []) {
             $visibleColumns = array_values(array_filter(
                 array_keys($columnsMetadata),
                 fn($key) => !($columnsMetadata[$key]['exportOnly'] ?? false)
+                    && !($columnsMetadata[$key]['filterOnly'] ?? false)
                     && ($columnsMetadata[$key]['defaultVisible'] ?? false),
             ));
         }
@@ -1063,7 +1066,8 @@ trait DataverseGridTrait
         if ($visibleColumns === []) {
             $visibleColumns = array_values(array_filter(
                 array_keys($columnsMetadata),
-                fn($key) => !($columnsMetadata[$key]['exportOnly'] ?? false),
+                fn($key) => !($columnsMetadata[$key]['exportOnly'] ?? false)
+                    && !($columnsMetadata[$key]['filterOnly'] ?? false),
             ));
         }
 
@@ -2289,6 +2293,7 @@ trait DataverseGridTrait
                         'tableName' => $tableName,
                         'columnKey' => $columnKey,
                         'columnMeta' => $columnMeta,
+                        'identity' => $this->request->getAttribute('identity'),
                     ];
                     $query = call_user_func([$handlerClass, $handlerMethod], $query, $filterValue, $context);
                 } else {

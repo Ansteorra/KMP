@@ -120,9 +120,9 @@ class MembersGridColumns extends BaseGridColumns
                     ['value' => 'verified', 'label' => 'Verified'],
                     ['value' => 'deactivated', 'label' => 'Deactivated'],
                     ['value' => 'unverified minor', 'label' => 'Unverified Minor'],
-                    ['value' => '< 18 member verified', 'label' => 'Minor Verified'],
+                    ['value' => '< 18 member verified', 'label' => 'Minor Member Verified'],
                     ['value' => '< 18 parent verified', 'label' => 'Minor Parent Verified'],
-                    ['value' => 'verified < 18', 'label' => 'Verified Minor'],
+                    ['value' => 'verified < 18', 'label' => 'Fully Verified Minor'],
                 ],
             ],
 

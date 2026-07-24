@@ -34,7 +34,9 @@ class GatheringsCalendarController extends Controller {
         year: Number,
         month: Number,
         view: String,
-        weekStart: String
+        weekStart: String,
+        today: String,
+        scrollToToday: Boolean
     }
 
     /**
@@ -75,6 +77,10 @@ class GatheringsCalendarController extends Controller {
         this.updateCalendarHeader()
         this.updateCalendarNavigation()
         this.updateFeedUrl()
+
+        if (this.hasScrollToTodayValue && this.scrollToTodayValue) {
+            this.scrollTodayIntoView()
+        }
 
         // Update feed URL when browser URL changes (after filter navigation)
         this._popstateHandler = () => this.updateFeedUrl()
@@ -264,6 +270,7 @@ class GatheringsCalendarController extends Controller {
 
         const params = new URLSearchParams(url.search)
         params.delete('page')
+        params.delete('scroll_to_today')
 
         const displayed = this.getDisplayedCalendarState()
 
@@ -296,6 +303,7 @@ class GatheringsCalendarController extends Controller {
         }
 
         const view = displayed.view || params.get('view') || (this.hasViewValue ? this.viewValue : 'month')
+        const today = parseDate(this.hasTodayValue ? this.todayValue : null) || new Date()
         if (view) {
             params.set('view', view)
         }
@@ -351,8 +359,6 @@ class GatheringsCalendarController extends Controller {
                 prevWeek.setDate(prevWeek.getDate() - 7)
                 const nextWeek = new Date(weekStart)
                 nextWeek.setDate(nextWeek.getDate() + 7)
-                const today = new Date()
-
                 if (prevLink) {
                     const prevParams = new URLSearchParams(params)
                     prevParams.set('year', prevWeek.getFullYear())
@@ -374,6 +380,7 @@ class GatheringsCalendarController extends Controller {
                     todayParams.set('year', today.getFullYear())
                     todayParams.set('month', pad2(today.getMonth() + 1))
                     todayParams.set('week_start', formatDate(today))
+                    todayParams.set('scroll_to_today', '1')
                     todayLink.setAttribute('href', buildHref(todayParams))
                 }
             }
@@ -390,8 +397,6 @@ class GatheringsCalendarController extends Controller {
         prevMonth.setMonth(prevMonth.getMonth() - 1)
         const nextMonth = new Date(baseDate)
         nextMonth.setMonth(nextMonth.getMonth() + 1)
-        const today = new Date()
-
         if (prevLink) {
             const prevParams = new URLSearchParams(params)
             prevParams.set('year', prevMonth.getFullYear())
@@ -413,7 +418,29 @@ class GatheringsCalendarController extends Controller {
             todayParams.set('year', today.getFullYear())
             todayParams.set('month', pad2(today.getMonth() + 1))
             todayParams.delete('week_start')
+            todayParams.set('scroll_to_today', '1')
             todayLink.setAttribute('href', buildHref(todayParams))
+        }
+    }
+
+    /**
+     * Reveal today's marker without moving keyboard focus away from the toolbar.
+     */
+    scrollTodayIntoView(announce = true) {
+        const todayMarker = document.getElementById('gatherings-calendar-today')
+        if (!todayMarker || typeof todayMarker.scrollIntoView !== 'function') {
+            return
+        }
+
+        const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+        todayMarker.scrollIntoView({
+            behavior: reduceMotion ? 'auto' : 'smooth',
+            block: 'center',
+            inline: 'nearest'
+        })
+        todayMarker.focus({ preventScroll: true })
+        if (announce) {
+            window.KMP_accessibility?.announce?.('Today is now visible in the calendar.')
         }
     }
 
@@ -777,7 +804,6 @@ class GatheringsCalendarController extends Controller {
                 window.removeEventListener('grid-view:navigated', this._pushStateHandler)
                 this._pushStateHandler = null
             }
-
             if (this.modalElement) {
                 const closeButton = this.modalElement.querySelector('.btn-close')
                 if (closeButton && this._closeButtonHandler) {

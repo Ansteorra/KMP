@@ -1773,6 +1773,7 @@ class MembersController extends AppController
         $this->viewBuilder()
             ->setClassName('Ajax')
             ->setOption('serialize', 'responseData');
+        $this->enablePluginViewCellsForFragment();
         $this->set(compact('member'));
     }
 
@@ -1835,6 +1836,7 @@ class MembersController extends AppController
         $this->viewBuilder()
             ->setClassName('Ajax')
             ->setOption('serialize', 'responseData');
+        $this->enablePluginViewCellsForFragment();
         $this->set(compact('member'));
         $this->viewBuilder()->setTemplate('view_card_json');
     }
