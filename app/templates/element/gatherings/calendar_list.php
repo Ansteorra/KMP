@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Calendar List View Element
@@ -75,7 +76,7 @@ $renderTodayMarker = function () use ($today): void {
                     $isCancelled = $gathering->is_cancelled ?? false;
                     $bgColor = $isCancelled ? '#6c757d' : ($gathering->gathering_type->color ?? '#0d6efd');
                     ?>
-                    <?php if ($todayInRange && !$todayMarkerRendered && $startInUserTz >= $today): ?>
+                    <?php if ($todayInRange && !$todayMarkerRendered && $endInUserTz >= $today): ?>
                         <?php $renderTodayMarker() ?>
                         <?php $todayMarkerRendered = true; ?>
                     <?php endif; ?>

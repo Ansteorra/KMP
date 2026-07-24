@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * @var \App\View\AppView $this
@@ -53,7 +54,7 @@ $publicLandingUrl = $this->Url->build([
 <!-- Share Public Landing Page -->
 <div class="btn-group" role="group">
     <button type="button" class="btn btn-outline-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown"
-        aria-expanded="false" <?= !$gathering->public_page_enabled ? 'disabled' : '' ?>>
+        aria-expanded="false">
         <i class="bi bi-share"></i> Share Event
     </button>
     <?php if ($gathering->public_page_enabled): ?>
@@ -205,6 +206,10 @@ $publicLandingUrl = $this->Url->build([
         <?= $this->Timezone->format($gathering->end_date, 'F j, Y g:i A', false, null, $gathering) ?>
     </td>
 </tr>
+<tr>
+    <th scope="row" class="col"><?= __('Created By') ?></th>
+    <td class="col-10"><?= $gathering->has('creator') ? h($gathering->creator->sca_name) : '' ?></td>
+</tr>
 <?php if (!empty($gathering->timezone)) : ?>
 <tr scope="row">
     <th class="col"><?= __('Event Timezone') ?></th>
@@ -219,10 +224,6 @@ $publicLandingUrl = $this->Url->build([
             All times for this event are shown in <?= h($gathering->timezone) ?>
         </small>
     </td>
-</tr>
-<tr>
-    <th scope="row" class="col"><?= __('Created By') ?></th>
-    <td class="col-10"><?= $gathering->has('creator') ? h($gathering->creator->sca_name) : '' ?></td>
 </tr>
 <?php endif; ?>
 <?php if ($gathering->start_date != $gathering->end_date) : ?>
@@ -593,7 +594,9 @@ if ($gathering->public_page_enabled):
                 <p class="mb-3">Scan this QR code to view the event landing page</p>
                 <div data-qrcode-target="canvas" class="d-inline-block p-3 bg-white border rounded"></div>
                 <div class="mt-3">
-                    <small class="text-muted d-block mb-2">Or copy the link:</small>
+                    <label class="text-muted d-block mb-2" for="publicLandingUrlInput">
+                        <small>Or copy the link:</small>
+                    </label>
                     <div class="input-group">
                         <input type="text" class="form-control" value="<?= h($publicLandingUrl) ?>" readonly
                             id="publicLandingUrlInput">

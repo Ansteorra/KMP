@@ -335,6 +335,7 @@ class MembersControllerTest extends HttpIntegrationTestCase
         $this->assertArrayHasKey('memberAuthorizations', $response);
         $this->assertArrayHasKey('Can Authorize', $response['memberAuthorizations']);
         $this->assertArrayHasKey('Authorizations', $response['memberAuthorizations']);
+        $this->assertNotEmpty($response['memberAuthorizations']['Can Authorize']);
     }
 
     /**

@@ -12,6 +12,8 @@ use Awards\Model\Entity\BestowalTodoTemplateItem;
 use Awards\Model\Entity\CourtAgendaItem;
 use Awards\Model\Entity\CourtAgendaSegment;
 use Cake\Cache\Cache;
+use DateTimeImmutable;
+use DateTimeZone;
 use Waivers\Policy\GatheringWaiverPolicy;
 
 /**
@@ -81,6 +83,24 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertStringContainsString('data-column-key="name"', $body);
         $this->assertStringContainsString('data-column-key="gathering_type_id"', $body);
         $this->assertResponseContains('Grid Frame Column Regression');
+    }
+
+    /**
+     * Filter-only metadata cannot be forced into the rendered grid columns.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::gridData()
+     */
+    public function testGridDataExcludesFilterOnlyColumnsFromRequestedColumns(): void
+    {
+        $this->configRequest([
+            'headers' => ['Turbo-Frame' => 'gatherings-grid-table'],
+        ]);
+        $this->get('/gatherings/grid-data?columns=name,relative_event_date');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('data-column-key="name"');
+        $this->assertResponseNotContains('data-column-key="relative_event_date"');
     }
 
     /**
@@ -154,6 +174,50 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->get('/gatherings/view/' . $gathering->public_id);
         $this->assertResponseOk();
         $this->assertResponseNotContains('Created By');
+    }
+
+    /**
+     * Creator metadata remains visible when a gathering has no explicit timezone.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::view()
+     */
+    public function testViewShowsCreatorWithoutGatheringTimezone(): void
+    {
+        $gathering = $this->createCalendarGathering('Gathering Without Timezone', false, [
+            'timezone' => null,
+        ]);
+
+        $this->get('/gatherings/view/' . $gathering->public_id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Created By');
+    }
+
+    /**
+     * Share controls remain operable so disabled-state guidance is reachable.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::view()
+     */
+    public function testViewShareControlsAreAccessible(): void
+    {
+        $disabledGathering = $this->createCalendarGathering('Private Gathering', false, [
+            'public_page_enabled' => false,
+        ]);
+        $this->get('/gatherings/view/' . $disabledGathering->public_id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Public landing page is disabled for this gathering.');
+        $this->assertResponseNotContains('aria-expanded="false" disabled');
+
+        $enabledGathering = $this->createCalendarGathering('Public Gathering', false, [
+            'public_page_enabled' => true,
+        ]);
+        $this->get('/gatherings/view/' . $enabledGathering->public_id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('label class="text-muted d-block mb-2" for="publicLandingUrlInput"');
     }
 
     /**
@@ -433,6 +497,38 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
             $this->assertResponseContains('id="gatherings-calendar-today"');
             $this->assertResponseContains('data-gatherings-calendar-scroll-to-today-value="1"');
         }
+    }
+
+    /**
+     * The list-view today marker precedes a gathering already in progress.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::calendarGridData()
+     */
+    public function testCalendarListTodayMarkerPrecedesOngoingGathering(): void
+    {
+        $today = new DateTimeImmutable('now', new DateTimeZone(TimezoneHelper::getAppTimezone()));
+        $ongoing = $this->createCalendarGathering('Ongoing Calendar Gathering', false, [
+            'start_date' => $today->modify('-2 days')->format('Y-m-d 10:00:00'),
+            'end_date' => $today->modify('+2 days')->format('Y-m-d 18:00:00'),
+        ]);
+
+        $this->configRequest([
+            'headers' => ['Turbo-Frame' => 'gatherings-calendar-grid-table'],
+        ]);
+        $this->get(sprintf(
+            '/gatherings/calendar-grid-data?view=list&year=%s&month=%s&scroll_to_today=1',
+            $today->format('Y'),
+            $today->format('m'),
+        ));
+
+        $this->assertResponseOk();
+        $body = (string)$this->_response->getBody();
+        $markerPosition = strpos($body, 'id="gatherings-calendar-today"');
+        $gatheringPosition = strpos($body, h($ongoing->name));
+        $this->assertNotFalse($markerPosition);
+        $this->assertNotFalse($gatheringPosition);
+        $this->assertLessThan($gatheringPosition, $markerPosition);
     }
 
     /**
