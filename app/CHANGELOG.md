@@ -3,7 +3,7 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: cf266fcf1582af2eaac74eaf8451dd39d704e9cd -->
+<!-- LAST_SYNCED_COMMIT: 0356b699b1f2c0be0a991da36a05942d68bfd43f -->
 <!-- LAST_SYNCED_DATE: 2026-07-24 -->
 
 ## KMP 1.5.5 — July 24, 2026
@@ -13,6 +13,7 @@ Stay up to date with the latest features, improvements, and announcements for th
 KMP 1.5.5 restores complete activity authorization cards and improves gathering calendar navigation and filtering.
 
 - Mobile and printable activity authorization cards once again show current authorizations and the activities the member can authorize
+- Activity Authorization reports once again run correctly on PostgreSQL when filtering by date, branch, and activity
 - The gathering calendar's Today action now uses the member's timezone and moves to a clearly marked current date in month, week, and list views
 - Gathering grids now offer a timezone-aware Today or after filter without exposing filter-only fields in the column picker
 - Membership verification status labels more clearly distinguish member, parent, and fully verified minors
