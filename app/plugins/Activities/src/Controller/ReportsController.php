@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Activities\Controller;
 
 use Cake\I18n\DateTime;
+use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\TableRegistry;
 
 /**
@@ -88,19 +89,15 @@ class ReportsController extends AppController
             $authTbl = TableRegistry::getTableLocator()->get('Activities.Authorizations');
 
             // Calculate distinct member count with authorization filters
-            $distincMemberCount = $authTbl->find()
+            $distinctMemberQuery = $authTbl->find()
                 ->select('member_id')
                 ->contain(['Members' => function ($q) use ($validBranches) {
                     return $q->select(['id'])->where(['branch_id IN' => $validBranches]);
                 }])
                 ->where([
-                    'or' => [
-                        'start_on <=' => $validOn,
-                        'start_on IS' => null,
-                    ],
-                    'expires_on >' => $validOn,
                     'activity_id IN' => $activities,
-                ])
+                ]);
+            $distincMemberCount = $this->setValidFilter($distinctMemberQuery, $validOn)
                 ->distinct('member_id')
                 ->count();
 
@@ -109,19 +106,15 @@ class ReportsController extends AppController
                 ->contain(['Activities' => function ($q) {
                     return $q->select(['name']);
                 }, 'Members' => function ($q) use ($validBranches) {
-                    return $q->select(['membership_number', 'sca_name', 'id'])
+                    return $q->select(['membership_number', 'sca_name', 'id', 'branch_id'])
                         ->where(['branch_id IN' => $validBranches]);
                 }, 'Members.Branches' => function ($q) {
                     return $q->select(['name']);
                 }])
                 ->where([
-                    'or' => [
-                        'start_on <=' => $validOn,
-                        'start_on IS' => null,
-                    ],
-                    'expires_on >' => $validOn,
                     'activity_id IN' => $activities,
-                ])
+                ]);
+            $memberListQuery = $this->setValidFilter($memberListQuery, $validOn)
                 ->orderBy(['Activities.name' => 'ASC', 'Members.sca_name' => 'ASC'])
                 ->all();
 
@@ -137,13 +130,9 @@ class ReportsController extends AppController
                     'count' => $authTypes->func()->count('Authorizations.member_id'),
                 ])
                 ->where([
-                    'or' => [
-                        'Authorizations.start_on <=' => $validOn,
-                        'Authorizations.start_on IS' => null,
-                    ],
-                    'Authorizations.expires_on >' => $validOn,
                     'Authorizations.activity_id IN' => $activities,
-                ])
+                ]);
+            $memberRollup = $this->setValidFilter($memberRollup, $validOn)
                 ->groupBy(['Activities.name'])
                 ->all();
         }
@@ -171,21 +160,21 @@ class ReportsController extends AppController
     /**
      * Apply temporal validity filter to authorization query.
      *
-     * @param \Cake\ORM\Query $q The base query object to filter
+     * @param \Cake\ORM\Query\SelectQuery $query The base query object to filter
      * @param \Cake\I18n\DateTime $validOn The target date for validity checking
-     * @return \Cake\ORM\Query The modified query with temporal filters applied
+     * @return \Cake\ORM\Query\SelectQuery The modified query with temporal filters applied
      */
-    protected function setValidFilter($q, $validOn)
+    protected function setValidFilter(SelectQuery $query, DateTime $validOn): SelectQuery
     {
-        return $q->where([
+        return $query->where([
             'OR' => [
-                'start_on <=' => $validOn,
-                'start_on IS' => null,
+                'Authorizations.start_on <=' => $validOn,
+                'Authorizations.start_on IS' => null,
             ],
         ])->where([
             'OR' => [
-                'expires_on >=' => $validOn,
-                'expires_on IS' => null,
+                'Authorizations.expires_on >=' => $validOn,
+                'Authorizations.expires_on IS' => null,
             ],
         ]);
     }

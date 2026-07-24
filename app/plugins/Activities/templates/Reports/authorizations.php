@@ -73,7 +73,7 @@ $this->KMP->endBlock();
                     <tr>
                         <td>
                             <?= $this->Html->link(
-                                h($auth->member->sca_name),
+                                $auth->member->sca_name,
                                 [
                                     'plugin' => null,
                                     'controller' => 'Members',
