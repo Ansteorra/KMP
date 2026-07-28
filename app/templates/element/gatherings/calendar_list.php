@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Calendar List View Element
@@ -7,6 +8,9 @@
  *
  * @var \App\View\AppView $this
  * @var \Cake\ORM\ResultSet $gatherings
+ * @var \DateTime $startDate
+ * @var \DateTime $endDate
+ * @var string $todayDate
  */
 
 use Cake\I18n\DateTime;
@@ -16,12 +20,29 @@ $currentUser = $this->getRequest()->getAttribute('identity');
 $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
 
 // Get current date in user's timezone
-$today = new DateTime('now', new \DateTimeZone($userTimezone));
+$today = new DateTime($todayDate ?? 'now', new \DateTimeZone($userTimezone));
+$today->setTime(0, 0, 0);
+$todayInRange = $startDate instanceof DateTimeInterface
+    && $endDate instanceof DateTimeInterface
+    && $today->format('Y-m-d') >= $startDate->format('Y-m-d')
+    && $today->format('Y-m-d') <= $endDate->format('Y-m-d');
+$todayMarkerRendered = false;
+$renderTodayMarker = function () use ($today): void {
+    ?>
+    <div id="gatherings-calendar-today" data-calendar-date="<?= h($today->format('Y-m-d')) ?>"
+        class="list-group-item border-primary bg-primary-subtle py-2" aria-current="date" tabindex="-1">
+        <strong><?= h(__('Today, {0}', $today->format('F j, Y'))) ?></strong>
+    </div>
+    <?php
+};
 ?>
 
 <div class="card">
     <div class="card-body">
         <?php if ($gatherings->count() === 0): ?>
+            <?php if ($todayInRange): ?>
+                <?php $renderTodayMarker() ?>
+            <?php endif; ?>
             <div class="alert alert-info">
                 <i class="bi bi-info-circle"></i>
                 No gatherings found for the selected period and filters.
@@ -55,6 +76,10 @@ $today = new DateTime('now', new \DateTimeZone($userTimezone));
                     $isCancelled = $gathering->is_cancelled ?? false;
                     $bgColor = $isCancelled ? '#6c757d' : ($gathering->gathering_type->color ?? '#0d6efd');
                     ?>
+                    <?php if ($todayInRange && !$todayMarkerRendered && $endInUserTz >= $today): ?>
+                        <?php $renderTodayMarker() ?>
+                        <?php $todayMarkerRendered = true; ?>
+                    <?php endif; ?>
                     <div class="list-group-item list-group-item-action <?= $isCancelled ? 'bg-light' : '' ?>"
                         style="border-left: 4px solid <?= h($bgColor) ?>; <?= $isCancelled ? 'opacity: 0.8;' : '' ?>">
                         <div class="row">
@@ -202,6 +227,9 @@ $today = new DateTime('now', new \DateTimeZone($userTimezone));
                         </div>
                     </div>
                 <?php endforeach; ?>
+                <?php if ($todayInRange && !$todayMarkerRendered): ?>
+                    <?php $renderTodayMarker() ?>
+                <?php endif; ?>
             </div>
         <?php endif; ?>
     </div>

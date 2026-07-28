@@ -56,13 +56,19 @@ if ($user->checkCan("verifyMembership", "Members") && $needVerification) :
             );
         }
         if ($needsMemberCardVerification) {
-            if ($member->membership_card_path != null && strlen($member->membership_card_path) > 0) { ?>
+            if ($member->membership_card_path != null && strlen($member->membership_card_path) > 0) {
+                $membershipCardUrl = $this->Url->build([
+                    'controller' => 'Members',
+                    'action' => 'membershipCard',
+                    $member->id,
+                ]); ?>
                 <div data-controller="image-zoom"
                     style="max-height:400px; border:1px solid #dee2e6; border-radius:0.375rem; margin-bottom:1rem;">
-                    <?= $this->Glide->image($member->membership_card_path, ['width' => '800'], [
-                        'data-image-zoom-target' => 'image',
-                        'style' => 'max-width:100%; display:block;',
-                    ]) ?>
+                    <img src="<?= h($membershipCardUrl) ?>"
+                        alt="<?= h(__('Membership card submitted by {0}', $member->sca_name)) ?>"
+                        data-image-zoom-target="image"
+                        style="max-width:100%; display:block;"
+                        loading="lazy" />
                 </div>
                 <small class="text-muted d-block mb-2"><?= __('Scroll to zoom · Drag to pan · Double-click to reset') ?></small>
             <?php }

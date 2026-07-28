@@ -76,6 +76,20 @@ class AwardsWorkflowProviderTest extends TestCase
         $this->assertArrayNotHasKey('eligible_member_ids', $resolver['configSchema']);
     }
 
+    public function testBestowalTransitionTriggerPublishesTransitionDataSchema(): void
+    {
+        AwardsWorkflowProvider::register();
+
+        $designerTriggers = WorkflowTriggerRegistry::getForDesigner();
+        $triggersByEvent = array_column($designerTriggers, null, 'event');
+        $transitionTrigger = $triggersByEvent['Awards.BestowalTransitionRequested'];
+
+        $this->assertSame(
+            ['type' => 'object', 'label' => 'Transition Data'],
+            $transitionTrigger['payloadSchema']['data'],
+        );
+    }
+
     /**
      * @return array<int, string>
      */

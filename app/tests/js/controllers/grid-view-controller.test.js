@@ -121,6 +121,32 @@ describe('GridViewController', () => {
         expect(controller.formatColumnName('created_at')).toBe('Created At');
     });
 
+    test('updateColumnPicker excludes filter-only columns', () => {
+        const container = document.createElement('div');
+        container.dataset.columnListContainer = '';
+        controller.element.appendChild(container);
+        controller.state = {
+            config: {
+                gridKey: 'Gatherings.index.main'
+            },
+            columns: {
+                visible: ['name'],
+                all: {
+                    name: { label: 'Name' },
+                    relative_event_date: {
+                        label: 'Event Date',
+                        filterOnly: true
+                    }
+                }
+            }
+        };
+
+        controller.updateColumnPicker();
+
+        expect(container.querySelector('[data-column-key="name"]')).not.toBeNull();
+        expect(container.querySelector('[data-column-key="relative_event_date"]')).toBeNull();
+    });
+
     test('formatColumnName handles single word', () => {
         expect(controller.formatColumnName('name')).toBe('Name');
     });

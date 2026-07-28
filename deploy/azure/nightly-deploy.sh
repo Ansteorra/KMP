@@ -7,7 +7,7 @@
 #
 # What it does mirrors the workflow:
 #   1. (optional) trigger a fresh GHCR build via `gh workflow run nightly.yml`
-#   2. `az acr import` ghcr.io/jhandel/kmp:<tag> into the nightly ACR
+#   2. `az acr import` ghcr.io/ansteorra/kmp:<tag> into the nightly ACR
 #   3. configure and manually canary the unified background worker
 #   4. repair and run the migrate Container Apps Job
 #   5. atomically update the request-only web revision and split probes
@@ -47,7 +47,7 @@
 #   BASE_IMAGE              ghcr.io/ansteorra/kmp-base:php84 (used by `deploy-local`)
 #   SKIP_BACKUP_KEY_RECONCILIATION  0 (set to 1 for read-only secret stores)
 #   NIGHTLY_BRANCH          <current git branch>   (used by `build`)
-#   GH_REPO                 jhandel/KMP            (used by `build` / `status`)
+#   GH_REPO                 Ansteorra/KMP          (used by `build` / `status`)
 # =============================================================================
 set -euo pipefail
 
@@ -78,8 +78,8 @@ IMAGE_TAG="${IMAGE_TAG:-nightly}"
 LOCAL_IMAGE_TAG="${LOCAL_IMAGE_TAG:-nightly-local-$(date -u +%Y%m%d%H%M%S)}"
 TEST_PASSWORD="${TEST_PASSWORD:-TestPassword}"
 
-REPO="${GH_REPO:-jhandel/KMP}"
-BRANCH="${NIGHTLY_BRANCH:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo feature/workflow-engine)}"
+REPO="${GH_REPO:-Ansteorra/KMP}"
+BRANCH="${NIGHTLY_BRANCH:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo dev)}"
 BUILD_WF="nightly.yml"
 BUILD_NAME="Nightly / Dev Docker Image"
 NIGHTLY_URL="https://kmpnightly-web.lemonstone-62ccb06f.centralus.azurecontainerapps.io"
@@ -174,7 +174,7 @@ restore_migrate_job_default() {
     patch_job_command \
         "$MIGRATE_JOB" \
         '["/usr/local/bin/docker-entrypoint.sh"]' \
-        '["/bin/sh","-lc","bin/cake migrations migrate && bin/cake updateDatabase && bin/cake platform_migrate migrate"]'
+        '["/bin/sh","-lc","bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake cache clear _cake_model_"]'
 }
 
 run_migrate_command() {
@@ -193,8 +193,11 @@ run_migrations() {
     ensure_az
     trap restore_migrate_job_default EXIT
     run_migrate_command "app migrations" bin/cake migrations migrate
+    run_migrate_command "app schema cache clear" bin/cake schema_cache clear
     run_migrate_command "app settings update" bin/cake updateDatabase
     run_migrate_command "platform migrations" bin/cake platform_migrate migrate
+    run_migrate_command "platform schema cache clear" bin/cake schema_cache clear --connection platform
+    run_migrate_command "shared model cache clear" bin/cake cache clear _cake_model_
     if [[ "${SKIP_BACKUP_KEY_RECONCILIATION:-0}" == "1" ]]; then
         warn "Skipping platform backup key reconciliation"
     else
@@ -429,10 +432,10 @@ cmd_deploy() {
     acr_login=$(acr_login_server)
     local image_ref="${acr_login}/kmp:${date_tag}"
 
-    log "Importing ghcr.io/jhandel/kmp:${IMAGE_TAG} → ${acr_login}/kmp:{${IMAGE_TAG},${date_tag}}"
+    log "Importing ghcr.io/ansteorra/kmp:${IMAGE_TAG} → ${acr_login}/kmp:{${IMAGE_TAG},${date_tag}}"
     az acr import \
         --name "$ACR" \
-        --source "ghcr.io/jhandel/kmp:${IMAGE_TAG}" \
+        --source "ghcr.io/ansteorra/kmp:${IMAGE_TAG}" \
         --image "kmp:${IMAGE_TAG}" \
         --image "kmp:${date_tag}" \
         --force -o none

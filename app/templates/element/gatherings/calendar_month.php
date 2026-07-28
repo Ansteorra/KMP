@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Calendar Month View Element
@@ -11,6 +12,7 @@
  * @var \DateTime $calendarEnd
  * @var \DateTime $startDate
  * @var \DateTime $endDate
+ * @var string $todayDate
  * @var bool $canAddGathering
  */
 
@@ -52,7 +54,7 @@ foreach ($gatherings as $gathering) {
 
 // Get current date in user's timezone
 $userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
-$today = new DateTime('now', new \DateTimeZone($userTimezone));
+$today = new DateTime($todayDate ?? 'now', new \DateTimeZone($userTimezone));
 $today->setTime(0, 0, 0);
 $canAddGathering = $canAddGathering ?? false;
 ?>
@@ -89,7 +91,12 @@ $canAddGathering = $canAddGathering ?? false;
                     $dayClasses[] = 'today';
                 }
             ?>
-            <div class="<?= implode(' ', $dayClasses) ?>">
+            <div class="<?= implode(' ', $dayClasses) ?>"
+                <?= $isToday
+                    ? 'id="gatherings-calendar-today" data-calendar-date="' . h($dateKey)
+                        . '" aria-current="date" tabindex="-1" aria-label="'
+                        . h(__('Today, {0}', $today->format('F j, Y'))) . '"'
+                    : '' ?>>
                 <div class="calendar-day-number">
                     <?= $this->Timezone->format($current, null, 'j') ?>
                 </div>

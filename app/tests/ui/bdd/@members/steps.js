@@ -90,6 +90,7 @@ require 'config/bootstrap.php';
 $input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $locator = \Cake\ORM\TableRegistry::getTableLocator();
 $members = $locator->get('Members');
+$documents = $locator->get('Documents');
 $workflowInstances = $locator->get('WorkflowInstances');
 
 $member = $members->find()
@@ -102,6 +103,7 @@ $member = $members->find()
         'password_token',
         'password_token_expires_on',
         'membership_card_path',
+        'membership_card_document_id',
     ])
     ->where(['email_address' => $input['email']])
     ->first();
@@ -126,8 +128,23 @@ foreach ($instances as $instance) {
 }
 
 $cardPath = $member->membership_card_path;
+$cardDocumentId = $member->membership_card_document_id;
 $cardExists = false;
-if (!empty($cardPath)) {
+if (!empty($cardDocumentId)) {
+    $document = $documents->find()
+        ->select(['file_path', 'storage_adapter'])
+        ->where(['id' => $cardDocumentId])
+        ->first();
+    if ($document !== null && $document->storage_adapter === 'local') {
+        $storageConfig = (array)\Cake\Core\Configure::read('Documents.storage.local', []);
+        $basePath = (string)($storageConfig['path'] ?? WWW_ROOT . '../images/uploaded/');
+        $cardExists = file_exists(
+            rtrim($basePath, DIRECTORY_SEPARATOR)
+                . DIRECTORY_SEPARATOR
+                . str_replace('/', DIRECTORY_SEPARATOR, $document->file_path),
+        );
+    }
+} elseif (!empty($cardPath)) {
     $cardExists = file_exists(WWW_ROOT . '../images/uploaded/' . $cardPath);
 }
 

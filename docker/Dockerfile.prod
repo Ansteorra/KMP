@@ -59,8 +59,9 @@ RUN composer install \
 
 # Copy full app source, then generate optimized autoloader
 COPY app/ ./
-RUN composer dump-autoload --optimize --no-dev --ignore-platform-reqs \
-    || composer dump-autoload --no-dev --ignore-platform-reqs
+RUN test -s CHANGELOG.md \
+    && (composer dump-autoload --optimize --no-dev --ignore-platform-reqs \
+        || composer dump-autoload --no-dev --ignore-platform-reqs)
 # Result: /app/ has all PHP source + vendor/, no node_modules
 
 # =============================================================================

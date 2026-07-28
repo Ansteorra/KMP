@@ -101,7 +101,6 @@ ensure_app_container_mounts_this_checkout
 
 BACKGROUND_SERVICES_TO_RESTART=()
 APP_SERVICE_STOPPED=false
-INITIAL_DB_SETUP_SKIP_FILE="app/tmp/skip-initial-db-setup"
 for service in worker scheduler; do
     if printf '%s\n' "$RUNNING_SERVICES" | grep -x "$service" >/dev/null; then
         BACKGROUND_SERVICES_TO_RESTART+=("$service")
@@ -110,12 +109,14 @@ done
 
 restart_background_services() {
     status=$?
-    rm -f "$INITIAL_DB_SETUP_SKIP_FILE"
     if [ "$APP_SERVICE_STOPPED" = true ]; then
         echo "[cleanup] Restarting app service"
         if ! "${COMPOSE[@]}" start app >/dev/null; then
             echo "⚠️  Warning: failed to restart the app service. Run ./dev-up.sh to recover."
         fi
+    fi
+    if ! "${COMPOSE[@]}" exec -T app rm -f /var/www/html/tmp/skip-initial-db-setup; then
+        echo "⚠️  Warning: failed to remove the initial database setup guard file."
     fi
     if [ ${#BACKGROUND_SERVICES_TO_RESTART[@]} -gt 0 ]; then
         echo "[cleanup] Restarting background services: ${BACKGROUND_SERVICES_TO_RESTART[*]}"
@@ -163,8 +164,18 @@ if (!empty($failed)) {
 '
 }
 
+normalize_local_secret_file_permissions() {
+    "${COMPOSE[@]}" exec -T app sh -lc '
+secrets_file="${KMP_SECRETS_FILE:-/var/www/html/config/secrets.local.json}"
+if [ -f "$secrets_file" ]; then
+    chown www-data:www-data "$secrets_file"
+    chmod 0600 "$secrets_file"
+fi
+'
+}
+
+trap restart_background_services EXIT
 if [ ${#BACKGROUND_SERVICES_TO_RESTART[@]} -gt 0 ]; then
-    trap restart_background_services EXIT
     echo "[pre] Pausing background services during database reset: ${BACKGROUND_SERVICES_TO_RESTART[*]}"
     "${COMPOSE[@]}" stop "${BACKGROUND_SERVICES_TO_RESTART[@]}" >/dev/null
 fi
@@ -173,10 +184,10 @@ DB_DRIVER="$(env_or_file KMP_DB_DRIVER postgres)"
 DB_DRIVER="$(printf '%s' "$DB_DRIVER" | tr '[:upper:]' '[:lower:]')"
 
 echo "[pre] Pausing app service during database drop/recreate"
+"${COMPOSE[@]}" exec -T app sh -lc \
+    'mkdir -p /var/www/html/tmp && touch /var/www/html/tmp/skip-initial-db-setup'
 "${COMPOSE[@]}" stop app >/dev/null
 APP_SERVICE_STOPPED=true
-mkdir -p "$(dirname "$INITIAL_DB_SETUP_SKIP_FILE")"
-touch "$INITIAL_DB_SETUP_SKIP_FILE"
 
 if [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER" = "pgsql" ]; then
     echo "[1/7] Dropping and recreating app and platform databases..."
@@ -710,6 +721,9 @@ ConnectionManager::get("platform")->update("tenants", [
         --tenant "$SECOND_TENANT_SLUG" \
         --skip-pre-migration-marker
 fi
+
+echo "[post] Aligning local secret file ownership with the web runtime..."
+normalize_local_secret_file_permissions
 
 if [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER" = "pgsql" ]; then
     echo "[6/7] Resetting all baseline tenant member passwords to TestPassword..."

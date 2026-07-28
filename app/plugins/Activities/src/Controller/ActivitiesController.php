@@ -347,10 +347,14 @@ class ActivitiesController extends AppController
     {
         $this->Authorization->skipAuthorization();
         $this->request->allowMethod(["get"]);
-        $activity = $this->Activities->get($activityId);
-        if (!$activity) {
-            throw new \Cake\Http\Exception\NotFoundException();
+        if ($activityId === null || $memberId === null) {
+            return $this->response
+                ->withStatus(400)
+                ->withType("application/json")
+                ->withStringBody(json_encode([]));
         }
+
+        $activity = $this->Activities->get($activityId);
 
         $this->viewBuilder()->setClassName("Ajax");
         $member = TableRegistry::getTableLocator()->get('Members')->get($memberId);

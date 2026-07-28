@@ -24,6 +24,7 @@ docs
 app/docs
 *.md
 !app/README.md
+!app/CHANGELOG.md
 
 # IDE and editor files
 .vscode

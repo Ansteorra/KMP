@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Calendar Week View Element
@@ -8,6 +9,7 @@
  * @var \App\View\AppView $this
  * @var \Cake\ORM\ResultSet $gatherings
  * @var \DateTime $startDate
+ * @var string $todayDate
  * @var bool $canAddGathering
  */
 
@@ -55,7 +57,7 @@ foreach ($gatherings as $gathering) {
 }
 
 // Get current date in user's timezone
-$today = new DateTime('now', new \DateTimeZone($userTimezone));
+$today = new DateTime($todayDate ?? 'now', new \DateTimeZone($userTimezone));
 $today->setTime(0, 0, 0);
 $canAddGathering = $canAddGathering ?? false;
 ?>
@@ -77,7 +79,11 @@ $canAddGathering = $canAddGathering ?? false;
             $dateKey = $current->format('Y-m-d');
             $isToday = ($current->format('Y-m-d') == $today->format('Y-m-d'));
         ?>
-            <div class="mb-4">
+            <div class="mb-4"
+            <?= $isToday
+                ? 'id="gatherings-calendar-today" data-calendar-date="' . h($dateKey)
+                    . '" aria-current="date" tabindex="-1"'
+                : '' ?>>
                 <h6 class="border-bottom pb-2 d-flex align-items-center <?= $isToday ? 'text-primary fw-bold' : '' ?>">
                     <span><?= $this->Timezone->format($current, null, 'l, F j') ?></span>
                     <?php if ($isToday): ?>

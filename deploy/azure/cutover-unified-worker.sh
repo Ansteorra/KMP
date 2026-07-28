@@ -292,7 +292,7 @@ patch_job_runtime \
     1 \
     migrate \
     '["/usr/local/bin/docker-entrypoint.sh"]' \
-    '["/bin/sh","-lc","bin/cake migrations migrate && bin/cake updateDatabase && bin/cake platform_migrate migrate"]'
+    '["/bin/sh","-lc","bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake cache clear _cake_model_"]'
 
 start_and_wait "$migrate_job" 'migration'
 
@@ -301,7 +301,7 @@ start_and_wait "$worker_job" 'post-migration worker verification'
 patch_job_runtime \
     "$worker_job" \
     "$image" \
-    '* * * * *' \
+    '*/3 * * * *' \
     3600 \
     1 \
     1 \

@@ -8,13 +8,13 @@ Please review the wiki for solution details https://github.com/Ansteorra/KMP/wik
 
 ## Local Development
 
-Local Docker Compose is the default development workflow. Your source stays in this folder, while PHP, Apache, MariaDB, Mailpit, Node, Xdebug, queue workers, and scheduled CakePHP cron jobs run in containers.
+Local Docker Compose is the default development workflow. Your source stays in this folder, while PHP, Apache, PostgreSQL, Mailpit, Node, Xdebug, queue workers, and scheduled CakePHP cron jobs run in containers.
 
 ```bash
 ./dev-up.sh --build
 ```
 
-After the app is healthy, `dev-up.sh` runs `dev-reset-db.sh --seed` so the database matches the current code and seeded dev users. The app is available at http://localhost:8080, Mailpit at http://localhost:8025, and MariaDB at 127.0.0.1:3306. Run Composer, CakePHP, npm, and tests inside the app container:
+After the app is healthy, `dev-up.sh` runs `dev-reset-db.sh --seed` so the database matches the current code and seeded dev users. The app is available at http://localhost:8080, Mailpit at http://localhost:8025, and PostgreSQL at 127.0.0.1:5432. Run Composer, CakePHP, npm, and tests inside the app container:
 
 ```bash
 docker compose exec app bin/cake migrations status
