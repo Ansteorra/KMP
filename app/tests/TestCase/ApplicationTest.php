@@ -21,6 +21,7 @@ use App\Application;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Cake\Core\Configure;
 use Cake\Error\Middleware\ErrorHandlerMiddleware;
+use Cake\Http\Exception\MissingControllerException;
 use Cake\Http\MiddlewareQueue;
 use Cake\Http\Response;
 use Cake\Http\ServerRequest;
@@ -55,6 +56,23 @@ class ApplicationTest extends HttpIntegrationTestCase
             $plugins->has('Migrations'),
             'plugins has Migrations?',
         );
+    }
+
+    public function testMissingControllerExceptionsAreExcludedFromErrorLogs(): void
+    {
+        $this->assertContains(
+            MissingControllerException::class,
+            Configure::read('Error.skipLog'),
+        );
+    }
+
+    public function testCsvRequestDetectorIsRegisteredDuringBootstrap(): void
+    {
+        $healthRequest = new ServerRequest(['url' => '/health']);
+        $csvRequest = new ServerRequest(['url' => '/members/export.csv']);
+
+        $this->assertFalse($healthRequest->is('csv'));
+        $this->assertTrue($csvRequest->is('csv'));
     }
 
     /**

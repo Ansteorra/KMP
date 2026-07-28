@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controller\Api\V1;
 
 use App\Controller\Api\ApiController;
+use App\KMP\CaseInsensitiveQuery;
 
 /**
  * Members API Controller
@@ -50,13 +51,13 @@ class MembersController extends ApiController
         }
 
         if ($this->request->getQuery('search')) {
-            $search = '%' . $this->request->getQuery('search') . '%';
+            $search = (string)$this->request->getQuery('search');
             $query->where([
                 'OR' => [
-                    'Members.sca_name LIKE' => $search,
-                    'Members.first_name LIKE' => $search,
-                    'Members.last_name LIKE' => $search,
-                    'Members.email_address LIKE' => $search,
+                    CaseInsensitiveQuery::contains('Members.sca_name', $search),
+                    CaseInsensitiveQuery::contains('Members.first_name', $search),
+                    CaseInsensitiveQuery::contains('Members.last_name', $search),
+                    CaseInsensitiveQuery::contains('Members.email_address', $search),
                 ],
             ]);
         }

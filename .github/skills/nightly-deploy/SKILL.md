@@ -55,7 +55,7 @@ Overrides via env: `IMAGE_TAG`, `NIGHTLY_BRANCH`, `GH_REPO`,
 
 ## What `deploy` does
 
-1. `az acr import ghcr.io/jhandel/kmp:nightly → kmp:nightly-YYYY-MM-DD-HHMMSS`
+1. `az acr import ghcr.io/ansteorra/kmp:nightly → kmp:nightly-YYYY-MM-DD-HHMMSS`
 2. Temporarily patches the migrate job to run app migrations, app settings update, and platform migrations, then restores it to `/bin/true`
 3. (if `--recommendations`) runs `bin/cake awards migrate_award_recommendations --apply --allow-open-manual-review`
 4. (if `--reset`) starts the reset job and resets tenant member passwords to `TestPassword`

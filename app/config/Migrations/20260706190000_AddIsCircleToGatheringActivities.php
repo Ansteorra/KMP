@@ -24,12 +24,17 @@ class AddIsCircleToGatheringActivities extends BaseMigration
             ])
             ->update();
 
-        // Preserve the previous name-based heuristic for existing rows.
+        // Preserve the previous name heuristic with SQL accepted by both databases.
         $this->execute(
-            "UPDATE gathering_activities SET is_circle = TRUE WHERE name ILIKE '%circle%'",
+            "UPDATE gathering_activities SET is_circle = TRUE WHERE LOWER(name) LIKE '%circle%'",
         );
     }
 
+    /**
+     * Remove the order circle flag.
+     *
+     * @return void
+     */
     public function down(): void
     {
         $this->table('gathering_activities')

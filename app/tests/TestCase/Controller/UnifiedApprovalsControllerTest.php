@@ -110,6 +110,7 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
     public function testMobileApprovalsDataPaginatesPendingApprovals(): void
     {
         $this->authenticateAsSuperUser();
+        $this->cancelSeededPendingApprovals();
         [$instanceId, $executionLogId] = $this->createWorkflowContext();
         for ($i = 0; $i < 3; $i++) {
             $this->createApproval($instanceId, $executionLogId, 'Mobile Approval ' . $i);
@@ -159,6 +160,7 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
     public function testKanbanLaneShowsLoadMoreWhenMoreApprovalsExist(): void
     {
         $this->authenticateAsSuperUser();
+        $this->cancelSeededPendingApprovals();
         [$instanceId, $executionLogId] = $this->createWorkflowContext();
         for ($i = 0; $i < 21; $i++) {
             $this->createApproval($instanceId, $executionLogId);
@@ -175,6 +177,7 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
     public function testKanbanLaneSecondPageDoesNotRepeatFirstPageWhenModifiedTimestampsTie(): void
     {
         $this->authenticateAsSuperUser();
+        $this->cancelSeededPendingApprovals();
         [$instanceId, $executionLogId] = $this->createWorkflowContext();
         $approvalIds = [];
         for ($i = 0; $i < 25; $i++) {
@@ -199,6 +202,14 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         $this->assertCount(20, $pageOneIds);
         $this->assertCount(5, $pageTwoIds);
         $this->assertSame([], array_values(array_intersect($pageOneIds, $pageTwoIds)));
+    }
+
+    private function cancelSeededPendingApprovals(): void
+    {
+        $this->getTableLocator()->get('WorkflowApprovals')->updateAll(
+            ['status' => WorkflowApproval::STATUS_CANCELLED],
+            ['status' => WorkflowApproval::STATUS_PENDING],
+        );
     }
 
     public function testKanbanLaneNextPageUrlDropsEscapedAmpersandQueryKeys(): void

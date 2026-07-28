@@ -38,6 +38,9 @@ class CsvExportService
         }
         $fh = fopen('php://temp', 'r+');
         $firstRow = null;
+        if ($headers !== null) {
+            fputcsv($fh, array_map([$this, 'sanitizeCell'], $headers), ',', '"', '');
+        }
         foreach ($data as $row) {
             if (is_object($row) && method_exists($row, 'toArray')) {
                 $row = $row->toArray();
@@ -46,15 +49,15 @@ class CsvExportService
                 $firstRow = $row;
                 if ($headers === null) {
                     $headers = array_keys($firstRow);
+                    fputcsv($fh, array_map([$this, 'sanitizeCell'], $headers), ',', '"', '');
                 }
-                fputcsv($fh, array_map([$this, 'sanitizeCell'], $headers));
             }
             // Ensure row is in the same order as headers
             $rowData = [];
             foreach ($headers as $header) {
                 $rowData[] = $this->sanitizeCell($row[$header] ?? '');
             }
-            fputcsv($fh, $rowData);
+            fputcsv($fh, $rowData, ',', '"', '');
         }
         rewind($fh);
         $csv = stream_get_contents($fh);

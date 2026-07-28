@@ -3,8 +3,92 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: d50442a51a9a0f89935f1ef82f9d3b1c2469f23a -->
-<!-- LAST_SYNCED_DATE: 2026-07-19 -->
+<!-- LAST_SYNCED_COMMIT: 106d57c7558dae1d68f9a78463f518366b042f8a -->
+<!-- LAST_SYNCED_DATE: 2026-07-24 -->
+
+## KMP 1.5.5 — July 24, 2026
+
+### Authorization Card and Calendar Hotfix
+
+KMP 1.5.5 restores complete activity authorization cards and improves gathering calendar navigation and filtering.
+
+- Mobile and printable activity authorization cards once again show current authorizations and the activities the member can authorize
+- Activity Authorization reports once again run correctly on PostgreSQL when filtering by date, branch, and activity
+- The gathering calendar's Today action now uses the member's timezone and moves to a clearly marked current date in month, week, and list views
+- Gathering grids now offer a timezone-aware Today or after filter without exposing filter-only fields in the column picker
+- Membership verification status labels more clearly distinguish member, parent, and fully verified minors
+- POC and production cutovers now clear shared dynamic tenant model metadata before starting the new web revision, preventing stale schema information after deployments
+
+📅 July 24, 2026 · `Critical Hotfix`
+
+---
+
+## KMP 1.5.4 — July 22, 2026
+
+### Verification Queue and Membership Processing Hotfix
+
+KMP 1.5.4 restores reliable membership verification and ensures Pending Verifications grids populate immediately when reviewers switch tabs.
+
+- Pending Verifications tabs now display their member columns and rows immediately without requiring a page refresh
+- POC and production deployments now clear tenant and platform database schema metadata before starting a new web revision, preventing verification failures after schema-changing upgrades
+- Failed membership verification saves now record validation details for administrators while leaving the member and uploaded card unchanged
+
+📅 July 22, 2026 · `Hotfix`
+
+---
+
+## KMP 1.5.3 — July 22, 2026
+
+### Membership Card and Bestowal Display Hotfix
+
+KMP 1.5.3 restores reliable access to uploaded membership cards and corrects recipient names in the Bestowal grid.
+
+- Membership cards awaiting verification now use persistent tenant-aware storage so authorized reviewers can reliably open them after deployment
+- Membership card images remain restricted to authenticated users with membership-verification permission
+- Processed and replaced membership cards, including generated thumbnails, are securely removed when they are no longer needed
+- Membership verification stops and reports an error if the processed card cannot be securely deleted
+- The Bestowal grid now displays the stored recipient SCA name when a Bestowal is not linked to a member record
+- POC and production web cutovers now verify that the intended Azure revision and image are ready before deployment reports success
+
+📅 July 22, 2026 · `Hotfix`
+
+---
+
+## KMP 1.5.2 — July 20, 2026
+
+### Case-Insensitive Data and Officer Export Hotfix
+
+KMP 1.5.2 completes the PostgreSQL case-insensitivity update and fixes public officer CSV exports for open-ended appointments and lowercase status filters.
+
+- Human-facing names, contact details, addresses, labels, statuses, and workflow states now compare case-insensitively across core KMP, Activities, Officers, Awards, Waivers, Queue, and platform administration
+- Security-sensitive passwords, salts, hashes, tokens, keys, identifiers, paths, URLs, and serialized values remain case-sensitive
+- Public officer CSV exports accept status values regardless of capitalization
+- Officer appointments without an expiration date export with a blank End value instead of truncating the CSV with an application error
+- Upgrade migrations check unique values for case-only collisions before conversion and preserve their original database types for rollback
+- Release image smoke tests now run with production configuration before promotion
+- POC and production releases now reuse the merged commit's quality evidence and promote the exact POC-tested image, avoiding repeated browser suites and image rebuilds
+
+📅 July 20, 2026 · `Hotfix`
+
+---
+
+## KMP 1.5.1 — July 20, 2026
+
+### PostgreSQL Compatibility and Deployment Hotfix
+
+KMP 1.5.1 restores the case-insensitive behavior users expect for names, email addresses, searches, and filters on PostgreSQL-backed installations while preserving the original capitalization of existing data.
+
+- Login, password reset, quick login, and duplicate-email checks now match email addresses regardless of capitalization
+- Member, officer, award, waiver, autocomplete, API, and grid searches now behave consistently across PostgreSQL and MySQL
+- Saved grid filters remain case-insensitive without applying text operations to numeric relationship fields
+- Human-facing names and labels use case-insensitive PostgreSQL comparisons while security-sensitive tokens, hashes, identifiers, paths, and workflow keys remain case-sensitive
+- Award recommendation grouping states are installed reliably during upgrades
+- Azure deployment now enables required PostgreSQL extensions safely, preserves existing extension settings, and supports POC databases hosted on a shared PostgreSQL server
+- Worker canaries, migrations, health checks, and web cutover now complete through the guarded POC and production deployment pipeline
+
+📅 July 20, 2026 · `Hotfix`
+
+---
 
 ## KMP 1.5 — July 19, 2026
 

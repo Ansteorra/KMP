@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Officers\Services\Api;
 
+use App\KMP\CaseInsensitiveQuery;
 use App\KMP\KmpIdentityInterface;
 use Cake\ORM\TableRegistry;
 
@@ -24,8 +25,10 @@ class DefaultReadOnlyDepartmentService implements ReadOnlyDepartmentServiceInter
         $query = $table->find()->orderBy(['Departments.name' => 'ASC']);
 
         if (!empty($filters['search'])) {
-            $search = '%' . trim((string)$filters['search']) . '%';
-            $query->where(['Departments.name LIKE' => $search]);
+            $query->where(CaseInsensitiveQuery::contains(
+                'Departments.name',
+                (string)$filters['search'],
+            ));
         }
 
         $total = (clone $query)->count();
@@ -118,4 +121,3 @@ class DefaultReadOnlyDepartmentService implements ReadOnlyDepartmentServiceInter
         }
     }
 }
-

@@ -48,6 +48,13 @@ class AppController extends Controller
     protected array $pluginViewCells = [];
 
     /**
+     * Whether an intentionally fragment-style response still needs plugin view cells.
+     *
+     * @var bool
+     */
+    protected bool $pluginViewCellsEnabledForFragment = false;
+
+    /**
      * @var bool Whether current request is for CSV export (.csv extension)
      */
     protected bool $isCsvRequest = false;
@@ -104,7 +111,7 @@ class AppController extends Controller
     /**
      * Pre-action filter for application-wide processing.
      *
-     * Handles: CSV detection, plugin validation, navigation history,
+     * Handles: plugin validation, navigation history,
      * view cell loading, and Turbo Frame detection.
      *
      * @param \Cake\Event\EventInterface $event The beforeFilter event
@@ -112,14 +119,6 @@ class AppController extends Controller
      */
     public function beforeFilter(EventInterface $event)
     {
-        // Register CSV request detector
-        $this->request->addDetector(
-            'csv',
-            function ($request) {
-                return strpos($request->getRequestTarget(), '.csv') !== false;
-            },
-        );
-
         $this->isCsvRequest = $this->request->is('csv');
         $this->set('isCsvRequest', $this->isCsvRequest);
 
@@ -416,7 +415,7 @@ class AppController extends Controller
             return;
         }
 
-        if ($this->isFragmentRequest()) {
+        if ($this->isFragmentRequest() && !$this->pluginViewCellsEnabledForFragment) {
             $this->pluginViewCells = [];
         } else {
             $urlParams = [
@@ -434,6 +433,16 @@ class AppController extends Controller
         }
 
         $this->set('pluginViewCells', $this->pluginViewCells);
+    }
+
+    /**
+     * Include route-matched plugin cells in an AJAX or other fragment response.
+     *
+     * @return void
+     */
+    protected function enablePluginViewCellsForFragment(): void
+    {
+        $this->pluginViewCellsEnabledForFragment = true;
     }
 
     /**

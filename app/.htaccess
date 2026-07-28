@@ -6,6 +6,14 @@
 
 <IfModule mod_rewrite.c>
     RewriteEngine on
+
+    # Reject common secret-file and off-the-shelf exploit probes before PHP starts.
+    RewriteRule "(^|/)\.(?:env|git|svn|hg|aws|docker)(?:[./]|$)" - [R=404,L,NC]
+    RewriteCond %{THE_REQUEST} "\s/+[^?\s]*\.php(?:[/?\s])" [NC]
+    RewriteRule ^ - [R=404,L]
+    RewriteRule "(^|/)(?:wp-admin|wp-content|wp-includes|wordpress|wp|phpmyadmin|vendor/phpunit|cgi-bin|server-status)(?:/|$)" - [R=404,L,NC]
+    RewriteRule "(^|/)(?:composer\.(?:json|lock)|package(?:-lock)?\.json|yarn\.lock|Dockerfile|docker-compose\.ya?ml)(?:/|$)" - [R=404,L,NC]
+
     RewriteRule    ^(\.well-known/.*)$ $1 [L]
     RewriteRule    ^$    webroot/    [L]
     RewriteRule    (.*) webroot/$1    [L]

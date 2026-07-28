@@ -99,35 +99,32 @@ if (session_status() === PHP_SESSION_NONE) {
     session_id('cli');
 }
 
-// Ensure the test schema is seeded with the shared dev dataset.
-// MySQL uses a schema+data dump, so load it before migrations. PostgreSQL uses
-// a data-only converted seed, so load it after migrations create the schema.
-if (!SeedManager::isPostgres('test')) {
+// MySQL starts from a schema+data dump. PostgreSQL builds a fresh schema from
+// migrations before loading its data-only converted seed.
+$isPostgres = SeedManager::isPostgres('test');
+if (!$isPostgres) {
     SeedManager::bootstrap('test');
 }
 
-// PostgreSQL tests use a current schema dump plus a data-only seed, so rerunning
-// all migrations would try to recreate existing tables.
-if (!SeedManager::isPostgres('test')) {
-    // Run any pending migrations on the test connection to create tables
-    // not yet included in dev_seed_clean.sql (e.g., workflow engine tables).
-    (new Migrations())->migrate(['connection' => 'test']);
+// Run pending migrations on MySQL and build the complete PostgreSQL schema.
+(new Migrations())->migrate(['connection' => 'test']);
+
+foreach (['Queue', 'Activities', 'Officers', 'Awards', 'Waivers'] as $plugin) {
+    (new Migrations())->migrate(['connection' => 'test', 'plugin' => $plugin]);
 }
 
-// Fix stale seed data dates: extend expired test member roles to far-future dates
-// so time-sensitive tests remain stable across environments.
+if ($isPostgres) {
+    SeedManager::bootstrap('test');
+} else {
+    // MariaDB DDL commits implicitly, which can leave Cake's migration
+    // connection with a stale transaction nesting level.
+    $testConfig = ConnectionManager::getConfig('test');
+    ConnectionManager::drop('test');
+    ConnectionManager::setConfig('test', $testConfig);
+}
+
 $conn = ConnectionManager::get('test');
 $farFuture = '2100-01-01 00:00:00';
-
-// Apply plugin migrations on MySQL after the shared seed dump. PostgreSQL tests
-// use a current schema dump plus a data-only converted seed.
-if (!SeedManager::isPostgres('test')) {
-    foreach (['Queue', 'Officers', 'Activities', 'Awards', 'Waivers'] as $plugin) {
-        (new Migrations())->migrate(['connection' => 'test', 'plugin' => $plugin]);
-    }
-} else {
-    SeedManager::bootstrap('test');
-}
 
 $bestowalSchema = $conn->getSchemaCollection()->describe('awards_bestowals');
 if (!$bestowalSchema->hasColumn('reason_summary')) {
@@ -141,7 +138,7 @@ if (!$bestowalSchema->hasColumn('specialty')) {
 }
 
 // On Postgres (no MySQL seed dump), we also need to seed essential AppSettings.
-if (SeedManager::isPostgres('test')) {
+if ($isPostgres) {
     $hasBestowalAwardId = (bool)$conn->execute(
         "SELECT EXISTS (
             SELECT 1
@@ -539,7 +536,7 @@ TableRegistry::getTableLocator()->clear();
 // so time-sensitive tests remain stable across environments.
 // These fixup queries reference IDs from the MySQL seed dump (dev_seed_clean.sql)
 // which is not loaded for Postgres — skip them on Postgres.
-if (!SeedManager::isPostgres('test')) {
+if (!$isPostgres) {
     $conn = ConnectionManager::get('test');
     $farFuture = '2100-01-01 00:00:00';
 

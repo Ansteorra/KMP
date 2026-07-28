@@ -5,12 +5,15 @@ namespace App\Test\TestCase\Controller;
 
 use App\KMP\TimezoneHelper;
 use App\Model\Entity\ActionItem;
+use App\Services\GridViewService;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
 use Awards\Model\Entity\CourtAgendaItem;
 use Awards\Model\Entity\CourtAgendaSegment;
 use Cake\Cache\Cache;
+use DateTimeImmutable;
+use DateTimeZone;
 use Waivers\Policy\GatheringWaiverPolicy;
 
 /**
@@ -83,6 +86,71 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * Filter-only metadata cannot be forced into the rendered grid columns.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::gridData()
+     */
+    public function testGridDataExcludesFilterOnlyColumnsFromRequestedColumns(): void
+    {
+        $this->configRequest([
+            'headers' => ['Turbo-Frame' => 'gatherings-grid-table'],
+        ]);
+        $this->get('/gatherings/grid-data?columns=name,relative_event_date');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('data-column-key="name"');
+        $this->assertResponseNotContains('data-column-key="relative_event_date"');
+    }
+
+    /**
+     * A saved relative-date filter resolves "today" on every request.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::gridData()
+     */
+    public function testSavedGridViewFiltersGatheringsTodayOrAfter(): void
+    {
+        $past = $this->createCalendarGathering('Relative Date Filter Past', false, [
+            'start_date' => date('Y-m-d H:i:s', strtotime('-2 days')),
+            'end_date' => date('Y-m-d H:i:s', strtotime('-2 days +4 hours')),
+        ]);
+        $future = $this->createCalendarGathering('Relative Date Filter Future', false, [
+            'start_date' => date('Y-m-d H:i:s', strtotime('+2 days')),
+            'end_date' => date('Y-m-d H:i:s', strtotime('+2 days +4 hours')),
+        ]);
+        $ongoing = $this->createCalendarGathering('Relative Date Filter Ongoing', false, [
+            'start_date' => date('Y-m-d H:i:s', strtotime('-2 days')),
+            'end_date' => date('Y-m-d H:i:s', strtotime('+2 days')),
+        ]);
+        $currentUser = $this->getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID);
+        $gridView = (new GridViewService())->createView([
+            'grid_key' => 'Gatherings.index.main',
+            'name' => 'Rolling Future Gatherings',
+            'config' => json_encode([
+                'filters' => [
+                    [
+                        'field' => 'relative_event_date',
+                        'operator' => 'in',
+                        'value' => ['today_or_after'],
+                    ],
+                ],
+            ]),
+        ], $currentUser);
+        $this->assertNotFalse($gridView);
+
+        $this->get(
+            '/gatherings/grid-data?view_id=' . $gridView->id
+            . '&search=Relative%20Date%20Filter',
+        );
+
+        $this->assertResponseOk();
+        $this->assertResponseContains($future->name);
+        $this->assertResponseContains($ongoing->name);
+        $this->assertResponseNotContains($past->name);
+    }
+
+    /**
      * Test view method
      *
      * @return void
@@ -91,12 +159,65 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     public function testView(): void
     {
         $gatherings = $this->getTableLocator()->get('Gatherings');
-        $gathering = $gatherings->find()->first();
+        $gathering = $gatherings->find()
+            ->contain(['Creators'])
+            ->first();
         if (!$gathering) {
             $this->markTestSkipped('No gathering found in seed data');
         }
         $this->get('/gatherings/view/' . $gathering->public_id);
         $this->assertResponseOk();
+        $this->assertResponseContains('Created By');
+        $this->assertResponseContains(h($gathering->creator->sca_name));
+
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->get('/gatherings/view/' . $gathering->public_id);
+        $this->assertResponseOk();
+        $this->assertResponseNotContains('Created By');
+    }
+
+    /**
+     * Creator metadata remains visible when a gathering has no explicit timezone.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::view()
+     */
+    public function testViewShowsCreatorWithoutGatheringTimezone(): void
+    {
+        $gathering = $this->createCalendarGathering('Gathering Without Timezone', false, [
+            'timezone' => null,
+        ]);
+
+        $this->get('/gatherings/view/' . $gathering->public_id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Created By');
+    }
+
+    /**
+     * Share controls remain operable so disabled-state guidance is reachable.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::view()
+     */
+    public function testViewShareControlsAreAccessible(): void
+    {
+        $disabledGathering = $this->createCalendarGathering('Private Gathering', false, [
+            'public_page_enabled' => false,
+        ]);
+        $this->get('/gatherings/view/' . $disabledGathering->public_id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Public landing page is disabled for this gathering.');
+        $this->assertResponseNotContains('aria-expanded="false" disabled');
+
+        $enabledGathering = $this->createCalendarGathering('Public Gathering', false, [
+            'public_page_enabled' => true,
+        ]);
+        $this->get('/gatherings/view/' . $enabledGathering->public_id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('label class="text-muted d-block mb-2" for="publicLandingUrlInput"');
     }
 
     /**
@@ -356,6 +477,61 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * Today navigation renders a scroll target in every calendar mode.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::calendarGridData()
+     */
+    public function testCalendarTodayNavigationRendersTargetInEveryView(): void
+    {
+        $baseQuery = 'year=2000&month=01&scroll_to_today=1';
+
+        foreach (['month', 'week', 'list'] as $view) {
+            $this->configRequest([
+                'headers' => ['Turbo-Frame' => 'gatherings-calendar-grid-table'],
+            ]);
+            $weekStart = $view === 'week' ? '&week_start=2000-01-01' : '';
+            $this->get("/gatherings/calendar-grid-data?view={$view}&{$baseQuery}{$weekStart}");
+
+            $this->assertResponseOk();
+            $this->assertResponseContains('id="gatherings-calendar-today"');
+            $this->assertResponseContains('data-gatherings-calendar-scroll-to-today-value="1"');
+        }
+    }
+
+    /**
+     * The list-view today marker precedes a gathering already in progress.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::calendarGridData()
+     */
+    public function testCalendarListTodayMarkerPrecedesOngoingGathering(): void
+    {
+        $today = new DateTimeImmutable('now', new DateTimeZone(TimezoneHelper::getAppTimezone()));
+        $ongoing = $this->createCalendarGathering('Ongoing Calendar Gathering', false, [
+            'start_date' => $today->modify('-2 days')->format('Y-m-d 10:00:00'),
+            'end_date' => $today->modify('+2 days')->format('Y-m-d 18:00:00'),
+        ]);
+
+        $this->configRequest([
+            'headers' => ['Turbo-Frame' => 'gatherings-calendar-grid-table'],
+        ]);
+        $this->get(sprintf(
+            '/gatherings/calendar-grid-data?view=list&year=%s&month=%s&scroll_to_today=1',
+            $today->format('Y'),
+            $today->format('m'),
+        ));
+
+        $this->assertResponseOk();
+        $body = (string)$this->_response->getBody();
+        $markerPosition = strpos($body, 'id="gatherings-calendar-today"');
+        $gatheringPosition = strpos($body, h($ongoing->name));
+        $this->assertNotFalse($markerPosition);
+        $this->assertNotFalse($gatheringPosition);
+        $this->assertLessThan($gatheringPosition, $markerPosition);
+    }
+
+    /**
      * The calendar list view shows the pre-register link when open and hides
      * it once pre-registration has closed.
      *
@@ -365,7 +541,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     public function testCalendarListPreregisterLinkVisibility(): void
     {
         $gatherings = $this->getTableLocator()->get('Gatherings');
-        $open = $gatherings->saveOrFail($gatherings->newEntity([
+        $gatherings->saveOrFail($gatherings->newEntity([
             'public_id' => 'prgopen1',
             'branch_id' => 2,
             'gathering_type_id' => 1,
@@ -377,7 +553,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
             'preregister_closes_on' => '2099-11-01',
             'created_by' => self::ADMIN_MEMBER_ID,
         ]));
-        $closed = $gatherings->saveOrFail($gatherings->newEntity([
+        $gatherings->saveOrFail($gatherings->newEntity([
             'public_id' => 'prgclsd1',
             'branch_id' => 2,
             'gathering_type_id' => 1,
@@ -972,10 +1148,16 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->get('/events');
 
         $this->assertResponseOk();
-        // Exactly one activity chip is styled as a circle (the flagged one)
-        $this->assertSame(
-            1,
-            substr_count((string)$this->_response->getBody(), 'kc-activity-chip-circle'),
+        $body = (string)$this->_response->getBody();
+        $this->assertMatchesRegularExpression(
+            '/<span class="kc-activity-chip kc-activity-chip-circle">\s*'
+            . '<i class="bi bi-record-circle" aria-hidden="true"><\/i>\s*'
+            . 'Order of the Laurel\s*<\/span>/',
+            $body,
+        );
+        $this->assertMatchesRegularExpression(
+            '/<span class="kc-activity-chip">\s*Drum Circle\s*<\/span>/',
+            $body,
         );
     }
 
@@ -1016,7 +1198,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
             'public_page_enabled' => true,
             'website_url' => 'https://example.org/superseded-site',
         ]);
-        $websiteOnly = $this->createCalendarGathering('Website Only Event Mu', true, [
+        $this->createCalendarGathering('Website Only Event Mu', true, [
             'public_page_enabled' => false,
             'website_url' => 'https://example.org/external-site',
         ]);

@@ -1,0 +1,17 @@
+# KMP browser-test runtime
+#
+# The application source, Composer dependencies, and frontend assets are mounted
+# from the GitHub Actions checkout. Reuse the published PHP base so browser tests
+# do not recompile gRPC and the other production extensions on every run.
+
+ARG BASE_IMAGE=ghcr.io/ansteorra/kmp-base:php84
+FROM ${BASE_IMAGE}
+
+WORKDIR /var/www/html
+
+RUN mkdir -p /opt/docker
+COPY docker/app_local.php /opt/docker/app_local.php
+COPY docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["apache2-foreground"]

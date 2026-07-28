@@ -1,5 +1,19 @@
+<IfModule mod_headers.c>
+    # Keep authenticated pages and machine-consumed public endpoints out of search indexes.
+    Header always set X-Robots-Tag "noindex, nofollow, noarchive"
+    Header always unset X-Robots-Tag "expr=%{THE_REQUEST} =~ m#\s/+events(?:[/?\s])# || %{THE_REQUEST} =~ m#\s/+gatherings/public-landing/#"
+</IfModule>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
+
+    # Identified crawlers may reach static files and the intentionally indexable public pages only.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_URI} !^/(?:webroot/)?events(?:/|$) [NC]
+    RewriteCond %{REQUEST_URI} !^/(?:webroot/)?gatherings/public-landing/ [NC]
+    RewriteCond %{HTTP_USER_AGENT} "(?:bot|crawler|spider|slurp|archiver|scanner|preview|facebookexternalhit|nuclei|nikto|sqlmap|masscan|zgrab)" [NC]
+    RewriteRule ^ - [R=403,L]
+
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>

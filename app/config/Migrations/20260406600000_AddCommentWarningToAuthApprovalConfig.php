@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Cake\ORM\TableRegistry;
 use Migrations\AbstractMigration;
 
 /**
@@ -10,6 +11,9 @@ use Migrations\AbstractMigration;
  */
 class AddCommentWarningToAuthApprovalConfig extends AbstractMigration
 {
+    /**
+     * @return void
+     */
     public function up(): void
     {
         $jsonPath = ROOT . '/config/Seeds/WorkflowDefinitions/activities-authorization-request.json';
@@ -20,19 +24,22 @@ class AddCommentWarningToAuthApprovalConfig extends AbstractMigration
         $definitionData = json_decode(file_get_contents($jsonPath), true);
 
         // Update workflow versions
-        $versionsTable = \Cake\ORM\TableRegistry::getTableLocator()->get('WorkflowVersions');
+        $versionsTable = TableRegistry::getTableLocator()->get('WorkflowVersions');
         $versions = $versionsTable->find()
+            ->select(['id', 'definition'])
             ->where(['workflow_definition_id' => 4])
             ->all();
 
         foreach ($versions as $version) {
-            $version->definition = $definitionData;
-            $versionsTable->save($version);
+            $versionsTable->updateAll(
+                ['definition' => $definitionData],
+                ['id' => $version->id],
+            );
         }
 
         // Backfill existing pending approvals with comment_warning
-        $approvalsTable = \Cake\ORM\TableRegistry::getTableLocator()->get('WorkflowApprovals');
-        $instancesTable = \Cake\ORM\TableRegistry::getTableLocator()->get('WorkflowInstances');
+        $approvalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
+        $instancesTable = TableRegistry::getTableLocator()->get('WorkflowInstances');
 
         // Find instances belonging to the authorization workflow (definition_id=4)
         $instanceIds = $instancesTable->find()
@@ -46,6 +53,7 @@ class AddCommentWarningToAuthApprovalConfig extends AbstractMigration
 
         if (!empty($instanceIds)) {
             $pendingApprovals = $approvalsTable->find()
+                ->select(['id', 'approver_config'])
                 ->where([
                     'workflow_instance_id IN' => $instanceIds,
                     'status' => 'pending',
@@ -57,13 +65,18 @@ class AddCommentWarningToAuthApprovalConfig extends AbstractMigration
                 $config = $approval->approver_config ?? [];
                 if (empty($config['comment_warning'])) {
                     $config['comment_warning'] = $warning;
-                    $approval->approver_config = $config;
-                    $approvalsTable->save($approval);
+                    $approvalsTable->updateAll(
+                        ['approver_config' => $config],
+                        ['id' => $approval->id],
+                    );
                 }
             }
         }
     }
 
+    /**
+     * @return void
+     */
     public function down(): void
     {
         // Not reversible

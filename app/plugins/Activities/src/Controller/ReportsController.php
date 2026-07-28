@@ -1,12 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Activities\Controller;
 
-use Cake\Log\Log;
-use Cake\ORM\TableRegistry;
 use Cake\I18n\DateTime;
+use Cake\ORM\Query\SelectQuery;
+use Cake\ORM\TableRegistry;
 
 /**
  * Activities Plugin Reports Controller
@@ -63,19 +62,25 @@ class ReportsController extends AppController
         $validOn = DateTime::now()->addDays(1);
 
         // Initialize result containers
-        $memberRollup  = [];
+        $memberRollup = [];
         $memberListQuery = [];
         $activities = [];
 
         // Process query parameters if provided
         if ($this->request->getQuery('validOn')) {
             // Extract filter parameters
-            $activities = $this->request->getQuery('activities');
-            $filter_branch = $this->request->getQuery('branches');
+            $activities = array_values(array_filter(
+                array_map('intval', (array)$this->request->getQuery('activities', [])),
+                static fn(int $activityId): bool => $activityId > 0,
+            ));
+            if ($activities === []) {
+                $activities = $default_activities;
+            }
+            $filterBranch = (int)$this->request->getQuery('branches');
 
             // Calculate valid branches including children in hierarchy
-            $valid_branches = $branchesTbl->find('children', for: $filter_branch)->all()->extract('id')->toArray();
-            $valid_branches[] = $filter_branch; // Include parent branch
+            $validBranches = $branchesTbl->find('children', for: $filterBranch)->all()->extract('id')->toArray();
+            $validBranches[] = $filterBranch; // Include parent branch
 
             // Parse validity date
             $validOn = (new DateTime($this->request->getQuery('validOn')))->addDays(1);
@@ -84,19 +89,15 @@ class ReportsController extends AppController
             $authTbl = TableRegistry::getTableLocator()->get('Activities.Authorizations');
 
             // Calculate distinct member count with authorization filters
-            $distincMemberCount = $authTbl->find()
+            $distinctMemberQuery = $authTbl->find()
                 ->select('member_id')
-                ->contain(['Members' => function ($q) use ($valid_branches) {
-                    return $q->select(['id'])->where(['branch_id IN' => $valid_branches]);
+                ->contain(['Members' => function ($q) use ($validBranches) {
+                    return $q->select(['id'])->where(['branch_id IN' => $validBranches]);
                 }])
                 ->where([
-                    "or" => [
-                        "start_on <=" => $validOn,
-                        "start_on IS" => null
-                    ],
-                    "expires_on >" => $validOn,
-                    "activity_id IN" => $activities
-                ])
+                    'activity_id IN' => $activities,
+                ]);
+            $distincMemberCount = $this->setValidFilter($distinctMemberQuery, $validOn)
                 ->distinct('member_id')
                 ->count();
 
@@ -104,37 +105,34 @@ class ReportsController extends AppController
             $memberListQuery = $authTbl->find('all')
                 ->contain(['Activities' => function ($q) {
                     return $q->select(['name']);
-                }, 'Members' => function ($q) use ($valid_branches) {
-                    return $q->select(['membership_number', 'sca_name', 'id'])->where(['branch_id IN' => $valid_branches]);
-                }, "Members.Branches" => function ($q) {
+                }, 'Members' => function ($q) use ($validBranches) {
+                    return $q->select(['membership_number', 'sca_name', 'id', 'branch_id'])
+                        ->where(['branch_id IN' => $validBranches]);
+                }, 'Members.Branches' => function ($q) {
                     return $q->select(['name']);
                 }])
                 ->where([
-                    "or" => [
-                        "start_on <=" => $validOn,
-                        "start_on IS" => null
-                    ],
-                    "expires_on >" => $validOn,
-                    "activity_id IN" => $activities
-                ])
+                    'activity_id IN' => $activities,
+                ]);
+            $memberListQuery = $this->setValidFilter($memberListQuery, $validOn)
                 ->orderBy(['Activities.name' => 'ASC', 'Members.sca_name' => 'ASC'])
                 ->all();
 
             // Generate statistical rollup by activity type
-            $authTypes = $authTbl->find('all')->contain('Activities');
+            $authTypes = $authTbl->find('all')
+                ->innerJoinWith('Activities')
+                ->innerJoinWith('Members', function ($q) use ($validBranches) {
+                    return $q->where(['Members.branch_id IN' => $validBranches]);
+                });
             $memberRollup = $authTypes
-                ->select(["auth" => 'Activities.name', "count" => $authTypes->func()->count('member_id')])
-                ->contain(['Members' => function ($q) use ($valid_branches) {
-                    return $q->select(['id'])->where(['branch_id IN' => $valid_branches]);
-                }])
-                ->where([
-                    "or" => [
-                        "start_on <=" => $validOn,
-                        "start_on IS" => null
-                    ],
-                    "expires_on >" => $validOn,
-                    "activity_id IN" => $activities
+                ->select([
+                    'auth' => 'Activities.name',
+                    'count' => $authTypes->func()->count('Authorizations.member_id'),
                 ])
+                ->where([
+                    'Authorizations.activity_id IN' => $activities,
+                ]);
+            $memberRollup = $this->setValidFilter($memberRollup, $validOn)
                 ->groupBy(['Activities.name'])
                 ->all();
         }
@@ -149,35 +147,35 @@ class ReportsController extends AppController
 
         // Set template variables for view rendering
         $this->set(compact(
-            'activitiesList',      // Available activities for filter selection
-            'branchesList',        // Branch hierarchy for organizational filtering
-            'distincMemberCount',  // Total unique authorized members
-            'validOn',             // Target date for report validity
-            'memberRollup',        // Statistical summary by activity type
-            'memberListQuery',     // Detailed member authorization listings
-            'activities',          // Selected activity IDs for filtering
+            'activitiesList', // Available activities for filter selection
+            'branchesList', // Branch hierarchy for organizational filtering
+            'distincMemberCount', // Total unique authorized members
+            'validOn', // Target date for report validity
+            'memberRollup', // Statistical summary by activity type
+            'memberListQuery', // Detailed member authorization listings
+            'activities', // Selected activity IDs for filtering
         ));
     }
 
     /**
      * Apply temporal validity filter to authorization query.
      *
-     * @param \Cake\ORM\Query $q The base query object to filter
+     * @param \Cake\ORM\Query\SelectQuery $query The base query object to filter
      * @param \Cake\I18n\DateTime $validOn The target date for validity checking
-     * @return \Cake\ORM\Query The modified query with temporal filters applied
+     * @return \Cake\ORM\Query\SelectQuery The modified query with temporal filters applied
      */
-    protected function setValidFilter($q, $validOn)
+    protected function setValidFilter(SelectQuery $query, DateTime $validOn): SelectQuery
     {
-        return $q->where([
-            "OR" => [
-                "start_on <=" => $validOn,
-                "start_on IS" => null
-            ]
+        return $query->where([
+            'OR' => [
+                'Authorizations.start_on <=' => $validOn,
+                'Authorizations.start_on IS' => null,
+            ],
         ])->where([
-            "OR" => [
-                "expires_on >=" => $validOn,
-                "expires_on IS" => null
-            ]
+            'OR' => [
+                'Authorizations.expires_on >=' => $validOn,
+                'Authorizations.expires_on IS' => null,
+            ],
         ]);
     }
 }

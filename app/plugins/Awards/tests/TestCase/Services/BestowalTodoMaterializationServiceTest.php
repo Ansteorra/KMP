@@ -150,8 +150,12 @@ class BestowalTodoMaterializationServiceTest extends BaseTestCase
 
     public function testMaterializeIsNoOpWhenAwardHasNoTemplate(): void
     {
-        $award = $this->awardsTable->find()->where(['bestowal_todo_template_id IS' => null])->first();
-        $this->assertNotNull($award, 'Expected a seed award without a to-do template.');
+        $award = $this->awardsTable->find()->orderByAsc('id')->first();
+        $this->assertNotNull($award, 'Expected at least one seed award.');
+        $this->awardsTable->updateAll(
+            ['bestowal_todo_template_id' => null],
+            ['id' => $award->id],
+        );
         $bestowalId = 9000003;
         $bestowal = $this->buildBestowal($bestowalId, (int)$award->id);
 
