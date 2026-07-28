@@ -192,7 +192,8 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
                     <li><?= __('Upload images or PDF files') ?></li>
                     <li><?= __('Supported formats: JPEG, PNG, GIF, BMP, WEBP, PDF') ?></li>
                     <li><?= __('Maximum file size: {0}', h($uploadLimits['formatted'])) ?></li>
-                    <li><?= __('Images will be converted to B&W; PDFs kept as-is') ?></li>
+                    <li><?= __('Images are resized and converted to B&W in your browser when supported') ?></li>
+                    <li><?= __('The server creates the final PDF; uploaded PDFs are kept as-is') ?></li>
                 </ul>
             </div>
         </div>

@@ -5,6 +5,7 @@ namespace App\Test\TestCase\Services;
 
 use App\Services\ImageToPdfConversionService;
 use App\Test\TestCase\BaseTestCase;
+use ReflectionClass;
 
 /**
  * App\Services\ImageToPdfConversionService Test Case
@@ -162,6 +163,93 @@ class ImageToPdfConversionServiceTest extends BaseTestCase
     }
 
     /**
+     * Read the first embedded JPEG and its PDF display dimensions.
+     *
+     * @return array{jpeg_width: int, jpeg_height: int, display_width: int, display_height: int}
+     */
+    private function extractFirstPdfImageDimensions(string $pdfPath): array
+    {
+        $dimensions = $this->extractPdfImageDimensions($pdfPath);
+        $this->assertNotEmpty($dimensions, 'PDF should contain an embedded image');
+
+        return $dimensions[0];
+    }
+
+    /**
+     * Read embedded JPEG and PDF display dimensions.
+     *
+     * @return array<array{jpeg_width: int, jpeg_height: int, display_width: int, display_height: int}>
+     */
+    private function extractPdfImageDimensions(string $pdfPath): array
+    {
+        $pdfContent = file_get_contents($pdfPath);
+        $this->assertNotFalse($pdfContent);
+        $jpegStreams = $this->extractPdfJpegStreams($pdfContent);
+
+        preg_match_all(
+            '/\/Subtype \/Image \/Width (\d+) \/Height (\d+).*?q\s+(\d+) 0 0 (\d+)/s',
+            $pdfContent,
+            $matches,
+            PREG_SET_ORDER,
+        );
+        $this->assertCount(count($matches), $jpegStreams);
+
+        return array_map(
+            function (array $match, int $index) use ($jpegStreams): array {
+                $actualDimensions = getimagesizefromstring($jpegStreams[$index]);
+                $this->assertNotFalse($actualDimensions, 'Embedded stream should contain a valid JPEG');
+                $this->assertSame((int)$match[1], $actualDimensions[0]);
+                $this->assertSame((int)$match[2], $actualDimensions[1]);
+
+                return [
+                    'jpeg_width' => (int)$match[1],
+                    'jpeg_height' => (int)$match[2],
+                    'display_width' => (int)$match[3],
+                    'display_height' => (int)$match[4],
+                ];
+            },
+            $matches,
+            array_keys($matches),
+        );
+    }
+
+    /**
+     * Extract JPEG streams using their declared PDF byte lengths.
+     *
+     * @return array<string>
+     */
+    private function extractPdfJpegStreams(string $pdfContent): array
+    {
+        preg_match_all(
+            '/\/Subtype \/Image\b.*?\/Length (\d+) >>\nstream\n/s',
+            $pdfContent,
+            $matches,
+            PREG_OFFSET_CAPTURE,
+        );
+
+        $streams = [];
+        foreach ($matches[0] as $index => $headerMatch) {
+            $streamStart = $headerMatch[1] + strlen($headerMatch[0]);
+            $streamLength = (int)$matches[1][$index][0];
+            $streams[] = substr($pdfContent, $streamStart, $streamLength);
+        }
+
+        return $streams;
+    }
+
+    /**
+     * Read the first luminance quantizer from a JPEG DQT marker.
+     */
+    private function extractFirstJpegQuantizer(string $jpegData): int
+    {
+        $markerOffset = strpos($jpegData, "\xFF\xDB");
+        $this->assertNotFalse($markerOffset, 'JPEG should contain a quantization table');
+        $this->assertGreaterThan($markerOffset + 5, strlen($jpegData));
+
+        return ord($jpegData[$markerOffset + 5]);
+    }
+
+    /**
      * Test convert method with valid JPEG image
      *
      * @return void
@@ -280,7 +368,7 @@ class ImageToPdfConversionServiceTest extends BaseTestCase
         $this->assertFileExists($outputPath);
         $pdfSize = filesize($outputPath);
         $this->assertGreaterThan(0, $pdfSize, 'PDF should not be empty');
-        // PDF wraps a JPEG at quality 70 with ~200 bytes of structure;
+        // PDF wraps a JPEG at quality 80 with minimal PDF structure;
         // it should be a reasonable size for an 800×600 grayscale image
         $this->assertLessThan(5 * 1024 * 1024, $pdfSize, 'PDF should be under 5 MB for an 800x600 image');
     }
@@ -481,6 +569,54 @@ class ImageToPdfConversionServiceTest extends BaseTestCase
     }
 
     /**
+     * Test converted images are embedded at 150 DPI without changing PDF page placement.
+     */
+    public function testStoresImagesAt150DpiAndQuality80(): void
+    {
+        $largePath = $this->testImagesDir . 'resolution.jpg';
+        $this->createTestJpeg($largePath, 1500, 2000);
+        $outputPath = $this->outputPath('resolution_output.pdf');
+
+        $result = $this->ImageToPdfConversionService->convertImageToPdf($largePath, $outputPath);
+
+        $this->assertTrue($result->isSuccess(), 'Conversion failed: ' . ($result->getError() ?? ''));
+        $dimensions = $this->extractFirstPdfImageDimensions($outputPath);
+        $horizontalDpi = $dimensions['jpeg_width'] / $dimensions['display_width'] * 72;
+        $verticalDpi = $dimensions['jpeg_height'] / $dimensions['display_height'] * 72;
+
+        $this->assertSame(1125, $dimensions['jpeg_width']);
+        $this->assertSame(1500, $dimensions['jpeg_height']);
+        $this->assertSame(540, $dimensions['display_width']);
+        $this->assertSame(720, $dimensions['display_height']);
+        $this->assertEqualsWithDelta(150, $horizontalDpi, 0.1);
+        $this->assertEqualsWithDelta(150, $verticalDpi, 0.1);
+
+        $serviceReflection = new ReflectionClass(ImageToPdfConversionService::class);
+        $this->assertSame(80, $serviceReflection->getConstant('PDF_JPEG_QUALITY'));
+        $pdfContent = file_get_contents($outputPath);
+        $this->assertNotFalse($pdfContent);
+        $jpegStreams = $this->extractPdfJpegStreams($pdfContent);
+        $this->assertSame(6, $this->extractFirstJpegQuantizer($jpegStreams[0]));
+    }
+
+    /**
+     * Test low-resolution source images are not needlessly enlarged.
+     */
+    public function testDoesNotUpscaleLowResolutionImages(): void
+    {
+        $smallPath = $this->testImagesDir . 'small_resolution.jpg';
+        $this->createTestJpeg($smallPath, 300, 450);
+        $outputPath = $this->outputPath('small_resolution_output.pdf');
+
+        $result = $this->ImageToPdfConversionService->convertImageToPdf($smallPath, $outputPath);
+
+        $this->assertTrue($result->isSuccess(), 'Conversion failed: ' . ($result->getError() ?? ''));
+        $dimensions = $this->extractFirstPdfImageDimensions($outputPath);
+        $this->assertSame(300, $dimensions['jpeg_width']);
+        $this->assertSame(450, $dimensions['jpeg_height']);
+    }
+
+    /**
      * Test oversized images are rejected before decoding into GD memory.
      *
      * @return void
@@ -546,5 +682,42 @@ class ImageToPdfConversionServiceTest extends BaseTestCase
         $this->assertStringStartsWith('%PDF-', $pdfContent);
         // Multi-page PDF should declare 3 pages
         $this->assertStringContainsString('/Count 3', $pdfContent, 'PDF should contain 3 pages');
+    }
+
+    /**
+     * Test multi-page conversion stores each sufficiently large image at 150 DPI.
+     */
+    public function testBatchConversionStoresImagesAt150Dpi(): void
+    {
+        $portraitPath = $this->testImagesDir . 'batch_portrait.jpg';
+        $landscapePath = $this->testImagesDir . 'batch_landscape.jpg';
+        $this->createTestJpeg($portraitPath, 1200, 1600);
+        $this->createTestJpeg($landscapePath, 1600, 1200);
+        $outputPath = $this->outputPath('batch_resolution_output.pdf');
+        $previewPath = null;
+
+        $result = $this->ImageToPdfConversionService->convertMultipleImagesToPdf(
+            [$portraitPath, $landscapePath],
+            $outputPath,
+            'letter',
+            $previewPath,
+        );
+        $this->trackTempFile($previewPath);
+
+        $this->assertTrue($result->isSuccess(), 'Batch conversion failed: ' . ($result->getError() ?? ''));
+        $dimensions = $this->extractPdfImageDimensions($outputPath);
+        $this->assertCount(2, $dimensions);
+
+        $expectedDimensions = [
+            ['jpeg_width' => 1125, 'jpeg_height' => 1500, 'display_width' => 540, 'display_height' => 720],
+            ['jpeg_width' => 1500, 'jpeg_height' => 1125, 'display_width' => 720, 'display_height' => 540],
+        ];
+        foreach ($dimensions as $index => $pageDimensions) {
+            $this->assertSame($expectedDimensions[$index], $pageDimensions);
+            $horizontalDpi = $pageDimensions['jpeg_width'] / $pageDimensions['display_width'] * 72;
+            $verticalDpi = $pageDimensions['jpeg_height'] / $pageDimensions['display_height'] * 72;
+            $this->assertEqualsWithDelta(150, $horizontalDpi, 0.1);
+            $this->assertEqualsWithDelta(150, $verticalDpi, 0.1);
+        }
     }
 }

@@ -18,6 +18,9 @@ async function loadPdfjsLib() {
  * Step 3: Review & submit
  */
 class WaiverUploadWizardController extends Controller {
+    static MAX_OPTIMIZED_IMAGE_DIMENSION = 2000
+    static OPTIMIZED_IMAGE_QUALITY = 0.75
+
     static targets = [
         "step",
         "stepIndicator",
@@ -62,6 +65,8 @@ class WaiverUploadWizardController extends Controller {
 
     connect() {
         this.uploadedPages = []
+        this.uploadRequest = null
+        this.isDisconnected = false
         this.selectedWaiverType = null
         this.notes = ""
         this.isAttestMode = false
@@ -91,6 +96,14 @@ class WaiverUploadWizardController extends Controller {
         }
 
         this.showStep(1)
+    }
+
+    disconnect() {
+        this.isDisconnected = true
+        if (this.uploadRequest && this.uploadRequest.readyState !== XMLHttpRequest.DONE) {
+            this.uploadRequest.abort()
+        }
+        this.uploadRequest = null
     }
 
     // Step Navigation
@@ -506,6 +519,166 @@ class WaiverUploadWizardController extends Controller {
         return validTypes.includes(file.type) || file.name.toLowerCase().endsWith('.pdf')
     }
 
+    async prepareUploadPages() {
+        const preparedPages = []
+        const totalImages = this.uploadedPages.filter(page => !page.isPdf).length
+        let preparedImages = 0
+
+        for (const page of this.uploadedPages) {
+            if (this.isDisconnected) {
+                throw new Error('Waiver upload was cancelled')
+            }
+
+            if (page.isPdf) {
+                preparedPages.push({ ...page, uploadFile: page.file })
+                continue
+            }
+
+            preparedImages++
+            const percent = Math.round(((preparedImages - 1) / Math.max(totalImages, 1)) * 100)
+            this.updateProcessingStatus(
+                'Preparing images',
+                percent,
+                `Optimizing image ${preparedImages} of ${totalImages} before upload...`
+            )
+
+            await this.waitForPaint()
+
+            try {
+                const uploadFile = await this.optimizeImage(page.file)
+                if (this.isDisconnected) {
+                    throw new Error('Waiver upload was cancelled')
+                }
+                preparedPages.push({ ...page, uploadFile })
+            } catch (error) {
+                if (this.isDisconnected) {
+                    throw error
+                }
+                console.warn(`Could not optimize ${page.name}; uploading the original file.`, error)
+                this.updateProcessingStatus(
+                    'Preparing images',
+                    percent,
+                    `${page.name} could not be optimized and will be uploaded in its original form.`
+                )
+                preparedPages.push({ ...page, uploadFile: page.file })
+            }
+        }
+
+        const originalSize = this.uploadedPages.reduce((sum, page) => sum + page.file.size, 0)
+        const uploadSize = preparedPages.reduce((sum, page) => sum + page.uploadFile.size, 0)
+        const savedBytes = Math.max(0, originalSize - uploadSize)
+        const detail = savedBytes > 0
+            ? `Ready to upload ${this.formatBytes(uploadSize)} (${this.formatBytes(savedBytes)} smaller).`
+            : `Ready to upload ${this.formatBytes(uploadSize)}.`
+
+        if (this.isDisconnected) {
+            throw new Error('Waiver upload was cancelled')
+        }
+
+        this.updateProcessingStatus('Images prepared', 100, detail)
+
+        return preparedPages
+    }
+
+    async optimizeImage(file) {
+        const image = await this.decodeImage(file)
+        const maxDimension = WaiverUploadWizardController.MAX_OPTIMIZED_IMAGE_DIMENSION
+        const scale = Math.min(1, maxDimension / Math.max(image.width, image.height))
+        const width = Math.max(1, Math.round(image.width * scale))
+        const height = Math.max(1, Math.round(image.height * scale))
+        const canvas = document.createElement('canvas')
+        const context = canvas.getContext('2d', { alpha: false })
+
+        if (!context) {
+            if (typeof image.close === 'function') {
+                image.close()
+            }
+            throw new Error('Canvas image processing is unavailable')
+        }
+
+        canvas.width = width
+        canvas.height = height
+        context.fillStyle = '#ffffff'
+        context.fillRect(0, 0, width, height)
+        context.drawImage(image, 0, 0, width, height)
+
+        if (typeof image.close === 'function') {
+            image.close()
+        }
+
+        const imageData = context.getImageData(0, 0, width, height)
+        const pixels = imageData.data
+        for (let index = 0; index < pixels.length; index += 4) {
+            const grayscale = Math.round(
+                (pixels[index] * 0.299)
+                + (pixels[index + 1] * 0.587)
+                + (pixels[index + 2] * 0.114)
+            )
+            pixels[index] = grayscale
+            pixels[index + 1] = grayscale
+            pixels[index + 2] = grayscale
+        }
+        context.putImageData(imageData, 0, 0)
+
+        const blob = await this.canvasToBlob(
+            canvas,
+            'image/jpeg',
+            WaiverUploadWizardController.OPTIMIZED_IMAGE_QUALITY
+        )
+
+        if (!blob || blob.size >= file.size) {
+            return file
+        }
+
+        const baseName = file.name.replace(/\.[^.]+$/, '') || 'waiver-page'
+        return new File([blob], `${baseName}.jpg`, {
+            type: 'image/jpeg',
+            lastModified: file.lastModified
+        })
+    }
+
+    async decodeImage(file) {
+        if (typeof createImageBitmap === 'function') {
+            return createImageBitmap(file)
+        }
+
+        return new Promise((resolve, reject) => {
+            const objectUrl = URL.createObjectURL(file)
+            const image = new Image()
+            image.onload = () => {
+                URL.revokeObjectURL(objectUrl)
+                resolve(image)
+            }
+            image.onerror = () => {
+                URL.revokeObjectURL(objectUrl)
+                reject(new Error(`Unable to decode ${file.name}`))
+            }
+            image.src = objectUrl
+        })
+    }
+
+    canvasToBlob(canvas, type, quality) {
+        return new Promise((resolve, reject) => {
+            canvas.toBlob(blob => {
+                if (blob) {
+                    resolve(blob)
+                    return
+                }
+                reject(new Error('Unable to create optimized image'))
+            }, type, quality)
+        })
+    }
+
+    waitForPaint() {
+        return new Promise(resolve => {
+            if (typeof requestAnimationFrame === 'function') {
+                requestAnimationFrame(() => resolve())
+                return
+            }
+            setTimeout(resolve, 0)
+        })
+    }
+
     addPage(file) {
         const pageNumber = this.uploadedPages.length + 1
         const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
@@ -836,6 +1009,9 @@ class WaiverUploadWizardController extends Controller {
                 await this.submitWaiverUpload(startTime)
             }
         } catch (error) {
+            if (this.isDisconnected) {
+                return
+            }
             console.error('Submission error:', error)
             this.showError('An error occurred during submission. Please try again.')
             if (this.hasSubmitButtonTarget) {
@@ -874,6 +1050,9 @@ class WaiverUploadWizardController extends Controller {
                 const remainingTime = Math.max(0, 2000 - elapsed)
 
                 setTimeout(() => {
+                    if (this.isDisconnected) {
+                        return
+                    }
                     if (data.redirectUrl) {
                         window.location.href = data.redirectUrl
                     } else {
@@ -907,6 +1086,10 @@ class WaiverUploadWizardController extends Controller {
 
     async submitWaiverUpload(startTime) {
         const formData = new FormData()
+        const preparedPages = await this.prepareUploadPages()
+        if (this.isDisconnected) {
+            return
+        }
 
         // Add gathering ID
         formData.append('gathering_id', this.gatheringIdValue)
@@ -918,8 +1101,8 @@ class WaiverUploadWizardController extends Controller {
         formData.append('notes', this.notes)
 
         // Add all page files
-        this.uploadedPages.forEach((page, index) => {
-            formData.append('waiver_images[]', page.file)
+        preparedPages.forEach(page => {
+            formData.append('waiver_images[]', page.uploadFile)
         })
 
         // If any PDF has a client-generated thumbnail, send the first one
@@ -934,23 +1117,16 @@ class WaiverUploadWizardController extends Controller {
             formData.append('_csrfToken', csrfToken)
         }
 
-        // Submit via fetch
-        const response = await fetch(window.location.href, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
+        const response = await this.uploadFormData(formData)
 
         if (response.ok) {
-            // Parse JSON response
-            const data = await response.json().catch((err) => {
-                console.error('Failed to parse JSON response:', err)
-                return {}
-            })
-
-            console.log('Upload response data:', data)
+            const data = response.data
+            this.updateProcessingStatus(
+                'Upload complete',
+                100,
+                'Your waiver was saved successfully. Redirecting...'
+            )
+            this.element.setAttribute('aria-busy', 'false')
 
             // Calculate how long to wait (minimum 2 seconds total)
             const elapsed = Date.now() - startTime
@@ -958,6 +1134,9 @@ class WaiverUploadWizardController extends Controller {
 
             // Wait for remaining time, then redirect
             setTimeout(() => {
+                if (this.isDisconnected) {
+                    return
+                }
                 if (data.redirectUrl) {
                     console.log('Redirecting to:', data.redirectUrl)
                     window.location.href = data.redirectUrl
@@ -969,9 +1148,8 @@ class WaiverUploadWizardController extends Controller {
                     window.location.href = fallbackUrl
                 }
             }, remainingTime)
-
         } else {
-            const data = await response.json().catch(() => ({}))
+            const data = response.data
             this.showError(data.message || 'Upload failed. Please try again.')
             if (this.hasSubmitButtonTarget) {
                 this.submitButtonTarget.disabled = false
@@ -980,6 +1158,80 @@ class WaiverUploadWizardController extends Controller {
                 this.submitButtonTextTarget.textContent = 'Submit Waivers'
             }
         }
+    }
+
+    uploadFormData(formData) {
+        return new Promise((resolve, reject) => {
+            if (this.isDisconnected) {
+                reject(new Error('Waiver upload was cancelled'))
+                return
+            }
+
+            const request = new XMLHttpRequest()
+            this.uploadRequest = request
+            request.open('POST', window.location.href)
+            request.setRequestHeader('X-Requested-With', 'XMLHttpRequest')
+
+            request.upload.addEventListener('progress', event => {
+                if (!event.lengthComputable) {
+                    this.updateProcessingStatus(
+                        'Uploading waiver',
+                        null,
+                        `Uploaded ${this.formatBytes(event.loaded)}...`
+                    )
+                    return
+                }
+
+                const percent = Math.round((event.loaded / event.total) * 100)
+                this.updateProcessingStatus(
+                    'Uploading waiver',
+                    percent,
+                    `${this.formatBytes(event.loaded)} of ${this.formatBytes(event.total)} uploaded`
+                )
+            })
+
+            request.upload.addEventListener('load', () => {
+                this.updateProcessingStatus(
+                    'Upload complete',
+                    100,
+                    'The server is converting and saving your waiver. Please keep this page open.'
+                )
+            })
+
+            request.addEventListener('load', () => {
+                this.uploadRequest = null
+                let data = {}
+                try {
+                    data = request.responseText ? JSON.parse(request.responseText) : {}
+                } catch (error) {
+                    console.error('Failed to parse waiver upload response:', error)
+                }
+                resolve({
+                    ok: request.status >= 200 && request.status < 300,
+                    status: request.status,
+                    data
+                })
+            })
+
+            request.addEventListener('error', () => {
+                this.uploadRequest = null
+                reject(new Error('Network error while uploading waiver'))
+            })
+
+            request.addEventListener('abort', () => {
+                this.uploadRequest = null
+                reject(new Error('Waiver upload was cancelled'))
+            })
+
+            this.updateProcessingStatus(
+                'Uploading waiver',
+                0,
+                `Starting upload of ${this.formatBytes(Array.from(formData.values())
+                    .filter(value => value instanceof File)
+                    .reduce((sum, file) => sum + file.size, 0))}...`
+            )
+            request.send(formData)
+        })
     }
 
     showProcessingStep() {
@@ -1012,26 +1264,68 @@ class WaiverUploadWizardController extends Controller {
             `
         } else {
             processingHtml = `
-                <div class="text-center py-5">
+                <div class="text-center py-5 px-3" data-waiver-processing>
                     <div class="mb-4">
                         <div class="spinner-border text-primary" role="status" style="width: 5rem; height: 5rem;">
-                            <span class="visually-hidden">Uploading...</span>
+                            <span class="visually-hidden">Waiver upload in progress</span>
                         </div>
                     </div>
-                    <h2 class="mb-3">Processing Your Waiver</h2>
-                    <p class="lead text-muted mb-4">
-                        Please wait while we upload and process your waiver...
+                    <h2 class="mb-3">Uploading Your Waiver</h2>
+                    <p class="lead mb-3" role="status" aria-live="polite" aria-atomic="true"
+                        data-waiver-processing-phase>
+                        Preparing images
                     </p>
-                    <div class="alert alert-info d-inline-block">
-                        <i class="bi bi-info-circle"></i>
-                        Uploading ${this.uploadedPages.length} page(s)
+                    <div class="progress mx-auto mb-3" style="max-width: 32rem; height: 1.5rem;">
+                        <div class="progress-bar progress-bar-striped" role="progressbar"
+                            data-waiver-processing-progress style="width: 0%;"
+                            aria-label="Waiver upload progress" aria-valuemin="0" aria-valuemax="100"
+                            aria-valuenow="0">
+                            <span data-waiver-processing-percent>0%</span>
+                        </div>
                     </div>
+                    <p class="text-muted mb-3" data-waiver-processing-detail>
+                        Preparing ${this.uploadedPages.length} page(s) for upload...
+                    </p>
+                    <p class="small text-muted mb-0">
+                        Please keep this page open until the upload completes.
+                    </p>
                 </div>
             `
         }
 
         const container = this.element.querySelector('.wizard-container') || this.element
         container.innerHTML = processingHtml
+        this.element.setAttribute('aria-busy', 'true')
+    }
+
+    updateProcessingStatus(phase, percent, detail) {
+        const phaseElement = this.element.querySelector('[data-waiver-processing-phase]')
+        const detailElement = this.element.querySelector('[data-waiver-processing-detail]')
+        const progressElement = this.element.querySelector('[data-waiver-processing-progress]')
+        const percentElement = this.element.querySelector('[data-waiver-processing-percent]')
+
+        if (phaseElement) {
+            phaseElement.textContent = phase
+        }
+        if (detailElement) {
+            detailElement.textContent = detail
+        }
+        if (!progressElement || !percentElement) {
+            return
+        }
+
+        if (percent === null) {
+            progressElement.removeAttribute('aria-valuenow')
+            progressElement.classList.add('progress-bar-animated')
+            percentElement.textContent = ''
+            return
+        }
+
+        const boundedPercent = Math.max(0, Math.min(100, percent))
+        progressElement.classList.remove('progress-bar-animated')
+        progressElement.style.width = `${boundedPercent}%`
+        progressElement.setAttribute('aria-valuenow', boundedPercent)
+        percentElement.textContent = `${boundedPercent}%`
     }
 
     // Validation
@@ -1046,14 +1340,19 @@ class WaiverUploadWizardController extends Controller {
 
     // Error Handling
     showError(message) {
+        if (this.isDisconnected) {
+            return
+        }
+
         const escapedMessage = this.escapeHtml(message)
         // Check if we're showing the processing screen (wizard container innerHTML was replaced)
         const container = this.element.querySelector('.wizard-container') || this.element
-        const isProcessing = container.querySelector('h2') &&
-            (container.querySelector('h2').textContent.includes('Processing Your Attestation') ||
-                container.querySelector('h2').textContent.includes('Processing Your Waiver'))
+        const isProcessing = container.querySelector('[data-waiver-processing]') !== null
+            || (container.querySelector('h2')
+                && container.querySelector('h2').textContent.includes('Processing Your Attestation'))
 
         if (isProcessing) {
+            this.element.setAttribute('aria-busy', 'false')
             // We're in the processing screen, so we can't show a toast
             // Check if we're in mobile mode by checking the URL
             const isMobile = window.location.pathname.includes('mobile-upload')
