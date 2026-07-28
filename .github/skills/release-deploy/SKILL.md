@@ -61,7 +61,8 @@ Before POC testing:
 
 The Markdown under the new KMP version heading is the canonical release body.
 Use that same text in the GitHub Release; do not independently generate a second
-summary that can drift from the in-app changelog.
+summary that can drift from the in-app changelog. The release workflow enforces
+that content match while ignoring surrounding blank lines.
 
 ### 3. Validate POC
 
@@ -77,14 +78,19 @@ creates a new candidate and requires another POC deployment.
 2. Watch `Release Docker Image`. It verifies the successful `main` quality run
    and POC deployment for the tagged commit, then applies release tags to the
    exact POC-validated digest without rebuilding or rerunning test suites.
-3. Stop and surface any missing evidence or digest mismatch.
-4. Wait for the user-authorized GitHub `production` environment approval. Never
+3. After stable image promotion succeeds, the workflow posts the same canonical
+   changelog section to the release Discord channel through the
+   `DISCORD_RELEASE_WEBHOOK_URL` repository secret. Prereleases are not posted.
+4. Stop and surface any missing evidence, digest mismatch, or Discord delivery
+   failure.
+5. Wait for the user-authorized GitHub `production` environment approval. Never
    bypass or self-remove the approval gate.
-5. Watch the production deployment through image import, digest verification,
+6. Watch the production deployment through image import, digest verification,
    worker canary, migrations, web cutover, and retained-job alignment.
-6. Verify production `/livez` and `/health`, tenant and platform hosts, login,
+7. Verify production `/livez` and `/health`, tenant and platform hosts, login,
    queue/worker processing, active image digests, the in-app changelog, and the
-   GitHub Release notes.
+   GitHub Release notes. Confirm the stable-release Discord announcement was
+   delivered.
 
 Prereleases and published tags that do not start with `v` must never promote to
 the production Azure environment.
