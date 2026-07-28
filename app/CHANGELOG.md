@@ -3,8 +3,24 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: 106d57c7558dae1d68f9a78463f518366b042f8a -->
-<!-- LAST_SYNCED_DATE: 2026-07-24 -->
+<!-- LAST_SYNCED_COMMIT: 27da15c33016f3af931466164f7b186416dbc993 -->
+<!-- LAST_SYNCED_DATE: 2026-07-28 -->
+
+## KMP 1.5.6 — July 28, 2026
+
+### Faster, Clearer Waiver Uploads
+
+KMP 1.5.6 makes gathering waiver uploads clearer and faster on desktop and mobile while preserving more detail in stored waiver documents.
+
+- Waiver uploads now show distinct image preparation, measured network upload, server conversion, and saved states so users always know what is happening
+- Upload progress remains accessible to keyboard and assistive-technology users, and failed or timed-out uploads restore the wizard for a straightforward retry
+- Supported images are resized, converted to black and white, and compressed in the browser when that produces a smaller upload; uploaded PDFs remain unchanged
+- Server-generated waiver PDFs now embed image pages at up to 150 DPI with JPEG quality 80 while avoiding unnecessary upscaling of smaller originals
+- Stable release announcements now publish these same canonical changelog notes to the release Discord channel
+
+📅 July 28, 2026 · `Feature Release`
+
+---
 
 ## KMP 1.5.5 — July 24, 2026
 
