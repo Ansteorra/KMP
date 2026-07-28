@@ -17,6 +17,12 @@ use GdImage;
  */
 class ImageToPdfConversionService
 {
+    private const PDF_POINTS_PER_INCH = 72;
+
+    private const PDF_RASTER_DPI = 150;
+
+    private const PDF_JPEG_QUALITY = 80;
+
     /**
      * Supported image formats
      *
@@ -411,10 +417,21 @@ class ImageToPdfConversionService
         ?string &$previewPath = null,
     ): ServiceResult {
         $previewPath = null;
-        [$imgWidth, $imgHeight] = $this->calculateFitDimensions($width, $height, $pageWidth, $pageHeight);
+        [$displayWidth, $displayHeight] = $this->calculateFitDimensions(
+            $width,
+            $height,
+            $pageWidth,
+            $pageHeight,
+        );
+        [$rasterWidth, $rasterHeight] = $this->calculateRasterDimensions(
+            $displayWidth,
+            $displayHeight,
+            $width,
+            $height,
+        );
 
-        // Create a new image with the fitted dimensions
-        $resizedImage = imagecreatetruecolor($imgWidth, $imgHeight);
+        // Keep PDF placement in points while storing enough pixels for 150 DPI.
+        $resizedImage = imagecreatetruecolor($rasterWidth, $rasterHeight);
         if ($resizedImage === false) {
             return new ServiceResult(false, 'Failed to create resized image');
         }
@@ -424,7 +441,20 @@ class ImageToPdfConversionService
         imagefill($resizedImage, 0, 0, $white);
 
         // Resize the original image to fit
-        if (!imagecopyresampled($resizedImage, $image, 0, 0, 0, 0, $imgWidth, $imgHeight, $width, $height)) {
+        if (
+            !imagecopyresampled(
+                $resizedImage,
+                $image,
+                0,
+                0,
+                0,
+                0,
+                $rasterWidth,
+                $rasterHeight,
+                $width,
+                $height,
+            )
+        ) {
             unset($resizedImage);
 
             return new ServiceResult(false, 'Failed to resize image');
@@ -443,8 +473,7 @@ class ImageToPdfConversionService
         // Create a temporary JPEG file with the processed image
         $tempJpeg = tempnam(sys_get_temp_dir(), 'img2pdf_') . '.jpg';
 
-        // Save with lower quality since it's black and white
-        if (!imagejpeg($resizedImage, $tempJpeg, 70)) {
+        if (!imagejpeg($resizedImage, $tempJpeg, self::PDF_JPEG_QUALITY)) {
             unset($resizedImage);
 
             return new ServiceResult(false, 'Failed to create temporary JPEG file');
@@ -467,14 +496,8 @@ class ImageToPdfConversionService
         $jpegData = file_get_contents($tempJpeg);
         $jpegSize = filesize($tempJpeg);
 
-        // Get actual JPEG dimensions for the XObject declaration
-        $jpegInfo = getimagesize($tempJpeg);
-        $jpegWidth = $imgWidth; // Default to fitted dimensions
-        $jpegHeight = $imgHeight;
-        if ($jpegInfo !== false) {
-            $jpegWidth = $jpegInfo[0];
-            $jpegHeight = $jpegInfo[1];
-        }
+        $jpegWidth = $rasterWidth;
+        $jpegHeight = $rasterHeight;
         unlink($tempJpeg);
 
         // Create minimal PDF structure
@@ -484,8 +507,8 @@ class ImageToPdfConversionService
             $jpegSize,
             $jpegWidth,
             $jpegHeight,
-            $imgWidth,
-            $imgHeight,
+            $displayWidth,
+            $displayHeight,
             $pageWidth,
             $pageHeight,
         );
@@ -562,6 +585,33 @@ class ImageToPdfConversionService
         $fittedHeight = (int)($imgHeight * $ratio);
 
         return [$fittedWidth, $fittedHeight];
+    }
+
+    /**
+     * Convert PDF display dimensions in points to stored raster dimensions.
+     *
+     * Smaller source images are not enlarged because upscaling adds no detail.
+     *
+     * @param int $displayWidth Display width in PDF points
+     * @param int $displayHeight Display height in PDF points
+     * @param int $sourceWidth Source image width in pixels
+     * @param int $sourceHeight Source image height in pixels
+     * @return array [raster width, raster height]
+     */
+    private function calculateRasterDimensions(
+        int $displayWidth,
+        int $displayHeight,
+        int $sourceWidth,
+        int $sourceHeight,
+    ): array {
+        $scale = self::PDF_RASTER_DPI / self::PDF_POINTS_PER_INCH;
+        $targetWidth = max(1, (int)round($displayWidth * $scale));
+        $targetHeight = max(1, (int)round($displayHeight * $scale));
+
+        return [
+            min($sourceWidth, $targetWidth),
+            min($sourceHeight, $targetHeight),
+        ];
     }
 
     /**
@@ -659,10 +709,21 @@ class ImageToPdfConversionService
         $actualWidth = imagesx($image);
         $actualHeight = imagesy($image);
 
-        [$displayWidth, $displayHeight] = $this->calculateFitDimensions($width, $height, $pageWidth, $pageHeight);
+        [$displayWidth, $displayHeight] = $this->calculateFitDimensions(
+            $actualWidth,
+            $actualHeight,
+            $pageWidth,
+            $pageHeight,
+        );
+        [$rasterWidth, $rasterHeight] = $this->calculateRasterDimensions(
+            $displayWidth,
+            $displayHeight,
+            $actualWidth,
+            $actualHeight,
+        );
 
-        // Create a new image with the fitted dimensions
-        $resizedImage = imagecreatetruecolor($displayWidth, $displayHeight);
+        // Keep PDF placement in points while storing enough pixels for 150 DPI.
+        $resizedImage = imagecreatetruecolor($rasterWidth, $rasterHeight);
         if ($resizedImage === false) {
             return ['success' => false, 'error' => 'Failed to create resized image'];
         }
@@ -680,8 +741,8 @@ class ImageToPdfConversionService
                 0,
                 0,
                 0,
-                $displayWidth,
-                $displayHeight,
+                $rasterWidth,
+                $rasterHeight,
                 $actualWidth,
                 $actualHeight,
             )
@@ -703,7 +764,7 @@ class ImageToPdfConversionService
 
         // Create temporary JPEG
         $tempJpeg = tempnam(sys_get_temp_dir(), 'waiver_') . '.jpg';
-        if (!imagejpeg($resizedImage, $tempJpeg, 70)) {
+        if (!imagejpeg($resizedImage, $tempJpeg, self::PDF_JPEG_QUALITY)) {
             unset($resizedImage);
 
             return ['success' => false, 'error' => 'Failed to create JPEG'];
@@ -712,14 +773,8 @@ class ImageToPdfConversionService
         $jpegData = file_get_contents($tempJpeg);
         $jpegSize = filesize($tempJpeg);
 
-        // Get actual JPEG pixel dimensions (may differ slightly from display dimensions due to GD processing)
-        $jpegInfo = getimagesize($tempJpeg);
-        $jpegWidth = $displayWidth;
-        $jpegHeight = $displayHeight;
-        if ($jpegInfo !== false) {
-            $jpegWidth = $jpegInfo[0];
-            $jpegHeight = $jpegInfo[1];
-        }
+        $jpegWidth = $rasterWidth;
+        $jpegHeight = $rasterHeight;
 
         unlink($tempJpeg);
         unset($resizedImage);

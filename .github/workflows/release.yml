@@ -59,6 +59,21 @@ jobs:
             exit 1
           fi
 
+          CANONICAL_NOTES="$(
+            .github/scripts/extract-changelog-section.sh app/CHANGELOG.md "$CHANGELOG_VERSION"
+          )"
+          RELEASE_NOTES="$(
+            jq -r '.release.body // ""' "$GITHUB_EVENT_PATH" \
+              | sed '/[^[:space:]]/,$!d'
+          )"
+          if [[ "$RELEASE_NOTES" != "$CANONICAL_NOTES" ]]; then
+            echo "GitHub Release notes must exactly match the KMP $CHANGELOG_VERSION changelog section." >&2
+            diff -u \
+              <(printf '%s\n' "$CANONICAL_NOTES") \
+              <(printf '%s\n' "$RELEASE_NOTES") || true
+            exit 1
+          fi
+
           if [[ "$PRERELEASE" == "true" ]]; then
             CHANNEL="beta"
           else
@@ -191,12 +206,53 @@ jobs:
         with:
           files: kmp-image-digest.txt
 
-  prepare-production-deploy:
-    name: Prepare production promotion
-    needs: [verify-promotion-source, promote-image]
+  notify-discord:
+    name: Announce stable release on Discord
+    needs: [verify-promotion-source, promote-image, attach-digest]
     if: >-
       ${{ needs.verify-promotion-source.result == 'success'
           && needs.promote-image.result == 'success'
+          && needs.attach-digest.result == 'success'
+          && github.event.release.prerelease == false
+          && startsWith(github.event.release.tag_name, 'v') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the verified release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify-promotion-source.outputs.source_sha }}
+          persist-credentials: false
+
+      - name: Extract canonical changelog section
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          .github/scripts/extract-changelog-section.sh \
+            app/CHANGELOG.md \
+            "${RELEASE_TAG#v}" \
+            > "$RUNNER_TEMP/release-notes.md"
+
+      - name: Post release announcement
+        env:
+          DISCORD_RELEASE_WEBHOOK_URL: ${{ secrets.DISCORD_RELEASE_WEBHOOK_URL }}
+          RELEASE_NAME: ${{ github.event.release.name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+        run: |
+          node .github/scripts/post-release-to-discord.mjs \
+            "$RUNNER_TEMP/release-notes.md" \
+            "${RELEASE_NAME:-KMP $RELEASE_TAG}" \
+            "$RELEASE_URL"
+
+  prepare-production-deploy:
+    name: Prepare production promotion
+    needs: [verify-promotion-source, promote-image, notify-discord]
+    if: >-
+      ${{ needs.verify-promotion-source.result == 'success'
+          && needs.promote-image.result == 'success'
+          && needs.notify-discord.result == 'success'
           && github.event.release.prerelease == false
           && startsWith(github.event.release.tag_name, 'v') }}
     runs-on: ubuntu-latest

@@ -187,6 +187,8 @@ describe('WaiverUploadWizardController', () => {
 
     test('connect initializes state', () => {
         expect(controller.uploadedPages).toEqual([]);
+        expect(controller.uploadRequest).toBeNull();
+        expect(controller.isDisconnected).toBe(false);
         expect(controller.selectedWaiverType).toBeNull();
         expect(controller.notes).toBe('');
         expect(controller.isAttestMode).toBe(false);
@@ -524,6 +526,106 @@ describe('WaiverUploadWizardController', () => {
         expect(controller.isValidFile(file)).toBe(false);
     });
 
+    test('prepareUploadPages optimizes images and preserves PDFs', async () => {
+        const image = new File(['original image'], 'photo.png', { type: 'image/png' });
+        const optimizedImage = new File(['small'], 'photo.jpg', { type: 'image/jpeg' });
+        const pdf = new File(['pdf'], 'waiver.pdf', { type: 'application/pdf' });
+        controller.uploadedPages = [
+            { file: image, name: image.name, isPdf: false },
+            { file: pdf, name: pdf.name, isPdf: true }
+        ];
+        jest.spyOn(controller, 'waitForPaint').mockResolvedValue();
+        jest.spyOn(controller, 'optimizeImage').mockResolvedValue(optimizedImage);
+        const statusSpy = jest.spyOn(controller, 'updateProcessingStatus').mockImplementation(() => {});
+
+        const preparedPages = await controller.prepareUploadPages();
+
+        expect(preparedPages[0].uploadFile).toBe(optimizedImage);
+        expect(preparedPages[1].uploadFile).toBe(pdf);
+        expect(controller.optimizeImage).toHaveBeenCalledWith(image);
+        expect(statusSpy).toHaveBeenLastCalledWith(
+            'Images prepared',
+            100,
+            expect.stringContaining('smaller')
+        );
+    });
+
+    test('prepareUploadPages falls back to original image when optimization fails', async () => {
+        const image = new File(['original image'], 'photo.png', { type: 'image/png' });
+        controller.uploadedPages = [{ file: image, name: image.name, isPdf: false }];
+        jest.spyOn(controller, 'waitForPaint').mockResolvedValue();
+        jest.spyOn(controller, 'optimizeImage').mockRejectedValue(new Error('decode failed'));
+        jest.spyOn(console, 'warn').mockImplementation(() => {});
+        jest.spyOn(controller, 'updateProcessingStatus').mockImplementation(() => {});
+
+        const preparedPages = await controller.prepareUploadPages();
+
+        expect(preparedPages[0].uploadFile).toBe(image);
+        expect(console.warn).toHaveBeenCalledWith(
+            expect.stringContaining('uploading the original file'),
+            expect.any(Error)
+        );
+    });
+
+    test('disconnect during image preparation prevents the upload request', async () => {
+        const image = new File(['original image'], 'photo.png', { type: 'image/png' });
+        controller.uploadedPages = [{ file: image, name: image.name, isPdf: false }];
+        controller.selectedWaiverType = { id: 10, name: 'Minor Waiver' };
+        jest.spyOn(controller, 'waitForPaint').mockResolvedValue();
+        let finishOptimization;
+        jest.spyOn(controller, 'optimizeImage').mockImplementation(() => {
+            return new Promise(resolve => {
+                finishOptimization = resolve;
+            });
+        });
+        const uploadSpy = jest.spyOn(controller, 'uploadFormData').mockResolvedValue({
+            ok: true,
+            data: {}
+        });
+
+        const submission = controller.submitWaiverUpload(Date.now());
+        await Promise.resolve();
+        controller.disconnect();
+        finishOptimization(image);
+        await expect(submission).rejects.toThrow('cancelled');
+
+        expect(uploadSpy).not.toHaveBeenCalled();
+    });
+
+    test('optimizeImage resizes and converts a larger image to grayscale JPEG', async () => {
+        const image = { width: 4000, height: 3000, close: jest.fn() };
+        const imageData = { data: new Uint8ClampedArray([255, 0, 0, 255]) };
+        const context = {
+            fillStyle: '',
+            fillRect: jest.fn(),
+            drawImage: jest.fn(),
+            getImageData: jest.fn(() => imageData),
+            putImageData: jest.fn()
+        };
+        const canvas = {
+            width: 0,
+            height: 0,
+            getContext: jest.fn(() => context),
+            toBlob: jest.fn(callback => callback(new Blob(['small'], { type: 'image/jpeg' })))
+        };
+        const originalCreateElement = document.createElement.bind(document);
+        jest.spyOn(document, 'createElement').mockImplementation(tagName => {
+            return tagName === 'canvas' ? canvas : originalCreateElement(tagName);
+        });
+        jest.spyOn(controller, 'decodeImage').mockResolvedValue(image);
+        const file = new File([new Uint8Array(1024)], 'camera.png', { type: 'image/png' });
+
+        const optimized = await controller.optimizeImage(file);
+
+        expect(canvas.width).toBe(0);
+        expect(canvas.height).toBe(0);
+        expect(context.drawImage).toHaveBeenCalledWith(image, 0, 0, 2000, 1500);
+        expect(Array.from(imageData.data.slice(0, 3))).toEqual([76, 76, 76]);
+        expect(optimized.name).toBe('camera.jpg');
+        expect(optimized.type).toBe('image/jpeg');
+        expect(image.close).toHaveBeenCalled();
+    });
+
     test('handleFileSelect rejects oversized files', () => {
         const file = new File(['x'], 'big.jpg', { type: 'image/jpeg' });
         Object.defineProperty(file, 'size', { value: 10 * 1024 * 1024 });
@@ -766,18 +868,172 @@ describe('WaiverUploadWizardController', () => {
     });
 
     test('submitForm disables submit button on valid submission', async () => {
-        global.fetch = jest.fn(() => Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ success: true, redirectUrl: '/done' })
-        }));
-
         controller.selectedWaiverType = { id: 10, name: 'Minor Waiver' };
         controller.uploadedPages = [{ file: new File(['x'], 'a.jpg', { type: 'image/jpeg' }), size: 100, isPdf: false, dataUrl: 'data:x', pdfPageCount: 0 }];
+        jest.spyOn(controller, 'submitWaiverUpload').mockResolvedValue();
 
         const event = { preventDefault: jest.fn() };
         await controller.submitForm(event);
 
         expect(controller.submitButtonTarget.disabled).toBe(true);
+        expect(controller.submitWaiverUpload).toHaveBeenCalled();
+    });
+
+    test('showProcessingStep exposes an accessible busy upload status', () => {
+        controller.uploadedPages = [{ file: {}, isPdf: false }];
+
+        controller.showProcessingStep();
+
+        expect(controller.element.getAttribute('aria-busy')).toBe('true');
+        expect(controller.element.querySelector('[data-waiver-processing-phase]').getAttribute('role')).toBe('status');
+        expect(controller.element.querySelector('[data-waiver-processing-progress]').getAttribute('aria-valuenow')).toBe('0');
+        expect(controller.element.textContent).toContain('Please keep this page open');
+        expect(document.activeElement).toBe(controller.element.querySelector('[data-waiver-processing]'));
+    });
+
+    test('updateProcessingStatus updates visible and programmatic progress', () => {
+        controller.showProcessingStep();
+
+        controller.updateProcessingStatus('Uploading waiver', 42, '420 KB of 1 MB uploaded');
+
+        expect(controller.element.querySelector('[data-waiver-processing-phase]').textContent).toBe('Uploading waiver');
+        expect(controller.element.querySelector('[data-waiver-processing-detail]').textContent).toBe('420 KB of 1 MB uploaded');
+        expect(controller.element.querySelector('[data-waiver-processing-progress]').style.width).toBe('42%');
+        expect(controller.element.querySelector('[data-waiver-processing-progress]').getAttribute('aria-valuenow')).toBe('42');
+        expect(controller.element.querySelector('[data-waiver-processing-percent]').textContent).toBe('42%');
+    });
+
+    test('uploadFormData reports network progress and parses the response', async () => {
+        const requestListeners = {};
+        const uploadListeners = {};
+        const mockRequest = {
+            upload: {
+                addEventListener: jest.fn((type, callback) => {
+                    uploadListeners[type] = callback;
+                })
+            },
+            open: jest.fn(),
+            setRequestHeader: jest.fn(),
+            addEventListener: jest.fn((type, callback) => {
+                requestListeners[type] = callback;
+            }),
+            send: jest.fn(),
+            status: 200,
+            responseText: JSON.stringify({ success: true, redirectUrl: '/done' })
+        };
+        jest.spyOn(global, 'XMLHttpRequest').mockImplementation(() => mockRequest);
+        const statusSpy = jest.spyOn(controller, 'updateProcessingStatus').mockImplementation(() => {});
+        const formData = new FormData();
+        formData.append('waiver_images[]', new File(['page'], 'page.jpg', { type: 'image/jpeg' }));
+
+        const responsePromise = controller.uploadFormData(formData);
+        uploadListeners.progress({ lengthComputable: true, loaded: 50, total: 100 });
+        uploadListeners.load();
+        requestListeners.load();
+        const response = await responsePromise;
+
+        expect(mockRequest.open).toHaveBeenCalledWith('POST', window.location.href);
+        expect(mockRequest.setRequestHeader).toHaveBeenCalledWith('X-Requested-With', 'XMLHttpRequest');
+        expect(mockRequest.timeout).toBe(5 * 60 * 1000);
+        expect(statusSpy).toHaveBeenCalledWith(
+            'Uploading waiver',
+            50,
+            '50 Bytes of 100 Bytes uploaded'
+        );
+        expect(statusSpy).toHaveBeenCalledWith(
+            'Upload complete',
+            100,
+            expect.stringContaining('server is converting')
+        );
+        expect(response).toEqual({
+            ok: true,
+            status: 200,
+            data: { success: true, redirectUrl: '/done' }
+        });
+    });
+
+    test.each([
+        ['error', 'Network error while uploading waiver'],
+        ['abort', 'Waiver upload was cancelled'],
+        ['timeout', 'The waiver upload timed out. Please try again.']
+    ])('uploadFormData rejects on request %s', async (eventType, message) => {
+        const requestListeners = {};
+        const mockRequest = {
+            upload: { addEventListener: jest.fn() },
+            open: jest.fn(),
+            setRequestHeader: jest.fn(),
+            addEventListener: jest.fn((type, callback) => {
+                requestListeners[type] = callback;
+            }),
+            send: jest.fn()
+        };
+        jest.spyOn(global, 'XMLHttpRequest').mockImplementation(() => mockRequest);
+
+        const responsePromise = controller.uploadFormData(new FormData());
+        requestListeners[eventType]();
+
+        await expect(responsePromise).rejects.toThrow(message);
+        expect(controller.uploadRequest).toBeNull();
+    });
+
+    test.each([
+        [503, '{"message":"Unavailable"}', { message: 'Unavailable' }],
+        [500, 'not-json', {}]
+    ])('uploadFormData handles HTTP %s response content', async (status, responseText, expectedData) => {
+        const requestListeners = {};
+        const mockRequest = {
+            upload: { addEventListener: jest.fn() },
+            open: jest.fn(),
+            setRequestHeader: jest.fn(),
+            addEventListener: jest.fn((type, callback) => {
+                requestListeners[type] = callback;
+            }),
+            send: jest.fn(),
+            status,
+            responseText
+        };
+        jest.spyOn(global, 'XMLHttpRequest').mockImplementation(() => mockRequest);
+        if (responseText === 'not-json') {
+            jest.spyOn(console, 'error').mockImplementation(() => {});
+        }
+
+        const responsePromise = controller.uploadFormData(new FormData());
+        requestListeners.load();
+
+        await expect(responsePromise).resolves.toEqual({
+            ok: false,
+            status,
+            data: expectedData
+        });
+    });
+
+    test('restoreWizardAfterProcessing returns focus to the submit button', () => {
+        const submitButton = controller.submitButtonTarget;
+        submitButton.classList.remove('d-none');
+        submitButton.disabled = false;
+        controller.showProcessingStep();
+
+        controller.restoreWizardAfterProcessing();
+
+        expect(controller.element.querySelector('[data-waiver-processing]')).toBeNull();
+        expect(controller.element.getAttribute('aria-busy')).toBe('false');
+        expect(document.activeElement).toBe(submitButton);
+        expect(submitButton.classList.contains('d-none')).toBe(false);
+    });
+
+    test('submitForm re-enables and focuses submit after upload failure', async () => {
+        controller.selectedWaiverType = { id: 10, name: 'Minor Waiver' };
+        controller.uploadedPages = [{ file: new File(['x'], 'a.jpg', { type: 'image/jpeg' }), isPdf: false }];
+        controller.submitButtonTarget.classList.remove('d-none');
+        jest.spyOn(controller, 'submitWaiverUpload').mockRejectedValue(new Error('Upload timed out'));
+        jest.spyOn(controller, 'showError').mockImplementation(() => {});
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        await controller.submitForm({ preventDefault: jest.fn() });
+
+        expect(controller.submitButtonTarget.disabled).toBe(false);
+        expect(document.activeElement).toBe(controller.submitButtonTarget);
+        expect(controller.element.querySelector('[data-waiver-processing]')).toBeNull();
     });
 
     // --- updateTotalSizeDisplay ---
