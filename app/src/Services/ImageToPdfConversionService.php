@@ -496,14 +496,8 @@ class ImageToPdfConversionService
         $jpegData = file_get_contents($tempJpeg);
         $jpegSize = filesize($tempJpeg);
 
-        // Get actual JPEG dimensions for the XObject declaration
-        $jpegInfo = getimagesize($tempJpeg);
         $jpegWidth = $rasterWidth;
         $jpegHeight = $rasterHeight;
-        if ($jpegInfo !== false) {
-            $jpegWidth = $jpegInfo[0];
-            $jpegHeight = $jpegInfo[1];
-        }
         unlink($tempJpeg);
 
         // Create minimal PDF structure
@@ -598,6 +592,10 @@ class ImageToPdfConversionService
      *
      * Smaller source images are not enlarged because upscaling adds no detail.
      *
+     * @param int $displayWidth Display width in PDF points
+     * @param int $displayHeight Display height in PDF points
+     * @param int $sourceWidth Source image width in pixels
+     * @param int $sourceHeight Source image height in pixels
      * @return array [raster width, raster height]
      */
     private function calculateRasterDimensions(
@@ -711,12 +709,17 @@ class ImageToPdfConversionService
         $actualWidth = imagesx($image);
         $actualHeight = imagesy($image);
 
-        [$displayWidth, $displayHeight] = $this->calculateFitDimensions($width, $height, $pageWidth, $pageHeight);
+        [$displayWidth, $displayHeight] = $this->calculateFitDimensions(
+            $actualWidth,
+            $actualHeight,
+            $pageWidth,
+            $pageHeight,
+        );
         [$rasterWidth, $rasterHeight] = $this->calculateRasterDimensions(
             $displayWidth,
             $displayHeight,
-            $width,
-            $height,
+            $actualWidth,
+            $actualHeight,
         );
 
         // Keep PDF placement in points while storing enough pixels for 150 DPI.
@@ -770,14 +773,8 @@ class ImageToPdfConversionService
         $jpegData = file_get_contents($tempJpeg);
         $jpegSize = filesize($tempJpeg);
 
-        // Get actual JPEG pixel dimensions (may differ slightly from display dimensions due to GD processing)
-        $jpegInfo = getimagesize($tempJpeg);
         $jpegWidth = $rasterWidth;
         $jpegHeight = $rasterHeight;
-        if ($jpegInfo !== false) {
-            $jpegWidth = $jpegInfo[0];
-            $jpegHeight = $jpegInfo[1];
-        }
 
         unlink($tempJpeg);
         unset($resizedImage);

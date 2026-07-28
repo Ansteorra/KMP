@@ -250,6 +250,22 @@ class ImageToPdfConversionServiceTest extends BaseTestCase
     }
 
     /**
+     * Create reference JPEG data using the active GD encoder.
+     */
+    private function createReferenceJpegData(int $quality): string
+    {
+        $image = imagecreatetruecolor(1, 1);
+        $this->assertNotFalse($image);
+        ob_start();
+        $this->assertTrue(imagejpeg($image, null, $quality));
+        $jpegData = ob_get_clean();
+        imagedestroy($image);
+        $this->assertIsString($jpegData);
+
+        return $jpegData;
+    }
+
+    /**
      * Test convert method with valid JPEG image
      *
      * @return void
@@ -596,7 +612,11 @@ class ImageToPdfConversionServiceTest extends BaseTestCase
         $pdfContent = file_get_contents($outputPath);
         $this->assertNotFalse($pdfContent);
         $jpegStreams = $this->extractPdfJpegStreams($pdfContent);
-        $this->assertSame(6, $this->extractFirstJpegQuantizer($jpegStreams[0]));
+        $referenceJpeg = $this->createReferenceJpegData(80);
+        $this->assertSame(
+            $this->extractFirstJpegQuantizer($referenceJpeg),
+            $this->extractFirstJpegQuantizer($jpegStreams[0]),
+        );
     }
 
     /**

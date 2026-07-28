@@ -20,6 +20,7 @@ async function loadPdfjsLib() {
 class WaiverUploadWizardController extends Controller {
     static MAX_OPTIMIZED_IMAGE_DIMENSION = 2000
     static OPTIMIZED_IMAGE_QUALITY = 0.75
+    static UPLOAD_TIMEOUT_MS = 5 * 60 * 1000
 
     static targets = [
         "step",
@@ -620,11 +621,17 @@ class WaiverUploadWizardController extends Controller {
         }
         context.putImageData(imageData, 0, 0)
 
-        const blob = await this.canvasToBlob(
-            canvas,
-            'image/jpeg',
-            WaiverUploadWizardController.OPTIMIZED_IMAGE_QUALITY
-        )
+        let blob
+        try {
+            blob = await this.canvasToBlob(
+                canvas,
+                'image/jpeg',
+                WaiverUploadWizardController.OPTIMIZED_IMAGE_QUALITY
+            )
+        } finally {
+            canvas.width = 0
+            canvas.height = 0
+        }
 
         if (!blob || blob.size >= file.size) {
             return file
@@ -1013,13 +1020,14 @@ class WaiverUploadWizardController extends Controller {
                 return
             }
             console.error('Submission error:', error)
-            this.showError('An error occurred during submission. Please try again.')
             if (this.hasSubmitButtonTarget) {
                 this.submitButtonTarget.disabled = false
             }
             if (this.hasSubmitButtonTextTarget) {
                 this.submitButtonTextTarget.textContent = this.isAttestMode ? 'Submit Attestation' : 'Submit Waivers'
             }
+            this.restoreWizardAfterProcessing()
+            this.showError(error.message || 'An error occurred during submission. Please try again.')
         }
     }
 
@@ -1065,22 +1073,24 @@ class WaiverUploadWizardController extends Controller {
                 }, remainingTime)
             } else {
                 // Attestation failed
-                this.showError(data.message || 'Attestation failed. Please try again.')
                 if (this.hasSubmitButtonTarget) {
                     this.submitButtonTarget.disabled = false
                 }
                 if (this.hasSubmitButtonTextTarget) {
                     this.submitButtonTextTarget.textContent = 'Submit Attestation'
                 }
+                this.restoreWizardAfterProcessing()
+                this.showError(data.message || 'Attestation failed. Please try again.')
             }
         } catch (error) {
-            this.showError('Network error. Please try again.')
             if (this.hasSubmitButtonTarget) {
                 this.submitButtonTarget.disabled = false
             }
             if (this.hasSubmitButtonTextTarget) {
                 this.submitButtonTextTarget.textContent = 'Submit Attestation'
             }
+            this.restoreWizardAfterProcessing()
+            this.showError('Network error. Please try again.')
         }
     }
 
@@ -1150,13 +1160,14 @@ class WaiverUploadWizardController extends Controller {
             }, remainingTime)
         } else {
             const data = response.data
-            this.showError(data.message || 'Upload failed. Please try again.')
             if (this.hasSubmitButtonTarget) {
                 this.submitButtonTarget.disabled = false
             }
             if (this.hasSubmitButtonTextTarget) {
                 this.submitButtonTextTarget.textContent = 'Submit Waivers'
             }
+            this.restoreWizardAfterProcessing()
+            this.showError(data.message || 'Upload failed. Please try again.')
         }
     }
 
@@ -1223,6 +1234,12 @@ class WaiverUploadWizardController extends Controller {
                 reject(new Error('Waiver upload was cancelled'))
             })
 
+            request.timeout = WaiverUploadWizardController.UPLOAD_TIMEOUT_MS
+            request.addEventListener('timeout', () => {
+                this.uploadRequest = null
+                reject(new Error('The waiver upload timed out. Please try again.'))
+            })
+
             this.updateProcessingStatus(
                 'Uploading waiver',
                 0,
@@ -1235,18 +1252,11 @@ class WaiverUploadWizardController extends Controller {
     }
 
     showProcessingStep() {
-        // Hide all regular steps
-        this.stepTargets.forEach(step => {
-            step.classList.add('d-none')
-            step.setAttribute('aria-hidden', 'true')
-            step.removeAttribute('aria-current')
-        })
-
         // Show processing message based on mode
         let processingHtml
         if (this.isAttestMode) {
             processingHtml = `
-                <div class="text-center py-5">
+                <div class="text-center py-5" data-waiver-processing tabindex="-1">
                     <div class="mb-4">
                         <div class="spinner-border text-primary" role="status" style="width: 5rem; height: 5rem;">
                             <span class="visually-hidden">Processing...</span>
@@ -1264,7 +1274,7 @@ class WaiverUploadWizardController extends Controller {
             `
         } else {
             processingHtml = `
-                <div class="text-center py-5 px-3" data-waiver-processing>
+                <div class="text-center py-5 px-3" data-waiver-processing tabindex="-1">
                     <div class="mb-4">
                         <div class="spinner-border text-primary" role="status" style="width: 5rem; height: 5rem;">
                             <span class="visually-hidden">Waiver upload in progress</span>
@@ -1294,8 +1304,39 @@ class WaiverUploadWizardController extends Controller {
         }
 
         const container = this.element.querySelector('.wizard-container') || this.element
-        container.innerHTML = processingHtml
+        this.processingContainer = container
+        this.processingElementStates = Array.from(container.children).map(element => ({
+            element,
+            hidden: element.classList.contains('d-none'),
+            ariaHidden: element.getAttribute('aria-hidden')
+        }))
+        this.processingElementStates.forEach(({ element }) => {
+            element.classList.add('d-none')
+            element.setAttribute('aria-hidden', 'true')
+        })
+        container.insertAdjacentHTML('beforeend', processingHtml)
         this.element.setAttribute('aria-busy', 'true')
+        this.processingRegion = container.querySelector('[data-waiver-processing]')
+        this.processingRegion?.focus()
+    }
+
+    restoreWizardAfterProcessing() {
+        this.processingRegion?.remove()
+        this.processingElementStates?.forEach(({ element, hidden, ariaHidden }) => {
+            element.classList.toggle('d-none', hidden)
+            if (ariaHidden === null) {
+                element.removeAttribute('aria-hidden')
+            } else {
+                element.setAttribute('aria-hidden', ariaHidden)
+            }
+        })
+        this.processingRegion = null
+        this.processingElementStates = null
+        this.processingContainer = null
+        this.element.setAttribute('aria-busy', 'false')
+        if (this.hasSubmitButtonTarget) {
+            this.submitButtonTarget.focus()
+        }
     }
 
     updateProcessingStatus(phase, percent, detail) {
@@ -1304,7 +1345,7 @@ class WaiverUploadWizardController extends Controller {
         const progressElement = this.element.querySelector('[data-waiver-processing-progress]')
         const percentElement = this.element.querySelector('[data-waiver-processing-percent]')
 
-        if (phaseElement) {
+        if (phaseElement && phaseElement.textContent.trim() !== phase) {
             phaseElement.textContent = phase
         }
         if (detailElement) {

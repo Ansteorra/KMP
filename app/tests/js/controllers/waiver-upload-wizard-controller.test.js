@@ -617,8 +617,8 @@ describe('WaiverUploadWizardController', () => {
 
         const optimized = await controller.optimizeImage(file);
 
-        expect(canvas.width).toBe(2000);
-        expect(canvas.height).toBe(1500);
+        expect(canvas.width).toBe(0);
+        expect(canvas.height).toBe(0);
         expect(context.drawImage).toHaveBeenCalledWith(image, 0, 0, 2000, 1500);
         expect(Array.from(imageData.data.slice(0, 3))).toEqual([76, 76, 76]);
         expect(optimized.name).toBe('camera.jpg');
@@ -888,6 +888,7 @@ describe('WaiverUploadWizardController', () => {
         expect(controller.element.querySelector('[data-waiver-processing-phase]').getAttribute('role')).toBe('status');
         expect(controller.element.querySelector('[data-waiver-processing-progress]').getAttribute('aria-valuenow')).toBe('0');
         expect(controller.element.textContent).toContain('Please keep this page open');
+        expect(document.activeElement).toBe(controller.element.querySelector('[data-waiver-processing]'));
     });
 
     test('updateProcessingStatus updates visible and programmatic progress', () => {
@@ -933,6 +934,7 @@ describe('WaiverUploadWizardController', () => {
 
         expect(mockRequest.open).toHaveBeenCalledWith('POST', window.location.href);
         expect(mockRequest.setRequestHeader).toHaveBeenCalledWith('X-Requested-With', 'XMLHttpRequest');
+        expect(mockRequest.timeout).toBe(5 * 60 * 1000);
         expect(statusSpy).toHaveBeenCalledWith(
             'Uploading waiver',
             50,
@@ -948,6 +950,90 @@ describe('WaiverUploadWizardController', () => {
             status: 200,
             data: { success: true, redirectUrl: '/done' }
         });
+    });
+
+    test.each([
+        ['error', 'Network error while uploading waiver'],
+        ['abort', 'Waiver upload was cancelled'],
+        ['timeout', 'The waiver upload timed out. Please try again.']
+    ])('uploadFormData rejects on request %s', async (eventType, message) => {
+        const requestListeners = {};
+        const mockRequest = {
+            upload: { addEventListener: jest.fn() },
+            open: jest.fn(),
+            setRequestHeader: jest.fn(),
+            addEventListener: jest.fn((type, callback) => {
+                requestListeners[type] = callback;
+            }),
+            send: jest.fn()
+        };
+        jest.spyOn(global, 'XMLHttpRequest').mockImplementation(() => mockRequest);
+
+        const responsePromise = controller.uploadFormData(new FormData());
+        requestListeners[eventType]();
+
+        await expect(responsePromise).rejects.toThrow(message);
+        expect(controller.uploadRequest).toBeNull();
+    });
+
+    test.each([
+        [503, '{"message":"Unavailable"}', { message: 'Unavailable' }],
+        [500, 'not-json', {}]
+    ])('uploadFormData handles HTTP %s response content', async (status, responseText, expectedData) => {
+        const requestListeners = {};
+        const mockRequest = {
+            upload: { addEventListener: jest.fn() },
+            open: jest.fn(),
+            setRequestHeader: jest.fn(),
+            addEventListener: jest.fn((type, callback) => {
+                requestListeners[type] = callback;
+            }),
+            send: jest.fn(),
+            status,
+            responseText
+        };
+        jest.spyOn(global, 'XMLHttpRequest').mockImplementation(() => mockRequest);
+        if (responseText === 'not-json') {
+            jest.spyOn(console, 'error').mockImplementation(() => {});
+        }
+
+        const responsePromise = controller.uploadFormData(new FormData());
+        requestListeners.load();
+
+        await expect(responsePromise).resolves.toEqual({
+            ok: false,
+            status,
+            data: expectedData
+        });
+    });
+
+    test('restoreWizardAfterProcessing returns focus to the submit button', () => {
+        const submitButton = controller.submitButtonTarget;
+        submitButton.classList.remove('d-none');
+        submitButton.disabled = false;
+        controller.showProcessingStep();
+
+        controller.restoreWizardAfterProcessing();
+
+        expect(controller.element.querySelector('[data-waiver-processing]')).toBeNull();
+        expect(controller.element.getAttribute('aria-busy')).toBe('false');
+        expect(document.activeElement).toBe(submitButton);
+        expect(submitButton.classList.contains('d-none')).toBe(false);
+    });
+
+    test('submitForm re-enables and focuses submit after upload failure', async () => {
+        controller.selectedWaiverType = { id: 10, name: 'Minor Waiver' };
+        controller.uploadedPages = [{ file: new File(['x'], 'a.jpg', { type: 'image/jpeg' }), isPdf: false }];
+        controller.submitButtonTarget.classList.remove('d-none');
+        jest.spyOn(controller, 'submitWaiverUpload').mockRejectedValue(new Error('Upload timed out'));
+        jest.spyOn(controller, 'showError').mockImplementation(() => {});
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        await controller.submitForm({ preventDefault: jest.fn() });
+
+        expect(controller.submitButtonTarget.disabled).toBe(false);
+        expect(document.activeElement).toBe(controller.submitButtonTarget);
+        expect(controller.element.querySelector('[data-waiver-processing]')).toBeNull();
     });
 
     // --- updateTotalSizeDisplay ---
