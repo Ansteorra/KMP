@@ -219,10 +219,11 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Check out the release tag
+      - name: Check out the verified release commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ needs.verify-promotion-source.outputs.source_sha }}
+          persist-credentials: false
 
       - name: Extract canonical changelog section
         env:

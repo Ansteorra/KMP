@@ -62,15 +62,26 @@ if (
 webhookUrl.searchParams.set('wait', 'true')
 
 const sleep = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
+const requestTimeoutMs = 15_000
 
 for (const payload of payloads) {
     let delivered = false
     for (let attempt = 1; attempt <= 4; attempt += 1) {
-        const response = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        })
+        let response
+        try {
+            response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                signal: AbortSignal.timeout(requestTimeoutMs)
+            })
+        } catch (error) {
+            if (attempt === 4) {
+                throw new Error('Discord webhook request failed after four attempts', { cause: error })
+            }
+            await sleep(attempt * 1000)
+            continue
+        }
         if (response.ok) {
             delivered = true
             break
