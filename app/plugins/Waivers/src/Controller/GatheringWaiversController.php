@@ -1090,11 +1090,11 @@ class GatheringWaiversController extends AppController
      * Decline method - Decline/reject an invalid waiver
      *
      * Allows authorized users to decline waivers that were submitted but are invalid.
-     * Waivers can only be declined within 30 days of upload.
+     * Waivers can only be declined within 90 days of upload.
      *
      * Requirements:
      * - User must have decline permission
-     * - Waiver must be within 30 days of upload
+     * - Waiver must be within 90 days of upload
      * - Waiver must not already be declined
      * - Decline reason must be provided
      *

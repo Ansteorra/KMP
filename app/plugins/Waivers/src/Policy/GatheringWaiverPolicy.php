@@ -149,7 +149,7 @@ class GatheringWaiverPolicy extends BasePolicy
 
     /**
      * Check if user can decline a waiver.
-     * Business rules (30-day limit, not already declined) are checked in the controller.
+     * Business rules (90-day limit, not already declined) are checked in the controller.
      */
     public function canDecline(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {

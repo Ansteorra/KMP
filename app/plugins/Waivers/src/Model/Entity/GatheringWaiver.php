@@ -105,7 +105,7 @@ class GatheringWaiver extends BaseEntity
      *
      * A waiver can be declined if:
      * - It has not already been declined
-     * - It was created within the last 30 days
+     * - It was created within the last 90 days
      * - It is not expired or deleted
      *
      * @return bool
@@ -122,14 +122,14 @@ class GatheringWaiver extends BaseEntity
             return false;
         }
 
-        // Check if within 30 days of creation
+        // Check if within 90 days of creation
         if (empty($this->created)) {
             return false;
         }
 
-        $thirtyDaysAgo = new DateTime('-30 days');
+        $ninetyDaysAgo = new DateTime('-90 days');
 
-        return $this->created >= $thirtyDaysAgo;
+        return $this->created >= $ninetyDaysAgo;
     }
 
     /**

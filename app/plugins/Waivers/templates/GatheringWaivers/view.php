@@ -444,7 +444,7 @@ if ($user && $user->checkCan('decline', $gatheringWaiver) && $gatheringWaiver->c
                     <i class="bi bi-clock"></i>
                     <strong><?= __('Note:') ?></strong>
                     <?= __(
-                            'Waivers can only be declined within 30 days of upload. This waiver was uploaded {0}.',
+                            'Waivers can only be declined within 90 days of upload. This waiver was uploaded {0}.',
                             $gatheringWaiver->created->timeAgoInWords()
                         ) ?>
                 </div>
