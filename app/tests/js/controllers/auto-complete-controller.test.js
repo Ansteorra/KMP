@@ -1223,4 +1223,135 @@ describe('AutoCompleteController', () => {
         controller.element.disabled = true;
         expect(controller.hiddenTarget.disabled).toBe(true);
     });
+
+    // ==================== Edge case hardening ====================
+
+    test('fetchResults with datalist still shows results after state is "finished" (allowOther re-search)', async () => {
+        setupController({
+            allowOther: true,
+            dataListContent: JSON.stringify([
+                { value: '1', text: 'Karl' },
+                { value: '2', text: 'Carlton' }
+            ])
+        });
+        controller._selectOptions = [
+            { value: '1', text: 'Karl' },
+            { value: '2', text: 'Carlton' }
+        ];
+        // Simulate state after a commit/blur (the bug: datalist was gated on state != "finished")
+        controller.state = 'finished';
+
+        await controller.fetchResults('karl');
+
+        const items = controller.resultsTarget.querySelectorAll('[role="option"]');
+        expect(items.length).toBeGreaterThan(0);
+    });
+
+    test('stale URL fetch results are discarded when a newer fetch has started', async () => {
+        setupController({ url: '/members/search' });
+        controller.state = 'start';
+
+        let resolveFirst;
+        const firstFetchPromise = new Promise(resolve => { resolveFirst = resolve; });
+
+        const doFetchSpy = jest.spyOn(controller, 'doFetch')
+            .mockImplementationOnce(() => firstFetchPromise)
+            .mockResolvedValueOnce('<li role="option" data-ac-value="2">Karl</li>');
+
+        // Start first fetch ("Car") — do not await yet
+        const fetch1 = controller.fetchResults('Car');
+
+        // Start second fetch ("Karl") before first resolves
+        const fetch2 = controller.fetchResults('Karl');
+        await fetch2;
+
+        // Now resolve the first (stale) fetch
+        resolveFirst('<li role="option" data-ac-value="1">Carla</li>');
+        await fetch1;
+
+        // The stale first result should have been discarded; only the second result remains
+        expect(controller.resultsTarget.innerHTML).toContain('Karl');
+        expect(controller.resultsTarget.innerHTML).not.toContain('Carla');
+    });
+
+    test('double connect() only wraps onInputChange debounce once', () => {
+        setupController();
+        controller.connect();
+        const firstWrapped = controller.onInputChange;
+
+        // shimElement throws on second call due to Object.defineProperty; stub it out
+        jest.spyOn(controller, 'shimElement').mockImplementation(() => {});
+
+        // Calling connect() again (as Turbo does on reconnect) should not double-wrap
+        controller.connect();
+        expect(controller.onInputChange).toBe(firstWrapped);
+    });
+
+    test('onInputBlur cancels a pending debounced input change', () => {
+        setupController();
+        controller.connect();
+
+        const cancelSpy = jest.spyOn(controller, 'cancelPendingInputChange');
+        controller.mouseDown = false;
+        controller.state = 'start';
+
+        controller.onInputBlur();
+
+        expect(cancelSpy).toHaveBeenCalled();
+    });
+
+    test('fetchResults URL error resets state from "fetching" to "start"', async () => {
+        setupController({ url: '/members/search' });
+        controller.state = 'fetching';
+
+        jest.spyOn(controller, 'doFetch').mockRejectedValue(new Error('network error'));
+
+        // The error is re-thrown after the state reset; catch it so the assertion can run
+        await expect(controller.fetchResults('john')).rejects.toThrow('network error');
+
+        expect(controller.state).toBe('start');
+    });
+
+    test('clear() increments _fetchSeq to invalidate in-flight fetches', () => {
+        setupController({ url: '/members/search' });
+        controller._fetchSeq = 3;
+        controller.state = 'finished';
+
+        controller.clear();
+
+        expect(controller._fetchSeq).toBeGreaterThan(3);
+    });
+
+    test('commit() increments _fetchSeq to invalidate in-flight fetches', () => {
+        setupController({ url: '/members/search' });
+        controller._fetchSeq = 5;
+
+        const option = document.createElement('li');
+        option.setAttribute('data-ac-value', '42');
+        option.textContent = 'Karl';
+        controller.resultsTarget.appendChild(option);
+
+        controller.commit(option);
+
+        expect(controller._fetchSeq).toBeGreaterThan(5);
+    });
+
+    test('touchstart on results sets mouseDown true to prevent premature blur handling', () => {
+        setupController();
+        controller.connect();
+
+        controller.mouseDown = false;
+        controller.resultsTarget.dispatchEvent(new Event('touchstart'));
+
+        expect(controller.mouseDown).toBe(true);
+    });
+
+    test('disconnect removes touchstart listener from results', () => {
+        setupController();
+        const removeSpy = jest.spyOn(controller.resultsTarget, 'removeEventListener');
+        controller.connect();
+        controller.disconnect();
+
+        expect(removeSpy).toHaveBeenCalledWith('touchstart', expect.any(Function));
+    });
 });

@@ -115,6 +115,7 @@ class AutoComplete extends Controller {
         this._selectOptions = [];
         this._datalistLoaded = false;
         this._resultsPortal = null;
+        this._fetchSeq = 0;
     }
 
     // Getter for the value property
@@ -231,7 +232,11 @@ class AutoComplete extends Controller {
 
         this.mouseDown = false
 
-        this.onInputChange = debounce(this.onInputChange, this.delayValue)
+        // Guard against double-debounce when the controller reconnects (e.g. Turbo morphing).
+        // The debounced wrapper exposes a .cancel method; wrap only if not already wrapped.
+        if (typeof this.onInputChange.cancel !== "function") {
+            this.onInputChange = debounce(this.onInputChange, this.delayValue)
+        }
 
         this.inputTarget.addEventListener("keydown", this.onKeydown)
         this.inputTarget.addEventListener("blur", this.onInputBlur)
@@ -240,6 +245,7 @@ class AutoComplete extends Controller {
         this.inputTarget.addEventListener("change", this.onInputChangeTriggered);
         this.resultsTarget.addEventListener("mousedown", this.onResultsMouseDown)
         this.resultsTarget.addEventListener("click", this.onResultsClick)
+        this.resultsTarget.addEventListener("touchstart", this.onResultsTouchStart, { passive: true })
         this.updateFloatingResultsPosition = this.updateFloatingResultsPosition.bind(this)
 
         if (this.inputTarget.hasAttribute("autofocus")) {
@@ -280,6 +286,7 @@ class AutoComplete extends Controller {
         if (this.hasResultsTarget) {
             this.resultsTarget.removeEventListener("mousedown", this.onResultsMouseDown)
             this.resultsTarget.removeEventListener("click", this.onResultsClick)
+            this.resultsTarget.removeEventListener("touchstart", this.onResultsTouchStart)
         }
     }
 
@@ -577,6 +584,8 @@ class AutoComplete extends Controller {
         if (this.mouseDown) {
             return;
         }
+        // Cancel any pending debounced search so a stale search doesn't fire after blur.
+        this.cancelPendingInputChange();
         if (this.state == "open") {
             if (this.allowOtherValue) {
                 this.fireChangeEvent(this.inputTarget.value, this.inputTarget.value, null);
@@ -589,13 +598,13 @@ class AutoComplete extends Controller {
             }
         }
         this.close();
-        console.log("leaving");
     }
 
     commit(selected) {
         this.hiddenTextTarget.value = this.inputTarget.value;
         if (selected.getAttribute("aria-disabled") === "true") return
         this.cancelPendingInputChange()
+        this._fetchSeq = (this._fetchSeq ?? 0) + 1;
 
         if (selected instanceof HTMLAnchorElement) {
             selected.click()
@@ -646,6 +655,7 @@ class AutoComplete extends Controller {
 
     clear() {
         this.cancelPendingInputChange()
+        this._fetchSeq = (this._fetchSeq ?? 0) + 1;
         this.inputTarget.value = "";
         if (this.hasHiddenTarget) this.hiddenTarget.value = "";
         if (this.hasHiddenTextTarget) this.hiddenTextTarget.value = "";
@@ -666,6 +676,13 @@ class AutoComplete extends Controller {
         this.hiddenTextTarget.value = this.inputTarget.value;
         this.mouseDown = true
         this.resultsTarget.addEventListener("mouseup", () => {
+            this.mouseDown = false
+        }, { once: true })
+    }
+
+    onResultsTouchStart = () => {
+        this.mouseDown = true
+        this.resultsTarget.addEventListener("touchend", () => {
             this.mouseDown = false
         }, { once: true })
     }
@@ -696,6 +713,7 @@ class AutoComplete extends Controller {
     }
 
     hideAndRemoveOptions() {
+        this._fetchSeq = (this._fetchSeq ?? 0) + 1;
         this.close()
         this.resultsTarget.innerHTML = null
         this.updateStatus("")
@@ -736,16 +754,20 @@ class AutoComplete extends Controller {
                         this.resultsTarget.appendChild(itemHtml);
                     }
                 }
-                if (this.state != "finished") {
-                    this.identifyOptions();
-                    this.open();
-                    this.updateStatusForResults()
-                    this.state = "open";
-                }
+                // Datalist filtering is synchronous – always show results regardless of state
+                // so that users can search again after a prior selection or blur.
+                this.identifyOptions();
+                this.open();
+                this.updateStatusForResults()
+                this.state = "open";
 
                 return
             }
         }
+
+        // Stamp this fetch so stale responses can be detected and discarded.
+        this._fetchSeq = (this._fetchSeq ?? 0) + 1;
+        const fetchId = this._fetchSeq;
 
         // Mark as fetching so async results aren't swallowed after connect/close
         if (this.state === "finished") {
@@ -756,6 +778,13 @@ class AutoComplete extends Controller {
         try {
             this.element.dispatchEvent(new CustomEvent("loadstart"))
             const html = await this.doFetch(url);
+            // Discard results if a newer fetch has already started or the user
+            // committed / cleared while this fetch was in flight.
+            if (fetchId !== this._fetchSeq) {
+                this.element.dispatchEvent(new CustomEvent("load"))
+                this.element.dispatchEvent(new CustomEvent("loadend"))
+                return;
+            }
             if (this.state != "finished") {
                 this.replaceResults(html)
                 this.updateStatusForResults()
@@ -766,6 +795,10 @@ class AutoComplete extends Controller {
         } catch (error) {
             this.element.dispatchEvent(new CustomEvent("error"))
             this.element.dispatchEvent(new CustomEvent("loadend"))
+            // Reset fetching state so the next input attempt can proceed cleanly.
+            if (this.state === "fetching") {
+                this.state = "start";
+            }
             throw error
         }
     }
