@@ -156,7 +156,7 @@ class WaiverStateService
                 return new ServiceResult(false, __('Expired or deleted waivers cannot be declined.'));
             }
 
-            return new ServiceResult(false, __('This waiver can no longer be declined. Waivers can only be declined within 30 days of upload.'));
+            return new ServiceResult(false, __('This waiver can no longer be declined. Waivers can only be declined within 90 days of upload.'));
         }
 
         if (empty($declineReason)) {
