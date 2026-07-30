@@ -3,8 +3,24 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: 27da15c33016f3af931466164f7b186416dbc993 -->
-<!-- LAST_SYNCED_DATE: 2026-07-28 -->
+<!-- LAST_SYNCED_COMMIT: 0c6f343cf75c82850a0d04ecb3c2e56dc73a5716 -->
+<!-- LAST_SYNCED_DATE: 2026-07-30 -->
+
+## KMP 1.5.7 — July 30, 2026
+
+### Waiver Review and Autocomplete Hotfix
+
+KMP 1.5.7 gives seneschals more time to review uploaded waivers and restores reliable autocomplete searches after editing or replacing a prior selection.
+
+- Uploaded gathering waivers can now be declined for up to 90 days after upload instead of 30 days
+- Autocomplete fields now continue returning results after a selection, blur, backspace, or replacement search
+- Stale search responses no longer reopen results after the field loses focus or overwrite a newer search
+- Autocomplete controls now remain stable across repeated Turbo or Stimulus reconnects
+- Touch interactions recover correctly when the browser cancels a result-list gesture
+
+📅 July 30, 2026 · `Hotfix`
+
+---
 
 ## KMP 1.5.6 — July 28, 2026
 
