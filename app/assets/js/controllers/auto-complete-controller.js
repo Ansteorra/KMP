@@ -246,6 +246,8 @@ class AutoComplete extends Controller {
         this.resultsTarget.addEventListener("mousedown", this.onResultsMouseDown)
         this.resultsTarget.addEventListener("click", this.onResultsClick)
         this.resultsTarget.addEventListener("touchstart", this.onResultsTouchStart, { passive: true })
+        this.resultsTarget.addEventListener("touchend", this.onResultsTouchEnd)
+        this.resultsTarget.addEventListener("touchcancel", this.onResultsTouchEnd)
         this.updateFloatingResultsPosition = this.updateFloatingResultsPosition.bind(this)
 
         if (this.inputTarget.hasAttribute("autofocus")) {
@@ -287,6 +289,8 @@ class AutoComplete extends Controller {
             this.resultsTarget.removeEventListener("mousedown", this.onResultsMouseDown)
             this.resultsTarget.removeEventListener("click", this.onResultsClick)
             this.resultsTarget.removeEventListener("touchstart", this.onResultsTouchStart)
+            this.resultsTarget.removeEventListener("touchend", this.onResultsTouchEnd)
+            this.resultsTarget.removeEventListener("touchcancel", this.onResultsTouchEnd)
         }
     }
 
@@ -389,7 +393,12 @@ class AutoComplete extends Controller {
     }
 
     shimElement() {
+        if (this._shimmedElement === this.element) {
+            return
+        }
+
         Object.defineProperty(this.element, 'value', {
+            configurable: true,
             get: () => {
                 return this.value;
             },
@@ -400,7 +409,7 @@ class AutoComplete extends Controller {
         this.element.focus = () => {
             this.inputTarget.focus();
         }
-        let proto = this.element;
+        let proto = Object.getPrototypeOf(this.element);
         while (proto && !Object.getOwnPropertyDescriptor(proto, 'hidden')) {
             proto = Object.getPrototypeOf(proto);
         }
@@ -408,6 +417,7 @@ class AutoComplete extends Controller {
         if (proto) {
             this.baseHidden = Object.getOwnPropertyDescriptor(proto, 'hidden');
             Object.defineProperty(this.element, 'hidden', {
+                configurable: true,
                 get: () => {
                     return this.baseHidden.get.call(this.element);
                 },
@@ -427,6 +437,7 @@ class AutoComplete extends Controller {
             });
         }
         Object.defineProperty(this.element, 'disabled', {
+            configurable: true,
             get: () => {
                 return this.disabled;
             },
@@ -436,6 +447,7 @@ class AutoComplete extends Controller {
         });
 
         Object.defineProperty(this.element, 'options', {
+            configurable: true,
             get: () => {
                 return this.options;
             },
@@ -443,6 +455,7 @@ class AutoComplete extends Controller {
                 this.options = newValue;
             }
         });
+        this._shimmedElement = this.element
     }
 
     sibling(next) {
@@ -586,6 +599,7 @@ class AutoComplete extends Controller {
         }
         // Cancel any pending debounced search so a stale search doesn't fire after blur.
         this.cancelPendingInputChange();
+        this._fetchSeq = (this._fetchSeq ?? 0) + 1;
         if (this.state == "open") {
             if (this.allowOtherValue) {
                 this.fireChangeEvent(this.inputTarget.value, this.inputTarget.value, null);
@@ -682,9 +696,10 @@ class AutoComplete extends Controller {
 
     onResultsTouchStart = () => {
         this.mouseDown = true
-        this.resultsTarget.addEventListener("touchend", () => {
-            this.mouseDown = false
-        }, { once: true })
+    }
+
+    onResultsTouchEnd = () => {
+        this.mouseDown = false
     }
     onInputChange = () => {
         this.hiddenTextTarget.value = this.inputTarget.value;

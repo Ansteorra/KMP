@@ -1224,6 +1224,16 @@ describe('AutoCompleteController', () => {
         expect(controller.hiddenTarget.disabled).toBe(true);
     });
 
+    test('shimElement properties can be safely replaced by a future controller instance', () => {
+        setupController();
+        controller.shimElement();
+
+        expect(Object.getOwnPropertyDescriptor(controller.element, 'value').configurable).toBe(true);
+        expect(Object.getOwnPropertyDescriptor(controller.element, 'hidden').configurable).toBe(true);
+        expect(Object.getOwnPropertyDescriptor(controller.element, 'disabled').configurable).toBe(true);
+        expect(Object.getOwnPropertyDescriptor(controller.element, 'options').configurable).toBe(true);
+    });
+
     // ==================== Edge case hardening ====================
 
     test('fetchResults with datalist still shows results after state is "finished" (allowOther re-search)', async () => {
@@ -1279,11 +1289,8 @@ describe('AutoCompleteController', () => {
         controller.connect();
         const firstWrapped = controller.onInputChange;
 
-        // shimElement throws on second call due to Object.defineProperty; stub it out
-        jest.spyOn(controller, 'shimElement').mockImplementation(() => {});
-
         // Calling connect() again (as Turbo does on reconnect) should not double-wrap
-        controller.connect();
+        expect(() => controller.connect()).not.toThrow();
         expect(controller.onInputChange).toBe(firstWrapped);
     });
 
@@ -1298,6 +1305,25 @@ describe('AutoCompleteController', () => {
         controller.onInputBlur();
 
         expect(cancelSpy).toHaveBeenCalled();
+    });
+
+    test('onInputBlur invalidates an in-flight fetch so results stay closed', async () => {
+        setupController({ url: '/members/search' });
+        controller.state = 'fetching';
+        controller.resultsShown = false;
+
+        let resolveFetch;
+        jest.spyOn(controller, 'doFetch').mockImplementation(
+            () => new Promise(resolve => { resolveFetch = resolve; })
+        );
+
+        const fetchPromise = controller.fetchResults('john');
+        controller.onInputBlur();
+        resolveFetch('<li role="option" data-ac-value="1">John</li>');
+        await fetchPromise;
+
+        expect(controller.resultsTarget.hidden).toBe(true);
+        expect(controller.resultsTarget.innerHTML).toBe('');
     });
 
     test('fetchResults URL error resets state from "fetching" to "start"', async () => {
@@ -1346,6 +1372,16 @@ describe('AutoCompleteController', () => {
         expect(controller.mouseDown).toBe(true);
     });
 
+    test('touchcancel on results resets mouseDown so later blur is handled', () => {
+        setupController();
+        controller.connect();
+
+        controller.resultsTarget.dispatchEvent(new Event('touchstart'));
+        controller.resultsTarget.dispatchEvent(new Event('touchcancel'));
+
+        expect(controller.mouseDown).toBe(false);
+    });
+
     test('disconnect removes touchstart listener from results', () => {
         setupController();
         const removeSpy = jest.spyOn(controller.resultsTarget, 'removeEventListener');
@@ -1353,5 +1389,7 @@ describe('AutoCompleteController', () => {
         controller.disconnect();
 
         expect(removeSpy).toHaveBeenCalledWith('touchstart', expect.any(Function));
+        expect(removeSpy).toHaveBeenCalledWith('touchend', expect.any(Function));
+        expect(removeSpy).toHaveBeenCalledWith('touchcancel', expect.any(Function));
     });
 });
