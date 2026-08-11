@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
-class AddQuickLoginDeviceMetadata extends AbstractMigration
+class AddQuickLoginDeviceMetadata extends BaseMigration
 {
     private const TABLE = 'member_quick_login_devices';
 

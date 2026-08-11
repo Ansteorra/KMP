@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Add Has End Time Flag to Scheduled Activities Migration
@@ -11,7 +11,7 @@ use Migrations\AbstractMigration;
  * This allows for better UI/UX when creating activities that only need a start time.
  * Defaults to false (no end time).
  */
-class AddHasEndTimeToScheduledActivities extends AbstractMigration
+class AddHasEndTimeToScheduledActivities extends BaseMigration
 {
     /**
      * Change Method.

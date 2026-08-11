@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 use App\Migrations\CrossEngineMigrationTrait;
 
 /**
@@ -10,7 +10,7 @@ use App\Migrations\CrossEngineMigrationTrait;
  *
  * Creates the warrant-roster approval workflow.
  */
-class SeedWorkflowDefinitions extends AbstractMigration
+class SeedWorkflowDefinitions extends BaseMigration
 {
     use CrossEngineMigrationTrait;
 

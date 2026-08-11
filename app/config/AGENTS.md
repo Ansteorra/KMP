@@ -9,6 +9,8 @@ Own CakePHP app configuration that changes runtime wiring: routes, plugin activa
 - `plugins.php` is the source of truth for enabled CakePHP plugins and first-party plugin migration order.
 - `routes.php` owns core routing and application route scopes; plugin routes stay in plugin classes or plugin `config/routes.php`.
 - Migration configuration and app configuration must stay compatible with install, Docker, and deployment workflows.
+- Migrations 5 intentionally keeps `Migrations.legacyTables` enabled so fresh and existing databases use the same
+  core/plugin `phinxlog` tables expected by tenant schema-version and backup/restore workflows.
 
 ## Local Contracts
 
@@ -18,6 +20,8 @@ Own CakePHP app configuration that changes runtime wiring: routes, plugin activa
 - Core routes should use CakePHP conventions and dashed URLs; plugin-specific routes belong with the plugin.
 - Schema changes require migrations in the owning app or plugin migration directory.
 - Applied migrations are immutable: once a migration has run in any shared environment, add a new corrective migration instead of editing the original. Squash only unreleased migration chains that have not run in shared environments, and preserve restore/hydration paths.
+- Do not switch to the unified `cake_migrations` table until every tenant and backup migration-history consumer is
+  updated and the rollout includes an explicit, verified `migrations upgrade` procedure.
 
 ## Work Guidance
 

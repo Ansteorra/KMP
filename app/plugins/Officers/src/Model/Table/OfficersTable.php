@@ -143,6 +143,7 @@ class OfficersTable extends BaseTable
             "foreignKey" => ["office_id", 'branch_id'],
             "bindingKey" => ["reports_to_office_id", 'reports_to_branch_id'],
             'joinType' => 'LEFT',
+            'strategy' => 'select',
             'conditions' => [
                 'ReportsToCurrently.start_on <=' => $now,
                 'ReportsToCurrently.expires_on >=' => $now,
@@ -154,6 +155,7 @@ class OfficersTable extends BaseTable
             "foreignKey" => ["office_id", 'branch_id'],
             "bindingKey" => ["deputy_to_office_id", 'deputy_to_branch_id'],
             'joinType' => 'LEFT',
+            'strategy' => 'select',
             'conditions' => [
                 'DeputyToCurrently.start_on <=' => $now,
                 'DeputyToCurrently.expires_on >=' => $now,

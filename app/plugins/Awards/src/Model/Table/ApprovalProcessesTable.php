@@ -28,6 +28,7 @@ class ApprovalProcessesTable extends BaseTable
             'foreignKey' => 'approval_process_id',
             'dependent' => true,
             'cascadeCallbacks' => true,
+            'strategy' => 'select',
             'sort' => ['ApprovalProcessSteps.sequence' => 'ASC'],
         ]);
         $this->hasMany('Awards', [

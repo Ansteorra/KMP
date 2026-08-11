@@ -64,6 +64,14 @@ echo "Using container environment variables with local .env overrides (APP_NAME=
 # Always copy Docker-specific app_local.php (uses correct service hostnames)
 echo "Copying Docker app_local.php..."
 cp /opt/docker/app_local.php /var/www/html/config/app_local.php
+if [ -f /var/www/html/config/.env ]; then
+    chgrp www-data /var/www/html/config/.env
+    chmod 640 /var/www/html/config/.env
+fi
+if [ -f /var/www/html/config/secrets.local.json ]; then
+    chown www-data:www-data /var/www/html/config/secrets.local.json
+    chmod 600 /var/www/html/config/secrets.local.json
+fi
 
 # Install composer dependencies if vendor directory is missing or empty
 if [ ! -d /var/www/html/vendor ] || [ ! -f /var/www/html/vendor/autoload.php ]; then
@@ -92,8 +100,8 @@ if [ "$DB_ENGINE" = "postgres" ]; then
 else
     TABLES=$(mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" -N -e "SHOW TABLES;" 2>/dev/null | wc -l)
 fi
-if [ -f /var/www/html/tmp/skip-initial-db-setup ]; then
-    echo "Skipping initial database setup because tmp/skip-initial-db-setup exists."
+if [ -f /var/www/html/config/.skip-initial-db-setup ]; then
+    echo "Skipping initial database setup because config/.skip-initial-db-setup exists."
 elif [ "${KMP_SKIP_INITIAL_DB_SETUP:-false}" = "true" ]; then
     echo "KMP_SKIP_INITIAL_DB_SETUP=true - skipping initial database setup."
 elif [ "$TABLES" -eq 0 ]; then

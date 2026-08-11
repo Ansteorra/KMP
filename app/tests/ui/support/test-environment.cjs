@@ -169,6 +169,16 @@ const defaultPlaywrightBaseUrl = () => {
 const resolveHostHeader = (baseUrl) => {
     const explicit = getEnvValue('PLAYWRIGHT_HOST_HEADER');
     if (explicit !== undefined) {
+        try {
+            const baseHostname = new URL(baseUrl).hostname.toLowerCase();
+            const explicitHostname = explicit.replace(/:\d+$/, '').toLowerCase();
+            if (baseHostname === explicitHostname) {
+                return null;
+            }
+        } catch {
+            // Preserve the explicit override when either value is not a URL/host.
+        }
+
         return explicit || null;
     }
 

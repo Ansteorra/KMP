@@ -2,9 +2,9 @@
 declare(strict_types=1);
 
 use Cake\ORM\TableRegistry;
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
-class UpdateAndActivateOfficerHireWorkflow extends AbstractMigration
+class UpdateAndActivateOfficerHireWorkflow extends BaseMigration
 {
     public function up(): void
     {

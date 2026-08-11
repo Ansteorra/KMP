@@ -138,7 +138,7 @@ bin/cake migrations migrate -p YourPlugin
 bin/cake migrations rollback -p YourPlugin
 
 # Run seeds
-bin/cake migrations seed -p YourPlugin
+bin/cake seeds run -p YourPlugin
 
 # Clear cache
 bin/cake cache clear_all

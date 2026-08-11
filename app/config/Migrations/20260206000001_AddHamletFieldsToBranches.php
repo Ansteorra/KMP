@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Add hamlet-mode fields to Branches table.
  */
-class AddHamletFieldsToBranches extends AbstractMigration
+class AddHamletFieldsToBranches extends BaseMigration
 {
     public function up(): void
     {

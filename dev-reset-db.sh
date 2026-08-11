@@ -101,6 +101,7 @@ ensure_app_container_mounts_this_checkout
 
 BACKGROUND_SERVICES_TO_RESTART=()
 APP_SERVICE_STOPPED=false
+INITIAL_DB_SETUP_SKIP_FILE="app/config/.skip-initial-db-setup"
 for service in worker scheduler; do
     if printf '%s\n' "$RUNNING_SERVICES" | grep -x "$service" >/dev/null; then
         BACKGROUND_SERVICES_TO_RESTART+=("$service")
@@ -109,14 +110,12 @@ done
 
 restart_background_services() {
     status=$?
+    rm -f "$INITIAL_DB_SETUP_SKIP_FILE"
     if [ "$APP_SERVICE_STOPPED" = true ]; then
         echo "[cleanup] Restarting app service"
         if ! "${COMPOSE[@]}" start app >/dev/null; then
             echo "⚠️  Warning: failed to restart the app service. Run ./dev-up.sh to recover."
         fi
-    fi
-    if ! "${COMPOSE[@]}" exec -T app rm -f /var/www/html/tmp/skip-initial-db-setup; then
-        echo "⚠️  Warning: failed to remove the initial database setup guard file."
     fi
     if [ ${#BACKGROUND_SERVICES_TO_RESTART[@]} -gt 0 ]; then
         echo "[cleanup] Restarting background services: ${BACKGROUND_SERVICES_TO_RESTART[*]}"
@@ -184,10 +183,10 @@ DB_DRIVER="$(env_or_file KMP_DB_DRIVER postgres)"
 DB_DRIVER="$(printf '%s' "$DB_DRIVER" | tr '[:upper:]' '[:lower:]')"
 
 echo "[pre] Pausing app service during database drop/recreate"
-"${COMPOSE[@]}" exec -T app sh -lc \
-    'mkdir -p /var/www/html/tmp && touch /var/www/html/tmp/skip-initial-db-setup'
 "${COMPOSE[@]}" stop app >/dev/null
 APP_SERVICE_STOPPED=true
+mkdir -p "$(dirname "$INITIAL_DB_SETUP_SKIP_FILE")"
+touch "$INITIAL_DB_SETUP_SKIP_FILE"
 
 if [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER" = "pgsql" ]; then
     echo "[1/7] Dropping and recreating app and platform databases..."
@@ -197,7 +196,7 @@ if [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER" = "pgsql" ]; then
     PLATFORM_DB_NAME="$(env_or_file PLATFORM_DB_DATABASE KMP_PLATFORM)"
     PLATFORM_DB_TEST_NAME="$(env_or_file PLATFORM_DB_TEST_DATABASE "${PLATFORM_DB_NAME}_test")"
     SECOND_TENANT_SLUG="kmp2"
-    SECOND_TENANT_HOST="kmp2.localhost"
+    SECOND_TENANT_HOST="$(env_or_file KMP_DEV_SECOND_TENANT_HOST kmp2.localhost)"
     SECOND_TENANT_DISPLAY_NAME="Second Kingdom"
     SECOND_TENANT_DB="kmp2_dev"
     SECOND_TENANT_ROLE="kmp_tenant_kmp2_role"
@@ -369,7 +368,7 @@ fi
 
 if [ "$LOAD_SEED" = true ]; then
     echo "[post] Ensuring bestowal to-do demo users..."
-    "${COMPOSE[@]}" exec -T app bin/cake migrations seed --seed DevLoadBestowalTodoUsersSeed
+    "${COMPOSE[@]}" exec -T app bin/cake seeds run DevLoadBestowalTodoUsers
 
     AWARD_RECOMMENDATION_MIGRATION="$(env_or_file KMP_DEV_RESET_MIGRATE_RECOMMENDATIONS 1)"
     if [ "$AWARD_RECOMMENDATION_MIGRATION" = "1" ]; then
@@ -494,6 +493,13 @@ use Cake\Utility\Text;
 
 $tenantSlug = strtolower((string)(getenv("KMP_DEV_TENANT_SLUG") ?: "kmp"));
 $tenantHost = strtolower((string)(getenv("KMP_DEV_TENANT_HOST") ?: "kmp.localhost"));
+$tenantHostAliases = preg_split(
+    "/[\\s,]+/",
+    strtolower((string)(getenv("KMP_DEV_TENANT_HOST_ALIASES") ?: "")),
+    -1,
+    PREG_SPLIT_NO_EMPTY,
+) ?: [];
+$tenantHostAliases = array_values(array_unique(array_diff($tenantHostAliases, [$tenantHost])));
 $tenantDisplayName = (string)(getenv("KMP_DEV_TENANT_DISPLAY_NAME") ?: "KMP Development");
 $dbServer = (string)(getenv("DB_HOST") ?: "db");
 $dbName = (string)(getenv("DB_DATABASE") ?: getenv("POSTGRES_DB") ?: "KMP_DEV");
@@ -514,12 +520,19 @@ if ($tenantHost === "" || str_contains($tenantHost, "/") || str_contains($tenant
     fwrite(STDERR, "Invalid KMP_DEV_TENANT_HOST: $tenantHost\n");
     exit(1);
 }
+foreach ($tenantHostAliases as $tenantHostAlias) {
+    if (str_contains($tenantHostAlias, "/") || str_contains($tenantHostAlias, ":")) {
+        fwrite(STDERR, "Invalid KMP_DEV_TENANT_HOST_ALIASES entry: $tenantHostAlias\n");
+        exit(1);
+    }
+}
 
 $connection = ConnectionManager::get("platform");
 function registerLocalTenant(
     $connection,
     string $tenantSlug,
     string $tenantHost,
+    array $tenantHostAliases,
     string $tenantDisplayName,
     string $dbServer,
     string $dbName,
@@ -570,31 +583,33 @@ function registerLocalTenant(
         $tenant = $connection->execute("SELECT * FROM tenants WHERE slug = ?", [$tenantSlug])->fetch("assoc");
     }
 
-    $hostRow = $connection->execute(
-        "SELECT id, tenant_id FROM tenant_hosts WHERE host_normalized = ?",
-        [$tenantHost],
-    )->fetch("assoc") ?: null;
-    if ($hostRow !== null && (string)$hostRow["tenant_id"] !== (string)$tenant["id"]) {
-        throw new RuntimeException(sprintf("Host %s is already assigned to another tenant.", $tenantHost));
-    }
-    if ($hostRow === null) {
-        $connection->insert("tenant_hosts", [
-            "id" => Text::uuid(),
-            "tenant_id" => $tenant["id"],
-            "host" => $tenantHost,
-            "host_normalized" => $tenantHost,
-            "is_primary" => true,
-            "status" => "active",
-            "created_at" => $now,
-            "modified_at" => $now,
-        ]);
-    } else {
-        $connection->update("tenant_hosts", [
-            "host" => $tenantHost,
-            "is_primary" => true,
-            "status" => "active",
-            "modified_at" => $now,
-        ], ["id" => $hostRow["id"]]);
+    foreach (array_merge([$tenantHost], $tenantHostAliases) as $host) {
+        $hostRow = $connection->execute(
+            "SELECT id, tenant_id FROM tenant_hosts WHERE host_normalized = ?",
+            [$host],
+        )->fetch("assoc") ?: null;
+        if ($hostRow !== null && (string)$hostRow["tenant_id"] !== (string)$tenant["id"]) {
+            throw new RuntimeException(sprintf("Host %s is already assigned to another tenant.", $host));
+        }
+        if ($hostRow === null) {
+            $connection->insert("tenant_hosts", [
+                "id" => Text::uuid(),
+                "tenant_id" => $tenant["id"],
+                "host" => $host,
+                "host_normalized" => $host,
+                "is_primary" => $host === $tenantHost ? 1 : 0,
+                "status" => "active",
+                "created_at" => $now,
+                "modified_at" => $now,
+            ]);
+        } else {
+            $connection->update("tenant_hosts", [
+                "host" => $host,
+                "is_primary" => $host === $tenantHost ? 1 : 0,
+                "status" => "active",
+                "modified_at" => $now,
+            ], ["id" => $hostRow["id"]]);
+        }
     }
 }
 
@@ -647,7 +662,17 @@ function seedDevPlatformAdmin(
 
 $connection->begin();
 try {
-    registerLocalTenant($connection, $tenantSlug, $tenantHost, $tenantDisplayName, $dbServer, $dbName, $dbRole, $now);
+    registerLocalTenant(
+        $connection,
+        $tenantSlug,
+        $tenantHost,
+        $tenantHostAliases,
+        $tenantDisplayName,
+        $dbServer,
+        $dbName,
+        $dbRole,
+        $now,
+    );
     $connection->commit();
 } catch (Throwable $exception) {
     $connection->rollback();
@@ -672,6 +697,9 @@ seedDevPlatformAdmin(
     $now,
 );
 echo sprintf("Registered local tenant %s for host %s using database %s.\n", $tenantSlug, $tenantHost, $dbName);
+if ($tenantHostAliases !== []) {
+    echo sprintf("Registered local tenant aliases: %s.\n", implode(", ", $tenantHostAliases));
+}
 echo sprintf("Seeded dev platform admin %s with password %s and TOTP secret %s.\n", $platformAdminEmail, $platformAdminPassword, $platformAdminTotpSecret);
 '
 
@@ -698,10 +726,19 @@ require "config/bootstrap.php";
 use App\Services\Secrets\SecretStoreFactory;
 use App\Services\Secrets\SensitiveString;
 use App\Services\Secrets\WritableSecretStoreInterface;
+use App\Services\Platform\TenantHostResolver;
 use Cake\Datasource\ConnectionManager;
+use Cake\Utility\Text;
 
 $slug = getenv("SECOND_TENANT_SLUG") ?: "kmp2";
 $password = getenv("SECOND_TENANT_DB_PASSWORD");
+$hostAliases = preg_split(
+    "/[\\s,]+/",
+    strtolower((string)(getenv("KMP_DEV_SECOND_TENANT_HOST_ALIASES") ?: "")),
+    -1,
+    PREG_SPLIT_NO_EMPTY,
+) ?: [];
+$hostAliases = array_values(array_unique($hostAliases));
 if ($password === false || $password === "") {
     fwrite(STDERR, "Missing second tenant database password.\n");
     exit(1);
@@ -712,10 +749,57 @@ if (!$secretStore instanceof WritableSecretStoreInterface) {
     exit(1);
 }
 $secretStore->put(sprintf("tenant.%s.db.password", $slug), new SensitiveString($password));
-ConnectionManager::get("platform")->update("tenants", [
+$connection = ConnectionManager::get("platform");
+$tenant = $connection->execute("SELECT id, primary_host FROM tenants WHERE slug = ?", [$slug])->fetch("assoc") ?: null;
+if ($tenant === null) {
+    fwrite(STDERR, sprintf("Second tenant %s was not provisioned.\n", $slug));
+    exit(1);
+}
+foreach ($hostAliases as $hostAlias) {
+    if ($hostAlias === "" || str_contains($hostAlias, "/") || str_contains($hostAlias, ":")) {
+        fwrite(STDERR, sprintf("Invalid KMP_DEV_SECOND_TENANT_HOST_ALIASES entry: %s\n", $hostAlias));
+        exit(1);
+    }
+    if ($hostAlias === strtolower((string)$tenant["primary_host"])) {
+        continue;
+    }
+    $hostRow = $connection->execute(
+        "SELECT id, tenant_id FROM tenant_hosts WHERE host_normalized = ?",
+        [$hostAlias],
+    )->fetch("assoc") ?: null;
+    if ($hostRow !== null && (string)$hostRow["tenant_id"] !== (string)$tenant["id"]) {
+        fwrite(STDERR, sprintf("Host %s is already assigned to another tenant.\n", $hostAlias));
+        exit(1);
+    }
+    if ($hostRow === null) {
+        $now = gmdate("Y-m-d H:i:s");
+        $connection->insert("tenant_hosts", [
+            "id" => Text::uuid(),
+            "tenant_id" => $tenant["id"],
+            "host" => $hostAlias,
+            "host_normalized" => $hostAlias,
+            "is_primary" => 0,
+            "status" => "active",
+            "created_at" => $now,
+            "modified_at" => $now,
+        ]);
+    } else {
+        $connection->update("tenant_hosts", [
+            "host" => $hostAlias,
+            "is_primary" => 0,
+            "status" => "active",
+            "modified_at" => gmdate("Y-m-d H:i:s"),
+        ], ["id" => $hostRow["id"]]);
+    }
+}
+$connection->update("tenants", [
     "status" => "active",
     "modified_at" => gmdate("Y-m-d H:i:s"),
 ], ["slug" => $slug]);
+TenantHostResolver::clearCache();
+if ($hostAliases !== []) {
+    echo sprintf("Registered second tenant aliases: %s.\n", implode(", ", $hostAliases));
+}
 '
     "${COMPOSE[@]}" exec -T app bin/cake tenant migrate \
         --tenant "$SECOND_TENANT_SLUG" \
@@ -884,6 +968,14 @@ fi
 
 echo "[post] Rebuilding test database schema..."
 "${COMPOSE[@]}" exec -T app bash bin/setup_test_database.sh >/dev/null
+
+echo "[post] Securing the local file secret store for the web process..."
+"${COMPOSE[@]}" exec -T app sh -c '
+if [ -f config/secrets.local.json ]; then
+    chown www-data:www-data config/secrets.local.json
+    chmod 600 config/secrets.local.json
+fi
+'
 
 echo "[post] Clearing CakePHP caches..."
 clear_cakephp_caches

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 use App\Migrations\CrossEngineMigrationTrait;
 
 /**
@@ -11,7 +11,7 @@ use App\Migrations\CrossEngineMigrationTrait;
  * This ensures workflow definitions survive database resets by running
  * as part of the migration chain. Idempotent — skips existing slugs.
  */
-class SeedAllWorkflowDefinitions extends AbstractMigration
+class SeedAllWorkflowDefinitions extends BaseMigration
 {
     use CrossEngineMigrationTrait;
 

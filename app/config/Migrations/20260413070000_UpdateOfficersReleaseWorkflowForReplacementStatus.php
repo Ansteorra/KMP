@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 use Cake\ORM\TableRegistry;
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
-class UpdateOfficersReleaseWorkflowForReplacementStatus extends AbstractMigration
+class UpdateOfficersReleaseWorkflowForReplacementStatus extends BaseMigration
 {
     public function up(): void
     {
