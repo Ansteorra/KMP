@@ -27,6 +27,7 @@ class ApprovalsGridColumns extends BaseGridColumns
                 'type' => 'string',
                 'sortable' => true,
                 'filterable' => true,
+                'filterType' => 'dropdown',
                 'searchable' => true,
                 'defaultVisible' => true,
                 'required' => true,

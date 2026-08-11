@@ -435,6 +435,10 @@ class ApprovalsController extends AppController
             'showFilterPills' => true,
             'showSearchBox' => true,
         ]);
+        $result = $this->applyWorkflowFilterOptionsToGridResult(
+            $result,
+            WorkflowApprovalsTable::getWorkflowNamesForMember((int)$currentUser->id),
+        );
 
         $isKanbanView = $this->isApprovalKanbanView($result['gridState']);
         $this->prepareApprovalsForGrid($result['data'], $result['visibleColumns']);
@@ -740,6 +744,32 @@ class ApprovalsController extends AppController
                 }
             }
         }
+    }
+
+    /**
+     * Add request-scoped Workflow dropdown options to a My Approvals grid result.
+     *
+     * @param array<string,mixed> $result Dataverse grid result.
+     * @param list<string> $workflowNames Workflow names available to the member.
+     * @return array<string,mixed>
+     */
+    private function applyWorkflowFilterOptionsToGridResult(array $result, array $workflowNames): array
+    {
+        $options = array_map(
+            static fn(string $name): array => ['value' => $name, 'label' => $name],
+            $workflowNames,
+        );
+        $result['filterOptions']['workflow_name'] = $options;
+
+        if (isset($result['columnsMetadata']['workflow_name'])) {
+            $result['columnsMetadata']['workflow_name']['filterOptions'] = $options;
+            $result['gridState']['filters']['available']['workflow_name'] = [
+                'label' => $result['columnsMetadata']['workflow_name']['label'] ?? __('Workflow'),
+                'options' => $options,
+            ];
+        }
+
+        return $result;
     }
 
     /**

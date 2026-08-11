@@ -440,6 +440,17 @@ class BestowalCourtSlotService
     }
 
     /**
+     * Format a court slot for spreadsheet-safe plain-text exports.
+     *
+     * @param \Awards\Model\Entity\Bestowal $bestowal Bestowal entity.
+     * @return string
+     */
+    public function formatCourtSlotExport(Bestowal $bestowal): string
+    {
+        return str_replace(' – ', ' - ', $this->formatCourtSlotDisplay($bestowal));
+    }
+
+    /**
      * @param object $activity Scheduled activity entity.
      * @param \App\Model\Entity\Member|array|null $member Viewer for timezone conversion.
      * @return string

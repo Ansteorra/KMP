@@ -63,6 +63,11 @@ class ApprovalsGridColumnsTest extends TestCase
         $this->assertEquals('dropdown', $statusColumn['filterType']);
         $this->assertArrayHasKey('filterOptions', $statusColumn);
         $this->assertNotEmpty($statusColumn['filterOptions']);
+
+        $workflowColumn = $columns['workflow_name'];
+        $this->assertSame('dropdown', $workflowColumn['filterType']);
+        $this->assertArrayNotHasKey('filterOptionsSource', $workflowColumn);
+        $this->assertArrayHasKey('workflow_name', ApprovalsGridColumns::getDropdownFilterColumns());
     }
 
     public function testAdminColumnsIncludeCurrentApprover(): void

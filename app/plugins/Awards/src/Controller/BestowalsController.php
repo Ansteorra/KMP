@@ -121,7 +121,12 @@ class BestowalsController extends AppController
         $result = $this->processDataverseGrid($built['gridOptions']);
 
         if (!empty($result['isCsvExport'])) {
-            $exportData = $this->prepareBestowalsForDisplay($result['query']->all(), $result['visibleColumns'], false);
+            $exportData = $this->prepareBestowalsForDisplay(
+                $result['query']->all(),
+                $result['visibleColumns'],
+                false,
+                true,
+            );
             BestowalsGridColumns::setProtectedFieldVisibility(
                 $previousProtectedVisibility['heraldNotes'],
                 $previousProtectedVisibility['crownFields'],
@@ -197,7 +202,12 @@ class BestowalsController extends AppController
         $result = $this->processDataverseGrid($built['gridOptions']);
 
         if (!empty($result['isCsvExport'])) {
-            $exportData = $this->prepareBestowalsForDisplay($result['query']->all(), $result['visibleColumns'], false);
+            $exportData = $this->prepareBestowalsForDisplay(
+                $result['query']->all(),
+                $result['visibleColumns'],
+                false,
+                true,
+            );
             BestowalsGridColumns::setProtectedFieldVisibility(
                 $previousProtectedVisibility['heraldNotes'],
                 $previousProtectedVisibility['crownFields'],
@@ -1391,12 +1401,14 @@ class BestowalsController extends AppController
      * @param iterable<\Awards\Model\Entity\Bestowal> $bestowals Paginated bestowal entities
      * @param array<int,string>|null $visibleColumns Visible display columns, or null to prepare all
      * @param bool $includeBulkTodoOptions Whether to decorate rows with bulk to-do selection metadata.
+     * @param bool $forExport Whether to use plain-text, spreadsheet-safe formatting.
      * @return iterable<\Awards\Model\Entity\Bestowal>
      */
     protected function prepareBestowalsForDisplay(
         iterable $bestowals,
         ?array $visibleColumns = null,
         bool $includeBulkTodoOptions = true,
+        bool $forExport = false,
     ): iterable {
         $ids = [];
         foreach ($bestowals as $bestowal) {
@@ -1432,7 +1444,9 @@ class BestowalsController extends AppController
                 );
             }
             if ($this->shouldLoadBestowalDisplayColumn('court_slot', $visibleColumns)) {
-                $bestowal->court_slot = $this->buildCourtSlotHtml($bestowal);
+                $bestowal->court_slot = $forExport
+                    ? (new BestowalCourtSlotService())->formatCourtSlotExport($bestowal)
+                    : $this->buildCourtSlotHtml($bestowal);
             }
             if ($this->shouldLoadBestowalDisplayColumn('herald_notes_preview', $visibleColumns)) {
                 $bestowal->herald_notes_preview = $this->buildHeraldNotesPreviewHtml($bestowal);

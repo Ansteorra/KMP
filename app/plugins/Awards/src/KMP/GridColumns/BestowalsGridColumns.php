@@ -142,6 +142,39 @@ class BestowalsGridColumns extends BaseGridColumns
                         && $identity->checkCan('view', 'Members');
                 },
             ],
+            'member_title' => [
+                'key' => 'member_title',
+                'label' => __('Title'),
+                'type' => 'string',
+                'sortable' => false,
+                'filterable' => false,
+                'exportOnly' => true,
+                'defaultVisible' => false,
+                'renderField' => 'member.title',
+                'description' => __('Recipient title'),
+            ],
+            'member_pronunciation' => [
+                'key' => 'member_pronunciation',
+                'label' => __('Pronunciation'),
+                'type' => 'string',
+                'sortable' => false,
+                'filterable' => false,
+                'exportOnly' => true,
+                'defaultVisible' => false,
+                'renderField' => 'member.pronunciation',
+                'description' => __('Pronunciation of the recipient name'),
+            ],
+            'member_pronouns' => [
+                'key' => 'member_pronouns',
+                'label' => __('Pronouns'),
+                'type' => 'string',
+                'sortable' => false,
+                'filterable' => false,
+                'exportOnly' => true,
+                'defaultVisible' => false,
+                'renderField' => 'member.pronouns',
+                'description' => __('Recipient pronouns'),
+            ],
             'awards' => [
                 'key' => 'awards',
                 'label' => __('Award'),
@@ -251,6 +284,36 @@ class BestowalsGridColumns extends BaseGridColumns
                 'alignment' => 'left',
                 'description' => __('Event Schedule court session linked for heralds'),
             ],
+            'call_into_court' => [
+                'key' => 'call_into_court',
+                'label' => __('Call Into Court'),
+                'type' => 'string',
+                'sortable' => false,
+                'filterable' => false,
+                'exportOnly' => true,
+                'defaultVisible' => false,
+                'description' => __('Recipient court protocol preference'),
+            ],
+            'court_availability' => [
+                'key' => 'court_availability',
+                'label' => __('Court Availability'),
+                'type' => 'string',
+                'sortable' => false,
+                'filterable' => false,
+                'exportOnly' => true,
+                'defaultVisible' => false,
+                'description' => __('Recipient court availability preference'),
+            ],
+            'person_to_notify' => [
+                'key' => 'person_to_notify',
+                'label' => __('Person to Notify'),
+                'type' => 'string',
+                'sortable' => false,
+                'filterable' => false,
+                'exportOnly' => true,
+                'defaultVisible' => false,
+                'description' => __('Contact person for ceremony coordination'),
+            ],
             'stack_rank' => [
                 'key' => 'stack_rank',
                 'label' => __('Stack Rank'),
@@ -288,6 +351,16 @@ class BestowalsGridColumns extends BaseGridColumns
                 'alignment' => 'left',
                 'collapsible' => true,
                 'description' => __('Linked recommendation reasons for court and herald notes'),
+            ],
+            'reason_summary' => [
+                'key' => 'reason_summary',
+                'label' => __('Bestowal Reason'),
+                'type' => 'string',
+                'sortable' => false,
+                'filterable' => false,
+                'exportOnly' => true,
+                'defaultVisible' => false,
+                'description' => __('Combined reason for the bestowal'),
             ],
             'gathering_name' => [
                 'key' => 'gathering_name',
@@ -344,7 +417,7 @@ class BestowalsGridColumns extends BaseGridColumns
             unset($columns['herald_notes_preview']);
         }
         if (!static::$includeCrownFields) {
-            unset($columns['recommendation_reasons']);
+            unset($columns['recommendation_reasons'], $columns['reason_summary']);
         }
 
         return $columns;
