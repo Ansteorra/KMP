@@ -66,12 +66,7 @@ class ApprovalsGridColumnsTest extends TestCase
 
         $workflowColumn = $columns['workflow_name'];
         $this->assertSame('dropdown', $workflowColumn['filterType']);
-        $this->assertSame([
-            'table' => 'WorkflowDefinitions',
-            'valueField' => 'name',
-            'labelField' => 'name',
-            'order' => ['name' => 'ASC'],
-        ], $workflowColumn['filterOptionsSource']);
+        $this->assertArrayNotHasKey('filterOptionsSource', $workflowColumn);
         $this->assertArrayHasKey('workflow_name', ApprovalsGridColumns::getDropdownFilterColumns());
     }
 

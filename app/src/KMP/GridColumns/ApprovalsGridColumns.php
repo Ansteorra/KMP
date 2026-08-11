@@ -34,12 +34,6 @@ class ApprovalsGridColumns extends BaseGridColumns
                 'width' => '180px',
                 'alignment' => 'left',
                 'queryField' => 'WorkflowDefinitions.name',
-                'filterOptionsSource' => [
-                    'table' => 'WorkflowDefinitions',
-                    'valueField' => 'name',
-                    'labelField' => 'name',
-                    'order' => ['name' => 'ASC'],
-                ],
             ],
 
             'request' => [

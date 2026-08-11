@@ -326,6 +326,60 @@ class WorkflowApprovalsTable extends BaseTable
     }
 
     /**
+     * Get distinct workflow names represented in a member's My Approvals views.
+     *
+     * Includes workflows with currently actionable approvals and workflows the
+     * member has previously responded to.
+     *
+     * @param int $memberId Member ID.
+     * @return list<string>
+     */
+    public static function getWorkflowNamesForMember(int $memberId): array
+    {
+        $instanceIds = self::getPendingApprovalWorkflowInstanceIdsForMember($memberId);
+        $approvals = TableRegistry::getTableLocator()->get('WorkflowApprovals');
+        $respondedInstances = $approvals->find()
+            ->select(['workflow_instance_id'])
+            ->innerJoinWith('WorkflowApprovalResponses', function ($query) use ($memberId) {
+                return $query->where(['WorkflowApprovalResponses.member_id' => $memberId]);
+            })
+            ->distinct(['WorkflowApprovals.workflow_instance_id'])
+            ->disableHydration()
+            ->all();
+        foreach ($respondedInstances as $row) {
+            $instanceId = (int)($row['workflow_instance_id'] ?? 0);
+            if ($instanceId > 0) {
+                $instanceIds[] = $instanceId;
+            }
+        }
+
+        $instanceIds = array_values(array_unique($instanceIds));
+        if ($instanceIds === []) {
+            return [];
+        }
+
+        $workflowInstances = TableRegistry::getTableLocator()->get('WorkflowInstances');
+        $rows = $workflowInstances->find()
+            ->select(['workflow_name' => 'WorkflowDefinitions.name'])
+            ->innerJoinWith('WorkflowDefinitions')
+            ->where(['WorkflowInstances.id IN' => $instanceIds])
+            ->distinct(['WorkflowDefinitions.name'])
+            ->orderBy(['WorkflowDefinitions.name' => 'ASC'])
+            ->disableHydration()
+            ->all();
+
+        $names = [];
+        foreach ($rows as $row) {
+            $name = trim((string)($row['workflow_name'] ?? ''));
+            if ($name !== '') {
+                $names[] = $name;
+            }
+        }
+
+        return $names;
+    }
+
+    /**
      * Check whether one pending approval is currently actionable for a member.
      *
      * @param int $approvalId Workflow approval ID.

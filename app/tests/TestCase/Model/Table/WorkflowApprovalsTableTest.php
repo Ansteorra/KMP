@@ -82,6 +82,48 @@ class WorkflowApprovalsTableTest extends BaseTestCase
         $this->assertSame([], WorkflowApprovalsTable::getPendingApprovalIdsForMember(self::ADMIN_MEMBER_ID, []));
     }
 
+    public function testWorkflowNamesForMemberAreDistinctAndMemberScoped(): void
+    {
+        [$pendingInstanceId, $pendingExecutionLogId] = $this->createWorkflowContext();
+        [$otherInstanceId, $otherExecutionLogId] = $this->createWorkflowContext();
+        [$respondedInstanceId, $respondedExecutionLogId] = $this->createWorkflowContext();
+        $pendingName = $this->workflowNameForInstance($pendingInstanceId);
+        $otherName = $this->workflowNameForInstance($otherInstanceId);
+        $respondedName = $this->workflowNameForInstance($respondedInstanceId);
+
+        $this->createApproval($pendingInstanceId, $pendingExecutionLogId, [
+            'approver_type' => WorkflowApproval::APPROVER_TYPE_MEMBER,
+            'approver_config' => ['member_id' => self::ADMIN_MEMBER_ID],
+        ]);
+        $this->createApproval($pendingInstanceId, $pendingExecutionLogId, [
+            'approver_type' => WorkflowApproval::APPROVER_TYPE_MEMBER,
+            'approver_config' => ['member_id' => self::ADMIN_MEMBER_ID],
+        ]);
+        $this->createApproval($otherInstanceId, $otherExecutionLogId, [
+            'approver_type' => WorkflowApproval::APPROVER_TYPE_MEMBER,
+            'approver_config' => ['member_id' => self::TEST_MEMBER_AGATHA_ID],
+        ]);
+        $respondedApprovalId = $this->createApproval($respondedInstanceId, $respondedExecutionLogId, [
+            'approver_type' => WorkflowApproval::APPROVER_TYPE_MEMBER,
+            'approver_config' => ['member_id' => self::TEST_MEMBER_AGATHA_ID],
+            'status' => WorkflowApproval::STATUS_APPROVED,
+        ]);
+        $this->responsesTable->saveOrFail($this->responsesTable->newEntity([
+            'workflow_approval_id' => $respondedApprovalId,
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'responded_at' => DateTime::now(),
+        ]));
+
+        $names = WorkflowApprovalsTable::getWorkflowNamesForMember(self::ADMIN_MEMBER_ID);
+
+        $this->assertContains($pendingName, $names);
+        $this->assertContains($respondedName, $names);
+        $this->assertNotContains($otherName, $names);
+        $this->assertSame(1, count(array_keys($names, $pendingName, true)));
+        $this->assertSame(array_values(array_unique($names)), $names);
+    }
+
     public function testPendingCountIncludesPolicyApprovalForEligibleMember(): void
     {
         $countBefore = WorkflowApprovalsTable::getPendingApprovalCountForMember(self::ADMIN_MEMBER_ID);
@@ -493,6 +535,16 @@ class WorkflowApprovalsTableTest extends BaseTestCase
         $logsTable->saveOrFail($log);
 
         return [(int)$instance->id, (int)$log->id];
+    }
+
+    private function workflowNameForInstance(int $instanceId): string
+    {
+        $instance = TableRegistry::getTableLocator()->get('WorkflowInstances')->get(
+            $instanceId,
+            contain: ['WorkflowDefinitions'],
+        );
+
+        return (string)$instance->workflow_definition->name;
     }
 
     /**
