@@ -126,6 +126,12 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('<table>');
         $this->assertResponseContains('Projected court runtime');
         $this->assertResponseContains('Print Agenda');
+        $this->assertResponseContains('Call in:');
+        $this->assertResponseContains('With Notice');
+        $this->assertResponseContains('Court availability:');
+        $this->assertResponseContains('Evening');
+        $this->assertResponseContains('Notify:');
+        $this->assertResponseContains('Agenda Contact');
     }
 
     public function testCourtManagerPrintAgendaShowsHeraldNotesButHidesCrownFields(): void
@@ -236,6 +242,9 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
             'stack_rank' => 10,
             'herald_notes' => 'Speak clearly.',
             'noble_notes' => 'Noble court secret.',
+            'call_into_court' => 'With Notice',
+            'court_availability' => 'Evening',
+            'person_to_notify' => 'Agenda Contact',
         ]));
     }
 

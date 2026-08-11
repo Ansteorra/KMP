@@ -154,6 +154,18 @@ $title = __('Court Agenda') . ': ' . ($agenda->gathering->name ?? $agenda->name)
                                         <?= h($bestowal->call_into_court) ?>
                                     </div>
                                 <?php endif; ?>
+                                <?php if (!empty($bestowal->court_availability)) : ?>
+                                    <div>
+                                        <strong><?= __('Court availability:') ?></strong>
+                                        <?= h($bestowal->court_availability) ?>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (!empty($bestowal->person_to_notify)) : ?>
+                                    <div>
+                                        <strong><?= __('Notify:') ?></strong>
+                                        <?= h($bestowal->person_to_notify) ?>
+                                    </div>
+                                <?php endif; ?>
                                 <?php if (!empty($item->presentation_notes)) : ?>
                                     <div><strong><?= __('Agenda:') ?></strong> <?= h($item->presentation_notes) ?></div>
                                 <?php endif; ?>

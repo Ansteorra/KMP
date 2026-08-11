@@ -12,7 +12,7 @@ Stay up to date with the latest features, improvements, and announcements for th
 
 KMP 1.5.8 restores gathering bestowal exports and updates the application runtime for reliable migrations, backup compatibility, and local multi-tenant development.
 
-- Gathering bestowal CSV exports now complete successfully and include linked member names instead of failing while loading member associations
+- Gathering bestowal CSV exports now complete successfully and include recipient titles, pronunciation, pronouns, bestowal reasons, court preferences, and spreadsheet-safe court slot text
 - The application runtime now uses CakePHP 5.4.1 and CakePHP Migrations 5.2.6, with related development tooling updated for compatibility
 - Core, platform, and plugin migrations preserve their established migration-history tables so tenant upgrades and backup compatibility checks continue to recognize applied migrations
 - Backup and restore compatibility checks now recognize migrated workflow data consistently on PostgreSQL and MySQL

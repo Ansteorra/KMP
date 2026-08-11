@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Awards\Test\TestCase\Controller;
 
 use App\Model\Entity\ActionItem;
+use App\Model\Entity\GatheringScheduledActivity;
 use App\Model\Entity\Member;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\KMP\GridColumns\BestowalsGridColumns;
@@ -70,16 +71,19 @@ class BestowalsGridSortingFilteringTest extends HttpIntegrationTestCase
             $columns = BestowalsGridColumns::getColumns();
             $this->assertArrayNotHasKey('herald_notes_preview', $columns);
             $this->assertArrayNotHasKey('recommendation_reasons', $columns);
+            $this->assertArrayNotHasKey('reason_summary', $columns);
 
             BestowalsGridColumns::setProtectedFieldVisibility(true, false);
             $columns = BestowalsGridColumns::getColumns();
             $this->assertArrayHasKey('herald_notes_preview', $columns);
             $this->assertArrayNotHasKey('recommendation_reasons', $columns);
+            $this->assertArrayNotHasKey('reason_summary', $columns);
 
             BestowalsGridColumns::setProtectedFieldVisibility(false, true);
             $columns = BestowalsGridColumns::getColumns();
             $this->assertArrayHasKey('herald_notes_preview', $columns);
             $this->assertArrayHasKey('recommendation_reasons', $columns);
+            $this->assertArrayHasKey('reason_summary', $columns);
             foreach (BestowalsGridColumns::getSystemViews() as $view) {
                 $this->assertContains('herald_notes_preview', $view['config']['columns']);
                 $this->assertContains('recommendation_reasons', $view['config']['columns']);
@@ -224,18 +228,62 @@ class BestowalsGridSortingFilteringTest extends HttpIntegrationTestCase
         );
     }
 
-    public function testGatheringBestowalsCsvExportLoadsMemberAssociation(): void
+    public function testGatheringBestowalsCsvExportIncludesCourtDetails(): void
     {
         $member = $this->createMember('bestowal-export-' . uniqid());
+        $members = $this->getTableLocator()->get('Members');
+        $members->patchEntity($member, [
+            'title' => 'Export Title',
+            'pronunciation' => 'export pronunciation',
+            'pronouns' => 'they/them',
+        ]);
+        $members->saveOrFail($member);
+
         $award = $this->getTableLocator()->get('Awards.Awards')->find()->select(['id'])->firstOrFail();
-        $gathering = $this->getTableLocator()->get('Gatherings')->find()->select(['id'])->firstOrFail();
-        $this->createBestowal((int)$member->id, (int)$award->id, (int)$gathering->id);
+        $gathering = $this->getTableLocator()->get('Gatherings')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail();
+        $scheduledActivity = $this->createScheduledActivity(
+            (int)$gathering->id,
+            (int)$award->id,
+            'Evening Court',
+        );
+        $bestowal = $this->createBestowal((int)$member->id, (int)$award->id, (int)$gathering->id);
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $bestowals->patchEntity($bestowal, [
+            'award_id' => $award->id,
+            'gathering_scheduled_activity_id' => $scheduledActivity->id,
+            'reason_summary' => 'Export reason summary',
+            'call_into_court' => 'With Notice',
+            'court_availability' => 'Evening',
+            'person_to_notify' => 'Export Contact',
+        ]);
+        $bestowals->saveOrFail($bestowal);
+        $participantName = 'Participant-only export ' . uniqid();
+        $this->createBestowal(
+            null,
+            (int)$award->id,
+            (int)$gathering->id,
+            $participantName,
+        );
 
         $this->get('/awards/bestowals/gathering-bestowals-grid-data/' . $gathering->id . '?export=csv');
 
         $this->assertResponseOk();
         $this->assertHeaderContains('Content-Disposition', 'gathering-bestowals');
         $this->assertResponseContains((string)$member->sca_name);
+        $this->assertResponseContains($participantName);
+        $this->assertResponseContains('Export Title');
+        $this->assertResponseContains('export pronunciation');
+        $this->assertResponseContains('they/them');
+        $this->assertResponseContains('Export reason summary');
+        $this->assertResponseContains('With Notice');
+        $this->assertResponseContains('Evening');
+        $this->assertResponseContains('Export Contact');
+        $this->assertResponseContains('Evening Court - ');
+        $this->assertResponseNotContains('Evening Court – ');
+        $this->assertResponseNotContains('‚Äì');
     }
 
     public function testAwardTypeAndGroupFiltersUseAwardTaxonomy(): void
@@ -370,6 +418,38 @@ class BestowalsGridSortingFilteringTest extends HttpIntegrationTestCase
         ]);
 
         return $bestowals->saveOrFail($bestowal);
+    }
+
+    private function createScheduledActivity(
+        int $gatheringId,
+        int $awardId,
+        string $title,
+    ): GatheringScheduledActivity {
+        $activity = $this->getTableLocator()->get('GatheringActivities')->find()->firstOrFail();
+        $awardActivities = $this->getTableLocator()->get('Awards.AwardGatheringActivities');
+        if (!$awardActivities->exists(['award_id' => $awardId, 'gathering_activity_id' => $activity->id])) {
+            $awardActivities->saveOrFail($awardActivities->newEntity([
+                'award_id' => $awardId,
+                'gathering_activity_id' => $activity->id,
+            ]));
+        }
+
+        $gathering = $this->getTableLocator()->get('Gatherings')->get($gatheringId);
+        $scheduledActivities = $this->getTableLocator()->get('GatheringScheduledActivities');
+        $scheduledActivity = $scheduledActivities->newEntity([
+            'gathering_id' => $gatheringId,
+            'gathering_activity_id' => $activity->id,
+            'start_datetime' => (clone $gathering->start_date)->modify('+1 hour'),
+            'end_datetime' => (clone $gathering->start_date)->modify('+2 hours'),
+            'has_end_time' => true,
+            'display_title' => $title,
+            'description' => $title . ' description.',
+            'pre_register' => false,
+            'is_other' => false,
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]);
+
+        return $scheduledActivities->saveOrFail($scheduledActivity);
     }
 
     private function createAward(string $name, int $domainId, int $levelId, int $branchId): Award
