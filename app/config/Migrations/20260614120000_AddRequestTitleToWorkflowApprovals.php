@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 use App\Migrations\CrossEngineMigrationTrait;
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
-class AddRequestTitleToWorkflowApprovals extends AbstractMigration
+class AddRequestTitleToWorkflowApprovals extends BaseMigration
 {
     use CrossEngineMigrationTrait;
 

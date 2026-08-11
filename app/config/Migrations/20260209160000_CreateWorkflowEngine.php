@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Create workflow engine infrastructure tables.
@@ -10,7 +10,7 @@ use Migrations\AbstractMigration;
  * Provides visual workflow design, versioned definitions, execution tracking,
  * approval gates, and instance version migration auditing.
  */
-class CreateWorkflowEngine extends AbstractMigration
+class CreateWorkflowEngine extends BaseMigration
 {
     private const TABLE_DEFINITIONS = 'workflow_definitions';
     private const TABLE_VERSIONS = 'workflow_versions';

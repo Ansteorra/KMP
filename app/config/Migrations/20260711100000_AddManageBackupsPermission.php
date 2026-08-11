@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Add the "Can Manage Backups" permission so tenant backup self-service
  * (list, request, download) is grantable to roles instead of being an
  * accidental super-user-only surface.
  */
-class AddManageBackupsPermission extends AbstractMigration
+class AddManageBackupsPermission extends BaseMigration
 {
     private const POLICY_METHODS = [
         'canIndex',

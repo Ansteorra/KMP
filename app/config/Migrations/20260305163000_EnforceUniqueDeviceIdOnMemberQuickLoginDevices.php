@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
-class EnforceUniqueDeviceIdOnMemberQuickLoginDevices extends AbstractMigration
+class EnforceUniqueDeviceIdOnMemberQuickLoginDevices extends BaseMigration
 {
     private const TABLE = 'member_quick_login_devices';
 

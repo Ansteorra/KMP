@@ -30,11 +30,6 @@ use Exception;
 class MigrateAwardEventsCommand extends Command
 {
     /**
-     * @var \Cake\Console\ConsoleIo
-     */
-    protected $io;
-
-    /**
      * @var bool
      */
     protected $dryRun = false;

@@ -324,5 +324,9 @@ class BestowalQueryService
             ]);
 
         $query->select(['open_todo_count' => $openTodoCount]);
+        if ($visibleColumns === null) {
+            // CSV exports load every association; retain base foreign keys after selecting the computed count.
+            $query->enableAutoFields(true);
+        }
     }
 }

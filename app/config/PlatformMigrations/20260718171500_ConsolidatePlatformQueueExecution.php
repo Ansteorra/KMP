@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 // phpcs:disable PSR1.Classes.ClassDeclaration.MissingNamespace
 // phpcs:disable Squiz.Classes.ClassFileName.NoMatch
 
-class ConsolidatePlatformQueueExecution extends AbstractMigration
+class ConsolidatePlatformQueueExecution extends BaseMigration
 {
     /**
      * Move queue execution out of minute schedules and into the fleet worker loop.

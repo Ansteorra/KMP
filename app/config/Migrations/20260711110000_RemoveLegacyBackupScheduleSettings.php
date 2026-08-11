@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Remove the legacy tenant backup scheduling AppSettings.
@@ -12,7 +12,7 @@ use Migrations\AbstractMigration;
  * is deliberately kept: it still opens previously downloaded .kmpbackup
  * files until the legacy backups table is sunset.
  */
-class RemoveLegacyBackupScheduleSettings extends AbstractMigration
+class RemoveLegacyBackupScheduleSettings extends BaseMigration
 {
     public function up(): void
     {

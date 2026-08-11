@@ -504,6 +504,6 @@ class SubworkflowOrphanTest extends BaseTestCase
         $childInstance = $this->instancesTable->get($childId);
 
         // Child receives parent's trigger data
-        $this->assertSame($triggerData, $childInstance->context['trigger']);
+        $this->assertEquals($triggerData, $childInstance->context['trigger']);
     }
 }

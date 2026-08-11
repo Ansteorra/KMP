@@ -224,6 +224,20 @@ class BestowalsGridSortingFilteringTest extends HttpIntegrationTestCase
         );
     }
 
+    public function testGatheringBestowalsCsvExportLoadsMemberAssociation(): void
+    {
+        $member = $this->createMember('bestowal-export-' . uniqid());
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()->select(['id'])->firstOrFail();
+        $gathering = $this->getTableLocator()->get('Gatherings')->find()->select(['id'])->firstOrFail();
+        $this->createBestowal((int)$member->id, (int)$award->id, (int)$gathering->id);
+
+        $this->get('/awards/bestowals/gathering-bestowals-grid-data/' . $gathering->id . '?export=csv');
+
+        $this->assertResponseOk();
+        $this->assertHeaderContains('Content-Disposition', 'gathering-bestowals');
+        $this->assertResponseContains((string)$member->sca_name);
+    }
+
     public function testAwardTypeAndGroupFiltersUseAwardTaxonomy(): void
     {
         $prefix = 'bestowal-grid-taxonomy-' . uniqid();

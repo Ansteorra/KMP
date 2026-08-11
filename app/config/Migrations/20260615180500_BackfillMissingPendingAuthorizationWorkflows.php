@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 use App\Migrations\CrossEngineMigrationTrait;
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Backfill pending Activities authorizations that do not have an actionable workflow approval.
  */
-class BackfillMissingPendingAuthorizationWorkflows extends AbstractMigration
+class BackfillMissingPendingAuthorizationWorkflows extends BaseMigration
 {
     use CrossEngineMigrationTrait;
 

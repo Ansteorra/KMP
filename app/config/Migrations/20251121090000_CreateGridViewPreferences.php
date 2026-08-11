@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Create grid_view_preferences table to store per-user default selections
@@ -20,7 +20,7 @@ use Migrations\AbstractMigration;
  * - Unique constraint ensures a single active preference per grid per member
  * - Standard timestamp/audit columns maintain parity with other tables
  */
-class CreateGridViewPreferences extends AbstractMigration
+class CreateGridViewPreferences extends BaseMigration
 {
     /**
      * Create the grid_view_preferences table

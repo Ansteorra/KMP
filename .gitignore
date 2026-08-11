@@ -47,6 +47,7 @@ app/webroot/js/pdf.worker.min.mjs
 app/webroot/css/*-[A-Za-z0-9_-]*.css
 
 # Azure deploy local settings (never commit — contains secrets)
+.azure/
 deploy/azure/nightly.env
 deploy/azure/*.secret
 deploy/azure/.azure-outputs.json

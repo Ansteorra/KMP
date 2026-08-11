@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Make Scheduled Activity End Time Optional Migration
@@ -11,7 +11,7 @@ use Migrations\AbstractMigration;
  * column nullable. This allows scheduled activities that only have a start
  * time (like "site opens" or "site closes") without requiring an end time.
  */
-class MakeScheduledActivityEndTimeOptional extends AbstractMigration
+class MakeScheduledActivityEndTimeOptional extends BaseMigration
 {
     /**
      * Up Method.

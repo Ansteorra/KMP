@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 // phpcs:disable PSR1.Classes.ClassDeclaration.MissingNamespace
 // phpcs:disable Squiz.Classes.ClassFileName.NoMatch
 
-class DropUnusedFeatureFlags extends AbstractMigration
+class DropUnusedFeatureFlags extends BaseMigration
 {
     /**
      * Remove the unused per-tenant feature_flags column and the unused

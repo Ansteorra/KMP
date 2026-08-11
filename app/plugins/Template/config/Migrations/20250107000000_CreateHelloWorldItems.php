@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Create HelloWorldItems table
@@ -21,7 +21,7 @@ use Migrations\AbstractMigration;
  * To rollback:
  * bin/cake migrations rollback -p Template
  */
-class CreateHelloWorldItems extends AbstractMigration
+class CreateHelloWorldItems extends BaseMigration
 {
     /**
      * Change Method.

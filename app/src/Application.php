@@ -540,7 +540,7 @@ class Application extends BaseApplication implements
                     . 'https://fonts.googleapis.com; '
                     // Font sources
                     . "font-src 'self' data: https://fonts.gstatic.com "
-                    . 'https://cdn.jsdelivr.net;'
+                    . 'https://cdn.jsdelivr.net https://unpkg.com;'
                     // Allow HTTPS images and data URIs
                     . "img-src 'self' data: https:; "
                     // AJAX/fetch restrictions

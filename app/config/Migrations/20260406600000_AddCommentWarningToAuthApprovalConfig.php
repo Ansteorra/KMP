@@ -3,13 +3,13 @@
 declare(strict_types=1);
 
 use Cake\ORM\TableRegistry;
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Add commentWarning to the authorization approval workflow definition
  * and backfill existing pending approvals with the warning in approver_config.
  */
-class AddCommentWarningToAuthApprovalConfig extends AbstractMigration
+class AddCommentWarningToAuthApprovalConfig extends BaseMigration
 {
     /**
      * @return void

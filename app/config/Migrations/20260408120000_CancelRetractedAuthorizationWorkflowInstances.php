@@ -7,12 +7,12 @@ use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowInstance;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Cancel any authorization-request workflow instances whose authorization is already retracted.
  */
-class CancelRetractedAuthorizationWorkflowInstances extends AbstractMigration
+class CancelRetractedAuthorizationWorkflowInstances extends BaseMigration
 {
     use CrossEngineMigrationTrait;
 

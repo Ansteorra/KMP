@@ -197,6 +197,11 @@ return [
     /** @var bool Enable debug mode - set via DEBUG environment variable */
     "debug" => filter_var(env("DEBUG", false), FILTER_VALIDATE_BOOLEAN),
 
+    /** Preserve the per-plugin migration tables used by tenant and backup workflows. */
+    'Migrations' => [
+        'legacyTables' => true,
+    ],
+
     /** @var array Platform metadata health/degraded-mode settings */
     "Platform" => [
         "health" => [

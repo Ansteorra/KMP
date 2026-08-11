@@ -1,3 +1,3 @@
 ./revert_database.sh
 ./migrate_database.sh
-cake migrations seed --seed DevLoad
+cake seeds run DevLoad

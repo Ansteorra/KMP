@@ -82,6 +82,7 @@ class BestowalsTable extends BaseTable
             'foreignKey' => 'bestowal_id',
             'targetForeignKey' => 'recommendation_id',
             'className' => 'Awards.Recommendations',
+            'strategy' => 'select',
         ]);
         $this->hasMany('BestowalRecommendations', [
             'foreignKey' => 'bestowal_id',

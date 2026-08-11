@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 // phpcs:disable PSR1.Classes.ClassDeclaration.MissingNamespace
 // phpcs:disable Squiz.Classes.ClassFileName.NoMatch
 
-class TunePlatformJobRetention extends AbstractMigration
+class TunePlatformJobRetention extends BaseMigration
 {
     private const ACTIVITY_ONLY_SCHEDULES = [
         'platform-admin-job-runner',

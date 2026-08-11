@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 // phpcs:disable PSR1.Classes.ClassDeclaration.MissingNamespace
 // phpcs:disable Squiz.Classes.ClassFileName.NoMatch
 
-class SeedTenantAwareCommandSchedules extends AbstractMigration
+class SeedTenantAwareCommandSchedules extends BaseMigration
 {
     /**
      * Seed platform schedules that fan out tenant-affecting legacy commands.

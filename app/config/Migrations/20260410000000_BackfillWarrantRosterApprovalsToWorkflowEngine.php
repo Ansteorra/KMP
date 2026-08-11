@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 use App\Migrations\CrossEngineMigrationTrait;
 
 /**
@@ -14,7 +14,7 @@ use App\Migrations\CrossEngineMigrationTrait;
  *
  * Idempotent — skips if migrated instances already exist.
  */
-class BackfillWarrantRosterApprovalsToWorkflowEngine extends AbstractMigration
+class BackfillWarrantRosterApprovalsToWorkflowEngine extends BaseMigration
 {
     use CrossEngineMigrationTrait;
 

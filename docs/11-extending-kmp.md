@@ -609,9 +609,9 @@ class Office extends Entity
 Create migrations for your plugin's database tables:
 
 ```php
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
-class CreateOfficersTable extends AbstractMigration
+class CreateOfficersTable extends BaseMigration
 {
     public function change()
     {
@@ -848,9 +848,9 @@ plugins/YourPlugin/config/Migrations/YYYYMMDDHHMMSS_AddPublicIdToYourPluginTable
 <?php
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
-class AddPublicIdToYourPluginTables extends AbstractMigration
+class AddPublicIdToYourPluginTables extends BaseMigration
 {
     protected const TABLES = [
         'your_table_1',

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Seed the "Plugin.PublicGatherings.CustomCSS" app setting (type css).
@@ -11,7 +11,7 @@ use Migrations\AbstractMigration;
  * change by default (it is all CSS comments) but teaches the administrator the
  * theme variables and classes they can override to restyle the /events page.
  */
-class AddPublicGatheringsCssAppSetting extends AbstractMigration
+class AddPublicGatheringsCssAppSetting extends BaseMigration
 {
     private const SETTING_NAME = 'Plugin.PublicGatherings.CustomCSS';
 

@@ -10,7 +10,7 @@ use Migrations\BaseSeed;
  * Master entrypoint for dev-only fixture data. Invokes each DevLoad* seed
  * in the order required by foreign-key dependencies.
  *
- * Intended for `bin/cake migrations seed --seed DevLoadSeed` after a fresh
+ * Intended for `bin/cake seeds run DevLoad` after a fresh
  * `migrations migrate` + `updateDatabase`. Each child seed is idempotent
  * so re-runs are safe.
  */
