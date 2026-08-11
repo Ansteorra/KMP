@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Add the "Can Publish Gatherings to Kingdom Calendar" permission.
@@ -13,7 +13,7 @@ use Migrations\AbstractMigration;
  * events before dates are secured. Assign the permission to those roles
  * through the role management UI.
  */
-class AddPublishGatheringsPermission extends AbstractMigration
+class AddPublishGatheringsPermission extends BaseMigration
 {
     public function up(): void
     {

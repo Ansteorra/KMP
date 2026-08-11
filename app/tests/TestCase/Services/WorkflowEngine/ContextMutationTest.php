@@ -1,10 +1,8 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Services\WorkflowEngine;
 
-use App\Model\Entity\WorkflowExecutionLog;
 use App\Model\Entity\WorkflowInstance;
 use App\Services\WorkflowEngine\DefaultWorkflowEngine;
 use App\Test\TestCase\BaseTestCase;
@@ -253,7 +251,7 @@ class ContextMutationTest extends BaseTestCase
 
         $this->assertTrue($result->isSuccess());
         $instance = $this->instancesTable->get($result->data['instanceId']);
-        $this->assertSame($triggerData, $instance->context['trigger']);
+        $this->assertEquals($triggerData, $instance->context['trigger']);
     }
 
     public function testForkBranchExecutionIsSequential(): void

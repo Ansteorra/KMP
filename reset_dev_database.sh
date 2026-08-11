@@ -16,7 +16,7 @@
 # 1. Drop & recreate via Cake `resetDatabase` (drops all tables in public schema).
 # 2. Run migrations (core schema + init/backfill data seeded by migrations).
 # 3. Update database (plugin migrations).
-# 4. Seed DevLoad fixtures via `bin/cake migrations seed --seed DevLoadSeed`.
+# 4. Seed DevLoad fixtures via `bin/cake seeds run DevLoad`.
 # 5. Reset all member passwords to TestPassword.
 
 set -euo pipefail
@@ -70,8 +70,8 @@ if [ "$DB_ENGINE" = "postgres" ]; then
 	echo "[3/4] Running plugin migrations (bin/cake updateDatabase)..."
 	bin/cake updateDatabase
 
-	echo "[4/4] Seeding DevLoad fixtures (bin/cake migrations seed --seed DevLoadSeed)..."
-	bin/cake migrations seed --seed DevLoadSeed
+	echo "[4/4] Seeding DevLoad fixtures (bin/cake seeds run DevLoad)..."
+	bin/cake seeds run DevLoad
 else
 	echo "[reset_dev_database] Engine: MySQL/MariaDB"
 

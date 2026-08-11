@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 // phpcs:disable PSR1.Classes.ClassDeclaration.MissingNamespace
 // phpcs:disable Squiz.Classes.ClassFileName.NoMatch
 
-class SeedTenantQueueDrainSchedule extends AbstractMigration
+class SeedTenantQueueDrainSchedule extends BaseMigration
 {
     /**
      * Seed bounded queue processing for every active tenant.

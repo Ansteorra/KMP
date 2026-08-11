@@ -55,14 +55,18 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
      */
     public function testGridDataTableFrameRendersColumnsWithFilteredRows(): void
     {
+        $monthStart = new DateTimeImmutable('first day of this month 00:00:00', new DateTimeZone('UTC'));
+        $monthEnd = $monthStart->modify('last day of this month');
+        $gatheringStart = $monthStart->modify('+14 days')->setTime(10, 0);
+        $gatheringEnd = $gatheringStart->modify('+2 hours');
         $gatherings = $this->getTableLocator()->get('Gatherings');
         $gathering = $gatherings->newEntity([
             'branch_id' => 2,
             'gathering_type_id' => 1,
             'name' => 'Grid Frame Column Regression',
             'description' => 'Verifies filtered table-frame responses render columns.',
-            'start_date' => '2026-07-15 10:00:00',
-            'end_date' => '2026-07-15 12:00:00',
+            'start_date' => $gatheringStart,
+            'end_date' => $gatheringEnd,
             'location' => 'Grid Test Site',
             'timezone' => 'America/Chicago',
             'public_page_enabled' => true,
@@ -74,7 +78,8 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
             'headers' => ['Turbo-Frame' => 'gatherings-grid-table'],
         ]);
         $this->get(
-            '/gatherings/grid-data?start_date_start=2026-07-01&start_date_end=2026-07-31'
+            '/gatherings/grid-data?start_date_start=' . $monthStart->format('Y-m-d')
+            . '&start_date_end=' . $monthEnd->format('Y-m-d')
             . '&filter%5Bgathering_type_id%5D%5B%5D=1&dirty%5Bfilters%5D=1',
         );
 

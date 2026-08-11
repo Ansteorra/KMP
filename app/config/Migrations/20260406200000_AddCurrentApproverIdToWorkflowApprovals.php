@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Adds denormalized current_approver_id FK to workflow_approvals
  * for sortable/filterable "Assigned To" column in the approvals grid.
  */
-class AddCurrentApproverIdToWorkflowApprovals extends AbstractMigration
+class AddCurrentApproverIdToWorkflowApprovals extends BaseMigration
 {
     public function up(): void
     {

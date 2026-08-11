@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Add Timezone Field to Members Table
@@ -34,7 +34,7 @@ use Migrations\AbstractMigration;
  * @see https://www.php.net/manual/en/timezones.php
  * @see \App\KMP\TimezoneHelper For timezone handling utilities
  */
-class AddTimezoneToMembers extends AbstractMigration
+class AddTimezoneToMembers extends BaseMigration
 {
     /**
      * Add timezone column to members table

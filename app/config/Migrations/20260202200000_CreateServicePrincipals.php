@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Create service principal infrastructure for API integrations.
@@ -10,7 +10,7 @@ use Migrations\AbstractMigration;
  * Service principals are non-human identities that can be assigned roles
  * and access the API using Bearer token authentication.
  */
-class CreateServicePrincipals extends AbstractMigration
+class CreateServicePrincipals extends BaseMigration
 {
     public function up(): void
     {

@@ -6,6 +6,23 @@ Stay up to date with the latest features, improvements, and announcements for th
 <!-- LAST_SYNCED_COMMIT: 0c6f343cf75c82850a0d04ecb3c2e56dc73a5716 -->
 <!-- LAST_SYNCED_DATE: 2026-07-30 -->
 
+## KMP 1.5.8 — August 10, 2026
+
+### Bestowal Export and Framework Compatibility Hotfix
+
+KMP 1.5.8 restores gathering bestowal exports and updates the application runtime for reliable migrations, backup compatibility, and local multi-tenant development.
+
+- Gathering bestowal CSV exports now complete successfully and include linked member names instead of failing while loading member associations
+- The application runtime now uses CakePHP 5.4.1 and CakePHP Migrations 5.2.6, with related development tooling updated for compatibility
+- Core, platform, and plugin migrations preserve their established migration-history tables so tenant upgrades and backup compatibility checks continue to recognize applied migrations
+- Backup and restore compatibility checks now recognize migrated workflow data consistently on PostgreSQL and MySQL
+- Local Docker startup and database reset workflows now support configurable tenant host aliases, safer database initialization guards, and stricter permissions for local secrets
+- Application and public gathering pages now load the same Bootstrap Icons version from a consistent source
+
+📅 August 10, 2026 · `Hotfix`
+
+---
+
 ## KMP 1.5.7 — July 30, 2026
 
 ### Waiver Review and Autocomplete Hotfix

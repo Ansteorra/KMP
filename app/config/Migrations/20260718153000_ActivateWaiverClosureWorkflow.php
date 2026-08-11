@@ -2,9 +2,9 @@
 declare(strict_types=1);
 
 use Cake\ORM\TableRegistry;
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
-class ActivateWaiverClosureWorkflow extends AbstractMigration
+class ActivateWaiverClosureWorkflow extends BaseMigration
 {
     /**
      * Activate the seeded waiver closure workflow for existing installations.

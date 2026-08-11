@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Add public_id column to Branches table.
@@ -11,7 +11,7 @@ use Migrations\AbstractMigration;
  * public API can expose a non-sequential identifier instead of the
  * internal auto-increment ID.
  */
-class AddPublicIdToBranches extends AbstractMigration
+class AddPublicIdToBranches extends BaseMigration
 {
     protected const TABLE = 'branches';
     protected const PUBLIC_ID_LENGTH = 8;

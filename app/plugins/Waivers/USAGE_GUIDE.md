@@ -47,7 +47,7 @@ Edit `/workspaces/KMP/app/config/plugins.php`:
 ```bash
 cd /workspaces/KMP/app
 bin/cake migrations migrate -p YourPluginName
-bin/cake migrations seed -p YourPluginName
+bin/cake seeds run -p YourPluginName
 ```
 
 ### 5. Clear Cache

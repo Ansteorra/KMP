@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 // phpcs:disable
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
-class SetTenantBackupJsonDefault extends AbstractMigration
+class SetTenantBackupJsonDefault extends BaseMigration
 {
     public function up(): void
     {

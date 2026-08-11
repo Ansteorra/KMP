@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Drop legacy warrant_roster_approvals table.
@@ -9,7 +9,7 @@ use Migrations\AbstractMigration;
  * All approval data has been migrated to workflow_approvals + workflow_approval_responses
  * by the BackfillWarrantRosterApprovalsToWorkflowEngine migration.
  */
-class DropWarrantRosterApprovalsTable extends AbstractMigration
+class DropWarrantRosterApprovalsTable extends BaseMigration
 {
     public function up(): void
     {

@@ -75,7 +75,7 @@ bin/cake cache clear_all
 ### Step 5: Run Migrations (Optional)
 ```bash
 bin/cake migrations migrate -p MyPlugin
-bin/cake migrations seed -p MyPlugin
+bin/cake seeds run -p MyPlugin
 ```
 
 ### Done! 

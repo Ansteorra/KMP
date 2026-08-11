@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 // phpcs:disable PSR1.Classes.ClassDeclaration.MissingNamespace
 // phpcs:disable Squiz.Classes.ClassFileName.NoMatch
-class CreatePlatformSecretValues extends AbstractMigration
+class CreatePlatformSecretValues extends BaseMigration
 {
     /**
      * Create envelope-encrypted platform secret tables.

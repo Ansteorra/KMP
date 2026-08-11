@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Add approval_token column to workflow_approvals for email deep-link support.
@@ -11,7 +11,7 @@ use Migrations\AbstractMigration;
  * on workflow approvals. Tokens are generated when approvals are created
  * and used for email-based approval deep links.
  */
-class AddApprovalTokenToWorkflowApprovals extends AbstractMigration
+class AddApprovalTokenToWorkflowApprovals extends BaseMigration
 {
     public function up(): void
     {

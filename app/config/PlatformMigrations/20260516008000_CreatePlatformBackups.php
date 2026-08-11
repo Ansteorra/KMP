@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 // phpcs:disable
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
-class CreatePlatformBackups extends AbstractMigration
+class CreatePlatformBackups extends BaseMigration
 {
     public function change(): void
     {

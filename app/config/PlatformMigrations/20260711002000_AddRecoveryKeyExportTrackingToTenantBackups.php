@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 // phpcs:disable PSR1.Classes.ClassDeclaration.MissingNamespace
 // phpcs:disable Squiz.Classes.ClassFileName.NoMatch
 
-class AddRecoveryKeyExportTrackingToTenantBackups extends AbstractMigration
+class AddRecoveryKeyExportTrackingToTenantBackups extends BaseMigration
 {
     /**
      * Track recovery-key exports so tenant self-service downloads can

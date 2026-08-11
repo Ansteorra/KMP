@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Add public_id columns to Members and Gatherings tables
@@ -37,7 +37,7 @@ use Migrations\AbstractMigration;
  * 2. Generates public IDs for all existing records
  * 3. Makes the column NOT NULL after population
  */
-class AddPublicIdToMembersAndGatherings extends AbstractMigration
+class AddPublicIdToMembersAndGatherings extends BaseMigration
 {
     /**
      * Tables that need public IDs for the gathering staff feature

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Create audit trail table for super user impersonation writes.
  */
-class CreateImpersonationActionLogs extends AbstractMigration
+class CreateImpersonationActionLogs extends BaseMigration
 {
     public function up(): void
     {

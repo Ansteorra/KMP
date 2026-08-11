@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Migrations;
@@ -7,7 +6,7 @@ namespace App\Migrations;
 /**
  * Helper trait for migrations that embed values directly in raw SQL strings.
  *
- * Phinx's AbstractMigration::execute() does not accept bound parameters, so
+ * The migration execution API does not accept bound parameters, so
  * some migrations interpolate values. MySQL and Postgres differ on string
  * escape syntax:
  *   - MySQL accepts backslash escapes (e.g. \" \' \\) as well as SQL-standard
@@ -58,15 +57,17 @@ trait CrossEngineMigrationTrait
     }
 
     /**
-     * Return a SQL expression that coerces a JSON/JSONB column to text so it
-     * can be used with LIKE. MySQL's LIKE works against JSON columns directly,
-     * but Postgres rejects JSON types against LIKE and needs an explicit cast.
+     * Return a stable text expression for JSON marker comparisons.
+     *
+     * PostgreSQL JSONB inserts a space after structural colons when cast to
+     * text. Historical migrations compare compact json_encode() fragments, so
+     * normalize that formatting while preserving their existing predicates.
      */
     protected function jsonAsText(string $column): string
     {
         $adapter = $this->getAdapter()->getAdapterType();
         if (in_array($adapter, ['pgsql', 'postgres'], true)) {
-            return "{$column}::text";
+            return "REPLACE(CAST({$column} AS TEXT), ': ', ':')";
         }
 
         return $column;
