@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Tracks when impersonation sessions start and end.
  */
-class CreateImpersonationSessionLogs extends AbstractMigration
+class CreateImpersonationSessionLogs extends BaseMigration
 {
     public function up(): void
     {

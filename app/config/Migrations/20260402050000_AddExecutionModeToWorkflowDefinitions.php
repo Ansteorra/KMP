@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Add execution_mode column to workflow_definitions.
@@ -12,7 +12,7 @@ use Migrations\AbstractMigration;
  * - 'ephemeral': In-memory execution with zero DB footprint. For short-running
  *   synchronous orchestration where domain data changes self-document.
  */
-class AddExecutionModeToWorkflowDefinitions extends AbstractMigration
+class AddExecutionModeToWorkflowDefinitions extends BaseMigration
 {
     public function change(): void
     {

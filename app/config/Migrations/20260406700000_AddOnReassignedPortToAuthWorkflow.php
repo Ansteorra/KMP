@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Add on_reassigned output port to the authorization approval-gate node
  * and update the workflow version definition in the database.
  */
-class AddOnReassignedPortToAuthWorkflow extends AbstractMigration
+class AddOnReassignedPortToAuthWorkflow extends BaseMigration
 {
     public function up(): void
     {

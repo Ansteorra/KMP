@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Add "Can Approve Warrant Rosters" permission and assign it to roles
  * that already have "Can Manage Warrants".
  */
-class AddApproveWarrantRostersPermission extends AbstractMigration
+class AddApproveWarrantRostersPermission extends BaseMigration
 {
     public function up(): void
     {

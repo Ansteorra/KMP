@@ -47,7 +47,11 @@ env_or_file() {
 
 APP_PORT="$(env_or_file KMP_APP_PORT 8080)"
 APP_URL="$(env_or_file KMP_APP_URL "http://localhost:${APP_PORT}")"
+APP_HEALTH_URL="${APP_URL%/}/livez"
+PLATFORM_ADMIN_URL="$(env_or_file KMP_PLATFORM_ADMIN_URL "http://platform.kmp.localhost:${APP_PORT}/platform-admin")"
+SECOND_TENANT_URL="$(env_or_file KMP_SECOND_TENANT_URL "http://kmp2.localhost:${APP_PORT}")"
 MAILPIT_WEB_PORT="$(env_or_file KMP_MAILPIT_WEB_PORT 8025)"
+MAILPIT_URL="$(env_or_file KMP_MAILPIT_URL "http://localhost:${MAILPIT_WEB_PORT}")"
 MAILPIT_SMTP_PORT="$(env_or_file KMP_MAILPIT_SMTP_PORT 1025)"
 DB_HOST_PORT="$(env_or_file KMP_DB_HOST_PORT 5432)"
 PGADMIN_PORT="$(env_or_file KMP_PGADMIN_PORT 5050)"
@@ -78,9 +82,7 @@ remove_container() {
 }
 
 cleanup_existing_dev_containers() {
-    mkdir -p app/tmp
-    conflicts_file="app/tmp/kmp-dev-conflicts.$$"
-    : > "$conflicts_file"
+    conflicts_file="$(mktemp -t kmp-dev-conflicts.XXXXXX)"
 
     for container_name in kmp-app kmp-worker kmp-scheduler kmp-db kmp-pgadmin kmp-mailpit; do
         container_id="$(docker container inspect --format '{{.Id}}' "$container_name" 2>/dev/null || true)"
@@ -133,7 +135,7 @@ sleep 5
 # Wait for app to be ready
 max_wait=120
 waited=0
-while ! curl -sf "$APP_URL/" > /dev/null 2>&1; do
+while ! curl -sf "$APP_HEALTH_URL" > /dev/null 2>&1; do
     if [ $waited -ge $max_wait ]; then
         echo "⚠️  App not responding after ${max_wait}s - check logs with: docker compose logs app"
         exit 1
@@ -164,12 +166,14 @@ echo ""
 echo "✅ KMP Development Environment is running!"
 echo ""
 echo "   📱 Application:  $APP_URL"
+echo "   🏛️  Platform admin: $PLATFORM_ADMIN_URL"
+echo "   🏰 Second tenant: $SECOND_TENANT_URL"
 if [ -n "$HOST_ALIASES" ]; then
     for alias in $HOST_ALIASES; do
         echo "   🌐 Host alias:   http://${alias}:${APP_PORT}"
     done
 fi
-echo "   📧 Mailpit:      http://localhost:${MAILPIT_WEB_PORT}"
+echo "   📧 Mailpit:      $MAILPIT_URL"
 echo "   🗄️  PostgreSQL:   127.0.0.1:${DB_HOST_PORT}"
 echo "   🐘 pgAdmin:      http://localhost:${PGADMIN_PORT}"
 echo "   ⚙️  Background:    docker compose logs -f scheduler"

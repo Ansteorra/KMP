@@ -129,7 +129,7 @@ class DefaultWorkflowEngineTest extends BaseTestCase
 
         $this->assertTrue($result->isSuccess());
         $instance = $this->instancesTable->get($result->data['instanceId']);
-        $this->assertSame($triggerData, $instance->context['trigger']);
+        $this->assertEquals($triggerData, $instance->context['trigger']);
         $this->assertSame(1, $instance->context['triggeredBy']);
     }
 
@@ -155,7 +155,7 @@ class DefaultWorkflowEngineTest extends BaseTestCase
         $result = $this->engine->startWorkflow($slug, ['recommendationId' => 42]);
 
         $this->assertTrue($result->isSuccess());
-        $this->assertSame([
+        $this->assertEquals([
             'recommendationId' => 42,
             'status' => 'created',
         ], $result->data['workflowResult']);

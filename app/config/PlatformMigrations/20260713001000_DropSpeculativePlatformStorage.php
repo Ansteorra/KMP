@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 // phpcs:disable PSR1.Classes.ClassDeclaration.MissingNamespace
 // phpcs:disable Squiz.Classes.ClassFileName.NoMatch
 
-class DropSpeculativePlatformStorage extends AbstractMigration
+class DropSpeculativePlatformStorage extends BaseMigration
 {
     /**
      * Remove speculative platform storage that nothing writes or enforces:

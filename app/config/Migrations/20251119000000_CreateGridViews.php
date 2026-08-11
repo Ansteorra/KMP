@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Create grid_views table for storing user-configurable grid/table views
@@ -58,7 +58,7 @@ use Migrations\AbstractMigration;
  * }
  * ```
  */
-class CreateGridViews extends AbstractMigration
+class CreateGridViews extends BaseMigration
 {
     /**
      * Create the grid_views table

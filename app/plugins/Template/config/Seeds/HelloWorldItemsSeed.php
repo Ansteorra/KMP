@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractSeed;
+use Migrations\BaseSeed;
 
 /**
  * HelloWorldItems seed.
@@ -10,9 +10,9 @@ use Migrations\AbstractSeed;
  * This seed file provides sample data for development and testing.
  * 
  * To run this seed:
- * bin/cake migrations seed -p Template
+ * bin/cake seeds run -p Template HelloWorldItems
  */
-class HelloWorldItemsSeed extends AbstractSeed
+class HelloWorldItemsSeed extends BaseSeed
 {
     /**
      * Run Method.

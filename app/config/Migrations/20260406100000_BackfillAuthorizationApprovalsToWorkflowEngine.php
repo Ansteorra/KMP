@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Migrations\CrossEngineMigrationTrait;
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Backfill all existing Activities authorization approvals into the workflow engine tables.
@@ -14,7 +14,7 @@ use Migrations\AbstractMigration;
  *
  * Idempotent — skips if migrated instances already exist.
  */
-class BackfillAuthorizationApprovalsToWorkflowEngine extends AbstractMigration
+class BackfillAuthorizationApprovalsToWorkflowEngine extends BaseMigration
 {
     use CrossEngineMigrationTrait;
 
@@ -330,7 +330,7 @@ class BackfillAuthorizationApprovalsToWorkflowEngine extends AbstractMigration
         $instTotal = $instanceCount ? (int)$instanceCount['cnt'] : 0;
         $respTotal = $approvalCount ? (int)$approvalCount['cnt'] : 0;
 
-        $this->getOutput()?->writeln(
+        $this->getIo()?->out(
             "Backfill complete: {$authTotal} authorizations -> "
             . "{$instTotal} workflow instances, {$respTotal} approval responses.",
         );

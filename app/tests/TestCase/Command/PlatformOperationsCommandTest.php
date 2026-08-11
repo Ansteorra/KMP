@@ -19,6 +19,8 @@ class PlatformOperationsCommandTest extends TestCase
 {
     use ConsoleIntegrationTestTrait;
 
+    private string $secretDirectory;
+
     private string $secretFile;
 
     /**
@@ -36,7 +38,9 @@ class PlatformOperationsCommandTest extends TestCase
         parent::setUp();
         $this->previousPlatformConfig = ConnectionManager::getConfig('platform');
         $this->previousSecretsConfig = (array)Configure::read('Secrets', []);
-        $this->secretFile = TMP . 'platform-operations-command-secrets-' . uniqid('', true) . '.json';
+        $this->secretDirectory = TMP . 'platform-operations-command-secrets-' . uniqid('', true);
+        mkdir($this->secretDirectory, 0700, true);
+        $this->secretFile = $this->secretDirectory . DIRECTORY_SEPARATOR . 'secrets.json';
         Configure::write('Secrets', [
             'driver' => 'file',
             'drivers' => [
@@ -62,6 +66,9 @@ class PlatformOperationsCommandTest extends TestCase
     {
         if (is_file($this->secretFile)) {
             unlink($this->secretFile);
+        }
+        if (is_dir($this->secretDirectory)) {
+            rmdir($this->secretDirectory);
         }
         Configure::write('Secrets', $this->previousSecretsConfig);
         ConnectionManager::drop('platform');

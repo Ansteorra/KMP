@@ -907,13 +907,15 @@ class BackupRestoreCompatibilityService
             'WarrantRosters',
         );
 
-        $contextSql = $connection->getDriver() instanceof Postgres ? 'context::text' : 'context';
+        $contextMigratedSql = $connection->getDriver() instanceof Postgres
+            ? "context->>'migrated'"
+            : "JSON_UNQUOTE(JSON_EXTRACT(context, '$.migrated'))";
         $existing = (int)$connection->execute(
             "SELECT COUNT(*)
                FROM workflow_instances
               WHERE entity_type = 'WarrantRosters'
-                AND {$contextSql} LIKE ?",
-            ['%"migrated":true%'],
+                AND {$contextMigratedSql} = ?",
+            ['true'],
         )->fetchColumn(0);
         if ($existing > 0) {
             return ['warrant_roster_approval_workflows_backfilled' => 0];

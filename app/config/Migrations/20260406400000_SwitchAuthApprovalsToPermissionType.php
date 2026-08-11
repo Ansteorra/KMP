@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 use App\Migrations\CrossEngineMigrationTrait;
 
 /**
@@ -10,7 +10,7 @@ use App\Migrations\CrossEngineMigrationTrait;
  * to the generic permission approver type. This eliminates the need for
  * the Activities-specific AuthorizationApproverResolver.
  */
-class SwitchAuthApprovalsToPermissionType extends AbstractMigration
+class SwitchAuthApprovalsToPermissionType extends BaseMigration
 {
     use CrossEngineMigrationTrait;
 

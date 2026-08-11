@@ -143,6 +143,11 @@ baseline schema/data, then prune it to four standard demo users with
 tenant creation should go through the platform tenant provisioning flow rather
 than new environment variables.
 
+Set `KMP_DEV_SECOND_TENANT_HOST` to change the second tenant's primary host, or
+set `KMP_DEV_SECOND_TENANT_HOST_ALIASES` to register additional HTTP/HTTPS edge
+hostnames while retaining `kmp2.localhost` for local tests. The reverse proxy
+must preserve the original `Host` header so KMP can select the correct tenant.
+
 The reset also seeds a local Platform Admin account so dev logins are stable
 after every reset:
 
@@ -229,7 +234,10 @@ The local helper scripts use `app/config/.env` for Docker Compose and the applic
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `KMP_APP_URL` | `http://kmp.localhost:8080` | Primary local app URL used by `./dev-up.sh` health checks and output |
+| `KMP_APP_URL` | `http://kmp.localhost:8080` | Primary local app URL printed by `./dev-up.sh` and used to derive its `/livez` health check |
+| `KMP_PLATFORM_ADMIN_URL` | `http://platform.kmp.localhost:8080/platform-admin` | Platform-admin URL printed by `./dev-up.sh` |
+| `KMP_SECOND_TENANT_URL` | `http://kmp2.localhost:8080` | Second test-tenant URL printed by `./dev-up.sh` |
+| `KMP_APP_BIND_ADDR` | `127.0.0.1` | Bind address for the app HTTP port; use `0.0.0.0` only on a trusted network |
 | `KMP_APP_PORT` | `8080` | Host port for the app |
 | `KMP_DB_HOST_PORT` | `5432` | Host port for PostgreSQL |
 | `KMP_PGADMIN_BIND_ADDR` | `127.0.0.1` | Bind address for pgAdmin |
@@ -238,6 +246,9 @@ The local helper scripts use `app/config/.env` for Docker Compose and the applic
 | `KMP_PGADMIN_EMAIL` | `admin@kmpdev.org` | Local pgAdmin login email when server mode is enabled |
 | `KMP_PGADMIN_PASSWORD` | `kmpdevpass` | Local pgAdmin login password when server mode is enabled |
 | `KMP_MAILPIT_WEB_PORT` | `8025` | Host port for Mailpit UI |
+| `KMP_MAILPIT_WEB_BIND_ADDR` | `127.0.0.1` | Bind address for Mailpit UI; this can be exposed without exposing SMTP |
+| `KMP_MAILPIT_URL` | `http://localhost:8025` | Mailpit URL printed by `./dev-up.sh` |
+| `KMP_MAILPIT_BIND_ADDR` | `127.0.0.1` | Bind address for Mailpit SMTP; keep loopback-only unless remote SMTP access is required |
 | `KMP_MAILPIT_SMTP_PORT` | `1025` | Host port for Mailpit SMTP |
 | `KMP_HOST_ALIASES` | `kmp.localhost kmp2.localhost platform.kmp.localhost` | Space-separated host aliases printed by `./dev-up.sh` |
 | `KMP_DB_DRIVER` | `postgres` | CakePHP database driver |
@@ -254,12 +265,19 @@ The local helper scripts use `app/config/.env` for Docker Compose and the applic
 | `KMP_DEV_TENANT_SLUG` | `kmp` | Local baseline tenant slug registered during database reset |
 | `KMP_DEV_TENANT_DISPLAY_NAME` | `KMP Development` | Local baseline tenant display name |
 | `KMP_DEV_TENANT_HOST` | `kmp.localhost` | Host mapped to the local baseline tenant |
+| `KMP_DEV_TENANT_HOST_ALIASES` | empty | Comma- or space-separated additional hosts mapped to the baseline tenant during reset |
+| `KMP_DEV_SECOND_TENANT_HOST` | `kmp2.localhost` | Primary host used when provisioning the second test tenant |
+| `KMP_DEV_SECOND_TENANT_HOST_ALIASES` | empty | Comma- or space-separated additional hosts mapped to the second test tenant during reset |
 | `XDEBUG_MODE` | `debug,develop` | Runtime Xdebug mode |
 | `KMP_SKIP_CRON` | `true` | Disable legacy cron setup; Compose worker/scheduler services own background work |
 | `KMP_PLATFORM_SCHEDULE_INTERVAL` | `60` | Poll interval for stored platform schedules in tenant mode |
 | `KMP_*_INTERVAL` | See Queue and Scheduled Jobs | Scheduler loop intervals for local background commands |
 | `KMP_RESET_DB_ON_UP` | `true` | Run `dev-reset-db.sh` after the app becomes healthy |
 | `KMP_RESET_DB_ON_UP_ARGS` | `--seed` | Arguments passed to `dev-reset-db.sh` during startup |
+
+Mailpit contains captured development email, including password-reset links and
+other test data. Only bind its UI to a trusted network, and keep its SMTP port
+loopback-only unless remote SMTP submission is explicitly needed.
 
 ## Troubleshooting
 

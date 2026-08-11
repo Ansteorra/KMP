@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use Migrations\AbstractMigration;
+use Migrations\BaseMigration;
 
 /**
  * Add source_approval_run_id to awards_bestowals for workflow provenance.
@@ -10,7 +10,7 @@ use Migrations\AbstractMigration;
  * was created from a workflow handoff. Null for ad-hoc bestowals or bestowals
  * created before this migration.
  */
-class AddSourceApprovalRunIdToBestowals extends AbstractMigration
+class AddSourceApprovalRunIdToBestowals extends BaseMigration
 {
     /**
      * @return void
