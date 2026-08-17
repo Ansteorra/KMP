@@ -520,6 +520,88 @@ foreach ($ids as $id) {
 echo json_encode(['deleted' => $ids], JSON_THROW_ON_ERROR);
 `;
 
+const CREATE_FUTURE_GATHERING_FIXTURE_PHP = `
+require 'vendor/autoload.php';
+require 'config/bootstrap.php';
+
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
+$locator = \\Cake\\ORM\\TableRegistry::getTableLocator();
+$gatherings = $locator->get('Gatherings');
+$gatheringActivityLinks = $locator->get('GatheringsGatheringActivities');
+$awardGatheringActivities = $locator->get('Awards.AwardGatheringActivities');
+$members = $locator->get('Members');
+
+$actor = $members->find()
+    ->select(['id'])
+    ->where(['email_address' => (string)$input['actorEmail']])
+    ->firstOrFail();
+$sourceGathering = $gatherings->find()
+    ->select(['branch_id', 'gathering_type_id'])
+    ->where(['deleted IS' => null])
+    ->orderByAsc('id')
+    ->firstOrFail();
+$activityIds = $awardGatheringActivities->find()
+    ->select(['gathering_activity_id'])
+    ->where(['award_id IN' => array_values(array_unique(array_map('intval', $input['awardIds'] ?? [])))])
+    ->all()
+    ->extract('gathering_activity_id')
+    ->map(static fn($activityId): int => (int)$activityId)
+    ->toList();
+$activityIds = array_values(array_unique($activityIds));
+if ($activityIds === []) {
+    throw new \\RuntimeException('The award fixture has no gathering activities configured.');
+}
+
+$startDate = \\Cake\\I18n\\DateTime::now()->addDays(30);
+$gathering = $gatherings->newEntity([
+    'branch_id' => (int)$sourceGathering->branch_id,
+    'gathering_type_id' => (int)$sourceGathering->gathering_type_id,
+    'name' => (string)$input['name'],
+    'description' => 'Scenario-owned future gathering for Awards Playwright coverage.',
+    'start_date' => $startDate,
+    'end_date' => $startDate->addHours(4),
+    'location' => 'Playwright Test Hall',
+    'timezone' => 'America/Chicago',
+    'created_by' => (int)$actor->id,
+]);
+$gatherings->saveOrFail($gathering);
+
+foreach ($activityIds as $sortOrder => $activityId) {
+    if ($gatheringActivityLinks->exists([
+        'gathering_id' => (int)$gathering->id,
+        'gathering_activity_id' => $activityId,
+    ])) {
+        continue;
+    }
+
+    $gatheringActivityLinks->saveOrFail($gatheringActivityLinks->newEntity([
+        'gathering_id' => (int)$gathering->id,
+        'gathering_activity_id' => $activityId,
+        'sort_order' => $sortOrder,
+        'created_by' => (int)$actor->id,
+    ]));
+}
+
+echo json_encode([
+    'id' => (int)$gathering->id,
+    'name' => (string)$gathering->name,
+], JSON_THROW_ON_ERROR);
+`;
+
+const CLEANUP_FUTURE_GATHERING_FIXTURE_PHP = `
+require 'vendor/autoload.php';
+require 'config/bootstrap.php';
+
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
+$gatherings = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Gatherings');
+$id = (int)($input['id'] ?? 0);
+if ($id > 0 && $gatherings->exists(['id' => $id])) {
+    $gatherings->deleteOrFail($gatherings->get($id));
+}
+
+echo json_encode(['deleted' => $id], JSON_THROW_ON_ERROR);
+`;
+
 const GET_RECOMMENDATION_BESTOWAL_PHP = `
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
@@ -944,6 +1026,32 @@ const ensureFixtureSet = (page) => {
     return fixtures;
 };
 
+const ensureFutureGatheringFixture = (page) => {
+    if (page.__awardFutureGatheringFixture) {
+        return page.__awardFutureGatheringFixture;
+    }
+
+    const fixtures = ensureFixtureSet(page);
+    const awardIds = Object.values(fixtures.fixtureMap).map((fixture) => fixture.awardId);
+    page.__awardFutureGatheringFixture = runPhpJson(CREATE_FUTURE_GATHERING_FIXTURE_PHP, {
+        actorEmail: 'admin@amp.ansteorra.org',
+        awardIds,
+        name: `E2E Future Gathering ${fixtures.token}`,
+    });
+
+    return page.__awardFutureGatheringFixture;
+};
+
+const selectFutureGatheringFixture = async (combo, input, fixture) => {
+    await input.fill(fixture.name);
+    const option = combo
+        .locator('[data-ac-target="results"] [role="option"]:not([aria-disabled="true"])')
+        .filter({ hasText: fixture.name })
+        .first();
+    await expect(option).toBeVisible({ timeout: 15000 });
+    await option.click();
+};
+
 const getFixture = (page, name) => {
     const fixtures = ensureFixtureSet(page);
     const fixture = fixtures.fixtureMap[name];
@@ -1273,15 +1381,13 @@ When('I change the open recommendation state to {string}', async ({ page }, stat
 });
 
 When('I select the first available gathering in the open recommendation edit modal', async ({ page }) => {
+    const gatheringFixture = ensureFutureGatheringFixture(page);
     const modal = await getOpenRecommendationEditModal(page);
     const input = modal.locator('input[name="gathering_name-Disp"]');
     const combo = input.locator('xpath=ancestor::div[@data-controller="ac"][1]');
     await expect(input).toBeVisible();
     await expect(input).toBeEnabled({ timeout: 10000 });
-    await input.fill('Scale Future Gathering');
-    const option = combo.locator('ul.auto-complete-list li').first();
-    await expect(option).toBeVisible({ timeout: 10000 });
-    await option.click();
+    await selectFutureGatheringFixture(combo, input, gatheringFixture);
     await expect(modal.locator('input[name="gathering_id"]')).not.toHaveValue('', { timeout: 5000 });
 });
 
@@ -1552,6 +1658,11 @@ echo json_encode(['deleted' => true], JSON_THROW_ON_ERROR);
     runPhpJson(CLEANUP_FIXTURES_PHP, {
         ids: page.__awardRecommendationFixtures.ids,
     });
+    if (page.__awardFutureGatheringFixture?.id) {
+        runPhpJson(CLEANUP_FUTURE_GATHERING_FIXTURE_PHP, {
+            id: page.__awardFutureGatheringFixture.id,
+        });
+    }
     if (page.__temporaryAwardIds?.length) {
         runPhpJson(`
 require 'vendor/autoload.php';
@@ -2385,6 +2496,7 @@ Then('the bestowal mark-given action should be disabled', async ({ page }) => {
 });
 
 When('I assign the first available gathering and complete the bestowal to-do {string}', async ({ page }, title) => {
+    const gatheringFixture = ensureFutureGatheringFixture(page);
     const item = getBestowalTodoItem(page, title);
     await expect(item).toBeVisible({ timeout: 15000 });
 
@@ -2392,10 +2504,7 @@ When('I assign the first available gathering and complete the bestowal to-do {st
     const combo = input.locator('xpath=ancestor::div[@data-controller="ac"][1]');
     await expect(input).toBeVisible({ timeout: 15000 });
     await expect(input).toBeEnabled({ timeout: 10000 });
-    await input.fill('Scale Future Gathering');
-    const option = combo.locator('[data-ac-target="results"] [role="option"]:not([aria-disabled="true"])').first();
-    await expect(option).toBeVisible({ timeout: 15000 });
-    await option.click();
+    await selectFutureGatheringFixture(combo, input, gatheringFixture);
     await expect(item.locator('input[name="bestowal_gathering_id"]')).not.toHaveValue('', { timeout: 5000 });
 
     await item.getByRole('button', { name: 'Assign Gathering and Complete' }).click();
