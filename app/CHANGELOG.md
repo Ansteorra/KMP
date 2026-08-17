@@ -6,6 +6,21 @@ Stay up to date with the latest features, improvements, and announcements for th
 <!-- LAST_SYNCED_COMMIT: 753e0047271639eeed7348f26dd9f1d6ac664321 -->
 <!-- LAST_SYNCED_DATE: 2026-08-11 -->
 
+## KMP 1.5.9 — August 16, 2026
+
+### Workflow Editing and Publishing Hotfix
+
+KMP 1.5.9 restores reliable workflow editing and publishing for current and legacy workflow definitions.
+
+- The visual workflow designer now preserves schema version, schema reference, and start-node metadata when saving a workflow graph
+- Newly created workflows include the current workflow definition schema metadata automatically
+- Drafts created from legacy workflows that predate schema metadata are upgraded safely when they are created, saved, or published
+- Explicit unsupported schema versions remain unchanged and are still rejected during publishing
+
+📅 August 16, 2026 · `Hotfix`
+
+---
+
 ## KMP 1.5.8 — August 11, 2026
 
 ### Bestowal Export and Framework Compatibility Hotfix
