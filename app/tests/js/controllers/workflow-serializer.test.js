@@ -87,7 +87,66 @@ describe('WorkflowSerializer', () => {
             config: { event: 'Members.Registered' },
             outputs: [{ port: 'default', target: 'end' }],
         })
+        expect(exported.definition.$schema).toBe('./schema.json')
+        expect(exported.definition.schemaVersion).toBe('1.0')
         expect(exported.canvasLayout.trigger).toEqual({ x: 10, y: 20, drawflowId: 1 })
+    })
+
+    test('preserves workflow definition metadata across import and export', () => {
+        const serializer = makeSerializer()
+        const editor = {
+            clear: jest.fn(),
+            addNode: jest.fn(),
+            addConnection: jest.fn(),
+        }
+
+        serializer.importWorkflow(editor, {
+            '$schema': '/custom/workflow-schema.json',
+            schemaVersion: '1.0',
+            startNode: 'trigger-feedback',
+            nodes: {},
+        }, {})
+
+        const exported = serializer.exportWorkflow({
+            export: () => ({ drawflow: { Home: { data: {} } } }),
+        })
+
+        expect(exported.definition).toEqual({
+            '$schema': '/custom/workflow-schema.json',
+            schemaVersion: '1.0',
+            startNode: 'trigger-feedback',
+            nodes: {},
+        })
+    })
+
+    test('defaults missing legacy metadata without replacing explicit values', () => {
+        const serializer = makeSerializer()
+        const editor = {
+            clear: jest.fn(),
+            addNode: jest.fn(),
+            addConnection: jest.fn(),
+        }
+        const emptyCanvas = {
+            export: () => ({ drawflow: { Home: { data: {} } } }),
+        }
+
+        serializer.importWorkflow(editor, { nodes: {} }, {})
+        expect(serializer.exportWorkflow(emptyCanvas).definition).toEqual({
+            '$schema': './schema.json',
+            schemaVersion: '1.0',
+            nodes: {},
+        })
+
+        serializer.importWorkflow(editor, {
+            '$schema': null,
+            schemaVersion: '2.0',
+            nodes: {},
+        }, {})
+        expect(serializer.exportWorkflow(emptyCanvas).definition).toEqual({
+            '$schema': null,
+            schemaVersion: '2.0',
+            nodes: {},
+        })
     })
 
     test('imports workflow definitions with layout and connections', () => {

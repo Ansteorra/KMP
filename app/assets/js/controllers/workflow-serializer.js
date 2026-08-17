@@ -7,6 +7,10 @@
 export default class WorkflowSerializer {
     constructor(registryData) {
         this.registryData = registryData || { triggers: [], actions: [], conditions: [], entities: [] }
+        this.definitionMetadata = {
+            '$schema': './schema.json',
+            schemaVersion: '1.0',
+        }
     }
 
     getNodePorts(type) {
@@ -162,10 +166,22 @@ export default class WorkflowSerializer {
             canvasLayout[nodeKey] = { x: node.pos_x, y: node.pos_y, drawflowId: parseInt(drawflowId) }
         }
 
-        return { definition: { nodes }, canvasLayout }
+        return {
+            definition: { ...this.definitionMetadata, nodes },
+            canvasLayout,
+        }
     }
 
     importWorkflow(editor, definition, canvasLayout) {
+        const hasOwn = (key) => Object.prototype.hasOwnProperty.call(definition, key)
+        this.definitionMetadata = {
+            '$schema': hasOwn('$schema') ? definition.$schema : './schema.json',
+            schemaVersion: hasOwn('schemaVersion') ? definition.schemaVersion : '1.0',
+        }
+        if (hasOwn('startNode')) {
+            this.definitionMetadata.startNode = definition.startNode
+        }
+
         editor.clear()
         const nodeIdMap = {}
         const nodeEntries = Object.entries(definition.nodes || {})

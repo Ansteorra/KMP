@@ -109,6 +109,19 @@ class WorkflowVersionManagerTest extends BaseTestCase
         $this->assertTrue($version->isDraft());
     }
 
+    public function testCreateDraftAddsMissingLegacySchemaMetadata(): void
+    {
+        $defId = $this->createDefinition();
+        $legacyDefinition = $this->validDefinition;
+        unset($legacyDefinition['schemaVersion']);
+
+        $result = $this->manager->createDraft($defId, $legacyDefinition);
+        $version = $this->versionsTable->get($result->data['versionId']);
+
+        $this->assertSame('./schema.json', $version->definition['$schema']);
+        $this->assertSame('1.0', $version->definition['schemaVersion']);
+    }
+
     // =====================================================
     // updateDraft()
     // =====================================================
@@ -152,6 +165,21 @@ class WorkflowVersionManagerTest extends BaseTestCase
 
         $result = $this->manager->updateDraft($versionId, $this->validDefinition);
         $this->assertFalse($result->isSuccess());
+    }
+
+    public function testUpdateDraftAddsMissingLegacySchemaMetadata(): void
+    {
+        $defId = $this->createDefinition();
+        $createResult = $this->manager->createDraft($defId, $this->validDefinition);
+        $legacyDefinition = $this->validDefinition;
+        unset($legacyDefinition['schemaVersion']);
+
+        $result = $this->manager->updateDraft($createResult->data['versionId'], $legacyDefinition);
+        $version = $this->versionsTable->get($createResult->data['versionId']);
+
+        $this->assertTrue($result->isSuccess());
+        $this->assertSame('./schema.json', $version->definition['$schema']);
+        $this->assertSame('1.0', $version->definition['schemaVersion']);
     }
 
     // =====================================================
@@ -226,6 +254,43 @@ class WorkflowVersionManagerTest extends BaseTestCase
         $result = $this->manager->publish($createResult->data['versionId'], self::ADMIN_MEMBER_ID);
         $this->assertFalse($result->isSuccess());
         $this->assertStringContainsString('validation', strtolower($result->getError()));
+    }
+
+    public function testPublishNormalizesAnExistingLegacyDraft(): void
+    {
+        $defId = $this->createDefinition();
+        $legacyDefinition = $this->validDefinition;
+        unset($legacyDefinition['schemaVersion']);
+        $version = $this->versionsTable->newEntity([
+            'workflow_definition_id' => $defId,
+            'version_number' => 1,
+            'definition' => $legacyDefinition,
+            'status' => WorkflowVersion::STATUS_DRAFT,
+        ]);
+        $this->versionsTable->saveOrFail($version);
+
+        $result = $this->manager->publish($version->id, self::ADMIN_MEMBER_ID);
+        $publishedVersion = $this->versionsTable->get($version->id);
+
+        $this->assertTrue($result->isSuccess());
+        $this->assertTrue($publishedVersion->isPublished());
+        $this->assertSame('./schema.json', $publishedVersion->definition['$schema']);
+        $this->assertSame('1.0', $publishedVersion->definition['schemaVersion']);
+    }
+
+    public function testPublishDoesNotReplaceAnExplicitUnsupportedSchemaVersion(): void
+    {
+        $defId = $this->createDefinition();
+        $definition = $this->validDefinition;
+        $definition['schemaVersion'] = '2.0';
+        $createResult = $this->manager->createDraft($defId, $definition);
+
+        $result = $this->manager->publish($createResult->data['versionId'], self::ADMIN_MEMBER_ID);
+        $version = $this->versionsTable->get($createResult->data['versionId']);
+
+        $this->assertFalse($result->isSuccess());
+        $this->assertSame('2.0', $version->definition['schemaVersion']);
+        $this->assertStringContainsString('schemaVersion "1.0"', $result->getError());
     }
 
     // =====================================================

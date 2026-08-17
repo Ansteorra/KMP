@@ -48,7 +48,7 @@ class DefaultWorkflowVersionManager implements WorkflowVersionManagerInterface
         $version = $versionsTable->newEntity([
             'workflow_definition_id' => $definitionId,
             'version_number' => $nextVersion,
-            'definition' => $definition,
+            'definition' => $this->normalizeLegacyDefinition($definition),
             'canvas_layout' => $canvasLayout,
             'status' => WorkflowVersion::STATUS_DRAFT,
             'change_notes' => $changeNotes,
@@ -83,7 +83,7 @@ class DefaultWorkflowVersionManager implements WorkflowVersionManagerInterface
         }
 
         $versionsTable->patchEntity($version, [
-            'definition' => $definition,
+            'definition' => $this->normalizeLegacyDefinition($definition),
             'canvas_layout' => $canvasLayout,
             'change_notes' => $changeNotes,
         ]);
@@ -118,10 +118,12 @@ class DefaultWorkflowVersionManager implements WorkflowVersionManagerInterface
             return new ServiceResult(false, 'Only draft versions can be published.');
         }
 
-        $errors = $this->validateDefinition($version->definition);
+        $definition = $this->normalizeLegacyDefinition($version->definition);
+        $errors = $this->validateDefinition($definition);
         if (!empty($errors)) {
             return new ServiceResult(false, 'Definition validation failed: ' . implode('; ', $errors));
         }
+        $version->definition = $definition;
 
         try {
             $result = ConnectionManager::get('default')->transactional(function () use ($versionsTable, $definitionsTable, $version, $versionId, $publishedBy) {
@@ -178,6 +180,27 @@ class DefaultWorkflowVersionManager implements WorkflowVersionManagerInterface
     protected function validateDefinition(array $definition): array
     {
         return (new WorkflowDefinitionValidator())->validate($definition);
+    }
+
+    /**
+     * Add the current schema envelope to definitions saved before it was required.
+     *
+     * Explicit values are preserved so unsupported schema versions still fail
+     * publish validation instead of being silently rewritten.
+     *
+     * @param array $definition Workflow graph
+     * @return array
+     */
+    private function normalizeLegacyDefinition(array $definition): array
+    {
+        if (!array_key_exists('$schema', $definition)) {
+            $definition['$schema'] = './schema.json';
+        }
+        if (!array_key_exists('schemaVersion', $definition)) {
+            $definition['schemaVersion'] = '1.0';
+        }
+
+        return $definition;
     }
 
     /**
