@@ -117,7 +117,10 @@ class BackfillRejectedRecommendationStates extends BaseMigration
              WHERE recommendations.deleted IS NULL
                AND recommendations.bestowal_id IS NULL
                AND recommendations.recommendation_group_id IS NULL
-               AND (recommendations.state <> 'No Action' OR recommendations.status <> 'Closed')
+               AND (
+                    recommendations.state <> '" . self::TARGET_STATE . "'
+                    OR recommendations.status <> '" . self::TARGET_STATUS . "'
+               )
                AND rejected_runs.deleted IS NULL
                AND NOT EXISTS (
                     SELECT 1

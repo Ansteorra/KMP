@@ -26,7 +26,7 @@ class PublishRejectedRecommendationClosureWorkflows extends BaseMigration
         foreach ($this->workflowFiles() as $slug => $jsonFile) {
             $jsonPath = ROOT . '/config/Seeds/WorkflowDefinitions/' . $jsonFile;
             if (!file_exists($jsonPath)) {
-                continue;
+                throw new RuntimeException(sprintf('Workflow definition file not found: %s', $jsonFile));
             }
 
             $canonicalDefinition = json_decode((string)file_get_contents($jsonPath), true);
@@ -57,44 +57,58 @@ class PublishRejectedRecommendationClosureWorkflows extends BaseMigration
                 ? (int)$maxVersion->max_version + 1
                 : 1;
 
-            $currentVersion->status = WorkflowVersion::STATUS_ARCHIVED;
-            $versionsTable->saveOrFail($currentVersion);
+            $definitionsTable->getConnection()->transactional(
+                function () use (
+                    $currentVersion,
+                    $currentVersionId,
+                    $definitionsTable,
+                    $instancesTable,
+                    $nextVersionNumber,
+                    $updatedDefinition,
+                    $versionManager,
+                    $versionsTable,
+                    $workflow,
+                ): void {
+                    $currentVersion->status = WorkflowVersion::STATUS_ARCHIVED;
+                    $versionsTable->saveOrFail($currentVersion);
 
-            // Publish the patched graph directly: these seeded approval workflows contain an
-            // intentional reusable-gate cycle that the generic UI graph validator rejects.
-            $newVersion = $versionsTable->newEntity([
-                'workflow_definition_id' => (int)$workflow->id,
-                'version_number' => $nextVersionNumber,
-                'definition' => $updatedDefinition,
-                'canvas_layout' => $currentVersion->canvas_layout,
-                'status' => WorkflowVersion::STATUS_PUBLISHED,
-                'change_notes' => 'Close rejected award recommendations as No Action / Closed.',
-                'published_at' => DateTime::now(),
-            ]);
-            $newVersion = $versionsTable->saveOrFail($newVersion);
-            $targetVersionId = (int)$newVersion->id;
+                    // Publish the patched graph directly: these seeded approval workflows contain an
+                    // intentional reusable-gate cycle that the generic UI graph validator rejects.
+                    $newVersion = $versionsTable->newEntity([
+                        'workflow_definition_id' => (int)$workflow->id,
+                        'version_number' => $nextVersionNumber,
+                        'definition' => $updatedDefinition,
+                        'canvas_layout' => $currentVersion->canvas_layout,
+                        'status' => WorkflowVersion::STATUS_PUBLISHED,
+                        'change_notes' => 'Close rejected award recommendations as No Action / Closed.',
+                        'published_at' => DateTime::now(),
+                    ]);
+                    $newVersion = $versionsTable->saveOrFail($newVersion);
+                    $targetVersionId = (int)$newVersion->id;
 
-            $workflow->current_version_id = $targetVersionId;
-            $workflow->is_active = true;
-            $definitionsTable->saveOrFail($workflow);
+                    $workflow->current_version_id = $targetVersionId;
+                    $workflow->is_active = true;
+                    $definitionsTable->saveOrFail($workflow);
 
-            $activeInstances = $instancesTable->find()
-                ->where([
-                    'workflow_definition_id' => (int)$workflow->id,
-                    'workflow_version_id' => $currentVersionId,
-                    'status IN' => [
-                        WorkflowInstance::STATUS_PENDING,
-                        WorkflowInstance::STATUS_RUNNING,
-                        WorkflowInstance::STATUS_WAITING,
-                    ],
-                ])
-                ->all();
-            foreach ($activeInstances as $instance) {
-                $migration = $versionManager->migrateInstance((int)$instance->id, $targetVersionId, null);
-                if (!$migration->isSuccess()) {
-                    throw new RuntimeException((string)$migration->getError());
-                }
-            }
+                    $activeInstances = $instancesTable->find()
+                        ->where([
+                            'workflow_definition_id' => (int)$workflow->id,
+                            'workflow_version_id' => $currentVersionId,
+                            'status IN' => [
+                                WorkflowInstance::STATUS_PENDING,
+                                WorkflowInstance::STATUS_RUNNING,
+                                WorkflowInstance::STATUS_WAITING,
+                            ],
+                        ])
+                        ->all();
+                    foreach ($activeInstances as $instance) {
+                        $migration = $versionManager->migrateInstance((int)$instance->id, $targetVersionId, null);
+                        if (!$migration->isSuccess()) {
+                            throw new RuntimeException((string)$migration->getError());
+                        }
+                    }
+                },
+            );
         }
     }
 

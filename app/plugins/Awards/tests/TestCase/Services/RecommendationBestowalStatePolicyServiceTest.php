@@ -3,11 +3,11 @@ declare(strict_types=1);
 
 namespace Awards\Test\TestCase\Services;
 
+use App\Test\TestCase\BaseTestCase;
 use Awards\Services\RecommendationBestowalStatePolicyService;
-use Cake\TestSuite\TestCase;
 use RuntimeException;
 
-class RecommendationBestowalStatePolicyServiceTest extends TestCase
+class RecommendationBestowalStatePolicyServiceTest extends BaseTestCase
 {
     public function testRetiredApprovalStatesCannotBeTargeted(): void
     {

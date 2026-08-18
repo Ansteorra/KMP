@@ -137,7 +137,7 @@ flowchart LR
 | `awards-bestowal-transition.json` | `Awards.BestowalTransitionRequested` | `TransitionBestowal` -> `SyncRecommendationsFromBestowal` |
 | `awards-bestowal-update.json` | `Awards.BestowalUpdateRequested` | `UpdateBestowal` (link/unlink + transition + sync) |
 | `awards-bestowal-bulk-transition.json` | `Awards.BestowalBulkTransitionRequested` | `BulkTransitionBestowals` |
-| `awards-bestowal-cancel.json` | `Awards.BestowalCancelRequested` | `CancelBestowal` (transition + unwind + unlink cleanup) |
+| `awards-bestowal-cancel.json` | `Awards.BestowalCancelRequested` | `CancelBestowal` (clear projection + unlink cleanup + approval rehydration) |
 | `awards-bestowal-cancelled.json` | `Awards.BestowalCancelled` | notification flow |
 | `awards-recommendations-group.json` | `Awards.RecommendationsGroupRequested` | `GroupRecommendations` |
 | `awards-recommendations-ungroup.json` | `Awards.RecommendationsUngroupRequested` | `UngroupRecommendations` |
@@ -152,10 +152,10 @@ flowchart LR
 | Multi-step approval advance | Current approver | Next configured approver set | Pending set rotates, previous step visibility retained only when configured |
 | Approval complete -> bestowal create | Final approver/workflow action | Bestowal workflow owner(s) | Only the final approval step selects the bestowal gathering; handoff blocks active runs, bestowal created with source approval provenance, approved run marked consumed |
 | Link recommendation to existing bestowal | Noble/admin path | Bestowal workflow owner(s) | Active approval run cancelled/superseded, member match enforced, grouped child blocked |
-| Unlink recommendation | Noble/admin path | Recommendation workflow owner(s) | Unwind state applied, shortcut cleared, join row removed, primary recomputed, approval rehydrated when prior run was consumed/superseded |
+| Unlink recommendation | Noble/admin path | Recommendation workflow owner(s) | Bestowal projection and shortcut cleared, join row removed, primary recomputed, approval rehydrated when prior run was consumed/superseded |
 | Group/ungroup during approval | Current approver or admin override | Same active approver set | Grouping denied for non-current approver; origin snapshot restore works |
 | Bestowal transition to court states | Bestowal owner(s) | Bestowal owner(s) | Recommendation projection state sync follows mapping |
-| Bestowal cancellation | Bestowal owner(s) | Recommendation workflow owner(s) | Cancel denied for Given, unwind state applied, links and shortcuts cleared, consumed/superseded approval runs cancelled and rehydrated when needed |
+| Bestowal cancellation | Bestowal owner(s) | Recommendation workflow owner(s) | Cancel denied for Given; Bestowal projection, links, and shortcuts cleared; active join rows deleted; consumed/superseded approval runs cancelled and rehydrated when needed |
 | Turnover/reassignment events | System + admins | New eligible approvers | Pending approver set reflects new eligibility without leaking old active queue access |
 
 ## 9) High-risk regression points
@@ -164,4 +164,4 @@ flowchart LR
 2. Active approval visibility scoping must stay limited to current pending approvers for active cycles.
 3. Link integrity between `recommendation.bestowal_id` and `awards_bestowal_recommendations`.
 4. Group-child guardrails preventing direct child linking/handoff, including active runs on group heads.
-5. Cancellation/unlink unwind consistency: recommendation projection, shortcut clear, join-row delete, approval-run terminal reason, and rehydration must stay together.
+5. Cancellation/unlink cleanup consistency: recommendation projection, shortcut clear, join-row delete, approval-run terminal reason, and rehydration must stay together.

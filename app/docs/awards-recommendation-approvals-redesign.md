@@ -27,8 +27,11 @@ and go back to **YAML-defined recommendation states** (as on `main`), while keep
 Approval engine and Bestowal subsystem. This doc re-visualizes how a Recommendation *should*
 optimally flow in that combined model.
 
-> Out of scope here: migrating existing recommendation **data** into the new model. That is a
-> separate future plan. Legacy `awards_recommendations` columns are intentionally retained.
+> Migration scope: broad migration of existing recommendation **data** into a new model remains
+> out of scope, and legacy `awards_recommendations` columns are intentionally retained. This
+> release includes only the limited rejected-recommendation backfill described below; it excludes
+> recommendations with newer runs, grouped children, and recommendations currently owned by a
+> Bestowal.
 
 ## The three subsystems and who owns what
 
