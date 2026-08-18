@@ -393,11 +393,11 @@ class DefaultWorkflowVersionManager implements WorkflowVersionManagerInterface
      *
      * @param int $instanceId Instance to migrate
      * @param int $targetVersionId Target version (must be published)
-     * @param int $migratedBy User performing the migration
+     * @param int|null $migratedBy User performing the migration, or null for a system migration
      * @param array|null $nodeMapping Explicit old-key => new-key mapping
      * @return \App\Services\ServiceResult
      */
-    public function migrateInstance(int $instanceId, int $targetVersionId, int $migratedBy, ?array $nodeMapping = null): ServiceResult
+    public function migrateInstance(int $instanceId, int $targetVersionId, ?int $migratedBy, ?array $nodeMapping = null): ServiceResult
     {
         $instancesTable = TableRegistry::getTableLocator()->get('WorkflowInstances');
         $versionsTable = TableRegistry::getTableLocator()->get('WorkflowVersions');

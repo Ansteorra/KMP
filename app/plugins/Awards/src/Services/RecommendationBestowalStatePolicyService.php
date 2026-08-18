@@ -28,25 +28,13 @@ class RecommendationBestowalStatePolicyService
     ];
 
     /**
-     * @var array<string, string>
+     * Legacy states retained only so existing recommendations can be migrated forward.
+     *
+     * @var array<int, string>
      */
-    private const EXPECTED_SYNC_MAPPINGS = [
-        'Created' => self::HANDOFF_STATE,
-        'Gathering Assigned' => self::HANDOFF_STATE,
-        'Scroll Notified' => self::HANDOFF_STATE,
-        'Scroll Ready' => self::HANDOFF_STATE,
-        'Court Pending' => self::HANDOFF_STATE,
-        'Court Scheduled' => 'Scheduled',
-        'Ready for Court' => 'Scheduled',
-        'Given' => 'Given',
-        'Announced Not Given' => 'Announced Not Given',
-    ];
-
-    /**
-     * @var array<string, string>
-     */
-    private const EXPECTED_UNWIND_MAPPINGS = [
-        'Cancelled' => 'King Approved',
+    private const RETIRED_APPROVAL_STATES = [
+        'King Approved',
+        'Queen Approved',
     ];
 
     /**
@@ -78,6 +66,15 @@ class RecommendationBestowalStatePolicyService
      */
     public function assertUserCanTargetRecommendationState(string $state): void
     {
+        if (in_array($state, self::RETIRED_APPROVAL_STATES, true)) {
+            throw new RuntimeException(
+                sprintf(
+                    'Recommendation state "%s" is retired. Approved recommendations now pass directly to Bestowal.',
+                    $state,
+                ),
+            );
+        }
+
         if (!$this->isBestowalManagedState($state)) {
             return;
         }
@@ -115,7 +112,9 @@ class RecommendationBestowalStatePolicyService
             $filteredStates = [];
             foreach ($states as $key => $label) {
                 $state = is_string($label) ? $label : (string)$key;
-                if ($this->isBestowalManagedState($state) && $state !== $currentState) {
+                $isWorkflowOwned = $this->isBestowalManagedState($state)
+                    || in_array($state, self::RETIRED_APPROVAL_STATES, true);
+                if ($isWorkflowOwned && $state !== $currentState) {
                     continue;
                 }
 

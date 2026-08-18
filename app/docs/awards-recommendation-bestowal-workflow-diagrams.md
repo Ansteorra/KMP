@@ -10,7 +10,9 @@ flowchart LR
     B --> C{"Approval step complete?"}
     C -- "No" --> D["Approval node<br/>Award Approval Gate"]
     D --> E["AdvanceApprovalProcess"]
-    E --> C
+    E --> J{"Approval run closed?"}
+    J -- "No: next/approved" --> C
+    J -- "Yes: rejected" --> K["TransitionRecommendation<br/>No Action / Closed"]
     C -- "Yes" --> F["CreateBestowal action<br/>Awards.CreateBestowal"]
     F --> G["BestowalHandoffService<br/>eligibility checks"]
     G --> H["BestowalCreationService<br/>create bestowal + links"]
@@ -34,36 +36,20 @@ flowchart TD
     H -- "No" --> J["Fallback to branch/level policy only"]
 ```
 
-## 3) Bestowal state machine and recommendation projection
+## 3) Bestowal lifecycle and recommendation projection
 
 ```mermaid
 flowchart LR
-    A["Created"] --> B["Gathering Assigned"]
-    B --> C["Scroll Notified"]
-    C --> D["Scroll Ready"]
-    D --> E["Court Pending"]
-    E --> F["Court Scheduled"]
-    F --> G["Ready for Court"]
-    G --> H["Given"]
-    G --> I["Announced Not Given"]
+    A["Open without gathering"] --> B["Open with gathering"]
+    A --> C["Given"]
+    B --> C
     A --> X["Cancelled"]
     B --> X
-    C --> X
-    D --> X
-    E --> X
-    F --> X
-    G --> X
 
-    A -. "sync rec state: Need to Schedule" .-> R1["Recommendation"]
-    B -. "sync rec state: Need to Schedule" .-> R1
-    C -. "sync rec state: Need to Schedule" .-> R1
-    D -. "sync rec state: Need to Schedule" .-> R1
-    E -. "sync rec state: Need to Schedule" .-> R1
-    F -. "sync rec state: Scheduled" .-> R1
-    G -. "sync rec state: Scheduled" .-> R1
-    H -. "sync rec state: Given" .-> R1
-    I -. "sync rec state: Announced Not Given" .-> R1
-    X -. "unwind rec state: King Approved" .-> R1
+    A -. "sync rec: Scheduling / Need to Schedule" .-> R1["Recommendation"]
+    B -. "sync rec: To Give / Scheduled" .-> R1
+    C -. "sync rec: Closed / Given" .-> R1
+    X -. "clear link + rehydrate approval" .-> R1
 ```
 
 ## 4) Linking, unlinking, grouping, and cancellation interactions
@@ -76,7 +62,7 @@ flowchart TD
     L4 --> L5["Sync shortcut + state<br/>refresh primary rec + notes"]
 
     U1["Unlink recommendation"] --> U2["Must leave >= 1 linked recommendation"]
-    U2 --> U3["Unwind recommendation state"]
+    U2 --> U3["Clear bestowal projection"]
     U3 --> U4["Clear recommendation.bestowal_id"]
     U4 --> U5["Delete join row"]
     U5 --> U6["Refresh primary rec + notes"]
@@ -88,11 +74,10 @@ flowchart TD
     G3 -- "No" --> G5["Allowed if member compatibility passes"]
 
     C1["Cancel bestowal"] --> C2["Reject if Given/already Cancelled"]
-    C2 --> C3["Transition bestowal to Cancelled"]
-    C3 --> C4["Unwind linked recommendation states"]
-    C4 --> C5["Clear recommendation.bestowal_id + gathering_id"]
-    C5 --> C6["Delete active join rows"]
-    C6 --> C7["Mark consumed/superseded approval runs cancelled<br/>rehydrate approval when needed"]
+    C2 --> C3["Set lifecycle_status = cancelled"]
+    C3 --> C4["Clear recommendation.bestowal_id + gathering_id"]
+    C4 --> C5["Delete active join rows"]
+    C5 --> C6["Mark consumed/superseded approval runs cancelled<br/>rehydrate approval when needed"]
 ```
 
 ## 5) Bestowal preparation To-Dos

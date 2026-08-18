@@ -34,6 +34,7 @@ class AwardsWorkflowActions
     private Table $bestowalsTable;
     private RecommendationSubmissionService $submissionService;
     private RecommendationUpdateService $updateService;
+    private RecommendationTransitionService $transitionService;
     private RecommendationGroupingService $groupingService;
     private RecommendationDeletionService $deletionService;
     private RecommendationStateLogService $stateLogService;
@@ -48,6 +49,7 @@ class AwardsWorkflowActions
     /**
      * @param \Awards\Services\RecommendationSubmissionService|null $submissionService Submission workflow service.
      * @param \Awards\Services\RecommendationUpdateService|null $updateService Update workflow service.
+     * @param \Awards\Services\RecommendationTransitionService|null $transitionService Transition workflow service.
      * @param \Awards\Services\RecommendationGroupingService|null $groupingService Grouping workflow service.
      * @param \Awards\Services\RecommendationDeletionService|null $deletionService Deletion workflow service.
      * @param \Awards\Services\RecommendationStateLogService|null $stateLogService State-log workflow service.
@@ -62,6 +64,7 @@ class AwardsWorkflowActions
     public function __construct(
         ?RecommendationSubmissionService $submissionService = null,
         ?RecommendationUpdateService $updateService = null,
+        ?RecommendationTransitionService $transitionService = null,
         ?RecommendationGroupingService $groupingService = null,
         ?RecommendationDeletionService $deletionService = null,
         ?RecommendationStateLogService $stateLogService = null,
@@ -82,6 +85,7 @@ class AwardsWorkflowActions
         );
         $this->submissionService = $submissionService ?? new RecommendationSubmissionService($this->stateLogService);
         $this->updateService = $updateService ?? new RecommendationUpdateService();
+        $this->transitionService = $transitionService ?? new RecommendationTransitionService();
         $this->deletionService = $deletionService ?? new RecommendationDeletionService($this->groupingService);
         $this->bestowalRecommendationSyncService = $bestowalRecommendationSyncService
             ?? new BestowalRecommendationSyncService();
@@ -431,6 +435,35 @@ class AwardsWorkflowActions
             Log::error('Workflow UpdateRecommendation failed: ' . $e->getMessage());
 
             return ['success' => false, 'error' => $e->getMessage(), 'data' => ['errors' => []]];
+        }
+    }
+
+    /**
+     * Transition a recommendation through the shared state-machine service.
+     *
+     * @param array $context Current workflow context
+     * @param array $config Config with recommendationId, targetState, actorId, and optional transition data
+     * @return array Workflow action result
+     */
+    public function transitionRecommendation(array $context, array $config): array
+    {
+        try {
+            $recommendationId = (int)$this->resolveValue($config['recommendationId'], $context);
+            $targetState = (string)$this->resolveValue($config['targetState'], $context);
+            $actorId = (int)$this->resolveValue($config['actorId'] ?? 0, $context);
+            $data = $this->resolveConfigArray($config['data'] ?? null, $context);
+            $data['targetState'] = $targetState;
+
+            return $this->transitionService->transition(
+                $this->recommendationsTable,
+                $recommendationId,
+                $data,
+                $actorId,
+            );
+        } catch (Throwable $e) {
+            Log::error('Workflow TransitionRecommendation failed: ' . $e->getMessage());
+
+            return ['success' => false, 'error' => $e->getMessage()];
         }
     }
 

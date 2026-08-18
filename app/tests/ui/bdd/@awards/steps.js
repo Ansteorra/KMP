@@ -8,6 +8,7 @@ const {
     assertGridShellPreserved,
     waitForGridStateJson,
     waitForPageBody,
+    loginAs,
     flushWorkflowsAndQueue,
     waitForQueueSettled,
     waitForGridRows,
@@ -630,6 +631,7 @@ $locator = \\Cake\\ORM\\TableRegistry::getTableLocator();
 $runs = $locator->get('Awards.RecommendationApprovalRuns');
 $recommendations = $locator->get('Awards.Recommendations');
 $workflowApprovals = $locator->get('WorkflowApprovals');
+$workflowInstances = $locator->get('WorkflowInstances');
 
 $recommendation = $recommendations->get((int)$input['recommendationId']);
 $run = $runs->find()
@@ -646,8 +648,17 @@ $latestTerminalRun = $runs->find()
     ->first();
 
 $pendingCount = 0;
+$pendingApprovalId = null;
 $latestApprovalStatus = null;
+$workflowInstanceStatus = null;
 if ($run !== null) {
+    $pendingApproval = $workflowApprovals->find()
+        ->where([
+            'workflow_instance_id' => (int)$run->workflow_instance_id,
+            'status' => 'pending',
+        ])
+        ->orderByAsc('id')
+        ->first();
     $pendingCount = $workflowApprovals->find()
         ->where([
             'workflow_instance_id' => (int)$run->workflow_instance_id,
@@ -658,20 +669,25 @@ if ($run !== null) {
         ->where(['workflow_instance_id' => (int)$run->workflow_instance_id])
         ->orderByDesc('id')
         ->first();
+    $pendingApprovalId = $pendingApproval === null ? null : (int)$pendingApproval->id;
     $latestApprovalStatus = $latestApproval?->status;
+    $workflowInstanceStatus = $workflowInstances->get((int)$run->workflow_instance_id)->status;
 }
 
 echo json_encode([
     'recommendationId' => (int)$recommendation->id,
     'state' => (string)$recommendation->state,
     'status' => (string)$recommendation->status,
+    'closeReason' => $recommendation->close_reason,
     'bestowalId' => $recommendation->bestowal_id === null ? null : (int)$recommendation->bestowal_id,
     'runId' => $run === null ? null : (int)$run->id,
     'runStatus' => $run?->status,
     'runTerminalReason' => $run?->terminal_reason,
     'latestTerminalReason' => $latestTerminalRun?->terminal_reason,
     'workflowInstanceId' => $run === null ? null : (int)$run->workflow_instance_id,
+    'workflowInstanceStatus' => $workflowInstanceStatus,
     'pendingApprovalCount' => (int)$pendingCount,
+    'pendingApprovalId' => $pendingApprovalId,
     'latestApprovalStatus' => $latestApprovalStatus,
 ], JSON_THROW_ON_ERROR);
 `;
@@ -1512,6 +1528,54 @@ When('I reject the pending workflow step {int} for {string}', async ({ page }, s
     });
 });
 
+When(
+    'I {word} the pending workflow step {int} for {string} through the approvals UI',
+    async ({ page }, decision, stepNumber, name) => {
+        if (!['approve', 'reject'].includes(decision)) {
+            throw new Error(`Unsupported approval decision "${decision}".`);
+        }
+
+        const fixture = getFixture(page, name);
+        const approver = getFixtureApprover(fixture, stepNumber - 1);
+        const state = runPhpJson(GET_RECOMMENDATION_WORKFLOW_STATE_PHP, {
+            recommendationId: fixture.id,
+        });
+        expect(state.pendingApprovalId).toBeGreaterThan(0);
+
+        await loginAs(page, approver.email);
+        await page.goto('/approvals', { waitUntil: 'networkidle' });
+
+        const respondButton = page.locator(
+            `button[data-outlet-btn-btn-data-value*='"id":${state.pendingApprovalId}']`,
+        ).first();
+        await expect(respondButton).toBeVisible({ timeout: 30000 });
+        await respondButton.click();
+
+        const modal = page.locator('#approvalResponseModal');
+        await expect(modal).toBeVisible({ timeout: 10000 });
+        await modal.locator(decision === 'approve' ? '#decisionApprove' : '#decisionReject').check();
+        if (decision === 'reject') {
+            await modal.locator('#approvalComment').fill(`E2E reject step ${stepNumber}`);
+        }
+
+        const responsePromise = page.waitForResponse((response) => {
+            const request = response.request();
+
+            return request.method() === 'POST'
+                && new URL(response.url()).pathname === '/approvals/record';
+        }, { timeout: 30000 });
+        await modal.locator('button[type="submit"]').click({ noWaitAfter: true });
+        const response = await responsePromise;
+
+        expect(response.status()).toBe(200);
+        await expect(page.getByRole('alert').first()).toContainText('Approval response recorded.', {
+            timeout: 15000,
+        });
+        await expect(modal).toBeHidden({ timeout: 15000 });
+        await expect(respondButton).toBeHidden({ timeout: 15000 });
+    },
+);
+
 Then('the {string} recommendation workflow run should have terminal reason {string}', async ({ page }, name, reason) => {
     const fixture = getFixture(page, name);
     const data = runPhpJson(GET_RECOMMENDATION_WORKFLOW_STATE_PHP, { recommendationId: fixture.id });
@@ -1522,6 +1586,24 @@ Then('the {string} recommendation record should have state {string}', async ({ p
     const fixture = getFixture(page, name);
     const data = runPhpJson(GET_RECOMMENDATION_WORKFLOW_STATE_PHP, { recommendationId: fixture.id });
     expect(data.state).toBe(state);
+});
+
+Then('the {string} recommendation record should have status {string}', async ({ page }, name, status) => {
+    const fixture = getFixture(page, name);
+    const data = runPhpJson(GET_RECOMMENDATION_WORKFLOW_STATE_PHP, { recommendationId: fixture.id });
+    expect(data.status).toBe(status);
+});
+
+Then('the {string} recommendation record should have close reason {string}', async ({ page }, name, closeReason) => {
+    const fixture = getFixture(page, name);
+    const data = runPhpJson(GET_RECOMMENDATION_WORKFLOW_STATE_PHP, { recommendationId: fixture.id });
+    expect(data.closeReason).toBe(closeReason);
+});
+
+Then('the {string} recommendation workflow instance should have status {string}', async ({ page }, name, status) => {
+    const fixture = getFixture(page, name);
+    const data = runPhpJson(GET_RECOMMENDATION_WORKFLOW_STATE_PHP, { recommendationId: fixture.id });
+    expect(data.workflowInstanceStatus).toBe(status);
 });
 
 When('I select all current fixture recommendations in the grid', async ({ page }) => {
@@ -2487,6 +2569,12 @@ Then('the bestowal to-do {string} should show a gathering assigned', async ({ pa
     const item = getBestowalTodoItem(page, title);
     await expect(item).toBeVisible({ timeout: 15000 });
     await expect(item).toContainText('Gathering assigned');
+});
+
+Then('the bestowal to-do {string} should show a court assigned', async ({ page }, title) => {
+    const item = getBestowalTodoItem(page, title);
+    await expect(item).toBeVisible({ timeout: 15000 });
+    await expect(item).toContainText('Court assigned');
 });
 
 Then('the bestowal mark-given action should be disabled', async ({ page }) => {

@@ -5,12 +5,14 @@ namespace Awards\Test\TestCase\Services;
 
 use App\Model\Entity\ActionItem;
 use App\Services\ActionItems\ActionItemService;
+use App\Services\ServiceResult;
 use App\Test\TestCase\BaseTestCase;
 use Awards\Event\BestowalTodoCompletionListener;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
-use Awards\Services\BestowalRecommendationSyncService;
 use Awards\Services\BestowalFinalizationService;
+use Awards\Services\BestowalRecommendationSyncService;
+use Cake\Event\Event;
 use Cake\Event\EventManager;
 use Cake\ORM\Table;
 
@@ -90,6 +92,33 @@ class BestowalFinalizationServiceTest extends BaseTestCase
         $this->assertTrue($result->success);
         $reloaded = $this->bestowals->get($bestowal->id);
         $this->assertSame(Bestowal::LIFECYCLE_OPEN, $reloaded->lifecycle_status);
+    }
+
+    public function testEventScheduledCompletionSynchronizesRecommendationProjectionAfterCommit(): void
+    {
+        $item = new ActionItem([
+            'id' => 321,
+            'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+            'entity_id' => 654,
+            'is_gating' => true,
+            'source_ref' => BestowalTodoTemplateItem::ITEM_KEY_EVENT_SCHEDULED,
+        ]);
+        $syncService = $this->createMock(BestowalRecommendationSyncService::class);
+        $syncService->expects($this->once())
+            ->method('syncFromBestowal')
+            ->with(654, self::ADMIN_MEMBER_ID)
+            ->willReturn(['success' => true]);
+        $finalizationService = $this->createMock(BestowalFinalizationService::class);
+        $finalizationService->expects($this->once())
+            ->method('finalizeFromGatingCompletion')
+            ->with(654, self::ADMIN_MEMBER_ID)
+            ->willReturn(new ServiceResult(true));
+        $listener = new BestowalTodoCompletionListener($syncService, $finalizationService);
+
+        $listener->handleCompletedTodo(new Event('ActionItem.completed', $this, [
+            'item' => $item,
+            'actorId' => self::ADMIN_MEMBER_ID,
+        ]));
     }
 
     /**

@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services\WorkflowEngine;
@@ -24,7 +23,12 @@ interface WorkflowVersionManagerInterface
      * @param string|null $changeNotes Optional notes describing changes
      * @return \App\Services\ServiceResult
      */
-    public function createDraft(int $definitionId, array $definition, ?array $canvasLayout = null, ?string $changeNotes = null): ServiceResult;
+    public function createDraft(
+        int $definitionId,
+        array $definition,
+        ?array $canvasLayout = null,
+        ?string $changeNotes = null,
+    ): ServiceResult;
 
     /**
      * Update an existing draft version.
@@ -35,7 +39,12 @@ interface WorkflowVersionManagerInterface
      * @param string|null $changeNotes Optional notes describing changes
      * @return \App\Services\ServiceResult
      */
-    public function updateDraft(int $versionId, array $definition, ?array $canvasLayout = null, ?string $changeNotes = null): ServiceResult;
+    public function updateDraft(
+        int $versionId,
+        array $definition,
+        ?array $canvasLayout = null,
+        ?string $changeNotes = null,
+    ): ServiceResult;
 
     /**
      * Publish a draft version, making it the active version.
@@ -66,7 +75,7 @@ interface WorkflowVersionManagerInterface
      * Get all versions for a definition, newest first.
      *
      * @param int $definitionId Workflow definition ID
-     * @return \App\Model\Entity\WorkflowVersion[]
+     * @return array<\App\Model\Entity\WorkflowVersion>
      */
     public function getVersionHistory(int $definitionId): array;
 
@@ -75,11 +84,16 @@ interface WorkflowVersionManagerInterface
      *
      * @param int $instanceId Instance to migrate
      * @param int $targetVersionId Target version (must be published)
-     * @param int $migratedBy ID of the user performing migration
+     * @param int|null $migratedBy ID of the user performing migration, or null for a system migration
      * @param array|null $nodeMapping Optional explicit node key mapping
      * @return \App\Services\ServiceResult
      */
-    public function migrateInstance(int $instanceId, int $targetVersionId, int $migratedBy, ?array $nodeMapping = null): ServiceResult;
+    public function migrateInstance(
+        int $instanceId,
+        int $targetVersionId,
+        ?int $migratedBy,
+        ?array $nodeMapping = null,
+    ): ServiceResult;
 
     /**
      * Compare two versions and return structural differences.

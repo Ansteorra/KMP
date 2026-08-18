@@ -36,11 +36,14 @@ Feature: Award Recommendations
         When the workflow engine processes pending work
         Then the "wf-crown" recommendation should have a workflow run with status "in_progress"
         And the "wf-crown" recommendation should have 1 pending approvals
-        When I approve the pending workflow step 1 for "wf-crown"
+        When I approve the pending workflow step 1 for "wf-crown" through the approvals UI
         And the workflow engine processes pending work
         Then the "wf-crown" recommendation should have a workflow run with status "consumed"
         And the "wf-crown" recommendation workflow run should have terminal reason "consumed_by_bestowal"
+        And the "wf-crown" recommendation workflow instance should have status "completed"
         And the "wf-crown" recommendation should be linked to a bestowal
+        And the "wf-crown" recommendation record should have state "Need to Schedule"
+        And the "wf-crown" recommendation record should have status "Scheduling"
 
     Scenario: Dual-step approval flow advances local approval then crown approval
         Given I am logged in as "forest@ampdemo.com"
@@ -64,12 +67,15 @@ Feature: Award Recommendations
         When the workflow engine processes pending work
         Then the "wf-local" recommendation should have a workflow run with status "in_progress"
         And the "wf-local" recommendation should have 1 pending approvals
-        When I reject the pending workflow step 1 for "wf-local"
+        When I reject the pending workflow step 1 for "wf-local" through the approvals UI
         And the workflow engine processes pending work
         Then the "wf-local" recommendation should have a workflow run with status "closed"
         And the "wf-local" recommendation workflow run should have terminal reason "rejected"
+        And the "wf-local" recommendation workflow instance should have status "completed"
         And the "wf-local" recommendation should not be linked to a bestowal
-        And the "wf-local" recommendation record should have state "Submitted"
+        And the "wf-local" recommendation record should have state "No Action"
+        And the "wf-local" recommendation record should have status "Closed"
+        And the "wf-local" recommendation record should have close reason "E2E reject step 1"
 
     Scenario: Recommendations without an approval process follow fallback path
         Given I delete all test emails

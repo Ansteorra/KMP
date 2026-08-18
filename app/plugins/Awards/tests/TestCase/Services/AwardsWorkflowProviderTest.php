@@ -67,6 +67,13 @@ class AwardsWorkflowProviderTest extends TestCase
         $advanceAction = WorkflowActionRegistry::getAction('Awards.AdvanceApprovalProcess');
         $this->assertNotNull($advanceAction);
         $this->assertSame('advanceApprovalProcess', $advanceAction['serviceMethod']);
+        $this->assertArrayHasKey('closed', $advanceAction['outputSchema']);
+        $this->assertArrayHasKey('recommendationId', $advanceAction['outputSchema']);
+
+        $transitionAction = WorkflowActionRegistry::getAction('Awards.TransitionRecommendation');
+        $this->assertNotNull($transitionAction);
+        $this->assertSame('transitionRecommendation', $transitionAction['serviceMethod']);
+        $this->assertArrayHasKey('targetState', $transitionAction['inputSchema']);
 
         $resolver = WorkflowApproverResolverRegistry::getResolver('Awards.ResolveApprovalStepApprovers');
         $this->assertNotNull($resolver);
