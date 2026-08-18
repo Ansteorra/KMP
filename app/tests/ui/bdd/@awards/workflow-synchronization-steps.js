@@ -721,7 +721,9 @@ const submitSyncConfirmation = async (
         (match) => Number.parseInt(match[1], 10),
     );
     expect(failureCounts).toHaveLength(expectedFailureClauseCount);
-    expect(failureCounts).toEqual(Array(expectedFailureClauseCount).fill(0));
+    expect(failureCounts, `Synchronization summary: ${flashText}`).toEqual(
+        Array(expectedFailureClauseCount).fill(0),
+    );
     await expect(flash, `Synchronization summary: ${flashText}`).toHaveClass(
         /alert-success/,
     );
