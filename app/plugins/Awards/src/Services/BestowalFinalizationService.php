@@ -65,7 +65,7 @@ class BestowalFinalizationService
      *
      * @param int $bestowalId Bestowal id.
      * @param int $actorId Member performing the action.
-     * @param \DateTimeInterface|null $bestowedAt Optional bestowed timestamp (defaults to now).
+     * @param \DateTimeInterface|null $bestowedAt Optional timestamp (defaults to the saved value, then now).
      * @return \App\Services\ServiceResult Success carries the saved bestowal.
      */
     public function markGiven(int $bestowalId, int $actorId, ?DateTimeInterface $bestowedAt = null): ServiceResult
@@ -135,7 +135,7 @@ class BestowalFinalizationService
      *
      * @param \Awards\Model\Entity\Bestowal $bestowal Open bestowal to finalize.
      * @param int $actorId Member performing the action.
-     * @param \DateTimeInterface|null $bestowedAt Optional bestowed timestamp.
+     * @param \DateTimeInterface|null $bestowedAt Optional timestamp; a saved historical value is preserved.
      * @return \App\Services\ServiceResult
      */
     protected function applyGiven(Bestowal $bestowal, int $actorId, ?DateTimeInterface $bestowedAt): ServiceResult
@@ -149,7 +149,7 @@ class BestowalFinalizationService
                 $bestowedAt,
             ): Bestowal {
                 $bestowal->lifecycle_status = Bestowal::LIFECYCLE_GIVEN;
-                $bestowal->bestowed_at = $bestowedAt ?? DateTime::now();
+                $bestowal->bestowed_at = $bestowedAt ?? $bestowal->bestowed_at ?? DateTime::now();
                 $bestowal->modified_by = $actorId;
 
                 if (!$this->bestowals->save($bestowal)) {

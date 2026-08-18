@@ -13,6 +13,7 @@ use App\Services\ViewCellRegistry;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use App\Services\WorkflowEngine\WorkflowApprovalManagerInterface;
 use App\Services\WorkflowEngine\WorkflowEngineInterface;
+use Awards\Command\CloseHistoricalBestowalsCommand;
 use Awards\Command\MaterializeBestowalTodosCommand;
 use Awards\Command\MigrateAwardRecommendationsCommand;
 use Awards\Command\ReconcileRecommendationStateCommand;
@@ -37,6 +38,7 @@ use Awards\Services\BestowalTodoCompletionFormProvider;
 use Awards\Services\BestowalTodoMaterializationService;
 use Awards\Services\BestowalUpdateService;
 use Awards\Services\CourtAgendaService;
+use Awards\Services\HistoricalBestowalCloseoutService;
 use Awards\Services\RecommendationApprovalContextRenderer;
 use Awards\Services\RecommendationApprovalDecisionService;
 use Awards\Services\RecommendationApprovalProcessService;
@@ -337,6 +339,7 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
     public function console(CommandCollection $commands): CommandCollection
     {
         $commands = parent::console($commands);
+        $commands->add('awards close_historical_bestowals', CloseHistoricalBestowalsCommand::class);
         $commands->add('awards migrate_award_recommendations', MigrateAwardRecommendationsCommand::class);
         $commands->add('awards materialize_bestowal_todos', MaterializeBestowalTodosCommand::class);
         $commands->add('awards reconcile_recommendation_state', ReconcileRecommendationStateCommand::class);
@@ -350,6 +353,9 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
      */
     public function services(ContainerInterface $container): void
     {
+        $container->add(HistoricalBestowalCloseoutService::class);
+        $container->add(CloseHistoricalBestowalsCommand::class)
+            ->addArgument(HistoricalBestowalCloseoutService::class);
         $container->add(MigrateAwardRecommendationsCommand::class)
             ->addArgument(TriggerDispatcher::class);
         $container->add(BestowalTodoMaterializationService::class)

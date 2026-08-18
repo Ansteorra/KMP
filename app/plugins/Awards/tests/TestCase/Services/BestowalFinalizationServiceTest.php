@@ -9,10 +9,12 @@ use App\Test\TestCase\BaseTestCase;
 use Awards\Event\BestowalTodoCompletionListener;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
-use Awards\Services\BestowalRecommendationSyncService;
 use Awards\Services\BestowalFinalizationService;
+use Awards\Services\BestowalRecommendationSyncService;
 use Cake\Event\EventManager;
+use Cake\I18n\DateTime;
 use Cake\ORM\Table;
+use DateTimeZone;
 
 /**
  * Coverage for the bestowal "Mark Given" finalization service and its automatic
@@ -68,6 +70,26 @@ class BestowalFinalizationServiceTest extends BaseTestCase
         $reloaded = $this->bestowals->get($bestowal->id);
         $this->assertSame(Bestowal::LIFECYCLE_GIVEN, $reloaded->lifecycle_status);
         $this->assertNotNull($reloaded->bestowed_at);
+    }
+
+    /**
+     * Automatic finalization preserves a historical date deliberately placed
+     * on the open bestowal before its gating to-do is completed.
+     *
+     * @return void
+     */
+    public function testCompletingGatingTodoPreservesPreloadedBestowedDate(): void
+    {
+        $historicalDate = new DateTime('2024-10-12 00:00:00', new DateTimeZone('UTC'));
+        $bestowal = $this->makeBestowal(['bestowed_at' => $historicalDate]);
+        $todo = $this->makeTodo((int)$bestowal->id, ['is_gating' => true]);
+
+        $result = $this->actionItemService->complete((int)$todo->id, self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($result->success);
+        $reloaded = $this->bestowals->get($bestowal->id);
+        $this->assertSame(Bestowal::LIFECYCLE_GIVEN, $reloaded->lifecycle_status);
+        $this->assertSame('2024-10-12', $reloaded->bestowed_at?->format('Y-m-d'));
     }
 
     /**
