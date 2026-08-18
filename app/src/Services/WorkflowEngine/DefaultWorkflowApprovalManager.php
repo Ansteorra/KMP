@@ -60,10 +60,18 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
         string $decision,
         ?string $comment = null,
         ?int $nextApproverId = null,
+        array $approverConfigUpdates = [],
     ): ServiceResult {
         for ($attempt = 1; $attempt <= self::MAX_OPTIMISTIC_RETRIES; $attempt++) {
             try {
-                $result = $this->attemptRecordResponse($approvalId, $memberId, $decision, $comment, $nextApproverId);
+                $result = $this->attemptRecordResponse(
+                    $approvalId,
+                    $memberId,
+                    $decision,
+                    $comment,
+                    $nextApproverId,
+                    $approverConfigUpdates,
+                );
 
                 return $result;
             } catch (OptimisticLockException $e) {
@@ -101,8 +109,10 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
         string $decision,
         ?string $comment,
         ?int $nextApproverId,
+        array $approverConfigUpdates,
     ): ServiceResult {
         $connection = ConnectionManager::get('default');
+        $connection->enableSavePoints();
 
         /** @var \App\Services\ServiceResult $result */
         $result = $connection->transactional(function () use (
@@ -111,6 +121,7 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
             $decision,
             $comment,
             $nextApproverId,
+            $approverConfigUpdates,
         ) {
             $approvalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
             $responsesTable = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
@@ -224,6 +235,11 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
 
             // Reload approval to get accurate counts after atomic increment
             $approval = $approvalsTable->get($approval->id);
+            $approverConfig = is_array($approval->approver_config) ? $approval->approver_config : [];
+            if ($approverConfigUpdates !== []) {
+                $approverConfig = array_replace($approverConfig, $approverConfigUpdates);
+                $approval->approver_config = $approverConfig;
+            }
 
             // Check for serial pick-next mode
             $isSerialPickNext = !empty($approverConfig['serial_pick_next']);
@@ -277,6 +293,9 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
 
             if ($approval->status !== WorkflowApproval::STATUS_PENDING) {
                 // Version-gated save for status resolution
+                $this->saveWithVersionCheck($approvalsTable, $approval);
+            } elseif ($approverConfigUpdates !== []) {
+                // Persist response metadata even when the approval remains pending.
                 $this->saveWithVersionCheck($approvalsTable, $approval);
             }
 

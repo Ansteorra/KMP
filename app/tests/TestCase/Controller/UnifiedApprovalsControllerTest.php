@@ -676,6 +676,45 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         $this->assertCount(2, $responses);
     }
 
+    public function testBulkRecordApprovalPersistsBestowalGatheringForWorkflowRecovery(): void
+    {
+        $this->authenticateAsSuperUser();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext();
+        $approverConfig = [
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'requires_bestowal_gathering' => true,
+        ];
+        $firstApprovalId = $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Bulk Award Approval 1',
+            $approverConfig,
+        );
+        $secondApprovalId = $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Bulk Award Approval 2',
+            $approverConfig,
+        );
+        $gatheringId = $this->createGathering('Bulk Approval Recovery Gathering', '+30 days');
+
+        $this->post('/approvals/record', [
+            'approvalIds' => implode(',', [$firstApprovalId, $secondApprovalId]),
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'bestowal_gathering_id' => $gatheringId,
+            'comment' => '',
+            'page_context_url' => '/approvals',
+        ]);
+
+        $this->assertRedirectContains('/approvals');
+        $approvalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
+        foreach ([$firstApprovalId, $secondApprovalId] as $approvalId) {
+            $approval = $approvalsTable->get($approvalId);
+            $this->assertSame(WorkflowApproval::STATUS_APPROVED, $approval->status);
+            $this->assertSame($gatheringId, (int)$approval->approver_config['bestowal_gathering_id']);
+        }
+    }
+
     public function testBulkRecordApprovalRejectsMixedApprovalTypes(): void
     {
         $this->authenticateAsSuperUser();
@@ -730,6 +769,37 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
             ->where(['workflow_approval_id' => $approvalId])
             ->count();
         $this->assertSame(1, $responseCount);
+    }
+
+    public function testRecordApprovalPersistsBestowalGatheringForWorkflowRecovery(): void
+    {
+        $this->authenticateAsSuperUser();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext();
+        $approvalId = $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Award Approval Recovery',
+            [
+                'member_id' => self::ADMIN_MEMBER_ID,
+                'requires_bestowal_gathering' => true,
+            ],
+            requiredCount: 2,
+        );
+        $gatheringId = $this->createGathering('Approval Recovery Gathering', '+30 days');
+
+        $this->post('/approvals/record', [
+            'approvalId' => $approvalId,
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'bestowal_gathering_id' => $gatheringId,
+            'comment' => '',
+            'page_context_url' => '/approvals',
+        ]);
+
+        $this->assertRedirectContains('/approvals');
+        $approval = TableRegistry::getTableLocator()->get('WorkflowApprovals')->get($approvalId);
+        $this->assertSame(WorkflowApproval::STATUS_PENDING, $approval->status);
+        $this->assertTrue($approval->approver_config['requires_bestowal_gathering']);
+        $this->assertSame($gatheringId, (int)$approval->approver_config['bestowal_gathering_id']);
     }
 
     public function testRecordApprovalRejectsPastGatheringForAwardBestowalApproval(): void

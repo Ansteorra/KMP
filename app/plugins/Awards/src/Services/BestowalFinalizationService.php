@@ -74,27 +74,7 @@ class BestowalFinalizationService
             return new ServiceResult(false, 'Bestowal ID is required.');
         }
 
-        if (!$this->actionItemService->allGatingComplete(Bestowal::ACTION_ITEM_ENTITY_TYPE, $bestowalId)) {
-            return new ServiceResult(
-                false,
-                'All required checks must be completed before the bestowal can be marked given.',
-            );
-        }
-
-        $bestowal = $this->loadBestowal($bestowalId);
-        if ($bestowal === null) {
-            return new ServiceResult(false, 'Bestowal not found.');
-        }
-
-        if ($bestowal->lifecycle_status === Bestowal::LIFECYCLE_GIVEN) {
-            return new ServiceResult(true, 'Bestowal already given.', $bestowal);
-        }
-
-        if ($bestowal->lifecycle_status === Bestowal::LIFECYCLE_CANCELLED) {
-            return new ServiceResult(false, 'A cancelled bestowal cannot be marked given.');
-        }
-
-        return $this->applyGiven($bestowal, $actorId, $bestowedAt);
+        return $this->finalizeWithLockedRecheck($bestowalId, $actorId, $bestowedAt, true);
     }
 
     /**
@@ -114,20 +94,75 @@ class BestowalFinalizationService
             return new ServiceResult(true, 'No bestowal to finalize.');
         }
 
-        if (!$this->actionItemService->allGatingComplete(Bestowal::ACTION_ITEM_ENTITY_TYPE, $bestowalId)) {
-            return new ServiceResult(true, 'Gating checks are not all complete; no change.');
-        }
+        return $this->finalizeWithLockedRecheck($bestowalId, $actorId, null, false);
+    }
 
-        $bestowal = $this->loadBestowal($bestowalId);
-        if ($bestowal === null) {
-            return new ServiceResult(true, 'Bestowal not found; no change.');
-        }
+    /**
+     * Serialize finalization with workflow synchronization and recheck readiness.
+     *
+     * @param int $bestowalId Bestowal id.
+     * @param int $actorId Member performing or causing the action.
+     * @param \DateTimeInterface|null $bestowedAt Optional bestowed timestamp.
+     * @param bool $strict Whether readiness failures should be surfaced.
+     * @return \App\Services\ServiceResult
+     */
+    private function finalizeWithLockedRecheck(
+        int $bestowalId,
+        int $actorId,
+        ?DateTimeInterface $bestowedAt,
+        bool $strict,
+    ): ServiceResult {
+        $connection = $this->bestowals->getConnection();
+        $connection->enableSavePoints();
 
-        if ($bestowal->lifecycle_status !== Bestowal::LIFECYCLE_OPEN) {
-            return new ServiceResult(true, 'Bestowal is not open; no change.', $bestowal);
-        }
+        try {
+            return $connection->transactional(function () use (
+                $bestowalId,
+                $actorId,
+                $bestowedAt,
+                $strict,
+            ): ServiceResult {
+                $bestowal = $this->loadBestowal($bestowalId, true);
+                if ($bestowal === null) {
+                    return new ServiceResult(
+                        !$strict,
+                        $strict ? 'Bestowal not found.' : 'Bestowal not found; no change.',
+                    );
+                }
+                if ($bestowal->lifecycle_status === Bestowal::LIFECYCLE_GIVEN) {
+                    return new ServiceResult(true, 'Bestowal already given.', $bestowal);
+                }
+                if ($bestowal->lifecycle_status === Bestowal::LIFECYCLE_CANCELLED) {
+                    return new ServiceResult(
+                        !$strict,
+                        $strict
+                            ? 'A cancelled bestowal cannot be marked given.'
+                            : 'Bestowal is not open; no change.',
+                        $strict ? null : $bestowal,
+                    );
+                }
+                $gatingComplete = $this->actionItemService->allGatingComplete(
+                    Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                    $bestowalId,
+                );
+                $configuredWithoutGates = !$this->actionItemService->hasActiveGatingItems(
+                    Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                    $bestowalId,
+                ) && $this->assignedTemplateHasNoGatingItems($bestowal);
+                if (!$gatingComplete && !$configuredWithoutGates) {
+                    return new ServiceResult(
+                        !$strict,
+                        $strict
+                            ? 'All required checks must be completed before the bestowal can be marked given.'
+                            : 'Gating checks are not all complete; no change.',
+                    );
+                }
 
-        return $this->applyGiven($bestowal, $actorId, null);
+                return $this->applyGiven($bestowal, $actorId, $bestowedAt);
+            });
+        } catch (Throwable $exception) {
+            return new ServiceResult(false, $exception->getMessage());
+        }
     }
 
     /**
@@ -176,13 +211,53 @@ class BestowalFinalizationService
      * Load a bestowal by id, returning null when it does not exist.
      *
      * @param int $bestowalId Bestowal id.
+     * @param bool $forUpdate Whether to acquire a row lock.
      * @return \Awards\Model\Entity\Bestowal|null
      */
-    protected function loadBestowal(int $bestowalId): ?Bestowal
+    protected function loadBestowal(int $bestowalId, bool $forUpdate = false): ?Bestowal
     {
         /** @var \Awards\Model\Entity\Bestowal|null $bestowal */
-        $bestowal = $this->bestowals->find()->where(['Bestowals.id' => $bestowalId])->first();
+        $query = $this->bestowals->find()->where(['Bestowals.id' => $bestowalId]);
+        if ($forUpdate) {
+            $query->epilog('FOR UPDATE');
+        }
+        $bestowal = $query->first();
 
         return $bestowal;
+    }
+
+    /**
+     * Whether the assigned, existing template intentionally defines no gates.
+     *
+     * No assigned template (or a deleted/missing template) remains not ready so
+     * a bestowal cannot bypass a checklist that was never configured.
+     *
+     * @param \Awards\Model\Entity\Bestowal $bestowal Bestowal being finalized.
+     * @return bool
+     */
+    private function assignedTemplateHasNoGatingItems(Bestowal $bestowal): bool
+    {
+        if ($bestowal->award_id === null) {
+            return false;
+        }
+        $award = $this->fetchTable('Awards.Awards')->find()
+            ->select(['bestowal_todo_template_id'])
+            ->where(['Awards.id' => (int)$bestowal->award_id])
+            ->first();
+        $templateId = $award?->get('bestowal_todo_template_id');
+        if ($templateId === null) {
+            return false;
+        }
+        $templateExists = $this->fetchTable('Awards.BestowalTodoTemplates')->exists([
+            'BestowalTodoTemplates.id' => (int)$templateId,
+        ]);
+        if (!$templateExists) {
+            return false;
+        }
+
+        return !$this->fetchTable('Awards.BestowalTodoTemplateItems')->exists([
+            'BestowalTodoTemplateItems.template_id' => (int)$templateId,
+            'BestowalTodoTemplateItems.is_gating' => true,
+        ]);
     }
 }

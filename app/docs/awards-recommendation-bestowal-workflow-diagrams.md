@@ -110,6 +110,63 @@ The default bestowal checklist requires **Event Scheduled**, **Added to Agenda**
 
 Required-field To-Dos can opt into system auto-close with `auto_complete_when_satisfied`. The built-in **Event Scheduled** and **Added to Agenda** items use this flag: once the bestowal has an assigned gathering, or a valid court/roaming assignment respectively, the ActionItem service records a system completion note and closes the satisfied To-Do. If a required field is later cleared, the same synchronization reopens the completed To-Do with a system audit note.
 
+### Synchronizing work already in flight
+
+The configuration indexes expose confirmed POST actions for synchronizing all active recommendation approvals and all
+open bestowals. The actions resolve each item's current configuration from its assigned award; they do not apply one
+selected process or template to every award. Results include bounded item IDs, expected skip reasons, and fixed
+failure categories; unexpected exception details remain in server logs.
+
+```mermaid
+flowchart LR
+    A["Sync open work now"] --> B{"Open item type"}
+    B -- "Recommendation approval" --> C0["Backfill open approval-owned records missing active runs"]
+    C0 --> C["Resolve award's current process + published workflow version"]
+    C --> D["Keep completed steps and current stable step key"]
+    D --> E["Refresh pending gate approvers + threshold"]
+    E --> F{"Recorded approvals now meet threshold?"}
+    F -- "Yes" --> G["Resume once; final handoff may create one bestowal"]
+    F -- "No" --> H["Remain waiting on refreshed gate"]
+    B -- "Bestowal" --> I["Resolve award's current To-Do template"]
+    I --> J["Update matching keys; add new keys"]
+    J --> K["Audit-cancel removed keys; reopen returned sync-cancelled keys"]
+```
+
+Recommendation synchronization first starts current workflows for open, approval-owned legacy recommendations that
+lack an active run, then scans active `RecommendationApprovalRun` rows (`in_progress` and `changes_requested`). Unsafe
+legacy records are reported without being reclassified or closed. Each run is checked again while locked: closed or
+otherwise ineligible recommendations are skipped, and terminal workflow instances are reported instead of revived. A
+stable current step is the progress frontier: edits to that step and all later steps take effect, while a newly inserted
+step before the frontier does not rewind work already underway. Approved earlier steps and pending responses remain
+historical records. If a threshold changes from two approvals to one after one approval was recorded, the pending gate
+becomes approved and the workflow advances immediately when the current approver pool is nonempty; vacant gates remain
+blocked. If the threshold rises after approval but before workflow resumption, the gate reopens when the preserved
+response count is no longer enough. Synchronization also recovers an already-resolved approval or rejection when a
+committed response was not followed by workflow resumption. Satisfying or recovering a final gate continues the normal workflow and may create exactly one
+bestowal through the idempotent handoff; the final gathering selection is stored atomically with the response so crash
+recovery retains it, and synchronization never marks that bestowal Given. If the current key was removed, the obsolete
+gate is cancelled without deleting its responses and a gate is created for the first current step not already completed;
+when no current step remains incomplete, the workflow resumes without another gate.
+Repeated synchronization with no configuration change is a no-op.
+
+Bestowal synchronization scans lifecycle `open` only. Matching ActionItems keep their status, completion data, and log
+history while mutable title, assignment, branch, gating, ordering, and completion-requirement snapshots are refreshed.
+New keys create open items. Removed keys are cancelled with a system audit note, and a returned key reopens only when
+its latest cancellation was made by this synchronization. Missing assignments/templates are reported as identifiable
+safe skips; an existing assigned template with zero items is authoritative and cancels all prior active items. An
+explicit Required field `None` is stored as such and does not inherit legacy defaults from a built-in item key.
+Cancelled items are retired history and do not appear in active grid counts or gating progress. Required-field reconciliation uses bounded passes until no item changes, so prerequisite
+chains converge during the same synchronization regardless of template sort order. Completion events are deferred until
+the whole required-field batch is stable, so a gating listener cannot make the owner terminal while later items are still
+being reconciled. Definition synchronization does not emit an actor-authorized completion event and therefore cannot
+implicitly mark a bestowal Given.
+Materialization, synchronization, ActionItem transitions, and finalization use one persisted-owner-before-item lock
+order. Cancellation uses that same bestowal mutex. Finalization reacquires the lock and rechecks lifecycle and gating
+readiness, preventing a concurrent template sync from adding or reopening a gating item after the readiness check but
+before the Given transition. Once the owner is Given or cancelled, queued ActionItem transitions and direct definition
+synchronization are rejected, and initial materialization/its backfill command select open lifecycle only, so terminal
+bestowals cannot regain open gating work.
+
 Ad-hoc bestowals may be linked to an existing member account or recorded with only the recipient SCA name, matching recommendation submission for recipients who are not registered in KMP.
 
 ## 6) Data interaction map
@@ -165,12 +222,14 @@ flowchart LR
 | Submit recommendation | Requester | Current pending approver set | Approval run created, only current approvers see active item |
 | Active approval edit/feedback | Current approver | Current approver | Can edit + request feedback; non-current cannot |
 | Multi-step approval advance | Current approver | Next configured approver set | Pending set rotates, previous step visibility retained only when configured |
+| Synchronize open recommendation approvals | Award workflow synchronizer | Current configured approver set | Preserves stable-key progress and responses; threshold-met or recovered approved gates resume once; final continuation may create one bestowal; terminal work is not revived |
 | Approval complete -> bestowal create | Final approver/workflow action | Bestowal workflow owner(s) | Only the final approval step selects the bestowal gathering; handoff blocks active runs, bestowal created with source approval provenance, approved run marked consumed |
 | Link recommendation to existing bestowal | Noble/admin path | Bestowal workflow owner(s) | Active approval run cancelled/superseded, member match enforced, grouped child blocked |
 | Unlink recommendation | Noble/admin path | Recommendation workflow owner(s) | Unwind state applied, shortcut cleared, join row removed, primary recomputed, approval rehydrated when prior run was consumed/superseded |
 | Group/ungroup during approval | Current approver or admin override | Same active approver set | Grouping denied for non-current approver; origin snapshot restore works |
 | Bestowal transition to court states | Bestowal owner(s) | Bestowal owner(s) | Recommendation projection state sync follows mapping |
 | Bestowal cancellation | Bestowal owner(s) | Recommendation workflow owner(s) | Cancel denied for Given, unwind state applied, links and shortcuts cleared, consumed/superseded approval runs cancelled and rehydrated when needed |
+| Synchronize open bestowal To-Dos | Award workflow synchronizer | Current template assignees | Open lifecycle only; matching history preserved; required fields converge independent of template order; synchronization never marks Given |
 | Turnover/reassignment events | System + admins | New eligible approvers | Pending approver set reflects new eligibility without leaking old active queue access |
 
 ## 9) High-risk regression points

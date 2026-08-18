@@ -9,6 +9,7 @@ use App\Services\CsvExportService;
 use Awards\KMP\GridColumns\ApprovalProcessesGridColumns;
 use Awards\Model\Entity\ApprovalProcessStep;
 use Awards\Services\AwardApprovalResolverService;
+use Awards\Services\RecommendationApprovalWorkflowSyncService;
 use Cake\Http\Exception\NotFoundException;
 use Cake\Http\Response;
 
@@ -29,7 +30,7 @@ class ApprovalProcessesController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel('index', 'add', 'gridData');
+        $this->Authorization->authorizeModel('index', 'add', 'gridData', 'syncOpenRecommendations');
     }
 
     /**
@@ -40,6 +41,94 @@ class ApprovalProcessesController extends AppController
     public function index(): void
     {
         $this->set('user', $this->request->getAttribute('identity'));
+    }
+
+    /**
+     * Synchronize open recommendation approvals with current award processes.
+     *
+     * @param \Awards\Services\RecommendationApprovalWorkflowSyncService $syncService Workflow synchronizer
+     * @return \Cake\Http\Response
+     */
+    public function syncOpenRecommendations(RecommendationApprovalWorkflowSyncService $syncService): Response
+    {
+        $this->request->allowMethod(['post']);
+
+        $identity = $this->request->getAttribute('identity');
+        $result = $syncService->syncOpenRecommendations((int)$identity->getIdentifier());
+        $data = is_array($result->getData()) ? $result->getData() : [];
+        $summary = __(
+            'Ownership backfill reviewed {0} open recommendation(s) without an active run: '
+            . '{1} started, {2} unchanged, {3} skipped, and {4} failed. '
+            . 'Processed {5} active workflow(s): {6} synchronized '
+            . '({7} advanced; {8} workflow version(s) migrated), {9} unchanged, '
+            . '{10} skipped, and {11} failed.',
+            (int)($data['backfillCandidateCount'] ?? 0),
+            (int)($data['backfilledCount'] ?? 0),
+            (int)($data['backfillUnchangedCount'] ?? 0),
+            (int)($data['backfillSkippedCount'] ?? 0),
+            (int)($data['backfillFailedCount'] ?? 0),
+            (int)($data['processedCount'] ?? 0),
+            (int)($data['synchronizedCount'] ?? 0),
+            (int)($data['advancedCount'] ?? 0),
+            (int)($data['versionMigratedCount'] ?? 0),
+            (int)($data['unchangedCount'] ?? 0),
+            (int)($data['activeRunSkippedCount'] ?? 0),
+            (int)($data['activeRunFailedCount'] ?? 0),
+        );
+        $attentionRecommendationIds = [];
+        foreach (array_merge($data['backfillSkips'] ?? [], $data['failures'] ?? []) as $attention) {
+            if (is_array($attention) && !empty($attention['recommendationId'])) {
+                $attentionRecommendationIds[] = (int)$attention['recommendationId'];
+            }
+        }
+        $attentionRecommendationIds = array_values(array_unique($attentionRecommendationIds));
+        if ($attentionRecommendationIds !== []) {
+            $shownIds = array_slice($attentionRecommendationIds, 0, 10);
+            $summary .= ' ' . __('Recommendations needing attention: #{0}.', implode(', #', $shownIds));
+            if (count($attentionRecommendationIds) > count($shownIds)) {
+                $summary .= ' ' . __('{0} more not shown.', count($attentionRecommendationIds) - count($shownIds));
+            }
+        }
+        $summary .= $this->operationReasonSummary(
+            $data['backfillSkips'] ?? [],
+            __('Backfill skip reasons'),
+        );
+        $failedRunIds = [];
+        foreach ($data['failures'] ?? [] as $failure) {
+            if (is_array($failure) && !empty($failure['runId'])) {
+                $failedRunIds[] = (int)$failure['runId'];
+            }
+        }
+        $failedRunIds = array_values(array_unique($failedRunIds));
+        if ($failedRunIds !== []) {
+            $shownIds = array_slice($failedRunIds, 0, 10);
+            $summary .= ' ' . __('Workflow runs needing attention: #{0}.', implode(', #', $shownIds));
+            if (count($failedRunIds) > count($shownIds)) {
+                $summary .= ' ' . __('{0} more not shown.', count($failedRunIds) - count($shownIds));
+            }
+        }
+        $backfillFailureCount = (int)($data['backfillFailedCount'] ?? 0);
+        $activeRunFailureCount = (int)($data['activeRunFailedCount'] ?? 0);
+        $otherFailureCount = max(
+            0,
+            (int)($data['failedCount'] ?? 0) - $backfillFailureCount - $activeRunFailureCount,
+        );
+        $summary .= $this->operationCategorySummary([
+            __('Ownership backfill error') => $backfillFailureCount,
+            __('Active workflow synchronization error') => $activeRunFailureCount,
+            __('Other synchronization error') => $otherFailureCount,
+        ], __('Failure categories'));
+
+        if (!$result->isSuccess()) {
+            $reason = $result->getError();
+            $this->Flash->error($reason === null ? $summary : $summary . ' ' . $reason);
+        } elseif ((int)($data['failedCount'] ?? 0) > 0) {
+            $this->Flash->warning($summary);
+        } else {
+            $this->Flash->success($summary);
+        }
+
+        return $this->redirect(['action' => 'index']);
     }
 
     /**

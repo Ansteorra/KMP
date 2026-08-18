@@ -969,6 +969,7 @@ class ApprovalsController extends AppController
             (string)$decision,
             $comment !== null ? (string)$comment : null,
             $nextApproverId,
+            $bestowalGatheringId,
             $feedbackService,
         );
 
@@ -1090,6 +1091,7 @@ class ApprovalsController extends AppController
                 (string)$decision,
                 $comment !== null ? (string)$comment : null,
                 $nextApproverId,
+                $bestowalGatheringId,
                 $feedbackService,
             );
             if ($result->isSuccess()) {
@@ -1137,6 +1139,7 @@ class ApprovalsController extends AppController
         string $decision,
         ?string $comment,
         ?int $nextApproverId,
+        ?int $bestowalGatheringId,
         RecommendationFeedbackService $feedbackService,
     ): ServiceResult {
         if ($approval === null || empty($approval->id)) {
@@ -1147,6 +1150,14 @@ class ApprovalsController extends AppController
         $approverConfig = ApprovalsGridColumns::normalizeApproverConfig($approval->approver_config);
         $isFeedbackResponse = !empty($approverConfig['feedback_response']);
         $feedbackRecorded = false;
+        $approverConfigUpdates = [];
+        if (
+            $decision === WorkflowApprovalResponse::DECISION_APPROVE
+            && $bestowalGatheringId !== null
+            && $this->approvalRequiresBestowalGatheringSelection($approval, $approverConfig)
+        ) {
+            $approverConfigUpdates['bestowal_gathering_id'] = $bestowalGatheringId;
+        }
 
         $result = $this->getApprovalManager()->recordResponse(
             $approvalId,
@@ -1154,6 +1165,7 @@ class ApprovalsController extends AppController
             $decision,
             $comment,
             $nextApproverId,
+            $approverConfigUpdates,
         );
 
         if (!$result->isSuccess() && $isFeedbackResponse && $result->getError() === 'Approval is no longer pending.') {

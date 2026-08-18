@@ -8,6 +8,7 @@ use App\KMP\CaseInsensitiveQuery;
 use App\Services\CsvExportService;
 use Awards\KMP\GridColumns\BestowalTodoTemplatesGridColumns;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
+use Awards\Services\BestowalTodoMaterializationService;
 use Cake\Http\Exception\NotFoundException;
 use Cake\Http\Response;
 
@@ -32,7 +33,7 @@ class BestowalTodoTemplatesController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel('index', 'add', 'gridData');
+        $this->Authorization->authorizeModel('index', 'add', 'gridData', 'syncOpenBestowals');
     }
 
     /**
@@ -43,6 +44,81 @@ class BestowalTodoTemplatesController extends AppController
     public function index(): void
     {
         $this->set('user', $this->request->getAttribute('identity'));
+    }
+
+    /**
+     * Synchronize open bestowals with their awards' current to-do templates.
+     *
+     * @param \Awards\Services\BestowalTodoMaterializationService $syncService To-do synchronizer
+     * @return \Cake\Http\Response
+     */
+    public function syncOpenBestowals(BestowalTodoMaterializationService $syncService): Response
+    {
+        $this->request->allowMethod(['post']);
+
+        $identity = $this->request->getAttribute('identity');
+        $result = $syncService->syncOpenBestowals((int)$identity->getIdentifier());
+        $data = is_array($result->getData()) ? $result->getData() : [];
+        $summary = __(
+            'Processed {0} open bestowal(s): {1} changed, {2} unchanged, {3} skipped, and {4} failed. '
+            . 'To-do changes: {5} created, {6} updated, {7} cancelled, and {8} reopened. '
+            . 'Required-field checks: {9} completed, {10} reopened, and {11} skipped.',
+            (int)($data['processedCount'] ?? 0),
+            (int)($data['changedCount'] ?? 0),
+            (int)($data['unchangedCount'] ?? 0),
+            (int)($data['skippedCount'] ?? 0),
+            (int)($data['failedCount'] ?? 0),
+            (int)($data['createdCount'] ?? 0),
+            (int)($data['updatedCount'] ?? 0),
+            (int)($data['cancelledCount'] ?? 0),
+            (int)($data['reopenedCount'] ?? 0),
+            (int)($data['requiredCompletedCount'] ?? 0),
+            (int)($data['requiredReopenedCount'] ?? 0),
+            (int)($data['requiredSkippedCount'] ?? 0),
+        );
+        $failedBestowalIds = [];
+        foreach ($data['failures'] ?? [] as $failure) {
+            if (is_array($failure) && !empty($failure['bestowalId'])) {
+                $failedBestowalIds[] = (int)$failure['bestowalId'];
+            }
+        }
+        $failedBestowalIds = array_values(array_unique($failedBestowalIds));
+        if ($failedBestowalIds !== []) {
+            $shownIds = array_slice($failedBestowalIds, 0, 10);
+            $summary .= ' ' . __('Bestowals needing attention: #{0}.', implode(', #', $shownIds));
+            if (count($failedBestowalIds) > count($shownIds)) {
+                $summary .= ' ' . __('{0} more not shown.', count($failedBestowalIds) - count($shownIds));
+            }
+        }
+        $summary .= $this->operationCategorySummary([
+            __('Bestowal to-do synchronization error') => (int)($data['failedCount'] ?? 0),
+        ], __('Failure categories'));
+        $skippedBestowalIds = [];
+        foreach ($data['skips'] ?? [] as $skip) {
+            if (is_array($skip) && !empty($skip['bestowalId'])) {
+                $skippedBestowalIds[] = (int)$skip['bestowalId'];
+            }
+        }
+        $skippedBestowalIds = array_values(array_unique($skippedBestowalIds));
+        if ($skippedBestowalIds !== []) {
+            $shownIds = array_slice($skippedBestowalIds, 0, 10);
+            $summary .= ' ' . __('Skipped bestowals: #{0}.', implode(', #', $shownIds));
+            if (count($skippedBestowalIds) > count($shownIds)) {
+                $summary .= ' ' . __('{0} more not shown.', count($skippedBestowalIds) - count($shownIds));
+            }
+        }
+        $summary .= $this->operationReasonSummary($data['skips'] ?? [], __('Skip reasons'));
+
+        if (!$result->isSuccess()) {
+            $reason = $result->getError();
+            $this->Flash->error($reason === null ? $summary : $summary . ' ' . $reason);
+        } elseif ((int)($data['failedCount'] ?? 0) > 0) {
+            $this->Flash->warning($summary);
+        } else {
+            $this->Flash->success($summary);
+        }
+
+        return $this->redirect(['action' => 'index']);
     }
 
     /**
@@ -225,10 +301,26 @@ class BestowalTodoTemplatesController extends AppController
         $this->Authorization->authorize($template, 'edit');
 
         $itemsTable = $this->fetchTable('Awards.BestowalTodoTemplateItems');
-        $data = $this->normalizeItemData($this->request->getData() + [
-            'template_id' => $template->id,
-        ]);
-        $item = $itemsTable->newEntity($data);
+        $data = $this->request->getData();
+        $data['template_id'] = (int)$template->id;
+        $data = $this->normalizeItemData($data);
+        $item = null;
+        $itemKey = $data['item_key'] ?? null;
+        if (is_string($itemKey) && $itemKey !== '') {
+            $item = $itemsTable->find('onlyTrashed')
+                ->where([
+                    'template_id' => $template->id,
+                    'item_key' => $itemKey,
+                ])
+                ->first();
+        }
+
+        if ($item === null) {
+            $item = $itemsTable->newEntity($data);
+        } else {
+            $item = $itemsTable->patchEntity($item, $data);
+            $item->set('deleted', null);
+        }
 
         if ($itemsTable->save($item)) {
             $this->Flash->success(__('The to-do item has been added.'));
@@ -258,7 +350,9 @@ class BestowalTodoTemplatesController extends AppController
         $item = $itemsTable->get($itemId, contain: ['BestowalTodoTemplates']);
         $this->Authorization->authorize($item->bestowal_todo_template, 'edit');
 
-        $item = $itemsTable->patchEntity($item, $this->normalizeItemData($this->request->getData()));
+        $data = $this->request->getData();
+        $data['template_id'] = (int)$item->template_id;
+        $item = $itemsTable->patchEntity($item, $this->normalizeItemData($data));
         if ($itemsTable->save($item)) {
             $this->Flash->success(__('The to-do item has been saved.'));
         } else {

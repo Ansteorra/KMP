@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Awards\Model\Entity;
 
 use App\Model\Entity\BaseEntity;
+use App\Services\ActionItems\ActionItemOwnerInterface;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 use DateTime as NativeDateTime;
@@ -50,7 +51,7 @@ use DateTime as NativeDateTime;
  * @property \Awards\Model\Entity\Recommendation[] $recommendations
  * @property \Awards\Model\Entity\BestowalRecommendation[] $bestowal_recommendations
  */
-class Bestowal extends BaseEntity
+class Bestowal extends BaseEntity implements ActionItemOwnerInterface
 {
     public const SOURCE_RECOMMENDATION = 'recommendation';
 
@@ -136,6 +137,14 @@ class Bestowal extends BaseEntity
     public function isActiveBestowal(): bool
     {
         return ($this->lifecycle_status ?? self::LIFECYCLE_OPEN) === self::LIFECYCLE_OPEN;
+    }
+
+    /**
+     * Bestowal To-Dos are immutable after the bestowal becomes terminal.
+     */
+    public function allowsActionItemMutations(): bool
+    {
+        return $this->deleted === null && $this->isActiveBestowal();
     }
 
     /**

@@ -66,6 +66,35 @@ flowchart LR
   (`awards_bestowal_states`) and projects its progress back onto the recommendation's YAML state via
   the sync service.
 
+### Updating active approval runs when process policy changes
+
+Approval processes are mutable configuration, while a pending workflow approval stores a snapshot of the current
+step's approver source and threshold. Administrators with `Can Synchronize Award Workflows` can reconcile eligible
+active runs from the Award Approval Processes index. Each run uses the process currently assigned to its
+recommendation's award and the published version of its existing core workflow definition.
+
+Before active runs are reconciled, open recommendations in an approval-owned legacy state that do not yet have an
+active run are started through the current existing-recommendation workflow. Grouped recommendations, active feedback,
+and missing or invalid approval configuration are left unchanged and reported for attention. This backfill phase
+neither closes a recommendation nor creates a bestowal.
+
+Synchronization preserves approved steps and pending responses by stable `step_key`. The current stable key is never
+rewound, so steps newly inserted before it apply to future runs rather than invalidating work underway. The current
+gate receives the new approver and threshold snapshot. Historical approvals continue to count; therefore a pending
+one-of-two gate advances immediately when the current rule becomes one approval and the current approver pool is not
+vacant. If the rule instead increases after a gate resolved but before workflow execution resumed, the gate reopens
+when its preserved response count no longer satisfies the new threshold. Vacant gates remain blocked. If a response
+was committed but workflow execution stopped before resuming, an already-resolved approval or rejection is recovered
+and resumed exactly once with its original responder and rejection comment. A final approver's gathering selection is
+committed to the gate snapshot in the same transaction as the response, so recovery preserves that selection. Closed or otherwise ineligible
+recommendations are skipped, and terminal workflow instances are reported instead of revived. Removed current keys
+retire the old gate without deleting its response history and retarget the run to its first incomplete current step;
+if every current step is already complete, synchronization resumes the workflow instead of creating another gate.
+
+Resuming a satisfied or recovered final gate continues the normal workflow. That continuation may create exactly one
+bestowal through the idempotent handoff; synchronization never marks a bestowal Given. Each run is transactional,
+failures are isolated and reported, and an unchanged rerun performs no writes.
+
 > The audit log (`awards_recommendations_states_logs` / `RecommendationStateLogService`) is the
 > **state-change history**, not the state-machine definition. It pre-exists on `main` and stays.
 

@@ -14,6 +14,7 @@ use Awards\Model\Entity\RecommendationMigrationResult;
 use Awards\Model\Entity\RecommendationMigrationRun;
 use Cake\Datasource\EntityInterface;
 use Cake\I18n\DateTime;
+use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\Table;
@@ -50,6 +51,21 @@ class RecommendationMigrationService
         'In Consideration',
         'Awaiting Feedback',
     ];
+
+    private const APPROVAL_START_FAILURE_REASON =
+        'Recommendation approval workflow could not be started. Review server logs for details.';
+
+    private const APPROVAL_NO_ELIGIBLE_APPROVERS_REASON =
+        'Recommendation approval process has no eligible approvers.';
+
+    private const APPROVAL_GATE_MISSING_REASON =
+        'Recommendation approval workflow did not create a pending approval gate.';
+
+    private const APPROVAL_OWNERSHIP_AMBIGUOUS_REASON =
+        'Recommendation approval workflow ownership is ambiguous and requires manual review.';
+
+    private const MIGRATION_FAILURE_REASON =
+        'Recommendation migration failed. Review server logs for details.';
 
     private Table $recommendationsTable;
     private ?Table $migrationRunsTable = null;
@@ -284,6 +300,86 @@ class RecommendationMigrationService
     }
 
     /**
+     * Start approval workflows for open approval-owned recommendations that do not have an active run.
+     *
+     * This is intentionally narrower than the general legacy migration: it never closes a
+     * recommendation or creates a bestowal. Each candidate is locked and rechecked in its
+     * own transaction so one bad record cannot roll back successful backfills.
+     *
+     * @param int $actorId Member initiating the backfill
+     * @return \App\Services\ServiceResult
+     */
+    public function backfillOpenApprovalRecommendations(int $actorId): ServiceResult
+    {
+        $candidateIds = $this->openApprovalRecommendationsWithoutRunQuery()
+            ->select(['Recommendations.id'])
+            ->orderBy(['Recommendations.id' => 'ASC'])
+            ->all()
+            ->extract('id')
+            ->map(static fn($id): int => (int)$id)
+            ->toList();
+        $summary = [
+            'candidateCount' => count($candidateIds),
+            'startedCount' => 0,
+            'unchangedCount' => 0,
+            'skippedCount' => 0,
+            'failedCount' => 0,
+            'failures' => [],
+            'skips' => [],
+        ];
+
+        foreach ($candidateIds as $recommendationId) {
+            try {
+                $outcome = $this->backfillOpenApprovalRecommendation($recommendationId, $actorId);
+                $status = (string)($outcome['status'] ?? 'unchanged');
+                if ($status === 'started') {
+                    $summary['startedCount']++;
+                } elseif ($status === 'skipped') {
+                    $summary['skippedCount']++;
+                    $summary['skips'][] = [
+                        'recommendationId' => $recommendationId,
+                        'reason' => (string)($outcome['reason'] ?? 'Recommendation requires manual review.'),
+                    ];
+                } else {
+                    $summary['unchangedCount']++;
+                }
+            } catch (Throwable $exception) {
+                if ($this->isManualReviewableApprovalWorkflowFailure($exception)) {
+                    $summary['skippedCount']++;
+                    $summary['skips'][] = [
+                        'recommendationId' => $recommendationId,
+                        'reason' => $this->manualReviewableApprovalWorkflowFailureReason($exception),
+                    ];
+
+                    continue;
+                }
+
+                $summary['failedCount']++;
+                $summary['failures'][] = [
+                    'recommendationId' => $recommendationId,
+                    'reason' => self::APPROVAL_START_FAILURE_REASON,
+                ];
+                Log::error(sprintf(
+                    'Open award recommendation approval backfill failed for recommendation %d: %s',
+                    $recommendationId,
+                    $exception->getMessage(),
+                ));
+            }
+        }
+
+        $success = $summary['failedCount'] === 0;
+
+        return new ServiceResult(
+            $success,
+            $success ? null : sprintf(
+                '%d open recommendation approval workflow(s) could not be started.',
+                $summary['failedCount'],
+            ),
+            $summary,
+        );
+    }
+
+    /**
      * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation to classify
      * @return array{target:string,reason:string}
      */
@@ -439,6 +535,115 @@ class RecommendationMigrationService
     }
 
     /**
+     * Find the exact population eligible for approval workflow backfill.
+     *
+     * @return \Cake\ORM\Query\SelectQuery
+     */
+    private function openApprovalRecommendationsWithoutRunQuery(): SelectQuery
+    {
+        $activeApprovalRecommendationIds = $this->approvalRunsTable->find()
+            ->select(['RecommendationApprovalRuns.recommendation_id'])
+            ->where([
+                'RecommendationApprovalRuns.status IN' => [
+                    RecommendationApprovalRun::STATUS_IN_PROGRESS,
+                    RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
+                ],
+            ]);
+
+        return $this->recommendationsTable->find()
+            ->where([
+                'Recommendations.status !=' => 'Closed',
+                'Recommendations.state IN' => self::APPROVAL_STATES,
+                'Recommendations.bestowal_id IS' => null,
+                'Recommendations.recommendation_group_id IS' => null,
+                'Recommendations.deleted IS' => null,
+                'Recommendations.id NOT IN' => $activeApprovalRecommendationIds,
+            ]);
+    }
+
+    /**
+     * Lock, recheck, and backfill one approval-owned recommendation.
+     *
+     * @param int $recommendationId Recommendation selected by the bulk scan
+     * @param int $actorId Member initiating the backfill
+     * @return array{status:string,reason?:string}
+     */
+    private function backfillOpenApprovalRecommendation(int $recommendationId, int $actorId): array
+    {
+        $connection = $this->recommendationsTable->getConnection();
+        $connection->enableSavePoints();
+
+        return $connection->transactional(function () use ($recommendationId, $actorId): array {
+            $recommendation = $this->recommendationsTable->find()
+                ->where([
+                    'Recommendations.id' => $recommendationId,
+                    'Recommendations.status !=' => 'Closed',
+                    'Recommendations.state IN' => self::APPROVAL_STATES,
+                    'Recommendations.bestowal_id IS' => null,
+                    'Recommendations.recommendation_group_id IS' => null,
+                    'Recommendations.deleted IS' => null,
+                ])
+                ->epilog('FOR UPDATE')
+                ->first();
+            if (!$recommendation instanceof Recommendation) {
+                return [
+                    'status' => 'unchanged',
+                    'reason' => 'Recommendation no longer belongs to the approval backfill population.',
+                ];
+            }
+
+            if ($this->findActiveApprovalRun($recommendationId) !== null) {
+                return [
+                    'status' => 'unchanged',
+                    'reason' => 'Recommendation already has an active approval run.',
+                ];
+            }
+
+            $this->recommendationsTable->loadInto($recommendation, [
+                'Awards.ApprovalProcesses.ApprovalProcessSteps',
+            ]);
+            $classification = $this->classify($recommendation);
+            if ($classification['target'] !== RecommendationMigrationResult::TARGET_APPROVAL_WORKFLOW) {
+                return [
+                    'status' => 'skipped',
+                    'reason' => $classification['reason'],
+                ];
+            }
+
+            $resultData = $this->applyApprovalWorkflow(
+                $recommendation,
+                [
+                    'result_status' => RecommendationMigrationResult::STATUS_APPLIED,
+                    'reason' => $classification['reason'],
+                ],
+                $actorId,
+            );
+            $activeRun = $this->findActiveApprovalRun($recommendationId);
+            if ($activeRun !== null) {
+                if (($resultData['result_status'] ?? null) === RecommendationMigrationResult::STATUS_SKIPPED) {
+                    return [
+                        'status' => 'unchanged',
+                        'reason' => (string)($resultData['reason'] ?? 'Recommendation already has an active run.'),
+                    ];
+                }
+
+                return ['status' => 'started'];
+            }
+
+            if (($resultData['result_status'] ?? null) === RecommendationMigrationResult::STATUS_SKIPPED) {
+                return [
+                    'status' => 'skipped',
+                    'reason' => (string)($resultData['reason'] ?? 'Recommendation requires manual review.'),
+                ];
+            }
+
+            throw new RuntimeException(
+                'Existing recommendation approval workflow did not create a pending approval gate or active run.',
+            );
+        });
+    }
+
+    /**
      * Format an audit failure for console/service output.
      *
      * @param array{count:int,recommendations:array<int, array{id:int,state:string|null,status:string|null}>} $audit Audit result
@@ -497,7 +702,13 @@ class RecommendationMigrationService
         try {
             $approvers = $this->approvalResolver->resolveApprovers($firstStep, $award);
         } catch (RuntimeException $exception) {
-            return 'Recommendation approval process cannot resolve approvers: ' . $exception->getMessage();
+            Log::error(sprintf(
+                'Recommendation %d approval readiness could not resolve approvers: %s',
+                (int)$recommendation->id,
+                $exception->getMessage(),
+            ));
+
+            return 'Recommendation approval process cannot resolve eligible approvers. Review server logs for details.';
         }
 
         if ($approvers === []) {
@@ -579,20 +790,26 @@ class RecommendationMigrationService
                 $resultData['result_status'] = RecommendationMigrationResult::STATUS_SKIPPED;
             }
         } catch (Throwable $e) {
+            Log::error(sprintf(
+                'Recommendation migration failed for recommendation %d: %s',
+                (int)$recommendation->id,
+                $e->getMessage(),
+            ));
             if (
                 $classification['target'] === RecommendationMigrationResult::TARGET_APPROVAL_WORKFLOW
                 && $this->isManualReviewableApprovalWorkflowFailure($e)
             ) {
+                $failureReason = $this->manualReviewableApprovalWorkflowFailureReason($e);
                 $resultData['target_action'] = RecommendationMigrationResult::TARGET_MANUAL_REVIEW;
                 $resultData['result_status'] = RecommendationMigrationResult::STATUS_SKIPPED;
-                $resultData['reason'] = 'Approval workflow could not start during migration: ' . $e->getMessage();
+                $resultData['reason'] = 'Approval workflow could not start during migration: ' . $failureReason;
                 $resultData['details'] = [
                     'originalTarget' => RecommendationMigrationResult::TARGET_APPROVAL_WORKFLOW,
-                    'workflowError' => $e->getMessage(),
+                    'workflowErrorCategory' => $failureReason,
                 ];
             } else {
                 $resultData['result_status'] = RecommendationMigrationResult::STATUS_ERROR;
-                $resultData['reason'] = $e->getMessage();
+                $resultData['reason'] = self::MIGRATION_FAILURE_REASON;
             }
         }
 
@@ -608,7 +825,32 @@ class RecommendationMigrationService
 
         return str_contains($message, 'resolved zero eligible approvers')
             || str_contains($message, 'has no eligible approvers')
-            || str_contains($message, 'did not create a pending approval gate');
+            || str_contains($message, 'did not create a pending approval gate')
+            || str_contains($message, 'approval workflow ownership cannot be safely repaired');
+    }
+
+    /**
+     * Map a known approval-start failure to a safe operator-facing category.
+     */
+    private function manualReviewableApprovalWorkflowFailureReason(Throwable $exception): string
+    {
+        $message = $exception->getMessage();
+        if (
+            str_contains($message, 'resolved zero eligible approvers')
+            || str_contains($message, 'has no eligible approvers')
+        ) {
+            return self::APPROVAL_NO_ELIGIBLE_APPROVERS_REASON;
+        }
+
+        if (str_contains($message, 'did not create a pending approval gate')) {
+            return self::APPROVAL_GATE_MISSING_REASON;
+        }
+
+        if (str_contains($message, 'approval workflow ownership cannot be safely repaired')) {
+            return self::APPROVAL_OWNERSHIP_AMBIGUOUS_REASON;
+        }
+
+        return self::APPROVAL_START_FAILURE_REASON;
     }
 
     /**
@@ -697,9 +939,13 @@ class RecommendationMigrationService
 
         $existingInstance = $this->findActiveWorkflowInstance((int)$recommendation->id);
         if ($existingInstance !== null) {
+            $run = $this->repairActiveWorkflowOwnership($recommendation, $existingInstance, $actorId);
             $resultData['workflow_instance_id'] = (int)$existingInstance->id;
-            $resultData['result_status'] = RecommendationMigrationResult::STATUS_SKIPPED;
-            $resultData['reason'] = 'Recommendation already has an active workflow instance.';
+            $resultData['approval_run_id'] = (int)$run->id;
+            $resultData['reason'] = 'Active recommendation approval workflow ownership was repaired.';
+            $resultData['details'] = [
+                'ownershipRepaired' => true,
+            ];
 
             return $resultData;
         }
@@ -850,7 +1096,7 @@ class RecommendationMigrationService
      */
     private function findActiveWorkflowInstance(int $recommendationId): ?EntityInterface
     {
-        return $this->workflowInstancesTable->find()
+        $instances = $this->workflowInstancesTable->find()
             ->innerJoinWith('WorkflowDefinitions')
             ->where([
                 'WorkflowDefinitions.slug' => self::WORKFLOW_SLUG,
@@ -863,7 +1109,188 @@ class RecommendationMigrationService
                 ],
             ])
             ->orderBy(['WorkflowInstances.id' => 'DESC'])
-            ->first();
+            ->all()
+            ->toList();
+        if (count($instances) > 1) {
+            throw new RuntimeException(sprintf(
+                'Recommendation %d approval workflow ownership cannot be safely repaired: '
+                . 'found %d active workflow instances.',
+                $recommendationId,
+                count($instances),
+            ));
+        }
+
+        return $instances[0] ?? null;
+    }
+
+    /**
+     * Recreate a missing approval-run projection for one active workflow instance.
+     *
+     * The workflow instance, approval gates, and responses are the durable evidence.
+     * Repair only relinks their run projection; it never replaces a gate or response.
+     *
+     * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation being repaired
+     * @param \Cake\Datasource\EntityInterface $instance Active existing-recommendation workflow
+     * @param int $actorId Member initiating the repair
+     * @return \Cake\Datasource\EntityInterface
+     */
+    private function repairActiveWorkflowOwnership(
+        Recommendation $recommendation,
+        EntityInterface $instance,
+        int $actorId,
+    ): EntityInterface {
+        $recommendationId = (int)$recommendation->id;
+        $instanceId = (int)$instance->id;
+        $existingRun = $this->findActiveApprovalRun($recommendationId);
+        if ($existingRun !== null) {
+            return $existingRun;
+        }
+
+        $approvals = $this->workflowApprovalsTable->find()
+            ->where([
+                'workflow_instance_id' => $instanceId,
+                'node_id' => 'award-approval-gate',
+            ])
+            ->orderBy(['id' => 'ASC'])
+            ->all()
+            ->toList();
+        $ownedApprovals = [];
+        $currentApprovals = [];
+        $pendingApprovals = [];
+        $referencedRunIds = [];
+        foreach ($approvals as $approval) {
+            $config = is_array($approval->approver_config) ? $approval->approver_config : [];
+            $stepKey = trim((string)($config['award_approval_step_key'] ?? ''));
+            if ($stepKey === '') {
+                continue;
+            }
+            $ownedApprovals[] = $approval;
+            $referencedRunId = (int)($config['award_approval_run_id'] ?? 0);
+            if ($referencedRunId > 0) {
+                $referencedRunIds[] = $referencedRunId;
+            }
+            if (
+                in_array(
+                    $approval->status,
+                    [
+                        WorkflowApproval::STATUS_PENDING,
+                        WorkflowApproval::STATUS_APPROVED,
+                        WorkflowApproval::STATUS_REJECTED,
+                    ],
+                    true,
+                )
+            ) {
+                $currentApprovals[] = $approval;
+            }
+            if ($approval->status === WorkflowApproval::STATUS_PENDING) {
+                $pendingApprovals[] = $approval;
+            }
+        }
+
+        if ($ownedApprovals === [] || $currentApprovals === []) {
+            throw new RuntimeException(sprintf(
+                'Recommendation %d approval workflow ownership cannot be safely repaired: '
+                . 'no current configured award approval gate was found.',
+                $recommendationId,
+            ));
+        }
+        if (count($pendingApprovals) > 1) {
+            throw new RuntimeException(sprintf(
+                'Recommendation %d approval workflow ownership cannot be safely repaired: '
+                . 'found %d pending award approval gates.',
+                $recommendationId,
+                count($pendingApprovals),
+            ));
+        }
+
+        $currentApproval = $pendingApprovals[0] ?? $currentApprovals[array_key_last($currentApprovals)];
+        $currentConfig = is_array($currentApproval->approver_config) ? $currentApproval->approver_config : [];
+        $currentStepKey = trim((string)($currentConfig['award_approval_step_key'] ?? ''));
+        if ($currentStepKey === '') {
+            throw new RuntimeException(sprintf(
+                'Recommendation %d approval workflow ownership cannot be safely repaired: '
+                . 'the current gate has no stable approval step key.',
+                $recommendationId,
+            ));
+        }
+
+        $referencedRunIds = array_values(array_unique($referencedRunIds));
+        $referencedRuns = [];
+        if ($referencedRunIds !== []) {
+            $referencedRuns = $this->approvalRunsTable->find('withTrashed')
+                ->where(['id IN' => $referencedRunIds])
+                ->orderBy(['id' => 'ASC'])
+                ->all()
+                ->toList();
+            foreach ($referencedRuns as $referencedRun) {
+                if (
+                    (int)$referencedRun->recommendation_id !== $recommendationId
+                    || (int)$referencedRun->workflow_instance_id !== $instanceId
+                ) {
+                    throw new RuntimeException(sprintf(
+                        'Recommendation %d approval workflow ownership cannot be safely repaired: '
+                        . 'approval evidence references a run owned by another recommendation or workflow.',
+                        $recommendationId,
+                    ));
+                }
+            }
+        }
+
+        $process = $recommendation->award?->approval_process ?? null;
+        if ($process === null || !$process->is_active) {
+            throw new RuntimeException(sprintf(
+                'Recommendation %d approval workflow ownership cannot be safely repaired: '
+                . 'the award does not have an active approval process.',
+                $recommendationId,
+            ));
+        }
+        $currentStepLabel = $currentStepKey;
+        foreach ($process->approval_process_steps ?? [] as $step) {
+            if ((string)$step->step_key === $currentStepKey) {
+                $currentStepLabel = (string)$step->label;
+                break;
+            }
+        }
+
+        $rehydratedFromRunId = null;
+        foreach (array_reverse($referencedRuns) as $referencedRun) {
+            if ($referencedRun->deleted === null) {
+                $rehydratedFromRunId = (int)$referencedRun->id;
+                break;
+            }
+        }
+        $run = $this->approvalRunsTable->newEntity([
+            'recommendation_id' => $recommendationId,
+            'approval_process_id' => (int)$process->id,
+            'workflow_instance_id' => $instanceId,
+            'status' => RecommendationApprovalRun::STATUS_IN_PROGRESS,
+            'current_step_key' => $currentStepKey,
+            'current_step_label' => $currentStepLabel,
+            'started' => $instance->started_at ?? $instance->created ?? DateTime::now(),
+            'rehydrated_from_run_id' => $rehydratedFromRunId,
+            'created_by' => $actorId,
+            'modified_by' => $actorId,
+        ]);
+        $this->approvalRunsTable->saveOrFail($run);
+
+        foreach ($ownedApprovals as $approval) {
+            $config = is_array($approval->approver_config) ? $approval->approver_config : [];
+            $config['award_approval_run_id'] = (int)$run->id;
+            $approval->approver_config = $config;
+            $this->workflowApprovalsTable->saveOrFail($approval);
+        }
+
+        $context = is_array($instance->context) ? $instance->context : [];
+        if (is_array($context['awardApprovalCurrentStep']['approvalApproverConfig'] ?? null)) {
+            $context['awardApprovalCurrentStep']['approvalApproverConfig']['award_approval_run_id'] = (int)$run->id;
+        }
+        if (is_array($context['nodes']['start-approval-process']['result'] ?? null)) {
+            $context['nodes']['start-approval-process']['result']['runId'] = (int)$run->id;
+        }
+        $instance->context = $context;
+        $this->workflowInstancesTable->saveOrFail($instance);
+
+        return $run;
     }
 
     /**

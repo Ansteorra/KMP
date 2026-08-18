@@ -4,11 +4,14 @@ declare(strict_types=1);
 namespace Awards\Test\TestCase\Services;
 
 use App\Model\Entity\ActionItem;
+use App\Services\ActionItems\ActionItemService;
+use App\Services\ServiceResult;
 use App\Test\TestCase\BaseTestCase;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
 use Awards\Services\BestowalTodoAssigneeResolver;
 use Awards\Services\BestowalTodoMaterializationService;
+use Cake\I18n\DateTime;
 use Cake\ORM\Table;
 
 /**
@@ -166,6 +169,478 @@ class BestowalTodoMaterializationServiceTest extends BaseTestCase
         $this->assertCount(0, $this->loadActionItems($bestowalId));
     }
 
+    public function testMaterializeIsNoOpForGivenBestowal(): void
+    {
+        $templateId = $this->createTemplateWithItems();
+        $awardId = $this->assignTemplateToAward($templateId, self::KINGDOM_BRANCH_ID);
+        $bestowal = $this->createPersistedBestowal(
+            $awardId,
+            Bestowal::LIFECYCLE_GIVEN,
+            'Given Materialization Guard',
+        );
+
+        $result = $this->service->materializeForBestowal($bestowal);
+
+        $this->assertTrue($result->success, (string)$result->reason);
+        $this->assertSame([], $result->data);
+        $this->assertCount(0, $this->loadActionItems((int)$bestowal->id));
+    }
+
+    public function testSyncForBestowalReconcilesCurrentInactiveTemplateAndIsIdempotent(): void
+    {
+        $templateId = $this->createTemplateWithItems();
+        $awardId = $this->assignTemplateToAward($templateId, self::KINGDOM_BRANCH_ID);
+        $bestowalId = 9000010;
+        $bestowal = $this->buildBestowal($bestowalId, $awardId);
+        $materialized = $this->service->materializeForBestowal($bestowal);
+        $this->assertTrue($materialized->success, (string)$materialized->reason);
+
+        $existing = $this->loadActionItems($bestowalId);
+        $completed = $existing['scroll_assigned'];
+        $completed->status = ActionItem::STATUS_COMPLETED;
+        $completed->completed_at = DateTime::now();
+        $completed->completed_by = self::ADMIN_MEMBER_ID;
+        $this->actionItemsTable->saveOrFail($completed);
+        $completedAt = $completed->completed_at;
+
+        $templateItems = $this->itemsTable->find()
+            ->where(['template_id' => $templateId])
+            ->all()
+            ->combine('item_key', fn($item) => $item)
+            ->toArray();
+        $keptDefinition = $templateItems['scroll_assigned'];
+        $keptDefinition->label = 'Updated scroll assignment';
+        $keptDefinition->assignee_source_id = self::ADMIN_MEMBER_ID;
+        $keptDefinition->is_gating = false;
+        $this->itemsTable->saveOrFail($keptDefinition);
+        $this->itemsTable->deleteOrFail($templateItems['scroll_finished']);
+
+        $addedDefinition = $this->itemsTable->newEntity([
+            'template_id' => $templateId,
+            'item_key' => 'presentation_planned',
+            'label' => 'Presentation planned',
+            'assignee_type' => BestowalTodoTemplateItem::ASSIGNEE_TYPE_MEMBER,
+            'assignee_source_id' => self::TEST_MEMBER_AGATHA_ID,
+            'branch_mode' => BestowalTodoTemplateItem::BRANCH_MODE_AWARD,
+            'is_gating' => true,
+            'sort_order' => 2,
+        ]);
+        $this->itemsTable->saveOrFail($addedDefinition);
+        $template = $this->templatesTable->get($templateId);
+        $template->is_active = false;
+        $this->templatesTable->saveOrFail($template);
+
+        $result = $this->service->syncForBestowal($bestowal, self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($result->success, (string)$result->reason);
+        $this->assertFalse($result->data['skipped']);
+        $this->assertSame($templateId, $result->data['templateId']);
+        $this->assertSame(1, $result->data['createdCount']);
+        $this->assertSame(1, $result->data['updatedCount']);
+        $this->assertSame(1, $result->data['cancelledCount']);
+
+        $synced = $this->loadActionItems($bestowalId);
+        $this->assertSame('Updated scroll assignment', $synced['scroll_assigned']->title);
+        $this->assertTrue($synced['scroll_assigned']->isCompleted());
+        $this->assertEquals($completedAt, $synced['scroll_assigned']->completed_at);
+        $this->assertSame(self::ADMIN_MEMBER_ID, (int)$synced['scroll_assigned']->completed_by);
+        $this->assertSame(self::ADMIN_MEMBER_ID, (int)$synced['scroll_assigned']->assignee_lookup_id);
+        $this->assertSame(ActionItem::STATUS_CANCELLED, $synced['scroll_finished']->status);
+        $this->assertTrue($synced['presentation_planned']->isOpen());
+
+        $retiredLogCount = $this->getTableLocator()->get('ActionItemLogs')->find()
+            ->where(['action_item_id' => (int)$synced['scroll_finished']->id])
+            ->count();
+        $second = $this->service->syncForBestowal($bestowal, self::ADMIN_MEMBER_ID);
+        $this->assertTrue($second->success, (string)$second->reason);
+        $this->assertSame(0, $second->data['createdCount']);
+        $this->assertSame(0, $second->data['updatedCount']);
+        $this->assertSame(0, $second->data['cancelledCount']);
+        $this->assertSame(0, $second->data['reopenedCount']);
+        $this->assertSame(
+            $retiredLogCount,
+            $this->getTableLocator()->get('ActionItemLogs')->find()
+                ->where(['action_item_id' => (int)$synced['scroll_finished']->id])
+                ->count(),
+        );
+    }
+
+    public function testSyncForBestowalSwitchesTemplatesWhilePreservingStableItemHistory(): void
+    {
+        $originalTemplateId = $this->createTemplateWithItems();
+        $awardId = $this->assignTemplateToAward($originalTemplateId, self::KINGDOM_BRANCH_ID);
+        $bestowal = $this->createPersistedBestowal(
+            $awardId,
+            Bestowal::LIFECYCLE_OPEN,
+            'Template Switch',
+        );
+        $materialized = $this->service->materializeForBestowal($bestowal);
+        $this->assertTrue($materialized->success, (string)$materialized->reason);
+
+        $originalItems = $this->loadActionItems((int)$bestowal->id);
+        $sharedId = (int)$originalItems['scroll_assigned']->id;
+        $removedId = (int)$originalItems['scroll_finished']->id;
+        $completeResult = (new ActionItemService())->complete(
+            $sharedId,
+            self::ADMIN_MEMBER_ID,
+            'Completed before the process changed.',
+            false,
+        );
+        $this->assertTrue($completeResult->success, (string)$completeResult->reason);
+        $completedBeforeSync = $this->actionItemsTable->get($sharedId);
+        $completedAt = $completedBeforeSync->completed_at;
+        $sharedLogCount = $this->countActionItemLogs($sharedId);
+
+        $replacementTemplateId = $this->createTemplateFromDefinitions([
+            [
+                'item_key' => 'presentation_planned',
+                'label' => 'Presentation planned',
+                'assignee_source_id' => self::TEST_MEMBER_AGATHA_ID,
+                'is_gating' => true,
+                'sort_order' => 0,
+            ],
+            [
+                'item_key' => 'scroll_assigned',
+                'label' => 'Scroll assignment confirmed',
+                'description' => 'Use the current reign process.',
+                'assignee_source_id' => self::ADMIN_MEMBER_ID,
+                'is_gating' => false,
+                'sort_order' => 1,
+            ],
+        ]);
+        $award = $this->awardsTable->get($awardId);
+        $award->bestowal_todo_template_id = $replacementTemplateId;
+        $this->awardsTable->saveOrFail($award);
+
+        $result = $this->service->syncForBestowal($bestowal, self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($result->success, (string)$result->reason);
+        $this->assertSame($replacementTemplateId, $result->data['templateId']);
+        $this->assertSame(1, $result->data['createdCount']);
+        $this->assertSame(1, $result->data['updatedCount']);
+        $this->assertSame(1, $result->data['cancelledCount']);
+        $this->assertSame(0, $result->data['reopenedCount']);
+
+        $synced = $this->loadActionItems((int)$bestowal->id);
+        $this->assertCount(3, $synced, 'Cancelled history remains alongside the current two-item definition.');
+        $this->assertSame($sharedId, (int)$synced['scroll_assigned']->id);
+        $this->assertSame('Scroll assignment confirmed', $synced['scroll_assigned']->title);
+        $this->assertSame('Use the current reign process.', $synced['scroll_assigned']->description);
+        $this->assertSame(1, (int)$synced['scroll_assigned']->sort_order);
+        $this->assertFalse((bool)$synced['scroll_assigned']->is_gating);
+        $this->assertTrue($synced['scroll_assigned']->isCompleted());
+        $this->assertEquals($completedAt, $synced['scroll_assigned']->completed_at);
+        $this->assertSame(self::ADMIN_MEMBER_ID, (int)$synced['scroll_assigned']->completed_by);
+        $this->assertSame(
+            $sharedLogCount,
+            $this->countActionItemLogs($sharedId),
+            'Refreshing the shared definition must not rewrite its completion history.',
+        );
+
+        $this->assertSame($removedId, (int)$synced['scroll_finished']->id);
+        $this->assertSame(ActionItem::STATUS_CANCELLED, $synced['scroll_finished']->status);
+        $this->assertSame(
+            ActionItemService::SYSTEM_DEFINITION_SYNC_CANCEL_NOTE,
+            $this->latestActionItemLogNote($removedId),
+        );
+        $this->assertSame(0, (int)$synced['presentation_planned']->sort_order);
+        $this->assertTrue($synced['presentation_planned']->isOpen());
+        $createdId = (int)$synced['presentation_planned']->id;
+        $logCountAfterSync = $this->countActionItemLogsForBestowal((int)$bestowal->id);
+        $this->assertSame(
+            Bestowal::LIFECYCLE_OPEN,
+            $this->getTableLocator()->get('Awards.Bestowals')->get($bestowal->id)->lifecycle_status,
+        );
+
+        $second = $this->service->syncForBestowal($bestowal, self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($second->success, (string)$second->reason);
+        $this->assertSame(0, $second->data['createdCount']);
+        $this->assertSame(0, $second->data['updatedCount']);
+        $this->assertSame(0, $second->data['cancelledCount']);
+        $this->assertSame(0, $second->data['reopenedCount']);
+        $afterSecondSync = $this->loadActionItems((int)$bestowal->id);
+        $this->assertSame($sharedId, (int)$afterSecondSync['scroll_assigned']->id);
+        $this->assertSame($removedId, (int)$afterSecondSync['scroll_finished']->id);
+        $this->assertSame($createdId, (int)$afterSecondSync['presentation_planned']->id);
+        $this->assertSame($logCountAfterSync, $this->countActionItemLogsForBestowal((int)$bestowal->id));
+        $this->assertSame(
+            Bestowal::LIFECYCLE_OPEN,
+            $this->getTableLocator()->get('Awards.Bestowals')->get($bestowal->id)->lifecycle_status,
+        );
+    }
+
+    public function testSyncForBestowalReopensSameActionItemAfterTemplateItemDeleteAndRestore(): void
+    {
+        $templateId = $this->createTemplateWithItems();
+        $awardId = $this->assignTemplateToAward($templateId, self::KINGDOM_BRANCH_ID);
+        $bestowal = $this->createPersistedBestowal(
+            $awardId,
+            Bestowal::LIFECYCLE_OPEN,
+            'Definition Restore',
+        );
+        $materialized = $this->service->materializeForBestowal($bestowal);
+        $this->assertTrue($materialized->success, (string)$materialized->reason);
+
+        $initialItems = $this->loadActionItems((int)$bestowal->id);
+        $returnedActionItemId = (int)$initialItems['scroll_finished']->id;
+        $templateItem = $this->itemsTable->find()
+            ->where([
+                'template_id' => $templateId,
+                'item_key' => 'scroll_finished',
+            ])
+            ->firstOrFail();
+        $templateItemId = (int)$templateItem->id;
+        $this->itemsTable->deleteOrFail($templateItem);
+
+        $removed = $this->service->syncForBestowal($bestowal, self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($removed->success, (string)$removed->reason);
+        $this->assertSame(1, $removed->data['cancelledCount']);
+        $cancelled = $this->loadActionItems((int)$bestowal->id)['scroll_finished'];
+        $this->assertSame($returnedActionItemId, (int)$cancelled->id);
+        $this->assertSame(ActionItem::STATUS_CANCELLED, $cancelled->status);
+        $this->assertSame(
+            ActionItemService::SYSTEM_DEFINITION_SYNC_CANCEL_NOTE,
+            $this->latestActionItemLogNote($returnedActionItemId),
+        );
+
+        $deletedTemplateItem = $this->itemsTable->find('withTrashed')
+            ->where(['id' => $templateItemId])
+            ->firstOrFail();
+        $this->assertNotNull($deletedTemplateItem->deleted);
+        $deletedTemplateItem->deleted = null;
+        $this->itemsTable->saveOrFail($deletedTemplateItem);
+
+        $returned = $this->service->syncForBestowal($bestowal, self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($returned->success, (string)$returned->reason);
+        $this->assertSame(0, $returned->data['createdCount']);
+        $this->assertSame(1, $returned->data['reopenedCount']);
+        $reopened = $this->loadActionItems((int)$bestowal->id)['scroll_finished'];
+        $this->assertSame($returnedActionItemId, (int)$reopened->id);
+        $this->assertTrue($reopened->isOpen());
+        $this->assertSame(
+            1,
+            $this->actionItemsTable->find()
+                ->where([
+                    'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                    'entity_id' => (int)$bestowal->id,
+                    'source_ref' => 'scroll_finished',
+                ])
+                ->count(),
+            'A restored template row must reuse the existing ActionItem instead of creating a duplicate.',
+        );
+        $this->assertSame(
+            ActionItemService::SYSTEM_DEFINITION_SYNC_REOPEN_NOTE,
+            $this->latestActionItemLogNote($returnedActionItemId),
+        );
+        $logCountAfterReopen = $this->countActionItemLogs($returnedActionItemId);
+
+        $third = $this->service->syncForBestowal($bestowal, self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($third->success, (string)$third->reason);
+        $this->assertSame(0, $third->data['createdCount']);
+        $this->assertSame(0, $third->data['updatedCount']);
+        $this->assertSame(0, $third->data['cancelledCount']);
+        $this->assertSame(0, $third->data['reopenedCount']);
+        $this->assertSame($logCountAfterReopen, $this->countActionItemLogs($returnedActionItemId));
+        $this->assertSame(
+            $returnedActionItemId,
+            (int)$this->loadActionItems((int)$bestowal->id)['scroll_finished']->id,
+        );
+        $this->assertSame(
+            Bestowal::LIFECYCLE_OPEN,
+            $this->getTableLocator()->get('Awards.Bestowals')->get($bestowal->id)->lifecycle_status,
+        );
+    }
+
+    public function testSyncForBestowalTreatsEmptyTemplateAsAuthoritative(): void
+    {
+        $template = $this->templatesTable->saveOrFail($this->templatesTable->newEntity([
+            'name' => 'Empty Sync Template ' . uniqid(),
+            'description' => 'Intentionally empty.',
+            'is_active' => true,
+        ]));
+        $awardId = $this->assignTemplateToAward((int)$template->id, self::KINGDOM_BRANCH_ID);
+        $bestowalId = 9000011;
+        $bestowal = $this->buildBestowal($bestowalId, $awardId);
+        $existing = $this->actionItemsTable->saveOrFail($this->actionItemsTable->newEntity([
+            'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+            'entity_id' => $bestowalId,
+            'title' => 'Existing preparation',
+            'assignee_type' => ActionItem::ASSIGNEE_TYPE_MEMBER,
+            'assignee_config' => ['member_id' => self::TEST_MEMBER_AGATHA_ID],
+            'status' => ActionItem::STATUS_OPEN,
+            'is_gating' => true,
+            'sort_order' => 0,
+            'source_ref' => 'existing_preparation',
+        ]));
+
+        $result = $this->service->syncForBestowal($bestowal, self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($result->success, (string)$result->reason);
+        $this->assertFalse($result->data['skipped']);
+        $this->assertSame(1, $result->data['cancelledCount']);
+        $this->assertSame(ActionItem::STATUS_CANCELLED, $this->actionItemsTable->get($existing->id)->status);
+        $this->assertSame(1, $this->getTableLocator()->get('ActionItemLogs')->find()
+            ->where(['action_item_id' => (int)$existing->id])
+            ->count());
+
+        $second = $this->service->syncForBestowal($bestowal, self::ADMIN_MEMBER_ID);
+        $this->assertTrue($second->success, (string)$second->reason);
+        $this->assertSame(0, $second->data['cancelledCount']);
+    }
+
+    public function testSyncForBestowalRollsBackWhenRequiredFieldPassFails(): void
+    {
+        $templateId = $this->createTemplateWithItems();
+        $awardId = $this->assignTemplateToAward($templateId, self::KINGDOM_BRANCH_ID);
+        $bestowalId = 9000012;
+        $bestowal = $this->buildBestowal($bestowalId, $awardId);
+        $actionItemService = $this->getMockBuilder(ActionItemService::class)
+            ->onlyMethods(['synchronizeFor', 'syncRequiredFieldCompletionStates'])
+            ->getMock();
+        $actionItemService->expects($this->once())
+            ->method('synchronizeFor')
+            ->willReturnCallback(function () use ($bestowalId): ServiceResult {
+                $this->actionItemsTable->saveOrFail($this->actionItemsTable->newEntity([
+                    'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                    'entity_id' => $bestowalId,
+                    'title' => 'Must roll back',
+                    'assignee_type' => ActionItem::ASSIGNEE_TYPE_MEMBER,
+                    'assignee_config' => ['member_id' => self::ADMIN_MEMBER_ID],
+                    'status' => ActionItem::STATUS_OPEN,
+                    'is_gating' => true,
+                    'sort_order' => 0,
+                    'source_ref' => 'must_roll_back',
+                ]));
+
+                return new ServiceResult(true, null, [
+                    'createdCount' => 1,
+                    'updatedCount' => 0,
+                    'cancelledCount' => 0,
+                    'reopenedCount' => 0,
+                    'unchangedCount' => 0,
+                    'requiredCompletedCount' => 1,
+                    'requiredReopenedCount' => 0,
+                    'requiredSkippedCount' => 0,
+                ]);
+            });
+        $actionItemService->expects($this->once())
+            ->method('syncRequiredFieldCompletionStates')
+            ->willReturn(new ServiceResult(false, 'Required-field reconciliation failed.'));
+
+        $result = (new BestowalTodoMaterializationService($actionItemService))
+            ->syncForBestowal($bestowal, self::ADMIN_MEMBER_ID);
+
+        $this->assertFalse($result->success);
+        $this->assertSame(
+            'Bestowal to-do synchronization failed. Review server logs for details.',
+            $result->reason,
+        );
+        $this->assertStringNotContainsString('Required-field reconciliation failed.', $result->reason);
+        $this->assertCount(0, $this->loadActionItems($bestowalId));
+    }
+
+    public function testSyncOpenBestowalsProcessesExactOpenLifecycleOnly(): void
+    {
+        $templateId = $this->createTemplateWithItems();
+        $awardId = $this->assignTemplateToAward($templateId, self::KINGDOM_BRANCH_ID);
+        $open = $this->createPersistedBestowal($awardId, Bestowal::LIFECYCLE_OPEN, 'Bulk Open');
+        $given = $this->createPersistedBestowal($awardId, Bestowal::LIFECYCLE_GIVEN, 'Bulk Given');
+        $cancelled = $this->createPersistedBestowal($awardId, Bestowal::LIFECYCLE_CANCELLED, 'Bulk Cancelled');
+        $expectedProcessed = $this->getTableLocator()->get('Awards.Bestowals')->find()
+            ->where([
+                'Bestowals.lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
+                'Bestowals.deleted IS' => null,
+            ])
+            ->count();
+
+        $result = $this->service->syncOpenBestowals(self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($result->success, (string)$result->reason);
+        $this->assertSame($expectedProcessed, $result->data['processedCount']);
+        $this->assertGreaterThanOrEqual(1, $result->data['changedCount']);
+        $this->assertCount($result->data['skippedCount'], $result->data['skips']);
+        foreach ($result->data['skips'] as $skip) {
+            $this->assertGreaterThan(0, (int)$skip['bestowalId']);
+            $this->assertNotSame('', (string)$skip['reason']);
+        }
+        $this->assertCount(2, $this->loadActionItems((int)$open->id));
+        $this->assertCount(0, $this->loadActionItems((int)$given->id));
+        $this->assertCount(0, $this->loadActionItems((int)$cancelled->id));
+    }
+
+    public function testSyncOpenBestowalsRollsBackMalformedBestowalAndContinuesWithLaterHealthyBestowal(): void
+    {
+        $malformedTemplateId = $this->createTemplateFromDefinitions([
+            [
+                'item_key' => 'malformed_requirement',
+                'label' => 'Malformed requirement',
+                'assignee_source_id' => self::ADMIN_MEMBER_ID,
+                'is_gating' => true,
+                'sort_order' => 0,
+            ],
+        ]);
+        $malformedTemplateItem = $this->itemsTable->find()
+            ->where([
+                'template_id' => $malformedTemplateId,
+                'item_key' => 'malformed_requirement',
+            ])
+            ->firstOrFail();
+        $this->itemsTable->updateAll(
+            ['required_field' => 'unsupported_required_field'],
+            ['id' => (int)$malformedTemplateItem->id],
+        );
+        $malformedAwardId = $this->createAwardForTemplate($malformedTemplateId, 'Malformed Bulk Sync');
+        $malformedBestowal = $this->createPersistedBestowal(
+            $malformedAwardId,
+            Bestowal::LIFECYCLE_OPEN,
+            'Malformed Bulk Sync',
+        );
+
+        $healthyTemplateId = $this->createTemplateWithItems();
+        $healthyAwardId = $this->createAwardForTemplate($healthyTemplateId, 'Healthy Bulk Sync');
+        $healthyBestowal = $this->createPersistedBestowal(
+            $healthyAwardId,
+            Bestowal::LIFECYCLE_OPEN,
+            'Healthy Bulk Sync',
+        );
+        $this->assertLessThan(
+            (int)$healthyBestowal->id,
+            (int)$malformedBestowal->id,
+            'The healthy record must be processed after the malformed record.',
+        );
+
+        $result = $this->service->syncOpenBestowals(self::ADMIN_MEMBER_ID);
+
+        $this->assertFalse($result->success);
+        $this->assertGreaterThanOrEqual(1, $result->data['failedCount']);
+        $failure = null;
+        foreach ($result->data['failures'] as $candidate) {
+            if ((int)$candidate['bestowalId'] === (int)$malformedBestowal->id) {
+                $failure = $candidate;
+                break;
+            }
+        }
+        $this->assertNotNull($failure, 'The malformed bestowal must be reported as a failed record.');
+        $this->assertSame(
+            'Bestowal to-do synchronization failed. Review server logs for details.',
+            $failure['reason'],
+        );
+        $this->assertCount(
+            0,
+            $this->loadActionItems((int)$malformedBestowal->id),
+            'ActionItems written before malformed required-field reconciliation fails must roll back.',
+        );
+
+        $healthyItems = $this->loadActionItems((int)$healthyBestowal->id);
+        $this->assertCount(2, $healthyItems, 'A later healthy bestowal must still synchronize.');
+        $this->assertArrayHasKey('scroll_assigned', $healthyItems);
+        $this->assertArrayHasKey('scroll_finished', $healthyItems);
+    }
+
     private function createTemplateWithItems(): int
     {
         $template = $this->templatesTable->newEntity([
@@ -198,6 +673,28 @@ class BestowalTodoMaterializationServiceTest extends BaseTestCase
             'sort_order' => 1,
         ]);
         $this->assertNotFalse($this->itemsTable->save($permissionItem), json_encode($permissionItem->getErrors()));
+
+        return (int)$template->id;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $definitions Template item definitions.
+     */
+    private function createTemplateFromDefinitions(array $definitions): int
+    {
+        $template = $this->templatesTable->saveOrFail($this->templatesTable->newEntity([
+            'name' => 'Replacement Materialization Template ' . uniqid(),
+            'description' => 'A changed process used to verify in-flight synchronization.',
+            'is_active' => true,
+        ]));
+
+        foreach ($definitions as $definition) {
+            $this->itemsTable->saveOrFail($this->itemsTable->newEntity($definition + [
+                'template_id' => (int)$template->id,
+                'assignee_type' => BestowalTodoTemplateItem::ASSIGNEE_TYPE_MEMBER,
+                'branch_mode' => BestowalTodoTemplateItem::BRANCH_MODE_AWARD,
+            ]));
+        }
 
         return (int)$template->id;
     }
@@ -288,13 +785,49 @@ class BestowalTodoMaterializationServiceTest extends BaseTestCase
         return (int)$award->id;
     }
 
+    private function createAwardForTemplate(int $templateId, string $name): int
+    {
+        $award = $this->awardsTable->saveOrFail($this->awardsTable->newEntity([
+            'name' => $name . ' ' . uniqid('', true),
+            'abbreviation' => strtoupper(substr(md5(uniqid('', true)), 0, 8)),
+            'domain_id' => 2,
+            'level_id' => 1,
+            'branch_id' => self::KINGDOM_BRANCH_ID,
+            'bestowal_todo_template_id' => $templateId,
+            'is_active' => true,
+        ]));
+
+        return (int)$award->id;
+    }
+
     private function buildBestowal(int $bestowalId, int $awardId): Bestowal
     {
-        $bestowal = $this->getTableLocator()->get('Awards.Bestowals')->newEmptyEntity();
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $bestowal = $bestowals->newEntity([
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'member_sca_name' => 'Materialization Test Recipient ' . $bestowalId,
+            'award_id' => $awardId,
+            'lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
+            'stack_rank' => 0,
+            'source' => Bestowal::SOURCE_AD_HOC,
+        ]);
         $bestowal->id = $bestowalId;
-        $bestowal->award_id = $awardId;
 
-        return $bestowal;
+        return $bestowals->saveOrFail($bestowal);
+    }
+
+    private function createPersistedBestowal(int $awardId, string $lifecycleStatus, string $name): Bestowal
+    {
+        $table = $this->getTableLocator()->get('Awards.Bestowals');
+
+        return $table->saveOrFail($table->newEntity([
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'member_sca_name' => $name . ' ' . uniqid(),
+            'award_id' => $awardId,
+            'lifecycle_status' => $lifecycleStatus,
+            'stack_rank' => 0,
+            'source' => Bestowal::SOURCE_AD_HOC,
+        ]));
     }
 
     /**
@@ -316,5 +849,36 @@ class BestowalTodoMaterializationServiceTest extends BaseTestCase
         }
 
         return $keyed;
+    }
+
+    private function countActionItemLogs(int $actionItemId): int
+    {
+        return $this->getTableLocator()->get('ActionItemLogs')->find()
+            ->where(['action_item_id' => $actionItemId])
+            ->count();
+    }
+
+    private function countActionItemLogsForBestowal(int $bestowalId): int
+    {
+        $actionItemIds = $this->actionItemsTable->find()
+            ->select(['id'])
+            ->where([
+                'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                'entity_id' => $bestowalId,
+            ]);
+
+        return $this->getTableLocator()->get('ActionItemLogs')->find()
+            ->where(['action_item_id IN' => $actionItemIds])
+            ->count();
+    }
+
+    private function latestActionItemLogNote(int $actionItemId): string
+    {
+        return (string)$this->getTableLocator()->get('ActionItemLogs')->find()
+            ->select(['note'])
+            ->where(['action_item_id' => $actionItemId])
+            ->orderByDesc('id')
+            ->firstOrFail()
+            ->note;
     }
 }

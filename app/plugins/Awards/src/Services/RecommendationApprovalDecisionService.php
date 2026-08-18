@@ -85,6 +85,10 @@ class RecommendationApprovalDecisionService
             $memberId,
             $decision,
             $comment,
+            null,
+            $bestowalGatheringId !== null
+                ? ['bestowal_gathering_id' => $bestowalGatheringId]
+                : [],
         );
 
         if (!$result->isSuccess() || !$result->getData()) {

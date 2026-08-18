@@ -64,6 +64,18 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * Persist a member-assigned action item with a live, mutable Bestowal owner.
+     */
+    private function makeBestowalMemberItem(int $memberId, array $overrides = []): ActionItem
+    {
+        $bestowal = $this->makeBestowal();
+
+        return $this->makeMemberItem($memberId, array_merge([
+            'entity_id' => (int)$bestowal->id,
+        ], $overrides));
+    }
+
+    /**
      * Unauthenticated requests are redirected to login.
      *
      * @return void
@@ -515,7 +527,7 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
     public function testCompleteRejectsGet(): void
     {
         $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
-        $item = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID);
+        $item = $this->makeBestowalMemberItem(self::TEST_MEMBER_AGATHA_ID);
 
         $this->get("/action-items/complete/{$item->id}");
 
@@ -530,7 +542,7 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
     public function testCompleteViaTurboStreamRefreshesGrid(): void
     {
         $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
-        $item = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID);
+        $item = $this->makeBestowalMemberItem(self::TEST_MEMBER_AGATHA_ID);
 
         $this->enableCsrfToken();
         $this->enableSecurityToken();
@@ -560,7 +572,7 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
     public function testEligibleMemberCanComplete(): void
     {
         $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
-        $item = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID);
+        $item = $this->makeBestowalMemberItem(self::TEST_MEMBER_AGATHA_ID);
 
         $this->enableCsrfToken();
         $this->enableSecurityToken();
@@ -579,7 +591,7 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
     public function testMobileCompleteReturnsJson(): void
     {
         $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
-        $item = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID);
+        $item = $this->makeBestowalMemberItem(self::TEST_MEMBER_AGATHA_ID);
 
         $this->enableCsrfToken();
         $this->enableSecurityToken();
@@ -608,7 +620,7 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
     public function testIneligibleMemberCannotComplete(): void
     {
         $this->authenticateAsMember(self::TEST_MEMBER_BRYCE_ID);
-        $item = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID);
+        $item = $this->makeBestowalMemberItem(self::TEST_MEMBER_AGATHA_ID);
 
         $this->enableCsrfToken();
         $this->enableSecurityToken();

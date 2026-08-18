@@ -31,11 +31,6 @@ class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProv
     private array $bestowalMemo = [];
 
     /**
-     * @var array<int, \App\Model\Entity\ActionItem|null>
-     */
-    private array $eventScheduledTodoMemo = [];
-
-    /**
      * @param \Awards\Services\BestowalUpdateService|null $bestowalUpdateService Shared bestowal update service.
      * @param \Awards\Services\BestowalCourtSlotService|null $courtSlotService Court slot helper.
      */
@@ -289,6 +284,12 @@ class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProv
             }
         }
 
+        // A synchronized empty config means the template explicitly selected
+        // "None". Only legacy items with no snapshot receive key-based defaults.
+        if (is_array($item->completion_config)) {
+            return null;
+        }
+
         $defaultConfig = BestowalTodoTemplateItem::getDefaultRequiredFieldConfigForSourceRef($item->source_ref);
         if (($defaultConfig['field'] ?? null) === $requiredField) {
             return $defaultConfig;
@@ -303,7 +304,11 @@ class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProv
      */
     private function hasPrerequisite(ActionItem $item): bool
     {
-        return (string)$item->source_ref === BestowalTodoTemplateItem::ITEM_KEY_ADDED_TO_AGENDA;
+        if ((string)$item->source_ref !== BestowalTodoTemplateItem::ITEM_KEY_ADDED_TO_AGENDA) {
+            return false;
+        }
+
+        return !is_array($item->completion_config) || $item->hasCompletionRequirements();
     }
 
     /**
@@ -343,20 +348,20 @@ class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProv
         if ($bestowalId <= 0) {
             return null;
         }
-        if (array_key_exists($bestowalId, $this->eventScheduledTodoMemo)) {
-            return $this->eventScheduledTodoMemo[$bestowalId];
-        }
-
         /** @var \App\Model\Entity\ActionItem|null $item */
         $item = $this->fetchTable('ActionItems')->find()
             ->where([
                 'ActionItems.entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
                 'ActionItems.entity_id' => $bestowalId,
                 'ActionItems.source_ref' => BestowalTodoTemplateItem::ITEM_KEY_EVENT_SCHEDULED,
+                'ActionItems.status IN' => [
+                    ActionItem::STATUS_OPEN,
+                    ActionItem::STATUS_COMPLETED,
+                ],
             ])
             ->first();
 
-        return $this->eventScheduledTodoMemo[$bestowalId] = $item;
+        return $item;
     }
 
     /**

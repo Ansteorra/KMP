@@ -1520,6 +1520,7 @@ class BestowalsController extends AppController
                 'ActionItems.entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
                 'ActionItems.entity_id IN' => $bestowalIds,
                 'ActionItems.source_ref IS NOT' => null,
+                'ActionItems.status !=' => ActionItem::STATUS_CANCELLED,
             ])
             ->order([
                 'ActionItems.entity_id' => 'ASC',
@@ -1578,6 +1579,7 @@ class BestowalsController extends AppController
             ->where([
                 'ActionItems.entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
                 'ActionItems.entity_id IN' => $bestowalIds,
+                'ActionItems.status !=' => ActionItem::STATUS_CANCELLED,
                 'ActionItems.source_ref IS NOT' => null,
             ])
             ->order([
@@ -1677,6 +1679,7 @@ class BestowalsController extends AppController
             ->where([
                 'ActionItems.entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
                 'ActionItems.entity_id IN' => $bestowalIds,
+                'ActionItems.status !=' => ActionItem::STATUS_CANCELLED,
             ])
             ->orderBy([
                 'ActionItems.entity_id' => 'ASC',
@@ -1702,6 +1705,10 @@ class BestowalsController extends AppController
      */
     protected function buildBestowalTodoSummaryHtml(array $items): string
     {
+        $items = array_values(array_filter(
+            $items,
+            static fn(ActionItem $item): bool => $item->status !== ActionItem::STATUS_CANCELLED,
+        ));
         if ($items === []) {
             return '<span class="text-muted small">' . h(__('No checks')) . '</span>';
         }
@@ -1713,7 +1720,6 @@ class BestowalsController extends AppController
         foreach ($items as $item) {
             $isGating = (bool)$item->is_gating;
             $completed = $item->isCompleted();
-            $cancelled = $item->status === ActionItem::STATUS_CANCELLED;
             if ($item->isOpen()) {
                 $openCount++;
             }
@@ -1727,9 +1733,6 @@ class BestowalsController extends AppController
             if ($completed) {
                 $icon = 'bi-check-square-fill text-success';
                 $statusLabel = __('Completed task:');
-            } elseif ($cancelled) {
-                $icon = 'bi-dash-square text-muted';
-                $statusLabel = __('Cancelled task:');
             } else {
                 $icon = 'bi-hourglass-split text-secondary';
                 $statusLabel = __('Open task:');

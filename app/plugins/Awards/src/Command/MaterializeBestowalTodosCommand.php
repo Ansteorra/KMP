@@ -71,7 +71,7 @@ class MaterializeBestowalTodosCommand extends Command
                 'Bestowals.deleted IS' => null,
                 'OR' => [
                     'Bestowals.lifecycle_status IS' => null,
-                    'Bestowals.lifecycle_status !=' => Bestowal::LIFECYCLE_CANCELLED,
+                    'Bestowals.lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
                 ],
             ])
             ->orderBy(['Bestowals.id' => 'ASC']);

@@ -72,7 +72,11 @@ class BestowalCancellationService
         try {
             return $this->bestowalsTable->getConnection()->transactional(
                 function () use ($bestowalId, $actorId, $normalizedReason): array {
-                    $bestowal = $this->bestowalsTable->get($bestowalId, contain: ['Recommendations']);
+                    $bestowal = $this->bestowalsTable->find()
+                        ->where(['Bestowals.id' => $bestowalId])
+                        ->contain(['Recommendations'])
+                        ->epilog('FOR UPDATE')
+                        ->firstOrFail();
                     $lifecycleStatus = (string)($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN);
                     if ($lifecycleStatus === Bestowal::LIFECYCLE_GIVEN) {
                         throw new RuntimeException('Given bestowals cannot be cancelled.');

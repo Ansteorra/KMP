@@ -86,6 +86,16 @@ Awards\Policy\CourtAgendaPolicy:
 | `Can Administer Bestowals` | Branch and Children | Scoped bestowal read/edit, state updates, cancellation, scheduling, scroll preparation, and ad-hoc creation |
 | `Can Administer Court Agendas` | Branch and Children | Full court agenda bundle |
 | `Can Manage Bestowal To-Do Templates` | Global | Template and template-item index, add, view, edit, and delete |
+| `Can Synchronize Award Workflows` | Global | View both workflow configuration indexes and synchronize all active recommendation approvals and open bestowal To-Dos; does not grant template/process editing |
+
+`Can Synchronize Award Workflows` requires active membership and a current warrant. The migration grants it to the
+`Ansteorran Crown` role. The existing `Can Manage Awards` and `Can Manage Bestowal To-Do Templates` permissions are
+mapped directly to their matching synchronization action, preserving established administrative access without
+granting either administrator group access to the other workflow domain.
+Because the migration adopts any existing permission with the same name, its data changes are intentionally
+irreversible; rollback refuses to delete permission grants or mappings it cannot prove it created.
+An existing soft-deleted permission with that name is restored and hardened in place so the globally unique name is
+not duplicated; migration audit fields are populated explicitly.
 
 Template administration is no longer implied by `Can Manage Awards`. Roles that held `Can Manage Awards` when the migration ran
 were also granted the dedicated template permission to preserve intended administrator access.
@@ -99,7 +109,7 @@ Supporting role configuration is:
 
 | Role | Bestowal-related permissions |
 | --- | --- |
-| Ansteorran Crown | Five Crown operational permissions plus `Can Administer Bestowals` |
+| Ansteorran Crown | Five Crown operational permissions plus `Can Administer Bestowals` and `Can Synchronize Award Workflows` |
 | Golden Staff | `Can Administer Bestowals`, `Can Administer Court Agendas` |
 | Stable Scroll | `Crown Scroll Management` |
 | Sable Scroll | `Crown Scroll Management` |
