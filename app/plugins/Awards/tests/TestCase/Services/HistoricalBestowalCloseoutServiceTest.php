@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Awards\Test\TestCase\Services;
 
 use App\Model\Entity\ActionItem;
+use App\Model\Entity\Member;
 use App\Test\TestCase\BaseTestCase;
 use Awards\Event\BestowalTodoCompletionListener;
 use Awards\Model\Entity\Bestowal;
@@ -13,6 +14,10 @@ use Cake\Core\Configure;
 use Cake\Event\EventManager;
 use Cake\I18n\DateTime;
 use Cake\ORM\Table;
+use DateTime as NativeDateTime;
+use DateTimeImmutable;
+use DateTimeInterface;
+use DateTimeZone;
 use ReflectionMethod;
 use RuntimeException;
 
@@ -267,7 +272,21 @@ class HistoricalBestowalCloseoutServiceTest extends BaseTestCase
 
         $this->assertFalse($result->success);
         $this->assertStringContainsString('canonical reviewed digest', (string)$result->reason);
+        $this->assertSame('', $result->data['manifestHash']);
         $this->assertSame(0, $result->data['summary']['changed']);
+    }
+
+    public function testDateValueNormalizesToUtcWithoutMutatingInput(): void
+    {
+        $timezone = new DateTimeZone('America/Chicago');
+        $immutable = new DateTimeImmutable('2025-12-31 18:00:00', $timezone);
+        $mutable = new NativeDateTime('2025-12-31 18:00:00', $timezone);
+        $mutableBefore = $mutable->format(DateTimeInterface::ATOM);
+
+        $this->assertSame('2026-01-01', $this->invoke('dateValue', $immutable));
+        $this->assertSame('2026-01-01', $this->invoke('dateValue', $mutable));
+        $this->assertSame($mutableBefore, $mutable->format(DateTimeInterface::ATOM));
+        $this->assertSame('America/Chicago', $mutable->getTimezone()->getName());
     }
 
     public function testRunInputRejectsWrongTenant(): void
@@ -285,12 +304,30 @@ class HistoricalBestowalCloseoutServiceTest extends BaseTestCase
         );
     }
 
+    public function testRuntimeGuardAcceptsEligibleAdultActorStatuses(): void
+    {
+        $members = $this->getTableLocator()->get('Members');
+        $actor = $members->get(self::ADMIN_MEMBER_ID);
+
+        foreach ([Member::STATUS_VERIFIED_MEMBERSHIP, Member::STATUS_ACTIVE] as $status) {
+            $actor->status = $status;
+            $actor = $members->saveOrFail($actor);
+
+            $this->assertSame($status, $actor->status);
+            $this->invoke('assertRuntimeGuards', self::ADMIN_MEMBER_ID);
+        }
+    }
+
     public function testRuntimeGuardRejectsInactiveActor(): void
     {
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('audit actor is not an active member');
+        $members = $this->getTableLocator()->get('Members');
+        $actor = $members->get(self::ADMIN_MEMBER_ID);
+        $actor->status = Member::STATUS_DEACTIVATED;
+        $members->saveOrFail($actor);
 
-        // The seeded admin is intentionally "verified", not literal "active".
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('audit actor is not an active or membership-verified adult member');
+
         $this->invoke('assertRuntimeGuards', self::ADMIN_MEMBER_ID);
     }
 

@@ -78,7 +78,8 @@ database router.
 Before the production dry run:
 
 1. Create and verify a fresh recoverable production backup.
-2. Select an active production member ID to be recorded as the audit actor.
+2. Select an active or membership-verified adult production member ID to be
+   recorded as the audit actor.
 3. Select a durable release, ticket, or change-management reference.
 4. Record the release artifact, backup reference, actor, and change reference
    in the controlled change record.

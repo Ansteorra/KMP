@@ -4,15 +4,15 @@ declare(strict_types=1);
 namespace Awards\Test\TestCase\Command;
 
 use App\Services\ServiceResult;
+use App\Test\TestCase\BaseTestCase;
 use Awards\Command\CloseHistoricalBestowalsCommand;
 use Awards\Services\HistoricalBestowalCloseoutService;
 use Cake\Command\Command;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\TestSuite\StubConsoleOutput;
-use Cake\TestSuite\TestCase;
 
-class CloseHistoricalBestowalsCommandTest extends TestCase
+class CloseHistoricalBestowalsCommandTest extends BaseTestCase
 {
     private const MANIFEST_HASH = '7ae9fa60c9ea59dbc3ea24575ed9cd43cd93a3fb6264595f28883c82b6e4bc4b';
 
@@ -182,6 +182,40 @@ class CloseHistoricalBestowalsCommandTest extends TestCase
 
         $this->assertSame(Command::CODE_ERROR, $status);
         $this->assertStringContainsString('found drift', implode("\n", $err->messages()));
+    }
+
+    public function testFailedServiceResultWithEmptyManifestHashReportsMissingAndOriginalError(): void
+    {
+        $data = $this->resultData();
+        $data['manifestHash'] = '';
+        $service = $this->createMock(HistoricalBestowalCloseoutService::class);
+        $service->method('run')->willReturn(new ServiceResult(false, 'Manifest validation failed.', $data));
+        $command = new CloseHistoricalBestowalsCommand($service);
+        ['io' => $io, 'out' => $out, 'err' => $err] = $this->consoleIo();
+
+        $status = $command->execute($this->arguments(), $io);
+
+        $this->assertSame(Command::CODE_ERROR, $status);
+        $this->assertStringContainsString('Manifest SHA-256: missing', implode("\n", $out->messages()));
+        $errors = implode("\n", $err->messages());
+        $this->assertStringContainsString('Manifest validation failed.', $errors);
+        $this->assertStringNotContainsString('invalid result payload', $errors);
+    }
+
+    public function testSuccessfulServiceResultWithEmptyManifestHashIsInvalid(): void
+    {
+        $data = $this->resultData();
+        $data['manifestHash'] = '';
+        $service = $this->createMock(HistoricalBestowalCloseoutService::class);
+        $service->method('run')->willReturn(new ServiceResult(true, null, $data));
+        $command = new CloseHistoricalBestowalsCommand($service);
+        ['io' => $io, 'out' => $out, 'err' => $err] = $this->consoleIo();
+
+        $status = $command->execute($this->arguments(), $io);
+
+        $this->assertSame(Command::CODE_ERROR, $status);
+        $this->assertStringContainsString('Manifest SHA-256: missing', implode("\n", $out->messages()));
+        $this->assertStringContainsString('invalid result payload', implode("\n", $err->messages()));
     }
 
     public function testMissingSummaryKeyReturnsError(): void

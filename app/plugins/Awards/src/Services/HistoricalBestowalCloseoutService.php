@@ -47,6 +47,11 @@ class HistoricalBestowalCloseoutService
 
     private const APPLY_COUNT = 249;
 
+    private const AUDIT_ACTOR_STATUSES = [
+        Member::STATUS_ACTIVE,
+        Member::STATUS_VERIFIED_MEMBERSHIP,
+    ];
+
     private const EXPECTED_COUNTS = [
         'apply' => 249,
         'hold' => 6,
@@ -177,7 +182,7 @@ class HistoricalBestowalCloseoutService
      * @param string $manifestPath Path to the checked-in manifest.
      * @param string $expectedManifestSha256 Operator-supplied digest assertion.
      * @param int $expectedApplyCount Operator-supplied apply-count assertion.
-     * @param int $actorId Active member recorded in audit rows.
+     * @param int $actorId Active or membership-verified adult recorded in audit rows.
      * @param string $tenant Tenant assertion.
      * @param string $changeReference Durable change-management reference.
      * @param bool $apply Whether to persist; false is read-only.
@@ -192,7 +197,7 @@ class HistoricalBestowalCloseoutService
         string $changeReference,
         bool $apply,
     ): ServiceResult {
-        $manifestHash = str_repeat('0', 64);
+        $manifestHash = '';
         $records = [];
 
         try {
@@ -586,11 +591,13 @@ class HistoricalBestowalCloseoutService
             ->select(['id', 'status'])
             ->where([
                 $this->members->aliasField('id') => $actorId,
-                $this->members->aliasField('status') => Member::STATUS_ACTIVE,
+                $this->members->aliasField('status') . ' IN' => self::AUDIT_ACTOR_STATUSES,
             ])
             ->first();
         if ($actor === null) {
-            throw new RuntimeException('The audit actor is not an active member in this tenant.');
+            throw new RuntimeException(
+                'The audit actor is not an active or membership-verified adult member in this tenant.',
+            );
         }
     }
 
@@ -1323,7 +1330,9 @@ class HistoricalBestowalCloseoutService
             return null;
         }
         if ($value instanceof DateTimeInterface) {
-            return $value->format('Y-m-d');
+            return DateTimeImmutable::createFromInterface($value)
+                ->setTimezone(new DateTimeZone('UTC'))
+                ->format('Y-m-d');
         }
 
         return substr((string)$value, 0, 10);

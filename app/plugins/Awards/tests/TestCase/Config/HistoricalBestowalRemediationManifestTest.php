@@ -3,13 +3,13 @@ declare(strict_types=1);
 
 namespace Awards\Test\TestCase\Config;
 
-use Cake\TestSuite\TestCase;
+use App\Test\TestCase\BaseTestCase;
 use DateTimeImmutable;
 
 /**
  * Locks the reviewed scope and privacy shape of the historical closeout manifest.
  */
-class HistoricalBestowalRemediationManifestTest extends TestCase
+class HistoricalBestowalRemediationManifestTest extends BaseTestCase
 {
     private const string SOURCE_WORKBOOK_SHA256 =
         'f676bc5b3d1207697573bd4a4f441df47b0bfa13a7143ad957dc47233fcc11df';

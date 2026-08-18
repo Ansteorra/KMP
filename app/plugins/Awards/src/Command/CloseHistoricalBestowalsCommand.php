@@ -72,7 +72,7 @@ class CloseHistoricalBestowalsCommand extends Command
                 'required' => true,
             ])
             ->addOption('actor-id', [
-                'help' => 'Active member ID recorded as the remediation actor.',
+                'help' => 'Active or membership-verified adult member ID recorded as the remediation actor.',
                 'required' => true,
             ])
             ->addOption('change-reference', [
@@ -126,7 +126,9 @@ class CloseHistoricalBestowalsCommand extends Command
 
         $payloadValid = true;
         $manifestHash = $data['manifestHash'] ?? null;
-        if (!is_string($manifestHash) || !preg_match('/\A[a-f0-9]{64}\z/i', $manifestHash)) {
+        if ($manifestHash === '' && !$result->isSuccess()) {
+            $manifestHash = 'missing';
+        } elseif (!is_string($manifestHash) || !preg_match('/\A[a-f0-9]{64}\z/i', $manifestHash)) {
             $manifestHash = 'missing';
             $payloadValid = false;
         }
