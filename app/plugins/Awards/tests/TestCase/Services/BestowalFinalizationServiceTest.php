@@ -448,6 +448,25 @@ class BestowalFinalizationServiceTest extends BaseTestCase
         $this->assertNull($reloaded->bestowed_at);
     }
 
+    public function testMarkGivenRestoresDisabledSavePointConfiguration(): void
+    {
+        $connection = $this->bestowals->getConnection();
+        $connection->disableSavePoints();
+        $bestowal = $this->makeBestowal();
+        $this->makeTodo((int)$bestowal->id, [
+            'is_gating' => true,
+            'status' => ActionItem::STATUS_COMPLETED,
+        ]);
+
+        $result = $this->finalizationService()->markGiven(
+            (int)$bestowal->id,
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $this->assertTrue($result->success, (string)$result->reason);
+        $this->assertFalse($connection->isSavePointsEnabled());
+    }
+
     /**
      * Build a finalization service backed by the test table locator.
      *

@@ -21,6 +21,7 @@ use Awards\Model\Entity\RecommendationFeedbackRequest;
 use Awards\Model\Entity\RecommendationMigrationResult;
 use Awards\Model\Entity\RecommendationMigrationRun;
 use Awards\Services\AwardApprovalResolverService;
+use Awards\Services\RecommendationApprovalManualReviewException;
 use Awards\Services\RecommendationApprovalProcessService;
 use Awards\Services\RecommendationApprovalWorkflowSyncService;
 use Awards\Services\RecommendationBestowalStatePolicyService;
@@ -289,7 +290,10 @@ class RecommendationMigrationServiceTest extends BaseTestCase
             'started' => DateTime::now(),
         ]));
         $service = new RecommendationMigrationService(
-            triggerDispatcher: $this->dispatcherReturningFailure('The approval step resolved zero eligible approvers.'),
+            triggerDispatcher: $this->dispatcherThrowingManualReview(
+                RecommendationApprovalManualReviewException::REASON_NO_ELIGIBLE_APPROVERS,
+                'Synthetic diagnostic wording with no operator-facing contract.',
+            ),
             approvalResolver: $this->resolverReturningApprover(),
         );
 
@@ -311,7 +315,7 @@ class RecommendationMigrationServiceTest extends BaseTestCase
             . 'Recommendation approval process has no eligible approvers.',
             $migrationResult->reason,
         );
-        $this->assertStringNotContainsString('resolved zero eligible approvers', $migrationResult->reason);
+        $this->assertStringNotContainsString('Synthetic diagnostic wording', $migrationResult->reason);
     }
 
     public function testBackfillOpenApprovalRecommendationsStartsOnlyEligibleRecords(): void
@@ -322,7 +326,7 @@ class RecommendationMigrationServiceTest extends BaseTestCase
         $eligibleId = $this->createRecommendation('Submitted', ['award_id' => (int)$award->id]);
 
         $groupHeadId = $this->createRecommendation('Submitted', ['award_id' => (int)$award->id]);
-        $this->recommendationsTable->updateAll(['status' => 'Closed'], ['id' => $groupHeadId]);
+        $this->closeRecommendationForTest($groupHeadId);
         $groupedId = $this->createRecommendation('In Consideration', [
             'award_id' => (int)$award->id,
             'recommendation_group_id' => $groupHeadId,
@@ -336,7 +340,7 @@ class RecommendationMigrationServiceTest extends BaseTestCase
             'award_id' => (int)$award->id,
         ]);
         $this->createPendingFeedbackRequest($activeFeedbackId);
-        $closedId = $this->createRecommendation('Submitted', [
+        $closedId = $this->createRecommendation('No Action', [
             'award_id' => (int)$award->id,
             'status' => 'Closed',
         ]);
@@ -391,6 +395,35 @@ class RecommendationMigrationServiceTest extends BaseTestCase
         $this->assertSame(1, $this->activeApprovalRunCount($eligibleId));
     }
 
+    public function testBackfillOpenApprovalRecommendationsRestoresDisabledSavepointsForRealCandidate(): void
+    {
+        $this->neutralizeSeededApprovalBackfillCandidates();
+        $process = $this->createBackfillApprovalProcess();
+        $award = $this->createBackfillAward((int)$process->id);
+        $recommendationId = $this->createRecommendation('Submitted', ['award_id' => (int)$award->id]);
+        $events = [];
+        $service = new RecommendationMigrationService(
+            triggerDispatcher: $this->dispatcherStartingApprovalRuns($events),
+            approvalResolver: $this->resolverReturningApprover(),
+        );
+        $connection = $this->recommendationsTable->getConnection();
+        $connection->disableSavePoints();
+
+        try {
+            $result = $service->backfillOpenApprovalRecommendations(self::ADMIN_MEMBER_ID);
+
+            $this->assertTrue($result->isSuccess(), (string)$result->getError());
+            $this->assertSame(1, $result->getData()['startedCount']);
+            $this->assertSame(1, $this->activeApprovalRunCount($recommendationId));
+            $this->assertFalse(
+                $connection->isSavePointsEnabled(),
+                'A real backfill candidate must not leak temporary savepoint configuration.',
+            );
+        } finally {
+            $connection->enableSavePoints();
+        }
+    }
+
     public function testBackfillOpenApprovalRecommendationsIsolatesFailures(): void
     {
         $this->neutralizeSeededApprovalBackfillCandidates();
@@ -430,7 +463,7 @@ class RecommendationMigrationServiceTest extends BaseTestCase
         $process = $this->createBackfillApprovalProcess();
         $award = $this->createBackfillAward((int)$process->id);
         $groupHeadId = $this->createRecommendation('Submitted', ['award_id' => (int)$award->id]);
-        $this->recommendationsTable->updateAll(['status' => 'Closed'], ['id' => $groupHeadId]);
+        $this->closeRecommendationForTest($groupHeadId);
         $groupedId = $this->createRecommendation('Submitted', [
             'award_id' => (int)$award->id,
             'recommendation_group_id' => $groupHeadId,
@@ -558,6 +591,7 @@ class RecommendationMigrationServiceTest extends BaseTestCase
         $this->assertSame($fixture['approvalId'], (int)$approval->id);
         $this->assertSame((int)$run->id, (int)$approval->approver_config['award_approval_run_id']);
         $this->assertSame('preserve-me', $approval->approver_config['evidence_marker']);
+        $this->assertSame(8675309, (int)$approval->approver_config['bestowal_gathering_id']);
         $this->assertSame(1, (int)$approval->approved_count);
         $this->assertSame(WorkflowApproval::STATUS_PENDING, $approval->status);
 
@@ -784,11 +818,19 @@ class RecommendationMigrationServiceTest extends BaseTestCase
     private function neutralizeSeededApprovalBackfillCandidates(): void
     {
         $this->recommendationsTable->updateAll(
-            ['status' => 'Closed'],
+            ['status' => 'Closed', 'state' => 'No Action'],
             [
                 'status !=' => 'Closed',
                 'state IN' => ['Submitted', 'In Consideration', 'Awaiting Feedback'],
             ],
+        );
+    }
+
+    private function closeRecommendationForTest(int $recommendationId): void
+    {
+        $this->recommendationsTable->updateAll(
+            ['status' => 'Closed', 'state' => 'No Action'],
+            ['id' => $recommendationId],
         );
     }
 
@@ -842,8 +884,8 @@ class RecommendationMigrationServiceTest extends BaseTestCase
         return $awards->saveOrFail($awards->newEntity([
             'name' => 'Recommendation Backfill Award ' . uniqid('', true),
             'abbreviation' => strtoupper(substr(md5(uniqid('', true)), 0, 8)),
-            'domain_id' => 2,
-            'level_id' => 1,
+            'domain_id' => $this->seededAwardForeignKey('Awards.Domains'),
+            'level_id' => $this->seededAwardForeignKey('Awards.Levels'),
             'branch_id' => self::KINGDOM_BRANCH_ID,
             'approval_process_id' => $processId,
             'is_active' => true,
@@ -897,6 +939,16 @@ class RecommendationMigrationServiceTest extends BaseTestCase
         return (int)$run->id;
     }
 
+    private function seededAwardForeignKey(string $tableAlias): int
+    {
+        $record = $this->getTableLocator()->get($tableAlias)->find()
+            ->select(['id'])
+            ->orderBy(['id' => 'ASC'])
+            ->firstOrFail();
+
+        return (int)$record->id;
+    }
+
     /**
      * @return array{instanceId:int,approvalId:int,responseId:int,respondedAt:string}
      */
@@ -922,6 +974,7 @@ class RecommendationMigrationServiceTest extends BaseTestCase
             'member_id' => self::ADMIN_MEMBER_ID,
             'eligible_member_ids' => [self::ADMIN_MEMBER_ID, self::TEST_MEMBER_BRYCE_ID],
             'evidence_marker' => 'preserve-me',
+            'bestowal_gathering_id' => 8675309,
         ];
 
         $logs = $this->getTableLocator()->get('WorkflowExecutionLogs');
@@ -1095,6 +1148,16 @@ class RecommendationMigrationServiceTest extends BaseTestCase
         return $this->dispatcherUsing(
             static fn(): array => [new ServiceResult(false, $message)],
         );
+    }
+
+    private function dispatcherThrowingManualReview(string $reason, string $message): TriggerDispatcher
+    {
+        $dispatcher = $this->createMock(TriggerDispatcher::class);
+        $dispatcher->method('dispatch')->willThrowException(
+            new RecommendationApprovalManualReviewException($reason, $message),
+        );
+
+        return $dispatcher;
     }
 
     /**

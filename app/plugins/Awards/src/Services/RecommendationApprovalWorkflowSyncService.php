@@ -196,9 +196,12 @@ class RecommendationApprovalWorkflowSyncService
         $connection = $runsTable->getConnection();
         // A resumed workflow can create a bestowal and synchronize its to-dos,
         // both of which open nested transactions on this same connection.
-        $connection->enableSavePoints();
+        $savePointsWereEnabled = $connection->isSavePointsEnabled();
+        if (!$savePointsWereEnabled) {
+            $connection->enableSavePoints();
+        }
 
-        return $connection->transactional(function () use ($runsTable, $runId, $actorId): array {
+        $sync = function () use ($runsTable, $runId, $actorId): array {
             // Normal workflow resumption locks the instance before its domain run.
             // Resolve the immutable instance reference without a row lock, then
             // take synchronization locks in that same order to avoid deadlocks.
@@ -271,7 +274,7 @@ class RecommendationApprovalWorkflowSyncService
             }
 
             $steps = $this->validateAndOrderSteps($process->approval_process_steps ?? []);
-            $completedStepKeys = $this->completedStepKeys($run);
+            $completedStepKeys = $this->approvalProcessService->completedStepKeys($run);
             $currentStepKey = (string)$run->current_step_key;
             $targetStep = $this->findStep($steps, $currentStepKey);
             if ($targetStep === null) {
@@ -301,6 +304,7 @@ class RecommendationApprovalWorkflowSyncService
                 $recommendation,
                 $targetStep,
                 (int)$approval->id,
+                $completedStepKeys,
             );
             $desiredConfig = $this->desiredApproverConfig($approval, $stepOutput);
             $requiredCount = max(1, (int)($stepOutput['requiredCount'] ?? 1));
@@ -393,7 +397,15 @@ class RecommendationApprovalWorkflowSyncService
             }
 
             return ['status' => 'synchronized', 'versionMigrated' => $versionMigrated];
-        });
+        };
+
+        try {
+            return $connection->transactional($sync);
+        } finally {
+            if (!$savePointsWereEnabled) {
+                $connection->disableSavePoints();
+            }
+        }
     }
 
     /**
@@ -559,34 +571,6 @@ class RecommendationApprovalWorkflowSyncService
             'Expected a current pending or resolved award approval gate for run %d; found none.',
             (int)$run->id,
         ));
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function completedStepKeys(RecommendationApprovalRun $run): array
-    {
-        $approvals = $this->fetchTable('WorkflowApprovals')->find()
-            ->select(['id', 'approver_config'])
-            ->where([
-                'workflow_instance_id' => (int)$run->workflow_instance_id,
-                'status' => WorkflowApproval::STATUS_APPROVED,
-            ])
-            ->orderBy(['id' => 'ASC'])
-            ->all();
-        $keys = [];
-        foreach ($approvals as $approval) {
-            $config = is_array($approval->approver_config) ? $approval->approver_config : [];
-            if ((int)($config['award_approval_run_id'] ?? 0) !== (int)$run->id) {
-                continue;
-            }
-            $key = trim((string)($config['award_approval_step_key'] ?? ''));
-            if ($key !== '') {
-                $keys[] = $key;
-            }
-        }
-
-        return array_values(array_unique($keys));
     }
 
     /**

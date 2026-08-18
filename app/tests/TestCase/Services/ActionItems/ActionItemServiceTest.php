@@ -12,7 +12,9 @@ use App\Services\ActionItems\ActionItemService;
 use App\Services\ServiceResult;
 use App\Test\TestCase\BaseTestCase;
 use Cake\Cache\Cache;
+use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
+use Psr\Log\LoggerInterface;
 use RuntimeException;
 
 class ActionItemServiceTest extends BaseTestCase
@@ -124,6 +126,111 @@ class ActionItemServiceTest extends BaseTestCase
         $this->assertTrue($reloaded->isOpen());
     }
 
+    public function testRequiredFieldSyncHidesUnexpectedProviderException(): void
+    {
+        ActionItemCompletionFormRegistry::register(
+            'test-unexpected-sync-error',
+            new class implements ActionItemCompletionFormProviderInterface {
+                public function canHandle(ActionItem $item): bool
+                {
+                    return $item->entity_type === 'Tests.RequiredOwner';
+                }
+
+                public function buildForm(ActionItem $item, KmpIdentityInterface $user): ?ActionItemCompletionForm
+                {
+                    return null;
+                }
+
+                public function applySubmission(
+                    ActionItem $item,
+                    array $data,
+                    int $actorId,
+                    KmpIdentityInterface $user,
+                ): ServiceResult {
+                    return new ServiceResult(true);
+                }
+
+                public function validateCompletion(ActionItem $item): ServiceResult
+                {
+                    throw new RuntimeException('Sensitive provider failure details.');
+                }
+            },
+        );
+        $item = $this->makeRequiredItem();
+
+        $result = (new ActionItemService())->syncRequiredFieldCompletionStates(
+            'Tests.RequiredOwner',
+            90001,
+        );
+
+        $this->assertFalse($result->success);
+        $this->assertSame(ActionItemService::SYNCHRONIZATION_FAILURE_REASON, $result->reason);
+        $this->assertStringNotContainsString('Sensitive provider', (string)$result->reason);
+        $this->assertTrue(TableRegistry::getTableLocator()->get('ActionItems')->get($item->id)->isOpen());
+    }
+
+    public function testCompletionHidesAndLogsUnexpectedProviderException(): void
+    {
+        $target = $this->makeRequiredItem(['title' => 'Throwing provider todo']);
+        ActionItemCompletionFormRegistry::register(
+            'test-unexpected-transition-error',
+            new class implements ActionItemCompletionFormProviderInterface {
+                public function canHandle(ActionItem $item): bool
+                {
+                    return $item->title === 'Throwing provider todo';
+                }
+
+                public function buildForm(ActionItem $item, KmpIdentityInterface $user): ?ActionItemCompletionForm
+                {
+                    return null;
+                }
+
+                public function applySubmission(
+                    ActionItem $item,
+                    array $data,
+                    int $actorId,
+                    KmpIdentityInterface $user,
+                ): ServiceResult {
+                    throw new RuntimeException('Sensitive transition provider details.');
+                }
+
+                public function validateCompletion(ActionItem $item): ServiceResult
+                {
+                    return new ServiceResult(true);
+                }
+            },
+        );
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('log')
+            ->with(
+                'error',
+                $this->callback(static fn($message): bool => str_contains(
+                    (string)$message,
+                    'Sensitive transition provider details.',
+                )),
+                $this->isType('array'),
+            );
+        Log::setConfig('test-action-item-transition-error', $logger);
+
+        try {
+            $result = (new ActionItemService())->complete(
+                (int)$target->id,
+                self::ADMIN_MEMBER_ID,
+                enforceEligibility: false,
+                completionData: ['submitted' => true],
+                actorIdentity: $this->createMock(KmpIdentityInterface::class),
+            );
+        } finally {
+            Log::drop('test-action-item-transition-error');
+        }
+
+        $this->assertFalse($result->success);
+        $this->assertSame(ActionItemService::TRANSITION_FAILURE_REASON, $result->reason);
+        $this->assertStringNotContainsString('Sensitive transition provider', (string)$result->reason);
+        $this->assertTrue(TableRegistry::getTableLocator()->get('ActionItems')->get($target->id)->isOpen());
+    }
+
     public function testSyncRequiredFieldCompletionStatesReopensCompletedItemWhenRequirementCleared(): void
     {
         $this->registerStaticRequirementProvider(false);
@@ -170,6 +277,153 @@ class ActionItemServiceTest extends BaseTestCase
         $this->assertNull($reloadedAutoClosable->completed_by);
     }
 
+    public function testCompletionRollsBackProviderSideEffectsWhenItemSaveFails(): void
+    {
+        $target = $this->makeRequiredItem(['title' => 'Provider-backed todo']);
+        $sideEffectItem = $this->makeBasicItem([
+            'title' => 'Unchanged side effect item',
+            'sort_order' => 2,
+        ]);
+        ActionItemCompletionFormRegistry::register(
+            'test-save-rollback',
+            new class ((int)$sideEffectItem->id) implements ActionItemCompletionFormProviderInterface {
+                public function __construct(private readonly int $sideEffectItemId)
+                {
+                }
+
+                public function canHandle(ActionItem $item): bool
+                {
+                    return $item->title === 'Provider-backed todo';
+                }
+
+                public function buildForm(ActionItem $item, KmpIdentityInterface $user): ?ActionItemCompletionForm
+                {
+                    return null;
+                }
+
+                public function applySubmission(
+                    ActionItem $item,
+                    array $data,
+                    int $actorId,
+                    KmpIdentityInterface $user,
+                ): ServiceResult {
+                    TableRegistry::getTableLocator()->get('ActionItems')->updateAll(
+                        ['title' => 'Provider side effect'],
+                        ['id' => $this->sideEffectItemId],
+                    );
+
+                    return new ServiceResult(true);
+                }
+
+                public function validateCompletion(ActionItem $item): ServiceResult
+                {
+                    return new ServiceResult(true);
+                }
+            },
+        );
+        $actionItems = TableRegistry::getTableLocator()->get('ActionItems');
+        $listener = static function ($event, ActionItem $item) use ($target) {
+            if ((int)$item->id === (int)$target->id && $item->isCompleted()) {
+                return false;
+            }
+
+            return null;
+        };
+        $actionItems->getEventManager()->on('Model.beforeSave', $listener);
+
+        try {
+            $result = (new ActionItemService())->complete(
+                (int)$target->id,
+                self::ADMIN_MEMBER_ID,
+                enforceEligibility: false,
+                completionData: ['submitted' => true],
+                actorIdentity: $this->createMock(KmpIdentityInterface::class),
+            );
+        } finally {
+            $actionItems->getEventManager()->off('Model.beforeSave', $listener);
+        }
+
+        $this->assertFalse($result->success);
+        $this->assertSame(ActionItemService::TRANSITION_FAILURE_REASON, $result->reason);
+        $this->assertTrue($actionItems->get($target->id)->isOpen());
+        $this->assertSame('Unchanged side effect item', $actionItems->get($sideEffectItem->id)->title);
+        $this->assertSame(
+            0,
+            TableRegistry::getTableLocator()->get('ActionItemLogs')->find()
+                ->where(['action_item_id' => (int)$target->id])
+                ->count(),
+        );
+    }
+
+    public function testCompletionRollsBackProviderSideEffectsWhenRequirementValidationFails(): void
+    {
+        $target = $this->makeRequiredItem(['title' => 'Rejected provider todo']);
+        $sideEffectItem = $this->makeBasicItem([
+            'title' => 'Unchanged failed-provider side effect',
+            'sort_order' => 2,
+        ]);
+        ActionItemCompletionFormRegistry::register(
+            'test-failed-provider-rollback',
+            new class ((int)$sideEffectItem->id) implements ActionItemCompletionFormProviderInterface {
+                public function __construct(private readonly int $sideEffectItemId)
+                {
+                }
+
+                public function canHandle(ActionItem $item): bool
+                {
+                    return $item->title === 'Rejected provider todo';
+                }
+
+                public function buildForm(ActionItem $item, KmpIdentityInterface $user): ?ActionItemCompletionForm
+                {
+                    return null;
+                }
+
+                public function applySubmission(
+                    ActionItem $item,
+                    array $data,
+                    int $actorId,
+                    KmpIdentityInterface $user,
+                ): ServiceResult {
+                    TableRegistry::getTableLocator()->get('ActionItems')->updateAll(
+                        ['title' => 'Failed provider side effect'],
+                        ['id' => $this->sideEffectItemId],
+                    );
+
+                    return new ServiceResult(true);
+                }
+
+                public function validateCompletion(ActionItem $item): ServiceResult
+                {
+                    return new ServiceResult(false, 'Complete the prerequisite first.');
+                }
+            },
+        );
+        $actionItems = TableRegistry::getTableLocator()->get('ActionItems');
+
+        $result = (new ActionItemService())->complete(
+            (int)$target->id,
+            self::ADMIN_MEMBER_ID,
+            enforceEligibility: false,
+            completionData: ['submitted' => true],
+            actorIdentity: $this->createMock(KmpIdentityInterface::class),
+        );
+
+        $this->assertFalse($result->success);
+        $this->assertSame('Complete the prerequisite first.', $result->reason);
+        $this->assertTrue($actionItems->get($target->id)->isOpen());
+        $this->assertSame(
+            'Unchanged failed-provider side effect',
+            $actionItems->get($sideEffectItem->id)->title,
+        );
+        $this->assertSame(
+            0,
+            TableRegistry::getTableLocator()->get('ActionItemLogs')->find()
+                ->where(['action_item_id' => (int)$target->id])
+                ->count(),
+        );
+    }
+
     public function testCascadeFailureStillDispatchesCommittedCompletionEvent(): void
     {
         $starter = $this->makeBasicItem();
@@ -191,11 +445,13 @@ class ActionItemServiceTest extends BaseTestCase
 
         $result = $service->complete((int)$starter->id, self::ADMIN_MEMBER_ID, null, false);
 
-        $this->assertFalse($result->success);
+        $this->assertTrue($result->success);
+        $this->assertNull($result->reason);
         $this->assertSame(
             'This to-do requires additional information before it can be completed.',
-            $result->reason,
+            $result->data[ActionItemService::CASCADE_WARNING_DATA_KEY]['reason'] ?? null,
         );
+        $this->assertSame((int)$starter->id, (int)($result->data['item']->id ?? 0));
         $this->assertTrue(TableRegistry::getTableLocator()->get('ActionItems')->get($starter->id)->isCompleted());
         $this->assertTrue(TableRegistry::getTableLocator()->get('ActionItems')->get($required->id)->isOpen());
         $this->assertSame([
@@ -204,6 +460,50 @@ class ActionItemServiceTest extends BaseTestCase
                 'actorId' => self::ADMIN_MEMBER_ID,
             ],
         ], $service->completedEvents);
+    }
+
+    public function testCompletionListenerExceptionReturnsPostCommitWarningAndLogsDetails(): void
+    {
+        $starter = $this->makeBasicItem();
+        $service = new class extends ActionItemService {
+            protected function dispatchCompletedEvent(ActionItem $item, ?int $actorId): void
+            {
+                throw new RuntimeException('Sensitive completion listener details.');
+            }
+        };
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('log')
+            ->with(
+                'error',
+                $this->callback(static fn($message): bool => str_contains(
+                    (string)$message,
+                    'Sensitive completion listener details.',
+                )),
+                $this->isType('array'),
+            );
+        Log::setConfig('test-action-item-completion-event-error', $logger);
+
+        try {
+            $result = $service->complete((int)$starter->id, self::ADMIN_MEMBER_ID, null, false);
+        } finally {
+            Log::drop('test-action-item-completion-event-error');
+        }
+
+        $this->assertTrue($result->success);
+        $this->assertNull($result->reason);
+        $this->assertSame(
+            ActionItemService::COMPLETION_EVENT_FAILURE_REASON,
+            $result->data[ActionItemService::CASCADE_WARNING_DATA_KEY]['reason'] ?? null,
+        );
+        $this->assertTrue(
+            $result->data[ActionItemService::CASCADE_WARNING_DATA_KEY]['data']['completionEventFailed'] ?? false,
+        );
+        $this->assertStringNotContainsString(
+            'Sensitive completion listener',
+            (string)($result->data[ActionItemService::CASCADE_WARNING_DATA_KEY]['reason'] ?? ''),
+        );
+        $this->assertTrue(TableRegistry::getTableLocator()->get('ActionItems')->get($starter->id)->isCompleted());
     }
 
     public function testRoleAssignedItemsAreScopedToActionItemBranch(): void
@@ -515,26 +815,37 @@ class ActionItemServiceTest extends BaseTestCase
             }
         };
         $actionItems = TableRegistry::getTableLocator()->get('ActionItems');
-
-        try {
-            $actionItems->getConnection()->transactional(function () use ($service, $item, $actionItems): void {
-                $result = $service->syncRequiredFieldCompletionStates('Tests.RequiredOwner', 90001);
-                $this->assertTrue($result->success, (string)$result->reason);
-                $this->assertTrue($actionItems->get($item->id)->isCompleted());
-                $this->assertSame([], $service->completedEventIds);
-
-                throw new RuntimeException('Force the outer workflow synchronization to roll back.');
-            });
-            $this->fail('Expected the outer transaction to roll back.');
-        } catch (RuntimeException $exception) {
-            $this->assertSame(
-                'Force the outer workflow synchronization to roll back.',
-                $exception->getMessage(),
-            );
+        $connection = $actionItems->getConnection();
+        $savePointsWereEnabled = $connection->isSavePointsEnabled();
+        if (!$savePointsWereEnabled) {
+            $connection->enableSavePoints();
         }
 
-        $this->assertTrue($actionItems->get($item->id)->isOpen());
-        $this->assertSame([], $service->completedEventIds);
+        try {
+            try {
+                $connection->transactional(function () use ($service, $item, $actionItems): void {
+                    $result = $service->syncRequiredFieldCompletionStates('Tests.RequiredOwner', 90001);
+                    $this->assertTrue($result->success, (string)$result->reason);
+                    $this->assertTrue($actionItems->get($item->id)->isCompleted());
+                    $this->assertSame([], $service->completedEventIds);
+
+                    throw new RuntimeException('Force the outer workflow synchronization to roll back.');
+                });
+                $this->fail('Expected the outer transaction to roll back.');
+            } catch (RuntimeException $exception) {
+                $this->assertSame(
+                    'Force the outer workflow synchronization to roll back.',
+                    $exception->getMessage(),
+                );
+            }
+
+            $this->assertTrue($actionItems->get($item->id)->isOpen());
+            $this->assertSame([], $service->completedEventIds);
+        } finally {
+            if (!$savePointsWereEnabled) {
+                $connection->disableSavePoints();
+            }
+        }
     }
 
     public function testCompleteDoesNotReviveCancelledItem(): void
@@ -589,6 +900,7 @@ class ActionItemServiceTest extends BaseTestCase
         ]);
 
         $this->assertFalse($result->success);
+        $this->assertSame(ActionItemService::SYNCHRONIZATION_FAILURE_REASON, $result->reason);
         $this->assertSame('Original title', TableRegistry::getTableLocator()->get('ActionItems')->get($kept->id)->title);
         $this->assertSame(
             0,
@@ -596,6 +908,30 @@ class ActionItemServiceTest extends BaseTestCase
                 ->where(['action_item_id IN' => [$kept->id, $required->id]])
                 ->count(),
         );
+    }
+
+    public function testTransactionalOperationsRestoreDisabledSavePointConfiguration(): void
+    {
+        $connection = TableRegistry::getTableLocator()->get('ActionItems')->getConnection();
+        $connection->disableSavePoints();
+        $service = new ActionItemService();
+        $item = $this->makeBasicItem();
+
+        $completeResult = $service->complete(
+            (int)$item->id,
+            self::ADMIN_MEMBER_ID,
+            enforceEligibility: false,
+        );
+        $this->assertTrue($completeResult->success, (string)$completeResult->reason);
+        $this->assertFalse($connection->isSavePointsEnabled());
+
+        $requiredResult = $service->syncRequiredFieldCompletionStates('Tests.RequiredOwner', 90001);
+        $this->assertTrue($requiredResult->success, (string)$requiredResult->reason);
+        $this->assertFalse($connection->isSavePointsEnabled());
+
+        $syncResult = $service->synchronizeFor('Tests.RequiredOwner', 90001, []);
+        $this->assertTrue($syncResult->success, (string)$syncResult->reason);
+        $this->assertFalse($connection->isSavePointsEnabled());
     }
 
     /**

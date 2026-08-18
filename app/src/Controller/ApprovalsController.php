@@ -1071,13 +1071,15 @@ class ApprovalsController extends AppController
             return $this->approvalResponseFailure($error);
         }
 
-        $gatheringError = $this->validateBestowalGatheringSelection(
-            $firstApproval,
-            (string)$decision,
-            $bestowalGatheringId,
-        );
-        if ($gatheringError !== null) {
-            return $this->approvalResponseFailure($gatheringError);
+        foreach ($approvalIds as $approvalId) {
+            $gatheringError = $this->validateBestowalGatheringSelection(
+                $approvals[$approvalId],
+                (string)$decision,
+                $bestowalGatheringId,
+            );
+            if ($gatheringError !== null) {
+                return $this->approvalResponseFailure($gatheringError);
+            }
         }
 
         $successCount = 0;
@@ -1464,7 +1466,10 @@ class ApprovalsController extends AppController
             return null;
         }
 
-        if (!$this->isSelectableBestowalGathering($gatheringId)) {
+        if (
+            !$this->isSelectableBestowalGathering($gatheringId)
+            || !$this->isSelectableBestowalGatheringForApproval($approval, $gatheringId)
+        ) {
             return (string)__('Select a valid, future gathering for the bestowal.');
         }
 
@@ -1485,6 +1490,44 @@ class ApprovalsController extends AppController
             'Gatherings.cancelled_at IS' => null,
             'Gatherings.start_date >' => DateTime::now(),
         ]);
+    }
+
+    /**
+     * Check award/activity eligibility when the approval belongs to a recommendation workflow.
+     *
+     * @param \App\Model\Entity\WorkflowApproval $approval Approval being answered.
+     * @param int $gatheringId Gathering ID.
+     * @return bool
+     */
+    private function isSelectableBestowalGatheringForApproval(
+        WorkflowApproval $approval,
+        int $gatheringId,
+    ): bool {
+        $recommendationId = $this->getAwardsRecommendationIdForApproval($approval);
+        if ($recommendationId === null) {
+            return true;
+        }
+
+        $recommendation = TableRegistry::getTableLocator()->get('Awards.Recommendations')->find()
+            ->select(['id', 'award_id', 'member_id'])
+            ->where(['Recommendations.id' => $recommendationId])
+            ->first();
+        if ($recommendation === null) {
+            return false;
+        }
+
+        $bestowal = new Bestowal();
+        $bestowal->award_id = $recommendation->award_id !== null ? (int)$recommendation->award_id : null;
+        $bestowal->member_id = $recommendation->member_id !== null ? (int)$recommendation->member_id : null;
+        $bestowal->set('recommendations', [$recommendation]);
+        $gatheringData = (new BestowalGatheringLookupService())->getFilteredGatheringsForBestowal(
+            $bestowal,
+            true,
+            null,
+            $bestowal->award_id !== null ? (int)$bestowal->award_id : null,
+        );
+
+        return isset($gatheringData['gatherings'][$gatheringId]);
     }
 
     /**

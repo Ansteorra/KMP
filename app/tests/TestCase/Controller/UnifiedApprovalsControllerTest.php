@@ -669,6 +669,8 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         ]);
 
         $this->assertRedirectContains('/approvals');
+        $this->assertFlashMessage('Recorded 2 approval response(s).');
+        $this->assertFlashElement('flash/success');
         $responsesTable = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
         $responses = $responsesTable->find()
             ->where(['workflow_approval_id IN' => [$firstApprovalId, $secondApprovalId]])
@@ -712,6 +714,64 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
             $approval = $approvalsTable->get($approvalId);
             $this->assertSame(WorkflowApproval::STATUS_APPROVED, $approval->status);
             $this->assertSame($gatheringId, (int)$approval->approver_config['bestowal_gathering_id']);
+        }
+    }
+
+    public function testBulkRecordApprovalValidatesGatheringForEveryRecommendation(): void
+    {
+        $this->authenticateAsSuperUser();
+        $firstAwardId = $this->createAwardForGatheringEligibility('Supported');
+        $secondAwardId = $this->createAwardForGatheringEligibility('Unsupported');
+        $gatheringId = $this->createGathering('Bulk Award Eligibility Gathering', '+30 days');
+        $this->linkGatheringToAward($gatheringId, $firstAwardId);
+
+        [$firstInstanceId, $firstExecutionLogId] = $this->createWorkflowContext();
+        [$secondInstanceId, $secondExecutionLogId] = $this->createWorkflowContext();
+        $firstRecommendation = $this->createExistingRecommendation($firstAwardId);
+        $secondRecommendation = $this->createExistingRecommendation($secondAwardId);
+        $this->createRecommendationApprovalRun((int)$firstRecommendation->id, $firstInstanceId);
+        $this->createRecommendationApprovalRun((int)$secondRecommendation->id, $secondInstanceId);
+        $approverConfig = [
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'requires_bestowal_gathering' => true,
+            'award_approval_is_final_step' => true,
+        ];
+        $firstApprovalId = $this->createApproval(
+            $firstInstanceId,
+            $firstExecutionLogId,
+            'Supported Award Approval',
+            $approverConfig,
+        );
+        $secondApprovalId = $this->createApproval(
+            $secondInstanceId,
+            $secondExecutionLogId,
+            'Unsupported Award Approval',
+            $approverConfig,
+        );
+
+        $this->post('/approvals/record', [
+            'approvalIds' => implode(',', [$firstApprovalId, $secondApprovalId]),
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'bestowal_gathering_id' => $gatheringId,
+            'comment' => '',
+            'page_context_url' => '/approvals',
+        ]);
+
+        $this->assertRedirectContains('/approvals');
+        $this->assertFlashMessage('Select a valid, future gathering for the bestowal.');
+        $this->assertFlashElement('flash/error');
+        $responsesTable = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
+        $this->assertSame(
+            0,
+            $responsesTable->find()
+                ->where(['workflow_approval_id IN' => [$firstApprovalId, $secondApprovalId]])
+                ->count(),
+        );
+        $approvalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
+        foreach ([$firstApprovalId, $secondApprovalId] as $approvalId) {
+            $approval = $approvalsTable->get($approvalId);
+            $this->assertSame(WorkflowApproval::STATUS_PENDING, $approval->status);
+            $this->assertArrayNotHasKey('bestowal_gathering_id', $approval->approver_config);
         }
     }
 
@@ -919,10 +979,14 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         return (int)$approval->id;
     }
 
-    private function createExistingRecommendation(): Recommendation
+    private function createExistingRecommendation(?int $awardId = null): Recommendation
     {
         $member = TableRegistry::getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID);
-        $award = TableRegistry::getTableLocator()->get('Awards.Awards')->find()->select(['id'])->firstOrFail();
+        $awardId ??= (int)TableRegistry::getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail()
+            ->id;
         $statuses = Recommendation::getStatuses();
         $status = array_key_first($statuses);
 
@@ -931,7 +995,7 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
             'requester_id' => (int)$member->id,
             'member_id' => (int)$member->id,
             'branch_id' => (int)$member->branch_id,
-            'award_id' => (int)$award->id,
+            'award_id' => $awardId,
             'status' => $status,
             'state' => $statuses[$status][0],
             'state_date' => DateTime::now(),
@@ -1066,5 +1130,45 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         $gatherings->saveOrFail($gathering);
 
         return (int)$gathering->id;
+    }
+
+    private function linkGatheringToAward(int $gatheringId, int $awardId): void
+    {
+        $gatheringActivities = TableRegistry::getTableLocator()->get('GatheringActivities');
+        $activity = $gatheringActivities->saveOrFail($gatheringActivities->newEntity([
+            'name' => 'Approval award activity ' . uniqid('', true),
+        ]));
+        $awardActivities = TableRegistry::getTableLocator()->get('Awards.AwardGatheringActivities');
+        $awardActivities->saveOrFail($awardActivities->newEntity([
+            'award_id' => $awardId,
+            'gathering_activity_id' => (int)$activity->id,
+        ]));
+        $gatheringActivityLinks = TableRegistry::getTableLocator()->get('GatheringsGatheringActivities');
+        $gatheringActivityLinks->saveOrFail($gatheringActivityLinks->newEntity([
+            'gathering_id' => $gatheringId,
+            'gathering_activity_id' => (int)$activity->id,
+            'sort_order' => 1,
+            'not_removable' => false,
+        ]));
+    }
+
+    private function createAwardForGatheringEligibility(string $label): int
+    {
+        $awards = TableRegistry::getTableLocator()->get('Awards.Awards');
+        $seedAward = $awards->find()
+            ->select(['domain_id', 'level_id', 'branch_id'])
+            ->where(['is_active' => true])
+            ->firstOrFail();
+        $suffix = uniqid('', true);
+        $award = $awards->saveOrFail($awards->newEntity([
+            'name' => $label . ' gathering eligibility award ' . $suffix,
+            'abbreviation' => strtoupper(substr(sha1($suffix), 0, 12)),
+            'domain_id' => (int)$seedAward->domain_id,
+            'level_id' => (int)$seedAward->level_id,
+            'branch_id' => (int)$seedAward->branch_id,
+            'is_active' => true,
+        ]));
+
+        return (int)$award->id;
     }
 }

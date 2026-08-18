@@ -11,6 +11,7 @@ use Cake\Datasource\EntityInterface;
 use Cake\Event\Event;
 use Cake\Event\EventManager;
 use Cake\I18n\DateTime;
+use Cake\Log\Log;
 use Cake\ORM\Exception\MissingTableClassException;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\Table;
@@ -28,10 +29,25 @@ use Throwable;
  */
 class ActionItemService
 {
+    public const CASCADE_WARNING_DATA_KEY = 'cascadeWarning';
+
+    public const SYNCHRONIZATION_FAILURE_REASON =
+        'To-do workflow synchronization failed. Review the server logs for details.';
+
+    public const TRANSITION_FAILURE_REASON =
+        'The to-do item could not be updated. Review the server logs for details.';
+
+    public const COMPLETION_EVENT_FAILURE_REASON =
+        'Post-completion processing could not be finished. Review the server logs for details.';
+
     public const SYSTEM_AUTO_COMPLETION_NOTE = 'Completed automatically after required fields were satisfied.';
 
     public const SYSTEM_REQUIREMENT_REOPEN_NOTE = 'Reopened automatically after required fields were cleared.';
 
+    /**
+     * Persisted provenance marker matched exactly against action_item_logs.note.
+     * Do not reword without migrating existing log rows first.
+     */
     public const SYSTEM_DEFINITION_SYNC_CANCEL_NOTE =
         'Cancelled automatically because this to-do is no longer in the current workflow definition.';
 
@@ -172,7 +188,11 @@ class ActionItemService
         /** @var array<string, array<string, mixed>> $normalizedDefinitions */
         $normalizedDefinitions = $normalizationResult->data;
         $connection = $this->ActionItems->getConnection();
-        $connection->enableSavePoints();
+        $savePointsWereEnabled = $connection->isSavePointsEnabled();
+        if (!$savePointsWereEnabled) {
+            $connection->enableSavePoints();
+        }
+        $failureReason = null;
 
         try {
             $summary = $connection->transactional(function () use (
@@ -180,9 +200,11 @@ class ActionItemService
                 $entityId,
                 $normalizedDefinitions,
                 $actorId,
+                &$failureReason,
             ): array {
                 $owner = $this->lockOwner($entityType, $entityId);
                 if (!$this->ownerAllowsActionItemMutations($owner, $entityType)) {
+                    $failureReason = 'The to-do owner is no longer active.';
                     throw new RuntimeException('The to-do owner is no longer active.');
                 }
                 $items = $this->ActionItems->find()
@@ -320,7 +342,18 @@ class ActionItemService
                 return $summary;
             });
         } catch (Throwable $exception) {
-            return new ServiceResult(false, $exception->getMessage());
+            Log::error(sprintf(
+                'To-do workflow synchronization failed for %s:%d: %s',
+                $entityType,
+                $entityId,
+                $exception->getMessage(),
+            ));
+
+            return new ServiceResult(false, $failureReason ?? self::SYNCHRONIZATION_FAILURE_REASON);
+        } finally {
+            if (!$savePointsWereEnabled) {
+                $connection->disableSavePoints();
+            }
         }
 
         return new ServiceResult(true, null, $summary);
@@ -540,7 +573,10 @@ class ActionItemService
         }
 
         $connection = $this->ActionItems->getConnection();
-        $connection->enableSavePoints();
+        $savePointsWereEnabled = $connection->isSavePointsEnabled();
+        if (!$savePointsWereEnabled) {
+            $connection->enableSavePoints();
+        }
         $completedItems = [];
         $failureReason = null;
 
@@ -586,7 +622,22 @@ class ActionItemService
                 return $result;
             });
         } catch (Throwable $exception) {
-            return new ServiceResult(false, $failureReason ?? $exception->getMessage());
+            if ($failureReason !== null) {
+                return new ServiceResult(false, $failureReason);
+            }
+
+            Log::error(sprintf(
+                'Required-field to-do synchronization failed for %s:%d: %s',
+                $entityType,
+                $entityId,
+                $exception->getMessage(),
+            ));
+
+            return new ServiceResult(false, self::SYNCHRONIZATION_FAILURE_REASON);
+        } finally {
+            if (!$savePointsWereEnabled) {
+                $connection->disableSavePoints();
+            }
         }
 
         return $result;
@@ -737,9 +788,13 @@ class ActionItemService
         bool $dispatchCompletionEvent = true,
     ): ServiceResult {
         $connection = $this->ActionItems->getConnection();
-        $connection->enableSavePoints();
+        $savePointsWereEnabled = $connection->isSavePointsEnabled();
+        if (!$savePointsWereEnabled) {
+            $connection->enableSavePoints();
+        }
         $item = null;
         $didTransition = false;
+        $transactionFailure = null;
 
         try {
             $result = $connection->transactional(function () use (
@@ -752,6 +807,7 @@ class ActionItemService
                 $actorIdentity,
                 &$item,
                 &$didTransition,
+                &$transactionFailure,
             ): ServiceResult {
                 /** @var \App\Model\Entity\ActionItem|null $ownerContext */
                 $ownerContext = $this->ActionItems->find()
@@ -803,7 +859,8 @@ class ActionItemService
                         $actorIdentity,
                     );
                     if (!$requirementResult->success) {
-                        return $requirementResult;
+                        $transactionFailure = $requirementResult;
+                        throw new RuntimeException('To-do completion requirements were not satisfied.');
                     }
                 }
 
@@ -817,7 +874,7 @@ class ActionItemService
                 }
 
                 if (!$this->ActionItems->save($item)) {
-                    return new ServiceResult(false, 'Failed to update the to-do item.');
+                    throw new RuntimeException('Failed to update the to-do item.');
                 }
 
                 $log = $this->ActionItemLogs->newEntity([
@@ -833,7 +890,21 @@ class ActionItemService
                 return new ServiceResult(true, null, $item);
             });
         } catch (Throwable $exception) {
-            return new ServiceResult(false, $exception->getMessage());
+            if ($transactionFailure instanceof ServiceResult) {
+                return $transactionFailure;
+            }
+
+            Log::error(sprintf(
+                'To-do transition failed for item %d: %s',
+                $actionItemId,
+                $exception->getMessage(),
+            ));
+
+            return new ServiceResult(false, self::TRANSITION_FAILURE_REASON);
+        } finally {
+            if (!$savePointsWereEnabled) {
+                $connection->disableSavePoints();
+            }
         }
 
         if (
@@ -843,6 +914,8 @@ class ActionItemService
             && $toStatus === ActionItem::STATUS_COMPLETED
         ) {
             $cascadeResult = null;
+            $warningReason = null;
+            $warningData = null;
             if ($actorId !== null) {
                 $cascadeResult = $this->autoCompleteSatisfiedRequirements(
                     (string)$item->entity_type,
@@ -850,11 +923,38 @@ class ActionItemService
                     $actorId,
                 );
             }
-            if ($dispatchCompletionEvent) {
-                $this->dispatchCompletedEvent($item, $completedEventActorId ?? $actorId);
-            }
             if ($cascadeResult !== null && !$cascadeResult->success) {
-                return $cascadeResult;
+                $warningReason = $cascadeResult->reason
+                    ?? 'Related to-dos could not be synchronized after completion.';
+                $warningData = $cascadeResult->data;
+            }
+            if ($dispatchCompletionEvent) {
+                try {
+                    $this->dispatchCompletedEvent($item, $completedEventActorId ?? $actorId);
+                } catch (Throwable $exception) {
+                    Log::error(sprintf(
+                        'Post-completion processing failed for to-do item %d: %s',
+                        (int)$item->id,
+                        $exception->getMessage(),
+                    ));
+                    $warningReason = trim(implode(' ', array_filter([
+                        $warningReason,
+                        self::COMPLETION_EVENT_FAILURE_REASON,
+                    ])));
+                    $warningData = [
+                        'cascadeData' => $warningData,
+                        'completionEventFailed' => true,
+                    ];
+                }
+            }
+            if ($warningReason !== null) {
+                return new ServiceResult(true, null, [
+                    'item' => $item,
+                    self::CASCADE_WARNING_DATA_KEY => [
+                        'reason' => $warningReason,
+                        'data' => $warningData,
+                    ],
+                ]);
             }
         }
 

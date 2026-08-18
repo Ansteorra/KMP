@@ -33,7 +33,7 @@ class BestowalTodoTemplatesControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('data-turbo-frame="_top"');
     }
 
-    public function testSyncOpenBestowalsUsesActorAndFlashesDetailedSummary(): void
+    public function testSyncOpenBestowalsFlashesDetailedFailureSummary(): void
     {
         $service = $this->createMock(BestowalTodoMaterializationService::class);
         $service->expects($this->once())
@@ -78,6 +78,46 @@ class BestowalTodoTemplatesControllerTest extends HttpIntegrationTestCase
             . 'One bestowal needs attention.',
             'flash',
         );
+        $this->assertFlashElement('flash/error');
+    }
+
+    public function testSyncOpenBestowalsUsesActorAndFlashesSuccessSummary(): void
+    {
+        $service = $this->createMock(BestowalTodoMaterializationService::class);
+        $service->expects($this->once())
+            ->method('syncOpenBestowals')
+            ->with(self::ADMIN_MEMBER_ID)
+            ->willReturn(new ServiceResult(true, null, [
+                'processedCount' => 2,
+                'changedCount' => 1,
+                'unchangedCount' => 1,
+                'skippedCount' => 0,
+                'failedCount' => 0,
+                'failures' => [],
+                'skips' => [],
+                'createdCount' => 1,
+                'updatedCount' => 0,
+                'cancelledCount' => 0,
+                'reopenedCount' => 0,
+                'requiredCompletedCount' => 0,
+                'requiredReopenedCount' => 0,
+                'requiredSkippedCount' => 0,
+            ]));
+        $this->mockService(
+            BestowalTodoMaterializationService::class,
+            static fn() => $service,
+        );
+
+        $this->post('/awards/bestowal-todo-templates/sync-open-bestowals');
+
+        $this->assertRedirect(['controller' => 'BestowalTodoTemplates', 'action' => 'index']);
+        $this->assertFlashMessage(
+            'Processed 2 open bestowal(s): 1 changed, 1 unchanged, 0 skipped, and 0 failed. '
+            . 'To-do changes: 1 created, 0 updated, 0 cancelled, and 0 reopened. '
+            . 'Required-field checks: 0 completed, 0 reopened, and 0 skipped.',
+            'flash',
+        );
+        $this->assertFlashElement('flash/success');
     }
 
     public function testSyncOpenBestowalsRejectsGet(): void
@@ -92,6 +132,21 @@ class BestowalTodoTemplatesControllerTest extends HttpIntegrationTestCase
         $this->get('/awards/bestowal-todo-templates/sync-open-bestowals');
 
         $this->assertResponseCode(405);
+    }
+
+    public function testSyncOpenBestowalsRequiresExplicitAuthorization(): void
+    {
+        $service = $this->createMock(BestowalTodoMaterializationService::class);
+        $service->expects($this->never())->method('syncOpenBestowals');
+        $this->mockService(
+            BestowalTodoMaterializationService::class,
+            static fn() => $service,
+        );
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+
+        $this->post('/awards/bestowal-todo-templates/sync-open-bestowals');
+
+        $this->assertRedirectContains('/pages/unauthorized');
     }
 
     public function testAddItemRestoresSoftDeletedDefinitionWithSubmittedFields(): void

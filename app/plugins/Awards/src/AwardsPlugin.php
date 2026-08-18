@@ -372,7 +372,8 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
             ->addArgument(RecommendationMigrationService::class);
         $container->add(RecommendationApprovalDecisionService::class)
             ->addArgument(WorkflowApprovalManagerInterface::class)
-            ->addArgument(WorkflowEngineInterface::class);
+            ->addArgument(WorkflowEngineInterface::class)
+            ->addArgument(RecommendationApprovalProcessService::class);
         $container->add(RecommendationFeedbackService::class)
             ->addArgument(TriggerDispatcher::class);
         $container->add(RecommendationFeedbackContextRenderer::class);

@@ -133,7 +133,7 @@ class RecommendationApprovalWorkflowSyncServiceTest extends BaseTestCase
         $this->getTableLocator()->get('Awards.ApprovalProcessSteps')->saveOrFail($step);
 
         $connection = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns')->getConnection();
-        // Prove the sync owns the savepoint setup needed inside BaseTestCase's outer transaction.
+        // Prove the sync temporarily owns the savepoint setup needed inside BaseTestCase's outer transaction.
         $connection->disableSavePoints();
         $service = $this->createWorkflowSyncService($engine);
         $result = $service->syncOpenRecommendations(self::ADMIN_MEMBER_ID);
@@ -142,9 +142,9 @@ class RecommendationApprovalWorkflowSyncServiceTest extends BaseTestCase
             $result->isSuccess(),
             json_encode($result->data['failures'] ?? [], JSON_THROW_ON_ERROR),
         );
-        $this->assertTrue(
+        $this->assertFalse(
             $connection->isSavePointsEnabled(),
-            'The sync must enable PostgreSQL savepoints before nested workflow and bestowal transactions.',
+            'The sync must restore the connection savepoint setting after nested workflow transactions.',
         );
         $this->assertSame(2, $result->data['processedCount']);
         $this->assertSame(2, $result->data['synchronizedCount']);
@@ -206,8 +206,13 @@ class RecommendationApprovalWorkflowSyncServiceTest extends BaseTestCase
             $this->assertSame((int)$bestowal->id, (int)$recommendation->bestowal_id, $origin);
         }
 
+        $connection->enableSavePoints();
         $secondResult = $service->syncOpenRecommendations(self::ADMIN_MEMBER_ID);
         $this->assertTrue($secondResult->isSuccess(), $secondResult->getError() ?? 'Second sync failed.');
+        $this->assertTrue(
+            $connection->isSavePointsEnabled(),
+            'The sync must preserve an already-enabled connection savepoint setting.',
+        );
         $this->assertSame(0, $secondResult->data['processedCount']);
         $this->assertSame(0, $secondResult->data['synchronizedCount']);
         $this->assertSame(0, $secondResult->data['advancedCount']);
@@ -385,8 +390,9 @@ class RecommendationApprovalWorkflowSyncServiceTest extends BaseTestCase
         );
     }
 
-    private function createWorkflowSyncService(WorkflowEngineInterface $engine): RecommendationApprovalWorkflowSyncService
-    {
+    private function createWorkflowSyncService(
+        WorkflowEngineInterface $engine,
+    ): RecommendationApprovalWorkflowSyncService {
         $migrationService = $this->createStub(RecommendationMigrationService::class);
         $migrationService->method('backfillOpenApprovalRecommendations')->willReturn(new ServiceResult(true, null, [
             'candidateCount' => 0,
@@ -540,8 +546,8 @@ class RecommendationApprovalWorkflowSyncServiceTest extends BaseTestCase
         return $awards->saveOrFail($awards->newEntity([
             'name' => 'Workflow Sync Award ' . uniqid('', true),
             'abbreviation' => strtoupper(substr(md5(uniqid('', true)), 0, 8)),
-            'domain_id' => 2,
-            'level_id' => 1,
+            'domain_id' => $this->seededAwardForeignKey('Awards.Domains'),
+            'level_id' => $this->seededAwardForeignKey('Awards.Levels'),
             'branch_id' => self::KINGDOM_BRANCH_ID,
             'approval_process_id' => $processId,
             'is_active' => true,
@@ -568,6 +574,16 @@ class RecommendationApprovalWorkflowSyncServiceTest extends BaseTestCase
             'call_into_court' => 'No',
             'court_availability' => 'Anytime',
         ]));
+    }
+
+    private function seededAwardForeignKey(string $tableAlias): int
+    {
+        $record = $this->getTableLocator()->get($tableAlias)->find()
+            ->select(['id'])
+            ->orderBy(['id' => 'ASC'])
+            ->firstOrFail();
+
+        return (int)$record->id;
     }
 
     private function startSubmittedWorkflow(DefaultWorkflowEngine $engine, int $awardId): ServiceResult

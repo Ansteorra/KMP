@@ -169,6 +169,34 @@ describe('MobileActionItemsController', () => {
         expect(window.KMP_accessibility.announce).toHaveBeenCalledWith('To-do marked complete.');
     });
 
+    test('completeItem announces a successful completion with a cascade warning', async () => {
+        controller._groups = groups;
+        controller._renderCards();
+        controller._showToast = jest.fn();
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            status: 200,
+            headers: { get: () => 'application/json' },
+            json: jest.fn().mockResolvedValue({
+                success: true,
+                itemId: 41,
+                status: 'completed',
+                warning: 'A related required to-do still needs information.',
+            }),
+        });
+
+        await controller.completeItem({
+            preventDefault: jest.fn(),
+            currentTarget: document.querySelector('[data-item-id="41"] button'),
+        });
+
+        const message = 'To-do marked complete. Related to-dos need attention: '
+            + 'A related required to-do still needs information.';
+        expect(controller._groups).toEqual([]);
+        expect(controller._showToast).toHaveBeenCalledWith(message, 'warning');
+        expect(window.KMP_accessibility.announce).toHaveBeenCalledWith(message);
+    });
+
     test('loadItems renders first page and exposes load more state', async () => {
         controller.fetchWithRetry = jest.fn().mockResolvedValue({
             json: jest.fn().mockResolvedValue({

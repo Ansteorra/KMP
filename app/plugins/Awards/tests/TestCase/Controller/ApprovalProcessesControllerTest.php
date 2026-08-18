@@ -41,14 +41,15 @@ class ApprovalProcessesControllerTest extends HttpIntegrationTestCase
             ->method('syncOpenRecommendations')
             ->with(self::ADMIN_MEMBER_ID)
             ->willReturn(new ServiceResult(true, null, [
-                'backfillCandidateCount' => 3,
+                'backfillCandidateCount' => 4,
                 'backfilledCount' => 1,
                 'backfillUnchangedCount' => 0,
-                'backfillSkippedCount' => 2,
+                'backfillSkippedCount' => 3,
                 'backfillFailedCount' => 0,
                 'backfillSkips' => [
                     ['recommendationId' => 40, 'reason' => '<em>Active</em> feedback request.'],
                     ['recommendationId' => 41, 'reason' => 'No approval process.'],
+                    ['recommendationId' => 42, 'reason' => '404'],
                 ],
                 'processedCount' => 5,
                 'synchronizedCount' => 2,
@@ -70,14 +71,15 @@ class ApprovalProcessesControllerTest extends HttpIntegrationTestCase
 
         $this->assertRedirect(['controller' => 'ApprovalProcesses', 'action' => 'index']);
         $this->assertFlashMessage(
-            'Ownership backfill reviewed 3 open recommendation(s) without an active run: '
-            . '1 started, 0 unchanged, 2 skipped, and 0 failed. '
+            'Ownership backfill reviewed 4 open recommendation(s) without an active run: '
+            . '1 started, 0 unchanged, 3 skipped, and 0 failed. '
             . 'Processed 5 active workflow(s): 2 synchronized '
             . '(1 advanced; 1 workflow version(s) migrated), 2 unchanged, 1 skipped, and 0 failed. '
-            . 'Recommendations needing attention: #40, #41. '
-            . 'Backfill skip reasons: Active feedback request (1); No approval process (1).',
+            . 'Recommendations needing attention: #40, #41, #42. '
+            . 'Backfill skip reasons: Active feedback request (1); No approval process (1); 404 (1).',
             'flash',
         );
+        $this->assertFlashElement('flash/success');
     }
 
     public function testSyncOpenRecommendationsFlashesSafeFailureCategories(): void
@@ -125,6 +127,7 @@ class ApprovalProcessesControllerTest extends HttpIntegrationTestCase
             . 'One or more workflows failed.',
             'flash',
         );
+        $this->assertFlashElement('flash/error');
     }
 
     public function testSyncOpenRecommendationsRejectsGet(): void
@@ -139,6 +142,21 @@ class ApprovalProcessesControllerTest extends HttpIntegrationTestCase
         $this->get('/awards/approval-processes/sync-open-recommendations');
 
         $this->assertResponseCode(405);
+    }
+
+    public function testSyncOpenRecommendationsRequiresExplicitAuthorization(): void
+    {
+        $service = $this->createMock(RecommendationApprovalWorkflowSyncService::class);
+        $service->expects($this->never())->method('syncOpenRecommendations');
+        $this->mockService(
+            RecommendationApprovalWorkflowSyncService::class,
+            static fn() => $service,
+        );
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+
+        $this->post('/awards/approval-processes/sync-open-recommendations');
+
+        $this->assertRedirectContains('/pages/unauthorized');
     }
 
     public function testAddStepAcceptsTypedComboboxSourceField(): void

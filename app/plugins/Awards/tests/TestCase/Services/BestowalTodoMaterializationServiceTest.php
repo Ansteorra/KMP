@@ -543,7 +543,53 @@ class BestowalTodoMaterializationServiceTest extends BaseTestCase
         $this->assertCount(0, $this->loadActionItems($bestowalId));
     }
 
-    public function testSyncOpenBestowalsProcessesExactOpenLifecycleOnly(): void
+    public function testSyncForBestowalAccumulatesSkippedRequiredFieldChecksAcrossPasses(): void
+    {
+        $templateId = $this->createTemplateWithItems();
+        $awardId = $this->assignTemplateToAward($templateId, self::KINGDOM_BRANCH_ID);
+        $bestowal = $this->createPersistedBestowal(
+            $awardId,
+            Bestowal::LIFECYCLE_OPEN,
+            'Required Skip Accumulation',
+        );
+        $actionItemService = $this->getMockBuilder(ActionItemService::class)
+            ->onlyMethods(['synchronizeFor', 'syncRequiredFieldCompletionStates'])
+            ->getMock();
+        $actionItemService->expects($this->once())
+            ->method('synchronizeFor')
+            ->willReturn(new ServiceResult(true, null, [
+                'createdCount' => 0,
+                'updatedCount' => 0,
+                'cancelledCount' => 0,
+                'reopenedCount' => 0,
+                'unchangedCount' => 2,
+                'requiredCompletedCount' => 1,
+                'requiredReopenedCount' => 0,
+                'requiredSkippedCount' => 1,
+            ]));
+        $actionItemService->expects($this->exactly(2))
+            ->method('syncRequiredFieldCompletionStates')
+            ->willReturnOnConsecutiveCalls(
+                new ServiceResult(true, null, [
+                    'completedCount' => 1,
+                    'reopenedCount' => 0,
+                    'skippedCount' => 2,
+                ]),
+                new ServiceResult(true, null, [
+                    'completedCount' => 0,
+                    'reopenedCount' => 0,
+                    'skippedCount' => 3,
+                ]),
+            );
+
+        $result = (new BestowalTodoMaterializationService($actionItemService))
+            ->syncForBestowal($bestowal, self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($result->success, (string)$result->reason);
+        $this->assertSame(6, $result->data['requiredSkippedCount']);
+    }
+
+    public function testSyncOpenBestowalsProcessesOpenLifecycleOnly(): void
     {
         $templateId = $this->createTemplateWithItems();
         $awardId = $this->assignTemplateToAward($templateId, self::KINGDOM_BRANCH_ID);
@@ -552,8 +598,11 @@ class BestowalTodoMaterializationServiceTest extends BaseTestCase
         $cancelled = $this->createPersistedBestowal($awardId, Bestowal::LIFECYCLE_CANCELLED, 'Bulk Cancelled');
         $expectedProcessed = $this->getTableLocator()->get('Awards.Bestowals')->find()
             ->where([
-                'Bestowals.lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
                 'Bestowals.deleted IS' => null,
+                'OR' => [
+                    'Bestowals.lifecycle_status IS' => null,
+                    'Bestowals.lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
+                ],
             ])
             ->count();
 
@@ -639,6 +688,27 @@ class BestowalTodoMaterializationServiceTest extends BaseTestCase
         $this->assertCount(2, $healthyItems, 'A later healthy bestowal must still synchronize.');
         $this->assertArrayHasKey('scroll_assigned', $healthyItems);
         $this->assertArrayHasKey('scroll_finished', $healthyItems);
+    }
+
+    public function testTransactionalOperationsRestoreDisabledSavePointConfiguration(): void
+    {
+        $connection = $this->awardsTable->getConnection();
+        $connection->disableSavePoints();
+        $templateId = $this->createTemplateWithItems();
+        $awardId = $this->assignTemplateToAward($templateId, self::KINGDOM_BRANCH_ID);
+        $bestowal = $this->buildBestowal(9000010, $awardId);
+
+        $materializeResult = $this->service->materializeForBestowal($bestowal);
+        $this->assertTrue($materializeResult->success, (string)$materializeResult->reason);
+        $this->assertFalse($connection->isSavePointsEnabled());
+
+        $syncResult = $this->service->syncForBestowal($bestowal, self::ADMIN_MEMBER_ID);
+        $this->assertTrue($syncResult->success, (string)$syncResult->reason);
+        $this->assertFalse($connection->isSavePointsEnabled());
+
+        $bulkResult = $this->service->syncOpenBestowals(self::ADMIN_MEMBER_ID);
+        $this->assertTrue($bulkResult->success, (string)$bulkResult->reason);
+        $this->assertFalse($connection->isSavePointsEnabled());
     }
 
     private function createTemplateWithItems(): int

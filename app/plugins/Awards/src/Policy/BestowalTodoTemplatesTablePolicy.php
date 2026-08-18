@@ -15,6 +15,11 @@ class BestowalTodoTemplatesTablePolicy extends BasePolicy
 {
     /**
      * Authorize synchronizing open bestowal to-do lists.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user Current identity.
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity Authorized table context.
+     * @param mixed ...$optionalArgs Additional authorization context.
+     * @return bool
      */
     public function canSyncOpenBestowals(
         KmpIdentityInterface $user,

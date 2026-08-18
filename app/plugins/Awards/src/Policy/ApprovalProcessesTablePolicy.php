@@ -12,6 +12,11 @@ class ApprovalProcessesTablePolicy extends BasePolicy
 {
     /**
      * Authorize synchronizing open recommendation workflows.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user Current identity.
+     * @param \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity Authorized table context.
+     * @param mixed ...$optionalArgs Additional authorization context.
+     * @return bool
      */
     public function canSyncOpenRecommendations(
         KmpIdentityInterface $user,

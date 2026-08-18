@@ -613,6 +613,19 @@ $connection->transactional(function () use ($connection, $input): void {
         $connection->execute('DELETE FROM awards_recommendations WHERE id = :id', ['id' => $recommendationId]);
     }
     foreach ($workflowInstanceIds as $workflowInstanceId) {
+        $connection->execute(
+            'DELETE FROM workflow_approval_responses WHERE workflow_approval_id IN '
+            . '(SELECT id FROM workflow_approvals WHERE workflow_instance_id = :id)',
+            ['id' => $workflowInstanceId],
+        );
+        $connection->execute(
+            'DELETE FROM workflow_approvals WHERE workflow_instance_id = :id',
+            ['id' => $workflowInstanceId],
+        );
+        $connection->execute(
+            'DELETE FROM workflow_execution_logs WHERE workflow_instance_id = :id',
+            ['id' => $workflowInstanceId],
+        );
         $connection->execute('DELETE FROM workflow_instances WHERE id = :id', ['id' => $workflowInstanceId]);
     }
     if ($awardId > 0) {
@@ -677,7 +690,14 @@ const assertAccessibleSyncConfirmation = async (page) => {
     await expect(dialog.getByRole('button', { name: 'Sync Now', exact: true })).toBeFocused();
 };
 
-const submitSyncConfirmation = async (page, controlName, title, postPath, expectedZeroFailureCount) => {
+const submitSyncConfirmation = async (
+    page,
+    controlName,
+    title,
+    postPath,
+    expectedSummaryFragment,
+    expectedFailureClauseCount,
+) => {
     await openSyncConfirmation(page, controlName, title, 'Synchronize');
     const dialog = page.getByRole('dialog', { name: title, exact: true });
     const postResponsePromise = page.waitForResponse((response) => {
@@ -688,14 +708,23 @@ const submitSyncConfirmation = async (page, controlName, title, postPath, expect
     const [postResponse] = await Promise.all([
         postResponsePromise,
         navigationPromise,
-        dialog.getByRole('button', { name: 'Sync Now', exact: true }).press('Enter'),
+        dialog.getByRole('button', { name: 'Sync Now', exact: true }).press('Enter', { noWaitAfter: true }),
     ]);
     expect([200, 302, 303]).toContain(postResponse.status());
     await waitForPageBody(page, 30000);
     const flash = page.getByRole('alert').first();
-    await expect(flash).toHaveClass(/alert-success/);
-    const flashText = await flash.textContent();
-    expect(flashText?.match(/\b0 failed\b/g) ?? []).toHaveLength(expectedZeroFailureCount);
+    await expect(flash).toBeVisible();
+    const flashText = (await flash.textContent()) ?? '';
+    expect(flashText).toContain(expectedSummaryFragment);
+    const failureCounts = Array.from(
+        flashText.matchAll(/\b(\d+) failed\b/g),
+        (match) => Number.parseInt(match[1], 10),
+    );
+    expect(failureCounts).toHaveLength(expectedFailureClauseCount);
+    expect(failureCounts).toEqual(Array(expectedFailureClauseCount).fill(0));
+    await expect(flash, `Synchronization summary: ${flashText}`).toHaveClass(
+        /alert-success/,
+    );
 };
 
 const inspectRecommendationSync = (page) => {
@@ -791,6 +820,7 @@ When('I confirm recommendation synchronization with the keyboard', async ({ page
         RECOMMENDATION_SYNC_CONTROL,
         'Synchronize open recommendations',
         RECOMMENDATION_SYNC_POST_PATH,
+        'Ownership backfill reviewed',
         2,
     );
 });
@@ -819,6 +849,7 @@ When('I synchronize the open recommendations again', async ({ page }) => {
         RECOMMENDATION_SYNC_CONTROL,
         'Synchronize open recommendations',
         RECOMMENDATION_SYNC_POST_PATH,
+        'Ownership backfill reviewed',
         2,
     );
 });
@@ -845,6 +876,7 @@ When('I confirm bestowal synchronization with the keyboard', async ({ page }) =>
         BESTOWAL_SYNC_CONTROL,
         'Synchronize open bestowals',
         BESTOWAL_SYNC_POST_PATH,
+        'Processed',
         1,
     );
 });
@@ -897,6 +929,7 @@ When('I synchronize the open bestowals again', async ({ page }) => {
         BESTOWAL_SYNC_CONTROL,
         'Synchronize open bestowals',
         BESTOWAL_SYNC_POST_PATH,
+        'Processed',
         1,
     );
 });

@@ -999,6 +999,8 @@ class BestowalsController extends AppController
         $skipped = 0;
         $notApplicable = 0;
         $failureReason = null;
+        $cascadeWarningCount = 0;
+        $cascadeWarningReason = null;
 
         $itemsByBestowal = $this->loadBestowalActionItems(array_map('intval', $scopedIds));
 
@@ -1027,6 +1029,11 @@ class BestowalsController extends AppController
             );
             if ($result->success) {
                 $completed++;
+                $warning = $this->actionItemCascadeWarning($result);
+                if ($warning !== null) {
+                    $cascadeWarningCount++;
+                    $cascadeWarningReason ??= $warning;
+                }
             } else {
                 $skipped++;
                 $failureReason ??= $result->reason !== null ? (string)$result->reason : null;
@@ -1036,7 +1043,14 @@ class BestowalsController extends AppController
         $unscoped = count($bestowalIds) - count($scopedIds);
         $notApplicable += $unscoped;
 
-        $this->flashBulkTodoSummary($completed, $skipped, $notApplicable, $failureReason);
+        $this->flashBulkTodoSummary(
+            $completed,
+            $skipped,
+            $notApplicable,
+            $failureReason,
+            $cascadeWarningCount,
+            $cascadeWarningReason,
+        );
 
         return $this->redirectAfterBestowalMutation($pageContext, null);
     }
@@ -1085,6 +1099,8 @@ class BestowalsController extends AppController
         $skippedUnauthorized = 0;
         $skippedInvalid = 0;
         $skippedTodo = 0;
+        $cascadeWarningCount = 0;
+        $cascadeWarningReason = null;
         $scopedIds = [];
         $scopedBestowals = [];
 
@@ -1126,6 +1142,11 @@ class BestowalsController extends AppController
             $completeResult = $actionItemService->complete((int)$todo->id, $actorId, null, true, [], $user);
             if ($completeResult->success) {
                 $completed++;
+                $warning = $this->actionItemCascadeWarning($completeResult);
+                if ($warning !== null) {
+                    $cascadeWarningCount++;
+                    $cascadeWarningReason ??= $warning;
+                }
             } else {
                 $skippedTodo++;
             }
@@ -1138,6 +1159,8 @@ class BestowalsController extends AppController
             $skippedUnauthorized,
             $skippedInvalid,
             $skippedTodo + $skippedOutOfScope,
+            $cascadeWarningCount,
+            $cascadeWarningReason,
         );
 
         return $this->redirectAfterBestowalMutation($pageContext, null);
@@ -1217,6 +1240,8 @@ class BestowalsController extends AppController
      * @param int $unauthorized Unauthorized bestowals skipped
      * @param int $invalid Invalid/locked bestowals skipped
      * @param int $notApplicable Out-of-scope or no matching to-do rows
+     * @param int $cascadeWarningCount Completed checks whose related cascade needs attention.
+     * @param string|null $cascadeWarningReason First cascade warning reason, when available.
      * @return void
      */
     private function flashBulkGatheringSummary(
@@ -1225,6 +1250,8 @@ class BestowalsController extends AppController
         int $unauthorized,
         int $invalid,
         int $notApplicable,
+        int $cascadeWarningCount = 0,
+        ?string $cascadeWarningReason = null,
     ): void {
         if ($updated > 0) {
             $message = __n(
@@ -1269,7 +1296,12 @@ class BestowalsController extends AppController
             if ($extras !== []) {
                 $message .= ' (' . implode('; ', $extras) . ')';
             }
-            $this->Flash->success($message);
+            $message .= $this->bulkCascadeWarningSummary($cascadeWarningCount, $cascadeWarningReason);
+            if ($cascadeWarningCount > 0) {
+                $this->Flash->warning($message);
+            } else {
+                $this->Flash->success($message);
+            }
 
             return;
         }
@@ -1290,6 +1322,8 @@ class BestowalsController extends AppController
      * @param int $skipped Items the actor was not eligible to complete
      * @param int $notApplicable Bestowals without the check open or out of scope
      * @param string|null $failureReason First completion failure reason, when available.
+     * @param int $cascadeWarningCount Completed checks whose related cascade needs attention.
+     * @param string|null $cascadeWarningReason First cascade warning reason, when available.
      * @return void
      */
     private function flashBulkTodoSummary(
@@ -1297,6 +1331,8 @@ class BestowalsController extends AppController
         int $skipped,
         int $notApplicable,
         ?string $failureReason = null,
+        int $cascadeWarningCount = 0,
+        ?string $cascadeWarningReason = null,
     ): void {
         if ($completed > 0) {
             $message = __n(
@@ -1315,7 +1351,12 @@ class BestowalsController extends AppController
             if ($extras !== []) {
                 $message .= ' (' . implode('; ', $extras) . ')';
             }
-            $this->Flash->success($message);
+            $message .= $this->bulkCascadeWarningSummary($cascadeWarningCount, $cascadeWarningReason);
+            if ($cascadeWarningCount > 0) {
+                $this->Flash->warning($message);
+            } else {
+                $this->Flash->success($message);
+            }
 
             return;
         }
@@ -1329,6 +1370,52 @@ class BestowalsController extends AppController
         }
 
         $this->Flash->error(__('None of the selected bestowals have that check open.'));
+    }
+
+    /**
+     * Read a post-commit cascade warning from a successful to-do transition.
+     *
+     * @param \App\Services\ServiceResult $result To-do transition result.
+     * @return string|null
+     */
+    private function actionItemCascadeWarning(ServiceResult $result): ?string
+    {
+        if (!is_array($result->data)) {
+            return null;
+        }
+
+        $warning = $result->data[ActionItemService::CASCADE_WARNING_DATA_KEY] ?? null;
+        if (!is_array($warning)) {
+            return null;
+        }
+
+        $reason = trim((string)($warning['reason'] ?? ''));
+
+        return $reason !== '' ? $reason : null;
+    }
+
+    /**
+     * Build a warning suffix for committed checks with incomplete related cascades.
+     *
+     * @param int $warningCount Number of completed checks with cascade warnings.
+     * @param string|null $warningReason First warning reason, when available.
+     * @return string
+     */
+    private function bulkCascadeWarningSummary(int $warningCount, ?string $warningReason): string
+    {
+        if ($warningCount <= 0) {
+            return '';
+        }
+
+        $reason = $warningReason ?? __('Related required to-dos could not be synchronized.');
+
+        return ' ' . __n(
+            'Related to-dos need attention after {0} completed check: {1}',
+            'Related to-dos need attention after {0} completed checks: {1}',
+            $warningCount,
+            $warningCount,
+            $reason,
+        );
     }
 
     /**

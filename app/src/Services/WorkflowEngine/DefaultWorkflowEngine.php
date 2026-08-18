@@ -2543,6 +2543,10 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
                 if (!isset($context['nodes'])) {
                     $context['nodes'] = [];
                 }
+                $nonNullApprovalData = array_filter(
+                    $approvalData,
+                    static fn(mixed $value): bool => $value !== null,
+                );
                 $context['nodes'][$nodeId] = array_merge([
                     'approvedCount' => $approvalData['approvedCount'] ?? ($approval ? $approval->approved_count : 0),
                     'requiredCount' => $approvalData['requiredCount'] ?? ($approval ? $approval->required_count : 1),
@@ -2551,7 +2555,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
                     'approvalChain' => $approvalData['approvalChain'] ?? ($approval ? ($approval->approver_config['approval_chain'] ?? []) : []),
                     'decision' => $approvalData['decision'] ?? 'approve',
                     'comment' => $approvalData['comment'] ?? null,
-                ], $approvalData);
+                ], $nonNullApprovalData);
                 $instance->context = $context;
 
                 // Get targets from the specified output port

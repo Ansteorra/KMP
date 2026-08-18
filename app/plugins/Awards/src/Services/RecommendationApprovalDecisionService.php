@@ -12,14 +12,24 @@ use App\Services\WorkflowEngine\WorkflowEngineInterface;
 
 class RecommendationApprovalDecisionService
 {
+    private const BESTOWAL_GATHERING_WORKFLOW_SLUGS = [
+        'awards-recommendation-submitted',
+        'awards-existing-recommendation-approval',
+    ];
+
+    private RecommendationApprovalProcessService $approvalProcessService;
+
     /**
      * @param \App\Services\WorkflowEngine\WorkflowApprovalManagerInterface $approvalManager Approval manager
      * @param \App\Services\WorkflowEngine\WorkflowEngineInterface $workflowEngine Workflow engine
+     * @param \Awards\Services\RecommendationApprovalProcessService|null $approvalProcessService Process state reader
      */
     public function __construct(
         private WorkflowApprovalManagerInterface $approvalManager,
         private WorkflowEngineInterface $workflowEngine,
+        ?RecommendationApprovalProcessService $approvalProcessService = null,
     ) {
+        $this->approvalProcessService = $approvalProcessService ?? new RecommendationApprovalProcessService();
     }
 
     /**
@@ -80,13 +90,16 @@ class RecommendationApprovalDecisionService
         ?string $comment,
         ?int $bestowalGatheringId = null,
     ): ServiceResult {
+        $persistBestowalGathering = $decision === WorkflowApprovalResponse::DECISION_APPROVE
+            && $bestowalGatheringId !== null
+            && $this->requiresFinalStepGathering($approval);
         $result = $this->approvalManager->recordResponse(
             (int)$approval->id,
             $memberId,
             $decision,
             $comment,
             null,
-            $bestowalGatheringId !== null
+            $persistBestowalGathering
                 ? ['bestowal_gathering_id' => $bestowalGatheringId]
                 : [],
         );
@@ -109,7 +122,7 @@ class RecommendationApprovalDecisionService
                 'decision' => $decision,
                 'comment' => $comment,
             ];
-            if ($bestowalGatheringId !== null) {
+            if ($persistBestowalGathering) {
                 $resumeData['bestowalGatheringId'] = $bestowalGatheringId;
             }
 
@@ -132,7 +145,7 @@ class RecommendationApprovalDecisionService
                 'comment' => $comment,
                 'nextApproverId' => $data['nextApproverId'] ?? null,
             ];
-            if ($bestowalGatheringId !== null) {
+            if ($persistBestowalGathering) {
                 $intermediateData['bestowalGatheringId'] = $bestowalGatheringId;
             }
 
@@ -150,5 +163,43 @@ class RecommendationApprovalDecisionService
         }
 
         return $result;
+    }
+
+    /**
+     * Return whether this gate owns the required gathering selection for the final approval step.
+     *
+     * @param \App\Model\Entity\WorkflowApproval $approval Approval being answered.
+     * @return bool
+     */
+    private function requiresFinalStepGathering(WorkflowApproval $approval): bool
+    {
+        $config = is_array($approval->approver_config) ? $approval->approver_config : [];
+        $requiresGathering = !empty($config['requires_bestowal_gathering'])
+            || !empty($config['requiresBestowalGathering']);
+        $workflowSlug = (string)($approval->workflow_instance?->workflow_definition?->slug ?? '');
+        $isAwardRecommendationWorkflow = in_array(
+            $workflowSlug,
+            self::BESTOWAL_GATHERING_WORKFLOW_SLUGS,
+            true,
+        );
+        if (
+            !$isAwardRecommendationWorkflow
+            && empty($config['award_approval_run_id'])
+            && empty($config['award_approval_step_key'])
+            && !array_key_exists('award_approval_is_final_step', $config)
+        ) {
+            return $requiresGathering;
+        }
+
+        $finalStepState = $this->approvalProcessService->isFinalApprovalStep($approval, $config);
+        if ($finalStepState === false) {
+            return false;
+        }
+
+        if ($requiresGathering) {
+            return true;
+        }
+
+        return $finalStepState === true && $isAwardRecommendationWorkflow;
     }
 }

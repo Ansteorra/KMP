@@ -8,6 +8,7 @@ use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\ActionItem;
 use App\Services\ActionItems\ActionItemCompletionFormRegistry;
 use App\Services\ActionItems\ActionItemService;
+use App\Services\ServiceResult;
 use Awards\Services\BestowalCourtSlotService;
 use Cake\Http\Response;
 use Cake\Routing\Router;
@@ -275,9 +276,12 @@ class ActionItemsController extends AppController
                 $user,
             )
             : $actionItemService->reopen($itemId, $actorId, $note, !$user->isSuperUser());
+        $cascadeWarning = $operation === 'complete' ? $this->getCascadeWarning($result) : null;
 
         if ($this->wantsTurboStreamRequest()) {
-            if ($result->success) {
+            if ($result->success && $cascadeWarning !== null) {
+                $this->Flash->warning(__('Marked complete. Related to-dos need attention: {0}', $cascadeWarning));
+            } elseif ($result->success) {
                 $this->Flash->success(
                     $operation === 'complete' ? __('Marked complete.') : __('Reopened.'),
                 );
@@ -296,12 +300,15 @@ class ActionItemsController extends AppController
             return $this->jsonResponse([
                 'success' => $result->success,
                 'error' => $result->success ? null : ($result->reason ?? __('The to-do item could not be updated.')),
+                'warning' => $cascadeWarning,
                 'itemId' => $itemId,
                 'status' => $operation === 'complete' && $result->success ? 'completed' : null,
             ], $result->success ? 200 : 422);
         }
 
-        if ($result->success) {
+        if ($result->success && $cascadeWarning !== null) {
+            $this->Flash->warning(__('Marked complete. Related to-dos need attention: {0}', $cascadeWarning));
+        } elseif ($result->success) {
             $this->Flash->success(
                 $operation === 'complete' ? __('Marked complete.') : __('Reopened.'),
             );
@@ -310,6 +317,28 @@ class ActionItemsController extends AppController
         }
 
         return $this->redirectBack();
+    }
+
+    /**
+     * Read the post-commit cascade warning returned by the to-do service.
+     *
+     * @param \App\Services\ServiceResult $result To-do transition result.
+     * @return string|null
+     */
+    private function getCascadeWarning(ServiceResult $result): ?string
+    {
+        if (!is_array($result->data)) {
+            return null;
+        }
+
+        $warning = $result->data[ActionItemService::CASCADE_WARNING_DATA_KEY] ?? null;
+        if (!is_array($warning)) {
+            return null;
+        }
+
+        $reason = trim((string)($warning['reason'] ?? ''));
+
+        return $reason !== '' ? $reason : null;
     }
 
     /**

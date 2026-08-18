@@ -69,28 +69,37 @@ class BestowalTodoMaterializationService
         }
 
         $connection = $this->fetchTable('Awards.Bestowals')->getConnection();
-        $connection->enableSavePoints();
+        $savePointsWereEnabled = $connection->isSavePointsEnabled();
+        if (!$savePointsWereEnabled) {
+            $connection->enableSavePoints();
+        }
 
-        return $connection->transactional(function () use ($bestowal, $bestowalId): ServiceResult {
-            $bestowal = $this->lockPersistedBestowal($bestowal);
-            if (!$bestowal instanceof Bestowal || !$bestowal->allowsActionItemMutations()) {
-                return new ServiceResult(true, 'Only open bestowals receive new to-do lists.', []);
-            }
-            $contextResult = $this->resolveTemplateContext($bestowal);
-            if (!$contextResult->success) {
-                return $contextResult;
-            }
-            if ($contextResult->data['skipped']) {
-                return new ServiceResult(true, $contextResult->reason, []);
-            }
+        try {
+            return $connection->transactional(function () use ($bestowal, $bestowalId): ServiceResult {
+                $bestowal = $this->lockPersistedBestowal($bestowal);
+                if (!$bestowal instanceof Bestowal || !$bestowal->allowsActionItemMutations()) {
+                    return new ServiceResult(true, 'Only open bestowals receive new to-do lists.', []);
+                }
+                $contextResult = $this->resolveTemplateContext($bestowal);
+                if (!$contextResult->success) {
+                    return $contextResult;
+                }
+                if ($contextResult->data['skipped']) {
+                    return new ServiceResult(true, $contextResult->reason, []);
+                }
 
-            return $this->actionItemService->materializeFor(
-                Bestowal::ACTION_ITEM_ENTITY_TYPE,
-                $bestowalId,
-                $contextResult->data['definitions'],
-                $contextResult->data['branchId'],
-            );
-        });
+                return $this->actionItemService->materializeFor(
+                    Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                    $bestowalId,
+                    $contextResult->data['definitions'],
+                    $contextResult->data['branchId'],
+                );
+            });
+        } finally {
+            if (!$savePointsWereEnabled) {
+                $connection->disableSavePoints();
+            }
+        }
     }
 
     /**
@@ -107,7 +116,10 @@ class BestowalTodoMaterializationService
             return new ServiceResult(false, 'A saved bestowal is required to synchronize to-dos.');
         }
         $connection = $this->fetchTable('Awards.Bestowals')->getConnection();
-        $connection->enableSavePoints();
+        $savePointsWereEnabled = $connection->isSavePointsEnabled();
+        if (!$savePointsWereEnabled) {
+            $connection->enableSavePoints();
+        }
         $failureReason = null;
 
         try {
@@ -136,6 +148,10 @@ class BestowalTodoMaterializationService
             ));
 
             return new ServiceResult(false, self::SYNC_FAILURE_REASON);
+        } finally {
+            if (!$savePointsWereEnabled) {
+                $connection->disableSavePoints();
+            }
         }
     }
 
@@ -189,7 +205,7 @@ class BestowalTodoMaterializationService
             $reopenedCount = (int)($requiredResult->data['reopenedCount'] ?? 0);
             $result->data['requiredCompletedCount'] += $completedCount;
             $result->data['requiredReopenedCount'] += $reopenedCount;
-            $result->data['requiredSkippedCount'] = (int)($requiredResult->data['skippedCount'] ?? 0);
+            $result->data['requiredSkippedCount'] += (int)($requiredResult->data['skippedCount'] ?? 0);
             $transitionCount = $completedCount + $reopenedCount;
         }
 
@@ -236,8 +252,11 @@ class BestowalTodoMaterializationService
         $bestowalIds = $this->fetchTable('Awards.Bestowals')->find()
             ->select(['id'])
             ->where([
-                'Bestowals.lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
                 'Bestowals.deleted IS' => null,
+                'OR' => [
+                    'Bestowals.lifecycle_status IS' => null,
+                    'Bestowals.lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
+                ],
             ])
             ->orderBy(['Bestowals.id' => 'ASC'])
             ->all()
@@ -325,15 +344,21 @@ class BestowalTodoMaterializationService
     {
         $bestowals = $this->fetchTable('Awards.Bestowals');
         $connection = $bestowals->getConnection();
-        $connection->enableSavePoints();
+        $savePointsWereEnabled = $connection->isSavePointsEnabled();
+        if (!$savePointsWereEnabled) {
+            $connection->enableSavePoints();
+        }
 
         try {
             return $connection->transactional(function () use ($bestowals, $bestowalId, $actorId): ServiceResult {
                 $bestowal = $bestowals->find()
                     ->where([
                         'Bestowals.id' => $bestowalId,
-                        'Bestowals.lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
                         'Bestowals.deleted IS' => null,
+                        'OR' => [
+                            'Bestowals.lifecycle_status IS' => null,
+                            'Bestowals.lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
+                        ],
                     ])
                     ->epilog('FOR UPDATE')
                     ->first();
@@ -355,6 +380,10 @@ class BestowalTodoMaterializationService
             ));
 
             return new ServiceResult(false, self::SYNC_FAILURE_REASON);
+        } finally {
+            if (!$savePointsWereEnabled) {
+                $connection->disableSavePoints();
+            }
         }
     }
 

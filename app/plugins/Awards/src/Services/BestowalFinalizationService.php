@@ -113,7 +113,10 @@ class BestowalFinalizationService
         bool $strict,
     ): ServiceResult {
         $connection = $this->bestowals->getConnection();
-        $connection->enableSavePoints();
+        $savePointsWereEnabled = $connection->isSavePointsEnabled();
+        if (!$savePointsWereEnabled) {
+            $connection->enableSavePoints();
+        }
 
         try {
             return $connection->transactional(function () use (
@@ -162,6 +165,10 @@ class BestowalFinalizationService
             });
         } catch (Throwable $exception) {
             return new ServiceResult(false, $exception->getMessage());
+        } finally {
+            if (!$savePointsWereEnabled) {
+                $connection->disableSavePoints();
+            }
         }
     }
 
@@ -216,11 +223,11 @@ class BestowalFinalizationService
      */
     protected function loadBestowal(int $bestowalId, bool $forUpdate = false): ?Bestowal
     {
-        /** @var \Awards\Model\Entity\Bestowal|null $bestowal */
         $query = $this->bestowals->find()->where(['Bestowals.id' => $bestowalId]);
         if ($forUpdate) {
             $query->epilog('FOR UPDATE');
         }
+        /** @var \Awards\Model\Entity\Bestowal|null $bestowal */
         $bestowal = $query->first();
 
         return $bestowal;

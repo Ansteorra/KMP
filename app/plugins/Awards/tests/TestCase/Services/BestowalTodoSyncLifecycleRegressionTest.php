@@ -15,6 +15,34 @@ use Cake\I18n\DateTime;
 
 class BestowalTodoSyncLifecycleRegressionTest extends BaseTestCase
 {
+    /**
+     * @var array<string, \App\Services\ActionItems\ActionItemCompletionFormProviderInterface>
+     */
+    private array $completionFormProviders;
+
+    /**
+     * @return void
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->completionFormProviders = ActionItemCompletionFormRegistry::providers();
+    }
+
+    /**
+     * @return void
+     */
+    protected function tearDown(): void
+    {
+        ActionItemCompletionFormRegistry::clear();
+        foreach ($this->completionFormProviders as $source => $provider) {
+            ActionItemCompletionFormRegistry::register($source, $provider);
+        }
+
+        parent::tearDown();
+    }
+
     public function testDeletedOwnerRejectsStaleSynchronizationAndQueuedTransitions(): void
     {
         $templates = $this->getTableLocator()->get('Awards.BestowalTodoTemplates');

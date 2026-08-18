@@ -571,76 +571,86 @@ class RecommendationMigrationService
     private function backfillOpenApprovalRecommendation(int $recommendationId, int $actorId): array
     {
         $connection = $this->recommendationsTable->getConnection();
-        $connection->enableSavePoints();
+        $savePointsWereEnabled = $connection->isSavePointsEnabled();
+        if (!$savePointsWereEnabled) {
+            $connection->enableSavePoints();
+        }
 
-        return $connection->transactional(function () use ($recommendationId, $actorId): array {
-            $recommendation = $this->recommendationsTable->find()
-                ->where([
-                    'Recommendations.id' => $recommendationId,
-                    'Recommendations.status !=' => 'Closed',
-                    'Recommendations.state IN' => self::APPROVAL_STATES,
-                    'Recommendations.bestowal_id IS' => null,
-                    'Recommendations.recommendation_group_id IS' => null,
-                    'Recommendations.deleted IS' => null,
-                ])
-                ->epilog('FOR UPDATE')
-                ->first();
-            if (!$recommendation instanceof Recommendation) {
-                return [
-                    'status' => 'unchanged',
-                    'reason' => 'Recommendation no longer belongs to the approval backfill population.',
-                ];
-            }
-
-            if ($this->findActiveApprovalRun($recommendationId) !== null) {
-                return [
-                    'status' => 'unchanged',
-                    'reason' => 'Recommendation already has an active approval run.',
-                ];
-            }
-
-            $this->recommendationsTable->loadInto($recommendation, [
-                'Awards.ApprovalProcesses.ApprovalProcessSteps',
-            ]);
-            $classification = $this->classify($recommendation);
-            if ($classification['target'] !== RecommendationMigrationResult::TARGET_APPROVAL_WORKFLOW) {
-                return [
-                    'status' => 'skipped',
-                    'reason' => $classification['reason'],
-                ];
-            }
-
-            $resultData = $this->applyApprovalWorkflow(
-                $recommendation,
-                [
-                    'result_status' => RecommendationMigrationResult::STATUS_APPLIED,
-                    'reason' => $classification['reason'],
-                ],
-                $actorId,
-            );
-            $activeRun = $this->findActiveApprovalRun($recommendationId);
-            if ($activeRun !== null) {
-                if (($resultData['result_status'] ?? null) === RecommendationMigrationResult::STATUS_SKIPPED) {
+        try {
+            return $connection->transactional(function () use ($recommendationId, $actorId): array {
+                $recommendation = $this->recommendationsTable->find()
+                    ->where([
+                        'Recommendations.id' => $recommendationId,
+                        'Recommendations.status !=' => 'Closed',
+                        'Recommendations.state IN' => self::APPROVAL_STATES,
+                        'Recommendations.bestowal_id IS' => null,
+                        'Recommendations.recommendation_group_id IS' => null,
+                        'Recommendations.deleted IS' => null,
+                    ])
+                    ->epilog('FOR UPDATE')
+                    ->first();
+                if (!$recommendation instanceof Recommendation) {
                     return [
                         'status' => 'unchanged',
-                        'reason' => (string)($resultData['reason'] ?? 'Recommendation already has an active run.'),
+                        'reason' => 'Recommendation no longer belongs to the approval backfill population.',
                     ];
                 }
 
-                return ['status' => 'started'];
-            }
+                if ($this->findActiveApprovalRun($recommendationId) !== null) {
+                    return [
+                        'status' => 'unchanged',
+                        'reason' => 'Recommendation already has an active approval run.',
+                    ];
+                }
 
-            if (($resultData['result_status'] ?? null) === RecommendationMigrationResult::STATUS_SKIPPED) {
-                return [
-                    'status' => 'skipped',
-                    'reason' => (string)($resultData['reason'] ?? 'Recommendation requires manual review.'),
-                ];
-            }
+                $this->recommendationsTable->loadInto($recommendation, [
+                    'Awards.ApprovalProcesses.ApprovalProcessSteps',
+                ]);
+                $classification = $this->classify($recommendation);
+                if ($classification['target'] !== RecommendationMigrationResult::TARGET_APPROVAL_WORKFLOW) {
+                    return [
+                        'status' => 'skipped',
+                        'reason' => $classification['reason'],
+                    ];
+                }
 
-            throw new RuntimeException(
-                'Existing recommendation approval workflow did not create a pending approval gate or active run.',
-            );
-        });
+                $resultData = $this->applyApprovalWorkflow(
+                    $recommendation,
+                    [
+                        'result_status' => RecommendationMigrationResult::STATUS_APPLIED,
+                        'reason' => $classification['reason'],
+                    ],
+                    $actorId,
+                );
+                $activeRun = $this->findActiveApprovalRun($recommendationId);
+                if ($activeRun !== null) {
+                    if (($resultData['result_status'] ?? null) === RecommendationMigrationResult::STATUS_SKIPPED) {
+                        return [
+                            'status' => 'unchanged',
+                            'reason' => (string)($resultData['reason'] ?? 'Recommendation already has an active run.'),
+                        ];
+                    }
+
+                    return ['status' => 'started'];
+                }
+
+                if (($resultData['result_status'] ?? null) === RecommendationMigrationResult::STATUS_SKIPPED) {
+                    return [
+                        'status' => 'skipped',
+                        'reason' => (string)($resultData['reason'] ?? 'Recommendation requires manual review.'),
+                    ];
+                }
+
+                throw new RecommendationApprovalManualReviewException(
+                    RecommendationApprovalManualReviewException::REASON_GATE_MISSING,
+                    'Existing recommendation approval workflow did not create a pending approval gate or active run.',
+                );
+            });
+        } finally {
+            if (!$savePointsWereEnabled) {
+                $connection->disableSavePoints();
+            }
+        }
     }
 
     /**
@@ -821,12 +831,7 @@ class RecommendationMigrationService
      */
     private function isManualReviewableApprovalWorkflowFailure(Throwable $exception): bool
     {
-        $message = $exception->getMessage();
-
-        return str_contains($message, 'resolved zero eligible approvers')
-            || str_contains($message, 'has no eligible approvers')
-            || str_contains($message, 'did not create a pending approval gate')
-            || str_contains($message, 'approval workflow ownership cannot be safely repaired');
+        return $exception instanceof RecommendationApprovalManualReviewException;
     }
 
     /**
@@ -834,23 +839,19 @@ class RecommendationMigrationService
      */
     private function manualReviewableApprovalWorkflowFailureReason(Throwable $exception): string
     {
-        $message = $exception->getMessage();
-        if (
-            str_contains($message, 'resolved zero eligible approvers')
-            || str_contains($message, 'has no eligible approvers')
-        ) {
-            return self::APPROVAL_NO_ELIGIBLE_APPROVERS_REASON;
+        if (!$exception instanceof RecommendationApprovalManualReviewException) {
+            return self::APPROVAL_START_FAILURE_REASON;
         }
 
-        if (str_contains($message, 'did not create a pending approval gate')) {
-            return self::APPROVAL_GATE_MISSING_REASON;
-        }
-
-        if (str_contains($message, 'approval workflow ownership cannot be safely repaired')) {
-            return self::APPROVAL_OWNERSHIP_AMBIGUOUS_REASON;
-        }
-
-        return self::APPROVAL_START_FAILURE_REASON;
+        return match ($exception->getReason()) {
+            RecommendationApprovalManualReviewException::REASON_NO_ELIGIBLE_APPROVERS =>
+                self::APPROVAL_NO_ELIGIBLE_APPROVERS_REASON,
+            RecommendationApprovalManualReviewException::REASON_GATE_MISSING =>
+                self::APPROVAL_GATE_MISSING_REASON,
+            RecommendationApprovalManualReviewException::REASON_OWNERSHIP_AMBIGUOUS =>
+                self::APPROVAL_OWNERSHIP_AMBIGUOUS_REASON,
+            default => self::APPROVAL_START_FAILURE_REASON,
+        };
     }
 
     /**
@@ -1019,10 +1020,13 @@ class RecommendationMigrationService
         $this->approvalRunsTable->saveOrFail($run);
 
         $reason = $this->failedWorkflowReason($instance);
-        throw new RuntimeException(sprintf(
-            'Existing recommendation approval workflow did not create a pending approval gate%s.',
-            $reason === '' ? '' : ': ' . $reason,
-        ));
+        throw new RecommendationApprovalManualReviewException(
+            RecommendationApprovalManualReviewException::REASON_GATE_MISSING,
+            sprintf(
+                'Existing recommendation approval workflow did not create a pending approval gate%s.',
+                $reason === '' ? '' : ': ' . $reason,
+            ),
+        );
     }
 
     /**
@@ -1112,12 +1116,15 @@ class RecommendationMigrationService
             ->all()
             ->toList();
         if (count($instances) > 1) {
-            throw new RuntimeException(sprintf(
-                'Recommendation %d approval workflow ownership cannot be safely repaired: '
-                . 'found %d active workflow instances.',
-                $recommendationId,
-                count($instances),
-            ));
+            throw new RecommendationApprovalManualReviewException(
+                RecommendationApprovalManualReviewException::REASON_OWNERSHIP_AMBIGUOUS,
+                sprintf(
+                    'Recommendation %d approval workflow ownership cannot be safely repaired: '
+                    . 'found %d active workflow instances.',
+                    $recommendationId,
+                    count($instances),
+                ),
+            );
         }
 
         return $instances[0] ?? null;
@@ -1152,6 +1159,7 @@ class RecommendationMigrationService
                 'node_id' => 'award-approval-gate',
             ])
             ->orderBy(['id' => 'ASC'])
+            ->epilog('FOR UPDATE')
             ->all()
             ->toList();
         $ownedApprovals = [];
@@ -1188,30 +1196,39 @@ class RecommendationMigrationService
         }
 
         if ($ownedApprovals === [] || $currentApprovals === []) {
-            throw new RuntimeException(sprintf(
-                'Recommendation %d approval workflow ownership cannot be safely repaired: '
-                . 'no current configured award approval gate was found.',
-                $recommendationId,
-            ));
+            throw new RecommendationApprovalManualReviewException(
+                RecommendationApprovalManualReviewException::REASON_OWNERSHIP_AMBIGUOUS,
+                sprintf(
+                    'Recommendation %d approval workflow ownership cannot be safely repaired: '
+                    . 'no current configured award approval gate was found.',
+                    $recommendationId,
+                ),
+            );
         }
         if (count($pendingApprovals) > 1) {
-            throw new RuntimeException(sprintf(
-                'Recommendation %d approval workflow ownership cannot be safely repaired: '
-                . 'found %d pending award approval gates.',
-                $recommendationId,
-                count($pendingApprovals),
-            ));
+            throw new RecommendationApprovalManualReviewException(
+                RecommendationApprovalManualReviewException::REASON_OWNERSHIP_AMBIGUOUS,
+                sprintf(
+                    'Recommendation %d approval workflow ownership cannot be safely repaired: '
+                    . 'found %d pending award approval gates.',
+                    $recommendationId,
+                    count($pendingApprovals),
+                ),
+            );
         }
 
         $currentApproval = $pendingApprovals[0] ?? $currentApprovals[array_key_last($currentApprovals)];
         $currentConfig = is_array($currentApproval->approver_config) ? $currentApproval->approver_config : [];
         $currentStepKey = trim((string)($currentConfig['award_approval_step_key'] ?? ''));
         if ($currentStepKey === '') {
-            throw new RuntimeException(sprintf(
-                'Recommendation %d approval workflow ownership cannot be safely repaired: '
-                . 'the current gate has no stable approval step key.',
-                $recommendationId,
-            ));
+            throw new RecommendationApprovalManualReviewException(
+                RecommendationApprovalManualReviewException::REASON_OWNERSHIP_AMBIGUOUS,
+                sprintf(
+                    'Recommendation %d approval workflow ownership cannot be safely repaired: '
+                    . 'the current gate has no stable approval step key.',
+                    $recommendationId,
+                ),
+            );
         }
 
         $referencedRunIds = array_values(array_unique($referencedRunIds));
@@ -1227,22 +1244,28 @@ class RecommendationMigrationService
                     (int)$referencedRun->recommendation_id !== $recommendationId
                     || (int)$referencedRun->workflow_instance_id !== $instanceId
                 ) {
-                    throw new RuntimeException(sprintf(
-                        'Recommendation %d approval workflow ownership cannot be safely repaired: '
-                        . 'approval evidence references a run owned by another recommendation or workflow.',
-                        $recommendationId,
-                    ));
+                    throw new RecommendationApprovalManualReviewException(
+                        RecommendationApprovalManualReviewException::REASON_OWNERSHIP_AMBIGUOUS,
+                        sprintf(
+                            'Recommendation %d approval workflow ownership cannot be safely repaired: '
+                            . 'approval evidence references a run owned by another recommendation or workflow.',
+                            $recommendationId,
+                        ),
+                    );
                 }
             }
         }
 
         $process = $recommendation->award?->approval_process ?? null;
         if ($process === null || !$process->is_active) {
-            throw new RuntimeException(sprintf(
-                'Recommendation %d approval workflow ownership cannot be safely repaired: '
-                . 'the award does not have an active approval process.',
-                $recommendationId,
-            ));
+            throw new RecommendationApprovalManualReviewException(
+                RecommendationApprovalManualReviewException::REASON_OWNERSHIP_AMBIGUOUS,
+                sprintf(
+                    'Recommendation %d approval workflow ownership cannot be safely repaired: '
+                    . 'the award does not have an active approval process.',
+                    $recommendationId,
+                ),
+            );
         }
         $currentStepLabel = $currentStepKey;
         foreach ($process->approval_process_steps ?? [] as $step) {

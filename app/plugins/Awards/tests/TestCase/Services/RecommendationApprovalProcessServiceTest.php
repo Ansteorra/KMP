@@ -5,6 +5,8 @@ namespace Awards\Test\TestCase\Services;
 
 use App\KMP\GridColumns\ApprovalsGridColumns;
 use App\Model\Entity\WorkflowApproval;
+use App\Model\Entity\WorkflowApprovalResponse;
+use App\Model\Entity\WorkflowDefinition;
 use App\Model\Entity\WorkflowExecutionLog;
 use App\Model\Entity\WorkflowInstance;
 use App\Services\ServiceResult;
@@ -12,6 +14,7 @@ use App\Services\WorkflowEngine\Conditions\CoreConditions;
 use App\Services\WorkflowEngine\DefaultWorkflowApprovalManager;
 use App\Services\WorkflowEngine\DefaultWorkflowEngine;
 use App\Services\WorkflowEngine\DefaultWorkflowVersionManager;
+use App\Services\WorkflowEngine\WorkflowApprovalManagerInterface;
 use App\Services\WorkflowEngine\WorkflowEngineInterface;
 use App\Services\WorkflowRegistry\WorkflowActionRegistry;
 use App\Services\WorkflowRegistry\WorkflowApproverResolverRegistry;
@@ -28,6 +31,7 @@ use Awards\Services\RecommendationApprovalDecisionService;
 use Awards\Services\RecommendationApprovalProcessService;
 use Awards\Services\RecommendationApprovalWorkflowSyncService;
 use Awards\Services\RecommendationMigrationService;
+use Awards\Services\RecommendationWorkflowUiService;
 use Cake\Core\ContainerInterface;
 use Cake\I18n\DateTime;
 
@@ -78,6 +82,85 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
         $this->assertSame(self::ADMIN_MEMBER_ID, $result->data['approvalApproverConfig']['member_id']);
         $this->assertTrue($result->data['approvalApproverConfig']['award_approval_is_final_step']);
         $this->assertSame('Submitted', $this->freshRecommendationState((int)$recommendation->id));
+    }
+
+    public function testStartProcessRejectsActiveRunFromPreviousAwardProcess(): void
+    {
+        [$recommendation, $instanceId] = $this->buildApprovalScenario([
+            $this->stepData('local', 'Local approval', 1),
+            $this->stepData('crown', 'Crown approval', 2),
+        ]);
+        $started = $this->service->startProcess(
+            ['instanceId' => $instanceId],
+            ['recommendationId' => (int)$recommendation->id],
+        );
+        $this->assertTrue($started->isSuccess(), $started->getError() ?? 'Approval process did not start.');
+        $originalProcessId = (int)$started->data['approvalProcessId'];
+
+        $replacementProcess = $this->createApprovalProcess([
+            $this->stepData('replacement', 'Replacement approval', 1),
+        ]);
+        $awards = $this->getTableLocator()->get('Awards.Awards');
+        $award = $awards->get((int)$recommendation->award_id);
+        $award->approval_process_id = (int)$replacementProcess->id;
+        $awards->saveOrFail($award);
+
+        $reused = $this->service->startProcess(
+            ['instanceId' => $instanceId],
+            ['recommendationId' => (int)$recommendation->id],
+        );
+
+        $this->assertFalse($reused->isSuccess());
+        $this->assertSame(
+            'The active recommendation approval run does not use the award\'s current approval process. '
+            . 'Synchronize open recommendation approvals before continuing.',
+            $reused->getError(),
+        );
+        $run = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns')->find()
+            ->where(['workflow_instance_id' => $instanceId])
+            ->firstOrFail();
+        $this->assertSame($originalProcessId, (int)$run->approval_process_id);
+        $this->assertSame('local', $run->current_step_key);
+    }
+
+    public function testRejectedDecisionClosesRunFromPreviousAwardProcess(): void
+    {
+        [$recommendation, $instanceId] = $this->buildApprovalScenario([
+            $this->stepData('local', 'Local approval', 1),
+            $this->stepData('crown', 'Crown approval', 2),
+        ]);
+        $started = $this->service->startProcess(
+            ['instanceId' => $instanceId],
+            ['recommendationId' => (int)$recommendation->id],
+        );
+        $this->assertTrue($started->isSuccess(), $started->getError() ?? 'Approval process did not start.');
+
+        $replacementProcess = $this->createApprovalProcess([
+            $this->stepData('replacement', 'Replacement approval', 1),
+        ]);
+        $awards = $this->getTableLocator()->get('Awards.Awards');
+        $award = $awards->get((int)$recommendation->award_id);
+        $award->approval_process_id = (int)$replacementProcess->id;
+        $awards->saveOrFail($award);
+
+        $rejected = $this->service->advanceProcess(
+            [
+                'instanceId' => $instanceId,
+                'approval' => ['approvalStatus' => 'rejected'],
+                'resumeData' => ['comment' => 'Rejected after the process changed.'],
+            ],
+            [],
+        );
+
+        $this->assertTrue($rejected->isSuccess(), $rejected->getError() ?? 'Rejection was not recorded.');
+        $run = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns')->find()
+            ->where(['workflow_instance_id' => $instanceId])
+            ->firstOrFail();
+        $this->assertSame(RecommendationApprovalRun::STATUS_CLOSED, $run->status);
+        $this->assertSame(RecommendationApprovalRun::TERMINAL_REASON_REJECTED, $run->terminal_reason);
+        $freshRecommendation = $this->getTableLocator()->get('Awards.Recommendations')
+            ->get((int)$recommendation->id);
+        $this->assertSame('Rejected after the process changed.', $freshRecommendation->close_reason);
     }
 
     public function testAdvanceProcessMovesToNextStepAndFinalApprovalCompletesRun(): void
@@ -147,6 +230,254 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
         $this->assertSame($rejectionComment, $freshRecommendation->close_reason);
     }
 
+    public function testRejectedFinalDecisionDoesNotPersistBestowalGathering(): void
+    {
+        $approval = new WorkflowApproval([
+            'id' => 41,
+            'approver_config' => [
+                'award_approval_is_final_step' => true,
+                'requires_bestowal_gathering' => true,
+            ],
+        ]);
+        $manager = $this->createMock(WorkflowApprovalManagerInterface::class);
+        $manager->expects($this->once())
+            ->method('recordResponse')
+            ->with(
+                41,
+                self::ADMIN_MEMBER_ID,
+                WorkflowApprovalResponse::DECISION_REJECT,
+                'Not this reign.',
+                null,
+                [],
+            )
+            ->willReturn(new ServiceResult(true, null, [
+                'approvalStatus' => WorkflowApproval::STATUS_REJECTED,
+                'instanceId' => 51,
+                'nodeId' => 'award-approval-gate',
+            ]));
+        $engine = $this->createMock(WorkflowEngineInterface::class);
+        $engine->expects($this->once())
+            ->method('resumeWorkflow')
+            ->with(
+                51,
+                'award-approval-gate',
+                'rejected',
+                $this->callback(
+                    static fn(array $data): bool => !array_key_exists('bestowalGatheringId', $data),
+                ),
+            )
+            ->willReturn(new ServiceResult(true));
+
+        $result = (new RecommendationApprovalDecisionService($manager, $engine))->decide(
+            $approval,
+            self::ADMIN_MEMBER_ID,
+            WorkflowApprovalResponse::DECISION_REJECT,
+            'Not this reign.',
+            61,
+        );
+
+        $this->assertTrue($result->isSuccess(), $result->getError() ?? 'Rejection was not recorded.');
+    }
+
+    public function testApprovedNonFinalDecisionDoesNotPersistBestowalGathering(): void
+    {
+        $approval = new WorkflowApproval([
+            'id' => 42,
+            'approver_config' => [
+                'award_approval_is_final_step' => false,
+                'requires_bestowal_gathering' => true,
+            ],
+        ]);
+        $manager = $this->createMock(WorkflowApprovalManagerInterface::class);
+        $manager->expects($this->once())
+            ->method('recordResponse')
+            ->with(
+                42,
+                self::ADMIN_MEMBER_ID,
+                WorkflowApprovalResponse::DECISION_APPROVE,
+                null,
+                null,
+                [],
+            )
+            ->willReturn(new ServiceResult(true, null, [
+                'approvalStatus' => WorkflowApproval::STATUS_APPROVED,
+                'instanceId' => 52,
+                'nodeId' => 'award-approval-gate',
+            ]));
+        $engine = $this->createMock(WorkflowEngineInterface::class);
+        $engine->expects($this->once())
+            ->method('resumeWorkflow')
+            ->with(
+                52,
+                'award-approval-gate',
+                'approved',
+                $this->callback(
+                    static fn(array $data): bool => !array_key_exists('bestowalGatheringId', $data),
+                ),
+            )
+            ->willReturn(new ServiceResult(true));
+
+        $result = (new RecommendationApprovalDecisionService($manager, $engine))->decide(
+            $approval,
+            self::ADMIN_MEMBER_ID,
+            WorkflowApprovalResponse::DECISION_APPROVE,
+            null,
+            62,
+        );
+
+        $this->assertTrue($result->isSuccess(), $result->getError() ?? 'Approval was not recorded.');
+    }
+
+    public function testApprovedLegacyFinalDecisionPersistsGatheringFromAwardsWorkflowSlug(): void
+    {
+        $workflowInstance = new WorkflowInstance();
+        $workflowInstance->set(
+            'workflow_definition',
+            new WorkflowDefinition(['slug' => 'awards-recommendation-submitted']),
+            ['guard' => false],
+        );
+        $approval = new WorkflowApproval([
+            'id' => 43,
+            'approver_config' => [],
+        ]);
+        $approval->set('workflow_instance', $workflowInstance, ['guard' => false]);
+
+        $processService = $this->createMock(RecommendationApprovalProcessService::class);
+        $processService->expects($this->once())
+            ->method('isFinalApprovalStep')
+            ->with($approval, [])
+            ->willReturn(true);
+
+        $manager = $this->createMock(WorkflowApprovalManagerInterface::class);
+        $manager->expects($this->once())
+            ->method('recordResponse')
+            ->with(
+                43,
+                self::ADMIN_MEMBER_ID,
+                WorkflowApprovalResponse::DECISION_APPROVE,
+                null,
+                null,
+                ['bestowal_gathering_id' => 63],
+            )
+            ->willReturn(new ServiceResult(true, null, [
+                'approvalStatus' => WorkflowApproval::STATUS_APPROVED,
+                'instanceId' => 53,
+                'nodeId' => 'award-approval-gate',
+            ]));
+        $engine = $this->createMock(WorkflowEngineInterface::class);
+        $engine->expects($this->once())
+            ->method('resumeWorkflow')
+            ->with(
+                53,
+                'award-approval-gate',
+                'approved',
+                $this->callback(
+                    static fn(array $data): bool => ($data['bestowalGatheringId'] ?? null) === 63,
+                ),
+            )
+            ->willReturn(new ServiceResult(true));
+
+        $result = (new RecommendationApprovalDecisionService($manager, $engine, $processService))->decide(
+            $approval,
+            self::ADMIN_MEMBER_ID,
+            WorkflowApprovalResponse::DECISION_APPROVE,
+            null,
+            63,
+        );
+
+        $this->assertTrue($result->isSuccess(), $result->getError() ?? 'Approval was not recorded.');
+    }
+
+    public function testRecommendationDetailLookupPersistsGatheringForLegacyFinalGate(): void
+    {
+        $this->registerWorkflowRuntime();
+        $definition = json_decode(
+            (string)file_get_contents(CONFIG . 'Seeds/WorkflowDefinitions/awards-recommendation-submitted.json'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        $this->publishSubmittedWorkflow($definition);
+        $process = $this->createApprovalProcess([
+            $this->stepData('crown', 'Crown approval', 1),
+        ]);
+        $runtimeEngine = new DefaultWorkflowEngine($this->buildWorkflowContainer());
+        $started = $this->startSubmittedWorkflow($runtimeEngine, (int)$process->id);
+        $this->assertTrue($started->isSuccess(), $started->getError() ?? 'Workflow did not start.');
+        $instanceId = (int)$started->data['instanceId'];
+
+        $approvalsTable = $this->getTableLocator()->get('WorkflowApprovals');
+        $approval = $approvalsTable->find()
+            ->where([
+                'workflow_instance_id' => $instanceId,
+                'status' => WorkflowApproval::STATUS_PENDING,
+            ])
+            ->firstOrFail();
+        $legacyConfig = is_array($approval->approver_config) ? $approval->approver_config : [];
+        unset(
+            $legacyConfig['requires_bestowal_gathering'],
+            $legacyConfig['requiresBestowalGathering'],
+            $legacyConfig['award_approval_is_final_step'],
+        );
+        $approval->approver_config = $legacyConfig;
+        $approvalsTable->saveOrFail($approval);
+
+        $run = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns')->find()
+            ->where(['workflow_instance_id' => $instanceId])
+            ->firstOrFail();
+        $recommendation = $this->getTableLocator()->get('Awards.Recommendations')
+            ->get((int)$run->recommendation_id);
+        $identity = $this->getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID);
+        $pendingApproval = (new RecommendationWorkflowUiService())->pendingApprovalForRecommendation(
+            $recommendation,
+            $identity,
+        );
+
+        $this->assertNotNull($pendingApproval);
+        $this->assertSame(
+            'awards-recommendation-submitted',
+            $pendingApproval->workflow_instance?->workflow_definition?->slug,
+        );
+        $manager = $this->createMock(WorkflowApprovalManagerInterface::class);
+        $manager->expects($this->once())
+            ->method('recordResponse')
+            ->with(
+                (int)$approval->id,
+                self::ADMIN_MEMBER_ID,
+                WorkflowApprovalResponse::DECISION_APPROVE,
+                null,
+                null,
+                ['bestowal_gathering_id' => 64],
+            )
+            ->willReturn(new ServiceResult(true, null, [
+                'approvalStatus' => WorkflowApproval::STATUS_APPROVED,
+                'instanceId' => $instanceId,
+                'nodeId' => 'award-approval-gate',
+            ]));
+        $decisionEngine = $this->createMock(WorkflowEngineInterface::class);
+        $decisionEngine->expects($this->once())
+            ->method('resumeWorkflow')
+            ->with(
+                $instanceId,
+                'award-approval-gate',
+                'approved',
+                $this->callback(
+                    static fn(array $data): bool => ($data['bestowalGatheringId'] ?? null) === 64,
+                ),
+            )
+            ->willReturn(new ServiceResult(true));
+
+        $result = (new RecommendationApprovalDecisionService($manager, $decisionEngine))->decide(
+            $pendingApproval,
+            self::ADMIN_MEMBER_ID,
+            WorkflowApprovalResponse::DECISION_APPROVE,
+            null,
+            64,
+        );
+
+        $this->assertTrue($result->isSuccess(), $result->getError() ?? 'Approval was not recorded.');
+    }
+
     public function testDynamicResolverUsesCurrentConfiguredRoleTarget(): void
     {
         $role = $this->createRole();
@@ -161,7 +492,7 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
 
         $this->assertTrue(
             $result->isSuccess(),
-            json_encode($result->data['failures'] ?? [], JSON_THROW_ON_ERROR),
+            $result->getError() ?? 'Approval process did not start.',
         );
         $this->assertSame([self::TEST_MEMBER_AGATHA_ID], $result->data['approverIds']);
         $this->assertArrayNotHasKey('eligible_member_ids', $result->data['approvalApproverConfig']);
@@ -1806,8 +2137,8 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
         return $awards->saveOrFail($awards->newEntity([
             'name' => 'Approval Runtime Award ' . uniqid('', true),
             'abbreviation' => strtoupper(substr(md5(uniqid('', true)), 0, 8)),
-            'domain_id' => 2,
-            'level_id' => 1,
+            'domain_id' => $this->seededAwardForeignKey('Awards.Domains'),
+            'level_id' => $this->seededAwardForeignKey('Awards.Levels'),
             'branch_id' => self::KINGDOM_BRANCH_ID,
             'approval_process_id' => $processId,
             'is_active' => true,
@@ -1834,6 +2165,16 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
             'call_into_court' => 'No',
             'court_availability' => 'Anytime',
         ]));
+    }
+
+    private function seededAwardForeignKey(string $tableAlias): int
+    {
+        $record = $this->getTableLocator()->get($tableAlias)->find()
+            ->select(['id'])
+            ->orderBy(['id' => 'ASC'])
+            ->firstOrFail();
+
+        return (int)$record->id;
     }
 
     private function createWorkflowInstance(): int

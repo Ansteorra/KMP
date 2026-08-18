@@ -67,7 +67,7 @@ class AppController extends BaseController
         $shownReasons = array_slice($reasonCounts, 0, 5, true);
         $parts = [];
         foreach ($shownReasons as $reason => $count) {
-            $parts[] = __('{0} ({1})', rtrim($reason, '.'), $count);
+            $parts[] = __('{0} ({1})', rtrim((string)$reason, '.'), $count);
         }
         $hiddenCount = count($reasonCounts) - count($shownReasons);
         if ($hiddenCount > 0) {
