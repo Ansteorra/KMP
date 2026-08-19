@@ -693,22 +693,32 @@ class BestowalTodoMaterializationServiceTest extends BaseTestCase
     public function testTransactionalOperationsRestoreDisabledSavePointConfiguration(): void
     {
         $connection = $this->awardsTable->getConnection();
+        $savePointsWereEnabled = $connection->isSavePointsEnabled();
         $connection->disableSavePoints();
-        $templateId = $this->createTemplateWithItems();
-        $awardId = $this->assignTemplateToAward($templateId, self::KINGDOM_BRANCH_ID);
-        $bestowal = $this->buildBestowal(9000010, $awardId);
 
-        $materializeResult = $this->service->materializeForBestowal($bestowal);
-        $this->assertTrue($materializeResult->success, (string)$materializeResult->reason);
-        $this->assertFalse($connection->isSavePointsEnabled());
+        try {
+            $templateId = $this->createTemplateWithItems();
+            $awardId = $this->assignTemplateToAward($templateId, self::KINGDOM_BRANCH_ID);
+            $bestowal = $this->buildBestowal(9000010, $awardId);
 
-        $syncResult = $this->service->syncForBestowal($bestowal, self::ADMIN_MEMBER_ID);
-        $this->assertTrue($syncResult->success, (string)$syncResult->reason);
-        $this->assertFalse($connection->isSavePointsEnabled());
+            $materializeResult = $this->service->materializeForBestowal($bestowal);
+            $this->assertTrue($materializeResult->success, (string)$materializeResult->reason);
+            $this->assertFalse($connection->isSavePointsEnabled());
 
-        $bulkResult = $this->service->syncOpenBestowals(self::ADMIN_MEMBER_ID);
-        $this->assertTrue($bulkResult->success, (string)$bulkResult->reason);
-        $this->assertFalse($connection->isSavePointsEnabled());
+            $syncResult = $this->service->syncForBestowal($bestowal, self::ADMIN_MEMBER_ID);
+            $this->assertTrue($syncResult->success, (string)$syncResult->reason);
+            $this->assertFalse($connection->isSavePointsEnabled());
+
+            $bulkResult = $this->service->syncOpenBestowals(self::ADMIN_MEMBER_ID);
+            $this->assertTrue($bulkResult->success, (string)$bulkResult->reason);
+            $this->assertFalse($connection->isSavePointsEnabled());
+        } finally {
+            if ($savePointsWereEnabled) {
+                $connection->enableSavePoints();
+            } else {
+                $connection->disableSavePoints();
+            }
+        }
     }
 
     private function createTemplateWithItems(): int

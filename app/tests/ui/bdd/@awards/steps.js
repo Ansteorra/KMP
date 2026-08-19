@@ -530,7 +530,7 @@ foreach ($ids as $id) {
         'recommendation_id' => $id,
         'status IN' => $activeStatuses,
     ])) {
-        $recommendations->delete($recommendation);
+        $recommendations->deleteOrFail($recommendation, ['systemSync' => true]);
 
         continue;
     }
@@ -2236,7 +2236,7 @@ $activeStatuses = [
 
 foreach (array_values(array_unique(array_map('intval', $input['bestowalIds'] ?? []))) as $id) {
     if ($bestowals->exists(['id' => $id])) {
-        $bestowals->delete($bestowals->get($id));
+        $bestowals->deleteOrFail($bestowals->get($id));
     }
 }
 
@@ -2247,7 +2247,7 @@ foreach ($recommendationIds as $id) {
             'recommendation_id' => $id,
             'status IN' => $activeStatuses,
         ])) {
-            $recommendations->delete($recommendation);
+            $recommendations->deleteOrFail($recommendation, ['systemSync' => true]);
 
             continue;
         }

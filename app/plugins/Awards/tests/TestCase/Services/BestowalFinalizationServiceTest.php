@@ -451,20 +451,30 @@ class BestowalFinalizationServiceTest extends BaseTestCase
     public function testMarkGivenRestoresDisabledSavePointConfiguration(): void
     {
         $connection = $this->bestowals->getConnection();
+        $savePointsWereEnabled = $connection->isSavePointsEnabled();
         $connection->disableSavePoints();
-        $bestowal = $this->makeBestowal();
-        $this->makeTodo((int)$bestowal->id, [
-            'is_gating' => true,
-            'status' => ActionItem::STATUS_COMPLETED,
-        ]);
 
-        $result = $this->finalizationService()->markGiven(
-            (int)$bestowal->id,
-            self::ADMIN_MEMBER_ID,
-        );
+        try {
+            $bestowal = $this->makeBestowal();
+            $this->makeTodo((int)$bestowal->id, [
+                'is_gating' => true,
+                'status' => ActionItem::STATUS_COMPLETED,
+            ]);
 
-        $this->assertTrue($result->success, (string)$result->reason);
-        $this->assertFalse($connection->isSavePointsEnabled());
+            $result = $this->finalizationService()->markGiven(
+                (int)$bestowal->id,
+                self::ADMIN_MEMBER_ID,
+            );
+
+            $this->assertTrue($result->success, (string)$result->reason);
+            $this->assertFalse($connection->isSavePointsEnabled());
+        } finally {
+            if ($savePointsWereEnabled) {
+                $connection->enableSavePoints();
+            } else {
+                $connection->disableSavePoints();
+            }
+        }
     }
 
     /**

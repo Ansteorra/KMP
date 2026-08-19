@@ -913,25 +913,35 @@ class ActionItemServiceTest extends BaseTestCase
     public function testTransactionalOperationsRestoreDisabledSavePointConfiguration(): void
     {
         $connection = TableRegistry::getTableLocator()->get('ActionItems')->getConnection();
+        $savePointsWereEnabled = $connection->isSavePointsEnabled();
         $connection->disableSavePoints();
-        $service = new ActionItemService();
-        $item = $this->makeBasicItem();
 
-        $completeResult = $service->complete(
-            (int)$item->id,
-            self::ADMIN_MEMBER_ID,
-            enforceEligibility: false,
-        );
-        $this->assertTrue($completeResult->success, (string)$completeResult->reason);
-        $this->assertFalse($connection->isSavePointsEnabled());
+        try {
+            $service = new ActionItemService();
+            $item = $this->makeBasicItem();
 
-        $requiredResult = $service->syncRequiredFieldCompletionStates('Tests.RequiredOwner', 90001);
-        $this->assertTrue($requiredResult->success, (string)$requiredResult->reason);
-        $this->assertFalse($connection->isSavePointsEnabled());
+            $completeResult = $service->complete(
+                (int)$item->id,
+                self::ADMIN_MEMBER_ID,
+                enforceEligibility: false,
+            );
+            $this->assertTrue($completeResult->success, (string)$completeResult->reason);
+            $this->assertFalse($connection->isSavePointsEnabled());
 
-        $syncResult = $service->synchronizeFor('Tests.RequiredOwner', 90001, []);
-        $this->assertTrue($syncResult->success, (string)$syncResult->reason);
-        $this->assertFalse($connection->isSavePointsEnabled());
+            $requiredResult = $service->syncRequiredFieldCompletionStates('Tests.RequiredOwner', 90001);
+            $this->assertTrue($requiredResult->success, (string)$requiredResult->reason);
+            $this->assertFalse($connection->isSavePointsEnabled());
+
+            $syncResult = $service->synchronizeFor('Tests.RequiredOwner', 90001, []);
+            $this->assertTrue($syncResult->success, (string)$syncResult->reason);
+            $this->assertFalse($connection->isSavePointsEnabled());
+        } finally {
+            if ($savePointsWereEnabled) {
+                $connection->enableSavePoints();
+            } else {
+                $connection->disableSavePoints();
+            }
+        }
     }
 
     /**
