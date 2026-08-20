@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Queue\Test\TestCase\View\Helper;
 
+use Cake\Core\Configure;
 use Cake\Datasource\ConnectionManager;
 use Cake\I18n\DateTime;
 use Cake\TestSuite\TestCase;
@@ -32,6 +33,8 @@ class QueueProgressHelperTest extends TestCase
 	 */
 	protected string $locale;
 
+	protected bool $debug;
+
 	/**
 	 * @return void
 	 */
@@ -40,6 +43,8 @@ class QueueProgressHelperTest extends TestCase
 		parent::setUp();
 
 		$this->locale = ini_get('intl.default_locale');
+		$this->debug = (bool)Configure::read('debug');
+		Configure::write('debug', true);
 		ini_set('intl.default_locale', 'en-US');
 		Number::config('en_EN');
 
@@ -53,6 +58,7 @@ class QueueProgressHelperTest extends TestCase
 	{
 		parent::tearDown();
 
+		Configure::write('debug', $this->debug);
 		ini_set('intl.default_locale', $this->locale);
 	}
 

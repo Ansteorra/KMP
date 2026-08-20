@@ -25,6 +25,7 @@ echo $this->Form->create(null, [
     "data-controller" => "github-submitter",
     "data-github-submitter-target" => "form",
     "data-github-submitter-url-value" => $this->URL->build([
+        "prefix" => false,
         "controller" => "Issues",
         "action" => "Submit",
         "plugin" => "GitHubIssueSubmitter"
