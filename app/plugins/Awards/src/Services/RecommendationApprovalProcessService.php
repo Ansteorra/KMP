@@ -73,6 +73,7 @@ class RecommendationApprovalProcessService
                 $run = $runsTable->newEntity([
                     'recommendation_id' => $recommendation->id,
                     'approval_process_id' => $process->id,
+                    'approval_process_signature' => $process->configuration_signature,
                     'workflow_instance_id' => $instanceId,
                     'status' => RecommendationApprovalRun::STATUS_IN_PROGRESS,
                     'current_step_key' => $firstStep->step_key,

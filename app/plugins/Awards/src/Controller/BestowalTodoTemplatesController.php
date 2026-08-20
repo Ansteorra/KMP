@@ -33,7 +33,7 @@ class BestowalTodoTemplatesController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel('index', 'add', 'gridData', 'syncOpenBestowals');
+        $this->Authorization->authorizeModel('index', 'add', 'gridData');
     }
 
     /**
@@ -43,27 +43,36 @@ class BestowalTodoTemplatesController extends AppController
      */
     public function index(): void
     {
-        $this->set('user', $this->request->getAttribute('identity'));
+        $user = $this->request->getAttribute('identity');
+        $this->set('canAddTemplate', $user->can('add', $this->BestowalTodoTemplates));
     }
 
     /**
-     * Synchronize open bestowals with their awards' current to-do templates.
+     * Synchronize outdated open bestowals assigned to one to-do template.
      *
+     * @param string|int|null $id Template ID
      * @param \Awards\Services\BestowalTodoMaterializationService $syncService To-do synchronizer
      * @return \Cake\Http\Response
      */
-    public function syncOpenBestowals(BestowalTodoMaterializationService $syncService): Response
+    public function syncTemplate($id, BestowalTodoMaterializationService $syncService): Response
     {
         $this->request->allowMethod(['post']);
 
+        $template = $this->BestowalTodoTemplates->get($id);
+        $this->Authorization->authorize($template, 'syncOpenBestowals');
+
         $identity = $this->request->getAttribute('identity');
-        $result = $syncService->syncOpenBestowals((int)$identity->getIdentifier());
+        $result = $syncService->syncOpenBestowalsForTemplate(
+            (int)$template->id,
+            (int)$identity->getIdentifier(),
+        );
         $data = is_array($result->getData()) ? $result->getData() : [];
         $summary = __(
-            'Processed {0} open bestowal(s): {1} changed, {2} unchanged, {3} skipped, and {4} failed. '
-            . 'To-do changes: {5} created, {6} updated, {7} cancelled, and {8} reopened. '
-            . 'Required-field checks: {9} completed, {10} reopened, and {11} skipped.',
+            'Processed {0} outdated open bestowal(s) for {1}: {2} changed, {3} unchanged, {4} skipped, and {5} failed. '
+            . 'To-do changes: {6} created, {7} updated, {8} cancelled, and {9} reopened. '
+            . 'Required-field checks: {10} completed, {11} reopened, and {12} skipped.',
             (int)($data['processedCount'] ?? 0),
+            (string)$template->name,
             (int)($data['changedCount'] ?? 0),
             (int)($data['unchangedCount'] ?? 0),
             (int)($data['skippedCount'] ?? 0),
@@ -118,7 +127,7 @@ class BestowalTodoTemplatesController extends AppController
             $this->Flash->success($summary);
         }
 
-        return $this->redirect(['action' => 'index']);
+        return $this->redirect(['action' => 'view', $template->id]);
     }
 
     /**
@@ -213,8 +222,10 @@ class BestowalTodoTemplatesController extends AppController
      * @param string|int|null $id Template ID
      * @return void
      */
-    public function view($id = null): void
-    {
+    public function view(
+        $id = null,
+        ?BestowalTodoMaterializationService $syncService = null,
+    ): void {
         $template = $this->BestowalTodoTemplates->get($id, contain: [
             'BestowalTodoTemplateItems',
             'Awards' => ['Branches'],
@@ -225,7 +236,10 @@ class BestowalTodoTemplatesController extends AppController
 
         $this->Authorization->authorize($template);
 
-        $this->set(compact('template'));
+        $syncService ??= new BestowalTodoMaterializationService();
+        $outdatedBestowalCount = $syncService->countOutdatedOpenBestowals((int)$template->id);
+
+        $this->set(compact('template', 'outdatedBestowalCount'));
         $this->setFormOptions();
     }
 

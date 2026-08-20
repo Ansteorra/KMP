@@ -3,13 +3,19 @@ declare(strict_types=1);
 
 namespace Awards\Test\TestCase\Controller;
 
+use App\Model\Entity\Permission;
 use App\Services\ServiceResult;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use Awards\Model\Entity\BestowalTodoTemplate;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
 use Awards\Services\BestowalTodoMaterializationService;
+use Cake\Cache\Cache;
+use Cake\Http\Exception\MethodNotAllowedException;
 
 class BestowalTodoTemplatesControllerTest extends HttpIntegrationTestCase
 {
+    private const CROWN_EMAIL = 'forest@ampdemo.com';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -19,26 +25,85 @@ class BestowalTodoTemplatesControllerTest extends HttpIntegrationTestCase
         $this->authenticateAsSuperUser();
     }
 
-    public function testIndexRendersConfirmedPostSyncAction(): void
+    public function testIndexDoesNotRenderGlobalBestowalSyncAction(): void
     {
         $this->get('/awards/bestowal-todo-templates');
 
         $this->assertResponseOk();
-        $this->assertResponseContains('Sync Open Bestowals Now');
-        $this->assertResponseContains('action="/awards/bestowal-todo-templates/sync-open-bestowals"');
-        $this->assertResponseContains('data-confirm-message=');
-        $this->assertResponseContains('data-confirm-title="Synchronize open bestowals"');
-        $this->assertResponseContains('data-confirm-label="Sync Now"');
-        $this->assertResponseContains('Synchronization never marks a bestowal Given.');
-        $this->assertResponseContains('data-turbo-frame="_top"');
+        $this->assertResponseNotContains('Sync Open Bestowals Now');
+        $this->assertResponseNotContains('/sync-open-bestowals');
+        $this->assertResponseContains('Add To-Do Template');
     }
 
-    public function testSyncOpenBestowalsFlashesDetailedFailureSummary(): void
+    public function testCrownCanOpenIndexWithoutGlobalSyncAction(): void
     {
+        $crown = $this->getTableLocator()->get('Members')->find()
+            ->select(['id'])
+            ->where(['email_address' => self::CROWN_EMAIL])
+            ->firstOrFail();
+        $this->grantTemplateSynchronizationPermission((int)$crown->id);
+        $this->authenticateAsMember((int)$crown->id);
+
+        $this->get('/awards/bestowal-todo-templates');
+
+        $this->assertResponseOk();
+        $this->assertResponseNotContains('Sync Open Bestowals Now');
+        $this->assertResponseNotContains('Add To-Do Template');
+    }
+
+    public function testViewShowsTemplateScopedSyncCountAndConfirmation(): void
+    {
+        $template = $this->createTemplateForSyncTest();
         $service = $this->createMock(BestowalTodoMaterializationService::class);
         $service->expects($this->once())
-            ->method('syncOpenBestowals')
-            ->with(self::ADMIN_MEMBER_ID)
+            ->method('countOutdatedOpenBestowals')
+            ->with((int)$template->id)
+            ->willReturn(3);
+        $this->mockService(
+            BestowalTodoMaterializationService::class,
+            static fn() => $service,
+        );
+
+        $this->get('/awards/bestowal-todo-templates/view/' . $template->id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Sync Outdated Bestowals (3)');
+        $this->assertResponseContains(
+            'action="/awards/bestowal-todo-templates/sync-template/' . $template->id . '"',
+        );
+        $this->assertResponseContains('data-confirm-message=');
+        $this->assertResponseContains('data-confirm-title="Synchronize ' . h($template->name) . '"');
+        $this->assertResponseContains('data-confirm-label="Sync Now"');
+        $this->assertResponseContains('Synchronization never marks a bestowal Given.');
+    }
+
+    public function testViewDisablesSyncWhenTemplateBestowalsAreCurrent(): void
+    {
+        $template = $this->createTemplateForSyncTest();
+        $service = $this->createMock(BestowalTodoMaterializationService::class);
+        $service->method('countOutdatedOpenBestowals')->willReturn(0);
+        $this->mockService(
+            BestowalTodoMaterializationService::class,
+            static fn() => $service,
+        );
+
+        $this->get('/awards/bestowal-todo-templates/view/' . $template->id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Sync Outdated Bestowals');
+        $this->assertResponseContains('disabled');
+        $this->assertResponseContains('aria-describedby="bestowal-sync-status-' . $template->id . '"');
+        $this->assertResponseContains('All open bestowals assigned to this template are current.');
+        $this->assertResponseNotContains('/sync-template/' . $template->id);
+    }
+
+    public function testSyncTemplateFlashesDetailedFailureSummary(): void
+    {
+        $template = $this->createTemplateForSyncTest();
+        $service = $this->createMock(BestowalTodoMaterializationService::class);
+        $service->expects($this->once())
+            ->method('syncOpenBestowalsForTemplate')
+            ->with((int)$template->id, self::ADMIN_MEMBER_ID)
             ->willReturn(new ServiceResult(false, 'One bestowal needs attention.', [
                 'processedCount' => 6,
                 'changedCount' => 3,
@@ -64,11 +129,16 @@ class BestowalTodoTemplatesControllerTest extends HttpIntegrationTestCase
             static fn() => $service,
         );
 
-        $this->post('/awards/bestowal-todo-templates/sync-open-bestowals');
+        $this->post('/awards/bestowal-todo-templates/sync-template/' . $template->id);
 
-        $this->assertRedirect(['controller' => 'BestowalTodoTemplates', 'action' => 'index']);
+        $this->assertRedirect([
+            'controller' => 'BestowalTodoTemplates',
+            'action' => 'view',
+            (int)$template->id,
+        ]);
         $this->assertFlashMessage(
-            'Processed 6 open bestowal(s): 3 changed, 1 unchanged, 1 skipped, and 1 failed. '
+            'Processed 6 outdated open bestowal(s) for ' . $template->name
+            . ': 3 changed, 1 unchanged, 1 skipped, and 1 failed. '
             . 'To-do changes: 4 created, 3 updated, 2 cancelled, and 1 reopened. '
             . 'Required-field checks: 2 completed, 1 reopened, and 5 skipped. '
             . 'Bestowals needing attention: #99. '
@@ -81,12 +151,13 @@ class BestowalTodoTemplatesControllerTest extends HttpIntegrationTestCase
         $this->assertFlashElement('flash/error');
     }
 
-    public function testSyncOpenBestowalsUsesActorAndFlashesSuccessSummary(): void
+    public function testSyncTemplateUsesActorAndFlashesSuccessSummary(): void
     {
+        $template = $this->createTemplateForSyncTest();
         $service = $this->createMock(BestowalTodoMaterializationService::class);
         $service->expects($this->once())
-            ->method('syncOpenBestowals')
-            ->with(self::ADMIN_MEMBER_ID)
+            ->method('syncOpenBestowalsForTemplate')
+            ->with((int)$template->id, self::ADMIN_MEMBER_ID)
             ->willReturn(new ServiceResult(true, null, [
                 'processedCount' => 2,
                 'changedCount' => 1,
@@ -108,11 +179,16 @@ class BestowalTodoTemplatesControllerTest extends HttpIntegrationTestCase
             static fn() => $service,
         );
 
-        $this->post('/awards/bestowal-todo-templates/sync-open-bestowals');
+        $this->post('/awards/bestowal-todo-templates/sync-template/' . $template->id);
 
-        $this->assertRedirect(['controller' => 'BestowalTodoTemplates', 'action' => 'index']);
+        $this->assertRedirect([
+            'controller' => 'BestowalTodoTemplates',
+            'action' => 'view',
+            (int)$template->id,
+        ]);
         $this->assertFlashMessage(
-            'Processed 2 open bestowal(s): 1 changed, 1 unchanged, 0 skipped, and 0 failed. '
+            'Processed 2 outdated open bestowal(s) for ' . $template->name
+            . ': 1 changed, 1 unchanged, 0 skipped, and 0 failed. '
             . 'To-do changes: 1 created, 0 updated, 0 cancelled, and 0 reopened. '
             . 'Required-field checks: 0 completed, 0 reopened, and 0 skipped.',
             'flash',
@@ -120,31 +196,33 @@ class BestowalTodoTemplatesControllerTest extends HttpIntegrationTestCase
         $this->assertFlashElement('flash/success');
     }
 
-    public function testSyncOpenBestowalsRejectsGet(): void
+    public function testSyncTemplateRejectsGet(): void
     {
+        $template = $this->createTemplateForSyncTest();
         $service = $this->createMock(BestowalTodoMaterializationService::class);
-        $service->expects($this->never())->method('syncOpenBestowals');
+        $service->expects($this->never())->method('syncOpenBestowalsForTemplate');
         $this->mockService(
             BestowalTodoMaterializationService::class,
             static fn() => $service,
         );
+        $this->disableErrorHandlerMiddleware();
+        $this->expectException(MethodNotAllowedException::class);
 
-        $this->get('/awards/bestowal-todo-templates/sync-open-bestowals');
-
-        $this->assertResponseCode(405);
+        $this->get('/awards/bestowal-todo-templates/sync-template/' . $template->id);
     }
 
-    public function testSyncOpenBestowalsRequiresExplicitAuthorization(): void
+    public function testSyncTemplateRequiresExplicitAuthorization(): void
     {
+        $template = $this->createTemplateForSyncTest();
         $service = $this->createMock(BestowalTodoMaterializationService::class);
-        $service->expects($this->never())->method('syncOpenBestowals');
+        $service->expects($this->never())->method('syncOpenBestowalsForTemplate');
         $this->mockService(
             BestowalTodoMaterializationService::class,
             static fn() => $service,
         );
         $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
 
-        $this->post('/awards/bestowal-todo-templates/sync-open-bestowals');
+        $this->post('/awards/bestowal-todo-templates/sync-template/' . $template->id);
 
         $this->assertRedirectContains('/pages/unauthorized');
     }
@@ -265,5 +343,76 @@ class BestowalTodoTemplatesControllerTest extends HttpIntegrationTestCase
             'template_id' => (int)$submittedTemplate->id,
             'item_key' => 'restore_scope_regression',
         ])->count());
+    }
+
+    private function grantTemplateSynchronizationPermission(int $memberId): void
+    {
+        $permissions = $this->getTableLocator()->get('Permissions');
+        $permission = $permissions->saveOrFail($permissions->newEntity([
+            'name' => 'Bestowal Template Sync Controller Test ' . uniqid('', true),
+            'require_active_membership' => false,
+            'require_active_background_check' => false,
+            'require_min_age' => 0,
+            'is_system' => false,
+            'is_super_user' => false,
+            'requires_warrant' => false,
+            'scoping_rule' => Permission::SCOPE_GLOBAL,
+        ]));
+
+        $permissionPolicies = $this->getTableLocator()->get('PermissionPolicies');
+        foreach (['canIndex', 'canGridData'] as $policyMethod) {
+            $permissionPolicies->saveOrFail($permissionPolicies->newEntity([
+                'permission_id' => (int)$permission->id,
+                'policy_class' => 'Awards\\Policy\\BestowalTodoTemplatesTablePolicy',
+                'policy_method' => $policyMethod,
+            ]));
+        }
+        foreach (['canView', 'canSyncOpenBestowals'] as $policyMethod) {
+            $permissionPolicies->saveOrFail($permissionPolicies->newEntity([
+                'permission_id' => (int)$permission->id,
+                'policy_class' => 'Awards\\Policy\\BestowalTodoTemplatePolicy',
+                'policy_method' => $policyMethod,
+            ]));
+        }
+
+        $roles = $this->getTableLocator()->get('Roles');
+        $role = $roles->saveOrFail($roles->newEntity([
+            'name' => 'Bestowal Template Sync Controller Test Role ' . uniqid('', true),
+        ]));
+        $connection = $roles->getConnection();
+        $connection->execute(
+            'INSERT INTO roles_permissions (role_id, permission_id, created, created_by)
+             VALUES (?, ?, NOW(), ?)',
+            [(int)$role->id, (int)$permission->id, self::ADMIN_MEMBER_ID],
+        );
+        $connection->execute(
+            'INSERT INTO member_roles
+             (member_id, role_id, branch_id, start_on, expires_on, approver_id, entity_type,
+              created, modified, created_by, modified_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?)',
+            [
+                $memberId,
+                (int)$role->id,
+                self::KINGDOM_BRANCH_ID,
+                '2020-01-01 00:00:00',
+                '2100-01-01',
+                self::ADMIN_MEMBER_ID,
+                'Direct Grant',
+                self::ADMIN_MEMBER_ID,
+                self::ADMIN_MEMBER_ID,
+            ],
+        );
+        Cache::clearGroup('security');
+    }
+
+    private function createTemplateForSyncTest(): BestowalTodoTemplate
+    {
+        $templates = $this->getTableLocator()->get('Awards.BestowalTodoTemplates');
+
+        return $templates->saveOrFail($templates->newEntity([
+            'name' => 'Template Scoped Sync ' . uniqid('', true),
+            'description' => 'Controller test template.',
+            'is_active' => true,
+        ]));
     }
 }

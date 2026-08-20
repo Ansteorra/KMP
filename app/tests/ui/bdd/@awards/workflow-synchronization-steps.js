@@ -7,12 +7,7 @@ const {
 
 const { Given, When, Then, After } = createBdd();
 
-const RECOMMENDATION_SYNC_PATH = '/awards/approval-processes';
-const RECOMMENDATION_SYNC_POST_PATH = '/awards/approval-processes/sync-open-recommendations';
-const BESTOWAL_SYNC_PATH = '/awards/bestowal-todo-templates';
-const BESTOWAL_SYNC_POST_PATH = '/awards/bestowal-todo-templates/sync-open-bestowals';
-const RECOMMENDATION_SYNC_CONTROL = 'Sync Open Recommendations Now';
-const BESTOWAL_SYNC_CONTROL = 'Sync Open Bestowals Now';
+const BESTOWAL_SYNC_CONTROL = 'Sync Outdated Bestowals (1)';
 
 const SETUP_SYNC_FIXTURE_PHP = String.raw`
 require 'vendor/autoload.php';
@@ -313,8 +308,10 @@ $result = $connection->transactional(function () use (
         'roleId' => (int)$role->id,
         'memberRoleIds' => $memberRoleIds,
         'processId' => (int)$process->id,
+        'processName' => (string)$process->name,
         'stepId' => (int)$step->id,
         'templateId' => (int)$template->id,
+        'templateName' => (string)$template->name,
         'templateItemIds' => $templateItemIds,
         'awardId' => (int)$award->id,
         'recommendationId' => (int)$recommendation->id,
@@ -341,25 +338,27 @@ $run = $locator->get('Awards.RecommendationApprovalRuns')->get((int)$input['runI
 $instance = $locator->get('WorkflowInstances')->get((int)$input['workflowInstanceId']);
 $approval = $locator->get('WorkflowApprovals')->get((int)$input['approvalId']);
 $response = $locator->get('WorkflowApprovalResponses')->get((int)$input['responseId']);
-$links = $locator->get('Awards.BestowalRecommendations')->find()
-    ->where(['recommendation_id' => (int)$recommendation->id])
-    ->orderByAsc('id')
-    ->all();
-$bestowalIds = array_values(array_unique(array_map(
-    static fn($link): int => (int)$link->bestowal_id,
-    $links->toList(),
-)));
-$primaryBestowalIds = $locator->get('Awards.Bestowals')->find()
-    ->select(['id'])
+$activeRun = $locator->get('Awards.RecommendationApprovalRuns')->find()
+    ->where([
+        'recommendation_id' => (int)$recommendation->id,
+        'status IN' => [
+            \Awards\Model\Entity\RecommendationApprovalRun::STATUS_IN_PROGRESS,
+            \Awards\Model\Entity\RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
+        ],
+    ])
+    ->orderByDesc('id')
+    ->firstOrFail();
+$activeInstance = $locator->get('WorkflowInstances')->get((int)$activeRun->workflow_instance_id);
+$activeApproval = $locator->get('WorkflowApprovals')->find()
+    ->where([
+        'workflow_instance_id' => (int)$activeRun->workflow_instance_id,
+        'status' => \App\Model\Entity\WorkflowApproval::STATUS_PENDING,
+    ])
+    ->orderByDesc('id')
+    ->firstOrFail();
+$bestowalCount = $locator->get('Awards.Bestowals')->find()
     ->where(['primary_recommendation_id' => (int)$recommendation->id])
-    ->all()
-    ->extract('id')
-    ->map(static fn($id): int => (int)$id)
-    ->toList();
-$bestowalIds = array_values(array_unique(array_merge($bestowalIds, $primaryBestowalIds)));
-$bestowal = count($bestowalIds) === 1
-    ? $locator->get('Awards.Bestowals')->get($bestowalIds[0])
-    : null;
+    ->count();
 
 echo json_encode([
     'recommendationState' => (string)$recommendation->state,
@@ -379,14 +378,38 @@ echo json_encode([
     'responseCount' => $locator->get('WorkflowApprovalResponses')->find()
         ->where(['workflow_approval_id' => (int)$approval->id])
         ->count(),
-    'bestowalCount' => count($bestowalIds),
-    'bestowalId' => $bestowal === null ? null : (int)$bestowal->id,
-    'bestowalLifecycleStatus' => $bestowal?->lifecycle_status,
-    'bestowalGatheringId' => $bestowal?->gathering_id,
-    'bestowalSourceRunId' => $bestowal?->source_approval_run_id === null
-        ? null
-        : (int)$bestowal->source_approval_run_id,
+    'activeRunId' => (int)$activeRun->id,
+    'activeRunStatus' => (string)$activeRun->status,
+    'activeRunStepKey' => (string)$activeRun->current_step_key,
+    'activeWorkflowStatus' => (string)$activeInstance->status,
+    'activeApprovalId' => (int)$activeApproval->id,
+    'activeApprovalStatus' => (string)$activeApproval->status,
+    'activeRequiredCount' => (int)$activeApproval->required_count,
+    'activeApprovedCount' => (int)$activeApproval->approved_count,
+    'activeResponseCount' => $locator->get('WorkflowApprovalResponses')->find()
+        ->where(['workflow_approval_id' => (int)$activeApproval->id])
+        ->count(),
+    'runCount' => $locator->get('Awards.RecommendationApprovalRuns')->find()
+        ->where(['recommendation_id' => (int)$recommendation->id])
+        ->count(),
+    'bestowalCount' => $bestowalCount,
 ], JSON_THROW_ON_ERROR);
+`;
+
+const CREATE_BESTOWAL_FIXTURE_PHP = String.raw`
+require 'vendor/autoload.php';
+require 'config/bootstrap.php';
+
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
+$result = (new \Awards\Services\BestowalCreationService())->createFromRecommendation(
+    (int)$input['recommendationId'],
+    (int)$input['actorId'],
+);
+if (empty($result['success']) || empty($result['data']['bestowalId'])) {
+    throw new \RuntimeException((string)($result['error'] ?? 'Could not create the bestowal fixture.'));
+}
+
+echo json_encode(['bestowalId' => (int)$result['data']['bestowalId']], JSON_THROW_ON_ERROR);
 `;
 
 const CHANGE_TODO_TEMPLATE_PHP = String.raw`
@@ -657,7 +680,7 @@ const syncFixture = (page) => {
 const openSyncPage = async (page, path, heading) => {
     await page.goto(path, { waitUntil: 'domcontentloaded' });
     await waitForPageBody(page);
-    await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
+    await expect(page.getByRole('heading').filter({ hasText: heading }).first()).toBeVisible();
 };
 
 const openSyncConfirmation = async (page, controlName, title, descriptionFragment) => {
@@ -735,20 +758,29 @@ const inspectRecommendationSync = (page) => {
     return runPhpJson(INSPECT_RECOMMENDATION_SYNC_PHP, fixture);
 };
 
-const assertRecommendationCompleted = (page, state) => {
+const assertRecommendationRestarted = (page, state) => {
     const fixture = syncFixture(page);
-    expect(state.approvalStatus).toBe('approved');
-    expect(state.requiredCount).toBe(1);
+    expect(state.approvalStatus).toBe('cancelled');
+    expect(state.requiredCount).toBe(2);
     expect(state.approvedCount).toBe(1);
     expect(state.responseId).toBe(fixture.responseId);
     expect(state.responseMemberId).toBe(fixture.actorId);
     expect(state.responseRespondedAt).toBe(fixture.responseRespondedAt);
     expect(state.responseComment).toBe(fixture.responseComment);
     expect(state.responseCount).toBe(1);
-    expect(state.workflowStatus).toBe('completed');
-    expect(state.runStatus).toBe('consumed');
-    expect(state.runTerminalReason).toBe('consumed_by_bestowal');
-    expect(state.recommendationState).toBe('Need to Schedule');
+    expect(state.workflowStatus).toBe('cancelled');
+    expect(state.runStatus).toBe('cancelled');
+    expect(state.runTerminalReason).toBe('approval_process_restarted');
+    expect(state.activeRunId).not.toBe(fixture.runId);
+    expect(state.activeRunStatus).toBe('in_progress');
+    expect(state.activeRunStepKey).toBe('crown');
+    expect(state.activeWorkflowStatus).toBe('waiting');
+    expect(state.activeApprovalStatus).toBe('pending');
+    expect(state.activeRequiredCount).toBe(1);
+    expect(state.activeApprovedCount).toBe(0);
+    expect(state.activeResponseCount).toBe(0);
+    expect(state.bestowalCount).toBe(0);
+    expect(state.recommendationBestowalId).toBeNull();
 };
 
 const inspectTodoSync = (page) => {
@@ -765,15 +797,19 @@ Given('I create an in-flight award workflow synchronization fixture', async ({ p
 });
 
 When('I open the award approval process synchronization page', async ({ page }) => {
-    await openSyncPage(page, RECOMMENDATION_SYNC_PATH, 'Award Approval Processes');
+    const fixture = syncFixture(page);
+    await page.goto(`/awards/approval-processes/view/${fixture.processId}`, { waitUntil: 'domcontentloaded' });
+    await waitForPageBody(page);
+    await expect(page.getByRole('heading').filter({ hasText: fixture.processName })).toBeVisible();
 });
 
 When('I open the recommendation synchronization confirmation with the keyboard', async ({ page }) => {
+    const fixture = syncFixture(page);
     await openSyncConfirmation(
         page,
-        RECOMMENDATION_SYNC_CONTROL,
-        'Synchronize open recommendations',
-        'Approval requirements may change.',
+        'Sync Outdated Recommendations (1)',
+        `Synchronize ${fixture.processName}`,
+        'older process snapshot or workflow version',
     );
 });
 
@@ -782,14 +818,20 @@ Then('the recommendation synchronization confirmation should be accessible and i
 });
 
 When('I open the bestowal to-do synchronization page', async ({ page }) => {
-    await openSyncPage(page, BESTOWAL_SYNC_PATH, 'Bestowal To-Do Templates');
+    const fixture = syncFixture(page);
+    await openSyncPage(
+        page,
+        `/awards/bestowal-todo-templates/view/${fixture.templateId}`,
+        fixture.templateName,
+    );
 });
 
 When('I open the bestowal synchronization confirmation with the keyboard', async ({ page }) => {
+    const fixture = syncFixture(page);
     await openSyncConfirmation(
         page,
         BESTOWAL_SYNC_CONTROL,
-        'Synchronize open bestowals',
+        `Synchronize ${fixture.templateName}`,
         'To-dos may be added, updated, reopened, or cancelled.',
     );
 });
@@ -809,7 +851,10 @@ When('I dismiss the synchronization confirmation with Escape', async ({ page }) 
 });
 
 Then('focus should return to the recommendation synchronization control', async ({ page }) => {
-    await expect(page.getByRole('button', { name: RECOMMENDATION_SYNC_CONTROL, exact: true })).toBeFocused();
+    await expect(page.getByRole('button', {
+        name: 'Sync Outdated Recommendations (1)',
+        exact: true,
+    })).toBeFocused();
 });
 
 Then('focus should return to the bestowal synchronization control', async ({ page }) => {
@@ -817,53 +862,47 @@ Then('focus should return to the bestowal synchronization control', async ({ pag
 });
 
 When('I confirm recommendation synchronization with the keyboard', async ({ page }) => {
+    const fixture = syncFixture(page);
     await submitSyncConfirmation(
         page,
-        RECOMMENDATION_SYNC_CONTROL,
-        'Synchronize open recommendations',
-        RECOMMENDATION_SYNC_POST_PATH,
-        'Ownership backfill reviewed',
-        2,
+        'Sync Outdated Recommendations (1)',
+        `Synchronize ${fixture.processName}`,
+        `/awards/approval-processes/sync-approval-process/${fixture.processId}`,
+        `Found 1 outdated open recommendation(s) assigned to ${fixture.processName}`,
+        1,
     );
 });
 
-Then('the in-flight recommendation should complete from its preserved approval', async ({ page }) => {
+Then('the in-flight recommendation should restart without carrying its approval forward', async ({ page }) => {
     const state = inspectRecommendationSync(page);
-    assertRecommendationCompleted(page, state);
+    assertRecommendationRestarted(page, state);
     page.__awardWorkflowSyncFixture.firstRecommendationSyncState = state;
+    page.__awardWorkflowSyncFixture.firstReplacementRunId = state.activeRunId;
 });
 
-Then('recommendation synchronization should create exactly one open unscheduled bestowal', async ({ page }) => {
+Then('recommendation synchronization should not create a bestowal', async ({ page }) => {
+    const state = syncFixture(page).firstRecommendationSyncState ?? inspectRecommendationSync(page);
+    expect(state.bestowalCount).toBe(0);
+    expect(state.recommendationBestowalId).toBeNull();
+});
+
+Then('recommendation synchronization should be disabled because the replacement is current', async ({ page }) => {
     const fixture = syncFixture(page);
-    const state = fixture.firstRecommendationSyncState ?? inspectRecommendationSync(page);
-    expect(state.bestowalCount).toBe(1);
-    expect(state.bestowalId).toBeGreaterThan(0);
-    expect(state.recommendationBestowalId).toBe(state.bestowalId);
-    expect(state.bestowalLifecycleStatus).toBe('open');
-    expect(state.bestowalGatheringId).toBeNull();
-    expect(state.bestowalSourceRunId).toBe(fixture.runId);
-    fixture.bestowalId = state.bestowalId;
-});
-
-When('I synchronize the open recommendations again', async ({ page }) => {
-    await submitSyncConfirmation(
-        page,
-        RECOMMENDATION_SYNC_CONTROL,
-        'Synchronize open recommendations',
-        RECOMMENDATION_SYNC_POST_PATH,
-        'Ownership backfill reviewed',
-        2,
+    const state = inspectRecommendationSync(page);
+    assertRecommendationRestarted(page, state);
+    expect(state.activeRunId).toBe(fixture.firstReplacementRunId);
+    expect(state.runCount).toBe(2);
+    const control = page.getByRole('button', { name: 'Sync Outdated Recommendations', exact: true });
+    await expect(control).toBeDisabled();
+    await expect(page.locator('#approval-process-sync-status')).toContainText(
+        'All open recommendations assigned to this process are current.',
     );
 });
 
-Then('the recommendation synchronization should be idempotent', async ({ page }) => {
+Given('I create an open bestowal for the To-Do synchronization fixture', async ({ page }) => {
     const fixture = syncFixture(page);
-    const state = inspectRecommendationSync(page);
-    assertRecommendationCompleted(page, state);
-    expect(state.bestowalId).toBe(fixture.bestowalId);
-    expect(state.bestowalCount).toBe(1);
-    expect(state.bestowalLifecycleStatus).toBe('open');
-    expect(state.bestowalGatheringId).toBeNull();
+    Object.assign(fixture, runPhpJson(CREATE_BESTOWAL_FIXTURE_PHP, fixture));
+    expect(fixture.bestowalId).toBeGreaterThan(0);
 });
 
 Given("I change the fixture's current bestowal to-do template", async ({ page }) => {
@@ -873,12 +912,13 @@ Given("I change the fixture's current bestowal to-do template", async ({ page })
 });
 
 When('I confirm bestowal synchronization with the keyboard', async ({ page }) => {
+    const fixture = syncFixture(page);
     await submitSyncConfirmation(
         page,
         BESTOWAL_SYNC_CONTROL,
-        'Synchronize open bestowals',
-        BESTOWAL_SYNC_POST_PATH,
-        'Processed',
+        `Synchronize ${fixture.templateName}`,
+        `/awards/bestowal-todo-templates/sync-template/${fixture.templateId}`,
+        `Processed 1 outdated open bestowal(s) for ${fixture.templateName}`,
         1,
     );
 });
@@ -918,6 +958,16 @@ Then('the bestowal should remain open', async ({ page }) => {
     expect(inspectTodoSync(page).bestowalLifecycleStatus).toBe('open');
 });
 
+Then('bestowal synchronization should be disabled because the to-do list is current', async ({ page }) => {
+    await expect(page.getByRole('button', {
+        name: 'Sync Outdated Bestowals',
+        exact: true,
+    })).toBeDisabled();
+    await expect(page.locator('[id^="bestowal-sync-status-"]')).toContainText(
+        'All open bestowals assigned to this template are current.',
+    );
+});
+
 Given('I restore the removed fixture to-do definition', async ({ page }) => {
     const fixture = syncFixture(page);
     runPhpJson(RESTORE_TODO_DEFINITION_PHP, {
@@ -926,12 +976,18 @@ Given('I restore the removed fixture to-do definition', async ({ page }) => {
 });
 
 When('I synchronize the open bestowals again', async ({ page }) => {
+    const fixture = syncFixture(page);
+    await openSyncPage(
+        page,
+        `/awards/bestowal-todo-templates/view/${fixture.templateId}`,
+        fixture.templateName,
+    );
     await submitSyncConfirmation(
         page,
         BESTOWAL_SYNC_CONTROL,
-        'Synchronize open bestowals',
-        BESTOWAL_SYNC_POST_PATH,
-        'Processed',
+        `Synchronize ${fixture.templateName}`,
+        `/awards/bestowal-todo-templates/sync-template/${fixture.templateId}`,
+        `Processed 1 outdated open bestowal(s) for ${fixture.templateName}`,
         1,
     );
 });

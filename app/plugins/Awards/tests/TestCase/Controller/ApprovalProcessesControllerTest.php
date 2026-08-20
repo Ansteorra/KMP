@@ -7,6 +7,7 @@ use App\Services\ServiceResult;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\ApprovalProcessStep;
 use Awards\Services\RecommendationApprovalWorkflowSyncService;
+use Cake\Datasource\EntityInterface;
 
 class ApprovalProcessesControllerTest extends HttpIntegrationTestCase
 {
@@ -19,46 +20,73 @@ class ApprovalProcessesControllerTest extends HttpIntegrationTestCase
         $this->authenticateAsSuperUser();
     }
 
-    public function testIndexRendersConfirmedPostSyncAction(): void
+    public function testIndexDoesNotRenderGlobalRecommendationSyncAction(): void
     {
         $this->get('/awards/approval-processes');
 
         $this->assertResponseOk();
-        $this->assertResponseContains('Sync Open Recommendations Now');
-        $this->assertResponseContains('action="/awards/approval-processes/sync-open-recommendations"');
-        $this->assertResponseContains('data-confirm-message=');
-        $this->assertResponseContains('create exactly one bestowal');
-        $this->assertResponseContains('Synchronization never marks a bestowal Given');
-        $this->assertResponseContains('data-confirm-title="Synchronize open recommendations"');
-        $this->assertResponseContains('data-confirm-label="Sync Now"');
-        $this->assertResponseContains('data-turbo-frame="_top"');
+        $this->assertResponseNotContains('Sync Open Recommendations Now');
     }
 
-    public function testSyncOpenRecommendationsUsesActorAndFlashesSummary(): void
+    public function testViewEnablesProcessSyncOnlyWhenOutdatedRecommendationsExist(): void
     {
+        $process = $this->createApprovalProcess('Controller Enabled Sync Test');
         $service = $this->createMock(RecommendationApprovalWorkflowSyncService::class);
         $service->expects($this->once())
-            ->method('syncOpenRecommendations')
-            ->with(self::ADMIN_MEMBER_ID)
+            ->method('countOutdatedRecommendations')
+            ->with((int)$process->id)
+            ->willReturn(3);
+        $this->mockService(RecommendationApprovalWorkflowSyncService::class, static fn() => $service);
+
+        $this->get('/awards/approval-processes/view/' . $process->id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Sync Outdated Recommendations (3)');
+        $this->assertResponseContains(
+            'action="/awards/approval-processes/sync-approval-process/' . $process->id . '"',
+        );
+        $this->assertResponseContains('Only recommendations using an older process snapshot or workflow version');
+        $this->assertResponseContains('This action does not create a bestowal');
+        $this->assertResponseContains('data-confirm-label="Sync Now"');
+        $this->assertResponseContains('data-turbo-frame="_top"');
+        $this->assertResponseNotContains('Sync Outdated Recommendations" disabled');
+    }
+
+    public function testViewDisablesProcessSyncWhenAllRecommendationsAreCurrent(): void
+    {
+        $process = $this->createApprovalProcess('Controller Disabled Sync Test');
+        $service = $this->createMock(RecommendationApprovalWorkflowSyncService::class);
+        $service->expects($this->once())
+            ->method('countOutdatedRecommendations')
+            ->with((int)$process->id)
+            ->willReturn(0);
+        $this->mockService(RecommendationApprovalWorkflowSyncService::class, static fn() => $service);
+
+        $this->get('/awards/approval-processes/view/' . $process->id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Sync Outdated Recommendations');
+        $this->assertResponseContains('disabled');
+        $this->assertResponseContains('aria-describedby="approval-process-sync-status"');
+        $this->assertResponseContains('All open recommendations assigned to this process are current.');
+        $this->assertResponseNotContains('/sync-approval-process/' . $process->id);
+    }
+
+    public function testSyncApprovalProcessUsesProcessAndActorAndFlashesSummary(): void
+    {
+        $process = $this->createApprovalProcess('Controller Process Sync Test');
+        $service = $this->createMock(RecommendationApprovalWorkflowSyncService::class);
+        $service->expects($this->once())
+            ->method('syncApprovalProcess')
+            ->with((int)$process->id, self::ADMIN_MEMBER_ID)
             ->willReturn(new ServiceResult(true, null, [
-                'backfillCandidateCount' => 4,
-                'backfilledCount' => 1,
-                'backfillUnchangedCount' => 0,
-                'backfillSkippedCount' => 3,
-                'backfillFailedCount' => 0,
-                'backfillSkips' => [
-                    ['recommendationId' => 40, 'reason' => '<em>Active</em> feedback request.'],
-                    ['recommendationId' => 41, 'reason' => 'No approval process.'],
-                    ['recommendationId' => 42, 'reason' => '404'],
-                ],
+                'candidateCount' => 5,
                 'processedCount' => 5,
-                'synchronizedCount' => 2,
-                'advancedCount' => 1,
-                'versionMigratedCount' => 1,
-                'unchangedCount' => 2,
+                'restartedCount' => 4,
+                'cancelledRunCount' => 5,
                 'activeRunSkippedCount' => 1,
                 'activeRunFailedCount' => 0,
-                'skippedCount' => 3,
+                'skippedCount' => 1,
                 'failedCount' => 0,
                 'failures' => [],
             ]));
@@ -67,45 +95,35 @@ class ApprovalProcessesControllerTest extends HttpIntegrationTestCase
             static fn() => $service,
         );
 
-        $this->post('/awards/approval-processes/sync-open-recommendations');
+        $this->post('/awards/approval-processes/sync-approval-process/' . $process->id);
 
-        $this->assertRedirect(['controller' => 'ApprovalProcesses', 'action' => 'index']);
+        $this->assertRedirect(['controller' => 'ApprovalProcesses', 'action' => 'view', $process->id]);
         $this->assertFlashMessage(
-            'Ownership backfill reviewed 4 open recommendation(s) without an active run: '
-            . '1 started, 0 unchanged, 3 skipped, and 0 failed. '
-            . 'Processed 5 active workflow(s): 2 synchronized '
-            . '(1 advanced; 1 workflow version(s) migrated), 2 unchanged, 1 skipped, and 0 failed. '
-            . 'Recommendations needing attention: #40, #41, #42. '
-            . 'Backfill skip reasons: Active feedback request (1); No approval process (1); 404 (1).',
+            'Found 5 outdated open recommendation(s) assigned to Controller Process Sync Test: '
+            . '4 restarted after cancelling 5 prior run(s), 1 skipped, and 0 failed.',
             'flash',
         );
         $this->assertFlashElement('flash/success');
     }
 
-    public function testSyncOpenRecommendationsFlashesSafeFailureCategories(): void
+    public function testSyncApprovalProcessFlashesSafeFailureCategories(): void
     {
+        $process = $this->createApprovalProcess('Controller Failed Sync Test');
         $service = $this->createMock(RecommendationApprovalWorkflowSyncService::class);
         $service->expects($this->once())
-            ->method('syncOpenRecommendations')
-            ->with(self::ADMIN_MEMBER_ID)
+            ->method('syncApprovalProcess')
+            ->with((int)$process->id, self::ADMIN_MEMBER_ID)
             ->willReturn(new ServiceResult(false, 'One or more workflows failed.', [
-                'backfillCandidateCount' => 0,
-                'backfilledCount' => 0,
-                'backfillUnchangedCount' => 0,
-                'backfillSkippedCount' => 0,
-                'backfillFailedCount' => 0,
-                'backfillSkips' => [],
+                'candidateCount' => 1,
                 'processedCount' => 1,
-                'synchronizedCount' => 0,
-                'advancedCount' => 0,
-                'versionMigratedCount' => 0,
-                'unchangedCount' => 0,
+                'restartedCount' => 0,
+                'cancelledRunCount' => 0,
                 'activeRunSkippedCount' => 0,
                 'activeRunFailedCount' => 1,
                 'skippedCount' => 0,
                 'failedCount' => 1,
                 'failures' => [[
-                    'runId' => 77,
+                    'recommendationId' => 77,
                     'reason' => 'SQLSTATE secret schema detail that must not be shown.',
                 ]],
             ]));
@@ -114,47 +132,47 @@ class ApprovalProcessesControllerTest extends HttpIntegrationTestCase
             static fn() => $service,
         );
 
-        $this->post('/awards/approval-processes/sync-open-recommendations');
+        $this->post('/awards/approval-processes/sync-approval-process/' . $process->id);
 
-        $this->assertRedirect(['controller' => 'ApprovalProcesses', 'action' => 'index']);
+        $this->assertRedirect(['controller' => 'ApprovalProcesses', 'action' => 'view', $process->id]);
         $this->assertFlashMessage(
-            'Ownership backfill reviewed 0 open recommendation(s) without an active run: '
-            . '0 started, 0 unchanged, 0 skipped, and 0 failed. '
-            . 'Processed 1 active workflow(s): 0 synchronized '
-            . '(0 advanced; 0 workflow version(s) migrated), 0 unchanged, 0 skipped, and 1 failed. '
-            . 'Workflow runs needing attention: #77. '
-            . 'Failure categories: Active workflow synchronization error (1). '
+            'Found 1 outdated open recommendation(s) assigned to Controller Failed Sync Test: '
+            . '0 restarted after cancelling 0 prior run(s), 0 skipped, and 1 failed. '
+            . 'Recommendations needing attention: #77. '
+            . 'Failure categories: Active workflow restart error (1). '
             . 'One or more workflows failed.',
             'flash',
         );
         $this->assertFlashElement('flash/error');
     }
 
-    public function testSyncOpenRecommendationsRejectsGet(): void
+    public function testSyncApprovalProcessRejectsGet(): void
     {
+        $process = $this->createApprovalProcess('Controller GET Sync Test');
         $service = $this->createMock(RecommendationApprovalWorkflowSyncService::class);
-        $service->expects($this->never())->method('syncOpenRecommendations');
+        $service->expects($this->never())->method('syncApprovalProcess');
         $this->mockService(
             RecommendationApprovalWorkflowSyncService::class,
             static fn() => $service,
         );
 
-        $this->get('/awards/approval-processes/sync-open-recommendations');
+        $this->get('/awards/approval-processes/sync-approval-process/' . $process->id);
 
         $this->assertResponseCode(405);
     }
 
-    public function testSyncOpenRecommendationsRequiresExplicitAuthorization(): void
+    public function testSyncApprovalProcessRequiresExplicitAuthorization(): void
     {
+        $process = $this->createApprovalProcess('Controller Unauthorized Sync Test');
         $service = $this->createMock(RecommendationApprovalWorkflowSyncService::class);
-        $service->expects($this->never())->method('syncOpenRecommendations');
+        $service->expects($this->never())->method('syncApprovalProcess');
         $this->mockService(
             RecommendationApprovalWorkflowSyncService::class,
             static fn() => $service,
         );
         $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
 
-        $this->post('/awards/approval-processes/sync-open-recommendations');
+        $this->post('/awards/approval-processes/sync-approval-process/' . $process->id);
 
         $this->assertRedirectContains('/pages/unauthorized');
     }
@@ -251,5 +269,16 @@ class ApprovalProcessesControllerTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
         $this->assertResponseContains(h($assignedAward->name));
         $this->assertResponseNotContains(h($unassignedAward->name));
+    }
+
+    private function createApprovalProcess(string $name): EntityInterface
+    {
+        $approvalProcesses = $this->getTableLocator()->get('Awards.ApprovalProcesses');
+
+        return $approvalProcesses->saveOrFail($approvalProcesses->newEntity([
+            'name' => $name,
+            'description' => 'Created by controller workflow synchronization test',
+            'is_active' => true,
+        ]));
     }
 }

@@ -13,7 +13,6 @@ use App\Services\ViewCellRegistry;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use App\Services\WorkflowEngine\WorkflowApprovalManagerInterface;
 use App\Services\WorkflowEngine\WorkflowEngineInterface;
-use App\Services\WorkflowEngine\WorkflowVersionManagerInterface;
 use Awards\Command\MaterializeBestowalTodosCommand;
 use Awards\Command\MigrateAwardRecommendationsCommand;
 use Awards\Command\ReconcileRecommendationStateCommand;
@@ -366,10 +365,7 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
         $container->add(AwardApprovalResolverService::class);
         $container->add(RecommendationApprovalProcessService::class);
         $container->add(RecommendationApprovalWorkflowSyncService::class)
-            ->addArgument(RecommendationApprovalProcessService::class)
-            ->addArgument(WorkflowEngineInterface::class)
-            ->addArgument(WorkflowVersionManagerInterface::class)
-            ->addArgument(RecommendationMigrationService::class);
+            ->addArgument(WorkflowEngineInterface::class);
         $container->add(RecommendationApprovalDecisionService::class)
             ->addArgument(WorkflowApprovalManagerInterface::class)
             ->addArgument(WorkflowEngineInterface::class)

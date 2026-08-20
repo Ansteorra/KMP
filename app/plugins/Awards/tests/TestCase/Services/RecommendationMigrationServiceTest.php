@@ -10,7 +10,6 @@ use App\Model\Entity\WorkflowInstance;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use App\Services\WorkflowEngine\WorkflowEngineInterface;
-use App\Services\WorkflowEngine\WorkflowVersionManagerInterface;
 use App\Test\TestCase\BaseTestCase;
 use Awards\Model\Entity\ApprovalProcess;
 use Awards\Model\Entity\ApprovalProcessStep;
@@ -22,8 +21,6 @@ use Awards\Model\Entity\RecommendationMigrationResult;
 use Awards\Model\Entity\RecommendationMigrationRun;
 use Awards\Services\AwardApprovalResolverService;
 use Awards\Services\RecommendationApprovalManualReviewException;
-use Awards\Services\RecommendationApprovalProcessService;
-use Awards\Services\RecommendationApprovalWorkflowSyncService;
 use Awards\Services\RecommendationBestowalStatePolicyService;
 use Awards\Services\RecommendationMigrationService;
 use Cake\I18n\DateTime;
@@ -349,6 +346,12 @@ class RecommendationMigrationServiceTest extends BaseTestCase
         $this->recommendationsTable->updateAll(['deleted' => DateTime::now()], ['id' => $deletedId]);
         $activeId = $this->createRecommendation('Submitted', ['award_id' => (int)$award->id]);
         $this->createBackfilledApprovalRun($activeId, self::ADMIN_MEMBER_ID);
+        $approvedId = $this->createRecommendation('Submitted', ['award_id' => (int)$award->id]);
+        $approvedRunId = $this->createBackfilledApprovalRun($approvedId, self::ADMIN_MEMBER_ID);
+        $approvedRun = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns')->get($approvedRunId);
+        $approvedRun->status = RecommendationApprovalRun::STATUS_APPROVED;
+        $approvedRun->completed = DateTime::now();
+        $this->getTableLocator()->get('Awards.RecommendationApprovalRuns')->saveOrFail($approvedRun);
 
         $events = [];
         $service = new RecommendationMigrationService(
@@ -362,6 +365,8 @@ class RecommendationMigrationServiceTest extends BaseTestCase
         $summary = $result->getData();
         $this->assertSame(3, $summary['candidateCount']);
         $this->assertSame(1, $summary['startedCount']);
+        $this->assertSame([$eligibleId], $summary['startedRecommendationIds']);
+        $this->assertSame([], $summary['repairedRecommendationIds']);
         $this->assertSame(0, $summary['unchangedCount']);
         $this->assertSame(2, $summary['skippedCount']);
         $this->assertSame(0, $summary['failedCount']);
@@ -574,6 +579,8 @@ class RecommendationMigrationServiceTest extends BaseTestCase
         $summary = $result->getData();
         $this->assertSame(1, $summary['candidateCount']);
         $this->assertSame(1, $summary['startedCount']);
+        $this->assertSame([$recommendationId], $summary['startedRecommendationIds']);
+        $this->assertSame([$recommendationId], $summary['repairedRecommendationIds']);
         $this->assertSame(0, $summary['unchangedCount']);
         $this->assertSame(0, $summary['skippedCount']);
         $this->assertSame(0, $summary['failedCount']);
@@ -629,73 +636,6 @@ class RecommendationMigrationServiceTest extends BaseTestCase
                 ->where(['workflow_approval_id' => $fixture['approvalId']])
                 ->count(),
         );
-    }
-
-    public function testSyncBackfillsOrphanAndSynchronizesItInTheSameCall(): void
-    {
-        $this->neutralizeSeededApprovalBackfillCandidates();
-        $process = $this->createBackfillApprovalProcess();
-        $award = $this->createBackfillAward((int)$process->id);
-        $recommendationId = $this->createRecommendation('Submitted', ['award_id' => (int)$award->id]);
-        $fixture = $this->createOrphanedApprovalWorkflow($recommendationId, 987654322);
-        $instance = $this->getTableLocator()->get('WorkflowInstances')->get($fixture['instanceId']);
-        $currentVersion = $this->getTableLocator()->get('WorkflowVersions')->get((int)$instance->workflow_version_id);
-
-        $engine = $this->createMock(WorkflowEngineInterface::class);
-        $engine->expects($this->once())
-            ->method('resumeWorkflow')
-            ->with(
-                $fixture['instanceId'],
-                'award-approval-gate',
-                'approved',
-                $this->callback(static function (array $resumeData) use ($fixture): bool {
-                    return (int)($resumeData['approval']['approvalId'] ?? 0) === $fixture['approvalId']
-                        && (int)($resumeData['approverId'] ?? 0) === BaseTestCase::ADMIN_MEMBER_ID
-                        && ($resumeData['decision'] ?? null) === 'approve'
-                        && !empty($resumeData['synchronized']);
-                }),
-            )
-            ->willReturn(new ServiceResult(true));
-        $versionManager = $this->createMock(WorkflowVersionManagerInterface::class);
-        $versionManager->expects($this->once())
-            ->method('getCurrentVersion')
-            ->with((int)$instance->workflow_definition_id)
-            ->willReturn($currentVersion);
-        $versionManager->expects($this->never())->method('migrateInstance');
-        $resolver = $this->resolverReturningApprover();
-        $migrationService = new RecommendationMigrationService(approvalResolver: $resolver);
-        $syncService = new RecommendationApprovalWorkflowSyncService(
-            new RecommendationApprovalProcessService($resolver),
-            $engine,
-            $versionManager,
-            $migrationService,
-        );
-
-        $result = $syncService->syncOpenRecommendations(self::ADMIN_MEMBER_ID);
-
-        $this->assertTrue($result->isSuccess(), json_encode($result->getData()['failures'] ?? []));
-        $summary = $result->getData();
-        $this->assertSame(1, $summary['backfillCandidateCount']);
-        $this->assertSame(1, $summary['backfilledCount']);
-        $this->assertSame(1, $summary['processedCount']);
-        $this->assertSame(1, $summary['synchronizedCount']);
-        $this->assertSame(1, $summary['advancedCount']);
-        $this->assertSame(0, $summary['failedCount']);
-
-        $run = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns')->find()
-            ->where(['recommendation_id' => $recommendationId])
-            ->firstOrFail();
-        $approval = $this->getTableLocator()->get('WorkflowApprovals')->get($fixture['approvalId']);
-        $this->assertSame((int)$run->id, (int)$approval->approver_config['award_approval_run_id']);
-        $this->assertSame(WorkflowApproval::STATUS_APPROVED, $approval->status);
-        $this->assertSame(1, (int)$approval->required_count);
-        $this->assertSame(1, (int)$approval->approved_count);
-        $this->assertSame($fixture['responseId'], (int)$this->getTableLocator()
-            ->get('WorkflowApprovalResponses')
-            ->get($fixture['responseId'])->id);
-        $this->assertSame(1, $this->activeApprovalRunCount($recommendationId));
-        $this->assertSame(1, $this->activeMigrationWorkflowCount($recommendationId));
-        $this->assertSame(1, $this->workflowApprovalCount($fixture['instanceId']));
     }
 
     public function testBackfillRefusesToRelinkEvidenceOwnedByAnotherWorkflow(): void

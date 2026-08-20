@@ -88,12 +88,20 @@ class BestowalTodoMaterializationService
                     return new ServiceResult(true, $contextResult->reason, []);
                 }
 
-                return $this->actionItemService->materializeFor(
+                $result = $this->actionItemService->materializeFor(
                     Bestowal::ACTION_ITEM_ENTITY_TYPE,
                     $bestowalId,
                     $contextResult->data['definitions'],
                     $contextResult->data['branchId'],
                 );
+                if ($result->success) {
+                    $this->markTemplateSignatureCurrent(
+                        $bestowalId,
+                        (string)$contextResult->data['templateSignature'],
+                    );
+                }
+
+                return $result;
             });
         } finally {
             if (!$savePointsWereEnabled) {
@@ -211,6 +219,11 @@ class BestowalTodoMaterializationService
 
         $result->data['skipped'] = false;
         $result->data['templateId'] = $contextResult->data['templateId'];
+        $result->data['templateSignature'] = $contextResult->data['templateSignature'];
+        $this->markTemplateSignatureCurrent(
+            $bestowalId,
+            (string)$contextResult->data['templateSignature'],
+        );
 
         return $result;
     }
@@ -239,32 +252,68 @@ class BestowalTodoMaterializationService
     }
 
     /**
-     * Reconcile every currently open bestowal with its award's current template.
+     * Count open bestowals assigned to a template that were materialized from
+     * a different version of that template.
      *
-     * Each bestowal is synchronized independently so one malformed template
-     * does not roll back successful work for other bestowals.
-     *
-     * @param int|null $actorId Member initiating the synchronization, if any.
-     * @return \App\Services\ServiceResult Data contains per-bestowal and aggregate mutation counts.
+     * @param int $templateId Template ID.
+     * @return int
      */
-    public function syncOpenBestowals(?int $actorId = null): ServiceResult
+    public function countOutdatedOpenBestowals(int $templateId): int
     {
-        $bestowalIds = $this->fetchTable('Awards.Bestowals')->find()
-            ->select(['id'])
-            ->where([
-                'Bestowals.deleted IS' => null,
-                'OR' => [
-                    'Bestowals.lifecycle_status IS' => null,
-                    'Bestowals.lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
-                ],
-            ])
-            ->orderBy(['Bestowals.id' => 'ASC'])
-            ->all()
-            ->extract('id')
-            ->map(static fn($id): int => (int)$id)
-            ->toList();
+        $template = $this->loadTemplate($templateId);
+        if ($template === null) {
+            return 0;
+        }
 
+        return count($this->findOutdatedOpenBestowalIds(
+            $templateId,
+            $this->buildTemplateSignature($template),
+        ));
+    }
+
+    /**
+     * Synchronize only outdated open bestowals assigned to one template.
+     *
+     * @param int $templateId Template ID.
+     * @param int|null $actorId Member initiating the synchronization, if any.
+     * @return \App\Services\ServiceResult
+     */
+    public function syncOpenBestowalsForTemplate(int $templateId, ?int $actorId = null): ServiceResult
+    {
+        $template = $this->loadTemplate($templateId);
+        if ($template === null) {
+            return new ServiceResult(false, 'The selected bestowal to-do template no longer exists.');
+        }
+
+        $templateSignature = $this->buildTemplateSignature($template);
+        $bestowalIds = $this->findOutdatedOpenBestowalIds($templateId, $templateSignature);
+
+        return $this->syncBestowalIds(
+            $bestowalIds,
+            $actorId,
+            $templateId,
+            $templateSignature,
+        );
+    }
+
+    /**
+     * Aggregate independent per-bestowal synchronization results.
+     *
+     * @param array<int, int> $bestowalIds Bestowal IDs selected for synchronization.
+     * @param int|null $actorId Member initiating synchronization, if any.
+     * @param int|null $expectedTemplateId Template assignment expected by a scoped scan.
+     * @param string|null $expectedTemplateSignature Template version expected by a scoped scan.
+     * @return \App\Services\ServiceResult
+     */
+    private function syncBestowalIds(
+        array $bestowalIds,
+        ?int $actorId,
+        ?int $expectedTemplateId = null,
+        ?string $expectedTemplateSignature = null,
+    ): ServiceResult {
         $summary = [
+            'candidateCount' => count($bestowalIds),
+            'templateId' => $expectedTemplateId,
             'processedCount' => 0,
             'changedCount' => 0,
             'unchangedCount' => 0,
@@ -292,7 +341,12 @@ class BestowalTodoMaterializationService
 
         foreach ($bestowalIds as $bestowalId) {
             $summary['processedCount']++;
-            $result = $this->syncPersistedOpenBestowal($bestowalId, $actorId);
+            $result = $this->syncPersistedOpenBestowal(
+                $bestowalId,
+                $actorId,
+                $expectedTemplateId,
+                $expectedTemplateSignature,
+            );
             if (!$result->success) {
                 $summary['failedCount']++;
                 $summary['failures'][] = [
@@ -340,8 +394,12 @@ class BestowalTodoMaterializationService
      * @param int|null $actorId Member initiating the synchronization, if any.
      * @return \App\Services\ServiceResult
      */
-    private function syncPersistedOpenBestowal(int $bestowalId, ?int $actorId): ServiceResult
-    {
+    private function syncPersistedOpenBestowal(
+        int $bestowalId,
+        ?int $actorId,
+        ?int $expectedTemplateId = null,
+        ?string $expectedTemplateSignature = null,
+    ): ServiceResult {
         $bestowals = $this->fetchTable('Awards.Bestowals');
         $connection = $bestowals->getConnection();
         $savePointsWereEnabled = $connection->isSavePointsEnabled();
@@ -350,7 +408,13 @@ class BestowalTodoMaterializationService
         }
 
         try {
-            return $connection->transactional(function () use ($bestowals, $bestowalId, $actorId): ServiceResult {
+            return $connection->transactional(function () use (
+                $bestowals,
+                $bestowalId,
+                $actorId,
+                $expectedTemplateId,
+                $expectedTemplateSignature,
+            ): ServiceResult {
                 $bestowal = $bestowals->find()
                     ->where([
                         'Bestowals.id' => $bestowalId,
@@ -368,6 +432,32 @@ class BestowalTodoMaterializationService
                         'The bestowal is no longer open.',
                         $this->emptySyncSummary(true),
                     );
+                }
+
+                if ($expectedTemplateId !== null && $expectedTemplateSignature !== null) {
+                    $contextResult = $this->resolveTemplateContext($bestowal);
+                    $contextData = is_array($contextResult->data) ? $contextResult->data : [];
+                    $currentTemplateId = (int)($contextData['templateId'] ?? 0);
+                    $currentSignature = $contextData['templateSignature'] ?? null;
+                    if (
+                        !$contextResult->success
+                        || !empty($contextData['skipped'])
+                        || $currentTemplateId !== $expectedTemplateId
+                        || $currentSignature !== $expectedTemplateSignature
+                    ) {
+                        return new ServiceResult(
+                            true,
+                            'The bestowal no longer uses the selected template version.',
+                            $this->emptySyncSummary(true, $currentTemplateId ?: null),
+                        );
+                    }
+                    if ($bestowal->todo_template_signature === $expectedTemplateSignature) {
+                        return new ServiceResult(
+                            true,
+                            'The bestowal is already current.',
+                            $this->emptySyncSummary(true, $currentTemplateId),
+                        );
+                    }
                 }
 
                 return $this->syncForBestowal($bestowal, $actorId);
@@ -435,6 +525,7 @@ class BestowalTodoMaterializationService
             return new ServiceResult(true, null, [
                 'skipped' => false,
                 'templateId' => $templateId,
+                'templateSignature' => $this->buildTemplateSignature($template),
                 'branchId' => $awardBranchId,
                 'definitions' => [],
             ]);
@@ -465,6 +556,7 @@ class BestowalTodoMaterializationService
         return new ServiceResult(true, null, [
             'skipped' => false,
             'templateId' => $templateId,
+            'templateSignature' => $this->buildTemplateSignature($template),
             'branchId' => $awardBranchId,
             'definitions' => $definitions,
         ]);
@@ -479,6 +571,7 @@ class BestowalTodoMaterializationService
         return [
             'skipped' => true,
             'templateId' => $templateId,
+            'templateSignature' => null,
             'branchId' => null,
             'definitions' => [],
         ];
@@ -522,6 +615,116 @@ class BestowalTodoMaterializationService
             ->first();
 
         return $template;
+    }
+
+    /**
+     * Find open bestowals assigned to the selected template whose stored
+     * materialization signature differs from the current template.
+     *
+     * @param int $templateId Template ID.
+     * @param string $templateSignature Current template signature.
+     * @return array<int, int>
+     */
+    private function findOutdatedOpenBestowalIds(int $templateId, string $templateSignature): array
+    {
+        $query = $this->fetchTable('Awards.Bestowals')->find()
+            ->select(['Bestowals.id'])
+            ->innerJoinWith('Awards', function ($query) use ($templateId) {
+                return $query->where([
+                    'Awards.bestowal_todo_template_id' => $templateId,
+                    'Awards.deleted IS' => null,
+                ]);
+            })
+            ->where([
+                'Bestowals.deleted IS' => null,
+                'OR' => [
+                    'Bestowals.lifecycle_status IS' => null,
+                    'Bestowals.lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
+                ],
+            ])
+            ->where([
+                'OR' => [
+                    'Bestowals.todo_template_signature IS' => null,
+                    'Bestowals.todo_template_signature !=' => $templateSignature,
+                ],
+            ])
+            ->orderBy(['Bestowals.id' => 'ASC']);
+
+        return $query->all()
+            ->extract('id')
+            ->map(static fn($id): int => (int)$id)
+            ->toList();
+    }
+
+    /**
+     * Build a stable fingerprint of the template fields that control ActionItems.
+     *
+     * @param \Awards\Model\Entity\BestowalTodoTemplate $template Loaded template and items.
+     * @return string
+     */
+    private function buildTemplateSignature(BestowalTodoTemplate $template): string
+    {
+        $items = [];
+        foreach ($template->bestowal_todo_template_items as $item) {
+            $items[] = [
+                'itemKey' => (string)$item->item_key,
+                'label' => (string)$item->label,
+                'description' => $item->description,
+                'assigneeType' => (string)$item->assignee_type,
+                'assigneeSourceId' => $item->assignee_source_id !== null
+                    ? (int)$item->assignee_source_id
+                    : null,
+                'assigneeSourceKey' => $item->assignee_source_key,
+                'branchMode' => (string)$item->branch_mode,
+                'branchType' => $item->branch_type,
+                'isGating' => (bool)$item->is_gating,
+                'requiredField' => $item->required_field,
+                'requiredFieldConfig' => $this->canonicalizeSignatureValue($item->required_field_config),
+                'sortOrder' => (int)$item->sort_order,
+            ];
+        }
+
+        return hash('sha256', json_encode([
+            'templateId' => (int)$template->id,
+            'items' => $items,
+        ], JSON_THROW_ON_ERROR));
+    }
+
+    /**
+     * Recursively sort associative JSON fields before hashing.
+     *
+     * @param mixed $value Signature input.
+     * @return mixed
+     */
+    private function canonicalizeSignatureValue(mixed $value): mixed
+    {
+        if (!is_array($value)) {
+            return $value;
+        }
+
+        if (!array_is_list($value)) {
+            ksort($value);
+        }
+        foreach ($value as $key => $item) {
+            $value[$key] = $this->canonicalizeSignatureValue($item);
+        }
+
+        return $value;
+    }
+
+    /**
+     * Record that a bestowal's ActionItems reflect the current template.
+     *
+     * @param int $bestowalId Bestowal ID.
+     * @param string $templateSignature Materialized template signature.
+     * @return void
+     */
+    private function markTemplateSignatureCurrent(int $bestowalId, string $templateSignature): void
+    {
+        $this->fetchTable('Awards.Bestowals')->updateAll(
+            ['todo_template_signature' => $templateSignature],
+            ['id' => $bestowalId],
+        );
     }
 
     /**

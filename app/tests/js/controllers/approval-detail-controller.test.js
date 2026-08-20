@@ -85,6 +85,59 @@ describe('ApprovalDetailController', () => {
         expect(document.body.querySelectorAll('.col-md-6')).toHaveLength(2);
     });
 
+    test('explains approvals reset after a process update', () => {
+        const html = controller._renderDetail({
+            context: {
+                title: 'Award Recommendation Approval',
+                fields: [],
+            },
+            progress: {
+                required: 2,
+                approved: 1,
+                rejected: 0,
+                status: 'cancelled',
+                statusLabel: 'Reset — approval process updated',
+                statusExplanation:
+                    'This approval was cancelled because the approval process changed. A new approval was started using the current process, so earlier decisions do not count toward it.',
+            },
+            responses: [],
+        });
+
+        document.body.innerHTML = html;
+
+        expect(document.body.textContent).toContain('Status: Reset — approval process updated');
+        expect(document.body.textContent).toContain('Why this approval was reset');
+        expect(document.body.textContent).toContain('earlier decisions do not count toward it');
+        const explanation = document.querySelector('[role="status"]');
+        expect(explanation).toHaveAttribute('aria-live', 'polite');
+        expect(explanation).toHaveAttribute('aria-atomic', 'true');
+        expect(explanation.querySelector('i')).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    test('does not invent an explanation for ordinary cancellations', () => {
+        const html = controller._renderDetail({
+            context: {
+                title: 'Standard Approval',
+                fields: [],
+            },
+            progress: {
+                required: 1,
+                approved: 0,
+                rejected: 0,
+                status: 'cancelled',
+                statusLabel: 'Cancelled',
+                statusExplanation: null,
+            },
+            responses: [],
+        });
+
+        document.body.innerHTML = html;
+
+        expect(document.body.textContent).toContain('Status: Cancelled');
+        expect(document.body.textContent).not.toContain('Why this approval was reset');
+        expect(document.querySelector('[role="status"]')).toBeNull();
+    });
+
     test('renders source entity links with accessible navigation text', () => {
         const html = controller._renderDetail({
             context: {

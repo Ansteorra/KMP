@@ -18,6 +18,7 @@ use Awards\Model\Entity\ApprovalProcessStep;
  * @var array|null $preview
  * @var string|int|null $previewAwardId
  * @var string $previewFrameId
+ * @var int $outdatedRecommendationCount
  */
 
 $user = $this->request->getAttribute('identity');
@@ -37,15 +38,42 @@ echo $this->KMP->startBlock('pageTitle') ?>
 <?php $this->KMP->endBlock() ?>
 
 <?= $this->KMP->startBlock('recordActions') ?>
+<?php if ($user->checkCan('syncOpenRecommendations', $approvalProcess)) : ?>
+    <?php if ($outdatedRecommendationCount > 0) : ?>
+        <?= $this->Form->create(null, [
+            'url' => ['action' => 'syncApprovalProcess', $approvalProcess->id],
+            'class' => 'd-inline-block',
+            'data-turbo-frame' => '_top',
+        ]) ?>
+        <?= $this->Form->button(__('Sync Outdated Recommendations ({0})', $outdatedRecommendationCount), [
+            'class' => 'btn btn-outline-primary btn-sm',
+            'data-confirm-message' => __(
+                'Restart the {0} outdated open recommendation(s) assigned to this approval process? '
+                . 'Only recommendations using an older process snapshot or workflow version will restart. '
+                . 'Their existing runs and pending approvals will be cancelled, while prior responses remain '
+                . 'in history without carrying into the new run. This action does not create a bestowal.',
+                $outdatedRecommendationCount,
+            ),
+            'data-confirm-title' => __('Synchronize {0}', $approvalProcess->name),
+            'data-confirm-label' => __('Sync Now'),
+        ]) ?>
+        <?= $this->Form->end() ?>
+    <?php else : ?>
+        <button type="button" class="btn btn-outline-secondary btn-sm" disabled
+            aria-describedby="approval-process-sync-status">
+            <?= __('Sync Outdated Recommendations') ?>
+        </button>
+    <?php endif; ?>
+<?php endif; ?>
 <?php if ($user->checkCan('edit', $approvalProcess)) : ?>
-<?= $this->Html->link(
+    <?= $this->Html->link(
         __('Edit'),
         ['action' => 'edit', $approvalProcess->id],
         ['class' => 'btn btn-primary btn-sm'],
     ) ?>
 <?php endif; ?>
 <?php if (empty($approvalProcess->awards) && $user->checkCan('delete', $approvalProcess)) : ?>
-<?= $this->Form->postLink(
+    <?= $this->Form->postLink(
         __('Delete'),
         ['action' => 'delete', $approvalProcess->id],
         [
@@ -61,7 +89,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
     <th scope="row"><?= __('Description') ?></th>
     <td>
         <?php if ($approvalProcess->description) : ?>
-        <?= $this->Text->autoParagraph(h($approvalProcess->description)) ?>
+            <?= $this->Text->autoParagraph(h($approvalProcess->description)) ?>
         <?php else : ?>
         <span class="text-muted"><?= __('No description') ?></span>
         <?php endif; ?>
@@ -74,6 +102,19 @@ echo $this->KMP->startBlock('pageTitle') ?>
 <tr>
     <th scope="row"><?= __('Step Summary') ?></th>
     <td><?= h($approvalProcess->step_summary) ?></td>
+</tr>
+<tr>
+    <th scope="row"><?= __('Outdated Open Recommendations') ?></th>
+    <td id="approval-process-sync-status">
+        <?php if ($outdatedRecommendationCount > 0) : ?>
+            <?= __(
+                '{0} recommendation(s) are using an older approval process snapshot or workflow version.',
+                $outdatedRecommendationCount,
+            ) ?>
+        <?php else : ?>
+            <?= __('All open recommendations assigned to this process are current.') ?>
+        <?php endif; ?>
+    </td>
 </tr>
 <?php $this->KMP->endBlock() ?>
 
@@ -170,16 +211,16 @@ echo $this->KMP->startBlock('pageTitle') ?>
                         <button type="button" class="btn btn-sm btn-secondary bi bi-pencil-fill" data-bs-toggle="modal"
                             data-bs-target="#editStepModal-<?= $step->id ?>"
                             aria-label="<?= __('Edit {0}', $step->label) ?>"></button>
-                        <?= $this->Form->postLink(
-                                        '',
-                                        ['action' => 'delete-step', $step->id],
-                                        [
+                            <?= $this->Form->postLink(
+                                '',
+                                ['action' => 'delete-step', $step->id],
+                                [
                                             'confirm' => __('Remove approval step "{0}"?', $step->label),
                                             'title' => __('Remove'),
                                             'aria-label' => __('Remove {0}', $step->label),
                                             'class' => 'btn-sm btn btn-outline-danger bi bi-trash-fill',
                                         ],
-                                    ) ?>
+                            ) ?>
                         <?php endif; ?>
                     </td>
                 </tr>
@@ -194,7 +235,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
                 'No approval steps are configured yet. Add at least one step before assigning this process ' .
                     'to awards.',
             )
-            ?>
+        ?>
     </div>
     <?php endif; ?>
 </div>
@@ -213,7 +254,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
 
 <?php $this->KMP->startBlock('modals') ?>
 <?php if ($user->checkCan('edit', $approvalProcess)) : ?>
-<?php
+    <?php
     $renderStepFields = function ($step = null) use (
         $approverTypeOptions,
         $branchModeOptions,
@@ -268,7 +309,8 @@ echo $this->KMP->startBlock('pageTitle') ?>
         echo '<div class="row g-3">';
         echo '<div class="col-12 col-lg-6">';
         echo '<fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">';
-        echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3"><i class="bi bi-list-ol text-primary me-1" aria-hidden="true"></i>' .
+        echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">' .
+            '<i class="bi bi-list-ol text-primary me-1" aria-hidden="true"></i>' .
             __('Step Identity') . '</legend>';
         echo $this->Form->control('label', ['value' => $step?->label]);
         echo $this->Form->control('step_key', [
@@ -282,7 +324,8 @@ echo $this->KMP->startBlock('pageTitle') ?>
         echo '</div>';
         echo '<div class="col-12 col-lg-6">';
         echo '<fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">';
-        echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3"><i class="bi bi-person-check text-success me-1" aria-hidden="true"></i>' .
+        echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">' .
+            '<i class="bi bi-person-check text-success me-1" aria-hidden="true"></i>' .
             __('Approver Source') . '</legend>';
         echo $this->Form->control('approver_type', [
             'options' => $approverTypeOptions,
@@ -389,7 +432,8 @@ echo $this->KMP->startBlock('pageTitle') ?>
         echo '</div>';
         echo '<div class="col-12">';
         echo '<fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">';
-        echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3"><i class="bi bi-sliders text-info me-1" aria-hidden="true"></i>' .
+        echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">' .
+            '<i class="bi bi-sliders text-info me-1" aria-hidden="true"></i>' .
             __('Routing Rules') . '</legend>';
         echo $this->Form->control('branch_mode', [
             'options' => $branchModeOptions,
@@ -444,8 +488,8 @@ echo $this->KMP->startBlock('pageTitle') ?>
         echo '</div>';
     };
     ?>
-<?= $this->Form->create(null, ['url' => ['action' => 'add-step', $approvalProcess->id]]) ?>
-<?= $this->Modal->create(__('Add Approval Step'), ['id' => 'addStepModal', 'close' => true, 'form' => true]) ?>
+    <?= $this->Form->create(null, ['url' => ['action' => 'add-step', $approvalProcess->id]]) ?>
+    <?= $this->Modal->create(__('Add Approval Step'), ['id' => 'addStepModal', 'close' => true, 'form' => true]) ?>
 <fieldset class="border rounded-3 bg-white shadow-sm p-3" data-controller="awards-approval-step-form">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
         <i class="bi bi-list-check text-primary me-1" aria-hidden="true"></i>
@@ -453,36 +497,36 @@ echo $this->KMP->startBlock('pageTitle') ?>
     </legend>
     <?php $renderStepFields(); ?>
 </fieldset>
-<?= $this->Modal->end([
+    <?= $this->Modal->end([
         $this->Form->button(__('Add Step'), ['class' => 'btn btn-primary']),
         $this->Form->button(
             __('Close'),
             ['type' => 'button', 'class' => 'btn btn-secondary', 'data-bs-dismiss' => 'modal'],
         ),
     ]) ?>
-<?= $this->Form->end() ?>
+    <?= $this->Form->end() ?>
 
-<?php foreach ($approvalProcess->approval_process_steps ?? [] as $step) : ?>
-<?= $this->Form->create($step, ['url' => ['action' => 'edit-step', $step->id]]) ?>
-<?= $this->Modal->create(
+    <?php foreach ($approvalProcess->approval_process_steps ?? [] as $step) : ?>
+        <?= $this->Form->create($step, ['url' => ['action' => 'edit-step', $step->id]]) ?>
+        <?= $this->Modal->create(
             __('Edit Approval Step: {0}', $step->label),
             ['id' => 'editStepModal-' . $step->id, 'close' => true, 'form' => true],
         ) ?>
 <fieldset class="border rounded-3 bg-white shadow-sm p-3" data-controller="awards-approval-step-form">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
         <i class="bi bi-list-check text-primary me-1" aria-hidden="true"></i>
-        <?= __('Approval Step') ?>
+            <?= __('Approval Step') ?>
     </legend>
-    <?php $renderStepFields($step); ?>
+        <?php $renderStepFields($step); ?>
 </fieldset>
-<?= $this->Modal->end([
+        <?= $this->Modal->end([
             $this->Form->button(__('Save Step'), ['class' => 'btn btn-primary']),
             $this->Form->button(
                 __('Close'),
                 ['type' => 'button', 'class' => 'btn btn-secondary', 'data-bs-dismiss' => 'modal'],
             ),
         ]) ?>
-<?= $this->Form->end() ?>
-<?php endforeach; ?>
+        <?= $this->Form->end() ?>
+    <?php endforeach; ?>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>

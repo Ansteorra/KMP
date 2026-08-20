@@ -13,6 +13,7 @@ use Awards\Services\RecommendationDeletionService;
 use Awards\Services\RecommendationGroupingService;
 use Awards\Services\RecommendationTransitionService;
 use Cake\I18n\DateTime;
+use Cake\ORM\Exception\PersistenceFailedException;
 use Cake\ORM\Table;
 use InvalidArgumentException;
 
@@ -345,30 +346,64 @@ class RecommendationGroupingServiceTest extends BaseTestCase
         $this->assertNotNull($head);
     }
 
-    public function testRemoveFromGroupBlockedWhenHeadHasActiveApprovalRun(): void
+    public function testRemoveFromGroupAllowedWhenHeadHasActiveApprovalRun(): void
     {
         $head = $this->createTestRecommendation(['state' => 'Submitted']);
         $child = $this->createTestRecommendation(['state' => 'Submitted']);
         $this->service->groupRecommendations([(int)$head->id, (int)$child->id], self::ADMIN_MEMBER_ID);
-        $this->createActiveApprovalRun((int)$head->id, RecommendationApprovalRun::STATUS_IN_PROGRESS);
+        $headRunId = $this->createActiveApprovalRun(
+            (int)$head->id,
+            RecommendationApprovalRun::STATUS_IN_PROGRESS,
+        );
 
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Cannot remove a recommendation from a group while one or more recommendations in the group are under active approval review.');
+        $headId = $this->service->removeFromGroup((int)$child->id, self::ADMIN_MEMBER_ID);
 
-        $this->service->removeFromGroup((int)$child->id, self::ADMIN_MEMBER_ID);
+        $this->assertSame((int)$head->id, $headId);
+        $restoredChild = $this->recommendationsTable->get((int)$child->id);
+        $this->assertNull($restoredChild->recommendation_group_id);
+        $this->assertSame('Submitted', $restoredChild->state);
+        $this->assertSame(
+            RecommendationApprovalRun::STATUS_IN_PROGRESS,
+            $this->approvalRunsTable->get($headRunId)->status,
+        );
     }
 
-    public function testRemoveFromGroupBlockedWhenChildResolvesToHeadActiveApprovalRun(): void
+    public function testUngroupAllowedWhenHeadHasActiveApprovalRun(): void
     {
         $head = $this->createTestRecommendation(['state' => 'Submitted']);
         $child = $this->createTestRecommendation(['state' => 'Submitted']);
         $this->service->groupRecommendations([(int)$head->id, (int)$child->id], self::ADMIN_MEMBER_ID);
-        $this->createActiveApprovalRun((int)$head->id, RecommendationApprovalRun::STATUS_IN_PROGRESS);
+        $headRunId = $this->createActiveApprovalRun(
+            (int)$head->id,
+            RecommendationApprovalRun::STATUS_IN_PROGRESS,
+        );
 
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Cannot remove a recommendation from a group while one or more recommendations in the group are under active approval review.');
+        $restored = $this->service->ungroupRecommendations((int)$head->id, self::ADMIN_MEMBER_ID);
 
-        $this->service->removeFromGroup((int)$child->id, self::ADMIN_MEMBER_ID);
+        $this->assertCount(1, $restored);
+        $restoredChild = $this->recommendationsTable->get((int)$child->id);
+        $this->assertNull($restoredChild->recommendation_group_id);
+        $this->assertSame('Submitted', $restoredChild->state);
+        $this->assertSame(
+            RecommendationApprovalRun::STATUS_IN_PROGRESS,
+            $this->approvalRunsTable->get($headRunId)->status,
+        );
+    }
+
+    public function testUngroupRemainsBlockedAfterRecommendationIsLinkedToBestowal(): void
+    {
+        $head = $this->createTestRecommendation(['state' => 'Submitted']);
+        $child = $this->createTestRecommendation(['state' => 'Submitted']);
+        $this->service->groupRecommendations([(int)$head->id, (int)$child->id], self::ADMIN_MEMBER_ID);
+        $this->createBestowalForRecommendation(
+            $this->recommendationsTable->get((int)$child->id),
+            Bestowal::LIFECYCLE_OPEN,
+        );
+
+        $this->expectException(PersistenceFailedException::class);
+        $this->expectExceptionMessage('This recommendation is linked to a bestowal and cannot be edited here.');
+
+        $this->service->ungroupRecommendations((int)$head->id, self::ADMIN_MEMBER_ID);
     }
 
     private function createActiveApprovalRun(int $recommendationId, string $status): int

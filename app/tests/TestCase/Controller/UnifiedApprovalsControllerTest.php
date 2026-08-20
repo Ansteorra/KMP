@@ -149,6 +149,44 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
     }
 
+    public function testDecisionsGridIdentifiesApprovalResetAfterProcessUpdate(): void
+    {
+        $this->authenticateAsSuperUser();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext();
+        $approvalId = $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Reset decision presentation test',
+        );
+        $responsesTable = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
+        $responsesTable->saveOrFail($responsesTable->newEntity([
+            'workflow_approval_id' => $approvalId,
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'comment' => 'Decision made before process update.',
+            'responded_at' => DateTime::now(),
+        ]));
+        TableRegistry::getTableLocator()->get('WorkflowInstances')->updateAll(
+            [
+                'status' => 'cancelled',
+                'error_info' => json_encode([
+                    'cancellation_reason' => RecommendationApprovalRun::TERMINAL_REASON_PROCESS_RESTARTED,
+                ]),
+            ],
+            ['id' => $instanceId],
+        );
+        TableRegistry::getTableLocator()->get('WorkflowApprovals')->updateAll(
+            ['status' => WorkflowApproval::STATUS_CANCELLED],
+            ['id' => $approvalId],
+        );
+
+        $this->get('/approvals/grid-data?view_id=sys-approvals-decisions');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Reset decision presentation test');
+        $this->assertResponseContains('Reset — approval process updated');
+    }
+
     public function testAuthenticatedKanbanLaneReturnsOk(): void
     {
         $this->authenticateAsSuperUser();
@@ -595,6 +633,48 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
     {
         $this->get('/approvals/detail/1');
         $this->assertRedirectContains('/login');
+    }
+
+    public function testApprovalDetailExplainsProcessUpdateReset(): void
+    {
+        $this->authenticateAsSuperUser();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext();
+        $approvalId = $this->createApproval($instanceId, $executionLogId);
+        TableRegistry::getTableLocator()->get('WorkflowInstances')->updateAll(
+            [
+                'status' => 'cancelled',
+                'error_info' => json_encode([
+                    'cancellation_reason' => RecommendationApprovalRun::TERMINAL_REASON_PROCESS_RESTARTED,
+                ]),
+            ],
+            ['id' => $instanceId],
+        );
+        TableRegistry::getTableLocator()->get('WorkflowApprovals')->updateAll(
+            ['status' => WorkflowApproval::STATUS_CANCELLED],
+            ['id' => $approvalId],
+        );
+
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ],
+        ]);
+        $this->get('/approvals/detail/' . $approvalId);
+
+        $this->assertResponseOk();
+        $this->assertContentType('application/json');
+        $payload = json_decode((string)$this->_response->getBody(), true);
+        $this->assertSame('cancelled', $payload['progress']['status'] ?? null);
+        $this->assertSame(
+            'Reset — approval process updated',
+            $payload['progress']['statusLabel'] ?? null,
+        );
+        $this->assertSame(
+            'This approval was cancelled because the approval process changed. ' .
+            'A new approval was started using the current process, so earlier decisions do not count toward it.',
+            $payload['progress']['statusExplanation'] ?? null,
+        );
     }
 
     public function testUpdateTriageSavesPrivateNoteAsJson(): void

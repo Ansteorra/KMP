@@ -267,7 +267,15 @@ class ApprovalDetailController extends Controller {
                 html += `<div class="progress-bar bg-danger" style="width:${rejectedPct}%">${rejected} rejected</div>`;
             }
             html += "</div>";
-            html += `<p class="text-muted small mb-3">${approved} of ${required} required &middot; Status: <strong>${h(prog.status)}</strong></p>`;
+            html += `<p class="text-muted small mb-3">${approved} of ${required} required &middot; Status: <strong>${h(prog.statusLabel || prog.status)}</strong></p>`;
+            if (prog.statusExplanation) {
+                html +=
+                    '<div class="alert alert-info py-2 small" role="status" aria-live="polite" aria-atomic="true">';
+                html +=
+                    '<div class="fw-semibold mb-1"><i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>Why this approval was reset</div>';
+                html += `<div>${h(prog.statusExplanation)}</div>`;
+                html += "</div>";
+            }
 
             // Response timeline
             if (responses.length > 0) {

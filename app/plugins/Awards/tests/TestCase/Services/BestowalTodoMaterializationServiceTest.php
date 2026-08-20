@@ -589,28 +589,19 @@ class BestowalTodoMaterializationServiceTest extends BaseTestCase
         $this->assertSame(6, $result->data['requiredSkippedCount']);
     }
 
-    public function testSyncOpenBestowalsProcessesOpenLifecycleOnly(): void
+    public function testSyncTemplateProcessesOpenLifecycleOnly(): void
     {
         $templateId = $this->createTemplateWithItems();
-        $awardId = $this->assignTemplateToAward($templateId, self::KINGDOM_BRANCH_ID);
+        $awardId = $this->createAwardForTemplate($templateId, 'Scoped Lifecycle Sync');
         $open = $this->createPersistedBestowal($awardId, Bestowal::LIFECYCLE_OPEN, 'Bulk Open');
         $given = $this->createPersistedBestowal($awardId, Bestowal::LIFECYCLE_GIVEN, 'Bulk Given');
         $cancelled = $this->createPersistedBestowal($awardId, Bestowal::LIFECYCLE_CANCELLED, 'Bulk Cancelled');
-        $expectedProcessed = $this->getTableLocator()->get('Awards.Bestowals')->find()
-            ->where([
-                'Bestowals.deleted IS' => null,
-                'OR' => [
-                    'Bestowals.lifecycle_status IS' => null,
-                    'Bestowals.lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
-                ],
-            ])
-            ->count();
 
-        $result = $this->service->syncOpenBestowals(self::ADMIN_MEMBER_ID);
+        $result = $this->service->syncOpenBestowalsForTemplate($templateId, self::ADMIN_MEMBER_ID);
 
         $this->assertTrue($result->success, (string)$result->reason);
-        $this->assertSame($expectedProcessed, $result->data['processedCount']);
-        $this->assertGreaterThanOrEqual(1, $result->data['changedCount']);
+        $this->assertSame(1, $result->data['processedCount']);
+        $this->assertSame(1, $result->data['changedCount']);
         $this->assertCount($result->data['skippedCount'], $result->data['skips']);
         foreach ($result->data['skips'] as $skip) {
             $this->assertGreaterThan(0, (int)$skip['bestowalId']);
@@ -621,73 +612,69 @@ class BestowalTodoMaterializationServiceTest extends BaseTestCase
         $this->assertCount(0, $this->loadActionItems((int)$cancelled->id));
     }
 
-    public function testSyncOpenBestowalsRollsBackMalformedBestowalAndContinuesWithLaterHealthyBestowal(): void
+    public function testTemplateScopedSyncCountsAndProcessesOnlyOutdatedOpenBestowals(): void
     {
-        $malformedTemplateId = $this->createTemplateFromDefinitions([
-            [
-                'item_key' => 'malformed_requirement',
-                'label' => 'Malformed requirement',
-                'assignee_source_id' => self::ADMIN_MEMBER_ID,
-                'is_gating' => true,
-                'sort_order' => 0,
-            ],
-        ]);
-        $malformedTemplateItem = $this->itemsTable->find()
-            ->where([
-                'template_id' => $malformedTemplateId,
-                'item_key' => 'malformed_requirement',
-            ])
+        $templateAId = $this->createTemplateWithItems();
+        $templateBId = $this->createTemplateWithItems();
+        $awardAId = $this->createAwardForTemplate($templateAId, 'Template A Scoped Sync');
+        $awardBId = $this->createAwardForTemplate($templateBId, 'Template B Scoped Sync');
+        $openA = $this->createPersistedBestowal($awardAId, Bestowal::LIFECYCLE_OPEN, 'Open A');
+        $openB = $this->createPersistedBestowal($awardBId, Bestowal::LIFECYCLE_OPEN, 'Open B');
+        $givenA = $this->createPersistedBestowal($awardAId, Bestowal::LIFECYCLE_GIVEN, 'Given A');
+
+        $this->assertTrue($this->service->materializeForBestowal($openA)->success);
+        $this->assertTrue($this->service->materializeForBestowal($openB)->success);
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $this->assertNotNull($bestowals->get($openA->id)->todo_template_signature);
+        $this->assertNotNull($bestowals->get($openB->id)->todo_template_signature);
+        $this->assertSame(0, $this->service->countOutdatedOpenBestowals($templateAId));
+        $this->assertSame(0, $this->service->countOutdatedOpenBestowals($templateBId));
+
+        $templateAItem = $this->itemsTable->find()
+            ->where(['template_id' => $templateAId, 'item_key' => 'scroll_assigned'])
             ->firstOrFail();
-        $this->itemsTable->updateAll(
-            ['required_field' => 'unsupported_required_field'],
-            ['id' => (int)$malformedTemplateItem->id],
-        );
-        $malformedAwardId = $this->createAwardForTemplate($malformedTemplateId, 'Malformed Bulk Sync');
-        $malformedBestowal = $this->createPersistedBestowal(
-            $malformedAwardId,
+        $templateAItem->label = 'Updated scroll assignment';
+        $this->itemsTable->saveOrFail($templateAItem);
+        $bestowals->updateAll(['todo_template_signature' => null], ['id' => (int)$givenA->id]);
+
+        $this->assertSame(1, $this->service->countOutdatedOpenBestowals($templateAId));
+        $this->assertSame(0, $this->service->countOutdatedOpenBestowals($templateBId));
+
+        $result = $this->service->syncOpenBestowalsForTemplate($templateAId, self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($result->success, (string)$result->reason);
+        $this->assertSame(1, $result->data['candidateCount']);
+        $this->assertSame(1, $result->data['processedCount']);
+        $this->assertSame(1, $result->data['changedCount']);
+        $this->assertSame(0, $this->service->countOutdatedOpenBestowals($templateAId));
+        $this->assertSame(0, $this->service->countOutdatedOpenBestowals($templateBId));
+        $this->assertSame('Updated scroll assignment', $this->loadActionItems((int)$openA->id)['scroll_assigned']->title);
+        $this->assertSame('Scroll assigned', $this->loadActionItems((int)$openB->id)['scroll_assigned']->title);
+        $this->assertCount(0, $this->loadActionItems((int)$givenA->id));
+    }
+
+    public function testTemplateScopedSyncRepairsLegacyBestowalWithNoStoredSignature(): void
+    {
+        $templateId = $this->createTemplateWithItems();
+        $awardId = $this->createAwardForTemplate($templateId, 'Legacy Signature Repair');
+        $bestowal = $this->createPersistedBestowal(
+            $awardId,
             Bestowal::LIFECYCLE_OPEN,
-            'Malformed Bulk Sync',
+            'Legacy Signature Repair',
         );
+        $this->assertTrue($this->service->materializeForBestowal($bestowal)->success);
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $bestowals->updateAll(['todo_template_signature' => null], ['id' => (int)$bestowal->id]);
 
-        $healthyTemplateId = $this->createTemplateWithItems();
-        $healthyAwardId = $this->createAwardForTemplate($healthyTemplateId, 'Healthy Bulk Sync');
-        $healthyBestowal = $this->createPersistedBestowal(
-            $healthyAwardId,
-            Bestowal::LIFECYCLE_OPEN,
-            'Healthy Bulk Sync',
-        );
-        $this->assertLessThan(
-            (int)$healthyBestowal->id,
-            (int)$malformedBestowal->id,
-            'The healthy record must be processed after the malformed record.',
-        );
+        $this->assertSame(1, $this->service->countOutdatedOpenBestowals($templateId));
 
-        $result = $this->service->syncOpenBestowals(self::ADMIN_MEMBER_ID);
+        $result = $this->service->syncOpenBestowalsForTemplate($templateId, self::ADMIN_MEMBER_ID);
 
-        $this->assertFalse($result->success);
-        $this->assertGreaterThanOrEqual(1, $result->data['failedCount']);
-        $failure = null;
-        foreach ($result->data['failures'] as $candidate) {
-            if ((int)$candidate['bestowalId'] === (int)$malformedBestowal->id) {
-                $failure = $candidate;
-                break;
-            }
-        }
-        $this->assertNotNull($failure, 'The malformed bestowal must be reported as a failed record.');
-        $this->assertSame(
-            'Bestowal to-do synchronization failed. Review server logs for details.',
-            $failure['reason'],
-        );
-        $this->assertCount(
-            0,
-            $this->loadActionItems((int)$malformedBestowal->id),
-            'ActionItems written before malformed required-field reconciliation fails must roll back.',
-        );
-
-        $healthyItems = $this->loadActionItems((int)$healthyBestowal->id);
-        $this->assertCount(2, $healthyItems, 'A later healthy bestowal must still synchronize.');
-        $this->assertArrayHasKey('scroll_assigned', $healthyItems);
-        $this->assertArrayHasKey('scroll_finished', $healthyItems);
+        $this->assertTrue($result->success, (string)$result->reason);
+        $this->assertSame(1, $result->data['processedCount']);
+        $this->assertSame(1, $result->data['unchangedCount']);
+        $this->assertNotNull($bestowals->get($bestowal->id)->todo_template_signature);
+        $this->assertSame(0, $this->service->countOutdatedOpenBestowals($templateId));
     }
 
     public function testTransactionalOperationsRestoreDisabledSavePointConfiguration(): void
@@ -709,7 +696,10 @@ class BestowalTodoMaterializationServiceTest extends BaseTestCase
             $this->assertTrue($syncResult->success, (string)$syncResult->reason);
             $this->assertFalse($connection->isSavePointsEnabled());
 
-            $bulkResult = $this->service->syncOpenBestowals(self::ADMIN_MEMBER_ID);
+            $bulkResult = $this->service->syncOpenBestowalsForTemplate(
+                $templateId,
+                self::ADMIN_MEMBER_ID,
+            );
             $this->assertTrue($bulkResult->success, (string)$bulkResult->reason);
             $this->assertFalse($connection->isSavePointsEnabled());
         } finally {

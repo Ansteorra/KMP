@@ -13,6 +13,7 @@ use Awards\Model\Entity\BestowalTodoTemplateItem;
  * @var array $assigneeTypeOptions
  * @var array $branchModeOptions
  * @var array $requiredFieldOptions
+ * @var int $outdatedBestowalCount
  */
 
 $user = $this->request->getAttribute('identity');
@@ -32,6 +33,40 @@ echo $this->KMP->startBlock('pageTitle') ?>
 <?php $this->KMP->endBlock() ?>
 
 <?= $this->KMP->startBlock('recordActions') ?>
+<?php if ($user->checkCan('syncOpenBestowals', $template)) : ?>
+    <?php if ($outdatedBestowalCount > 0) : ?>
+        <?= $this->Form->create(null, [
+            'url' => ['action' => 'syncTemplate', $template->id],
+            'class' => 'd-inline-block',
+            'data-turbo-frame' => '_top',
+        ]) ?>
+        <?= $this->Form->button(
+            __('Sync Outdated Bestowals ({0})', $outdatedBestowalCount),
+            [
+                'class' => 'btn btn-outline-primary btn-sm',
+                'data-confirm-message' => __(
+                    'Synchronize {0} outdated open bestowal(s) assigned to {1}? '
+                    . 'To-dos may be added, updated, reopened, or cancelled. '
+                    . 'Synchronization never marks a bestowal Given.',
+                    $outdatedBestowalCount,
+                    $template->name,
+                ),
+                'data-confirm-title' => __('Synchronize {0}', $template->name),
+                'data-confirm-label' => __('Sync Now'),
+            ],
+        ) ?>
+        <?= $this->Form->end() ?>
+    <?php else : ?>
+        <?php $syncStatusId = 'bestowal-sync-status-' . (int)$template->id; ?>
+        <button type="button" class="btn btn-outline-primary btn-sm" disabled
+            aria-describedby="<?= h($syncStatusId) ?>">
+            <?= __('Sync Outdated Bestowals') ?>
+        </button>
+        <span id="<?= h($syncStatusId) ?>" class="visually-hidden">
+            <?= __('All open bestowals assigned to this template are current.') ?>
+        </span>
+    <?php endif; ?>
+<?php endif; ?>
 <?php if ($user->checkCan('edit', $template)) : ?>
     <?= $this->Html->link(
         __('Edit'),

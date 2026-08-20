@@ -321,6 +321,8 @@ class RecommendationMigrationService
         $summary = [
             'candidateCount' => count($candidateIds),
             'startedCount' => 0,
+            'startedRecommendationIds' => [],
+            'repairedRecommendationIds' => [],
             'unchangedCount' => 0,
             'skippedCount' => 0,
             'failedCount' => 0,
@@ -334,6 +336,10 @@ class RecommendationMigrationService
                 $status = (string)($outcome['status'] ?? 'unchanged');
                 if ($status === 'started') {
                     $summary['startedCount']++;
+                    $summary['startedRecommendationIds'][] = $recommendationId;
+                    if (!empty($outcome['ownershipRepaired'])) {
+                        $summary['repairedRecommendationIds'][] = $recommendationId;
+                    }
                 } elseif ($status === 'skipped') {
                     $summary['skippedCount']++;
                     $summary['skips'][] = [
@@ -549,6 +555,16 @@ class RecommendationMigrationService
                     RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
                 ],
             ]);
+        $terminalApprovalRecommendationIds = $this->approvalRunsTable->find()
+            ->select(['RecommendationApprovalRuns.recommendation_id'])
+            ->where([
+                'RecommendationApprovalRuns.status IN' => [
+                    RecommendationApprovalRun::STATUS_APPROVED,
+                    RecommendationApprovalRun::STATUS_CONSUMED,
+                    RecommendationApprovalRun::STATUS_CLOSED,
+                ],
+                'RecommendationApprovalRuns.deleted IS' => null,
+            ]);
 
         return $this->recommendationsTable->find()
             ->where([
@@ -558,7 +574,8 @@ class RecommendationMigrationService
                 'Recommendations.recommendation_group_id IS' => null,
                 'Recommendations.deleted IS' => null,
                 'Recommendations.id NOT IN' => $activeApprovalRecommendationIds,
-            ]);
+            ])
+            ->where(['Recommendations.id NOT IN' => $terminalApprovalRecommendationIds]);
     }
 
     /**
@@ -631,7 +648,10 @@ class RecommendationMigrationService
                         ];
                     }
 
-                    return ['status' => 'started'];
+                    return [
+                        'status' => 'started',
+                        'ownershipRepaired' => !empty($resultData['details']['ownershipRepaired']),
+                    ];
                 }
 
                 if (($resultData['result_status'] ?? null) === RecommendationMigrationResult::STATUS_SKIPPED) {

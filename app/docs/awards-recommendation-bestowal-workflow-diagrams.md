@@ -112,45 +112,36 @@ Required-field To-Dos can opt into system auto-close with `auto_complete_when_sa
 
 ### Synchronizing work already in flight
 
-The configuration indexes expose confirmed POST actions for synchronizing all active recommendation approvals and all
-open bestowals. The actions resolve each item's current configuration from its assigned award; they do not apply one
-selected process or template to every award. Results include bounded item IDs, expected skip reasons, and fixed
-failure categories; unexpected exception details remain in server logs.
+Each approval process detail page exposes a confirmed POST action only when open recommendations assigned to that
+process use an older process snapshot or published workflow version. Each bestowal To-Do template detail page exposes
+the same style of action only when open bestowals assigned to that template use an older or missing template signature.
+Results include bounded item IDs, expected skip reasons, and fixed failure categories; unexpected exception details
+remain in server logs.
 
 ```mermaid
 flowchart LR
-    A["Sync open work now"] --> B{"Open item type"}
-    B -- "Recommendation approval" --> C0["Backfill open approval-owned records missing active runs"]
-    C0 --> C["Resolve award's current process + published workflow version"]
-    C --> D["Keep completed steps and current stable step key"]
-    D --> E["Refresh pending gate approvers + threshold"]
-    E --> F{"Recorded approvals now meet threshold?"}
-    F -- "Yes" --> G["Resume once; final handoff may create one bestowal"]
-    F -- "No" --> H["Remain waiting on refreshed gate"]
-    B -- "Bestowal" --> I["Resolve award's current To-Do template"]
+    A["Sync current configuration"] --> B{"Open item type"}
+    B -- "Outdated recommendation assigned to selected process" --> C["Cancel active runs, instances, and pending gates"]
+    C --> D["Start one current workflow at its first approval step"]
+    D --> E["Keep old responses only as cancelled-run history"]
+    B -- "Outdated bestowal assigned to selected template" --> I["Resolve selected current To-Do template"]
     I --> J["Update matching keys; add new keys"]
     J --> K["Audit-cancel removed keys; reopen returned sync-cancelled keys"]
 ```
 
-Recommendation synchronization first starts current workflows for open, approval-owned legacy recommendations that
-lack an active run, then scans active `RecommendationApprovalRun` rows (`in_progress` and `changes_requested`). Unsafe
-legacy records are reported without being reclassified or closed. Each run is checked again while locked: closed or
-otherwise ineligible recommendations are skipped, and terminal workflow instances are reported instead of revived. A
-stable current step is the progress frontier: edits to that step and all later steps take effect, while a newly inserted
-step before the frontier does not rewind work already underway. Approved earlier steps and pending responses remain
-historical records. If a threshold changes from two approvals to one after one approval was recorded, the pending gate
-becomes approved and the workflow advances immediately when the current approver pool is nonempty; vacant gates remain
-blocked. If the threshold rises after approval but before workflow resumption, the gate reopens when the preserved
-response count is no longer enough. Synchronization also recovers an already-resolved approval or rejection when a
-committed response was not followed by workflow resumption. Satisfying or recovering a final gate continues the normal workflow and may create exactly one
-bestowal through the idempotent handoff; the final gathering selection is stored atomically with the response so crash
-recovery retains it, and synchronization never marks that bestowal Given. If the current key was removed, the obsolete
-gate is cancelled without deleting its responses and a gate is created for the first current step not already completed;
-when no current step remains incomplete, the workflow resumes without another gate.
-Repeated synchronization with no configuration change is a no-op.
+Recommendation synchronization only considers eligible recommendations assigned to the selected process whose stored
+process signature or workflow version is older than current configuration. It audit-cancels all active runs, workflow
+instances, and pending gates, then starts exactly one workflow from the selected process at its first step. Existing responses remain
+on the cancelled gates for history but are not copied and do not count in the replacement. The reset is atomic per
+recommendation and failures are isolated. Closed, approved, deleted, bestowal-owned, grouped-child, and otherwise
+ineligible records are not restarted. Synchronization cannot approve a recommendation or create a bestowal. The
+replacement is current, so a repeat sync is unavailable until the selected process changes again.
 
-Bestowal synchronization scans lifecycle `open` only. Matching ActionItems keep their status, completion data, and log
-history while mutable title, assignment, branch, gating, ordering, and completion-requirement snapshots are refreshed.
+Bestowal synchronization is scoped to one template and scans only lifecycle `open` bestowals assigned to it whose
+stored template signature is missing or differs from the current definition. Successful initial materialization and
+synchronization store the current signature, so the detail-page count and action clear after synchronization while
+terminal, unrelated, and already-current bestowals are never considered. Matching ActionItems keep their status,
+completion data, and log history while mutable title, assignment, branch, gating, ordering, and completion-requirement snapshots are refreshed.
 New keys create open items. Removed keys are cancelled with a system audit note, and a returned key reopens only when
 its latest cancellation was made by this synchronization. Missing assignments/templates are reported as identifiable
 safe skips; an existing assigned template with zero items is authoritative and cancels all prior active items. An
@@ -222,14 +213,14 @@ flowchart LR
 | Submit recommendation | Requester | Current pending approver set | Approval run created, only current approvers see active item |
 | Active approval edit/feedback | Current approver | Current approver | Can edit + request feedback; non-current cannot |
 | Multi-step approval advance | Current approver | Next configured approver set | Pending set rotates, previous step visibility retained only when configured |
-| Synchronize open recommendation approvals | Award workflow synchronizer | Current configured approver set | Preserves stable-key progress and responses; threshold-met or recovered approved gates resume once; final continuation may create one bestowal; terminal work is not revived |
+| Synchronize outdated approvals for one process | Award workflow synchronizer | Current configured approver set | Considers only outdated open work assigned to the selected process; cancels it and starts at the first current step; old responses remain history but do not carry forward; terminal and unrelated work is untouched; synchronization creates no bestowal |
 | Approval complete -> bestowal create | Final approver/workflow action | Bestowal workflow owner(s) | Only the final approval step selects the bestowal gathering; handoff blocks active runs, bestowal created with source approval provenance, approved run marked consumed |
 | Link recommendation to existing bestowal | Noble/admin path | Bestowal workflow owner(s) | Active approval run cancelled/superseded, member match enforced, grouped child blocked |
 | Unlink recommendation | Noble/admin path | Recommendation workflow owner(s) | Unwind state applied, shortcut cleared, join row removed, primary recomputed, approval rehydrated when prior run was consumed/superseded |
-| Group/ungroup during approval | Current approver or admin override | Same active approver set | Grouping denied for non-current approver; origin snapshot restore works |
+| Group/ungroup during approval | Current approver or admin override | Head keeps its active approvers; ungrouped child gets its current configured approvers | Grouping cancels child runs as superseded; in-flight ungroup restores child origin state and starts a clean current-process run; old responses do not carry; bestowal-linked records remain locked |
 | Bestowal transition to court states | Bestowal owner(s) | Bestowal owner(s) | Recommendation projection state sync follows mapping |
 | Bestowal cancellation | Bestowal owner(s) | Recommendation workflow owner(s) | Cancel denied for Given, unwind state applied, links and shortcuts cleared, consumed/superseded approval runs cancelled and rehydrated when needed |
-| Synchronize open bestowal To-Dos | Award workflow synchronizer | Current template assignees | Open lifecycle only; matching history preserved; required fields converge independent of template order; synchronization never marks Given |
+| Synchronize outdated bestowal To-Dos for one template | Award workflow synchronizer | Current template assignees | Considers only outdated open bestowals assigned to the selected template; matching history preserved; required fields converge independent of template order; synchronization never marks Given |
 | Turnover/reassignment events | System + admins | New eligible approvers | Pending approver set reflects new eligibility without leaking old active queue access |
 
 ## 9) High-risk regression points

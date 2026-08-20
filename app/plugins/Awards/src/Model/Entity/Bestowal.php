@@ -30,6 +30,7 @@ use DateTime as NativeDateTime;
  * @property \Cake\I18n\DateTime|null $bestowed_at
  * @property string $source
  * @property int|null $source_approval_run_id
+ * @property string|null $todo_template_signature
  * @property string|null $noble_notes
  * @property string|null $herald_notes
  * @property string|null $reason_summary
@@ -90,6 +91,7 @@ class Bestowal extends BaseEntity implements ActionItemOwnerInterface
         'bestowed_at' => true,
         'source' => true,
         'source_approval_run_id' => true,
+        'todo_template_signature' => true,
         'noble_notes' => true,
         'herald_notes' => true,
         'reason_summary' => true,

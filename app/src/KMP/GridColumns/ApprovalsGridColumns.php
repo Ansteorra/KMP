@@ -13,6 +13,8 @@ use App\Model\Entity\WorkflowApproval;
  */
 class ApprovalsGridColumns extends BaseGridColumns
 {
+    private const CANCELLATION_REASON_PROCESS_RESTARTED = 'approval_process_restarted';
+
     /**
      * Column definitions for approval grids.
      *
@@ -83,7 +85,7 @@ class ApprovalsGridColumns extends BaseGridColumns
                 'filterable' => true,
                 'filterType' => 'dropdown',
                 'defaultVisible' => true,
-                'width' => '150px',
+                'width' => '220px',
                 'alignment' => 'center',
                 'queryField' => 'WorkflowApprovals.status',
                 'filterOptions' => [
@@ -175,6 +177,64 @@ class ApprovalsGridColumns extends BaseGridColumns
         }
 
         return __('Pending ({0}/{1})', $approval->approved_count, $approval->required_count);
+    }
+
+    /**
+     * Compute the approver-facing status label for any approval state.
+     *
+     * @param \App\Model\Entity\WorkflowApproval $approval Approval entity
+     * @param array<string, mixed>|null $approverConfig Normalized approver config
+     * @return string
+     */
+    public static function getStatusLabel(WorkflowApproval $approval, ?array $approverConfig = null): string
+    {
+        if ($approval->status === WorkflowApproval::STATUS_PENDING) {
+            return self::getPendingStatusLabel($approval, $approverConfig);
+        }
+        if (self::wasResetForProcessUpdate($approval)) {
+            return __('Reset — approval process updated');
+        }
+
+        return __(ucfirst((string)$approval->status));
+    }
+
+    /**
+     * Explain a process-update reset without exposing arbitrary internal cancellation details.
+     *
+     * @param \App\Model\Entity\WorkflowApproval $approval Approval entity
+     * @return string|null
+     */
+    public static function getStatusExplanation(WorkflowApproval $approval): ?string
+    {
+        if (!self::wasResetForProcessUpdate($approval)) {
+            return null;
+        }
+
+        return __(
+            'This approval was cancelled because the approval process changed. ' .
+            'A new approval was started using the current process, so earlier decisions do not count toward it.',
+        );
+    }
+
+    /**
+     * Determine whether this cancelled approval was replaced after a process update.
+     *
+     * @param \App\Model\Entity\WorkflowApproval $approval Approval entity
+     * @return bool
+     */
+    private static function wasResetForProcessUpdate(WorkflowApproval $approval): bool
+    {
+        if ($approval->status !== WorkflowApproval::STATUS_CANCELLED) {
+            return false;
+        }
+
+        $errorInfo = $approval->workflow_instance?->error_info;
+        if (is_string($errorInfo)) {
+            $errorInfo = json_decode($errorInfo, true);
+        }
+
+        return is_array($errorInfo)
+            && ($errorInfo['cancellation_reason'] ?? null) === self::CANCELLATION_REASON_PROCESS_RESTARTED;
     }
 
     /**

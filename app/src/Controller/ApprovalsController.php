@@ -708,11 +708,7 @@ class ApprovalsController extends AppController
             }
 
             if ($includeStatusLabel) {
-                if ($approval->status === WorkflowApproval::STATUS_PENDING) {
-                    $approval->status_label = ApprovalsGridColumns::getPendingStatusLabel($approval, $approverConfig);
-                } else {
-                    $approval->status_label = ucfirst($approval->status);
-                }
+                $approval->status_label = ApprovalsGridColumns::getStatusLabel($approval, $approverConfig);
             }
 
             if ($includeCurrentApprover) {
@@ -1653,6 +1649,8 @@ class ApprovalsController extends AppController
             'approved' => $approval->approved_count,
             'rejected' => $approval->rejected_count,
             'status' => $approval->status,
+            'statusLabel' => ApprovalsGridColumns::getStatusLabel($approval),
+            'statusExplanation' => ApprovalsGridColumns::getStatusExplanation($approval),
         ];
         $approverConfig = ApprovalsGridColumns::normalizeApproverConfig($approval->approver_config);
         $isFeedbackResponse = !empty($approverConfig['feedback_response']);
