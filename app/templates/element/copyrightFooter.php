@@ -37,23 +37,13 @@ echo $this->KMP->startBlock("tb_footer"); ?>
                 <li class="nav-item text-nowrap mx-2">
                     <?= $this->Html->link(
                         '<i class="bi bi-journal-text"></i> Changelog',
-                        [
-                            'prefix' => false,
-                            'plugin' => null,
-                            'controller' => 'Pages',
-                            'action' => 'changelog',
-                        ],
+                        ['controller' => 'Pages', 'action' => 'changelog', 'plugin' => null],
                         ['class' => 'btn btn-sm btn-outline-secondary', 'escape' => false]
                     ) ?>
                 </li>
-                <?php if (
-                    $this->request->getParam('prefix') !== 'PlatformAdmin'
-                    && $this->getTemplatePath() !== 'Error'
-                ) : ?>
                 <li class="nav-item text-nowrap mx-2">
                     <?= $this->cell('GitHubIssueSubmitter.IssueSubmitter::display', []) ?>
                 </li>
-                <?php endif; ?>
                 <?php if (Configure::read('debug')) : ?>
                 <li class="nav-item text-nowrap mx-2">
                     <a href="#" class="btn btn-sm btn-outline-warning" data-action="click->security-debug#toggle"
