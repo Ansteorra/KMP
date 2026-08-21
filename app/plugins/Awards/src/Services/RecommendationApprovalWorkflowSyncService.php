@@ -292,6 +292,21 @@ class RecommendationApprovalWorkflowSyncService
                     static fn(RecommendationApprovalRun $run): int => (int)$run->workflow_instance_id,
                     $runReferences,
                 )));
+
+                // Recommendation mutations acquire this owner row before touching workflow
+                // projections. Keep restart synchronization on the same lock order so an
+                // edit and a process sync cannot deadlock each other.
+                $recommendation = $this->fetchTable('Awards.Recommendations')->find()
+                    ->where(['Recommendations.id' => $recommendationId])
+                    ->epilog('FOR UPDATE')
+                    ->first();
+                if (
+                    !$recommendation instanceof Recommendation
+                    || !$this->isEligibleForRestart($recommendation, $approvalProcessId)
+                ) {
+                    return ['status' => 'skipped'];
+                }
+
                 $lockedInstances = $this->fetchTable('WorkflowInstances')->find()
                     ->where(['WorkflowInstances.id IN' => $instanceIds])
                     ->orderBy(['WorkflowInstances.id' => 'ASC'])
@@ -332,17 +347,6 @@ class RecommendationApprovalWorkflowSyncService
                 sort($activeRunIds);
                 sort($expectedRunIds);
                 if ($activeRunIds !== $expectedRunIds) {
-                    return ['status' => 'skipped'];
-                }
-
-                $recommendation = $this->fetchTable('Awards.Recommendations')->find()
-                    ->where(['Recommendations.id' => $recommendationId])
-                    ->epilog('FOR UPDATE')
-                    ->first();
-                if (
-                    !$recommendation instanceof Recommendation
-                    || !$this->isEligibleForRestart($recommendation, $approvalProcessId)
-                ) {
                     return ['status' => 'skipped'];
                 }
 

@@ -75,6 +75,10 @@ class BestowalTodoTemplatesControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('data-confirm-title="Synchronize ' . h($template->name) . '"');
         $this->assertResponseContains('data-confirm-label="Sync Now"');
         $this->assertResponseContains('Synchronization never marks a bestowal Given.');
+        $this->assertResponseRegExp(
+            '~<button(?=[^>]*data-confirm-label="Sync Now")(?![^>]*\bdisabled\b)[^>]*>'
+            . '\s*Sync Outdated Bestowals \(3\)\s*</button>~',
+        );
     }
 
     public function testViewDisablesSyncWhenTemplateBestowalsAreCurrent(): void
@@ -90,9 +94,10 @@ class BestowalTodoTemplatesControllerTest extends HttpIntegrationTestCase
         $this->get('/awards/bestowal-todo-templates/view/' . $template->id);
 
         $this->assertResponseOk();
-        $this->assertResponseContains('Sync Outdated Bestowals');
-        $this->assertResponseContains('disabled');
-        $this->assertResponseContains('aria-describedby="bestowal-sync-status-' . $template->id . '"');
+        $this->assertResponseRegExp(
+            '~<button(?=[^>]*\bdisabled\b)(?=[^>]*aria-describedby="bestowal-sync-status-'
+            . (int)$template->id . '")[^>]*>\s*Sync Outdated Bestowals\s*</button>~',
+        );
         $this->assertResponseContains('All open bestowals assigned to this template are current.');
         $this->assertResponseNotContains('/sync-template/' . $template->id);
     }

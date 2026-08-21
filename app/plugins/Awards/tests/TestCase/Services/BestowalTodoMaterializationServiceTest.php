@@ -8,11 +8,13 @@ use App\Services\ActionItems\ActionItemService;
 use App\Services\ServiceResult;
 use App\Test\TestCase\BaseTestCase;
 use Awards\Model\Entity\Bestowal;
+use Awards\Model\Entity\BestowalTodoTemplate;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
 use Awards\Services\BestowalTodoAssigneeResolver;
 use Awards\Services\BestowalTodoMaterializationService;
 use Cake\I18n\DateTime;
 use Cake\ORM\Table;
+use ReflectionMethod;
 
 /**
  * End-to-end coverage for materializing a bestowal's parallel to-do checklist
@@ -149,6 +151,42 @@ class BestowalTodoMaterializationServiceTest extends BaseTestCase
         $this->assertCount(0, $second->data, 'Re-materializing must not duplicate items.');
 
         $this->assertCount(2, $this->loadActionItems($bestowalId));
+    }
+
+    public function testTemplateSignatureIsStableWhenEqualSortOrderItemsLoadInEitherOrder(): void
+    {
+        $firstItem = new BestowalTodoTemplateItem([
+            'item_key' => 'first_item',
+            'label' => 'First item',
+            'assignee_type' => BestowalTodoTemplateItem::ASSIGNEE_TYPE_MEMBER,
+            'assignee_source_id' => self::ADMIN_MEMBER_ID,
+            'branch_mode' => BestowalTodoTemplateItem::BRANCH_MODE_AWARD,
+            'is_gating' => true,
+            'sort_order' => 0,
+        ]);
+        $secondItem = new BestowalTodoTemplateItem([
+            'item_key' => 'second_item',
+            'label' => 'Second item',
+            'assignee_type' => BestowalTodoTemplateItem::ASSIGNEE_TYPE_MEMBER,
+            'assignee_source_id' => self::ADMIN_MEMBER_ID,
+            'branch_mode' => BestowalTodoTemplateItem::BRANCH_MODE_AWARD,
+            'is_gating' => false,
+            'sort_order' => 0,
+        ]);
+        $forward = new BestowalTodoTemplate([
+            'id' => 123,
+            'bestowal_todo_template_items' => [$firstItem, $secondItem],
+        ]);
+        $reversed = new BestowalTodoTemplate([
+            'id' => 123,
+            'bestowal_todo_template_items' => [$secondItem, $firstItem],
+        ]);
+        $signatureMethod = new ReflectionMethod($this->service, 'buildTemplateSignature');
+
+        $this->assertSame(
+            $signatureMethod->invoke($this->service, $forward),
+            $signatureMethod->invoke($this->service, $reversed),
+        );
     }
 
     public function testMaterializeIsNoOpWhenAwardHasNoTemplate(): void

@@ -683,6 +683,10 @@ class BestowalTodoMaterializationService
                 'sortOrder' => (int)$item->sort_order,
             ];
         }
+        usort(
+            $items,
+            static fn(array $left, array $right): int => $left['itemKey'] <=> $right['itemKey'],
+        );
 
         return hash('sha256', json_encode([
             'templateId' => (int)$template->id,

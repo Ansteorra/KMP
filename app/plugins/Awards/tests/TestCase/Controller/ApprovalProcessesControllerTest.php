@@ -49,7 +49,10 @@ class ApprovalProcessesControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('This action does not create a bestowal');
         $this->assertResponseContains('data-confirm-label="Sync Now"');
         $this->assertResponseContains('data-turbo-frame="_top"');
-        $this->assertResponseNotContains('Sync Outdated Recommendations" disabled');
+        $this->assertResponseRegExp(
+            '~<button(?=[^>]*data-confirm-label="Sync Now")(?![^>]*\bdisabled\b)[^>]*>'
+            . '\s*Sync Outdated Recommendations \(3\)\s*</button>~',
+        );
     }
 
     public function testViewDisablesProcessSyncWhenAllRecommendationsAreCurrent(): void
@@ -65,9 +68,10 @@ class ApprovalProcessesControllerTest extends HttpIntegrationTestCase
         $this->get('/awards/approval-processes/view/' . $process->id);
 
         $this->assertResponseOk();
-        $this->assertResponseContains('Sync Outdated Recommendations');
-        $this->assertResponseContains('disabled');
-        $this->assertResponseContains('aria-describedby="approval-process-sync-status"');
+        $this->assertResponseRegExp(
+            '~<button(?=[^>]*\bdisabled\b)(?=[^>]*aria-describedby="approval-process-sync-status")[^>]*>'
+            . '\s*Sync Outdated Recommendations\s*</button>~',
+        );
         $this->assertResponseContains('All open recommendations assigned to this process are current.');
         $this->assertResponseNotContains('/sync-approval-process/' . $process->id);
     }

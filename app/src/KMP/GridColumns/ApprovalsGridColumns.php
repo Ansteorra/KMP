@@ -195,7 +195,13 @@ class ApprovalsGridColumns extends BaseGridColumns
             return __('Reset — approval process updated');
         }
 
-        return __(ucfirst((string)$approval->status));
+        return match ($approval->status) {
+            WorkflowApproval::STATUS_APPROVED => __('Approved'),
+            WorkflowApproval::STATUS_REJECTED => __('Rejected'),
+            WorkflowApproval::STATUS_EXPIRED => __('Expired'),
+            WorkflowApproval::STATUS_CANCELLED => __('Cancelled'),
+            default => ucfirst((string)$approval->status),
+        };
     }
 
     /**
