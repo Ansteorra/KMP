@@ -345,6 +345,8 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
                 $deadline = $this->parseDeadline($config['deadline']);
             }
 
+            $requestSnapshot = $approvalsTable->resolveRequestSnapshotForInstanceId($instanceId);
+
             $approval = $approvalsTable->newEntity([
                 'workflow_instance_id' => $instanceId,
                 'node_id' => $nodeId,
@@ -352,7 +354,8 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
                 'approver_type' => $approverType,
                 'approver_config' => $approverConfig,
                 'current_approver_id' => $currentApproverId,
-                'request_title' => $approvalsTable->resolveRequestTitleForInstanceId($instanceId),
+                'request_title' => $requestSnapshot['request_title'],
+                'requester_member_id' => $requestSnapshot['requester_member_id'],
                 'required_count' => $requiredCount,
                 'approved_count' => 0,
                 'rejected_count' => 0,

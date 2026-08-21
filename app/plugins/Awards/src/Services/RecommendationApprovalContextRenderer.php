@@ -79,6 +79,7 @@ class RecommendationApprovalContextRenderer implements ApprovalContextRendererIn
             entityUrl: $this->recommendationUrl((int)$recommendation->id),
             icon: 'bi-award',
             requester: $recommendation->requester_sca_name,
+            requesterMemberId: (int)$recommendation->requester_id,
         );
     }
 

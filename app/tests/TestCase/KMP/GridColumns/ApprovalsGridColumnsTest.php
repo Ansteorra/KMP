@@ -68,6 +68,24 @@ class ApprovalsGridColumnsTest extends TestCase
         $this->assertSame('dropdown', $workflowColumn['filterType']);
         $this->assertArrayNotHasKey('filterOptionsSource', $workflowColumn);
         $this->assertArrayHasKey('workflow_name', ApprovalsGridColumns::getDropdownFilterColumns());
+
+        $requesterColumn = $columns['requester'];
+        $this->assertSame('dropdown', $requesterColumn['filterType']);
+        $this->assertSame('Members', $requesterColumn['filterOptionsSource']['table']);
+        $this->assertSame('id', $requesterColumn['filterOptionsSource']['valueField']);
+        $this->assertSame('sca_name', $requesterColumn['filterOptionsSource']['labelField']);
+        $this->assertSame('WorkflowApprovals.requester_member_id', $requesterColumn['filterQueryField']);
+        $this->assertArrayHasKey('requester', ApprovalsGridColumns::getDropdownFilterColumns());
+
+        $memberScope = $columns['member_scope'];
+        $this->assertTrue($memberScope['filterOnly']);
+        $this->assertTrue($memberScope['lockedFilter']);
+        $this->assertFalse($memberScope['showInFilterMenu']);
+        $this->assertFalse($memberScope['exportable']);
+        $this->assertSame(
+            ['class' => ApprovalsGridColumns::class, 'method' => 'applyMemberScopeFilter'],
+            $memberScope['customFilterHandler'],
+        );
     }
 
     public function testAdminColumnsIncludeCurrentApprover(): void
@@ -108,6 +126,41 @@ class ApprovalsGridColumnsTest extends TestCase
         $this->assertArrayHasKey('sys-approvals-pending', $views);
         $this->assertArrayHasKey('sys-approvals-triage-board', $views);
         $this->assertArrayHasKey('sys-approvals-decisions', $views);
+        $pendingStatusFilter = [
+            'field' => 'status_label',
+            'operator' => 'eq',
+            'value' => WorkflowApproval::STATUS_PENDING,
+        ];
+        $awaitingMemberFilter = [
+            'field' => 'member_scope',
+            'operator' => 'eq',
+            'value' => ApprovalsGridColumns::MEMBER_SCOPE_AWAITING_RESPONSE,
+        ];
+        $this->assertContains($pendingStatusFilter, $views['sys-approvals-pending']['config']['filters']);
+        $this->assertContains($awaitingMemberFilter, $views['sys-approvals-pending']['config']['filters']);
+        $this->assertContains($pendingStatusFilter, $views['sys-approvals-triage-board']['config']['filters']);
+        $this->assertContains($awaitingMemberFilter, $views['sys-approvals-triage-board']['config']['filters']);
+        $this->assertContains(
+            [
+                'field' => 'status_label',
+                'operator' => 'in',
+                'value' => [
+                    WorkflowApproval::STATUS_APPROVED,
+                    WorkflowApproval::STATUS_REJECTED,
+                    WorkflowApproval::STATUS_EXPIRED,
+                    WorkflowApproval::STATUS_CANCELLED,
+                ],
+            ],
+            $views['sys-approvals-decisions']['config']['filters'],
+        );
+        $this->assertContains(
+            [
+                'field' => 'member_scope',
+                'operator' => 'eq',
+                'value' => ApprovalsGridColumns::MEMBER_SCOPE_RESPONDED,
+            ],
+            $views['sys-approvals-decisions']['config']['filters'],
+        );
     }
 
     public function testTriageBoardSystemViewIsPendingKanbanView(): void
@@ -140,12 +193,12 @@ class ApprovalsGridColumnsTest extends TestCase
         $this->assertNotEmpty($searchable);
         $this->assertContains('workflow_name', $searchable);
         $this->assertContains('request', $searchable);
+        $this->assertContains('requester', $searchable);
         $this->assertContains('current_approver', $searchable);
-        // 'requester' is virtual (computed from JSON context), not searchable via SQL
-        $this->assertNotContains('requester', $searchable);
 
         $columns = ApprovalsGridColumns::getColumns();
         $this->assertSame('WorkflowApprovals.request_title', $columns['request']['queryField']);
+        $this->assertSame('RequesterMember.sca_name', $columns['requester']['queryField']);
     }
 
     public function testStatusFilterOptionsUseConstants(): void

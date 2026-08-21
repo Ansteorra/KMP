@@ -77,15 +77,14 @@ $searchDescription = !empty($searchableLabels)
 
     <!-- Row 2: Filters and Actions -->
     <div class="d-flex justify-content-between align-items-start gap-3">
-        <?php if ($showFilterPills): ?>
-            <!-- Left: Active Filter Badges (populated by JS) -->
-            <div class="d-flex flex-wrap gap-2 align-items-center grid-view-badges" data-filter-pills-container>
-                <!-- JS will populate filter pills and search badge here -->
-            </div>
-        <?php else: ?>
-            <!-- Empty spacer when pills are hidden -->
-            <div></div>
-        <?php endif; ?>
+        <!-- Left: Active filter badges -->
+        <div class="d-flex flex-wrap gap-2 align-items-center grid-view-badges">
+            <?php if ($showFilterPills): ?>
+                <div class="d-flex flex-wrap gap-2 align-items-center" data-filter-pills-container>
+                    <!-- JS will populate filter pills and search badge here -->
+                </div>
+            <?php endif; ?>
+        </div>
 
         <!-- Right: Filter Dropdown Button and Export -->
         <?php if ($canFilter || $canExportCsv || ($enableBulkSelection && !empty($bulkActions))): ?>

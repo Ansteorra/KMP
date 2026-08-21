@@ -169,12 +169,92 @@ describe('GridViewController', () => {
         const icon = removeButton.querySelector('i');
 
         expect(removeButton).not.toBeNull();
-        expect(removeButton.style.width).toBe('24px');
-        expect(removeButton.style.height).toBe('24px');
-        expect(removeButton.style.minWidth).toBe('24px');
-        expect(removeButton.style.minHeight).toBe('24px');
+        expect(pill.classList).toContain('grid-view-filter-badge');
+        expect(removeButton.classList).toContain('grid-view-filter-badge-control');
         expect(removeButton.getAttribute('aria-label')).toBe('Remove filter Branch: Aethelmearc');
         expect(icon.getAttribute('aria-hidden')).toBe('true');
+    });
+
+    test('createFilterPill gives locked filters the same badge and control footprint', () => {
+        controller.state = {
+            filters: {
+                active: { status_label: ['Pending'] },
+                available: {
+                    status_label: {
+                        label: 'Status',
+                        options: [{ value: 'Pending', label: 'Pending' }]
+                    }
+                }
+            }
+        };
+
+        const pill = controller.createFilterPill('status_label', 'Pending', true);
+        const lockIndicator = pill.querySelector('.grid-view-filter-badge-control');
+
+        expect(pill.classList).toContain('grid-view-filter-badge');
+        expect(pill.getAttribute('data-filter-locked')).toBe('true');
+        expect(pill.querySelector('button')).toBeNull();
+        expect(lockIndicator).not.toBeNull();
+        expect(lockIndicator.getAttribute('aria-hidden')).toBe('true');
+        expect(lockIndicator.querySelector('.bi-lock-fill')).not.toBeNull();
+        expect(pill.textContent).toContain('Locked filter; cannot be removed.');
+    });
+
+    test('hidden-menu active filters remain locked pills and serialize with the view', () => {
+        controller.element.insertAdjacentHTML('beforeend', `
+            <div data-filter-pills-container></div>
+            <div data-filter-nav-container></div>
+            <div data-filter-panels-container></div>
+        `);
+        controller.state = {
+            filters: {
+                active: { status_label: ['Pending'] },
+                available: {
+                    status_label: {
+                        label: 'Status',
+                        options: [{ value: 'Pending', label: 'Pending' }],
+                        showInFilterMenu: false,
+                    },
+                    branch_id: {
+                        label: 'Branch',
+                        options: [{ value: '1', label: 'Aethelmearc' }],
+                        showInFilterMenu: true,
+                    },
+                },
+            },
+            sort: {},
+            columns: { visible: ['request'] },
+            config: {
+                lockedFilters: ['status_label'],
+                pageSize: 25,
+            },
+            search: '',
+        };
+
+        controller.updateFilterPills();
+        controller.updateFilterNavigation();
+        controller.updateFilterPanels();
+
+        const pill = controller.element.querySelector('[data-filter-pills-container] [data-filter-badge]');
+        expect(pill.classList).toContain('grid-view-filter-badge');
+        expect(pill.getAttribute('data-filter-locked')).toBe('true');
+        expect(pill.textContent).toContain('Status: Pending');
+        expect(pill.querySelector('button')).toBeNull();
+        expect(pill.querySelector('.bi-lock-fill')).not.toBeNull();
+
+        const navigation = controller.element.querySelector('[data-filter-nav-container]');
+        const panels = controller.element.querySelector('[data-filter-panels-container]');
+        expect(navigation.querySelector('[data-filter-key="status_label"]')).toBeNull();
+        expect(panels.querySelector('[data-filter-key="status_label"]')).toBeNull();
+        expect(navigation.querySelector('[data-filter-key="branch_id"]')).not.toBeNull();
+        expect(panels.querySelector('[data-filter-key="branch_id"]')).not.toBeNull();
+
+        expect(controller.getCurrentConfig().filters).toContainEqual({
+            field: 'status_label',
+            operator: 'in',
+            value: ['Pending'],
+            locked: true,
+        });
     });
 
     test('createSearchBadge generates remove button with accessible target size and decorative icon', () => {
@@ -182,8 +262,8 @@ describe('GridViewController', () => {
         const removeButton = badge.querySelector('button[data-action="click->grid-view#clearSearch"]');
         const icon = removeButton.querySelector('i');
 
-        expect(removeButton.style.width).toBe('24px');
-        expect(removeButton.style.height).toBe('24px');
+        expect(badge.classList).toContain('grid-view-filter-badge');
+        expect(removeButton.classList).toContain('grid-view-filter-badge-control');
         expect(removeButton.getAttribute('aria-label')).toBe('Remove search');
         expect(icon.getAttribute('aria-hidden')).toBe('true');
     });

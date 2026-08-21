@@ -1,14 +1,9 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Awards\Services;
 
-use App\Model\Entity\WorkflowApprovalResponse;
-use App\Model\Table\WorkflowApprovalsTable;
 use Awards\KMP\GridColumns\RecommendationsGridColumns;
-use Awards\Model\Entity\Bestowal;
-use Awards\Model\Entity\RecommendationApprovalRun;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\Table;
 
@@ -32,7 +27,6 @@ class RecommendationQueryService
      * @param bool $canEdit Whether the current user can edit recommendations (enables bulk actions).
      * @param bool $includeNotes Whether notes relations should be loaded for list rendering.
      * @param array<int,string>|null $visibleColumns Resolved visible columns, or null when all display data is required.
-     * @param int|null $currentMemberId Current member ID for member-specific system views.
      * @return array{query: \Cake\ORM\Query\SelectQuery, gridOptions: array} Base query and processDataverseGrid options.
      */
     public function buildMainGridQuery(
@@ -40,7 +34,6 @@ class RecommendationQueryService
         bool $canEdit,
         bool $includeNotes = true,
         ?array $visibleColumns = null,
-        ?int $currentMemberId = null,
     ): array {
         $includeGatherings = $this->shouldLoadDisplayColumn('gatherings', $visibleColumns);
         $includeAssignedGathering = $this->shouldLoadDisplayColumn('assigned_gathering', $visibleColumns);
@@ -149,7 +142,6 @@ class RecommendationQueryService
             'defaultSort' => ['Recommendations.created' => 'desc'],
             'defaultPageSize' => 25,
             'systemViews' => $systemViews,
-            'queryCallback' => $this->buildRecommendationSystemViewCallback($currentMemberId),
             'defaultSystemView' => 'sys-recs-in-approval',
             'showAllTab' => false,
             'canAddViews' => true,
@@ -167,156 +159,6 @@ class RecommendationQueryService
         ];
 
         return ['query' => $baseQuery, 'gridOptions' => $gridOptions];
-    }
-
-    /**
-     * Build system-view-specific recommendation grid filters that require conditions
-     * beyond the flat saved-view expression format.
-     *
-     * @return callable(\Cake\ORM\Query\SelectQuery, array<string, mixed>|null): \Cake\ORM\Query\SelectQuery
-     */
-    private function buildRecommendationSystemViewCallback(?int $currentMemberId = null): callable
-    {
-        return function (SelectQuery $query, ?array $selectedSystemView) use ($currentMemberId): SelectQuery {
-            $viewId = $selectedSystemView['id'] ?? null;
-
-            if ($viewId === 'sys-recs-in-approval') {
-                return $query
-                    ->where([
-                        'CurrentApprovalRun.status IN' => [
-                            RecommendationApprovalRun::STATUS_IN_PROGRESS,
-                            RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
-                        ],
-                    ])
-                    ->where([$this->workflowInstanceRejectedResponseMissingSql('CurrentApprovalRun.workflow_instance_id')]);
-            }
-
-            if ($viewId === 'sys-recs-needs-my-approval') {
-                if ($currentMemberId === null || $currentMemberId <= 0) {
-                    return $query->where(['1 = 0']);
-                }
-
-                $pendingWorkflowInstanceIds = WorkflowApprovalsTable::getPendingApprovalWorkflowInstanceIdsForMember(
-                    $currentMemberId,
-                );
-                if ($pendingWorkflowInstanceIds === []) {
-                    return $query->where(['1 = 0']);
-                }
-
-                return $query->where([
-                    'CurrentApprovalRun.workflow_instance_id IN' => $pendingWorkflowInstanceIds,
-                    'CurrentApprovalRun.status IN' => [
-                        RecommendationApprovalRun::STATUS_IN_PROGRESS,
-                        RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
-                    ],
-                ]);
-            }
-
-            if ($viewId === 'sys-recs-approved-by-me') {
-                if ($currentMemberId === null || $currentMemberId <= 0) {
-                    return $query->where(['1 = 0']);
-                }
-
-                return $query
-                    ->where(['CurrentApprovalRun.id IS NOT' => null])
-                    ->where([
-                        sprintf(
-                            "EXISTS (
-                                SELECT 1
-                                FROM workflow_approvals abm_approvals
-                                INNER JOIN workflow_approval_responses abm_responses
-                                    ON abm_responses.workflow_approval_id = abm_approvals.id
-                                WHERE abm_approvals.workflow_instance_id = CurrentApprovalRun.workflow_instance_id
-                                  AND abm_responses.member_id = %d
-                                  AND abm_responses.decision = '%s'
-                            )",
-                            $currentMemberId,
-                            WorkflowApprovalResponse::DECISION_APPROVE,
-                        ),
-                    ]);
-            }
-
-            if ($viewId === 'sys-recs-converted') {
-                return $query->where([
-                    'Recommendations.bestowal_id IS NOT' => null,
-                    'Bestowals.lifecycle_status !=' => Bestowal::LIFECYCLE_GIVEN,
-                ]);
-            }
-
-            if ($viewId === 'sys-recs-archived') {
-                $archivedStates = RecommendationsGridColumns::getArchivedStates();
-
-                return $query->where([
-                    'OR' => [
-                        [
-                            'Recommendations.state IN' => $archivedStates,
-                            'Recommendations.bestowal_id IS' => null,
-                        ],
-                        'Bestowals.lifecycle_status' => Bestowal::LIFECYCLE_GIVEN,
-                        sprintf(
-                            "EXISTS (
-                                SELECT 1
-                                FROM awards_recommendation_approval_runs archived_runs
-                                WHERE archived_runs.recommendation_id = Recommendations.id
-                                  AND archived_runs.deleted IS NULL
-                                  AND archived_runs.status = '%s'
-                                  AND archived_runs.terminal_reason = '%s'
-                            )",
-                            RecommendationApprovalRun::STATUS_CLOSED,
-                            RecommendationApprovalRun::TERMINAL_REASON_REJECTED,
-                        ),
-                        $this->recommendationRejectedResponseExistsSql(),
-                    ],
-                ]);
-            }
-
-            return $query;
-        };
-    }
-
-    /**
-     * Build SQL that matches any rejected workflow response for a recommendation's approval runs.
-     *
-     * @return string
-     */
-    private function recommendationRejectedResponseExistsSql(): string
-    {
-        return sprintf(
-            "EXISTS (
-                SELECT 1
-                FROM awards_recommendation_approval_runs response_runs
-                INNER JOIN workflow_approvals response_approvals
-                    ON response_approvals.workflow_instance_id = response_runs.workflow_instance_id
-                INNER JOIN workflow_approval_responses response_decisions
-                    ON response_decisions.workflow_approval_id = response_approvals.id
-                WHERE response_runs.recommendation_id = Recommendations.id
-                  AND response_runs.deleted IS NULL
-                  AND response_decisions.decision = '%s'
-            )",
-            WorkflowApprovalResponse::DECISION_REJECT,
-        );
-    }
-
-    /**
-     * Build SQL that excludes workflow instances that have already received a reject response.
-     *
-     * @param string $workflowInstanceField SQL field/expression for the workflow instance ID.
-     * @return string
-     */
-    private function workflowInstanceRejectedResponseMissingSql(string $workflowInstanceField): string
-    {
-        return sprintf(
-            "NOT EXISTS (
-                SELECT 1
-                FROM workflow_approvals active_response_approvals
-                INNER JOIN workflow_approval_responses active_response_decisions
-                    ON active_response_decisions.workflow_approval_id = active_response_approvals.id
-                WHERE active_response_approvals.workflow_instance_id = %s
-                  AND active_response_decisions.decision = '%s'
-            )",
-            $workflowInstanceField,
-            WorkflowApprovalResponse::DECISION_REJECT,
-        );
     }
 
     /**

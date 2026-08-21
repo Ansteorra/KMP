@@ -4,6 +4,10 @@ declare(strict_types=1);
 namespace App\KMP\GridColumns;
 
 use App\Model\Entity\ActionItem;
+use App\Services\ActionItems\ActionItemService;
+use Awards\Model\Entity\Bestowal;
+use Cake\ORM\Query\SelectQuery;
+use Cake\ORM\TableRegistry;
 
 /**
  * Action Items Grid Column Metadata
@@ -15,6 +19,12 @@ use App\Model\Entity\ActionItem;
  */
 class ActionItemsGridColumns extends BaseGridColumns
 {
+    public const NO_GATHERING_FILTER_VALUE = '__none__';
+
+    public const MEMBER_SCOPE_ACTIONABLE = 'actionable';
+
+    public const MEMBER_SCOPE_COMPLETED_BY_ME = 'completed_by_me';
+
     /**
      * Column definitions for the My To-Dos grid.
      *
@@ -28,7 +38,8 @@ class ActionItemsGridColumns extends BaseGridColumns
                 'label' => 'To-Do',
                 'type' => 'string',
                 'sortable' => true,
-                'filterable' => false,
+                'filterable' => true,
+                'filterType' => 'dropdown',
                 'searchable' => true,
                 'defaultVisible' => true,
                 'required' => true,
@@ -55,13 +66,17 @@ class ActionItemsGridColumns extends BaseGridColumns
                 'label' => 'Required?',
                 'type' => 'string',
                 'sortable' => true,
-                'filterable' => false,
+                'filterable' => true,
+                'filterType' => 'dropdown',
                 'searchable' => false,
                 'defaultVisible' => true,
                 'width' => '120px',
                 'alignment' => 'center',
                 'queryField' => 'ActionItems.is_gating',
-                'skipAutoFilter' => true,
+                'filterOptions' => [
+                    ['value' => '1', 'label' => 'Required'],
+                    ['value' => '0', 'label' => 'Optional'],
+                ],
             ],
 
             'branch' => [
@@ -75,6 +90,26 @@ class ActionItemsGridColumns extends BaseGridColumns
                 'width' => '160px',
                 'alignment' => 'left',
                 'queryField' => 'Branches.name',
+            ],
+
+            'gathering' => [
+                'key' => 'gathering',
+                'label' => 'Gathering',
+                'type' => 'relation',
+                'sortable' => false,
+                'filterable' => true,
+                'filterType' => 'dropdown',
+                'searchable' => false,
+                'defaultVisible' => false,
+                'filterOnly' => true,
+                'filterOptions' => [
+                    ['value' => self::NO_GATHERING_FILTER_VALUE, 'label' => 'None'],
+                ],
+                'customFilterHandler' => [
+                    'class' => self::class,
+                    'method' => 'applyGatheringFilter',
+                ],
+                'description' => 'Gathering assigned to the to-do owner, or none',
             ],
 
             'status_label' => [
@@ -93,6 +128,30 @@ class ActionItemsGridColumns extends BaseGridColumns
                     ['value' => ActionItem::STATUS_COMPLETED, 'label' => 'Completed'],
                     ['value' => ActionItem::STATUS_CANCELLED, 'label' => 'Cancelled'],
                 ],
+            ],
+
+            'member_scope' => [
+                'key' => 'member_scope',
+                'label' => 'Your involvement',
+                'type' => 'string',
+                'sortable' => false,
+                'filterable' => true,
+                'filterType' => 'dropdown',
+                'searchable' => false,
+                'defaultVisible' => false,
+                'filterOnly' => true,
+                'lockedFilter' => true,
+                'showInFilterMenu' => false,
+                'exportable' => false,
+                'filterOptions' => [
+                    ['value' => self::MEMBER_SCOPE_ACTIONABLE, 'label' => 'You can complete'],
+                    ['value' => self::MEMBER_SCOPE_COMPLETED_BY_ME, 'label' => 'Completed by you'],
+                ],
+                'customFilterHandler' => [
+                    'class' => self::class,
+                    'method' => 'applyMemberScopeFilter',
+                ],
+                'description' => 'Current member relationship used by My To-Dos system views',
             ],
 
             'completed_at' => [
@@ -120,6 +179,109 @@ class ActionItemsGridColumns extends BaseGridColumns
                 'filterType' => 'date-range',
             ],
         ];
+    }
+
+    /**
+     * Apply the symbolic current-member scope stored with a To-Do view.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query Action items query.
+     * @param mixed $filterValue Saved symbolic filter value.
+     * @param array<string, mixed> $context Grid filter context.
+     * @return \Cake\ORM\Query\SelectQuery Filtered query.
+     */
+    public static function applyMemberScopeFilter(
+        SelectQuery $query,
+        mixed $filterValue,
+        array $context = [],
+    ): SelectQuery {
+        $values = is_array($filterValue) ? $filterValue : [$filterValue];
+        $value = isset($values[0]) ? (string)$values[0] : '';
+        $identity = $context['identity'] ?? null;
+        $memberId = is_object($identity) && method_exists($identity, 'getIdentifier')
+            ? (int)$identity->getIdentifier()
+            : (is_object($identity) ? (int)($identity->id ?? 0) : 0);
+        if ($memberId <= 0) {
+            return $query->where(['1 = 0']);
+        }
+
+        if ($value === self::MEMBER_SCOPE_ACTIONABLE) {
+            return (new ActionItemService())->applyOpenCandidateScopeForMember($query, $memberId);
+        }
+
+        if ($value === self::MEMBER_SCOPE_COMPLETED_BY_ME) {
+            return $query->where([
+                'ActionItems.status' => ActionItem::STATUS_COMPLETED,
+                'ActionItems.completed_by' => $memberId,
+            ]);
+        }
+
+        return $query->where(['1 = 0']);
+    }
+
+    /**
+     * Filter to-dos by the gathering assigned to their polymorphic owner.
+     *
+     * Only Awards bestowals currently support gathering ownership. "None"
+     * therefore includes generic owners, missing bestowals, and bestowals that
+     * do not resolve to an active gathering.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query Action items query.
+     * @param array|string $filterValue Selected gathering IDs or the none sentinel.
+     * @param array<string, mixed> $context Trait-supplied context (unused).
+     * @return \Cake\ORM\Query\SelectQuery Filtered query.
+     */
+    public static function applyGatheringFilter($query, $filterValue, array $context = []): SelectQuery
+    {
+        $values = is_array($filterValue) ? $filterValue : [$filterValue];
+        $includeNone = false;
+        $gatheringIds = [];
+
+        foreach ($values as $value) {
+            if ((string)$value === self::NO_GATHERING_FILTER_VALUE) {
+                $includeNone = true;
+                continue;
+            }
+
+            $gatheringId = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+            if ($gatheringId !== false) {
+                $gatheringIds[(int)$gatheringId] = (int)$gatheringId;
+            }
+        }
+
+        if (!$includeNone && $gatheringIds === []) {
+            return $query;
+        }
+
+        $bestowals = TableRegistry::getTableLocator()->get('Awards.Bestowals');
+        $conditions = [];
+
+        if ($gatheringIds !== []) {
+            $matchingBestowals = $bestowals->find()
+                ->select(['Bestowals.id'])
+                ->innerJoinWith('Gatherings')
+                ->where(['Bestowals.gathering_id IN' => array_values($gatheringIds)]);
+            $conditions[] = [
+                'ActionItems.entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                'ActionItems.entity_id IN' => $matchingBestowals,
+            ];
+        }
+
+        if ($includeNone) {
+            $bestowalsWithGatherings = $bestowals->find()
+                ->select(['Bestowals.id'])
+                ->innerJoinWith('Gatherings');
+            $conditions[] = [
+                'OR' => [
+                    ['ActionItems.entity_type !=' => Bestowal::ACTION_ITEM_ENTITY_TYPE],
+                    [
+                        'ActionItems.entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                        'ActionItems.entity_id NOT IN' => $bestowalsWithGatherings,
+                    ],
+                ],
+            ];
+        }
+
+        return $query->where(['OR' => $conditions]);
     }
 
     /**
@@ -182,6 +344,11 @@ class ActionItemsGridColumns extends BaseGridColumns
                 'config' => [
                     'filters' => [
                         ['field' => 'status_label', 'operator' => 'eq', 'value' => ActionItem::STATUS_OPEN],
+                        [
+                            'field' => 'member_scope',
+                            'operator' => 'eq',
+                            'value' => self::MEMBER_SCOPE_ACTIONABLE,
+                        ],
                     ],
                     'columns' => [
                         ['key' => 'title', 'visible' => true, 'order' => 0],
@@ -200,6 +367,11 @@ class ActionItemsGridColumns extends BaseGridColumns
                 'config' => [
                     'filters' => [
                         ['field' => 'status_label', 'operator' => 'eq', 'value' => ActionItem::STATUS_COMPLETED],
+                        [
+                            'field' => 'member_scope',
+                            'operator' => 'eq',
+                            'value' => self::MEMBER_SCOPE_COMPLETED_BY_ME,
+                        ],
                     ],
                     'columns' => [
                         ['key' => 'title', 'visible' => true, 'order' => 0],

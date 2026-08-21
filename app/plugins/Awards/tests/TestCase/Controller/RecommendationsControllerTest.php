@@ -5,6 +5,7 @@ namespace Awards\Test\TestCase\Controller;
 
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Controller\RecommendationsController;
+use Awards\KMP\GridColumns\RecommendationsGridColumns;
 use Awards\Model\Entity\Recommendation;
 use Cake\Cache\Cache;
 use Cake\Http\ServerRequest;
@@ -258,6 +259,31 @@ class RecommendationsControllerTest extends HttpIntegrationTestCase
 
         $this->assertResponseOk();
         $this->assertResponseContains($reason);
+    }
+
+    public function testEmbeddedRecommendationGridsAcceptStageFiltersWithoutJoinAliases(): void
+    {
+        $this->authenticateAsSuperUser();
+        $paths = [
+            '/awards/recommendations/member-submitted-recs-grid-data/' . self::ADMIN_MEMBER_ID,
+            '/awards/recommendations/recs-for-member-grid-data/' . self::ADMIN_MEMBER_ID,
+        ];
+        $stages = [
+            RecommendationsGridColumns::RECOMMENDATION_STAGE_CONVERTED,
+            RecommendationsGridColumns::RECOMMENDATION_STAGE_ARCHIVED,
+        ];
+
+        foreach ($paths as $path) {
+            foreach ($stages as $stage) {
+                $this->get($path . '?' . http_build_query([
+                    'ignore_default' => 1,
+                    'filter' => ['recommendation_stage' => $stage],
+                    'dirty' => ['filters' => 1],
+                ]));
+
+                $this->assertResponseOk();
+            }
+        }
     }
 
     /**

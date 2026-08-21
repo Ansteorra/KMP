@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
+use App\KMP\GridColumns\GatheringsGridColumns;
 use App\KMP\TimezoneHelper;
 use App\Model\Entity\ActionItem;
 use App\Services\GridViewService;
@@ -153,6 +154,87 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains($future->name);
         $this->assertResponseContains($ongoing->name);
         $this->assertResponseNotContains($past->name);
+    }
+
+    /**
+     * A copied system view keeps its symbolic schedule scope while other filters are edited.
+     */
+    public function testCopiedGatheringViewKeepsScheduleWindowWhenFiltersAreDirty(): void
+    {
+        $prefix = 'Copied Schedule Window ' . uniqid();
+        $overlap = $this->createCalendarGathering($prefix . ' Overlap', false, [
+            'start_date' => (new DateTimeImmutable(
+                'first day of last month 00:00:00',
+                new DateTimeZone('UTC'),
+            ))->format('Y-m-d H:i:s'),
+            'end_date' => (new DateTimeImmutable(
+                'last day of next month 23:59:59',
+                new DateTimeZone('UTC'),
+            ))->format('Y-m-d H:i:s'),
+        ]);
+        $past = $this->createCalendarGathering($prefix . ' Past', false, [
+            'start_date' => (new DateTimeImmutable(
+                'first day of -5 months 00:00:00',
+                new DateTimeZone('UTC'),
+            ))->format('Y-m-d H:i:s'),
+            'end_date' => (new DateTimeImmutable(
+                'last day of -4 months 23:59:59',
+                new DateTimeZone('UTC'),
+            ))->format('Y-m-d H:i:s'),
+        ]);
+        $this->assertContains(
+            [
+                'field' => 'schedule_window',
+                'operator' => 'eq',
+                'value' => GatheringsGridColumns::SCHEDULE_WINDOW_THIS_MONTH,
+            ],
+            GatheringsGridColumns::getSystemViews()['sys-gatherings-this-month']['config']['filters'],
+        );
+        $currentUser = $this->getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID);
+        $gridView = (new GridViewService())->createView([
+            'grid_key' => 'Gatherings.index.main',
+            'name' => 'Copied This Month ' . uniqid(),
+            'config' => json_encode([
+                'filters' => [
+                    [
+                        'field' => 'schedule_window',
+                        'operator' => 'in',
+                        'value' => [GatheringsGridColumns::SCHEDULE_WINDOW_THIS_MONTH],
+                    ],
+                    [
+                        'field' => 'gathering_type_id',
+                        'operator' => 'in',
+                        'value' => ['1'],
+                    ],
+                ],
+            ]),
+        ], $currentUser);
+        $this->assertNotFalse($gridView);
+        $this->assertSame(
+            ['schedule_window', 'gathering_type_id'],
+            array_column($gridView->getConfigArray()['filters'], 'field'),
+        );
+
+        $this->get('/gatherings/grid-data?' . http_build_query([
+            'view_id' => $gridView->id,
+            'search' => $prefix,
+            'filter' => [
+                'schedule_window' => GatheringsGridColumns::SCHEDULE_WINDOW_THIS_MONTH,
+                'gathering_type_id' => '1',
+            ],
+            'dirty' => ['filters' => '1'],
+        ]));
+
+        $this->assertResponseOk();
+        $this->assertResponseContains($overlap->name);
+        $this->assertResponseNotContains($past->name);
+        $gridState = $this->viewVariable('gridState');
+        $this->assertSame(
+            [GatheringsGridColumns::SCHEDULE_WINDOW_THIS_MONTH],
+            $gridState['filters']['active']['schedule_window'],
+        );
+        $this->assertContains('schedule_window', $gridState['config']['lockedFilters']);
+        $this->assertFalse($gridState['filters']['available']['schedule_window']['showInFilterMenu']);
     }
 
     /**

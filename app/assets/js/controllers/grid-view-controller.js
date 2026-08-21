@@ -13,7 +13,15 @@ import { Controller } from "@hotwired/stimulus"
  * Supports optional bulk selection when enableBulkSelection is configured.
  */
 class GridViewController extends Controller {
-    static targets = ["gridState", "searchInput", "searchStatusIndicator", "rowCheckbox", "selectAllCheckbox", "bulkActionBtn", "selectionCount"]
+    static targets = [
+        "gridState",
+        "searchInput",
+        "searchStatusIndicator",
+        "rowCheckbox",
+        "selectAllCheckbox",
+        "bulkActionBtn",
+        "selectionCount",
+    ]
     static values = {
         stickyQuery: String,
         stickyDefault: Object
@@ -373,10 +381,8 @@ class GridViewController extends Controller {
      * @param {boolean} isLocked - Whether this filter is locked (cannot be removed)
      */
     createFilterPill(column, value, isLocked = false) {
-        // Match the exact styling from grid_view_toolbar.php
         const badge = document.createElement('span')
-        badge.className = 'badge d-inline-flex align-items-center gap-1 pe-1'
-        badge.style.cssText = 'background-color: #f6f6f7; color: #202223; border: 1px solid #c9cccf; font-weight: 500; font-size: 0.75rem; padding: 0.25rem 0.4rem 0.25rem 0.5rem; border-radius: 0.4rem;'
+        badge.className = 'badge d-inline-flex align-items-center gap-1 grid-view-filter-badge'
         badge.setAttribute('data-filter-badge', '')
 
         if (isLocked) {
@@ -395,8 +401,7 @@ class GridViewController extends Controller {
         if (!isLocked) {
             const removeBtn = document.createElement('button')
             removeBtn.type = 'button'
-            removeBtn.className = 'btn btn-link p-0 m-0 text-decoration-none d-flex align-items-center justify-content-center'
-            removeBtn.style.cssText = 'width: 24px; height: 24px; min-width: 24px; min-height: 24px; border-radius: 50%; background: rgba(0,0,0,0.1); color: #202223; font-size: 0.7rem; line-height: 1;'
+            removeBtn.className = 'btn btn-link p-0 m-0 text-decoration-none d-flex align-items-center justify-content-center grid-view-filter-badge-control'
             removeBtn.setAttribute('aria-label', `Remove filter ${columnLabel}: ${valueLabel}`)
             removeBtn.setAttribute('data-action', 'click->grid-view#removeFilter')
             removeBtn.setAttribute('data-filter-column', column)
@@ -404,18 +409,26 @@ class GridViewController extends Controller {
 
             const icon = document.createElement('i')
             icon.className = 'bi bi-x'
-            icon.style.cssText = 'font-size: 0.9rem; font-weight: bold;'
             icon.setAttribute('aria-hidden', 'true')
             removeBtn.appendChild(icon)
 
             badge.appendChild(removeBtn)
         } else {
-            // For locked filters, add a lock icon instead
+            const lockedDescription = document.createElement('span')
+            lockedDescription.className = 'visually-hidden'
+            lockedDescription.textContent = '. Locked filter; cannot be removed.'
+            badge.appendChild(lockedDescription)
+
+            const lockIndicator = document.createElement('span')
+            lockIndicator.className = 'd-flex align-items-center justify-content-center grid-view-filter-badge-control'
+            lockIndicator.setAttribute('title', 'This filter cannot be removed')
+            lockIndicator.setAttribute('aria-hidden', 'true')
+
             const lockIcon = document.createElement('i')
-            lockIcon.className = 'bi bi-lock-fill ms-1'
-            lockIcon.style.cssText = 'font-size: 0.65rem; opacity: 0.5;'
-            lockIcon.setAttribute('title', 'This filter cannot be removed')
-            badge.appendChild(lockIcon)
+            lockIcon.className = 'bi bi-lock-fill'
+            lockIcon.setAttribute('aria-hidden', 'true')
+            lockIndicator.appendChild(lockIcon)
+            badge.appendChild(lockIndicator)
         }
 
         return badge
@@ -503,10 +516,8 @@ class GridViewController extends Controller {
      * Create a search badge element
      */
     createSearchBadge(searchTerm) {
-        // Match the exact styling from grid_view_toolbar.php
         const badge = document.createElement('span')
-        badge.className = 'badge d-inline-flex align-items-center gap-1 pe-1'
-        badge.style.cssText = 'background-color: #f6f6f7; color: #202223; border: 1px solid #c9cccf; font-weight: 500; font-size: 0.75rem; padding: 0.25rem 0.4rem 0.25rem 0.5rem; border-radius: 0.4rem;'
+        badge.className = 'badge d-inline-flex align-items-center gap-1 grid-view-filter-badge'
         badge.setAttribute('data-search-badge', '')
 
         const textSpan = document.createElement('span')
@@ -515,14 +526,12 @@ class GridViewController extends Controller {
 
         const removeBtn = document.createElement('button')
         removeBtn.type = 'button'
-        removeBtn.className = 'btn btn-link p-0 m-0 text-decoration-none d-flex align-items-center justify-content-center'
-        removeBtn.style.cssText = 'width: 24px; height: 24px; min-width: 24px; min-height: 24px; border-radius: 50%; background: rgba(0,0,0,0.1); color: #202223; font-size: 0.7rem; line-height: 1;'
+        removeBtn.className = 'btn btn-link p-0 m-0 text-decoration-none d-flex align-items-center justify-content-center grid-view-filter-badge-control'
         removeBtn.setAttribute('aria-label', 'Remove search')
         removeBtn.setAttribute('data-action', 'click->grid-view#clearSearch')
 
         const icon = document.createElement('i')
         icon.className = 'bi bi-x'
-        icon.style.cssText = 'font-size: 0.9rem; font-weight: bold;'
         icon.setAttribute('aria-hidden', 'true')
         removeBtn.appendChild(icon)
 
@@ -871,6 +880,8 @@ class GridViewController extends Controller {
         const standaloneFilters = []
 
         Object.entries(this.state.filters.available).forEach(([key, meta]) => {
+            if (meta.showInFilterMenu === false) return
+
             if (meta.type === 'date-range-start' || meta.type === 'date-range-end') {
                 const baseField = meta.baseField || key.replace(/_start$|_end$/, '')
                 if (!filterGroups.has(baseField)) {
@@ -965,6 +976,8 @@ class GridViewController extends Controller {
         const standaloneFilters = []
 
         Object.entries(this.state.filters.available).forEach(([key, meta]) => {
+            if (meta.showInFilterMenu === false) return
+
             if (meta.type === 'date-range-start' || meta.type === 'date-range-end') {
                 const baseField = meta.baseField || key.replace(/_start$|_end$/, '')
                 if (!filterGroups.has(baseField)) {
@@ -2283,6 +2296,7 @@ class GridViewController extends Controller {
     getCurrentConfig() {
         // Build filters array from active filters
         const filters = []
+        const lockedFilters = this.state.config?.lockedFilters || []
 
         // Add search if present
         if (this.state.search) {
@@ -2315,22 +2329,30 @@ class GridViewController extends Controller {
                     }
                     dateRanges.get(baseField)[1] = valueArray[0]
                 } else {
-                    regularFilters.push({
+                    const filter = {
                         field: field,
                         operator: 'in',
                         value: valueArray
-                    })
+                    }
+                    if (this.isFilterLocked(field, lockedFilters)) {
+                        filter.locked = true
+                    }
+                    regularFilters.push(filter)
                 }
             }
         }
 
         // Add date range filters with [start, end] array
         for (const [field, range] of dateRanges) {
-            filters.push({
+            const filter = {
                 field: field,
                 operator: 'dateRange',
                 value: range
-            })
+            }
+            if (this.isFilterLocked(field, lockedFilters)) {
+                filter.locked = true
+            }
+            filters.push(filter)
         }
 
         // Add regular filters
@@ -2364,6 +2386,7 @@ class GridViewController extends Controller {
             pageSize: this.state.config.pageSize,
             search: this.state.search
         }
+
     }
 
     /**

@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
+use App\KMP\GridColumns\WarrantsGridColumns;
 use App\Model\Entity\Warrant;
+use App\Services\GridViewService;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Cake\Datasource\EntityInterface;
 use Cake\I18n\DateTime;
@@ -25,10 +27,18 @@ class WarrantsGridSameDayTest extends HttpIntegrationTestCase
         $this->authenticateAsSuperUser();
     }
 
-    private function createTestWarrant(DateTime $startOn, DateTime $expiresOn): EntityInterface
-    {
+    /**
+     * @param array<string, mixed> $overrides Warrant field overrides.
+     */
+    private function createTestWarrant(
+        DateTime $startOn,
+        DateTime $expiresOn,
+        array $overrides = [],
+    ): EntityInterface {
         $warrants = $this->getTableLocator()->get('Warrants');
-        $warrant = $warrants->newEntity([
+        $name = (string)($overrides['name'] ?? 'SameDayTest-' . uniqid());
+        unset($overrides['name']);
+        $warrant = $warrants->newEntity(array_merge([
             'member_id' => self::ADMIN_MEMBER_ID,
             'member_role_id' => 1,
             'warrant_roster_id' => 1,
@@ -37,8 +47,8 @@ class WarrantsGridSameDayTest extends HttpIntegrationTestCase
             'status' => Warrant::CURRENT_STATUS,
             'start_on' => $startOn,
             'expires_on' => $expiresOn,
-        ]);
-        $warrant->set('name', 'SameDayTest-' . uniqid());
+        ], $overrides));
+        $warrant->set('name', $name);
         $saved = $warrants->save($warrant);
         $this->assertNotFalse($saved, 'Failed to save test warrant');
 
@@ -120,5 +130,91 @@ class WarrantsGridSameDayTest extends HttpIntegrationTestCase
 
         $this->get('/warrants/grid-data');
         $this->assertResponseOk();
+    }
+
+    /**
+     * A copied Previous view keeps its symbolic OR scope while filters are edited.
+     */
+    public function testCopiedPreviousViewKeepsWarrantScopeWhenFiltersAreDirty(): void
+    {
+        $marker = 'CopiedPrevious-' . uniqid();
+        $expiredByDate = $this->createTestWarrant(
+            DateTime::now()->modify('-1 year'),
+            DateTime::now()->modify('-1 day'),
+            [
+                'name' => $marker . '-ExpiredByDate',
+                'revoked_reason' => $marker,
+            ],
+        );
+        $expiredByStatus = $this->createTestWarrant(
+            DateTime::now()->modify('-1 year'),
+            DateTime::now()->modify('+6 months'),
+            [
+                'name' => $marker . '-ExpiredByStatus',
+                'status' => Warrant::EXPIRED_STATUS,
+                'revoked_reason' => $marker,
+            ],
+        );
+        $current = $this->createTestWarrant(
+            DateTime::now()->modify('-1 day'),
+            DateTime::now()->modify('+6 months'),
+            [
+                'name' => $marker . '-Current',
+                'revoked_reason' => $marker,
+            ],
+        );
+        $this->assertContains(
+            [
+                'field' => 'warrant_scope',
+                'operator' => 'eq',
+                'value' => WarrantsGridColumns::SCOPE_PREVIOUS,
+            ],
+            WarrantsGridColumns::getSystemViews()['sys-warrants-previous']['config']['filters'],
+        );
+        $currentUser = $this->getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID);
+        $gridView = (new GridViewService())->createView([
+            'grid_key' => 'Warrants.index.main',
+            'name' => 'Copied Previous Warrants ' . uniqid(),
+            'config' => json_encode([
+                'filters' => [
+                    [
+                        'field' => 'warrant_scope',
+                        'operator' => 'in',
+                        'value' => [WarrantsGridColumns::SCOPE_PREVIOUS],
+                    ],
+                    [
+                        'field' => 'revoked_reason',
+                        'operator' => 'eq',
+                        'value' => $marker,
+                    ],
+                ],
+            ]),
+        ], $currentUser);
+        $this->assertNotFalse($gridView);
+        $this->assertSame(
+            ['warrant_scope', 'revoked_reason'],
+            array_column($gridView->getConfigArray()['filters'], 'field'),
+        );
+
+        $this->get('/warrants/grid-data?' . http_build_query([
+            'view_id' => $gridView->id,
+            'filter' => [
+                'warrant_scope' => WarrantsGridColumns::SCOPE_PREVIOUS,
+                'revoked_reason' => $marker,
+            ],
+            'dirty' => ['filters' => '1'],
+        ]));
+
+        $this->assertResponseOk();
+        $this->assertResponseContains($expiredByDate->get('name'));
+        $this->assertResponseContains($expiredByStatus->get('name'));
+        $this->assertResponseNotContains($current->get('name'));
+        $gridState = $this->viewVariable('gridState');
+        $this->assertSame(
+            [WarrantsGridColumns::SCOPE_PREVIOUS],
+            $gridState['filters']['active']['warrant_scope'],
+        );
+        $this->assertContains('warrant_scope', $gridState['config']['lockedFilters']);
+        $this->assertFalse($gridState['filters']['available']['warrant_scope']['showInFilterMenu']);
     }
 }

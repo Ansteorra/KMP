@@ -9,7 +9,6 @@ use App\Services\CsvExportService;
 use App\Services\WarrantManager\WarrantManagerInterface;
 use Cake\Http\Exception\NotFoundException;
 use Cake\I18n\DateTime;
-use Cake\I18n\FrozenDate;
 
 /**
  * Manages warrant lifecycle: listing, filtering, deactivation, and CSV export.
@@ -73,7 +72,7 @@ class WarrantsController extends AppController
         $this->Authorization->authorize($securityWarrant, 'index');
 
         $systemViews = WarrantsGridColumns::getSystemViews([]);
-        $queryCallback = $this->buildSystemViewQueryCallback(FrozenDate::today());
+        $queryCallback = $this->buildSystemViewQueryCallback();
 
         // Use unified trait for grid processing (system views mode)
         $result = $this->processDataverseGrid([
@@ -89,7 +88,6 @@ class WarrantsController extends AppController
             'showAllTab' => false,
             'canAddViews' => true,
             'canFilter' => true,
-            'lockedFilters' => ['status', 'start_on', 'expires_on'],
             'showFilterPills' => true,
         ]);
 
@@ -113,7 +111,7 @@ class WarrantsController extends AppController
         $this->Authorization->authorize($securityWarrant, 'index');
 
         $systemViews = WarrantsGridColumns::getSystemViews([]);
-        $queryCallback = $this->buildSystemViewQueryCallback(FrozenDate::today());
+        $queryCallback = $this->buildSystemViewQueryCallback();
 
         // Use unified trait for grid processing (system views mode)
         $result = $this->processDataverseGrid([
@@ -130,7 +128,6 @@ class WarrantsController extends AppController
             'canAddViews' => true,
             'canFilter' => true,
             'canExportCsv' => true,
-            'lockedFilters' => ['status', 'start_on', 'expires_on'],
             'showFilterPills' => true,
         ]);
 
@@ -206,15 +203,15 @@ class WarrantsController extends AppController
             case 'current':
                 // Active warrants providing RBAC temporal validation
                 $warrantsQuery = $warrantsQuery->where([
-                    'Warrants.expires_on >=' => $todayStart,      // Not expired (today or later)
-                    'Warrants.start_on <=' => $todayEnd,          // Already started (today or earlier)
+                    'Warrants.expires_on >=' => $todayStart, // Not expired (today or later)
+                    'Warrants.start_on <=' => $todayEnd, // Already started (today or earlier)
                     'Warrants.status' => Warrant::CURRENT_STATUS, // Active status
                 ]);
                 break;
             case 'upcoming':
                 // Future warrants scheduled for activation
                 $warrantsQuery = $warrantsQuery->where([
-                    'Warrants.start_on >' => $todayEnd,           // Starts after today
+                    'Warrants.start_on >' => $todayEnd, // Starts after today
                     'Warrants.status' => Warrant::CURRENT_STATUS, // Approved status
                 ]);
                 break;
@@ -228,8 +225,8 @@ class WarrantsController extends AppController
                 // Expired or administratively terminated warrants
                 $warrantsQuery = $warrantsQuery->where([
                     'OR' => [
-                        'Warrants.expires_on <' => $todayStart,   // Expired before today
-                        'Warrants.status IN ' => [                // Terminated by admin
+                        'Warrants.expires_on <' => $todayStart, // Expired before today
+                        'Warrants.status IN ' => [ // Terminated by admin
                             Warrant::DEACTIVATED_STATUS,
                             Warrant::EXPIRED_STATUS,
                         ],
@@ -257,20 +254,15 @@ class WarrantsController extends AppController
     /**
      * Build query callback for system view processing.
      *
-     * Applies base conditions; complex OR/AND logic handled via expression trees in view configs.
+     * Applies presentation selects and associations shared by every view. System
+     * view record scope is handled by serializable filters in the grid columns.
      *
-     * @param \Cake\I18n\FrozenDate $today Reference date for temporal filtering
      * @return callable
      */
-    protected function buildSystemViewQueryCallback(FrozenDate $today): callable
+    protected function buildSystemViewQueryCallback(): callable
     {
-        return function ($query, $selectedSystemView) use ($today) {
-            // Always apply base conditions (field selection, associations)
+        return function ($query) {
             $query = $this->addConditions($query);
-
-            // Note: OR logic for Previous view now handled by expression tree in config
-            // If you need exceptional custom logic that can't be expressed declaratively,
-            // add it here with appropriate view ID checks
 
             return $query;
         };

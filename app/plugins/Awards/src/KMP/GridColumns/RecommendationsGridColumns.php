@@ -1,11 +1,14 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Awards\KMP\GridColumns;
 
 use App\KMP\GridColumns\BaseGridColumns;
+use App\Model\Entity\WorkflowApprovalResponse;
+use App\Model\Table\WorkflowApprovalsTable;
+use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\Recommendation;
+use Awards\Model\Entity\RecommendationApprovalRun;
 use Cake\I18n\DateTime;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\TableRegistry;
@@ -25,6 +28,16 @@ use Cake\ORM\TableRegistry;
  */
 class RecommendationsGridColumns extends BaseGridColumns
 {
+    public const APPROVAL_PROGRESS_PENDING_REVIEW = 'pending_review';
+
+    public const APPROVAL_PARTICIPATION_AWAITING_RESPONSE = 'awaiting_response';
+
+    public const APPROVAL_PARTICIPATION_APPROVED_BY_ME = 'approved_by_me';
+
+    public const RECOMMENDATION_STAGE_CONVERTED = 'converted_to_bestowal';
+
+    public const RECOMMENDATION_STAGE_ARCHIVED = 'archived';
+
     /**
      * Get row actions for recommendations grid
      *
@@ -653,6 +666,77 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'description' => 'Date award was presented',
             ],
 
+            'approval_progress' => [
+                'key' => 'approval_progress',
+                'label' => 'Approval progress',
+                'type' => 'string',
+                'sortable' => false,
+                'searchable' => false,
+                'filterable' => true,
+                'filterType' => 'dropdown',
+                'filterOnly' => true,
+                'lockedFilter' => true,
+                'showInFilterMenu' => false,
+                'defaultVisible' => false,
+                'exportable' => false,
+                'filterOptions' => [
+                    ['value' => self::APPROVAL_PROGRESS_PENDING_REVIEW, 'label' => 'Pending review'],
+                ],
+                'customFilterHandler' => [
+                    'class' => self::class,
+                    'method' => 'applySystemViewFilter',
+                ],
+                'description' => 'Semantic approval workflow state used by system views',
+            ],
+
+            'approval_participation' => [
+                'key' => 'approval_participation',
+                'label' => 'Your approval activity',
+                'type' => 'string',
+                'sortable' => false,
+                'searchable' => false,
+                'filterable' => true,
+                'filterType' => 'dropdown',
+                'filterOnly' => true,
+                'lockedFilter' => true,
+                'showInFilterMenu' => false,
+                'defaultVisible' => false,
+                'exportable' => false,
+                'filterOptions' => [
+                    ['value' => self::APPROVAL_PARTICIPATION_AWAITING_RESPONSE, 'label' => 'Awaiting your response'],
+                    ['value' => self::APPROVAL_PARTICIPATION_APPROVED_BY_ME, 'label' => 'Approved by you'],
+                ],
+                'customFilterHandler' => [
+                    'class' => self::class,
+                    'method' => 'applySystemViewFilter',
+                ],
+                'description' => 'Current member participation used by approval system views',
+            ],
+
+            'recommendation_stage' => [
+                'key' => 'recommendation_stage',
+                'label' => 'Recommendation stage',
+                'type' => 'string',
+                'sortable' => false,
+                'searchable' => false,
+                'filterable' => true,
+                'filterType' => 'dropdown',
+                'filterOnly' => true,
+                'lockedFilter' => true,
+                'showInFilterMenu' => false,
+                'defaultVisible' => false,
+                'exportable' => false,
+                'filterOptions' => [
+                    ['value' => self::RECOMMENDATION_STAGE_CONVERTED, 'label' => 'Converted to bestowal'],
+                    ['value' => self::RECOMMENDATION_STAGE_ARCHIVED, 'label' => 'Archived'],
+                ],
+                'customFilterHandler' => [
+                    'class' => self::class,
+                    'method' => 'applySystemViewFilter',
+                ],
+                'description' => 'Semantic recommendation lifecycle stage used by system views',
+            ],
+
             'branch_type' => [
                 'key' => 'branch_type',
                 'label' => 'Award Scope',
@@ -762,7 +846,11 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'description' => __('Recommendations currently routed through an approval workflow'),
                 'canManage' => false,
                 'config' => [
-                    'filters' => [],
+                    'filters' => [[
+                        'field' => 'approval_progress',
+                        'operator' => 'eq',
+                        'value' => self::APPROVAL_PROGRESS_PENDING_REVIEW,
+                    ]],
                     'columns' => array_merge($coreColumns, [
                         'approval_queue',
                     ]),
@@ -774,7 +862,11 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'description' => __('Recommendations currently waiting for your approval decision'),
                 'canManage' => false,
                 'config' => [
-                    'filters' => [],
+                    'filters' => [[
+                        'field' => 'approval_participation',
+                        'operator' => 'eq',
+                        'value' => self::APPROVAL_PARTICIPATION_AWAITING_RESPONSE,
+                    ]],
                     'columns' => array_merge($coreColumns, [
                         'approval_queue',
                     ]),
@@ -786,7 +878,11 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'description' => __('Recommendations in active approval workflows that you have approved'),
                 'canManage' => false,
                 'config' => [
-                    'filters' => [],
+                    'filters' => [[
+                        'field' => 'approval_participation',
+                        'operator' => 'eq',
+                        'value' => self::APPROVAL_PARTICIPATION_APPROVED_BY_ME,
+                    ]],
                     'columns' => array_merge($coreColumns, [
                         'approval_queue',
                     ]),
@@ -798,7 +894,11 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'description' => __('Recommendations now managed through a bestowal workflow'),
                 'canManage' => false,
                 'config' => [
-                    'filters' => [],
+                    'filters' => [[
+                        'field' => 'recommendation_stage',
+                        'operator' => 'eq',
+                        'value' => self::RECOMMENDATION_STAGE_CONVERTED,
+                    ]],
                     'columns' => [
                         'member_sca_name',
                         'branch_id',
@@ -807,7 +907,6 @@ class RecommendationsGridColumns extends BaseGridColumns
                         'gatherings',
                         'notes',
                     ],
-                    'skipFilterColumns' => ['bestowal_linked'],
                 ],
             ],
             'sys-recs-archived' => [
@@ -818,14 +917,17 @@ class RecommendationsGridColumns extends BaseGridColumns
                 ),
                 'canManage' => false,
                 'config' => [
-                    'filters' => [],
+                    'filters' => [[
+                        'field' => 'recommendation_stage',
+                        'operator' => 'eq',
+                        'value' => self::RECOMMENDATION_STAGE_ARCHIVED,
+                    ]],
                     'columns' => array_diff(array_merge($coreColumns, [
                         'status',
                         'state',
                         'close_reason',
                         'given',
                     ]), ['reason', 'gatherings', 'notes']), // Remove reason and gatherings from archived view to reduce clutter
-                    'skipFilterColumns' => ['state'],
                 ],
             ],
             'sys-recs-all' => [
@@ -845,6 +947,184 @@ class RecommendationsGridColumns extends BaseGridColumns
                 ],
             ],
         ];
+    }
+
+    /**
+     * Apply a semantic, serializable system-view filter.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query Recommendations query.
+     * @param mixed $filterValue Saved symbolic filter value.
+     * @param array<string, mixed> $context Grid filter context.
+     * @return \Cake\ORM\Query\SelectQuery Filtered query.
+     */
+    public static function applySystemViewFilter(
+        SelectQuery $query,
+        mixed $filterValue,
+        array $context = [],
+    ): SelectQuery {
+        $values = is_array($filterValue) ? $filterValue : [$filterValue];
+        $value = isset($values[0]) ? (string)$values[0] : '';
+        $columnKey = (string)($context['columnKey'] ?? '');
+
+        if ($columnKey === 'approval_progress' && $value === self::APPROVAL_PROGRESS_PENDING_REVIEW) {
+            return $query
+                ->where([
+                    'CurrentApprovalRun.status IN' => [
+                        RecommendationApprovalRun::STATUS_IN_PROGRESS,
+                        RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
+                    ],
+                ])
+                ->where([self::workflowInstanceRejectedResponseMissingSql(
+                    'CurrentApprovalRun.workflow_instance_id',
+                )]);
+        }
+
+        if ($columnKey === 'approval_participation') {
+            $memberId = self::currentMemberId($context['identity'] ?? null);
+            if ($memberId <= 0) {
+                return $query->where(['1 = 0']);
+            }
+
+            if ($value === self::APPROVAL_PARTICIPATION_AWAITING_RESPONSE) {
+                $workflowInstanceIds = WorkflowApprovalsTable::getPendingApprovalWorkflowInstanceIdsForMember(
+                    $memberId,
+                );
+                if ($workflowInstanceIds === []) {
+                    return $query->where(['1 = 0']);
+                }
+
+                return $query->where([
+                    'CurrentApprovalRun.workflow_instance_id IN' => $workflowInstanceIds,
+                    'CurrentApprovalRun.status IN' => [
+                        RecommendationApprovalRun::STATUS_IN_PROGRESS,
+                        RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
+                    ],
+                ]);
+            }
+
+            if ($value === self::APPROVAL_PARTICIPATION_APPROVED_BY_ME) {
+                return $query
+                    ->where(['CurrentApprovalRun.id IS NOT' => null])
+                    ->where([sprintf(
+                        "EXISTS (
+                            SELECT 1
+                            FROM workflow_approvals approval_activity
+                            INNER JOIN workflow_approval_responses approval_responses
+                                ON approval_responses.workflow_approval_id = approval_activity.id
+                            WHERE approval_activity.workflow_instance_id = CurrentApprovalRun.workflow_instance_id
+                              AND approval_responses.member_id = %d
+                              AND approval_responses.decision = '%s'
+                        )",
+                        $memberId,
+                        WorkflowApprovalResponse::DECISION_APPROVE,
+                    )]);
+            }
+        }
+
+        if ($columnKey === 'recommendation_stage') {
+            if ($value === self::RECOMMENDATION_STAGE_CONVERTED) {
+                return $query
+                    ->where(['Recommendations.bestowal_id IS NOT' => null])
+                    ->where([self::bestowalLifecycleExistsSql('!=', Bestowal::LIFECYCLE_GIVEN)]);
+            }
+
+            if ($value === self::RECOMMENDATION_STAGE_ARCHIVED) {
+                return $query->where([
+                    'OR' => [
+                        [
+                            'Recommendations.state IN' => self::getArchivedStates(),
+                            'Recommendations.bestowal_id IS' => null,
+                        ],
+                        self::bestowalLifecycleExistsSql('=', Bestowal::LIFECYCLE_GIVEN),
+                        sprintf(
+                            "EXISTS (
+                                SELECT 1
+                                FROM awards_recommendation_approval_runs archived_runs
+                                WHERE archived_runs.recommendation_id = Recommendations.id
+                                  AND archived_runs.deleted IS NULL
+                                  AND archived_runs.status = '%s'
+                                  AND archived_runs.terminal_reason = '%s'
+                            )",
+                            RecommendationApprovalRun::STATUS_CLOSED,
+                            RecommendationApprovalRun::TERMINAL_REASON_REJECTED,
+                        ),
+                        self::recommendationRejectedResponseExistsSql(),
+                    ],
+                ]);
+            }
+        }
+
+        return $query->where(['1 = 0']);
+    }
+
+    /**
+     * Resolve the signed-in member identifier from the grid identity.
+     */
+    private static function currentMemberId(mixed $identity): int
+    {
+        if (is_object($identity) && method_exists($identity, 'getIdentifier')) {
+            return (int)$identity->getIdentifier();
+        }
+
+        return is_object($identity) ? (int)($identity->id ?? 0) : 0;
+    }
+
+    /**
+     * Build an alias-independent bestowal lifecycle predicate.
+     */
+    private static function bestowalLifecycleExistsSql(string $operator, string $lifecycleStatus): string
+    {
+        return sprintf(
+            "EXISTS (
+                SELECT 1
+                FROM awards_bestowals scoped_bestowals
+                WHERE scoped_bestowals.id = Recommendations.bestowal_id
+                  AND scoped_bestowals.deleted IS NULL
+                  AND scoped_bestowals.lifecycle_status %s '%s'
+            )",
+            $operator,
+            $lifecycleStatus,
+        );
+    }
+
+    /**
+     * Build the archived-scope rejected-response predicate.
+     */
+    private static function recommendationRejectedResponseExistsSql(): string
+    {
+        return sprintf(
+            "EXISTS (
+                SELECT 1
+                FROM awards_recommendation_approval_runs response_runs
+                INNER JOIN workflow_approvals response_approvals
+                    ON response_approvals.workflow_instance_id = response_runs.workflow_instance_id
+                INNER JOIN workflow_approval_responses response_decisions
+                    ON response_decisions.workflow_approval_id = response_approvals.id
+                WHERE response_runs.recommendation_id = Recommendations.id
+                  AND response_runs.deleted IS NULL
+                  AND response_decisions.decision = '%s'
+            )",
+            WorkflowApprovalResponse::DECISION_REJECT,
+        );
+    }
+
+    /**
+     * Build the pending-scope predicate that excludes rejected workflows.
+     */
+    private static function workflowInstanceRejectedResponseMissingSql(string $workflowInstanceField): string
+    {
+        return sprintf(
+            "NOT EXISTS (
+                SELECT 1
+                FROM workflow_approvals active_response_approvals
+                INNER JOIN workflow_approval_responses active_response_decisions
+                    ON active_response_decisions.workflow_approval_id = active_response_approvals.id
+                WHERE active_response_approvals.workflow_instance_id = %s
+                  AND active_response_decisions.decision = '%s'
+            )",
+            $workflowInstanceField,
+            WorkflowApprovalResponse::DECISION_REJECT,
+        );
     }
 
     /**
