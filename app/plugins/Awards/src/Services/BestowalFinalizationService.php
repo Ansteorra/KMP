@@ -21,11 +21,15 @@ use Throwable;
  * listener (BestowalTodoCompletionListener) apply identical rules: every gating
  * to-do must be complete, a cancelled bestowal can never be given, and an
  * already-given bestowal is a no-op. Finalizing also syncs linked
- * recommendations to their "Given" state so recommendation notifications fire.
+ * recommendations to their "Given" state so recommendation notifications fire,
+ * and audit-closes any unfinished optional to-dos as not applicable.
  */
 class BestowalFinalizationService
 {
     use LocatorAwareTrait;
+
+    private const FINALIZATION_SKIP_NOTE =
+        'Bestowal marked given; remaining to-do is not applicable.';
 
     /**
      * @var \Cake\ORM\Table Bestowals table.
@@ -190,6 +194,8 @@ class BestowalFinalizationService
                 $actorId,
                 $bestowedAt,
             ): Bestowal {
+                $this->closeRemainingTodos((int)$bestowal->id, $actorId);
+
                 $bestowal->lifecycle_status = Bestowal::LIFECYCLE_GIVEN;
                 $bestowal->bestowed_at = $bestowedAt ?? DateTime::now();
                 $bestowal->modified_by = $actorId;
@@ -212,6 +218,41 @@ class BestowalFinalizationService
         }
 
         return new ServiceResult(true, null, $savedBestowal);
+    }
+
+    /**
+     * Audit-close unfinished work that no longer applies after finalization.
+     *
+     * The owner is still open and locked when this runs, allowing the shared
+     * ActionItem transition service to preserve one log per skipped to-do.
+     * The surrounding transaction rolls every cancellation back if marking the
+     * bestowal Given or synchronizing its recommendations fails.
+     *
+     * @param int $bestowalId Bestowal being finalized.
+     * @param int $actorId Member performing or causing finalization.
+     * @return void
+     */
+    private function closeRemainingTodos(int $bestowalId, int $actorId): void
+    {
+        $items = $this->actionItemService->getItemsForEntity(
+            Bestowal::ACTION_ITEM_ENTITY_TYPE,
+            $bestowalId,
+        );
+        foreach ($items as $item) {
+            if (!$item->isOpen()) {
+                continue;
+            }
+
+            $result = $this->actionItemService->cancel(
+                (int)$item->id,
+                $actorId,
+                self::FINALIZATION_SKIP_NOTE,
+                false,
+            );
+            if (!$result->isSuccess()) {
+                throw new RuntimeException('Remaining bestowal to-dos could not be closed.');
+            }
+        }
     }
 
     /**

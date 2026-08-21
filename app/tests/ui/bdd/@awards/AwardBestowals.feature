@@ -44,6 +44,9 @@ Feature: Award Bestowals
         And I complete the bestowal to-do "Given"
         Then I should see the flash message "Marked complete."
         And the bestowal detail page should show "Given" in the state row
+        When I open the bestowal to-dos tab
+        Then the bestowal to-dos should not include "Scroll Ready"
+        And the bestowal to-dos should not include "Insignia Ready"
 
     Scenario: Cancelling a linked bestowal updates lifecycle state
         Given I am logged in as "admin@amp.ansteorra.org"

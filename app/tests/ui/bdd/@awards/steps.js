@@ -2574,6 +2574,10 @@ Then('the bestowal to-dos should include {string}', async ({ page }, title) => {
     await expect(getBestowalTodoItem(page, title)).toBeVisible({ timeout: 15000 });
 });
 
+Then('the bestowal to-dos should not include {string}', async ({ page }, title) => {
+    await expect(getBestowalTodoItem(page, title)).toHaveCount(0);
+});
+
 Then('the bestowal to-do {string} should require a gathering', async ({ page }, title) => {
     const item = getBestowalTodoItem(page, title);
     await expect(item).toBeVisible({ timeout: 15000 });

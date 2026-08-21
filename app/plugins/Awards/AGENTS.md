@@ -42,7 +42,9 @@ Own award domains, levels, recommendations, recommendation feedback approvals, b
   is atomic, and initial materialization/backfill only targets open bestowals.
   Required-field reconciliation must use bounded passes until stable so prerequisite chains converge independent of
   template sort order. Completion events are deferred until the whole batch is stable, and definition synchronization
-  must not implicitly finalize a bestowal.
+  must not implicitly finalize a bestowal. Finalization audit-cancels any remaining open optional to-dos as not
+  applicable before marking the bestowal Given; completed history remains unchanged, and the cancellations roll back
+  if finalization fails.
 - Bulk synchronization reports may expose bounded record IDs and trusted domain skip reasons, but unexpected exception
   details belong in server logs; user-facing failures use fixed categories.
 - State/status rules and plugin settings are stored in `Awards.*`, `Member.AdditionalInfo.*`, and `Plugin.Awards.*` settings.

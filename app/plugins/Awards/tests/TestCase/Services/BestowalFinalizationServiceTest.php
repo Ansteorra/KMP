@@ -87,6 +87,56 @@ class BestowalFinalizationServiceTest extends BaseTestCase
         $this->assertNotNull($reloaded->bestowed_at);
     }
 
+    public function testCompletingFinalGatingTodoClosesRemainingOptionalTodosAsNotApplicable(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $gating = $this->makeTodo((int)$bestowal->id, [
+            'title' => 'Given',
+            'source_ref' => 'given',
+            'is_gating' => true,
+        ]);
+        $openOptional = $this->makeTodo((int)$bestowal->id, [
+            'title' => 'Optional follow-up',
+            'source_ref' => 'optional_follow_up',
+            'is_gating' => false,
+            'sort_order' => 2,
+        ]);
+        $completedOptional = $this->makeTodo((int)$bestowal->id, [
+            'title' => 'Completed optional work',
+            'source_ref' => 'completed_optional',
+            'status' => ActionItem::STATUS_COMPLETED,
+            'is_gating' => false,
+            'sort_order' => 3,
+        ]);
+
+        $result = $this->actionItemService->complete(
+            (int)$gating->id,
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $this->assertTrue($result->success, (string)$result->reason);
+        $this->assertSame(
+            Bestowal::LIFECYCLE_GIVEN,
+            $this->bestowals->get($bestowal->id)->lifecycle_status,
+        );
+        $this->assertSame(ActionItem::STATUS_COMPLETED, $this->actionItems->get($gating->id)->status);
+        $this->assertSame(
+            ActionItem::STATUS_CANCELLED,
+            $this->actionItems->get($openOptional->id)->status,
+        );
+        $this->assertSame(
+            ActionItem::STATUS_COMPLETED,
+            $this->actionItems->get($completedOptional->id)->status,
+        );
+        $skipLog = $this->getTableLocator()->get('ActionItemLogs')->find()
+            ->where(['action_item_id' => (int)$openOptional->id])
+            ->orderByDesc('id')
+            ->firstOrFail();
+        $this->assertSame(ActionItem::STATUS_OPEN, $skipLog->from_status);
+        $this->assertSame(ActionItem::STATUS_CANCELLED, $skipLog->to_status);
+        $this->assertStringContainsString('not applicable', (string)$skipLog->note);
+    }
+
     /**
      * Completing an optional (non-gating) to-do never finalizes the bestowal.
      *
@@ -270,6 +320,19 @@ class BestowalFinalizationServiceTest extends BaseTestCase
                 Bestowal::LIFECYCLE_GIVEN,
                 $this->bestowals->get($bestowal->id)->lifecycle_status,
             );
+            $items = $this->actionItems->find()
+                ->where([
+                    'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                    'entity_id' => (int)$bestowal->id,
+                ])
+                ->all()
+                ->toList();
+            if ($includeOptionalItem) {
+                $this->assertCount(1, $items);
+                $this->assertSame(ActionItem::STATUS_CANCELLED, $items[0]->status);
+            } else {
+                $this->assertCount(0, $items);
+            }
         }
     }
 
@@ -432,6 +495,11 @@ class BestowalFinalizationServiceTest extends BaseTestCase
             'is_gating' => true,
             'status' => ActionItem::STATUS_COMPLETED,
         ]);
+        $optional = $this->makeTodo((int)$bestowal->id, [
+            'title' => 'Optional work',
+            'is_gating' => false,
+            'sort_order' => 2,
+        ]);
         $syncService = $this->createMock(BestowalRecommendationSyncService::class);
         $syncService->method('syncFromBestowal')->willReturn([
             'success' => false,
@@ -446,6 +514,7 @@ class BestowalFinalizationServiceTest extends BaseTestCase
         $reloaded = $this->bestowals->get($bestowal->id);
         $this->assertSame(Bestowal::LIFECYCLE_OPEN, $reloaded->lifecycle_status);
         $this->assertNull($reloaded->bestowed_at);
+        $this->assertSame(ActionItem::STATUS_OPEN, $this->actionItems->get($optional->id)->status);
     }
 
     public function testMarkGivenRestoresDisabledSavePointConfiguration(): void
