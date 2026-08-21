@@ -94,12 +94,15 @@ Feature: Award Recommendations
         And the recommendation group head should list 2 grouped recommendations
         When the workflow engine processes pending work
         And I ungroup all recommendations from the detail view
-        Then I should see the flash message "under active approval review."
-        When I reject the pending workflow step 1 for "wf-group-head"
-        And the workflow engine processes pending work
-        And I open the group head recommendation detail view
-        And I ungroup all recommendations from the detail view
+        Then I should see the flash message "Recommendations have been ungrouped."
         Then the recommendation detail page should not show the "Grouped" tab
+        When the workflow engine processes pending work
+        Then the "wf-group-head" recommendation should have a workflow run with status "in_progress"
+        And the "wf-group-head" recommendation should have 1 pending approvals
+        And the "wf-group-one" recommendation should have a workflow run with status "in_progress"
+        And the "wf-group-one" recommendation should have 1 pending approvals
+        And the "wf-group-two" recommendation should have a workflow run with status "in_progress"
+        And the "wf-group-two" recommendation should have 1 pending approvals
 
     Scenario: Submit recommendation marks unmatched recipients as not registered
         When I navigate to "/awards/recommendations/submit-recommendation"
