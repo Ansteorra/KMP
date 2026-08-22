@@ -5,14 +5,14 @@ namespace App\Test\TestCase\KMP\GridColumns;
 
 use App\KMP\GridColumns\ApprovalsGridColumns;
 use App\Model\Entity\WorkflowApproval;
+use App\Test\TestCase\BaseTestCase;
 use Cake\Core\Plugin;
 use Cake\ORM\TableRegistry;
-use Cake\TestSuite\TestCase;
 
 /**
  * Tests for ApprovalsGridColumns grid column metadata.
  */
-class ApprovalsGridColumnsTest extends TestCase
+class ApprovalsGridColumnsTest extends BaseTestCase
 {
     public function testGetColumnsReturnsNonEmptyArray(): void
     {

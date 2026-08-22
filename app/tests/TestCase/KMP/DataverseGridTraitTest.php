@@ -112,6 +112,10 @@ class DataverseGridTraitTest extends BaseTestCase
             ],
         ]);
         $this->assertSame([
+            'expires_on_start' => '2026-08-21 00:00:00',
+            'expires_on_end' => '2026-08-22 00:00:00',
+        ], $systemDefaults['dateRange']);
+        $this->assertSame([
             'expires_on_start' => 'gt',
             'expires_on_end' => 'lt',
         ], $systemDefaults['dateRangeOperators']);
