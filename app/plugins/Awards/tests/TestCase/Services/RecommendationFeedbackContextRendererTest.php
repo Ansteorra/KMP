@@ -134,6 +134,36 @@ class RecommendationFeedbackContextRendererTest extends BaseTestCase
         $this->assertSame((int)$recommendation->requester_id, $context->getRequesterMemberId());
     }
 
+    public function testRecommendationApprovalContextLeavesPublicRequesterMemberIdNull(): void
+    {
+        Router::reload();
+        $builder = Router::createRouteBuilder('/');
+        $builder->setRouteClass(DashedRoute::class);
+        (new AwardsPlugin())->routes($builder);
+
+        $recommendations = $this->getTableLocator()->get('Awards.Recommendations');
+        $recommendation = $recommendations
+            ->find()
+            ->orderByAsc('Recommendations.id')
+            ->firstOrFail();
+        $recommendations->updateAll([
+            'requester_id' => null,
+            'requester_sca_name' => 'External Recommender',
+        ], ['id' => $recommendation->id]);
+
+        $renderer = new RecommendationApprovalContextRenderer();
+        $instance = new WorkflowInstance([
+            'entity_type' => 'Awards.Recommendations',
+            'entity_id' => $recommendation->id,
+            'started_at' => DateTime::now(),
+        ]);
+
+        $context = $renderer->render($instance);
+
+        $this->assertSame('External Recommender', $context->getRequester());
+        $this->assertNull($context->getRequesterMemberId());
+    }
+
     public function testRecommendationApprovalRunContextUsesRecommendationRequester(): void
     {
         Router::reload();
