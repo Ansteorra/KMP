@@ -9,6 +9,7 @@ use App\Model\Table\WorkflowApprovalsTable;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\Recommendation;
 use Awards\Model\Entity\RecommendationApprovalRun;
+use Cake\Database\Expression\QueryExpression;
 use Cake\I18n\DateTime;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\TableRegistry;
@@ -974,9 +975,11 @@ class RecommendationsGridColumns extends BaseGridColumns
                         RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
                     ],
                 ])
-                ->where([self::workflowInstanceRejectedResponseMissingSql(
-                    'CurrentApprovalRun.workflow_instance_id',
-                )]);
+                ->where(self::currentRunResponseExpression(
+                    $query,
+                    WorkflowApprovalResponse::DECISION_REJECT,
+                    negated: true,
+                ));
         }
 
         if ($columnKey === 'approval_participation') {
@@ -1005,19 +1008,11 @@ class RecommendationsGridColumns extends BaseGridColumns
             if ($value === self::APPROVAL_PARTICIPATION_APPROVED_BY_ME) {
                 return $query
                     ->where(['CurrentApprovalRun.id IS NOT' => null])
-                    ->where([sprintf(
-                        "EXISTS (
-                            SELECT 1
-                            FROM workflow_approvals approval_activity
-                            INNER JOIN workflow_approval_responses approval_responses
-                                ON approval_responses.workflow_approval_id = approval_activity.id
-                            WHERE approval_activity.workflow_instance_id = CurrentApprovalRun.workflow_instance_id
-                              AND approval_responses.member_id = %d
-                              AND approval_responses.decision = '%s'
-                        )",
-                        $memberId,
+                    ->where(self::currentRunResponseExpression(
+                        $query,
                         WorkflowApprovalResponse::DECISION_APPROVE,
-                    )]);
+                        $memberId,
+                    ));
             }
         }
 
@@ -1025,7 +1020,7 @@ class RecommendationsGridColumns extends BaseGridColumns
             if ($value === self::RECOMMENDATION_STAGE_CONVERTED) {
                 return $query
                     ->where(['Recommendations.bestowal_id IS NOT' => null])
-                    ->where([self::bestowalLifecycleExistsSql('!=', Bestowal::LIFECYCLE_GIVEN)]);
+                    ->where(self::bestowalLifecycleExistsExpression($query, false));
             }
 
             if ($value === self::RECOMMENDATION_STAGE_ARCHIVED) {
@@ -1035,20 +1030,9 @@ class RecommendationsGridColumns extends BaseGridColumns
                             'Recommendations.state IN' => self::getArchivedStates(),
                             'Recommendations.bestowal_id IS' => null,
                         ],
-                        self::bestowalLifecycleExistsSql('=', Bestowal::LIFECYCLE_GIVEN),
-                        sprintf(
-                            "EXISTS (
-                                SELECT 1
-                                FROM awards_recommendation_approval_runs archived_runs
-                                WHERE archived_runs.recommendation_id = Recommendations.id
-                                  AND archived_runs.deleted IS NULL
-                                  AND archived_runs.status = '%s'
-                                  AND archived_runs.terminal_reason = '%s'
-                            )",
-                            RecommendationApprovalRun::STATUS_CLOSED,
-                            RecommendationApprovalRun::TERMINAL_REASON_REJECTED,
-                        ),
-                        self::recommendationRejectedResponseExistsSql(),
+                        self::bestowalLifecycleExistsExpression($query, true),
+                        self::closedRejectedRunExistsExpression($query),
+                        self::recommendationRejectedResponseExistsExpression($query),
                     ],
                 ]);
             }
@@ -1070,61 +1054,109 @@ class RecommendationsGridColumns extends BaseGridColumns
     }
 
     /**
+     * Build a current-run response predicate with bound values.
+     */
+    private static function currentRunResponseExpression(
+        SelectQuery $outerQuery,
+        string $decision,
+        ?int $memberId = null,
+        bool $negated = false,
+    ): QueryExpression {
+        $responses = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
+        $subquery = $responses->find()
+            ->select([$responses->aliasField('id')])
+            ->innerJoinWith('WorkflowApprovals', function (SelectQuery $query) {
+                return $query->where(function (QueryExpression $exp) {
+                    return $exp->equalFields(
+                        'WorkflowApprovals.workflow_instance_id',
+                        'CurrentApprovalRun.workflow_instance_id',
+                    );
+                });
+            })
+            ->where([$responses->aliasField('decision') => $decision]);
+        if ($memberId !== null) {
+            $subquery->where([$responses->aliasField('member_id') => $memberId]);
+        }
+
+        $expression = $outerQuery->expr();
+
+        return $negated ? $expression->notExists($subquery) : $expression->exists($subquery);
+    }
+
+    /**
      * Build an alias-independent bestowal lifecycle predicate.
      */
-    private static function bestowalLifecycleExistsSql(string $operator, string $lifecycleStatus): string
+    private static function bestowalLifecycleExistsExpression(
+        SelectQuery $outerQuery,
+        bool $isGiven,
+    ): QueryExpression {
+        $bestowals = TableRegistry::getTableLocator()->get('Awards.Bestowals');
+        $subquery = $bestowals->find()
+            ->select([$bestowals->aliasField('id')])
+            ->where(function (QueryExpression $exp) use ($bestowals) {
+                return $exp->equalFields(
+                    $bestowals->aliasField('id'),
+                    'Recommendations.bestowal_id',
+                );
+            })
+            ->where(function (QueryExpression $exp) use ($bestowals, $isGiven) {
+                $field = $bestowals->aliasField('lifecycle_status');
+
+                return $isGiven
+                    ? $exp->eq($field, Bestowal::LIFECYCLE_GIVEN)
+                    : $exp->notEq($field, Bestowal::LIFECYCLE_GIVEN);
+            });
+
+        return $outerQuery->expr()->exists($subquery);
+    }
+
+    /**
+     * Build the archived-scope terminal rejection predicate.
+     */
+    private static function closedRejectedRunExistsExpression(SelectQuery $outerQuery): QueryExpression
     {
-        return sprintf(
-            "EXISTS (
-                SELECT 1
-                FROM awards_bestowals scoped_bestowals
-                WHERE scoped_bestowals.id = Recommendations.bestowal_id
-                  AND scoped_bestowals.deleted IS NULL
-                  AND scoped_bestowals.lifecycle_status %s '%s'
-            )",
-            $operator,
-            $lifecycleStatus,
-        );
+        $runs = TableRegistry::getTableLocator()->get('Awards.RecommendationApprovalRuns');
+        $subquery = $runs->find()
+            ->select([$runs->aliasField('id')])
+            ->where(function (QueryExpression $exp) use ($runs) {
+                return $exp->equalFields(
+                    $runs->aliasField('recommendation_id'),
+                    'Recommendations.id',
+                );
+            })
+            ->where([
+                $runs->aliasField('status') => RecommendationApprovalRun::STATUS_CLOSED,
+                $runs->aliasField('terminal_reason') => RecommendationApprovalRun::TERMINAL_REASON_REJECTED,
+            ]);
+
+        return $outerQuery->expr()->exists($subquery);
     }
 
     /**
      * Build the archived-scope rejected-response predicate.
      */
-    private static function recommendationRejectedResponseExistsSql(): string
-    {
-        return sprintf(
-            "EXISTS (
-                SELECT 1
-                FROM awards_recommendation_approval_runs response_runs
-                INNER JOIN workflow_approvals response_approvals
-                    ON response_approvals.workflow_instance_id = response_runs.workflow_instance_id
-                INNER JOIN workflow_approval_responses response_decisions
-                    ON response_decisions.workflow_approval_id = response_approvals.id
-                WHERE response_runs.recommendation_id = Recommendations.id
-                  AND response_runs.deleted IS NULL
-                  AND response_decisions.decision = '%s'
-            )",
-            WorkflowApprovalResponse::DECISION_REJECT,
-        );
-    }
+    private static function recommendationRejectedResponseExistsExpression(
+        SelectQuery $outerQuery,
+    ): QueryExpression {
+        $runs = TableRegistry::getTableLocator()->get('Awards.RecommendationApprovalRuns');
+        $responses = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
+        $runWorkflowIds = $runs->find()
+            ->select([$runs->aliasField('workflow_instance_id')])
+            ->where(function (QueryExpression $exp) use ($runs) {
+                return $exp->equalFields(
+                    $runs->aliasField('recommendation_id'),
+                    'Recommendations.id',
+                );
+            });
+        $subquery = $responses->find()
+            ->select([$responses->aliasField('id')])
+            ->innerJoinWith('WorkflowApprovals')
+            ->where([
+                'WorkflowApprovals.workflow_instance_id IN' => $runWorkflowIds,
+                $responses->aliasField('decision') => WorkflowApprovalResponse::DECISION_REJECT,
+            ]);
 
-    /**
-     * Build the pending-scope predicate that excludes rejected workflows.
-     */
-    private static function workflowInstanceRejectedResponseMissingSql(string $workflowInstanceField): string
-    {
-        return sprintf(
-            "NOT EXISTS (
-                SELECT 1
-                FROM workflow_approvals active_response_approvals
-                INNER JOIN workflow_approval_responses active_response_decisions
-                    ON active_response_decisions.workflow_approval_id = active_response_approvals.id
-                WHERE active_response_approvals.workflow_instance_id = %s
-                  AND active_response_decisions.decision = '%s'
-            )",
-            $workflowInstanceField,
-            WorkflowApprovalResponse::DECISION_REJECT,
-        );
+        return $outerQuery->expr()->exists($subquery);
     }
 
     /**

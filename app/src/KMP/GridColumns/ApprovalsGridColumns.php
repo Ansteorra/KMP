@@ -5,7 +5,10 @@ namespace App\KMP\GridColumns;
 
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Table\WorkflowApprovalsTable;
+use Cake\Core\Plugin;
+use Cake\Database\Expression\QueryExpression;
 use Cake\ORM\Query\SelectQuery;
+use Cake\ORM\TableRegistry;
 
 /**
  * Approvals Grid Column Metadata
@@ -191,22 +194,33 @@ class ApprovalsGridColumns extends BaseGridColumns
         }
 
         if ($value === self::MEMBER_SCOPE_RESPONDED) {
-            return $query->where([
-                sprintf(
-                    'EXISTS (
-                        SELECT 1
-                        FROM workflow_approval_responses member_responses
-                        WHERE member_responses.workflow_approval_id = WorkflowApprovals.id
-                          AND member_responses.member_id = %d
-                    )',
-                    $memberId,
-                ),
-                'NOT EXISTS (
-                    SELECT 1
-                    FROM awards_recommendation_feedback_request_recipients feedback_recipients
-                    WHERE feedback_recipients.workflow_approval_id = WorkflowApprovals.id
-                )',
-            ]);
+            $responses = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
+            $memberResponses = $responses->find()
+                ->select([$responses->aliasField('id')])
+                ->where([$responses->aliasField('member_id') => $memberId])
+                ->where(function (QueryExpression $exp) use ($responses) {
+                    return $exp->equalFields(
+                        $responses->aliasField('workflow_approval_id'),
+                        'WorkflowApprovals.id',
+                    );
+                });
+            $query->where(fn(QueryExpression $exp) => $exp->exists($memberResponses));
+
+            if (Plugin::isLoaded('Awards')) {
+                $feedback = TableRegistry::getTableLocator()
+                    ->get('Awards.RecommendationFeedbackRequestRecipients');
+                $feedbackRecipients = $feedback->find()
+                    ->select([$feedback->aliasField('id')])
+                    ->where(function (QueryExpression $exp) use ($feedback) {
+                        return $exp->equalFields(
+                            $feedback->aliasField('workflow_approval_id'),
+                            'WorkflowApprovals.id',
+                        );
+                    });
+                $query->where(fn(QueryExpression $exp) => $exp->notExists($feedbackRecipients));
+            }
+
+            return $query;
         }
 
         return $query->where(['1 = 0']);

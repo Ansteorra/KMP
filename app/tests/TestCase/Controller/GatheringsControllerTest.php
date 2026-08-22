@@ -6,6 +6,7 @@ namespace App\Test\TestCase\Controller;
 use App\KMP\GridColumns\GatheringsGridColumns;
 use App\KMP\TimezoneHelper;
 use App\Model\Entity\ActionItem;
+use App\Model\Entity\GridView;
 use App\Services\GridViewService;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Bestowal;
@@ -143,7 +144,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
                 ],
             ]),
         ], $currentUser);
-        $this->assertNotFalse($gridView);
+        $this->assertInstanceOf(GridView::class, $gridView);
 
         $this->get(
             '/gatherings/grid-data?view_id=' . $gridView->id
@@ -209,7 +210,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
                 ],
             ]),
         ], $currentUser);
-        $this->assertNotFalse($gridView);
+        $this->assertInstanceOf(GridView::class, $gridView);
         $this->assertSame(
             ['schedule_window', 'gathering_type_id'],
             array_column($gridView->getConfigArray()['filters'], 'field'),

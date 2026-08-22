@@ -5,12 +5,12 @@ namespace App\Test\TestCase\KMP\GridColumns;
 
 use App\KMP\GridColumns\ActionItemsGridColumns;
 use App\Model\Entity\ActionItem;
-use Cake\TestSuite\TestCase;
+use App\Test\TestCase\BaseTestCase;
 
 /**
  * Tests for My To-Dos grid column metadata.
  */
-class ActionItemsGridColumnsTest extends TestCase
+class ActionItemsGridColumnsTest extends BaseTestCase
 {
     public function testTodoDropdownFiltersAreConfigured(): void
     {

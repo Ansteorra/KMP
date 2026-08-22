@@ -179,6 +179,7 @@ trait DataverseGridTrait
         $systemViewDefaults = [
             'filters' => [],
             'dateRange' => [],
+            'dateRangeOperators' => [],
             'search' => null,
             'skipFilterColumns' => [],
         ];
@@ -412,7 +413,8 @@ trait DataverseGridTrait
             foreach ($lockedFilterDefaults as $columnKey => $filterValue) {
                 $currentFilters[$columnKey] = $filterValue;
             }
-            foreach ($lockedDateRangeDefaults as $columnKey => $filterValue) {
+            foreach ($lockedDateRangeDefaults as $columnKey => $lockedBoundary) {
+                $filterValue = $lockedBoundary['value'];
                 if ($filterValue === null || $filterValue === '') {
                     unset($currentFilters[$columnKey]);
                     continue;
@@ -527,15 +529,19 @@ trait DataverseGridTrait
                 // Get user-submitted values only if canFilter is true
                 $startDate = $canFilter ? $this->request->getQuery($startParam) : null;
                 $endDate = $canFilter ? $this->request->getQuery($endParam) : null;
+                $startOperator = 'gte';
+                $endOperator = 'lte';
 
                 // A locked date range is canonical just like a locked symbolic
                 // filter. Preserve both configured bounds (including a null
                 // bound) instead of allowing crafted query parameters to win.
                 if (array_key_exists($startParam, $lockedDateRangeDefaults)) {
-                    $startDate = $lockedDateRangeDefaults[$startParam];
+                    $startDate = $lockedDateRangeDefaults[$startParam]['value'];
+                    $startOperator = $lockedDateRangeDefaults[$startParam]['operator'];
                 }
                 if (array_key_exists($endParam, $lockedDateRangeDefaults)) {
-                    $endDate = $lockedDateRangeDefaults[$endParam];
+                    $endDate = $lockedDateRangeDefaults[$endParam]['value'];
+                    $endOperator = $lockedDateRangeDefaults[$endParam]['operator'];
                 }
 
                 // Apply user defaults only if canFilter is true
@@ -545,17 +551,21 @@ trait DataverseGridTrait
                     && isset($dateRangeDefaults[$startParam])
                 ) {
                     $startDate = $dateRangeDefaults[$startParam];
+                    $startOperator = $systemViewDefaults['dateRangeOperators'][$startParam] ?? 'gte';
                 }
                 if ($canFilter && ($endDate === null || $endDate === '') && isset($dateRangeDefaults[$endParam])) {
                     $endDate = $dateRangeDefaults[$endParam];
+                    $endOperator = $systemViewDefaults['dateRangeOperators'][$endParam] ?? 'lte';
                 }
 
                 // Always apply system view date range defaults (even when canFilter is false)
                 if (($startDate === null || $startDate === '') && isset($systemDateRangeDefaults[$startParam])) {
                     $startDate = $systemDateRangeDefaults[$startParam];
+                    $startOperator = $systemViewDefaults['dateRangeOperators'][$startParam] ?? 'gte';
                 }
                 if (($endDate === null || $endDate === '') && isset($systemDateRangeDefaults[$endParam])) {
                     $endDate = $systemDateRangeDefaults[$endParam];
+                    $endOperator = $systemViewDefaults['dateRangeOperators'][$endParam] ?? 'lte';
                 }
 
                 if (($startDate !== null && $startDate !== '') || ($endDate !== null && $endDate !== '')) {
@@ -571,18 +581,23 @@ trait DataverseGridTrait
                             // Convert date-only strings from kingdom timezone to UTC
                             // so SQL comparisons work correctly against UTC-stored datetimes.
                             $effectiveStartDate = $this->convertDateBoundaryToUtc($startDate, true);
+                            $startComparison = $startOperator === 'gt' ? ' >' : ' >=';
 
                             // For lower bound (start >= value), check nullMeansActive flag
                             // If true, NULL means "never expires" so include it in results
                             if ($nullMeansActive) {
-                                $baseQuery->where(function ($exp) use ($qualifiedField, $effectiveStartDate) {
+                                $baseQuery->where(function ($exp) use (
+                                    $qualifiedField,
+                                    $startComparison,
+                                    $effectiveStartDate,
+                                ) {
                                     return $exp->or([
-                                        $qualifiedField . ' >=' => $effectiveStartDate,
+                                        $qualifiedField . $startComparison => $effectiveStartDate,
                                         $qualifiedField . ' IS' => null,
                                     ]);
                                 });
                             } else {
-                                $baseQuery->where([$qualifiedField . ' >=' => $effectiveStartDate]);
+                                $baseQuery->where([$qualifiedField . $startComparison => $effectiveStartDate]);
                             }
                         }
                         // Add to current filters for display as pill (original kingdom-tz value)
@@ -593,8 +608,9 @@ trait DataverseGridTrait
                             // Convert date-only strings from kingdom timezone to UTC
                             // so SQL comparisons work correctly against UTC-stored datetimes.
                             $effectiveEndDate = $this->convertDateBoundaryToUtc($endDate, false);
+                            $endComparison = $endOperator === 'lt' ? ' <' : ' <=';
 
-                            $baseQuery->where([$qualifiedField . ' <=' => $effectiveEndDate]);
+                            $baseQuery->where([$qualifiedField . $endComparison => $effectiveEndDate]);
                         }
                         // Add to current filters for display as pill (original kingdom-tz value)
                         $currentFilters[$endParam] = $endDate;
@@ -634,7 +650,7 @@ trait DataverseGridTrait
             $expressionSkipColumns = array_unique(array_merge($configSkipFilterColumns, $autoSkipFilterColumns));
             $expression = $gridViewConfig->extractExpression(
                 $selectedSystemView['config'],
-                $baseQuery->newExpr(),
+                $baseQuery->expr(),
                 $tableName,
                 $expressionSkipColumns,
                 $columnsMetadata,
@@ -653,7 +669,7 @@ trait DataverseGridTrait
             // Check if view has expression tree (preferred)
             $expression = $gridViewConfig->extractExpression(
                 $viewConfig,
-                $baseQuery->newExpr(),
+                $baseQuery->expr(),
                 $tableName,
                 $skipFilterColumns,
                 $columnsMetadata,
@@ -1797,7 +1813,7 @@ trait DataverseGridTrait
      * @param array<string, mixed> $viewConfig Active system or saved-view config.
      * @param array<int, string> $lockedFilters Locked filter keys.
      * @param array<string, array<string, mixed>> $columnsMetadata Grid column metadata.
-     * @return array<string, string|null> Date parameter keys and canonical values.
+     * @return array<string, array{value: string|null, operator: string}> Date parameter bounds.
      */
     protected function extractLockedDateRangeDefaults(
         array $viewConfig,
@@ -1833,19 +1849,25 @@ trait DataverseGridTrait
             $startKey = $field . '_start';
             $endKey = $field . '_end';
             if (!array_key_exists($startKey, $defaults)) {
-                $defaults[$startKey] = null;
-                $defaults[$endKey] = null;
+                $defaults[$startKey] = ['value' => null, 'operator' => 'gte'];
+                $defaults[$endKey] = ['value' => null, 'operator' => 'lte'];
             }
 
             $operator = (string)($filter['operator'] ?? '');
             $value = $filter['value'] ?? null;
             if ($operator === 'dateRange' && is_array($value)) {
-                $defaults[$startKey] = $this->normalizeLockedDateBoundary($value[0] ?? null);
-                $defaults[$endKey] = $this->normalizeLockedDateBoundary($value[1] ?? null);
+                $defaults[$startKey]['value'] = $this->normalizeLockedDateBoundary($value[0] ?? null);
+                $defaults[$endKey]['value'] = $this->normalizeLockedDateBoundary($value[1] ?? null);
             } elseif ($operator === 'gte' || $operator === 'gt') {
-                $defaults[$startKey] = $this->normalizeLockedDateBoundary($value);
+                $defaults[$startKey] = [
+                    'value' => $this->normalizeLockedDateBoundary($value),
+                    'operator' => $operator,
+                ];
             } elseif ($operator === 'lte' || $operator === 'lt') {
-                $defaults[$endKey] = $this->normalizeLockedDateBoundary($value);
+                $defaults[$endKey] = [
+                    'value' => $this->normalizeLockedDateBoundary($value),
+                    'operator' => $operator,
+                ];
             }
         }
 
@@ -1864,13 +1886,15 @@ trait DataverseGridTrait
      * Extract default filters/search metadata for a system view configuration
      *
      * @param array<string, mixed> $systemViewConfig Raw system view config
-     * @return array{filters: array, dateRange: array, search: ?string, skipFilterColumns: array}
+     * @return array{filters: array, dateRange: array, dateRangeOperators: array,
+     *     search: ?string, skipFilterColumns: array}
      */
     protected function extractSystemViewDefaults(array $systemViewConfig): array
     {
         $defaults = [
             'filters' => [],
             'dateRange' => [],
+            'dateRangeOperators' => [],
             'search' => null,
             'skipFilterColumns' => [],
         ];
@@ -1931,9 +1955,11 @@ trait DataverseGridTrait
                         $fieldKey = strpos($field, '.') !== false ? substr($field, strrpos($field, '.') + 1) : $field;
                         if ($start !== null && $start !== '') {
                             $defaults['dateRange'][$fieldKey . '_start'] = (string)$start;
+                            $defaults['dateRangeOperators'][$fieldKey . '_start'] = 'gte';
                         }
                         if ($end !== null && $end !== '') {
                             $defaults['dateRange'][$fieldKey . '_end'] = (string)$end;
+                            $defaults['dateRangeOperators'][$fieldKey . '_end'] = 'lte';
                         }
                     }
                     break;
@@ -1943,6 +1969,7 @@ trait DataverseGridTrait
                         // Strip table prefix from field name for parameter keys
                         $fieldKey = strpos($field, '.') !== false ? substr($field, strrpos($field, '.') + 1) : $field;
                         $defaults['dateRange'][$fieldKey . '_start'] = (string)$value;
+                        $defaults['dateRangeOperators'][$fieldKey . '_start'] = $operator;
                     }
                     break;
                 case 'lte':
@@ -1951,6 +1978,7 @@ trait DataverseGridTrait
                         // Strip table prefix from field name for parameter keys
                         $fieldKey = strpos($field, '.') !== false ? substr($field, strrpos($field, '.') + 1) : $field;
                         $defaults['dateRange'][$fieldKey . '_end'] = (string)$value;
+                        $defaults['dateRangeOperators'][$fieldKey . '_end'] = $operator;
                     }
                     break;
                 case 'is-populated':

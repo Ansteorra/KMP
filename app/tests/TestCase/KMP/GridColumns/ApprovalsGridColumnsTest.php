@@ -5,6 +5,8 @@ namespace App\Test\TestCase\KMP\GridColumns;
 
 use App\KMP\GridColumns\ApprovalsGridColumns;
 use App\Model\Entity\WorkflowApproval;
+use Cake\Core\Plugin;
+use Cake\ORM\TableRegistry;
 use Cake\TestSuite\TestCase;
 
 /**
@@ -161,6 +163,57 @@ class ApprovalsGridColumnsTest extends TestCase
             ],
             $views['sys-approvals-decisions']['config']['filters'],
         );
+    }
+
+    public function testRespondedMemberScopeWorksWithoutAwardsPlugin(): void
+    {
+        $plugins = Plugin::getCollection();
+        $awards = $plugins->get('Awards');
+        $plugins->remove('Awards');
+
+        try {
+            $query = TableRegistry::getTableLocator()->get('WorkflowApprovals')->find();
+            $identity = new class {
+                public function getIdentifier(): int
+                {
+                    return 1;
+                }
+            };
+
+            $filtered = ApprovalsGridColumns::applyMemberScopeFilter(
+                $query,
+                ApprovalsGridColumns::MEMBER_SCOPE_RESPONDED,
+                ['identity' => $identity],
+            );
+            $sql = $filtered->sql();
+
+            $this->assertStringContainsString('workflow_approval_responses', $sql);
+            $this->assertStringNotContainsString('awards_recommendation_feedback_request_recipients', $sql);
+        } finally {
+            $plugins->add($awards);
+        }
+    }
+
+    public function testRespondedMemberScopeUsesAwardsFeedbackTableWhenLoaded(): void
+    {
+        $this->assertTrue(Plugin::isLoaded('Awards'));
+        $query = TableRegistry::getTableLocator()->get('WorkflowApprovals')->find();
+        $identity = new class {
+            public function getIdentifier(): int
+            {
+                return 1;
+            }
+        };
+
+        $filtered = ApprovalsGridColumns::applyMemberScopeFilter(
+            $query,
+            ApprovalsGridColumns::MEMBER_SCOPE_RESPONDED,
+            ['identity' => $identity],
+        );
+        $sql = $filtered->sql();
+
+        $this->assertStringContainsString('workflow_approval_responses', $sql);
+        $this->assertStringContainsString('awards_recommendation_feedback_request_recipients', $sql);
     }
 
     public function testTriageBoardSystemViewIsPendingKanbanView(): void

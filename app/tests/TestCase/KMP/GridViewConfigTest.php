@@ -4,9 +4,9 @@ declare(strict_types=1);
 namespace App\Test\TestCase\KMP;
 
 use App\KMP\GridViewConfig;
-use Cake\TestSuite\TestCase;
+use App\Test\TestCase\BaseTestCase;
 
-class GridViewConfigTest extends TestCase
+class GridViewConfigTest extends BaseTestCase
 {
     public function testNormalizeDropsLegacyBaseSystemViewId(): void
     {

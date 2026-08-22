@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Controller;
 
 use App\KMP\GridColumns\WarrantsGridColumns;
+use App\Model\Entity\GridView;
 use App\Model\Entity\Warrant;
 use App\Services\GridViewService;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
@@ -140,7 +141,7 @@ class WarrantsGridSameDayTest extends HttpIntegrationTestCase
         $marker = 'CopiedPrevious-' . uniqid();
         $expiredByDate = $this->createTestWarrant(
             DateTime::now()->modify('-1 year'),
-            DateTime::now()->modify('-1 day'),
+            DateTime::now()->modify('-2 days'),
             [
                 'name' => $marker . '-ExpiredByDate',
                 'revoked_reason' => $marker,
@@ -190,7 +191,7 @@ class WarrantsGridSameDayTest extends HttpIntegrationTestCase
                 ],
             ]),
         ], $currentUser);
-        $this->assertNotFalse($gridView);
+        $this->assertInstanceOf(GridView::class, $gridView);
         $this->assertSame(
             ['warrant_scope', 'revoked_reason'],
             array_column($gridView->getConfigArray()['filters'], 'field'),

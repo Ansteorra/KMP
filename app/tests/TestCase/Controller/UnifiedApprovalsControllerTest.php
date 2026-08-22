@@ -14,6 +14,8 @@ use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\ApprovalProcessStep;
 use Awards\Model\Entity\Recommendation;
 use Awards\Model\Entity\RecommendationApprovalRun;
+use Awards\Model\Entity\RecommendationFeedbackRequest;
+use Awards\Model\Entity\RecommendationFeedbackRequestRecipient;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 
@@ -603,10 +605,15 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
             $executionLogId,
             'Custom Decision Scope Other',
         );
+        $feedbackId = $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Custom Decision Scope Feedback',
+        );
         $approvals = $this->getTableLocator()->get('WorkflowApprovals');
         $approvals->updateAll(
             ['status' => WorkflowApproval::STATUS_APPROVED],
-            ['id IN' => [$mineId, $otherId]],
+            ['id IN' => [$mineId, $otherId, $feedbackId]],
         );
         $responses = $this->getTableLocator()->get('WorkflowApprovalResponses');
         $responses->saveOrFail($responses->newEntity([
@@ -619,6 +626,30 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
             'workflow_approval_id' => $otherId,
             'member_id' => self::TEST_MEMBER_AGATHA_ID,
             'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'responded_at' => DateTime::now(),
+        ]));
+        $feedbackResponse = $responses->saveOrFail($responses->newEntity([
+            'workflow_approval_id' => $feedbackId,
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'responded_at' => DateTime::now(),
+        ]));
+        $feedbackRequests = $this->getTableLocator()->get('Awards.RecommendationFeedbackRequests');
+        $feedbackRequest = $feedbackRequests->saveOrFail($feedbackRequests->newEntity([
+            'requester_id' => self::ADMIN_MEMBER_ID,
+            'workflow_instance_id' => $instanceId,
+            'status' => RecommendationFeedbackRequest::STATUS_COMPLETED,
+            'message' => 'Custom decisions scope regression',
+            'completed_at' => DateTime::now(),
+        ]));
+        $feedbackRecipients = $this->getTableLocator()
+            ->get('Awards.RecommendationFeedbackRequestRecipients');
+        $feedbackRecipients->saveOrFail($feedbackRecipients->newEntity([
+            'feedback_request_id' => (int)$feedbackRequest->id,
+            'recipient_id' => self::ADMIN_MEMBER_ID,
+            'workflow_approval_id' => $feedbackId,
+            'workflow_approval_response_id' => (int)$feedbackResponse->id,
+            'status' => RecommendationFeedbackRequestRecipient::STATUS_RESPONDED,
             'responded_at' => DateTime::now(),
         ]));
         $decisionStatuses = [
@@ -647,6 +678,7 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         $rowIds = array_map(static fn($row): int => (int)$row->id, $rows);
         $this->assertContains($mineId, $rowIds);
         $this->assertNotContains($otherId, $rowIds);
+        $this->assertNotContains($feedbackId, $rowIds);
         $gridState = $this->viewVariable('gridState');
         $this->assertSame($decisionStatuses, $gridState['filters']['active']['status_label']);
         $this->assertSame(
