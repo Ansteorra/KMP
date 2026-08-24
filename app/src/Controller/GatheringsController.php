@@ -112,7 +112,6 @@ class GatheringsController extends AppController
         $userTimezone = TimezoneHelper::getUserTimezone($currentUser);
 
         $systemViews = GatheringsGridColumns::getSystemViews(['timezone' => $userTimezone]);
-        $queryCallback = $this->buildGatheringSystemViewQueryCallback($userTimezone);
         $queryContext = $this->resolveDataverseGridQueryContext([
             'gridKey' => 'Gatherings.index.main',
             'gridColumnsClass' => GatheringsGridColumns::class,
@@ -160,7 +159,6 @@ class GatheringsController extends AppController
             'defaultPageSize' => 25,
             'systemViews' => $systemViews,
             'defaultSystemView' => 'sys-gatherings-this-month',
-            'queryCallback' => $queryCallback,
             'showAllTab' => false,
             'canAddViews' => true,
             'canFilter' => true,
@@ -214,73 +212,6 @@ class GatheringsController extends AppController
             $this->viewBuilder()->disableAutoLayout();
             $this->viewBuilder()->setTemplate('../element/dv_grid_content');
         }
-    }
-
-    /**
-     * Build query callback for temporal system views
-     *
-     * @param string $userTimezone User timezone identifier
-     * @return callable
-     */
-    protected function buildGatheringSystemViewQueryCallback(string $userTimezone): callable
-    {
-        $boundaries = GatheringsGridColumns::getSystemViewDateBoundaries($userTimezone);
-
-        return function ($query, $selectedSystemView) use ($boundaries) {
-            if (!$selectedSystemView || empty($selectedSystemView['id'])) {
-                return $query;
-            }
-
-            switch ($selectedSystemView['id']) {
-                case 'sys-gatherings-this-month':
-                    $query->where([
-                        'OR' => [
-                            [
-                                'Gatherings.start_date >=' => $boundaries['thisMonthStartUtc'],
-                                'Gatherings.start_date <=' => $boundaries['thisMonthEndUtc'],
-                            ],
-                            [
-                                'Gatherings.end_date >=' => $boundaries['thisMonthStartUtc'],
-                                'Gatherings.end_date <=' => $boundaries['thisMonthEndUtc'],
-                            ],
-                            [
-                                'Gatherings.start_date <' => $boundaries['thisMonthStartUtc'],
-                                'Gatherings.end_date >' => $boundaries['thisMonthEndUtc'],
-                            ],
-                        ],
-                    ]);
-                    break;
-
-                case 'sys-gatherings-next-month':
-                    $query->where([
-                        'OR' => [
-                            [
-                                'Gatherings.start_date >=' => $boundaries['nextMonthStartUtc'],
-                                'Gatherings.start_date <=' => $boundaries['nextMonthEndUtc'],
-                            ],
-                            [
-                                'Gatherings.end_date >=' => $boundaries['nextMonthStartUtc'],
-                                'Gatherings.end_date <=' => $boundaries['nextMonthEndUtc'],
-                            ],
-                            [
-                                'Gatherings.start_date <' => $boundaries['nextMonthStartUtc'],
-                                'Gatherings.end_date >' => $boundaries['nextMonthEndUtc'],
-                            ],
-                        ],
-                    ]);
-                    break;
-
-                case 'sys-gatherings-future':
-                    $query->where(['Gatherings.start_date >' => $boundaries['nextMonthEndUtc']]);
-                    break;
-
-                case 'sys-gatherings-previous':
-                    $query->where(['Gatherings.end_date <' => $boundaries['previousCutoffUtc']]);
-                    break;
-            }
-
-            return $query;
-        };
     }
 
     /**

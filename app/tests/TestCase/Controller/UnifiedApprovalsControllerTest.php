@@ -4,13 +4,18 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Controller;
 
 use App\Controller\AppController;
+use App\KMP\GridColumns\ApprovalsGridColumns;
+use App\Model\Entity\GridView;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowApprovalResponse;
 use App\Model\Entity\WorkflowApprovalTriageState;
+use App\Services\GridViewService;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\ApprovalProcessStep;
 use Awards\Model\Entity\Recommendation;
 use Awards\Model\Entity\RecommendationApprovalRun;
+use Awards\Model\Entity\RecommendationFeedbackRequest;
+use Awards\Model\Entity\RecommendationFeedbackRequestRecipient;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 
@@ -504,8 +509,228 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
 
         $this->assertNotEmpty($this->viewVariable('columns'), 'Expected columns view variable to be set');
-        $this->assertNotNull($this->viewVariable('gridState'), 'Expected gridState view variable to be set');
+        $gridState = $this->viewVariable('gridState');
+        $this->assertNotNull($gridState, 'Expected gridState view variable to be set');
         $this->assertNotNull($this->viewVariable('data'), 'Expected data view variable to be set');
+        $this->assertSame(WorkflowApproval::STATUS_PENDING, $gridState['filters']['active']['status_label']);
+        $this->assertSame(
+            ApprovalsGridColumns::MEMBER_SCOPE_AWAITING_RESPONSE,
+            $gridState['filters']['active']['member_scope'],
+        );
+        $this->assertContains('status_label', $gridState['config']['lockedFilters']);
+        $this->assertContains('member_scope', $gridState['config']['lockedFilters']);
+        $this->assertFalse($gridState['filters']['available']['member_scope']['showInFilterMenu']);
+    }
+
+    public function testMyApprovalsGridAllowsCustomViews(): void
+    {
+        $this->authenticateAsSuperUser();
+
+        $this->get('/approvals/grid-data');
+
+        $this->assertResponseOk();
+        $gridState = $this->viewVariable('gridState');
+        $this->assertTrue($gridState['config']['canAddViews']);
+        $this->assertSame(WorkflowApproval::STATUS_PENDING, $gridState['filters']['active']['status_label']);
+        $this->assertSame(
+            ApprovalsGridColumns::MEMBER_SCOPE_AWAITING_RESPONSE,
+            $gridState['filters']['active']['member_scope'],
+        );
+        $this->assertContains('status_label', $gridState['config']['lockedFilters']);
+        $this->assertContains('member_scope', $gridState['config']['lockedFilters']);
+        $this->assertFalse($gridState['filters']['available']['member_scope']['showInFilterMenu']);
+    }
+
+    public function testCustomMyApprovalsViewPreservesPendingScopeFilters(): void
+    {
+        $this->authenticateAsSuperUser();
+        $this->cancelSeededPendingApprovals();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext();
+        $mineId = $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Custom Pending Scope Mine',
+            ['member_id' => self::ADMIN_MEMBER_ID],
+        );
+        $otherId = $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Custom Pending Scope Other',
+            ['member_id' => self::TEST_MEMBER_AGATHA_ID],
+        );
+        $viewName = 'Custom Pending Approvals ' . uniqid();
+        $gridView = $this->createCustomApprovalsView(
+            $viewName,
+            [WorkflowApproval::STATUS_PENDING],
+            ApprovalsGridColumns::MEMBER_SCOPE_AWAITING_RESPONSE,
+        );
+        $this->assertSame(
+            ['status_label', 'member_scope'],
+            array_column($gridView->getConfigArray()['filters'], 'field'),
+        );
+
+        $this->get('/approvals/grid-data?' . http_build_query([
+            'view_id' => $gridView->id,
+            'search' => 'Custom Pending Scope',
+        ]));
+
+        $this->assertResponseOk();
+        $rows = array_values(iterator_to_array($this->viewVariable('data')));
+        $rowIds = array_map(static fn($row): int => (int)$row->id, $rows);
+        $this->assertContains($mineId, $rowIds);
+        $this->assertNotContains($otherId, $rowIds);
+        $gridState = $this->viewVariable('gridState');
+        $this->assertSame((int)$gridView->id, $gridState['view']['currentId']);
+        $this->assertSame($viewName, $gridState['view']['currentName']);
+        $this->assertSame([WorkflowApproval::STATUS_PENDING], $gridState['filters']['active']['status_label']);
+        $this->assertSame(
+            [ApprovalsGridColumns::MEMBER_SCOPE_AWAITING_RESPONSE],
+            $gridState['filters']['active']['member_scope'],
+        );
+        $this->assertContains('member_scope', $gridState['config']['lockedFilters']);
+        $this->assertFalse($gridState['filters']['available']['member_scope']['showInFilterMenu']);
+    }
+
+    public function testCustomMyApprovalsViewPreservesDecisionsScopeFilters(): void
+    {
+        $this->authenticateAsSuperUser();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext();
+        $mineId = $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Custom Decision Scope Mine',
+        );
+        $otherId = $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Custom Decision Scope Other',
+        );
+        $feedbackId = $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Custom Decision Scope Feedback',
+        );
+        $approvals = $this->getTableLocator()->get('WorkflowApprovals');
+        $approvals->updateAll(
+            ['status' => WorkflowApproval::STATUS_APPROVED],
+            ['id IN' => [$mineId, $otherId, $feedbackId]],
+        );
+        $responses = $this->getTableLocator()->get('WorkflowApprovalResponses');
+        $responses->saveOrFail($responses->newEntity([
+            'workflow_approval_id' => $mineId,
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'responded_at' => DateTime::now(),
+        ]));
+        $responses->saveOrFail($responses->newEntity([
+            'workflow_approval_id' => $otherId,
+            'member_id' => self::TEST_MEMBER_AGATHA_ID,
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'responded_at' => DateTime::now(),
+        ]));
+        $feedbackResponse = $responses->saveOrFail($responses->newEntity([
+            'workflow_approval_id' => $feedbackId,
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'responded_at' => DateTime::now(),
+        ]));
+        $feedbackRequests = $this->getTableLocator()->get('Awards.RecommendationFeedbackRequests');
+        $feedbackRequest = $feedbackRequests->saveOrFail($feedbackRequests->newEntity([
+            'requester_id' => self::ADMIN_MEMBER_ID,
+            'workflow_instance_id' => $instanceId,
+            'status' => RecommendationFeedbackRequest::STATUS_COMPLETED,
+            'message' => 'Custom decisions scope regression',
+            'completed_at' => DateTime::now(),
+        ]));
+        $feedbackRecipients = $this->getTableLocator()
+            ->get('Awards.RecommendationFeedbackRequestRecipients');
+        $feedbackRecipients->saveOrFail($feedbackRecipients->newEntity([
+            'feedback_request_id' => (int)$feedbackRequest->id,
+            'recipient_id' => self::ADMIN_MEMBER_ID,
+            'workflow_approval_id' => $feedbackId,
+            'workflow_approval_response_id' => (int)$feedbackResponse->id,
+            'status' => RecommendationFeedbackRequestRecipient::STATUS_RESPONDED,
+            'responded_at' => DateTime::now(),
+        ]));
+        $decisionStatuses = [
+            WorkflowApproval::STATUS_APPROVED,
+            WorkflowApproval::STATUS_REJECTED,
+            WorkflowApproval::STATUS_EXPIRED,
+            WorkflowApproval::STATUS_CANCELLED,
+        ];
+        $gridView = $this->createCustomApprovalsView(
+            'Custom Decisions ' . uniqid(),
+            $decisionStatuses,
+            ApprovalsGridColumns::MEMBER_SCOPE_RESPONDED,
+        );
+        $this->assertSame(
+            ['status_label', 'member_scope'],
+            array_column($gridView->getConfigArray()['filters'], 'field'),
+        );
+
+        $this->get('/approvals/grid-data?' . http_build_query([
+            'view_id' => $gridView->id,
+            'search' => 'Custom Decision Scope',
+        ]));
+
+        $this->assertResponseOk();
+        $rows = array_values(iterator_to_array($this->viewVariable('data')));
+        $rowIds = array_map(static fn($row): int => (int)$row->id, $rows);
+        $this->assertContains($mineId, $rowIds);
+        $this->assertNotContains($otherId, $rowIds);
+        $this->assertNotContains($feedbackId, $rowIds);
+        $gridState = $this->viewVariable('gridState');
+        $this->assertSame($decisionStatuses, $gridState['filters']['active']['status_label']);
+        $this->assertSame(
+            [ApprovalsGridColumns::MEMBER_SCOPE_RESPONDED],
+            $gridState['filters']['active']['member_scope'],
+        );
+        $this->assertContains('member_scope', $gridState['config']['lockedFilters']);
+        $this->assertFalse($gridState['filters']['available']['member_scope']['showInFilterMenu']);
+    }
+
+    public function testMyApprovalsRequesterMemberFilterUsesDisplayedRequester(): void
+    {
+        $this->authenticateAsSuperUser();
+        $this->cancelSeededPendingApprovals();
+        [$mineInstanceId, $mineExecutionLogId] = $this->createWorkflowContext();
+        [$otherInstanceId, $otherExecutionLogId] = $this->createWorkflowContext();
+        $mineId = $this->createApproval(
+            $mineInstanceId,
+            $mineExecutionLogId,
+            'Requester Member Filter Mine',
+        );
+        $otherId = $this->createApproval(
+            $otherInstanceId,
+            $otherExecutionLogId,
+            'Requester Member Filter Other',
+        );
+        $this->getTableLocator()->get('WorkflowApprovals')->updateAll(
+            ['requester_member_id' => self::ADMIN_MEMBER_ID],
+            ['id' => $mineId],
+        );
+        $this->getTableLocator()->get('WorkflowApprovals')->updateAll(
+            ['requester_member_id' => self::TEST_MEMBER_AGATHA_ID],
+            ['id' => $otherId],
+        );
+
+        $this->get('/approvals/grid-data?' . http_build_query([
+            'view_id' => 'sys-approvals-pending',
+            'search' => 'Requester Member Filter',
+            'filter' => ['requester' => self::ADMIN_MEMBER_ID],
+        ]));
+
+        $this->assertResponseOk();
+        $rows = array_values(iterator_to_array($this->viewVariable('data')));
+        $rowIds = array_map(static fn($row): int => (int)$row->id, $rows);
+        $this->assertContains($mineId, $rowIds);
+        $this->assertNotContains($otherId, $rowIds);
+        $requester = $this->getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID);
+        $this->assertSame($requester->sca_name, $rows[0]->requester);
+        $this->assertSame(
+            (string)self::ADMIN_MEMBER_ID,
+            (string)$this->viewVariable('gridState')['filters']['active']['requester'],
+        );
     }
 
     // =====================================================
@@ -847,6 +1072,41 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         $approvalsTable->saveOrFail($approval);
 
         return (int)$approval->id;
+    }
+
+    /**
+     * @param array<int, string> $statuses
+     */
+    private function createCustomApprovalsView(
+        string $name,
+        array $statuses,
+        string $memberScope,
+    ): GridView {
+        $currentUser = $this->getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID);
+        $gridView = (new GridViewService())->createView([
+            'grid_key' => 'Workflows.approvals.main',
+            'name' => $name,
+            'config' => json_encode([
+                'filters' => [
+                    [
+                        'field' => 'status_label',
+                        'operator' => 'in',
+                        'value' => $statuses,
+                    ],
+                    [
+                        'field' => 'member_scope',
+                        'operator' => 'in',
+                        'value' => [$memberScope],
+                    ],
+                ],
+                'sort' => [],
+                'columns' => [],
+                'pageSize' => 25,
+            ]),
+        ], $currentUser);
+        $this->assertNotFalse($gridView, 'Failed to create custom My Approvals grid view');
+
+        return $gridView;
     }
 
     private function createExistingRecommendation(): Recommendation

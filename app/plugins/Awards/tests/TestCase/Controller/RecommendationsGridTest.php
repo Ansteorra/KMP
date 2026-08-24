@@ -3,9 +3,11 @@ declare(strict_types=1);
 
 namespace Awards\Test\TestCase\Controller;
 
+use App\Model\Entity\GridView;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowApprovalResponse;
 use App\Model\Entity\WorkflowInstance;
+use App\Services\GridViewService;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\KMP\GridColumns\RecommendationsGridColumns;
 use Awards\Model\Entity\Bestowal;
@@ -137,6 +139,56 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
         $this->assertResponseNotContains($declinedChangesRequestedReason);
         $this->assertResponseNotContains($closedRunReason);
         $this->assertResponseNotContains($noQueueReason);
+        $this->assertLockedSymbolicFilterState(
+            $this->viewVariable('gridState'),
+            'approval_progress',
+            RecommendationsGridColumns::APPROVAL_PROGRESS_PENDING_REVIEW,
+            'Approval progress',
+            'Pending review',
+        );
+    }
+
+    public function testCustomViewCopiesPendingReviewSymbolicFilter(): void
+    {
+        $award = $this->getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail();
+
+        $queuedReason = 'custom-approval-queue-match-' . uniqid();
+        $noQueueReason = 'custom-approval-queue-none-' . uniqid();
+        $queuedRecommendation = $this->createRecommendation($award->id, $queuedReason);
+        $this->createRecommendation($award->id, $noQueueReason);
+        $this->createApprovalRun(
+            (int)$queuedRecommendation->id,
+            RecommendationApprovalRun::STATUS_IN_PROGRESS,
+            'Crown Review',
+        );
+        $viewName = 'Custom Pending Review ' . uniqid();
+        $gridView = $this->createCustomRecommendationView($viewName, [[
+            'field' => 'approval_progress',
+            'operator' => 'eq',
+            'value' => RecommendationsGridColumns::APPROVAL_PROGRESS_PENDING_REVIEW,
+        ]]);
+
+        $this->get('/awards/recommendations/grid-data?' . http_build_query([
+            'view_id' => $gridView->id,
+            'search' => 'custom-approval-queue-',
+        ]));
+
+        $this->assertResponseOk();
+        $this->assertResponseContains($queuedReason);
+        $this->assertResponseNotContains($noQueueReason);
+        $gridState = $this->viewVariable('gridState');
+        $this->assertSame((int)$gridView->id, $gridState['view']['currentId']);
+        $this->assertSame($viewName, $gridState['view']['currentName']);
+        $this->assertLockedSymbolicFilterState(
+            $gridState,
+            'approval_progress',
+            RecommendationsGridColumns::APPROVAL_PROGRESS_PENDING_REVIEW,
+            'Approval progress',
+            'Pending review',
+        );
     }
 
     public function testDefaultSystemViewIsInApproval(): void
@@ -178,8 +230,16 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
         $this->assertArrayHasKey('sys-recs-approved-by-me', $systemViews);
         $this->assertArrayNotHasKey('sys-recs-needs-approval', $systemViews);
         $this->assertArrayNotHasKey('sys-recs-ready-for-bestowal', $systemViews);
-        $this->assertSame([], $systemViews['sys-recs-in-approval']['config']['filters']);
-        $this->assertSame([], $systemViews['sys-recs-needs-my-approval']['config']['filters']);
+        $this->assertSame([[
+            'field' => 'approval_progress',
+            'operator' => 'eq',
+            'value' => RecommendationsGridColumns::APPROVAL_PROGRESS_PENDING_REVIEW,
+        ]], $systemViews['sys-recs-in-approval']['config']['filters']);
+        $this->assertSame([[
+            'field' => 'approval_participation',
+            'operator' => 'eq',
+            'value' => RecommendationsGridColumns::APPROVAL_PARTICIPATION_AWAITING_RESPONSE,
+        ]], $systemViews['sys-recs-needs-my-approval']['config']['filters']);
         $this->assertSame([
             'sys-recs-in-approval',
             'sys-recs-needs-my-approval',
@@ -242,6 +302,80 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
         $this->assertResponseNotContains($needsOtherReason);
         $this->assertResponseNotContains($approvedByMeReason);
         $this->assertResponseNotContains($closedRunReason);
+        $this->assertLockedSymbolicFilterState(
+            $this->viewVariable('gridState'),
+            'approval_participation',
+            RecommendationsGridColumns::APPROVAL_PARTICIPATION_AWAITING_RESPONSE,
+            'Your approval activity',
+            'Awaiting your response',
+        );
+    }
+
+    public function testCustomViewCopiesNeedsMyApprovalSymbolicFilter(): void
+    {
+        $award = $this->getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail();
+
+        $needsMeReason = 'custom-needs-my-approval-match-' . uniqid();
+        $needsOtherReason = 'custom-needs-my-approval-other-' . uniqid();
+        $needsMeRecommendation = $this->createRecommendation($award->id, $needsMeReason);
+        $needsOtherRecommendation = $this->createRecommendation($award->id, $needsOtherReason);
+        $needsMeRun = $this->createApprovalRun(
+            (int)$needsMeRecommendation->id,
+            RecommendationApprovalRun::STATUS_IN_PROGRESS,
+            'Crown Review',
+        );
+        $needsOtherRun = $this->createApprovalRun(
+            (int)$needsOtherRecommendation->id,
+            RecommendationApprovalRun::STATUS_IN_PROGRESS,
+            'Crown Review',
+        );
+        $this->createPendingWorkflowApprovalForRun($needsMeRun, self::ADMIN_MEMBER_ID);
+        $this->createPendingWorkflowApprovalForRun($needsOtherRun, self::TEST_MEMBER_AGATHA_ID);
+        $viewName = 'Custom My Queue ' . uniqid();
+        $gridView = $this->createCustomRecommendationView($viewName, [[
+            'field' => 'approval_participation',
+            'operator' => 'eq',
+            'value' => RecommendationsGridColumns::APPROVAL_PARTICIPATION_AWAITING_RESPONSE,
+        ]]);
+
+        $this->get('/awards/recommendations/grid-data?' . http_build_query([
+            'view_id' => $gridView->id,
+            'search' => 'custom-needs-my-approval-',
+        ]));
+
+        $this->assertResponseOk();
+        $this->assertResponseContains($needsMeReason);
+        $this->assertResponseNotContains($needsOtherReason);
+        $gridState = $this->viewVariable('gridState');
+        $this->assertSame((int)$gridView->id, $gridState['view']['currentId']);
+        $this->assertSame($viewName, $gridState['view']['currentName']);
+        $this->assertLockedSymbolicFilterState(
+            $gridState,
+            'approval_participation',
+            RecommendationsGridColumns::APPROVAL_PARTICIPATION_AWAITING_RESPONSE,
+            'Your approval activity',
+            'Awaiting your response',
+        );
+    }
+
+    public function testCustomViewWithoutSymbolicScopeDoesNotApplySystemFilter(): void
+    {
+        $gridView = $this->createCustomRecommendationView(
+            'Custom All Recommendations ' . uniqid(),
+            [],
+        );
+
+        $this->get('/awards/recommendations/grid-data?' . http_build_query([
+            'view_id' => $gridView->id,
+        ]));
+
+        $this->assertResponseOk();
+        $gridState = $this->viewVariable('gridState');
+        $this->assertSame((int)$gridView->id, $gridState['view']['currentId']);
+        $this->assertSame([], $gridState['filters']['active']);
     }
 
     public function testApprovedByMeSystemViewShowsActiveWorkflowRecommendationsApprovedByCurrentUser(): void
@@ -374,6 +508,59 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
         $this->assertResponseNotContains('data-bulk-action-key="request-feedback"');
         $this->assertResponseNotContains('#requestRecommendationFeedbackModal');
         $this->assertResponseNotContains('/awards/recommendations/view/' . $submittedRecommendation->id);
+        $this->assertLockedSymbolicFilterState(
+            $this->viewVariable('gridState'),
+            'recommendation_stage',
+            RecommendationsGridColumns::RECOMMENDATION_STAGE_ARCHIVED,
+            'Recommendation stage',
+            'Archived',
+        );
+    }
+
+    public function testCustomArchivedViewKeepsArchivedScopeAndActionRestrictions(): void
+    {
+        $award = $this->getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail();
+        $prefix = 'custom-archived-filter-' . uniqid();
+        $archivedState = RecommendationsGridColumns::getArchivedStates()[0] ?? 'No Action';
+        $archivedRecommendation = $this->createRecommendation($award->id, $prefix . '-match', [
+            'state' => $archivedState,
+        ]);
+        $submittedRecommendation = $this->createRecommendation($award->id, $prefix . '-submitted', [
+            'state' => 'Submitted',
+        ]);
+        $viewName = 'Custom Archived ' . uniqid();
+        $gridView = $this->createCustomRecommendationView($viewName, [[
+            'field' => 'recommendation_stage',
+            'operator' => 'eq',
+            'value' => RecommendationsGridColumns::RECOMMENDATION_STAGE_ARCHIVED,
+        ]]);
+
+        $this->get('/awards/recommendations/grid-data?' . http_build_query([
+            'view_id' => $gridView->id,
+            'search' => $prefix,
+        ]));
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('/awards/recommendations/view/' . $archivedRecommendation->id);
+        $this->assertResponseNotContains('/awards/recommendations/view/' . $submittedRecommendation->id);
+        $this->assertResponseNotContains('edit-rec');
+        $this->assertResponseNotContains('data-bulk-action-key="workflow-decision"');
+        $this->assertResponseNotContains('data-bulk-action-key="group-recs"');
+        $this->assertResponseNotContains('data-bulk-action-key="request-feedback"');
+        $this->assertResponseNotContains('#requestRecommendationFeedbackModal');
+        $gridState = $this->viewVariable('gridState');
+        $this->assertSame((int)$gridView->id, $gridState['view']['currentId']);
+        $this->assertSame($viewName, $gridState['view']['currentName']);
+        $this->assertLockedSymbolicFilterState(
+            $gridState,
+            'recommendation_stage',
+            RecommendationsGridColumns::RECOMMENDATION_STAGE_ARCHIVED,
+            'Recommendation stage',
+            'Archived',
+        );
     }
 
     public function testConvertedSystemViewUsesBestowalWorkColumnsAndLinkedActions(): void
@@ -467,6 +654,48 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
         $this->assertNotFalse($saved, 'Failed to save test recommendation');
 
         return $saved;
+    }
+
+    /**
+     * @param array<int, array{field: string, operator: string, value: mixed}> $filters
+     */
+    private function createCustomRecommendationView(string $name, array $filters): GridView
+    {
+        $currentUser = $this->getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID);
+        $gridView = (new GridViewService())->createView([
+            'grid_key' => 'Awards.Recommendations.index.main',
+            'name' => $name,
+            'config' => json_encode([
+                'filters' => $filters,
+                'sort' => [],
+                'columns' => [],
+                'pageSize' => 25,
+            ]),
+        ], $currentUser);
+        $this->assertNotFalse($gridView, 'Failed to create custom recommendation grid view');
+
+        return $gridView;
+    }
+
+    /**
+     * @param array<string, mixed> $gridState
+     */
+    private function assertLockedSymbolicFilterState(
+        array $gridState,
+        string $field,
+        string $value,
+        string $fieldLabel,
+        string $valueLabel,
+    ): void {
+        $this->assertSame($value, $gridState['filters']['active'][$field] ?? null);
+        $this->assertContains($field, $gridState['config']['lockedFilters'] ?? []);
+        $this->assertArrayHasKey($field, $gridState['filters']['available']);
+
+        $availableFilter = $gridState['filters']['available'][$field];
+        $this->assertSame($fieldLabel, $availableFilter['label']);
+        $this->assertFalse($availableFilter['showInFilterMenu']);
+        $optionLabels = array_column($availableFilter['options'], 'label', 'value');
+        $this->assertSame($valueLabel, $optionLabels[$value] ?? null);
     }
 
     private function createBestowalForRecommendation(Recommendation $recommendation, string $lifecycleStatus = Bestowal::LIFECYCLE_OPEN): Bestowal

@@ -37,6 +37,47 @@
     }
 }
 
+/* Dataverse grid filter badges share one footprint, whether removable or locked. */
+.grid-view-filter-badge {
+    min-height: 34px;
+    padding: 0.25rem 0.25rem 0.25rem 0.5rem;
+    border: 1px solid #c9cccf;
+    border-radius: 0.4rem;
+    background-color: #f6f6f7;
+    color: #202223;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.grid-view-filter-badge-control {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+    flex: 0 0 24px;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.1);
+    color: #202223;
+    font-size: 0.7rem;
+    line-height: 1;
+}
+
+.grid-view-filter-badge-control .bi-x {
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.grid-view-filter-badge-control .bi-lock-fill {
+    font-size: 0.65rem;
+    opacity: 0.65;
+}
+
+button.grid-view-filter-badge-control:hover,
+button.grid-view-filter-badge-control:focus {
+    background-color: rgba(0, 0, 0, 0.16);
+    color: #202223;
+}
+
 /* Drag and Drop Sortable Styles */
 .list-group-item[draggable="true"] {
     cursor: move;

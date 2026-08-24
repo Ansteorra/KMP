@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Awards\Services;
@@ -89,6 +88,7 @@ class RecommendationFeedbackContextRenderer implements ApprovalContextRendererIn
             entityUrl: $this->recommendationUrl($primary),
             icon: 'bi-chat-left-text',
             requester: $request->requester->sca_name ?? null,
+            requesterMemberId: (int)$request->requester_id ?: null,
         );
     }
 

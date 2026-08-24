@@ -4,8 +4,11 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Controller;
 
 use App\Controller\AppController;
+use App\KMP\GridColumns\ActionItemsGridColumns;
 use App\Model\Entity\ActionItem;
+use App\Model\Entity\GridView;
 use App\Services\ActionItems\ActionItemCompletionFormRegistry;
+use App\Services\GridViewService;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
@@ -105,6 +108,331 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
 
         $this->assertResponseOk();
         $this->assertResponseContains('Scroll finished');
+    }
+
+    public function testMyTasksGridAllowsCustomViews(): void
+    {
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+
+        $this->get('/action-items/my-tasks-data');
+
+        $this->assertResponseOk();
+        $gridState = $this->viewVariable('gridState');
+        $this->assertTrue($gridState['config']['canAddViews']);
+        $this->assertSame(ActionItem::STATUS_OPEN, $gridState['filters']['active']['status_label']);
+        $this->assertSame(
+            ActionItemsGridColumns::MEMBER_SCOPE_ACTIONABLE,
+            $gridState['filters']['active']['member_scope'],
+        );
+        $this->assertContains('status_label', $gridState['config']['lockedFilters']);
+        $this->assertContains('member_scope', $gridState['config']['lockedFilters']);
+        $this->assertFalse($gridState['filters']['available']['member_scope']['showInFilterMenu']);
+        $this->assertResponseContains('data-action="click->grid-view#saveView"');
+    }
+
+    public function testCustomMyTasksViewPreservesOpenScopeFilters(): void
+    {
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $mine = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, [
+            'title' => 'Inherited Open To-Do Mine',
+            'entity_id' => 999991,
+        ]);
+        $other = $this->makeMemberItem(self::TEST_MEMBER_BRYCE_ID, [
+            'title' => 'Inherited Open To-Do Other',
+            'entity_id' => 999992,
+        ]);
+        $viewName = 'Custom Open To-Dos ' . uniqid();
+        $gridView = $this->createCustomActionItemsView(
+            self::TEST_MEMBER_AGATHA_ID,
+            $viewName,
+            ActionItem::STATUS_OPEN,
+            ActionItemsGridColumns::MEMBER_SCOPE_ACTIONABLE,
+        );
+        $this->assertSame(
+            ['status_label', 'member_scope'],
+            array_column($gridView->getConfigArray()['filters'], 'field'),
+        );
+
+        $this->get('/action-items/my-tasks-data?' . http_build_query([
+            'view_id' => $gridView->id,
+            'search' => 'Inherited Open To-Do',
+        ]));
+
+        $this->assertResponseOk();
+        $rows = array_values(iterator_to_array($this->viewVariable('data')));
+        $rowIds = array_map(static fn($row): int => (int)$row->id, $rows);
+        $this->assertContains((int)$mine->id, $rowIds);
+        $this->assertNotContains((int)$other->id, $rowIds);
+        $gridState = $this->viewVariable('gridState');
+        $this->assertSame((int)$gridView->id, $gridState['view']['currentId']);
+        $this->assertSame($viewName, $gridState['view']['currentName']);
+        $this->assertSame([ActionItem::STATUS_OPEN], $gridState['filters']['active']['status_label']);
+        $this->assertSame(
+            [ActionItemsGridColumns::MEMBER_SCOPE_ACTIONABLE],
+            $gridState['filters']['active']['member_scope'],
+        );
+        $this->assertContains('member_scope', $gridState['config']['lockedFilters']);
+        $this->assertFalse($gridState['filters']['available']['member_scope']['showInFilterMenu']);
+    }
+
+    public function testCustomMyTasksViewPreservesCompletedScopeFilters(): void
+    {
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $mine = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, [
+            'title' => 'Inherited Completed To-Do Mine',
+            'entity_id' => 999993,
+            'status' => ActionItem::STATUS_COMPLETED,
+            'completed_by' => self::TEST_MEMBER_AGATHA_ID,
+            'completed_at' => DateTime::now(),
+        ]);
+        $other = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, [
+            'title' => 'Inherited Completed To-Do Other',
+            'entity_id' => 999994,
+            'status' => ActionItem::STATUS_COMPLETED,
+            'completed_by' => self::TEST_MEMBER_BRYCE_ID,
+            'completed_at' => DateTime::now(),
+        ]);
+        $viewName = 'Custom Completed To-Dos ' . uniqid();
+        $gridView = $this->createCustomActionItemsView(
+            self::TEST_MEMBER_AGATHA_ID,
+            $viewName,
+            ActionItem::STATUS_COMPLETED,
+            ActionItemsGridColumns::MEMBER_SCOPE_COMPLETED_BY_ME,
+        );
+        $this->assertSame(
+            ['status_label', 'member_scope'],
+            array_column($gridView->getConfigArray()['filters'], 'field'),
+        );
+
+        $this->get('/action-items/my-tasks-data?' . http_build_query([
+            'view_id' => $gridView->id,
+            'search' => 'Inherited Completed To-Do',
+        ]));
+
+        $this->assertResponseOk();
+        $rows = array_values(iterator_to_array($this->viewVariable('data')));
+        $rowIds = array_map(static fn($row): int => (int)$row->id, $rows);
+        $this->assertContains((int)$mine->id, $rowIds);
+        $this->assertNotContains((int)$other->id, $rowIds);
+        $gridState = $this->viewVariable('gridState');
+        $this->assertSame((int)$gridView->id, $gridState['view']['currentId']);
+        $this->assertSame($viewName, $gridState['view']['currentName']);
+        $this->assertSame([ActionItem::STATUS_COMPLETED], $gridState['filters']['active']['status_label']);
+        $this->assertSame(
+            [ActionItemsGridColumns::MEMBER_SCOPE_COMPLETED_BY_ME],
+            $gridState['filters']['active']['member_scope'],
+        );
+        $this->assertContains('member_scope', $gridState['config']['lockedFilters']);
+        $this->assertFalse($gridState['filters']['available']['member_scope']['showInFilterMenu']);
+    }
+
+    public function testUpdatingCustomMyTasksViewPreservesLockedScopeFilters(): void
+    {
+        $member = $this->getTableLocator()->get('Members')->get(self::TEST_MEMBER_AGATHA_ID);
+        $gridView = $this->createCustomActionItemsView(
+            self::TEST_MEMBER_AGATHA_ID,
+            'Immutable Open To-Dos ' . uniqid(),
+            ActionItem::STATUS_OPEN,
+            ActionItemsGridColumns::MEMBER_SCOPE_ACTIONABLE,
+        );
+
+        $updated = (new GridViewService())->updateView($gridView->id, [
+            'config' => json_encode([
+                'filters' => [
+                    [
+                        'field' => 'member_scope',
+                        'operator' => 'in',
+                        'value' => [ActionItemsGridColumns::MEMBER_SCOPE_COMPLETED_BY_ME],
+                    ],
+                    [
+                        'field' => 'title',
+                        'operator' => 'in',
+                        'value' => ['User filter'],
+                    ],
+                ],
+            ]),
+        ], $member);
+
+        $this->assertNotFalse($updated);
+        $filters = array_column($updated->getConfigArray()['filters'], null, 'field');
+        $this->assertSame([ActionItem::STATUS_OPEN], $filters['status_label']['value']);
+        $this->assertTrue($filters['status_label']['locked']);
+        $this->assertSame(
+            [ActionItemsGridColumns::MEMBER_SCOPE_ACTIONABLE],
+            $filters['member_scope']['value'],
+        );
+        $this->assertTrue($filters['member_scope']['locked']);
+        $this->assertSame(['User filter'], $filters['title']['value']);
+
+        $this->assertFalse((new GridViewService())->updateView($gridView->id, [
+            'config' => 'null',
+        ], $member));
+    }
+
+    public function testMyTasksGridProvidesDistinctScopedTodoFilterOptions(): void
+    {
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $prefix = 'Scoped Filter ' . uniqid() . ' ';
+        $alphaTitle = $prefix . 'Alpha';
+        $betaTitle = $prefix . 'Beta';
+        $alpha = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, [
+            'title' => $alphaTitle,
+            'entity_id' => 910001,
+        ]);
+        $betaOne = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, [
+            'title' => $betaTitle,
+            'entity_id' => 910002,
+        ]);
+        $betaTwo = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, [
+            'title' => $betaTitle,
+            'entity_id' => 910003,
+        ]);
+        $otherMemberTitle = $prefix . 'Other Member';
+        $this->makeMemberItem(self::TEST_MEMBER_BRYCE_ID, [
+            'title' => $otherMemberTitle,
+            'entity_id' => 910004,
+        ]);
+
+        $this->get('/action-items/my-tasks-data');
+
+        $this->assertResponseOk();
+        $titleOptions = array_values(array_filter(
+            $this->viewVariable('filterOptions')['title'],
+            static fn(array $option): bool => str_starts_with((string)$option['value'], $prefix),
+        ));
+        $this->assertSame([
+            ['value' => $alphaTitle, 'label' => $alphaTitle],
+            ['value' => $betaTitle, 'label' => $betaTitle],
+        ], $titleOptions);
+        $this->assertSame(
+            $this->viewVariable('filterOptions')['title'],
+            $this->viewVariable('gridState')['filters']['available']['title']['options'],
+        );
+        $this->assertNotContains($otherMemberTitle, array_column($titleOptions, 'value'));
+
+        $this->get('/action-items/my-tasks-data?' . http_build_query([
+            'filter' => ['title' => $betaTitle],
+        ]));
+
+        $this->assertResponseOk();
+        $rowIds = $this->currentGridRowIds();
+        $this->assertNotContains((int)$alpha->id, $rowIds);
+        $this->assertContains((int)$betaOne->id, $rowIds);
+        $this->assertContains((int)$betaTwo->id, $rowIds);
+    }
+
+    public function testMyTasksGridFiltersRequiredAndOptionalTodos(): void
+    {
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $required = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, [
+            'title' => 'Required Filter ' . uniqid(),
+            'entity_id' => 920001,
+            'is_gating' => true,
+        ]);
+        $optional = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, [
+            'title' => 'Optional Filter ' . uniqid(),
+            'entity_id' => 920002,
+            'is_gating' => false,
+        ]);
+
+        $this->get('/action-items/my-tasks-data?' . http_build_query([
+            'filter' => ['requirement' => '1'],
+        ]));
+
+        $this->assertResponseOk();
+        $requiredRowIds = $this->currentGridRowIds();
+        $this->assertContains((int)$required->id, $requiredRowIds);
+        $this->assertNotContains((int)$optional->id, $requiredRowIds);
+
+        $this->get('/action-items/my-tasks-data?' . http_build_query([
+            'filter' => ['requirement' => '0'],
+        ]));
+
+        $this->assertResponseOk();
+        $optionalRowIds = $this->currentGridRowIds();
+        $this->assertNotContains((int)$required->id, $optionalRowIds);
+        $this->assertContains((int)$optional->id, $optionalRowIds);
+        $this->assertSame('0', $this->viewVariable('gridState')['filters']['active']['requirement']);
+    }
+
+    public function testMyTasksGridFiltersByGatheringAndNone(): void
+    {
+        $this->authenticateAsMember(self::ADMIN_MEMBER_ID);
+        $assignedBestowal = $this->makeBestowal();
+        $schedule = $this->makeScheduledCourtForAward((int)$assignedBestowal->award_id);
+        $assignedBestowal->gathering_id = $schedule['gathering']->id;
+        TableRegistry::getTableLocator()->get('Awards.Bestowals')->saveOrFail($assignedBestowal);
+        $unassignedBestowal = $this->makeBestowal();
+
+        $assigned = $this->makeMemberItem(self::ADMIN_MEMBER_ID, [
+            'title' => 'Assigned Gathering Filter ' . uniqid(),
+            'entity_id' => (int)$assignedBestowal->id,
+        ]);
+        $unassigned = $this->makeMemberItem(self::ADMIN_MEMBER_ID, [
+            'title' => 'Unassigned Gathering Filter ' . uniqid(),
+            'entity_id' => (int)$unassignedBestowal->id,
+        ]);
+        $generic = $this->makeMemberItem(self::ADMIN_MEMBER_ID, [
+            'entity_type' => 'Members',
+            'entity_id' => self::ADMIN_MEMBER_ID,
+            'title' => 'Generic Gathering Filter ' . uniqid(),
+        ]);
+
+        $this->get('/action-items/my-tasks-data');
+
+        $this->assertResponseOk();
+        $gatheringOptions = $this->viewVariable('filterOptions')['gathering'];
+        $this->assertContains([
+            'value' => ActionItemsGridColumns::NO_GATHERING_FILTER_VALUE,
+            'label' => 'None',
+        ], $gatheringOptions);
+        $this->assertContains([
+            'value' => (string)$schedule['gathering']->id,
+            'label' => (string)$schedule['gathering']->name,
+        ], $gatheringOptions);
+        $this->assertSame(
+            $gatheringOptions,
+            $this->viewVariable('gridState')['filters']['available']['gathering']['options'],
+        );
+
+        $this->configRequest(['headers' => ['Turbo-Frame' => 'action-items-grid-table']]);
+        $this->get('/action-items/my-tasks-data?' . http_build_query([
+            'filter' => ['gathering' => (string)$schedule['gathering']->id],
+        ]));
+
+        $this->assertResponseOk();
+        $this->assertContains(
+            ['value' => (string)$schedule['gathering']->id, 'label' => (string)$schedule['gathering']->name],
+            $this->viewVariable('gridState')['filters']['available']['gathering']['options'],
+        );
+        $assignedRowIds = $this->currentGridRowIds();
+        $this->assertContains((int)$assigned->id, $assignedRowIds);
+        $this->assertNotContains((int)$unassigned->id, $assignedRowIds);
+        $this->assertNotContains((int)$generic->id, $assignedRowIds);
+
+        $this->get('/action-items/my-tasks-data?' . http_build_query([
+            'filter' => ['gathering' => ActionItemsGridColumns::NO_GATHERING_FILTER_VALUE],
+        ]));
+
+        $this->assertResponseOk();
+        $noneRowIds = $this->currentGridRowIds();
+        $this->assertNotContains((int)$assigned->id, $noneRowIds);
+        $this->assertContains((int)$unassigned->id, $noneRowIds);
+        $this->assertContains((int)$generic->id, $noneRowIds);
+
+        $this->get('/action-items/my-tasks-data?' . http_build_query([
+            'filter' => ['gathering' => [
+                (string)$schedule['gathering']->id,
+                ActionItemsGridColumns::NO_GATHERING_FILTER_VALUE,
+            ]],
+        ]));
+
+        $this->assertResponseOk();
+        $combinedRowIds = $this->currentGridRowIds();
+        $this->assertContains((int)$assigned->id, $combinedRowIds);
+        $this->assertContains((int)$unassigned->id, $combinedRowIds);
+        $this->assertContains((int)$generic->id, $combinedRowIds);
+        $this->assertSame($combinedRowIds, array_values(array_unique($combinedRowIds)));
     }
 
     public function testMyTasksGridDataShowsOperationalBestowalDetails(): void
@@ -618,5 +946,50 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
         $this->assertRedirectContains('unauthorized');
         $reloaded = TableRegistry::getTableLocator()->get('ActionItems')->get($item->id);
         $this->assertTrue($reloaded->isOpen());
+    }
+
+    private function createCustomActionItemsView(
+        int $memberId,
+        string $name,
+        string $status,
+        string $memberScope,
+    ): GridView {
+        $currentUser = $this->getTableLocator()->get('Members')->get($memberId);
+        $gridView = (new GridViewService())->createView([
+            'grid_key' => 'Core.actionItems.myTasks',
+            'name' => $name,
+            'config' => json_encode([
+                'filters' => [
+                    [
+                        'field' => 'status_label',
+                        'operator' => 'in',
+                        'value' => [$status],
+                        'locked' => true,
+                    ],
+                    [
+                        'field' => 'member_scope',
+                        'operator' => 'in',
+                        'value' => [$memberScope],
+                        'locked' => true,
+                    ],
+                ],
+                'sort' => [],
+                'columns' => [],
+                'pageSize' => 25,
+            ]),
+        ], $currentUser);
+        $this->assertNotFalse($gridView, 'Failed to create custom My To-Dos grid view');
+
+        return $gridView;
+    }
+
+    /**
+     * @return array<int>
+     */
+    private function currentGridRowIds(): array
+    {
+        $rows = array_values(iterator_to_array($this->viewVariable('data')));
+
+        return array_map(static fn($row): int => (int)$row->id, $rows);
     }
 }

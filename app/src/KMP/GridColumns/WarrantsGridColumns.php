@@ -6,6 +6,9 @@ namespace App\KMP\GridColumns;
 use App\KMP\TimezoneHelper as TzHelper;
 use App\Model\Entity\ActiveWindowBaseEntity;
 use App\Model\Entity\Warrant;
+use Cake\ORM\Query\SelectQuery;
+use DateTime;
+use DateTimeZone;
 
 /**
  * Warrants Grid Column Metadata
@@ -16,6 +19,14 @@ use App\Model\Entity\Warrant;
  */
 class WarrantsGridColumns extends BaseGridColumns
 {
+    public const SCOPE_CURRENT = 'current';
+
+    public const SCOPE_PENDING = 'pending';
+
+    public const SCOPE_UPCOMING = 'upcoming';
+
+    public const SCOPE_PREVIOUS = 'previous';
+
     /**
      * Get column metadata for warrants grid
      */
@@ -137,6 +148,31 @@ class WarrantsGridColumns extends BaseGridColumns
                 ],
             ],
 
+            'warrant_scope' => [
+                'key' => 'warrant_scope',
+                'label' => 'Warrant state',
+                'type' => 'string',
+                'sortable' => false,
+                'filterable' => true,
+                'filterType' => 'dropdown',
+                'defaultVisible' => false,
+                'filterOnly' => true,
+                'lockedFilter' => true,
+                'showInFilterMenu' => false,
+                'exportable' => false,
+                'filterOptions' => [
+                    ['value' => self::SCOPE_CURRENT, 'label' => 'Currently effective'],
+                    ['value' => self::SCOPE_PENDING, 'label' => 'Pending approval'],
+                    ['value' => self::SCOPE_UPCOMING, 'label' => 'Starts in the future'],
+                    ['value' => self::SCOPE_PREVIOUS, 'label' => 'Expired or inactive'],
+                ],
+                'customFilterHandler' => [
+                    'class' => self::class,
+                    'method' => 'applyWarrantScopeFilter',
+                ],
+                'description' => 'Dynamic effective-date and lifecycle scope used by warrant system views',
+            ],
+
             'revoker_id' => [
                 'key' => 'revoker_id',
                 'label' => 'Revoked By',
@@ -163,6 +199,62 @@ class WarrantsGridColumns extends BaseGridColumns
         ];
 
         return $columns;
+    }
+
+    /**
+     * Apply a dynamic, serializable warrant system-view scope.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query Warrants query.
+     * @param mixed $filterValue Saved symbolic filter value.
+     * @param array<string, mixed> $context Grid filter context.
+     * @return \Cake\ORM\Query\SelectQuery Filtered query.
+     */
+    public static function applyWarrantScopeFilter(
+        SelectQuery $query,
+        mixed $filterValue,
+        array $context = [],
+    ): SelectQuery {
+        $values = is_array($filterValue) ? $filterValue : [$filterValue];
+        $value = isset($values[0]) ? (string)$values[0] : '';
+        $kingdomTimezone = TzHelper::getAppTimezone() ?? 'UTC';
+        $today = new DateTime('today', new DateTimeZone($kingdomTimezone));
+        $todayString = $today->format('Y-m-d');
+        $tomorrowString = (clone $today)->modify('+1 day')->format('Y-m-d');
+        $tableName = (string)($context['tableName'] ?? 'Warrants');
+
+        if ($value === self::SCOPE_CURRENT) {
+            return $query->where([
+                $tableName . '.status' => Warrant::CURRENT_STATUS,
+                $tableName . '.start_on <=' => $todayString,
+                $tableName . '.expires_on >=' => $todayString,
+            ]);
+        }
+
+        if ($value === self::SCOPE_PENDING) {
+            return $query->where([$tableName . '.status' => Warrant::PENDING_STATUS]);
+        }
+
+        if ($value === self::SCOPE_UPCOMING) {
+            return $query->where([
+                $tableName . '.status' => Warrant::CURRENT_STATUS,
+                $tableName . '.start_on >=' => $tomorrowString,
+            ]);
+        }
+
+        if ($value === self::SCOPE_PREVIOUS) {
+            return $query->where([
+                'OR' => [
+                    $tableName . '.expires_on <' => $todayString,
+                    $tableName . '.status IN' => [
+                        Warrant::DEACTIVATED_STATUS,
+                        Warrant::EXPIRED_STATUS,
+                        Warrant::DECLINED_STATUS,
+                    ],
+                ],
+            ]);
+        }
+
+        return $query->where(['1 = 0']);
     }
 
     /**
@@ -199,13 +291,6 @@ class WarrantsGridColumns extends BaseGridColumns
      */
     public static function getSystemViews(array $options = []): array
     {
-        // Use kingdom's configured timezone for "today" boundaries
-        $kingdomTz = TzHelper::getAppTimezone() ?? 'UTC';
-        $now = new \DateTime('now', new \DateTimeZone($kingdomTz));
-        $todayString = $now->format('Y-m-d');
-        $tomorrowString = (clone $now)->modify('+1 day')->format('Y-m-d');
-        $yesterdayString = (clone $now)->modify('-1 day')->format('Y-m-d');
-
         return [
             'sys-warrants-current' => [
                 'id' => 'sys-warrants-current',
@@ -214,9 +299,7 @@ class WarrantsGridColumns extends BaseGridColumns
                 'canManage' => false,
                 'config' => [
                     'filters' => [
-                        ['field' => 'status', 'operator' => 'eq', 'value' => Warrant::CURRENT_STATUS],
-                        ['field' => 'start_on', 'operator' => 'dateRange', 'value' => [null, $todayString]],
-                        ['field' => 'expires_on', 'operator' => 'dateRange', 'value' => [$todayString, null]],
+                        ['field' => 'warrant_scope', 'operator' => 'eq', 'value' => self::SCOPE_CURRENT],
                     ],
                 ],
             ],
@@ -227,7 +310,7 @@ class WarrantsGridColumns extends BaseGridColumns
                 'canManage' => false,
                 'config' => [
                     'filters' => [
-                        ['field' => 'status', 'operator' => 'eq', 'value' => Warrant::PENDING_STATUS],
+                        ['field' => 'warrant_scope', 'operator' => 'eq', 'value' => self::SCOPE_PENDING],
                     ],
                 ],
             ],
@@ -238,8 +321,7 @@ class WarrantsGridColumns extends BaseGridColumns
                 'canManage' => false,
                 'config' => [
                     'filters' => [
-                        ['field' => 'status', 'operator' => 'eq', 'value' => Warrant::CURRENT_STATUS],
-                        ['field' => 'start_on', 'operator' => 'dateRange', 'value' => [$tomorrowString, null]],
+                        ['field' => 'warrant_scope', 'operator' => 'eq', 'value' => self::SCOPE_UPCOMING],
                     ],
                 ],
             ],
@@ -250,26 +332,9 @@ class WarrantsGridColumns extends BaseGridColumns
                 'canManage' => false,
                 'config' => [
                     'columns' => ['name', 'member_id', 'start_on', 'expires_on', 'status'],
-                    'expression' => [
-                        'type' => 'OR',
-                        'conditions' => [
-                            ['field' => 'expires_on', 'operator' => 'lt', 'value' => $todayString],
-                            ['field' => 'status', 'operator' => 'in', 'value' => [
-                                Warrant::DEACTIVATED_STATUS,
-                                Warrant::EXPIRED_STATUS,
-                                Warrant::DECLINED_STATUS,
-                            ]],
-                        ],
-                    ],
                     'filters' => [
-                        ['field' => 'status', 'operator' => 'in', 'value' => [
-                            Warrant::DEACTIVATED_STATUS,
-                            Warrant::EXPIRED_STATUS,
-                            Warrant::DECLINED_STATUS,
-                        ]],
-                        ['field' => 'expires_on', 'operator' => 'dateRange', 'value' => [null, $yesterdayString]],
+                        ['field' => 'warrant_scope', 'operator' => 'eq', 'value' => self::SCOPE_PREVIOUS],
                     ],
-                    'skipFilterColumns' => ['status', 'expires_on'],
                 ],
             ],
         ];
