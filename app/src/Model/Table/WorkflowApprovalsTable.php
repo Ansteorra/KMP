@@ -24,6 +24,7 @@ use Throwable;
  *
  * @property \App\Model\Table\WorkflowInstancesTable&\Cake\ORM\Association\BelongsTo $WorkflowInstances
  * @property \App\Model\Table\WorkflowExecutionLogsTable&\Cake\ORM\Association\BelongsTo $WorkflowExecutionLogs
+ * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $RequesterMember
  * @property \App\Model\Table\WorkflowApprovalResponsesTable&\Cake\ORM\Association\HasMany $WorkflowApprovalResponses
  * @property \App\Model\Table\WorkflowApprovalTriageStatesTable&\Cake\ORM\Association\HasMany $WorkflowApprovalTriageStates
  * @method \App\Model\Entity\WorkflowApproval newEmptyEntity()
@@ -78,6 +79,11 @@ class WorkflowApprovalsTable extends BaseTable
         $this->belongsTo('CurrentApprover', [
             'className' => 'Members',
             'foreignKey' => 'current_approver_id',
+            'joinType' => 'LEFT',
+        ]);
+        $this->belongsTo('RequesterMember', [
+            'className' => 'Members',
+            'foreignKey' => 'requester_member_id',
             'joinType' => 'LEFT',
         ]);
 
@@ -158,6 +164,10 @@ class WorkflowApprovalsTable extends BaseTable
             ->allowEmptyString('request_title');
 
         $validator
+            ->integer('requester_member_id')
+            ->allowEmptyString('requester_member_id');
+
+        $validator
             ->integer('version')
             ->notEmptyString('version');
 
@@ -172,23 +182,35 @@ class WorkflowApprovalsTable extends BaseTable
      */
     public function resolveRequestTitleForInstance(WorkflowInstance $instance): ?string
     {
+        return $this->resolveRequestSnapshotForInstance($instance)['request_title'];
+    }
+
+    /**
+     * Resolve the cached approval request fields for a workflow instance.
+     *
+     * @param \App\Model\Entity\WorkflowInstance $instance Workflow instance.
+     * @return array{request_title: string|null, requester_member_id: int|null}
+     */
+    public function resolveRequestSnapshotForInstance(WorkflowInstance $instance): array
+    {
         try {
-            $title = trim(ApprovalContextRendererRegistry::render($instance)->getTitle());
+            $context = ApprovalContextRendererRegistry::render($instance);
         } catch (Throwable $e) {
             Log::warning(sprintf(
-                'WorkflowApprovals: Could not resolve request title for workflow instance %s: %s',
+                'WorkflowApprovals: Could not resolve request snapshot for workflow instance %s: %s',
                 (string)($instance->id ?? 'unknown'),
                 $e->getMessage(),
             ));
 
-            return null;
+            return ['request_title' => null, 'requester_member_id' => null];
         }
 
-        if ($title === '') {
-            return null;
-        }
+        $title = trim($context->getTitle());
 
-        return mb_substr($title, 0, self::REQUEST_TITLE_MAX_LENGTH);
+        return [
+            'request_title' => $title === '' ? null : mb_substr($title, 0, self::REQUEST_TITLE_MAX_LENGTH),
+            'requester_member_id' => $context->getRequesterMemberId(),
+        ];
     }
 
     /**
@@ -199,6 +221,17 @@ class WorkflowApprovalsTable extends BaseTable
      */
     public function resolveRequestTitleForInstanceId(int $instanceId): ?string
     {
+        return $this->resolveRequestSnapshotForInstanceId($instanceId)['request_title'];
+    }
+
+    /**
+     * Resolve the cached approval request fields for a workflow instance ID.
+     *
+     * @param int $instanceId Workflow instance ID.
+     * @return array{request_title: string|null, requester_member_id: int|null}
+     */
+    public function resolveRequestSnapshotForInstanceId(int $instanceId): array
+    {
         try {
             $instance = TableRegistry::getTableLocator()
                 ->get('WorkflowInstances')
@@ -207,19 +240,19 @@ class WorkflowApprovalsTable extends BaseTable
                 ->first();
         } catch (Throwable $e) {
             Log::warning(sprintf(
-                'WorkflowApprovals: Could not load workflow instance %d for request title: %s',
+                'WorkflowApprovals: Could not load workflow instance %d for request snapshot: %s',
                 $instanceId,
                 $e->getMessage(),
             ));
 
-            return null;
+            return ['request_title' => null, 'requester_member_id' => null];
         }
 
         if (!$instance instanceof WorkflowInstance) {
-            return null;
+            return ['request_title' => null, 'requester_member_id' => null];
         }
 
-        return $this->resolveRequestTitleForInstance($instance);
+        return $this->resolveRequestSnapshotForInstance($instance);
     }
 
     /**
@@ -232,6 +265,10 @@ class WorkflowApprovalsTable extends BaseTable
         ]);
         $rules->add($rules->existsIn(['execution_log_id'], 'WorkflowExecutionLogs'), [
             'errorField' => 'execution_log_id',
+        ]);
+        $rules->add($rules->existsIn(['requester_member_id'], 'RequesterMember'), [
+            'errorField' => 'requester_member_id',
+            'allowNullableNulls' => true,
         ]);
 
         return $rules;

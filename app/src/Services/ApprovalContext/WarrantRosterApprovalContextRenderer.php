@@ -1,12 +1,13 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services\ApprovalContext;
 
+use App\Model\Entity\WarrantRoster;
 use App\Model\Entity\WorkflowInstance;
 use Cake\ORM\TableRegistry;
 use Cake\Routing\Router;
+use Throwable;
 
 /**
  * Provides rich display context for warrant roster approvals
@@ -48,8 +49,8 @@ class WarrantRosterApprovalContextRenderer implements ApprovalContextRendererInt
         $title = __('Warrant Roster: {0}', $rosterName);
 
         $description = $creatorName
-            ? __("{0} submitted {1} warrant(s) for approval", $creatorName, $warrantCount)
-            : __("{0} warrant(s) submitted for approval", $warrantCount);
+            ? __('{0} submitted {1} warrant(s) for approval', $creatorName, $warrantCount)
+            : __('{0} warrant(s) submitted for approval', $warrantCount);
 
         $fields = [
             ['label' => __('Roster Name'), 'value' => (string)$rosterName],
@@ -68,6 +69,7 @@ class WarrantRosterApprovalContextRenderer implements ApprovalContextRendererInt
             entityUrl: $entityUrl,
             icon: 'bi-file-earmark-check',
             requester: $creatorName,
+            requesterMemberId: $creatorName === null ? null : (int)$roster->created_by,
         );
     }
 
@@ -77,7 +79,7 @@ class WarrantRosterApprovalContextRenderer implements ApprovalContextRendererInt
      * @param int|null $rosterId Roster ID.
      * @return \App\Model\Entity\WarrantRoster|null
      */
-    private function loadRoster(?int $rosterId): ?\App\Model\Entity\WarrantRoster
+    private function loadRoster(?int $rosterId): ?WarrantRoster
     {
         if ($rosterId === null) {
             return null;
@@ -89,7 +91,7 @@ class WarrantRosterApprovalContextRenderer implements ApprovalContextRendererInt
                 ->find()
                 ->where(['WarrantRosters.id' => $rosterId])
                 ->first();
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             return null;
         }
     }
@@ -112,7 +114,7 @@ class WarrantRosterApprovalContextRenderer implements ApprovalContextRendererInt
                 ->find()
                 ->where(['warrant_roster_id' => $rosterId])
                 ->count();
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             return 0;
         }
     }
@@ -120,7 +122,7 @@ class WarrantRosterApprovalContextRenderer implements ApprovalContextRendererInt
     /**
      * Load creator SCA name by member ID.
      *
-     * @param int|string|null $memberId Member ID.
+     * @param string|int|null $memberId Member ID.
      * @return string|null
      */
     private function loadCreatorName(int|string|null $memberId): ?string
@@ -140,7 +142,7 @@ class WarrantRosterApprovalContextRenderer implements ApprovalContextRendererInt
             if ($member) {
                 return $member->sca_name;
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             // Fallback on DB/table errors
         }
 
@@ -150,7 +152,7 @@ class WarrantRosterApprovalContextRenderer implements ApprovalContextRendererInt
     /**
      * Build a URL to the warrant roster view.
      *
-     * @param int|string|null $rosterId Roster ID.
+     * @param string|int|null $rosterId Roster ID.
      * @return string|null
      */
     private function buildEntityUrl(int|string|null $rosterId): ?string
@@ -165,7 +167,7 @@ class WarrantRosterApprovalContextRenderer implements ApprovalContextRendererInt
                 'action' => 'view',
                 $rosterId,
             ]);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             return null;
         }
     }

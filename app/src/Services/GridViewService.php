@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\KMP\GridViewConfig;
 use App\Model\Entity\GridView;
 use App\Model\Entity\Member;
 use App\Model\Table\GridViewPreferencesTable;
@@ -228,6 +229,19 @@ class GridViewService
 
         if (!$view || $view->member_id !== $member->id) {
             return false; // Not found or not owner
+        }
+
+        if (isset($data['config'])) {
+            $incomingConfig = is_string($data['config'])
+                ? json_decode($data['config'], true)
+                : $data['config'];
+            if (!is_array($incomingConfig)) {
+                return false;
+            }
+            $data['config'] = json_encode(GridViewConfig::preserveLockedFilters(
+                $view->getConfigArray(),
+                $incomingConfig,
+            ));
         }
 
         // Don't allow changing critical fields

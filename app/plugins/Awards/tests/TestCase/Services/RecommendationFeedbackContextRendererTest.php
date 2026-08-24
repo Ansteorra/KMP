@@ -95,6 +95,7 @@ class RecommendationFeedbackContextRendererTest extends BaseTestCase
         $this->assertStringContainsString('Second Submitter', $fieldText);
         $this->assertStringContainsString('Second grouped recommendation reason.', $fieldText);
         $this->assertStringContainsString('Please comment on the full group.', $fieldText);
+        $this->assertSame(self::ADMIN_MEMBER_ID, $context->getRequesterMemberId());
     }
 
     public function testRecommendationApprovalContextIncludesRecommendationDetailsAndSourceUrl(): void
@@ -130,5 +131,90 @@ class RecommendationFeedbackContextRendererTest extends BaseTestCase
         $this->assertStringContainsString((string)$recommendation->award->name, $fieldText);
         $this->assertStringContainsString((string)$recommendation->branch->name, $fieldText);
         $this->assertStringContainsString('/awards/recommendations/view/' . $recommendation->id, $context->getEntityUrl());
+        $this->assertSame((int)$recommendation->requester_id, $context->getRequesterMemberId());
+    }
+
+    public function testRecommendationApprovalContextLeavesPublicRequesterMemberIdNull(): void
+    {
+        Router::reload();
+        $builder = Router::createRouteBuilder('/');
+        $builder->setRouteClass(DashedRoute::class);
+        (new AwardsPlugin())->routes($builder);
+
+        $recommendations = $this->getTableLocator()->get('Awards.Recommendations');
+        $recommendation = $recommendations
+            ->find()
+            ->orderByAsc('Recommendations.id')
+            ->firstOrFail();
+        $recommendations->updateAll([
+            'requester_id' => null,
+            'requester_sca_name' => 'External Recommender',
+        ], ['id' => $recommendation->id]);
+
+        $renderer = new RecommendationApprovalContextRenderer();
+        $instance = new WorkflowInstance([
+            'entity_type' => 'Awards.Recommendations',
+            'entity_id' => $recommendation->id,
+            'started_at' => DateTime::now(),
+        ]);
+
+        $context = $renderer->render($instance);
+
+        $this->assertSame('External Recommender', $context->getRequester());
+        $this->assertNull($context->getRequesterMemberId());
+    }
+
+    public function testRecommendationApprovalRunContextUsesRecommendationRequester(): void
+    {
+        Router::reload();
+        $builder = Router::createRouteBuilder('/');
+        $builder->setRouteClass(DashedRoute::class);
+        (new AwardsPlugin())->routes($builder);
+
+        $recommendation = $this->getTableLocator()->get('Awards.Recommendations')
+            ->find()
+            ->orderByAsc('Recommendations.id')
+            ->firstOrFail();
+        $workflowDefinitions = $this->getTableLocator()->get('WorkflowDefinitions');
+        $workflowDefinition = $workflowDefinitions->saveOrFail($workflowDefinitions->newEntity([
+            'name' => 'Recommendation renderer test ' . uniqid(),
+            'slug' => 'recommendation-renderer-test-' . uniqid(),
+            'trigger_type' => 'manual',
+            'is_active' => true,
+        ]));
+        $workflowVersions = $this->getTableLocator()->get('WorkflowVersions');
+        $workflowVersion = $workflowVersions->saveOrFail($workflowVersions->newEntity([
+            'workflow_definition_id' => $workflowDefinition->id,
+            'version_number' => 1,
+            'definition' => ['nodes' => []],
+            'status' => 'published',
+        ]));
+        $workflowInstances = $this->getTableLocator()->get('WorkflowInstances');
+        $workflowInstance = $workflowInstances->saveOrFail($workflowInstances->newEntity([
+            'workflow_definition_id' => $workflowDefinition->id,
+            'workflow_version_id' => $workflowVersion->id,
+            'status' => 'waiting',
+        ]));
+        $approvalProcesses = $this->getTableLocator()->get('Awards.ApprovalProcesses');
+        $approvalProcess = $approvalProcesses->saveOrFail($approvalProcesses->newEntity([
+            'name' => 'Recommendation renderer test ' . uniqid(),
+            'is_active' => true,
+        ]));
+        $approvalRuns = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns');
+        $approvalRuns->saveOrFail($approvalRuns->newEntity([
+            'recommendation_id' => $recommendation->id,
+            'approval_process_id' => $approvalProcess->id,
+            'workflow_instance_id' => $workflowInstance->id,
+            'status' => 'in_progress',
+            'started' => DateTime::now(),
+        ]));
+        $workflowInstance->entity_type = 'Awards.RecommendationApprovalRuns';
+        $workflowInstance->entity_id = null;
+
+        $renderer = new RecommendationApprovalContextRenderer();
+        $context = $renderer->render($workflowInstance);
+
+        $this->assertTrue($renderer->canRender($workflowInstance));
+        $this->assertSame((int)$recommendation->requester_id, $context->getRequesterMemberId());
     }
 }

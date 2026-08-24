@@ -159,7 +159,6 @@ class RecommendationsController extends AppController
             $user->checkCan('edit', $emptyRecommendation),
             $queryContext->loadsColumn('notes'),
             $queryContext->queryVisibleColumns(),
-            (int)$user->id,
         );
         $baseQuery = $built['query'];
         $baseQuery = $queryService->applyHiddenStateVisibility($baseQuery, $canViewHidden);
@@ -3011,8 +3010,7 @@ class RecommendationsController extends AppController
      */
     private function filterRecommendationRowActionsForGridResult(array $rowActions, array $gridResult): array
     {
-        $currentViewId = $gridResult['gridState']['view']['currentId'] ?? null;
-        if ($currentViewId !== 'sys-recs-archived') {
+        if (!$this->isArchivedRecommendationResult($gridResult)) {
             return $rowActions;
         }
 
@@ -3025,14 +3023,27 @@ class RecommendationsController extends AppController
      */
     private function filterRecommendationGridActionsForResult(array $gridResult): array
     {
-        $currentViewId = $gridResult['gridState']['view']['currentId'] ?? null;
-        if ($currentViewId !== 'sys-recs-archived') {
+        if (!$this->isArchivedRecommendationResult($gridResult)) {
             return $gridResult;
         }
 
         $gridResult['gridState']['config']['bulkActions'] = [];
 
         return $gridResult;
+    }
+
+    /**
+     * Check the semantic archived filter so copied views keep archived-only actions.
+     *
+     * @param array<string, mixed> $gridResult Processed grid result.
+     * @return bool Whether the result is scoped to archived recommendations.
+     */
+    private function isArchivedRecommendationResult(array $gridResult): bool
+    {
+        $stage = $gridResult['gridState']['filters']['active']['recommendation_stage'] ?? null;
+        $stages = is_array($stage) ? $stage : [$stage];
+
+        return in_array(RecommendationsGridColumns::RECOMMENDATION_STAGE_ARCHIVED, $stages, true);
     }
 
     /**

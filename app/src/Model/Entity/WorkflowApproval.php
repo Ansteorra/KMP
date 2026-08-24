@@ -24,6 +24,7 @@ namespace App\Model\Entity;
  * @property string|null $approver_lookup_branch_type
  * @property int|null $approver_lookup_context_id
  * @property string|null $request_title
+ * @property int|null $requester_member_id
  * @property int $required_count
  * @property int $approved_count
  * @property int $rejected_count
@@ -38,6 +39,7 @@ namespace App\Model\Entity;
  *
  * @property \App\Model\Entity\WorkflowInstance $workflow_instance
  * @property \App\Model\Entity\WorkflowExecutionLog $workflow_execution_log
+ * @property \App\Model\Entity\Member|null $requester_member
  * @property \App\Model\Entity\WorkflowApprovalResponse[] $workflow_approval_responses
  * @property \App\Model\Entity\WorkflowApprovalTriageState[] $workflow_approval_triage_states
  */
@@ -75,6 +77,7 @@ class WorkflowApproval extends BaseEntity
         'approver_lookup_branch_type' => true,
         'approver_lookup_context_id' => true,
         'request_title' => true,
+        'requester_member_id' => true,
         'required_count' => true,
         'approved_count' => true,
         'rejected_count' => true,

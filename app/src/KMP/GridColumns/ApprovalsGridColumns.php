@@ -4,6 +4,11 @@ declare(strict_types=1);
 namespace App\KMP\GridColumns;
 
 use App\Model\Entity\WorkflowApproval;
+use App\Model\Table\WorkflowApprovalsTable;
+use Cake\Core\Plugin;
+use Cake\Database\Expression\QueryExpression;
+use Cake\ORM\Query\SelectQuery;
+use Cake\ORM\TableRegistry;
 
 /**
  * Approvals Grid Column Metadata
@@ -14,6 +19,10 @@ use App\Model\Entity\WorkflowApproval;
 class ApprovalsGridColumns extends BaseGridColumns
 {
     private const CANCELLATION_REASON_PROCESS_RESTARTED = 'approval_process_restarted';
+
+    public const MEMBER_SCOPE_AWAITING_RESPONSE = 'awaiting_response';
+
+    public const MEMBER_SCOPE_RESPONDED = 'responded';
 
     /**
      * Column definitions for approval grids.
@@ -54,14 +63,22 @@ class ApprovalsGridColumns extends BaseGridColumns
             'requester' => [
                 'key' => 'requester',
                 'label' => 'Requester',
-                'type' => 'string',
-                'sortable' => false,
-                'filterable' => false,
-                'searchable' => false,
+                'type' => 'relation',
+                'sortable' => true,
+                'filterable' => true,
+                'filterType' => 'dropdown',
+                'filterOptionsSource' => [
+                    'table' => 'Members',
+                    'valueField' => 'id',
+                    'labelField' => 'sca_name',
+                    'order' => ['sca_name' => 'ASC'],
+                ],
+                'searchable' => true,
                 'defaultVisible' => true,
                 'width' => '150px',
                 'alignment' => 'left',
-                'skipAutoFilter' => true,
+                'queryField' => 'RequesterMember.sca_name',
+                'filterQueryField' => 'WorkflowApprovals.requester_member_id',
             ],
 
             'current_approver' => [
@@ -97,6 +114,30 @@ class ApprovalsGridColumns extends BaseGridColumns
                 ],
             ],
 
+            'member_scope' => [
+                'key' => 'member_scope',
+                'label' => 'Your involvement',
+                'type' => 'string',
+                'sortable' => false,
+                'filterable' => true,
+                'filterType' => 'dropdown',
+                'searchable' => false,
+                'defaultVisible' => false,
+                'filterOnly' => true,
+                'lockedFilter' => true,
+                'showInFilterMenu' => false,
+                'exportable' => false,
+                'filterOptions' => [
+                    ['value' => self::MEMBER_SCOPE_AWAITING_RESPONSE, 'label' => 'Awaiting your response'],
+                    ['value' => self::MEMBER_SCOPE_RESPONDED, 'label' => 'You responded'],
+                ],
+                'customFilterHandler' => [
+                    'class' => self::class,
+                    'method' => 'applyMemberScopeFilter',
+                ],
+                'description' => 'Current member relationship used by My Approvals system views',
+            ],
+
             'created' => [
                 'key' => 'created',
                 'label' => 'Created',
@@ -121,6 +162,70 @@ class ApprovalsGridColumns extends BaseGridColumns
                 'filterType' => 'date-range',
             ],
         ];
+    }
+
+    /**
+     * Apply a symbolic current-member scope stored with system and custom views.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query Workflow approvals query.
+     * @param mixed $filterValue Saved symbolic filter value.
+     * @param array<string, mixed> $context Grid filter context.
+     * @return \Cake\ORM\Query\SelectQuery Filtered query.
+     */
+    public static function applyMemberScopeFilter(
+        SelectQuery $query,
+        mixed $filterValue,
+        array $context = [],
+    ): SelectQuery {
+        $values = is_array($filterValue) ? $filterValue : [$filterValue];
+        $value = isset($values[0]) ? (string)$values[0] : '';
+        $identity = $context['identity'] ?? null;
+        $memberId = is_object($identity) && method_exists($identity, 'getIdentifier')
+            ? (int)$identity->getIdentifier()
+            : (is_object($identity) ? (int)($identity->id ?? 0) : 0);
+        if ($memberId <= 0) {
+            return $query->where(['1 = 0']);
+        }
+
+        if ($value === self::MEMBER_SCOPE_AWAITING_RESPONSE) {
+            $eligibleIds = WorkflowApprovalsTable::getPendingApprovalIdsForMember($memberId);
+
+            return $eligibleIds === []
+                ? $query->where(['1 = 0'])
+                : $query->where(['WorkflowApprovals.id IN' => $eligibleIds]);
+        }
+
+        if ($value === self::MEMBER_SCOPE_RESPONDED) {
+            $responses = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
+            $memberResponses = $responses->find()
+                ->select([$responses->aliasField('id')])
+                ->where([$responses->aliasField('member_id') => $memberId])
+                ->where(function (QueryExpression $exp) use ($responses) {
+                    return $exp->equalFields(
+                        $responses->aliasField('workflow_approval_id'),
+                        'WorkflowApprovals.id',
+                    );
+                });
+            $query->where(fn(QueryExpression $exp) => $exp->exists($memberResponses));
+
+            if (Plugin::isLoaded('Awards')) {
+                $feedback = TableRegistry::getTableLocator()
+                    ->get('Awards.RecommendationFeedbackRequestRecipients');
+                $feedbackRecipients = $feedback->find()
+                    ->select([$feedback->aliasField('id')])
+                    ->where(function (QueryExpression $exp) use ($feedback) {
+                        return $exp->equalFields(
+                            $feedback->aliasField('workflow_approval_id'),
+                            'WorkflowApprovals.id',
+                        );
+                    });
+                $query->where(fn(QueryExpression $exp) => $exp->notExists($feedbackRecipients));
+            }
+
+            return $query;
+        }
+
+        return $query->where(['1 = 0']);
     }
 
     /**
@@ -321,6 +426,11 @@ class ApprovalsGridColumns extends BaseGridColumns
                 'config' => [
                     'filters' => [
                         ['field' => 'status_label', 'operator' => 'eq', 'value' => WorkflowApproval::STATUS_PENDING],
+                        [
+                            'field' => 'member_scope',
+                            'operator' => 'eq',
+                            'value' => self::MEMBER_SCOPE_AWAITING_RESPONSE,
+                        ],
                     ],
                 ],
             ],
@@ -333,6 +443,11 @@ class ApprovalsGridColumns extends BaseGridColumns
                 'config' => [
                     'filters' => [
                         ['field' => 'status_label', 'operator' => 'eq', 'value' => WorkflowApproval::STATUS_PENDING],
+                        [
+                            'field' => 'member_scope',
+                            'operator' => 'eq',
+                            'value' => self::MEMBER_SCOPE_AWAITING_RESPONSE,
+                        ],
                     ],
                     'columns' => [
                         ['key' => 'request', 'visible' => true, 'order' => 0],
@@ -359,6 +474,11 @@ class ApprovalsGridColumns extends BaseGridColumns
                                 WorkflowApproval::STATUS_EXPIRED,
                                 WorkflowApproval::STATUS_CANCELLED,
                             ],
+                        ],
+                        [
+                            'field' => 'member_scope',
+                            'operator' => 'eq',
+                            'value' => self::MEMBER_SCOPE_RESPONDED,
                         ],
                     ],
                 ],

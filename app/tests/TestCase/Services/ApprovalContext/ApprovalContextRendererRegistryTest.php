@@ -121,6 +121,7 @@ class ApprovalContextRendererRegistryTest extends BaseTestCase
             entityUrl: '/awards/view/7',
             icon: 'bi-trophy',
             requester: 'John Smith',
+            requesterMemberId: self::ADMIN_MEMBER_ID,
         );
 
         $array = $context->toArray();
@@ -132,6 +133,7 @@ class ApprovalContextRendererRegistryTest extends BaseTestCase
         $this->assertSame('/awards/view/7', $array['entityUrl']);
         $this->assertSame('bi-trophy', $array['icon']);
         $this->assertSame('John Smith', $array['requester']);
+        $this->assertSame(self::ADMIN_MEMBER_ID, $array['requesterMemberId']);
     }
 
     public function testApprovalContextImmutability(): void
@@ -143,6 +145,7 @@ class ApprovalContextRendererRegistryTest extends BaseTestCase
             entityUrl: '/test/1',
             icon: 'bi-star',
             requester: 'Tester',
+            requesterMemberId: self::ADMIN_MEMBER_ID,
         );
 
         $this->assertSame('Test Title', $context->getTitle());
@@ -151,6 +154,7 @@ class ApprovalContextRendererRegistryTest extends BaseTestCase
         $this->assertSame('/test/1', $context->getEntityUrl());
         $this->assertSame('bi-star', $context->getIcon());
         $this->assertSame('Tester', $context->getRequester());
+        $this->assertSame(self::ADMIN_MEMBER_ID, $context->getRequesterMemberId());
 
         // Calling getters again returns the same values (readonly properties)
         $this->assertSame($context->getTitle(), $context->getTitle());
@@ -171,6 +175,7 @@ class ApprovalContextRendererRegistryTest extends BaseTestCase
         $this->assertNull($context->getEntityUrl());
         $this->assertSame('bi-question-circle', $context->getIcon());
         $this->assertNull($context->getRequester());
+        $this->assertNull($context->getRequesterMemberId());
     }
 
     public function testUnregisterRemovesRenderer(): void

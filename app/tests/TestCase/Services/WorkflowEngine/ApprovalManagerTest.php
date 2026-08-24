@@ -6,6 +6,9 @@ namespace App\Test\TestCase\Services\WorkflowEngine;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowApprovalResponse;
 use App\Model\Table\WorkflowApprovalsTable;
+use App\Services\ApprovalContext\ApprovalContext;
+use App\Services\ApprovalContext\ApprovalContextRendererInterface;
+use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
 use App\Services\WorkflowEngine\DefaultWorkflowApprovalManager;
 use App\Test\TestCase\BaseTestCase;
 use Cake\Core\ContainerInterface;
@@ -117,6 +120,33 @@ class ApprovalManagerTest extends BaseTestCase
 
         $approval = $this->approvalsTable->get($approvalId);
         $this->assertNotNull($approval->deadline);
+    }
+
+    public function testCreateApprovalSnapshotsRequesterContext(): void
+    {
+        [, $instanceId, $logId] = $this->createWorkflowContext();
+        $renderer = $this->createMock(ApprovalContextRendererInterface::class);
+        $renderer->method('canRender')->willReturn(true);
+        $renderer->expects($this->once())
+            ->method('render')
+            ->willReturn(new ApprovalContext(
+                title: 'Requester snapshot approval',
+                description: 'Snapshot requester context once.',
+                requester: 'Admin von Admin',
+                requesterMemberId: self::ADMIN_MEMBER_ID,
+            ));
+        ApprovalContextRendererRegistry::register('ApprovalManagerRequesterSnapshotTest', $renderer);
+
+        try {
+            $approvalId = $this->createApproval($instanceId, $logId);
+            $approval = $this->approvalsTable->get($approvalId, contain: ['RequesterMember']);
+
+            $this->assertSame('Requester snapshot approval', $approval->request_title);
+            $this->assertSame(self::ADMIN_MEMBER_ID, $approval->requester_member_id);
+            $this->assertSame(self::ADMIN_MEMBER_ID, (int)$approval->requester_member->id);
+        } finally {
+            ApprovalContextRendererRegistry::unregister('ApprovalManagerRequesterSnapshotTest');
+        }
     }
 
     // =====================================================

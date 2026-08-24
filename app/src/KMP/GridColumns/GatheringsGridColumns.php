@@ -15,6 +15,14 @@ use DateTimeZone;
  */
 class GatheringsGridColumns extends BaseGridColumns
 {
+    public const SCHEDULE_WINDOW_THIS_MONTH = 'this_month';
+
+    public const SCHEDULE_WINDOW_NEXT_MONTH = 'next_month';
+
+    public const SCHEDULE_WINDOW_FUTURE = 'future';
+
+    public const SCHEDULE_WINDOW_PREVIOUS = 'previous';
+
     /**
      * Compute key month boundaries in both local and UTC timezones.
      *
@@ -207,6 +215,31 @@ class GatheringsGridColumns extends BaseGridColumns
                 ],
             ],
 
+            'schedule_window' => [
+                'key' => 'schedule_window',
+                'label' => 'Schedule',
+                'type' => 'string',
+                'sortable' => false,
+                'filterable' => true,
+                'filterType' => 'dropdown',
+                'filterOptions' => [
+                    ['value' => self::SCHEDULE_WINDOW_THIS_MONTH, 'label' => 'Overlaps this month'],
+                    ['value' => self::SCHEDULE_WINDOW_NEXT_MONTH, 'label' => 'Overlaps next month'],
+                    ['value' => self::SCHEDULE_WINDOW_FUTURE, 'label' => 'Starts after next month'],
+                    ['value' => self::SCHEDULE_WINDOW_PREVIOUS, 'label' => 'Ended before this month'],
+                ],
+                'defaultVisible' => false,
+                'filterOnly' => true,
+                'lockedFilter' => true,
+                'showInFilterMenu' => false,
+                'exportable' => false,
+                'customFilterHandler' => [
+                    'class' => self::class,
+                    'method' => 'filterByScheduleWindow',
+                ],
+                'description' => 'Dynamic calendar window used by gathering system views',
+            ],
+
             'location' => [
                 'key' => 'location',
                 'label' => 'Location',
@@ -361,6 +394,59 @@ class GatheringsGridColumns extends BaseGridColumns
     }
 
     /**
+     * Apply a dynamic, serializable calendar window for gathering system views.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query Gatherings query.
+     * @param mixed $filterValue Saved symbolic filter value.
+     * @param array<string, mixed> $context Grid filter context.
+     * @return \Cake\ORM\Query\SelectQuery Filtered query.
+     */
+    public static function filterByScheduleWindow(
+        SelectQuery $query,
+        mixed $filterValue,
+        array $context = [],
+    ): SelectQuery {
+        $values = is_array($filterValue) ? $filterValue : [$filterValue];
+        $value = isset($values[0]) ? (string)$values[0] : '';
+        $userTimezone = TimezoneHelper::getUserTimezone($context['identity'] ?? null);
+        $boundaries = self::getSystemViewDateBoundaries($userTimezone);
+        $tableName = (string)($context['tableName'] ?? 'Gatherings');
+
+        if (in_array($value, [self::SCHEDULE_WINDOW_THIS_MONTH, self::SCHEDULE_WINDOW_NEXT_MONTH], true)) {
+            $prefix = $value === self::SCHEDULE_WINDOW_THIS_MONTH ? 'thisMonth' : 'nextMonth';
+            $start = $boundaries[$prefix . 'StartUtc'];
+            $end = $boundaries[$prefix . 'EndUtc'];
+
+            return $query->where([
+                'OR' => [
+                    [
+                        $tableName . '.start_date >=' => $start,
+                        $tableName . '.start_date <=' => $end,
+                    ],
+                    [
+                        $tableName . '.end_date >=' => $start,
+                        $tableName . '.end_date <=' => $end,
+                    ],
+                    [
+                        $tableName . '.start_date <' => $start,
+                        $tableName . '.end_date >' => $end,
+                    ],
+                ],
+            ]);
+        }
+
+        if ($value === self::SCHEDULE_WINDOW_FUTURE) {
+            return $query->where([$tableName . '.start_date >' => $boundaries['nextMonthEndUtc']]);
+        }
+
+        if ($value === self::SCHEDULE_WINDOW_PREVIOUS) {
+            return $query->where([$tableName . '.end_date <' => $boundaries['previousCutoffUtc']]);
+        }
+
+        return $query->where(['1 = 0']);
+    }
+
+    /**
      * System views for gatherings dv_grid.
      *
      * @param array<string, mixed> $options
@@ -368,9 +454,6 @@ class GatheringsGridColumns extends BaseGridColumns
      */
     public static function getSystemViews(array $options = []): array
     {
-        $userTimezone = (string)($options['timezone'] ?? 'UTC');
-        $boundaries = self::getSystemViewDateBoundaries($userTimezone);
-
         return [
             'sys-gatherings-this-month' => [
                 'id' => 'sys-gatherings-this-month',
@@ -380,15 +463,11 @@ class GatheringsGridColumns extends BaseGridColumns
                 'config' => [
                     'filters' => [
                         [
-                            'field' => 'start_date',
-                            'operator' => 'dateRange',
-                            'value' => [
-                                $boundaries['thisMonthStartLocal'],
-                                $boundaries['thisMonthEndLocal'],
-                            ],
+                            'field' => 'schedule_window',
+                            'operator' => 'eq',
+                            'value' => self::SCHEDULE_WINDOW_THIS_MONTH,
                         ],
                     ],
-                    'skipFilterColumns' => ['start_date', 'end_date'],
                 ],
             ],
             'sys-gatherings-next-month' => [
@@ -399,15 +478,11 @@ class GatheringsGridColumns extends BaseGridColumns
                 'config' => [
                     'filters' => [
                         [
-                            'field' => 'start_date',
-                            'operator' => 'dateRange',
-                            'value' => [
-                                $boundaries['nextMonthStartLocal'],
-                                $boundaries['nextMonthEndLocal'],
-                            ],
+                            'field' => 'schedule_window',
+                            'operator' => 'eq',
+                            'value' => self::SCHEDULE_WINDOW_NEXT_MONTH,
                         ],
                     ],
-                    'skipFilterColumns' => ['start_date', 'end_date'],
                 ],
             ],
             'sys-gatherings-future' => [
@@ -417,9 +492,12 @@ class GatheringsGridColumns extends BaseGridColumns
                 'canManage' => false,
                 'config' => [
                     'filters' => [
-                        ['field' => 'start_date', 'operator' => 'gte', 'value' => $boundaries['nextMonthEndLocal']],
+                        [
+                            'field' => 'schedule_window',
+                            'operator' => 'eq',
+                            'value' => self::SCHEDULE_WINDOW_FUTURE,
+                        ],
                     ],
-                    'skipFilterColumns' => ['start_date'],
                 ],
             ],
             'sys-gatherings-previous' => [
@@ -429,9 +507,12 @@ class GatheringsGridColumns extends BaseGridColumns
                 'canManage' => false,
                 'config' => [
                     'filters' => [
-                        ['field' => 'end_date', 'operator' => 'lt', 'value' => $boundaries['thisMonthStartLocal']],
+                        [
+                            'field' => 'schedule_window',
+                            'operator' => 'eq',
+                            'value' => self::SCHEDULE_WINDOW_PREVIOUS,
+                        ],
                     ],
-                    'skipFilterColumns' => ['end_date'],
                 ],
             ],
         ];

@@ -76,11 +76,15 @@ class GridViewConfig
         if (isset($config['filters']) && is_array($config['filters'])) {
             foreach ($config['filters'] as $filter) {
                 if (self::isValidFilter($filter, $availableColumns)) {
-                    $normalized['filters'][] = [
+                    $normalizedFilter = [
                         'field' => $filter['field'],
                         'operator' => $filter['operator'],
                         'value' => $filter['value'] ?? null,
                     ];
+                    if (($filter['locked'] ?? null) === true) {
+                        $normalizedFilter['locked'] = true;
+                    }
+                    $normalized['filters'][] = $normalizedFilter;
                 }
             }
         }
@@ -120,6 +124,74 @@ class GridViewConfig
         }
 
         return $normalized;
+    }
+
+    /**
+     * Restore immutable filters from an existing saved view into an update.
+     *
+     * Locked filters are ordinary saved filters with a persisted marker. This
+     * lets copies remain self-contained while preventing a later update from
+     * changing or omitting their canonical values.
+     *
+     * @param array<string, mixed> $existingConfig Existing saved configuration.
+     * @param array<string, mixed> $incomingConfig Proposed replacement configuration.
+     * @return array<string, mixed> Configuration with existing locked filters restored.
+     */
+    public static function preserveLockedFilters(array $existingConfig, array $incomingConfig): array
+    {
+        $existingFilters = $existingConfig['filters'] ?? [];
+        if (!is_array($existingFilters)) {
+            return $incomingConfig;
+        }
+
+        $lockedByField = [];
+        foreach ($existingFilters as $filter) {
+            if (
+                is_array($filter)
+                && ($filter['locked'] ?? null) === true
+                && isset($filter['field'])
+            ) {
+                $lockedByField[(string)$filter['field']][] = $filter;
+            }
+        }
+
+        if ($lockedByField === []) {
+            return $incomingConfig;
+        }
+
+        $filters = [];
+        $restored = [];
+        $incomingFilters = $incomingConfig['filters'] ?? [];
+        if (!is_array($incomingFilters)) {
+            $incomingFilters = [];
+        }
+        foreach ($incomingFilters as $filter) {
+            if (!is_array($filter) || !isset($filter['field'])) {
+                $filters[] = $filter;
+                continue;
+            }
+
+            $field = (string)$filter['field'];
+            if (!isset($lockedByField[$field])) {
+                $filters[] = $filter;
+                continue;
+            }
+
+            if (!isset($restored[$field])) {
+                array_push($filters, ...$lockedByField[$field]);
+                $restored[$field] = true;
+            }
+        }
+
+        foreach ($lockedByField as $field => $fieldFilters) {
+            if (!isset($restored[$field])) {
+                array_push($filters, ...$fieldFilters);
+            }
+        }
+
+        $incomingConfig['filters'] = $filters;
+
+        return $incomingConfig;
     }
 
     /**

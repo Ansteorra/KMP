@@ -9,8 +9,10 @@ use App\Model\Entity\ActionItem;
 use App\Services\ActionItems\ActionItemCompletionFormRegistry;
 use App\Services\ActionItems\ActionItemService;
 use App\Services\ServiceResult;
+use Awards\Model\Entity\Bestowal;
 use Awards\Services\BestowalCourtSlotService;
 use Cake\Http\Response;
+use Cake\ORM\Query\SelectQuery;
 use Cake\Routing\Router;
 use Throwable;
 
@@ -77,21 +79,18 @@ class ActionItemsController extends AppController
         $actionItemsTable = $this->fetchTable('ActionItems');
         $systemViews = ActionItemsGridColumns::getSystemViews();
         $baseQuery = $actionItemsTable->find()->contain(['Branches']);
-
-        $queryCallback = function ($query, $systemView) use ($memberId, $actionItemService) {
-            if ($systemView === null) {
-                return $query->where(['ActionItems.id' => -1]);
-            }
-
-            if ($systemView['id'] === 'sys-todos-completed') {
-                return $query->where([
+        $actionableIds = $actionItemsTable->find()->select(['ActionItems.id']);
+        $actionItemService->applyOpenCandidateScopeForMember($actionableIds, $memberId);
+        $baseQuery->where([
+            'OR' => [
+                ['ActionItems.id IN' => $actionableIds],
+                [
                     'ActionItems.status' => ActionItem::STATUS_COMPLETED,
                     'ActionItems.completed_by' => $memberId,
-                ]);
-            }
-
-            return $actionItemService->applyOpenCandidateScopeForMember($query, $memberId);
-        };
+                ],
+            ],
+        ]);
+        $filterOptionsScopeQuery = clone $baseQuery;
 
         $result = $this->processDataverseGrid([
             'gridKey' => 'Core.actionItems.myTasks',
@@ -102,15 +101,24 @@ class ActionItemsController extends AppController
             'defaultPageSize' => 25,
             'systemViews' => $systemViews,
             'defaultSystemView' => 'sys-todos-open',
-            'queryCallback' => $queryCallback,
             'showAllTab' => false,
-            'canAddViews' => false,
+            'canAddViews' => true,
             'canFilter' => true,
             'canExportCsv' => false,
             'lockedFilters' => ['status_label'],
             'showFilterPills' => true,
             'showSearchBox' => true,
         ]);
+
+        $memberScope = $result['currentFilters']['member_scope'] ?? null;
+        if ($memberScope !== null && $memberScope !== '') {
+            $filterOptionsScopeQuery = ActionItemsGridColumns::applyMemberScopeFilter(
+                $filterOptionsScopeQuery,
+                $memberScope,
+                ['identity' => $user, 'columnKey' => 'member_scope'],
+            );
+        }
+        $result = $this->applyMyTasksFilterOptionsToGridResult($result, $filterOptionsScopeQuery);
 
         $this->prepareTodosForGrid($result['data'], $result['visibleColumns'], $user);
 
@@ -354,6 +362,85 @@ class ActionItemsController extends AppController
         }
 
         return $this->redirect(['action' => 'myTasks']);
+    }
+
+    /**
+     * Add uncached dropdown options from the member's active system-view scope.
+     *
+     * Keeping these options request-scoped prevents titles from another
+     * member's queue appearing in the filter and avoids stale cached values as
+     * action items are created or completed.
+     *
+     * @param array<string, mixed> $result Dataverse grid result.
+     * @param \Cake\ORM\Query\SelectQuery $scopeQuery Unfiltered active-view query.
+     * @return array<string, mixed> Updated grid result.
+     */
+    private function applyMyTasksFilterOptionsToGridResult(array $result, SelectQuery $scopeQuery): array
+    {
+        $titleRows = (clone $scopeQuery)
+            ->select(['ActionItems.title'])
+            ->where([
+                'ActionItems.title IS NOT' => null,
+                'ActionItems.title !=' => '',
+            ])
+            ->distinct(['ActionItems.title'])
+            ->orderBy(['ActionItems.title' => 'ASC'])
+            ->enableHydration(false)
+            ->all();
+        $titleOptions = [];
+        foreach ($titleRows as $row) {
+            $title = (string)$row['title'];
+            $titleOptions[] = ['value' => $title, 'label' => $title];
+        }
+
+        $bestowalIds = (clone $scopeQuery)
+            ->select(['ActionItems.entity_id'])
+            ->where(['ActionItems.entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE])
+            ->distinct(['ActionItems.entity_id']);
+        $gatheringIds = $this->fetchTable('Awards.Bestowals')->find()
+            ->select(['Bestowals.gathering_id'])
+            ->where([
+                'Bestowals.id IN' => $bestowalIds,
+                'Bestowals.gathering_id IS NOT' => null,
+            ])
+            ->distinct(['Bestowals.gathering_id']);
+        $gatheringRows = $this->fetchTable('Gatherings')->find()
+            ->select(['Gatherings.id', 'Gatherings.name'])
+            ->where(['Gatherings.id IN' => $gatheringIds])
+            ->distinct(['Gatherings.id', 'Gatherings.name'])
+            ->orderBy(['Gatherings.name' => 'ASC', 'Gatherings.id' => 'ASC'])
+            ->enableHydration(false)
+            ->all();
+        $gatheringOptions = [[
+            'value' => ActionItemsGridColumns::NO_GATHERING_FILTER_VALUE,
+            'label' => __('None'),
+        ]];
+        foreach ($gatheringRows as $row) {
+            $gatheringOptions[] = [
+                'value' => (string)$row['id'],
+                'label' => (string)$row['name'],
+            ];
+        }
+
+        foreach (['title' => $titleOptions, 'gathering' => $gatheringOptions] as $columnKey => $options) {
+            $result['filterOptions'][$columnKey] = $options;
+            if (!isset($result['columnsMetadata'][$columnKey])) {
+                continue;
+            }
+
+            $result['columnsMetadata'][$columnKey]['filterOptions'] = $options;
+            $result['dropdownFilterColumns'][$columnKey]['filterOptions'] = $options;
+            $result['gridState']['filters']['available'][$columnKey] = [
+                'label' => $result['columnsMetadata'][$columnKey]['label'],
+                'options' => $options,
+                'showInFilterMenu' => ($result['columnsMetadata'][$columnKey]['showInFilterMenu'] ?? true) !== false,
+            ];
+            if (isset($result['gridState']['columns']['all'][$columnKey])) {
+                $result['gridState']['columns']['all'][$columnKey]['filterOptions'] = $options;
+            }
+        }
+
+        return $result;
     }
 
     /**

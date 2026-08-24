@@ -1,14 +1,14 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Activities\Services;
 
+use App\Model\Entity\WorkflowInstance;
 use App\Services\ApprovalContext\ApprovalContext;
 use App\Services\ApprovalContext\ApprovalContextRendererInterface;
-use App\Model\Entity\WorkflowInstance;
 use Cake\ORM\TableRegistry;
 use Cake\Routing\Router;
+use Throwable;
 
 /**
  * Provides rich display context for Activity authorization approvals
@@ -45,8 +45,8 @@ class ActivitiesApprovalContextRenderer implements ApprovalContextRendererInterf
             : __('Authorization: {0}', $activityName);
 
         $description = $requesterName
-            ? __("{0} requests authorization for {1}", $requesterName, $activityName)
-            : __("Authorization request for {0}", $activityName);
+            ? __('{0} requests authorization for {1}', $requesterName, $activityName)
+            : __('Authorization request for {0}', $activityName);
 
         $fields = [
             ['label' => __('Activity'), 'value' => $activityName],
@@ -63,13 +63,14 @@ class ActivitiesApprovalContextRenderer implements ApprovalContextRendererInterf
             entityUrl: $entityUrl,
             icon: 'bi-shield-check',
             requester: $requesterName,
+            requesterMemberId: $requesterName === null ? null : (int)$memberId,
         );
     }
 
     /**
      * Load activity name by ID.
      *
-     * @param int|string|null $activityId Activity ID.
+     * @param string|int|null $activityId Activity ID.
      * @return string
      */
     private function loadActivityName(int|string|null $activityId): string
@@ -89,7 +90,7 @@ class ActivitiesApprovalContextRenderer implements ApprovalContextRendererInterf
             if ($activity) {
                 return $activity->name;
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             // Fallback on DB/table errors
         }
 
@@ -99,7 +100,7 @@ class ActivitiesApprovalContextRenderer implements ApprovalContextRendererInterf
     /**
      * Load requester SCA name by member ID.
      *
-     * @param int|string|null $memberId Member ID.
+     * @param string|int|null $memberId Member ID.
      * @return string|null
      */
     private function loadRequesterName(int|string|null $memberId): ?string
@@ -119,7 +120,7 @@ class ActivitiesApprovalContextRenderer implements ApprovalContextRendererInterf
             if ($member) {
                 return $member->sca_name;
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             // Fallback on DB/table errors
         }
 
@@ -129,7 +130,7 @@ class ActivitiesApprovalContextRenderer implements ApprovalContextRendererInterf
     /**
      * Build a URL to the authorization entity view.
      *
-     * @param int|string|null $authorizationId Authorization ID.
+     * @param string|int|null $authorizationId Authorization ID.
      * @return string|null
      */
     private function buildEntityUrl(int|string|null $authorizationId): ?string
@@ -145,7 +146,7 @@ class ActivitiesApprovalContextRenderer implements ApprovalContextRendererInterf
                 'action' => 'view',
                 $authorizationId,
             ]);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             return null;
         }
     }

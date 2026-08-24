@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services\ApprovalContext;
@@ -19,6 +18,7 @@ class ApprovalContext
      * @param string|null $entityUrl Link back to the entity under review
      * @param string $icon Bootstrap icon class, e.g. 'bi-shield-check'
      * @param string|null $requester Display name of the person who initiated the request
+     * @param int|null $requesterMemberId Member ID snapshot for filtering and joins
      */
     public function __construct(
         private readonly string $title,
@@ -27,6 +27,7 @@ class ApprovalContext
         private readonly ?string $entityUrl = null,
         private readonly string $icon = 'bi-question-circle',
         private readonly ?string $requester = null,
+        private readonly ?int $requesterMemberId = null,
     ) {
     }
 
@@ -79,6 +80,14 @@ class ApprovalContext
     }
 
     /**
+     * @return int|null
+     */
+    public function getRequesterMemberId(): ?int
+    {
+        return $this->requesterMemberId;
+    }
+
+    /**
      * Serialize to a plain array for JSON responses or template consumption.
      *
      * @return array<string, mixed>
@@ -92,6 +101,7 @@ class ApprovalContext
             'entityUrl' => $this->entityUrl,
             'icon' => $this->icon,
             'requester' => $this->requester,
+            'requesterMemberId' => $this->requesterMemberId,
         ];
     }
 }

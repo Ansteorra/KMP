@@ -357,6 +357,9 @@ class ApprovalsController extends AppController
         ]);
         $contain = [
             'WorkflowInstances' => ['WorkflowDefinitions'],
+            'RequesterMember' => function ($q) {
+                return $q->select(['id', 'sca_name']);
+            },
         ];
         if ($queryContext->loadsColumn('current_approver')) {
             $contain['CurrentApprover'] = function ($q) {
@@ -366,37 +369,22 @@ class ApprovalsController extends AppController
 
         $baseQuery = $approvalsTable->find()->contain($contain);
         $baseQuery->leftJoinWith('CurrentApprover');
-
-        $queryCallback = function ($query, $systemView) use ($currentUser) {
-            if ($systemView === null) {
-                $query->where(['WorkflowApprovals.id' => -1]);
-
-                return $query;
-            }
-
-            if (in_array($systemView['id'], ['sys-approvals-pending', 'sys-approvals-triage-board'], true)) {
-                $eligibleIds = WorkflowApprovalsTable::getPendingApprovalIdsForMember((int)$currentUser->id);
-
-                if (empty($eligibleIds)) {
-                    $query->where(['WorkflowApprovals.id' => -1]);
-                } else {
-                    $query->where(['WorkflowApprovals.id IN' => $eligibleIds]);
-                }
-            } elseif ($systemView['id'] === 'sys-approvals-decisions') {
-                $query->innerJoinWith('WorkflowApprovalResponses', function ($q) use ($currentUser) {
-                    return $q->where(['WorkflowApprovalResponses.member_id' => $currentUser->id]);
-                })
-                    ->where([
-                        'NOT EXISTS (
-                            SELECT 1
-                            FROM awards_recommendation_feedback_request_recipients feedback_recipients
-                            WHERE feedback_recipients.workflow_approval_id = WorkflowApprovals.id
-                        )',
-                    ]);
-            }
-
-            return $query;
-        };
+        $baseQuery->leftJoinWith('RequesterMember');
+        $memberId = (int)$currentUser->id;
+        $personalApprovalScope = [sprintf(
+            'EXISTS (
+                SELECT 1
+                FROM workflow_approval_responses personal_responses
+                WHERE personal_responses.workflow_approval_id = WorkflowApprovals.id
+                  AND personal_responses.member_id = %d
+            )',
+            $memberId,
+        )];
+        $eligibleIds = WorkflowApprovalsTable::getPendingApprovalIdsForMember($memberId);
+        if ($eligibleIds !== []) {
+            $personalApprovalScope[] = ['WorkflowApprovals.id IN' => $eligibleIds];
+        }
+        $baseQuery->where(['OR' => $personalApprovalScope]);
 
         $result = $this->processDataverseGrid([
             'gridKey' => 'Workflows.approvals.main',
@@ -407,9 +395,8 @@ class ApprovalsController extends AppController
             'defaultPageSize' => 25,
             'systemViews' => $systemViews,
             'defaultSystemView' => 'sys-approvals-pending',
-            'queryCallback' => $queryCallback,
             'showAllTab' => false,
-            'canAddViews' => false,
+            'canAddViews' => true,
             'canFilter' => true,
             'canExportCsv' => false,
             'enableBulkSelection' => true,
@@ -500,8 +487,12 @@ class ApprovalsController extends AppController
         $baseQuery = $approvalsTable->find()
             ->contain([
                 'WorkflowInstances' => ['WorkflowDefinitions'],
+                'RequesterMember' => function ($q) {
+                    return $q->select(['id', 'sca_name']);
+                },
             ])
-            ->leftJoinWith('CurrentApprover');
+            ->leftJoinWith('CurrentApprover')
+            ->leftJoinWith('RequesterMember');
 
         $queryCallback = function ($query) use ($currentUser, $state) {
             $eligibleIds = WorkflowApprovalsTable::getPendingApprovalIdsForMember((int)$currentUser->id);
@@ -596,31 +587,17 @@ class ApprovalsController extends AppController
         $contain = [
             'WorkflowInstances' => ['WorkflowDefinitions'],
         ];
+        $contain['RequesterMember'] = function ($q) {
+            return $q->select(['id', 'sca_name']);
+        };
         $contain['CurrentApprover'] = function ($q) {
             return $q->select(['id', 'sca_name']);
         };
 
         $baseQuery = $approvalsTable->find()
             ->contain($contain)
-            ->leftJoinWith('CurrentApprover');
-
-        $queryCallback = function ($query, $systemView) {
-            if ($systemView === null) {
-                $query->where(['WorkflowApprovals.id' => -1]);
-
-                return $query;
-            }
-
-            if ($systemView['id'] === 'sys-admin-pending') {
-                $query->where(['WorkflowApprovals.status' => WorkflowApproval::STATUS_PENDING]);
-            } elseif ($systemView['id'] === 'sys-admin-approved') {
-                $query->where(['WorkflowApprovals.status' => WorkflowApproval::STATUS_APPROVED]);
-            } elseif ($systemView['id'] === 'sys-admin-rejected') {
-                $query->where(['WorkflowApprovals.status' => WorkflowApproval::STATUS_REJECTED]);
-            }
-
-            return $query;
-        };
+            ->leftJoinWith('CurrentApprover')
+            ->leftJoinWith('RequesterMember');
 
         $result = $this->processDataverseGrid([
             'gridKey' => 'Workflows.allApprovals.main',
@@ -631,7 +608,6 @@ class ApprovalsController extends AppController
             'defaultPageSize' => 25,
             'systemViews' => $systemViews,
             'defaultSystemView' => 'sys-admin-pending',
-            'queryCallback' => $queryCallback,
             'showAllTab' => false,
             'canAddViews' => false,
             'canFilter' => true,
@@ -717,25 +693,31 @@ class ApprovalsController extends AppController
 
             if ($includeRequest || $includeRequester) {
                 $cachedTitle = trim((string)($approval->request_title ?? ''));
+                $requesterName = $includeRequester
+                    ? trim((string)($approval->requester_member?->sca_name ?? ''))
+                    : '';
                 $instance = $approval->workflow_instance;
                 if ($includeRequest && $cachedTitle !== '') {
                     $approval->request = $cachedTitle;
                 }
 
-                if ($instance && ($includeRequester || ($includeRequest && $cachedTitle === ''))) {
+                if (
+                    $instance
+                    && (($includeRequester && $requesterName === '') || ($includeRequest && $cachedTitle === ''))
+                ) {
                     $ctx = ApprovalContextRendererRegistry::render($instance);
                     if ($includeRequest && $cachedTitle === '') {
                         $approval->request = $ctx->getTitle();
                     }
                     if ($includeRequester) {
-                        $approval->requester = $ctx->getRequester() ?? '—';
+                        $approval->requester = $requesterName !== '' ? $requesterName : ($ctx->getRequester() ?? '—');
                     }
                 } else {
                     if ($includeRequest && $cachedTitle === '') {
                         $approval->request = '—';
                     }
                     if ($includeRequester) {
-                        $approval->requester = '—';
+                        $approval->requester = $requesterName !== '' ? $requesterName : '—';
                     }
                 }
             }
@@ -805,7 +787,7 @@ class ApprovalsController extends AppController
             if ($instance) {
                 $ctx = ApprovalContextRendererRegistry::render($instance);
                 $approval->request = $cachedTitle !== '' ? $cachedTitle : $ctx->getTitle();
-                $approval->requester = $ctx->getRequester() ?? '—';
+                $approval->requester = $approval->requester_member?->sca_name ?? $ctx->getRequester() ?? '—';
                 $approval->source_url = $ctx->getEntityUrl();
                 $approval->icon = $ctx->getIcon();
             } else {
