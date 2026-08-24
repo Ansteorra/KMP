@@ -865,21 +865,14 @@ class GridViewController extends Controller {
     }
 
     /**
-     * Update filter navigation (left side filter tabs)
+     * Build the shared filter-menu items used by navigation and panels.
      */
-    updateFilterNavigation() {
-        const container = this.element.querySelector('[data-filter-nav-container]')
-        if (!container) return
-
-        container.innerHTML = ''
-
-        if (!this.state.filters.available) return
-
+    buildFilterItems() {
         // Group date range filters by base field
         const filterGroups = new Map()
         const standaloneFilters = []
 
-        Object.entries(this.state.filters.available).forEach(([key, meta]) => {
+        Object.entries(this.state.filters.available || {}).forEach(([key, meta]) => {
             if (meta.showInFilterMenu === false) return
 
             if (meta.type === 'date-range-start' || meta.type === 'date-range-end') {
@@ -898,7 +891,7 @@ class GridViewController extends Controller {
         })
 
         // Build array of all filters (standalone + grouped date ranges)
-        const allFilterItems = [
+        return [
             ...standaloneFilters.map(({ key, meta }) => ({ key, label: meta.label, type: 'dropdown', meta })),
             ...Array.from(filterGroups.values()).map(group => ({
                 key: group.baseField,
@@ -907,6 +900,20 @@ class GridViewController extends Controller {
                 group
             }))
         ]
+    }
+
+    /**
+     * Update filter navigation (left side filter tabs)
+     */
+    updateFilterNavigation() {
+        const container = this.element.querySelector('[data-filter-nav-container]')
+        if (!container) return
+
+        container.innerHTML = ''
+
+        if (!this.state.filters.available) return
+
+        const allFilterItems = this.buildFilterItems()
 
         if (allFilterItems.length === 0) return
 
@@ -971,38 +978,7 @@ class GridViewController extends Controller {
         // Get locked filters from config
         const lockedFilters = this.state.config?.lockedFilters || []
 
-        // Group date range filters by base field (same logic as navigation)
-        const filterGroups = new Map()
-        const standaloneFilters = []
-
-        Object.entries(this.state.filters.available).forEach(([key, meta]) => {
-            if (meta.showInFilterMenu === false) return
-
-            if (meta.type === 'date-range-start' || meta.type === 'date-range-end') {
-                const baseField = meta.baseField || key.replace(/_start$|_end$/, '')
-                if (!filterGroups.has(baseField)) {
-                    filterGroups.set(baseField, {
-                        baseField,
-                        label: meta.label.replace(' (after)', '').replace(' (before)', ''),
-                        filters: []
-                    })
-                }
-                filterGroups.get(baseField).filters.push({ key, meta })
-            } else {
-                standaloneFilters.push({ key, meta })
-            }
-        })
-
-        // Build array of all filters (standalone + grouped date ranges)
-        const allFilterItems = [
-            ...standaloneFilters.map(({ key, meta }) => ({ key, label: meta.label, type: 'dropdown', meta })),
-            ...Array.from(filterGroups.values()).map(group => ({
-                key: group.baseField,
-                label: group.label,
-                type: 'date-range',
-                group
-            }))
-        ]
+        const allFilterItems = this.buildFilterItems()
 
         if (allFilterItems.length === 0) return
 

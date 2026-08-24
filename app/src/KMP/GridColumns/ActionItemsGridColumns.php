@@ -249,7 +249,7 @@ class ActionItemsGridColumns extends BaseGridColumns
         }
 
         if (!$includeNone && $gatheringIds === []) {
-            return $query;
+            return $query->where(['1 = 0']);
         }
 
         $bestowals = TableRegistry::getTableLocator()->get('Awards.Bestowals');

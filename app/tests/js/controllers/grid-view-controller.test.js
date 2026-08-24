@@ -257,6 +257,46 @@ describe('GridViewController', () => {
         });
     });
 
+    test('buildFilterItems excludes hidden filters and groups date ranges once', () => {
+        controller.state = {
+            filters: {
+                available: {
+                    hidden_scope: {
+                        label: 'Scope',
+                        options: [],
+                        showInFilterMenu: false,
+                    },
+                    branch_id: {
+                        label: 'Branch',
+                        options: [],
+                    },
+                    created_start: {
+                        label: 'Created (after)',
+                        type: 'date-range-start',
+                        baseField: 'created',
+                    },
+                    created_end: {
+                        label: 'Created (before)',
+                        type: 'date-range-end',
+                        baseField: 'created',
+                    },
+                },
+            },
+        };
+
+        const items = controller.buildFilterItems();
+
+        expect(items.map(({ key, type }) => ({ key, type }))).toEqual([
+            { key: 'branch_id', type: 'dropdown' },
+            { key: 'created', type: 'date-range' },
+        ]);
+        expect(items[1].label).toBe('Created');
+        expect(items[1].group.filters.map(({ key }) => key)).toEqual([
+            'created_start',
+            'created_end',
+        ]);
+    });
+
     test('createSearchBadge generates remove button with accessible target size and decorative icon', () => {
         const badge = controller.createSearchBadge('smith');
         const removeButton = badge.querySelector('button[data-action="click->grid-view#clearSearch"]');

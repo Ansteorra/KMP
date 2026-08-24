@@ -81,4 +81,16 @@ class ActionItemsGridColumnsTest extends BaseTestCase
             $views['sys-todos-completed']['config']['filters'],
         );
     }
+
+    public function testGatheringFilterReturnsNoRowsWhenAllValuesAreInvalid(): void
+    {
+        $query = $this->getTableLocator()->get('ActionItems')->find();
+
+        $filtered = ActionItemsGridColumns::applyGatheringFilter(
+            $query,
+            ['not-a-gathering', '0', '-1'],
+        );
+
+        $this->assertStringContainsString('(1 = 0', $filtered->sql());
+    }
 }
