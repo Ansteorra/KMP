@@ -162,7 +162,10 @@ class RecommendationWorkflowUiService
 
         $approvals = WorkflowApprovalsTable::getPendingApprovalsForMember(
             $memberId,
-            ['CurrentApprover'],
+            [
+                'CurrentApprover',
+                'WorkflowInstances' => ['WorkflowDefinitions'],
+            ],
             $workflowInstanceIds,
             1,
         );

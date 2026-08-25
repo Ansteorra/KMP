@@ -2,6 +2,15 @@ import { Modal } from 'bootstrap'
 
 const getBootstrapModal = () => window.bootstrap?.Modal || globalThis.bootstrap?.Modal || Modal
 
+const dialogFocusableSelector = [
+    'a[href]',
+    'button:not([disabled])',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])',
+].join(',')
+
 const escapeHtml = (text) => {
     const div = document.createElement('div')
     div.textContent = text
@@ -89,6 +98,29 @@ const openDialog = ({
         const input = modal.querySelector('#kmp-a11y-dialog-input')
         let settled = false
 
+        const trapFocus = (event) => {
+            if (event.key !== 'Tab') return
+
+            const focusable = Array.from(modal.querySelectorAll(dialogFocusableSelector))
+            if (focusable.length === 0) {
+                event.preventDefault()
+                modal.focus()
+                return
+            }
+
+            const first = focusable[0]
+            const last = focusable[focusable.length - 1]
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault()
+                last.focus()
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault()
+                first.focus()
+            }
+        }
+
+        modal.addEventListener('keydown', trapFocus)
+
         const settle = (confirmed) => {
             if (settled) return
             settled = true
@@ -112,6 +144,7 @@ const openDialog = ({
             if (!settled) {
                 resolve({ confirmed: false, value: '' })
             }
+            modal.removeEventListener('keydown', trapFocus)
             instance.dispose()
             modal.remove()
             if (previouslyFocused && typeof previouslyFocused.focus === 'function') {

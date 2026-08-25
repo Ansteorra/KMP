@@ -2,7 +2,7 @@
 
 /**
  * @var \App\View\AppView $this
- * @var \App\Model\Entity\Member $user
+ * @var bool $canAddTemplate
  */
 
 $this->extend('/layout/TwitterBootstrap/dashboard');
@@ -12,12 +12,10 @@ echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': Bestowal To-Do Templat
 $this->KMP->endBlock();
 ?>
 
-<div class="row align-items-start mb-3">
-    <div class="col">
-        <h3><?= __('Bestowal To-Do Templates') ?></h3>
-    </div>
-    <div class="col text-end">
-        <?php if ($user->checkCan('add', 'Awards.BestowalTodoTemplates')) : ?>
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <h3 class="mb-0"><?= __('Bestowal To-Do Templates') ?></h3>
+    <div class="d-flex flex-wrap justify-content-end gap-2">
+        <?php if ($canAddTemplate) : ?>
             <?= $this->Html->link(
                 __('Add To-Do Template'),
                 ['action' => 'add'],

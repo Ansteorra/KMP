@@ -67,6 +67,41 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * Persist a member-assigned action item with a live, mutable Bestowal owner.
+     */
+    private function makeBestowalMemberItem(int $memberId, array $overrides = []): ActionItem
+    {
+        $bestowal = $this->makeBestowal();
+
+        return $this->makeMemberItem($memberId, array_merge([
+            'entity_id' => (int)$bestowal->id,
+        ], $overrides));
+    }
+
+    /**
+     * Create an item whose committed completion cannot reconcile a related required-field item.
+     *
+     * @return array{item: \App\Model\Entity\ActionItem, required: \App\Model\Entity\ActionItem}
+     */
+    private function makeCascadeWarningItems(int $memberId): array
+    {
+        $item = $this->makeBestowalMemberItem($memberId);
+        $required = $this->makeMemberItem($memberId, [
+            'entity_id' => (int)$item->entity_id,
+            'title' => 'Blocked requirement',
+            'sort_order' => 2,
+            'completion_config' => [
+                'required_fields' => [[
+                    'provider' => 'Tests.Missing',
+                    'field' => 'missing_value',
+                ]],
+            ],
+        ]);
+
+        return compact('item', 'required');
+    }
+
+    /**
      * Unauthenticated requests are redirected to login.
      *
      * @return void
@@ -843,7 +878,7 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
     public function testCompleteRejectsGet(): void
     {
         $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
-        $item = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID);
+        $item = $this->makeBestowalMemberItem(self::TEST_MEMBER_AGATHA_ID);
 
         $this->get("/action-items/complete/{$item->id}");
 
@@ -858,7 +893,7 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
     public function testCompleteViaTurboStreamRefreshesGrid(): void
     {
         $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
-        $item = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID);
+        $item = $this->makeBestowalMemberItem(self::TEST_MEMBER_AGATHA_ID);
 
         $this->enableCsrfToken();
         $this->enableSecurityToken();
@@ -880,6 +915,38 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
         $this->assertTrue($reloaded->isCompleted());
     }
 
+    public function testCompleteViaTurboStreamRendersPostCommitCascadeWarning(): void
+    {
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        ['item' => $item, 'required' => $required] = $this->makeCascadeWarningItems(
+            self::TEST_MEMBER_AGATHA_ID,
+        );
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'text/vnd.turbo-stream.html',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ],
+        ]);
+        $this->post('/action-items/complete', [
+            'id' => $item->id,
+            'page_context_url' => '/action-items/my-tasks',
+        ]);
+
+        $this->assertResponseOk();
+        $this->assertContentType('text/vnd.turbo-stream.html');
+        $this->assertResponseContains('alert-warning');
+        $this->assertResponseContains(
+            'Marked complete. Related to-dos need attention: ' .
+            'This to-do requires additional information before it can be completed.',
+        );
+        $actionItems = TableRegistry::getTableLocator()->get('ActionItems');
+        $this->assertTrue($actionItems->get($item->id)->isCompleted());
+        $this->assertTrue($actionItems->get($required->id)->isOpen());
+    }
+
     /**
      * An eligible member can complete their gated item.
      *
@@ -888,7 +955,7 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
     public function testEligibleMemberCanComplete(): void
     {
         $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
-        $item = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID);
+        $item = $this->makeBestowalMemberItem(self::TEST_MEMBER_AGATHA_ID);
 
         $this->enableCsrfToken();
         $this->enableSecurityToken();
@@ -899,6 +966,28 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
         $this->assertTrue($reloaded->isCompleted());
     }
 
+    public function testCompleteRedirectReportsPostCommitCascadeWarning(): void
+    {
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        ['item' => $item, 'required' => $required] = $this->makeCascadeWarningItems(
+            self::TEST_MEMBER_AGATHA_ID,
+        );
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post("/action-items/complete/{$item->id}");
+
+        $this->assertRedirect();
+        $this->assertFlashMessage(
+            'Marked complete. Related to-dos need attention: ' .
+            'This to-do requires additional information before it can be completed.',
+        );
+        $this->assertFlashElement('flash/warning');
+        $actionItems = TableRegistry::getTableLocator()->get('ActionItems');
+        $this->assertTrue($actionItems->get($item->id)->isCompleted());
+        $this->assertTrue($actionItems->get($required->id)->isOpen());
+    }
+
     /**
      * Mobile completion can return JSON so cards can be removed without a page reload.
      *
@@ -907,7 +996,7 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
     public function testMobileCompleteReturnsJson(): void
     {
         $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
-        $item = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID);
+        $item = $this->makeBestowalMemberItem(self::TEST_MEMBER_AGATHA_ID);
 
         $this->enableCsrfToken();
         $this->enableSecurityToken();
@@ -928,6 +1017,37 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
         $this->assertTrue($reloaded->isCompleted());
     }
 
+    public function testMobileCompleteReportsPostCommitCascadeWarningAsSuccess(): void
+    {
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        ['item' => $item, 'required' => $required] = $this->makeCascadeWarningItems(
+            self::TEST_MEMBER_AGATHA_ID,
+        );
+
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ],
+        ]);
+        $this->post("/action-items/complete/{$item->id}");
+
+        $this->assertResponseOk();
+        $payload = json_decode((string)$this->_response->getBody(), true);
+        $this->assertTrue($payload['success'] ?? false);
+        $this->assertNull($payload['error'] ?? null);
+        $this->assertSame('completed', $payload['status'] ?? null);
+        $this->assertSame(
+            'This to-do requires additional information before it can be completed.',
+            $payload['warning'] ?? null,
+        );
+        $actionItems = TableRegistry::getTableLocator()->get('ActionItems');
+        $this->assertTrue($actionItems->get($item->id)->isCompleted());
+        $this->assertTrue($actionItems->get($required->id)->isOpen());
+    }
+
     /**
      * An ineligible member is forbidden from completing an item.
      *
@@ -936,7 +1056,7 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
     public function testIneligibleMemberCannotComplete(): void
     {
         $this->authenticateAsMember(self::TEST_MEMBER_BRYCE_ID);
-        $item = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID);
+        $item = $this->makeBestowalMemberItem(self::TEST_MEMBER_AGATHA_ID);
 
         $this->enableCsrfToken();
         $this->enableSecurityToken();

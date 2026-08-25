@@ -116,6 +116,33 @@ class BestowalTodoGridTest extends HttpIntegrationTestCase
     }
 
     /**
+     * Cancelled workflow items are retired history and must not appear in the
+     * active checklist badge, popover, or required-check progress.
+     *
+     * @return void
+     */
+    public function testGridDataTodoSummaryExcludesCancelledItems(): void
+    {
+        $name = 'todo-grid-cancelled-' . uniqid();
+        $bestowal = $this->makeBestowal($name);
+        $this->makeTodo((int)$bestowal->id, 'has_scroll', ActionItem::STATUS_COMPLETED);
+        $this->makeTodo((int)$bestowal->id, 'event_scheduled', ActionItem::STATUS_OPEN, false);
+        $cancelledKey = 'retired_workflow_check_' . uniqid();
+        $cancelled = $this->makeTodo(
+            (int)$bestowal->id,
+            $cancelledKey,
+            ActionItem::STATUS_CANCELLED,
+        );
+
+        $url = '/awards/bestowals/grid-data?' . http_build_query(['search' => $name]);
+        $this->get($url);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('To-Dos: 1 open item. Required checks complete: 1 of 1.');
+        $this->assertResponseNotContains((string)$cancelled->title);
+    }
+
+    /**
      * Full table refreshes keep the bulk-selection cell on every row, but only
      * render a visible checkbox for bestowals with a To-Do the user can complete.
      *

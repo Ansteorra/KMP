@@ -16,6 +16,10 @@ Own reusable business workflows, side effects, integrations, registries, workflo
 - Use `ServiceResult` when operations need a standard success/failure flag, reason, and data payload.
 - Be explicit about side effects: queued jobs, mail, files, cache mutation, database writes, and workflow triggers.
 - Do not hide failures in broad catches or success-shaped fallbacks.
+- An actor-driven ActionItem completion is committed before its follow-on required-field cascade runs. If that cascade
+  fails, return a successful `ServiceResult` with `data.cascadeWarning` so callers preserve the committed outcome and
+  visibly report the related work that still needs attention. Automatic definition-sync cancellation provenance is
+  the exact persisted system note constant; changing that text requires migrating existing logs.
 - Services assume authorization has already been enforced unless the service is specifically an authorization helper.
 - Tenant-aware data must use tenant-safe cache keys and context handling.
 - Document reads must not provision remote containers. Derived image variants use deterministic, versioned paths and bounded lazy generation after controller authorization.

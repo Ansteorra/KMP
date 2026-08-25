@@ -175,8 +175,11 @@ class MobileActionItemsController extends MobileControllerBase {
             this._renderCards()
             this._updateBadge()
             this._updateLoadMore()
-            const message = "To-do marked complete."
-            this._showToast(message, "success")
+            const warning = typeof result.warning === "string" ? result.warning.trim() : ""
+            const message = warning
+                ? `To-do marked complete. Related to-dos need attention: ${warning}`
+                : "To-do marked complete."
+            this._showToast(message, warning ? "warning" : "success")
             this._announce(message)
             if (this._openCount() === 0 && this._hasNextPage) {
                 await this.loadMore()

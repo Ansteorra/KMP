@@ -9,6 +9,7 @@ use App\Services\CsvExportService;
 use Awards\KMP\GridColumns\ApprovalProcessesGridColumns;
 use Awards\Model\Entity\ApprovalProcessStep;
 use Awards\Services\AwardApprovalResolverService;
+use Awards\Services\RecommendationApprovalWorkflowSyncService;
 use Cake\Http\Exception\NotFoundException;
 use Cake\Http\Response;
 
@@ -40,6 +41,68 @@ class ApprovalProcessesController extends AppController
     public function index(): void
     {
         $this->set('user', $this->request->getAttribute('identity'));
+    }
+
+    /**
+     * Restart outdated open recommendation approvals assigned to one process.
+     *
+     * @param string|int|null $id Approval process ID
+     * @param \Awards\Services\RecommendationApprovalWorkflowSyncService $syncService Workflow synchronizer
+     * @return \Cake\Http\Response
+     */
+    public function syncApprovalProcess(
+        $id,
+        RecommendationApprovalWorkflowSyncService $syncService,
+    ): Response {
+        $this->request->allowMethod(['post']);
+
+        $approvalProcess = $this->ApprovalProcesses->get($id);
+        $this->Authorization->authorize($approvalProcess, 'syncOpenRecommendations');
+        $identity = $this->request->getAttribute('identity');
+        $result = $syncService->syncApprovalProcess(
+            (int)$approvalProcess->id,
+            (int)$identity->getIdentifier(),
+        );
+        $data = is_array($result->getData()) ? $result->getData() : [];
+        $summary = __(
+            'Found {0} outdated open recommendation(s) assigned to {1}: {2} restarted '
+            . 'after cancelling {3} prior run(s), {4} skipped, and {5} failed.',
+            (int)($data['candidateCount'] ?? 0),
+            (string)$approvalProcess->name,
+            (int)($data['restartedCount'] ?? 0),
+            (int)($data['cancelledRunCount'] ?? 0),
+            (int)($data['activeRunSkippedCount'] ?? 0),
+            (int)($data['activeRunFailedCount'] ?? 0),
+        );
+        $attentionRecommendationIds = [];
+        foreach ($data['failures'] ?? [] as $attention) {
+            if (is_array($attention) && !empty($attention['recommendationId'])) {
+                $attentionRecommendationIds[] = (int)$attention['recommendationId'];
+            }
+        }
+        $attentionRecommendationIds = array_values(array_unique($attentionRecommendationIds));
+        if ($attentionRecommendationIds !== []) {
+            $shownIds = array_slice($attentionRecommendationIds, 0, 10);
+            $summary .= ' ' . __('Recommendations needing attention: #{0}.', implode(', #', $shownIds));
+            if (count($attentionRecommendationIds) > count($shownIds)) {
+                $summary .= ' ' . __('{0} more not shown.', count($attentionRecommendationIds) - count($shownIds));
+            }
+        }
+        $activeRunFailureCount = (int)($data['activeRunFailedCount'] ?? 0);
+        $summary .= $this->operationCategorySummary([
+            __('Active workflow restart error') => $activeRunFailureCount,
+        ], __('Failure categories'));
+
+        if (!$result->isSuccess()) {
+            $reason = $result->getError();
+            $this->Flash->error($reason === null ? $summary : $summary . ' ' . $reason);
+        } elseif ((int)($data['failedCount'] ?? 0) > 0) {
+            $this->Flash->warning($summary);
+        } else {
+            $this->Flash->success($summary);
+        }
+
+        return $this->redirect(['action' => 'view', $approvalProcess->id]);
     }
 
     /**
@@ -133,10 +196,14 @@ class ApprovalProcessesController extends AppController
      *
      * @param string|int|null $id Approval process ID
      * @param \Awards\Services\AwardApprovalResolverService|null $resolver Resolver service
+     * @param \Awards\Services\RecommendationApprovalWorkflowSyncService|null $syncService Workflow synchronizer
      * @return void
      */
-    public function view($id = null, ?AwardApprovalResolverService $resolver = null): void
-    {
+    public function view(
+        $id = null,
+        ?AwardApprovalResolverService $resolver = null,
+        ?RecommendationApprovalWorkflowSyncService $syncService = null,
+    ): void {
         $resolver ??= new AwardApprovalResolverService();
         $approvalProcess = $this->ApprovalProcesses->get($id, contain: [
             'ApprovalProcessSteps',
@@ -147,6 +214,9 @@ class ApprovalProcessesController extends AppController
         }
 
         $this->Authorization->authorize($approvalProcess);
+        $outdatedRecommendationCount = $syncService === null
+            ? 0
+            : $syncService->countOutdatedRecommendations((int)$approvalProcess->id);
 
         $previewAwardId = $this->request->getQuery('preview_award_id');
         $preview = null;
@@ -165,7 +235,13 @@ class ApprovalProcessesController extends AppController
         }
 
         $previewFrameId = 'approval-process-approver-preview';
-        $this->set(compact('approvalProcess', 'previewAwardId', 'preview', 'previewFrameId'));
+        $this->set(compact(
+            'approvalProcess',
+            'previewAwardId',
+            'preview',
+            'previewFrameId',
+            'outdatedRecommendationCount',
+        ));
         $this->setFormOptions($approvalProcess->id);
 
         if ($this->request->getHeaderLine('Turbo-Frame') === $previewFrameId) {

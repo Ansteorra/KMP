@@ -5,6 +5,8 @@ namespace Awards\Test\TestCase\Controller;
 
 use App\Model\Entity\ActionItem;
 use App\Model\Entity\Member;
+use App\Services\ActionItems\ActionItemService;
+use App\Services\ServiceResult;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
@@ -153,6 +155,35 @@ class BestowalBulkTodoTest extends HttpIntegrationTestCase
         );
     }
 
+    public function testBulkCompleteReportsCommittedCompletionWithCascadeWarning(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $todo = $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'cascade_warning');
+        $service = $this->createMock(ActionItemService::class);
+        $service->expects($this->once())
+            ->method('complete')
+            ->willReturn(new ServiceResult(true, null, [
+                'item' => $todo,
+                ActionItemService::CASCADE_WARNING_DATA_KEY => [
+                    'reason' => 'A related required to-do still needs information.',
+                ],
+            ]));
+        $this->mockService(ActionItemService::class, static fn() => $service);
+
+        $this->post('/awards/bestowals/bulk-complete-todo', [
+            'bestowal_ids' => (string)$bestowal->id,
+            'check_key' => 'cascade_warning',
+        ]);
+
+        $this->assertResponseCode(302);
+        $this->assertFlashMessage(
+            'Completed the check on 1 bestowal. '
+            . 'Related to-dos need attention after 1 completed check: '
+            . 'A related required to-do still needs information.',
+        );
+        $this->assertFlashElement('flash/warning');
+    }
+
     /**
      * Bulk complete with no matching open check reports nothing was completed.
      *
@@ -252,6 +283,46 @@ class BestowalBulkTodoTest extends HttpIntegrationTestCase
         $reloadedTodo = TableRegistry::getTableLocator()->get('ActionItems')->get($todo->id);
         $this->assertTrue($reloadedTodo->isCompleted());
         $this->assertNull($reloadedTodo->completed_by);
+    }
+
+    public function testBulkAssignGatheringReportsCommittedTodoWithCascadeWarning(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $gathering = $this->makeSelectableGatheringForAward((int)$bestowal->award_id);
+        $todo = $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'event_scheduled', [
+            'title' => 'Event Scheduled',
+            'completion_config' => [
+                'required_fields' => [[
+                    'provider' => BestowalTodoTemplateItem::COMPLETION_PROVIDER_BESTOWAL_GATHERING,
+                    'field' => BestowalTodoTemplateItem::REQUIRED_FIELD_GATHERING,
+                    'conditional_complete_on_assign' => true,
+                ]],
+            ],
+        ]);
+        $service = $this->createMock(ActionItemService::class);
+        $service->expects($this->once())
+            ->method('complete')
+            ->willReturn(new ServiceResult(true, null, [
+                'item' => $todo,
+                ActionItemService::CASCADE_WARNING_DATA_KEY => [
+                    'reason' => 'A related required to-do still needs information.',
+                ],
+            ]));
+        $this->mockService(ActionItemService::class, static fn() => $service);
+
+        $this->post('/awards/bestowals/bulk-assign-gathering', [
+            'bestowal_ids' => (string)$bestowal->id,
+            'bestowal_gathering_id' => (string)$gathering->id,
+            'complete_required_todo' => '1',
+        ]);
+
+        $this->assertResponseCode(302);
+        $this->assertFlashMessage(
+            'Assigned a gathering to 1 bestowal. Completed 1 matching to-do. '
+            . 'Related to-dos need attention after 1 completed check: '
+            . 'A related required to-do still needs information.',
+        );
+        $this->assertFlashElement('flash/warning');
     }
 
     public function testBulkCompleteSkipsAgendaUntilEventScheduledIsComplete(): void

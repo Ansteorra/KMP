@@ -12,7 +12,7 @@ use Cake\ORM\Table;
 /**
  * Coverage for the `awards materialize_bestowal_todos` onboarding command:
  * open bestowals whose award carries a to-do template get their checklist
- * materialized, while cancelled bestowals are skipped.
+ * materialized, while terminal bestowals are skipped.
  */
 class MaterializeBestowalTodosCommandTest extends BaseTestCase
 {
@@ -53,6 +53,19 @@ class MaterializeBestowalTodosCommandTest extends BaseTestCase
         $templateId = $this->createTemplateWithItems();
         $awardId = $this->assignTemplateToAward($templateId);
         $bestowalId = $this->createBestowal($awardId, Bestowal::LIFECYCLE_CANCELLED);
+
+        $this->exec('awards materialize_bestowal_todos --bestowal-id ' . $bestowalId);
+
+        $this->assertExitSuccess();
+        $this->assertOutputContains('Processed 0 bestowal(s)');
+        $this->assertCount(0, $this->loadActionItems($bestowalId));
+    }
+
+    public function testCommandSkipsGivenBestowals(): void
+    {
+        $templateId = $this->createTemplateWithItems();
+        $awardId = $this->assignTemplateToAward($templateId);
+        $bestowalId = $this->createBestowal($awardId, Bestowal::LIFECYCLE_GIVEN);
 
         $this->exec('awards materialize_bestowal_todos --bestowal-id ' . $bestowalId);
 

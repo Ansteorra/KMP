@@ -12,6 +12,7 @@ use App\Model\Entity\BaseEntity;
  * @property int $recommendation_id
  * @property int $approval_process_id
  * @property int $workflow_instance_id
+ * @property string|null $approval_process_signature
  * @property string $status
  * @property string|null $current_step_key
  * @property string|null $current_step_label
@@ -34,11 +35,13 @@ class RecommendationApprovalRun extends BaseEntity
     public const TERMINAL_REASON_RECOMMENDATION_DELETED = 'recommendation_deleted';
     public const TERMINAL_REASON_AWARD_CHANGED = 'award_changed';
     public const TERMINAL_REASON_SUPERSEDED_BY_GROUPING = 'superseded_by_grouping';
+    public const TERMINAL_REASON_PROCESS_RESTARTED = 'approval_process_restarted';
 
     protected array $_accessible = [
         'recommendation_id' => true,
         'approval_process_id' => true,
         'workflow_instance_id' => true,
+        'approval_process_signature' => true,
         'status' => true,
         'current_step_key' => true,
         'current_step_label' => true,

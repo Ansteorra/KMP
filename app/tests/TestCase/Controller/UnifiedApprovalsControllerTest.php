@@ -154,6 +154,44 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
     }
 
+    public function testDecisionsGridIdentifiesApprovalResetAfterProcessUpdate(): void
+    {
+        $this->authenticateAsSuperUser();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext();
+        $approvalId = $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Reset decision presentation test',
+        );
+        $responsesTable = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
+        $responsesTable->saveOrFail($responsesTable->newEntity([
+            'workflow_approval_id' => $approvalId,
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'comment' => 'Decision made before process update.',
+            'responded_at' => DateTime::now(),
+        ]));
+        TableRegistry::getTableLocator()->get('WorkflowInstances')->updateAll(
+            [
+                'status' => 'cancelled',
+                'error_info' => json_encode([
+                    'cancellation_reason' => RecommendationApprovalRun::TERMINAL_REASON_PROCESS_RESTARTED,
+                ]),
+            ],
+            ['id' => $instanceId],
+        );
+        TableRegistry::getTableLocator()->get('WorkflowApprovals')->updateAll(
+            ['status' => WorkflowApproval::STATUS_CANCELLED],
+            ['id' => $approvalId],
+        );
+
+        $this->get('/approvals/grid-data?view_id=sys-approvals-decisions');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Reset decision presentation test');
+        $this->assertResponseContains('Reset — approval process updated');
+    }
+
     public function testAuthenticatedKanbanLaneReturnsOk(): void
     {
         $this->authenticateAsSuperUser();
@@ -822,6 +860,48 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         $this->assertRedirectContains('/login');
     }
 
+    public function testApprovalDetailExplainsProcessUpdateReset(): void
+    {
+        $this->authenticateAsSuperUser();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext();
+        $approvalId = $this->createApproval($instanceId, $executionLogId);
+        TableRegistry::getTableLocator()->get('WorkflowInstances')->updateAll(
+            [
+                'status' => 'cancelled',
+                'error_info' => json_encode([
+                    'cancellation_reason' => RecommendationApprovalRun::TERMINAL_REASON_PROCESS_RESTARTED,
+                ]),
+            ],
+            ['id' => $instanceId],
+        );
+        TableRegistry::getTableLocator()->get('WorkflowApprovals')->updateAll(
+            ['status' => WorkflowApproval::STATUS_CANCELLED],
+            ['id' => $approvalId],
+        );
+
+        $this->configRequest([
+            'headers' => [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ],
+        ]);
+        $this->get('/approvals/detail/' . $approvalId);
+
+        $this->assertResponseOk();
+        $this->assertContentType('application/json');
+        $payload = json_decode((string)$this->_response->getBody(), true);
+        $this->assertSame('cancelled', $payload['progress']['status'] ?? null);
+        $this->assertSame(
+            'Reset — approval process updated',
+            $payload['progress']['statusLabel'] ?? null,
+        );
+        $this->assertSame(
+            'This approval was cancelled because the approval process changed. ' .
+            'A new approval was started using the current process, so earlier decisions do not count toward it.',
+            $payload['progress']['statusExplanation'] ?? null,
+        );
+    }
+
     public function testUpdateTriageSavesPrivateNoteAsJson(): void
     {
         $this->authenticateAsSuperUser();
@@ -894,11 +974,110 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         ]);
 
         $this->assertRedirectContains('/approvals');
+        $this->assertFlashMessage('Recorded 2 approval response(s).');
+        $this->assertFlashElement('flash/success');
         $responsesTable = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
         $responses = $responsesTable->find()
             ->where(['workflow_approval_id IN' => [$firstApprovalId, $secondApprovalId]])
             ->all();
         $this->assertCount(2, $responses);
+    }
+
+    public function testBulkRecordApprovalPersistsBestowalGatheringForWorkflowRecovery(): void
+    {
+        $this->authenticateAsSuperUser();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext();
+        $approverConfig = [
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'requires_bestowal_gathering' => true,
+        ];
+        $firstApprovalId = $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Bulk Award Approval 1',
+            $approverConfig,
+        );
+        $secondApprovalId = $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Bulk Award Approval 2',
+            $approverConfig,
+        );
+        $gatheringId = $this->createGathering('Bulk Approval Recovery Gathering', '+30 days');
+
+        $this->post('/approvals/record', [
+            'approvalIds' => implode(',', [$firstApprovalId, $secondApprovalId]),
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'bestowal_gathering_id' => $gatheringId,
+            'comment' => '',
+            'page_context_url' => '/approvals',
+        ]);
+
+        $this->assertRedirectContains('/approvals');
+        $approvalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
+        foreach ([$firstApprovalId, $secondApprovalId] as $approvalId) {
+            $approval = $approvalsTable->get($approvalId);
+            $this->assertSame(WorkflowApproval::STATUS_APPROVED, $approval->status);
+            $this->assertSame($gatheringId, (int)$approval->approver_config['bestowal_gathering_id']);
+        }
+    }
+
+    public function testBulkRecordApprovalValidatesGatheringForEveryRecommendation(): void
+    {
+        $this->authenticateAsSuperUser();
+        $firstAwardId = $this->createAwardForGatheringEligibility('Supported');
+        $secondAwardId = $this->createAwardForGatheringEligibility('Unsupported');
+        $gatheringId = $this->createGathering('Bulk Award Eligibility Gathering', '+30 days');
+        $this->linkGatheringToAward($gatheringId, $firstAwardId);
+
+        [$firstInstanceId, $firstExecutionLogId] = $this->createWorkflowContext();
+        [$secondInstanceId, $secondExecutionLogId] = $this->createWorkflowContext();
+        $firstRecommendation = $this->createExistingRecommendation($firstAwardId);
+        $secondRecommendation = $this->createExistingRecommendation($secondAwardId);
+        $this->createRecommendationApprovalRun((int)$firstRecommendation->id, $firstInstanceId);
+        $this->createRecommendationApprovalRun((int)$secondRecommendation->id, $secondInstanceId);
+        $approverConfig = [
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'requires_bestowal_gathering' => true,
+            'award_approval_is_final_step' => true,
+        ];
+        $firstApprovalId = $this->createApproval(
+            $firstInstanceId,
+            $firstExecutionLogId,
+            'Supported Award Approval',
+            $approverConfig,
+        );
+        $secondApprovalId = $this->createApproval(
+            $secondInstanceId,
+            $secondExecutionLogId,
+            'Unsupported Award Approval',
+            $approverConfig,
+        );
+
+        $this->post('/approvals/record', [
+            'approvalIds' => implode(',', [$firstApprovalId, $secondApprovalId]),
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'bestowal_gathering_id' => $gatheringId,
+            'comment' => '',
+            'page_context_url' => '/approvals',
+        ]);
+
+        $this->assertRedirectContains('/approvals');
+        $this->assertFlashMessage('Select a valid, future gathering for the bestowal.');
+        $this->assertFlashElement('flash/error');
+        $responsesTable = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
+        $this->assertSame(
+            0,
+            $responsesTable->find()
+                ->where(['workflow_approval_id IN' => [$firstApprovalId, $secondApprovalId]])
+                ->count(),
+        );
+        $approvalsTable = TableRegistry::getTableLocator()->get('WorkflowApprovals');
+        foreach ([$firstApprovalId, $secondApprovalId] as $approvalId) {
+            $approval = $approvalsTable->get($approvalId);
+            $this->assertSame(WorkflowApproval::STATUS_PENDING, $approval->status);
+            $this->assertArrayNotHasKey('bestowal_gathering_id', $approval->approver_config);
+        }
     }
 
     public function testBulkRecordApprovalRejectsMixedApprovalTypes(): void
@@ -955,6 +1134,37 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
             ->where(['workflow_approval_id' => $approvalId])
             ->count();
         $this->assertSame(1, $responseCount);
+    }
+
+    public function testRecordApprovalPersistsBestowalGatheringForWorkflowRecovery(): void
+    {
+        $this->authenticateAsSuperUser();
+        [$instanceId, $executionLogId] = $this->createWorkflowContext();
+        $approvalId = $this->createApproval(
+            $instanceId,
+            $executionLogId,
+            'Award Approval Recovery',
+            [
+                'member_id' => self::ADMIN_MEMBER_ID,
+                'requires_bestowal_gathering' => true,
+            ],
+            requiredCount: 2,
+        );
+        $gatheringId = $this->createGathering('Approval Recovery Gathering', '+30 days');
+
+        $this->post('/approvals/record', [
+            'approvalId' => $approvalId,
+            'decision' => WorkflowApprovalResponse::DECISION_APPROVE,
+            'bestowal_gathering_id' => $gatheringId,
+            'comment' => '',
+            'page_context_url' => '/approvals',
+        ]);
+
+        $this->assertRedirectContains('/approvals');
+        $approval = TableRegistry::getTableLocator()->get('WorkflowApprovals')->get($approvalId);
+        $this->assertSame(WorkflowApproval::STATUS_PENDING, $approval->status);
+        $this->assertTrue($approval->approver_config['requires_bestowal_gathering']);
+        $this->assertSame($gatheringId, (int)$approval->approver_config['bestowal_gathering_id']);
     }
 
     public function testRecordApprovalRejectsPastGatheringForAwardBestowalApproval(): void
@@ -1109,10 +1319,14 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         return $gridView;
     }
 
-    private function createExistingRecommendation(): Recommendation
+    private function createExistingRecommendation(?int $awardId = null): Recommendation
     {
         $member = TableRegistry::getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID);
-        $award = TableRegistry::getTableLocator()->get('Awards.Awards')->find()->select(['id'])->firstOrFail();
+        $awardId ??= (int)TableRegistry::getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail()
+            ->id;
         $statuses = Recommendation::getStatuses();
         $status = array_key_first($statuses);
 
@@ -1121,7 +1335,7 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
             'requester_id' => (int)$member->id,
             'member_id' => (int)$member->id,
             'branch_id' => (int)$member->branch_id,
-            'award_id' => (int)$award->id,
+            'award_id' => $awardId,
             'status' => $status,
             'state' => $statuses[$status][0],
             'state_date' => DateTime::now(),
@@ -1256,5 +1470,45 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         $gatherings->saveOrFail($gathering);
 
         return (int)$gathering->id;
+    }
+
+    private function linkGatheringToAward(int $gatheringId, int $awardId): void
+    {
+        $gatheringActivities = TableRegistry::getTableLocator()->get('GatheringActivities');
+        $activity = $gatheringActivities->saveOrFail($gatheringActivities->newEntity([
+            'name' => 'Approval award activity ' . uniqid('', true),
+        ]));
+        $awardActivities = TableRegistry::getTableLocator()->get('Awards.AwardGatheringActivities');
+        $awardActivities->saveOrFail($awardActivities->newEntity([
+            'award_id' => $awardId,
+            'gathering_activity_id' => (int)$activity->id,
+        ]));
+        $gatheringActivityLinks = TableRegistry::getTableLocator()->get('GatheringsGatheringActivities');
+        $gatheringActivityLinks->saveOrFail($gatheringActivityLinks->newEntity([
+            'gathering_id' => $gatheringId,
+            'gathering_activity_id' => (int)$activity->id,
+            'sort_order' => 1,
+            'not_removable' => false,
+        ]));
+    }
+
+    private function createAwardForGatheringEligibility(string $label): int
+    {
+        $awards = TableRegistry::getTableLocator()->get('Awards.Awards');
+        $seedAward = $awards->find()
+            ->select(['domain_id', 'level_id', 'branch_id'])
+            ->where(['is_active' => true])
+            ->firstOrFail();
+        $suffix = uniqid('', true);
+        $award = $awards->saveOrFail($awards->newEntity([
+            'name' => $label . ' gathering eligibility award ' . $suffix,
+            'abbreviation' => strtoupper(substr(sha1($suffix), 0, 12)),
+            'domain_id' => (int)$seedAward->domain_id,
+            'level_id' => (int)$seedAward->level_id,
+            'branch_id' => (int)$seedAward->branch_id,
+            'is_active' => true,
+        ]));
+
+        return (int)$award->id;
     }
 }

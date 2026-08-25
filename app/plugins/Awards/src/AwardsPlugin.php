@@ -40,6 +40,7 @@ use Awards\Services\CourtAgendaService;
 use Awards\Services\RecommendationApprovalContextRenderer;
 use Awards\Services\RecommendationApprovalDecisionService;
 use Awards\Services\RecommendationApprovalProcessService;
+use Awards\Services\RecommendationApprovalWorkflowSyncService;
 use Awards\Services\RecommendationFeedbackContextRenderer;
 use Awards\Services\RecommendationFeedbackService;
 use Awards\Services\RecommendationFormService;
@@ -363,9 +364,12 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
         $container->add(RecommendationFormService::class);
         $container->add(AwardApprovalResolverService::class);
         $container->add(RecommendationApprovalProcessService::class);
+        $container->add(RecommendationApprovalWorkflowSyncService::class)
+            ->addArgument(WorkflowEngineInterface::class);
         $container->add(RecommendationApprovalDecisionService::class)
             ->addArgument(WorkflowApprovalManagerInterface::class)
-            ->addArgument(WorkflowEngineInterface::class);
+            ->addArgument(WorkflowEngineInterface::class)
+            ->addArgument(RecommendationApprovalProcessService::class);
         $container->add(RecommendationFeedbackService::class)
             ->addArgument(TriggerDispatcher::class);
         $container->add(RecommendationFeedbackContextRenderer::class);

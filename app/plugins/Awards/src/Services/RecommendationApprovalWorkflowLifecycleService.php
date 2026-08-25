@@ -268,6 +268,34 @@ class RecommendationApprovalWorkflowLifecycleService
     }
 
     /**
+     * Cancel active approval workflows before restarting them from current configuration.
+     *
+     * @param array<int> $recommendationIds Recommendation IDs.
+     * @param int|null $actorId Actor ID.
+     * @return array<int> Cancelled run IDs.
+     */
+    public function cancelActiveRunsForProcessRestart(array $recommendationIds, ?int $actorId): array
+    {
+        $runs = $this->findActiveRuns($recommendationIds);
+        $runIds = [];
+        foreach ($runs as $run) {
+            $this->cancelWorkflowProjection(
+                (int)$run->workflow_instance_id,
+                RecommendationApprovalRun::TERMINAL_REASON_PROCESS_RESTARTED,
+            );
+            $this->markRunTerminal(
+                $run,
+                RecommendationApprovalRun::STATUS_CANCELLED,
+                RecommendationApprovalRun::TERMINAL_REASON_PROCESS_RESTARTED,
+                $actorId,
+            );
+            $runIds[] = (int)$run->id;
+        }
+
+        return $runIds;
+    }
+
+    /**
      * Cancel active approval workflows that are superseded by grouping under another head.
      *
      * This intentionally queries direct recommendation IDs instead of approval scope so the

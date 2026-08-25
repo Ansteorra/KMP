@@ -21,11 +21,15 @@ use Throwable;
  * listener (BestowalTodoCompletionListener) apply identical rules: every gating
  * to-do must be complete, a cancelled bestowal can never be given, and an
  * already-given bestowal is a no-op. Finalizing also syncs linked
- * recommendations to their "Given" state so recommendation notifications fire.
+ * recommendations to their "Given" state so recommendation notifications fire,
+ * and audit-closes any unfinished optional to-dos as not applicable.
  */
 class BestowalFinalizationService
 {
     use LocatorAwareTrait;
+
+    private const FINALIZATION_SKIP_NOTE =
+        'Bestowal marked given; remaining to-do is not applicable.';
 
     /**
      * @var \Cake\ORM\Table Bestowals table.
@@ -74,27 +78,7 @@ class BestowalFinalizationService
             return new ServiceResult(false, 'Bestowal ID is required.');
         }
 
-        if (!$this->actionItemService->allGatingComplete(Bestowal::ACTION_ITEM_ENTITY_TYPE, $bestowalId)) {
-            return new ServiceResult(
-                false,
-                'All required checks must be completed before the bestowal can be marked given.',
-            );
-        }
-
-        $bestowal = $this->loadBestowal($bestowalId);
-        if ($bestowal === null) {
-            return new ServiceResult(false, 'Bestowal not found.');
-        }
-
-        if ($bestowal->lifecycle_status === Bestowal::LIFECYCLE_GIVEN) {
-            return new ServiceResult(true, 'Bestowal already given.', $bestowal);
-        }
-
-        if ($bestowal->lifecycle_status === Bestowal::LIFECYCLE_CANCELLED) {
-            return new ServiceResult(false, 'A cancelled bestowal cannot be marked given.');
-        }
-
-        return $this->applyGiven($bestowal, $actorId, $bestowedAt);
+        return $this->finalizeWithLockedRecheck($bestowalId, $actorId, $bestowedAt, true);
     }
 
     /**
@@ -114,20 +98,82 @@ class BestowalFinalizationService
             return new ServiceResult(true, 'No bestowal to finalize.');
         }
 
-        if (!$this->actionItemService->allGatingComplete(Bestowal::ACTION_ITEM_ENTITY_TYPE, $bestowalId)) {
-            return new ServiceResult(true, 'Gating checks are not all complete; no change.');
+        return $this->finalizeWithLockedRecheck($bestowalId, $actorId, null, false);
+    }
+
+    /**
+     * Serialize finalization with workflow synchronization and recheck readiness.
+     *
+     * @param int $bestowalId Bestowal id.
+     * @param int $actorId Member performing or causing the action.
+     * @param \DateTimeInterface|null $bestowedAt Optional bestowed timestamp.
+     * @param bool $strict Whether readiness failures should be surfaced.
+     * @return \App\Services\ServiceResult
+     */
+    private function finalizeWithLockedRecheck(
+        int $bestowalId,
+        int $actorId,
+        ?DateTimeInterface $bestowedAt,
+        bool $strict,
+    ): ServiceResult {
+        $connection = $this->bestowals->getConnection();
+        $savePointsWereEnabled = $connection->isSavePointsEnabled();
+        if (!$savePointsWereEnabled) {
+            $connection->enableSavePoints();
         }
 
-        $bestowal = $this->loadBestowal($bestowalId);
-        if ($bestowal === null) {
-            return new ServiceResult(true, 'Bestowal not found; no change.');
-        }
+        try {
+            return $connection->transactional(function () use (
+                $bestowalId,
+                $actorId,
+                $bestowedAt,
+                $strict,
+            ): ServiceResult {
+                $bestowal = $this->loadBestowal($bestowalId, true);
+                if ($bestowal === null) {
+                    return new ServiceResult(
+                        !$strict,
+                        $strict ? 'Bestowal not found.' : 'Bestowal not found; no change.',
+                    );
+                }
+                if ($bestowal->lifecycle_status === Bestowal::LIFECYCLE_GIVEN) {
+                    return new ServiceResult(true, 'Bestowal already given.', $bestowal);
+                }
+                if ($bestowal->lifecycle_status === Bestowal::LIFECYCLE_CANCELLED) {
+                    return new ServiceResult(
+                        !$strict,
+                        $strict
+                            ? 'A cancelled bestowal cannot be marked given.'
+                            : 'Bestowal is not open; no change.',
+                        $strict ? null : $bestowal,
+                    );
+                }
+                $gatingComplete = $this->actionItemService->allGatingComplete(
+                    Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                    $bestowalId,
+                );
+                $configuredWithoutGates = !$this->actionItemService->hasActiveGatingItems(
+                    Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                    $bestowalId,
+                ) && $this->assignedTemplateHasNoGatingItems($bestowal);
+                if (!$gatingComplete && !$configuredWithoutGates) {
+                    return new ServiceResult(
+                        !$strict,
+                        $strict
+                            ? 'All required checks must be completed before the bestowal can be marked given.'
+                            : 'Gating checks are not all complete; no change.',
+                    );
+                }
 
-        if ($bestowal->lifecycle_status !== Bestowal::LIFECYCLE_OPEN) {
-            return new ServiceResult(true, 'Bestowal is not open; no change.', $bestowal);
+                return $this->applyGiven($bestowal, $actorId, $bestowedAt);
+            });
+        } catch (Throwable $exception) {
+            return new ServiceResult(false, $exception->getMessage());
+        } finally {
+            if (!$savePointsWereEnabled) {
+                $connection->disableSavePoints();
+            }
         }
-
-        return $this->applyGiven($bestowal, $actorId, null);
     }
 
     /**
@@ -148,6 +194,8 @@ class BestowalFinalizationService
                 $actorId,
                 $bestowedAt,
             ): Bestowal {
+                $this->closeRemainingTodos((int)$bestowal->id, $actorId);
+
                 $bestowal->lifecycle_status = Bestowal::LIFECYCLE_GIVEN;
                 $bestowal->bestowed_at = $bestowedAt ?? DateTime::now();
                 $bestowal->modified_by = $actorId;
@@ -173,16 +221,91 @@ class BestowalFinalizationService
     }
 
     /**
+     * Audit-close unfinished work that no longer applies after finalization.
+     *
+     * The owner is still open and locked when this runs, allowing the shared
+     * ActionItem transition service to preserve one log per skipped to-do.
+     * The surrounding transaction rolls every cancellation back if marking the
+     * bestowal Given or synchronizing its recommendations fails.
+     *
+     * @param int $bestowalId Bestowal being finalized.
+     * @param int $actorId Member performing or causing finalization.
+     * @return void
+     */
+    private function closeRemainingTodos(int $bestowalId, int $actorId): void
+    {
+        $items = $this->actionItemService->getItemsForEntity(
+            Bestowal::ACTION_ITEM_ENTITY_TYPE,
+            $bestowalId,
+        );
+        foreach ($items as $item) {
+            if (!$item->isOpen()) {
+                continue;
+            }
+
+            $result = $this->actionItemService->cancel(
+                (int)$item->id,
+                $actorId,
+                self::FINALIZATION_SKIP_NOTE,
+                false,
+            );
+            if (!$result->isSuccess()) {
+                throw new RuntimeException('Remaining bestowal to-dos could not be closed.');
+            }
+        }
+    }
+
+    /**
      * Load a bestowal by id, returning null when it does not exist.
      *
      * @param int $bestowalId Bestowal id.
+     * @param bool $forUpdate Whether to acquire a row lock.
      * @return \Awards\Model\Entity\Bestowal|null
      */
-    protected function loadBestowal(int $bestowalId): ?Bestowal
+    protected function loadBestowal(int $bestowalId, bool $forUpdate = false): ?Bestowal
     {
+        $query = $this->bestowals->find()->where(['Bestowals.id' => $bestowalId]);
+        if ($forUpdate) {
+            $query->epilog('FOR UPDATE');
+        }
         /** @var \Awards\Model\Entity\Bestowal|null $bestowal */
-        $bestowal = $this->bestowals->find()->where(['Bestowals.id' => $bestowalId])->first();
+        $bestowal = $query->first();
 
         return $bestowal;
+    }
+
+    /**
+     * Whether the assigned, existing template intentionally defines no gates.
+     *
+     * No assigned template (or a deleted/missing template) remains not ready so
+     * a bestowal cannot bypass a checklist that was never configured.
+     *
+     * @param \Awards\Model\Entity\Bestowal $bestowal Bestowal being finalized.
+     * @return bool
+     */
+    private function assignedTemplateHasNoGatingItems(Bestowal $bestowal): bool
+    {
+        if ($bestowal->award_id === null) {
+            return false;
+        }
+        $award = $this->fetchTable('Awards.Awards')->find()
+            ->select(['bestowal_todo_template_id'])
+            ->where(['Awards.id' => (int)$bestowal->award_id])
+            ->first();
+        $templateId = $award?->get('bestowal_todo_template_id');
+        if ($templateId === null) {
+            return false;
+        }
+        $templateExists = $this->fetchTable('Awards.BestowalTodoTemplates')->exists([
+            'BestowalTodoTemplates.id' => (int)$templateId,
+        ]);
+        if (!$templateExists) {
+            return false;
+        }
+
+        return !$this->fetchTable('Awards.BestowalTodoTemplateItems')->exists([
+            'BestowalTodoTemplateItems.template_id' => (int)$templateId,
+            'BestowalTodoTemplateItems.is_gating' => true,
+        ]);
     }
 }

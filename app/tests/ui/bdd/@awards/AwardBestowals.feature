@@ -57,6 +57,9 @@ Feature: Award Bestowals
         And the bestowal detail page should show "Given" in the state row
         And the "wf-crown" recommendation record should have state "Given"
         And the "wf-crown" recommendation record should have status "Closed"
+        When I open the bestowal to-dos tab
+        Then the bestowal to-dos should not include "Scroll Ready"
+        And the bestowal to-dos should not include "Insignia Ready"
 
     Scenario: Cancelling a linked bestowal updates lifecycle state
         Given I am logged in as "admin@amp.ansteorra.org"

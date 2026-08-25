@@ -18,6 +18,7 @@ interface WorkflowApprovalManagerInterface
      * @param string $decision 'approve' or 'reject'
      * @param string|null $comment Optional comment
      * @param int|null $nextApproverId Optional next approver for serial pick-next chains
+     * @param array<string, mixed> $approverConfigUpdates Config values to commit atomically with the response
      * @return \App\Services\ServiceResult
      */
     public function recordResponse(
@@ -26,6 +27,7 @@ interface WorkflowApprovalManagerInterface
         string $decision,
         ?string $comment = null,
         ?int $nextApproverId = null,
+        array $approverConfigUpdates = [],
     ): ServiceResult;
 
     /**

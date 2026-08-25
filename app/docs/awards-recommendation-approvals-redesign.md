@@ -70,6 +70,23 @@ flowchart LR
 - **C — Bestowal:** owns *scheduling and giving*. Its lifecycle projects progress back onto the
   recommendation's YAML state through the sync service.
 
+### Restarting active approval runs when process policy changes
+
+Approval processes are mutable configuration, while a pending workflow approval stores a snapshot of the process that
+started it. Administrators with `Can Synchronize Award Workflows` synchronize from one Award Approval Process detail
+page. The control is enabled only when an eligible open recommendation currently assigned to that process uses an older
+process snapshot or published workflow version. Recommendations assigned to other processes and already-current runs
+are not considered.
+
+Synchronization does not map progress. It audit-cancels each eligible recommendation's active approval runs, workflow
+instances, and pending gates, then starts exactly one replacement workflow at the first step of current configuration.
+Recorded responses remain attached to cancelled gates for history, but the replacement has zero responses and no
+completed-step credit. Cancellation and replacement are one transaction per recommendation: a replacement failure
+rolls back the cancellation, while other recommendations continue. Closed, approved, deleted, bestowal-owned,
+grouped-child, and otherwise ineligible recommendations are skipped. The action cannot approve a recommendation or
+create a bestowal. A successfully replaced run records the current process signature and workflow version, so the
+control becomes disabled until that process changes again.
+
 > The audit log (`awards_recommendations_states_logs` / `RecommendationStateLogService`) is the
 > **state-change history**, not the state-machine definition. It pre-exists on `main` and stays.
 
@@ -203,7 +220,10 @@ flowchart TD
 - **Sync is one-directional and explicit.** Bestowal → Recommendation only, via the sync service,
   using state-name strings. The recommendation never drives Bestowal.
 - **Grouping is orthogonal.** `Linked` / `Linked - Closed` describe how recommendations are grouped,
-  independent of approval/bestowal progress.
+  independent of approval/bestowal progress. Grouping keeps the head's approval active and cancels each child's
+  approval as superseded. A child may be removed or ungrouped while the head is still in flight; it restores its
+  pre-group state and starts at step one of the approval process currently assigned to its award. No cancelled child
+  responses carry into that new run. Once approval creates a bestowal, the linked recommendations remain locked.
 
 ## What was removed vs kept (summary)
 

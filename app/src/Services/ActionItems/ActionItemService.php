@@ -7,11 +7,17 @@ use App\KMP\KmpIdentityInterface;
 use App\KMP\PermissionsLoader;
 use App\Model\Entity\ActionItem;
 use App\Services\ServiceResult;
+use Cake\Datasource\EntityInterface;
 use Cake\Event\Event;
 use Cake\Event\EventManager;
 use Cake\I18n\DateTime;
+use Cake\Log\Log;
+use Cake\ORM\Exception\MissingTableClassException;
 use Cake\ORM\Query\SelectQuery;
+use Cake\ORM\Table;
 use Cake\ORM\TableRegistry;
+use RuntimeException;
+use Throwable;
 
 /**
  * ActionItemService - lifecycle operations for the reusable to-do subsystem.
@@ -23,9 +29,30 @@ use Cake\ORM\TableRegistry;
  */
 class ActionItemService
 {
+    public const CASCADE_WARNING_DATA_KEY = 'cascadeWarning';
+
+    public const SYNCHRONIZATION_FAILURE_REASON =
+        'To-do workflow synchronization failed. Review the server logs for details.';
+
+    public const TRANSITION_FAILURE_REASON =
+        'The to-do item could not be updated. Review the server logs for details.';
+
+    public const COMPLETION_EVENT_FAILURE_REASON =
+        'Post-completion processing could not be finished. Review the server logs for details.';
+
     public const SYSTEM_AUTO_COMPLETION_NOTE = 'Completed automatically after required fields were satisfied.';
 
     public const SYSTEM_REQUIREMENT_REOPEN_NOTE = 'Reopened automatically after required fields were cleared.';
+
+    /**
+     * Persisted provenance marker matched exactly against action_item_logs.note.
+     * Do not reword without migrating existing log rows first.
+     */
+    public const SYSTEM_DEFINITION_SYNC_CANCEL_NOTE =
+        'Cancelled automatically because this to-do is no longer in the current workflow definition.';
+
+    public const SYSTEM_DEFINITION_SYNC_REOPEN_NOTE =
+        'Reopened automatically because this to-do returned to the current workflow definition.';
 
     /**
      * @var \App\Services\ActionItems\ActionItemAssigneeResolver
@@ -126,6 +153,343 @@ class ActionItemService
     }
 
     /**
+     * Reconcile an owner's materialized action items with current definitions.
+     *
+     * Definitions are matched by their stable source_ref. Matching items keep
+     * their lifecycle state and completion audit while their mutable snapshot
+     * fields are refreshed. New definitions are created, removed definitions
+     * are cancelled, and only items whose latest transition was a definition
+     * sync cancellation are reopened when their source_ref returns.
+     *
+     * @param string $entityType Polymorphic owner type.
+     * @param int $entityId Owner primary key.
+     * @param array<int, array<string, mixed>> $definitions Current item definitions.
+     * @param int|null $branchId Default branch scope for definitions without one.
+     * @param int|null $actorId Member initiating the synchronization, if any.
+     * @return \App\Services\ServiceResult Data contains mutation and required-field reconciliation counts.
+     */
+    public function synchronizeFor(
+        string $entityType,
+        int $entityId,
+        array $definitions,
+        ?int $branchId = null,
+        ?int $actorId = null,
+    ): ServiceResult {
+        $entityType = trim($entityType);
+        if ($entityType === '' || $entityId <= 0) {
+            return new ServiceResult(false, 'A valid to-do owner is required for workflow synchronization.');
+        }
+
+        $normalizationResult = $this->normalizeDefinitions($definitions, $branchId);
+        if (!$normalizationResult->success) {
+            return $normalizationResult;
+        }
+
+        /** @var array<string, array<string, mixed>> $normalizedDefinitions */
+        $normalizedDefinitions = $normalizationResult->data;
+        $connection = $this->ActionItems->getConnection();
+        $savePointsWereEnabled = $connection->isSavePointsEnabled();
+        if (!$savePointsWereEnabled) {
+            $connection->enableSavePoints();
+        }
+        $failureReason = null;
+
+        try {
+            $summary = $connection->transactional(function () use (
+                $entityType,
+                $entityId,
+                $normalizedDefinitions,
+                $actorId,
+                &$failureReason,
+            ): array {
+                $owner = $this->lockOwner($entityType, $entityId);
+                if (!$this->ownerAllowsActionItemMutations($owner, $entityType)) {
+                    $failureReason = 'The to-do owner is no longer active.';
+                    throw new RuntimeException('The to-do owner is no longer active.');
+                }
+                $items = $this->ActionItems->find()
+                    ->where([
+                        'ActionItems.entity_type' => $entityType,
+                        'ActionItems.entity_id' => $entityId,
+                        'ActionItems.source_ref IS NOT' => null,
+                    ])
+                    ->orderBy(['ActionItems.id' => 'ASC'])
+                    ->epilog('FOR UPDATE')
+                    ->all();
+
+                $itemsBySourceRef = [];
+                foreach ($items as $item) {
+                    $sourceRef = trim((string)$item->source_ref);
+                    if ($sourceRef === '') {
+                        continue;
+                    }
+                    if (isset($itemsBySourceRef[$sourceRef])) {
+                        throw new RuntimeException(sprintf(
+                            'Multiple existing to-do items use the source reference "%s".',
+                            $sourceRef,
+                        ));
+                    }
+                    $itemsBySourceRef[$sourceRef] = $item;
+                }
+
+                $summary = [
+                    'createdCount' => 0,
+                    'updatedCount' => 0,
+                    'cancelledCount' => 0,
+                    'reopenedCount' => 0,
+                    'unchangedCount' => 0,
+                    'requiredCompletedCount' => 0,
+                    'requiredReopenedCount' => 0,
+                    'requiredSkippedCount' => 0,
+                ];
+
+                foreach ($normalizedDefinitions as $sourceRef => $definition) {
+                    $item = $itemsBySourceRef[$sourceRef] ?? null;
+                    if ($item === null) {
+                        $itemData = [
+                            'entity_type' => $entityType,
+                            'entity_id' => $entityId,
+                            'status' => ActionItem::STATUS_OPEN,
+                        ] + $definition;
+                        if ($actorId !== null) {
+                            $itemData['created_by'] = $actorId;
+                            $itemData['modified_by'] = $actorId;
+                        }
+                        $entity = $this->ActionItems->newEntity($itemData);
+                        $this->ActionItems->saveOrFail($entity);
+                        $summary['createdCount']++;
+
+                        continue;
+                    }
+
+                    $updated = false;
+                    foreach ($definition as $field => $value) {
+                        if ($field === 'source_ref' || $this->snapshotValuesEqual($item->get($field), $value)) {
+                            continue;
+                        }
+                        $item->set($field, $value);
+                        $updated = true;
+                    }
+                    if ($updated) {
+                        if ($actorId !== null) {
+                            $item->modified_by = $actorId;
+                        }
+                        $this->ActionItems->saveOrFail($item);
+                        $summary['updatedCount']++;
+                    }
+
+                    $reopened = false;
+                    if (
+                        $item->status === ActionItem::STATUS_CANCELLED
+                        && $this->wasCancelledByDefinitionSync((int)$item->id)
+                    ) {
+                        $result = $this->transition(
+                            (int)$item->id,
+                            $actorId,
+                            ActionItem::STATUS_OPEN,
+                            self::SYSTEM_DEFINITION_SYNC_REOPEN_NOTE,
+                            false,
+                        );
+                        if (!$result->success) {
+                            throw new RuntimeException(
+                                $result->reason ?? 'Failed to reopen a returned to-do item.',
+                            );
+                        }
+                        $summary['reopenedCount']++;
+                        $reopened = true;
+                    }
+
+                    if (!$updated && !$reopened) {
+                        $summary['unchangedCount']++;
+                    }
+                }
+
+                foreach ($itemsBySourceRef as $sourceRef => $item) {
+                    if (isset($normalizedDefinitions[$sourceRef])) {
+                        continue;
+                    }
+                    if ($item->status === ActionItem::STATUS_CANCELLED) {
+                        $summary['unchangedCount']++;
+
+                        continue;
+                    }
+
+                    $result = $this->transition(
+                        (int)$item->id,
+                        $actorId,
+                        ActionItem::STATUS_CANCELLED,
+                        self::SYSTEM_DEFINITION_SYNC_CANCEL_NOTE,
+                        false,
+                    );
+                    if (!$result->success) {
+                        throw new RuntimeException($result->reason ?? 'Failed to retire a removed to-do item.');
+                    }
+                    $summary['cancelledCount']++;
+                }
+
+                // Definition synchronization may reconcile a required-field
+                // item, but it must not impersonate a Mark Given action.
+                $requiredResult = $this->syncRequiredFieldCompletionStates($entityType, $entityId);
+                if (!$requiredResult->success) {
+                    throw new RuntimeException(
+                        $requiredResult->reason ?? 'Failed to synchronize required-field to-dos.',
+                    );
+                }
+                $summary['requiredCompletedCount'] = (int)($requiredResult->data['completedCount'] ?? 0);
+                $summary['requiredReopenedCount'] = (int)($requiredResult->data['reopenedCount'] ?? 0);
+                $summary['requiredSkippedCount'] = (int)($requiredResult->data['skippedCount'] ?? 0);
+
+                return $summary;
+            });
+        } catch (Throwable $exception) {
+            Log::error(sprintf(
+                'To-do workflow synchronization failed for %s:%d: %s',
+                $entityType,
+                $entityId,
+                $exception->getMessage(),
+            ));
+
+            return new ServiceResult(false, $failureReason ?? self::SYNCHRONIZATION_FAILURE_REASON);
+        } finally {
+            if (!$savePointsWereEnabled) {
+                $connection->disableSavePoints();
+            }
+        }
+
+        return new ServiceResult(true, null, $summary);
+    }
+
+    /**
+     * Validate and normalize definition snapshots before any writes occur.
+     *
+     * @param array<int, array<string, mixed>> $definitions Raw definitions.
+     * @param int|null $branchId Default branch scope.
+     * @return \App\Services\ServiceResult Data is keyed by normalized source_ref.
+     */
+    private function normalizeDefinitions(array $definitions, ?int $branchId): ServiceResult
+    {
+        $normalized = [];
+        $position = 0;
+        foreach ($definitions as $definition) {
+            $position++;
+            if (!is_array($definition)) {
+                return new ServiceResult(false, sprintf('To-do definition %d is invalid.', $position));
+            }
+
+            $sourceRef = $definition['source_ref'] ?? null;
+            if (!is_scalar($sourceRef) || trim((string)$sourceRef) === '') {
+                return new ServiceResult(false, sprintf(
+                    'To-do definition %d requires a stable source reference.',
+                    $position,
+                ));
+            }
+            $sourceRef = trim((string)$sourceRef);
+            if (isset($normalized[$sourceRef])) {
+                return new ServiceResult(false, sprintf(
+                    'To-do source reference "%s" is duplicated in the current workflow definition.',
+                    $sourceRef,
+                ));
+            }
+
+            $title = $definition['title'] ?? 'To-Do';
+            if (!is_scalar($title) || trim((string)$title) === '') {
+                return new ServiceResult(false, sprintf('To-do definition "%s" requires a title.', $sourceRef));
+            }
+            $description = $definition['description'] ?? null;
+            if ($description !== null && !is_scalar($description)) {
+                return new ServiceResult(false, sprintf(
+                    'To-do definition "%s" has an invalid description.',
+                    $sourceRef,
+                ));
+            }
+            $assigneeType = $definition['assignee_type'] ?? ActionItem::ASSIGNEE_TYPE_PERMISSION;
+            if (!is_scalar($assigneeType) || trim((string)$assigneeType) === '') {
+                return new ServiceResult(false, sprintf(
+                    'To-do definition "%s" requires an assignee type.',
+                    $sourceRef,
+                ));
+            }
+            $assigneeConfig = $definition['assignee_config'] ?? null;
+            if ($assigneeConfig !== null && !is_array($assigneeConfig)) {
+                return new ServiceResult(false, sprintf(
+                    'To-do definition "%s" has invalid assignee configuration.',
+                    $sourceRef,
+                ));
+            }
+            $completionConfig = $definition['completion_config'] ?? null;
+            if ($completionConfig !== null && !is_array($completionConfig)) {
+                return new ServiceResult(false, sprintf(
+                    'To-do definition "%s" has invalid completion configuration.',
+                    $sourceRef,
+                ));
+            }
+            $definitionBranchId = array_key_exists('branch_id', $definition)
+                ? $definition['branch_id']
+                : $branchId;
+            if ($definitionBranchId === '') {
+                $definitionBranchId = null;
+            }
+            if (
+                $definitionBranchId !== null
+                && (!is_numeric($definitionBranchId) || (int)$definitionBranchId <= 0)
+            ) {
+                return new ServiceResult(false, sprintf(
+                    'To-do definition "%s" has an invalid branch scope.',
+                    $sourceRef,
+                ));
+            }
+
+            $normalized[$sourceRef] = [
+                'title' => trim((string)$title),
+                'description' => $description === null ? null : (string)$description,
+                'assignee_type' => trim((string)$assigneeType),
+                'assignee_config' => $assigneeConfig,
+                'branch_id' => $definitionBranchId === null ? null : (int)$definitionBranchId,
+                'is_gating' => array_key_exists('is_gating', $definition) ? (bool)$definition['is_gating'] : true,
+                'sort_order' => (int)($definition['sort_order'] ?? $position - 1),
+                'source_ref' => $sourceRef,
+                'completion_config' => $completionConfig,
+            ];
+        }
+
+        return new ServiceResult(true, null, $normalized);
+    }
+
+    /**
+     * Whether two snapshot values are equivalent for synchronization purposes.
+     *
+     * @param mixed $current Persisted value.
+     * @param mixed $desired Current definition value.
+     * @return bool
+     */
+    private function snapshotValuesEqual(mixed $current, mixed $desired): bool
+    {
+        if (is_array($current) && is_array($desired)) {
+            return $current == $desired;
+        }
+
+        return $current === $desired;
+    }
+
+    /**
+     * Check explicit cancellation provenance using the latest status log only.
+     *
+     * @param int $actionItemId Action item ID.
+     * @return bool
+     */
+    private function wasCancelledByDefinitionSync(int $actionItemId): bool
+    {
+        $latestLog = $this->ActionItemLogs->find()
+            ->where(['ActionItemLogs.action_item_id' => $actionItemId])
+            ->orderBy(['ActionItemLogs.id' => 'DESC'])
+            ->first();
+
+        return $latestLog !== null
+            && $latestLog->to_status === ActionItem::STATUS_CANCELLED
+            && $latestLog->note === self::SYSTEM_DEFINITION_SYNC_CANCEL_NOTE;
+    }
+
+    /**
      * Mark an action item completed, enforcing assignee eligibility.
      *
      * @param int $actionItemId The item to complete
@@ -208,6 +572,88 @@ class ActionItemService
             return new ServiceResult(false, 'A valid to-do owner is required for required-field synchronization.');
         }
 
+        $connection = $this->ActionItems->getConnection();
+        $savePointsWereEnabled = $connection->isSavePointsEnabled();
+        if (!$savePointsWereEnabled) {
+            $connection->enableSavePoints();
+        }
+        $completedItems = [];
+        $failureReason = null;
+
+        try {
+            $result = $connection->transactional(function () use (
+                $connection,
+                $entityType,
+                $entityId,
+                $completedEventActorId,
+                &$completedItems,
+                &$failureReason,
+            ): ServiceResult {
+                $owner = $this->lockOwner($entityType, $entityId);
+                if (!$this->ownerAllowsActionItemMutations($owner, $entityType)) {
+                    return new ServiceResult(true, 'The to-do owner is no longer active; no change.', [
+                        'completedIds' => [],
+                        'reopenedIds' => [],
+                        'completedCount' => 0,
+                        'reopenedCount' => 0,
+                        'skippedCount' => 0,
+                    ]);
+                }
+
+                $result = $this->syncRequiredFieldCompletionStatesForActiveOwner(
+                    $entityType,
+                    $entityId,
+                    $completedEventActorId,
+                    $completedItems,
+                );
+                if (!$result->success) {
+                    $failureReason = $result->reason ?? 'Required-field synchronization failed.';
+                    throw new RuntimeException('Required-field synchronization returned a failed result.');
+                }
+                if ($completedItems !== []) {
+                    $deferredItems = $completedItems;
+                    $connection->afterCommit(function () use ($deferredItems, $completedEventActorId): void {
+                        foreach ($deferredItems as $completedItem) {
+                            $this->dispatchCompletedEvent($completedItem, $completedEventActorId);
+                        }
+                    });
+                }
+
+                return $result;
+            });
+        } catch (Throwable $exception) {
+            if ($failureReason !== null) {
+                return new ServiceResult(false, $failureReason);
+            }
+
+            Log::error(sprintf(
+                'Required-field to-do synchronization failed for %s:%d: %s',
+                $entityType,
+                $entityId,
+                $exception->getMessage(),
+            ));
+
+            return new ServiceResult(false, self::SYNCHRONIZATION_FAILURE_REASON);
+        } finally {
+            if (!$savePointsWereEnabled) {
+                $connection->disableSavePoints();
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Reconcile required fields after the persisted owner has been locked.
+     *
+     * @param array<int, \App\Model\Entity\ActionItem> $completedItems Deferred completed events.
+     */
+    private function syncRequiredFieldCompletionStatesForActiveOwner(
+        string $entityType,
+        int $entityId,
+        ?int $completedEventActorId,
+        array &$completedItems,
+    ): ServiceResult {
         $items = $this->ActionItems->find()
             ->where([
                 'ActionItems.entity_type' => $entityType,
@@ -279,9 +725,13 @@ class ActionItemService
                 [],
                 null,
                 $completedEventActorId,
+                false,
             );
             if (!$result->success) {
                 return $result;
+            }
+            if ($result->data instanceof ActionItem) {
+                $completedItems[] = $result->data;
             }
             $completedIds[] = (int)$item->id;
         }
@@ -323,6 +773,7 @@ class ActionItemService
      * @param array<string, mixed> $completionData Submitted provider-backed completion data
      * @param \App\KMP\KmpIdentityInterface|null $actorIdentity Current actor identity
      * @param int|null $completedEventActorId Alternate actor for completion listeners.
+     * @param bool $dispatchCompletionEvent Whether to dispatch immediately after commit.
      * @return \App\Services\ServiceResult
      */
     protected function transition(
@@ -334,34 +785,72 @@ class ActionItemService
         array $completionData = [],
         ?KmpIdentityInterface $actorIdentity = null,
         ?int $completedEventActorId = null,
+        bool $dispatchCompletionEvent = true,
     ): ServiceResult {
-        /** @var \App\Model\Entity\ActionItem|null $item */
-        $item = $this->ActionItems->find()->where(['ActionItems.id' => $actionItemId])->first();
-        if (!$item) {
-            return new ServiceResult(false, 'To-do item not found.');
-        }
-
-        if ($enforceEligibility && ($actorId === null || !$this->resolver->isMemberEligible($item, $actorId))) {
-            return new ServiceResult(false, 'You are not assigned to this to-do item.');
-        }
-
-        $fromStatus = $item->status;
-        if ($fromStatus === $toStatus) {
-            return new ServiceResult(true, 'No change.', $item);
-        }
-
         $connection = $this->ActionItems->getConnection();
+        $savePointsWereEnabled = $connection->isSavePointsEnabled();
+        if (!$savePointsWereEnabled) {
+            $connection->enableSavePoints();
+        }
+        $item = null;
+        $didTransition = false;
+        $transactionFailure = null;
 
-        $result = $connection->transactional(
-            function () use (
-                $item,
-                $fromStatus,
+        try {
+            $result = $connection->transactional(function () use (
+                $actionItemId,
+                $actorId,
                 $toStatus,
                 $note,
-                $actorId,
+                $enforceEligibility,
                 $completionData,
                 $actorIdentity,
+                &$item,
+                &$didTransition,
+                &$transactionFailure,
             ): ServiceResult {
+                /** @var \App\Model\Entity\ActionItem|null $ownerContext */
+                $ownerContext = $this->ActionItems->find()
+                    ->select(['id', 'entity_type', 'entity_id'])
+                    ->where(['ActionItems.id' => $actionItemId])
+                    ->first();
+                if (!$ownerContext) {
+                    return new ServiceResult(false, 'To-do item not found.');
+                }
+                $owner = $this->lockOwner(
+                    (string)$ownerContext->entity_type,
+                    (int)$ownerContext->entity_id,
+                );
+                if (!$this->ownerAllowsActionItemMutations($owner, (string)$ownerContext->entity_type)) {
+                    return new ServiceResult(false, 'The to-do owner is no longer active.');
+                }
+
+                /** @var \App\Model\Entity\ActionItem|null $item */
+                $item = $this->ActionItems->find()
+                    ->where(['ActionItems.id' => $actionItemId])
+                    ->epilog('FOR UPDATE')
+                    ->first();
+                if (!$item) {
+                    return new ServiceResult(false, 'To-do item not found.');
+                }
+                if (
+                    $enforceEligibility
+                    && ($actorId === null || !$this->resolver->isMemberEligible($item, $actorId))
+                ) {
+                    return new ServiceResult(false, 'You are not assigned to this to-do item.');
+                }
+
+                $fromStatus = (string)$item->status;
+                if ($fromStatus === $toStatus) {
+                    return new ServiceResult(true, 'No change.', $item);
+                }
+                if (!$this->isTransitionAllowed($fromStatus, $toStatus)) {
+                    return new ServiceResult(
+                        false,
+                        'The to-do item changed state. Refresh the page before trying again.',
+                    );
+                }
+
                 if ($toStatus === ActionItem::STATUS_COMPLETED) {
                     $requirementResult = $this->prepareCompletionRequirements(
                         $item,
@@ -370,7 +859,8 @@ class ActionItemService
                         $actorIdentity,
                     );
                     if (!$requirementResult->success) {
-                        return $requirementResult;
+                        $transactionFailure = $requirementResult;
+                        throw new RuntimeException('To-do completion requirements were not satisfied.');
                     }
                 }
 
@@ -384,7 +874,7 @@ class ActionItemService
                 }
 
                 if (!$this->ActionItems->save($item)) {
-                    return new ServiceResult(false, 'Failed to update the to-do item.');
+                    throw new RuntimeException('Failed to update the to-do item.');
                 }
 
                 $log = $this->ActionItemLogs->newEntity([
@@ -394,27 +884,181 @@ class ActionItemService
                     'note' => $note,
                     'created_by' => $actorId,
                 ]);
-                $this->ActionItemLogs->save($log);
+                $this->ActionItemLogs->saveOrFail($log);
+                $didTransition = true;
 
                 return new ServiceResult(true, null, $item);
-            },
-        );
+            });
+        } catch (Throwable $exception) {
+            if ($transactionFailure instanceof ServiceResult) {
+                return $transactionFailure;
+            }
 
-        if ($result->success && $toStatus === ActionItem::STATUS_COMPLETED) {
-            $this->dispatchCompletedEvent($item, $completedEventActorId ?? $actorId);
+            Log::error(sprintf(
+                'To-do transition failed for item %d: %s',
+                $actionItemId,
+                $exception->getMessage(),
+            ));
+
+            return new ServiceResult(false, self::TRANSITION_FAILURE_REASON);
+        } finally {
+            if (!$savePointsWereEnabled) {
+                $connection->disableSavePoints();
+            }
+        }
+
+        if (
+            $result->success
+            && $didTransition
+            && $item instanceof ActionItem
+            && $toStatus === ActionItem::STATUS_COMPLETED
+        ) {
+            $cascadeResult = null;
+            $warningReason = null;
+            $warningData = null;
             if ($actorId !== null) {
                 $cascadeResult = $this->autoCompleteSatisfiedRequirements(
                     (string)$item->entity_type,
                     (int)$item->entity_id,
                     $actorId,
                 );
-                if (!$cascadeResult->success) {
-                    return $cascadeResult;
+            }
+            if ($cascadeResult !== null && !$cascadeResult->success) {
+                $warningReason = $cascadeResult->reason
+                    ?? 'Related to-dos could not be synchronized after completion.';
+                $warningData = $cascadeResult->data;
+            }
+            if ($dispatchCompletionEvent) {
+                try {
+                    $this->dispatchCompletedEvent($item, $completedEventActorId ?? $actorId);
+                } catch (Throwable $exception) {
+                    Log::error(sprintf(
+                        'Post-completion processing failed for to-do item %d: %s',
+                        (int)$item->id,
+                        $exception->getMessage(),
+                    ));
+                    $warningReason = trim(implode(' ', array_filter([
+                        $warningReason,
+                        self::COMPLETION_EVENT_FAILURE_REASON,
+                    ])));
+                    $warningData = [
+                        'cascadeData' => $warningData,
+                        'completionEventFailed' => true,
+                    ];
                 }
+            }
+            if ($warningReason !== null) {
+                return new ServiceResult(true, null, [
+                    'item' => $item,
+                    self::CASCADE_WARNING_DATA_KEY => [
+                        'reason' => $warningReason,
+                        'data' => $warningData,
+                    ],
+                ]);
             }
         }
 
         return $result;
+    }
+
+    /**
+     * Lock a persisted owner before its action item to keep cross-entity updates ordered.
+     *
+     * Entity types that do not resolve to a table on this connection retain the
+     * existing item-only locking behavior.
+     *
+     * @param string $entityType Polymorphic owner type.
+     * @param int $entityId Owner primary key.
+     * @return \Cake\Datasource\EntityInterface|null Locked owner, when resolvable.
+     */
+    private function lockOwner(string $entityType, int $entityId): ?EntityInterface
+    {
+        $entityType = trim($entityType);
+        if ($entityType === '' || $entityId <= 0) {
+            return null;
+        }
+
+        try {
+            $ownerTable = TableRegistry::getTableLocator()->get($entityType);
+        } catch (MissingTableClassException) {
+            return null;
+        }
+        // A fallback Table means this entity type is a logical discriminator,
+        // not a resolvable persisted owner such as Awards.Bestowals.
+        if ($ownerTable::class === Table::class) {
+            return null;
+        }
+        if ($ownerTable->getConnection() !== $this->ActionItems->getConnection()) {
+            return null;
+        }
+        $primaryKey = $ownerTable->getPrimaryKey();
+        if (!is_string($primaryKey) || $primaryKey === '') {
+            return null;
+        }
+
+        $query = $ownerTable->hasBehavior('Trash')
+            ? $ownerTable->find('withTrashed')
+            : $ownerTable->find();
+
+        return $query
+            ->where([$ownerTable->getAlias() . '.' . $primaryKey => $entityId])
+            ->epilog('FOR UPDATE')
+            ->first();
+    }
+
+    /**
+     * Apply an owner's optional terminal-lifecycle contract.
+     *
+     * A missing row for an owner type that implements the contract means the
+     * owner was deleted, so it must not fall through to generic item behavior.
+     *
+     * @param \Cake\Datasource\EntityInterface|null $owner Locked owner entity.
+     * @param string $entityType Polymorphic owner type.
+     * @return bool
+     */
+    private function ownerAllowsActionItemMutations(?EntityInterface $owner, string $entityType): bool
+    {
+        if ($owner instanceof ActionItemOwnerInterface) {
+            return $owner->allowsActionItemMutations();
+        }
+        if ($owner !== null) {
+            return true;
+        }
+
+        try {
+            $ownerTable = TableRegistry::getTableLocator()->get($entityType);
+        } catch (MissingTableClassException) {
+            return true;
+        }
+        if (
+            $ownerTable::class === Table::class
+            || $ownerTable->getConnection() !== $this->ActionItems->getConnection()
+        ) {
+            return true;
+        }
+
+        return !is_a($ownerTable->getEntityClass(), ActionItemOwnerInterface::class, true);
+    }
+
+    /**
+     * Validate lifecycle transitions after locking the latest persisted row.
+     */
+    private function isTransitionAllowed(string $fromStatus, string $toStatus): bool
+    {
+        return match ($fromStatus) {
+            ActionItem::STATUS_OPEN => in_array(
+                $toStatus,
+                [ActionItem::STATUS_COMPLETED, ActionItem::STATUS_CANCELLED],
+                true,
+            ),
+            ActionItem::STATUS_COMPLETED => in_array(
+                $toStatus,
+                [ActionItem::STATUS_OPEN, ActionItem::STATUS_CANCELLED],
+                true,
+            ),
+            ActionItem::STATUS_CANCELLED => $toStatus === ActionItem::STATUS_OPEN,
+            default => false,
+        };
     }
 
     /**
@@ -765,6 +1409,23 @@ class ActionItemService
         }
 
         return true;
+    }
+
+    /**
+     * Whether an owner currently has any non-cancelled gating item.
+     *
+     * @param string $entityType Polymorphic owner type.
+     * @param int $entityId Owner primary key.
+     * @return bool
+     */
+    public function hasActiveGatingItems(string $entityType, int $entityId): bool
+    {
+        return $this->ActionItems->exists([
+            'ActionItems.entity_type' => $entityType,
+            'ActionItems.entity_id' => $entityId,
+            'ActionItems.is_gating' => true,
+            'ActionItems.status !=' => ActionItem::STATUS_CANCELLED,
+        ]);
     }
 
     /**

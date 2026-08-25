@@ -505,9 +505,21 @@ require 'config/bootstrap.php';
     ['Queue'],
 ))));
 $input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
-$recommendations = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.Recommendations');
+$locator = \\Cake\\ORM\\TableRegistry::getTableLocator();
+$recommendations = $locator->get('Awards.Recommendations');
+$members = $locator->get('Members');
+$runs = $locator->get('Awards.RecommendationApprovalRuns');
 $ids = array_values(array_unique(array_map('intval', $input['ids'] ?? [])));
 rsort($ids);
+$actor = $members->find()
+    ->select(['id'])
+    ->where(['email_address' => (string)$input['actorEmail']])
+    ->firstOrFail();
+$deletionService = new \\Awards\\Services\\RecommendationDeletionService();
+$activeStatuses = [
+    \\Awards\\Model\\Entity\\RecommendationApprovalRun::STATUS_IN_PROGRESS,
+    \\Awards\\Model\\Entity\\RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
+];
 
 foreach ($ids as $id) {
     if (!$recommendations->exists(['id' => $id])) {
@@ -515,7 +527,39 @@ foreach ($ids as $id) {
     }
 
     $recommendation = $recommendations->get($id);
-    $recommendations->delete($recommendation);
+    if (!$runs->exists([
+        'recommendation_id' => $id,
+        'status IN' => $activeStatuses,
+    ])) {
+        $recommendations->deleteOrFail($recommendation, ['systemSync' => true]);
+
+        continue;
+    }
+    $result = $deletionService->delete($recommendations, $recommendation, (int)$actor->id);
+    if (!($result['success'] ?? false)) {
+        throw new \\RuntimeException(sprintf(
+            'Could not clean up recommendation %d: %s',
+            $id,
+            (string)($result['message'] ?? 'unknown deletion failure'),
+        ));
+    }
+}
+
+$activeRunIds = $ids === [] ? [] : $runs->find()
+    ->select(['id'])
+    ->where([
+        'recommendation_id IN' => $ids,
+        'status IN' => $activeStatuses,
+    ])
+    ->all()
+    ->extract('id')
+    ->map(static fn($id): int => (int)$id)
+    ->toList();
+if ($activeRunIds !== []) {
+    throw new \\RuntimeException(sprintf(
+        'Recommendation cleanup left active approval run(s): %s.',
+        implode(', ', $activeRunIds),
+    ));
 }
 
 echo json_encode(['deleted' => $ids], JSON_THROW_ON_ERROR);
@@ -1739,6 +1783,7 @@ echo json_encode(['deleted' => true], JSON_THROW_ON_ERROR);
 
     runPhpJson(CLEANUP_FIXTURES_PHP, {
         ids: page.__awardRecommendationFixtures.ids,
+        actorEmail: FIXTURE_REQUESTER_EMAIL,
     });
     if (page.__awardFutureGatheringFixture?.id) {
         runPhpJson(CLEANUP_FUTURE_GATHERING_FIXTURE_PHP, {
@@ -2250,20 +2295,74 @@ const CLEANUP_BESTOWAL_FIXTURE_PHP = `
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';
 
+\\Cake\\Core\\Configure::write('Queue.plugins', array_values(array_unique(array_merge(
+    (array)\\Cake\\Core\\Configure::read('Queue.plugins'),
+    ['Queue'],
+))));
 $input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
-$bestowals = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.Bestowals');
-$recommendations = \\Cake\\ORM\\TableRegistry::getTableLocator()->get('Awards.Recommendations');
+$locator = \\Cake\\ORM\\TableRegistry::getTableLocator();
+$bestowals = $locator->get('Awards.Bestowals');
+$recommendations = $locator->get('Awards.Recommendations');
+$members = $locator->get('Members');
+$runs = $locator->get('Awards.RecommendationApprovalRuns');
+$recommendationIds = array_values(array_unique(array_map('intval', $input['recommendationIds'] ?? [])));
+$actor = $members->find()
+    ->select(['id'])
+    ->where(['email_address' => (string)$input['actorEmail']])
+    ->firstOrFail();
+$deletionService = new \\Awards\\Services\\RecommendationDeletionService();
+$activeStatuses = [
+    \\Awards\\Model\\Entity\\RecommendationApprovalRun::STATUS_IN_PROGRESS,
+    \\Awards\\Model\\Entity\\RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
+];
 
 foreach (array_values(array_unique(array_map('intval', $input['bestowalIds'] ?? []))) as $id) {
     if ($bestowals->exists(['id' => $id])) {
-        $bestowals->delete($bestowals->get($id));
+        $bestowals->deleteOrFail($bestowals->get($id));
     }
 }
 
-foreach (array_values(array_unique(array_map('intval', $input['recommendationIds'] ?? []))) as $id) {
+foreach ($recommendationIds as $id) {
     if ($recommendations->exists(['id' => $id])) {
-        $recommendations->delete($recommendations->get($id));
+        $recommendation = $recommendations->get($id);
+        if (!$runs->exists([
+            'recommendation_id' => $id,
+            'status IN' => $activeStatuses,
+        ])) {
+            $recommendations->deleteOrFail($recommendation, ['systemSync' => true]);
+
+            continue;
+        }
+        $result = $deletionService->delete(
+            $recommendations,
+            $recommendation,
+            (int)$actor->id,
+        );
+        if (!($result['success'] ?? false)) {
+            throw new \\RuntimeException(sprintf(
+                'Could not clean up bestowal recommendation %d: %s',
+                $id,
+                (string)($result['message'] ?? 'unknown deletion failure'),
+            ));
+        }
     }
+}
+
+$activeRunIds = $recommendationIds === [] ? [] : $runs->find()
+    ->select(['id'])
+    ->where([
+        'recommendation_id IN' => $recommendationIds,
+        'status IN' => $activeStatuses,
+    ])
+    ->all()
+    ->extract('id')
+    ->map(static fn($id): int => (int)$id)
+    ->toList();
+if ($activeRunIds !== []) {
+    throw new \\RuntimeException(sprintf(
+        'Bestowal cleanup left active recommendation approval run(s): %s.',
+        implode(', ', $activeRunIds),
+    ));
 }
 
 echo json_encode(['deleted' => true], JSON_THROW_ON_ERROR);
@@ -2555,6 +2654,10 @@ When('I open the bestowal to-dos tab', async ({ page }) => {
 
 Then('the bestowal to-dos should include {string}', async ({ page }, title) => {
     await expect(getBestowalTodoItem(page, title)).toBeVisible({ timeout: 15000 });
+});
+
+Then('the bestowal to-dos should not include {string}', async ({ page }, title) => {
+    await expect(getBestowalTodoItem(page, title)).toHaveCount(0);
 });
 
 Then('the bestowal to-do {string} should require a gathering', async ({ page }, title) => {
@@ -2849,5 +2952,6 @@ After(async ({ page }) => {
     runPhpJson(CLEANUP_BESTOWAL_FIXTURE_PHP, {
         bestowalIds: fixture.bestowalId ? [fixture.bestowalId] : [],
         recommendationIds: fixture.recommendationId ? [fixture.recommendationId] : [],
+        actorEmail: FIXTURE_REQUESTER_EMAIL,
     });
 });

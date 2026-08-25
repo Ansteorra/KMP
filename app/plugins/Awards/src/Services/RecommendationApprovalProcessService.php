@@ -73,6 +73,7 @@ class RecommendationApprovalProcessService
                 $run = $runsTable->newEntity([
                     'recommendation_id' => $recommendation->id,
                     'approval_process_id' => $process->id,
+                    'approval_process_signature' => $process->configuration_signature,
                     'workflow_instance_id' => $instanceId,
                     'status' => RecommendationApprovalRun::STATUS_IN_PROGRESS,
                     'current_step_key' => $firstStep->step_key,
@@ -89,7 +90,9 @@ class RecommendationApprovalProcessService
                 }
             }
 
-            return new ServiceResult(true, null, $this->stepOutput($run, $recommendation, $firstStep));
+            $this->assertRunUsesRecommendationProcess($run, $recommendation);
+
+            return new ServiceResult(true, null, $this->buildStepOutput($run, $recommendation, $firstStep));
         } catch (Throwable $e) {
             Log::error('Award approval process start failed: ' . $e->getMessage());
 
@@ -116,7 +119,6 @@ class RecommendationApprovalProcessService
 
             $runsTable = $this->fetchTable('Awards.RecommendationApprovalRuns');
             $run = $runsTable->find()
-                ->contain(['ApprovalProcesses.ApprovalProcessSteps', 'Recommendations.Awards.ApprovalProcesses'])
                 ->where([
                     'RecommendationApprovalRuns.workflow_instance_id' => $instanceId,
                     'RecommendationApprovalRuns.status IN' => [
@@ -131,12 +133,6 @@ class RecommendationApprovalProcessService
             }
 
             $recommendation = $this->loadGroupHeadRecommendation((int)$run->recommendation_id);
-            $steps = $this->orderedSteps($run->approval_process->approval_process_steps ?? []);
-            $currentIndex = $this->findStepIndex($steps, (string)$run->current_step_key);
-            if ($currentIndex === null) {
-                return new ServiceResult(false, 'The current approval process step could not be found.');
-            }
-
             if ($approvalStatus === 'rejected') {
                 return $this->handleRejectedStep(
                     $run,
@@ -145,16 +141,33 @@ class RecommendationApprovalProcessService
                     $this->resolveRejectionComment($context, $config),
                 );
             }
+            $this->assertRunUsesRecommendationProcess($run, $recommendation);
+
+            $runsTable->loadInto($run, ['ApprovalProcesses.ApprovalProcessSteps']);
+            $steps = $this->orderedSteps($run->approval_process->approval_process_steps ?? []);
+            $currentIndex = $this->findStepIndex($steps, (string)$run->current_step_key);
+            if ($currentIndex === null) {
+                return new ServiceResult(false, 'The current approval process step could not be found.');
+            }
 
             if ($approvalStatus !== 'approved') {
                 return new ServiceResult(false, 'Only approved or rejected approval statuses can advance a process.');
             }
 
-            $nextStep = $steps[$currentIndex + 1] ?? null;
+            $completedStepKeys = $this->completedStepKeys($run);
+            $nextStep = $this->nextIncompleteStep(
+                $steps,
+                $currentIndex,
+                $completedStepKeys,
+            );
             if ($nextStep) {
                 $this->updateRunStep($run, $nextStep, RecommendationApprovalRun::STATUS_IN_PROGRESS, $actorId);
 
-                return new ServiceResult(true, null, $this->stepOutput($run, $recommendation, $nextStep));
+                return new ServiceResult(
+                    true,
+                    null,
+                    $this->buildStepOutput($run, $recommendation, $nextStep, null, $completedStepKeys),
+                );
             }
 
             $run->status = RecommendationApprovalRun::STATUS_APPROVED;
@@ -267,22 +280,32 @@ class RecommendationApprovalProcessService
      * @param \Awards\Model\Entity\RecommendationApprovalRun $run Approval run.
      * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation.
      * @param \Awards\Model\Entity\ApprovalProcessStep $step Approval step.
+     * @param int|null $currentApprovalId Pending approval whose responders remain eligible for this step.
+     * @param array<int, string>|null $completedStepKeys Previously loaded completed stable step keys.
      * @return array<string, mixed>
      */
-    private function stepOutput(
+    public function buildStepOutput(
         RecommendationApprovalRun $run,
         Recommendation $recommendation,
         ApprovalProcessStep $step,
+        ?int $currentApprovalId = null,
+        ?array $completedStepKeys = null,
     ): array {
+        $this->assertRunUsesRecommendationProcess($run, $recommendation);
         $steps = $this->orderedSteps($recommendation->award->approval_process->approval_process_steps ?? []);
         $stepIndex = $this->findStepIndex($steps, (string)$step->step_key);
         $approverIds = $this->excludePriorApprovalResponders(
             (int)$run->workflow_instance_id,
             $this->approverIds($step, $recommendation),
+            $currentApprovalId,
         );
         // Never emit a zero required count: a blocked (empty-pool) gate still
         // needs one approval once the pool self-heals.
         $requiredCount = max(1, $this->requiredCount($step, $approverIds));
+
+        $completedStepKeys ??= $this->completedStepKeys($run);
+        $isFinalStep = $stepIndex !== null
+            && $this->nextIncompleteStep($steps, $stepIndex, $completedStepKeys) === null;
 
         return [
             'runId' => (int)$run->id,
@@ -297,7 +320,7 @@ class RecommendationApprovalProcessService
             'approvalApproverConfig' => $this->approvalApproverConfig(
                 $run,
                 $step,
-                $stepIndex !== null && $stepIndex === count($steps) - 1,
+                $isFinalStep,
             ),
         ];
     }
@@ -347,7 +370,7 @@ class RecommendationApprovalProcessService
             return null;
         }
 
-        return $stepIndex === count($steps) - 1;
+        return $this->nextIncompleteStep($steps, $stepIndex, $this->completedStepKeys($run)) === null;
     }
 
     /**
@@ -505,6 +528,7 @@ class RecommendationApprovalProcessService
      *
      * @param int $workflowInstanceId Workflow instance ID.
      * @param array<int> $approverIds Candidate approver IDs.
+     * @param int|null $currentApprovalId Current gate whose responders are not prior-step responders.
      * @return array<int>
      */
     private function excludePriorApprovalResponders(
@@ -693,6 +717,86 @@ class RecommendationApprovalProcessService
         usort($steps, static fn($left, $right): int => ((int)$left->sequence) <=> ((int)$right->sequence));
 
         return array_values($steps);
+    }
+
+    /**
+     * Find the next configured step that has not already completed in this run.
+     *
+     * Only later steps are considered so adding or moving a step before the
+     * current step never rewinds an in-flight workflow.
+     *
+     * @param array<int, \Awards\Model\Entity\ApprovalProcessStep> $steps Ordered steps.
+     * @param int $currentIndex Current step index.
+     * @param array<int, string> $completedStepKeys Completed stable step keys.
+     * @return \Awards\Model\Entity\ApprovalProcessStep|null
+     */
+    private function nextIncompleteStep(
+        array $steps,
+        int $currentIndex,
+        array $completedStepKeys,
+    ): ?ApprovalProcessStep {
+        for ($index = $currentIndex + 1, $count = count($steps); $index < $count; $index++) {
+            $step = $steps[$index];
+            if (!in_array((string)$step->step_key, $completedStepKeys, true)) {
+                return $step;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Return stable keys for approval gates already completed in this run.
+     *
+     * @param \Awards\Model\Entity\RecommendationApprovalRun $run Approval run.
+     * @return array<int, string>
+     */
+    public function completedStepKeys(RecommendationApprovalRun $run): array
+    {
+        $approvals = $this->fetchTable('WorkflowApprovals')->find()
+            ->select(['id', 'approver_config'])
+            ->where([
+                'workflow_instance_id' => (int)$run->workflow_instance_id,
+                'status' => WorkflowApproval::STATUS_APPROVED,
+            ])
+            ->orderBy(['id' => 'ASC'])
+            ->all();
+        $keys = [];
+        foreach ($approvals as $approval) {
+            $config = is_array($approval->approver_config) ? $approval->approver_config : [];
+            if ((int)($config['award_approval_run_id'] ?? 0) !== (int)$run->id) {
+                continue;
+            }
+            $key = trim((string)($config['award_approval_step_key'] ?? ''));
+            if ($key !== '') {
+                $keys[] = $key;
+            }
+        }
+
+        return array_values(array_unique($keys));
+    }
+
+    /**
+     * Reject stale runs before creating or advancing approval steps until synchronization upgrades them.
+     *
+     * Terminal rejection deliberately bypasses this guard so Sync Now can finish a
+     * rejected gate whose original workflow resume was interrupted.
+     *
+     * @param \Awards\Model\Entity\RecommendationApprovalRun $run Approval run.
+     * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation with current award process.
+     * @return void
+     */
+    private function assertRunUsesRecommendationProcess(
+        RecommendationApprovalRun $run,
+        Recommendation $recommendation,
+    ): void {
+        $currentProcessId = (int)($recommendation->award?->approval_process?->id ?? 0);
+        if ($currentProcessId <= 0 || (int)$run->approval_process_id !== $currentProcessId) {
+            throw new RuntimeException(
+                'The active recommendation approval run does not use the award\'s current approval process. '
+                . 'Synchronize open recommendation approvals before continuing.',
+            );
+        }
     }
 
     /**

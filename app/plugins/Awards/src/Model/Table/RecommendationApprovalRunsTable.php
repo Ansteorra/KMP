@@ -83,6 +83,11 @@ class RecommendationApprovalRunsTable extends BaseTable
             ->notEmptyString('workflow_instance_id');
 
         $validator
+            ->scalar('approval_process_signature')
+            ->maxLength('approval_process_signature', 64)
+            ->allowEmptyString('approval_process_signature');
+
+        $validator
             ->scalar('status')
             ->inList('status', [
                 RecommendationApprovalRun::STATUS_IN_PROGRESS,

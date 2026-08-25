@@ -138,12 +138,6 @@ class RecommendationGroupingService
      */
     public function ungroupRecommendations(int $headId, ?int $actorId = null): array
     {
-        $this->assertNoActiveApprovalRuns(
-            [$headId],
-            includeChildren: true,
-            operation: 'ungroup these recommendations',
-        );
-
         return $this->withTransaction(function () use ($headId, $actorId): array {
             $head = $this->recommendationsTable->get($headId, contain: ['GroupChildren']);
             if (empty($head->group_children)) {
@@ -173,12 +167,6 @@ class RecommendationGroupingService
         if ($child->recommendation_group_id === null) {
             throw new InvalidArgumentException('This recommendation is not part of a group.');
         }
-
-        $this->assertNoActiveApprovalRuns(
-            [(int)$child->recommendation_group_id],
-            includeChildren: true,
-            operation: 'remove a recommendation from a group',
-        );
 
         return $this->withTransaction(function () use ($childId, $actorId): int {
             /** @var \Awards\Model\Entity\Recommendation $child */
@@ -515,60 +503,6 @@ class RecommendationGroupingService
         }
 
         throw new InvalidArgumentException('Archived recommendations cannot be grouped.');
-    }
-
-    /**
-     * Assert that the supplied recommendations (and optionally children) have no active approval runs.
-     *
-     * @param array<int> $ids Recommendation IDs to check.
-     * @param bool $includeChildren Also check group children of each supplied ID.
-     * @param string $operation Human-readable operation description.
-     * @return void
-     */
-    private function assertNoActiveApprovalRuns(
-        array $ids,
-        bool $includeChildren,
-        string $operation,
-    ): void {
-        $activeRuns = $this->findActiveApprovalRuns($ids, $includeChildren);
-        if ($activeRuns !== []) {
-            throw new InvalidArgumentException(
-                sprintf(
-                    'Cannot %s while one or more recommendations in the group are under active approval review.',
-                    $operation,
-                ),
-            );
-        }
-    }
-
-    /**
-     * Find active approval runs for supplied recommendation IDs.
-     *
-     * @param array<int> $ids Recommendation IDs to check.
-     * @param bool $includeChildren Also check group children of each supplied ID.
-     * @return array<\Awards\Model\Entity\RecommendationApprovalRun>
-     */
-    private function findActiveApprovalRuns(array $ids, bool $includeChildren = false): array
-    {
-        $checkIds = $ids;
-
-        if ($includeChildren) {
-            $children = $this->recommendationsTable->find()
-                ->select(['id'])
-                ->where(['recommendation_group_id IN' => $ids])
-                ->all();
-            foreach ($children as $child) {
-                $checkIds[] = (int)$child->id;
-            }
-            $checkIds = array_values(array_unique($checkIds));
-        }
-
-        if ($checkIds === []) {
-            return [];
-        }
-
-        /** @var array<\Awards\Model\Entity\RecommendationApprovalRun> $activeRuns */
-        return $this->approvalLifecycleService->findActiveRuns($checkIds, $includeChildren);
     }
 
     /**

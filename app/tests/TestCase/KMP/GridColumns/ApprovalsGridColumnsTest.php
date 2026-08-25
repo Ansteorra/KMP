@@ -266,4 +266,20 @@ class ApprovalsGridColumnsTest extends BaseTestCase
         $this->assertContains(WorkflowApproval::STATUS_EXPIRED, $values);
         $this->assertContains(WorkflowApproval::STATUS_CANCELLED, $values);
     }
+
+    public function testTerminalStatusLabelsUseExtractableTranslations(): void
+    {
+        $labels = [
+            WorkflowApproval::STATUS_APPROVED => 'Approved',
+            WorkflowApproval::STATUS_REJECTED => 'Rejected',
+            WorkflowApproval::STATUS_EXPIRED => 'Expired',
+            WorkflowApproval::STATUS_CANCELLED => 'Cancelled',
+        ];
+
+        foreach ($labels as $status => $expectedLabel) {
+            $approval = new WorkflowApproval(['status' => $status]);
+
+            $this->assertSame($expectedLabel, ApprovalsGridColumns::getStatusLabel($approval));
+        }
+    }
 }

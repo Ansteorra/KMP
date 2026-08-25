@@ -12,7 +12,10 @@ use App\Services\ActionItems\ActionItemService;
 use App\Services\ServiceResult;
 use App\Test\TestCase\BaseTestCase;
 use Cake\Cache\Cache;
+use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
+use Psr\Log\LoggerInterface;
+use RuntimeException;
 
 class ActionItemServiceTest extends BaseTestCase
 {
@@ -123,6 +126,111 @@ class ActionItemServiceTest extends BaseTestCase
         $this->assertTrue($reloaded->isOpen());
     }
 
+    public function testRequiredFieldSyncHidesUnexpectedProviderException(): void
+    {
+        ActionItemCompletionFormRegistry::register(
+            'test-unexpected-sync-error',
+            new class implements ActionItemCompletionFormProviderInterface {
+                public function canHandle(ActionItem $item): bool
+                {
+                    return $item->entity_type === 'Tests.RequiredOwner';
+                }
+
+                public function buildForm(ActionItem $item, KmpIdentityInterface $user): ?ActionItemCompletionForm
+                {
+                    return null;
+                }
+
+                public function applySubmission(
+                    ActionItem $item,
+                    array $data,
+                    int $actorId,
+                    KmpIdentityInterface $user,
+                ): ServiceResult {
+                    return new ServiceResult(true);
+                }
+
+                public function validateCompletion(ActionItem $item): ServiceResult
+                {
+                    throw new RuntimeException('Sensitive provider failure details.');
+                }
+            },
+        );
+        $item = $this->makeRequiredItem();
+
+        $result = (new ActionItemService())->syncRequiredFieldCompletionStates(
+            'Tests.RequiredOwner',
+            90001,
+        );
+
+        $this->assertFalse($result->success);
+        $this->assertSame(ActionItemService::SYNCHRONIZATION_FAILURE_REASON, $result->reason);
+        $this->assertStringNotContainsString('Sensitive provider', (string)$result->reason);
+        $this->assertTrue(TableRegistry::getTableLocator()->get('ActionItems')->get($item->id)->isOpen());
+    }
+
+    public function testCompletionHidesAndLogsUnexpectedProviderException(): void
+    {
+        $target = $this->makeRequiredItem(['title' => 'Throwing provider todo']);
+        ActionItemCompletionFormRegistry::register(
+            'test-unexpected-transition-error',
+            new class implements ActionItemCompletionFormProviderInterface {
+                public function canHandle(ActionItem $item): bool
+                {
+                    return $item->title === 'Throwing provider todo';
+                }
+
+                public function buildForm(ActionItem $item, KmpIdentityInterface $user): ?ActionItemCompletionForm
+                {
+                    return null;
+                }
+
+                public function applySubmission(
+                    ActionItem $item,
+                    array $data,
+                    int $actorId,
+                    KmpIdentityInterface $user,
+                ): ServiceResult {
+                    throw new RuntimeException('Sensitive transition provider details.');
+                }
+
+                public function validateCompletion(ActionItem $item): ServiceResult
+                {
+                    return new ServiceResult(true);
+                }
+            },
+        );
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('log')
+            ->with(
+                'error',
+                $this->callback(static fn($message): bool => str_contains(
+                    (string)$message,
+                    'Sensitive transition provider details.',
+                )),
+                $this->isType('array'),
+            );
+        Log::setConfig('test-action-item-transition-error', $logger);
+
+        try {
+            $result = (new ActionItemService())->complete(
+                (int)$target->id,
+                self::ADMIN_MEMBER_ID,
+                enforceEligibility: false,
+                completionData: ['submitted' => true],
+                actorIdentity: $this->createMock(KmpIdentityInterface::class),
+            );
+        } finally {
+            Log::drop('test-action-item-transition-error');
+        }
+
+        $this->assertFalse($result->success);
+        $this->assertSame(ActionItemService::TRANSITION_FAILURE_REASON, $result->reason);
+        $this->assertStringNotContainsString('Sensitive transition provider', (string)$result->reason);
+        $this->assertTrue(TableRegistry::getTableLocator()->get('ActionItems')->get($target->id)->isOpen());
+    }
+
     public function testSyncRequiredFieldCompletionStatesReopensCompletedItemWhenRequirementCleared(): void
     {
         $this->registerStaticRequirementProvider(false);
@@ -169,6 +277,235 @@ class ActionItemServiceTest extends BaseTestCase
         $this->assertNull($reloadedAutoClosable->completed_by);
     }
 
+    public function testCompletionRollsBackProviderSideEffectsWhenItemSaveFails(): void
+    {
+        $target = $this->makeRequiredItem(['title' => 'Provider-backed todo']);
+        $sideEffectItem = $this->makeBasicItem([
+            'title' => 'Unchanged side effect item',
+            'sort_order' => 2,
+        ]);
+        ActionItemCompletionFormRegistry::register(
+            'test-save-rollback',
+            new class ((int)$sideEffectItem->id) implements ActionItemCompletionFormProviderInterface {
+                public function __construct(private readonly int $sideEffectItemId)
+                {
+                }
+
+                public function canHandle(ActionItem $item): bool
+                {
+                    return $item->title === 'Provider-backed todo';
+                }
+
+                public function buildForm(ActionItem $item, KmpIdentityInterface $user): ?ActionItemCompletionForm
+                {
+                    return null;
+                }
+
+                public function applySubmission(
+                    ActionItem $item,
+                    array $data,
+                    int $actorId,
+                    KmpIdentityInterface $user,
+                ): ServiceResult {
+                    TableRegistry::getTableLocator()->get('ActionItems')->updateAll(
+                        ['title' => 'Provider side effect'],
+                        ['id' => $this->sideEffectItemId],
+                    );
+
+                    return new ServiceResult(true);
+                }
+
+                public function validateCompletion(ActionItem $item): ServiceResult
+                {
+                    return new ServiceResult(true);
+                }
+            },
+        );
+        $actionItems = TableRegistry::getTableLocator()->get('ActionItems');
+        $listener = static function ($event, ActionItem $item) use ($target) {
+            if ((int)$item->id === (int)$target->id && $item->isCompleted()) {
+                return false;
+            }
+
+            return null;
+        };
+        $actionItems->getEventManager()->on('Model.beforeSave', $listener);
+
+        try {
+            $result = (new ActionItemService())->complete(
+                (int)$target->id,
+                self::ADMIN_MEMBER_ID,
+                enforceEligibility: false,
+                completionData: ['submitted' => true],
+                actorIdentity: $this->createMock(KmpIdentityInterface::class),
+            );
+        } finally {
+            $actionItems->getEventManager()->off('Model.beforeSave', $listener);
+        }
+
+        $this->assertFalse($result->success);
+        $this->assertSame(ActionItemService::TRANSITION_FAILURE_REASON, $result->reason);
+        $this->assertTrue($actionItems->get($target->id)->isOpen());
+        $this->assertSame('Unchanged side effect item', $actionItems->get($sideEffectItem->id)->title);
+        $this->assertSame(
+            0,
+            TableRegistry::getTableLocator()->get('ActionItemLogs')->find()
+                ->where(['action_item_id' => (int)$target->id])
+                ->count(),
+        );
+    }
+
+    public function testCompletionRollsBackProviderSideEffectsWhenRequirementValidationFails(): void
+    {
+        $target = $this->makeRequiredItem(['title' => 'Rejected provider todo']);
+        $sideEffectItem = $this->makeBasicItem([
+            'title' => 'Unchanged failed-provider side effect',
+            'sort_order' => 2,
+        ]);
+        ActionItemCompletionFormRegistry::register(
+            'test-failed-provider-rollback',
+            new class ((int)$sideEffectItem->id) implements ActionItemCompletionFormProviderInterface {
+                public function __construct(private readonly int $sideEffectItemId)
+                {
+                }
+
+                public function canHandle(ActionItem $item): bool
+                {
+                    return $item->title === 'Rejected provider todo';
+                }
+
+                public function buildForm(ActionItem $item, KmpIdentityInterface $user): ?ActionItemCompletionForm
+                {
+                    return null;
+                }
+
+                public function applySubmission(
+                    ActionItem $item,
+                    array $data,
+                    int $actorId,
+                    KmpIdentityInterface $user,
+                ): ServiceResult {
+                    TableRegistry::getTableLocator()->get('ActionItems')->updateAll(
+                        ['title' => 'Failed provider side effect'],
+                        ['id' => $this->sideEffectItemId],
+                    );
+
+                    return new ServiceResult(true);
+                }
+
+                public function validateCompletion(ActionItem $item): ServiceResult
+                {
+                    return new ServiceResult(false, 'Complete the prerequisite first.');
+                }
+            },
+        );
+        $actionItems = TableRegistry::getTableLocator()->get('ActionItems');
+
+        $result = (new ActionItemService())->complete(
+            (int)$target->id,
+            self::ADMIN_MEMBER_ID,
+            enforceEligibility: false,
+            completionData: ['submitted' => true],
+            actorIdentity: $this->createMock(KmpIdentityInterface::class),
+        );
+
+        $this->assertFalse($result->success);
+        $this->assertSame('Complete the prerequisite first.', $result->reason);
+        $this->assertTrue($actionItems->get($target->id)->isOpen());
+        $this->assertSame(
+            'Unchanged failed-provider side effect',
+            $actionItems->get($sideEffectItem->id)->title,
+        );
+        $this->assertSame(
+            0,
+            TableRegistry::getTableLocator()->get('ActionItemLogs')->find()
+                ->where(['action_item_id' => (int)$target->id])
+                ->count(),
+        );
+    }
+
+    public function testCascadeFailureStillDispatchesCommittedCompletionEvent(): void
+    {
+        $starter = $this->makeBasicItem();
+        $required = $this->makeRequiredItem(['sort_order' => 2]);
+        $service = new class extends ActionItemService {
+            /**
+             * @var array<int, array{itemId: int, actorId: int|null}>
+             */
+            public array $completedEvents = [];
+
+            protected function dispatchCompletedEvent(ActionItem $item, ?int $actorId): void
+            {
+                $this->completedEvents[] = [
+                    'itemId' => (int)$item->id,
+                    'actorId' => $actorId,
+                ];
+            }
+        };
+
+        $result = $service->complete((int)$starter->id, self::ADMIN_MEMBER_ID, null, false);
+
+        $this->assertTrue($result->success);
+        $this->assertNull($result->reason);
+        $this->assertSame(
+            'This to-do requires additional information before it can be completed.',
+            $result->data[ActionItemService::CASCADE_WARNING_DATA_KEY]['reason'] ?? null,
+        );
+        $this->assertSame((int)$starter->id, (int)($result->data['item']->id ?? 0));
+        $this->assertTrue(TableRegistry::getTableLocator()->get('ActionItems')->get($starter->id)->isCompleted());
+        $this->assertTrue(TableRegistry::getTableLocator()->get('ActionItems')->get($required->id)->isOpen());
+        $this->assertSame([
+            [
+                'itemId' => (int)$starter->id,
+                'actorId' => self::ADMIN_MEMBER_ID,
+            ],
+        ], $service->completedEvents);
+    }
+
+    public function testCompletionListenerExceptionReturnsPostCommitWarningAndLogsDetails(): void
+    {
+        $starter = $this->makeBasicItem();
+        $service = new class extends ActionItemService {
+            protected function dispatchCompletedEvent(ActionItem $item, ?int $actorId): void
+            {
+                throw new RuntimeException('Sensitive completion listener details.');
+            }
+        };
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('log')
+            ->with(
+                'error',
+                $this->callback(static fn($message): bool => str_contains(
+                    (string)$message,
+                    'Sensitive completion listener details.',
+                )),
+                $this->isType('array'),
+            );
+        Log::setConfig('test-action-item-completion-event-error', $logger);
+
+        try {
+            $result = $service->complete((int)$starter->id, self::ADMIN_MEMBER_ID, null, false);
+        } finally {
+            Log::drop('test-action-item-completion-event-error');
+        }
+
+        $this->assertTrue($result->success);
+        $this->assertNull($result->reason);
+        $this->assertSame(
+            ActionItemService::COMPLETION_EVENT_FAILURE_REASON,
+            $result->data[ActionItemService::CASCADE_WARNING_DATA_KEY]['reason'] ?? null,
+        );
+        $this->assertTrue(
+            $result->data[ActionItemService::CASCADE_WARNING_DATA_KEY]['data']['completionEventFailed'] ?? false,
+        );
+        $this->assertStringNotContainsString(
+            'Sensitive completion listener',
+            (string)($result->data[ActionItemService::CASCADE_WARNING_DATA_KEY]['reason'] ?? ''),
+        );
+        $this->assertTrue(TableRegistry::getTableLocator()->get('ActionItems')->get($starter->id)->isCompleted());
+    }
+
     public function testRoleAssignedItemsAreScopedToActionItemBranch(): void
     {
         $role = $this->createScopedRoleForMember(self::TEST_MEMBER_AGATHA_ID, self::TEST_BRANCH_STARGATE_ID);
@@ -193,6 +530,418 @@ class ActionItemServiceTest extends BaseTestCase
 
         $this->assertContains((int)$stargateItem->id, $itemIds);
         $this->assertNotContains((int)$kingdomItem->id, $itemIds);
+    }
+
+    public function testSynchronizeForReconcilesSnapshotsAndPreservesMatchingCompletion(): void
+    {
+        $service = new ActionItemService();
+        $kept = $this->makeBasicItem([
+            'title' => 'Old kept title',
+            'source_ref' => 'kept_check',
+            'is_gating' => true,
+            'completion_config' => ['legacy' => true],
+        ]);
+        $completeResult = $service->complete((int)$kept->id, self::ADMIN_MEMBER_ID, 'Finished', false);
+        $this->assertTrue($completeResult->success, (string)$completeResult->reason);
+        $completedBefore = TableRegistry::getTableLocator()->get('ActionItems')->get($kept->id);
+        $completedAt = $completedBefore->completed_at;
+        $keptLogCount = TableRegistry::getTableLocator()->get('ActionItemLogs')->find()
+            ->where(['action_item_id' => (int)$kept->id])
+            ->count();
+        $removed = $this->makeBasicItem([
+            'title' => 'Removed check',
+            'source_ref' => 'removed_check',
+        ]);
+
+        $result = $service->synchronizeFor('Tests.RequiredOwner', 90001, [
+            [
+                'title' => 'Current kept title',
+                'description' => 'Current instructions',
+                'assignee_type' => ActionItem::ASSIGNEE_TYPE_MEMBER,
+                'assignee_config' => ['member_id' => self::ADMIN_MEMBER_ID],
+                'branch_id' => null,
+                'is_gating' => false,
+                'sort_order' => 5,
+                'source_ref' => 'kept_check',
+            ],
+            [
+                'title' => 'Brand new check',
+                'assignee_type' => ActionItem::ASSIGNEE_TYPE_MEMBER,
+                'assignee_config' => ['member_id' => self::TEST_MEMBER_AGATHA_ID],
+                'branch_id' => self::KINGDOM_BRANCH_ID,
+                'is_gating' => true,
+                'sort_order' => 6,
+                'source_ref' => 'new_check',
+            ],
+        ], self::KINGDOM_BRANCH_ID, self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($result->success, (string)$result->reason);
+        $this->assertSame(1, $result->data['createdCount']);
+        $this->assertSame(1, $result->data['updatedCount']);
+        $this->assertSame(1, $result->data['cancelledCount']);
+        $this->assertSame(0, $result->data['reopenedCount']);
+
+        $reloadedKept = TableRegistry::getTableLocator()->get('ActionItems')->get($kept->id);
+        $this->assertTrue($reloadedKept->isCompleted());
+        $this->assertSame(self::ADMIN_MEMBER_ID, (int)$reloadedKept->completed_by);
+        $this->assertEquals($completedAt, $reloadedKept->completed_at);
+        $this->assertSame('Current kept title', $reloadedKept->title);
+        $this->assertSame('Current instructions', $reloadedKept->description);
+        $this->assertFalse((bool)$reloadedKept->is_gating);
+        $this->assertNull($reloadedKept->completion_config);
+        $this->assertSame(self::ADMIN_MEMBER_ID, (int)$reloadedKept->assignee_lookup_id);
+        $this->assertSame(
+            $keptLogCount,
+            TableRegistry::getTableLocator()->get('ActionItemLogs')->find()
+                ->where(['action_item_id' => (int)$kept->id])
+                ->count(),
+            'Refreshing a matching snapshot must not add a lifecycle log.',
+        );
+
+        $reloadedRemoved = TableRegistry::getTableLocator()->get('ActionItems')->get($removed->id);
+        $this->assertSame(ActionItem::STATUS_CANCELLED, $reloadedRemoved->status);
+        $retirementLog = TableRegistry::getTableLocator()->get('ActionItemLogs')->find()
+            ->where(['action_item_id' => (int)$removed->id])
+            ->orderByDesc('id')
+            ->firstOrFail();
+        $this->assertSame(ActionItemService::SYSTEM_DEFINITION_SYNC_CANCEL_NOTE, $retirementLog->note);
+        $this->assertSame(self::ADMIN_MEMBER_ID, (int)$retirementLog->created_by);
+
+        $created = TableRegistry::getTableLocator()->get('ActionItems')->find()
+            ->where([
+                'entity_type' => 'Tests.RequiredOwner',
+                'entity_id' => 90001,
+                'source_ref' => 'new_check',
+            ])
+            ->firstOrFail();
+        $this->assertTrue($created->isOpen());
+    }
+
+    public function testSynchronizeForOnlyReopensItemsCancelledByDefinitionSync(): void
+    {
+        $service = new ActionItemService();
+        $returned = $this->makeBasicItem([
+            'title' => 'Returned check',
+            'source_ref' => 'returned_check',
+        ]);
+        $manual = $this->makeBasicItem([
+            'title' => 'Manual check',
+            'source_ref' => 'manual_check',
+            'sort_order' => 1,
+        ]);
+        $manualResult = $service->cancel(
+            (int)$manual->id,
+            self::ADMIN_MEMBER_ID,
+            'Cancelled deliberately by an administrator.',
+            false,
+        );
+        $this->assertTrue($manualResult->success, (string)$manualResult->reason);
+
+        $retireResult = $service->synchronizeFor('Tests.RequiredOwner', 90001, [], null, self::ADMIN_MEMBER_ID);
+        $this->assertTrue($retireResult->success, (string)$retireResult->reason);
+        $this->assertSame(1, $retireResult->data['cancelledCount']);
+
+        $definitions = [
+            [
+                'title' => 'Returned check',
+                'assignee_type' => ActionItem::ASSIGNEE_TYPE_MEMBER,
+                'assignee_config' => ['member_id' => self::TEST_MEMBER_AGATHA_ID],
+                'branch_id' => self::KINGDOM_BRANCH_ID,
+                'is_gating' => false,
+                'sort_order' => 0,
+                'source_ref' => 'returned_check',
+            ],
+            [
+                'title' => 'Manual check',
+                'assignee_type' => ActionItem::ASSIGNEE_TYPE_MEMBER,
+                'assignee_config' => ['member_id' => self::TEST_MEMBER_AGATHA_ID],
+                'branch_id' => self::KINGDOM_BRANCH_ID,
+                'is_gating' => false,
+                'sort_order' => 1,
+                'source_ref' => 'manual_check',
+            ],
+        ];
+        $returnResult = $service->synchronizeFor(
+            'Tests.RequiredOwner',
+            90001,
+            $definitions,
+            null,
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $this->assertTrue($returnResult->success, (string)$returnResult->reason);
+        $this->assertSame(1, $returnResult->data['reopenedCount']);
+        $this->assertTrue(TableRegistry::getTableLocator()->get('ActionItems')->get($returned->id)->isOpen());
+        $this->assertSame(
+            ActionItem::STATUS_CANCELLED,
+            TableRegistry::getTableLocator()->get('ActionItems')->get($manual->id)->status,
+        );
+
+        $logs = TableRegistry::getTableLocator()->get('ActionItemLogs');
+        $logCount = $logs->find()->where(['action_item_id IN' => [$returned->id, $manual->id]])->count();
+        $idempotentResult = $service->synchronizeFor(
+            'Tests.RequiredOwner',
+            90001,
+            $definitions,
+            null,
+            self::ADMIN_MEMBER_ID,
+        );
+        $this->assertTrue($idempotentResult->success, (string)$idempotentResult->reason);
+        $this->assertSame(0, $idempotentResult->data['reopenedCount']);
+        $this->assertSame(2, $idempotentResult->data['unchangedCount']);
+        $this->assertSame(
+            $logCount,
+            $logs->find()->where(['action_item_id IN' => [$returned->id, $manual->id]])->count(),
+        );
+    }
+
+    public function testSynchronizeForRejectsBlankAndDuplicateSourceReferencesBeforeWriting(): void
+    {
+        $service = new ActionItemService();
+        $existing = $this->makeBasicItem(['source_ref' => 'existing_check']);
+        $definition = [
+            'title' => 'Duplicate check',
+            'assignee_type' => ActionItem::ASSIGNEE_TYPE_MEMBER,
+            'assignee_config' => ['member_id' => self::TEST_MEMBER_AGATHA_ID],
+            'source_ref' => 'duplicate_check',
+        ];
+
+        $duplicateResult = $service->synchronizeFor(
+            'Tests.RequiredOwner',
+            90001,
+            [$definition, $definition],
+        );
+        $blankResult = $service->synchronizeFor('Tests.RequiredOwner', 90001, [[
+            'title' => 'Blank key',
+            'source_ref' => '   ',
+        ]]);
+
+        $this->assertFalse($duplicateResult->success);
+        $this->assertStringContainsString('duplicated', (string)$duplicateResult->reason);
+        $this->assertFalse($blankResult->success);
+        $this->assertStringContainsString('stable source reference', (string)$blankResult->reason);
+        $this->assertTrue(TableRegistry::getTableLocator()->get('ActionItems')->get($existing->id)->isOpen());
+        $this->assertSame(
+            0,
+            TableRegistry::getTableLocator()->get('ActionItemLogs')->find()
+                ->where(['action_item_id' => (int)$existing->id])
+                ->count(),
+        );
+    }
+
+    public function testSynchronizeForRunsRequiredFieldStateReconciliation(): void
+    {
+        $this->registerStaticRequirementProvider(false);
+        $item = $this->makeRequiredItem([
+            'status' => ActionItem::STATUS_COMPLETED,
+            'completed_by' => self::ADMIN_MEMBER_ID,
+            'source_ref' => 'required_check',
+        ]);
+        $service = new ActionItemService();
+
+        $result = $service->synchronizeFor('Tests.RequiredOwner', 90001, [[
+            'title' => 'Required field todo',
+            'assignee_type' => ActionItem::ASSIGNEE_TYPE_MEMBER,
+            'assignee_config' => ['member_id' => self::TEST_MEMBER_AGATHA_ID],
+            'branch_id' => self::KINGDOM_BRANCH_ID,
+            'is_gating' => true,
+            'sort_order' => 1,
+            'source_ref' => 'required_check',
+            'completion_config' => $item->completion_config,
+        ]]);
+
+        $this->assertTrue($result->success, (string)$result->reason);
+        $this->assertSame(1, $result->data['requiredReopenedCount']);
+        $this->assertTrue(TableRegistry::getTableLocator()->get('ActionItems')->get($item->id)->isOpen());
+    }
+
+    public function testSynchronizeForDefersAutoCompletionEventBeyondSyncTransaction(): void
+    {
+        $this->registerStaticRequirementProvider(true);
+        $item = $this->makeRequiredItem([
+            'source_ref' => 'required_check',
+            'completion_config' => $this->autoCompletableRequirementConfig(),
+        ]);
+        $service = new class extends ActionItemService {
+            /**
+             * @var array<int, int|null>
+             */
+            public array $completedEventActors = [];
+
+            protected function dispatchCompletedEvent(ActionItem $item, ?int $actorId): void
+            {
+                $this->completedEventActors[] = $actorId;
+            }
+        };
+
+        $result = $service->synchronizeFor('Tests.RequiredOwner', 90001, [[
+            'title' => 'Required field todo',
+            'assignee_type' => ActionItem::ASSIGNEE_TYPE_MEMBER,
+            'assignee_config' => ['member_id' => self::TEST_MEMBER_AGATHA_ID],
+            'branch_id' => self::KINGDOM_BRANCH_ID,
+            'is_gating' => true,
+            'sort_order' => 1,
+            'source_ref' => 'required_check',
+            'completion_config' => $item->completion_config,
+        ]], actorId: self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($result->success, (string)$result->reason);
+        $this->assertSame(1, $result->data['requiredCompletedCount']);
+        $completed = TableRegistry::getTableLocator()->get('ActionItems')->get($item->id);
+        $this->assertTrue($completed->isCompleted());
+        $this->assertNull($completed->completed_by);
+        $this->assertSame(
+            [],
+            $service->completedEventActors,
+            'The fixture transaction has not committed, so the completion event must remain deferred.',
+        );
+    }
+
+    public function testRequiredCompletionEventWaitsForOutermostCommit(): void
+    {
+        $this->registerStaticRequirementProvider(true);
+        $item = $this->makeRequiredItem([
+            'completion_config' => $this->autoCompletableRequirementConfig(),
+        ]);
+        $service = new class extends ActionItemService {
+            /**
+             * @var array<int>
+             */
+            public array $completedEventIds = [];
+
+            protected function dispatchCompletedEvent(ActionItem $item, ?int $actorId): void
+            {
+                $this->completedEventIds[] = (int)$item->id;
+            }
+        };
+        $actionItems = TableRegistry::getTableLocator()->get('ActionItems');
+        $connection = $actionItems->getConnection();
+        $savePointsWereEnabled = $connection->isSavePointsEnabled();
+        if (!$savePointsWereEnabled) {
+            $connection->enableSavePoints();
+        }
+
+        try {
+            try {
+                $connection->transactional(function () use ($service, $item, $actionItems): void {
+                    $result = $service->syncRequiredFieldCompletionStates('Tests.RequiredOwner', 90001);
+                    $this->assertTrue($result->success, (string)$result->reason);
+                    $this->assertTrue($actionItems->get($item->id)->isCompleted());
+                    $this->assertSame([], $service->completedEventIds);
+
+                    throw new RuntimeException('Force the outer workflow synchronization to roll back.');
+                });
+                $this->fail('Expected the outer transaction to roll back.');
+            } catch (RuntimeException $exception) {
+                $this->assertSame(
+                    'Force the outer workflow synchronization to roll back.',
+                    $exception->getMessage(),
+                );
+            }
+
+            $this->assertTrue($actionItems->get($item->id)->isOpen());
+            $this->assertSame([], $service->completedEventIds);
+        } finally {
+            if (!$savePointsWereEnabled) {
+                $connection->disableSavePoints();
+            }
+        }
+    }
+
+    public function testCompleteDoesNotReviveCancelledItem(): void
+    {
+        $item = $this->makeBasicItem(['status' => ActionItem::STATUS_CANCELLED]);
+        $service = new ActionItemService();
+
+        $result = $service->complete((int)$item->id, self::ADMIN_MEMBER_ID, enforceEligibility: false);
+
+        $this->assertFalse($result->success);
+        $this->assertSame(
+            ActionItem::STATUS_CANCELLED,
+            TableRegistry::getTableLocator()->get('ActionItems')->get($item->id)->status,
+        );
+        $this->assertSame(
+            0,
+            TableRegistry::getTableLocator()->get('ActionItemLogs')->find()
+                ->where(['action_item_id' => (int)$item->id])
+                ->count(),
+        );
+    }
+
+    public function testSynchronizeForRollsBackSnapshotChangesWhenRequiredFieldSyncFails(): void
+    {
+        $kept = $this->makeBasicItem([
+            'title' => 'Original title',
+            'source_ref' => 'kept_check',
+        ]);
+        $required = $this->makeRequiredItem(['source_ref' => 'required_check']);
+        $service = new ActionItemService();
+
+        $result = $service->synchronizeFor('Tests.RequiredOwner', 90001, [
+            [
+                'title' => 'Changed title',
+                'assignee_type' => ActionItem::ASSIGNEE_TYPE_MEMBER,
+                'assignee_config' => ['member_id' => self::TEST_MEMBER_AGATHA_ID],
+                'branch_id' => self::KINGDOM_BRANCH_ID,
+                'is_gating' => false,
+                'sort_order' => 0,
+                'source_ref' => 'kept_check',
+            ],
+            [
+                'title' => 'Required field todo',
+                'assignee_type' => ActionItem::ASSIGNEE_TYPE_MEMBER,
+                'assignee_config' => ['member_id' => self::TEST_MEMBER_AGATHA_ID],
+                'branch_id' => self::KINGDOM_BRANCH_ID,
+                'is_gating' => true,
+                'sort_order' => 1,
+                'source_ref' => 'required_check',
+                'completion_config' => $required->completion_config,
+            ],
+        ]);
+
+        $this->assertFalse($result->success);
+        $this->assertSame(ActionItemService::SYNCHRONIZATION_FAILURE_REASON, $result->reason);
+        $this->assertSame('Original title', TableRegistry::getTableLocator()->get('ActionItems')->get($kept->id)->title);
+        $this->assertSame(
+            0,
+            TableRegistry::getTableLocator()->get('ActionItemLogs')->find()
+                ->where(['action_item_id IN' => [$kept->id, $required->id]])
+                ->count(),
+        );
+    }
+
+    public function testTransactionalOperationsRestoreDisabledSavePointConfiguration(): void
+    {
+        $connection = TableRegistry::getTableLocator()->get('ActionItems')->getConnection();
+        $savePointsWereEnabled = $connection->isSavePointsEnabled();
+        $connection->disableSavePoints();
+
+        try {
+            $service = new ActionItemService();
+            $item = $this->makeBasicItem();
+
+            $completeResult = $service->complete(
+                (int)$item->id,
+                self::ADMIN_MEMBER_ID,
+                enforceEligibility: false,
+            );
+            $this->assertTrue($completeResult->success, (string)$completeResult->reason);
+            $this->assertFalse($connection->isSavePointsEnabled());
+
+            $requiredResult = $service->syncRequiredFieldCompletionStates('Tests.RequiredOwner', 90001);
+            $this->assertTrue($requiredResult->success, (string)$requiredResult->reason);
+            $this->assertFalse($connection->isSavePointsEnabled());
+
+            $syncResult = $service->synchronizeFor('Tests.RequiredOwner', 90001, []);
+            $this->assertTrue($syncResult->success, (string)$syncResult->reason);
+            $this->assertFalse($connection->isSavePointsEnabled());
+        } finally {
+            if ($savePointsWereEnabled) {
+                $connection->enableSavePoints();
+            } else {
+                $connection->disableSavePoints();
+            }
+        }
     }
 
     /**
