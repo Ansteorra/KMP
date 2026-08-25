@@ -591,6 +591,7 @@ class RecommendationApprovalProcessService
             'runId' => (int)$run->id,
             'status' => $run->status,
             'closed' => true,
+            'recommendationId' => (int)$recommendation->id,
         ]);
     }
 

@@ -415,7 +415,90 @@ class RecommendationApprovalProcessServiceTest extends BaseTestCase
         $this->assertSame((int)$bestowal->id, (int)$run->consumed_by_bestowal_id);
         $this->assertSame((int)$award->id, (int)$bestowal->award_id);
         // Conversion advances the recommendation onto the board (no gathering yet).
-        $this->assertSame('Need to Schedule', $this->freshRecommendationState($recommendationId));
+        $freshRecommendation = $this->getTableLocator()->get('Awards.Recommendations')->get($recommendationId);
+        $this->assertSame('Need to Schedule', $freshRecommendation->state);
+        $this->assertSame('Scheduling', $freshRecommendation->status);
+    }
+
+    public function testSubmittedWorkflowClosesRejectedRecommendationAsNoAction(): void
+    {
+        $this->registerWorkflowRuntime();
+        $definition = json_decode(
+            (string)file_get_contents(CONFIG . 'Seeds/WorkflowDefinitions/awards-recommendation-submitted.json'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        $this->publishSubmittedWorkflow($definition);
+
+        $process = $this->getTableLocator()->get('Awards.ApprovalProcesses')->saveOrFail(
+            $this->getTableLocator()->get('Awards.ApprovalProcesses')->newEntity([
+                'name' => 'Workflow Rejection Process ' . uniqid('', true),
+                'is_active' => true,
+                'approval_process_steps' => [
+                    $this->stepData('crown', 'Crown approval', 1),
+                ],
+            ], ['associated' => ['ApprovalProcessSteps']]),
+        );
+        $award = $this->createAward((int)$process->id);
+
+        $engine = new DefaultWorkflowEngine($this->buildWorkflowContainer());
+        $result = $engine->startWorkflow('awards-recommendation-submitted', [
+            'data' => [
+                'requester_id' => self::ADMIN_MEMBER_ID,
+                'member_id' => self::ADMIN_MEMBER_ID,
+                'branch_id' => self::KINGDOM_BRANCH_ID,
+                'award_id' => (int)$award->id,
+                'requester_sca_name' => 'Admin von Admin',
+                'member_sca_name' => 'Admin von Admin',
+                'contact_email' => 'admin@amp.ansteorra.org',
+                'contact_number' => '555-555-0100',
+                'reason' => 'Testing submitted workflow rejection closure',
+                'call_into_court' => 'No',
+                'court_availability' => 'Anytime',
+            ],
+            'requesterContext' => ['member_id' => self::ADMIN_MEMBER_ID],
+            'submissionMode' => 'internal',
+            'actorId' => self::ADMIN_MEMBER_ID,
+            'branchId' => self::KINGDOM_BRANCH_ID,
+        ], self::ADMIN_MEMBER_ID);
+
+        $this->assertTrue($result->isSuccess(), $result->getError() ?? '');
+        $instanceId = (int)$result->data['instanceId'];
+        $recommendationId = (int)$result->data['workflowResult']['data']['recommendationId'];
+        $rejectionComment = 'The recommendation does not meet the award criteria.';
+
+        $rejected = $engine->resumeWorkflow($instanceId, 'award-approval-gate', 'rejected', [
+            'approverId' => self::ADMIN_MEMBER_ID,
+            'decision' => 'rejected',
+            'comment' => $rejectionComment,
+        ]);
+
+        $this->assertTrue($rejected->isSuccess(), $rejected->getError() ?? '');
+        $instance = $this->getTableLocator()->get('WorkflowInstances')->get($instanceId);
+        $this->assertSame(WorkflowInstance::STATUS_COMPLETED, $instance->status);
+
+        $run = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns')->find()
+            ->where(['workflow_instance_id' => $instanceId])
+            ->firstOrFail();
+        $this->assertSame(RecommendationApprovalRun::STATUS_CLOSED, $run->status);
+        $this->assertSame(RecommendationApprovalRun::TERMINAL_REASON_REJECTED, $run->terminal_reason);
+
+        $recommendation = $this->getTableLocator()->get('Awards.Recommendations')->get($recommendationId);
+        $this->assertSame('No Action', $recommendation->state);
+        $this->assertSame('Closed', $recommendation->status);
+        $this->assertSame($rejectionComment, $recommendation->close_reason);
+        $this->assertNull($recommendation->bestowal_id);
+
+        $stateLog = $this->getTableLocator()->get('Awards.RecommendationsStatesLogs')->find()
+            ->where(['recommendation_id' => $recommendationId])
+            ->orderByDesc('id')
+            ->firstOrFail();
+        $this->assertSame('Submitted', $stateLog->from_state);
+        $this->assertSame('No Action', $stateLog->to_state);
+        $this->assertSame('In Progress', $stateLog->from_status);
+        $this->assertSame('Closed', $stateLog->to_status);
+        $this->assertSame(self::ADMIN_MEMBER_ID, $stateLog->created_by);
     }
 
     /**

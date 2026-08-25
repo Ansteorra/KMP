@@ -27,8 +27,11 @@ and go back to **YAML-defined recommendation states** (as on `main`), while keep
 Approval engine and Bestowal subsystem. This doc re-visualizes how a Recommendation *should*
 optimally flow in that combined model.
 
-> Out of scope here: migrating existing recommendation **data** into the new model. That is a
-> separate future plan. Legacy `awards_recommendations` columns are intentionally retained.
+> Migration scope: broad migration of existing recommendation **data** into a new model remains
+> out of scope, and legacy `awards_recommendations` columns are intentionally retained. This
+> release includes only the limited rejected-recommendation backfill described below; it excludes
+> recommendations with newer runs, grouped children, and recommendations currently owned by a
+> Bestowal.
 
 ## The three subsystems and who owns what
 
@@ -47,12 +50,13 @@ flowchart LR
     end
 
     subgraph C["C. Bestowal (scheduling → giving)"]
-        C1["Bestowal / BestowalState<br/>(own DB state machine)"]
+        C1["Bestowal lifecycle<br/>open / given / cancelled"]
         C2["BestowalRecommendationSyncService<br/>RecommendationBestowalStatePolicyService"]
         C1 --> C2
     end
 
-    B2 -- "decision sets<br/>rec state" --> A2
+    B2 -- "rejection sets<br/>No Action / Closed" --> A2
+    B2 -- "approval creates<br/>Bestowal" --> C1
     C2 -- "syncs Bestowal progress<br/>into rec state" --> A2
 ```
 
@@ -60,11 +64,11 @@ flowchart LR
   recommendation is displayed/filtered in. Strings, not DB rows. Field-level edit rules and hidden
   states are also YAML.
 - **B — Approval engine:** owns the *approval decision*. Progress through approval lives in the
-  `RecommendationApprovalRun` status, **not** in recommendation states. When an approval run reaches
-  a terminal decision it sets the recommendation's YAML state (e.g. `King Approved`).
-- **C — Bestowal:** owns *scheduling and giving*. It has its **own** DB state machine
-  (`awards_bestowal_states`) and projects its progress back onto the recommendation's YAML state via
-  the sync service.
+  `RecommendationApprovalRun` status, **not** in recommendation states. Rejection projects the
+  recommendation to `No Action / Closed`; approval creates a Bestowal without an intermediate
+  `King Approved` or `Queen Approved` recommendation state.
+- **C — Bestowal:** owns *scheduling and giving*. Its lifecycle projects progress back onto the
+  recommendation's YAML state through the sync service.
 
 > The audit log (`awards_recommendations_states_logs` / `RecommendationStateLogService`) is the
 > **state-change history**, not the state-machine definition. It pre-exists on `main` and stays.
@@ -83,6 +87,10 @@ Status → states map seeded by `AwardsPlugin::bootstrap()`:
 `Linked` / `Linked - Closed` are the grouping states consumed by `RecommendationGroupingService`
 (`LINKED_STATES`). They are seeded `is_hidden = true` (require `canViewHidden`) and their field rules
 disable all fields.
+
+`King Approved` and `Queen Approved` remain in the configured vocabulary for legacy data and
+migration compatibility, but they are filtered from new transition targets and active approval
+workflows do not transition recommendations into them.
 
 Approval progress states that briefly existed on-branch (`In Approval`, `Changes Requested`) are
 **not** part of YAML — that progress now lives in `RecommendationApprovalRun.status`.
@@ -108,31 +116,17 @@ stateDiagram-v2
         in_progress --> changes_requested
         changes_requested --> in_progress
         in_progress --> approved
-        in_progress --> cancelled
+        in_progress --> closed : rejected
     }
 
-    ApprovalRun --> King_Approved : run approved
-    ApprovalRun --> No_Action : run cancelled / declined
+    ApprovalRun --> Need_to_Schedule : approved / create open Bestowal
+    ApprovalRun --> No_Action : run rejected
 
-    King_Approved --> Need_to_Schedule : hand off to Bestowal
-
-    state "Bestowal workflow (own DB state machine)" as Bestowal {
-        [*] --> Created
-        Created --> Gathering_Assigned
-        Gathering_Assigned --> Scroll_Notified
-        Scroll_Notified --> Scroll_Ready
-        Scroll_Ready --> Court_Pending
-        Court_Pending --> Court_Scheduled
-        Court_Scheduled --> Ready_for_Court
-        Ready_for_Court --> Given_b : given in court
-        Ready_for_Court --> Announced_Not_Given_b : announced only
-        Created --> Cancelled_b : unwind
-    }
-
-    Need_to_Schedule --> Scheduled : Bestowal -> Court Scheduled / Ready for Court
-    Scheduled --> Given : Bestowal -> Given
-    Scheduled --> Announced_Not_Given : Bestowal -> Announced Not Given
-    Need_to_Schedule --> King_Approved : Bestowal cancelled (unwind)
+    Need_to_Schedule --> Scheduled : Bestowal gathering assigned
+    Need_to_Schedule --> ApprovalRun : Bestowal cancelled / rehydrate when eligible
+    Scheduled --> ApprovalRun : Bestowal cancelled / rehydrate when eligible
+    Scheduled --> Given : Bestowal marked given
+    Scheduled --> Announced_Not_Given : manual board state
 
     Given --> [*]
     Announced_Not_Given --> [*]
@@ -146,61 +140,56 @@ Reading the diagram:
    field rules; no workflow run is required yet.
 2. **Approval (workflow engine).** When it is ready for a decision, a `RecommendationApprovalRun` is
    started against an `ApprovalProcess`. The run progresses `in_progress ↔ changes_requested` and
-   ends `approved` / `cancelled`. **This progress is not a recommendation state.** On `approved` the
-   recommendation's YAML state becomes `King Approved` (or `Queen Approved`); a declined/cancelled run
-   resolves to `No Action`.
-3. **Hand-off to Bestowal.** An approved recommendation that needs to be conferred moves to the
-   handoff state `Need to Schedule` (`RecommendationBestowalStatePolicyService::HANDOFF_STATE`) and a
-   `Bestowal` takes ownership of scheduling/giving.
-4. **Bestowal owns scheduling → giving.** Bestowal runs its **own** DB state machine. Its progress is
-   projected back onto the recommendation's YAML state by `BestowalRecommendationSyncService`.
+   ends `approved` / `closed`. **This progress is not a recommendation state.** A rejection transitions
+   the recommendation to `No Action / Closed`. Approval skips the retired `King Approved` and
+   `Queen Approved` states and creates a `Bestowal` directly.
+3. **Hand-off to Bestowal.** Bestowal creation projects an approved recommendation to `Need to Schedule`
+   or `Scheduled`, depending on whether a gathering is already assigned, and takes ownership of
+   scheduling/giving.
+4. **Bestowal owns scheduling → giving.** Bestowal has a minimal `open / given / cancelled`
+   lifecycle; its gathering and lifecycle are projected back onto the recommendation's YAML state by
+   `BestowalRecommendationSyncService`.
 5. **Closed.** Terminal YAML states are `Given`, `Announced Not Given`, or `No Action` (plus
    `Linked - Closed` for grouped recommendations).
 
+Deployment migration `BackfillRejectedRecommendationStates` applies the same `No Action / Closed`
+projection to historical recommendations whose latest assigned approval run was rejected. It skips
+records that were rehydrated into a newer run, are grouped children, or are currently owned by a
+Bestowal.
+
 ## Bestowal state → Recommendation state sync map
 
-`BestowalRecommendationSyncService` keeps the recommendation's YAML state in step with Bestowal
-progress. After the DB-state-machine removal these mappings are stored on `awards_bestowal_states`
-as **YAML state-name strings** (`sync_recommendation_state`, `unwind_recommendation_state`) rather
-than integer FKs into a deleted table.
+`BestowalRecommendationSyncService` keeps the recommendation's YAML state in step with the current
+Bestowal lifecycle and gathering assignment.
 
 ```mermaid
 flowchart TD
-    subgraph BestowalStates["Bestowal state (awards_bestowal_states)"]
-        bs1["Created / Gathering Assigned /<br/>Scroll Notified / Scroll Ready / Court Pending"]
-        bs2["Court Scheduled / Ready for Court"]
+    subgraph BestowalStates["Bestowal lifecycle"]
+        bs1["Open without gathering"]
+        bs2["Open with gathering"]
         bs3["Given"]
-        bs4["Announced Not Given"]
-        bs5["Cancelled (unwind)"]
+        bs4["Cancelled"]
     end
 
     subgraph RecStates["Recommendation state (YAML)"]
         rs1["Need to Schedule"]
         rs2["Scheduled"]
         rs3["Given"]
-        rs4["Announced Not Given"]
-        rs5["King Approved"]
+        rs4["Approval rehydrated"]
     end
 
     bs1 -- sync --> rs1
     bs2 -- sync --> rs2
     bs3 -- sync --> rs3
-    bs4 -- sync --> rs4
-    bs5 -- unwind --> rs5
+    bs4 -- clear link --> rs4
 ```
 
 | Bestowal state | Recommendation state (sync) |
 | --- | --- |
-| Created, Gathering Assigned, Scroll Notified, Scroll Ready, Court Pending | Need to Schedule *(handoff)* |
-| Court Scheduled, Ready for Court | Scheduled |
-| Given | Given |
-| Announced Not Given | Announced Not Given |
-| Cancelled *(unwind)* | King Approved |
-
-These are the contract validated by
-`RecommendationBestowalStatePolicyService::assertBestowalSyncMappingsConfigured()`
-(`EXPECTED_SYNC_MAPPINGS` / `EXPECTED_UNWIND_MAPPINGS`). The strings on both sides must remain valid
-members of `Recommendation::getStates()`.
+| Open without a gathering | Need to Schedule |
+| Open with a gathering | Scheduled |
+| Given | Given / Closed |
+| Cancelled | Clear the Bestowal link and rehydrate approval when eligible; no King/Queen-approved state |
 
 ## Design principles going forward
 
@@ -209,8 +198,8 @@ members of `Recommendation::getStates()`.
   manual consideration phase.
 - **Recommendation states stay in YAML.** They are presentation/filter states with field rules — a
   small, stable, admin-editable vocabulary. We do not re-introduce a DB state-machine for them.
-- **Bestowal keeps its own DB state machine.** It is genuinely richer (per-state field rules,
-  transitions, gathering support) and is the right home for the conferral process.
+- **Bestowal keeps a minimal lifecycle.** `open / given / cancelled` owns the conferral lifecycle;
+  preparation progress lives in its parallel Action Item checklist.
 - **Sync is one-directional and explicit.** Bestowal → Recommendation only, via the sync service,
   using state-name strings. The recommendation never drives Bestowal.
 - **Grouping is orthogonal.** `Linked` / `Linked - Closed` describe how recommendations are grouped,
@@ -223,4 +212,4 @@ members of `Recommendation::getStates()`.
 | `awards_recommendation_statuses` / `_states` / `_state_field_rules` / `_state_transitions` tables + entities/tables | YAML app-settings + `Recommendation` entity state API |
 | `RecommendationStates` / `RecommendationStatuses` controllers, policies, grids, templates, nav links | `RecommendationStateLogService` + `awards_recommendations_states_logs` audit log |
 | State-machine seed migrations (`CreateRecommendationStatesTables`, `AddLinkedClosedState`, `AddRecommendationApprovalStates`, `RemoveApprovalRecommendationStates`) | Approval engine (`ApprovalProcess`, `RecommendationApprovalRun`, workflow actions/conditions) |
-| Integer FK `sync/unwind_recommendation_state_id` on `awards_bestowal_states` | Bestowal subsystem with string `sync/unwind_recommendation_state` mappings |
+| Legacy `awards_bestowal_states` status/state machine and recommendation sync mappings | Bestowal `lifecycle_status`, gathering assignment, and Action Item checklist |
