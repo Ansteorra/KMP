@@ -14,9 +14,12 @@ Feature: Award Bestowals
         Given I am logged in as "admin@amp.ansteorra.org"
         And I create recommendation fixtures for "workflow single crown"
         When the workflow engine processes pending work
-        And I approve the pending workflow step 1 for "wf-crown"
+        And I approve the pending workflow step 1 for "wf-crown" through the approvals UI
         And the workflow engine processes pending work
         Then the "wf-crown" recommendation should be linked to a bestowal
+        And the "wf-crown" recommendation record should have state "Need to Schedule"
+        And the "wf-crown" recommendation record should have status "Scheduling"
+        Given I am logged in as "admin@amp.ansteorra.org"
         When I open the bestowal detail linked to recommendation "wf-crown"
         Then the bestowal detail page should show "Open" in the state row
         And the bestowal detail page should show "recommendation" in the source row
@@ -25,9 +28,12 @@ Feature: Award Bestowals
         Given I am logged in as "admin@amp.ansteorra.org"
         And I create recommendation fixtures for "workflow single crown"
         When the workflow engine processes pending work
-        And I approve the pending workflow step 1 for "wf-crown"
+        And I approve the pending workflow step 1 for "wf-crown" through the approvals UI
         And the workflow engine processes pending work
         Then the "wf-crown" recommendation should be linked to a bestowal
+        And the "wf-crown" recommendation record should have state "Need to Schedule"
+        And the "wf-crown" recommendation record should have status "Scheduling"
+        Given I am logged in as "admin@amp.ansteorra.org"
         When I open the bestowal detail linked to recommendation "wf-crown"
         And I open the bestowal to-dos tab
         Then the bestowal to-dos should include "Event Scheduled"
@@ -36,14 +42,21 @@ Feature: Award Bestowals
         And the bestowal mark-given action should be disabled
         When I assign the first available gathering and complete the bestowal to-do "Event Scheduled"
         Then I should see the flash message "Marked complete."
+        And the "wf-crown" recommendation record should have state "Scheduled"
+        And the "wf-crown" recommendation record should have status "To Give"
         When I open the bestowal to-dos tab
         Then the bestowal to-do "Event Scheduled" should show a gathering assigned
         When I complete the bestowal to-do "Added to Agenda"
         Then I should see the flash message "Marked complete."
+        And the "wf-crown" recommendation record should have state "Scheduled"
+        And the "wf-crown" recommendation record should have status "To Give"
         When I open the bestowal to-dos tab
-        And I complete the bestowal to-do "Given"
+        Then the bestowal to-do "Added to Agenda" should show a court assigned
+        When I complete the bestowal to-do "Given"
         Then I should see the flash message "Marked complete."
         And the bestowal detail page should show "Given" in the state row
+        And the "wf-crown" recommendation record should have state "Given"
+        And the "wf-crown" recommendation record should have status "Closed"
         When I open the bestowal to-dos tab
         Then the bestowal to-dos should not include "Scroll Ready"
         And the bestowal to-dos should not include "Insignia Ready"

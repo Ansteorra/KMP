@@ -170,7 +170,7 @@
             "outputs": [
                 {
                     "port": "true",
-                    "target": "end-rejected",
+                    "target": "transition-rejected-recommendation",
                     "label": "Closed"
                 },
                 {
@@ -227,11 +227,33 @@
                 }
             ]
         },
+        "transition-rejected-recommendation": {
+            "type": "action",
+            "label": "Close Rejected Recommendation",
+            "config": {
+                "action": "Awards.TransitionRecommendation",
+                "params": {
+                    "recommendationId": "$.nodes.advance-approval-process.result.recommendationId",
+                    "targetState": "No Action",
+                    "actorId": "$.nodes.award-approval-gate.approverId"
+                }
+            },
+            "position": {
+                "x": 2150,
+                "y": 100
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "end-rejected"
+                }
+            ]
+        },
         "end-rejected": {
             "type": "end",
             "label": "Approval Rejected",
             "config": {
-                "result": "$.nodes.advance-approval-process.result"
+                "result": "$.nodes.transition-rejected-recommendation.result"
             },
             "position": {
                 "x": 2450,

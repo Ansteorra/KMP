@@ -10,7 +10,9 @@ flowchart LR
     B --> C{"Approval step complete?"}
     C -- "No" --> D["Approval node<br/>Award Approval Gate"]
     D --> E["AdvanceApprovalProcess"]
-    E --> C
+    E --> J{"Approval run closed?"}
+    J -- "No: next/approved" --> C
+    J -- "Yes: rejected" --> K["TransitionRecommendation<br/>No Action / Closed"]
     C -- "Yes" --> F["CreateBestowal action<br/>Awards.CreateBestowal"]
     F --> G["BestowalHandoffService<br/>eligibility checks"]
     G --> H["BestowalCreationService<br/>create bestowal + links"]
@@ -34,36 +36,20 @@ flowchart TD
     H -- "No" --> J["Fallback to branch/level policy only"]
 ```
 
-## 3) Bestowal state machine and recommendation projection
+## 3) Bestowal lifecycle and recommendation projection
 
 ```mermaid
 flowchart LR
-    A["Created"] --> B["Gathering Assigned"]
-    B --> C["Scroll Notified"]
-    C --> D["Scroll Ready"]
-    D --> E["Court Pending"]
-    E --> F["Court Scheduled"]
-    F --> G["Ready for Court"]
-    G --> H["Given"]
-    G --> I["Announced Not Given"]
+    A["Open without gathering"] --> B["Open with gathering"]
+    A --> C["Given"]
+    B --> C
     A --> X["Cancelled"]
     B --> X
-    C --> X
-    D --> X
-    E --> X
-    F --> X
-    G --> X
 
-    A -. "sync rec state: Need to Schedule" .-> R1["Recommendation"]
-    B -. "sync rec state: Need to Schedule" .-> R1
-    C -. "sync rec state: Need to Schedule" .-> R1
-    D -. "sync rec state: Need to Schedule" .-> R1
-    E -. "sync rec state: Need to Schedule" .-> R1
-    F -. "sync rec state: Scheduled" .-> R1
-    G -. "sync rec state: Scheduled" .-> R1
-    H -. "sync rec state: Given" .-> R1
-    I -. "sync rec state: Announced Not Given" .-> R1
-    X -. "unwind rec state: King Approved" .-> R1
+    A -. "sync rec: Scheduling / Need to Schedule" .-> R1["Recommendation"]
+    B -. "sync rec: To Give / Scheduled" .-> R1
+    C -. "sync rec: Closed / Given" .-> R1
+    X -. "clear link + rehydrate approval" .-> R1
 ```
 
 ## 4) Linking, unlinking, grouping, and cancellation interactions
@@ -76,7 +62,7 @@ flowchart TD
     L4 --> L5["Sync shortcut + state<br/>refresh primary rec + notes"]
 
     U1["Unlink recommendation"] --> U2["Must leave >= 1 linked recommendation"]
-    U2 --> U3["Unwind recommendation state"]
+    U2 --> U3["Clear bestowal projection"]
     U3 --> U4["Clear recommendation.bestowal_id"]
     U4 --> U5["Delete join row"]
     U5 --> U6["Refresh primary rec + notes"]
@@ -88,11 +74,10 @@ flowchart TD
     G3 -- "No" --> G5["Allowed if member compatibility passes"]
 
     C1["Cancel bestowal"] --> C2["Reject if Given/already Cancelled"]
-    C2 --> C3["Transition bestowal to Cancelled"]
-    C3 --> C4["Unwind linked recommendation states"]
-    C4 --> C5["Clear recommendation.bestowal_id + gathering_id"]
-    C5 --> C6["Delete active join rows"]
-    C6 --> C7["Mark consumed/superseded approval runs cancelled<br/>rehydrate approval when needed"]
+    C2 --> C3["Set lifecycle_status = cancelled"]
+    C3 --> C4["Clear recommendation.bestowal_id + gathering_id"]
+    C4 --> C5["Delete active join rows"]
+    C5 --> C6["Mark consumed/superseded approval runs cancelled<br/>rehydrate approval when needed"]
 ```
 
 ## 5) Bestowal preparation To-Dos
@@ -200,7 +185,7 @@ flowchart LR
 | `awards-bestowal-transition.json` | `Awards.BestowalTransitionRequested` | `TransitionBestowal` -> `SyncRecommendationsFromBestowal` |
 | `awards-bestowal-update.json` | `Awards.BestowalUpdateRequested` | `UpdateBestowal` (link/unlink + transition + sync) |
 | `awards-bestowal-bulk-transition.json` | `Awards.BestowalBulkTransitionRequested` | `BulkTransitionBestowals` |
-| `awards-bestowal-cancel.json` | `Awards.BestowalCancelRequested` | `CancelBestowal` (transition + unwind + unlink cleanup) |
+| `awards-bestowal-cancel.json` | `Awards.BestowalCancelRequested` | `CancelBestowal` (clear projection + unlink cleanup + approval rehydration) |
 | `awards-bestowal-cancelled.json` | `Awards.BestowalCancelled` | notification flow |
 | `awards-recommendations-group.json` | `Awards.RecommendationsGroupRequested` | `GroupRecommendations` |
 | `awards-recommendations-ungroup.json` | `Awards.RecommendationsUngroupRequested` | `UngroupRecommendations` |
@@ -216,10 +201,10 @@ flowchart LR
 | Synchronize outdated approvals for one process | Award workflow synchronizer | Current configured approver set | Considers only outdated open work assigned to the selected process; cancels it and starts at the first current step; old responses remain history but do not carry forward; terminal and unrelated work is untouched; synchronization creates no bestowal |
 | Approval complete -> bestowal create | Final approver/workflow action | Bestowal workflow owner(s) | Only the final approval step selects the bestowal gathering; handoff blocks active runs, bestowal created with source approval provenance, approved run marked consumed |
 | Link recommendation to existing bestowal | Noble/admin path | Bestowal workflow owner(s) | Active approval run cancelled/superseded, member match enforced, grouped child blocked |
-| Unlink recommendation | Noble/admin path | Recommendation workflow owner(s) | Unwind state applied, shortcut cleared, join row removed, primary recomputed, approval rehydrated when prior run was consumed/superseded |
-| Group/ungroup during approval | Current approver or admin override | Head keeps its active approvers; ungrouped child gets its current configured approvers | Grouping cancels child runs as superseded; in-flight ungroup restores child origin state and starts a clean current-process run; old responses do not carry; bestowal-linked records remain locked |
+| Unlink recommendation | Noble/admin path | Recommendation workflow owner(s) | Bestowal projection and unwind state applied, shortcut cleared, join row removed, primary recomputed, approval rehydrated when prior run was consumed/superseded |
+| Group/ungroup during approval | Current approver or admin override | Head keeps its active approvers; ungrouped child gets its current configured approvers | Grouping is denied for a non-current approver and cancels child runs as superseded; in-flight ungroup restores the child's origin state and starts a clean current-process run; old responses do not carry; bestowal-linked records remain locked |
 | Bestowal transition to court states | Bestowal owner(s) | Bestowal owner(s) | Recommendation projection state sync follows mapping |
-| Bestowal cancellation | Bestowal owner(s) | Recommendation workflow owner(s) | Cancel denied for Given, unwind state applied, links and shortcuts cleared, consumed/superseded approval runs cancelled and rehydrated when needed |
+| Bestowal cancellation | Bestowal owner(s) | Recommendation workflow owner(s) | Cancel denied for Given; Bestowal projection and unwind state applied, links and shortcuts cleared, active join rows deleted, consumed/superseded approval runs cancelled and rehydrated when needed |
 | Synchronize outdated bestowal To-Dos for one template | Award workflow synchronizer | Current template assignees | Considers only outdated open bestowals assigned to the selected template; matching history preserved; required fields converge independent of template order; synchronization never marks Given |
 | Turnover/reassignment events | System + admins | New eligible approvers | Pending approver set reflects new eligibility without leaking old active queue access |
 
@@ -229,4 +214,4 @@ flowchart LR
 2. Active approval visibility scoping must stay limited to current pending approvers for active cycles.
 3. Link integrity between `recommendation.bestowal_id` and `awards_bestowal_recommendations`.
 4. Group-child guardrails preventing direct child linking/handoff, including active runs on group heads.
-5. Cancellation/unlink unwind consistency: recommendation projection, shortcut clear, join-row delete, approval-run terminal reason, and rehydration must stay together.
+5. Cancellation/unlink cleanup consistency: recommendation projection, shortcut clear, join-row delete, approval-run terminal reason, and rehydration must stay together.

@@ -477,4 +477,30 @@ class WorkflowVersionManagerTest extends BaseTestCase
         $updated = $instancesTable->get($instance->id);
         $this->assertEquals($r2->data['versionId'], $updated->workflow_version_id);
     }
+
+    public function testMigrateInstanceAllowsSystemMigrationWithoutMember(): void
+    {
+        $defId = $this->createDefinition();
+        $r1 = $this->manager->createDraft($defId, $this->validDefinition);
+        $this->manager->publish($r1->data['versionId'], self::ADMIN_MEMBER_ID);
+
+        $instancesTable = TableRegistry::getTableLocator()->get('WorkflowInstances');
+        $instance = $instancesTable->newEntity([
+            'workflow_definition_id' => $defId,
+            'workflow_version_id' => $r1->data['versionId'],
+            'status' => 'waiting',
+            'active_nodes' => ['trigger1'],
+        ]);
+        $instancesTable->saveOrFail($instance);
+
+        $r2 = $this->manager->createDraft($defId, $this->validDefinition);
+        $this->manager->publish($r2->data['versionId'], self::ADMIN_MEMBER_ID);
+
+        $result = $this->manager->migrateInstance($instance->id, $r2->data['versionId'], null);
+
+        $this->assertTrue($result->isSuccess());
+        $migrationsTable = TableRegistry::getTableLocator()->get('WorkflowInstanceMigrations');
+        $migration = $migrationsTable->get($result->data['migrationId']);
+        $this->assertNull($migration->migrated_by);
+    }
 }
