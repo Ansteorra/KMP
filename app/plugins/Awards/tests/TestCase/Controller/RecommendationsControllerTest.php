@@ -108,6 +108,24 @@ class RecommendationsControllerTest extends HttpIntegrationTestCase
         $this->assertSame([self::TEST_MEMBER_AGATHA_ID, self::TEST_MEMBER_BRYCE_ID], $ids);
     }
 
+    public function testAuthenticatedRecommendationFormUsesMultilineReasonField(): void
+    {
+        $this->authenticateAsSuperUser();
+
+        $this->get('/awards/recommendations/add');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('<textarea name="reason" id="recommendation_reason"');
+    }
+
+    public function testPublicRecommendationFormUsesMultilineReasonField(): void
+    {
+        $this->get('/awards/recommendations/submit-recommendation');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('<textarea name="reason" id="recommendation_reason"');
+    }
+
     public function testRequestFeedbackDetailOriginIgnoresStaleMemberPageContext(): void
     {
         $this->authenticateAsSuperUser();

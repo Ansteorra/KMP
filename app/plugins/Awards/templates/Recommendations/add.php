@@ -110,6 +110,7 @@ $this->KMP->endBlock(); ?>
             ]
         );
         echo $this->Form->control('reason', [
+            'type' => 'textarea',
             'id' => 'recommendation_reason',
             'required' => true,
             'label' => 'Reason for Recommendation',
