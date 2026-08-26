@@ -3,7 +3,7 @@
 # Usage: ./dev-reset-db.sh [--seed]
 #
 # Options:
-#   --seed    Load seed data, then run migrations/update tasks to bring up to current
+#   --seed    Load seed data, advance its business dates to today, then run update tasks
 #
 # Without --seed:
 #   Runs resetDatabase + migrations (fresh schema with initial seeds)
@@ -367,6 +367,10 @@ if [ "$LOAD_SEED" != true ] || { [ "$DB_DRIVER" != "postgres" ] && [ "$DB_DRIVER
 fi
 
 if [ "$LOAD_SEED" = true ]; then
+    SEED_AS_OF="$(env_or_file KMP_DEV_SEED_AS_OF "$(date -u +%F)")"
+    echo "[post] Advancing date-sensitive seed data to ${SEED_AS_OF}..."
+    "${COMPOSE[@]}" exec -T app bin/cake advance_dev_seed_dates --as-of "$SEED_AS_OF"
+
     echo "[post] Ensuring bestowal to-do demo users..."
     "${COMPOSE[@]}" exec -T app bin/cake seeds run DevLoadBestowalTodoUsers
 

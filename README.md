@@ -65,6 +65,9 @@ Resets the Docker development database:
 ./dev-reset-db.sh --seed
 ```
 
+Seeded resets advance date-sensitive demo records to the current UTC date. Set
+`KMP_DEV_SEED_AS_OF=YYYY-MM-DD` when a reproducible seed calendar is needed.
+
 ### fix_permissions.sh
 Fixes file permissions for Apache web server access. Run this if you encounter permission errors with logs, tmp, or images directories:
 ```bash

@@ -119,9 +119,14 @@ The database volume is preserved across `./dev-down.sh`. To start from an empty 
 `./dev-reset-db.sh --seed` loads the PostgreSQL baseline seed from
 `app/tests/pg_seed_baseline.sql`, then runs the remaining migrations. This
 matches the production-style flow where a known historical database snapshot is
-restored before current migrations are applied. At the end of each reset, the
-script rebuilds `KMP_DEV_test` from the reset development schema so PHPUnit can
-run immediately.
+restored before current migrations are applied. After migration, the reset moves
+business-effective dates forward from the snapshot's February 16, 2026 reference
+date to the current UTC date. This keeps gatherings, warrant periods, warrants,
+offices, activity authorizations, memberships, and related deadlines current
+while preserving their relative spacing and leaving audit timestamps unchanged.
+Set `KMP_DEV_SEED_AS_OF=YYYY-MM-DD` to reproduce the seed calendar for a specific
+date. At the end of each reset, the script rebuilds `KMP_DEV_test` from the reset
+development schema so PHPUnit can run immediately.
 
 Platform metadata uses a separate PostgreSQL database and migration track:
 
