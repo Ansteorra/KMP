@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Ad-hoc bestowal modal.
@@ -341,6 +342,7 @@ $submitAction = implode(' ', [
                                             'type' => 'textarea',
                                             'label' => __('General Note'),
                                             'rows' => 4,
+                                            'help' => __('This shared note will appear on the bestowal record.'),
                                         ]) ?>
                                     </div>
 

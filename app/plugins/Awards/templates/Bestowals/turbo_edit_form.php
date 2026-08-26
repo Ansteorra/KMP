@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 use Awards\Model\Entity\Bestowal;
 
 $protectedFieldAccess ??= ['heraldNotes' => false, 'crownFields' => false];
@@ -488,7 +490,9 @@ $submitAction = implode(' ', [
 
             <?= $this->Form->control('note', [
                 'type' => 'textarea',
-                'label' => __('Note'),
+                'label' => __('Shared Note'),
+                'help' => __('This note will appear on the bestowal record.'),
+                'rows' => 4,
             ]) ?>
             </fieldset>
         </div>

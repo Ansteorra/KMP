@@ -1257,7 +1257,7 @@ class AwardsBestowalEditForm extends Controller {
 
     /** @return {boolean} */
     hasValidMemberSelection() {
-        if (!this.hasMemberTarget && !this.hasMemberIdTarget) {
+        if (!this.hasMemberTarget) {
             return true;
         }
 

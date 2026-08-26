@@ -48,7 +48,7 @@ class AdHocBestowalService
      * Create an ad-hoc bestowal in a single transaction.
      *
      * Expected keys in $data: member_sca_name plus optional member_id/member_public_id, award_id, state.
-     * Optional keys: gathering_id, gathering_scheduled_activity_id, bestowed_at, notes, and court fields.
+     * Optional keys: gathering_id, gathering_scheduled_activity_id, bestowed_at, note, and court fields.
      *
      * @param array<string, mixed> $data Ad-hoc input payload.
      * @param int $actorId Current user ID.
@@ -70,6 +70,7 @@ class AdHocBestowalService
             ?? $data['gathering_scheduled_activity_id']
             ?? null;
         $bestowedAt = $this->normalizeDateTime($data['bestowedAt'] ?? $data['bestowed_at'] ?? null);
+        $note = $this->normalizeOptionalString($data['note'] ?? null);
 
         if ($awardId === null || $awardId <= 0) {
             return $this->failureResult('Award to Bestow is required for ad-hoc bestowal entry.');
@@ -111,6 +112,7 @@ class AdHocBestowalService
                     $data,
                     $specialty,
                     $actorId,
+                    $note,
                 ): array {
                     $bestowal = $this->bestowalsTable->newEmptyEntity();
                     $bestowal->member_id = $memberId;
@@ -147,6 +149,17 @@ class AdHocBestowalService
                     $bestowal->modified_by = $actorId;
 
                     $savedBestowal = $this->bestowalsTable->saveOrFail($bestowal);
+
+                    if ($note !== null) {
+                        $createdNote = $this->bestowalsTable->Notes->newEmptyEntity();
+                        $createdNote->entity_id = $savedBestowal->id;
+                        $createdNote->subject = 'Ad-Hoc Bestowal Created';
+                        $createdNote->entity_type = Bestowal::ACTION_ITEM_ENTITY_TYPE;
+                        $createdNote->body = $note;
+                        $createdNote->author_id = $actorId;
+                        $createdNote->private = false;
+                        $this->bestowalsTable->Notes->saveOrFail($createdNote);
+                    }
 
                     if ($savedBestowal instanceof Bestowal) {
                         $this->materializeTodos($savedBestowal);

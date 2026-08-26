@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 use Awards\Model\Entity\Bestowal;
 use Awards\Services\BestowalCourtSlotService;
@@ -225,6 +226,11 @@ $gatingPercent = $todoGatingTotal > 0 ? (int)round($todoGatingDone / $todoGating
         <span class="badge bg-secondary ms-1"><?= h($todoGatingDone . '/' . $todoGatingTotal) ?></span>
     <?php endif; ?>
 </button>
+<button class="nav-link" id="nav-notes-tab" data-bs-toggle="tab" data-bs-target="#nav-notes"
+    type="button" role="tab" aria-controls="nav-notes" aria-selected="false"
+    data-detail-tabs-target="tabBtn" data-tab-order="10" style="order: 10;">
+    <?= __('Notes') ?>
+</button>
 <?php $this->KMP->endBlock(); ?>
 <?php $this->KMP->startBlock('tabContent'); ?>
 <div class="related tab-pane fade m-3" id="nav-bestowalTodos" role="tabpanel"
@@ -270,5 +276,15 @@ $gatingPercent = $todoGatingTotal > 0 ? (int)round($todoGatingDone / $todoGating
             <?php endif; ?>
         </div>
     <?php endif; ?>
+</div>
+<div class="related tab-pane fade m-3" id="nav-notes" role="tabpanel"
+    aria-labelledby="nav-notes-tab" data-detail-tabs-target="tabContent" data-tab-order="10"
+    tabindex="0" style="order: 10;">
+    <?= $this->cell('Notes', [
+        'entity_id' => $bestowal->id,
+        'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+        'viewPrivate' => false,
+        'canCreate' => $user->checkCan('addNote', $bestowal),
+    ]) ?>
 </div>
 <?php $this->KMP->endBlock(); ?>
