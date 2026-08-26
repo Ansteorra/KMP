@@ -7,7 +7,6 @@ use App\Services\ServiceResult;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
-use Collator;
 use Officers\Model\Entity\Officer;
 use Officers\Services\OfficerManagerInterface;
 
@@ -93,12 +92,16 @@ class OfficesControllerTest extends HttpIntegrationTestCase
         $this->assertStringContainsString("type='button' class='btn btn-outline-secondary'", $body);
 
         $options = $this->viewVariable('report_to_offices');
-        $optionLabels = array_values($options);
-        $this->assertSame($this->sortLabels($optionLabels), $optionLabels);
+        $expectedOptions = $this->Offices->find('list')
+            ->orderBy(['Offices.name' => 'ASC'])
+            ->toArray();
+        $this->assertSame($expectedOptions, $options);
 
         $roles = $this->viewVariable('roles');
-        $roleLabels = array_values($roles);
-        $this->assertSame($this->sortLabels($roleLabels), $roleLabels);
+        $expectedRoles = $this->Offices->GrantsRole->find('list')
+            ->orderBy(['GrantsRole.name' => 'ASC'])
+            ->toArray();
+        $this->assertSame($expectedRoles, $roles);
     }
 
     /**
@@ -128,8 +131,11 @@ class OfficesControllerTest extends HttpIntegrationTestCase
 
         $options = $this->viewVariable('report_to_offices');
         $this->assertArrayNotHasKey($office->id, $options);
-        $optionLabels = array_values($options);
-        $this->assertSame($this->sortLabels($optionLabels), $optionLabels);
+        $expectedOptions = $this->Offices->find('list')
+            ->where(['Offices.id !=' => $office->id])
+            ->orderBy(['Offices.name' => 'ASC'])
+            ->toArray();
+        $this->assertSame($expectedOptions, $options);
     }
 
     /**
@@ -639,21 +645,5 @@ class OfficesControllerTest extends HttpIntegrationTestCase
         // Verify officer was NOT updated
         $unchangedOfficer = $this->Officers->get($officer->id);
         $this->assertEquals(1, $unchangedOfficer->reports_to_office_id, 'Officer should not be changed');
-    }
-
-    /**
-     * Sort labels with the locale-aware, punctuation-insensitive rules used for display.
-     *
-     * @param list<string> $labels Labels to sort
-     * @return list<string>
-     */
-    private function sortLabels(array $labels): array
-    {
-        $collator = new Collator('en_US');
-        $collator->setStrength(Collator::PRIMARY);
-        $collator->setAttribute(Collator::ALTERNATE_HANDLING, Collator::SHIFTED);
-        $collator->sort($labels);
-
-        return $labels;
     }
 }
