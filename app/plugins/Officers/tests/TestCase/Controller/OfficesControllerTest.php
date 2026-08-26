@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Officers\Test\TestCase\Controller;
@@ -8,6 +7,7 @@ use App\Services\ServiceResult;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
+use Collator;
 use Officers\Model\Entity\Officer;
 use Officers\Services\OfficerManagerInterface;
 
@@ -21,7 +21,6 @@ use Officers\Services\OfficerManagerInterface;
  */
 class OfficesControllerTest extends HttpIntegrationTestCase
 {
-
     /**
      * Offices table
      *
@@ -94,16 +93,12 @@ class OfficesControllerTest extends HttpIntegrationTestCase
         $this->assertStringContainsString("type='button' class='btn btn-outline-secondary'", $body);
 
         $options = $this->viewVariable('report_to_offices');
-        $optionIds = array_keys($options);
-        $idOrderedOptions = $optionIds;
-        sort($idOrderedOptions, SORT_NUMERIC);
-        $this->assertNotSame($idOrderedOptions, $optionIds);
+        $optionLabels = array_values($options);
+        $this->assertSame($this->sortLabels($optionLabels), $optionLabels);
 
         $roles = $this->viewVariable('roles');
-        $roleIds = array_keys($roles);
-        $idOrderedRoles = $roleIds;
-        sort($idOrderedRoles, SORT_NUMERIC);
-        $this->assertNotSame($idOrderedRoles, $roleIds);
+        $roleLabels = array_values($roles);
+        $this->assertSame($this->sortLabels($roleLabels), $roleLabels);
     }
 
     /**
@@ -133,10 +128,8 @@ class OfficesControllerTest extends HttpIntegrationTestCase
 
         $options = $this->viewVariable('report_to_offices');
         $this->assertArrayNotHasKey($office->id, $options);
-        $optionIds = array_keys($options);
-        $idOrderedOptions = $optionIds;
-        sort($idOrderedOptions, SORT_NUMERIC);
-        $this->assertNotSame($idOrderedOptions, $optionIds);
+        $optionLabels = array_values($options);
+        $this->assertSame($this->sortLabels($optionLabels), $optionLabels);
     }
 
     /**
@@ -473,6 +466,7 @@ class OfficesControllerTest extends HttpIntegrationTestCase
             $mock = $this->createMock(OfficerManagerInterface::class);
             $mock->method('recalculateOfficersForOffice')
                 ->willReturn(new ServiceResult(false, 'Simulated recalculation failure'));
+
             return $mock;
         });
 
@@ -481,7 +475,7 @@ class OfficesControllerTest extends HttpIntegrationTestCase
         $originalReportsToId = $office->reports_to_id;
 
         // Pick a different reports_to_id to trigger recalculation
-        $newReportsToId = ($originalReportsToId === 2) ? 3 : 2;
+        $newReportsToId = $originalReportsToId === 2 ? 3 : 2;
 
         // Edit the office to change reports_to_id (triggers recalculation)
         $data = [
@@ -645,5 +639,21 @@ class OfficesControllerTest extends HttpIntegrationTestCase
         // Verify officer was NOT updated
         $unchangedOfficer = $this->Officers->get($officer->id);
         $this->assertEquals(1, $unchangedOfficer->reports_to_office_id, 'Officer should not be changed');
+    }
+
+    /**
+     * Sort labels with the locale-aware, punctuation-insensitive rules used for display.
+     *
+     * @param list<string> $labels Labels to sort
+     * @return list<string>
+     */
+    private function sortLabels(array $labels): array
+    {
+        $collator = new Collator('en_US');
+        $collator->setStrength(Collator::PRIMARY);
+        $collator->setAttribute(Collator::ALTERNATE_HANDLING, Collator::SHIFTED);
+        $collator->sort($labels);
+
+        return $labels;
     }
 }
