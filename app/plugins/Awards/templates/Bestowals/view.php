@@ -284,7 +284,7 @@ $gatingPercent = $todoGatingTotal > 0 ? (int)round($todoGatingDone / $todoGating
         'entity_id' => $bestowal->id,
         'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
         'viewPrivate' => false,
-        'canCreate' => $user->checkCan('edit', $bestowal),
+        'canCreate' => $user->checkCan('addNote', $bestowal),
     ]) ?>
 </div>
 <?php $this->KMP->endBlock(); ?>
