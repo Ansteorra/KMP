@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 use Awards\Model\Entity\Bestowal;
 
 $protectedFieldAccess ??= ['heraldNotes' => false, 'crownFields' => false];

@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 use Awards\Model\Entity\Bestowal;
 use Awards\Services\BestowalCourtSlotService;
