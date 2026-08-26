@@ -929,6 +929,7 @@ class AwardsWorkflowActions
             'stackRank' => 'stackRank',
             'stack_rank' => 'stack_rank',
             'reason' => 'reason',
+            'note' => 'note',
             'nobleNotes' => 'nobleNotes',
             'noble_notes' => 'noble_notes',
             'heraldNotes' => 'heraldNotes',

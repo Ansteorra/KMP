@@ -123,6 +123,21 @@ describe('AwardsBestowalEditForm', () => {
         expect(controller.submitButtonTarget.disabled).toBe(false);
     });
 
+    test('updateSubmitState allows an existing bestowal without a member account', () => {
+        const memberId = document.createElement('input');
+        memberId.type = 'hidden';
+        memberId.name = 'member_id';
+        memberId.value = '';
+        memberId.setAttribute('data-awards-bestowal-edit-target', 'memberId');
+        controller.element.appendChild(memberId);
+        controller.memberIdTarget = memberId;
+        controller.hasMemberIdTarget = true;
+
+        controller.updateSubmitState();
+
+        expect(controller.submitButtonTarget.disabled).toBe(false);
+    });
+
     test('syncSpecialtyOptions shows required specialties from selected award', () => {
         controller.awardTarget.options = [
             { value: '2', text: 'Award B', data: { specialties: ['Heraldry', 'Illumination'] } },

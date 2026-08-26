@@ -120,6 +120,46 @@ class BestowalUpdateServiceTest extends BaseTestCase
         $this->assertSame('Scribal Arts', $updatedBestowal->specialty);
     }
 
+    public function testUpdateAllowsAdHocBestowalWithoutLinkedRecommendation(): void
+    {
+        $awardId = $this->getFirstAwardId();
+        $bestowal = $this->bestowalsTable->saveOrFail($this->bestowalsTable->newEntity([
+            'member_id' => null,
+            'member_sca_name' => 'Visitor Without Account',
+            'award_id' => $awardId,
+            'source' => Bestowal::SOURCE_AD_HOC,
+            'lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
+            'stack_rank' => 0,
+            'created_by' => self::ADMIN_MEMBER_ID,
+            'modified_by' => self::ADMIN_MEMBER_ID,
+        ]));
+
+        $result = $this->updateService->update(
+            $this->bestowalsTable,
+            (int)$bestowal->id,
+            [
+                'award_id' => $awardId,
+                'herald_notes' => 'Updated for court.',
+                'note' => 'Shared bestowal update.',
+            ],
+            self::ADMIN_MEMBER_ID,
+        );
+
+        $this->assertTrue($result['success'], $result['error'] ?? json_encode($result));
+        $updatedBestowal = $this->bestowalsTable->get((int)$bestowal->id);
+        $this->assertSame('Updated for court.', $updatedBestowal->herald_notes);
+        $note = $this->getTableLocator()->get('Notes')->find()
+            ->where([
+                'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                'entity_id' => $bestowal->id,
+                'subject' => 'Bestowal Updated',
+            ])
+            ->firstOrFail();
+        $this->assertSame('Shared bestowal update.', $note->body);
+        $this->assertSame(self::ADMIN_MEMBER_ID, (int)$note->author_id);
+        $this->assertFalse((bool)$note->private);
+    }
+
     public function testUpdateNormalizesRoamingCourtSelection(): void
     {
         $bestowalId = $this->createBestowalFromRecommendation();

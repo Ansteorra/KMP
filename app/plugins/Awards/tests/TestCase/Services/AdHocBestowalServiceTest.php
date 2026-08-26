@@ -76,6 +76,7 @@ class AdHocBestowalServiceTest extends BaseTestCase
         $result = $this->service->record([
             'member_sca_name' => 'Visitor of the Lists',
             'award_id' => $awardId,
+            'note' => 'General court record note.',
             'noble_notes' => 'Given to a visitor without an account.',
         ], self::ADMIN_MEMBER_ID);
 
@@ -84,6 +85,18 @@ class AdHocBestowalServiceTest extends BaseTestCase
         $this->assertNull($bestowal->member_id);
         $this->assertSame('Visitor of the Lists', $bestowal->member_sca_name);
         $this->assertSame(Bestowal::SOURCE_AD_HOC, $bestowal->source);
+        $this->assertNull($bestowal->reason_summary);
+        $this->assertSame('Given to a visitor without an account.', $bestowal->noble_notes);
+        $note = $this->getTableLocator()->get('Notes')->find()
+            ->where([
+                'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                'entity_id' => $bestowal->id,
+                'subject' => 'Ad-Hoc Bestowal Created',
+            ])
+            ->firstOrFail();
+        $this->assertSame('General court record note.', $note->body);
+        $this->assertSame(self::ADMIN_MEMBER_ID, (int)$note->author_id);
+        $this->assertFalse((bool)$note->private);
         $this->assertSame($recommendationCount, $this->recommendationsTable->find()->count());
         $this->assertNull($result['data']['eventPayload']['memberId']);
         $this->assertSame('Visitor of the Lists', $result['data']['eventPayload']['memberScaName']);

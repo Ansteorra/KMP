@@ -67,6 +67,19 @@ class BestowalPolicy extends BasePolicy
     }
 
     /**
+     * Authorize adding shared notes to a bestowal.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The authenticated user
+     * @param \App\Model\Entity\BaseEntity $entity The bestowal entity
+     * @param mixed ...$optionalArgs Additional authorization context
+     * @return bool True if authorized
+     */
+    public function canAddNote(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        return $this->canEdit($user, $entity, ...$optionalArgs);
+    }
+
+    /**
      * Authorize court-slot lookup data used by bestowal edit forms.
      *
      * @param \App\KMP\KmpIdentityInterface $user The authenticated user
