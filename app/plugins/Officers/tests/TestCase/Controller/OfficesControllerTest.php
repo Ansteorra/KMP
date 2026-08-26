@@ -75,6 +75,71 @@ class OfficesControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * Test add renders alphabetical hierarchy autocomplete controls.
+     *
+     * @return void
+     */
+    public function testAddRendersAlphabeticalHierarchyAutocompleteControls(): void
+    {
+        $this->get('/officers/offices/add');
+
+        $this->assertResponseOk();
+        $body = (string)$this->_response->getBody();
+        $this->assertStringContainsString("data-office-form-target='reportsTo'", $body);
+        $this->assertStringContainsString("data-office-form-target='deputyTo'", $body);
+        $this->assertStringContainsString('role="combobox"', $body);
+        $this->assertStringContainsString('name="reports_to_id"', $body);
+        $this->assertStringContainsString('name="deputy_to_id"', $body);
+        $this->assertStringContainsString('name="grants_role_id"', $body);
+        $this->assertStringContainsString("type='button' class='btn btn-outline-secondary'", $body);
+
+        $options = $this->viewVariable('report_to_offices');
+        $optionIds = array_keys($options);
+        $idOrderedOptions = $optionIds;
+        sort($idOrderedOptions, SORT_NUMERIC);
+        $this->assertNotSame($idOrderedOptions, $optionIds);
+
+        $roles = $this->viewVariable('roles');
+        $roleIds = array_keys($roles);
+        $idOrderedRoles = $roleIds;
+        sort($idOrderedRoles, SORT_NUMERIC);
+        $this->assertNotSame($idOrderedRoles, $roleIds);
+    }
+
+    /**
+     * Test edit modal renders autocomplete controls with an alphabetical list.
+     *
+     * @return void
+     */
+    public function testViewRendersAlphabeticalHierarchyAutocompleteControls(): void
+    {
+        $office = $this->Offices->find()
+            ->where([
+                'reports_to_id IS NOT' => null,
+                'grants_role_id IS NOT' => null,
+            ])
+            ->firstOrFail();
+
+        $this->get("/officers/offices/view/{$office->id}");
+
+        $this->assertResponseOk();
+        $body = (string)$this->_response->getBody();
+        $this->assertStringContainsString("data-office-form-target='reportsTo'", $body);
+        $this->assertStringContainsString("data-office-form-target='deputyTo'", $body);
+        $this->assertStringContainsString('data-ac-init-selection-value=', $body);
+        $this->assertGreaterThanOrEqual(2, substr_count($body, 'data-ac-init-selection-value='));
+        $this->assertStringContainsString('role="combobox"', $body);
+        $this->assertStringContainsString('name="grants_role_id"', $body);
+
+        $options = $this->viewVariable('report_to_offices');
+        $this->assertArrayNotHasKey($office->id, $options);
+        $optionIds = array_keys($options);
+        $idOrderedOptions = $optionIds;
+        sort($idOrderedOptions, SORT_NUMERIC);
+        $this->assertNotSame($idOrderedOptions, $optionIds);
+    }
+
+    /**
      * Test edit method with reports_to_id change recalculates officers
      *
      * When an office's reports_to_id changes, all current and upcoming officers

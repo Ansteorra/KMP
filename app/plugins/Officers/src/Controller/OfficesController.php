@@ -301,11 +301,11 @@ class OfficesController extends AppController
         $departments = $this->Offices->Departments->find('list')->all();
 
         // Office hierarchy options (excluding current office to prevent circular references)
-        $report_to_offices = $this->Offices->find('list')->where(['id <>' => $office->id])->all();
-        $deputy_to_offices = $this->Offices->find('list')->where(['id <>' => $office->id])->all();
+        $report_to_offices = $this->getOfficeOptions($office->id);
+        $deputy_to_offices = $report_to_offices;
 
         // Role options for permission assignment
-        $roles = $this->Offices->GrantsRole->find('list')->all();
+        $roles = $this->getRoleOptions();
 
         // Dynamic branch type loading from application settings
         $btArray = StaticHelpers::getAppSetting("Branches.Types");
@@ -358,11 +358,11 @@ class OfficesController extends AppController
         $departments = $this->Offices->Departments->find('list')->all();
 
         // Office hierarchy options for reporting and deputy relationships
-        $report_to_offices = $this->Offices->find('list')->all();
-        $deputy_to_offices = $this->Offices->find('list')->all();
+        $report_to_offices = $this->getOfficeOptions();
+        $deputy_to_offices = $report_to_offices;
 
         // Role options for permission assignment
-        $roles = $this->Offices->GrantsRole->find('list')->all();
+        $roles = $this->getRoleOptions();
 
         // Dynamic branch type loading from application settings
         $btArray = StaticHelpers::getAppSetting("Branches.Types");
@@ -373,6 +373,36 @@ class OfficesController extends AppController
 
         // Provide comprehensive data to form (new entity or with validation errors)
         $this->set(compact('office', 'departments', 'report_to_offices', 'roles', 'branch_types', 'deputy_to_offices'));
+    }
+
+    /**
+     * Return office hierarchy choices ordered for display.
+     *
+     * @param int|null $excludedOfficeId Office to omit from the hierarchy choices
+     * @return array<int|string, string>
+     */
+    private function getOfficeOptions(?int $excludedOfficeId = null): array
+    {
+        $query = $this->Offices->find('list')
+            ->orderBy(['Offices.name' => 'ASC']);
+
+        if ($excludedOfficeId !== null) {
+            $query->where(['Offices.id !=' => $excludedOfficeId]);
+        }
+
+        return $query->toArray();
+    }
+
+    /**
+     * Return grantable role choices ordered for display.
+     *
+     * @return array<int|string, string>
+     */
+    private function getRoleOptions(): array
+    {
+        return $this->Offices->GrantsRole->find('list')
+            ->orderBy(['GrantsRole.name' => 'ASC'])
+            ->toArray();
     }
 
     /**
