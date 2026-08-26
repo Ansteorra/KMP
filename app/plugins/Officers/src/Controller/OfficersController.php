@@ -428,7 +428,12 @@ class OfficersController extends AppController
             $contain['Warrants'] = function ($q) {
                 return $q
                     ->select(['id', 'status', 'start_on', 'expires_on', 'entity_id'])
-                    ->orderBy(['Warrants.start_on' => 'DESC', 'Warrants.id' => 'DESC']);
+                    ->orderByAsc($q->expr()->isNull('Warrants.expires_on'))
+                    ->orderBy([
+                        'Warrants.expires_on' => 'DESC',
+                        'Warrants.start_on' => 'DESC',
+                        'Warrants.id' => 'DESC',
+                    ]);
             };
         }
         if ($queryContext->loadsColumn('branch_name') || $context === 'branch') {
@@ -912,7 +917,12 @@ class OfficersController extends AppController
             if ($queryContext->loadsColumn('member_warrant_summary')) {
                 $contain['Warrants'] = fn($q) => $q
                     ->select(['id', 'status', 'start_on', 'expires_on', 'entity_id'])
-                    ->orderBy(['Warrants.start_on' => 'DESC', 'Warrants.id' => 'DESC']);
+                    ->orderByAsc($q->expr()->isNull('Warrants.expires_on'))
+                    ->orderBy([
+                        'Warrants.expires_on' => 'DESC',
+                        'Warrants.start_on' => 'DESC',
+                        'Warrants.id' => 'DESC',
+                    ]);
             }
             $baseQuery = $this->Officers->find()
                 ->where(['Officers.id' => $officerId])

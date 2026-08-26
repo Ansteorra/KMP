@@ -105,19 +105,24 @@ class OfficersControllerGridDataTest extends HttpIntegrationTestCase
         $this->assertResponseContains('class="table table-sm table-striped align-middle w-auto mb-0"');
     }
 
-    public function testCurrentMemberGridShowsLatestExpiredWarrantDate(): void
+    public function testCurrentMemberGridShowsLatestExpiredWarrantByExpirationDate(): void
     {
-        [$officer] = $this->prepareOfficerWarrantHistory();
-        $expiredOn = DateTime::now()->subDays(7)->setTime(12, 0);
+        [$officer, , , $warrantIds] = $this->prepareOfficerWarrantHistory();
+        $now = DateTime::now();
+        $newerStartOlderExpiration = $now->subMonths(5)->setTime(12, 0);
+        $olderStartLatestExpiration = $now->subDays(7)->setTime(12, 0);
+        $warrants = TableRegistry::getTableLocator()->get('Warrants');
 
-        TableRegistry::getTableLocator()->get('Warrants')->updateAll([
+        $warrants->updateAll([
             'status' => Warrant::EXPIRED_STATUS,
-            'expires_on' => $expiredOn,
-        ], [
-            'entity_type' => 'Officers.Officers',
-            'entity_id' => $officer->id,
-            'status' => Warrant::CURRENT_STATUS,
-        ]);
+            'start_on' => $now->subMonths(6),
+            'expires_on' => $newerStartOlderExpiration,
+        ], ['id' => $warrantIds[0]]);
+        $warrants->updateAll([
+            'status' => Warrant::EXPIRED_STATUS,
+            'start_on' => $now->subYears(2),
+            'expires_on' => $olderStartLatestExpiration,
+        ], ['id' => $warrantIds[1]]);
 
         $this->configRequest([
             'headers' => ['Turbo-Frame' => 'member-officers-grid-table'],
@@ -129,11 +134,17 @@ class OfficersControllerGridDataTest extends HttpIntegrationTestCase
 
         $this->assertResponseOk();
         $this->assertResponseContains('Show warrant history:');
-        $this->assertResponseContains('Expired ' . $expiredOn->format('F j, Y'));
+        $this->assertResponseContains('Expired ' . $olderStartLatestExpiration->format('F j, Y'));
+        $this->assertResponseNotContains('Expired ' . $newerStartOlderExpiration->format('F j, Y'));
     }
 
     /**
-     * @return array{0: \Officers\Model\Entity\Officer, 1: \Cake\I18n\DateTime, 2: \Cake\I18n\DateTime}
+     * @return array{
+     *   0: \Officers\Model\Entity\Officer,
+     *   1: \Cake\I18n\DateTime,
+     *   2: \Cake\I18n\DateTime,
+     *   3: list<int>
+     * }
      */
     private function prepareOfficerWarrantHistory(): array
     {
@@ -179,6 +190,6 @@ class OfficersControllerGridDataTest extends HttpIntegrationTestCase
 
         $officer->member_id = self::ADMIN_MEMBER_ID;
 
-        return [$officer, $currentExpiration, $expiredExpiration];
+        return [$officer, $currentExpiration, $expiredExpiration, $warrantIds];
     }
 }
