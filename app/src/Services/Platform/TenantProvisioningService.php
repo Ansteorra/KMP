@@ -871,13 +871,15 @@ class TenantProvisioningService
     {
         /** @var \Cake\Database\Connection $connection */
         $connection = ConnectionManager::get(self::TENANT_CONNECTION);
-        if (!in_array('phinxlog', $connection->getSchemaCollection()->listTables(), true)) {
-            return null;
+        $state = (new TenantMigrationCatalog())->inspect($connection);
+        if (!$state->isCurrent()) {
+            throw new RuntimeException(sprintf(
+                'Tenant provisioning finished with incomplete migration state: %s.',
+                json_encode($state->toMetadata(), JSON_UNESCAPED_SLASHES),
+            ));
         }
 
-        $version = $connection->execute('SELECT MAX(version) FROM phinxlog')->fetchColumn(0);
-
-        return $version === false || $version === null ? null : (string)$version;
+        return $state->targetVersion;
     }
 
     /**

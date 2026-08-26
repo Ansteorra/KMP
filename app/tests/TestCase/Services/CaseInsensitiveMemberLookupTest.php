@@ -36,6 +36,45 @@ class CaseInsensitiveMemberLookupTest extends BaseTestCase
         $this->assertTrue($service->isEmailTaken('ADMIN@AMP.ANSTEORRA.ORG'));
     }
 
+    public function testScaNameSearchIgnoresDiacritics(): void
+    {
+        $members = $this->getTableLocator()->get('Members');
+        $member = $members->get(self::TEST_MEMBER_AGATHA_ID);
+        $member->sca_name = 'Céra ingen Fháelain';
+        $members->saveOrFail($member);
+
+        $service = new MemberSearchService();
+        $results = $service->searchQuery(
+            'Cera ingen Fhaelain',
+            'Cera ingen Fhaelain',
+            'Cera ingen Fhaelain',
+        )->all();
+
+        $this->assertSame(
+            [self::TEST_MEMBER_AGATHA_ID],
+            $results->extract('id')->map(static fn($id): int => (int)$id)->toList(),
+        );
+    }
+
+    public function testScaNameSearchUsesPostgresFoldingForBothOperands(): void
+    {
+        $members = $this->getTableLocator()->get('Members');
+        $member = $members->get(self::TEST_MEMBER_AGATHA_ID);
+
+        foreach (['Ǣthelred', 'Ǿrn', 'ΟΣ', 'ЙВАН'] as $scaName) {
+            $member->sca_name = $scaName;
+            $members->saveOrFail($member);
+
+            $results = (new MemberSearchService())->searchQuery($scaName, $scaName, $scaName)->all();
+
+            $this->assertContains(
+                self::TEST_MEMBER_AGATHA_ID,
+                $results->extract('id')->map(static fn($id): int => (int)$id)->toList(),
+                sprintf('Expected exact Unicode SCA name search to find %s.', $scaName),
+            );
+        }
+    }
+
     public function testPasswordResetLookupIgnoresCase(): void
     {
         Router::createRouteBuilder('/')->fallbacks(DashedRoute::class);

@@ -197,6 +197,7 @@ wait_for_execution() {
 start_and_wait() {
     local job="$1"
     local label="$2"
+    local attempts="${3:-180}"
     local execution
 
     if "$dry_run"; then
@@ -209,7 +210,7 @@ start_and_wait() {
             --query name \
             --output tsv)"
     fi
-    wait_for_execution "$job" "$execution" "$label"
+    wait_for_execution "$job" "$execution" "$label" "$attempts"
 }
 
 probe() {
@@ -286,15 +287,15 @@ patch_job_runtime \
     "$migrate_job" \
     "$image" \
     '' \
-    1800 \
+    7200 \
     1 \
     1 \
     1 \
     migrate \
     '["/usr/local/bin/docker-entrypoint.sh"]' \
-    '["/bin/sh","-lc","bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake cache clear _cake_model_"]'
+    '["/bin/sh","-lc","bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake platform backup-keys ensure && bin/cake tenant migrate --all --include-suspended --fail-fast && bin/cake cache clear _cake_model_"]'
 
-start_and_wait "$migrate_job" 'migration'
+start_and_wait "$migrate_job" 'application, platform, and tenant migrations' 750
 
 start_and_wait "$worker_job" 'post-migration worker verification'
 

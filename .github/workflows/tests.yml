@@ -113,6 +113,12 @@ jobs:
       - name: Install Composer dependencies
         run: cd app && composer install --no-interaction --prefer-dist
 
+      - name: Validate managed seed snapshots
+        run: |
+          cd app
+          php scripts/seed/fictionalize-scale-data.php --check
+          php scripts/seed/sync-ansteorra-award-catalog.php --check
+
       - name: Build frontend assets
         run: |
           cd app

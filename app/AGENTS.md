@@ -21,6 +21,10 @@ Own the CakePHP application runtime: PHP source, configuration, templates, front
 - Store date/time values in UTC and convert or pre-format for display through project timezone helpers.
 - Use Vite (`vite.config.js`) for frontend bundles and the generated manifest in `webroot/.vite/manifest.json`.
 - Keep plugin behavior isolated in the plugin unless a shared abstraction belongs in core `app/src`.
+- Release tenant migrations use `tenant migrate --all --include-suspended --fail-fast`; the command inspects every
+  core/plugin history, skips current databases without backups, and verifies pending tenants after migration.
+- Suspended tenants must remain migration-current and cannot be reactivated when their recorded schema is behind the
+  migration target shipped by the running code.
 - Do not commit runtime output from `tmp/`, `logs/`, generated reports, built caches, or local environment files.
 
 ## Work Guidance

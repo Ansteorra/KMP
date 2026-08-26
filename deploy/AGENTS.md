@@ -20,6 +20,9 @@ Own cloud deployment templates, environment examples, bootstrap scripts, CI/CD d
 - A successful `dev` image build deploys automatically to POC. Published non-prerelease `v*` releases require `production` environment approval before exact-digest promotion.
 - Both environments must use `.github/workflows/azure-deploy.yml` and the ordered unified-worker cutover rather than duplicating migration or web-update logic.
 - PostgreSQL extensions required by application migrations must be allowlisted through `azure.extensions` before the migration job starts; preserve existing allowlisted extensions when adding one, and use the PostgreSQL-specific resource group when the database server is shared across environment resource groups.
+- Before web cutover, reconcile backup keys and run `tenant migrate --all --include-suspended --fail-fast`. Current
+  tenants are inspection-only; pending active or suspended tenants require a recovery marker, backup, and verified
+  app/plugin migration state. Reruns must resume by reinspecting tenant histories.
 
 ## Work Guidance
 

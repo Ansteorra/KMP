@@ -6,6 +6,7 @@ namespace App\Services\Secrets;
 use DateTimeImmutable;
 use DateTimeInterface;
 use RuntimeException;
+use Throwable;
 
 class FileSecretStore implements WritableSecretStoreInterface
 {
@@ -148,23 +149,55 @@ class FileSecretStore implements WritableSecretStoreInterface
             throw new RuntimeException('Unable to encode secrets file JSON.');
         }
 
+        $existingOwner = file_exists($this->path) ? fileowner($this->path) : false;
+        $existingGroup = file_exists($this->path) ? filegroup($this->path) : false;
         $tempPath = tempnam($directory, '.secrets.');
         if ($tempPath === false) {
             throw new RuntimeException(sprintf('Unable to create temporary secrets file in "%s".', $directory));
         }
-        chmod($tempPath, 0600);
-        if (file_put_contents($tempPath, $payload . PHP_EOL, LOCK_EX) === false) {
+
+        try {
+            chmod($tempPath, 0600);
+            if (file_put_contents($tempPath, $payload . PHP_EOL, LOCK_EX) === false) {
+                throw new RuntimeException(sprintf('Unable to write temporary secrets file "%s".', $tempPath));
+            }
+            chmod($tempPath, 0600);
+            $this->preserveOwnership(
+                $tempPath,
+                is_int($existingOwner) ? $existingOwner : null,
+                is_int($existingGroup) ? $existingGroup : null,
+            );
+            if (!rename($tempPath, $this->path)) {
+                throw new RuntimeException(sprintf('Unable to replace secrets file "%s".', $this->path));
+            }
+        } catch (Throwable $exception) {
             if (file_exists($tempPath)) {
                 unlink($tempPath);
             }
-            throw new RuntimeException(sprintf('Unable to write temporary secrets file "%s".', $tempPath));
+
+            throw $exception;
         }
-        chmod($tempPath, 0600);
-        if (!rename($tempPath, $this->path)) {
-            if (file_exists($tempPath)) {
-                unlink($tempPath);
-            }
-            throw new RuntimeException(sprintf('Unable to replace secrets file "%s".', $this->path));
+    }
+
+    /**
+     * Keep an atomic replacement readable by the same account as the current file.
+     *
+     * @param string $path Temporary replacement path.
+     * @param int|null $owner Existing file owner.
+     * @param int|null $group Existing file group.
+     * @return void
+     */
+    private function preserveOwnership(string $path, ?int $owner, ?int $group): void
+    {
+        // Avoid leaking filesystem warnings into an HTTP response; failures become exceptions below.
+        // phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged
+        if ($owner !== null && fileowner($path) !== $owner && !@chown($path, $owner)) {
+            throw new RuntimeException(sprintf('Unable to preserve owner of secrets file "%s".', $this->path));
+        }
+        clearstatcache(true, $path);
+        // phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged
+        if ($group !== null && filegroup($path) !== $group && !@chgrp($path, $group)) {
+            throw new RuntimeException(sprintf('Unable to preserve group of secrets file "%s".', $this->path));
         }
     }
 

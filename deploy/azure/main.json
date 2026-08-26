@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.36.1.42791",
-      "templateHash": "15418957422274934126"
+      "version": "0.46.1.21595",
+      "templateHash": "15146917920205057849"
     }
   },
   "parameters": {
@@ -560,7 +560,7 @@
         "enabled": "[parameters('enableMigrateJob')]",
         "name": "[variables('migrateJobName')]",
         "containerName": "migrate",
-        "timeout": 1800,
+        "timeout": 7200,
         "retryLimit": 1,
         "cpu": "0.5",
         "memory": "1Gi",
@@ -571,7 +571,7 @@
         "args": [
           "/bin/sh",
           "-lc",
-          "bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake cache clear _cake_model_"
+          "bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake platform backup-keys ensure && bin/cake tenant migrate --all --include-suspended --fail-fast && bin/cake cache clear _cake_model_"
         ]
       },
       {
@@ -809,7 +809,7 @@
     {
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
-      "scope": "[format('Microsoft.ContainerRegistry/registries/{0}', parameters('acrName'))]",
+      "scope": "[resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName'))]",
       "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), 'acrpull')]",
       "properties": {
         "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), '2023-01-31').principalId]",
@@ -859,7 +859,7 @@
     {
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
-      "scope": "[format('Microsoft.Storage/storageAccounts/{0}', variables('documentStorageName'))]",
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('documentStorageName'))]",
       "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', variables('documentStorageName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), 'blob-data-contributor')]",
       "properties": {
         "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), '2023-01-31').principalId]",
@@ -892,7 +892,7 @@
     {
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
-      "scope": "[format('Microsoft.KeyVault/vaults/{0}', variables('kvName'))]",
+      "scope": "[resourceId('Microsoft.KeyVault/vaults', variables('kvName'))]",
       "name": "[guid(resourceId('Microsoft.KeyVault/vaults', variables('kvName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), 'secretsuser')]",
       "properties": {
         "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), '2023-01-31').principalId]",
@@ -908,7 +908,7 @@
       "condition": "[not(empty(parameters('deployerPrincipalId')))]",
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
-      "scope": "[format('Microsoft.KeyVault/vaults/{0}', variables('kvName'))]",
+      "scope": "[resourceId('Microsoft.KeyVault/vaults', variables('kvName'))]",
       "name": "[guid(resourceId('Microsoft.KeyVault/vaults', variables('kvName')), parameters('deployerPrincipalId'), 'secretsofficer')]",
       "properties": {
         "principalId": "[parameters('deployerPrincipalId')]",

@@ -30,13 +30,17 @@ assert_contains "$bicep" "httpGet: { path: '/livez', port: 80 }"
 assert_contains "$bicep" "periodSeconds: 60"
 assert_contains "$bicep" "'worker'"
 assert_contains "$bicep" "'--cycle-budget'"
-schema_safe_migration_command='bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake cache clear _cake_model_'
+schema_safe_migration_command='bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake platform backup-keys ensure && bin/cake tenant migrate --all --include-suspended --fail-fast && bin/cake cache clear _cake_model_'
 assert_contains "$bicep" "$schema_safe_migration_command"
+assert_contains "$bicep" 'timeout: 7200'
 assert_contains "$here/main.json" "$schema_safe_migration_command"
+assert_contains "$here/main.json" '"timeout": 7200'
 assert_contains "$here/cutover-unified-worker.sh" "$schema_safe_migration_command"
 assert_contains "$here/nightly-deploy.sh" "$schema_safe_migration_command"
 assert_contains "$here/nightly-deploy.sh" 'run_migrate_command "app schema cache clear" bin/cake schema_cache clear'
 assert_contains "$here/nightly-deploy.sh" 'run_migrate_command "platform schema cache clear" bin/cake schema_cache clear --connection platform'
+assert_contains "$here/nightly-deploy.sh" 'run_migrate_command "tenant fleet migrations" bin/cake tenant migrate --all --include-suspended --fail-fast'
+assert_contains "$here/bootstrap.sh" 'for attempt in $(seq 1 750)'
 assert_contains "$here/nightly-deploy.sh" 'run_migrate_command "shared model cache clear" bin/cake cache clear _cake_model_'
 assert_contains "$app_config" '"prefix" => "kmp_model_"'
 assert_contains "$workflow" 'cutover-unified-worker.sh'
@@ -44,8 +48,10 @@ assert_contains "$workflow" 'Preserve pre-cutover definitions'
 assert_contains "$workflow" 'AZURE_POSTGRES_RESOURCE_GROUP'
 assert_contains "$workflow" 'AZURE_POSTGRES_SERVER_NAME'
 assert_contains "$workflow" 'ensure-postgres-extension.sh'
+assert_contains "$workflow" '--extension UNACCENT'
 assert_contains "$poc_workflow" 'uses: ./.github/workflows/azure-deploy.yml'
 assert_contains "$here/bootstrap.sh" 'ensure-postgres-extension.sh'
+assert_contains "$here/bootstrap.sh" '--extension UNACCENT'
 assert_contains "$here/bootstrap.sh" 'AZURE_POSTGRES_RESOURCE_GROUP'
 assert_contains "$here/configure-github-cd.sh" 'AZURE_POSTGRES_RESOURCE_GROUP'
 assert_contains "$here/configure-github-cd.sh" 'AZURE_POSTGRES_SERVER_NAME'
@@ -94,6 +100,13 @@ extension_line="$(grep -n 'ensure-postgres-extension.sh' "$workflow" | head -1 |
 cutover_line="$(grep -n 'name: Cut over worker, migrations, and web' "$workflow" | head -1 | cut -d: -f1)"
 if [[ "$extension_line" -ge "$cutover_line" ]]; then
     echo 'PostgreSQL extensions must be allowlisted before the migration cutover.' >&2
+    exit 1
+fi
+
+backup_key_line="$(grep -n 'run_migrate_command "platform backup key reconciliation"' "$here/nightly-deploy.sh" | head -1 | cut -d: -f1)"
+tenant_migration_line="$(grep -n 'run_migrate_command "tenant fleet migrations"' "$here/nightly-deploy.sh" | head -1 | cut -d: -f1)"
+if [[ "$backup_key_line" -ge "$tenant_migration_line" ]]; then
+    echo 'Backup keys must be reconciled before tenant fleet migration backups.' >&2
     exit 1
 fi
 

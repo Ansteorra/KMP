@@ -16,6 +16,7 @@ Own application test coverage across PHPUnit, Jest/jsdom, and Playwright BDD lan
 - PHPUnit suites are `core-unit`, `core-feature`, `plugins`, and `all`.
 - Use project base test classes and seeded constants instead of raw magic IDs.
 - Use `reseedDatabase()` only for destructive tests that need a full reset.
+- PostgreSQL test database setup copies both schema and app/plugin migration histories before loading its data seed.
 - Jest uses jsdom with setup in `tests/js/setup.js`; mock globals consistently.
 - Playwright reports, generated Playwright files, coverage output, and UI results are generated artifacts and should not be hand-edited.
 

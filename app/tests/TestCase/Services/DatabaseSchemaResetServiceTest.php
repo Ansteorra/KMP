@@ -4,14 +4,15 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Services;
 
 use App\Services\DatabaseSchemaResetService;
+use App\Test\TestCase\BaseTestCase;
+use Cake\Database\Driver\Mysql;
 use Cake\Database\Driver\Postgres;
-use Cake\TestSuite\TestCase;
 use ReflectionMethod;
 
 /**
  * @covers \App\Services\DatabaseSchemaResetService
  */
-class DatabaseSchemaResetServiceTest extends TestCase
+class DatabaseSchemaResetServiceTest extends BaseTestCase
 {
     public function testColumnTypeSqlSupportsFractionalTemporalTypes(): void
     {
@@ -44,6 +45,26 @@ class DatabaseSchemaResetServiceTest extends TestCase
         $this->assertSame(
             'SMALLINT',
             $method->invoke($service, $driver, 'smallinteger', [], false),
+        );
+    }
+
+    public function testColumnTypeSqlPreservesCitextAcrossDatabaseEngines(): void
+    {
+        $service = new DatabaseSchemaResetService();
+        $method = new ReflectionMethod(DatabaseSchemaResetService::class, 'columnTypeSql');
+        $method->setAccessible(true);
+
+        $this->assertSame(
+            'CITEXT',
+            $method->invoke($service, new Postgres([]), 'citext', [], false),
+        );
+        $this->assertSame(
+            'TEXT',
+            $method->invoke($service, new Mysql([]), 'citext', [], false),
+        );
+        $this->assertSame(
+            'VARCHAR(255)',
+            $method->invoke($service, new Mysql([]), 'citext', [], false, true),
         );
     }
 

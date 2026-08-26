@@ -68,9 +68,18 @@ if [ -f /var/www/html/config/.env ]; then
     chgrp www-data /var/www/html/config/.env
     chmod 640 /var/www/html/config/.env
 fi
-if [ -f /var/www/html/config/secrets.local.json ]; then
-    chown www-data:www-data /var/www/html/config/secrets.local.json
-    chmod 600 /var/www/html/config/secrets.local.json
+secrets_file="${KMP_SECRETS_FILE:-/var/www/html/config/secrets.local.json}"
+if [ ! -e "$secrets_file" ]; then
+    secrets_directory="$(dirname "$secrets_file")"
+    if [ ! -d "$secrets_directory" ]; then
+        install -d -m 700 -o www-data -g www-data "$secrets_directory"
+    fi
+    install -m 600 -o www-data -g www-data /dev/null "$secrets_file"
+    printf '{"secrets": {}}\n' > "$secrets_file"
+fi
+if [ -f "$secrets_file" ]; then
+    chown www-data:www-data "$secrets_file"
+    chmod 600 "$secrets_file"
 fi
 
 # Install composer dependencies if vendor directory is missing or empty

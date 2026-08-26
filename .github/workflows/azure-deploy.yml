@@ -96,12 +96,16 @@ jobs:
           tenant-id: ${{ env.AZURE_TENANT_ID }}
           subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Allow PostgreSQL case-insensitive text extension
+      - name: Allow PostgreSQL text search extensions
         run: |
           bash deploy/azure/ensure-postgres-extension.sh \
             --resource-group "$AZURE_POSTGRES_RESOURCE_GROUP" \
             --server-name "$AZURE_POSTGRES_SERVER_NAME" \
             --extension CITEXT
+          bash deploy/azure/ensure-postgres-extension.sh \
+            --resource-group "$AZURE_POSTGRES_RESOURCE_GROUP" \
+            --server-name "$AZURE_POSTGRES_SERVER_NAME" \
+            --extension UNACCENT
 
       - name: Import the tested image into ACR
         env:

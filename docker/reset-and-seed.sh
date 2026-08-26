@@ -20,6 +20,8 @@
 #   BACKUP_ENCRYPTION_KEY   — required unless KMP_SKIP_SEED=true
 #   KMP_SEED_FILE           — override seed path (default: auto-detected)
 #   KMP_SKIP_SEED=true      — do schema reset only, no data restore
+#   KMP_BACKUP_RESTORE_MEMORY_LIMIT — PHP limit for the compatibility pass
+#                                     (default: 512M)
 #   DOCUMENT_STORAGE_ADAPTER=local — recommended, forces backup storage to
 #                                    use the local filesystem (not blob).
 #
@@ -99,8 +101,9 @@ else
 
     size=$(stat -c%s "$BACKUPS_DIR/$SEED_BASENAME" 2>/dev/null || stat -f%z "$BACKUPS_DIR/$SEED_BASENAME")
     echo "[3/5] Restoring $SEED_BASENAME ($((size/1024)) KB) via bin/cake backup restore..."
-    run_cake backup restore "$SEED_BASENAME" \
-        --key "$BACKUP_ENCRYPTION_KEY" \
+    CACHE_ENGINE=apcu php \
+        -d "memory_limit=${KMP_BACKUP_RESTORE_MEMORY_LIMIT:-512M}" \
+        bin/cake.php backup restore "$SEED_BASENAME" \
         --yes \
         --fail-on-not-valid-fk
 fi

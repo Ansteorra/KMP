@@ -749,4 +749,24 @@ class BackupServiceTest extends TestCase
         $this->assertSame('{}', $row['additional_info']);
         $this->assertSame('{}', $row['additional_info']);
     }
+
+    public function testNormalizeRowForInsertPreservesEmptyCitextValues(): void
+    {
+        $service = new BackupService();
+        $method = new ReflectionMethod(BackupService::class, 'normalizeRowForInsert');
+        $method->setAccessible(true);
+
+        $schema = new TableSchema('awards_awards');
+        $schema->addColumn('abbreviation', [
+            'type' => 'citext',
+            'null' => false,
+            'default' => null,
+        ]);
+
+        $emptyRow = $method->invoke($service, ['abbreviation' => ''], ['abbreviation'], $schema, true);
+        $nullRow = $method->invoke($service, ['abbreviation' => null], ['abbreviation'], $schema, true);
+
+        $this->assertSame('', $emptyRow['abbreviation']);
+        $this->assertSame('', $nullRow['abbreviation']);
+    }
 }

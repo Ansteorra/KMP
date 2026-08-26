@@ -13,6 +13,8 @@ use RuntimeException;
  */
 final class TenantLifecycleService
 {
+    private readonly string $requiredSchemaVersion;
+
     /**
      * @var array<string, list<string>>
      */
@@ -28,7 +30,9 @@ final class TenantLifecycleService
     public function __construct(
         private readonly Connection $connection,
         private readonly ?PlatformAuditService $auditService = null,
+        ?string $requiredSchemaVersion = null,
     ) {
+        $this->requiredSchemaVersion = $requiredSchemaVersion ?? (new TenantMigrationCatalog())->latestVersion();
     }
 
     /**
@@ -76,8 +80,15 @@ final class TenantLifecycleService
                     $targetStatus,
                 ));
             }
-            if ($targetStatus === 'active' && empty($tenant['schema_version'])) {
-                throw new RuntimeException('Tenant cannot be reactivated until provisioning has completed.');
+            if (
+                $targetStatus === 'active'
+                && (string)($tenant['schema_version'] ?? '') !== $this->requiredSchemaVersion
+            ) {
+                throw new RuntimeException(sprintf(
+                    'Tenant cannot be reactivated until migrations reach schema %s (current: %s).',
+                    $this->requiredSchemaVersion,
+                    empty($tenant['schema_version']) ? 'unknown' : (string)$tenant['schema_version'],
+                ));
             }
             $this->assertNoActiveLifecycleJobs($tenantId);
 
@@ -127,7 +138,13 @@ final class TenantLifecycleService
                FROM platform_jobs
               WHERE tenant_id = :tenantId
                 AND status IN ('queued', 'running')
-                AND job_type IN ('tenant_provision', 'tenant_backup', 'tenant_restore')",
+                AND job_type IN (
+                    'tenant_provision',
+                    'tenant_backup',
+                    'tenant_restore',
+                    'tenant_migration',
+                    'tenant_migration_marker'
+                )",
             ['tenantId' => $tenantId],
         )->fetchColumn(0);
         if ($activeJobs > 0) {

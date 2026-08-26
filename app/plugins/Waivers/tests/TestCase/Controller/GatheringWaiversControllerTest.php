@@ -42,6 +42,44 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * Test close confirmation preserves the complete gathering name and warning.
+     *
+     * @return void
+     */
+    public function testIndexCloseConfirmationIncludesCompleteMessage(): void
+    {
+        $GatheringWaivers = $this->getTableLocator()->get('Waivers.GatheringWaivers');
+        $waiver = $GatheringWaivers->find()->firstOrFail();
+
+        $Gatherings = $this->getTableLocator()->get('Gatherings');
+        $gathering = $Gatherings->get($waiver->gathering_id);
+        $gathering->name = 'Bjørn\'s "Autumn" & Revel';
+        $Gatherings->saveOrFail($gathering);
+
+        $GatheringWaiverClosures = $this->getTableLocator()->get('Waivers.GatheringWaiverClosures');
+        $GatheringWaiverClosures->deleteAll(['gathering_id' => $gathering->id]);
+
+        $this->get('/waivers/gathering-waivers?gathering_id=' . $gathering->id);
+        $this->assertResponseOk();
+
+        preg_match_all(
+            '/data-confirm-message="([^"]+)"/',
+            (string)$this->_response->getBody(),
+            $matches,
+        );
+        $messages = array_map(
+            static fn(string $message): string => html_entity_decode($message, ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+            $matches[1],
+        );
+
+        $this->assertContains(
+            'Close waiver collection for "Bjørn\'s "Autumn" & Revel"? No further uploads will be allowed.',
+            $messages,
+            'Rendered confirmation messages: ' . json_encode($messages, JSON_UNESCAPED_UNICODE),
+        );
+    }
+
+    /**
      * Test index requires gathering_id parameter
      *
      * @return void
