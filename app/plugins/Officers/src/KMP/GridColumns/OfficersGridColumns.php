@@ -1,12 +1,10 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Officers\KMP\GridColumns;
 
 use App\KMP\GridColumns\BaseGridColumns;
 use App\Model\Entity\ActiveWindowBaseEntity;
-use Cake\I18n\Date;
 use Officers\Model\Entity\Officer;
 
 /**
@@ -162,6 +160,7 @@ class OfficersGridColumns extends BaseGridColumns
                     if (!empty($row->deputy_description)) {
                         $officeName .= ' (' . $row->deputy_description . ')';
                     }
+
                     return h($officeName);
                 },
                 'exportValue' => function ($entity, $columnKey, $columnMeta) {
@@ -169,6 +168,7 @@ class OfficersGridColumns extends BaseGridColumns
                     if (!empty($entity->deputy_description)) {
                         $officeName .= ' (' . $entity->deputy_description . ')';
                     }
+
                     return $officeName;
                 },
             ],
@@ -241,7 +241,71 @@ class OfficersGridColumns extends BaseGridColumns
                     ];
                     $class = $badgeClasses[$value] ?? 'bg-secondary';
                     $text = $value ?? 'Unknown';
+
                     return '<span class="badge ' . $class . '">' . h($text) . '</span>';
+                },
+            ],
+
+            'member_warrant_summary' => [
+                'key' => 'member_warrant_summary',
+                'label' => 'Warrant',
+                'type' => 'html',
+                'sortable' => false,
+                'filterable' => false,
+                'defaultVisible' => false,
+                'width' => '180px',
+                'alignment' => 'left',
+                'exportable' => false,
+                'description' => 'Current or most recent warrant expiration; activate to show warrant history',
+                'clickAction' => 'toggleSubRow:warrant-history',
+                'clickActionUrl' => '/officers/officers/warrant-history/:id',
+                'cellRenderer' => function ($value, $row, $view) {
+                    $status = 'Missing';
+                    $badgeClass = 'bg-danger';
+                    $dateLabel = null;
+                    $date = null;
+
+                    if ($row->current_warrant !== null) {
+                        $status = 'Current';
+                        $badgeClass = 'bg-success';
+                        $dateLabel = __('Expires');
+                        $date = $row->current_warrant->expires_on;
+                    } elseif (!empty($row->pending_warrants)) {
+                        $pendingWarrant = $row->pending_warrants[0];
+                        $status = 'Pending';
+                        $badgeClass = 'bg-warning text-dark';
+                        $dateLabel = __('Expires');
+                        $date = $pendingWarrant->expires_on;
+                    } elseif (!empty($row->warrants)) {
+                        $latestWarrant = $row->warrants[0];
+                        $status = $latestWarrant->status ?? 'Expired';
+                        $badgeClass = 'bg-secondary';
+                        $dateLabel = $status === 'Expired' ? __('Expired') : __('Ended');
+                        $date = $latestWarrant->expires_on;
+                    } elseif ($row->office?->requires_warrant !== true) {
+                        $status = 'Not Required';
+                        $badgeClass = 'bg-secondary';
+                    }
+
+                    $accessibleSummary = __('Show warrant history: {0}.', $status);
+                    $compactDate = null;
+                    if ($date !== null) {
+                        $fullDate = $view->Timezone->date($date);
+                        $compactDate = $view->Timezone->date($date, 'M j, Y');
+                        $accessibleSummary = __('Show warrant history: {0}. {1} {2}.', $status, $dateLabel, $fullDate);
+                    }
+
+                    $summary = '<span class="visually-hidden">' . h($accessibleSummary) . '</span>';
+                    $summary .= '<span class="d-inline-flex align-items-center gap-1 text-nowrap" aria-hidden="true">';
+                    $summary .= '<span class="badge ' . h($badgeClass) . '">' . h($status) . '</span>';
+                    if ($compactDate !== null) {
+                        $summary .= '<span class="small text-body-secondary">'
+                            . h(__('Exp. {0}', $compactDate))
+                            . '</span>';
+                    }
+                    $summary .= '</span>';
+
+                    return $summary;
                 },
             ],
 
@@ -282,12 +346,30 @@ class OfficersGridColumns extends BaseGridColumns
                 'width' => '120px',
                 'alignment' => 'center',
                 'filterOptions' => [
-                    ['value' => ActiveWindowBaseEntity::CURRENT_STATUS, 'label' => ActiveWindowBaseEntity::CURRENT_STATUS],
-                    ['value' => ActiveWindowBaseEntity::UPCOMING_STATUS, 'label' => ActiveWindowBaseEntity::UPCOMING_STATUS],
-                    ['value' => ActiveWindowBaseEntity::EXPIRED_STATUS, 'label' => ActiveWindowBaseEntity::EXPIRED_STATUS],
-                    ['value' => ActiveWindowBaseEntity::RELEASED_STATUS, 'label' => ActiveWindowBaseEntity::RELEASED_STATUS],
-                    ['value' => ActiveWindowBaseEntity::REPLACED_STATUS, 'label' => ActiveWindowBaseEntity::REPLACED_STATUS],
-                    ['value' => ActiveWindowBaseEntity::DEACTIVATED_STATUS, 'label' => ActiveWindowBaseEntity::DEACTIVATED_STATUS],
+                    [
+                        'value' => ActiveWindowBaseEntity::CURRENT_STATUS,
+                        'label' => ActiveWindowBaseEntity::CURRENT_STATUS,
+                    ],
+                    [
+                        'value' => ActiveWindowBaseEntity::UPCOMING_STATUS,
+                        'label' => ActiveWindowBaseEntity::UPCOMING_STATUS,
+                    ],
+                    [
+                        'value' => ActiveWindowBaseEntity::EXPIRED_STATUS,
+                        'label' => ActiveWindowBaseEntity::EXPIRED_STATUS,
+                    ],
+                    [
+                        'value' => ActiveWindowBaseEntity::RELEASED_STATUS,
+                        'label' => ActiveWindowBaseEntity::RELEASED_STATUS,
+                    ],
+                    [
+                        'value' => ActiveWindowBaseEntity::REPLACED_STATUS,
+                        'label' => ActiveWindowBaseEntity::REPLACED_STATUS,
+                    ],
+                    [
+                        'value' => ActiveWindowBaseEntity::DEACTIVATED_STATUS,
+                        'label' => ActiveWindowBaseEntity::DEACTIVATED_STATUS,
+                    ],
                 ],
                 'description' => 'Current officer assignment status',
             ],
@@ -329,19 +411,31 @@ class OfficersGridColumns extends BaseGridColumns
     {
         $context = $options['context'] ?? null;
 
-        $today = Date::today();
-        $todayString = $today->format('Y-m-d');
-
         $currentUpcomingColumns = match ($context) {
-            'member' => ['office_name', 'branch_name', 'email_address', 'warrant_state', 'start_on', 'expires_on', 'reports_to_list'],
-            'branch' => ['member_sca_name', 'office_name', 'email_address', 'warrant_state', 'start_on', 'expires_on', 'reports_to_list'],
-            default => ['member_sca_name', 'office_name', 'branch_name', 'email_address', 'warrant_state', 'start_on', 'expires_on', 'status'],
+            'member' => [
+                'office_name', 'branch_name', 'email_address', 'member_warrant_summary',
+                'start_on', 'expires_on', 'reports_to_list',
+            ],
+            'branch' => [
+                'member_sca_name', 'office_name', 'email_address', 'warrant_state',
+                'start_on', 'expires_on', 'reports_to_list',
+            ],
+            default => [
+                'member_sca_name', 'office_name', 'branch_name', 'email_address',
+                'warrant_state', 'start_on', 'expires_on', 'status',
+            ],
         };
 
         $previousColumns = match ($context) {
-            'member' => ['office_name', 'branch_name', 'start_on', 'expires_on', 'revoked_reason'],
+            'member' => [
+                'office_name', 'branch_name', 'member_warrant_summary',
+                'start_on', 'expires_on', 'revoked_reason',
+            ],
             'branch' => ['member_sca_name', 'office_name', 'start_on', 'expires_on', 'revoked_reason'],
-            default => ['member_sca_name', 'office_name', 'branch_name', 'start_on', 'expires_on', 'revoked_reason', 'status'],
+            default => [
+                'member_sca_name', 'office_name', 'branch_name', 'start_on',
+                'expires_on', 'revoked_reason', 'status',
+            ],
         };
 
         return [

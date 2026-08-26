@@ -20,7 +20,7 @@
         "dereuromark/cakephp-templating": "^0.2.1",
         "dereuromark/cakephp-tools": "^3.13.0",
         "dragonmantank/cron-expression": "^3.6",
-        "erusev/parsedown": "^1.7",
+        "erusev/parsedown": "^1.8",
         "friendsofcake/bootstrap-ui": "^5.0",
         "friendsofcake/cakepdf": "^5.0",
         "friendsofcake/cakephp-csvview": "^5.0",

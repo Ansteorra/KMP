@@ -1,17 +1,13 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Officers\Controller;
 
 use App\Controller\DataverseGridTrait;
 use App\Controller\WorkflowDispatchTrait;
-use App\KMP\DataverseGridQueryContext;
 use App\KMP\CaseInsensitiveQuery;
+use App\KMP\DataverseGridQueryContext;
 use App\KMP\GridRowDomId;
-use Cake\Http\Response;
-use Cake\ORM\TableRegistry;
-use Cake\Routing\Router;
 use App\Model\Entity\Member;
 use App\Model\Entity\Warrant;
 use App\Services\CsvExportService;
@@ -19,13 +15,17 @@ use App\Services\ServiceResult;
 use App\Services\WarrantManager\WarrantManagerInterface;
 use App\Services\WarrantManager\WarrantRequest;
 use App\Services\WorkflowEngine\TriggerDispatcher;
+use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
+use Cake\Http\Response;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
+use Cake\ORM\TableRegistry;
 use Officers\KMP\GridColumns\OfficersGridColumns;
 use Officers\Model\Entity\Officer;
 use Throwable;
+use Traversable;
 
 /**
  * Officers Controller
@@ -413,12 +413,27 @@ class OfficersController extends AppController
                 return $q->select(['id', 'name']);
             },
         ];
-        if ($queryContext->loadsColumn('warrant_state')) {
+        if (
+            $queryContext->loadsColumn('warrant_state')
+            || $queryContext->loadsColumn('member_warrant_summary')
+        ) {
             $contain['CurrentWarrants'] = function ($q) {
                 return $q->select(['id', 'start_on', 'expires_on', 'entity_id']);
             };
             $contain['PendingWarrants'] = function ($q) {
                 return $q->select(['id', 'start_on', 'expires_on', 'entity_id']);
+            };
+        }
+        if ($queryContext->loadsColumn('member_warrant_summary')) {
+            $contain['Warrants'] = function ($q) {
+                return $q
+                    ->select(['id', 'status', 'start_on', 'expires_on', 'entity_id'])
+                    ->orderByAsc($q->expr()->isNull('Warrants.expires_on'))
+                    ->orderBy([
+                        'Warrants.expires_on' => 'DESC',
+                        'Warrants.start_on' => 'DESC',
+                        'Warrants.id' => 'DESC',
+                    ]);
             };
         }
         if ($queryContext->loadsColumn('branch_name') || $context === 'branch') {
@@ -496,6 +511,48 @@ class OfficersController extends AppController
                 'rowActions' => $rowActions,
             ],
         );
+    }
+
+    /**
+     * Render the warrant history fragment for a member-profile officer row.
+     *
+     * @param int $id Officer assignment ID
+     * @return void
+     */
+    public function warrantHistory(int $id): void
+    {
+        $officer = $this->Officers->find()
+            ->where(['Officers.id' => $id])
+            ->contain([
+                'Offices' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Branches' => function ($q) {
+                    return $q->select(['id', 'name']);
+                },
+                'Warrants' => function ($q) {
+                    return $q
+                        ->select([
+                            'id',
+                            'status',
+                            'start_on',
+                            'expires_on',
+                            'revoked_reason',
+                            'entity_id',
+                        ])
+                        ->orderBy(['Warrants.start_on' => 'DESC', 'Warrants.id' => 'DESC']);
+                },
+            ])
+            ->firstOrFail();
+
+        $this->Authorization->authorize($officer, 'MemberOfficers');
+
+        $this->set([
+            'officer' => $officer,
+            'warrants' => $officer->warrants,
+        ]);
+        $this->viewBuilder()->disableAutoLayout();
+        $this->viewBuilder()->setTemplate('warrant_history');
     }
 
     /**
@@ -781,7 +838,7 @@ class OfficersController extends AppController
             $branchesTable = TableRegistry::getTableLocator()->get('Branches');
             try {
                 $branch = $branchesTable->find('byPublicId', [$matches[1]])->firstOrFail();
-            } catch (\Cake\Datasource\Exception\RecordNotFoundException) {
+            } catch (RecordNotFoundException) {
                 return null;
             }
 
@@ -850,9 +907,22 @@ class OfficersController extends AppController
             if ($queryContext->loadsColumn('branch_name')) {
                 $contain['Branches'] = fn($q) => $q->select(['id', 'name']);
             }
-            if ($queryContext->loadsColumn('warrant_state')) {
+            if (
+                $queryContext->loadsColumn('warrant_state')
+                || $queryContext->loadsColumn('member_warrant_summary')
+            ) {
                 $contain['CurrentWarrants'] = fn($q) => $q->select(['id', 'start_on', 'expires_on', 'entity_id']);
                 $contain['PendingWarrants'] = fn($q) => $q->select(['id', 'start_on', 'expires_on', 'entity_id']);
+            }
+            if ($queryContext->loadsColumn('member_warrant_summary')) {
+                $contain['Warrants'] = fn($q) => $q
+                    ->select(['id', 'status', 'start_on', 'expires_on', 'entity_id'])
+                    ->orderByAsc($q->expr()->isNull('Warrants.expires_on'))
+                    ->orderBy([
+                        'Warrants.expires_on' => 'DESC',
+                        'Warrants.start_on' => 'DESC',
+                        'Warrants.id' => 'DESC',
+                    ]);
             }
             $baseQuery = $this->Officers->find()
                 ->where(['Officers.id' => $officerId])
@@ -891,7 +961,7 @@ class OfficersController extends AppController
             $gridData = $result['data'];
             if (is_array($gridData)) {
                 $officers = $gridData;
-            } elseif ($gridData instanceof \Traversable) {
+            } elseif ($gridData instanceof Traversable) {
                 $officers = iterator_to_array($gridData, false);
             } else {
                 $officers = [];
@@ -935,6 +1005,13 @@ class OfficersController extends AppController
         });
     }
 
+    /**
+     * Return a Turbo Stream row update for an officer grid request when possible.
+     *
+     * @param string|null $pageContext Source page URL
+     * @param int $officerId Officer assignment ID
+     * @return \Cake\Http\Response|null
+     */
     private function tryOfficersGridTurboResponse(?string $pageContext, int $officerId): ?Response
     {
         if (!$this->wantsTurboStreamRequest() || $pageContext === null) {
