@@ -70,11 +70,13 @@ class BestowalUpdateService
                     $unlinkIds = $this->normalizeIdList($data['unlink_recommendation_ids'] ?? []);
                     $linkIds = $this->normalizeIdList($data['link_recommendation_ids'] ?? []);
 
-                    $this->linkService->assertMinimumLinkedRecommendations(
-                        $bestowalId,
-                        $unlinkIds,
-                        $linkIds,
-                    );
+                    if ($bestowal->source !== Bestowal::SOURCE_AD_HOC) {
+                        $this->linkService->assertMinimumLinkedRecommendations(
+                            $bestowalId,
+                            $unlinkIds,
+                            $linkIds,
+                        );
+                    }
 
                     if ($linkIds !== []) {
                         $this->linkService->linkRecommendations($bestowalId, $linkIds, $actorId);
@@ -128,6 +130,18 @@ class BestowalUpdateService
                     }
                     $bestowal->set('modified_by', $actorId, ['guard' => false]);
                     $bestowalsTable->saveOrFail($bestowal);
+
+                    $note = trim((string)($data['note'] ?? ''));
+                    if ($note !== '') {
+                        $createdNote = $bestowalsTable->Notes->newEmptyEntity();
+                        $createdNote->entity_id = $bestowalId;
+                        $createdNote->subject = 'Bestowal Updated';
+                        $createdNote->entity_type = Bestowal::ACTION_ITEM_ENTITY_TYPE;
+                        $createdNote->body = $note;
+                        $createdNote->author_id = $actorId;
+                        $createdNote->private = false;
+                        $bestowalsTable->Notes->saveOrFail($createdNote);
+                    }
 
                     $syncResult = $this->syncService->syncFromBestowal($bestowalId, $actorId);
                     if (!($syncResult['success'] ?? false)) {

@@ -341,6 +341,7 @@ $submitAction = implode(' ', [
                                             'type' => 'textarea',
                                             'label' => __('General Note'),
                                             'rows' => 4,
+                                            'help' => __('This shared note will appear on the bestowal record.'),
                                         ]) ?>
                                     </div>
 

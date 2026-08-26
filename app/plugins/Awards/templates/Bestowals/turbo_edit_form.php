@@ -488,7 +488,9 @@ $submitAction = implode(' ', [
 
             <?= $this->Form->control('note', [
                 'type' => 'textarea',
-                'label' => __('Note'),
+                'label' => __('Shared Note'),
+                'help' => __('This note will appear on the bestowal record.'),
+                'rows' => 4,
             ]) ?>
             </fieldset>
         </div>

@@ -114,6 +114,8 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('name="specialty_hidden"');
         $this->assertResponseContains('name="specialty"');
         $this->assertResponseContains('Select a configured specialty or type the specialty to record.');
+        $this->assertResponseContains('name="note"');
+        $this->assertResponseContains('Shared Note');
 
         $body = (string)$this->_response->getBody();
         $awardPosition = strpos($body, 'Award to Bestow');
@@ -192,6 +194,15 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
                 'recommendation_id' => $recommendation->id,
             ]));
         }
+        $sharedNoteBody = 'Shared bestowal view note ' . uniqid('', true);
+        $bestowals->Notes->saveOrFail($bestowals->Notes->newEntity([
+            'author_id' => self::ADMIN_MEMBER_ID,
+            'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+            'entity_id' => $bestowal->id,
+            'subject' => 'Bestowal Updated',
+            'body' => $sharedNoteBody,
+            'private' => false,
+        ]));
 
         $this->get('/awards/bestowals/view/' . $bestowal->id);
 
@@ -200,6 +211,9 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('Reason:');
         $this->assertResponseContains(h($firstReason));
         $this->assertResponseContains(h($secondReason));
+        $this->assertResponseContains('id="nav-notes-tab"');
+        $this->assertResponseContains('id="nav-notes"');
+        $this->assertResponseContains(h($sharedNoteBody));
     }
 
     public function testViewLinksGatheringToAwardBestowalsTab(): void
@@ -320,6 +334,7 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
                     if ($event === 'Awards.AdHocBestowalRequested') {
                         $this->assertArrayHasKey('data', $context);
                         $this->assertSame(self::ADMIN_MEMBER_ID, $context['actorId']);
+                        $this->assertSame('General court record note.', $context['data']['note']);
 
                         return [$this->successfulWorkflowDispatchResult([
                             'bestowalId' => 123,
@@ -343,10 +358,20 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
             'award_ids' => [1],
             'bestowed_at' => '2026-04-01 12:00:00',
             'gathering_id' => 1,
+            'note' => 'General court record note.',
         ]);
 
         $this->assertSame(['Awards.AdHocBestowalRequested', BestowalCreationService::EVENT_NAME], $events);
         $this->assertRedirectContains('/awards/bestowals/view/123');
+    }
+
+    public function testIndexRendersSharedAdHocGeneralNoteField(): void
+    {
+        $this->get('/awards/bestowals');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('name="note"');
+        $this->assertResponseContains('General Note');
     }
 
     public function testEditUsesEphemeralWorkflowWithoutNestedTransactionFailure(): void
