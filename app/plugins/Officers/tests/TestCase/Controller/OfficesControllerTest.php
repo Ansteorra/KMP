@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Officers\Test\TestCase\Controller;
@@ -21,7 +20,6 @@ use Officers\Services\OfficerManagerInterface;
  */
 class OfficesControllerTest extends HttpIntegrationTestCase
 {
-
     /**
      * Offices table
      *
@@ -72,6 +70,72 @@ class OfficesControllerTest extends HttpIntegrationTestCase
         unset($this->MemberRoles);
 
         parent::tearDown();
+    }
+
+    /**
+     * Test add renders alphabetical hierarchy autocomplete controls.
+     *
+     * @return void
+     */
+    public function testAddRendersAlphabeticalHierarchyAutocompleteControls(): void
+    {
+        $this->get('/officers/offices/add');
+
+        $this->assertResponseOk();
+        $body = (string)$this->_response->getBody();
+        $this->assertStringContainsString("data-office-form-target='reportsTo'", $body);
+        $this->assertStringContainsString("data-office-form-target='deputyTo'", $body);
+        $this->assertStringContainsString('role="combobox"', $body);
+        $this->assertStringContainsString('name="reports_to_id"', $body);
+        $this->assertStringContainsString('name="deputy_to_id"', $body);
+        $this->assertStringContainsString('name="grants_role_id"', $body);
+        $this->assertStringContainsString("type='button' class='btn btn-outline-secondary'", $body);
+
+        $options = $this->viewVariable('report_to_offices');
+        $expectedOptions = $this->Offices->find('list')
+            ->orderBy(['Offices.name' => 'ASC'])
+            ->toArray();
+        $this->assertSame($expectedOptions, $options);
+
+        $roles = $this->viewVariable('roles');
+        $expectedRoles = $this->Offices->GrantsRole->find('list')
+            ->orderBy(['GrantsRole.name' => 'ASC'])
+            ->toArray();
+        $this->assertSame($expectedRoles, $roles);
+    }
+
+    /**
+     * Test edit modal renders autocomplete controls with an alphabetical list.
+     *
+     * @return void
+     */
+    public function testViewRendersAlphabeticalHierarchyAutocompleteControls(): void
+    {
+        $office = $this->Offices->find()
+            ->where([
+                'reports_to_id IS NOT' => null,
+                'grants_role_id IS NOT' => null,
+            ])
+            ->firstOrFail();
+
+        $this->get("/officers/offices/view/{$office->id}");
+
+        $this->assertResponseOk();
+        $body = (string)$this->_response->getBody();
+        $this->assertStringContainsString("data-office-form-target='reportsTo'", $body);
+        $this->assertStringContainsString("data-office-form-target='deputyTo'", $body);
+        $this->assertStringContainsString('data-ac-init-selection-value=', $body);
+        $this->assertGreaterThanOrEqual(2, substr_count($body, 'data-ac-init-selection-value='));
+        $this->assertStringContainsString('role="combobox"', $body);
+        $this->assertStringContainsString('name="grants_role_id"', $body);
+
+        $options = $this->viewVariable('report_to_offices');
+        $this->assertArrayNotHasKey($office->id, $options);
+        $expectedOptions = $this->Offices->find('list')
+            ->where(['Offices.id !=' => $office->id])
+            ->orderBy(['Offices.name' => 'ASC'])
+            ->toArray();
+        $this->assertSame($expectedOptions, $options);
     }
 
     /**
@@ -408,6 +472,7 @@ class OfficesControllerTest extends HttpIntegrationTestCase
             $mock = $this->createMock(OfficerManagerInterface::class);
             $mock->method('recalculateOfficersForOffice')
                 ->willReturn(new ServiceResult(false, 'Simulated recalculation failure'));
+
             return $mock;
         });
 
@@ -416,7 +481,7 @@ class OfficesControllerTest extends HttpIntegrationTestCase
         $originalReportsToId = $office->reports_to_id;
 
         // Pick a different reports_to_id to trigger recalculation
-        $newReportsToId = ($originalReportsToId === 2) ? 3 : 2;
+        $newReportsToId = $originalReportsToId === 2 ? 3 : 2;
 
         // Edit the office to change reports_to_id (triggers recalculation)
         $data = [

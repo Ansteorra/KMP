@@ -218,23 +218,12 @@ echo $this->Modal->create("Edit Office", [
                 ],
 
             ]);
-            echo $this->Form->control("reports_to_id", [
-                "options" => $report_to_offices,
-                "empty" => true,
-                'data-office-form-target' => 'reportsTo',
-                'container' => ['data-office-form-target' => 'reportsToBlock']
-            ]);
-            echo $this->Form->control("deputy_to_id", [
-                "required" => true,
-                "options" => $deputy_to_offices,
-                "empty" => true,
-                'data-office-form-target' => 'deputyTo',
-                'container' => ['data-office-form-target' => 'deputyToBlock']
-            ]);
-            echo $this->Form->control("grants_role_id", [
-                "options" => $roles,
-                "empty" => true,
-            ]);
+            echo $this->element('officeHierarchyControls', compact(
+                'office',
+                'report_to_offices',
+                'deputy_to_offices',
+                'roles',
+            ));
             ?>
         </fieldset>
     </div>

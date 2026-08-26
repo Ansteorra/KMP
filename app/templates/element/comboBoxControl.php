@@ -181,8 +181,9 @@ $textEntry = $Form->control($inputField . '-Disp', [
 
 $textEntry = str_replace(
     '<span class="input-group-text">clearBtn</span>',
-    "<button class='btn btn-outline-secondary' data-ac-target='clearBtn' data-action='ac#clear' disabled>Clear</button>",
-    $textEntry
+    "<button type='button' class='btn btn-outline-secondary' data-ac-target='clearBtn' " .
+        "data-action='ac#clear' disabled>Clear</button>",
+    $textEntry,
 );
 ?>
 

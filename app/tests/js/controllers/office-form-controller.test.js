@@ -10,16 +10,20 @@ describe('OfficeFormController', () => {
             <div data-controller="office-form">
                 <input type="checkbox" data-office-form-target="isDeputy">
                 <div data-office-form-target="reportsToBlock">
-                    <select data-office-form-target="reportsTo">
-                        <option value="">None</option>
-                        <option value="1">Seneschal</option>
-                    </select>
+                    <div data-controller="ac" data-office-form-target="reportsTo" data-ac-allow-other-value="false">
+                        <input data-ac-target="hidden" value="1">
+                        <input data-ac-target="hiddenText" value="Seneschal">
+                        <input data-ac-target="input" value="Seneschal">
+                        <button data-ac-target="clearBtn">Clear</button>
+                    </div>
                 </div>
                 <div data-office-form-target="deputyToBlock" hidden>
-                    <select data-office-form-target="deputyTo" disabled>
-                        <option value="">None</option>
-                        <option value="2">Herald</option>
-                    </select>
+                    <div data-controller="ac" data-office-form-target="deputyTo" data-ac-allow-other-value="false">
+                        <input data-ac-target="hidden" value="2" disabled>
+                        <input data-ac-target="hiddenText" value="Herald" disabled>
+                        <input data-ac-target="input" value="Herald" disabled>
+                        <button data-ac-target="clearBtn" disabled>Clear</button>
+                    </div>
                 </div>
             </div>
         `;
@@ -68,8 +72,10 @@ describe('OfficeFormController', () => {
 
         expect(controller.deputyToBlockTarget.hidden).toBe(false);
         expect(controller.deputyToTarget.disabled).toBe(false);
+        expect(controller.deputyToTarget.querySelector("[data-ac-target='hidden']").disabled).toBe(false);
         expect(controller.reportsToBlockTarget.hidden).toBe(true);
         expect(controller.reportsToTarget.disabled).toBe(true);
+        expect(controller.reportsToTarget.querySelector("[data-ac-target='hidden']").disabled).toBe(true);
     });
 
     test('toggleIsDeputy shows reportsTo fields when isDeputy unchecked', () => {
@@ -84,9 +90,10 @@ describe('OfficeFormController', () => {
     });
 
     test('toggleIsDeputy clears deputyTo value when unchecking', () => {
-        controller.deputyToTarget.value = '2';
         controller.isDeputyTarget.checked = false;
         controller.toggleIsDeputy();
         expect(controller.deputyToTarget.value).toBe('');
+        expect(controller.deputyToTarget.querySelector("[data-ac-target='hidden']").value).toBe('');
+        expect(controller.deputyToTarget.querySelector("[data-ac-target='input']").value).toBe('');
     });
 });
