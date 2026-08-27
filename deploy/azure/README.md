@@ -297,7 +297,10 @@ missing secrets after platform migrations create the destination tables. Exact
 tenant and platform-admin references are resolved from platform metadata, and
 the database master wrapping key is never copied into the database. Existing
 database values always win, so a stale environment value cannot reverse a
-rotation. The command is idempotent and safe to repeat.
+rotation. Deleted database rows remain tombstones and cannot be revived by a
+legacy value. Distinct portable references are preserved even when the env
+backend normalizes their punctuation to the same variable name. The command is
+idempotent and safe to repeat.
 
 Stage the database master key in the migration job while the legacy
 `KMP_SECRET_*` references are still present, run one successful deployment, and

@@ -10,6 +10,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use InvalidArgumentException;
 use RuntimeException;
+use Throwable;
 
 class DatabaseSecretStore implements WritableSecretStoreInterface
 {
@@ -96,11 +97,45 @@ class DatabaseSecretStore implements WritableSecretStoreInterface
      */
     public function put(string $name, SensitiveString $value): void
     {
+        $this->store($name, $value, false);
+    }
+
+    /**
+     * Store a value only when no active or deleted row already owns the name.
+     *
+     * The unique name constraint closes the race between the existence check
+     * and insert. A deleted row is a tombstone and deliberately prevents stale
+     * legacy material from reviving a removed secret.
+     *
+     * @return bool True when the value was inserted, false when the name was already reserved
+     */
+    public function putIfMissing(string $name, SensitiveString $value): bool
+    {
+        try {
+            return $this->store($name, $value, true);
+        } catch (Throwable $exception) {
+            if ($this->isUniqueConstraintViolation($exception) && $this->rowByName($name) !== null) {
+                return false;
+            }
+
+            throw $exception;
+        }
+    }
+
+    /**
+     * Encrypt and persist a secret inside one platform transaction.
+     */
+    private function store(string $name, SensitiveString $value, bool $onlyIfMissing): bool
+    {
         $this->assertValidName($name);
         $now = $this->now();
-        $this->platform()->transactional(function () use ($name, $value, $now): void {
+
+        return $this->platform()->transactional(function () use ($name, $value, $now, $onlyIfMissing): bool {
             $this->ensureKekRow($now);
             $existing = $this->rowByName($name);
+            if ($onlyIfMissing && $existing !== null) {
+                return false;
+            }
             $id = $existing !== null ? (string)$existing['id'] : Text::uuid();
             $base = [
                 'id' => $id,
@@ -137,6 +172,8 @@ class DatabaseSecretStore implements WritableSecretStoreInterface
                 $this->platform()->update('platform_secret_values', $data, ['id' => $id]);
             }
             $this->upsertIndexRow($name, $now);
+
+            return true;
         });
     }
 
@@ -507,5 +544,20 @@ class DatabaseSecretStore implements WritableSecretStoreInterface
         if (trim($name) === '') {
             throw new InvalidArgumentException('Secret name cannot be empty.');
         }
+    }
+
+    /**
+     * Detect portable SQLSTATE values used for unique/integrity conflicts.
+     */
+    private function isUniqueConstraintViolation(Throwable $exception): bool
+    {
+        do {
+            if (in_array((string)$exception->getCode(), ['23000', '23505'], true)) {
+                return true;
+            }
+            $exception = $exception->getPrevious();
+        } while ($exception instanceof Throwable);
+
+        return false;
     }
 }

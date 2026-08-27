@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Services\Secrets\DatabaseSecretStore;
 use App\Services\Secrets\SecretStoreFactory;
 use App\Services\Secrets\SecretStoreInterface;
-use App\Services\Secrets\WritableSecretStoreInterface;
 use Cake\Command\Command;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
@@ -60,8 +60,8 @@ final class PlatformSecretsImportEnvCommand extends Command
 
             $source = SecretStoreFactory::fromDriver('env', $config);
             $target = SecretStoreFactory::fromDriver('database', $config);
-            if (!$target instanceof WritableSecretStoreInterface) {
-                throw new RuntimeException('The database secret store is not writable.');
+            if (!$target instanceof DatabaseSecretStore) {
+                throw new RuntimeException('The configured database secret store is unavailable.');
             }
             $platform = ConnectionManager::get('platform');
             if (!$platform instanceof Connection) {
@@ -95,24 +95,23 @@ final class PlatformSecretsImportEnvCommand extends Command
      */
     private function import(
         SecretStoreInterface $source,
-        WritableSecretStoreInterface $target,
+        DatabaseSecretStore $target,
         array $names,
     ): array {
         $imported = 0;
         $existing = 0;
         $missing = 0;
         foreach ($names as $name) {
-            if ($target->exists($name)) {
-                $existing++;
-                continue;
-            }
             $value = $source->get($name);
-            if ($value === null) {
+            if ($value === null || $value->isEmpty()) {
                 $missing++;
                 continue;
             }
-            $target->put($name, $value);
-            $imported++;
+            if ($target->putIfMissing($name, $value)) {
+                $imported++;
+            } else {
+                $existing++;
+            }
         }
 
         return [$imported, $existing, $missing];
@@ -154,14 +153,13 @@ final class PlatformSecretsImportEnvCommand extends Command
         }
 
         $masterStorageKey = $this->storageKey($masterKeyName);
-        $namesByStorageKey = [];
+        $namesByName = [];
         foreach ($exactNames as $name) {
-            $storageKey = $this->storageKey($name);
-            if ($storageKey !== $masterStorageKey) {
-                $namesByStorageKey[$storageKey] = $name;
+            if ($this->storageKey($name) !== $masterStorageKey) {
+                $namesByName[$name] = true;
             }
         }
-        $names = array_values($namesByStorageKey);
+        $names = array_keys($namesByName);
         sort($names);
 
         return $names;

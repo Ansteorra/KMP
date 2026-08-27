@@ -84,6 +84,20 @@ class DatabaseSecretStoreTest extends TestCase
         $this->assertStringStartsWith('base64:', (string)$row['ciphertext']);
     }
 
+    public function testPutIfMissingDoesNotOverwriteOrReviveDeletedSecrets(): void
+    {
+        $store = $this->store();
+
+        $this->assertTrue($store->putIfMissing('tenant.demo.api.token', new SensitiveString('initial-secret')));
+        $this->assertFalse($store->putIfMissing('tenant.demo.api.token', new SensitiveString('stale-secret')));
+        $this->assertSame('initial-secret', $store->get('tenant.demo.api.token')?->reveal());
+
+        $store->delete('tenant.demo.api.token');
+
+        $this->assertFalse($store->putIfMissing('tenant.demo.api.token', new SensitiveString('revived-secret')));
+        $this->assertNull($store->get('tenant.demo.api.token'));
+    }
+
     public function testAssociatedDataTamperingFailsClosed(): void
     {
         $store = $this->store();

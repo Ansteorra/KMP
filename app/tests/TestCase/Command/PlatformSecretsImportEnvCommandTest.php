@@ -84,7 +84,12 @@ class PlatformSecretsImportEnvCommandTest extends TestCase
             'slug' => 'ansteorra',
             'status' => 'active',
             'tenant_config' => json_encode([
-                'email' => ['smtp_password_secret_ref' => 'tenant.ansteorra.smtp-password'],
+                'email' => [
+                    'smtp_password_secret_ref' => 'tenant.ansteorra.smtp-password',
+                    'api_secret_ref' => 'tenant.ansteorra.db-password',
+                    'connection_string_secret_ref' => 'tenant.ansteorra.empty-secret',
+                    'nested' => ['deleted_secret_ref' => 'tenant.ansteorra.deleted-secret'],
+                ],
             ], JSON_THROW_ON_ERROR),
         ]);
         $this->platform()->insert('platform_users', ['id' => $userId, 'totp_secret_ref' => $totpName]);
@@ -92,16 +97,20 @@ class PlatformSecretsImportEnvCommandTest extends TestCase
         $this->setSecret('tenant.ansteorra.db.password', 'legacy-database-password');
         $this->setSecret('tenant.ansteorra.kek', 'stale-legacy-tenant-kek');
         $this->setSecret('tenant.ansteorra.smtp-password', 'legacy-smtp-password');
+        $this->setSecret('tenant.ansteorra.empty-secret', '');
+        $this->setSecret('tenant.ansteorra.deleted-secret', 'stale-deleted-secret');
         $this->setSecret($totpName, 'legacy-platform-totp');
 
         $database = SecretStoreFactory::fromDriver('database');
         $this->assertInstanceOf(WritableSecretStoreInterface::class, $database);
         $database->put('tenant.ansteorra.kek', new SensitiveString('rotated-database-tenant-kek'));
+        $database->put('tenant.ansteorra.deleted-secret', new SensitiveString('deleted-database-secret'));
+        $database->delete('tenant.ansteorra.deleted-secret');
 
         $this->exec('platform secrets import-env');
 
         $this->assertExitSuccess();
-        $this->assertOutputContains('3 imported, 1 already present, 1 not set');
+        $this->assertOutputContains('4 imported, 2 already present, 2 not set');
         $this->assertSame(
             'legacy-database-password',
             $database->get('tenant.ansteorra.db.password')?->reveal(),
@@ -109,8 +118,15 @@ class PlatformSecretsImportEnvCommandTest extends TestCase
         $this->assertSame('rotated-database-tenant-kek', $database->get('tenant.ansteorra.kek')?->reveal());
         $this->assertSame('legacy-smtp-password', $database->get('tenant.ansteorra.smtp-password')?->reveal());
         $this->assertSame('legacy-platform-totp', $database->get($totpName)?->reveal());
+        $this->assertSame(
+            'legacy-database-password',
+            $database->get('tenant.ansteorra.db-password')?->reveal(),
+        );
+        $this->assertNull($database->get('tenant.ansteorra.empty-secret'));
+        $this->assertNull($database->get('tenant.ansteorra.deleted-secret'));
         $this->assertSame([
             $totpName,
+            'tenant.ansteorra.db-password',
             'tenant.ansteorra.db.password',
             'tenant.ansteorra.kek',
             'tenant.ansteorra.smtp-password',
@@ -122,6 +138,8 @@ class PlatformSecretsImportEnvCommandTest extends TestCase
                 'rotated-database-tenant-kek',
                 'legacy-smtp-password',
                 'legacy-platform-totp',
+                'stale-deleted-secret',
+                'deleted-database-secret',
             ] as $secretValue
         ) {
             $this->assertOutputNotContains($secretValue);
@@ -130,7 +148,7 @@ class PlatformSecretsImportEnvCommandTest extends TestCase
         $this->exec('platform secrets import-env');
 
         $this->assertExitSuccess();
-        $this->assertOutputContains('0 imported, 4 already present, 1 not set');
+        $this->assertOutputContains('0 imported, 6 already present, 2 not set');
     }
 
     public function testDefersImportWhenLegacyEnvDriverHasNoDatabaseMasterKey(): void
