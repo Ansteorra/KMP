@@ -205,10 +205,11 @@ workflow:
    package into the POC ACR
 3. Captures the current web and Job definitions as a rollback artifact
 4. Repairs and manually canaries the one-minute unified worker
-5. Repairs `kmp-migrate`, runs application and platform migrations, reconciles
-   backup keys, then migrates every active or suspended tenant with pending
-   versions and fail-fast recovery markers/backups, clears schema caches, and
-   requires success
+5. Repairs `kmp-migrate`, runs application and platform migrations, imports
+   missing legacy `KMP_SECRET_*` values into the database-backed store,
+   reconciles backup keys, then migrates every active or suspended tenant with
+   pending versions and fail-fast recovery markers/backups, clears schema
+   caches, and requires success
 6. Runs a post-migration worker verification
 7. Atomically updates the web image, skip flags, and split probes
 8. Requires both `/livez` and `/health` to return 200
@@ -274,7 +275,8 @@ it needs to run specific commands (`bin/cake migrations migrate`,
 `bin/cake schema_cache clear`, `bin/cake updateDatabase`,
 `bin/cake platform_migrate migrate`,
 `bin/cake schema_cache clear --connection platform`,
-`bin/cake platform backup-keys ensure`,
+`bin/cake platform secrets import-env`,
+`bin/cake platform backup-keys ensure --allow-read-only`,
 `bin/cake tenant migrate --all --include-suspended --fail-fast`,
 `bin/cake cache clear _cake_model_`,
 and optionally
@@ -286,6 +288,25 @@ before a new web revision starts. Current tenants are skipped without a backup;
 pending tenants use the standard pre-migration recovery marker and backup after
 backup-key reconciliation. One tenant failure stops the deployment before web
 cutover, and rerunning resumes by reinspecting each tenant's migration history.
+
+### Legacy environment secret-store transition
+
+Existing environments can move from `KMP_SECRETS_DRIVER=env` to the encrypted
+database store without a release deadlock. The migration job imports only
+missing secrets after platform migrations create the destination tables. Exact
+tenant and platform-admin references are resolved from platform metadata, and
+the database master wrapping key is never copied into the database. Existing
+database values always win, so a stale environment value cannot reverse a
+rotation. The command is idempotent and safe to repeat.
+
+Stage the database master key in the migration job while the legacy
+`KMP_SECRET_*` references are still present, run one successful deployment, and
+only then remove those legacy references. If an environment-only deployment has
+not received its database master key yet, import is explicitly deferred and
+backup-key reconciliation reports missing read-only entries. Tenant migrations
+still fail closed when their required database password or tenant backup key is
+absent. When the database driver is active, a missing master key remains a hard
+deployment failure.
 
 Current custom-host smoke checks expect:
 

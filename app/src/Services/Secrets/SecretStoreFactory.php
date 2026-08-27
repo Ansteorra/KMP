@@ -20,6 +20,22 @@ class SecretStoreFactory
     }
 
     /**
+     * Build one named driver without changing the active runtime driver.
+     *
+     * This is intended for explicit secret-store transition and recovery
+     * operations that must read or populate a backend before it becomes the
+     * application's active driver.
+     *
+     * @param array<string, mixed>|null $config
+     */
+    public static function fromDriver(string $driver, ?array $config = null): SecretStoreInterface
+    {
+        $config ??= (array)Configure::read('Secrets');
+
+        return self::buildStore($driver, (array)($config['drivers'] ?? []));
+    }
+
+    /**
      * @param array<string, mixed> $drivers
      */
     private static function buildStore(string $name, array $drivers, array $stack = []): SecretStoreInterface

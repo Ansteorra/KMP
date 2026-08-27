@@ -30,7 +30,7 @@ assert_contains "$bicep" "httpGet: { path: '/livez', port: 80 }"
 assert_contains "$bicep" "periodSeconds: 60"
 assert_contains "$bicep" "'worker'"
 assert_contains "$bicep" "'--cycle-budget'"
-schema_safe_migration_command='bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake platform backup-keys ensure && bin/cake tenant migrate --all --include-suspended --fail-fast && bin/cake cache clear _cake_model_'
+schema_safe_migration_command='bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake platform secrets import-env && bin/cake platform backup-keys ensure --allow-read-only && bin/cake tenant migrate --all --include-suspended --fail-fast && bin/cake cache clear _cake_model_'
 assert_contains "$bicep" "$schema_safe_migration_command"
 assert_contains "$bicep" 'timeout: 7200'
 assert_contains "$here/main.json" "$schema_safe_migration_command"
@@ -39,6 +39,8 @@ assert_contains "$here/cutover-unified-worker.sh" "$schema_safe_migration_comman
 assert_contains "$here/nightly-deploy.sh" "$schema_safe_migration_command"
 assert_contains "$here/nightly-deploy.sh" 'run_migrate_command "app schema cache clear" bin/cake schema_cache clear'
 assert_contains "$here/nightly-deploy.sh" 'run_migrate_command "platform schema cache clear" bin/cake schema_cache clear --connection platform'
+assert_contains "$here/nightly-deploy.sh" 'run_migrate_command "legacy environment secret import" bin/cake platform secrets import-env'
+assert_contains "$here/nightly-deploy.sh" 'run_migrate_command "platform backup key reconciliation" bin/cake platform backup-keys ensure --allow-read-only'
 assert_contains "$here/nightly-deploy.sh" 'run_migrate_command "tenant fleet migrations" bin/cake tenant migrate --all --include-suspended --fail-fast'
 assert_contains "$here/bootstrap.sh" 'for attempt in $(seq 1 750)'
 assert_contains "$here/nightly-deploy.sh" 'run_migrate_command "shared model cache clear" bin/cake cache clear _cake_model_'
@@ -103,8 +105,13 @@ if [[ "$extension_line" -ge "$cutover_line" ]]; then
     exit 1
 fi
 
+secret_import_line="$(grep -n 'run_migrate_command "legacy environment secret import"' "$here/nightly-deploy.sh" | head -1 | cut -d: -f1)"
 backup_key_line="$(grep -n 'run_migrate_command "platform backup key reconciliation"' "$here/nightly-deploy.sh" | head -1 | cut -d: -f1)"
 tenant_migration_line="$(grep -n 'run_migrate_command "tenant fleet migrations"' "$here/nightly-deploy.sh" | head -1 | cut -d: -f1)"
+if [[ "$secret_import_line" -ge "$backup_key_line" ]]; then
+    echo 'Legacy environment secrets must be imported before backup key reconciliation.' >&2
+    exit 1
+fi
 if [[ "$backup_key_line" -ge "$tenant_migration_line" ]]; then
     echo 'Backup keys must be reconciled before tenant fleet migration backups.' >&2
     exit 1
