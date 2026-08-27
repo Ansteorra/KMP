@@ -26,6 +26,74 @@ This directory is where that backup lives in the repo.
 | `bake-seed.sh`           | Helper that (re)produces `nightly-seed.kmpbackup` locally.|
 | `.gitattributes`         | Treats `*.kmpbackup` as binary so git doesn't try to diff.|
 
+The scale fixtures use believable but entirely fictional member identities
+and gathering titles. Their machine-readable markers remain deliberately
+obvious: `scale.member+####@example.test`, `SCALE-######`, and
+`scale-seed-gathering-####`. Do not replace the fictional identities with
+production member data.
+
+The seed also includes the Ansteorra tenant's production award catalog: 11
+award domains, 5 award levels, and 124 awards. The checked-in catalog contains
+only functional award configuration; it excludes members, recommendations,
+bestowals, credentials, and audit identities. Existing seed award IDs are
+preserved by exact award name so recommendations and bestowals remain valid.
+Production IDs that conflict with an existing seed identity are assigned a
+stable non-conflicting seed ID. The four intentionally local test awards remain
+alongside the production catalog.
+
+The three SQL seed snapshots are kept in sync by the deterministic generator:
+
+```bash
+php app/scripts/seed/fictionalize-scale-data.php --write
+php app/scripts/seed/fictionalize-scale-data.php --check
+```
+
+Run `--write` after regenerating a SQL snapshot and commit the generator and
+all three resulting snapshots together. The check derives the actual fixture
+counts from their machine-readable markers, requires synchronized contiguous
+ranges of at least 500 members and 100 gatherings, and ensures the numbered
+human-facing labels do not return. The current snapshots contain 1,500 members
+and 276 gatherings, but those counts may be reduced without changing the
+generator as long as the minimums and marker ranges remain valid.
+
+When a clean local database is already loaded with the scale fixtures, the
+same mappings can be applied before a backup bake without a full reset:
+
+```bash
+php app/scripts/seed/fictionalize-scale-data.php --apply-local-database
+```
+
+This mode is transactionally scoped to the synthetic marker values, enforces
+the same minimum and contiguous-range checks, and refuses non-local database
+hosts. It is safe to rerun, but it is not a substitute for resetting a locally
+modified database before producing a release artifact.
+
+The Ansteorra award catalog has a separate deterministic synchronizer:
+
+```bash
+php app/scripts/seed/sync-ansteorra-award-catalog.php --write
+php app/scripts/seed/sync-ansteorra-award-catalog.php --check
+```
+
+`--write` updates the managed catalog block in all three SQL seed snapshots;
+`--check` fails when the catalog manifest or any managed block is stale. To
+update an already loaded local database transactionally before baking a
+backup, run:
+
+```bash
+php app/scripts/seed/sync-ansteorra-award-catalog.php --apply-local-database
+php app/scripts/seed/sync-ansteorra-award-catalog.php --check-local-database
+```
+
+The local mode refuses non-local database hosts, validates every referenced
+branch, approval process, and bestowal template before writing, and verifies
+the resulting catalog afterward. The read-only `--check-local-database` mode
+validates the same catalog without changing it. Refreshing the JSON catalog
+from production must use read-only access and must continue to exclude tenant
+member and award transaction data. `bake-seed.sh` runs both the snapshot check
+and the guarded local database sync before creating the encrypted artifact, so
+a stale or incompatible award catalog stops the bake.
+
 `nightly-seed.kmpbackup` is not present on a fresh clone — a maintainer bakes
 it the first time, commits it, and pushes. The image build tolerates its
 absence (`docker/reset-and-seed.sh` fails fast with a helpful message if you
@@ -41,7 +109,9 @@ The backup is encrypted with a shared symmetric key that lives in two places:
 2. **Maintainer's password manager**, so the seed can be re-baked locally.
 
 **Never commit the key.** `bake-seed.sh` reads it from the
-`BACKUP_ENCRYPTION_KEY` environment variable and fails if it's missing.
+`BACKUP_ENCRYPTION_KEY` environment variable and fails if it's missing. The
+backup CLI reads the same environment variable, keeping the key out of process
+arguments and failure stack traces; `--key` remains available for manual use.
 
 Rotating the key is a two-step deploy:
 
@@ -57,14 +127,20 @@ From a developer workstation with the app's local dev stack running
 (Postgres or MySQL both work):
 
 ```bash
-# 1. Make sure local DB is seeded to the state you want to snapshot.
+# 1. Refresh and validate the deterministic SQL snapshot data.
+php app/scripts/seed/fictionalize-scale-data.php --write
+php app/scripts/seed/fictionalize-scale-data.php --check
+php app/scripts/seed/sync-ansteorra-award-catalog.php --write
+php app/scripts/seed/sync-ansteorra-award-catalog.php --check
+
+# 2. Make sure local DB is seeded to the state you want to snapshot.
 ./reset_dev_database.sh
 
-# 2. Bake the backup (rotate BACKUP_ENCRYPTION_KEY to match what's in Key Vault).
+# 3. Bake the backup (rotate BACKUP_ENCRYPTION_KEY to match what's in Key Vault).
 export BACKUP_ENCRYPTION_KEY="$(cat ~/.secrets/kmp-nightly-backup-key)"
 ./deploy/azure/seed/bake-seed.sh
 
-# 3. Commit the updated blob.
+# 4. Commit the updated blob.
 git add deploy/azure/seed/nightly-seed.kmpbackup
 git commit -m "chore(seed): refresh nightly seed backup"
 ```
@@ -101,3 +177,8 @@ matches the key used when the blob was baked.
 → The backup carries orphaned rows (rare, but can happen if tables were
 re-parented between seed runs). Bake a fresh one on a clean reset, or pass
 `--fail-on-not-valid-fk=false` if you want the nightly job to tolerate it.
+
+**"Allowed memory size ... exhausted" during post-restore reconciliation**
+→ `docker/reset-and-seed.sh` gives the restore CLI 512 MB by default. Increase
+`KMP_BACKUP_RESTORE_MEMORY_LIMIT` only if a substantially larger future seed
+requires it and the reset job has enough container memory.

@@ -2,7 +2,7 @@
 # verify.sh — Run all verification checks for the KMP application.
 # Usage: cd /workspaces/KMP/app && bash bin/verify.sh
 #
-# Runs: PHPUnit, Jest, Vite build, PHPCS, PHPStan
+# Runs: PHPUnit, seed snapshot contracts, Jest, Vite build, PHPCS, PHPStan
 # Returns exit code 0 if all checks pass, 1 if any fail.
 
 set -o pipefail
@@ -18,7 +18,7 @@ usage() {
     cat <<'EOF'
 Usage: bash bin/verify.sh [--with-coverage[=security|all]] [--with-mutation[=security|all]]
 
-Default behavior runs PHPUnit, Jest, Vite build, PHPCS, and PHPStan.
+Default behavior runs PHPUnit, seed snapshot contracts, Jest, Vite build, PHPCS, and PHPStan.
 Optional flags add slower coverage and mutation checks after the standard suite.
 EOF
 }
@@ -104,13 +104,19 @@ run_check "PHPUnit Tests" '
 # 2. Skipped-test budget
 run_check "Skipped-Test Budget" 'bash bin/enforce_skip_budget.sh'
 
-# 3. Jest
+# 3. Seed snapshot contracts
+run_check "Seed Snapshot Contracts" '
+    php scripts/seed/fictionalize-scale-data.php --check &&
+    php scripts/seed/sync-ansteorra-award-catalog.php --check
+'
+
+# 4. Jest
 run_check "Jest Tests" 'npm run test:js 2>&1; test "${PIPESTATUS[0]}" -eq 0'
 
-# 4. Vite Build
+# 5. Vite Build
 run_check "Vite Build" 'npm run dev 2>&1 | tail -10; test "${PIPESTATUS[0]}" -eq 0'
 
-# 5. PHPCS (pre-existing violations are baselined — only check files we've changed)
+# 6. PHPCS (pre-existing violations are baselined — only check files we've changed)
 run_check "PHPCS Code Style" '
     # Check only staged/modified files for PHPCS violations
     ALL_CHANGED_PHP=$(
@@ -142,7 +148,7 @@ run_check "PHPCS Code Style" '
     fi
 '
 
-# 6. Azure deployment runtime contract
+# 7. Azure deployment runtime contract
 run_check "Azure Deployment Contract" '
     if [ -f ../deploy/azure/test-runtime-contract.sh ]; then
         bash ../deploy/azure/test-runtime-contract.sh
@@ -151,7 +157,7 @@ run_check "Azure Deployment Contract" '
     fi
 '
 
-# 7. PHPStan Static Analysis (with known baseline errors)
+# 8. PHPStan Static Analysis (with known baseline errors)
 run_check "PHPStan Static Analysis" '
     OUTPUT=$(vendor/bin/phpstan analyse --no-progress --memory-limit=1G 2>&1)
     EXIT_CODE=$?

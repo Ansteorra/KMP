@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Setup Test Database Script
-# This script recreates the test database with the correct schema from dev.
+# This script recreates the test database with the current dev schema and
+# migration history so PHPUnit can safely apply only genuinely pending changes.
 
 set -euo pipefail
 
@@ -74,6 +75,10 @@ if [ "${DB_ENGINE}" = "postgres" ]; then
     PSQL_MAINT_CMD=(psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${MAINTENANCE_DB}" -v ON_ERROR_STOP=1)
     PSQL_TEST_CMD=(psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${TEST_DB}" -v ON_ERROR_STOP=1)
     PG_DUMP_CMD=(pg_dump -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" --schema-only --no-owner --no-privileges "${DEV_DB}")
+    PG_DUMP_MIGRATION_HISTORY_CMD=(
+        pg_dump -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}"
+        --data-only --no-owner --no-privileges --table='*phinxlog' "${DEV_DB}"
+    )
 
     echo "Dropping existing test database..."
     PGPASSWORD="${DB_PASS}" "${PSQL_MAINT_CMD[@]}" -c "DROP DATABASE IF EXISTS \"${TEST_DB}\";"
@@ -83,6 +88,10 @@ if [ "${DB_ENGINE}" = "postgres" ]; then
 
     echo "Importing schema from dev database..."
     PGPASSWORD="${DB_PASS}" "${PG_DUMP_CMD[@]}" | PGPASSWORD="${DB_PASS}" "${PSQL_TEST_CMD[@]}"
+
+    echo "Importing migration history from dev database..."
+    PGPASSWORD="${DB_PASS}" "${PG_DUMP_MIGRATION_HISTORY_CMD[@]}" \
+        | PGPASSWORD="${DB_PASS}" "${PSQL_TEST_CMD[@]}"
 
     echo ""
     echo "Verifying gatherings table schema..."

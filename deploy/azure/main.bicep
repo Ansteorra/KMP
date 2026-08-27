@@ -985,7 +985,7 @@ var manualShapeJobDefinitions = [
     enabled: enableMigrateJob
     name: migrateJobName
     containerName: 'migrate'
-    timeout: 1800
+    timeout: 7200
     retryLimit: 1
     cpu: '0.5'
     memory: '1Gi'
@@ -994,7 +994,7 @@ var manualShapeJobDefinitions = [
     args: [
       '/bin/sh'
       '-lc'
-      'bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake cache clear _cake_model_'
+      'bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake platform backup-keys ensure && bin/cake tenant migrate --all --include-suspended --fail-fast && bin/cake cache clear _cake_model_'
     ]
   }
   {

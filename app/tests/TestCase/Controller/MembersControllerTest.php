@@ -98,6 +98,40 @@ class MembersControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('showing 1 record(s) out of 1 total');
     }
 
+    public function testGridDataScaNameSearchIgnoresDiacritics(): void
+    {
+        $members = $this->getTableLocator()->get('Members');
+        $member = $members->get(self::TEST_MEMBER_AGATHA_ID);
+        $member->sca_name = 'Céra ingen Fháelain';
+        $members->saveOrFail($member);
+
+        $this->configRequest(['headers' => ['Turbo-Frame' => 'members-grid-table']]);
+        $this->get('/members/grid-data?' . http_build_query([
+            'search' => 'Cera ingen Fhaelain',
+        ]));
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Céra ingen Fháelain');
+        $this->assertResponseContains('showing 1 record(s) out of 1 total');
+    }
+
+    public function testGridDataScaNameFilterIgnoresDiacritics(): void
+    {
+        $members = $this->getTableLocator()->get('Members');
+        $member = $members->get(self::TEST_MEMBER_AGATHA_ID);
+        $member->sca_name = 'Céra ingen Fháelain';
+        $members->saveOrFail($member);
+
+        $this->configRequest(['headers' => ['Turbo-Frame' => 'members-grid-table']]);
+        $this->get('/members/grid-data?' . http_build_query([
+            'filter' => ['sca_name' => 'Cera ingen Fhaelain'],
+        ]));
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('Céra ingen Fháelain');
+        $this->assertResponseContains('showing 1 record(s) out of 1 total');
+    }
+
     public function testVerifyQueueTabResponseIncludesTableColumns(): void
     {
         $this->configRequest(['headers' => ['Turbo-Frame' => 'verify-queue-grid-table']]);

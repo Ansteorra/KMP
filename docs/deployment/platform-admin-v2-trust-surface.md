@@ -110,9 +110,11 @@ typed confirmation, a reason, and TOTP step-up to:
 - Reactivate a provisioned, suspended tenant after recovery checks pass.
 - Archive a suspended or incomplete tenant.
 
-Lifecycle transitions are rejected while provisioning, backup, or restore work
-is queued or running. Archived tenants cannot be reactivated through the
-portal.
+Lifecycle transitions are rejected while provisioning, backup, restore, or
+tenant-migration work is queued or running. A suspended tenant can be
+reactivated only when its recorded schema exactly matches the migration target
+shipped by the running application. Archived tenants cannot be reactivated
+through the portal.
 
 ## Tenant-visible dashboard cards
 

@@ -13,12 +13,16 @@ use App\Services\Platform\PostgresTenantMigrationLockManager;
 use App\Services\Platform\ReleaseCompatibilityChecker;
 use App\Services\Platform\ReleaseManifest;
 use App\Services\Platform\TenantMigrateCommandScrubber;
+use App\Services\Platform\TenantMigrationCatalog;
 use App\Services\Platform\TenantMigrationLockException;
 use App\Services\Platform\TenantMigrationLockManagerInterface;
 use App\Services\Platform\TenantMigrationMarkerService;
 use App\Services\Platform\TenantMigrationMarkerServiceInterface;
 use App\Services\Platform\TenantMigrationResult;
 use App\Services\Platform\TenantMigrationRunnerInterface;
+use App\Services\Platform\TenantMigrationState;
+use App\Services\Platform\TenantMigrationStateInspector;
+use App\Services\Platform\TenantMigrationStateInspectorInterface;
 use App\Services\Secrets\SecretStoreFactory;
 use App\Services\TenantConnectionManager;
 use Cake\Command\Command;
@@ -44,11 +48,16 @@ class TenantMigrateCommand extends Command
     private const PLATFORM_CONNECTION = 'platform';
     private const TENANT_CONNECTION = TenantConnectionManager::CONNECTION_ALIAS;
     private const JOB_TYPE = 'tenant_migration';
+    private const OUTCOME_COMPLETED = 'completed';
+    private const OUTCOME_SKIPPED = 'skipped';
+    private const OUTCOME_FAILED = 'failed';
 
     private ?TenantMigrationRunnerInterface $migrationRunner = null;
     private ?TenantMigrationLockManagerInterface $lockManager = null;
     private ?TenantConnectionManager $tenantConnectionManager = null;
     private ?TenantMigrationMarkerServiceInterface $migrationMarkerService = null;
+    private ?TenantMigrationStateInspectorInterface $migrationStateInspector = null;
+    private ?TenantMigrationCatalog $migrationCatalog = null;
 
     /**
      * @inheritDoc
@@ -91,18 +100,31 @@ class TenantMigrateCommand extends Command
     }
 
     /**
+     * Override tenant migration inspection for tests.
+     */
+    public function setMigrationStateInspector(TenantMigrationStateInspectorInterface $migrationStateInspector): void
+    {
+        $this->migrationStateInspector = $migrationStateInspector;
+    }
+
+    /**
      * @inheritDoc
      */
     protected function buildOptionParser(ConsoleOptionParser $parser): ConsoleOptionParser
     {
         return parent::buildOptionParser($parser)
-            ->setDescription('Run app and plugin migrations for one active tenant or all active tenants.')
+            ->setDescription('Run pending app and plugin migrations across the tenant fleet.')
             ->addOption('tenant', [
                 'short' => 't',
                 'help' => 'Tenant slug to migrate.',
             ])
             ->addOption('all', [
                 'help' => 'Migrate all active tenants ordered by slug.',
+                'boolean' => true,
+                'default' => false,
+            ])
+            ->addOption('include-suspended', [
+                'help' => 'Include suspended tenants when selecting the fleet or an explicit tenant.',
                 'boolean' => true,
                 'default' => false,
             ])
@@ -171,10 +193,13 @@ class TenantMigrateCommand extends Command
             $this->assertReleaseCompatibility($tenants, $options);
             $failed = 0;
             $completed = 0;
+            $skipped = 0;
             foreach ($tenants as $tenant) {
-                $result = $this->migrateTenant($tenant, $options, $io);
-                if ($result) {
+                $outcome = $this->migrateTenant($tenant, $options, $io);
+                if ($outcome === self::OUTCOME_COMPLETED) {
                     $completed++;
+                } elseif ($outcome === self::OUTCOME_SKIPPED) {
+                    $skipped++;
                 } else {
                     $failed++;
                     if ((bool)$args->getOption('fail-fast')) {
@@ -183,7 +208,12 @@ class TenantMigrateCommand extends Command
                 }
             }
 
-            $io->out(sprintf('Tenant migration summary: %d completed, %d failed.', $completed, $failed));
+            $io->out(sprintf(
+                'Tenant migration summary: %d completed, %d already current, %d failed.',
+                $completed,
+                $skipped,
+                $failed,
+            ));
 
             return $failed === 0 ? self::CODE_SUCCESS : self::CODE_ERROR;
         } catch (RuntimeException $e) {
@@ -196,14 +226,45 @@ class TenantMigrateCommand extends Command
     /**
      * @param array<string, mixed> $options
      */
-    private function migrateTenant(TenantMetadata $tenant, array $options, ConsoleIo $io): bool
+    private function migrateTenant(TenantMetadata $tenant, array $options, ConsoleIo $io): string
     {
         $jobId = Text::uuid();
         $this->insertJob($jobId, $tenant, $options);
-        $io->out(sprintf('Migrating tenant %s...', $tenant->slug));
+        $io->out(sprintf('Inspecting tenant %s...', $tenant->slug));
 
         try {
             $this->assertTenantDatabaseConfig($tenant);
+            $beforeState = $this->migrationStateInspector()->inspect($tenant);
+            $this->assertNoMigrationHistoryDrift($tenant, $beforeState);
+            if ($this->isStandardReleaseMigration($options) && $beforeState->isCurrent()) {
+                $finishedAt = $this->now();
+                $parameters = TenantMigrateCommandScrubber::scrubMetadata(array_merge($options, [
+                    'tenant_slug' => $tenant->slug,
+                    'previous_schema_version' => $tenant->schemaVersion,
+                    'migration_state_before' => $beforeState->toMetadata(),
+                    'result_schema_version' => $beforeState->targetVersion,
+                    'result' => ['already_current' => true],
+                ]));
+                $this->platform()->update('platform_jobs', [
+                    'status' => 'completed',
+                    'parameters' => json_encode($parameters, JSON_UNESCAPED_SLASHES),
+                    'finished_at' => $finishedAt,
+                    'modified_at' => $finishedAt,
+                ], ['id' => $jobId]);
+                $this->platform()->update('tenants', [
+                    'schema_version' => $beforeState->targetVersion,
+                    'modified_at' => $finishedAt,
+                ], ['id' => $tenant->id]);
+                $io->out(sprintf(
+                    'Tenant %s is already current at schema %s; no backup or migration was needed.',
+                    $tenant->slug,
+                    $beforeState->targetVersion,
+                ));
+
+                return self::OUTCOME_SKIPPED;
+            }
+
+            $io->out(sprintf('Migrating tenant %s...', $tenant->slug));
             $marker = null;
             if (!(bool)($options['skip_pre_migration_marker'] ?? false) && !(bool)($options['dry_run'] ?? false)) {
                 $marker = $this->migrationMarkerService()->createMarker($tenant, $options, $jobId);
@@ -211,10 +272,21 @@ class TenantMigrateCommand extends Command
             $result = (bool)($options['marker_only'] ?? false)
                 ? new TenantMigrationResult($tenant->schemaVersion, ['marker_only' => true])
                 : $this->runTenantMigration($tenant, $options, $io);
+            $afterState = null;
+            if ($this->isStandardReleaseMigration($options)) {
+                $afterState = $this->migrationStateInspector()->inspect($tenant);
+                $this->assertTenantCurrent($tenant, $afterState);
+                $result = new TenantMigrationResult($afterState->targetVersion, array_merge(
+                    $result->metadata,
+                    ['verified_current' => true],
+                ));
+            }
             $finishedAt = $this->now();
             $parameters = array_merge($options, [
                 'tenant_slug' => $tenant->slug,
                 'previous_schema_version' => $tenant->schemaVersion,
+                'migration_state_before' => $beforeState->toMetadata(),
+                'migration_state_after' => $afterState?->toMetadata(),
                 'pre_migration_marker' => $marker?->metadata,
                 'result_schema_version' => $result->schemaVersion,
                 'result' => $result->metadata,
@@ -238,7 +310,7 @@ class TenantMigrateCommand extends Command
                 $result->schemaVersion ?? 'unknown',
             ));
 
-            return true;
+            return self::OUTCOME_COMPLETED;
         } catch (Throwable $e) {
             $message = self::scrubError($e->getMessage());
             $finishedAt = $this->now();
@@ -250,7 +322,7 @@ class TenantMigrateCommand extends Command
             ], ['id' => $jobId]);
             $io->err(sprintf('Tenant %s migration failed: %s', $tenant->slug, $message));
 
-            return false;
+            return self::OUTCOME_FAILED;
         }
     }
 
@@ -362,13 +434,8 @@ class TenantMigrateCommand extends Command
     {
         /** @var \Cake\Database\Connection $connection */
         $connection = ConnectionManager::get(self::TENANT_CONNECTION);
-        if (!in_array('phinxlog', $connection->getSchemaCollection()->listTables(), true)) {
-            return null;
-        }
 
-        $version = $connection->execute('SELECT MAX(version) FROM phinxlog')->fetchColumn(0);
-
-        return $version === false || $version === null ? null : (string)$version;
+        return $this->migrationCatalog()->inspect($connection)->currentVersion;
     }
 
     /**
@@ -377,10 +444,16 @@ class TenantMigrateCommand extends Command
     private function resolveTenants(Arguments $args): array
     {
         if ((bool)$args->getOption('all')) {
-            $rows = $this->platform()->execute(
-                'SELECT * FROM tenants WHERE status = :status ORDER BY slug',
-                ['status' => 'active'],
-            )->fetchAll('assoc');
+            $includeSuspended = (bool)$args->getOption('include-suspended');
+            $rows = $includeSuspended
+                ? $this->platform()->execute(
+                    'SELECT * FROM tenants WHERE status IN (:active, :suspended) ORDER BY slug',
+                    ['active' => 'active', 'suspended' => 'suspended'],
+                )->fetchAll('assoc')
+                : $this->platform()->execute(
+                    'SELECT * FROM tenants WHERE status = :active ORDER BY slug',
+                    ['active' => 'active'],
+                )->fetchAll('assoc');
 
             return array_map(
                 static fn(array $row): TenantMetadata => TenantMetadata::fromPlatformRow($row),
@@ -397,9 +470,12 @@ class TenantMigrateCommand extends Command
         if (!is_array($row)) {
             throw new RuntimeException(sprintf('Tenant "%s" was not found.', $slug));
         }
-        if (!(bool)$args->getOption('status') && (string)$row['status'] !== 'active') {
+        $allowedStatuses = (bool)$args->getOption('include-suspended')
+            ? ['active', 'suspended']
+            : ['active'];
+        if (!(bool)$args->getOption('status') && !in_array((string)$row['status'], $allowedStatuses, true)) {
             throw new RuntimeException(sprintf(
-                'Tenant "%s" is not active (status: %s); refusing to run migrations.',
+                'Tenant "%s" status %s is not selected for migration.',
                 $slug,
                 (string)$row['status'],
             ));
@@ -473,6 +549,7 @@ class TenantMigrateCommand extends Command
             'dry_run' => (bool)$args->getOption('dry-run'),
             'marker_only' => (bool)$args->getOption('marker-only'),
             'manifest' => $args->getOption('manifest') === null ? null : (string)$args->getOption('manifest'),
+            'include_suspended' => (bool)$args->getOption('include-suspended'),
             'skip_pre_migration_marker' => (bool)$args->getOption('skip-pre-migration-marker'),
             'marker_retention_days' => max(1, (int)$args->getOption('marker-retention-days')),
         ];
@@ -583,6 +660,72 @@ class TenantMigrateCommand extends Command
                 BackupStorageFactory::tenant(),
             ),
         );
+    }
+
+    /**
+     * Get the release migration-state inspector.
+     */
+    private function migrationStateInspector(): TenantMigrationStateInspectorInterface
+    {
+        return $this->migrationStateInspector ??= new TenantMigrationStateInspector(
+            $this->tenantConnectionManager(),
+            $this->migrationCatalog(),
+        );
+    }
+
+    /**
+     * Get the migration catalog shared by planning and result verification.
+     */
+    private function migrationCatalog(): TenantMigrationCatalog
+    {
+        return $this->migrationCatalog ??= new TenantMigrationCatalog();
+    }
+
+    /**
+     * Standard deploy migrations can be planned, skipped, and verified against latest.
+     *
+     * @param array<string, mixed> $options
+     */
+    private function isStandardReleaseMigration(array $options): bool
+    {
+        return empty($options['target'])
+            && empty($options['date'])
+            && !(bool)($options['fake'] ?? false)
+            && !(bool)($options['dry_run'] ?? false)
+            && !(bool)($options['marker_only'] ?? false);
+    }
+
+    /**
+     * Refuse to operate when database history contains migrations absent from this image.
+     */
+    private function assertNoMigrationHistoryDrift(TenantMetadata $tenant, TenantMigrationState $state): void
+    {
+        if ($state->unexpectedVersions === []) {
+            return;
+        }
+
+        throw new RuntimeException(sprintf(
+            'Tenant "%s" has migration history absent from this release: %s.',
+            $tenant->slug,
+            json_encode($state->unexpectedVersions, JSON_UNESCAPED_SLASHES),
+        ));
+    }
+
+    /**
+     * Verify that migration execution reached every app and plugin target.
+     */
+    private function assertTenantCurrent(TenantMetadata $tenant, TenantMigrationState $state): void
+    {
+        $this->assertNoMigrationHistoryDrift($tenant, $state);
+        if ($state->isCurrent()) {
+            return;
+        }
+
+        throw new RuntimeException(sprintf(
+            'Tenant "%s" still has pending migrations after execution: %s.',
+            $tenant->slug,
+            json_encode($state->pendingVersions, JSON_UNESCAPED_SLASHES),
+        ));
     }
 
     /**

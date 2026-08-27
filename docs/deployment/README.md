@@ -116,6 +116,33 @@ bin/cake tenant migrate --tenant example --manifest config/release_manifest.json
 
 The check accepts tenants whose schema is between `min` and `max`, or exactly listed in `compatible_previous` for N-1 rolling compatibility. Missing, malformed, below-minimum, or above-maximum schema versions fail with a tenant-specific error.
 
+### Tenant fleet migrations
+
+Every release that contains application or plugin migrations must use the
+tenant fleet command before web cutover:
+
+```bash
+cd app
+bin/cake platform backup-keys ensure
+bin/cake tenant migrate --all --include-suspended --fail-fast
+```
+
+The command discovers the migration versions shipped by the application and
+every loaded plugin, then compares them with each tenant's corresponding
+`phinxlog` history. A tenant that is already current is recorded and skipped
+without a recovery backup. A tenant with pending versions receives its normal
+pre-migration marker and encrypted backup, runs migrations under the tenant
+advisory lock, and is inspected again before its platform `schema_version` is
+advanced. Applied versions absent from the release fail closed as migration
+history drift.
+
+The operation is resumable: rerunning the same command reinspects database
+state, skips tenants completed by the earlier attempt, and continues with the
+remaining tenant databases. Active and suspended tenants are included;
+provisioning tenants finish migrations through provisioning, and archived
+tenants remain untouched. A suspended tenant cannot be reactivated unless its
+recorded schema matches the migration target shipped by the running code.
+
 ### Nightly migration drill
 
 Run the nightly migration drill from staging/canary jobs before promoting tenant schema changes. The safe metadata-only preflight checks the release manifest and target tenant schema compatibility, records a `nightly_migration_drill` row in `platform_jobs`, and prints a monitor-friendly summary line:

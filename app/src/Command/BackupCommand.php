@@ -23,8 +23,8 @@ use RuntimeException;
  * single-database work.
  *
  * Usage:
- *   bin/cake backup create --key "my-secret-key"
- *   bin/cake backup restore kmp-backup-20260220-120000.kmpbackup --key "my-secret-key"
+ *   BACKUP_ENCRYPTION_KEY="my-secret-key" bin/cake backup create
+ *   BACKUP_ENCRYPTION_KEY="my-secret-key" bin/cake backup restore kmp-backup-20260220-120000.kmpbackup
  */
 class BackupCommand extends Command
 {
@@ -58,7 +58,7 @@ class BackupCommand extends Command
                 'required' => false,
             ])
             ->addOption('key', [
-                'help' => 'Encryption key (or set Backup.encryptionKey in AppSettings)',
+                'help' => 'Encryption key (prefer BACKUP_ENCRYPTION_KEY; AppSettings is the final fallback)',
                 'short' => 'k',
             ])
             ->addOption('yes', [
@@ -93,12 +93,18 @@ class BackupCommand extends Command
         // Resolve encryption key
         $key = $args->getOption('key');
         if (empty($key)) {
+            $key = env('BACKUP_ENCRYPTION_KEY');
+        }
+        if (empty($key)) {
             $appSettings = $this->fetchTable('AppSettings');
             $key = $appSettings->getSetting('Backup.encryptionKey');
         }
 
         if (empty($key)) {
-            $io->error('No encryption key provided. Use --key or set Backup.encryptionKey in App Settings.');
+            $io->error(
+                'No encryption key provided. Set BACKUP_ENCRYPTION_KEY, use --key, '
+                . 'or set Backup.encryptionKey in App Settings.',
+            );
 
             return self::CODE_ERROR;
         }

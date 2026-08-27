@@ -6,23 +6,23 @@ namespace App\Test\TestCase\Services\Platform;
 use App\Services\Platform\Audit\NullWormAuditSink;
 use App\Services\Platform\PlatformAuditService;
 use App\Services\Platform\TenantLifecycleService;
+use App\Test\TestCase\BaseTestCase;
 use Cake\Database\Connection;
 use Cake\Database\Driver\Sqlite;
-use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
-class TenantLifecycleServiceTest extends TestCase
+class TenantLifecycleServiceTest extends BaseTestCase
 {
-    private Connection $connection;
+    private Connection $tenantConnection;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->connection = new Connection([
+        $this->tenantConnection = new Connection([
             'driver' => Sqlite::class,
             'database' => ':memory:',
         ]);
-        $this->connection->execute(
+        $this->tenantConnection->execute(
             'CREATE TABLE tenants (
                 id TEXT PRIMARY KEY,
                 slug TEXT NOT NULL,
@@ -34,7 +34,7 @@ class TenantLifecycleServiceTest extends TestCase
                 modified_at TEXT
             )',
         );
-        $this->connection->execute(
+        $this->tenantConnection->execute(
             'CREATE TABLE platform_jobs (
                 id TEXT PRIMARY KEY,
                 tenant_id TEXT,
@@ -42,7 +42,7 @@ class TenantLifecycleServiceTest extends TestCase
                 status TEXT NOT NULL
             )',
         );
-        $this->connection->execute(
+        $this->tenantConnection->execute(
             'CREATE TABLE audit_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 tenant_id TEXT,
@@ -59,7 +59,7 @@ class TenantLifecycleServiceTest extends TestCase
                 created_at TEXT
             )',
         );
-        $this->connection->insert('tenants', [
+        $this->tenantConnection->insert('tenants', [
             'id' => 'tenant-1',
             'slug' => 'example',
             'status' => 'active',
@@ -93,7 +93,7 @@ class TenantLifecycleServiceTest extends TestCase
         $this->assertSame('active', $active['status']);
         $this->assertNull($active['suspended_at']);
 
-        $events = $this->connection->execute(
+        $events = $this->tenantConnection->execute(
             'SELECT action, reason, metadata FROM audit_events ORDER BY id',
         )->fetchAll('assoc');
         $this->assertSame(['tenant.suspended', 'tenant.active'], array_column($events, 'action'));
@@ -105,7 +105,7 @@ class TenantLifecycleServiceTest extends TestCase
 
     public function testLifecycleTransitionIsBlockedByActiveOperation(): void
     {
-        $this->connection->insert('platform_jobs', [
+        $this->tenantConnection->insert('platform_jobs', [
             'id' => 'job-1',
             'tenant_id' => 'tenant-1',
             'job_type' => 'tenant_backup',
@@ -123,9 +123,48 @@ class TenantLifecycleServiceTest extends TestCase
         );
     }
 
+    public function testReactivationRequiresCurrentReleaseSchema(): void
+    {
+        $this->tenantConnection->update('tenants', [
+            'status' => 'suspended',
+            'schema_version' => '20260709000000',
+        ], ['id' => 'tenant-1']);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('migrations reach schema 20260710000000');
+
+        $this->service()->transition(
+            'tenant-1',
+            'active',
+            'platform-admin-1',
+            'Attempting to return to service.',
+        );
+    }
+
+    public function testReactivationIsBlockedWhileTenantMigrationRuns(): void
+    {
+        $this->tenantConnection->update('tenants', ['status' => 'suspended'], ['id' => 'tenant-1']);
+        $this->tenantConnection->insert('platform_jobs', [
+            'id' => 'migration-job-1',
+            'tenant_id' => 'tenant-1',
+            'job_type' => 'tenant_migration',
+            'status' => 'running',
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('operation is queued or running');
+
+        $this->service()->transition(
+            'tenant-1',
+            'active',
+            'platform-admin-1',
+            'Migration is still running.',
+        );
+    }
+
     public function testArchivedTenantCannotBeReactivated(): void
     {
-        $this->connection->update('tenants', ['status' => 'archived'], ['id' => 'tenant-1']);
+        $this->tenantConnection->update('tenants', ['status' => 'archived'], ['id' => 'tenant-1']);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('from archived to active is not allowed');
@@ -141,8 +180,9 @@ class TenantLifecycleServiceTest extends TestCase
     private function service(): TenantLifecycleService
     {
         return new TenantLifecycleService(
-            $this->connection,
-            new PlatformAuditService($this->connection, new NullWormAuditSink(), false),
+            $this->tenantConnection,
+            new PlatformAuditService($this->tenantConnection, new NullWormAuditSink(), false),
+            '20260710000000',
         );
     }
 }

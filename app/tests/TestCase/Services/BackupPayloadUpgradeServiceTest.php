@@ -4,13 +4,13 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Services;
 
 use App\Services\Backup\BackupPayloadUpgradeService;
-use Cake\TestSuite\TestCase;
+use App\Test\TestCase\BaseTestCase;
 
 /**
  * @covers \App\Services\Backup\BackupPayloadUpgradeService
  * @covers \App\Services\Backup\MainToWorkflowEngineBranchBackupMigrator
  */
-class BackupPayloadUpgradeServiceTest extends TestCase
+class BackupPayloadUpgradeServiceTest extends BaseTestCase
 {
     public function testUpgradePromotesBaselineRecommendationPayloadToBestowalObjectModel(): void
     {
@@ -88,7 +88,37 @@ class BackupPayloadUpgradeServiceTest extends TestCase
         $this->assertArrayHasKey('payload_upgrade_target', $upgraded['meta']);
     }
 
-    public function testUpgradeIsIdempotentForAlreadyLinkedBestowals(): void
+    public function testUpgradeNormalizesMalformedBestowalTables(): void
+    {
+        foreach (['awards_bestowals', 'awards_bestowal_recommendations'] as $malformedTable) {
+            $payload = [
+                'meta' => ['version' => 1],
+                'tables' => [
+                    $malformedTable => 'invalid-backup-value',
+                    'awards_recommendations' => [
+                        [
+                            'id' => 10,
+                            'member_id' => 100,
+                            'award_id' => 200,
+                            'state' => 'Scheduled',
+                            'recommendation_group_id' => null,
+                            'bestowal_id' => null,
+                        ],
+                    ],
+                ],
+            ];
+
+            $result = (new BackupPayloadUpgradeService())->upgrade($payload);
+            $upgraded = $result['payload'];
+
+            $this->assertIsArray($upgraded['tables']['awards_bestowals'], $malformedTable);
+            $this->assertIsArray($upgraded['tables']['awards_bestowal_recommendations'], $malformedTable);
+            $this->assertCount(1, $upgraded['tables']['awards_bestowals'], $malformedTable);
+            $this->assertCount(1, $upgraded['tables']['awards_bestowal_recommendations'], $malformedTable);
+        }
+    }
+
+    public function testUpgradeSkipsPayloadsThatAlreadyContainTheModernBestowalModel(): void
     {
         $payload = [
             'meta' => ['version' => 1],
@@ -124,7 +154,8 @@ class BackupPayloadUpgradeServiceTest extends TestCase
         $result = (new BackupPayloadUpgradeService())->upgrade($payload);
         $upgraded = $result['payload'];
 
-        $this->assertSame(0, $result['stats']['migrators']['main-to-workflow-engine-20260622']['bestowals_created']);
+        $this->assertSame(0, $result['stats']['migrators_applied']);
+        $this->assertSame(1, $result['stats']['migrators_skipped']);
         $this->assertCount(1, $upgraded['tables']['awards_bestowals']);
         $this->assertCount(1, $upgraded['tables']['awards_bestowal_recommendations']);
         $this->assertSame(5, $upgraded['tables']['awards_recommendations'][0]['bestowal_id']);

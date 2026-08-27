@@ -1257,7 +1257,7 @@ SQL;
                     continue;
                 }
 
-                if (in_array($columnType, ['string', 'text', 'char', 'uuid'], true)) {
+                if (in_array($columnType, ['string', 'text', 'citext', 'char', 'uuid'], true)) {
                     continue;
                 }
 
@@ -1455,7 +1455,7 @@ SQL;
             'boolean', 'integer', 'biginteger', 'smallinteger', 'tinyinteger' => ['converted' => true, 'value' => 0],
             'float', 'decimal' => ['converted' => true, 'value' => 0.0],
             'json', 'jsonb' => ['converted' => true, 'value' => '{}'],
-            'text', 'string', 'char', 'uuid' => ['converted' => true, 'value' => ''],
+            'text', 'string', 'citext', 'char', 'uuid' => ['converted' => true, 'value' => ''],
             default => ['converted' => false, 'value' => null],
         };
     }
@@ -1501,7 +1501,7 @@ SQL;
             return ['converted' => false, 'value' => $value];
         }
 
-        if (!in_array($columnType, ['json', 'jsonb', 'text', 'string', 'char', 'uuid'], true)) {
+        if (!in_array($columnType, ['json', 'jsonb', 'text', 'string', 'citext', 'char', 'uuid'], true)) {
             return ['converted' => false, 'value' => $value];
         }
 

@@ -140,7 +140,12 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
             ->find()
             ->select(['id'])
             ->firstOrFail();
-        $this->createBestowalForGathering((int)$gathering->id);
+        $award = $this->getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->select(['id'])
+            ->where(['branch_id' => self::KINGDOM_BRANCH_ID])
+            ->firstOrFail();
+        $this->createBestowalForGathering((int)$gathering->id, (int)$award->id);
         $agenda = $this->importBestowalsForGathering((int)$gathering->id);
         $this->grantCourtAgendaManagement(
             self::TEST_MEMBER_AGATHA_ID,

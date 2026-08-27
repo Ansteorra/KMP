@@ -5,10 +5,10 @@ namespace App\Test\TestCase\Services\Secrets;
 
 use App\Services\Secrets\FileSecretStore;
 use App\Services\Secrets\SensitiveString;
-use Cake\TestSuite\TestCase;
+use App\Test\TestCase\BaseTestCase;
 use RuntimeException;
 
-class FileSecretStoreTest extends TestCase
+class FileSecretStoreTest extends BaseTestCase
 {
     private string $directory;
     private string $path;
@@ -54,6 +54,30 @@ class FileSecretStoreTest extends TestCase
         $store->delete('tenant.demo.db.password');
         $this->assertFalse($store->exists('tenant.demo.db.password'));
         $this->assertNull($store->get('tenant.demo.db.password'));
+    }
+
+    public function testPutPreservesExistingFileOwnership(): void
+    {
+        file_put_contents($this->path, '{"secrets":{}}');
+        chmod($this->path, 0600);
+
+        if (function_exists('posix_geteuid') && posix_geteuid() === 0 && function_exists('posix_getpwnam')) {
+            $webAccount = posix_getpwnam('www-data');
+            if (is_array($webAccount)) {
+                chown($this->path, (int)$webAccount['uid']);
+                chgrp($this->path, (int)$webAccount['gid']);
+            }
+        }
+        clearstatcache(true, $this->path);
+        $owner = fileowner($this->path);
+        $group = filegroup($this->path);
+
+        $store = new FileSecretStore($this->path, 'test');
+        $store->put('tenant.demo.db.password', new SensitiveString('pw-1'));
+
+        clearstatcache(true, $this->path);
+        $this->assertSame($owner, fileowner($this->path));
+        $this->assertSame($group, filegroup($this->path));
     }
 
     public function testRefusesDisallowedEnvironment(): void

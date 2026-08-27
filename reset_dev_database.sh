@@ -106,6 +106,12 @@ else
 	bin/cake updateDatabase
 fi
 
+if [ "$DB_ENGINE" = "mysql" ]; then
+	echo "[post] Validating and applying managed award catalog..."
+	php scripts/seed/sync-ansteorra-award-catalog.php --check
+	php scripts/seed/sync-ansteorra-award-catalog.php --apply-local-database
+fi
+
 echo "[post] Setting ALL member passwords to TestPassword via ORM..."
 php -r '
 require "vendor/autoload.php";

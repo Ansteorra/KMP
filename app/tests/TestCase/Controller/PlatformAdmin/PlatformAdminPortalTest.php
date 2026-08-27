@@ -10,6 +10,7 @@ use App\Services\Backups\PlatformDatabaseBackupEncryptor;
 use App\Services\Backups\TenantBackupEncryptor;
 use App\Services\BackupStorageService;
 use App\Services\Platform\PlatformTotpVerifier;
+use App\Services\Platform\TenantMigrationCatalog;
 use App\Services\Secrets\SecretStoreFactory;
 use App\Services\Secrets\SecretStoreInterface;
 use App\Services\Secrets\SensitiveString;
@@ -1440,7 +1441,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'db_server' => 'db-secret-host',
             'db_name' => 'tenant_secret_database',
             'db_role' => 'tenant_secret_role',
-            'schema_version' => '20260516000000',
+            'schema_version' => (new TenantMigrationCatalog())->latestVersion(),
             'tenant_config' => json_encode([
                 'documents' => [
                     'blob_container' => 'documents-old',

@@ -501,6 +501,11 @@ trait DataverseGridTrait
                     } else {
                         if ($columnMeta['type'] === 'boolean') {
                             $baseQuery->where([$qualifiedField => (bool)(int)$filterValue]);
+                        } elseif (CaseInsensitiveQuery::isScaNameField($qualifiedField)) {
+                            $baseQuery->where(CaseInsensitiveQuery::equals(
+                                $qualifiedField,
+                                (string)$filterValue,
+                            ));
                         } else {
                             $baseQuery->where([$qualifiedField => $filterValue]);
                         }

@@ -195,6 +195,7 @@ if [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER" = "pgsql" ]; then
     DB_PASS="$(env_or_file DB_PASSWORD "$(env_or_file POSTGRES_PASSWORD kmpdevpass)")"
     PLATFORM_DB_NAME="$(env_or_file PLATFORM_DB_DATABASE KMP_PLATFORM)"
     PLATFORM_DB_TEST_NAME="$(env_or_file PLATFORM_DB_TEST_DATABASE "${PLATFORM_DB_NAME}_test")"
+    PRIMARY_TENANT_SLUG="$(env_or_file KMP_DEV_TENANT_SLUG kmp)"
     SECOND_TENANT_SLUG="kmp2"
     SECOND_TENANT_HOST="$(env_or_file KMP_DEV_SECOND_TENANT_HOST kmp2.localhost)"
     SECOND_TENANT_DISPLAY_NAME="Second Kingdom"
@@ -367,6 +368,10 @@ if [ "$LOAD_SEED" != true ] || { [ "$DB_DRIVER" != "postgres" ] && [ "$DB_DRIVER
 fi
 
 if [ "$LOAD_SEED" = true ]; then
+    echo "[post] Validating and applying managed award catalog..."
+    "${COMPOSE[@]}" exec -T app php scripts/seed/sync-ansteorra-award-catalog.php --check
+    "${COMPOSE[@]}" exec -T app php scripts/seed/sync-ansteorra-award-catalog.php --apply-local-database
+
     SEED_AS_OF="$(env_or_file KMP_DEV_SEED_AS_OF "$(date -u +%F)")"
     echo "[post] Advancing date-sensitive seed data to ${SEED_AS_OF}..."
     "${COMPOSE[@]}" exec -T app bin/cake advance_dev_seed_dates --as-of "$SEED_AS_OF"
@@ -706,6 +711,9 @@ if ($tenantHostAliases !== []) {
 }
 echo sprintf("Seeded dev platform admin %s with password %s and TOTP secret %s.\n", $platformAdminEmail, $platformAdminPassword, $platformAdminTotpSecret);
 '
+    "${COMPOSE[@]}" exec -T app bin/cake tenant migrate \
+        --tenant "$PRIMARY_TENANT_SLUG" \
+        --skip-pre-migration-marker
 
     echo "      Provisioning second local tenant through the platform command..."
     "${COMPOSE[@]}" exec -T app bin/cake tenant provision "$SECOND_TENANT_SLUG" \

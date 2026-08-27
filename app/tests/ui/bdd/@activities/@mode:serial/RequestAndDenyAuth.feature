@@ -10,7 +10,7 @@ Feature: User Requests an Authorization and it is Denied
         And I navigate to my profile page
         And I click on the "Request Authorization" button
         And I select the activity "Armored"
-        And I select the approver "Out of Kingdom: Scale Member 0001"
+        And I select the approver "Out of Kingdom: Alys atte Brook"
         And I submit the authorization request
         Then I should see the flash message "The Authorization has been requested."
         Then I should have 1 pending authorization request
@@ -34,7 +34,7 @@ Feature: User Requests an Authorization and it is Denied
         Then the email should start with the body:
             """
             Good day Iris Basic User Demoer
-            Scale Member 0001 has responded to your request and the authorization is now Denied for
+            Alys atte Brook has responded to your request and the authorization is now Denied for
             Armored.
             """
         And the email should be addressed to "iris@ampdemo.com"

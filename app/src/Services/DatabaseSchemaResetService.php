@@ -129,11 +129,17 @@ class DatabaseSchemaResetService
         }
 
         $definitions = [];
+        $indexedColumns = $this->indexedColumns($tableSpec);
         foreach ($columns as $columnName => $definition) {
             if (!is_string($columnName) || !is_array($definition)) {
                 continue;
             }
-            $definitions[] = $this->columnSql($driver, $columnName, $definition);
+            $definitions[] = $this->columnSql(
+                $driver,
+                $columnName,
+                $definition,
+                in_array($columnName, $indexedColumns, true),
+            );
         }
 
         foreach (($tableSpec['constraints'] ?? []) as $constraint) {
@@ -156,13 +162,17 @@ class DatabaseSchemaResetService
     /**
      * @param array<string, mixed> $definition
      */
-    private function columnSql(Mysql|Postgres $driver, string $columnName, array $definition): string
-    {
+    private function columnSql(
+        Mysql|Postgres $driver,
+        string $columnName,
+        array $definition,
+        bool $indexed,
+    ): string {
         $type = (string)($definition['type'] ?? 'string');
         $autoIncrement = (bool)($definition['autoIncrement'] ?? $definition['auto_increment'] ?? false);
         $sql = $driver->quoteIdentifier($columnName)
             . ' '
-            . $this->columnTypeSql($driver, $type, $definition, $autoIncrement);
+            . $this->columnTypeSql($driver, $type, $definition, $autoIncrement, $indexed);
 
         if ($autoIncrement && $driver instanceof Mysql) {
             $sql .= ' AUTO_INCREMENT';
@@ -187,6 +197,7 @@ class DatabaseSchemaResetService
         string $type,
         array $definition,
         bool $autoIncrement,
+        bool $indexed = false,
     ): string {
         if ($autoIncrement && $driver instanceof Postgres) {
             return $type === 'biginteger' ? 'BIGSERIAL' : 'SERIAL';
@@ -203,6 +214,7 @@ class DatabaseSchemaResetService
             'integer' => $limit !== null && $limit > 0 && $driver instanceof Mysql ? "INT({$limit})" : 'INTEGER',
             'boolean' => $driver instanceof Mysql ? 'TINYINT(1)' : 'BOOLEAN',
             'string' => 'VARCHAR(' . max(1, $limit ?? 255) . ')',
+            'citext' => $driver instanceof Postgres ? 'CITEXT' : ($indexed ? 'VARCHAR(255)' : 'TEXT'),
             'text' => 'TEXT',
             'date' => 'DATE',
             'time' => 'TIME',
@@ -216,6 +228,36 @@ class DatabaseSchemaResetService
             'json' => $driver instanceof Mysql ? 'JSON' : 'JSONB',
             default => throw new RuntimeException("Unsupported backup schema column type: {$type}"),
         };
+    }
+
+    /**
+     * Return columns that need an index-compatible MySQL representation.
+     *
+     * PostgreSQL's unbounded CITEXT type does not retain the source varchar
+     * limit in Cake's schema manifest. Indexed CITEXT columns therefore use a
+     * conservative VARCHAR(255) during cross-engine MySQL restores, while
+     * unindexed values remain unbounded TEXT.
+     *
+     * @param array<string, mixed> $tableSpec
+     * @return array<int, string>
+     */
+    private function indexedColumns(array $tableSpec): array
+    {
+        $columns = [];
+        foreach (($tableSpec['constraints'] ?? []) as $constraint) {
+            if (!is_array($constraint) || !in_array(($constraint['type'] ?? null), ['primary', 'unique'], true)) {
+                continue;
+            }
+            $columns = array_merge($columns, array_filter((array)($constraint['columns'] ?? []), 'is_string'));
+        }
+        foreach (($tableSpec['indexes'] ?? []) as $index) {
+            if (!is_array($index)) {
+                continue;
+            }
+            $columns = array_merge($columns, array_filter((array)($index['columns'] ?? []), 'is_string'));
+        }
+
+        return array_values(array_unique($columns));
     }
 
     /**
@@ -338,6 +380,9 @@ class DatabaseSchemaResetService
         return $sql;
     }
 
+    /**
+     * Return an engine-safe index identifier unique to the table.
+     */
     private function indexIdentifier(Mysql|Postgres $driver, string $tableName, string $indexName): string
     {
         if (!$driver instanceof Postgres) {

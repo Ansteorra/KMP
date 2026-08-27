@@ -396,8 +396,8 @@ $this->KMP->endBlock();
                                                         ['action' => 'close', $gathering->id],
                                                         [
                                                             'class' => 'btn btn-sm btn-success',
-                                                            'escape' => false,
-                                                            'confirm' => __('Close waiver collection for "{0}"? This will prevent further uploads.', h($gathering->name)),
+                                                            'escapeTitle' => false,
+                                                            'confirm' => __('Close waiver collection for "{0}"? This will prevent further uploads.', $gathering->name),
                                                         ]
                                                     ) ?>
                                                 </td>
@@ -510,8 +510,8 @@ $this->KMP->endBlock();
                                                         ['action' => 'close', $gathering->id],
                                                         [
                                                             'class' => 'btn btn-sm btn-success',
-                                                            'escape' => false,
-                                                            'confirm' => __('Close waiver collection for "{0}"? This will prevent further uploads.', h($gathering->name)),
+                                                            'escapeTitle' => false,
+                                                            'confirm' => __('Close waiver collection for "{0}"? This will prevent further uploads.', $gathering->name),
                                                         ]
                                                     ) ?>
                                                 </td>
@@ -952,8 +952,8 @@ $this->KMP->endBlock();
                                                         ['action' => 'reopen', $closure->gathering->id],
                                                         [
                                                             'class' => 'btn btn-sm btn-outline-warning',
-                                                            'escape' => false,
-                                                            'confirm' => __('Reopen waiver collection for "{0}"? This will allow further uploads.', h($closure->gathering->name)),
+                                                            'escapeTitle' => false,
+                                                            'confirm' => __('Reopen waiver collection for "{0}"? This will allow further uploads.', $closure->gathering->name),
                                                         ]
                                                     ) ?>
                                                 </td>

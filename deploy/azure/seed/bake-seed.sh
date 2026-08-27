@@ -36,11 +36,18 @@ echo "=== Baking nightly seed backup ==="
 echo "output: $OUT_PATH"
 echo
 
+echo "=== Validating and applying managed seed data ==="
+php scripts/seed/fictionalize-scale-data.php --check
+php scripts/seed/sync-ansteorra-award-catalog.php --check
+php scripts/seed/fictionalize-scale-data.php --apply-local-database
+php scripts/seed/sync-ansteorra-award-catalog.php --apply-local-database
+echo
+
 # `bin/cake backup create` auto-generates a name like kmp-backup-YYYYMMDD-HHMMSS.kmpbackup.
 # Snapshot the backups/ dir before + after so we know which file it produced.
 BEFORE_LIST=$(ls -1 "$APP_DIR/backups" 2>/dev/null | sort || true)
 
-CACHE_ENGINE=apcu bin/cake backup create --key "$BACKUP_ENCRYPTION_KEY"
+CACHE_ENGINE=apcu bin/cake backup create
 
 AFTER_LIST=$(ls -1 "$APP_DIR/backups" 2>/dev/null | sort || true)
 NEW_FILE=$(comm -13 <(echo "$BEFORE_LIST") <(echo "$AFTER_LIST") | grep -E '\.kmpbackup$' | tail -1 || true)

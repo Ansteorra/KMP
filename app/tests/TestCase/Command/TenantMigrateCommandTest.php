@@ -10,6 +10,8 @@ use App\Services\Platform\TenantMigrationMarkerResult;
 use App\Services\Platform\TenantMigrationMarkerServiceInterface;
 use App\Services\Platform\TenantMigrationResult;
 use App\Services\Platform\TenantMigrationRunnerInterface;
+use App\Services\Platform\TenantMigrationState;
+use App\Services\Platform\TenantMigrationStateInspectorInterface;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
 use Cake\Console\TestSuite\ConsoleIntegrationTestTrait;
@@ -139,6 +141,133 @@ class TenantMigrateCommandTest extends TestCase
         $this->assertSame('completed', $jobsByTenant[$bravoId]);
     }
 
+    public function testFleetMigrationIncludesSuspendedTenantsWhenRequested(): void
+    {
+        $activeId = $this->insertTenant('active');
+        $suspendedId = $this->insertTenant('suspended', 'suspended');
+        $command = $this->commandWithRunner($this->runnerReturning('20260516009999'));
+
+        $result = $command->execute(
+            $this->args(['all' => true, 'include-suspended' => true]),
+            $this->stubIo()['io'],
+        );
+
+        $this->assertSame(0, $result);
+        $tenantIds = $this->platform()->execute(
+            "SELECT tenant_id FROM platform_jobs WHERE job_type = 'tenant_migration' ORDER BY tenant_id",
+        )->fetchAll('assoc');
+        $expectedIds = [$activeId, $suspendedId];
+        sort($expectedIds, SORT_STRING);
+        $this->assertSame($expectedIds, array_column($tenantIds, 'tenant_id'));
+    }
+
+    public function testCurrentTenantSkipsBackupAndMigration(): void
+    {
+        $this->insertTenant('alpha', 'active', '20260516009999');
+        $runnerCalled = false;
+        $markerEvents = [];
+        $command = new TenantMigrateCommand();
+        $command->setMigrationStateInspector($this->migrationInspector(true));
+        $command->setMigrationMarkerService($this->markerService($markerEvents));
+        $command->setMigrationRunner(new class ($runnerCalled) implements TenantMigrationRunnerInterface {
+            private bool $runnerCalled;
+
+            public function __construct(bool &$runnerCalled)
+            {
+                $this->runnerCalled =& $runnerCalled;
+            }
+
+            public function migrate(TenantMetadata $tenant, array $options, ConsoleIo $io): TenantMigrationResult
+            {
+                $this->runnerCalled = true;
+
+                return new TenantMigrationResult('20260516009999');
+            }
+        });
+        $io = $this->stubIo();
+
+        $result = $command->execute($this->args(['tenant' => 'alpha']), $io['io']);
+
+        $this->assertSame(0, $result);
+        $this->assertFalse($runnerCalled);
+        $this->assertSame([], $markerEvents);
+        $this->assertStringContainsString('no backup or migration was needed', implode("\n", $io['out']->messages()));
+    }
+
+    public function testMigrationHistoryDriftFailsBeforeBackupOrMigration(): void
+    {
+        $this->insertTenant('alpha', 'active', '20260516009999');
+        $runnerCalled = false;
+        $markerEvents = [];
+        $command = new TenantMigrateCommand();
+        $command->setMigrationStateInspector(new class implements TenantMigrationStateInspectorInterface {
+            public function inspect(TenantMetadata $tenant): TenantMigrationState
+            {
+                return new TenantMigrationState(
+                    '20260516009999',
+                    '20260517000000',
+                    [],
+                    ['app' => ['20260517000000']],
+                );
+            }
+        });
+        $command->setMigrationMarkerService($this->markerService($markerEvents));
+        $command->setMigrationRunner(new class ($runnerCalled) implements TenantMigrationRunnerInterface {
+            private bool $runnerCalled;
+
+            public function __construct(bool &$runnerCalled)
+            {
+                $this->runnerCalled =& $runnerCalled;
+            }
+
+            public function migrate(TenantMetadata $tenant, array $options, ConsoleIo $io): TenantMigrationResult
+            {
+                $this->runnerCalled = true;
+
+                return new TenantMigrationResult('20260516009999');
+            }
+        });
+
+        $result = $command->execute($this->args(['tenant' => 'alpha']), $this->stubIo()['io']);
+
+        $this->assertSame(1, $result);
+        $this->assertFalse($runnerCalled);
+        $this->assertSame([], $markerEvents);
+        $error = $this->platform()->execute(
+            "SELECT last_error FROM platform_jobs WHERE job_type = 'tenant_migration'",
+        )->fetchColumn(0);
+        $this->assertStringContainsString('migration history absent from this release', (string)$error);
+    }
+
+    public function testPostMigrationInspectionMustReachEveryScope(): void
+    {
+        $this->insertTenant('alpha', 'active', '20260516000000');
+        $markerEvents = [];
+        $command = new TenantMigrateCommand();
+        $command->setMigrationStateInspector(new class implements TenantMigrationStateInspectorInterface {
+            public function inspect(TenantMetadata $tenant): TenantMigrationState
+            {
+                return new TenantMigrationState(
+                    '20260516009999',
+                    '20260516000000',
+                    ['Awards' => ['20260516009999']],
+                    [],
+                );
+            }
+        });
+        $command->setMigrationMarkerService($this->markerService($markerEvents));
+        $command->setMigrationRunner($this->runnerReturning('20260516009999'));
+
+        $result = $command->execute($this->args(['tenant' => 'alpha']), $this->stubIo()['io']);
+
+        $this->assertSame(1, $result);
+        $this->assertSame(['marker'], $markerEvents);
+        $error = $this->platform()->execute(
+            "SELECT last_error FROM platform_jobs WHERE job_type = 'tenant_migration'",
+        )->fetchColumn(0);
+        $this->assertStringContainsString('still has pending migrations after execution', (string)$error);
+    }
+
     public function testInactiveTenantRejectedForExplicitMigration(): void
     {
         $this->insertTenant('inactive', 'suspended');
@@ -235,6 +364,7 @@ class TenantMigrateCommandTest extends TestCase
         $this->insertTenant('alpha', 'active', '20260516000000');
         $events = [];
         $command = new TenantMigrateCommand();
+        $command->setMigrationStateInspector($this->migrationInspector());
         $command->setMigrationMarkerService($this->markerService($events));
         $command->setMigrationRunner(new class ($events) implements TenantMigrationRunnerInterface {
             /**
@@ -270,6 +400,7 @@ class TenantMigrateCommandTest extends TestCase
         $runnerCalled = false;
         $events = [];
         $command = new TenantMigrateCommand();
+        $command->setMigrationStateInspector($this->migrationInspector());
         $command->setMigrationMarkerService($this->markerService($events, true));
         $command->setMigrationRunner(new class ($runnerCalled) implements TenantMigrationRunnerInterface {
             private bool $runnerCalled;
@@ -304,6 +435,7 @@ class TenantMigrateCommandTest extends TestCase
         $runnerCalled = false;
         $events = [];
         $command = new TenantMigrateCommand();
+        $command->setMigrationStateInspector($this->migrationInspector());
         $command->setMigrationMarkerService($this->markerService($events, true));
         $command->setMigrationRunner(new class ($runnerCalled) implements TenantMigrationRunnerInterface {
             private bool $runnerCalled;
@@ -337,6 +469,7 @@ class TenantMigrateCommandTest extends TestCase
         $runnerCalled = false;
         $events = [];
         $command = new TenantMigrateCommand();
+        $command->setMigrationStateInspector($this->migrationInspector());
         $command->setMigrationMarkerService($this->markerService($events));
         $command->setMigrationRunner(new class ($runnerCalled) implements TenantMigrationRunnerInterface {
             private bool $runnerCalled;
@@ -371,6 +504,7 @@ class TenantMigrateCommandTest extends TestCase
         $this->insertTenant('alpha');
         $events = [];
         $command = new TenantMigrateCommand();
+        $command->setMigrationStateInspector($this->migrationInspector());
         $command->setMigrationMarkerService($this->markerService($events, false, [
             'backup' => [
                 'backup_id' => 'backup-123',
@@ -402,7 +536,7 @@ class TenantMigrateCommandTest extends TestCase
         $this->exec('tenant migrate --help');
 
         $this->assertExitSuccess();
-        $this->assertOutputContains('Run app and plugin migrations');
+        $this->assertOutputContains('Run pending app and plugin migrations across the tenant fleet');
     }
 
     private function commandWithRunner(TenantMigrationRunnerInterface $runner): TenantMigrateCommand
@@ -410,6 +544,7 @@ class TenantMigrateCommandTest extends TestCase
         $events = [];
         $command = new TenantMigrateCommand();
         $command->setMigrationRunner($runner);
+        $command->setMigrationStateInspector($this->migrationInspector());
         $command->setMigrationMarkerService($this->markerService($events));
 
         return $command;
@@ -486,6 +621,34 @@ class TenantMigrateCommandTest extends TestCase
         };
     }
 
+    private function migrationInspector(bool $alwaysCurrent = false): TenantMigrationStateInspectorInterface
+    {
+        return new class ($alwaysCurrent) implements TenantMigrationStateInspectorInterface {
+            /**
+             * @var array<string, int>
+             */
+            private array $calls = [];
+
+            public function __construct(private readonly bool $alwaysCurrent)
+            {
+            }
+
+            public function inspect(TenantMetadata $tenant): TenantMigrationState
+            {
+                $call = $this->calls[$tenant->slug] ?? 0;
+                $this->calls[$tenant->slug] = $call + 1;
+                $current = $this->alwaysCurrent || $call > 0;
+
+                return new TenantMigrationState(
+                    '20260516009999',
+                    $current ? '20260516009999' : $tenant->schemaVersion,
+                    $current ? [] : ['app' => ['20260516009999']],
+                    [],
+                );
+            }
+        };
+    }
+
     /**
      * @param array<string, mixed> $overrides
      */
@@ -494,6 +657,7 @@ class TenantMigrateCommandTest extends TestCase
         $options = array_merge([
             'tenant' => null,
             'all' => false,
+            'include-suspended' => false,
             'target' => null,
             'date' => null,
             'fake' => false,

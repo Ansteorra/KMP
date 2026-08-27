@@ -55,8 +55,8 @@ $this->KMP->endBlock();
                     ['action' => 'close', $gathering->id],
                     [
                         'class' => 'btn btn-warning',
-                        'escape' => false,
-                        'confirm' => __('Close waiver collection for "{0}"? No further uploads will be allowed.', h($gathering->name)),
+                        'escapeTitle' => false,
+                        'confirm' => __('Close waiver collection for "{0}"? No further uploads will be allowed.', $gathering->name),
                     ]
                 ) ?>
             <?php endif; ?>
@@ -67,8 +67,8 @@ $this->KMP->endBlock();
                     ['action' => 'reopen', $gathering->id],
                     [
                         'class' => 'btn btn-outline-warning',
-                        'escape' => false,
-                        'confirm' => __('Reopen waiver collection for "{0}"? This will allow further uploads.', h($gathering->name)),
+                        'escapeTitle' => false,
+                        'confirm' => __('Reopen waiver collection for "{0}"? This will allow further uploads.', $gathering->name),
                     ]
                 ) ?>
             <?php endif; ?>

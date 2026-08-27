@@ -15,6 +15,7 @@ declare(strict_types=1);
  * @license   https://opensource.org/licenses/mit-license.php MIT License
  */
 
+use App\Test\TestCase\Support\AnsteorraAwardCatalogSeed;
 use App\Test\TestCase\Support\SeedManager;
 use Cake\Core\Configure;
 use Cake\Database\SchemaCache;
@@ -122,6 +123,10 @@ if ($isPostgres) {
     ConnectionManager::drop('test');
     ConnectionManager::setConfig('test', $testConfig);
 }
+
+// MySQL migrates after loading the schema dump; PostgreSQL migrates before its
+// data-only seed. Reconcile current award fields after both paths converge.
+AnsteorraAwardCatalogSeed::synchronize('test', $isPostgres);
 
 $conn = ConnectionManager::get('test');
 $farFuture = '2100-01-01 00:00:00';

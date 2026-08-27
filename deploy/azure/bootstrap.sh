@@ -257,6 +257,10 @@ fi
     --resource-group "$AZURE_RESOURCE_GROUP" \
     --server-name "$POSTGRES_SERVER_NAME" \
     --extension CITEXT
+"$HERE/ensure-postgres-extension.sh" \
+    --resource-group "$AZURE_RESOURCE_GROUP" \
+    --server-name "$POSTGRES_SERVER_NAME" \
+    --extension UNACCENT
 
 # --- 9. Apply migrations before the request-only web revision serves traffic
 echo "--- Starting migration job..."
@@ -265,14 +269,14 @@ MIGRATE_EXECUTION="$(az containerapp job start \
     -n "$MIGRATE_JOB" \
     --query name \
     -o tsv)"
-for attempt in $(seq 1 180); do
+for attempt in $(seq 1 750); do
     MIGRATE_STATUS="$(az containerapp job execution show \
         -g "$AZURE_RESOURCE_GROUP" \
         --job-name "$MIGRATE_JOB" \
         -n "$MIGRATE_EXECUTION" \
         --query properties.status \
         -o tsv 2>/dev/null || echo Unknown)"
-    echo "    [$attempt/180] migrate status: $MIGRATE_STATUS"
+    echo "    [$attempt/750] migrate status: $MIGRATE_STATUS"
     case "$MIGRATE_STATUS" in
         Succeeded) break ;;
         Failed|Cancelled|Degraded)
@@ -280,8 +284,8 @@ for attempt in $(seq 1 180); do
             exit 1
             ;;
     esac
-    if [[ "$attempt" -eq 180 ]]; then
-        echo "Error: migration job timed out after 30 minutes." >&2
+    if [[ "$attempt" -eq 750 ]]; then
+        echo "Error: migration job timed out after 125 minutes." >&2
         exit 1
     fi
     sleep 10

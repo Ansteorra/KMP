@@ -309,12 +309,12 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
     {
         $this->authenticateAsSuperUser();
         [$instanceId, $executionLogId] = $this->createWorkflowContext();
-        $this->createApproval($instanceId, $executionLogId, 'Award Recommendation: Scale Member 0499');
+        $this->createApproval($instanceId, $executionLogId, 'Award Recommendation: Thibaut de Meaux');
 
-        $this->get('/approvals/kanban-lane?triage_state=new&view_id=sys-approvals-triage-board&search=Scale%20Member%200499');
+        $this->get('/approvals/kanban-lane?triage_state=new&view_id=sys-approvals-triage-board&search=Thibaut%20de%20Meaux');
 
         $this->assertResponseOk();
-        $this->assertResponseContains('Award Recommendation: Scale Member 0499');
+        $this->assertResponseContains('Award Recommendation: Thibaut de Meaux');
     }
 
     public function testKanbanGridSearchMatchesCachedApprovalRequestTitle(): void

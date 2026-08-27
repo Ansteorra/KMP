@@ -91,10 +91,7 @@ class MainToWorkflowEngineBranchBackupMigrator implements BackupPayloadMigratorI
      */
     public function shouldRun(array $payload): bool
     {
-        return (
-            isset($payload['tables']['awards_recommendations'])
-            && is_array($payload['tables']['awards_recommendations'])
-        ) || (
+        return $this->needsBestowalMigration($payload) || (
             isset($payload['tables']['email_templates'])
             && is_array($payload['tables']['email_templates'])
             && $this->hasLegacyEmailTemplateRows($payload['tables']['email_templates'])
@@ -126,14 +123,17 @@ class MainToWorkflowEngineBranchBackupMigrator implements BackupPayloadMigratorI
         }
 
         if (
-            !isset($payload['tables']['awards_recommendations'])
-            || !is_array($payload['tables']['awards_recommendations'])
+            !$this->needsBestowalMigration($payload)
         ) {
             return ['payload' => $payload, 'stats' => $stats];
         }
 
-        $payload['tables']['awards_bestowals'] ??= [];
-        $payload['tables']['awards_bestowal_recommendations'] ??= [];
+        if (!is_array($payload['tables']['awards_bestowals'] ?? null)) {
+            $payload['tables']['awards_bestowals'] = [];
+        }
+        if (!is_array($payload['tables']['awards_bestowal_recommendations'] ?? null)) {
+            $payload['tables']['awards_bestowal_recommendations'] = [];
+        }
 
         $existingBestowalByPrimaryRecommendation = $this->existingBestowalByPrimaryRecommendation(
             $payload['tables']['awards_bestowals'],
@@ -216,6 +216,30 @@ class MainToWorkflowEngineBranchBackupMigrator implements BackupPayloadMigratorI
         $this->backfillReasonSummaries($payload);
 
         return ['payload' => $payload, 'stats' => $stats];
+    }
+
+    /**
+     * Return true only for payloads that predate the complete bestowal model.
+     *
+     * Modern backups include both tables even when they contain no rows. Their
+     * recommendations must not be reinterpreted as legacy data during every
+     * restore.
+     *
+     * @param array<string, mixed> $payload Decoded backup payload.
+     */
+    private function needsBestowalMigration(array $payload): bool
+    {
+        if (
+            !isset($payload['tables']['awards_recommendations'])
+            || !is_array($payload['tables']['awards_recommendations'])
+        ) {
+            return false;
+        }
+
+        return !isset($payload['tables']['awards_bestowals'])
+            || !is_array($payload['tables']['awards_bestowals'])
+            || !isset($payload['tables']['awards_bestowal_recommendations'])
+            || !is_array($payload['tables']['awards_bestowal_recommendations']);
     }
 
     /**

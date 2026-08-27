@@ -7,12 +7,13 @@ resource is defined in [`main.bicep`](./main.bicep); nothing is clicked in the
 portal.
 
 PostgreSQL migrations use the `CITEXT` extension for selected human-facing
-columns that historically inherited case-insensitive behavior from MySQL.
+columns that historically inherited case-insensitive behavior from MySQL and
+the `UNACCENT` extension for diacritic-insensitive SCA-name search.
 Fresh and existing environments run `ensure-postgres-extension.sh` after Azure
 login and before the migration job. The helper updates the server-level
 `azure.extensions` configuration while preserving any other allowlisted
-extensions. Do not run migrations that create or use `citext` before this
-allowlist step succeeds.
+extensions. Do not run migrations that create or use `citext` or `unaccent`
+before this allowlist step succeeds.
 
 Seed data lives in [`seed/nightly-seed.kmpbackup`](./seed/) — an
 engine-agnostic, AES-256-GCM-encrypted backup produced by
@@ -152,8 +153,11 @@ This will:
    names as non-secret `poc` environment variables via `gh`. The PostgreSQL
    resource group may differ from the Container Apps resource group when an
    existing server hosts isolated POC databases.
-8. Ensure `CITEXT` is present in the PostgreSQL extension allowlist.
-9. Start the `kmp-migrate` job to apply base migrations.
+8. Ensure `CITEXT` and `UNACCENT` are present in the PostgreSQL extension allowlist.
+9. Start the `kmp-migrate` job to apply application, platform, and tenant-fleet
+   migrations. Active and suspended tenants with pending app or plugin versions
+   receive their normal pre-migration recovery marker and backup; current
+   tenants are verified without another backup.
 
 Skip `gh` integration with `./bootstrap.sh --skip-gh-secrets`.
 
@@ -201,7 +205,9 @@ workflow:
    package into the POC ACR
 3. Captures the current web and Job definitions as a rollback artifact
 4. Repairs and manually canaries the one-minute unified worker
-5. Repairs `kmp-migrate`, runs migrations plus both schema-cache clears, and
+5. Repairs `kmp-migrate`, runs application and platform migrations, reconciles
+   backup keys, then migrates every active or suspended tenant with pending
+   versions and fail-fast recovery markers/backups, clears schema caches, and
    requires success
 6. Runs a post-migration worker verification
 7. Atomically updates the web image, skip flags, and split probes
@@ -243,10 +249,10 @@ bash deploy/azure/nightly-deploy.sh deploy-local --recommendations
 # Deploy the already-published GHCR :nightly image instead of building locally.
 bash deploy/azure/nightly-deploy.sh deploy
 
-# Run app + platform migrations against the currently configured image.
+# Run app + platform + tenant fleet migrations against the configured image.
 bash deploy/azure/nightly-deploy.sh migrate
 
-# Run app + platform migrations plus the recommendation migration.
+# Run app + platform + tenant fleet migrations plus the recommendation migration.
 bash deploy/azure/nightly-deploy.sh migrate --recommendations
 
 # Reset all active tenant member passwords to TestPassword.
@@ -268,13 +274,18 @@ it needs to run specific commands (`bin/cake migrations migrate`,
 `bin/cake schema_cache clear`, `bin/cake updateDatabase`,
 `bin/cake platform_migrate migrate`,
 `bin/cake schema_cache clear --connection platform`,
+`bin/cake platform backup-keys ensure`,
+`bin/cake tenant migrate --all --include-suspended --fail-fast`,
 `bin/cake cache clear _cake_model_`,
-`bin/cake platform backup-keys ensure`, and optionally
+and optionally
 `bin/cake awards migrate_award_recommendations --apply --allow-open-manual-review`).
 It restores the Job to the standard
 schema-safe migration contract afterward, so every deployment repairs migration
-drift and clears default, platform, and dynamic tenant metadata before a new web
-revision starts.
+drift in the default, platform, and every active or suspended tenant database
+before a new web revision starts. Current tenants are skipped without a backup;
+pending tenants use the standard pre-migration recovery marker and backup after
+backup-key reconciliation. One tenant failure stops the deployment before web
+cutover, and rerunning resumes by reinspecting each tenant's migration history.
 
 Current custom-host smoke checks expect:
 
@@ -403,8 +414,10 @@ Production deployment is automated from published, non-prerelease GitHub
 releases. `release.yml` builds and smoke-tests the image, addresses it by digest,
 then pauses at the protected `production` environment for approval. Approval
 promotes that exact digest into the production ACR and runs the same ordered
-worker canary, migrations, web cutover, health probes, and retained-job alignment
-used by POC. Production is never deployed from a mutable channel tag.
+worker canary, application/platform/tenant-fleet migrations, web cutover,
+health probes, and retained-job alignment used by POC. Pending active or
+suspended tenant migrations fail fast after creating their standard recovery
+markers and backups. Production is never deployed from a mutable channel tag.
 
 Configure the repository environments and their resource-group-scoped OIDC
 identities idempotently:

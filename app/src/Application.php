@@ -89,6 +89,7 @@ use App\Services\Platform\PlatformQueueDrainService;
 use App\Services\Platform\PlatformScheduleRunner;
 use App\Services\Platform\PlatformWorkerService;
 use App\Services\Platform\QueueDrainService;
+use App\Services\Platform\TenantMigrationCatalog;
 use App\Services\QuickLoginDeviceService;
 use App\Services\Secrets\SecretStoreFactory;
 use App\Services\Secrets\SecretStoreInterface;
@@ -379,6 +380,12 @@ class Application extends BaseApplication implements
     public function middleware(
         MiddlewareQueue $middlewareQueue,
     ): MiddlewareQueue {
+        $tenancyEnabled = filter_var((string)env('KMP_TENANCY_ENABLED', 'false'), FILTER_VALIDATE_BOOLEAN);
+        $requiredTenantSchema = trim((string)env('KMP_REQUIRED_SCHEMA_VERSION', ''));
+        if ($tenancyEnabled && $requiredTenantSchema === '') {
+            $requiredTenantSchema = (new TenantMigrationCatalog())->latestVersion();
+        }
+
         $middlewareQueue
             // 1. Error Handler - Must be first to catch all exceptions
             // Converts exceptions to appropriate HTTP error responses
@@ -583,9 +590,9 @@ class Application extends BaseApplication implements
 
             // 5a. Tenant resolution is disabled by default until platform mode is enabled.
             ->add(new TenantResolutionMiddleware(
-                filter_var((string)env('KMP_TENANCY_ENABLED', 'false'), FILTER_VALIDATE_BOOLEAN),
+                $tenancyEnabled,
                 new TenantConnectionManager(SecretStoreFactory::fromConfig()),
-                (string)env('KMP_REQUIRED_SCHEMA_VERSION', ''),
+                $requiredTenantSchema,
                 new PlatformHealthService(
                     'platform',
                     (int)Configure::read('Platform.health.retryAttempts', 0),
