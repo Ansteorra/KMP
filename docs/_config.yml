@@ -1,6 +1,14 @@
-remote_theme: https://github.com/pages-themes/cayman
+title: KMP Developer Documentation
+description: Architecture, development, extension, testing, and operations guides for Kingdom Management Portal.
+lang: en-US
+url: https://ansteorra.github.io
+baseurl: /KMP
+repository: Ansteorra/KMP
+strict_front_matter: true
+liquid:
+  error_mode: strict
+theme: jekyll-theme-cayman
 plugins:
-  - jekyll-remote-theme
   - jekyll-relative-links
   - jekyll-feed
   - jekyll-seo-tag

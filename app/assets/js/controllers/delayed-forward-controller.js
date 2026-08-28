@@ -53,7 +53,7 @@ import { Controller } from "@hotwired/stimulus";
 class DelayForwardController extends Controller {
     static values = { url: String, delayMs: Number };
 
-    /** @type {number|null} Timer reference for cleanup management */
+    /** Timer reference for cleanup management. @type {number|null} */
     timeout = null;
 
     /**

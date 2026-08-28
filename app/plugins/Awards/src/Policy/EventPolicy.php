@@ -15,7 +15,7 @@ use App\KMP\KmpIdentityInterface;
  *
  * @see \App\Policy\BasePolicy Base authorization functionality
  * @see \Awards\Model\Entity\Event Event entity
- * @see /docs/5.2.9-awards-event-policy.md Full documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.2.9-awards-event-policy.md Full documentation
  */
 class EventPolicy extends BasePolicy
 {

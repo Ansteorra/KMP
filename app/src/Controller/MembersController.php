@@ -1056,7 +1056,7 @@ class MembersController extends AppController
      * Minors get STATUS_UNVERIFIED_MINOR requiring verification.
      * Generates mobile card token and sends appropriate notifications.
      *
-     * @return \\Cake\\Http\\Response|null|void
+     * @return \Cake\Http\Response|null|void
      */
     public function add(TriggerDispatcher $dispatcher)
     {

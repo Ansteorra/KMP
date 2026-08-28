@@ -16,7 +16,7 @@ use Cake\Validation\Validator;
  * @property \App\Model\Table\PermissionsTable&\Cake\ORM\Association\BelongsToMany $Permissions
  * @property \App\Model\Table\MemberRolesTable&\Cake\ORM\Association\HasMany $MemberRoles
  * @method \App\Model\Entity\Role newEmptyEntity()
- * @method \App\Model\Entity\Role get(mixed $primaryKey, ...)
+ * @method \App\Model\Entity\Role get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)
  */
 class RolesTable extends BaseTable
 {

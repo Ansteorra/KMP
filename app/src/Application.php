@@ -189,8 +189,6 @@ use Throwable;
  * - CsvExportService for data export functionality
  *
  * @extends \Cake\Http\BaseApplication<\App\Application>
- * @implements \Authentication\AuthenticationServiceProviderInterface
- * @implements \Authorization\AuthorizationServiceProviderInterface
  * @see \App\Services\NavigationRegistry Navigation system
  * @see \App\KMP\StaticHelpers Application settings management
  * @see \App\Services\AuthorizationService Custom authorization logic

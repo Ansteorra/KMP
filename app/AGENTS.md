@@ -45,6 +45,8 @@ Own the CakePHP application runtime: PHP source, configuration, templates, front
 | PHP regression suite | `composer test` |
 | Targeted PHPUnit | `vendor/bin/phpunit --testsuite core-unit`, `core-feature`, or `plugins` |
 | JavaScript unit tests | `npm run test:js` |
+| Markdown and JSDoc integrity | `npm run docs:check && npm run docs:js:check` |
+| PHP API docblocks | `composer docs:php` |
 | Vite build | `npm run dev` |
 | Playwright UAT lane | `npm run test:ui` |
 

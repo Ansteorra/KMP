@@ -45,7 +45,7 @@ use App\Model\Entity\BaseEntity;
  * @property \Officers\Model\Entity\Office[] $deputies Child deputy offices
  * @property \Officers\Model\Entity\Office[] $direct_reports Child offices in reporting hierarchy
  * @property \Officers\Model\Entity\Officer[] $officers All officer assignments
- * @see /docs/5.1-officers-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.1-officers-plugin.md
  * @see \Officers\Model\Table\OfficesTable
  */
 class Office extends BaseEntity

@@ -5,6 +5,12 @@ app/webroot/bootstrap_u_i
 scratch.txt
 docs/_site
 docs/.sass-cache
+
+# Generated API references are built from source; never commit rendered HTML.
+/docs/api/php/
+/docs/api/js/
+/docs/.api-docs-build.*
+/docs/.api-docs.lock
 docs/vendor/
 app/.phpunit.cache/test-results
 nohup.out

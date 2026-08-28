@@ -40,7 +40,7 @@ use Cake\ORM\TableRegistry;
  * @property \App\Model\Entity\MemberRole $member_role
  * @property \App\Model\Entity\Member $revoked_by
  * @see \Activities\Model\Table\AuthorizationsTable Table class
- * @see 5.6.7-authorization-entity-reference.md Complete documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.6.7-authorization-entity-reference.md Complete documentation
  */
 class Authorization extends ActiveWindowBaseEntity
 {

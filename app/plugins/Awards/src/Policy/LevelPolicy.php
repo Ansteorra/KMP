@@ -14,6 +14,6 @@ use App\Policy\BasePolicy;
  *
  * @see \App\Policy\BasePolicy Base authorization functionality
  * @see \Awards\Model\Entity\Level Level entity
- * @see /docs/5.2.11-awards-level-policy.md Full documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.2.11-awards-level-policy.md Full documentation
  */
 class LevelPolicy extends BasePolicy {}

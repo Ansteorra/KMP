@@ -73,13 +73,19 @@
 -->
 
 - What happens when [boundary condition]?
-- How does system handle [error scenario]?
+- How does the system handle [error scenario]?
+- Which tenant or platform host/context owns this behavior, and what happens for an unresolved, disabled, or suspended tenant?
+- How is cross-tenant access or mutation prevented and verified?
+- What keyboard, focus, announcement, contrast, and non-color behavior is required?
 
 ## Requirements *(mandatory)*
 
 <!--
   ACTION REQUIRED: The content in this section represents placeholders.
   Fill them out with the right functional requirements.
+  For every data-affecting requirement, state whether it is tenant-scoped,
+  platform-scoped, or intentionally spans both. Include authorization and
+  cross-tenant denial requirements where applicable.
 -->
 
 ### Functional Requirements
@@ -104,7 +110,9 @@
 
 <!--
   ACTION REQUIRED: Define measurable success criteria.
-  These must be technology-agnostic and measurable.
+  These must be technology-agnostic and measurable. Include observable
+  accessibility, authorization, tenant-isolation, and failure outcomes when
+  they are part of the feature.
 -->
 
 ### Measurable Outcomes

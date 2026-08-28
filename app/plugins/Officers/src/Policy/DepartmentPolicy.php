@@ -16,7 +16,7 @@ use App\Model\Entity\BaseEntity;
  * Controls entity-level access for Department operations including viewing,
  * creation, modification, and administrative management.
  *
- * @see /docs/5.1-officers-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.1-officers-plugin.md
  */
 class DepartmentPolicy extends BasePolicy
 {

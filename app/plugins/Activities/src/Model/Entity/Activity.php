@@ -37,7 +37,7 @@ use App\Model\Entity\BaseEntity;
  * @see \App\Model\Entity\Role Role granting functionality
  *
  * @package Activities\Model\Entity
- * @since KMP 1.0
+ * @since 1.0.0
  */
 class Activity extends BaseEntity
 {
@@ -51,7 +51,7 @@ class Activity extends BaseEntity
      * See `/docs/5.6.5-activity-security-patterns.md` for comprehensive security documentation.
      *
      * @var array<string, bool> Field accessibility configuration
-     * @since KMP 1.0
+     * @since 1.0.0
      */
     protected array $_accessible = [
         "name" => true,

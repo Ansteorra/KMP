@@ -16,7 +16,7 @@ use Cake\ORM\Query\SelectQuery;
  * Provides table-level authorization control for Offices table operations.
  * Implements query scoping via scopeGridData() which delegates to scopeIndex().
  *
- * @see /docs/5.1-officers-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.1-officers-plugin.md
  */
 class OfficesTablePolicy extends BasePolicy
 {

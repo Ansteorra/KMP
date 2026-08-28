@@ -1,6 +1,6 @@
 # KMP coding instructions
 
-KMP is a CakePHP 5 application with a Laravel Mix/Webpack frontend, Stimulus controllers, Bootstrap UI, Turbo Frames, and first-party CakePHP plugins. Use these instructions as the source of truth for coding sessions in this repository.
+KMP is a PHP 8.4 and CakePHP 5.4 application with a Vite frontend, Stimulus controllers, Bootstrap UI, Turbo Frames, and first-party CakePHP plugins. Use these instructions as the source of truth for coding sessions in this repository.
 
 ## First principles
 
@@ -27,7 +27,7 @@ app/
     Queue/Task/          Async queue tasks
   templates/             CakePHP templates and reusable elements
   assets/js/             Frontend entrypoint, utilities, Stimulus controllers
-  assets/css/            CSS entry files bundled by Laravel Mix
+  assets/css/            CSS entry files bundled by Vite
   plugins/               First-party plugins
   tests/                 PHPUnit, Jest, and Playwright tests
 ```
@@ -45,13 +45,15 @@ Run commands from `app/` unless noted.
 | Targeted PHPUnit suite | `vendor/bin/phpunit --testsuite core-unit`, `core-feature`, or `plugins` |
 | Targeted PHPUnit file/filter | `vendor/bin/phpunit path/to/Test.php` or `vendor/bin/phpunit --filter TestName` |
 | JavaScript unit tests | `npm run test:js` |
-| Webpack/Laravel Mix build | `npm run dev` |
+| Markdown and JSDoc integrity | `npm run docs:check && npm run docs:js:check` |
+| Vite development build | `npm run dev` |
 | Curated Playwright journey | `npm run test:ui:journey` |
 | Playwright BDD tests | `npm run test:ui` |
 | PHP code style on changed files | `vendor/bin/phpcs path/to/file.php` |
 | PHPStan | `vendor/bin/phpstan analyse --no-progress` |
+| Clean API references (repository root) | `./generate_api_docs.sh` |
 
-`bin/verify.sh` runs PHPUnit, Jest, Webpack, PHPCS for changed PHP files under `app/src`, `app/plugins`, and `app/tests`, and PHPStan. `app/phpstan.neon` currently has no analysis level configured, so PHPStan may report "No rules detected"; do not invent a new level unless the task is specifically about static analysis configuration.
+`bin/verify.sh` runs the three PHPUnit suites, the skipped-test budget, seed snapshot contracts, Jest, Markdown and JSDoc integrity checks, a Vite development build, the Azure runtime contract, PHPCS for changed PHP files, and PHPStan. Coverage and mutation lanes are opt-in flags; Playwright remains a separate lane.
 
 Playwright lanes share the local Docker app, DB, worker, scheduler, and Mailpit containers. Run only one lane at a time; concurrent E2E lanes can race database resets, queue delivery, scheduler runs, and mailbox assertions. Use `PLAYWRIGHT_RESET_DB=0` only for targeted reruns after a lane reset has already completed.
 
@@ -143,7 +145,7 @@ Do not run `phpcbf` across the whole codebase. The PHPCS config intentionally ex
 
 - Templates live under `app/templates` or `app/plugins/PluginName/templates` using CakePHP's lowercase/snake_case conventions.
 - Escape output with `h()` unless rendering already-sanitized HTML.
-- Use existing helpers: `KmpHelper`, `TimezoneHelper`, `MarkdownHelper`, AssetMix integration, BootstrapUI patterns, and reusable elements.
+- Use existing helpers: `KmpHelper`, `TimezoneHelper`, `MarkdownHelper`, `ViteHelper`, BootstrapUI patterns, and reusable elements.
 - Keep data transformation in controllers/services/helpers, not templates.
 - Preserve Turbo Frame IDs and Stimulus data attributes; tests often depend on them.
 
@@ -197,10 +199,18 @@ Do not run `phpcbf` across the whole codebase. The PHPCS config intentionally ex
 - Register enabled plugins and migration order in `app/config/plugins.php`.
 - Register plugin view cells, navigation, routes, migrations, policies, and assets using the existing registry/bootstrap patterns.
 - Keep plugin code isolated unless shared behavior belongs in core `app/src`.
+- Add each production PHP `src` directory to `app/phpdoc.dist.xml`; the explicit list prevents tests, templates, and migrations from leaking into the API reference.
+
+## Multi-tenant boundaries
+
+- Tenant resolution is host-based through `TenantResolutionMiddleware`; never infer tenant identity from request data alone.
+- Tenant queries, cache entries, documents, jobs, backups, and tests must use the resolved tenant context. Platform registry and fleet operations use the separate platform connection.
+- Local examples are `kmp.localhost:8080`, `kmp2.localhost:8080`, and `platform.kmp.localhost:8080/platform-admin`; do not replace them with bare `localhost` in tenant-sensitive examples.
+- Test both the intended tenant and cross-tenant denial. Treat platform-admin authorization and tenant authorization as separate boundaries.
 
 ## JavaScript and frontend
 
-- Build assets with Laravel Mix (`app/webpack.mix.js`), not Vite.
+- Build assets with Vite (`app/vite.config.js`); do not add Laravel Mix or Webpack configuration.
 - Place application controllers in `app/assets/js/controllers/*-controller.js`; plugin controllers go under `app/plugins/PluginName/assets/js/controllers`.
 - Controllers extend `@hotwired/stimulus` `Controller` and register through the global registry:
 
@@ -217,7 +227,7 @@ Do not run `phpcbf` across the whole codebase. The PHPCS config intentionally ex
 - Use namespaced custom events for cross-component communication, such as `offline-queue:*` or controller-specific prefixes.
 - Turbo Drive is disabled in `assets/js/index.js`; Turbo Frames remain in use. Do not re-enable Drive without a focused compatibility review.
 - Use `KMP_utils` for URL and sanitization helpers and `KMP_accessibility` for accessible alert/confirm/prompt/announce flows.
-- Bootstrap is globally provided by Webpack. Use Bootstrap classes and components consistently with existing templates.
+- Bootstrap is imported by the frontend entrypoint and bundled by Vite. Use Bootstrap classes and components consistently with existing templates.
 - Keep controllers accessibility-aware: preserve focus, update ARIA state (`aria-expanded`, `aria-selected`, `aria-busy`, etc.), avoid inaccessible hidden content, and announce async results when needed.
 
 ## JavaScript tests
@@ -243,7 +253,7 @@ Do not run `phpcbf` across the whole codebase. The PHPCS config intentionally ex
 - Plugin-focused tests should extend the plugin integration support classes already under `tests/TestCase/Support`.
 - Use seeded constants from `BaseTestCase` instead of duplicating magic member/branch IDs.
 - Use `$this->reseedDatabase()` only when a test performs destructive operations that require a full reset.
-- Playwright uses `app/playwright.config.js` with `playwright-bdd`; features live in `app/tests/ui/bdd`, generated specs in `app/tests/ui/gen`, and reports in `app/tests/ui-reports`.
+- Playwright uses `app/playwright.config.cjs` with `playwright-bdd`; features live in `app/tests/ui/bdd`, generated specs in `app/tests/ui/gen`, and reports in `app/tests/ui-reports`.
 
 ## Database and migrations
 
@@ -268,7 +278,7 @@ Do not run `phpcbf` across the whole codebase. The PHPCS config intentionally ex
 - Do not revert or overwrite user changes. Inspect `git status` before and after edits.
 - Use conventional commit messages when creating commits.
 - Update docs when changing behavior, public commands, plugin setup, or developer workflow.
-- For documentation-only edits, a full app verification run is usually unnecessary; at minimum inspect the diff for formatting and accuracy.
+- For documentation-only edits, a full app verification run is usually unnecessary; inspect the diff and run `npm run docs:check`. Run the Jekyll build when site structure or configuration changes.
 - For code edits, run targeted tests first and the broader verification command when practical.
 
 ## Release operations

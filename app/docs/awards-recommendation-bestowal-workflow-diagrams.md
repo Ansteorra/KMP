@@ -1,217 +1,128 @@
-# Awards recommendation + bestowal workflow diagrams
+# Awards workflow interaction diagrams
 
-This document summarizes the current **implemented** workflow behavior for Awards recommendations and bestowals, based on the seeded workflow definitions and the current Awards services/policies.
+These diagrams complement
+[`awards-recommendation-approvals-redesign.md`](./awards-recommendation-approvals-redesign.md).
+They summarize implemented interactions; the seeded JSON definitions, services, policies, and
+tests remain authoritative.
 
-## 1) End-to-end recommendation processing
+## Approval to bestowal
 
 ```mermaid
 flowchart LR
-    A["Recommendation request<br/>New or Existing"] --> B["StartApprovalProcess<br/>Awards.RecommendationApprovalRun"]
-    B --> C{"Approval step complete?"}
-    C -- "No" --> D["Approval node<br/>Award Approval Gate"]
-    D --> E["AdvanceApprovalProcess"]
-    E --> J{"Approval run closed?"}
-    J -- "No: next/approved" --> C
-    J -- "Yes: rejected" --> K["TransitionRecommendation<br/>No Action / Closed"]
-    C -- "Yes" --> F["CreateBestowal action<br/>Awards.CreateBestowal"]
-    F --> G["BestowalHandoffService<br/>eligibility checks"]
-    G --> H["BestowalCreationService<br/>create bestowal + links"]
-    H --> I["Bestowal owned lifecycle"]
+    Q["Create or restart recommendation request"] --> W["Seeded workflow definition"]
+    W --> P["Start ApprovalProcess snapshot"]
+    P --> A{"Current approval gate"}
+    A -- more steps --> P
+    A -- changes requested --> P
+    A -- rejected --> R["Run closed\nRecommendation: No Action"]
+    A -- final approval --> H["BestowalHandoffService"]
+    H --> B["Create open Bestowal + links\nconsume approval run"]
+    B --> T["Materialize To-Dos"]
+    B --> S["Project gathering/lifecycle\nto linked recommendations"]
 ```
 
-## 2) Approval ownership and visibility model
+The final step chooses any required gathering through the approval response contract. The
+handoff service rechecks eligibility and active-run state inside the transaction. Controllers
+must dispatch triggers or call the owning service, never manufacture workflow rows or bestowal
+links directly.
+
+## Linking, grouping, and cancellation
 
 ```mermaid
 flowchart TD
-    A["Recommendation with approval run"] --> B{"Run status"}
-    B -- "in_progress / changes_requested" --> C["Active cycle"]
-    B -- "approved / consumed / closed / cancelled" --> D["Inactive cycle"]
+    L["Link recommendation"] --> V["Validate recipient, grouping,\nand active-bestowal ownership"]
+    V --> J["Create/reuse join + shortcut"]
+    J --> X["Supersede active approval run\nwith terminal provenance"]
+    X --> S["Synchronize recommendation projection"]
 
-    C --> E{"User in current pending approver set?"}
-    E -- "Yes" --> F["View + Edit + Request feedback"]
-    E -- "No" --> G["No visibility via approval path"]
+    U["Unlink recommendation"] --> K["Require at least one remaining link"]
+    K --> C["Clear projection, shortcut, and join"]
+    C --> PR["Recompute primary and notes"]
+    PR --> RH["Rehydrate approval when eligible"]
 
-    D --> H{"retain_read_visibility on prior step?"}
-    H -- "Yes + user responded previously" --> I["Read-only visibility"]
-    H -- "No" --> J["Fallback to branch/level policy only"]
+    G["Group/ungroup/remove child"] --> E["Check member compatibility and\ncurrent-approver authority"]
+    E --> GL["Preserve head; supersede or\nrestart child run as required"]
+
+    CB["Cancel open bestowal"] --> CL["Lock owner; set cancelled; clear\nlinks, joins, and gathering projection"]
+    CL --> RH
 ```
 
-## 3) Bestowal lifecycle and recommendation projection
+These operations span multiple tables and workflow records. Keep them within their existing
+service transaction and lock order. A `given` bestowal cannot be cancelled; a grouped child
+cannot be independently handed off; an active recommendation cannot silently retain two
+owners.
+
+## To-Do materialization and finalization
 
 ```mermaid
 flowchart LR
-    A["Open without gathering"] --> B["Open with gathering"]
-    A --> C["Given"]
-    B --> C
-    A --> X["Cancelled"]
-    B --> X
-
-    A -. "sync rec: Scheduling / Need to Schedule" .-> R1["Recommendation"]
-    B -. "sync rec: To Give / Scheduled" .-> R1
-    C -. "sync rec: Closed / Given" .-> R1
-    X -. "clear link + rehydrate approval" .-> R1
+    D["Selected To-Do template"] --> M["Materialize keyed Action Items"]
+    M --> F["Required-field reconciliation\nuntil stable"]
+    F --> G{"All gating items complete?"}
+    G -- no --> O["Bestowal remains open"]
+    G -- yes + authorized request --> L["Lock and recheck owner + gates"]
+    L --> V["Set lifecycle given\nrecord bestowed_at"]
+    V --> S["Project Given to recommendations"]
 ```
 
-## 4) Linking, unlinking, grouping, and cancellation interactions
+Required-field items may auto-complete when their authoritative field becomes satisfied and
+reopen when it stops being satisfied. Completion events are deferred until the reconciliation
+batch is stable. Auto-completion or definition synchronization never independently marks the
+bestowal given.
 
-```mermaid
-flowchart TD
-    L1["Link recommendation to bestowal"] --> L2["assertLinkable:<br/>not grouped child<br/>member match<br/>not on another active bestowal"]
-    L2 --> L3["Create/reuse join row"]
-    L3 --> L4["Cancel/supersede active approval runs<br/>terminal_reason = superseded_by_bestowal_link"]
-    L4 --> L5["Sync shortcut + state<br/>refresh primary rec + notes"]
+Template synchronization is scoped to one template and only open bestowals assigned to it
+whose stored signature is absent or stale:
 
-    U1["Unlink recommendation"] --> U2["Must leave >= 1 linked recommendation"]
-    U2 --> U3["Clear bestowal projection"]
-    U3 --> U4["Clear recommendation.bestowal_id"]
-    U4 --> U5["Delete join row"]
-    U5 --> U6["Refresh primary rec + notes"]
-    U6 --> U7["Rehydrate approval if prior run was consumed/superseded"]
+- matching item keys retain status, completion data, and log history while mutable snapshots
+  are refreshed;
+- new keys create open items;
+- removed keys become cancelled history;
+- a returned key reopens only when its latest cancellation came from synchronization;
+- an assigned template with zero items intentionally retires all prior active items;
+- terminal, unrelated, already-current, or unresolvable records are skipped and reported;
+- bounded reconciliation passes make prerequisite chains independent of template sort order.
 
-    G1["Group / Ungroup / Remove child"] --> G2["assertGroupingPermitted"]
-    G2 --> G3{"Active approval run exists?"}
-    G3 -- "Yes" --> G4["Allowed only if actor is current pending approver for every active run"]
-    G3 -- "No" --> G5["Allowed if member compatibility passes"]
+Materialization, synchronization, item transitions, cancellation, and finalization share the
+persisted-owner-before-item lock order. Once the bestowal is `given` or `cancelled`, queued item
+changes and direct synchronization are rejected.
 
-    C1["Cancel bestowal"] --> C2["Reject if Given/already Cancelled"]
-    C2 --> C3["Set lifecycle_status = cancelled"]
-    C3 --> C4["Clear recommendation.bestowal_id + gathering_id"]
-    C4 --> C5["Delete active join rows"]
-    C5 --> C6["Mark consumed/superseded approval runs cancelled<br/>rehydrate approval when needed"]
-```
-
-## 5) Bestowal preparation To-Dos
-
-```mermaid
-flowchart LR
-    A["Event Scheduled<br/>assigns bestowal gathering"] --> B["Added to Agenda"]
-    B --> C["Given"]
-    A -. "gating" .-> D["Mark Given enabled only after all gating To-Dos complete"]
-    B -. "gating" .-> D
-    C -. "gating" .-> D
-```
-
-The default bestowal checklist requires **Event Scheduled**, **Added to Agenda**, and **Given** before a bestowal can be marked given. **Added to Agenda** is blocked until **Event Scheduled** is complete because the court agenda imports bestowals from the assigned gathering.
-
-Required-field To-Dos can opt into system auto-close with `auto_complete_when_satisfied`. The built-in **Event Scheduled** and **Added to Agenda** items use this flag: once the bestowal has an assigned gathering, or a valid court/roaming assignment respectively, the ActionItem service records a system completion note and closes the satisfied To-Do. If a required field is later cleared, the same synchronization reopens the completed To-Do with a system audit note.
-
-### Synchronizing work already in flight
-
-Each approval process detail page exposes a confirmed POST action only when open recommendations assigned to that
-process use an older process snapshot or published workflow version. Each bestowal To-Do template detail page exposes
-the same style of action only when open bestowals assigned to that template use an older or missing template signature.
-Results include bounded item IDs, expected skip reasons, and fixed failure categories; unexpected exception details
-remain in server logs.
-
-```mermaid
-flowchart LR
-    A["Sync current configuration"] --> B{"Open item type"}
-    B -- "Outdated recommendation assigned to selected process" --> C["Cancel active runs, instances, and pending gates"]
-    C --> D["Start one current workflow at its first approval step"]
-    D --> E["Keep old responses only as cancelled-run history"]
-    B -- "Outdated bestowal assigned to selected template" --> I["Resolve selected current To-Do template"]
-    I --> J["Update matching keys; add new keys"]
-    J --> K["Audit-cancel removed keys; reopen returned sync-cancelled keys"]
-```
-
-Recommendation synchronization only considers eligible recommendations assigned to the selected process whose stored
-process signature or workflow version is older than current configuration. It audit-cancels all active runs, workflow
-instances, and pending gates, then starts exactly one workflow from the selected process at its first step. Existing responses remain
-on the cancelled gates for history but are not copied and do not count in the replacement. The reset is atomic per
-recommendation and failures are isolated. Closed, approved, deleted, bestowal-owned, grouped-child, and otherwise
-ineligible records are not restarted. Synchronization cannot approve a recommendation or create a bestowal. The
-replacement is current, so a repeat sync is unavailable until the selected process changes again.
-
-Bestowal synchronization is scoped to one template and scans only lifecycle `open` bestowals assigned to it whose
-stored template signature is missing or differs from the current definition. Successful initial materialization and
-synchronization store the current signature, so the detail-page count and action clear after synchronization while
-terminal, unrelated, and already-current bestowals are never considered. Matching ActionItems keep their status,
-completion data, and log history while mutable title, assignment, branch, gating, ordering, and completion-requirement snapshots are refreshed.
-New keys create open items. Removed keys are cancelled with a system audit note, and a returned key reopens only when
-its latest cancellation was made by this synchronization. Missing assignments/templates are reported as identifiable
-safe skips; an existing assigned template with zero items is authoritative and cancels all prior active items. An
-explicit Required field `None` is stored as such and does not inherit legacy defaults from a built-in item key.
-Cancelled items are retired history and do not appear in active grid counts or gating progress. Required-field reconciliation uses bounded passes until no item changes, so prerequisite
-chains converge during the same synchronization regardless of template sort order. Completion events are deferred until
-the whole required-field batch is stable, so a gating listener cannot make the owner terminal while later items are still
-being reconciled. Definition synchronization does not emit an actor-authorized completion event and therefore cannot
-implicitly mark a bestowal Given.
-Materialization, synchronization, ActionItem transitions, and finalization use one persisted-owner-before-item lock
-order. Cancellation uses that same bestowal mutex. Finalization reacquires the lock and rechecks lifecycle and gating
-readiness, preventing a concurrent template sync from adding or reopening a gating item after the readiness check but
-before the Given transition. Once the owner is Given or cancelled, queued ActionItem transitions and direct definition
-synchronization are rejected, and initial materialization/its backfill command select open lifecycle only, so terminal
-bestowals cannot regain open gating work.
-
-Ad-hoc bestowals may be linked to an existing member account or recorded with only the recipient SCA name, matching recommendation submission for recipients who are not registered in KMP.
-
-## 6) Data interaction map
+## Runtime data map
 
 ```mermaid
 flowchart LR
     R["awards_recommendations"] <--> AR["awards_recommendation_approval_runs"]
-    R <--> BR["awards_bestowal_recommendations"]
-    B["awards_bestowals"] <--> BR
-    W["workflow_instances / workflow_approvals / responses"] --> AR
-
-    H["BestowalHandoffService"] --> AR
-    H --> B
-    H --> BR
-    H --> R
-    H --> L["RecommendationApprovalWorkflowLifecycleService"]
-
-    S["BestowalRecommendationSyncService"] --> B
-    S --> R
-
-    C["BestowalCancellationService"] --> B
-    C --> R
-    C --> BR
-    C --> L
-
-    G["RecommendationGroupingService"] --> R
-    G --> L
-    G --> W
-
-    L --> AR
-    L --> W
+    AR --> W["workflow_instances / approvals / responses"]
+    R <--> J["awards_bestowal_recommendations"]
+    B["awards_bestowals"] <--> J
+    B --> AI["action_items"]
+    T["bestowal To-Do templates"] --> AI
 ```
 
-## 7) Workflow definitions currently in play
+All rows shown are tenant-local. IDs are meaningful only inside the resolved tenant database.
 
-| Definition file | Trigger event | Key actions in flow |
-| --- | --- | --- |
-| `awards-recommendation-submitted.json` | `Awards.RecommendationCreateRequested` | `CreateRecommendation` -> `StartApprovalProcess` -> approval loop -> `CreateBestowal` |
-| `awards-existing-recommendation-approval.json` | `Awards.ExistingRecommendationApprovalRequested` | `StartApprovalProcess` -> approval loop -> `CreateBestowal` |
-| `awards-bestowal-transition.json` | `Awards.BestowalTransitionRequested` | `TransitionBestowal` -> `SyncRecommendationsFromBestowal` |
-| `awards-bestowal-update.json` | `Awards.BestowalUpdateRequested` | `UpdateBestowal` (link/unlink + transition + sync) |
-| `awards-bestowal-bulk-transition.json` | `Awards.BestowalBulkTransitionRequested` | `BulkTransitionBestowals` |
-| `awards-bestowal-cancel.json` | `Awards.BestowalCancelRequested` | `CancelBestowal` (clear projection + unlink cleanup + approval rehydration) |
-| `awards-bestowal-cancelled.json` | `Awards.BestowalCancelled` | notification flow |
-| `awards-recommendations-group.json` | `Awards.RecommendationsGroupRequested` | `GroupRecommendations` |
-| `awards-recommendations-ungroup.json` | `Awards.RecommendationsUngroupRequested` | `UngroupRecommendations` |
-| `awards-recommendation-remove-from-group.json` | `Awards.RecommendationRemoveFromGroupRequested` | `RemoveRecommendationFromGroup` |
+## Seeded workflow families
 
-## 8) Team test checklist by flow
+| Definitions | Responsibility |
+| --- | --- |
+| `awards-recommendation-submitted.json`, `awards-existing-recommendation-approval.json` | Start or restart approval and hand off an approved result |
+| `awards-recommendation-updated.json`, `awards-recommendation-deleted.json` | Keep workflow lifecycle consistent with recommendation changes |
+| `awards-recommendations-group.json`, `awards-recommendations-ungroup.json`, `awards-recommendation-remove-from-group.json` | Group mutation and approval cleanup/rehydration |
+| `awards-bestowal-created.json`, `awards-bestowal-transition.json`, `awards-bestowal-update.json`, `awards-bestowal-bulk-transition.json` | Bestowal creation/update/transition and projection |
+| `awards-bestowal-cancel.json`, `awards-bestowal-cancelled.json` | Transactional cancellation and notification |
+| `awards-bestowal-ad-hoc.json` | Controlled bestowal creation outside a recommendation handoff |
 
-| Flow | Primary actor | Expected owner of next action | Must verify |
-| --- | --- | --- | --- |
-| Submit recommendation | Requester | Current pending approver set | Approval run created, only current approvers see active item |
-| Active approval edit/feedback | Current approver | Current approver | Can edit + request feedback; non-current cannot |
-| Multi-step approval advance | Current approver | Next configured approver set | Pending set rotates, previous step visibility retained only when configured |
-| Synchronize outdated approvals for one process | Award workflow synchronizer | Current configured approver set | Considers only outdated open work assigned to the selected process; cancels it and starts at the first current step; old responses remain history but do not carry forward; terminal and unrelated work is untouched; synchronization creates no bestowal |
-| Approval complete -> bestowal create | Final approver/workflow action | Bestowal workflow owner(s) | Only the final approval step selects the bestowal gathering; handoff blocks active runs, bestowal created with source approval provenance, approved run marked consumed |
-| Link recommendation to existing bestowal | Noble/admin path | Bestowal workflow owner(s) | Active approval run cancelled/superseded, member match enforced, grouped child blocked |
-| Unlink recommendation | Noble/admin path | Recommendation workflow owner(s) | Bestowal projection and unwind state applied, shortcut cleared, join row removed, primary recomputed, approval rehydrated when prior run was consumed/superseded |
-| Group/ungroup during approval | Current approver or admin override | Head keeps its active approvers; ungrouped child gets its current configured approvers | Grouping is denied for a non-current approver and cancels child runs as superseded; in-flight ungroup restores the child's origin state and starts a clean current-process run; old responses do not carry; bestowal-linked records remain locked |
-| Bestowal transition to court states | Bestowal owner(s) | Bestowal owner(s) | Recommendation projection state sync follows mapping |
-| Bestowal cancellation | Bestowal owner(s) | Recommendation workflow owner(s) | Cancel denied for Given; Bestowal projection and unwind state applied, links and shortcuts cleared, active join rows deleted, consumed/superseded approval runs cancelled and rehydrated when needed |
-| Synchronize outdated bestowal To-Dos for one template | Award workflow synchronizer | Current template assignees | Considers only outdated open bestowals assigned to the selected template; matching history preserved; required fields converge independent of template order; synchronization never marks Given |
-| Turnover/reassignment events | System + admins | New eligible approvers | Pending approver set reflects new eligibility without leaking old active queue access |
+Files live under `config/Seeds/WorkflowDefinitions/` and node implementations are registered by
+`plugins/Awards/src/Services/AwardsWorkflowProvider.php`.
 
-## 9) High-risk regression points
+## High-risk verification
 
-1. Approval lifecycle must be driven by `Awards.RecommendationApprovalRuns` plus workflow runtime rows, not recommendation state/status.
-2. Active approval visibility scoping must stay limited to current pending approvers for active cycles.
-3. Link integrity between `recommendation.bestowal_id` and `awards_bestowal_recommendations`.
-4. Group-child guardrails preventing direct child linking/handoff, including active runs on group heads.
-5. Cancellation/unlink cleanup consistency: recommendation projection, shortcut clear, join-row delete, approval-run terminal reason, and rehydration must stay together.
+For a touched flow, test both authorization and state integrity:
+
+1. current versus non-current approver visibility and response eligibility;
+2. multi-step advance, feedback, rejection, approval, consumption, and terminal provenance;
+3. outdated-process restart without carrying response credit or touching unrelated work;
+4. link/unlink/group/cancel atomicity, primary-link repair, and approval rehydration;
+5. bestowal projection for no gathering, scheduled, announced-not-given, given, and cancelled;
+6. To-Do template synchronization, required-field reopen, gating, and concurrent finalization;
+7. award-branch scope for bestowal/court/To-Do access; and
+8. the same identifiers in a second tenant remaining invisible and unchanged.

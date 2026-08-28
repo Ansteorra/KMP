@@ -15,7 +15,7 @@ use Cake\Log\Log;
  * allowing administrators to see and manage award-activity associations.
  * 
  * @see \Awards\Services\AwardsViewCellProvider View cell registration
- * @see /docs/5.2.17-awards-services.md Full documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.2.17-awards-services.md Full documentation
  */
 class ActivityAwardsCell extends Cell
 {

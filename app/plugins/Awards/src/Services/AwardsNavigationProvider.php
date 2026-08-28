@@ -14,7 +14,7 @@ use App\Model\Entity\Member;
  * grid tabs (same pattern as Recommendations and Bestowals index).
  *
  * @see \App\KMP\StaticHelpers Plugin availability checking
- * @see /docs/5.2.17-awards-services.md Full documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.2.17-awards-services.md Full documentation
  */
 class AwardsNavigationProvider
 {

@@ -17,7 +17,7 @@ use App\KMP\KmpIdentityInterface;
  * validation, API tokens, and infrastructure-level protections.
  *
  * @package GitHubIssueSubmitter\Policy
- * @see /docs/5.4-github-issue-submitter-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.4-github-issue-submitter-plugin.md
  */
 class IssuesControllerPolicy extends \App\Policy\BasePolicy
 {

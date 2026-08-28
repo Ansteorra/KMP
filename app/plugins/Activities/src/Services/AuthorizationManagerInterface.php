@@ -17,8 +17,8 @@ use App\Services\ServiceResult;
  *
  * @package Activities\Services
  * @see \Activities\Services\DefaultAuthorizationManager Default implementation
- * @see /docs/5.6.1-activities-plugin-architecture.md For architecture details
- * @see /docs/5.6-activities-plugin.md For workflow documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.6.1-activities-plugin-architecture.md For architecture details
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.6-activities-plugin.md For workflow documentation
  */
 interface AuthorizationManagerInterface
 {

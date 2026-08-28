@@ -14,6 +14,6 @@ use App\Policy\BasePolicy;
  *
  * @see \App\Policy\BasePolicy Base authorization functionality
  * @see \Awards\Model\Entity\RecommendationsStatesLog State log entity
- * @see /docs/5.2.14-awards-recommendations-states-log-policy.md Full documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.2.14-awards-recommendations-states-log-policy.md Full documentation
  */
 class RecommendationsStatesLogPolicy extends BasePolicy {}

@@ -1,109 +1,34 @@
-# Container Build Optimization Summary
+# Dev-container build and startup design
 
-## Overview
-This optimization moves time-consuming operations from the post-start script (`config_space.sh`) to the Dockerfile, significantly reducing container startup time.
+The dev container moves slow, reusable tool installation into `.devcontainer/Dockerfile` and leaves workspace-dependent provisioning in `.devcontainer/init_env/config_space.sh`. This is an architectural summary; inspect those files for exact package versions and commands.
 
-## Changes Made
+## Image build responsibilities
 
-### Moved to Dockerfile (Build Time)
-The following operations are now performed during the Docker image build process:
+The Dockerfile currently provides:
 
-1. **System Packages Installation**
-   - Consolidated all `apt-get install` commands
-   - Added Java JDK installation
-   - Installed all required Perl modules and system dependencies
+- PHP 8.4, Apache, Composer, Node.js, npm, Playwright dependencies, Java, Go, and development utilities;
+- PostgreSQL 16, matching the deployed Azure PostgreSQL major version;
+- MariaDB and PHP MySQL extensions for intentional compatibility testing;
+- Mailpit, Xdebug, mermerd, and the security tools used by local workflows;
+- Apache, supervisor, runtime permissions, and architecture-aware tool setup.
 
-2. **Tool Installations**
-   - **PHPUnit**: Downloaded and installed during build
-   - **Go Language**: Architecture-specific Go installation
-   - **Mermerd**: Go tool compilation during build
-   - **Mailpit**: Binary installation and service setup
-   - **Security Tools**: ZAP, Dependency Check, Nikto, SQLMap, Security Checker, Nuclei
+Dependency and tool downloads occur during image build, so a rebuild is slower than a normal restart but repeated container starts avoid reinstalling the full toolchain. Do not record fixed build/startup timings here because host resources, caches, and network conditions vary.
 
-3. **Configuration Setup**
-   - **Xdebug**: Configuration file copied during build
-   - **PHP Configuration**: APCu and assertions configured
-   - **Java Environment**: JAVA_HOME setup
-   - **Apache**: Basic configuration and module enabling
-   - **Mailpit Service**: Init script setup
+## Post-start responsibilities and side effects
 
-4. **Development Tools**
-   - **Playwright**: System dependencies installed
-   - **Environment Setup**: Go PATH configuration for vscode user
+`config_space.sh` depends on the mounted workspace and runtime environment. It starts Apache, PostgreSQL, MariaDB, Mailpit, and cron; provisions development/test databases; writes local application configuration; installs project dependencies; runs bootstrap and database setup; applies permissions; and configures the queue cron entry.
 
-### Kept in Post-Start Script (Runtime)
-These operations remain in the post-start script because they require:
-- Running services (MariaDB)
-- Mounted workspace files
-- Runtime environment variables
+The post-start path is state-changing and currently invokes the database reset/setup workflow. Do not point it at shared or production data. Review the script before changing database environment variables or rerunning it manually.
 
-1. **Service Starting**
-   - MariaDB service startup
-   - Apache service restart
-   - Mailpit service startup
-   - Cron service startup
+Docker Compose and deployed environments use PostgreSQL. The dev container provisions both PostgreSQL and MariaDB, and its generated environment selects the active engine through the current connection settings. Documentation and tests must state which engine and connection they exercise.
 
-2. **Database Setup**
-   - MySQL user creation
-   - Database creation
-   - Permissions setup
+## Relevant files
 
-3. **Project-Specific Setup**
-   - Environment file creation with runtime variables
-   - Application configuration copying
-   - Composer dependency installation
-   - Database migrations and seeding
-   - NPM package installation
-   - Cron job setup with actual project paths
+- `.devcontainer/Dockerfile` — image contents and pinned runtimes
+- `.devcontainer/devcontainer.json` — mounts, ports, environment, and post-start command
+- `.devcontainer/init_env/config_space.sh` — workspace/runtime provisioning
+- `.devcontainer/init_env/validate_build.sh` — image validation
+- `.devcontainer/init_env/apache-vhost.template` — repository-path-aware virtual host
+- `.devcontainer/supervisord.conf` — managed services
 
-4. **Dynamic Configuration**
-   - Apache virtual host with actual repository path
-   - Mermerd configuration with database credentials
-   - Mailpit configuration with environment variables
-
-## Performance Benefits
-
-### Before Optimization
-- **Build Time**: ~5-10 minutes (basic image)
-- **Startup Time**: ~15-20 minutes (full setup on every container start)
-- **Network Usage**: Heavy downloads on every startup
-
-### After Optimization
-- **Build Time**: ~15-25 minutes (comprehensive image with all tools)
-- **Startup Time**: ~3-5 minutes (only runtime configuration)
-- **Network Usage**: Minimal (only composer/npm packages)
-
-## Time Savings
-- **Container Startup**: Reduced by 10-15 minutes
-- **Development Productivity**: Faster iteration cycles
-- **Network Bandwidth**: Significant reduction in repeated downloads
-
-## File Changes
-
-### Modified Files
-- `Dockerfile`: Comprehensive rewrite with all build-time operations
-- `config_space.sh`: Streamlined to only runtime operations
-
-### New Files
-- `init_env/apache-vhost.template`: Template for Apache virtual host
-- `init_env/config_space_original.sh`: Backup of original script
-- `init_env/config_space_optimized.sh`: Alternative optimized version
-
-### Architecture Support
-The Dockerfile now properly handles both x86_64 (AMD64) and ARM64 architectures for Go installation.
-
-## Usage Notes
-
-1. **Image Rebuild Required**: After these changes, the Docker image must be rebuilt
-2. **First Build**: Will take longer due to comprehensive tool installation
-3. **Subsequent Starts**: Will be significantly faster
-4. **Rollback**: Use `config_space_original.sh` if needed
-
-## Recommendations
-
-1. **Cache Optimization**: Consider using Docker build cache optimization
-2. **Multi-stage Builds**: Could further optimize image size
-3. **Version Pinning**: Consider pinning more tool versions for reproducibility
-4. **Health Checks**: Add health checks for critical services
-
-This optimization provides a much better developer experience with faster container startup times while maintaining all the functionality of the original setup.
+The workspace path is supplied through the dev-container configuration; do not hard-code an absolute workspace path in commands or documentation.

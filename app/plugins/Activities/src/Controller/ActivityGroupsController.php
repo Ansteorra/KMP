@@ -117,7 +117,7 @@ class ActivityGroupsController extends AppController
      * @return \Cake\Http\Response|null|void Renders the view template with group details
      * @throws \Cake\Http\Exception\NotFoundException When group not found
      * @throws \Authorization\Exception\ForbiddenException When user lacks view permission
-     * @see 5.6.3-activity-groups-controller-reference.md for detailed documentation
+     * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.6.3-activity-groups-controller-reference.md for detailed documentation
      */
     public function view($id = null)
     {
@@ -141,7 +141,7 @@ class ActivityGroupsController extends AppController
      * Model-level authorization configured in initialize() determines access.
      *
      * @return \Cake\Http\Response|null|void Redirects to view on success, renders form otherwise
-     * @see 5.6.3-activity-groups-controller-reference.md for detailed documentation
+     * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.6.3-activity-groups-controller-reference.md for detailed documentation
      */
     public function add()
     {
@@ -183,7 +183,7 @@ class ActivityGroupsController extends AppController
      * @return \Cake\Http\Response|null|void Redirects to view on success, renders form otherwise
      * @throws \Cake\Http\Exception\NotFoundException When group not found
      * @throws \Authorization\Exception\ForbiddenException When user lacks edit permission
-     * @see 5.6.3-activity-groups-controller-reference.md for detailed documentation
+     * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.6.3-activity-groups-controller-reference.md for detailed documentation
      */
     public function edit($id = null)
     {
@@ -228,7 +228,7 @@ class ActivityGroupsController extends AppController
      * @throws \Cake\Http\Exception\NotFoundException When group not found
      * @throws \Cake\Http\Exception\MethodNotAllowedException When invalid HTTP method used
      * @throws \Authorization\Exception\ForbiddenException When user lacks delete permission
-     * @see 5.6.3-activity-groups-controller-reference.md for detailed documentation
+     * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.6.3-activity-groups-controller-reference.md for detailed documentation
      */
     public function delete($id = null)
     {

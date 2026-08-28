@@ -1,164 +1,244 @@
-# Troubleshooting
+---
+layout: default
+title: "Managed Deployment Troubleshooting"
+description: "Diagnostics for managed Azure health, migrations, workers, tenant routing, secrets, and backups."
+---
 
-Solutions for common KMP deployment issues.
+# Managed Deployment Troubleshooting
 
-[← Back to Deployment Guide](README.md)
+Use this page for the current Azure multi-tenant runtime. Historical
+Docker/VPC, Fly.io, and Railway diagnostics are summarized at the end.
 
-## Diagnostics
+[← Back to Deployment and Operations](README.md)
 
-Start by gathering information:
+## Start with role and digest
 
-```bash
-# Deployment health and version
-kmp status
+Record the environment, active web revision, image digest, and recent migration
+and worker executions. Do not copy secret values or full connection URLs into
+tickets.
 
-# Application logs
-kmp logs -f
+Typical Azure checks:
 
-# Docker-specific
-docker compose ps
-docker compose logs -f app
-```
+    az containerapp show \
+      --resource-group <resource-group> \
+      --name <prefix>-web \
+      --query '{fqdn:properties.configuration.ingress.fqdn,revision:properties.latestReadyRevisionName}' \
+      --output json
 
-## Container Won't Start
+    az containerapp job execution list \
+      --resource-group <resource-group> \
+      --name <prefix>-migrate \
+      --output table
 
-**Symptoms**: Container exits immediately or enters a restart loop.
+    az containerapp job execution list \
+      --resource-group <resource-group> \
+      --name <prefix>-queue \
+      --output table
 
-**Check logs:**
-```bash
-docker compose logs app | tail -50
-```
+    az containerapp logs show \
+      --resource-group <resource-group> \
+      --name <prefix>-web \
+      --tail 200
 
-**Common causes:**
+Use the actual names from the Bicep outputs/environment variables rather than
+assuming `kmpnightly`.
 
-| Cause | Fix |
-|-------|-----|
-| Missing `.env` file | Copy `.env.example` to `.env` and configure |
-| Invalid `SECURITY_SALT` | Generate a new one: `openssl rand -hex 32` |
-| Port conflict | Check if another service is using ports 80/443: `ss -tlnp` |
-| Insufficient memory | Ensure at least 1 GB RAM is available |
+## Liveness and readiness
 
-## Database Connection Errors
+`/livez` is a static liveness probe:
 
-**Symptoms**: "SQLSTATE[HY000] [2002] Connection refused" or similar.
+    curl -fsS https://<approved-host>/livez
 
-**Check the database container:**
-```bash
-docker compose ps db
-docker compose logs db | tail -20
-```
+`/health` checks the current default database and cache/session backend:
 
-**Common causes:**
+    curl -fsS https://<approved-host>/health | jq .
 
-| Cause | Fix |
-|-------|-----|
-| Database not ready | Wait 30 seconds after first start; MariaDB initializes on first run |
-| Wrong credentials | Verify `MYSQL_PASSWORD` matches in `.env` |
-| Wrong host | Use `MYSQL_HOST=db` for Docker Compose (the service name) |
-| Database doesn't exist | The container creates the database on first run; check logs for init errors |
+A healthy response includes more than version:
 
-**Test connectivity manually:**
-```bash
-docker compose exec db mysql -u kmpuser -p"$MYSQL_PASSWORD" kmp -e "SELECT 1;"
-```
+    {
+      "status": "ok",
+      "version": "…",
+      "image_tag": "…",
+      "channel": "…",
+      "db": true,
+      "cache": true,
+      "profile": "…",
+      "timestamp": "…"
+    }
 
-## SSL Certificate Issues
+The endpoint returns HTTP 503 with `status=degraded` when database or cache
+readiness fails. In a production Redis profile, KMP also reports degraded when
+`CACHE_ENGINE=redis` or cache-backed sessions were requested but a local
+fallback is active.
 
-**Symptoms**: Browser shows "connection not secure" or Caddy logs certificate errors.
+Interpretation:
 
-**Common causes:**
+| Result | Likely scope |
+| --- | --- |
+| `/livez` fails | Revision/container/ingress is unavailable |
+| `/livez` passes, `/health` fails DB | Default database URL, network, TLS, role, or schema issue |
+| `/livez` passes, `/health` fails cache | Redis URL/TLS/extension/session configuration or managed Redis availability |
+| Tenant host fails but default host health passes | Host mapping, tenant status, tenant DB secret/connection, or custom-domain routing |
+| `platform_health` fails | Platform database URL/schema/connectivity rather than default datasource |
 
-| Cause | Fix |
-|-------|-----|
-| DNS not pointing to server | Verify with `dig your-domain.com` — must resolve to your server's IP |
-| Ports 80/443 blocked | Open both ports in your firewall / security group |
-| `DOMAIN` not set | Set `DOMAIN=your-domain.com` in `.env` |
-| Rate limited | Let's Encrypt has [rate limits](https://letsencrypt.org/docs/rate-limits/) — wait and retry |
+Check platform metadata separately:
 
-**Check Caddy logs:**
-```bash
-docker compose logs caddy | grep -i "tls\|cert\|error"
-```
+    cd app
+    bin/cake platform_health --json
 
-## Migration Failures
+## Deployment or migration failure
 
-**Symptoms**: Application shows database errors after an update.
+The web app deliberately sets `KMP_SKIP_MIGRATIONS=true`. Inspect the dedicated
+migration job; do not “fix” the problem by enabling migration on web replicas or
+running individual plugin commands in an arbitrary order.
 
-**Check migration status:**
-```bash
-docker compose exec app bin/cake migrations status
-docker compose exec app bin/cake migrations status -p Activities
-docker compose exec app bin/cake migrations status -p Officers
-docker compose exec app bin/cake migrations status -p Awards
-```
+The managed chain is:
 
-**Re-run migrations:**
-```bash
-docker compose exec app bin/cake migrations migrate
-docker compose exec app bin/cake migrations migrate -p Activities
-docker compose exec app bin/cake migrations migrate -p Officers
-docker compose exec app bin/cake migrations migrate -p Awards
-```
+    bin/cake migrations migrate &&
+    bin/cake schema_cache clear &&
+    bin/cake updateDatabase &&
+    bin/cake platform_migrate migrate &&
+    bin/cake schema_cache clear --connection platform &&
+    bin/cake platform secrets import-env &&
+    bin/cake platform backup-keys ensure --allow-read-only &&
+    bin/cake tenant migrate --all --include-suspended --fail-fast &&
+    bin/cake cache clear _cake_model_
 
-**If migrations are stuck**, restore from backup and try the update again:
-```bash
-kmp restore <backup-id>
-kmp update
-```
+Triage in order:
 
-## Health Endpoint
+1. Confirm PostgreSQL `CITEXT` and `UNACCENT` are allowlisted by
+   `deploy/azure/ensure-postgres-extension.sh`.
+2. Find the first failing command in migration-job logs.
+3. If platform migrations failed, do not attempt tenant work.
+4. If secret import/key reconciliation failed, confirm the database master key
+   and required tenant password/KEK references exist without printing them.
+5. If one tenant failed, record the tenant slug, migration job/backup IDs, and
+   redacted error. The fleet is resumable; fix the cause and rerun the full job.
+6. Do not cut web to the new image until the migration job and post-migration
+   worker verification succeed.
 
-KMP exposes a `/health` endpoint for monitoring:
+The optional release manifest and nightly drill are not part of the active Azure
+workflow. A missing `config/release_manifest.json` is relevant only when an
+operator deliberately runs those rehearsal tools.
 
-```bash
-curl -s https://your-domain.com/health | jq .
-```
+## Unified worker and schedules
 
-Expected response:
-```json
-{
-  "status": "ok",
-  "version": "1.2.3"
-}
-```
+The current Azure queue job runs every three minutes. It dispatches due platform
+schedules, drains the default and active tenant queues, and claims one bounded
+platform job.
 
-If the health endpoint doesn't respond, the application container is not running or not reachable.
+If work is stuck:
 
-## Performance Issues
+1. Confirm recent `<prefix>-queue` executions exist and completed.
+2. Inspect `platform_jobs` and `platform_job_events` through Platform Admin for
+   queued/running/failed state.
+3. Confirm the tenant is active for queue draining and its database password
+   secret resolves.
+4. Check PostgreSQL advisory-lock contention and another still-running worker
+   execution.
+5. Verify the compatibility `sched-hourly/daily/weekly/nightly` jobs remain
+   parked. Do not start them as a substitute worker.
 
-**Symptoms**: Slow page loads, timeouts.
+A plain `bin/cake queue run` sees only the current datasource and cannot drain a
+tenant fleet.
 
-**Quick checks:**
-```bash
-# Container resource usage
-docker stats
+## Tenant host resolution
 
-# Check database slow queries
-docker compose exec db mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "SHOW PROCESSLIST;"
-```
+For a failing tenant host, verify:
 
-**Common fixes:**
-- Increase container memory limits in `docker-compose.yml`
-- Check if the database needs more buffer pool: adjust `innodb_buffer_pool_size` in `mariadb.cnf`
-- Verify storage I/O isn't saturated (especially on cloud VMs with limited IOPS)
+- DNS/custom-domain binding reaches the intended Container App;
+- the normalized host exists once in `tenant_hosts`;
+- the tenant row is `active` (suspended/archived tenants are intentionally not
+  served);
+- the tenant database/role and referenced password exist;
+- tenant schema matches the running release; and
+- shared tenant-host-map cache invalidation reached Redis.
 
-## Fly.io Specific
+Use a real hostname for TLS/SNI. For a pre-DNS target, prefer:
 
-```bash
-fly status              # App status
-fly doctor              # Diagnose issues
-fly ssh console         # SSH into container
-fly postgres connect    # Connect to Postgres
-```
+    curl --resolve tenant.example.org:443:<edge-ip> \
+      https://tenant.example.org/health
 
-## Railway Specific
+A `Host` header alone does not set TLS SNI.
 
-- Check the Railway dashboard for deploy logs and service status
-- Verify MySQL reference variables resolve correctly (e.g., `${{MySQL.MYSQLHOST}}`)
-- Ensure the `PORT` environment variable is not overridden (Railway sets it automatically)
+## Platform Admin access
 
-## Getting Help
+The current boundary is the same web app on a reserved host:
 
-1. **Check the logs** — most issues are visible in `kmp logs` or `docker compose logs`
-2. **Search existing issues** — [github.com/jhandel/KMP/issues](https://github.com/jhandel/KMP/issues)
-3. **Open a new issue** — include your platform, KMP version (`kmp status`), and relevant log output
+- `KMP_PLATFORM_ADMIN_PORTAL_ENABLED=true`;
+- normalized host in `KMP_PLATFORM_ADMIN_HOSTS`;
+- platform-user email/password and TOTP;
+- allowed account status, lockout, and host-bound session.
+
+There is no separate admin Container App or trusted identity-header gate.
+Check the reserved host and app authentication rather than debugging an
+external-identity allowlist that is not implemented. Keep detailed login errors
+off in production.
+
+## Backup and restore failures
+
+Check the platform job, backup row, and redacted event first. Then verify:
+
+- source/target tenant and status;
+- tenant DB password and backup KEK references;
+- `platform.backup.kek` for platform backups;
+- scoped `backup://` object URI, size, and SHA-256;
+- Azure managed identity storage access;
+- worker memory for large JSON tenants; and
+- target suspension for restore.
+
+New tenant backups are `.json.gz.enc`; platform backups are
+`.pgdump.enc`. Do not use the historical VPC SQL restore on either format.
+
+A non-destructive restore drill:
+
+    bin/cake tenant restore_drill --tenant <slug> --lookback-hours 36
+
+ends as `planned` after validation. It is evidence of archive/readiness checks,
+not proof that a destructive restore completed.
+
+## Telemetry and audit
+
+Validate telemetry without exposing credentials:
+
+    bin/cake telemetry_check
+    bin/cake telemetry_check --send
+
+The database audit chain is implemented. The Azure Blob WORM sink is not; the
+default mirror is disabled. If a launch/evidence checklist expects immutable
+continuity, verify the external storage/retention control rather than treating
+`PLATFORM_AUDIT_WORM_SINK` configuration as proof.
+
+## Historical self-hosted diagnostics
+
+The archived VPC stack uses services named by
+`deploy/vpc/docker-compose.yml` (including `app` and `db`), one MariaDB
+database, Caddy, and a privileged updater sidecar. It is unsupported for new
+deployments.
+
+For an existing instance:
+
+    docker compose ps
+    docker compose logs --tail 200 app
+    docker compose logs --tail 100 db
+    curl -fsS https://<legacy-host>/livez
+    curl -fsS https://<legacy-host>/health
+
+Do not follow old advice to restore a SQL dump and immediately rerun
+`kmp update`. The management tool does not create an automatic backup or restore
+a database during rollback, and several providers are incomplete. Define a
+deployment-specific recovery plan before changing an old system.
+
+## Evidence for an issue
+
+Include:
+
+- environment and UTC time window;
+- commit, image-specific tag, and digest;
+- web revision and migration/worker execution IDs;
+- affected tenant slug/host only when approved;
+- safe health output and redacted error class/message; and
+- whether rollback would be runtime-only or requires data recovery.
+
+Exclude secrets, database URLs, object credentials, recovery-key files, KEKs,
+TOTP/recovery material, raw customer records, and full backup archives.

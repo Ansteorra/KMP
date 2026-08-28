@@ -28,7 +28,7 @@ use App\KMP\StaticHelpers;
  * Provides comprehensive waiver management for gatherings, including waiver
  * templates, upload tracking, compliance monitoring, and decline/rejection workflows.
  *
- * @see /docs/5.7-waivers-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.7-waivers-plugin.md
  */
 class WaiversPlugin extends BasePlugin implements KMPPluginInterface
 {

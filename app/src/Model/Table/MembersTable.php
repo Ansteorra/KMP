@@ -20,8 +20,8 @@ use Exception;
  * Handles member data, relationships, validation, and automatic workflows.
  * Triggers ageUpReview() and warrantableReview() on every save operation.
  *
- * @see /docs/4.1.1-members-table-reference.md for detailed API documentation
- * @see /docs/4.1-member-lifecycle.md for status system and workflows
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/4.1.1-members-table-reference.md for detailed API documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/4.1-member-lifecycle.md for status system and workflows
  * @property \App\Model\Table\MemberRolesTable&\Cake\ORM\Association\HasMany $MemberRoles
  * @property \App\Model\Table\MemberRolesTable&\Cake\ORM\Association\HasMany $CurrentMemberRoles
  * @property \App\Model\Table\MemberRolesTable&\Cake\ORM\Association\HasMany $UpcomingMemberRoles

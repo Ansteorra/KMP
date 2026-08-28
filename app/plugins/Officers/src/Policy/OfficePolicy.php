@@ -21,7 +21,7 @@ use Cake\ORM\Table;
  * Controls entity-level access for Office operations including hierarchical
  * management, warrant requirements, and assignment authorization.
  *
- * @see /docs/5.1-officers-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.1-officers-plugin.md
  */
 class OfficePolicy extends BasePolicy
 {

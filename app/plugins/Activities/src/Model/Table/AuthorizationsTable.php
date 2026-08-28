@@ -31,7 +31,7 @@ use App\Model\Table\BaseTable;
  * @method \Activities\Model\Entity\Authorization|false save(\Cake\Datasource\EntityInterface $entity, array $options = [])
  * 
  * @see \Activities\Model\Entity\Authorization Authorization entity class
- * @see /docs/5.6.7-authorization-entity-reference.md For comprehensive documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.6.7-authorization-entity-reference.md For comprehensive documentation
  */
 class AuthorizationsTable extends BaseTable
 {

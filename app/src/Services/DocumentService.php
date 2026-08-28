@@ -1574,7 +1574,7 @@ class DocumentService
      *
      * @param string $relativePdfPath Relative path of stored PDF, used to derive preview path
      * @param string $tempPreviewPath Temporary JPEG path produced during conversion
-     * @return \\App\\Services\\ServiceResult Result indicating success and stored preview path
+     * @return \App\Services\ServiceResult Result indicating success and stored preview path
      */
     private function savePreviewFromTemp(string $relativePdfPath, string $tempPreviewPath): ServiceResult
     {

@@ -16,7 +16,7 @@ use Cake\ORM\TableRegistry;
  * Includes support for stewards who can access waiver upload and pending waiver
  * actions for gatherings they manage.
  *
- * @see /docs/5.7-waivers-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.7-waivers-plugin.md
  */
 class GatheringWaiversControllerPolicy extends BasePolicy
 {

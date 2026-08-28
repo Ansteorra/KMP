@@ -1,53 +1,80 @@
-# CakePHP Queue Plugin
-[![CI](https://github.com/dereuromark/cakephp-queue/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dereuromark/cakephp-queue/actions/workflows/ci.yml?query=branch%3Amaster)
-[![Coverage Status](https://img.shields.io/codecov/c/github/dereuromark/cakephp-queue/master.svg)](https://codecov.io/github/dereuromark/cakephp-queue/branch/master)
-[![Latest Stable Version](https://poser.pugx.org/dereuromark/cakephp-queue/v/stable.svg)](https://packagist.org/packages/dereuromark/cakephp-queue)
-[![Minimum PHP Version](https://img.shields.io/badge/php-%3E%3D%208.1-8892BF.svg)](https://php.net/)
-[![PHPStan](https://img.shields.io/badge/PHPStan-level%208-brightgreen.svg?style=flat)](https://phpstan.org/)
-[![License](https://poser.pugx.org/dereuromark/cakephp-queue/license.svg)](LICENSE)
-[![Total Downloads](https://poser.pugx.org/dereuromark/cakephp-queue/d/total)](https://packagist.org/packages/dereuromark/cakephp-queue)
-[![Coding Standards](https://img.shields.io/badge/cs-PSR--2--R-yellow.svg)](https://github.com/php-fig-rectified/fig-rectified-standards)
+# Queue plugin in KMP
 
-This branch is for use with **CakePHP 5.0+**. For details see [version map](https://github.com/dereuromark/cakephp-queue/wiki#cakephp-version-map).
+KMP vendors and adapts
+[`dereuromark/cakephp-queue`](https://github.com/dereuromark/cakephp-queue) for
+database-backed deferred tasks. This README describes KMP's integration; the
+[vendored upstream documentation](docs/README.md) covers the underlying task
+API and configuration options.
 
+## KMP role
 
-## Background
+The enabled plugin provides:
 
-This is a very simple and minimalistic job queue (or deferred-task) system for CakePHP.
-If you need a very basic PHP internal queue tool, this is definitely an option.
-It is also a great tool for demo purposes on how queues work and doesn't have any dependencies.
+- `Queue.QueuedJobs` and `Queue.QueueProcesses` tenant-application tables;
+- task discovery for `App\Queue\Task` and plugin `Queue\Task` namespaces;
+- queued mail transports;
+- authorized queue administration under `/queue`;
+- navigation through `QueueNavigationProvider`; and
+- `queue add`, `queue info`, `queue run`, `queue worker`, and `queue job`
+  commands.
 
-Overall functionality is inspired by systems like Gearman, Beanstalk or dropr, but without
-any illusion to compete with these more advanced Systems.
+Queue migrations are part of the application/plugin migration history applied
+to the default database and every managed tenant.
 
-The plugin is an attempt to provide a basic, simple to use method to enable deferred job execution,
-without the hassle of setting up or running an extra queue daemon, while integrating nicely into
-CakePHP and also simplifying the creation of worker scripts. You can also easily provide progress and status information into your pages.
+## Multi-tenant worker contract
 
-Please also read my blog posts about [deferred execution](https://www.dereuromark.de/2013/12/22/queue-deferred-execution-in-cakephp/) and [real-life example usage](https://www.dereuromark.de/2021/07/15/cakephp-queuing-real-life-examples/) [new].
-For more high-volume and sophisticated use cases please see the [awesome list](https://github.com/FriendsOfCake/awesome-cakephp#queue) alternatives.
+Queue models use the active application datasource. Each tenant therefore has
+its own queue rows and process claims. A plain:
 
-### Why use deferred execution?
+```bash
+bin/cake queue run
+```
 
-Deferred execution makes sense (especially in PHP) when your page wants to execute tasks, which are not directly related to rendering the current page.
-For instance, in a BBS-type system, a new users post might require the creation of multiple personalized email messages,
-notifying other users of the new content.
-Creating and sending these emails is completely irrelevant to the currently active user, and should not increase page response time.
-Another example would be downloading, extraction and/or analyzing an external file per request of the user.
-The regular solution to these problems would be to create specialized cronjobs which use specific database states to determine which action should be done.
+processes only the currently selected datasource. It is useful for targeted
+maintenance but is not the managed fleet worker.
 
-The Queue plugin provides a simple method to create and run such non-user-interaction-critical tasks.
+Managed environments run this core command on a three-minute schedule:
 
-Another important reason is that specific jobs can be (auto)retried if they failed.
-So if the email server didn't work the first time, or the API gateway had an issue, the current job to be executed isn't lost but kept for rerun. Most of those external services should be treated as failable once every x calls, and as such a queue implementation can help reducing issues due to such failures. If a job still can't finish despite retries, you still have the option to debug its payload and why this job cannot complete. No data is lost here.
+```bash
+bin/cake platform worker run \
+  --schedule-limit 100 \
+  --max-jobs 100 \
+  --max-runtime 45 \
+  --cycle-budget 240 \
+  --platform-limit 1 \
+  --json
+```
 
-While you can run multiple workers, and can (to some extent) spread these workers to different machines via a shared database, you should consider using a more advanced system for high volume/high number of workers systems.
+That worker drains the default and active-tenant Queue datasources fairly,
+skips a tenant registry entry that points to the already-processed default
+physical database, dispatches due platform schedules, and claims bounded
+`platform_jobs` work. Platform jobs live in the platform database and are not
+Queue plugin rows.
 
-## Demo
-See [Sandbox app](https://sandbox.dereuromark.de/sandbox/queue-examples).
+Do not run a web-process cron or a second queue fleet scheduler alongside the
+managed worker.
 
-## Installation and Usage
-See [Documentation](docs/).
+## Adding and operating tasks
 
-## Cronjob based background scheduling
-If you are looking for scheduling certain background jobs: This plugin works flawlessly with [QueueScheduler plugin](https://github.com/dereuromark/cakephp-queue-scheduler).
+Place application tasks under `app/src/Queue/Task` and plugin-owned tasks under
+that plugin's `src/Queue/Task`. Enqueue through `Queue.QueuedJobs` using the task
+name/payload contract; never put unserializable objects or secrets in payloads.
+
+The `/queue` screens and mutation actions are policy-authorized. CLI commands
+operate on the selected datasource, so resolve and verify tenant context before
+resetting, rerunning, flushing, or deleting jobs.
+
+## Development
+
+Run from `app/`:
+
+```bash
+vendor/bin/phpunit plugins/Queue/tests/TestCase
+vendor/bin/phpunit \
+  tests/TestCase/Services/Platform/QueueDrainServiceTest.php \
+  tests/TestCase/Services/Platform/PlatformQueueDrainServiceTest.php
+```
+
+The Queue subtree retains upstream coding style. `app/bin/verify.sh` handles it
+separately from first-party PHPCS checks; do not run a broad formatter over the
+vendored code.

@@ -1,14 +1,10 @@
-# Date Range Filtering Implementation Guide
+# Dataverse grid date-range filters
 
-## Overview
+Date-range filtering is built into `DataverseGridTrait` and `grid-view-controller`. A grid
+normally enables it through column metadata only; do not add a parallel controller parser or
+a `getDateRangeFilterColumns()` method.
 
-This document describes how to implement date range filtering in the Dataverse grid system, allowing users to filter date columns by selecting start and end dates.
-
-## Column Configuration
-
-### Date Filter Type
-
-To enable date range filtering on a column, set the `filterType` to `'date-range'` in the grid columns metadata:
+## Column metadata
 
 ```php
 'start_on' => [
@@ -17,192 +13,64 @@ To enable date range filtering on a column, set the `filterType` to `'date-range
     'type' => 'date',
     'sortable' => true,
     'filterable' => true,
-    'filterType' => 'date-range',  // Enable date range filtering
+    'filterType' => 'date-range',
     'defaultVisible' => true,
-    'width' => '140px',
-    'alignment' => 'left',
 ],
 ```
 
-### Filter Type Options
+`DataverseGridTrait::processDataverseGrid()` discovers columns where `filterable` is true and
+`filterType` is `date-range`. The optional metadata used by the shared implementation includes:
 
-- `'dropdown'` - Standard dropdown with predefined options
-- `'date-range'` - Date range picker (start and end dates)
-- `null` or not specified - Column is not filterable via dropdown
+- `queryField`: the qualified database field when it differs from the column key.
+- `nullMeansActive`: include `NULL` values in a lower-bound query, for fields where `NULL`
+  means “does not expire.”
+- `skipAutoFilter` or `customFilterHandler`: opt out of the standard SQL predicate.
+- `showInFilterMenu`: hide the control while preserving view/filter state support.
 
-## Backend Implementation
+## URL and saved-view contract
 
-### 1. Define Date Range Filter Columns
+A field named `start_on` uses direct query parameters:
 
-Add a `getDateRangeFilterColumns()` method to your GridColumns class:
+```text
+?start_on_start=2026-08-01&start_on_end=2026-08-31
+```
 
-```php
-public static function getDateRangeFilterColumns(): array
+The Stimulus controller groups the two generated filter descriptors, displays labeled
+`From` and `To` date inputs, preserves the values in navigation URLs, and presents active
+filter pills. Saved and system views encode the same rule as:
+
+```json
 {
-    return array_filter(
-        static::getColumns(),
-        fn($col) => ($col['filterType'] ?? null) === 'date-range'
-    );
+  "field": "start_on",
+  "operator": "dateRange",
+  "value": ["2026-08-01", "2026-08-31"]
 }
 ```
 
-### 2. Process Date Range Filters in Trait
+System-view and locked-filter bounds are reapplied by the server. Locked bounds cannot be
+overridden with crafted query parameters. A caller that disables user filtering may still
+receive the system-view constraints.
 
-The `DataverseGridTrait` will automatically handle date range filters:
+## Boundary semantics
 
-```php
-// Extract date range filters from query
-$dateRangeFilters = [];
-foreach ($dateRangeFilterColumns as $columnKey => $columnMeta) {
-    $startKey = $columnKey . '_start';
-    $endKey = $columnKey . '_end';
-    
-    $startDate = $this->request->getQuery($startKey);
-    $endDate = $this->request->getQuery($endKey);
-    
-    if ($startDate || $endDate) {
-        $dateRangeFilters[$columnKey] = [
-            'start' => $startDate,
-            'end' => $endDate,
-        ];
-    }
-}
+- The lower bound is inclusive (`>=`) and starts at `00:00:00`.
+- The upper bound is inclusive (`<=`) and ends at `23:59:59`.
+- Date-only input is interpreted in the configured application/kingdom timezone and converted
+  to UTC before comparing with UTC datetimes.
+- A full datetime value passes through unchanged. Code that supplies one must already use the
+  database comparison timezone.
+- Empty endpoints are allowed. Views may also use `gt` or `lt` for an exclusive endpoint.
 
-// Apply date range filters to query
-foreach ($dateRangeFilters as $field => $range) {
-    if (!empty($range['start'])) {
-        $baseQuery->where([$tableName . '.' . $field . ' >=' => $range['start']]);
-    }
-    if (!empty($range['end'])) {
-        $baseQuery->where([$tableName . '.' . $field . ' <=' => $range['end']]);
-    }
-}
-```
+This is application-timezone behavior, not the viewing member's personal display timezone.
+Keep that distinction when adding date filters.
 
-## Frontend Implementation
+## Verification
 
-### Template Structure
+For a new field, cover metadata plus an actual boundary query, especially records near local
+midnight and daylight-saving transitions. Existing examples live in:
 
-Date range filters will render as two date input fields in the filter dropdown:
-
-```html
-<div class="filter-date-range">
-    <div class="mb-2">
-        <label class="form-label small">From</label>
-        <input type="date" class="form-control form-control-sm" 
-               data-filter-field="start_on_start"
-               data-action="change->grid-view#applyDateRangeFilter">
-    </div>
-    <div>
-        <label class="form-label small">To</label>
-        <input type="date" class="form-control form-control-sm" 
-               data-filter-field="start_on_end"
-               data-action="change->grid-view#applyDateRangeFilter">
-    </div>
-</div>
-```
-
-### JavaScript Controller
-
-The GridViewController will need methods to handle date range filtering:
-
-```javascript
-applyDateRangeFilter(event) {
-    const input = event.target;
-    const field = input.dataset.filterField;
-    const value = input.value;
-    
-    // Update internal state
-    this.dateRangeFilters[field] = value;
-    
-    // Rebuild URL and navigate
-    this.applyFiltersAndNavigate();
-}
-
-buildFilterUrl() {
-    const url = new URL(window.location);
-    
-    // Add date range filters to URL
-    for (const [field, value] of Object.entries(this.dateRangeFilters)) {
-        if (value) {
-            url.searchParams.set(field, value);
-        } else {
-            url.searchParams.delete(field);
-        }
-    }
-    
-    return url.toString();
-}
-```
-
-## Filter State Management
-
-### Filter Badge Display
-
-Date range filters should display as a combined badge:
-
-```
-Starts: Jan 1, 2025 - Dec 31, 2025
-```
-
-### Clear Filter
-
-Users should be able to clear individual date inputs or the entire date range filter.
-
-## Example Use Cases
-
-### Warrant Date Filtering
-
-Filter warrants by their start or expiration dates:
-
-```php
-// WarrantsGridColumns.php
-'start_on' => [
-    'filterType' => 'date-range',
-    // ... other config
-],
-
-'expires_on' => [
-    'filterType' => 'date-range',
-    // ... other config
-],
-```
-
-### Gathering Date Filtering
-
-Filter gatherings by date range:
-
-```php
-// GatheringsGridColumns.php
-'start_date' => [
-    'filterType' => 'date-range',
-    // ... other config
-],
-```
-
-## Technical Considerations
-
-### Timezone Handling
-
-- Date inputs are in the user's local timezone
-- Backend should convert to UTC for database queries
-- Use `TimezoneHelper` for consistent timezone handling
-
-### Query Performance
-
-- Add database indexes on date columns used for filtering
-- Consider date range validation (start must be before end)
-
-### User Experience
-
-- Provide clear labels ("From" / "To")
-- Allow clearing individual date inputs
-- Show active date range filters in badge format
-- Consider adding quick date range presets (This Week, This Month, etc.)
-
-## Future Enhancements
-
-1. **Date Range Presets**: Quick buttons for common ranges
-2. **Relative Dates**: Filter by "Last 7 days", "Next 30 days", etc.
-3. **Date Picker UI**: Enhanced calendar picker instead of native date input
-4. **Time Support**: Extend to datetime-range for hour/minute precision
+- `src/KMP/GridColumns/WarrantsGridColumns.php`
+- `tests/TestCase/KMP/DataverseGridTraitTest.php`
+- `tests/TestCase/Controller/DateBoundaryConversionTest.php`
+- `tests/TestCase/Controller/WarrantsGridSameDayTest.php`
+- `tests/js/controllers/grid-view-controller.test.js`

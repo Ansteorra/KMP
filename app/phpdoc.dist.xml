@@ -18,8 +18,16 @@
         <version number="current">
             <api format="php">
                 <source dsn=".">
+                    <!-- Keep production plugin paths explicit; add each new plugin src directory here. -->
                     <path>src</path>
-                    <path>plugins</path>
+                    <path>plugins/Activities/src</path>
+                    <path>plugins/Awards/src</path>
+                    <path>plugins/Bootstrap/src</path>
+                    <path>plugins/GitHubIssueSubmitter/src</path>
+                    <path>plugins/Officers/src</path>
+                    <path>plugins/Queue/src</path>
+                    <path>plugins/Template/src</path>
+                    <path>plugins/Waivers/src</path>
                 </source>
                 <ignore hidden="true" symlinks="true">
                     <path>vendor</path>

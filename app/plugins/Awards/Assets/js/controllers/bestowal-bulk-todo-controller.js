@@ -120,7 +120,14 @@ class AwardsBestowalBulkTodo extends Controller {
         };
     }
 
-    /** @param {{id?: string, bulkTodoOptions?: string}} row */
+    /**
+     * Normalize a selection row read from a checkbox or serialized dataset.
+     *
+     * @param {object} row Selection row.
+     * @param {string} [row.id] Selected bestowal identifier.
+     * @param {string} [row.bulkTodoOptions] JSON-encoded to-do options.
+     * @returns {{id: string, options: Array<object>}} Normalized selection row.
+     */
     selectionRowFromDataset(row) {
         return {
             id: String(row.id || ""),

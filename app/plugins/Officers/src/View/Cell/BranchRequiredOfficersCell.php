@@ -14,7 +14,7 @@ use App\View\Cell\BasePluginCell;
  * for organizational compliance monitoring and gap identification.
  * 
  * @package Officers\View\Cell
- * @see /docs/5.1-officers-plugin.md for plugin documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.1-officers-plugin.md for plugin documentation
  */
 class BranchRequiredOfficersCell extends Cell
 {

@@ -15,7 +15,7 @@ use Throwable;
  * Position-based list ordering with group support. Provides toTop, toBottom,
  * move, moveBefore, and moveAfter operations with automatic conflict resolution.
  *
- * @see /docs/3.2-model-behaviors.md#sortable-behavior
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/3.2-model-behaviors.md#sortable-behavior
  */
 class SortableBehavior extends Behavior
 {

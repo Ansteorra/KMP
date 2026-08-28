@@ -27,7 +27,7 @@ use Cake\ORM\TableRegistry;
  * @method bool canDelete(\App\KMP\KmpIdentityInterface $user, \App\Model\Entity\BaseEntity $entity, mixed ...$optionalArgs)
  * @method bool canIndex(\App\KMP\KmpIdentityInterface $user, \App\Model\Entity\BaseEntity|\Cake\ORM\Table $entity, mixed ...$optionalArgs)
  * @see \App\Policy\BasePolicy Base authorization functionality
- * @see /docs/5.2.13-awards-recommendation-policy.md Full documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.2.13-awards-recommendation-policy.md Full documentation
  */
 class RecommendationPolicy extends BasePolicy
 {

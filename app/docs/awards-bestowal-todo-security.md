@@ -1,165 +1,86 @@
 # Bestowal To-Do security model
 
-This document defines the least-privilege authorization model for Awards bestowal To-Dos. The configuration is installed by
-`Awards/config/Migrations/20260714203000_HardenBestowalTodoSecurity.php`.
+Awards bestowals, court work, and materialized Action Items are tenant data. Within a tenant,
+visibility is scoped from the owning award's `branch_id`; the recipient's membership branch
+and the gathering's host branch do not independently grant access.
 
-## Security boundary
+The baseline permission and role mappings are installed by Awards migrations, principally
+`20260714203000_HardenBestowalTodoSecurity.php`. Workflow synchronization is added separately
+by `20260818120000_AddAwardWorkflowSynchronizationPermission.php` and template-scoped sync by
+`20260820130000_AddTemplateScopedBestowalTodoSync.php`. Treat migrations and policies as the
+executable contract when this summary differs.
 
-Bestowal visibility and management are scoped by the owning `Awards.branch_id`. Recipient membership branch does not grant access.
-The branch attached to each materialized ActionItem is also resolved from the award branch.
+## Scope rules
 
-Court agenda authorization follows the same award scope rather than the gathering host branch. A Court Management or Court Reporter
-permission can access a gathering agenda when that gathering contains at least one bestowal whose award is in the permission's branch
-scope. Court Management then manages the shared agenda for that gathering.
-
-Permission scope is expanded from the branch on the member's role assignment:
-
-- Crown and Principality permissions use `Branch Only`.
-- Baronial permissions use `Branch and Children`.
-- All workflow and administrative permissions require active membership and an active warrant when
-  `KMP.RequireActiveWarrantForSecurity` is enabled.
-- Completing or reopening a To-Do is always controlled by the ActionItem assignee resolver. Administrative permissions do not
-  bypass the configured To-Do assignee.
+- Crown and Principality operational permissions use `Branch Only`.
+- Baronial operational permissions use `Branch and Children`.
+- When `KMP.RequireActiveWarrantForSecurity` is enabled, the relevant role assignment must
+  have active membership and a current warrant.
+- A Court Management or Court Reporter permission may access a gathering agenda only when it
+  contains a bestowal for an award inside that permission's branch scope.
+- Completing or reopening a To-Do is controlled by the Action Item assignee resolver.
+  Bestowal administration does not bypass assignment eligibility.
+- All lookups execute on the already resolved tenant connection. Never accept a tenant or
+  branch scope from the request without policy-derived validation.
 
 ## Operational permissions
 
-Each tier has five permissions:
+Each tier has five purpose-specific permissions:
 
 | Function | Crown | Principality | Baronial |
 | --- | --- | --- | --- |
 | Scroll | `Crown Scroll Management` | `Principality Scroll Management` | `Baronial Scroll Management` |
 | Regalia | `Crown Regalia Management` | `Principality Regalia Management` | `Baronial Regalia Management` |
 | Schedule | `Crown Award Schedule Management` | `Principality Award Schedule Management` | `Baronial Award Schedule Management` |
-| Court agenda | `Crown Court Management` | `Principality Court Management` | `Baronial Court Management` |
-| Court reporter | `Crown Court Reporter` | `Principality Court Reporter` | `Baronial Court Reporter` |
+| Court editing | `Crown Court Management` | `Principality Court Management` | `Baronial Court Management` |
+| Court reporting | `Crown Court Reporter` | `Principality Court Reporter` | `Baronial Court Reporter` |
 
-Every operational permission grants scoped bestowal read access:
-
-```text
-Awards\Policy\BestowalPolicy:
-  canView
-  canIndex
-  canGatheringBestowalsGridData
-  canViewGatheringBestowals
-
-Awards\Policy\BestowalsTablePolicy:
-  canIndex
-  canExport
-```
-
-Function-specific policy additions are:
-
-| Function | Additional policies |
-| --- | --- |
-| Scroll | `Awards\Policy\BestowalPolicy::canPrepareScrolls` |
-| Regalia | None |
-| Schedule | `BestowalPolicy::{canManageCourtSchedule, canBulkAssignGathering, canGatheringsForBestowalAutoComplete, canGatheringsForBestowalBulkAutoComplete}` |
-| Court agenda | Full court agenda policy bundle |
-| Court reporter | Court agenda read bundle |
-
-The court agenda read bundle is:
-
-```text
-Awards\Policy\CourtAgendasTablePolicy::canIndex
-Awards\Policy\CourtAgendaPolicy::{canGathering, canPrintAgenda}
-```
-
-The full court agenda bundle adds:
-
-```text
-Awards\Policy\CourtAgendaPolicy:
-  canEdit
-  canImport
-  canAddSegment
-  canAddBlock
-  canAddBestowal
-  canMoveToRoaming
-  canUpdateItem
-  canMoveItem
-  canRemoveItem
-```
+All five provide scoped bestowal read/index access. Scroll adds
+`BestowalPolicy::canPrepareScrolls`; schedule adds court-scheduling and gathering-lookup
+abilities; court reporting adds agenda view/print; court editing adds the agenda mutation
+bundle. Do not recreate these bundles with controller conditionals—change the permission to
+policy mappings and cover the migration/policy behavior.
 
 ## Administrative permissions
 
-| Permission | Scope | Purpose |
-| --- | --- | --- |
-| `Can Administer Bestowals` | Branch and Children | Scoped bestowal read/edit, state updates, cancellation, scheduling, scroll preparation, and ad-hoc creation |
-| `Can Administer Court Agendas` | Branch and Children | Full court agenda bundle |
-| `Can Manage Bestowal To-Do Templates` | Global | Template and template-item index, add, view, edit, and delete |
-| `Can Synchronize Award Workflows` | Global | View both workflow configuration indexes and synchronize all active recommendation approvals and open bestowal To-Dos; does not grant template/process editing |
-
-`Can Synchronize Award Workflows` requires active membership and a current warrant. The migration grants it to the
-`Ansteorran Crown` role. The existing `Can Manage Awards` and `Can Manage Bestowal To-Do Templates` permissions are
-mapped directly to their matching synchronization action, preserving established administrative access without
-granting either administrator group access to the other workflow domain.
-Because the migration adopts any existing permission with the same name, its data changes are intentionally
-irreversible; rollback refuses to delete permission grants or mappings it cannot prove it created.
-An existing soft-deleted permission with that name is restored and hardened in place so the globally unique name is
-not duplicated; migration audit fields are populated explicitly.
-
-Template administration is no longer implied by `Can Manage Awards`. Roles that held `Can Manage Awards` when the migration ran
-were also granted the dedicated template permission to preserve intended administrator access.
-
-## Role configuration
-
-The 15 `{Tier} {Function} Bestowal Todo` roles each contain exactly their matching tier permission. They do not receive the legacy
-global view or scheduling permissions.
-
-Supporting role configuration is:
-
-| Role | Bestowal-related permissions |
+| Permission | Scope and purpose |
 | --- | --- |
-| Ansteorran Crown | Five Crown operational permissions plus `Can Administer Bestowals` and `Can Synchronize Award Workflows` |
-| Golden Staff | `Can Administer Bestowals`, `Can Administer Court Agendas` |
-| Stable Scroll | `Crown Scroll Management` |
-| Sable Scroll | `Crown Scroll Management` |
-| Court Herald | `Crown Court Management` |
+| `Can Administer Bestowals` | Branch-and-children bestowal read/edit, state, cancellation, scheduling, scroll, and ad-hoc creation |
+| `Can Administer Court Agendas` | Branch-and-children court agenda management |
+| `Can Manage Bestowal To-Do Templates` | Global template and template-item administration |
+| `Can Synchronize Award Workflows` | Global access to synchronize outdated recommendation runs and open bestowal To-Dos; does not grant general process/template editing |
 
-The migration preserves unrelated permissions on these roles.
+Synchronization requires active membership and a current warrant when warrant enforcement is
+enabled. The migrations preserve established administrator access through explicit mappings,
+but template administration and general Awards administration remain separate abilities.
 
-## Retired configuration
+The legacy `Can View Bestowals`, `Can Manage Bestowals`, `Can Prepare Scrolls`, and
+`Can Manage Court Schedule` names remain compatibility permissions with narrowed scope and
+policy mappings. New tier roles must use the purpose-specific permissions. Import and seed
+logic must resolve permissions by name, never environment-specific numeric IDs.
 
-The following permissions are not used by the tier To-Do roles:
+## Change and deployment checklist
 
-- `Can View Bestowals`
-- `Can Manage Bestowals`
-- `Can Prepare Scrolls`
-- `Can Manage Court Schedule`
+1. Change the owning Awards migration/policy/service and add a migration contract test.
+2. Preserve unrelated permissions when updating built-in roles.
+3. Resolve Action Item template `assignee_source_id` from its permission name.
+4. Assign roles at the branch where their scope begins and provision required warrants.
+5. Run the tenant/plugin migration through the normal fleet migration path; do not patch one
+   database manually.
+6. Clear the tenant-aware `security` cache or restart processes after permission changes.
+7. Verify allow and deny cases for each affected tier, including a sibling/out-of-scope branch,
+   expired membership/warrant, court read versus edit, and To-Do assignment.
+8. Exercise two tenants when changing caches, jobs, import logic, or platform-driven rollout.
 
-They remain available for compatibility but are changed from Global to `Branch and Children`, require warrants, and have their
-policy mappings reduced to their intended purpose.
+Development seed personas and demo warrants are local test data and must never be promoted or
+used as production authorization evidence.
 
-The manually created duplicate permissions `Can View Bestowal (Branch and Children)` and
-`Can Manage Bestowals (Branch and Children)` are removed. Existing role grants are migrated to the canonical scoped permissions
-before removal.
+## Source and test map
 
-## Deployment and import order
-
-1. Run the Awards migrations.
-2. Import or assign roles by permission name, never by environment-specific numeric ID.
-3. Resolve template `assignee_source_id` values from the permission names.
-4. Assign each role at the branch where its scope begins.
-5. Create and approve active warrants for the role assignments.
-6. Enable `KMP.RequireActiveWarrantForSecurity`.
-7. Clear the `security` cache group or restart the application processes.
-8. Verify a representative member from every tier and branch before production release.
-
-`DevLoadBestowalTodoUsersSeed` creates time-bounded warrants for the 15 POC demo personas and for every current POC role
-assignment carrying a managed bestowal permission. Those demo warrants and member assignments must not be exported to production.
-
-## POC rollout
-
-The scoped configuration was deployed and live-verified in POC on 2026-07-15:
-
-- all 15 tier permissions use the documented scope, require active membership and warrants, and have the exact documented policy
-  bundle;
-- all 15 tier To-Do roles contain exactly their matching tier permission and no legacy broad permission;
-- the duplicate manually generated permissions are absent;
-- all 24 current POC role assignments carrying a managed bestowal permission have a current warrant;
-- `KMP.RequireActiveWarrantForSecurity` is set to `yes`;
-- while impersonating Kal Landed Nobility w Canton Demoer, the Bestowals grid returned 52 records across five awards and the
-  Recommendations grid returned 95 records across six awards; every award was owned by Barony of Stargate, Barony of the
-  Steppes, or Canton of Glaslyn, matching Kal's three warranted branch assignments;
-- the POC tenant and platform login smoke checks and application health check passed on image version `0.0.20260715015833`.
-
-This authorization migration does not change which template items are gating.
+- `plugins/Awards/config/Migrations/20260714203000_HardenBestowalTodoSecurity.php`
+- `plugins/Awards/config/Migrations/20260818120000_AddAwardWorkflowSynchronizationPermission.php`
+- `plugins/Awards/src/Policy/BestowalPolicy.php`
+- `plugins/Awards/src/Policy/BestowalsTablePolicy.php`
+- `plugins/Awards/src/Policy/CourtAgendaPolicy.php`
+- `plugins/Awards/src/Services/BestowalTodoAssigneeResolver.php`
+- `plugins/Awards/tests/TestCase/Config/HardenBestowalTodoSecurityTest.php`

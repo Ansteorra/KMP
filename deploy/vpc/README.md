@@ -1,115 +1,87 @@
-# KMP VPC/Self-Hosted Deployment
+# Legacy VPC and self-hosted stack
 
-Production-ready Docker Compose stack for deploying KMP on a VPC or self-hosted server.
+> **Unsupported for new deployments.** This Docker Compose stack predates the
+> managed PostgreSQL multi-tenant architecture. It remains in the repository
+> only to help operators understand and maintain an existing installation.
+> Start new environments with the [managed Azure runbook](../azure/README.md).
 
-## Quick Start
+## What this stack contains
 
-```bash
-# 1. Copy this directory to your server
-scp -r deploy/vpc/ user@server:/opt/kmp/
+| Component | Current template behavior |
+| --- | --- |
+| `app` | Legacy KMP image, host `127.0.0.1:8080` to container port `80` |
+| `db` | One MariaDB 11 database and one persistent volume |
+| `caddy` | Public ports `80`/`443` and automatic TLS |
+| `kmp-updater` | Archived update sidecar with the Docker socket mounted |
 
-# 2. Configure environment
-cd /opt/kmp
-cp .env.example .env
-nano .env   # Set DOMAIN, passwords, and SECURITY_SALT
+The app and database are single-installation infrastructure. The template does
+not provision the platform metadata database, a tenant database fleet, managed
+Redis, database-backed platform secrets, managed backup jobs, or Platform Admin
+host controls required by the supported architecture.
 
-# 3. Start the stack
-docker compose up -d
+The tracked Compose file also references the historical
+`ghcr.io/jhandel/kmp` image namespace and a mutable updater image. Do not treat
+those references as a supported release source. Managed releases promote a
+POC-validated image by immutable digest.
 
-# 4. Visit your site
-open https://your-domain.com
-```
+## Existing-installation maintenance
 
-## What's Included
-
-| File                  | Purpose                                      |
-|-----------------------|----------------------------------------------|
-| `docker-compose.yml`  | Production stack (app + MariaDB + Caddy)     |
-| `Caddyfile`           | Reverse proxy with automatic HTTPS           |
-| `.env.example`        | Configuration template                       |
-| `mariadb.cnf`         | Tuned MariaDB settings                       |
-| `backup.sh`           | Database backup with optional cloud upload   |
-| `restore.sh`          | Database restore from backup                 |
-
-## Configuration
-
-### Required Settings
-
-Edit `.env` and set these values:
+Resolve the exact Compose directory and inspect state before changing anything:
 
 ```bash
-DOMAIN=kmp.example.com                          # Your domain (for SSL)
-SECURITY_SALT=$(openssl rand -hex 32)           # Application security salt
-MYSQL_ROOT_PASSWORD=$(openssl rand -base64 24)  # DB root password
-MYSQL_PASSWORD=$(openssl rand -base64 24)       # DB app password
-```
-
-### Optional Settings
-
-- **Email**: Set `EMAIL_SMTP_*` variables to enable outbound email
-- **Storage**: Set `DOCUMENT_STORAGE_ADAPTER` to `azure` or `s3` for cloud storage
-- **Image tag**: Set `KMP_IMAGE_TAG` to pin a specific release
-
-## Updates
-
-```bash
-docker compose pull
-docker compose up -d
-```
-
-## Backups
-
-### Create a Backup
-
-```bash
-./backup.sh                      # Local backup to ./backups/
-./backup.sh --upload s3           # Backup and upload to S3
-./backup.sh --upload azure        # Backup and upload to Azure Blob
-```
-
-### Restore from Backup
-
-```bash
-./restore.sh backups/2026-02-19-030000.sql.gz
-```
-
-### Automated Backups (Cron)
-
-```bash
-# Daily at 3 AM, keep 30 days
-0 3 * * * /opt/kmp/backup.sh --upload local >> /var/log/kmp-backup.log 2>&1
-```
-
-## Architecture
-
-```
-Internet → Caddy (:80/:443) → App (:8080) → MariaDB (:3306)
-              ↑ automatic HTTPS        ↑ internal only
-```
-
-- **Caddy** handles TLS termination with automatic Let's Encrypt certificates
-- **App** listens on `127.0.0.1:8080` (not exposed to the internet directly)
-- **MariaDB** is only accessible from the app container
-
-## Troubleshooting
-
-```bash
-# Check service status
+docker compose config
 docker compose ps
-
-# View logs
-docker compose logs -f app
-docker compose logs -f caddy
-docker compose logs -f db
-
-# Restart a service
-docker compose restart app
-
-# Full reset (preserves data volumes)
-docker compose down && docker compose up -d
+docker compose logs --tail 200 app
+curl -fsS http://127.0.0.1:8080/livez
+curl -fsS http://127.0.0.1:8080/health
 ```
 
-## Further Reading
+`/livez` proves only that the web server is alive. `/health` checks the
+application's configured database and cache dependencies.
 
-- [Quickstart Guide](https://github.com/jhandel/KMP/blob/main/docs/deployment/quickstart-vpc.md)
-- [KMP Documentation](https://github.com/jhandel/KMP/blob/main/docs/)
+The updater container mounts `/var/run/docker.sock` and therefore has
+host-equivalent control over Docker. Existing operators should review whether
+it is still needed, restrict access to the Compose host, and avoid mutable
+image tags. An image rollback does not reverse schema migrations or restore
+data.
+
+## Legacy backup scripts
+
+`backup.sh` creates an unencrypted `.sql.gz` dump of only
+`MYSQL_DB_NAME` (default `kmp`). It can leave the file locally or copy it to S3
+or Azure Blob. The Azure path uses the operator's `az` login
+(`--auth-mode login`). These uploads do not establish immutability, retention
+lock, or verified recovery.
+
+`restore.sh` imports a selected dump into the existing named MariaDB database
+after an interactive prompt. It does not:
+
+- recreate the database;
+- restore a platform database or other tenant databases;
+- restore uploaded documents or object storage;
+- run a migration compatibility plan;
+- reverse migrations after an image rollback; or
+- prove that the resulting application is healthy.
+
+Before maintaining a legacy installation, copy backups off-host, verify their
+checksums and encryption under the organization's policy, and rehearse restore
+against a disposable clone. Coordinate downtime and validate both `/health`
+and representative data afterward.
+
+For the supported tenant and platform formats, retention policy, and restore
+controls, use [Backup and restore](../../docs/deployment/backup-restore.md).
+
+## Files
+
+| Path | Purpose |
+| --- | --- |
+| `docker-compose.yml` | Archived app, MariaDB, Caddy, and updater topology |
+| `Caddyfile` | Reverse proxy and TLS configuration |
+| `.env.example` | Legacy single-installation variables |
+| `mariadb.cnf` | MariaDB configuration |
+| `backup.sh` | One-database SQL dump helper |
+| `restore.sh` | Destructive SQL import helper |
+
+The authoritative status and limitations of all self-hosted material are
+summarized in the
+[historical deployment reference](../../docs/deployment/README.md#historical-self-hosted-reference).

@@ -17,7 +17,7 @@ use App\Services\ViewCellRegistry;
  * and member office tracking within branch and member profile pages.
  * 
  * @package Officers\Services
- * @see /docs/5.1-officers-plugin.md for plugin documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.1-officers-plugin.md for plugin documentation
  */
 class OfficersViewCellProvider
 {

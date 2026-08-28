@@ -1,178 +1,134 @@
-# Archived Self-Hosted Deployment Reference
+---
+layout: default
+title: "Deployment and Operations"
+description: "Managed multi-tenant deployment, operations, trust controls, and historical deployment references."
+---
 
-KMP is moving to a managed multi-tenant hosting model. The standalone installer is retired for new deployments, but the self-hosted deployment knowledge is preserved here for legacy operators and maintainers.
+# Deployment and Operations
 
-## Status
+This directory documents KMP's managed multi-tenant deployment and the evidence
+templates used to operate it. The supported production target is Azure Container
+Apps, PostgreSQL Flexible Server, Redis, Azure Storage, and Key Vault as defined
+in `deploy/azure/main.bicep`.
 
-| Area | Current status |
-|------|----------------|
-| Managed multi-tenant hosting | Primary deployment path |
-| `kmp install` | Retired for new deployments |
-| `bin/cake kmp_install` | Retired for new deployments |
-| Self-hosted guides below | Archived reference |
+The standalone installer and provider-specific self-hosted quick starts are
+historical. They remain available for maintainers of existing single-database
+systems, but they are not supported for new deployments.
 
-## Legacy Self-Hosted Platforms
+## Documentation map
 
-| Platform | Type | Database | SSL | Difficulty |
-|----------|------|----------|-----|------------|
-| Docker (Local/VPC) | Self-hosted | Bundled MariaDB or BYO | Caddy (auto Let's Encrypt) | ⭐ Easy |
-| Fly.io | PaaS | Fly Postgres | Automatic | ⭐ Easy |
-| Railway | PaaS | Managed MySQL / Redis (optional) | Automatic (Railway edge TLS, no extra proxy required) | ⭐ Easy |
-| Azure | Cloud | Azure DB for MySQL | Automatic | ⭐⭐ Moderate |
-| AWS | Cloud | RDS MySQL | ALB/ACM | ⭐⭐ Moderate |
-| VPS (SSH) | Self-hosted | Bundled MariaDB | Caddy | ⭐⭐ Moderate |
-| Shared hosting (no root) | Traditional web host | Provider-managed or external | Provider-managed | ⭐⭐ Moderate |
+### Current managed platform
 
-## Legacy Lifecycle Commands
+| Page | Purpose | Status |
+| --- | --- | --- |
+| [Azure deployment](https://github.com/Ansteorra/KMP/blob/main/deploy/azure/README.md) | Infrastructure, jobs, bootstrap, deployment, and operator commands | Current source of truth |
+| [Environment setup](../8.1-environment-setup.md) | Managed/local environment variables and runtime roles | Current |
+| [Updating and release](updating.md) | POC validation and same-digest production promotion | Current |
+| [Backup and restore](backup-restore.md) | Managed tenant/platform formats, retention, recovery keys, and restore guardrails | Current |
+| [Two-tenant POC](multi-tenant-poc.md) | Local/staging tenant isolation proof and migration canary | Current |
+| [Platform operations and tenant trust](platform-admin-v2-trust-surface.md) | Implemented Platform Admin controls and separately identified roadmap | Current plus roadmap |
+| [Pilot migration rehearsal](pilot-migration-runbook.md) | Staged rehearsal/evidence template | Manual template; requires environment-specific importer/cutover steps |
+| [Region failover](region-failover-runbook.md) | Recovery ordering and validation | Manual skeleton; recovery-region infrastructure is external |
+| [Troubleshooting](troubleshooting.md) | Managed health, migration, worker, and tenant diagnostics | Current |
+| [Trust documentation index](trust-docs-index.md) | Launch, security, governance, and customer-safe evidence templates | Current index; templates include external prerequisites |
 
-| Command | Description |
-|---------|-------------|
-| `kmp install` | Retired; retained as historical reference only |
-| `kmp update` | Legacy self-hosted maintenance |
-| `kmp status` | Legacy self-hosted health and version checks |
-| `kmp logs [-f]` | Legacy self-hosted log access |
-| `kmp backup` | Legacy self-hosted database backup |
-| `kmp restore <id>` | Legacy self-hosted restore |
-| `kmp rollback` | Legacy self-hosted rollback |
-| `kmp config` | Legacy self-hosted deployment configuration |
-| `kmp self-update` | Legacy tool maintenance |
+### Historical self-hosted reference
 
-## Self-Hosted Image Channels
+| Page | Historical scope |
+| --- | --- |
+| [Docker/VPC quick start](quickstart-vpc.md) | Single MariaDB database with Caddy and Docker Compose |
+| [Fly.io quick start](quickstart-fly.md) | Retired single-database provider example |
+| [Railway quick start](quickstart-railway.md) | Retired single-database provider example |
+| [VPC template reference](https://github.com/Ansteorra/KMP/blob/main/deploy/vpc/README.md) | Legacy Compose scripts, one MariaDB backup |
+| [Installer archive](https://github.com/Ansteorra/KMP/blob/main/installer/README.md) | Retired CLI and incomplete provider stubs |
+| [Legacy configuration appendix](configuration.md) | Archived variables and management-tool file format |
 
-| Channel | Stability | Use Case |
-|---------|-----------|----------|
-| `release` | Stable | Production deployments (default) |
-| `beta` | Pre-release | Testing upcoming features |
-| `dev` | Development | Latest main branch |
-| `nightly` | Nightly build | Bleeding edge |
+Historical pages are not a fallback managed-platform design. They omit the
+platform database, tenant registry, database-backed secrets, shared worker,
+tenant fleet migration, managed backup formats, and current release gates.
 
-## Legacy Self-Hosted Architecture
+## Managed platform invariants
 
-The KMP deployment system uses pre-built Docker images:
+### Runtime ownership
 
-```
-GitHub Releases → ghcr.io/jhandel/kmp:{tag} → Your infrastructure
-```
+- The web Container App handles HTTP requests only and sets
+  `KMP_SKIP_MIGRATIONS=true` and `KMP_SKIP_CRON=true`.
+- One Container Apps Job runs the unified `platform worker run` command every
+  three minutes.
+- A dedicated migration job applies application, platform, secret-transition,
+  backup-key, and tenant-fleet steps before web cutover.
+- The reset/restore job is a destructive POC seed operation and is never part of
+  normal release or production recovery.
+- Platform Admin is hosted by the same web application on a reserved host. Its
+  boundary is host validation plus in-app password/TOTP authentication, lockout,
+  allowed account status, and host-bound sessions—not a separate Container App
+  or trusted identity headers.
 
-Every app image release is:
-- Multi-architecture (amd64 + arm64)
-- Smoke-tested in CI before publishing
-- Tagged with version, channel, and SHA digest
-- Immutable once published
+### Migration order
 
-## Archived Guides
+The Azure runtime contract enforces:
 
-- [Docker/VPC Quick Start](quickstart-vpc.md)
-- [Fly.io Quick Start](quickstart-fly.md)
-- [Railway Quick Start](quickstart-railway.md)
-- Azure Quick Start (legacy guide not included in this archive)
-- AWS Quick Start (legacy guide not included in this archive)
-- [Updating & Rollback](updating.md)
-- [Backup & Restore](backup-restore.md)
-- [Managed Platform Region Failover Runbook](region-failover-runbook.md)
-- [Managed Platform Legal and Security Governance Template](legal-governance.md)
-- [Managed Platform Data Protection Templates](data-protection-agreement-template.md)
-- [Configuration Reference](configuration.md)
-- [Two-Tenant Staging POC](multi-tenant-poc.md)
-- [Platform Operations and Tenant Trust Surface](platform-admin-v2-trust-surface.md)
-- [Managed Platform Published Trust Documentation Index](trust-docs-index.md)
-- [Managed Platform Launch Readiness Gate](launch-readiness-gate.md)
-- [Managed Platform Penetration Test Scope and Evidence Checklist](penetration-test-scope-checklist.md)
-- [Managed Platform DR Drill Execution Checklist](dr-drill-execution-checklist.md)
-- [Managed Platform Security Regression Checklist](security-regression-checklist.md)
-- [Pilot Ring Exit Criteria and Rollback Plan](pilot-ring-exit-criteria.md)
-- [Pilot Go/No-Go Checklist Template](pilot-go-no-go-checklist.md)
-- [Pilot Kingdom Migration Rehearsal Runbook](pilot-migration-runbook.md)
-- [Troubleshooting](troubleshooting.md)
+    bin/cake migrations migrate &&
+    bin/cake schema_cache clear &&
+    bin/cake updateDatabase &&
+    bin/cake platform_migrate migrate &&
+    bin/cake schema_cache clear --connection platform &&
+    bin/cake platform secrets import-env &&
+    bin/cake platform backup-keys ensure --allow-read-only &&
+    bin/cake tenant migrate --all --include-suspended --fail-fast &&
+    bin/cake cache clear _cake_model_
 
-## Managed Platform Release Compatibility Contract
+Pending active or suspended tenants receive a recovery marker and encrypted
+backup before migration. Current tenants are inspected and skipped. Archived
+tenants are not migrated. A failure blocks web cutover and a rerun resumes by
+reinspecting state.
 
-Managed image promotion uses an explicit release manifest so CI and deployment jobs can fail closed before an image is rolled out to tenants on an incompatible schema. Copy `app/config/release_manifest.example.json` to a generated `release_manifest.json` during image build or release packaging, then stamp it with the app version, immutable image digest, tenant schema bounds, N-1 compatible schema versions, migration policy, and rollback notes.
+### Release promotion
 
-Required manifest fields:
+Official releases are built once. A `dev-<sha>` image is deployed to POC by
+digest, tagged `poc-validated-<sha>` only after the deployment succeeds, then
+given stable release tags without rebuilding. Production imports and deploys
+that same digest after protected-environment approval.
 
-| Field | Purpose |
-|-------|---------|
-| `app.version` | Human-readable app/release version. |
-| `app.image` / `app.digest` | Image reference and immutable `sha256:` digest being promoted. |
-| `tenant_schema.min` / `tenant_schema.max` | Inclusive tenant schema range supported by this image. |
-| `tenant_schema.compatible_previous` | Explicit N-1 schema versions accepted during rolling deploys. |
-| `migration_policy` | Safe rollout policy metadata for CI/deploy automation. |
-| `rollback_notes` | Operator guidance for image/schema rollback limits. |
+Rolling channel tags such as `dev`, `nightly`, and `latest` are mutable
+references. Use digests or commit/version-specific tags for evidence.
 
-Before deploy, validate the generated manifest and active tenant schemas:
+### Backups
 
-```bash
-cd app
-bin/cake platform release_check --manifest config/release_manifest.json --all
-```
+- New tenant backups are logical JSON archives stored as encrypted
+  `.json.gz.enc` objects.
+- Platform metadata backups are PostgreSQL custom dumps stored as encrypted
+  `.pgdump.enc` objects.
+- Managed backups use per-backup data keys wrapped by tenant/platform KEKs.
+- Tenant restore targets must be suspended.
+- Historical VPC SQL dumps cover one MariaDB database only and cannot protect a
+  managed tenant fleet.
 
-Tenant migrations can also enforce the same contract before any migration job row is created:
+### Audit immutability
 
-```bash
-cd app
-bin/cake tenant migrate --tenant example --manifest config/release_manifest.json
-```
+Database audit events have a hash chain. The file mirror is a local/dev,
+redacted, hash-chained JSONL sink. The Azure Blob sink is not implemented and
+the current Bicep template does not provision immutable audit storage.
+Production WORM retention, legal hold, continuity monitoring, and proof remain
+external launch prerequisites.
 
-The check accepts tenants whose schema is between `min` and `max`, or exactly listed in `compatible_previous` for N-1 rolling compatibility. Missing, malformed, below-minimum, or above-maximum schema versions fail with a tenant-specific error.
+## Optional rehearsal tooling
 
-### Tenant fleet migrations
+The repository includes `platform release_check`, tenant canary, release
+manifest, and nightly migration drill helpers. They are useful for explicit
+staging/pilot rehearsals, but the active Azure workflow does not generate
+`config/release_manifest.json` or pass `--manifest` to the deployment migration
+job. Do not describe those helpers as automated release gates until the workflow
+actually wires them in.
 
-Every release that contains application or plugin migrations must use the
-tenant fleet command before web cutover:
+## Safety rules
 
-```bash
-cd app
-bin/cake platform backup-keys ensure
-bin/cake tenant migrate --all --include-suspended --fail-fast
-```
-
-The command discovers the migration versions shipped by the application and
-every loaded plugin, then compares them with each tenant's corresponding
-`phinxlog` history. A tenant that is already current is recorded and skipped
-without a recovery backup. A tenant with pending versions receives its normal
-pre-migration marker and encrypted backup, runs migrations under the tenant
-advisory lock, and is inspected again before its platform `schema_version` is
-advanced. Applied versions absent from the release fail closed as migration
-history drift.
-
-The operation is resumable: rerunning the same command reinspects database
-state, skips tenants completed by the earlier attempt, and continues with the
-remaining tenant databases. Active and suspended tenants are included;
-provisioning tenants finish migrations through provisioning, and archived
-tenants remain untouched. A suspended tenant cannot be reactivated unless its
-recorded schema matches the migration target shipped by the running code.
-
-### Nightly migration drill
-
-Run the nightly migration drill from staging/canary jobs before promoting tenant schema changes. The safe metadata-only preflight checks the release manifest and target tenant schema compatibility, records a `nightly_migration_drill` row in `platform_jobs`, and prints a monitor-friendly summary line:
-
-```bash
-cd app
-bin/cake platform nightly_migration_drill --all --plan-only --manifest config/release_manifest.json
-```
-
-The tenant-connected drill is still non-destructive: it runs `tenant migrate --status`, `tenant migrate --marker-only --manifest ...`, and `tenant migrate --dry-run --manifest ...` for each selected active tenant. The marker-only probe creates the pre-migration recovery marker/backup and then stops before applying migrations. The drill is gated by both an environment variable and a command flag so it cannot run against real tenants by accident:
-
-```bash
-cd app
-KMP_ENABLE_NIGHTLY_MIGRATION_DRILL=true \
-  bin/cake platform nightly_migration_drill --all --allow-staging --manifest config/release_manifest.json
-```
-
-For a single staging/canary tenant, replace `--all` with `--tenant <slug>`. Do not schedule this command for production tenants; use disposable canary or staging tenants until the promotion is approved.
-
-Acceptance criteria:
-
-- Release manifest parses and all selected tenants are within `tenant_schema.min/max` or `compatible_previous`.
-- Each selected tenant status probe succeeds.
-- Each selected tenant marker-only probe creates the recovery marker/backup and exits before migrations run.
-- Each selected tenant dry-run migration probe succeeds without updating tenant schema versions.
-- The aggregate `nightly_migration_drill` platform job completes and the final output line reports `status=completed`.
-
-Failure triage:
-
-- Inspect the failed `nightly_migration_drill` row in `platform_jobs` for the aggregate result and redacted error.
-- Inspect tenant-level `tenant_migration` dry-run rows created during the drill for per-tenant migration output.
-- If manifest compatibility fails, regenerate the manifest or fix schema bounds before deploying the image.
-- If dry-run fails, treat it as a migration blocker; do not run destructive tenant migrations until the failing migration is fixed and the drill is green.
+- Never put database URLs, passwords, SMTP credentials, storage credentials,
+  KEKs, recovery keys, TOTP secrets, or customer records in documentation,
+  tickets, screenshots, or command arguments.
+- Do not run the destructive seed restore against production or customer data.
+- Do not start the parked compatibility scheduler jobs as a substitute for the
+  unified worker.
+- Do not assume image rollback reverses migrations or tenant data.
+- Do not claim WORM, per-tenant Azure RBAC, multi-region failover, escrow, or a
+  public trust dashboard is implemented unless current evidence proves it.

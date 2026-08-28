@@ -83,7 +83,7 @@ class OfficesController extends AppController
      * Recalculate officers for all offices to ensure settings are synchronized.
      *
      * @param OfficerManagerInterface $officerManager Officer manager for recalculation
-     * @return \\Cake\\Http\\Response|null Redirects to index
+     * @return \Cake\Http\Response|null Redirects to index
      */
     public function syncOfficers(OfficerManagerInterface $officerManager)
     {

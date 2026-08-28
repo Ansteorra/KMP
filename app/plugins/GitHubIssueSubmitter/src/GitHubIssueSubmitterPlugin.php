@@ -22,7 +22,7 @@ use App\KMP\StaticHelpers;
  *
  * @package GitHubIssueSubmitter
  * @since 1.0.0
- * @see /docs/5.4-github-issue-submitter-plugin.md Full documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.4-github-issue-submitter-plugin.md Full documentation
  */
 class GitHubIssueSubmitterPlugin extends BasePlugin
 {

@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Two-Tenant Staging POC"
+description: "Operator guide for validating tenant isolation, Platform Admin, jobs, backups, and host routing."
+---
+
 # Two-Tenant Staging POC
 
 Use `bin/cake tenant_poc` to prove that one app revision can serve two tenants with distinct hosts and databases. The harness is repo-local, idempotent, and does not require Azure credentials; it only needs the app configured for a staging-like PostgreSQL platform datasource.
@@ -50,7 +56,7 @@ For staging environments where the databases and roles are pre-created by infras
 
 ## Tenant migration canary gate
 
-Use `bin/tenant_migration_canary.sh` before promoting a release that contains tenant migrations. The script provisions a disposable `canary-*` tenant database, runs tenant migration status, dry-run, and idempotent migrate checks, verifies the smoke table exists, then drops the canary tenant metadata, database role, database, jobs, and writable secret-store entry. It never uses `--all`, so real tenants are not selected.
+The optional `bin/tenant_migration_canary.sh` provides an explicit staging rehearsal before promoting a release with tenant migrations. The active Azure workflow does not call this script automatically. When invoked, it provisions a disposable `canary-*` tenant database, runs tenant migration status, dry-run, and idempotent migrate checks, verifies the smoke table, then drops the canary tenant metadata, database role, database, jobs, and writable secret-store entry. It never uses `--all`, so real tenants are not selected.
 
 Safety behavior:
 
@@ -81,6 +87,7 @@ Optional controls:
 
 Workflow-ready hook:
 
+{% raw %}
 ```yaml
 - name: Tenant migration canary
   working-directory: app
@@ -93,64 +100,61 @@ Workflow-ready hook:
     PLATFORM_DB_DATABASE: ${{ secrets.PLATFORM_DB_DATABASE }}
   run: bash bin/tenant_migration_canary.sh
 ```
+{% endraw %}
 
-## Platform admin Container App v1
+## Platform Admin reserved-host surface
 
-KMP includes an essential `/platform-admin` surface for platform operators.
-Deploy it on a reserved platform hostname separate from tenant traffic. Keep
-tenant-facing hosts from resolving to the portal unless the host is listed in
-`KMP_PLATFORM_ADMIN_HOSTS`.
+KMP includes a privileged `/platform-admin` surface in the same web application
+that serves tenant traffic. The current Azure template does not provision a
+separate admin Container App and does not trust upstream identity headers.
+Isolate the surface with a reserved hostname in `KMP_PLATFORM_ADMIN_HOSTS` and
+keep tenant hosts out of that list.
 
-Minimum admin app settings:
+Minimum settings:
 
 ```bash
 export KMP_PLATFORM_ADMIN_PORTAL_ENABLED=true
 export KMP_PLATFORM_ADMIN_HOSTS='platform.kmp.localhost'
 export KMP_PLATFORM_ADMIN_ALLOWED_STATUSES='active'
+export KMP_PLATFORM_DATA_CONSOLE_ENABLED=false
 ```
 
-Operators sign in at `/platform-admin/login` with their platform user password
-and TOTP code. Operators must exist in `platform_users` with an allowed status.
-The v1 UI is intentionally small:
+Operators sign in at `/platform-admin/login` with platform-user email/password
+and TOTP. The app enforces allowed account status, lockout, and a host-bound
+session. The portal is mutating: authorized operators can create/provision
+tenants, change lifecycle state, configure safe registry values, queue backups
+and restores, and operate platform jobs.
 
-- Dashboard: tenant counts, failed/stuck operations, backup issues, and release
-  compatibility drift.
-- Tenants: create tenants, edit safe registry fields, configure storage, email,
-  integration endpoints, and secret reference names.
-- Backups: queue platform database backups and open tenant backup workflows.
-- Health: platform metadata datasource diagnostics.
-
-The portal does not expose DB hosts, DB roles, object URIs, wrapped keys, secret
-values, raw job errors, or plaintext secret values. Data Console routes remain
-controller-gated by `Platform.adminPortal.dataConsole.enabled`; hiding the nav
-link is not a security control.
+Views intentionally omit secret values, database passwords, reusable KEKs,
+wrapped DEKs, credential-bearing object URLs, and raw job errors. Data Console
+routes remain separately controller-gated; hiding the navigation link is not a
+security control.
 
 ### Backup and restore guardrails
 
 Tenant and platform database backup requests are queued as audited
 `platform_jobs`; web requests do not run long backup or restore work inline.
-Successful minute-level scheduler and queue polls are retained only when they
-process or dispatch work. Failures are always retained. The daily
-`platform-job-retention` schedule removes completed scheduler runs after 14
-days, other completed operational jobs after 90 days, and failed jobs after
-180 days; related `platform_job_events` are removed by cascade. Operators can
-run the same bounded cleanup manually with `bin/cake platform jobs prune`.
-Platform Admin uses the shared encrypted JSON `.kmpbackup` archive model:
+The three-minute unified worker claims `tenant_backup`,
+`platform_database_backup`, and `tenant_restore` jobs. The daily
+`platform-job-retention` schedule prunes completed/failed job history according
+to its configured classes; `bin/cake platform jobs prune` runs the same bounded
+cleanup manually.
 
-- Create backup requests enqueue a `tenant_backup_json` or
-  `platform_backup_json` job with an idempotency key.
-- Download and restore actions are available only for completed
-  `kmpbackup_json` records whose object name is a safe `.kmpbackup` archive.
-- Download requires typed confirmation (`DOWNLOAD <tenant>` or
-  `DOWNLOAD platform`), reason text, TOTP step-up, and an audit record before
-  bytes are read.
-- Restore requires typed confirmation (`RESTORE <tenant>` or
-  `RESTORE platform`), reason text, TOTP step-up, and an audit record before a
-  restore job is queued.
-- Tenant restores require the tenant to be suspended first so no live traffic is
-  writing to the database during the destructive operation.
+- New tenant backups are logical JSON archives stored as encrypted
+  `.json.gz.enc` objects.
+- Platform metadata backups are PostgreSQL custom dumps stored as encrypted
+  `.pgdump.enc` objects for external disaster recovery.
+- Archive download and portable per-backup key export are separate guarded
+  actions requiring typed confirmation, reason, TOTP step-up, and audit.
+- Tenant restore requires typed `RESTORE <target-slug>` confirmation, reason,
+  TOTP step-up, and a suspended target checked again at execution.
+- The serving web app does not restore the platform metadata database. Operators
+  decrypt the exported `.pgdump.enc` on a secured recovery host and follow the
+  external platform restore procedure.
 
-Platform Admin v2 and the tenant-visible trust dashboard roadmap are tracked in [Platform Admin v2 and Tenant Trust Surface](platform-admin-v2-trust-surface.md). Keep new admin capabilities feature-flagged or guarded until their audit and tenant-visible evidence paths are implemented.
+The tenant-visible trust dashboard remains a roadmap item. Keep it distinct from
+the implemented Platform Admin surface in
+[Platform Operations and Tenant Trust Surface](platform-admin-v2-trust-surface.md).
 
 ## Acceptance criteria
 

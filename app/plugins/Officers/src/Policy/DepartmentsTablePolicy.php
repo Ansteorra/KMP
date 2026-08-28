@@ -15,7 +15,7 @@ use Authorization\Policy\ResultInterface;
  * Provides table-level authorization for bulk operations, query scoping,
  * and administrative data access for departments.
  *
- * @see /docs/5.1-officers-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.1-officers-plugin.md
  */
 class DepartmentsTablePolicy extends BasePolicy
 {

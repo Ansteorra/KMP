@@ -14,7 +14,7 @@ use Cake\Validation\Validator;
  *
  * @property \App\Model\Table\PermissionsTable&\Cake\ORM\Association\BelongsTo $Permissions
  * @method \App\Model\Entity\PermissionPolicy newEmptyEntity()
- * @method \App\Model\Entity\PermissionPolicy get(mixed $primaryKey, ...)
+ * @method \App\Model\Entity\PermissionPolicy get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)
  */
 class PermissionPoliciesTable extends BaseTable
 {

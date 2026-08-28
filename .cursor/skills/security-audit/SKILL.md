@@ -1,41 +1,10 @@
 ---
 name: security-audit
-description: Performs static and dynamic security audits on KMP (SQL injection, XSS, auth, IDOR, headers, dependencies). Use for security review, penetration testing, or vulnerability assessment.
+description: Performs an authorized, tenant-aware KMP security review with safe static analysis and explicitly scoped dynamic testing.
 ---
 
-# KMP Security Audit
+# KMP security audit
 
-**Stack**: CakePHP 5.x, Stimulus, MySQL · **URL**: `http://localhost:8080` · **App**: `app/`
+Read and follow `.github/skills/security_audit/SKILL.md`. It is the canonical audit workflow.
 
-## Test users
-
-| Email | Role |
-|-------|------|
-| admin@amp.ansteorra.org | Super admin |
-| iris@ampdemo.com | Basic user |
-| bryce@ampdemo.com | Local Seneschal |
-| eirik@ampdemo.com | Kingdom Seneschal |
-
-Password: `TestPassword`
-
-## Phases
-
-1. **Static analysis** — grep for raw SQL, unescaped output, missing auth, file uploads, secrets
-2. **Dynamic testing** — curl auth enumeration, SQLi/XSS probes, CSRF, path traversal, headers
-3. **Automated scanners** — `composer audit`, `npm audit`, nikto/nuclei if installed
-4. **CakePHP-specific** — debug mode, FormProtection, ORM vs raw queries
-
-Reports: `security-reports/` at repo root.
-
-## Report format
-
-| Severity | Category | Location | Description | Remediation |
-|----------|----------|----------|-------------|-------------|
-
-Severity: CRITICAL > HIGH > MEDIUM > LOW > INFO
-
-## Full workflow
-
-Complete grep commands, curl tests, and CakePHP checks: `.github/skills/security_audit/SKILL.md`
-
-Also see `docs/deployment/penetration-test-scope-checklist.md` and `docs/deployment/security-regression-checklist.md`.
+Before any active testing, establish the exact commit, environment, tenant/platform hosts, accounts, rate limits, data-handling rules, and stop conditions. KMP uses host-resolved tenants plus a separate platform connection; PostgreSQL is the primary local/deployment database, while MariaDB remains a compatibility path in the dev container. Never run scanners, brute-force loops, resets, or destructive payloads without explicit authorization, and never print secrets or real tenant/member data.

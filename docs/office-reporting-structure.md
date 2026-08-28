@@ -1,363 +1,53 @@
+---
+layout: default
+---
+[← Back to Officers Plugin](5.1-officers-plugin.md)
+
 # Office Reporting Structure
 
-This document shows the hierarchical reporting relationships between offices in the Kingdom Management Portal (KMP). Each department has its own diagram for clarity.
+KMP does not have one hard-coded kingdom organization chart. Departments, offices, reporting relationships, applicable branch types, and officer assignments are tenant data. The active tenant's records—not a diagram in this repository—are authoritative.
 
----
+## Three layers
 
-## 🏰 Nobility
+| Layer | Model | Meaning |
+| --- | --- | --- |
+| Category | `Officers.Department` | Groups related office definitions |
+| Position definition | `Officers.Office` | Describes a role in the organization |
+| Assignment | `Officers.Officer` | Places a member in an office for one branch and active window |
 
-```mermaid
-flowchart TD
-    Crown["👑 Crown"]
-    Coronet["👑 Coronet"]
-    PS["👑 Principality Sovereign"]
-    LL["Local Landed"]
-    
-    LL --> Crown
-```
+A Department owns many Offices. An Office can grant a core Role, require a warrant, limit assignments to one per branch, define a term length, and restrict itself to applicable branch types.
 
----
+## Office relationships
 
-## 📜 Seneschallate
+`reports_to_id` identifies the office definition this office normally reports to. `deputy_to_id` identifies an office for which this is a deputy. The `Office` entity keeps them mutually consistent: assigning a deputy target also sets the reporting target; assigning an independent reporting target clears the deputy target.
 
-```mermaid
-flowchart TD
-    KS["Kingdom Seneschal"]
-    
-    KSD["Kingdom Seneschal Deputy"]
-    SMO["Kingdom Social Media Officer"]
-    RS["Regional Seneschal"]
-    
-    KSD --> KS
-    SMO --> KS
-    RS --> KS
-    
-    SMD["Kingdom Social Media Deputy"]
-    LSM["Local Social Media Officer"]
-    RSD["Regional Seneschal Deputy"]
-    LS["Local Seneschal"]
-    
-    SMD --> SMO
-    LSM --> SMO
-    RSD --> RS
-    LS --> RS
-    
-    LSD["Local Seneschal Deputy"]
-    LSD --> LS
-```
+The inverse associations are `DirectReports` and `Deputies`. These relationships are between office definitions, not particular people.
 
----
+## Resolved assignment relationships
 
-## ⚔️ Marshallate
+An Officer assignment stores the resolved coordinates:
 
-The Marshallate is the largest department. It's broken into sub-sections for readability.
+- `reports_to_office_id` and `reports_to_branch_id`;
+- `deputy_to_office_id` and `deputy_to_branch_id`.
 
-### Earl Marshal Overview
+The hire workflow calculates them from the office definition and the assignment branch. `OfficesTable::findCompatibleBranchForOffice()` finds the appropriate branch level for the target office. `OfficersTable::findEffectiveReportsTo()` walks both the office and branch hierarchies and can skip configured empty reporting levels.
 
-```mermaid
-flowchart TD
-    KEM["🏛️ Kingdom Earl Marshal"]
-    
-    KEMD["Kingdom Earl Marshal Deputy"]
-    KEMS["Kingdom Earl Marshal Deputy - Secretary"]
-    PEM["Principality Earl Marshal"]
-    
-    KAM["Kingdom Armored Marshal"]
-    KRM["Kingdom Rapier Marshal"]
-    KEqM["Kingdom Equestrian Marshal"]
-    KMM["Kingdom Missile Marshal"]
-    
-    KEMD --> KEM
-    KEMS --> KEM
-    PEM --> KEM
-    
-    KAM --> KEM
-    KRM --> KEM
-    KEqM --> KEM
-    KMM --> KEM
-```
+This distinction matters: changing an Office definition does not make old assignment snapshots correct automatically.
 
-### Armored Combat Branch
+## Changing the hierarchy
 
-```mermaid
-flowchart TD
-    KAM["Kingdom Armored Marshal"]
-    
-    KAMD["Kingdom Armored Marshal Deputy"]
-    AAM["At Large: Armored Authorizing Marshal"]
-    KYAM["Kingdom Youth Armored Marshal"]
-    RAM["Regional Armored Marshal"]
-    
-    KAMD --> KAM
-    AAM --> KAM
-    KYAM --> KAM
-    RAM --> KAM
-    
-    AYAM["At Large: Youth Armored Authorizing Marshal"]
-    LAM["Local Armored Marshal"]
-    
-    AYAM --> KYAM
-    LAM --> RAM
-    
-    LAMD["Local Armored Marshal Deputy"]
-    LAMD --> LAM
-```
+After changing `reports_to_id`, `deputy_to_id`, or `grants_role_id`, call `OfficerManagerInterface::recalculateOfficersForOffice()` for current and upcoming assignments. Do not bulk-update the resolved fields. The recalculation path also keeps granted roles and related lifecycle state consistent.
 
-### Rapier Combat Branch
+Before saving a hierarchy change, guard against self-reference/cycles, ensure the target applies at a compatible branch level, and consider one-per-branch and warrant requirements. Use the table/entity setters and rules rather than direct SQL.
 
-```mermaid
-flowchart TD
-    KRM["Kingdom Rapier Marshal"]
-    
-    KRMD["Kingdom Rapier Marshal Deputy"]
-    ARAM["At Large: Rapier Authorizing Marshal"]
-    ARSAM["At Large: Rapier Spear Authorizing Marshal"]
-    ARRAE["At Large: Rapier Reduced Armor Experiment"]
-    KCTM["Kingdom C&T Marshal"]
-    KYRM["Kingdom Youth Rapier Marshal"]
-    RRM["Regional Rapier Marshal"]
-    
-    KRMD --> KRM
-    ARAM --> KRM
-    ARSAM --> KRM
-    ARRAE --> KRM
-    KCTM --> KRM
-    KYRM --> KRM
-    RRM --> KRM
-    
-    ACTAM["At Large: C&T Authorizing Marshal"]
-    ACT2H["At Large: C&T 2 Handed Weapons"]
-    ACTHC["At Large: C&T Historic Combat Experiment"]
-    
-    ACTAM --> KCTM
-    ACT2H --> KCTM
-    ACTHC --> KCTM
-    
-    AYRM["At Large: Youth Rapier Authorizing Marshal"]
-    RYRM["Regional Youth Rapier Marshal"]
-    
-    AYRM --> KYRM
-    RYRM --> KYRM
-    
-    RRMD["Regional Rapier Marshal Deputy"]
-    LRM["Local Rapier Marshal"]
-    
-    RRMD --> RRM
-    LRM --> RRM
-    
-    LRMD["Local Rapier Marshal Deputy"]
-    LRMD --> LRM
-```
+## Authorization and tenancy
 
-### Equestrian Branch
+`departmentsMemberCanWork()` and `officesMemberCanWork()` combine global officer permissions with current officer positions and hierarchy. Controllers still authorize actions through policies. A reporting relationship never grants cross-tenant access, and an office/branch numeric ID has meaning only in its tenant database.
 
-```mermaid
-flowchart TD
-    KEqM["Kingdom Equestrian Marshal"]
-    
-    AEqAM["At Large: Equestrian Authorizing Marshal"]
-    AWLAM["At Large: Wooden Lance Authorizing Marshal"]
-    
-    AEqAM --> KEqM
-    AWLAM --> KEqM
-```
+## How to inspect a tenant's chart
 
-### Missile Combat Branch
+Use the Offices administration/grid and current officer rosters for the selected tenant. A useful diagnostic view includes department, office, reports-to/deputy target, applicable branch types, assigned branch, current officer, and effective report recipients. If a static diagram is needed for operations, generate it from that tenant's current data and label it with the tenant and export date.
 
-```mermaid
-flowchart TD
-    KMM["Kingdom Missile Marshal"]
-    
-    KMMD["Kingdom Missile Marshal Deputy"]
-    KTAM["Kingdom Target Archery Marshal"]
-    KTWM["Kingdom Thrown Weapons Marshal"]
-    KCAM["Kingdom Combat Archery Marshal"]
-    KSWM["Kingdom Siege Weapons Marshal"]
-    RTAM["Regional Target Archery Marshal"]
-    
-    KMMD --> KMM
-    KTAM --> KMM
-    KTWM --> KMM
-    KCAM --> KMM
-    KSWM --> KMM
-    RTAM --> KMM
-    
-    ATAAM["At Large: Target Archery Authorizing Marshal"]
-    LTAM["Local Target Archery Marshal"]
-    
-    ATAAM --> KTAM
-    LTAM --> KTAM
-    
-    LTAMD["Local Target Archery Marshal Deputy"]
-    LTAMD --> LTAM
-    
-    ATWAM["At Large: Thrown Weapons Authorizing Marshal"]
-    LTWM["Local Thrown Weapons Marshal"]
-    
-    ATWAM --> KTWM
-    LTWM --> KTWM
-    
-    ACAAM["At Large: Combat Archery Authorizing Marshal"]
-    ACAAM --> KCAM
-    
-    ASWAM["At Large: Siege Weapons Authorizing Marshal"]
-    ASWAM --> KSWM
-```
+## Verification
 
----
-
-## 🎨 Arts & Sciences
-
-```mermaid
-flowchart TD
-    KMAS["Kingdom MoAS"]
-    
-    KMASD["Kingdom MoAS Deputy"]
-    RMAS["Regional MoAS"]
-    
-    KMASD --> KMAS
-    RMAS --> KMAS
-    
-    LMAS["Local MoAS"]
-    LMAS --> RMAS
-```
-
----
-
-## 💻 Webministry
-
-```mermaid
-flowchart TD
-    KW["Kingdom Webminister"]
-    
-    KWD["Kingdom Webminister Deputy"]
-    KWAMP["Kingdom Webminister - AMP Admin"]
-    RW["Regional Webminister"]
-    LW["Local Webminister"]
-    
-    KWD --> KW
-    KWAMP --> KW
-    RW --> KW
-    LW --> KW
-```
-
----
-
-## 💰 Treasury
-
-```mermaid
-flowchart TD
-    KT["Kingdom Treasurer"]
-    PC["Principality Consort"]
-    
-    KTD["Kingdom Treasurer Deputy"]
-    RT["Regional Treasurer"]
-    
-    KTD --> KT
-    RT --> KT
-    
-    LT["Local Treasurer"]
-    LT --> RT
-```
-
----
-
-## 🏠 Chatelaine
-
-```mermaid
-flowchart TD
-    KC["Kingdom Chatelaine"]
-    
-    KCD["Kingdom Chatelaine Deputy"]
-    RC["Regional Chatelaine"]
-    
-    KCD --> KC
-    RC --> KC
-    
-    LC["Local Chatelaine"]
-    LC --> RC
-    
-    LCD["Local Chatelaine Deputy"]
-    LCD --> LC
-```
-
----
-
-## 📰 Chronicler
-
-```mermaid
-flowchart TD
-    KCH["Kingdom Chronicler"]
-    
-    KCHD["Kingdom Chronicler Deputy"]
-    RCH["Regional Chronicler"]
-    
-    KCHD --> KCH
-    RCH --> KCH
-    
-    RCHD["Regional Chronicler Deputy"]
-    LCH["Local Chronicler"]
-    
-    RCHD --> RCH
-    LCH --> RCH
-```
-
----
-
-## 🛡️ College of Heralds
-
-```mermaid
-flowchart TD
-    SPH["Star Principal Herald"]
-    
-    KHD["Kingdom Herald Deputy"]
-    RH["Regional Herald"]
-    
-    KHD --> SPH
-    RH --> SPH
-    
-    RHD["Regional Herald Deputy"]
-    LH["Local Herald"]
-    LHD["Local Heraldry Deputy"]
-    
-    RHD --> RH
-    LH --> RH
-    LHD --> RH
-```
-
----
-
-## 👨‍👩‍👧‍👦 Youth and Family Office
-
-```mermaid
-flowchart TD
-    KYFO["Kingdom Youth and Family Officer"]
-    
-    RYFO["Regional Youth and Family Officer"]
-    RYFO --> KYFO
-    
-    LYFO["Local Youth and Family Officer"]
-    LYFO --> RYFO
-```
-
----
-
-## Office Count Summary
-
-| Department | Total Offices |
-|------------|---------------|
-| Marshallate | 47 |
-| Seneschallate | 10 |
-| Arts & Sciences | 4 |
-| Webministry | 5 |
-| Treasury | 5 |
-| Chatelaine | 5 |
-| Chronicler | 5 |
-| College of Heralds | 6 |
-| Youth and Family Office | 3 |
-| Nobility | 4 |
-| **Total** | **94** |
-
----
-
-*Generated from KMP database on December 8, 2025*
+Test independent and deputy relationships, cycles/invalid targets, compatible branch selection, skipped vacancies, current/upcoming assignments, recalculation after configuration changes, role and warrant effects, authorization scope, and two tenants with different office trees.

@@ -18,7 +18,7 @@ use Cake\ORM\Table;
  * they have the ViewSubmittedForMember permission.
  * 
  * @see \Awards\Services\AwardsViewCellProvider View cell registration
- * @see /docs/5.2.17-awards-services.md Full documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.2.17-awards-services.md Full documentation
  */
 class RecsForMemberCell extends Cell
 {

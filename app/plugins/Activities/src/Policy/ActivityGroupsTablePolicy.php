@@ -16,7 +16,7 @@ use App\Policy\BasePolicy;
  *
  * @package Activities\Policy
  * @see \App\Policy\BasePolicy For inherited RBAC functionality
- * @see /docs/5.6.5-activity-security-patterns.md For table policy patterns
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.6.5-activity-security-patterns.md For table policy patterns
  */
 class ActivityGroupsTablePolicy extends BasePolicy
 {

@@ -15,7 +15,7 @@ use InvalidArgumentException;
  * (User TZ -> UTC) with priority resolution: User -> App Default -> UTC.
  *
  * @package App\KMP
- * @see /docs/10.3-timezone-handling.md For comprehensive documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/10.3-timezone-handling.md For comprehensive documentation
  * @see \App\View\Helper\TimezoneHelper View helper for templates
  */
 class TimezoneHelper

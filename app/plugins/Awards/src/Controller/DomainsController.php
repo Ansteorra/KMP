@@ -12,7 +12,7 @@ use App\Controller\DataverseGridTrait;
  * Domains are the top-level categorization in the award hierarchy.
  *
  * @property \Awards\Model\Table\DomainsTable $Domains
- * @see /docs/5.2-awards-plugin.md For award hierarchy documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.2-awards-plugin.md For award hierarchy documentation
  */
 class DomainsController extends AppController
 {

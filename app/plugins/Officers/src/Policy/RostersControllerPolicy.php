@@ -18,7 +18,7 @@ use Cake\ORM\TableRegistry;
  * Implements controller-level access control for roster management operations including
  * roster generation, warrant processing, and organizational reporting.
  *
- * @see /docs/5.1-officers-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.1-officers-plugin.md
  */
 class RostersControllerPolicy extends BasePolicy
 {

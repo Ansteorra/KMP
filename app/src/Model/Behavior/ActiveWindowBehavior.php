@@ -13,7 +13,7 @@ use Cake\ORM\Query\SelectQuery;
  * Temporal filtering for entities with start_on/expires_on date windows.
  * Provides findUpcoming, findCurrent, and findPrevious finders.
  *
- * @see /docs/3.2-model-behaviors.md#activewindow-behavior
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/3.2-model-behaviors.md#activewindow-behavior
  */
 class ActiveWindowBehavior extends Behavior
 {

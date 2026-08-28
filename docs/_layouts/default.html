@@ -1,11 +1,10 @@
 ---
 ---
 <!DOCTYPE html>
-<html lang="{{ site.lang | default: " en-US" }}">
+<html lang="{{ site.lang | default: 'en-US' }}">
 
 <head>
     <meta charset="UTF-8">
-
     {% seo %}
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link rel="preload" href="https://fonts.googleapis.com/css?family=Open+Sans:400,700&display=swap" as="style"
@@ -18,9 +17,9 @@
 </head>
 
 <body>
-    <a id="skip-to-content" href="#content">Skip to the content.</a>
+    <a id="skip-to-content" href="#content">Skip to main content</a>
 
-    <header class="page-header" role="banner">
+    <header class="page-header">
         <h1 class="project-name">{{ page.title | default: site.title | default: site.github.repository_name }}</h1>
         <h2 class="project-tagline">{{ page.description | default: site.description | default:
             site.github.project_tagline }}</h2>
@@ -33,7 +32,7 @@
         {% endif %}
     </header>
 
-    <main id="content" class="main-content" role="main">
+    <main id="content" class="main-content" tabindex="-1">
         {{ content }}
 
         <footer class="site-footer">
@@ -46,19 +45,14 @@
                     Pages</a>.</span>
         </footer>
     </main>
-</body>
-<!-- Mermaid JavaScript -->
-<script type="module">
-    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.6.0/+esm'
-</script>
-<script type="module">
-    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.6.0/+esm';
 
-    document.addEventListener("DOMContentLoaded", async function () {
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.6.0/+esm';
+
         mermaid.initialize({
             startOnLoad: false,
             theme: 'default',
-            securityLevel: 'loose',
+            securityLevel: 'strict',
             flowchart: {
                 useMaxWidth: true,
                 htmlLabels: true,
@@ -66,22 +60,16 @@
             }
         });
 
-        // Find all code blocks with language 'mermaid' and process them sequentially
         const blocks = document.querySelectorAll('pre code.language-mermaid');
         for (const block of blocks) {
-            // Create a div for mermaid
-            const mermaidDiv = document.createElement('div');
-            mermaidDiv.className = 'mermaid';
-            mermaidDiv.innerHTML = block.textContent;
-
-            // Replace the code block with the mermaid div
             const pre = block.parentNode;
-            pre.parentNode.replaceChild(mermaidDiv, pre);
-
-            // Render the mermaid diagram and wait for it to complete
-            await mermaid.run({ nodes: [mermaidDiv] });
+            const diagram = document.createElement('div');
+            diagram.className = 'mermaid';
+            diagram.textContent = block.textContent;
+            pre.parentNode.replaceChild(diagram, pre);
+            await mermaid.run({ nodes: [diagram] });
         }
-    });
-</script>
+    </script>
+</body>
 
 </html>

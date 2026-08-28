@@ -1,455 +1,211 @@
 ---
 layout: default
+title: Development workflow
+description: Repository workflow, ownership rules, implementation patterns, and proportionate verification for KMP changes.
 ---
-[← Back to Table of Contents](index.md)
 
-# 7. Development Workflow
+[← Documentation home](index.md)
 
-This section documents the development practices, standards, and workflows used in the Kingdom Management Portal project.
+# 7. Development workflow
 
-## 7.1 Coding Standards
+A good KMP change is small, belongs to the right architectural boundary, proves
+tenant isolation and authorization where relevant, and updates the durable guide
+that owns its contract.
 
-KMP follows the CakePHP coding standards with some additional project-specific rules.
+## Before editing
 
-### PHP Coding Standards
-
-The project uses PHP_CodeSniffer with the CakePHP ruleset to enforce coding standards:
+From the repository root:
 
 ```bash
-cd /workspaces/KMP/app
-
-# Check coding standards
-composer cs-check
-
-# Automatically fix coding standards issues
-composer cs-fix
-
-# Run all checks (tests + coding standards)
-composer check
-
-# Or run phpcs directly
-vendor/bin/phpcs --colors -p
-vendor/bin/phpcbf --colors -p
+git status --short
+rg --files -g 'AGENTS.md'
 ```
 
-Key coding standards include:
+Then:
 
-- PSR-12 compatibility
-- 4 spaces for indentation (no tabs)
-- Line length should not exceed 120 characters
-- Method and function names use camelCase
-- Class names use PascalCase
-- Constants use UPPER_CASE with underscores
-- Use type hints for method parameters and return types
+1. identify every path you expect to touch;
+2. read each `AGENTS.md` from the repository root to those paths;
+3. preserve unrelated worktree changes;
+4. search for an existing controller, service, policy, plugin, registry,
+   migration, Stimulus controller, test, or documentation pattern; and
+5. choose the narrowest verification that can falsify the proposed change.
 
-### Static Analysis
+Use `rg`/`rg --files` for discovery. Run app commands from `app/` unless a local
+guide says otherwise.
 
-PHPStan is used for static analysis:
+## Place code by ownership
+
+| Concern | Owner |
+| --- | --- |
+| HTTP orchestration | web `AppController` or API `ApiController` subclass |
+| Persistence and local invariants | `BaseTable`/`BaseEntity` subclasses and behaviors |
+| Authorization and collection reach | `BasePolicy` subclasses and scopes |
+| Multi-step business work | core or plugin `src/Services` |
+| Platform registry/fleet operations | `app/src/Services/Platform` and platform migrations |
+| Domain plugin behavior | that plugin's controllers/models/policies/services/assets/tests |
+| Plugin UI contribution | navigation/view-cell/action/workflow registries |
+| Grid definitions | `DataverseGridTrait` and `BaseGridColumns` provider |
+| User-facing behavior | accessible templates plus focused Stimulus controller |
+
+Do not put business workflows in templates, tenant selection in request data,
+plugin conditionals in core views, or authorization in hidden buttons alone.
+
+## Tenant-safe implementation
+
+Before creating a table or service, decide whether its data is platform-owned or
+tenant-owned. Normal domain records belong in tenant core or an active plugin.
+Hosted requests resolve the tenant host and bind a fresh connection/table locator
+before authentication and authorization.
+
+For tenant-sensitive changes, test:
+
+- unknown/platform-unavailable/inactive/schema-behind requests fail closed;
+- the same internal ID in tenant A and B resolves only in the active database;
+- caches, mail, document storage, table locators, and static state restore after
+  a scope;
+- jobs enter the target tenant and cannot reuse the previous job's context; and
+- suspended tenants are included only by explicitly authorized maintenance.
+
+Use the complete contract in
+[Multi-tenant architecture](3.1-multi-tenant-architecture.md).
+
+## Backend conventions
+
+PHP files use `declare(strict_types=1);` and CakePHP/project coding standards.
+Controllers authorize loaded resources and scope collection queries. Prefer
+named arguments where CakePHP's current APIs make them clearer, but do not add
+native types to inherited framework/plugin methods merely because a docblock
+mentions one.
+
+Use transactions around atomic domain state, and ensure external/queued effects
+are retry-safe. Store timestamps in UTC; convert through timezone helpers at
+input/display boundaries. Use public IDs for supported external routes and then
+perform normal authorization.
+
+For schema changes, add a forward migration to exactly one platform, tenant-core,
+or tenant-plugin track. Never edit a released migration. Fleet releases verify
+all loaded plugin histories; see [Migration lifecycle](3.4-migration-documentation.md).
+
+## Frontend conventions
+
+Frontend source lives in `app/assets` and is built by Vite. Stimulus controllers
+use `*-controller.js`, declare targets/values/outlets, register through
+`window.Controllers`, and remove global listeners in `disconnect()`. Turbo Drive
+is disabled; use established Turbo Frame response patterns.
+
+Use Bootstrap components and existing `KMP_utils`/`KMP_accessibility` helpers.
+Preserve WCAG 2.2 Level AA: semantic elements, labels, keyboard operation,
+visible focus, correct focus order/return, ARIA state, announced async status,
+contrast, and non-color-only cues. Keep data attributes used by templates and
+tests stable.
+
+## Tests while implementing
+
+Run the fastest relevant lane frequently:
 
 ```bash
-cd /workspaces/KMP/app
-
-# PHPStan static analysis
-composer stan
-
-# Or run directly
-vendor/bin/phpstan analyse
-```
-
-### Documentation Standards
-
-- PHPDoc blocks are required for all classes, methods, and properties
-- Comments should explain "why" rather than "what" where possible
-- Inline docs focus on maintenance; usage examples go in `/docs`
-
-## 7.2 Testing
-
-KMP uses PHPUnit 10.x with a **seed SQL + transaction wrapping** strategy — NOT CakePHP fixtures.
-
-### Test Data Strategy
-
-Test data comes from `dev_seed_clean.sql`, loaded once at bootstrap via `SeedManager`. Each test runs inside a database transaction that rolls back automatically, so tests never affect each other.
-
-**How it works:**
-
-1. `tests/bootstrap.php` calls `SeedManager::bootstrap('test')` to load `dev_seed_clean.sql`
-2. `BaseTestCase::setUp()` opens a transaction
-3. Your test runs against the full seed dataset
-4. `BaseTestCase::tearDown()` rolls the transaction back
-
-### Test Suites
-
-Test suites are defined in `phpunit.xml.dist`:
-
-| Suite | Directories | Purpose |
-|-------|------------|---------|
-| `core-unit` | `tests/TestCase/Core/Unit`, `tests/TestCase/Model`, `tests/TestCase/Services`, `tests/TestCase/KMP`, `ApplicationTest.php` | Fast unit/service tests |
-| `core-feature` | `tests/TestCase/Core/Feature`, `tests/TestCase/Controller`, `tests/TestCase/Command`, `tests/TestCase/Middleware`, `tests/TestCase/View` | HTTP and controller tests |
-| `plugins` | `tests/TestCase/Plugins`, `plugins/*/tests/TestCase` | Plugin tests |
-| `all` | Everything | Complete regression suite |
-
-### Running Tests
-
-```bash
-cd /workspaces/KMP/app
-
-# Run all tests
-composer test
-# or
-vendor/bin/phpunit
-
-# Run a specific suite
+# PHP unit/model/service
 vendor/bin/phpunit --testsuite core-unit
+
+# HTTP/controller/command/view
 vendor/bin/phpunit --testsuite core-feature
+
+# Plugin behavior
 vendor/bin/phpunit --testsuite plugins
-vendor/bin/phpunit --testsuite all
 
-# Run a specific test file
-vendor/bin/phpunit tests/TestCase/Controller/MembersControllerTest.php
+# One PHP test or method
+vendor/bin/phpunit tests/TestCase/path/Test.php
+vendor/bin/phpunit --filter testMethodName
 
-# Run a specific test method
-vendor/bin/phpunit --filter testIndex tests/TestCase/Controller/MembersControllerTest.php
-
-# Run with coverage
-vendor/bin/phpunit --coverage-html tmp/coverage
-```
-
-For the current repo-level testing contract, use these higher-level entry points before review:
-
-```bash
-cd /workspaces/KMP/app
-
-# Standard local verification (PHPUnit, Jest, Vite, PHPCS, PHPStan)
-bash bin/verify.sh
-
-# Add focused coverage hardening for security/authorization-heavy work
-bash bin/verify.sh --with-coverage
-
-# Add focused mutation analysis for security/authorization-heavy work
-bash bin/verify.sh --with-mutation
-```
-
-### JavaScript Tests
-
-```bash
-cd /workspaces/KMP/app
-
-# Unit tests (Jest)
+# JavaScript
 npm run test:js
 
-# Fast browser smoke lane (used by PR gates)
-npm run test:ui:smoke
+# Bundle/import changes
+npm run dev
+```
 
-# Full browser regression lane (used for UAT/nightly validation)
+Use project base test classes and stable seed constants. For workflow side
+effects, test the trigger-driven chain rather than directly calling an action in
+isolation. Add Playwright for browser flows, Turbo Frames, modals, focus, and
+multi-host tenancy.
+
+## Verification before handoff
+
+Choose checks proportionate to risk:
+
+| Change | Minimum useful verification |
+| --- | --- |
+| Documentation only | diff review, link/stale-term scan; Jekyll build if site structure changed |
+| PHP behavior | targeted PHPUnit plus `vendor/bin/phpcs <changed.php>` |
+| Policy/security | positive and negative authorization tests, branch scope, tenant boundary |
+| JavaScript behavior | focused Jest; `npm run dev` for imports/bundle changes |
+| Template/UI | relevant PHP/Jest/Playwright plus accessibility review |
+| Migration | clean setup + seeded upgrade + tenant catalog/status verification |
+| Cross-cutting | `bash bin/verify.sh` when practical |
+
+The standard verifier runs the three PHPUnit suites, skipped-test budget, seed
+snapshot contracts, Jest, Markdown/JSDoc integrity, Vite, changed-PHP PHPCS,
+Azure runtime contract, and PHPStan:
+
+```bash
+bash bin/verify.sh
+```
+
+Coverage and mutation lanes are opt-in:
+
+```bash
+bash bin/verify.sh --with-coverage=security
+bash bin/verify.sh --with-mutation=security
+```
+
+Playwright is separate from `verify.sh`:
+
+```bash
 npm run test:ui
-
-# Focused JS coverage for security-critical controllers
-npm run test:js:coverage:security
-
-# Focused JS mutation analysis
-npm run test:mutate
+npm run test:ui:journey
 ```
 
-Before opening a PR, declare the affected coverage layers using the repo testing contract in `app/docs/testing-suite.md`. Code changes should normally finish with `bash bin/verify.sh`, and any change that declares E2E or critical-path browser coverage must also run `npm run test:ui` because `bin/verify.sh` does not currently execute Playwright.
+Do not claim an unrun lane passed. Report the exact command and outcome, or the
+reason it could not run.
 
-### Playwright Helper Patterns
+## Documentation and generated references
 
-When adding new browser coverage, reuse the shared helpers instead of duplicating waits or environment parsing:
+Update the closest owning documentation when behavior, ownership, workflow,
+permissions, inputs/outputs, side effects, commands, or operational expectations
+change. Delete superseded text rather than appending historical corrections.
+Temporary plans and cleanup trackers do not belong in `docs/` or `app/docs/`.
 
-- `tests/ui/support/test-environment.cjs` - shared base URL, Mailpit, and DB cleanup config
-- `tests/ui/support/ui-helpers.cjs` - shared login, tab, network-idle, and visibility helpers
-- `app/bin/run-playwright-lane.sh` - standard smoke vs UAT Playwright entrypoint
-
-Prefer event-, locator-, or response-driven waits over `waitForTimeout(...)`, and add new domain-specific step definitions under `tests/ui/bdd/<domain>/steps.js`.
-
-### Future Feature Testing Checklist
-
-For every feature, bug fix, or risky refactor:
-
-1. Declare the required test layers using `app/docs/testing-suite.md`.
-2. Add the lowest-level reliable coverage first (PHP unit/feature or Jest).
-3. Add Playwright coverage for critical-path or cross-page workflows.
-4. Run `bash bin/verify.sh`.
-5. If the change is security-, authorization-, or workflow-heavy, also run `bash bin/verify.sh --with-coverage` and `bash bin/verify.sh --with-mutation`.
-6. If the change declares browser-critical coverage, run `npm run test:ui:smoke` for fast validation and `npm run test:ui` for release-path validation.
-
-### Test Structure
-
-```
-app/tests/
-├── bootstrap.php                      # Loads seed SQL, configures test DB
-├── TestCase/
-│   ├── BaseTestCase.php               # Transaction wrapping + data constants
-│   ├── TestAuthenticationHelper.php    # Auth helper trait
-│   ├── Support/
-│   │   ├── HttpIntegrationTestCase.php    # Base for HTTP/controller tests
-│   │   ├── PluginIntegrationTestCase.php  # Base for plugin HTTP tests
-│   │   └── SeedManager.php                # Loads dev_seed_clean.sql
-│   ├── Controller/                    # Controller tests
-│   ├── Model/                         # Table and entity tests
-│   ├── Services/                      # Service layer tests
-│   ├── Command/                       # CLI command tests
-│   ├── Middleware/                     # Middleware tests
-│   └── View/                          # Helper and cell tests
-├── js/                                # Jest unit tests
-└── ui/                                # Playwright E2E tests
-```
-
-### Writing Tests
-
-#### Base Classes
-
-All tests extend one of these base classes (never extend `Cake\TestSuite\TestCase` directly):
-
-| Base Class | Use For |
-|-----------|---------|
-| `App\Test\TestCase\BaseTestCase` | Unit tests (models, entities, services) |
-| `App\Test\TestCase\Support\HttpIntegrationTestCase` | Controller/HTTP tests |
-| `App\Test\TestCase\Support\PluginIntegrationTestCase` | Plugin controller tests |
-
-#### Controller Test Pattern
-
-```php
-<?php
-declare(strict_types=1);
-
-namespace App\Test\TestCase\Controller;
-
-use App\Test\TestCase\Support\HttpIntegrationTestCase;
-
-class MembersControllerTest extends HttpIntegrationTestCase
-{
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->enableCsrfToken();
-        $this->enableSecurityToken();
-        $this->authenticateAsSuperUser();
-    }
-
-    public function testIndex(): void
-    {
-        $this->get('/members');
-        $this->assertResponseOk();
-        $this->assertResponseContains('Members');
-    }
-
-    public function testAddWithValidData(): void
-    {
-        $data = [
-            'email_address' => 'newmember@example.com',
-            'sca_name' => 'New Member',
-        ];
-        $this->post('/members/add', $data);
-        $this->assertResponseSuccess();
-    }
-}
-```
-
-#### Model Test Pattern
-
-```php
-<?php
-declare(strict_types=1);
-
-namespace App\Test\TestCase\Model\Table;
-
-use App\Test\TestCase\BaseTestCase;
-
-class MembersTableTest extends BaseTestCase
-{
-    protected $Members;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->Members = $this->getTableLocator()->get('Members');
-    }
-
-    public function testGetAdmin(): void
-    {
-        $admin = $this->Members->get(self::ADMIN_MEMBER_ID);
-        $this->assertEquals('admin@amp.ansteorra.org', $admin->email_address);
-    }
-}
-```
-
-#### Plugin Test Pattern
-
-```php
-<?php
-declare(strict_types=1);
-
-namespace App\Test\TestCase\Plugins\Officers;
-
-use App\Test\TestCase\Support\PluginIntegrationTestCase;
-
-class OfficersControllerTest extends PluginIntegrationTestCase
-{
-    protected const PLUGIN_NAME = 'Officers';
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->enableCsrfToken();
-        $this->enableSecurityToken();
-        $this->authenticateAsSuperUser();
-    }
-
-    public function testIndex(): void
-    {
-        $this->get('/officers');
-        $this->assertResponseOk();
-    }
-}
-```
-
-### Test Data Constants
-
-`BaseTestCase` provides constants for stable IDs in the seed data:
-
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `ADMIN_MEMBER_ID` | 1 | Super user (admin@amp.ansteorra.org) |
-| `KINGDOM_BRANCH_ID` | 2 | Kingdom of Ansteorra (root branch) |
-| `TEST_MEMBER_AGATHA_ID` | 2871 | Local MoAS test member |
-| `TEST_MEMBER_BRYCE_ID` | 2872 | Local Seneschal test member |
-| `TEST_MEMBER_DEVON_ID` | 2874 | Regional Armored Marshal test member |
-| `TEST_MEMBER_EIRIK_ID` | 2875 | Kingdom Seneschal test member |
-| `TEST_BRANCH_LOCAL_ID` | 14 | Shire of Adlersruhe |
-| `TEST_BRANCH_STARGATE_ID` | 39 | Barony of Stargate |
-| `TEST_BRANCH_CENTRAL_REGION_ID` | 12 | Central Region |
-| `TEST_BRANCH_SOUTHERN_REGION_ID` | 13 | Southern Region |
-| `ADMIN_ROLE_ID` | 1 | Admin role |
-| `SUPER_USER_PERMISSION_ID` | 1 | Is Super User permission |
-
-### Authentication in Tests
-
-Use `TestAuthenticationHelper` (included automatically via `HttpIntegrationTestCase`):
-
-```php
-// Authenticate as admin/super user
-$this->authenticateAsSuperUser();
-
-// Authenticate as a specific test member
-$this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
-
-// Log out
-$this->logout();
-
-// Assertions
-$this->assertAuthenticated();
-$this->assertNotAuthenticated();
-$this->assertAuthenticatedAs(self::ADMIN_MEMBER_ID);
-```
-
-### Helper Assertions (from BaseTestCase)
-
-```php
-$this->assertRecordExists('Members', ['email_address' => 'test@example.com']);
-$this->assertRecordNotExists('Members', ['id' => 999]);
-$this->assertRecordCount('Members', 5, ['status' => 'verified']);
-```
-
-## 7.3 Debugging
-
-### DebugKit
-
-The CakePHP DebugKit panel is enabled in development environments and provides information about request parameters, SQL queries, environment variables, session/cache data, and rendering timelines.
-
-### Logging
-
-```php
-Log::debug('Operation details', ['context' => $data]);
-Log::error('An error occurred', ['exception' => $exception]);
-```
-
-Log files are in `app/logs/`: `debug.log`, `error.log`, `queries.log`.
-
-### Debug Functions
-
-```php
-dd($variable);       // Dump and die
-debug($variable);    // Dump and continue
-```
-
-## 7.4 Git Workflow
-
-KMP uses a feature branch workflow for development.
-
-### Branch Structure
-
-- `main`: Production-ready state
-- `develop`: Development branch for next release
-- `feature/feature-name`: Feature branches
-- `bugfix/issue-name`: Bug fix branches
-- `release/version`: Release branches
-
-### Git Commands Reference
+Validate handwritten documentation and JSDoc without changing generated output:
 
 ```bash
-git clone https://github.com/Ansteorra/KMP.git
-cd KMP
-
-git checkout -b feature/new-feature-name
-git add .
-git commit -m "Descriptive commit message"
-git push -u origin feature/new-feature-name
-
-# Update from upstream (when working in a fork)
-./merge_from_upstream.sh
-
-# Reset the development database
-./reset_dev_database.sh
-```
-
-### Commit Message Guidelines
-
-- Begin with a short (50 chars or less) summary
-- Use imperative mood ("Add feature" not "Added feature")
-- Follow with a blank line and detailed explanation if needed
-- Reference issue numbers in the detailed explanation
-
-## 7.5 API Documentation Generation
-
-KMP publishes API references for PHP services and JavaScript Stimulus controllers.
-
-### Toolchain
-
-- **PHP**: [`phpDocumentor`](https://www.phpdoc.org/) builds HTML docs from `app/src` and plugin PHP classes.
-- **JavaScript**: [`JSDoc`](https://jsdoc.app/) parses `assets/js` along with plugin JS controllers.
-
-### Regenerating Docs
-
-```bash
-# From repository root
-./generate_api_docs.sh
-
-# Or manually
 cd app
-composer docs:php
-npm run docs:js
+npm run docs:check
+npm run docs:js:check
 ```
 
-Output lives in `docs/api/php` and `docs/api/js`.
+For a clean source-reference rebuild, run `./generate_api_docs.sh` from the
+repository root. It builds both references in staging, fails on PHPDoc warnings/errors or
+strict JSDoc diagnostics, and replaces the ignored output directories only after both pass.
+The Pages workflow runs those checks on pull requests with read-only repository permissions,
+builds Jekyll with the frozen `docs/Gemfile.lock`, and uploads/deploys only a successful
+`main` artifact. Handwritten guides should describe durable patterns and link to generated
+APIs rather than copying class inventories.
 
-### Previewing Documentation
+## Review checklist
 
-```bash
-./serve_docs.sh
+- The diff contains no unrelated reformatting or generated runtime output.
+- Every changed path follows its complete `AGENTS.md` chain.
+- Platform versus tenant ownership is explicit.
+- Authorization and policy scope are server-enforced.
+- Plugin changes remain inside the plugin or use a documented registry.
+- Queued/scheduled effects are idempotent and tenant-scoped.
+- UI remains accessible and frontend listeners clean up.
+- Tests cover failure/denial and a second tenant when relevant.
+- Commands, documentation links, and examples match current source.
 
-# Customize host/port
-JEKYLL_HOST=0.0.0.0 JEKYLL_PORT=4100 ./serve_docs.sh
-```
+## Related guides
 
-Visit `http://127.0.0.1:4000/` to browse the docs.
-
----
-
-## Related Documentation
-
-- **[7.1 Security Best Practices](7.1-security-best-practices.md)** - Security configuration and testing
-- **[7.3 Testing Infrastructure](7.3-testing-infrastructure.md)** - Test infrastructure details and best practices
-- **[7.6 Testing Suite Overview](7.6-testing-suite.md)** - PHPUnit suite structure and run commands
-
-[← Back to Table of Contents](index.md)
+- [Testing infrastructure](7.3-testing-infrastructure.md)
+- [Security practices](7.1-security-best-practices.md)
+- [Console commands](7.7-console-commands.md)
+- [Extending KMP](11-extending-kmp.md)

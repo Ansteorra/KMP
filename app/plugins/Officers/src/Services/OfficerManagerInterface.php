@@ -16,7 +16,7 @@ use Officers\Model\Entity\Officer;
  *
  * @package Officers\Services
  * @see \Officers\Services\DefaultOfficerManager for default implementation
- * @see /docs/5.1.1-officers-services.md for detailed documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.1.1-officers-services.md for detailed documentation
  */
 interface OfficerManagerInterface
 {

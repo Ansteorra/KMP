@@ -16,7 +16,7 @@ use App\Model\Entity\BaseEntity;
  * Implements controller-level access control for officer reporting operations
  * including departmental roster reports and organizational analytics.
  *
- * @see /docs/5.1-officers-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.1-officers-plugin.md
  */
 class ReportsControllerPolicy extends BasePolicy
 {

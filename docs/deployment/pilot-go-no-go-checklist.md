@@ -1,77 +1,92 @@
+---
+layout: default
+title: "Pilot Go/No-Go Checklist Template"
+description: "Evidence checklist for deciding whether a managed multi-tenant pilot may proceed."
+---
+
 # Pilot Go/No-Go Checklist Template
 
-Copy this checklist into the release or migration ticket for each pilot kingdom. Replace bracketed placeholders with links to evidence. Do not paste secrets, raw database exports, KEKs, tokens, or customer-private records.
+Copy this template into the restricted migration ticket for each pilot tenant.
+Replace every placeholder with evidence; never paste secrets, keys, raw exports,
+customer records, or credential-bearing object URLs.
 
-[← Back to Pilot Ring Exit Criteria](pilot-ring-exit-criteria.md) | [Pilot Migration Rehearsal Runbook](pilot-migration-runbook.md)
+[← Pilot ring criteria](pilot-ring-exit-criteria.md) |
+[Pilot migration runbook](pilot-migration-runbook.md)
+
+The current deployment is single-region. Azure WORM storage and tenant/public
+trust pages are not implemented. Mark those controls `not implemented` or link
+separately verified external evidence—never mark them green from application
+configuration alone.
 
 ## Migration summary
 
-- Kingdom / tenant slug: `[name]`
+- Tenant slug and approved hosts: `[value]`
 - Ring: `[0 | 1 | 2]`
-- Migration window: `[start - end with timezone]`
-- Release version / commit / image digest: `[link]`
-- Incident channel / ticket: `[link]`
-- Customer representative: `[name / role]`
-- Platform owner: `[name]`
-- Migration operator: `[name]`
-- Customer communicator: `[name]`
+- Window and timezone: `[value]`
+- Source freeze / rollback deadline: `[value]`
+- Release tag, commit, POC evidence, and immutable digest: `[links]`
+- Incident/change ticket and support channel: `[links]`
+- Platform owner, migration operator, validator, communicator: `[names]`
+- Customer representative: `[name]`
 
 ## Readiness gates
 
-| Gate | Status | Evidence link | Owner | Notes |
-|------|--------|---------------|-------|-------|
-| Release candidate deployed to staging | `[green/yellow/red]` | `[link]` | `[owner]` | |
-| Two-tenant POC or tenant-resolution smoke passed | `[green/yellow/red]` | `[link]` | `[owner]` | |
-| Platform migrations passed | `[green/yellow/red]` | `[link]` | `[owner]` | |
-| Tenant migration rehearsal passed | `[green/yellow/red]` | `[link]` | `[owner]` | |
-| Rollback rehearsal passed | `[green/yellow/red]` | `[link]` | `[owner]` | |
-| Login smoke passed | `[green/yellow/red]` | `[link]` | `[owner]` | |
-| Backup completed within threshold | `[green/yellow/red]` | `[link]` | `[owner]` | |
-| Restore drill fresh for tenant | `[green/yellow/red]` | `[link]` | `[owner]` | |
-| WORM audit continuity verified | `[green/yellow/red]` | `[link]` | `[owner]` | |
-| Alert/on-call coverage confirmed | `[green/yellow/red]` | `[link]` | `[owner]` | |
-| Security findings reviewed | `[green/yellow/red]` | `[link]` | `[owner]` | |
-| Customer communication approved | `[green/yellow/red]` | `[link]` | `[owner]` | |
+| Gate | Status | Evidence | Owner/notes |
+| --- | --- | --- | --- |
+| POC-validated digest deployed to rehearsal | `[green/yellow/red]` | `[link]` | |
+| Tenant and unknown-host resolution tests pass | `[green/yellow/red]` | `[link]` | |
+| Exact managed migration chain passes | `[green/yellow/red]` | `[link]` | |
+| Tenant import rehearsal and validation pass | `[green/yellow/red]` | `[link]` | |
+| Logical pre-migration marker/rollback rehearsal passes | `[green/yellow/red]` | `[link]` | |
+| Tenant backup is fresh (`.json.gz.enc`) | `[green/yellow/red]` | `[link]` | |
+| Platform backup is fresh (`.pgdump.enc`) | `[green/yellow/red]` | `[link]` | |
+| Recovery-key custody and restore rehearsal pass | `[green/yellow/red]` | `[link]` | |
+| Platform Admin host/auth/session tests pass | `[green/yellow/red]` | `[link]` | |
+| Database audit chain is continuous | `[green/yellow/red]` | `[link]` | |
+| External WORM control, if required, is verified | `[not required/not implemented/green/red]` | `[link]` | |
+| Worker, queues, alerts, and on-call are ready | `[green/yellow/red]` | `[link]` | |
+| Security/accessibility findings reviewed | `[green/yellow/red]` | `[link]` | |
+| Customer/legal communications approved | `[green/yellow/red]` | `[link]` | |
+
+Optional manifest/canary/nightly-drill evidence is listed separately when an
+environment deliberately enables it; it is not a substitute for the active
+migration result.
 
 ## Live-window checks
 
-- [ ] Source write freeze announced.
-- [ ] Final source backup/export completed and verified.
-- [ ] DNS/ingress rollback path confirmed.
-- [ ] Target tenant provisioned and host resolution verified.
-- [ ] Import started at `[time]` and completed at `[time]`.
-- [ ] Critical row counts/checksums match expected values.
-- [ ] Documents or storage objects sampled successfully.
-- [ ] Login smoke passed for customer admin and platform admin.
-- [ ] Authorization/workflow smoke passed.
-- [ ] WORM audit write smoke passed.
-- [ ] Queue/platform job health checked.
-- [ ] Customer representative accepted cutover.
-- [ ] 60-minute post-cutover monitoring completed.
+- [ ] Source write freeze and final export/checksum recorded.
+- [ ] Exact target tenant, database, hosts, region, and storage scope confirmed.
+- [ ] Final source backup/export is independently readable.
+- [ ] Import version and redacted command reference recorded.
+- [ ] Critical counts, relationships, documents, and samples validate.
+- [ ] Tenant admin login and authorization/workflow smoke pass.
+- [ ] Platform Admin login and one authorized privileged-action smoke pass on an
+      allowed admin host.
+- [ ] Tenant and unknown-host resolution tests pass with valid TLS/SNI.
+- [ ] Database audit event and hash chain validate; external WORM smoke runs only
+      if that control exists.
+- [ ] Unified worker, queue, platform jobs, and alert routes are healthy.
+- [ ] Customer accepts cutover.
+- [ ] Sixty-minute post-cutover observation completes.
 
-## Rollback decision record
+## Rollback decision
 
-- Rollback deadline: `[time]`
-- Rollback trigger observed: `[none / description]`
-- Decision: `[go / no-go / rollback / extend window]`
-- Decision owner: `[name]`
+- Trigger/deadline: `[value]`
+- Decision: `[go | no-go | rollback | approved extension]`
+- Decision owner and timestamp: `[value]`
 - Customer acknowledgement: `[link]`
-- Data reconciliation needed: `[none / description]`
+- Source/target write status and reconciliation plan: `[value]`
+- Backups/evidence preserved: `[links]`
 
 ## Approvals
 
-| Role | Approver | Decision | Timestamp | Notes |
-|------|----------|----------|-----------|-------|
-| Platform owner | `[name]` | `[go/no-go]` | `[time]` | |
-| Migration operator | `[name]` | `[go/no-go]` | `[time]` | |
-| On-call/operations owner | `[name]` | `[go/no-go]` | `[time]` | |
-| Security/audit owner | `[name]` | `[go/no-go]` | `[time]` | |
-| Customer representative | `[name]` | `[go/no-go]` | `[time]` | |
+| Role | Approver | Decision | Timestamp |
+| --- | --- | --- | --- |
+| Platform Owner | `[name]` | `[go/no-go]` | `[time]` |
+| Migration/Database Lead | `[name]` | `[go/no-go]` | `[time]` |
+| Operations/Incident Lead | `[name]` | `[go/no-go]` | `[time]` |
+| Security/Audit Lead | `[name]` | `[go/no-go]` | `[time]` |
+| Customer representative | `[name]` | `[go/no-go]` | `[time]` |
 
-## Post-pilot follow-up
-
-- [ ] Customer go-live or rollback notice sent.
-- [ ] Evidence package attached to release/migration ticket.
-- [ ] Incidents and defects linked.
-- [ ] Pilot retro scheduled.
-- [ ] Ring progression decision recorded.
+Afterward, attach the customer notice, evidence index, incidents/defects, retro,
+and ring-progression decision.

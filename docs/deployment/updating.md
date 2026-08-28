@@ -1,191 +1,143 @@
-# Updating & Rollback
+---
+layout: default
+title: "Updating, Release, and Rollback"
+description: "Immutable POC-to-production promotion, migration ordering, rollback limits, and legacy maintenance."
+---
 
-How to keep your KMP deployment up to date and recover from failed updates.
+# Updating, Release, and Rollback
 
-[← Back to Deployment Guide](README.md)
+KMP's managed Azure environments use gated GitHub Actions workflows and immutable
+image digests. They do not update by pulling a mutable tag on the server, and the
+web Container App does not run migrations on startup.
 
-## How Updates Work
+[← Back to Deployment and Operations](README.md)
 
-KMP uses pre-built Docker images published to `ghcr.io/ansteorra/kmp`. Updating is:
-
-1. **Pull** the new image
-2. **Restart** the container(s)
-3. **Run migrations** automatically on startup
-
-No building, compiling, or dependency installation is needed on your server.
-
-## Using `kmp update`
-
-The simplest way to update:
-
-```bash
-kmp update
-```
-
-This will:
-- Check the current release channel for a newer version
-- Show you a changelog summary
-- Pull the new image
-- Create an automatic backup before applying
-- Restart the application
-- Verify the health endpoint responds
-
-### Update with a Specific Channel
-
-```bash
-kmp update --channel beta     # Update to latest beta
-kmp update --channel release  # Update to latest stable (default)
-```
-
-### Check for Updates Without Applying
-
-```bash
-kmp status
-```
-
-The status command shows your current version and whether an update is available.
-
-## Release Channels
-
-| Channel | Image Tag | Stability | Use Case |
-|---------|-----------|-----------|----------|
-| `release` | `latest` | Stable | Production (default) |
-| `beta` | `beta` | Pre-release | Testing upcoming features |
-| `dev` | `dev` | Development | Latest gated build from the `dev` branch |
-| `nightly` | `nightly` | Nightly | Bleeding edge |
-
-Switch channels:
-
-```bash
-kmp update --channel beta
-```
-
-## Managed Azure Release Procedure
-
-The official Azure environments use gated GitHub Actions workflows and immutable
-image digests.
+## Managed Azure release procedure
 
 ### Release to POC
 
-1. Merge the approved pull request into `main`.
-2. Wait for the full `Quality Gates` workflow to pass for the merged `main`
-   commit.
-3. Fast-forward the official `dev` branch to that exact commit and push `dev`.
-4. Wait for `Nightly / Dev Docker Image` to verify the existing quality-gate
-   evidence, build the release-candidate image once, and verify its health.
-5. Wait for `POC / Deploy to Azure` to import the image digest, run the worker
-   canary and migrations, cut over the web revision, and align retained jobs.
-   A successful deployment records that immutable digest as POC validated.
-6. Validate POC health, tenant login, worker/queue processing, and the release's
-   changed user journeys before promoting the commit and digest.
+1. Merge the approved pull request into official `main`.
+2. Wait for `Quality Gates` to pass for that exact commit.
+3. Fast-forward official `dev` to that commit and push `dev`.
+4. `Nightly / Dev Docker Image` verifies the existing quality-gate evidence,
+   builds `ghcr.io/ansteorra/kmp:dev-<short-sha>` for amd64 and arm64, and
+   smoke-checks the image.
+5. `POC / Deploy to Azure` resolves the immutable GHCR digest, imports it to POC
+   ACR, captures rollback evidence, canaries the unified worker, runs the ordered
+   migration job, cuts over web, verifies `/livez` and `/health`, and aligns
+   retained jobs.
+6. Only after that deployment succeeds, the workflow applies
+   `poc-validated-<12-char-sha>` to the same digest.
+7. Validate tenant login, host resolution, queue/worker processing, Platform
+   Admin access on its reserved host, backup readiness, and the release's changed
+   user journeys.
 
-### Release to Production
+A scheduled `main` build publishes the `nightly` channel but does not
+automatically deploy it to POC. POC deployment is triggered by a successful
+`dev` image build or an explicit workflow dispatch.
 
-1. Create and publish a non-prerelease GitHub Release with a `v*` tag, targeting
-   the exact commit validated in POC.
-2. Wait for `Release Docker Image` to verify the successful `main` quality run
-   and POC deployment for that commit, then apply release tags to the exact
-   POC-validated digest. It does not rebuild the image or rerun the test suites.
-3. Review the pending `production` environment deployment and approve it.
-4. The deployment imports the exact POC-tested digest into production ACR,
-   verifies the digest, runs the worker canary and migrations, cuts over the web
-   revision, and aligns retained jobs.
-5. Confirm production readiness, tenant hosts, login, queue processing, and the
-   active Container Apps image digest.
+### Release to production
 
-Do not create a production release from a commit that differs from the POC-tested
-commit. Prereleases and published tags that do not start with `v` cannot promote
-to the production Azure environment.
+1. Update `app/CHANGELOG.md` before POC validation.
+2. Publish a stable, non-prerelease `v*` GitHub Release targeting the exact
+   commit validated in POC. Its notes must exactly match that changelog section.
+3. `Release Docker Image` verifies that the release commit is on official
+   `main`, has successful quality-gate evidence, and has a
+   `poc-validated-<sha>` image.
+4. The workflow applies semantic version, SHA, and stable channel tags to that
+   POC-validated digest with `docker buildx imagetools create`. It does not
+   rebuild the image or rerun the test suites.
+5. Review and approve the protected `production` environment deployment.
+6. Production imports and deploys the exact same digest, runs the same worker
+   canary and migration contract, cuts over web, probes health, and aligns jobs.
+7. Verify the active Container Apps digest, critical tenant hosts/login, worker
+   executions, Platform Admin, Redis-backed sessions, and new backup execution.
 
-### Agent shorthand
+Do not edit release notes after POC validation without treating the result as a
+new candidate. Do not release another commit or digest.
 
-Repository agents treat these requests as complete operational instructions:
+### Repository shorthand
 
-- **"Push to dev"** performs the POC procedure only and verifies the resulting
-  deployment. It does not change production.
-- **"Do a release"** first updates the user-facing `app/CHANGELOG.md`, validates
-  that exact changelog-bearing commit in POC, publishes a stable `v*` GitHub
-  Release using the same changelog section as its release notes, waits for
-  production approval, and verifies the rollout.
+Repository agents interpret:
 
-The in-app changelog and GitHub Release must share one canonical set of
-user-facing notes. Updating notes after POC validation changes the release
-candidate and requires another POC deployment.
+- **Push to dev** as the POC procedure only. It never changes production.
+- **Do a release** as changelog update, POC validation of that exact commit and
+  digest, stable GitHub Release, protected production approval, and production
+  verification.
 
-## Manual Updates by Platform
+## Migration behavior during deployment
 
-### Docker / VPC
+The reusable Azure deployment starts the migration job and requires this chain
+to finish before web cutover:
 
-```bash
-cd /opt/kmp
-docker compose pull
-docker compose up -d
-```
+    bin/cake migrations migrate &&
+    bin/cake schema_cache clear &&
+    bin/cake updateDatabase &&
+    bin/cake platform_migrate migrate &&
+    bin/cake schema_cache clear --connection platform &&
+    bin/cake platform secrets import-env &&
+    bin/cake platform backup-keys ensure --allow-read-only &&
+    bin/cake tenant migrate --all --include-suspended --fail-fast &&
+    bin/cake cache clear _cake_model_
 
-In-app web-triggered updates for Docker/VPC are currently disabled; use `kmp update` or the manual compose commands above.
+Pending active or suspended tenant migrations create their normal recovery
+marker and encrypted backup. Current tenants are inspected and skipped without
+another backup. One tenant failure blocks cutover, and rerunning resumes by
+reinspecting state.
 
-### Fly.io
+The optional release-manifest and nightly migration-drill tools are not wired
+into the current deployment workflow. Use them only as explicit staging/pilot
+steps unless the workflow is changed to generate and consume the manifest.
 
-```bash
-fly deploy --image ghcr.io/ansteorra/kmp:latest
-```
+## Rollback boundaries
 
-### Railway
+The deployment workflow captures the current web and Container Apps Job
+definitions before cutover. The worker cutover helper can restore those runtime
+definitions and re-enable compatibility schedules. That rollback:
 
-Redeploy from the Railway dashboard or CLI:
+- does not reverse an application, platform, or tenant migration;
+- does not restore tenant application data;
+- does not make an older image compatible with a newer schema; and
+- does not undo a database-backed secret rotation.
 
-```bash
-railway up
-```
+Before shifting traffic back to an older revision, confirm its supported schema
+and data contract. If data recovery is required, use the managed backup/restore
+workflow and its audit/TOTP/suspension guardrails. Never assume image rollback is
+database rollback.
 
-### Shared Hosting (No Root Access)
+## Image tags and evidence
 
-Use a manual, least-privilege workflow:
+| Reference | Meaning |
+| --- | --- |
+| `dev-<short-sha>` | Commit-specific release candidate |
+| `poc-<sha-or-dispatch>-<run>` | ACR deployment tag for a POC run |
+| `poc-validated-<sha>` | Digest that completed the automated POC deployment |
+| `vX.Y.Z` / semantic tags | GitHub Release references applied to the validated digest |
+| `sha-<short-sha>` | Release commit reference |
+| `dev`, `nightly`, `latest`, `beta` | Mutable convenience channels; not deployment evidence |
 
-1. Upload the new application release package with your hosting panel/FTP.
-2. Run application database migrations using the hosting-provided job/console tooling (if available).
-3. Verify `/health` responds and key admin workflows load successfully.
+Use the digest attached to the GitHub Release and the active Container Apps
+revision when recording evidence.
 
-Host-managed components (web server/proxy, database engine) are upgraded by your hosting provider, not by KMP.
+## Historical self-hosted maintenance
 
-## Rollback
+The `kmp` management tool and Docker/VPC, Fly.io, and Railway pages are
+historical and unsupported for new deployments.
 
-If an update causes issues, roll back to the previous version:
+Facts that matter when maintaining an old installation:
 
-```bash
-kmp rollback
-```
+- `kmp install` is retired and returns an error.
+- `kmp update --check` checks registry availability; `kmp status` reports
+  deployment health and version but does not check for updates.
+- `kmp update` pulls/restarts through its provider and verifies health. It does
+  not create a database backup.
+- `kmp rollback` does not restore a database or reverse migrations. Several
+  providers are stubs, and the Docker provider may have no recorded prior tag.
+- Historical production-image startup migrations can continue after migration
+  errors and are not safe substitutes for the managed deployment job.
+- A legacy VPC SQL backup covers one MariaDB database only.
 
-This will:
-1. Stop the current deployment
-2. Restore the previous image version
-3. Restore the pre-update database backup (if migrations were applied)
-4. Restart the application
-5. Verify health
-
-### Manual Rollback (Docker / VPC)
-
-```bash
-cd /opt/kmp
-
-# Pin to a specific version
-KMP_IMAGE_TAG=v1.2.3 docker compose up -d
-
-# Or restore from backup first
-./restore.sh backups/2026-02-19-030000.sql.gz
-KMP_IMAGE_TAG=v1.2.3 docker compose up -d
-```
-
-### Manual Rollback (Fly.io)
-
-```bash
-# Deploy a specific version
-fly deploy --image ghcr.io/ansteorra/kmp:v1.2.3
-```
-
-## Best Practices
-
-- **Always back up before updating** — `kmp update` does this automatically; for manual updates, run `kmp backup` first
-- **Test on staging first** — use the `beta` channel on a staging environment before updating production
-- **Monitor after updates** — check `kmp status` and `kmp logs` after applying an update
-- **Pin versions in production** — for critical deployments, set `KMP_IMAGE_TAG` to a specific version tag rather than `latest`
+For an existing legacy deployment, take and verify an engine-appropriate backup,
+pin an immutable version, rehearse in a clone, and define schema rollback
+manually before changing production. The project does not provide a safe
+one-command rollback for that architecture.

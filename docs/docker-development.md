@@ -1,3 +1,9 @@
+---
+layout: default
+title: "Docker Development Environment"
+description: "Local Docker Compose workflow, services, reset behavior, debugging, and development commands."
+---
+
 # Docker Development Environment
 
 Local Docker Compose is the default KMP development workflow. The source tree stays on your machine and is bind-mounted into the app container, so PHP, template, CSS, and JavaScript source changes are visible without rebuilding the image.
@@ -131,7 +137,7 @@ development schema so PHPUnit can run immediately.
 Platform metadata uses a separate PostgreSQL database and migration track:
 
 ```bash
-docker compose exec app bin/cake platform_migrate
+docker compose exec app bin/cake platform_migrate migrate
 docker compose exec app bin/cake platform_migrate status
 docker compose exec app bin/cake platform_migrate rollback
 ```
@@ -154,7 +160,9 @@ hostnames while retaining `kmp2.localhost` for local tests. The reverse proxy
 must preserve the original `Host` header so KMP can select the correct tenant.
 
 The reset also seeds a local Platform Admin account so dev logins are stable
-after every reset:
+after every reset. The portal is disabled by default; set
+`KMP_PLATFORM_ADMIN_PORTAL_ENABLED=true` in `app/config/.env` only when testing
+platform administration:
 
 ```text
 URL:         http://platform.kmp.localhost:8080/platform-admin/login
@@ -165,7 +173,8 @@ TOTP secret: QJR6QMYZYRHDZCOK5STD
 
 Override `KMP_DEV_PLATFORM_ADMIN_EMAIL`, `KMP_DEV_PLATFORM_ADMIN_PASSWORD`, or
 `KMP_DEV_PLATFORM_ADMIN_TOTP_SECRET` in `app/config/.env` only when you need a
-different local-only platform admin identity.
+different local-only platform admin identity. These committed values are disposable
+development credentials and must not be copied into a managed environment.
 
 Local Docker auto-creates `KMP_PLATFORM` and `KMP_PLATFORM_test` when
 `KMP_AUTO_CREATE_DATABASES=true`. Production deployments should create platform
@@ -194,24 +203,25 @@ restartable while the web container remains request-only.
 |----------|---------|---------|
 | `scheduler` | `kmp-scheduler-loop` | Dispatch platform schedules and continuously drain default, tenant, and platform queues |
 
-With `KMP_TENANCY_ENABLED=true`, the scheduler runs
-`bin/cake platform worker run` every five seconds. Each cycle dispatches due
+With `KMP_TENANCY_ENABLED=true`, the scheduler loop polls every ten seconds by
+default. Each poll runs `bin/cake platform worker run` when its five-second
+queue interval is due. Each cycle dispatches due
 platform schedules, drains up to 100 jobs or 45 seconds from each datasource
 within a 240-second fleet budget, then claims one queued platform job. Tenant
 ordering rotates between cycles and duplicate physical datasources are skipped.
 Queue cycles repeat while work remains instead of waiting for a minute cron tick. In
 single-database mode, the scheduler loop drains the default queue directly and
-uses these conservative legacy intervals:
+runs the legacy commands listed below.
 
-| Variable | Default seconds | Command |
-|----------|-----------------|---------|
-| `KMP_PLATFORM_SCHEDULE_INTERVAL` | `60` | `bin/cake platform schedule due` in tenant mode |
-| `KMP_QUEUE_DRAIN_INTERVAL` | `5` | Bounded queue cycle |
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `KMP_SCHEDULER_POLL_INTERVAL` | `10` seconds | Sleep between scheduler-loop checks |
+| `KMP_QUEUE_DRAIN_INTERVAL` | `5` seconds | Minimum due interval for the bounded worker/default-queue cycle |
 | `KMP_SKIP_INITIAL_DB_SETUP` | `true` on `scheduler` | Keep schema initialization owned by the web container |
-| `KMP_WORKFLOW_SCHEDULER_INTERVAL` | `60` | `bin/cake workflow_scheduler` |
-| `KMP_ACTIVE_WINDOW_SYNC_INTERVAL` | `900` | `bin/cake sync_active_window_statuses` |
-| `KMP_MEMBER_WARRANTABLE_SYNC_INTERVAL` | `86400` | `bin/cake sync_member_warrantable_statuses` |
-| `KMP_AGE_UP_MEMBERS_INTERVAL` | `86400` | `bin/cake age_up_members` |
+| `KMP_WORKFLOW_SCHEDULER_INTERVAL` | `60` seconds | `bin/cake workflow_scheduler` |
+| `KMP_ACTIVE_WINDOW_SYNC_INTERVAL` | `900` seconds | `bin/cake sync_active_window_statuses` |
+| `KMP_MEMBER_WARRANTABLE_SYNC_INTERVAL` | `86400` seconds | `bin/cake sync_member_warrantable_statuses` |
+| `KMP_AGE_UP_MEMBERS_INTERVAL` | `86400` seconds | `bin/cake age_up_members` |
 
 Inspect background output with:
 
@@ -275,7 +285,8 @@ The local helper scripts use `app/config/.env` for Docker Compose and the applic
 | `KMP_DEV_SECOND_TENANT_HOST_ALIASES` | empty | Comma- or space-separated additional hosts mapped to the second test tenant during reset |
 | `XDEBUG_MODE` | `debug,develop` | Runtime Xdebug mode |
 | `KMP_SKIP_CRON` | `true` | Disable legacy cron setup; Compose worker/scheduler services own background work |
-| `KMP_PLATFORM_SCHEDULE_INTERVAL` | `60` | Poll interval for stored platform schedules in tenant mode |
+| `KMP_SCHEDULER_POLL_INTERVAL` | `10` | Sleep between local scheduler-loop checks |
+| `KMP_QUEUE_DRAIN_INTERVAL` | `5` | Minimum interval between bounded worker/default-queue cycles |
 | `KMP_*_INTERVAL` | See Queue and Scheduled Jobs | Scheduler loop intervals for local background commands |
 | `KMP_RESET_DB_ON_UP` | `true` | Run `dev-reset-db.sh` after the app becomes healthy |
 | `KMP_RESET_DB_ON_UP_ARGS` | `--seed` | Arguments passed to `dev-reset-db.sh` during startup |

@@ -5,5 +5,5 @@
  * 
  * The submit action returns JSON responses only and does not render HTML.
  * 
- * @see /docs/5.4-github-issue-submitter-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.4-github-issue-submitter-plugin.md
  */

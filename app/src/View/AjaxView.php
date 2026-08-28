@@ -52,7 +52,7 @@ namespace App\View;
  * - Compatible with CakePHP's request handling
  *
  * @see \App\View\AppView For base functionality
- * @see templates/layout/ajax.php For AJAX layout template
+ * @see https://github.com/Ansteorra/KMP/blob/main/app/templates/layout/ajax.php For AJAX layout template
  */
 class AjaxView extends AppView
 {

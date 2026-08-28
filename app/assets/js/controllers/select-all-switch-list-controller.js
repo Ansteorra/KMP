@@ -42,7 +42,7 @@ import { Controller } from "@hotwired/stimulus"
  * ```
  */
 class SelectAllListController extends Controller {
-    /** @type {NodeList} Collection of all checkboxes in the list including the master checkbox */
+    /** Collection of all checkboxes in the list, including the master checkbox. @type {NodeList} */
     allCheckboxes;
 
     /**

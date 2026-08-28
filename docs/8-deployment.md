@@ -5,770 +5,203 @@ layout: default
 
 # 8. Deployment
 
-This section covers the processes and considerations for deploying the Kingdom Management Portal to production environments.
-
-## 8.1 Production Setup
-
-For managed multi-tenant production operations, review the deployment runbooks under [`deployment/`](deployment/README.md), especially the [Managed Platform Legal and Security Governance Template](deployment/legal-governance.md) for residency, retention, breach-notification, and incident-escalation templates.
-
-
-### Server Requirements
-
-For a production deployment, the following server configuration is recommended:
-
-- **Web Server**: Apache 2.4+ or Nginx 1.18+
-- **PHP**: PHP 8.4+ with required extensions (see [System Requirements](1-introduction.md#13-system-requirements))
-- **Database**: PostgreSQL 16+ for managed Azure deployments; MySQL 5.7+ or MariaDB 10.2+ remain supported for self-hosted deployments
-- **Shared cache/session store**: Redis for production multi-replica deployments
-- **Memory**: Minimum 2GB RAM (4GB+ recommended)
-- **Storage**: 10GB+ disk space (more if storing many attachments)
-- **SSL Certificate**: Required for secure user authentication
-
-### Azure Container Apps release target
-
-The workflow-engine release target is a co-located **North Central US** Azure stack:
-
-| Service | Baseline SKU/configuration | Notes |
-| --- | --- | --- |
-| Azure Container Apps | Consumption, single replica initially | Queue worker and workflow scheduler should run outside the web container where possible. |
-| Azure Database for PostgreSQL Flexible Server | Small B-series SKU for the initial cost-optimized release | Connect directly on port `5432`; built-in PgBouncer requires General Purpose or Memory Optimized compute and is not used by this baseline. |
-| Azure Managed Redis | B0 Balanced, 500 MB | Back `CACHE_ENGINE=redis`, `REDIS_URL`, PHP sessions, tenant host map, restore status, and write-invalidated app caches. |
-
-Minimum production environment settings for this shape:
-
-```bash
-KMP_ENV=production
-KMP_DB_DRIVER=postgres
-DB_PORT=5432
-CACHE_ENGINE=redis
-REDIS_URL=rediss://:<password>@<managed-redis-host>:10000/0
-KMP_SESSION_DEFAULTS=cache
-KMP_SESSION_CACHE_CONFIG=default
-```
-
-If Redis is requested but unavailable, the application logs a startup warning and falls back to a local cache backend. That fallback is acceptable for local development only; production should not run multi-replica traffic with APCu/file cache or PHP file sessions because permission caches, tenant host maps, restore locks, and login sessions would be per-process or per-replica.
-
-Connection budget guidance:
-
-- Keep the Container App replica and Apache worker limits within the B-series database connection budget. Upgrade to General Purpose before enabling built-in PgBouncer on port `6432`.
-- Keep database `persistent` connections disabled for web and queue processes.
-- Size Redis client connections as Apache workers x replicas plus queue/scheduler clients.
-- Rehearse backup restore against the North Central US PostgreSQL instance; the release-day restore is also the region migration.
-
-Queue and scheduler guidance:
-
-- In multi-tenant mode, use one background worker role. Run
-  `bin/cake platform worker run` every minute to dispatch timed work, drain the
-  default database and every active tenant database, and process queued platform
-  jobs. A plain
-  `bin/cake queue run` sees only the current default database.
-- In single-database mode, prefer a separate Container App or ACA Job for
-  `bin/cake queue run -q` and workflow scheduler commands instead of running
-  them inside the web container.
-- Set `KMP_SKIP_CRON=true` and `KMP_SKIP_MIGRATIONS=true` on ACA web revisions
-  only after the dedicated migration Job and unified worker canary succeed.
-- If legacy cron must remain co-located with the web container temporarily, the
-  production entrypoint uses `QUEUE_EXIT_WHEN_NOTHING_TO_DO=true` every five
-  minutes. Tune `QUEUE_SLEEP_TIME`, `QUEUE_GC_PROB`, and
-  `QUEUE_WORKER_MAX_RUNTIME` rather than increasing web-container CPU
-  contention.
-
-Image cache guidance:
-
-- Glide processed images are written to `images/cache`.
-- In Azure Container Apps, keep this cache ephemeral unless regeneration cost becomes measurable; do not mount Azure Files just for derived images without a retention policy.
-- Persistent self-hosted installations run `bin/cake image_cache_gc --days
-  "${KMP_IMAGE_CACHE_GC_DAYS:-7}"` at 03:15. ACA image caches are
-  replica-local ephemeral data and are reclaimed when the replica or revision
-  is replaced, so an ACA Job cannot clean another replica's cache.
-
-ACA health probes use static `/livez` for liveness (60-second period, 2-second
-timeout) and `/health` for PostgreSQL plus shared-cache readiness (60-second
-period, 5-second timeout). When production requests Redis, readiness fails if
-the effective cache or session engine falls back to local process storage.
-
-### Directory Structure
-
-The recommended production directory structure separates public and non-public files:
-
-```
-/var/www/kmp/                  # Root application directory (non-public)
-├── app/                       # CakePHP application
-│   ├── config/                # Configuration files
-│   ├── logs/                  # Log files
-│   ├── src/                   # Application source code
-│   ├── templates/             # View templates
-│   ├── assets/                # Source asset files (CSS/JS)
-│   ├── ...                    # Other application directories
-│   └── webroot/               # Public web files (document root)
-├── bin/                       # CLI commands
-├── vendor/                    # Composer dependencies
-└── tmp/                       # Temporary files (cache, sessions, etc.)
-
-/etc/apache2/sites-available/  # Apache configuration
-/etc/nginx/sites-available/    # Nginx configuration
-/etc/php/8.4/                  # PHP configuration
-/etc/mysql/                    # MySQL configuration
-```
-
-### Web Server Configuration
-
-#### Apache Configuration
-
-```apache
-<VirtualHost *:80>
-    ServerName kmp.example.com
-    DocumentRoot /var/www/kmp/app/webroot
-    
-    <Directory /var/www/kmp/app/webroot>
-        Options FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
-    
-    ErrorLog ${APACHE_LOG_DIR}/kmp-error.log
-    CustomLog ${APACHE_LOG_DIR}/kmp-access.log combined
-    
-    # Redirect to HTTPS
-    RewriteEngine On
-    RewriteCond %{HTTPS} off
-    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
-</VirtualHost>
-
-<VirtualHost *:443>
-    ServerName kmp.example.com
-    DocumentRoot /var/www/kmp/app/webroot
-    
-    <Directory /var/www/kmp/app/webroot>
-        Options FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
-    
-    ErrorLog ${APACHE_LOG_DIR}/kmp-error.log
-    CustomLog ${APACHE_LOG_DIR}/kmp-access.log combined
-    
-    # SSL Configuration
-    SSLEngine on
-    SSLCertificateFile /etc/ssl/certs/kmp.example.com.crt
-    SSLCertificateKeyFile /etc/ssl/private/kmp.example.com.key
-    SSLCertificateChainFile /etc/ssl/certs/kmp.example.com.chain.crt
-    
-    # HTTP Strict Transport Security
-    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
-</VirtualHost>
-```
-
-#### Nginx Configuration
-
-```nginx
-server {
-    listen 80;
-    server_name kmp.example.com;
-    
-    # Redirect to HTTPS
-    return 301 https://$host$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name kmp.example.com;
-    
-    root /var/www/kmp/app/webroot;
-    index index.php;
-    
-    # SSL Configuration
-    ssl_certificate /etc/ssl/certs/kmp.example.com.crt;
-    ssl_certificate_key /etc/ssl/private/kmp.example.com.key;
-    ssl_trusted_certificate /etc/ssl/certs/kmp.example.com.chain.crt;
-    
-    # Security Headers
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    
-    # Logs
-    access_log /var/log/nginx/kmp-access.log;
-    error_log /var/log/nginx/kmp-error.log;
-    
-    location / {
-        try_files $uri $uri/ /index.php?$args;
-    }
-    
-    location ~ \.php$ {
-        include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        include fastcgi_params;
-    }
-    
-    # Deny access to hidden files
-    location ~ /\. {
-        deny all;
-    }
-}
-```
-
-### PHP Configuration
-
-Optimize PHP for production with these `php.ini` settings:
-
-```ini
-; Maximum memory allocation
-memory_limit = 256M
-
-; Maximum upload file size
-upload_max_filesize = 20M
-post_max_size = 20M
-
-; Error reporting (disable display, enable logging)
-display_errors = Off
-log_errors = On
-error_log = /var/www/kmp/app/logs/php_errors.log
-
-; Opcode caching
-opcache.enable = 1
-opcache.memory_consumption = 128
-opcache.interned_strings_buffer = 8
-opcache.max_accelerated_files = 4000
-opcache.revalidate_freq = 60
-opcache.fast_shutdown = 1
-```
-
-### Environment Configuration
-
-Create an `app_local.php` file in the `config` directory with production-specific settings:
-
-```php
-return [
-    'debug' => false,
-    'Security' => [
-        'salt' => 'your-long-random-security-salt-string',
-    ],
-    'Datasources' => [
-        'default' => [
-            'host' => 'localhost',
-            'username' => 'kmp_db_user',
-            'password' => 'secure-password',
-            'database' => 'kmp_production',
-            'log' => false,
-        ],
-    ],
-    'EmailTransport' => [
-        'default' => [
-            'host' => 'smtp.example.com',
-            'port' => 587,
-            'username' => 'email@example.com',
-            'password' => 'email-password',
-            'tls' => true,
-        ],
-    ],
-    // Additional production settings...
-];
-```
-
-## 8.2 Migrations
-
-Database changes in KMP are managed through CakePHP's migrations system, which provides version control for your database schema.
-
-### Creating Migrations
-
-When making database changes, create a migration file:
-
-```bash
-# Create a new migration
-cd /var/www/kmp
-bin/cake bake migration CreateUsers
-
-# Create a migration for an existing table
-bin/cake bake migration AlterUsers
-
-# Create a migration for a plugin
-bin/cake bake migration -p PluginName CreatePluginTable
-```
-
-### Running Migrations
-
-To apply migrations in production:
-
-```bash
-# Apply all pending migrations
-bin/cake migrations migrate
-
-# Apply migrations for a plugin
-bin/cake migrations migrate -p PluginName
-
-# Apply migrations up to a specific version
-bin/cake migrations migrate --target=20250401000000
-
-# Rollback the last migration
-bin/cake migrations rollback
-```
-
-### Migration Deployment Process
-
-Follow this process when deploying database changes:
-
-1. **Backup**: Always back up the production database before applying migrations. Use the command for the configured database engine.
-   ```bash
-   # PostgreSQL / Azure Flexible PostgreSQL
-   pg_dump --format=custom --no-owner --no-privileges "$DATABASE_URL" > kmp_backup_YYYYMMDD.dump
-
-   # MySQL/MariaDB
-   mysqldump -u user -p kmp_production > kmp_backup_YYYYMMDD.sql
-   ```
-
-2. **Maintenance Mode**: Enable maintenance mode during database updates
-   ```php
-   # Set maintenance mode app setting
-   StaticHelpers::setAppSetting('KMP.MaintenanceMode', 'yes');
-   ```
-
-3. **Apply Migrations**: Run the migrations
-   ```bash
-   bin/cake migrations migrate
-   bin/cake migrations migrate -p PluginName1
-   bin/cake migrations migrate -p PluginName2
-   # etc.
-   ```
-
-4. **Verify**: Confirm that migrations were applied successfully
-   ```bash
-   bin/cake migrations status
-   ```
-
-5. **Regenerate schema dump**: Refresh `app/config/schema_dump.sql` after all migrations and plugin migrations are applied so provisioning and audits reflect the shipped schema. Use the command for the configured database engine.
-   ```bash
-   # PostgreSQL / Azure Flexible PostgreSQL
-   pg_dump --schema-only --no-owner --no-privileges "$DATABASE_URL" > app/config/schema_dump.sql
-
-   # MySQL/MariaDB
-   mysqldump --no-data -u user -p kmp_production > app/config/schema_dump.sql
-   ```
-
-6. **Disable Maintenance Mode**: Return the application to normal operation
-   ```php
-   StaticHelpers::setAppSetting('KMP.MaintenanceMode', 'no');
-   ```
-
-### Migration Order
-
-Plugins in KMP have a defined migration order, as specified in their plugin registration. This ensures that dependencies between plugins are respected during migration. The order is defined in `config/plugins.php`:
-
-```php
-'Activities' => [
-    'migrationOrder' => 1,
-],
-'Officers' => [
-    'migrationOrder' => 2,
-],
-'Awards' => [
-    'migrationOrder' => 3,
-],
-```
-
-## 8.3 Updates
-
-Keeping your KMP installation up-to-date involves updating both the application code and the database schema.
-
-### Update Process
-
-Follow these steps to update KMP in a production environment:
-
-1. **Backup**: Create backups of both code and database
-   ```bash
-   # Backup code
-   cp -r /var/www/kmp /var/www/kmp-backup-YYYYMMDD
-   
-   # Backup database
-   mysqldump -u user -p kmp_production > kmp_backup_YYYYMMDD.sql
-   ```
-
-2. **Maintenance Mode**: Enable maintenance mode
-   ```php
-   StaticHelpers::setAppSetting('KMP.MaintenanceMode', 'yes');
-   ```
-
-3. **Get Updates**: Pull the latest code from the repository
-   ```bash
-   cd /var/www/kmp
-   git fetch origin
-   git checkout v1.x.x  # Replace with the target version
-   ```
-
-4. **Update Dependencies**: Update Composer and NPM dependencies
-   ```bash
-   composer install --no-dev --optimize-autoloader
-   npm ci
-   npm run prod
-   ```
-
-5. **Clear Cache**: Remove cached files
-   ```bash
-   bin/cake cache clear_all
-   ```
-
-6. **Apply Migrations**: Update the database schema
-   ```bash
-   bin/cake migrations migrate
-   # Apply plugin migrations as needed
-   ```
-
-7. **Update Settings**: Apply any new app settings
-   ```bash
-   bin/cake app_settings initialize
-   ```
-
-8. **Test**: Verify the application works correctly
-   ```bash
-   bin/cake server -p 8080  # Test on a non-production port
-   ```
-
-9. **Disable Maintenance Mode**: Return to normal operation
-   ```php
-   StaticHelpers::setAppSetting('KMP.MaintenanceMode', 'no');
-   ```
-
-### Rollback Procedure
-
-If issues are encountered during the update, follow these steps to roll back:
-
-1. **Restore Code**: Replace the code directory with the backup
-   ```bash
-   rm -rf /var/www/kmp
-   cp -r /var/www/kmp-backup-YYYYMMDD /var/www/kmp
-   ```
-
-2. **Restore Database**: Restore the database backup
-   ```bash
-   mysql -u user -p kmp_production < kmp_backup_YYYYMMDD.sql
-   ```
-
-3. **Clear Cache**: Clear any cached files
-   ```bash
-   bin/cake cache clear_all
-   ```
-
-4. **Disable Maintenance Mode**: Return to normal operation
-   ```php
-   StaticHelpers::setAppSetting('KMP.MaintenanceMode', 'no');
-   ```
-
-### Version Management
-
-KMP uses semantic versioning (MAJOR.MINOR.PATCH):
-
-- **MAJOR**: Incompatible API changes requiring significant migration effort
-- **MINOR**: Backward-compatible new features
-- **PATCH**: Backward-compatible bug fixes
-
-The current application version is stored in the `app_settings` table:
-```php
-StaticHelpers::getAppSetting('App.version');
-```
-
-## 8.4 Cloud Object Storage Configuration
-
-The `DocumentService` uses Flysystem to abstract storage operations and supports multiple storage backends. By default, files are stored on the local filesystem, but production deployments can use Azure Blob Storage or S3-compatible object storage.
-
-### Storage Adapters
-
-KMP supports three storage adapters:
-
-- **Local Filesystem** (default) - Files stored on the server's local filesystem
-- **Azure Blob Storage** - Files stored in Azure cloud storage
-- **S3-Compatible Storage** - Files stored in AWS S3 or compatible providers
-
-### Local Filesystem Configuration (Default)
-
-Add this configuration to `config/app_local.php`:
-
-```php
-'Documents' => [
-    'storage' => [
-        'adapter' => 'local',
-        'local' => [
-            'path' => ROOT . DS . 'images' . DS . 'uploaded',
-        ],
-    ],
-],
-```
-
-### Azure Blob Storage Configuration
-
-For production deployments, configure Azure Blob Storage in `config/app_local.php`:
-
-```php
-'Documents' => [
-    'storage' => [
-        'adapter' => 'azure',
-        'azure' => [
-            'connectionString' => env('AZURE_STORAGE_CONNECTION_STRING'),
-            'container' => 'documents',
-            'prefix' => '', // Optional: prefix all paths (e.g., 'kmp/documents/')
-        ],
-    ],
-],
-```
-
-### Amazon S3 Configuration
-
-For production deployments, configure S3-compatible storage in `config/app_local.php`:
-
-> **Prerequisite:** Install the S3 Flysystem adapter in your app container/image:
-> `composer require league/flysystem-aws-s3-v3`
-
-```php
-'Documents' => [
-    'storage' => [
-        'adapter' => 's3',
-        's3' => [
-            'bucket' => env('AWS_S3_BUCKET'),
-            'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
-            'key' => env('AWS_ACCESS_KEY_ID'),
-            'secret' => env('AWS_SECRET_ACCESS_KEY'),
-            'sessionToken' => env('AWS_SESSION_TOKEN'),
-            'prefix' => env('AWS_S3_PREFIX', ''),
-            'endpoint' => env('AWS_S3_ENDPOINT'),
-            'usePathStyleEndpoint' => filter_var(
-                env('AWS_S3_USE_PATH_STYLE_ENDPOINT', false),
-                FILTER_VALIDATE_BOOLEAN,
-            ),
-        ],
-    ],
-],
-```
-
-### Setting up Azure Blob Storage
-
-#### 1. Create Azure Storage Account
-
-1. Log into [Azure Portal](https://portal.azure.com)
-2. Navigate to **Storage Accounts**
-3. Click **+ Create**
-4. Fill in the required information:
-   - **Subscription**: Your Azure subscription
-   - **Resource Group**: Create new or use existing
-   - **Storage account name**: Must be globally unique (lowercase, numbers only)
-   - **Region**: Choose closest to your application
-   - **Performance**: Standard (or Premium if needed)
-   - **Redundancy**: Choose based on your needs (LRS for cost-effective, GRS for geo-redundancy)
-5. Click **Review + Create** and then **Create**
-
-#### 2. Create Blob Container
-
-1. Open your newly created Storage Account
-2. In the left menu, under **Data storage**, click **Containers**
-3. Click **+ Container**
-4. Enter a name (e.g., `documents`)
-5. Set **Public access level** to **Private (no anonymous access)**
-6. Click **Create**
-
-#### 3. Get Connection String
-
-1. In your Storage Account, go to **Security + networking** > **Access keys**
-2. Click **Show** next to one of the connection strings
-3. Copy the entire connection string
-
-#### 4. Configure Application
-
-Add the connection string to your environment variables:
-
-**Using `.env` file (Development)**
-
-1. Copy `config/.env.example` to `config/.env`
-2. Add the connection string:
-   ```bash
-   export AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=https;AccountName=myaccount;AccountKey=mykey;EndpointSuffix=core.windows.net"
-   ```
-
-**Using System Environment Variables (Production - Recommended)**
-
-Set the environment variable in your hosting environment:
-```bash
-export AZURE_STORAGE_CONNECTION_STRING="DefaultEndpointsProtocol=https;AccountName=myaccount;AccountKey=mykey;EndpointSuffix=core.windows.net"
-```
-
-For systemd services, add to your service file:
-```ini
-[Service]
-Environment="AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=..."
-```
-
-**Direct Configuration (Not Recommended)**
-
-You can set it directly in `config/app_local.php`, but this is less secure:
-```php
-'Documents' => [
-    'storage' => [
-        'adapter' => 'azure',
-        'azure' => [
-            'connectionString' => 'DefaultEndpointsProtocol=https;AccountName=...',
-            'container' => 'documents',
-        ],
-    ],
-],
-```
-
-#### 5. Update Configuration
-
-Edit `config/app_local.php` and add/update the Documents configuration as shown above.
-
-### Setting up Amazon S3
-
-#### 1. Create a Bucket
-
-1. Open the AWS console and navigate to **S3**
-2. Create a bucket (for example, `kmp-documents-prod`)
-3. Enable encryption at rest (SSE-S3 or SSE-KMS)
-4. Keep block public access enabled unless you have a specific requirement
-
-#### 2. Configure Access
-
-Use one of these approaches:
-
-- **Recommended (AWS runtime)**: assign an IAM role with `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` on the bucket
-- **Alternative**: set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment variables
-
-#### 3. Set Environment Variables
-
-```bash
-export AWS_S3_BUCKET="kmp-documents-prod"
-export AWS_DEFAULT_REGION="us-east-1"
-export AWS_ACCESS_KEY_ID="..."
-export AWS_SECRET_ACCESS_KEY="..."
-export AWS_SESSION_TOKEN=""
-export AWS_S3_PREFIX=""
-export AWS_S3_ENDPOINT=""
-export AWS_S3_USE_PATH_STYLE_ENDPOINT="false"
-```
-
-For S3-compatible providers (MinIO, DigitalOcean Spaces, etc.), set `AWS_S3_ENDPOINT` and enable `AWS_S3_USE_PATH_STYLE_ENDPOINT=true` when required by the provider.
-
-### Testing the Configuration
-
-After configuring cloud storage (Azure or S3), test it by:
-
-1. Uploading a waiver document through the application
-2. Verifying the file appears in your configured storage container/bucket
-3. Downloading the document to ensure retrieval works
-
-You can verify objects in the provider console:
-
-- **Azure:** Storage Account → Containers → your container
-- **S3:** S3 → Buckets → your bucket
-
-### Troubleshooting
-
-#### Connection Errors
-
-**Issue**: "Failed to initialize Azure Blob Storage"
-
-**Solutions**:
-- Verify your connection string is correct
-- Ensure the storage account exists and is accessible
-- Check that the account key hasn't been regenerated
-- Verify network connectivity to Azure
-- Check firewall rules on the storage account allow your application's IP
-
-#### S3 Initialization Errors
-
-**Issue**: "Failed to initialize S3 storage"
-
-**Solutions**:
-- Verify `AWS_S3_BUCKET` and `AWS_DEFAULT_REGION` are set correctly
-- If using access keys, verify `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
-- If using IAM roles, verify the runtime has S3 permissions for get/put/delete
-- For S3-compatible providers, verify `AWS_S3_ENDPOINT` and path-style setting
-- Confirm bucket policy and KMS permissions allow your runtime principal
-
-#### Container Not Found
-
-**Issue**: "Container does not exist"
-
-**Solutions**:
-- Ensure the container name in configuration matches the actual container name (case-sensitive)
-- Verify the container exists in the Storage Account
-- Check that the connection string has access to the container
-
-#### Permission Errors
-
-**Issue**: "Authorization failed"
-
-**Solutions**:
-- Ensure you're using a valid access key
-- Check that the storage account hasn't been deleted or restricted
-- Verify firewall rules on the storage account allow your application's IP
-- Confirm the connection string includes the correct account key
-
-### Performance Considerations
-
-For production deployments:
-- Choose a region close to your application for lower latency
-- Consider using Azure CDN for frequently accessed documents
-- Monitor storage costs and optimize as needed
-- Consider using lifecycle management to archive old documents
-- Use GRS (Geo-Redundant Storage) for critical data requiring disaster recovery
-- Enable Azure Storage encryption at rest (enabled by default)
-
-### Migration from Local to Azure
-
-To migrate existing documents from local filesystem to Azure:
-
-1. **Configure Azure Blob Storage** as documented above
-2. **Keep local configuration** temporarily in `app_local.php`
-3. **Upload new documents** - They will go to Azure based on the active adapter setting
-4. **Manually copy existing files** to Azure using Azure Storage Explorer, Azure CLI, or a migration script:
-
-   ```bash
-   # Using Azure CLI
-   az storage blob upload-batch \
-     --account-name <storage-account-name> \
-     --destination documents \
-     --source /var/www/kmp/images/uploaded
-   ```
-
-5. **Update document records** in the database to reflect new `storage_adapter`:
-
-   ```sql
-   UPDATE documents 
-   SET storage_adapter = 'azure' 
-   WHERE storage_adapter = 'local' OR storage_adapter IS NULL;
-   ```
-
-6. **Verify migration** by testing document downloads
-7. **Remove local configuration** once migration is complete and verified
-
-### Security Best Practices
-
-1. **Never commit connection strings** to version control
-2. **Use environment variables** for sensitive configuration
-3. **Rotate access keys** regularly (Azure supports two keys for zero-downtime rotation)
-4. **Use private containers** (no anonymous access)
-5. **Enable Azure Storage encryption** at rest (enabled by default)
-6. **Monitor access logs** for unusual activity
-7. **Consider using Azure Managed Identity** in production instead of connection strings
-8. **Enable soft delete** for blob containers to protect against accidental deletion
-9. **Configure network rules** to restrict access to specific IP ranges
-10. **Use HTTPS only** (enforced by default in the configuration)
-
-### Monitoring and Logging
-
-The DocumentService logs important events:
-
-- Successful initialization of storage adapters
-- Fallback to local storage when a cloud adapter fails
-- File upload/download operations
-- Storage errors and exceptions
-
-Monitor these logs in production:
-
-```bash
-# View document service logs
-tail -f /var/www/kmp/app/logs/error.log | grep -i "document\|storage\|azure"
-```
-
-Azure Storage also provides built-in metrics and logging:
-- **Storage Analytics**: Monitor request metrics, capacity, and availability
-- **Diagnostic Logs**: Track storage operations for auditing and troubleshooting
-- **Azure Monitor**: Set up alerts for storage issues
-
-````
+KMP's supported production path is the managed, multi-tenant Azure deployment.
+It runs one application revision for many tenant hosts while keeping platform
+metadata and each tenant's application data in separate PostgreSQL databases.
+
+The older Docker/VPC, Fly.io, Railway, shared-hosting, and standalone installer
+material is retained only as historical reference. It is not a supported way to
+provision a new managed tenant and does not implement the current platform
+database, secret-store, worker, migration, or backup contracts.
+
+## 8.1 Start here
+
+| Need | Current source of truth |
+| --- | --- |
+| Architecture, Azure resources, and operator commands | [Azure deployment runbook](https://github.com/Ansteorra/KMP/blob/main/deploy/azure/README.md) |
+| Environment variables and runtime roles | [Environment setup](8.1-environment-setup.md) |
+| Release and same-digest promotion | [Updating and release](deployment/updating.md) |
+| Tenant and platform backup/restore | [Backup and restore](deployment/backup-restore.md) |
+| Tenant proof and migration rehearsal | [Two-tenant POC](deployment/multi-tenant-poc.md) and [pilot migration runbook](deployment/pilot-migration-runbook.md) |
+| Incident and recovery preparation | [Region failover](deployment/region-failover-runbook.md) and [DR drill checklist](deployment/dr-drill-execution-checklist.md) |
+| Trust, legal, and launch templates | [Trust documentation index](deployment/trust-docs-index.md) |
+| Historical self-hosted notes | [Legacy deployment archive](deployment/README.md#historical-self-hosted-reference) |
+
+## 8.2 Managed runtime shape
+
+The Azure template in `deploy/azure/main.bicep` provisions the current runtime:
+
+| Component | Responsibility |
+| --- | --- |
+| Azure Container Apps web app | Serves tenant hosts and the reserved Platform Admin host. It does not run migrations, cron, or queue work. |
+| PostgreSQL Flexible Server | Holds one default application database, one platform metadata database, and provisioned tenant databases. |
+| Azure Managed Redis | Shared cache and sessions for the multi-replica production web tier. |
+| Azure Storage | Private document and encrypted backup objects through one managed identity. Tenant object keys/containers provide logical scoping; the current identity has account-wide Blob Data Contributor access. |
+| Azure Key Vault | Bootstraps runtime connection strings, the security salt, the database secret-store master key, the seed key, Redis, and SMTP credentials. |
+| Container Apps Jobs | Own migrations, the destructive POC seed restore, tenant provisioning shape, and the unified background worker. |
+
+The web revision sets:
+
+    KMP_SKIP_MIGRATIONS=true
+    KMP_SKIP_CRON=true
+
+Do not remove those flags from managed web replicas. Startup migration in the
+production image exists for historical single-database containers; it is not the
+managed multi-tenant rollout mechanism.
+
+### Background work
+
+One scheduled job runs every three minutes and executes:
+
+    bin/cake platform worker run \
+      --schedule-limit 100 \
+      --max-jobs 100 \
+      --max-runtime 45 \
+      --cycle-budget 240 \
+      --platform-limit 1 \
+      --json
+
+That worker dispatches due platform schedules, drains the default and active
+tenant queue datasources, and claims a bounded platform job. A plain
+`bin/cake queue run` sees only the current datasource and must not be used as
+the managed tenant-fleet worker. The old hourly, daily, weekly, and nightly
+Container Apps Job shapes are compatibility resources parked on annual no-op
+schedules after cutover.
+
+## 8.3 Migration contract
+
+Managed deployments run migrations in one dedicated job before web cutover.
+The enforced order is:
+
+    bin/cake migrations migrate &&
+    bin/cake schema_cache clear &&
+    bin/cake updateDatabase &&
+    bin/cake platform_migrate migrate &&
+    bin/cake schema_cache clear --connection platform &&
+    bin/cake platform secrets import-env &&
+    bin/cake platform backup-keys ensure --allow-read-only &&
+    bin/cake tenant migrate --all --include-suspended --fail-fast &&
+    bin/cake cache clear _cake_model_
+
+The order is important:
+
+1. Core and plugin application schema is brought current.
+2. Platform metadata tables are migrated.
+3. Missing legacy environment secrets may be imported into the encrypted
+   database-backed store. Existing values and tombstones win.
+4. The platform and non-archived tenant backup KEKs are reconciled.
+5. Active and suspended tenant databases are inspected and migrated.
+6. Shared model metadata is cleared only after every required database succeeds.
+
+A tenant with pending versions receives its normal pre-migration recovery marker
+and encrypted backup. Current tenants are inspected and skipped without another
+backup. A failure stops the deployment before web cutover; rerunning is
+resumable because the fleet command reinspects each database.
+
+Do not replace this chain with ad-hoc plugin migration commands, migration on
+web startup, or a manual schema rollback. The optional release-manifest,
+`platform release_check`, canary, and nightly migration-drill commands are
+rehearsal tools; the active Azure workflow does not currently generate a
+`config/release_manifest.json` or pass one to the migration job.
+
+## 8.4 Release and rollback
+
+The official release path builds once and promotes by immutable digest:
+
+1. A green commit on official `main` is fast-forwarded to `dev`.
+2. `Nightly / Dev Docker Image` builds a multi-architecture
+   `ghcr.io/ansteorra/kmp:dev-<sha>` image and smoke-checks it.
+3. `POC / Deploy to Azure` imports that digest, canaries the worker, runs the
+   migration contract, cuts over web, probes it, and records
+   `poc-validated-<sha>` evidence.
+4. A stable `v*` GitHub Release for the same commit applies release tags to the
+   POC-validated digest without rebuilding.
+5. The protected production environment deploys that same digest after approval.
+
+See [Updating and release](deployment/updating.md) for the exact operator
+procedure. Rolling back an Azure runtime revision does not reverse tenant data
+or schema changes. Use the documented recovery markers and restore process only
+after confirming image/schema compatibility.
+
+## 8.5 Backups and recovery
+
+Managed backups are not the historical VPC SQL dumps:
+
+- Tenant backups are logical JSON archives, gzip-compressed and envelope
+  encrypted as `.json.gz.enc` objects.
+- Platform metadata backups are PostgreSQL custom dumps encrypted as
+  `.pgdump.enc` objects.
+- Each backup has its own data key wrapped by the tenant or platform backup KEK.
+- Backup objects use scoped `backup://tenants/<slug>/...` or
+  `backup://platform/...` identifiers and record size, SHA-256, retention, and
+  encryption metadata in the platform database.
+- Tenant restore targets must be suspended before a destructive restore is
+  queued. Platform Admin backup/download/restore actions require confirmation,
+  a reason, TOTP step-up, and audit records.
+
+The application currently has one global managed-backup policy: daily or weekly
+cadence and 1–365 retention days, defaulting to daily and 30 days. Governance
+templates may define stricter future/customer targets; they do not change the
+implemented scheduler automatically.
+
+Read [Backup and restore](deployment/backup-restore.md) before operating on
+customer data.
+
+## 8.6 Secrets and Platform Admin
+
+Managed Azure sets `KMP_SECRETS_DRIVER=database`. Key Vault supplies the master
+key used to wrap encrypted values in the platform database; the master key
+itself is never stored there. Tenant database passwords and backup KEKs are
+referenced by name from platform metadata and must never be placed in job
+parameters, tickets, or logs.
+
+Platform Admin is a privileged, mutating control-plane surface in the same web
+application. It is isolated by reserved hosts in `KMP_PLATFORM_ADMIN_HOSTS`,
+portal enablement, in-app platform-user password authentication, TOTP, lockout,
+allowed account status, and a host-bound session. The current deployment does
+not use a separate admin Container App or trusted external identity headers.
+Keep the data console disabled in production unless its separate risk review is
+complete.
+
+## 8.7 Health and observability
+
+- `/livez` is a static liveness probe. It does not prove database or cache
+  readiness.
+- `/health` checks the current default database and cache/session runtime and
+  returns `status`, `version`, `image_tag`, `channel`, `db`, `cache`,
+  `profile`, and `timestamp`. It returns HTTP 503 when database or cache
+  readiness fails.
+- `bin/cake platform_health --json` checks the platform metadata datasource.
+- `bin/cake telemetry_check` validates effective telemetry configuration and
+  writable local paths.
+
+Production uses Application Insights/OTLP configuration from the Azure template.
+Do not include connection strings, object credentials, secret values, raw job
+errors, or customer records in diagnostic evidence.
+
+## 8.8 Audit immutability status
+
+Platform audit rows include a database hash chain. A local/dev file mirror can
+append redacted hash-chained JSONL records. The Azure Blob WORM sink is not
+implemented in the application and is not provisioned by the current Bicep
+template; the default sink is disabled and fail-closed behavior defaults to
+false. Cloud immutable storage, retention/legal hold, monitoring, and continuity
+evidence therefore remain explicit external launch prerequisites.
+
+Do not describe the current Azure environment as having an application-managed
+WORM mirror until that integration is implemented and verified.
+
+## 8.9 Historical self-hosting
+
+The archived VPC/Fly/Railway and installer pages may help maintain an existing
+single-database installation. They are unsupported for new deployments and do
+not provide managed tenancy. In particular:
+
+- `kmp install` and `bin/cake kmp_install` are retired and return errors.
+- Several installer providers are stubs.
+- `kmp update` does not create a database backup.
+- `kmp rollback` does not restore a database or reverse migrations.
+- The VPC scripts back up one MariaDB database, not platform metadata and a
+  tenant fleet.
+
+Treat those pages as historical context, not a production runbook.
