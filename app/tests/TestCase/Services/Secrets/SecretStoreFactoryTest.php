@@ -48,6 +48,22 @@ class SecretStoreFactoryTest extends TestCase
         $this->assertInstanceOf(DatabaseSecretStore::class, $store);
     }
 
+    public function testBuildsNamedDriverWithoutChangingConfiguredActiveDriver(): void
+    {
+        $store = SecretStoreFactory::fromDriver('database', [
+            'driver' => 'env',
+            'drivers' => [
+                'database' => [
+                    'masterDriver' => 'env',
+                    'masterKeyName' => 'platform.master_kek',
+                ],
+                'env' => ['prefix' => 'KMP_FACTORY_SECRET_'],
+            ],
+        ]);
+
+        $this->assertInstanceOf(DatabaseSecretStore::class, $store);
+    }
+
     public function testDatabaseStoreRefusesSelfWrappingMasterDriver(): void
     {
         $this->expectException(InvalidArgumentException::class);

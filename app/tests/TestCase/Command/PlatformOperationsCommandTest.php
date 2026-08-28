@@ -103,6 +103,43 @@ class PlatformOperationsCommandTest extends TestCase
         $this->assertOutputContains('0 created, 3 already present');
     }
 
+    public function testBackupKeyReconciliationCanBridgeLegacyReadOnlyStore(): void
+    {
+        $prefix = 'KMP_BACKUP_TRANSITION_TEST_';
+        $tenantKeyName = $prefix . 'TENANT_ALPHA_KEK';
+        putenv($tenantKeyName . '=legacy-tenant-kek');
+        try {
+            Configure::write('Secrets', [
+                'driver' => 'env',
+                'drivers' => ['env' => ['prefix' => $prefix]],
+            ]);
+            $this->platform()->insert('tenants', ['slug' => 'alpha', 'status' => 'active']);
+
+            $this->exec('platform backup-keys ensure --allow-read-only');
+
+            $this->assertExitSuccess();
+            $this->assertOutputContains('0 created, 1 already present, 1 unavailable');
+            $this->assertErrorContains('Tenant migration backups still fail closed');
+            $this->assertOutputNotContains('legacy-tenant-kek');
+        } finally {
+            putenv($tenantKeyName);
+        }
+    }
+
+    public function testBackupKeyReconciliationRejectsMissingKeysInReadOnlyStoreByDefault(): void
+    {
+        Configure::write('Secrets', [
+            'driver' => 'env',
+            'drivers' => ['env' => ['prefix' => 'KMP_EMPTY_BACKUP_TRANSITION_TEST_']],
+        ]);
+        $this->platform()->insert('tenants', ['slug' => 'alpha', 'status' => 'active']);
+
+        $this->exec('platform backup-keys ensure');
+
+        $this->assertExitError();
+        $this->assertErrorContains('read-only and 2 backup encryption key(s) are missing');
+    }
+
     public function testMetricsPruneCommandDeletesOnlyExpiredAggregates(): void
     {
         $this->platform()->insert('tenant_request_metrics_hourly', [

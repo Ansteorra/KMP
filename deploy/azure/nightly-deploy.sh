@@ -174,7 +174,7 @@ restore_migrate_job_default() {
     patch_job_command \
         "$MIGRATE_JOB" \
         '["/usr/local/bin/docker-entrypoint.sh"]' \
-        '["/bin/sh","-lc","bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake platform backup-keys ensure && bin/cake tenant migrate --all --include-suspended --fail-fast && bin/cake cache clear _cake_model_"]'
+        '["/bin/sh","-lc","bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake platform secrets import-env && bin/cake platform backup-keys ensure --allow-read-only && bin/cake tenant migrate --all --include-suspended --fail-fast && bin/cake cache clear _cake_model_"]'
 }
 
 run_migrate_command() {
@@ -197,10 +197,11 @@ run_migrations() {
     run_migrate_command "app settings update" bin/cake updateDatabase
     run_migrate_command "platform migrations" bin/cake platform_migrate migrate
     run_migrate_command "platform schema cache clear" bin/cake schema_cache clear --connection platform
+    run_migrate_command "legacy environment secret import" bin/cake platform secrets import-env
     if [[ "${SKIP_BACKUP_KEY_RECONCILIATION:-0}" == "1" ]]; then
         warn "Skipping platform backup key reconciliation"
     else
-        run_migrate_command "platform backup key reconciliation" bin/cake platform backup-keys ensure
+        run_migrate_command "platform backup key reconciliation" bin/cake platform backup-keys ensure --allow-read-only
     fi
     run_migrate_command "tenant fleet migrations" bin/cake tenant migrate --all --include-suspended --fail-fast
     run_migrate_command "shared model cache clear" bin/cake cache clear _cake_model_
@@ -377,7 +378,7 @@ deploy_image_ref() {
     if [[ "${SKIP_BACKUP_KEY_RECONCILIATION:-0}" != "1" || "${RUN_RECOMMENDATION_MIGRATION:-0}" == "1" ]]; then
         trap restore_migrate_job_default EXIT
         if [[ "${SKIP_BACKUP_KEY_RECONCILIATION:-0}" != "1" ]]; then
-            run_migrate_command "platform backup key reconciliation" bin/cake platform backup-keys ensure
+            run_migrate_command "platform backup key reconciliation" bin/cake platform backup-keys ensure --allow-read-only
         fi
         if [[ "${RUN_RECOMMENDATION_MIGRATION:-0}" == "1" ]]; then
             run_migrate_command "award recommendation migration" \

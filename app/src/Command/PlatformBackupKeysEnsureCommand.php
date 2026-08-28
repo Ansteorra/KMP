@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Services\Secrets\SecretStoreFactory;
+use App\Services\Secrets\SecretStoreInterface;
 use App\Services\Secrets\SensitiveString;
 use App\Services\Secrets\WritableSecretStoreInterface;
 use Cake\Command\Command;
@@ -39,6 +40,11 @@ final class PlatformBackupKeysEnsureCommand extends Command
                 'help' => 'Ensure only the platform database backup key.',
                 'boolean' => true,
                 'default' => false,
+            ])
+            ->addOption('allow-read-only', [
+                'help' => 'Allow missing keys only when the configured store is read-only during a legacy transition.',
+                'boolean' => true,
+                'default' => false,
             ]);
     }
 
@@ -49,11 +55,10 @@ final class PlatformBackupKeysEnsureCommand extends Command
     {
         try {
             $store = SecretStoreFactory::fromConfig();
-            if (!$store instanceof WritableSecretStoreInterface) {
-                throw new RuntimeException('Configured secret store is not writable.');
-            }
-            $created = $this->ensure($store, 'platform.backup.kek') ? 1 : 0;
-            $existing = $created === 0 ? 1 : 0;
+            $created = 0;
+            $existing = 0;
+            $unavailable = 0;
+            $this->countResult($this->ensure($store, 'platform.backup.kek'), $created, $existing, $unavailable);
 
             if (!$args->getOption('platform-only')) {
                 $platform = ConnectionManager::get('platform');
@@ -69,12 +74,19 @@ final class PlatformBackupKeysEnsureCommand extends Command
                     if (!preg_match('/\A[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?\z/', $slug)) {
                         throw new RuntimeException('A tenant slug is invalid; backup keys were not fully reconciled.');
                     }
-                    if ($this->ensure($store, sprintf('tenant.%s.kek', $slug))) {
-                        $created++;
-                    } else {
-                        $existing++;
-                    }
+                    $this->countResult(
+                        $this->ensure($store, sprintf('tenant.%s.kek', $slug)),
+                        $created,
+                        $existing,
+                        $unavailable,
+                    );
                 }
+            }
+            if ($unavailable > 0 && !$args->getOption('allow-read-only')) {
+                throw new RuntimeException(sprintf(
+                    'Configured secret store is read-only and %d backup encryption key(s) are missing.',
+                    $unavailable,
+                ));
             }
         } catch (Throwable $exception) {
             $io->err($exception->getMessage());
@@ -82,7 +94,19 @@ final class PlatformBackupKeysEnsureCommand extends Command
             return self::CODE_ERROR;
         }
 
-        $io->out(sprintf('Backup encryption keys ready: %d created, %d already present.', $created, $existing));
+        if ($unavailable > 0) {
+            $io->warning(sprintf(
+                '%d backup encryption key(s) could not be created in the legacy read-only store. ' .
+                'Tenant migration backups still fail closed if a required tenant key is absent.',
+                $unavailable,
+            ));
+        }
+        $io->out(sprintf(
+            'Backup encryption keys ready: %d created, %d already present, %d unavailable.',
+            $created,
+            $existing,
+            $unavailable,
+        ));
 
         return self::CODE_SUCCESS;
     }
@@ -90,15 +114,32 @@ final class PlatformBackupKeysEnsureCommand extends Command
     /**
      * Create a missing key without exposing its value.
      */
-    private function ensure(WritableSecretStoreInterface $store, string $name): bool
+    private function ensure(SecretStoreInterface $store, string $name): ?bool
     {
         $existing = $store->get($name);
         if ($existing !== null && !$existing->isEmpty()) {
             return false;
         }
+        if (!$store instanceof WritableSecretStoreInterface) {
+            return null;
+        }
         $value = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
         $store->put($name, new SensitiveString($value));
 
         return true;
+    }
+
+    /**
+     * Add one ensure result to the aggregate counters.
+     */
+    private function countResult(?bool $result, int &$created, int &$existing, int &$unavailable): void
+    {
+        if ($result === true) {
+            $created++;
+        } elseif ($result === false) {
+            $existing++;
+        } else {
+            $unavailable++;
+        }
     }
 }
