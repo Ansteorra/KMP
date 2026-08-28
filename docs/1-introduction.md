@@ -1,109 +1,93 @@
 ---
 layout: default
+title: Introduction
+description: What KMP is, who the developer documentation serves, and the boundaries of the managed platform.
 ---
-[← Back to Table of Contents](index.md)
+
+[← Documentation home](index.md)
 
 # 1. Introduction
 
-## 1.1 About KMP
+Kingdom Management Portal (KMP) is a membership and administration system for
+Society for Creative Anachronism kingdoms. It combines a CakePHP application,
+first-party domain plugins, and a managed platform layer so multiple kingdoms
+can use the same deployed application without sharing application data.
 
-The Kingdom Management Portal (KMP) is a comprehensive web-based membership management system specifically designed for SCA (Society for Creative Anachronism) Kingdoms. Built on the CakePHP 5.x framework, KMP provides a robust and extensible platform that allows SCA Kingdoms to manage their membership data, activities, officers, awards, and various administrative functions.
+## What KMP manages
 
-### Key Features
+The core application provides:
 
-- **Member Management**: Registration, profile management, and membership tracking
-- **Branch Management**: Hierarchical organization of Kingdom branches (Baronies, Shires, etc.)
-- **Officer Management**: Officer warrants, reporting, and roster management
-- **Award Recommendations**: Processing and tracking of award recommendations
-- **Activity Management**: Event registration and participation tracking
-- **Role-Based Access Control**: Granular permissions system to control access to features
+- members, households, branches, roles, permissions, warrants, gatherings, and
+  documents;
+- policy-based authorization with branch-aware scopes;
+- workflow definitions and approval runs used by core and plugin features;
+- audit-oriented lifecycle state, impersonation controls, and restore locks;
+- accessible server-rendered views enhanced with Stimulus and Turbo Frames.
 
-KMP is designed to be modular through its plugin architecture, allowing for customization and extension to meet the specific needs of different SCA Kingdoms.
+First-party plugins add Activities, Officers, Awards, and Waivers. The Queue
+plugin supplies asynchronous job infrastructure. `Template` is a development
+skeleton and is not enabled as a product feature.
 
-## 1.2 Project Purpose
+## Current platform model
 
-The Society for Creative Anachronism (SCA) is an international non-profit volunteer educational organization dedicated to researching and re-creating pre-17th century European history. Each SCA Kingdom requires significant administrative infrastructure to manage its members, events, officers, and awards.
+Hosted KMP is a database-per-tenant system:
 
-The purpose of the Kingdom Management Portal is to:
+1. A central PostgreSQL **platform database** stores the tenant and host
+   registry, central operator identities and sessions, encrypted secret
+   records, platform jobs and schedules, backup metadata, audit records, and
+   operational telemetry.
+2. Every kingdom has a separate PostgreSQL **tenant database** containing its
+   members and all other application and plugin data.
+3. The request host selects a tenant before authentication and authorization.
+   Unknown, inactive, unavailable, or schema-incompatible tenants fail closed.
+4. Background work explicitly enters the target tenant context before touching
+   tenant tables.
 
-1. **Centralize Member Data**: Provide a single source of truth for membership information
-2. **Streamline Administrative Processes**: Automate workflows for warrants, awards, and reporting
-3. **Enhance Communication**: Facilitate communication between members, officers, and administrators
-4. **Ensure Data Security**: Protect sensitive member information through secure authentication and authorization (role-based access control)
-5. **Support Decision Making**: Generate reports and analytics to support Kingdom leadership
-6. **Maintain Historical Records**: Preserve the history of awards, offices, and activities
+There is no shared `tenant_id` discriminator in business tables. Code must not
+infer tenant identity from user-controlled request data. See
+[Multi-tenant architecture](3.1-multi-tenant-architecture.md) for the complete
+isolation contract.
 
-KMP addresses these needs through a modern web application that is accessible both to technical and non-technical users, ensuring that SCA Kingdoms can focus on their core mission rather than administrative overhead.
+## Technology baseline
 
-## 1.3 System Requirements
+- PHP 8.4 runtime and CakePHP 5.4
+- PostgreSQL 16 for platform and tenant databases
+- CakePHP Authentication and Authorization
+- Vite, Stimulus, Turbo Frames, Bootstrap 5, and Bootstrap Icons
+- PHPUnit, Jest/jsdom, and Playwright BDD tests
+- Docker Compose for the supported local environment
+- Azure Container Apps for the managed hosted platform
 
-### Server Requirements
+Check `app/composer.json`, `app/package.json`, the Dockerfiles, and deployment
+templates before relying on an exact patch version.
 
-To run the Kingdom Management Portal, your server should meet the following requirements:
+## Who these guides are for
 
-- **PHP**: Version 8.3 or higher
-  - Required Extensions:
-    - **Core & Basics**:
-      - intl (Internationalization functions)
-      - mbstring (Multibyte string handling)
-      - xml, SimpleXML, xmlreader, xmlwriter (XML processing)
-      - openssl, sodium (Cryptography and secure communications)
-      - json (JSON parsing and generation)
-    - **Database**:
-      - pdo_mysql (MySQL database connectivity)
-      - mysqli, mysqlnd (MySQL native driver)
-      - pdo_sqlite, sqlite3 (SQLite support, needed for DebugKit)
-    - **Special Requirements**:
-      - yaml (YAML parsing and emission)
-      - posix (UNIX system interface)
-      - gd (Image processing)
-      - zip, zlib (Compression and archive handling)
-      - opcache (Performance optimization)
-    - **Recommended Extensions**:
-      - apcu (In-memory caching)
-      - xdebug (For development environments only)
-      - pcntl (Process control for queue workers)
-      - FFI (Foreign Function Interface, for advanced integrations)
+These guides support application developers, plugin authors, reviewers, test
+authors, and platform operators. Start with:
 
-- **Database**: MySQL 5.7+ or MariaDB 10.2+
+- [Getting started](2-getting-started.md) for a local stack;
+- [Architecture](3-architecture.md) for system boundaries;
+- [Development workflow](7-development-workflow.md) before changing code;
+- [Deployment and operations](8-deployment.md) for the managed service.
 
-- **Web Server**:
-  - Apache with mod_rewrite enabled
-  - Nginx with proper URL rewrite configuration
+Product behavior is ultimately defined by source code, migrations, tests, and
+runtime configuration. These pages explain durable contracts and workflows;
+they intentionally avoid exhaustive snapshots of every class or database
+column because generated references and migrations serve that purpose better.
 
-- **Composer**: PHP Dependency Manager (version 2.0+)
+## Design principles
 
-- **Node.js and NPM**: For frontend asset compilation
-  - Node.js 18+ recommended
-  - NPM 9+ recommended
+- **Isolation first:** tenant selection and connection state are explicit and
+  fail closed.
+- **Authorization at the boundary:** controllers authorize resources and apply
+  policy scopes; templates do not make permission decisions.
+- **Domain ownership:** business workflows live in services, model concerns in
+  tables/entities/behaviors, and plugin behavior inside its plugin.
+- **Operationally safe change:** platform, core, and plugin migrations are
+  versioned separately and a release verifies every selected tenant schema.
+- **Accessible by default:** user-facing UI targets WCAG 2.2 Level AA.
+- **Document durable truth:** temporary plans, rollout notes, and generated
+  class inventories are not maintained as architecture documentation.
 
-### Development Environment Requirements
-
-For developers working on KMP, the following additional tools are recommended:
-
-- **Git**: Version control system (latest version)
-- **Docker**: For containerized development (optional but recommended)
-- **PHPUnit**: For running automated tests
-- **PHP_CodeSniffer**: For code style checking
-- **PHPStan**: For static analysis
-
-### Browser Support
-
-KMP is designed to work with modern web browsers:
-
-- Chrome (latest 2 versions)
-- Firefox (latest 2 versions)
-- Safari (latest 2 versions)
-- Edge (latest 2 versions)
-
-Mobile browser support is also included for responsive layouts on iOS and Android devices.
-
-### Memory and Disk Requirements
-
-- Minimum 2GB RAM for the web server
-- At least 500MB disk space for the application
-- Additional disk space for database and uploaded files (varies based on usage)
-
----
-
-This concludes the introduction to the Kingdom Management Portal. The following sections will dive deeper into the installation, configuration, and architecture of the system.
+[Next: Getting started →](2-getting-started.md)

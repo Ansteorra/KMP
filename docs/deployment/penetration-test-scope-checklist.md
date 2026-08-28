@@ -1,78 +1,109 @@
+---
+layout: default
+title: "Managed Platform Penetration Test Scope and Evidence Checklist"
+description: "Planning checklist for tenant isolation, administration, storage, jobs, and security-test evidence."
+---
+
 # Managed Platform Penetration Test Scope and Evidence Checklist
 
-This checklist defines the third-party penetration test package required before managed multi-tenant production launch. It is a planning and evidence checklist only; it does not assert that a penetration test has already happened.
+This is a planning checklist for an authorized independent assessment. It is
+not evidence that a penetration test has happened or passed.
 
-[← Back to Deployment Guide](README.md) | [Launch Readiness Gate](launch-readiness-gate.md) | [Security Regression Checklist](security-regression-checklist.md)
+[← Deployment and operations](README.md) |
+[Launch readiness](launch-readiness-gate.md) |
+[Security regression](security-regression-checklist.md)
 
-## Required test objective
+## Current implementation baseline
 
-Validate that the managed KMP platform resists tenant isolation bypass, account compromise, privilege escalation, data exposure, and operational-control-plane abuse before a production tenant is activated.
+Scope the test to the software and infrastructure that actually exist:
 
-The test must be performed by an approved independent tester or security team with written authorization, a signed rules-of-engagement document, and a documented test window. Production customer data must not be targeted unless counsel, security leadership, and the affected customer explicitly approve it.
+- tenant requests are resolved by host and use separate PostgreSQL tenant
+  databases;
+- document isolation uses tenant-specific containers/prefixes, while the Azure
+  managed identity currently has storage-account-wide Blob Data Contributor;
+- Platform Admin is a reserved-host surface in the same web app, protected by
+  in-app password plus TOTP, account status/lockout, authorization, and a
+  host-bound session;
+- Platform Admin contains mutating operations and must not be described or
+  tested as read-only;
+- platform audit rows are hash chained in PostgreSQL;
+- the Azure Blob WORM sink is not implemented and the managed template does not
+  provision immutable audit storage;
+- the tenant trust dashboard and public status page are roadmap items; and
+- release-manifest/canary/nightly-drill commands are optional rehearsal tools,
+  not steps in the active Azure deployment workflow.
+
+If the engagement claims external WORM, escrow, private-network, recovery-region,
+or public-trust controls, attach proof that those controls were separately
+deployed. Otherwise record them as gaps or out of scope, not as application
+features.
+
+## Required objective
+
+Validate resistance to tenant isolation bypass, account compromise, privilege
+escalation, data exposure, and control-plane abuse before production activation.
+Testing requires written authorization, approved rules of engagement, a defined
+window, stop contacts, and explicit approval before touching production data.
 
 ## In-scope surfaces
 
-| Surface | Minimum coverage | Evidence required |
-|---------|------------------|-------------------|
-| Tenant web application | Authentication, authorization, CSRF, XSS, SQL injection, IDOR, file/document access, session handling, password reset/TOTP flows | Test plan, executed cases, affected routes, findings, retest results |
-| Tenant isolation | Host-based tenant resolution, database-per-tenant boundaries, tenant document storage boundaries, tenant-scoped cache/session behavior | Attempts to access tenant B data from tenant A, query/API/browser evidence, negative results |
-| Platform admin app | Isolated ingress, external identity gate, allowed-email enforcement, read-only posture, audit logging, redaction | Route inventory, auth bypass attempts, header spoofing tests, audit event samples |
-| Tenant provisioning and migrations | Tenant creation, migration canary, release manifest compatibility, rollback marker behavior | Non-production command output and evidence links |
-| Backups/restores | Backup metadata, restore drill planning, destructive restore guardrails, object URI redaction | Backup/restore evidence references only; no backup secrets or raw data |
-| Secrets and encryption | Secret-store access patterns, wrapped-key handling, KEK escrow process, log redaction | Configuration review notes, redaction proof, no plaintext key material |
-| WORM audit | Audit event integrity, hash-chain continuity, immutable mirror controls, fail-closed behavior | Continuity check results and immutable storage control-plane screenshots |
-| APIs and background jobs | Queue/process admin routes, scheduled jobs, health/readiness endpoints, error handling | Authz tests, failed-job redaction, abuse-case notes |
-| Infrastructure configuration | TLS, security headers, ingress segmentation, network restrictions, storage/database RBAC | Configuration screenshots or exported policy summaries |
+| Surface | Minimum coverage | Evidence |
+| --- | --- | --- |
+| Tenant web app | Authentication, authorization, CSRF, XSS, injection, IDOR, file access, sessions, password reset, TOTP | Executed cases, routes, findings, retest |
+| Tenant isolation | Host resolution, connection switching, cross-tenant object IDs, cache/session/queue keys, document names and access | Tenant-A-to-B negative tests and unknown-host results |
+| Platform Admin | Reserved-host enforcement, password/TOTP, lockout/status, session host binding, policy checks, mutating action confirmation, audit/redaction | Host/session/auth bypass attempts and privileged-action samples |
+| Provisioning/migration | Tenant creation, exact managed migration chain, recovery markers, suspended-tenant behavior; optional manifest/canary only if enabled | Non-production transcript and failure-path evidence |
+| Backup/restore | Tenant `.json.gz.enc` and platform `.pgdump.enc` metadata, recovery-key export, suspension/TOTP/confirmation gates, URI redaction | References and hashes only; no archives, keys, or customer records |
+| Secrets/encryption | Database secret store, master-key boundary, wrapped backup keys, rotation/failure behavior | Configuration review with plaintext material excluded |
+| Audit/evidence | Database audit hash chain; external immutable sink only when separately provisioned | Audit samples plus external storage proof when claimed |
+| Jobs/health | Unified three-minute worker, schedule claims, queue isolation, `/livez` versus `/health`, safe errors | Authorization, contention, redaction, and failure tests |
+| Infrastructure | TLS/SNI, public ingress, PostgreSQL firewall, storage/database RBAC, Key Vault references, OIDC and protected environments | Approved configuration exports or screenshots |
 
-## Out-of-scope unless separately approved
+## Out of scope unless separately approved
 
-- Denial-of-service or load testing against shared infrastructure.
-- Social engineering, phishing, or physical access attempts.
-- Destructive database restores, production tenant modification, or data exfiltration.
-- Access to plaintext KEKs, Shamir shares, recovery codes, passwords, tokens, or full database exports.
+- denial-of-service or load testing against shared infrastructure;
+- social engineering, phishing, or physical access;
+- destructive restores or production data modification;
+- exfiltration of full database exports; and
+- access to passwords, tokens, connection strings, recovery keys, plaintext
+  KEKs, or escrow shares.
 
-## Preconditions before testing starts
+## Preconditions
 
-- [ ] Written authorization and rules of engagement approved by Platform Owner, Security Lead, and counsel if needed.
-- [ ] Test environment, tenant slugs, hostnames, and accounts are documented.
-- [ ] No real customer production data is present unless explicitly approved.
-- [ ] Current release version, commit SHA, image digest, release manifest, and migration version are recorded.
-- [ ] Two-tenant POC or equivalent host-resolution smoke evidence is attached.
-- [ ] Tenant migration canary and nightly migration drill evidence is attached.
-- [ ] Backup freshness, non-destructive restore drill, WORM audit continuity, and DR preflight evidence are attached.
-- [ ] Platform admin and tenant admin test accounts have least privilege needed for the assessment.
-- [ ] Monitoring, incident response, and test-stop contacts are staffed during the window.
+- [ ] Rules of engagement and written authorization are approved.
+- [ ] Environment, tenant slugs, hosts, test accounts, IP ranges, and stop
+      contacts are recorded.
+- [ ] Production customer data is excluded unless explicitly approved.
+- [ ] Commit, release tag, immutable image digest, and deployed migration state
+      are recorded.
+- [ ] Two-tenant host-resolution evidence is current.
+- [ ] The active migration-chain result is attached.
+- [ ] Optional manifest/canary/drill evidence is included only if that control is
+      configured and claimed.
+- [ ] Fresh tenant and platform backup metadata and a safe restore plan are
+      attached.
+- [ ] External WORM, escrow, or recovery-region evidence is attached only when
+      independently verified.
+- [ ] Monitoring and incident contacts are staffed.
 
-## Evidence package
+## Evidence and disposition
 
-Store evidence in the release security ticket or approved evidence repository. Do not paste secrets, raw customer records, database exports, object SAS URLs, wrapped DEKs, plaintext KEKs, or Shamir shares.
+Store redacted evidence in the approved restricted repository. Do not paste raw
+records, exports, object URLs with credentials, keys, tokens, recovery codes, or
+secret-bearing command output into tickets.
 
-| Evidence item | Owner | Required before launch? | Go/no-go rule |
-|---------------|-------|-------------------------|---------------|
-| Signed scope and authorization | Security Lead | Yes | No test without approval |
-| Route/API/surface inventory | Platform Lead | Yes | Missing critical surface blocks launch |
-| Tool versions and methodology | Tester | Yes | Must be reproducible enough for retest |
-| Finding report with severity and affected tenant/surface | Tester | Yes | Critical/High findings block launch unless formally risk-accepted |
-| Retest evidence for remediated findings | Security Lead | Yes for Critical/High | No launch until retest passes or risk acceptance is signed |
-| Tenant isolation negative-test evidence | Tester | Yes | Any confirmed cross-tenant exposure is no-go |
-| Platform admin gate evidence | Security Lead | Yes | Header spoofing or normal-tenant reachability is no-go |
-| Secret/log redaction evidence | Platform Lead | Yes | Plaintext secrets in logs or pages are no-go |
-| WCAG/security UI regression evidence | QA Lead | Yes when UI changed | Blocking accessibility/security regressions are no-go |
-| Residual risk decision record | Platform Owner | Yes | Must list owner, expiry, mitigation, and customer impact |
+| Evidence | Launch rule |
+| --- | --- |
+| Signed authorization and surface inventory | Missing critical scope blocks the test/launch review |
+| Finding report with severity and affected surface | Critical findings block launch |
+| Critical/High retest evidence | Required after remediation; High deferral needs time-bound approval |
+| Tenant-isolation negative tests | Any confirmed cross-tenant access is no-go |
+| Platform Admin host/auth/session tests | Tenant-host reachability or cross-host session reuse is no-go |
+| Secret and error redaction | Plaintext secret exposure is no-go |
+| External-control proof | An unproven control cannot appear in customer claims |
+| WCAG/security UI regression evidence | Required when assessed UI changed |
+| Residual-risk record | Owner, mitigation, customer impact, expiry, and approvers required |
 
-## Minimum finding disposition
-
-| Severity | Launch posture |
-|----------|----------------|
-| Critical | No-go until fixed and retested. |
-| High | No-go unless Platform Owner and Security Lead sign a time-bound risk acceptance and customer impact is understood. |
-| Medium | Owner and due date required before launch; Security Lead decides whether it blocks pilot expansion. |
-| Low/Info | Track in backlog or hardening issue with owner. |
-
-## Retest and closure
-
-- [ ] All Critical findings are closed and retested.
-- [ ] High findings are closed and retested, or have explicit time-bound risk acceptance.
-- [ ] No tenant isolation, platform admin gate, WORM audit, backup, or secret-handling finding remains unresolved without written go/no-go approval.
-- [ ] Findings that changed code include relevant PHPUnit/Jest/PHPCS/PHPStan or manual evidence.
-- [ ] Final report is linked from [Launch Readiness Gate](launch-readiness-gate.md) evidence.
+All Critical findings must be fixed and retested. High findings must be fixed
+and retested or explicitly accepted by the Platform Owner and Security Lead.
+Every other finding needs an owner and due date.

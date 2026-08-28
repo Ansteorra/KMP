@@ -25,7 +25,7 @@ use App\Model\Table\BaseTable;
  * @method \Activities\Model\Entity\ActivityGroup|false save(\Cake\Datasource\EntityInterface $entity, array $options = [])
  * 
  * @see \Activities\Model\Entity\ActivityGroup ActivityGroup entity class
- * @see /docs/5.6.6-activity-groups-entity-reference.md For comprehensive documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.6.6-activity-groups-entity-reference.md For comprehensive documentation
  */
 class ActivityGroupsTable extends BaseTable
 {

@@ -14,7 +14,7 @@ use App\KMP\StaticHelpers;
  * based on plugin activation status.
  *
  * @package GitHubIssueSubmitter\View\Cell
- * @see /docs/5.4-github-issue-submitter-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.4-github-issue-submitter-plugin.md
  */
 class IssueSubmitterCell extends Cell
 {

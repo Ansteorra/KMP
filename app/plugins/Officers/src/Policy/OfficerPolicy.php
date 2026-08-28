@@ -16,7 +16,7 @@ use App\Model\Entity\BaseEntity;
  * warrant management, and hierarchical access control. Implements dual ownership
  * model (self-access + administrative access) and office-specific authorization.
  *
- * @see /docs/5.1-officers-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.1-officers-plugin.md
  */
 class OfficerPolicy extends BasePolicy
 {

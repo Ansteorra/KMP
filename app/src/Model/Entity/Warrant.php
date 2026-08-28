@@ -11,7 +11,7 @@ namespace App\Model\Entity;
  *
  * Lifecycle: Pending → Current → Expired/Deactivated/Cancelled/Declined/Replaced
  *
- * @see /docs/4.3-warrant-lifecycle.md For complete warrant documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/4.3-warrant-lifecycle.md For complete warrant documentation
  * @property int $id Primary key
  * @property int $member_id Member receiving warrant
  * @property int $warrant_roster_id Batch approval reference

@@ -15,7 +15,7 @@ use Cake\Validation\Validator;
  *
  * @property \App\Model\Table\MembersTable&\Cake\ORM\Association\BelongsTo $Members
  * @method \App\Model\Entity\GridView newEmptyEntity()
- * @method \App\Model\Entity\GridView get(mixed $primaryKey, array|string $finder = 'all', ...)
+ * @method \App\Model\Entity\GridView get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)
  */
 class GridViewsTable extends BaseTable
 {

@@ -1,23 +1,28 @@
-This is a (multiple allowed):
+# KMP issue
 
-* [x] bug
-* [ ] enhancement
-* [ ] feature-discussion (RFC)
+Thank you for helping improve the Kingdom Management Portal.
 
-* CakePHP Application Skeleton Version: EXACT RELEASE VERSION OR COMMIT HASH, HERE.
-* Platform and Target: YOUR WEB-SERVER, DATABASE AND OTHER RELEVANT INFO AND HOW THE REQUEST IS BEING MADE, HERE.
+## Summary
 
-### What you did
-EXPLAIN WHAT YOU DID, PREFERABLY WITH CODE EXAMPLES, HERE.
+Describe the problem, requested outcome, or documentation gap. For bugs, include what happened and what you expected instead.
 
-### What happened
-EXPLAIN WHAT IS ACTUALLY HAPPENING, HERE.
+## Reproduction or acceptance criteria
 
-### What you expected to happen
-EXPLAIN WHAT IS TO BE EXPECTED, HERE.
+1. List the smallest reliable steps to reproduce the problem, or the conditions that define success.
+2. Include the affected route, feature, plugin, or command.
+3. Note whether the result differs by tenant, platform-administrator host, role, or browser.
 
-P.S. Remember, an issue is not the place to ask questions. You can use [Stack Overflow](https://stackoverflow.com/questions/tagged/cakephp)
-for that or join the #cakephp channel on irc.freenode.net, where we will be more
-than happy to help answer your questions.
+## Environment
 
-Before you open an issue, please check if a similar issue already exists or has been closed before.
+- Commit, tag, or deployment:
+- Environment: local / POC / production
+- Tenant hostname or platform-admin hostname:
+- Browser and version, when relevant:
+
+## Evidence
+
+Include sanitized logs, screenshots, or error messages. Remove member data, credentials, tokens, connection strings, tenant secrets, and other sensitive values.
+
+## Impact and security
+
+Describe who is affected and how severely. Do not post exploit details publicly. Use GitHub's private vulnerability-reporting feature if it is enabled, or contact the maintainers privately.

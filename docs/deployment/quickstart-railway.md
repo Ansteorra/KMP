@@ -1,130 +1,32 @@
-# Railway Quick Start
+---
+layout: default
+title: "Archived Railway Deployment Note"
+description: "Unsupported historical Railway deployment boundary and migration guidance."
+---
 
-Deploy KMP to Railway with managed MySQL — zero infrastructure configuration required.
+# Archived Railway deployment note
 
-[← Back to Deployment Guide](README.md)
+[← Deployment and operations](README.md)
 
-> Legacy note: the automated `kmp install` flow is retired for new deployments. This page is kept as archived self-hosted reference.
+> **Unsupported and incomplete.** KMP has no current Railway deployment
+> runbook. This page replaces an obsolete single-installation MySQL quick start
+> that used the retired installer and a historical image namespace.
 
-## Prerequisites
+The archived Railway provider contains partial project/service, update, and
+status behavior. Its backup, restore, rollback, and destroy methods return “not
+implemented.” `kmp install` is retired and never invokes that provider. The old
+shape does not provision the current platform database, tenant database fleet,
+database-backed secrets, unified three-minute worker, or managed backup system.
 
-- [Railway account](https://railway.app/)
-- [`railway` CLI](https://docs.railway.app/develop/cli) installed and authenticated (`railway login`)
+Do not create a new Railway environment from the old examples. Use:
 
-## Legacy Automated Install (Retired)
+- [Managed deployment](../8-deployment.md)
+- [Environment setup](../8.1-environment-setup.md)
+- [Azure deployment runbook](https://github.com/Ansteorra/KMP/blob/main/deploy/azure/README.md)
+- [Backup and restore](backup-restore.md)
 
-```bash
-# Install the KMP management tool
-curl -fsSL https://raw.githubusercontent.com/jhandel/KMP/main/installer/scripts/install.sh | bash
-
-# Launch the interactive installer
-kmp install
-```
-
-Select **Railway** when prompted. The wizard will:
-1. Authenticate with your Railway account
-2. Create a new Railway project
-3. Optionally provision Railway MySQL/Redis services
-4. Ask whether to use Railway-managed or existing database/cache services
-5. Configure environment variables
-6. Deploy the KMP Docker image
-
-If your Railway CLI version does not support one of the automated provisioning commands, the installer will stop with a command-specific error so you can run that step manually and retry.
-
-## Option B: Manual Deployment
-
-### Create Project and MySQL Service
-
-1. Go to [railway.app/new](https://railway.app/new)
-2. Select **Deploy from Docker Image**
-3. Enter: `ghcr.io/jhandel/kmp:latest`
-4. Click **Add Service** → **MySQL** to add a managed database
-
-### Configure Environment Variables
-
-In the Railway dashboard, add these variables to the KMP service:
-
-| Variable | Value |
-|----------|-------|
-| `MYSQL_HOST` | `${{MySQL.MYSQLHOST}}` (Railway reference) |
-| `MYSQL_DB_NAME` | `${{MySQL.MYSQLDATABASE}}` |
-| `MYSQL_USERNAME` | `${{MySQL.MYSQLUSER}}` |
-| `MYSQL_PASSWORD` | `${{MySQL.MYSQLPASSWORD}}` |
-| `SECURITY_SALT` | Generate with `openssl rand -hex 32` |
-| `DEBUG` | `false` |
-| `APP_NAME` | `KMP` |
-| `REDIS_URL` | Optional if using existing Redis (for Railway Redis, use references to `${{Redis.REDISUSER}}`, `${{Redis.REDISPASSWORD}}`, `${{Redis.REDISHOST}}`, `${{Redis.REDISPORT}}`) |
-
-### Using the CLI
-
-```bash
-# Link to your project
-railway link
-
-# Set secrets
-railway variables set SECURITY_SALT=$(openssl rand -hex 32)
-railway variables set DEBUG=false
-railway variables set APP_NAME=KMP
-
-# Deploy
-railway up
-```
-
-## Custom Domain
-
-1. In the Railway dashboard, go to your KMP service → **Settings** → **Networking**
-2. Click **Generate Domain** for a `*.railway.app` subdomain, or
-3. Click **Custom Domain** and enter your domain name
-4. Update your DNS records as instructed
-
-Railway provisions TLS certificates automatically for custom domains.
-
-## Reverse Proxy on Railway
-
-For standard KMP Railway deployments, deploy the **app image directly**. Railway's edge network terminates TLS and routes traffic; you do not need to run Caddy/nginx just for HTTPS.
-
-Run a custom proxy only if you need advanced internal routing across multiple services.
-
-## Scaling
-
-Railway auto-scales within your plan limits. To configure:
-
-1. Go to your service **Settings**
-2. Adjust **Replicas** and **Resource Limits** as needed
-
-## Health Check
-
-Railway monitors your app automatically. The KMP `/health` endpoint is available at:
-
-```bash
-curl -s https://your-app.railway.app/health
-```
-
-## Logs
-
-View logs in the Railway dashboard, or via CLI:
-
-```bash
-railway logs
-railway logs --follow
-```
-
-## Updates
-
-```bash
-# Legacy management tool
-kmp update
-
-# Or redeploy with the latest image
-railway up
-```
-
-See [Updating & Rollback](updating.md) for full details.
-
-## Troubleshooting
-
-- **Build failures**: Railway deploys pre-built Docker images — ensure the image tag exists at `ghcr.io/jhandel/kmp`
-- **Database connection**: Verify MySQL reference variables resolve correctly in the dashboard
-- **Port binding**: KMP binds Apache to Railway's `PORT` environment variable at startup
-
-See [Troubleshooting](troubleshooting.md) for more common issues.
+For an existing Railway installation, use Railway's current control plane to
+inventory the deployed image digest, database/cache services, secrets,
+networking, scheduled work, and retained backups before making changes.
+Recovery and migration need an explicit environment-specific plan; this
+repository does not provide a verified Railway backup or rollback procedure.

@@ -22,7 +22,7 @@ use Cake\ORM\TableRegistry;
  * @method bool canExport(\App\KMP\KmpIdentityInterface $user, \Cake\ORM\Table $table, mixed ...$optionalArgs)
  * @see \App\Policy\BasePolicy Base table authorization functionality
  * @see \Awards\Model\Table\RecommendationsTable Recommendation data management
- * @see /docs/5.2.16-awards-recommendations-table-policy.md Full documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.2.16-awards-recommendations-table-policy.md Full documentation
  */
 class RecommendationsTablePolicy extends BasePolicy
 {

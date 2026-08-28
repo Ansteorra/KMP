@@ -27,7 +27,7 @@ use Cake\ORM\TableRegistry;
  * @method \Officers\Model\Entity\Department|false save(\Cake\Datasource\EntityInterface $entity, array $options = [])
  * @method \Officers\Model\Entity\Department saveOrFail(\Cake\Datasource\EntityInterface $entity, array $options = [])
  *
- * @see /docs/5.1-officers-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.1-officers-plugin.md
  */
 class DepartmentsTable extends BaseTable
 {

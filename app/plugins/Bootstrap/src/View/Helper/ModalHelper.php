@@ -325,7 +325,7 @@ class ModalHelper extends Helper
      * @param string $title The modal header content, or null to only open the header.
      * @param array $options Array of options. See above.
      * @return string A formated opening tag for the modal header or the complete modal header.
-     * @see `BootstrapModalHelper::header`
+     * @see \Bootstrap\View\Helper\ModalHelper::header()
      */
     protected function _createHeader(
         ?string $title = null,
@@ -368,7 +368,7 @@ class ModalHelper extends Helper
      * @param string $text The modal body content, or `null` to only open the body.
      * @param array $options Array of options. See above.
      * @return string A formated opening tag for the modal body or the complete modal body.
-     * @see `BootstrapModalHelper::body`
+     * @see \Bootstrap\View\Helper\ModalHelper::body()
      */
     protected function _createBody(
         ?string $text = null,

@@ -77,7 +77,7 @@ use App\KMP\StaticHelpers;
  * @package Template
  * @author KMP Development Team
  * @version 1.0.0
- * @since KMP 25.01.11
+ * @since 25.1.11
  * @see \App\KMP\KMPPluginInterface
  * @see \Cake\Core\BasePlugin
  */

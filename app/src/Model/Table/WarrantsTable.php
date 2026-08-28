@@ -18,7 +18,7 @@ use Cake\Validation\Validator;
  * @property \App\Model\Table\WarrantRostersTable&\Cake\ORM\Association\BelongsTo $WarrantRosters
  * @property \App\Model\Table\MemberRolesTable&\Cake\ORM\Association\BelongsTo $MemberRoles
  * @method \App\Model\Entity\Warrant newEmptyEntity()
- * @method \App\Model\Entity\Warrant get(mixed $primaryKey, ...)
+ * @method \App\Model\Entity\Warrant get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
  * @mixin \Cake\ORM\Behavior\ActiveWindowBehavior
  * @mixin \Muffin\Footprint\Model\Behavior\FootprintBehavior

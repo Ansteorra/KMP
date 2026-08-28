@@ -607,7 +607,7 @@ class GatheringsController extends AppController
      * @param string $state Temporal filter state (this_month|next_month|future|previous)
      * @return \Cake\Http\Response|null|void Renders gathering list or returns CSV export
      * @throws \Cake\Http\Exception\NotFoundException When invalid state provided
-     * @see /docs/4.6-gatherings-system.md For complete gatherings documentation
+     * @see https://github.com/Ansteorra/KMP/blob/main/docs/4.6-gatherings-system.md For complete gatherings documentation
      */
     public function allGatherings(CsvExportService $csvExportService, $state)
     {

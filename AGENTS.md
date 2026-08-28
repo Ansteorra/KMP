@@ -42,6 +42,7 @@ Deliver small, correct, verified changes that match the existing CakePHP 5, Stim
 | `.github/skills/wcag-accessibility` | WCAG 2.2 Level AA accessibility review and implementation skill |
 | `.github/skills/release-deploy` | Gated POC and production release workflow, including shared changelog and GitHub Release notes |
 | `app/bin/verify.sh` | Full local verification script |
+| `generate_api_docs.sh` | Clean, validated PHP and JavaScript API-reference build |
 
 ## Current stack
 
@@ -77,12 +78,14 @@ Run these from `app/` unless noted.
 | Targeted PHP suite | `vendor/bin/phpunit --testsuite core-unit` |
 | Targeted PHP test | `vendor/bin/phpunit path/to/Test.php` or `vendor/bin/phpunit --filter Name` |
 | JS tests | `npm run test:js` |
+| Documentation integrity | `npm run docs:check && npm run docs:js:check` |
 | Vite build | `npm run dev` |
 | Playwright BDD | `npm run test:ui` |
 | PHPCS on a file | `vendor/bin/phpcs path/to/file.php` |
 | PHPStan | `vendor/bin/phpstan analyse --no-progress` |
+| Clean API references (repository root) | `./generate_api_docs.sh` |
 
-`bin/verify.sh` checks PHPUnit, Jest, Vite, changed PHP files with PHPCS, and PHPStan.
+`bin/verify.sh` checks PHPUnit, Jest, Markdown/JSDoc integrity, Vite, changed PHP files with PHPCS, and PHPStan.
 
 ## Release phrase contracts
 
@@ -113,7 +116,7 @@ Run these from `app/` unless noted.
 
 ## Verification guidance
 
-- Documentation-only changes normally need diff review rather than a full app verification run.
+- Documentation-only changes need diff review plus `npm run docs:check`; run the Jekyll build when site structure/config changes.
 - PHP behavior changes should get a targeted PHPUnit run and PHPCS on changed PHP files.
 - Frontend behavior changes should get `npm run test:js`; run `npm run dev` when bundling or imports change.
 - UI/template changes should include an accessibility check for keyboard operation, focus visibility/order, labels, ARIA state, status announcements, contrast, and non-color-only cues.
@@ -131,6 +134,7 @@ When changing plugin behavior:
 3. Put plugin controllers, policies, services, grid columns, cells, assets, and tests inside the plugin.
 4. Register cells/navigation through the existing registries.
 5. Add or update plugin-specific tests under the plugin or `app/tests/TestCase/Plugins`.
+6. Add each production PHP `src` directory to `app/phpdoc.dist.xml` so the API reference includes the plugin without parsing tests, templates, or migrations.
 
 ## Frontend guidance
 

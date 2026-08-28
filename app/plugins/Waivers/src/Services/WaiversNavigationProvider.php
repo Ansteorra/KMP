@@ -12,7 +12,7 @@ use App\KMP\StaticHelpers;
  * Provides navigation menu items for the Waivers plugin.
  * Integrates with KMP's NavigationRegistry for dynamic menu generation.
  *
- * @see /docs/5.7-waivers-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.7-waivers-plugin.md
  */
 class WaiversNavigationProvider
 {

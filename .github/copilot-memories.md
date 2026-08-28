@@ -1,84 +1,49 @@
-# KMP Project Memories
+# KMP durable development context
 
-Verified facts about the KMP codebase for AI agent reference. Each entry includes the source citation.
+Use this file as a compact orientation, not as a substitute for the applicable `AGENTS.md` chain or source inspection. Test counts, timings, deployment identifiers, and seeded data change frequently; read the current scripts and configuration instead of copying snapshots into documentation.
 
-## Build & Testing
+## Repository and runtime
 
-- **Full verification**: `cd app && bash bin/verify.sh` runs PHPUnit (1018 tests), Jest (27 tests), Vite build, PHPCS (changed files only), PHPStan (level 5, 1 known error). All pass.
-  _Source: app/bin/verify.sh; verified 2026-03-24_
+- Application code is under `app/`. Run Composer, PHPUnit, npm, Vite, PHPStan, PHPCS, and Playwright commands from that directory unless a command explicitly says otherwise.
+- The supported application runtime is PHP 8.4 with CakePHP 5.
+- Local Docker Compose uses PostgreSQL 16. The dev container also installs PostgreSQL 16 and retains MariaDB tooling for compatibility work; new documentation and verification must not assume MySQL-only behavior.
+- The root `dev-up.sh` and database-reset scripts can recreate or reseed databases. Read their help/source and obtain authorization before using state-changing options.
+- Never expose `.env` values, tenant secrets, credentials, backup keys, or production data.
 
-- **Backend tests**: `cd app && composer test` runs all 1018 PHPUnit tests. Do NOT use `--testsuite all` — it only runs 509/1018 tests due to incomplete suite definition.
-  _Source: app/phpunit.xml.dist; verified 2026-03-24_
+## Multi-tenant architecture
 
-- **Frontend tests**: `cd app && npm run test:js` (Jest, 27 tests) and `cd app && npm run dev` (Webpack build).
-  _Source: app/package.json; verified 2026-03-24_
+- Tenant selection is host-based and flows through `TenantResolutionMiddleware`, `TenantConnectionManager`, `TenantAwareCache`, and tenant-aware document-storage configuration.
+- Local tenant examples are `http://kmp.localhost:8080` and `http://kmp2.localhost:8080`. The platform portal is `http://platform.kmp.localhost:8080/platform-admin`.
+- Tenant database work must execute on the resolved tenant connection. Platform registry, provisioning, and fleet operations must execute on the platform connection.
+- Treat tenant identity as part of every cache key, background job, document path, authorization scope, test setup, and operational command. Verify that one tenant cannot read or mutate another tenant's data.
+- Seeded users and the shared local test password are development fixtures only. Recheck current seeds before relying on them and never reuse those credentials outside disposable local or POC environments.
 
-- **JS mutation testing**: StrykerJS v8.7.1. Run `npm run test:mutate` for security-critical controllers, `npm run test:mutate:all` for all JS. Config at `app/stryker.config.js`. Node 18 requires v8 (not v9). Baseline score: ~10% (thin test coverage).
-  _Source: app/stryker.config.js, app/package.json; verified 2026-03-24_
+## Application patterns
 
-- **PHP mutation testing**: Infection 0.32.6. Run `composer mutate` for policies + awards, `composer mutate:policy` for just policies. Uses wrapper script `bin/run-infection.sh` (pre-generates coverage, then runs Infection with --skip-initial-tests to work around XdebugHandler issue). Config at `app/infection.json5`. BasePolicy.php baseline: 97% MSI.
-  _Source: app/infection.json5, app/bin/run-infection.sh; verified 2026-03-24_
+- Web controllers extend `AppController`; API controllers extend `ApiController`.
+- Tables extend `BaseTable`, entities extend `BaseEntity`, and policies extend `BasePolicy`.
+- Use CakePHP Authorization helpers and scopes rather than ad-hoc permission checks.
+- Put workflows in `app/src/Services` or the owning plugin's `src/Services`.
+- Integrate plugin navigation and UI through the established registries and view cells rather than hard-coding plugin behavior into core templates.
+- Use `DataverseGridTrait` with `BaseGridColumns` for grid screens and `TimezoneHelper` for user-facing date conversion.
 
-- **E2E tests**: Playwright + playwright-bdd. Run: `npx bddgen` to generate specs, reset DB via `sudo bash reset_dev_database.sh`, then `PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 npx playwright test`. Features in `tests/ui/bdd/`.
-  _Source: app/playwright.config.js; app/tests/ui/bdd/_
+## Frontend
 
-## Static Analysis
+- Assets are built with Vite using `app/vite.config.js` and resolved in templates through `ViteHelper`.
+- Stimulus controllers live in `*-controller.js` files and register through `window.Controllers`.
+- Turbo Drive is disabled. Turbo Frames are used for targeted dynamic content; do not assume page-wide Turbo navigation.
+- User-facing templates, CSS, forms, modals, tabs, grids, and Stimulus changes must preserve WCAG 2.2 Level AA.
 
-- **PHPStan**: Level 5 configured in `app/phpstan.neon` with CakePHP bootstrap files. Baseline has 1947 pre-existing errors in `app/phpstan-baseline.neon`. Only 1 unbaselinable error (HtmlHelper property covariance). Run: `cd app && vendor/bin/phpstan analyse --no-progress`
-  _Source: app/phpstan.neon; verified 2026-03-24_
+## Verification
 
-- **PHPCS**: `app/phpcs.xml` uses CakePHP standards, checks only PHP files. ~3400 pre-existing violations exist globally. `verify.sh` checks only changed files. Run: `cd app && vendor/bin/phpcs`
-  _Source: app/phpcs.xml; verified 2026-03-24_
+- `cd app && bash bin/verify.sh` is the broad local verification entry point. Read the script for its current suites and optional coverage or mutation flags.
+- Prefer targeted PHPUnit and PHPCS for narrow PHP changes, Jest plus a Vite build for frontend behavior/import changes, and Playwright for browser flows.
+- Playwright configuration is `app/playwright.config.cjs`. The supported lane wrapper is `app/bin/run-playwright-lane.sh`.
+- Browser lanes and local startup helpers may reset seeded data. Do not run them against shared or production environments.
+- Do not encode passing-test totals, baseline-error counts, or expected durations in durable documentation.
 
-## Dangerous Patterns
+## Release and deployment
 
-- **Never run `phpcbf` on the entire codebase** — it adds type hints from docblocks that break PHP's type system (LSP violations in policies and tables). Only fix PHPCS issues manually in files you modify.
-  _Source: Discovered 2026-03-24 when phpcbf broke WarrantsTable::afterSave() and ServicePrincipalPolicy::canAdd()_
-
-- **BasePolicy methods use untyped params** (`$query`, `$entity`) for LSP compatibility with plugins. Don't add native type hints to overridable methods in BasePolicy.
-  _Source: app/src/Policy/BasePolicy.php; plugins/Awards/src/Policy/RecommendationsTablePolicy.php_
-
-- **Keep face-api.js at ^0.22.2** — downgrading to ^0.20.0 weakened face detection quality for profile-photo validation.
-  _Source: app/package.json; user reported regression_
-
-## Architecture
-
-- **AGENTS.md** contains comprehensive agent guide (~260 lines): project overview, verification runbook, directory map, DB access, test data IDs, test patterns, 9 dangerous patterns, plugin architecture, config hierarchy, CI/CD, services.
-  _Source: AGENTS.md_
-
-- **Quick-login PIN setup** intentionally upserts by device_id across members, reassigning device ownership to the currently authenticated member.
-  _Source: app/src/Controller/MembersController.php:2243-2254; app/config/Migrations/20260305163000_EnforceUniqueDeviceIdOnMemberQuickLoginDevices.php_
-
-- **Members/emailTaken** must remain usable anonymously because public registration validates unique email via member-unique-email Stimulus controller.
-  _Source: app/templates/Members/register.php; app/assets/js/controllers/member-unique-email-controller.js_
-
-- **Public recommendations UI** fetches `Members/PublicProfile` and renders `data.external_links` — keep this response key for compatibility.
-  _Source: app/plugins/Awards/templates/Recommendations/submit_recommendation.php; app/plugins/Awards/Assets/js/controllers/rec-add-controller.js_
-
-- **Recommendation states** outside Need to Schedule/Scheduled/Given automatically clear `gathering_id`; bulk `updateStates` also nulls gathering_id for unsupported states.
-  _Source: app/plugins/Awards/src/Model/Entity/Recommendation.php; app/plugins/Awards/src/Controller/RecommendationsController.php_
-
-## Dev Environment
-
-- **Docker Compose is the default local dev workflow.** Host checkout is bind-mounted into containers; agents should run PHP/DB/test commands **inside `kmp-app`**, not assume host tooling or `db` hostname resolution.
-  _Source: docs/docker-development.md, docker-compose.yml; verified 2026-05-31_
-
-- **Prefer repo-root scripts** that wrap `docker compose`: `./dev-up.sh`, `./dev-down.sh`, `./dev-reset-db.sh`, `./dev-reset-db.sh --seed` (full migrate + seeded baseline + test DB rebuild).
-  _Source: dev-reset-db.sh, dev-up.sh; verified 2026-05-31_
-
-- **Volume mapping**: `./app` → `/var/www/html` in app/worker/scheduler containers. Edits on host are visible immediately; `node_modules` is a Docker volume — npm/Jest/Vite run in container.
-  _Source: docker-compose.yml x-app-base volumes; verified 2026-05-31_
-
-- **In-container verification**: `docker compose exec app bash -lc 'bash bin/verify.sh'` or `composer test` after `docker compose exec app bash`.
-  _Source: AGENTS.md; verified 2026-05-31_
-
-- **PostgreSQL test DB**: `dev-reset-db.sh` rebuilds test schema via `app/bin/setup_test_database.sh`; reference data (workflows, award/bestowal state machines) comes from Cake seeds in `SeedManager`, not schema-only dumps.
-  _Source: app/tests/TestCase/Support/SeedManager.php; verified 2026-05-31_
-
-- **Apache** runs HTTP (not HTTPS) on port 8080. Mailpit on port 8025.
-  _Source: /etc/apache2/sites-enabled/*.conf_
-
-- **DB credentials**: See `app/config/.env` (Docker default: host `db`, PostgreSQL, user `KMPSQLDEV`).
-
-- **Git workflow**: Ansteorra/KMP disallows squash merges; PRs must use merge commits.
-  _Source: Discovered 2026-03-05 via gh pr merge failure_
+- `Push to dev` and `Do a release` are exact workflow phrases governed by `.github/skills/release-deploy/SKILL.md`.
+- POC validation must use the exact changelog-bearing commit and immutable image digest that production later promotes.
+- The direct nightly helper is separate from the official dev/POC/production release path. Read `deploy/azure/nightly-deploy.sh help` and the nightly skill before using it.

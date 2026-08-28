@@ -9,7 +9,7 @@ namespace App\KMP\GridColumns;
  * Provides common helper methods for querying column metadata.
  * Grid-specific classes extend this and implement getColumns().
  *
- * @see /docs/9.3-dataverse-grid-complete-guide.md For field naming and grid configuration
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/9.3-dataverse-grid-complete-guide.md For field naming and grid configuration
  */
 abstract class BaseGridColumns implements SystemViewsProviderInterface
 {

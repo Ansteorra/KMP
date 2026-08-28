@@ -1,89 +1,108 @@
 ---
 layout: default
+title: API reference
 ---
 
-# API Reference Portal
+# API reference
 
-Explore auto-generated API documentation for the KMP project. Both sets now use modern, dark-themed layouts with built-in search.
+KMP exposes a tenant-scoped REST API plus generated source references. Every API request must
+use the intended tenant hostname; host resolution selects the tenant database before the API
+controller runs.
 
-| Resource | Description |
-|----------|-------------|
-| **[REST API (Swagger UI)](/api-docs/)** | Interactive OpenAPI documentation for the v1 REST API |
-| **[PHP API Reference](php/index.html)** | Controllers, Services, Models, Behaviors, and Plugins |
-| **[JavaScript API Reference](js/index.html)** | Stimulus controllers, utilities, and frontend modules |
+## Reference sets
 
-## REST API Quick Start
+| Resource | Purpose |
+| --- | --- |
+| [PHP API reference](php/index.html) | Generated controllers, models, policies, services, commands, and plugin PHP |
+| [JavaScript API reference](js/index.html) | Generated Stimulus controllers, utilities, and plugin JavaScript |
+| `<tenant-base-url>/api-docs/` | Runtime Swagger UI for the merged REST specification |
+| `<tenant-base-url>/api-docs/openapi.json` | Runtime OpenAPI document, including fragments from loaded plugins |
 
-The v1 REST API uses **service principal** authentication. Include your token as a Bearer header:
+The runtime links belong to a running KMP tenant, not the GitHub Pages documentation host.
+For local development, for example, use
+`http://kmp.localhost:8080/api-docs/`.
+
+## Authentication and tenancy
+
+Most `/api/v1/*` endpoints require a tenant service-principal token. The Bearer
+header is the preferred transport:
 
 ```bash
-curl -H "Authorization: Bearer <token>" \
-     https://your-kmp-instance/api/v1/officers/roster
+curl \
+  -H 'Authorization: Bearer <token>' \
+  -H 'Accept: application/json' \
+  'https://tenant.example.org/api/v1/service-principals/me'
 ```
 
-The OpenAPI spec is available at [`/api-docs/openapi.json`](/api-docs/openapi.json) (merged from
-base + plugin fragments) and can be imported into Postman, Insomnia, or any OpenAPI-compatible tool.
+The current authenticator also accepts `X-API-Key` and the legacy `api_key`
+query parameter. Avoid query-string credentials because URLs can be retained in
+logs and browser history.
 
-## Available Endpoints
+A token is resolved inside the tenant chosen by the request host. A valid token from one
+tenant must not authorize a request to another tenant host. API controllers return JSON and
+use the shared success (`data`, optional `meta`) and error (`error`) envelopes.
 
-### Core (no authentication required)
+Branches are the deliberate public exception: `GET /api/v1/branches` and
+`GET /api/v1/branches/<public_id>` allow unauthenticated read-only access, but still expose
+only the resolved tenant's public branch data. The public gathering iCalendar feed at
+`GET /gatherings/feed` is a web endpoint rather than a v1 JSON endpoint and likewise remains
+tenant-host bound.
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/v1/branches` | List branches with parent IDs for tree reconstruction |
-| `GET /api/v1/branches/{id}` | Branch detail with children and plugin-injected data |
+## Current v1 surface
 
-### Core (authentication required)
+| Area | Routes |
+| --- | --- |
+| Service principal | `GET /api/v1/service-principals/me` |
+| Members | `GET /api/v1/members`, `GET /api/v1/members/<id>` |
+| Branches (public) | `GET /api/v1/branches`, `GET /api/v1/branches/<public_id>` |
+| Roles | `GET /api/v1/roles`, `GET /api/v1/roles/<id>` |
+| Officers plugin | read-only departments, offices, and roster list/detail under `/api/v1/officers/*` |
+| Activities plugin | `GET /api/v1/activities/member-authorizations` |
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/v1/members` | List members with branch and role filters |
-| `GET /api/v1/members/{id}` | Member detail |
-| `GET /api/v1/roles` | List roles |
-| `GET /api/v1/roles/{id}` | Role detail with permissions |
-| `GET /api/v1/service-principals/me` | Current service principal info |
+Loaded plugins publish routes through `KMPApiPluginInterface::registerApiRoutes()` and merge
+OpenAPI fragments through the existing registry. Do not hard-code plugin endpoints into core
+API controllers.
 
-### Officers Plugin
+## Extending the API
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/v1/officers/roster` | Officer roster with branch/office filters |
-| `GET /api/v1/officers/roster/{id}` | Officer detail |
-| `GET /api/v1/officers/offices` | List offices |
-| `GET /api/v1/officers/offices/{id}` | Office detail |
-| `GET /api/v1/officers/departments` | List departments |
-| `GET /api/v1/officers/departments/{id}` | Department detail |
+See [Extending KMP](../11-extending-kmp.md) for controller, route, service, policy, plugin, and
+OpenAPI patterns. The canonical implementation sources are:
 
-### Activities Plugin
+- `app/config/routes.php`
+- `app/src/Controller/Api/ApiController.php`
+- `app/src/Controller/Api/V1`
+- `app/src/Services/OpenApiMergeService.php`
+- `app/webroot/api-docs/openapi.yaml`
+- each loaded plugin's `registerApiRoutes()` and OpenAPI fragment
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/v1/activities/member-authorizations` | Look up a member's current activity authorizations by `membership_number`, `sca_name`, or `email` |
+Add route/authentication/policy tests, response-envelope tests, merged-spec tests, and a
+cross-tenant host/token denial case for changes that affect tenant data.
 
-### Public Endpoints (No Authentication)
+## Regenerating source references
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /gatherings/feed` | iCalendar subscription feed for calendar apps. Optional filters: `?filter[branch_id][]={public_id}&filter[gathering_type_id][]={gathering_type_id}` |
-
-
-## Developer Guides
-
-Building or extending the REST API? See the developer documentation:
-
-| Guide | Description |
-|-------|-------------|
-| **[Creating API Endpoints](../11-extending-kmp.md#118-creating-rest-api-endpoints)** | Controllers, routes, auth, and response helpers |
-| **[OpenAPI Documentation](../11-extending-kmp.md#119-openapi-documentation-for-plugin-apis)** | Adding plugin spec fragments to Swagger |
-| **[Injecting Data into APIs](../11-extending-kmp.md#1110-injecting-data-into-other-api-responses)** | ApiDataRegistry pattern for plugin data enrichment |
-
-## Regenerating Docs
+Generated PHP and JavaScript references are build artifacts; do not edit their HTML by hand.
+After installing `app/` dependencies, run from the repository root:
 
 ```bash
-# From repository root
 ./generate_api_docs.sh
 ```
 
-> 💡 **Tip:** Run this script before publishing to GitHub Pages so the hosted docs stay current.
+The `docs/api/php` and `docs/api/js` trees are generated-only, ignored build artifacts.
+The script builds both in a temporary directory on the same filesystem and publishes the
+complete API tree through a rollback-safe same-filesystem rename transaction only after the
+pinned, checksum-verified phpDocumentor release and strict JSDoc generator both pass.
+Existing references remain available if a tool, download, checksum, generation, or diagnostic
+check fails; phpDocumentor warnings and errors are both fatal.
 
-[← Back to Documentation Home](../index.md)
+The script requires Bash, PHP, `curl`, `sha256sum`, npm, `flock`, GNU core utilities,
+and installed `app/` dependencies, matching the project dev container and Linux CI runner.
+The lock rejects concurrent builds. Traps restore the saved tree after a normal failure or
+signal; if the process ends abruptly during the rename transaction, the next run recovers the
+orphaned backup before building. The GitHub Pages workflow regenerates these ignored outputs
+before Jekyll, so retired pages cannot survive a published build.
+
+Production plugin PHP paths are intentionally explicit in `app/phpdoc.dist.xml` so test
+fixtures, templates, and migrations do not enter the reference. Add every new plugin's
+`src` directory there; JSDoc discovers supported plugin JavaScript through its config.
+
+[Back to documentation home](../index.md)

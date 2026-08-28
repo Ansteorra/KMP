@@ -14,6 +14,6 @@ use App\Policy\BasePolicy;
  *
  * @see \App\Policy\BasePolicy Base table authorization functionality
  * @see \Awards\Model\Table\RecommendationsStatesLogsTable Audit trail data management
- * @see /docs/5.2.15-awards-recommendations-states-log-table-policy.md Full documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.2.15-awards-recommendations-states-log-table-policy.md Full documentation
  */
 class RecommendationsStatesLogTablePolicy extends BasePolicy {}

@@ -1,33 +1,45 @@
 # Case-insensitive text
 
-KMP preserves customer-entered casing while comparing selected human-facing
-values without regard to case. PostgreSQL databases use `citext` for curated
-identity, name, label, and email columns. MySQL continues to use its existing
-case-insensitive collations.
+KMP preserves entered casing while comparing selected human-facing values without regard to
+case. PostgreSQL tenant and platform migrations use `citext` for curated identity, name,
+label, email, lifecycle, and descriptive columns. They do not make every text field
+case-insensitive.
 
-Free-text queries use `App\KMP\CaseInsensitiveQuery`, which emits portable
-`LOWER(field)` conditions. Use it for identity lookups, autocomplete, grids,
-and derived or joined fields rather than PostgreSQL-only `ILIKE`.
+For free-text and joined-field predicates, use `App\KMP\CaseInsensitiveQuery` instead of
+hand-written `LOWER()`, `ILIKE`, or PHP-side normalization. It provides `equals`,
+`notEquals`, `contains`, `startsWith`, and `endsWith` conditions and keeps the legacy database
+compatibility path in one place.
 
-Fields named `sca_name` or ending in `_sca_name` also compare without
-diacritics. PostgreSQL queries fold stored values through the `unaccent`
-extension and applies the same `UNACCENT(LOWER(...))` expression to the bound
-search term. Keeping both operands inside PostgreSQL avoids differences between
-database rules and PHP Unicode transliteration. MySQL continues to use its
-accent-insensitive collation.
+Fields named `sca_name` or ending in `_sca_name` are also diacritic-insensitive. PostgreSQL
+uses `UNACCENT(LOWER(...))` for both the trusted field expression and bound value. The active
+`default` connection determines which database expression is used, so tenant context must be
+established before building the query.
 
-Security and machine values remain case-sensitive, including passwords,
-tokens, hashes, public IDs, file paths, hostnames, slugs, workflow keys, PHP
-class or method names, and controlled status values.
+## Values that remain exact
 
-Before a PostgreSQL migration converts a uniquely indexed column, it checks
-for values that collide after case normalization and stops without changing
-the schema when a collision exists. Azure must allowlist `CITEXT` and
-`UNACCENT` through the Flexible Server `azure.extensions` setting before
-application migrations run. The shared Azure deployment then migrates the
-default application database, platform database, and every active or suspended
-tenant database before web cutover. Tenant databases already current across
-all app and plugin migration histories are verified and skipped without a
-backup. Pending tenants use the standard recovery marker and backup flow;
-backup keys are reconciled first, and the deployment fails on the first tenant
-error.
+Passwords, tokens, hashes, public IDs, object keys and paths, workflow keys, PHP identifiers,
+and controlled machine values remain case-sensitive unless their owning contract explicitly
+says otherwise. Do not apply human-text normalization to credentials or opaque identifiers.
+
+Hostnames are different: DNS host matching is inherently case-insensitive, and
+`TenantHostResolver` normalizes incoming hosts to lowercase and removes a trailing dot. Store
+and compare canonical hostnames through that resolver rather than treating host casing as a
+security boundary.
+
+## Migration rules
+
+- Add `citext` and `unaccent` only through migrations; managed PostgreSQL must allow both
+  extensions before tenant migrations run.
+- Before changing a uniquely indexed column, detect values that collide after normalization
+  and fail without altering the schema.
+- Put tenant-domain changes in core or plugin tenant migrations and platform-registry changes
+  in `config/PlatformMigrations`.
+- Fleet releases must run the normal platform and tenant migration catalog across active and
+  intentionally included suspended tenants. Do not patch one tenant manually.
+- Add equality, substring, Unicode/diacritic, duplicate, and migration-collision tests for any
+  newly normalized field.
+
+Source references: `src/KMP/CaseInsensitiveQuery.php`,
+`config/Migrations/20260721120000_EnableCaseInsensitiveHumanText.php`,
+`config/Migrations/20260721120500_ExpandCaseInsensitiveHumanText.php`, and
+`config/PlatformMigrations/20260721121100_EnableCaseInsensitivePlatformText.php`.

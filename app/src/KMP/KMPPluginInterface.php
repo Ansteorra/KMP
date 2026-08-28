@@ -9,7 +9,7 @@ namespace App\KMP;
  * All KMP plugins must implement this interface to integrate with the system.
  * Provides migration ordering for proper initialization sequence.
  *
- * @see /docs/5-plugins.md For plugin development documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5-plugins.md For plugin development documentation
  */
 interface KMPPluginInterface
 {

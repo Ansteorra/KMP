@@ -15,7 +15,7 @@ use Cake\Validation\Validator;
  *
  * @property \App\Model\Table\WarrantsTable&\Cake\ORM\Association\HasMany $Warrants
  * @method \App\Model\Entity\WarrantRoster newEmptyEntity()
- * @method \App\Model\Entity\WarrantRoster get(mixed $primaryKey, ...)
+ * @method \App\Model\Entity\WarrantRoster get(mixed $primaryKey, array|string $finder = 'all', \Psr\SimpleCache\CacheInterface|string|null $cache = null, \Closure|string|null $cacheKey = null, mixed ...$args)
  * @mixin \Cake\ORM\Behavior\TimestampBehavior
  * @mixin \Muffin\Footprint\Model\Behavior\FootprintBehavior
  */

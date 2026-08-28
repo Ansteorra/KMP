@@ -38,7 +38,7 @@ use Officers\Model\Entity\Officer;
  * @method \Officers\Model\Entity\Office|false save(\Cake\Datasource\EntityInterface $entity, array $options = [])
  * @method \Officers\Model\Entity\Office saveOrFail(\Cake\Datasource\EntityInterface $entity, array $options = [])
  *
- * @see /docs/5.1-officers-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.1-officers-plugin.md
  */
 class OfficesTable extends BaseTable
 {

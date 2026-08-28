@@ -23,7 +23,7 @@ use App\Model\Entity\BaseEntity;
  * @property int|null $modified_by User ID who last modified this record
  * @property \Officers\Model\Entity\Office[] $offices Associated office positions
  *
- * @see /docs/5.1-officers-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.1-officers-plugin.md
  * @see \Officers\Model\Table\DepartmentsTable
  */
 class Department extends BaseEntity

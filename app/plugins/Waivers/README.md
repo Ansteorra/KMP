@@ -1,252 +1,226 @@
-# Template Plugin
+# Waivers plugin
 
-**The Official KMP Plugin Boilerplate** - A fully working, production-ready template for creating new Kingdom Management Portal (KMP) plugins.
+Waivers is an active first-party CakePHP plugin for defining gathering waiver
+requirements, collecting signed documents or exemptions, reviewing compliance,
+and closing a gathering's waiver collection. It is application code, not a
+copyable plugin template.
 
-## 🎯 Purpose
+The published feature overview is
+[Waivers plugin](../../../docs/5.7-waivers-plugin.md). This README owns the
+implementation contracts developers and operators need when changing the
+plugin.
 
-This is **THE** starting point for all new KMP plugins. It's not just documentation—it's a complete, functional plugin that you can copy, rename, and customize.
+## Tenant boundary
 
-## ✅ What's Included
+Waivers runs inside the tenant selected by the application's tenant middleware.
+Its catalog, requirements, waiver records, closure records, settings, audit
+fields, and associated `documents` rows therefore live in the current tenant
+database. The tables intentionally do not carry a second `tenant_id` column.
 
-This template includes **everything** you need:
+The plugin is enabled in [`app/config/plugins.php`](../../config/plugins.php)
+with migration order 4. Provisioning and release migrations must run the core
+and plugin histories for every applicable tenant:
 
-### Core Components (All Working)
-- ✅ **KMPPluginInterface Implementation**: Proper migration order and constructor
-- ✅ **Navigation System**: Parent sections with mergePath hierarchy (correct format)
-- ✅ **CRUD Controller**: HelloWorldController with all standard actions
-- ✅ **Authorization**: HelloWorldPolicy with BasePolicy integration
-- ✅ **Models**: Table and Entity classes with validation
-- ✅ **Views**: Bootstrap 5 styled templates (index, view, add, edit)
-- ✅ **Frontend**: Stimulus.js controller and custom CSS
-- ✅ **Database**: Migrations and seeds that work out-of-the-box
-- ✅ **Tests**: CakePHP 5 integration tests with correct patterns
-
-### KMP Integration (Production Quality)
-- ✅ **NavigationRegistry**: Proper 3-parameter registration
-- ✅ **ViewCellRegistry**: Correct signature (commented with example)
-- ✅ **Settings Management**: Version-controlled configuration
-- ✅ **Routing**: Plugin-specific routes with fallback
-- ✅ **Middleware**: Hook points for custom middleware
-- ✅ **Services**: Dependency injection examples
-
-### Documentation (Comprehensive)
-- 📘 **OVERVIEW.md** - Feature list and architecture
-- 📘 **USAGE_GUIDE.md** - Step-by-step customization
-- 📘 **NAVIGATION_GUIDE.md** - Complete navigation system reference
-- 📘 **QUICK_REFERENCE.md** - Code snippets and patterns
-- 📘 **INDEX.md** - Documentation navigation
-- 📘 **SUMMARY.md** - Technical details
-
-## 🚀 Quick Start (5 Minutes)
-
-### Step 1: Copy the Template
 ```bash
-cd /workspaces/KMP/app/plugins
-cp -r Template MyPlugin
-cd MyPlugin
+bin/cake tenant migrate --all --include-suspended --fail-fast
 ```
 
-### Step 2: Search and Replace
+Do not migrate only the default database in a managed multi-tenant deployment.
+Do not retain a table instance, entity, document response, or generated URL
+across tenant-context changes.
+
+Managed Azure document storage is tenant-aware. `DocumentService` resolves an
+explicit `tenant_config.documents.blob_container`/`container` and optional
+`blob_prefix`/`prefix` when present. Otherwise it derives the container from
+`Documents.storage.azure.containerPrefix` plus the tenant slug. Document
+metadata remains in the same tenant database as the waiver. Local and S3
+adapters use their configured storage scopes; a deployment using either must
+provide equivalent tenant isolation.
+
+## Domain model
+
+| Model/table | Responsibility |
+| --- | --- |
+| `WaiverTypes` / `waivers_waiver_types` | Tenant-local catalog: name, description, active flag, template reference, retention policy, and allowed exemption reasons. Names are case-insensitively unique on PostgreSQL. |
+| `GatheringActivityWaivers` / `waivers_gathering_activity_waivers` | Soft-deletable requirement linking a gathering activity to a waiver type. This is global catalog data within one tenant and requires unscoped authorization to mutate. |
+| `GatheringWaivers` / `waivers_gathering_waivers` | One gathering-level uploaded document or exemption. A record is not linked to an individual activity or member. |
+| `GatheringWaiverClosures` / `waivers_gathering_waiver_closures` | One gathering's ready-to-close or closed state and the members who performed those actions. |
+| Core `Documents` | Storage metadata, SHA-256 checksum, adapter, object path, uploader, and conversion metadata for uploaded PDFs and previews. |
+
+Required waiver types are the distinct requirements of all activities selected
+for a gathering. A valid upload or exemption satisfies the type at the
+gathering level. Declined and soft-deleted records do not satisfy compliance.
+
+## Runtime flow
+
+1. An authorized catalog manager creates an active waiver type and assigns a
+   retention policy and optional exemption reasons.
+2. An authorized catalog manager links that type to one or more gathering
+   activities through `GatheringActivityService`.
+3. A branch-authorized user or a steward for the gathering submits one or more
+   images/PDFs. Cancelled gatherings are rejected. Closed collections reject
+   ordinary uploaders; a user with `closeWaivers` permission may continue
+   managing the collection.
+4. `WaiverFileService` converts or merges the submitted pages into one PDF,
+   creates the waiver row, stores the document through `DocumentService`, then
+   links the two. Failures compensate by removing newly created records/files.
+5. If a waiver type defines exemption reasons, the user can record one
+   gathering-level attestation instead of a document. The reason must be one of
+   that type's configured values.
+6. Gathering editors/stewards can mark a collection ready to close. The
+   controller and state service define close, reopen, and time-bounded decline
+   paths; current persistence gaps are listed below.
+
+Closing is workflow-driven: the controller dispatches
+`Waivers.CollectionClosed` and the configured workflow is responsible for the
+state transition. Mark-ready, reopen, and decline mutate through
+`WaiverStateService` and then dispatch their corresponding events. Preserve
+this distinction when changing controllers or workflow definitions.
+
+## Upload and retrieval contracts
+
+Signed-waiver submissions accept mixed raster images and PDFs and produce one
+stored PDF under the `waivers` document subdirectory:
+
+- Images are decoded server-side with GD. JPEG, PNG, GIF, BMP, WBMP, and WEBP
+  are supported when the PHP build supports them. Image content is inspected
+  with `getimagesize()`, limited to 20 megapixels, and downscaled to a
+  2,000-pixel long edge before PDF encoding.
+- PDFs and converted images are processed in upload order. Unsupported PDF
+  compression may cause individual PDFs to be skipped; the result returns a
+  warning when at least one page was stored.
+- The upload UI reports the smaller of PHP's `upload_max_filesize` and
+  `post_max_size`. `DocumentService` independently enforces
+  `Documents.maxFileSize` on the final stored PDF (50 MiB by default).
+- Stored filenames are generated rather than derived from user paths.
+  `DocumentService` sanitizes relative object paths, records a SHA-256 checksum,
+  and stores the adapter used so later reads use the same backend.
+- A first-page preview is stored beside the PDF when conversion can produce
+  one. Preview failure does not invalidate an otherwise successful upload.
+
+Controllers must authorize the waiver entity before download, inline display,
+preview, deletion, or mutation. They then delegate storage access to
+`WaiverFileService`/`DocumentService`. Do not expose storage object URLs or
+build filesystem paths in controllers or templates. The local adapter applies
+real-path containment checks; remote adapters read through Flysystem.
+
+### Current security limitations
+
+Keep these limits explicit when assessing or changing the upload surface:
+
+- File extension and client-reported MIME select the mixed-upload path.
+  Images receive content decoding, but a single PDF can reach the merge path
+  without `PdfProcessingService::validatePdf()` being called first.
+- Waiver-type template uploads call `DocumentService` directly and currently
+  enforce the `.pdf` extension and size limit, not server-verified PDF content.
+- There is no antivirus or content-disarm scan in this plugin.
+- External template URLs are stored without a host allowlist. Only curated,
+  trusted URLs should be configured.
+
+Do not describe client MIME values, the PDF extension, or checksum recording as
+malware validation. If the upload boundary is broadened, add server-side content
+verification and tests before updating this contract.
+
+## Retention and deletion
+
+A waiver type stores JSON with one of these anchors:
+
+```json
+{"anchor":"gathering_end_date","duration":{"years":7,"months":0,"days":0}}
+```
+
+`upload_date` is also supported. The calculated `retention_date` is copied onto
+each upload or exemption and does not change when the waiver type is edited.
+That snapshot is the record's disposal eligibility date, not proof that
+disposal occurred.
+
+The plugin currently has no scheduled purge that marks or deletes records when
+`retention_date` passes. `Waivers.IsPastRetentionDate` is available as a
+workflow condition, but the condition performs no mutation. An approved
+implementation and workflow would need to provide any retention action.
+
+The controller's delete path is restricted to records whose persisted
+`status` is `expired` and deletes the document before soft-deleting the waiver.
+Changing these rules requires a retention, audit, restore, and legal review.
+
+### Current lifecycle gaps
+
+Do not rely on these paths until their persistence contracts are aligned and
+covered by regression tests:
+
+- `permanent` validates on a waiver type and calculates a null retention date,
+  while `GatheringWaivers.retention_date` is required.
+- `GatheringWaiversTable` validation accepts `pending`, `active`, and
+  `deleted`, while the delete controller requires `expired` and no scheduled
+  transition currently persists that value.
+- `WaiverStateService::decline()` assigns `status = declined`, which is not
+  in the table validator's accepted status list.
+- Uploaded waiver-type templates are written through `DocumentService`, but
+  the `WaiverTypesTable` `Documents` association is currently disabled; the
+  uploaded-template download path should not be treated as operational.
+
+## Authorization and visibility
+
+- Normal entity/table permissions use the project's `BasePolicy` contracts.
+- `GatheringWaiver::getBranchId()` derives scope from the gathering's hosting
+  branch.
+- Gathering stewards can view and upload for gatherings they steward even
+  without a branch grant, but closure checks still apply.
+- Waiver-type requirements are catalog-wide within a tenant. Adding/removing
+  them requires a global (unscoped) permission rather than a branch-scoped one.
+- Dashboard, search, calendar, grid, download, preview, inline-PDF, decline,
+  type/activity correction, and closure actions all pass through authorization.
+- Dashboard services receive the caller's permitted branch IDs. Keep those
+  filters on every query and aggregation.
+
+The plugin contributes navigation entries for uploaded waivers, the dashboard,
+waiver types, and gatherings needing waivers; gathering/activity tabs through
+`ViewCellRegistry`; and a mobile “Submit Waiver” item. Register additions
+through the existing providers rather than core templates.
+
+## Settings
+
+| Key | Current use |
+| --- | --- |
+| `Plugin.Waivers.Active` | Enables navigation/view-cell providers through `StaticHelpers::pluginEnabled('Waivers')`. Default: `yes`. |
+| `Waivers.ComplianceDays` | Number of days after a gathering before dashboard compliance is considered late. Default: `2`. |
+| `Waivers.configVersion` | Internal settings-initialization version. |
+
+`Plugin.Waivers.ShowInNavigation` and
+`Plugin.Waivers.HelloWorldMessage` are initialized legacy keys with no Waivers
+runtime reader. Do not build new behavior on them without first defining and
+testing the contract.
+
+## Extension points
+
+- State changes: [`WaiverStateService.php`](src/Services/WaiverStateService.php)
+- Upload/storage orchestration:
+  [`WaiverFileService.php`](src/Services/WaiverFileService.php)
+- Dashboard queries:
+  [`WaiverDashboardService.php`](src/Services/WaiverDashboardService.php)
+- Mobile gathering selection and exemptions:
+  [`WaiverMobileService.php`](src/Services/WaiverMobileService.php)
+- Navigation and cells:
+  [`WaiversNavigationProvider.php`](src/Services/WaiversNavigationProvider.php)
+  and [`WaiversViewCellProvider.php`](src/Services/WaiversViewCellProvider.php)
+- Workflow triggers/actions/conditions:
+  [`WaiversWorkflowProvider.php`](src/Services/WaiversWorkflowProvider.php)
+
+Keep business rules in these services, authorization in policies, storage in
+`DocumentService`, and rendering in templates.
+
+## Verification
+
+Run commands from `app/`:
+
 ```bash
-# Replace all occurrences (Linux/Mac)
-find . -type f \( -name "*.php" -o -name "*.json" -o -name "*.md" \) -exec sed -i 's/Template/MyPlugin/g' {} +
-find . -type f \( -name "*.php" -o -name "*.json" -o -name "*.md" \) -exec sed -i 's/template/my-plugin/g' {} +
-
-# Or use your IDE's "Find and Replace in Files"
-# Replace: Template → MyPlugin
-# Replace: template → my-plugin
+vendor/bin/phpunit plugins/Waivers/tests/TestCase
+vendor/bin/phpcs plugins/Waivers/src
 ```
 
-### Step 3: Register Plugin
-Edit `/workspaces/KMP/app/config/plugins.php`:
-```php
-'MyPlugin' => [
-    'migrationOrder' => 10,  // Adjust as needed
-],
-```
+Run `npm run dev` when plugin JavaScript, CSS, or Vite wiring changes. Use the
+broader plugin or app verification lane for cross-plugin, workflow, document
+storage, tenancy, or migration changes.
 
-### Step 4: Update Autoloader
-```bash
-cd /workspaces/KMP/app
-composer dump-autoload
-bin/cake cache clear_all
-```
-
-### Step 5: Run Migrations (Optional)
-```bash
-bin/cake migrations migrate -p MyPlugin
-bin/cake seeds run -p MyPlugin
-```
-
-### Done! 
-Access your plugin at: `http://localhost/my-plugin/hello-world`
-
-## 🔍 What This Plugin Does
-
-The Template plugin is fully functional and demonstrates:
-
-- ✅ **Navigation**: "Template" parent section with "Hello World" sub-menu
-- ✅ **Routes**: `/template/hello-world` with full CRUD operations
-- ✅ **Authorization**: Policy-based access control (all users can view, authenticated users can add/edit)
-- ✅ **Database**: `hello_world_items` table with sample data
-- ✅ **Frontend**: Interactive Stimulus.js controller with CSS styling
-- ✅ **Settings**: Configurable via app settings (enable/disable, show in nav, custom message)
-
-## 📁 Directory Structure
-
-```
-Template/
-├── assets/              # Frontend assets (CSS, JavaScript)
-├── config/              # Migrations and seeds
-├── src/
-│   ├── Controller/      # HelloWorldController
-│   ├── Model/          # Example models
-│   ├── Policy/         # HelloWorldPolicy for authorization
-│   ├── Services/       # TemplateNavigationProvider
-│   └── View/           # View cells
-├── templates/          # View templates
-├── tests/              # PHPUnit tests
-└── webroot/           # Public assets
-
-```
-
-## 🎨 Key Decisions & Patterns
-
-This template demonstrates the **correct** way to implement KMP plugins:
-
-### ✅ KMPPluginInterface Implementation
-```php
-protected int $_migrationOrder = 0;
-
-public function getMigrationOrder(): int {
-    return $this->_migrationOrder;
-}
-
-public function __construct($config = []) {
-    if (!isset($config['migrationOrder'])) {
-        $config['migrationOrder'] = 0;
-    }
-    $this->_migrationOrder = $config['migrationOrder'];
-}
-```
-**Why**: Required by KMPPluginInterface for proper plugin initialization order.
-
-### ✅ Navigation Registration (Correct Format)
-```php
-NavigationRegistry::register(
-    'template',                    // Plugin identifier
-    [],                           // Static items array
-    function ($user, $params) {   // Dynamic callback
-        return TemplateNavigationProvider::getNavigationItems($user, $params);
-    }
-);
-```
-**Why**: 3-parameter signature matches NavigationRegistry service.
-
-### ✅ Parent Section + mergePath Navigation
-```php
-// Parent section
-[
-    "type" => "parent",
-    "label" => "Template",
-    "icon" => "bi-puzzle",
-    "id" => "navheader_template",
-    "order" => 900,
-]
-
-// Child item
-[
-    "type" => "link",
-    "mergePath" => ["Template"],  // NOT children array!
-    "label" => "Hello World",
-    // ...
-]
-```
-**Why**: KMP navigation uses flat arrays with mergePath, not nested children.
-
-### ✅ ViewCellRegistry (Commented Example)
-```php
-// ViewCellRegistry::register(
-//     'template',
-//     [],
-//     function ($urlParams, $user) {
-//         return [ /* cells */ ];
-//     }
-// );
-```
-**Why**: Shows correct 3-parameter signature. Uncomment when you add view cells.
-
-### ✅ CakePHP 5 Test Pattern
-```php
-use Cake\TestSuite\IntegrationTestTrait;
-use Cake\TestSuite\TestCase;
-
-class HelloWorldControllerTest extends TestCase {
-    use IntegrationTestTrait;
-}
-```
-**Why**: CakePHP 5 uses TestCase + trait, not IntegrationTestCase.
-
-### ✅ Settings Management with Versioning
-```php
-$currentConfigVersion = '1.0.0';
-$configVersion = StaticHelpers::getAppSetting('Template.configVersion', '0.0.0', null, true);
-
-if ($configVersion != $currentConfigVersion) {
-    // Update settings
-}
-```
-**Why**: Allows automatic configuration updates during deployments.
-
-## 📚 Documentation
-
-All decisions and patterns are fully documented:
-
-- **[NAVIGATION_GUIDE.md](NAVIGATION_GUIDE.md)** - Complete navigation system reference (600+ lines)
-- **[USAGE_GUIDE.md](USAGE_GUIDE.md)** - Step-by-step customization guide
-- **[OVERVIEW.md](OVERVIEW.md)** - Complete feature list
-- **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Code snippets
-- **[INDEX.md](INDEX.md)** - Documentation navigation
-
-## 🔧 Customization Workflow
-
-1. **Copy & Rename**: Follow Quick Start above
-2. **Update Controller**: Modify `HelloWorldController` for your domain
-3. **Update Models**: Change table/entity to match your data
-4. **Customize Navigation**: Edit `TemplateNavigationProvider` 
-5. **Adjust Authorization**: Modify `HelloWorldPolicy` for your rules
-6. **Update Views**: Customize templates in `templates/` directory
-7. **Add Features**: Follow patterns in existing files
-
-See **[USAGE_GUIDE.md](USAGE_GUIDE.md)** for detailed instructions.
-
-## ✅ Verification
-
-The Template plugin has been tested and verified:
-- ✅ No compilation errors
-- ✅ All interfaces properly implemented
-- ✅ Navigation appears correctly
-- ✅ CRUD operations work
-- ✅ Authorization enforced
-- ✅ Tests pass
-- ✅ Follows all KMP patterns
-
-## 🎯 This is THE Reference
-
-When in doubt about how to implement something in a KMP plugin:
-
-1. **Check this plugin first** - It demonstrates the correct pattern
-2. **Copy the code** - Don't reinvent patterns
-3. **Read the documentation** - Comprehensive guides included
-4. **Follow the examples** - All patterns are production-quality
-
-## 📖 Additional Resources
-
-- Main KMP Documentation: `/docs/plugin-boilerplate-guide.md`
-- CakePHP 5 Documentation: https://book.cakephp.org/5/en/
-- Stimulus.js Documentation: https://stimulus.hotwired.dev/
-- Bootstrap 5 Documentation: https://getbootstrap.com/docs/5.3/
-
-## License
-
-MIT License - See LICENSE file for details
+For documentation-only changes, verify Markdown links/fences and inspect the
+scoped diff.

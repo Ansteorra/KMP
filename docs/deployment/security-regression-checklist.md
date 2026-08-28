@@ -1,84 +1,116 @@
+---
+layout: default
+title: "Managed Platform Security Regression Checklist"
+description: "Regression checklist for tenant isolation, authorization, secrets, recovery, and accessibility."
+---
+
 # Managed Platform Security Regression Checklist
 
-Run this checklist for every release candidate and for any hotfix that touches authentication, authorization, tenant resolution, platform admin, storage, backup/restore, audit, migration, or customer-facing UI. It complements the required external penetration test scope; it does not replace an independent assessment.
+Run the relevant sections for every release candidate and for hotfixes that
+touch authentication, authorization, tenant resolution, Platform Admin,
+storage, secrets, backups, audit, migration, jobs, or customer-facing UI. This
+checklist complements—not replaces—an independent assessment.
 
-[← Back to Deployment Guide](README.md) | [Launch Readiness Gate](launch-readiness-gate.md)
+[← Deployment and operations](README.md) |
+[Launch readiness](launch-readiness-gate.md)
 
-## Required automated checks
+## Baseline to test
 
-| Check | Command or evidence | Owner | Blocking rule |
-|-------|---------------------|-------|---------------|
-| PHPUnit focused security/platform tests | `composer test` or targeted test class output | Developer/QA | New failures block release |
-| JavaScript tests | `npm run test:js` when JS changed | Developer/QA | New failures block release |
-| Build | `npm run dev` or production build command used by CI | Developer/QA | Build failure blocks release |
-| PHPCS changed PHP | `vendor/bin/phpcs` on changed PHP or `bin/verify.sh` | Developer | New style errors in changed PHP block release |
-| PHPStan/static analysis | `vendor/bin/phpstan analyse` or `bin/verify.sh` | Developer | New relevant errors block release |
-| Dependency audit | Composer/npm audit or approved scanner result | Security Lead | Critical exploitable dependency blocks release |
-| Trust docs presence | `bash bin/trust_readiness_check.sh` from `app/` | Platform Lead | Missing required trust doc blocks launch review |
+Platform Admin is an in-app, reserved-host control surface with password plus
+TOTP, lockout/status checks, authorization, and host-bound sessions. It is not a
+separate app, does not trust an upstream identity header, and is not read-only.
 
-## Tenant isolation regression
+The database audit chain is implemented. Azure immutable/WORM storage, a
+recovery region, KEK escrow ceremonies, tenant trust pages, and a public status
+page are not supplied by the current deployment. Test an external control only
+when deployment evidence shows it exists.
 
-- [ ] Host-based tenant resolution rejects unknown hosts and maps known hosts to exactly one active tenant.
-- [ ] Tenant A cannot access Tenant B records through IDs, slugs, query parameters, cached values, uploads, backups, restore-drill rows, jobs, trust evidence, or admin pages.
-- [ ] Queries and services derive tenant scope from server-side tenant context, not user-supplied tenant IDs.
-- [ ] Tenant-scoped storage paths/containers do not expose other tenant objects.
-- [ ] Cache, session, queue, and audit keys include tenant context where needed.
-- [ ] Missing tenant context fails closed.
+## Automated checks
 
-## Authn/authz regression
+Run from `app/` unless a command says otherwise.
 
-- [ ] Anonymous users cannot reach authenticated tenant or platform admin routes.
-- [ ] Tenant users cannot reach platform admin routes.
-- [ ] Platform admin routes require the external identity gate and allowed operator status.
-- [ ] Spoofed platform admin headers are stripped or rejected by ingress before app trust.
-- [ ] CSRF protection remains active for state-changing forms.
-- [ ] Password reset, TOTP/MFA bootstrap, impersonation, and logout flows do not weaken session boundaries.
+| Check | Command/evidence | Blocking rule |
+| --- | --- | --- |
+| PHP behavior | `composer test` or focused PHPUnit output | New relevant failure blocks |
+| JavaScript | `npm run test:js` when JS changed | New failure blocks |
+| Frontend bundle | `npm run dev` for development build; CI production-build result for release | Failure blocks |
+| PHP style/static analysis | changed-file `vendor/bin/phpcs` and `vendor/bin/phpstan analyse --no-progress`, or `bash bin/verify.sh` | New relevant error blocks |
+| Trust-doc contract | `bash bin/trust_readiness_check.sh` | Missing required document/topic blocks review |
+| Azure runtime contract | from root: `bash deploy/azure/test-runtime-contract.sh` | Contract drift blocks managed deployment |
+| Dependency/security scan | Approved Composer/npm and image-scanner evidence | Exploitable Critical finding blocks |
 
-## Data handling and secrets regression
+## Tenant isolation
 
-- [ ] Logs, exceptions, flash messages, API responses, and templates do not include passwords, tokens, connection strings, SAS URLs, wrapped DEKs, plaintext KEKs, Shamir shares, recovery codes, or raw job errors.
-- [ ] Backup object URIs and storage details are redacted from tenant-visible pages.
-- [ ] Evidence packages contain links and checksums, not raw database exports or customer-private records.
-- [ ] Secret-store and KEK escrow code paths fail closed when configuration is incomplete.
-- [ ] WORM audit writes are preserved for platform admin, tenant provisioning, backup, restore, migration, and break-glass actions.
+- [ ] Known hosts resolve to exactly one active tenant; unknown or ambiguous
+      hosts fail closed.
+- [ ] Tenant A cannot access Tenant B records through IDs, slugs, APIs, cached
+      data, jobs, backups, documents, or admin pages.
+- [ ] Services derive scope from server-side tenant context, not a supplied
+      tenant ID.
+- [ ] Tenant database switching is reset safely across requests/jobs.
+- [ ] Cache, session, queue, storage, and audit keys include tenant context where
+      required.
+- [ ] Logical storage container/prefix boundaries are enforced even though the
+      Azure identity has account-wide data-plane rights.
 
-## Backup, restore, DR, and migration regression
+## Authentication and authorization
 
-- [ ] Tenant backup command records retention, hash, status, and redacted errors.
-- [ ] `tenant restore_drill` remains non-destructive by default and requires explicit destructive confirmation before real restore.
-- [ ] Platform metadata restore precedes tenant restore in runbooks and drills.
-- [ ] Tenant migration canary and nightly migration drill remain gated against accidental production use.
-- [ ] Release manifest compatibility blocks unsupported schema rollouts.
-- [ ] Rollback marker/PITR evidence is captured before tenant migrations or pilot imports.
+- [ ] Anonymous and tenant users cannot reach Platform Admin routes.
+- [ ] Platform Admin rejects non-allowed hosts before authentication.
+- [ ] Password, TOTP, account-status, lockout, recovery, and logout flows fail
+      safely.
+- [ ] A Platform Admin session created on one allowed host cannot be replayed on
+      another host or a tenant host.
+- [ ] Privileged read and mutating actions enforce policy, CSRF, deliberate
+      confirmation/reason, and TOTP where the operation requires it.
+- [ ] Password reset and impersonation do not cross tenant/session boundaries.
+- [ ] The application does not trust spoofed identity headers.
 
-## Customer-facing UI and WCAG 2.2 AA regression
+## Secrets, backups, audit, and recovery
 
-For changed pages, modals, dashboards, trust cards, admin pages, and forms:
+- [ ] Managed configuration uses the database secret store and the expected
+      master-key boundary; missing key/store configuration fails closed.
+- [ ] Logs, errors, flash messages, APIs, and templates omit passwords, tokens,
+      connection strings, object credentials, raw job errors, recovery keys,
+      plaintext KEKs, and customer records.
+- [ ] Tenant backups identify `backup_type=json` and `.json.gz.enc`; platform
+      backups identify `backup_type=pg_dump` and `.pgdump.enc`.
+- [ ] Tenant restore requires the documented status, TOTP, reason, and
+      destructive confirmation gates.
+- [ ] `tenant restore_drill` is non-destructive by default; destructive mode is
+      exercised only in an approved disposable target.
+- [ ] A pre-migration marker is treated as a logical backup, not provider PITR.
+- [ ] The managed deployment runs the exact ordered migration chain and includes
+      suspended tenants.
+- [ ] Optional release-manifest or nightly-drill behavior is tested only when an
+      environment deliberately configures it.
+- [ ] Database audit hash chaining is verified.
+- [ ] WORM retention/continuity is asserted only when an external immutable sink
+      and storage policy are independently verified.
 
-- [ ] Semantic landmarks/headings describe the page structure.
-- [ ] All interactive elements are keyboard reachable and operable without pointer-only actions.
-- [ ] Visible focus indicators are not removed or obscured.
-- [ ] Form controls have programmatic labels, validation messages, and error summaries where appropriate.
-- [ ] Status is conveyed with text/icons in addition to color; color alone is never the only signal.
-- [ ] Text and meaningful icon contrast meet WCAG 2.2 AA thresholds.
-- [ ] Dynamic updates announce important status changes or preserve focus predictably.
-- [ ] Tables/cards preserve reading order and responsive behavior at mobile, tablet, and desktop widths.
-- [ ] Links and buttons have accessible names that make sense out of context.
-- [ ] Security-sensitive confirmation dialogs identify the tenant/action and require deliberate confirmation.
+## WCAG 2.2 AA and UI security
 
-## Manual smoke pack
+For changed pages, forms, modals, grids, navigation, and asynchronous states:
 
-- [ ] Login and logout as tenant admin, normal member, and platform admin test users.
-- [ ] Verify a tenant admin cannot access another tenant by changing host, slug, query string, or object ID.
-- [ ] Verify platform admin read-only pages do not show DB passwords, DB roles, object URIs, wrapped keys, raw errors, or tenant-private details beyond approved summaries.
-- [ ] Create or view a record that writes audit events; confirm audit/WORM continuity evidence.
-- [ ] Run backup/restore-drill commands in a safe environment and verify no destructive action occurs by default.
-- [ ] Review browser console/network output for leaked secrets or cross-tenant payloads.
+- [ ] Semantic landmarks/headings and programmatic labels are correct.
+- [ ] Every interaction is keyboard operable with visible, unobscured focus.
+- [ ] Errors and async status are announced and focus order remains predictable.
+- [ ] Meaning does not rely on color alone; contrast meets WCAG 2.2 AA.
+- [ ] Links/buttons have meaningful accessible names.
+- [ ] Responsive layouts preserve reading and interaction order.
+- [ ] Destructive confirmations identify the tenant and exact action.
+- [ ] Privileged pages redact secrets, object credentials, raw errors, and
+      other-tenant details.
 
-## Evidence to attach
+## Manual smoke and evidence
 
-- Test command output or CI links.
-- Screenshots or notes for WCAG 2.2 AA checks on changed UI.
-- Tenant isolation negative-test results.
-- Security finding retest links.
-- Risk acceptances with owner, expiry, and mitigation.
+- [ ] Login/logout as a tenant admin, member, and Platform Admin test account.
+- [ ] Attempt cross-tenant access by host, slug, query, and object ID.
+- [ ] Exercise one privileged read and one privileged mutation.
+- [ ] Create a platform audit event and verify its database chain; verify
+      external WORM evidence separately if claimed.
+- [ ] Plan a restore drill in a safe environment and confirm the default makes
+      no data changes.
+- [ ] Review browser console/network traffic for secrets and cross-tenant data.
+- [ ] Attach CI output, negative-test results, UI accessibility notes, finding
+      retests, and any time-bound risk acceptance.

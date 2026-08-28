@@ -5,112 +5,158 @@ layout: default
 
 # Appendices
 
-This section contains additional reference information to help developers working with the Kingdom Management Portal.
+This page is a compact troubleshooting and terminology reference. Use the linked
+architecture and deployment pages for the owning contracts and procedures.
 
 ## A. Troubleshooting
 
-Common issues encountered during development and deployment, with their solutions.
+Start with the failing request's host, tenant, datasource, and authorization
+context. In a multi-tenant application, an apparently valid record ID or route
+can still belong to the wrong database or host.
 
-### Database Connection Issues
+### Tenant or database connection fails
 
-**Issue**: Unable to connect to the database  
-**Solution**: 
-- Verify database credentials in `config/app_local.php`
-- Check that the MySQL/MariaDB server is running
-- Ensure the specified database exists and the user has proper permissions
-- Check for IP restrictions on the database server
+KMP uses separate datasource tracks:
 
-**Issue**: Migration fails with foreign key errors  
-**Solution**:
-- Ensure migrations are run in the correct order (core first, then plugins in their defined order)
-- Verify that referenced tables exist before creating foreign keys
-- Check for typos in table or column names
+- the platform database stores tenant registry and platform operations data;
+- the request-selected tenant database stores application and plugin data.
 
-### Authentication Problems
+The supported container and managed deployment path uses PostgreSQL. Confirm
+that the platform datasource is healthy, the request host maps to an active
+tenant, the tenant's secret can be resolved, and that tenant's database has the
+expected migrations. Do not solve a tenant failure by pointing the default
+datasource at the platform database.
 
-**Issue**: Unable to log in despite correct credentials  
-**Solution**:
-- Check for proper session configuration
-- Verify the user account is active
-- Clear browser cookies and cache
-- Check for PHP session garbage collection issues
+For local browser requests, use the configured tenant hostname such as
+`kmp.localhost`; an IP-only URL may not select the intended tenant. See
+[Configuration](2-configuration.md), [Multi-tenant architecture](3.1-multi-tenant-architecture.md),
+and [Deployment troubleshooting](deployment/troubleshooting.md).
 
-**Issue**: Unexpected "Access Denied" messages  
-**Solution**:
-- Verify the user has the required role and permissions
-- Check permission policies for conditional authorization
-- Look for scoping issues (branch-specific vs. global permissions)
-- Enable debug mode temporarily to see authorization failures
+### A migration fails
 
-### Performance Issues
+Identify whether it is a platform migration or a tenant application/plugin
+migration before running anything. Check the migration state for the affected
+database, plugin order, referenced tables, and PostgreSQL constraint error.
+Fleet migrations must report failures per tenant; do not mark the release
+healthy because a different tenant migrated successfully.
 
-**Issue**: Slow page loads  
-**Solution**:
-- Enable the SQL log and look for inefficient queries
-- Optimize database indexes for frequently queried fields
-- Enable CakePHP query caching
-- Check for N+1 query problems and use containable associations
+Follow [Migration documentation](3.4-migration-documentation.md) and the
+multi-tenant deployment runbook instead of improvising schema changes.
 
-**Issue**: High memory usage  
-**Solution**:
-- Use pagination for large result sets
-- Avoid loading unnecessary associations
-- Optimize image sizes in the application
-- Increase PHP memory limit if necessary
+### Login or authorization fails
 
-### Common Error Messages
+Check these layers in order:
 
-**Error**: "SQLSTATE[HY000] [2002] Connection refused"  
-**Solution**: Database server is not running or is not accessible at the configured host/port
+1. The hostname resolved an active tenant.
+2. The session identity belongs to that tenant and is active.
+3. The controller authorized the resource or model.
+4. The policy scope includes the current branch and record.
+5. Restore lock, impersonation, or step-up authentication rules permit the
+   operation.
 
-**Error**: "Error: An Internal Error Has Occurred"  
-**Solution**: Enable debug mode to see detailed error information, check logs for details
+A working URL and a known numeric ID do not imply access. Inspect CakePHP logs
+and the relevant policy; never bypass authorization or expose debug details in
+production.
 
-**Error**: "Class 'App\Plugin\MyPlugin\...' not found"  
-**Solution**: Verify plugin namespace and class names match directory structure, ensure plugin is properly loaded
+### Frontend assets do not load
+
+The application resolves hashed frontend files through
+`webroot/.vite/manifest.json`. From `app/`, run a current build and confirm the
+logical entry exists:
+
+```bash
+npm ci
+npm run dev
+```
+
+If an old bundle still loads, confirm the rendered URL came from the current
+manifest, then inspect browser and service-worker caches. See
+[Asset management](10.4-asset-management.md).
+
+### A Stimulus controller does not connect
+
+Confirm that the file ends in `-controller.js`, lives in a discovered core or
+plugin controller directory, and registers its identifier in
+`window.Controllers`. Check the browser console for duplicate identifiers or
+module failures, then run the focused Jest test and rebuild the `controllers`
+entry. See [JavaScript development](10-javascript-development.md).
+
+### A Turbo modal or grid loses state
+
+Check the inner table frame ID, the Turbo Stream `Accept` header, CSRF token,
+`data-turbo="true"`, and the hidden `page_context_url`. The context must be a
+same-origin relative path with the current query string. See
+[Hotwire navigation](hotwire-navigation.md) and
+[Dataverse Grid system](9.1-dataverse-grid-system.md).
+
+### Data appears under the wrong tenant
+
+Treat this as a security incident until disproved. Record the request host,
+resolved tenant ID, datasource name, route, and job/CLI context without logging
+credentials or secrets. Stop the affected worker or flow if it could continue
+cross-tenant work, then follow the deployment incident process. Never repair the
+symptom by copying records between tenant databases.
+
+### A page is slow or memory-heavy
+
+Use request traces, query logs, and targeted profiling to find the cause. Apply
+authorization scope before pagination, request only needed associations and
+columns, and use the Dataverse Grid query context for computed/filter fields.
+Do not enable an application-wide cache or raise memory limits before confirming
+that cache keys and queries remain tenant-scoped.
 
 ## B. Glossary
 
-Terms specific to KMP and the SCA to help new developers understand the domain.
+| Term | Meaning in KMP |
+| --- | --- |
+| **Active window** | Inclusive start/end period during which a time-bound record, such as a warrant or authorization, is active. |
+| **Branch** | Hierarchical SCA organizational unit used for ownership and authorization scope. |
+| **Dataverse Grid** | KMP's server-backed grid abstraction for scoped queries, system/user views, filters, sorting, pagination, export, and Turbo updates. |
+| **Gathering** | Scheduled event with activities, staffing, attendance, waivers, and an explicit display timezone. |
+| **Member** | Tenant-owned person/domain record; it is not interchangeable with a platform tenant or database user. |
+| **Office** | Role within the SCA organizational structure that may be held under a warrant. |
+| **Platform database** | Shared control-plane database containing tenant registry and platform operational metadata, not tenant business records. |
+| **Service principal** | Non-human identity used for approved automation with explicit tenant and permission scope. |
+| **System view** | Code-defined Dataverse Grid view with stable filters/columns; distinct from a user's saved view. |
+| **Tenant** | Isolated KMP organization selected primarily by request host and backed by its own application database. |
+| **Tenant context** | Resolved tenant identity and connection state carried by a web request, worker job, or CLI operation. |
+| **Tenant database** | Database containing one tenant's core and enabled-plugin business data. |
+| **Tenant host** | Registered hostname that resolves an incoming request to one tenant. |
+| **Turbo Frame** | Named page region that can navigate and replace its own HTML. |
+| **Turbo Stream** | Server response containing one or more DOM update actions such as replace or remove. |
+| **View cell** | Registry-provided, authorization-aware UI contribution used by core and plugins for tabs, details, modals, JSON, or mobile navigation. |
+| **Warrant** | Time-bounded authorization for a member to hold an office within an organizational scope. |
+| **Warrant roster** | Managed group of warrant requests/decisions for a branch and term. |
+| **Workflow definition** | Durable description of workflow states, transitions, actors, and actions. |
+| **Workflow version** | Immutable published revision of a workflow definition. |
+| **Workflow instance** | Runtime execution of one workflow version for a domain record. |
+| **Approval** | Human decision requested and recorded by a workflow step. |
+| **Action item** | User-facing task produced by a workflow or domain process. |
 
-| Term | Definition |
-|------|------------|
-| **Active Window** | A time period during which an entity (like a warrant) is considered active, defined by start and end dates |
-| **Branch** | A geographic unit of the SCA organization (Kingdom, Principality, Barony, etc.) |
-| **Member** | An individual user of the system |
-| **Office** | An official position within the SCA that can be held by members |
-| **Warrant** | Official documentation that a member holds a specific office |
-| **Warrant Roster** | A collection of warrants for a specific branch and time period |
+## C. Primary references
 
-## C. Resources
+### Project documentation
 
-Additional resources and references for KMP developers.
+- [Getting started](2-getting-started.md)
+- [Configuration](2-configuration.md)
+- [Architecture](3-architecture.md)
+- [Multi-tenant architecture](3.1-multi-tenant-architecture.md)
+- [Deployment](8-deployment.md)
+- [Generated PHP API](api/php/index.html)
+- [Generated JavaScript API](api/js/index.html)
+- [KMP source repository](https://github.com/Ansteorra/KMP)
 
-### CakePHP Documentation
+### Frameworks and tools
 
-- [CakePHP 5.x Book](https://book.cakephp.org/5/en/index.html) - Official CakePHP documentation
-- [CakePHP API](https://api.cakephp.org/5.x/) - API reference for CakePHP 5.x
-- [CakePHP Cookbook](https://book.cakephp.org/5/en/index.html) - Recipes for common tasks
-
-### KMP-Related Resources
-
-- [KMP GitHub Repository](https://github.com/Ansteorra/KMP) - Source code and issue tracking
-
-### PHP Resources
-
-- [PHP Documentation](https://www.php.net/docs.php) - Official PHP documentation
-- [Composer Documentation](https://getcomposer.org/doc/) - PHP dependency management
-- [PHP Fig PSR Standards](https://www.php-fig.org/psr/) - PHP coding standards
-
-### JavaScript Resources
-
-- [ECMAScript 6 Features](https://github.com/lukehoban/es6features) - Overview of ES6 features
-- [Stimulus JS Documentation](https://stimulus.hotwired.dev/) - Documentation for Stimulus framework
-- [Webpack Documentation](https://webpack.js.org/) - Documentation for Webpack
-
-### Tools and Libraries
-
-- [Bootstrap 5.3 Documentation](https://getbootstrap.com/docs/5.3/) - UI framework used by KMP
-- [Font Awesome Icons](https://fontawesome.com/icons) - Icon library (via @fortawesome/fontawesome-free)
-- [Bootstrap Icons](https://icons.getbootstrap.com/) - Additional icon library used in KMP
-- [Laravel Mix Documentation](https://laravel-mix.com/) - Asset compilation tool
+- [CakePHP 5 Book](https://book.cakephp.org/5/en/index.html)
+- [CakePHP 5 API](https://api.cakephp.org/5.x/)
+- [PHP manual](https://www.php.net/manual/en/)
+- [Composer documentation](https://getcomposer.org/doc/)
+- [Vite guide](https://vite.dev/guide/)
+- [Stimulus handbook](https://stimulus.hotwired.dev/handbook/introduction)
+- [Turbo handbook](https://turbo.hotwired.dev/handbook/introduction)
+- [Bootstrap 5.3 documentation](https://getbootstrap.com/docs/5.3/)
+- [Bootstrap Icons](https://icons.getbootstrap.com/)
+- [Font Awesome](https://fontawesome.com/docs)
+- [Jest documentation](https://jestjs.io/docs/getting-started)
+- [Playwright documentation](https://playwright.dev/docs/intro)

@@ -19,7 +19,7 @@ use App\Model\Entity\BaseEntity;
  *
  * @package Activities\Policy
  * @see \App\Policy\BasePolicy For inherited RBAC and URL-based authorization
- * @see /docs/5.6.5-activity-security-patterns.md For security patterns
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.6.5-activity-security-patterns.md For security patterns
  */
 class ReportsControllerPolicy extends BasePolicy
 {

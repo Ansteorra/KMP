@@ -15,7 +15,7 @@ use App\Policy\BasePolicy;
  * Extends BasePolicy with SKIP_BASE to allow unrestricted table access
  * while entity-level controls are handled by OfficerPolicy.
  *
- * @see /docs/5.1-officers-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.1-officers-plugin.md
  */
 class OfficersTablePolicy extends BasePolicy
 {

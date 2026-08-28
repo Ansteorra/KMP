@@ -1,31 +1,14 @@
 ---
 name: nightly-deploy
-description: Deploys KMP to Azure nightly environment. Use for "deploy to nightly", nightly status/logs/health, reset nightly DB, or rebuild nightly image.
+description: Inspects or operates KMP's direct Azure nightly helper while preserving the official dev, POC, and production release boundary.
 ---
 
-# KMP Nightly Azure Deploy
+# KMP direct nightly helper
 
-All operations via `deploy/azure/nightly-deploy.sh` from repo root.
+Read and follow `.github/skills/nightly-deploy/SKILL.md`. Confirm current commands, URLs, resource names, and overrides with:
 
-**URL**: https://kmpnightly-web.lemonstone-62ccb06f.centralus.azurecontainerapps.io/  
-**Login**: seeded email + `TestPassword` (e.g. `admin@amp.ansteorra.org`)
+```bash
+bash deploy/azure/nightly-deploy.sh help
+```
 
-## Prerequisites
-
-- `az login --tenant 77070ec3-247c-40ce-9a4f-df875ffe914f`
-- `gh auth login` (for build subcommand)
-
-## Commands
-
-| Intent | Command |
-|--------|---------|
-| Deploy current `:nightly` image | `bash deploy/azure/nightly-deploy.sh deploy` |
-| Rebuild from HEAD + deploy | `bash deploy/azure/nightly-deploy.sh build` |
-| Deploy + wipe/reseed DB | `bash deploy/azure/nightly-deploy.sh reset` |
-| GHCR build status | `bash deploy/azure/nightly-deploy.sh status` |
-| Tail build | `bash deploy/azure/nightly-deploy.sh watch` |
-| Container revisions | `bash deploy/azure/nightly-deploy.sh revisions` |
-| Web logs | `bash deploy/azure/nightly-deploy.sh logs [--tail N]` |
-| Health check | `bash deploy/azure/nightly-deploy.sh health` |
-
-Full details: `.github/skills/nightly-deploy/SKILL.md`
+Do not substitute the direct-nightly helper for “Push to dev” or “Do a release”; those phrases are governed by `.github/skills/release-deploy/SKILL.md`. Commands that build/push a local checkout, deploy, migrate, reset data, or change passwords require explicit authorization and a confirmed Azure target.

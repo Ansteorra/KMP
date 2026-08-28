@@ -1,184 +1,180 @@
-# Azure nightly seed payload
+# Azure POC seed archive
 
-The nightly Azure environment restores its test data from an **encrypted KMP
-backup** baked into the Docker image at `/opt/kmp/seed/nightly-seed.kmpbackup`.
-This directory is where that backup lives in the repo.
+> **Scope:** This archive is only for rebuilding the disposable default POC
+> database. It is not a production backup, a tenant-fleet backup, or a platform
+> database backup. The restore job destroys the target default database before
+> loading it.
 
-## Why a backup instead of a SQL dump?
+`nightly-seed.kmpbackup` is a tracked, encrypted logical backup baked into the
+application image at `/opt/kmp/seed/nightly-seed.kmpbackup`. The
+`<prefix>-restore` Azure Container Apps Job invokes
+`docker/reset-and-seed.sh` to consume it.
 
-- **Engine-agnostic.** The backup is JSON → gzip → AES-256-GCM; restore is
-  ORM-based, so a backup created from MySQL/MariaDB restores cleanly into
-  Postgres (and vice-versa). A SQL dump is tied to its source engine.
-- **Self-validating.** The backup carries a migration fingerprint. Restore
-  refuses to proceed if the target database schema drifted from the one the
-  backup was taken against, preventing silent data/schema mismatches. See
-  `app/src/Services/BackupService.php::getMigrationFingerprint()`.
-- **One source of truth.** We reset locally with our normal
-  `reset_dev_database.sh` (which already handles MySQL and Postgres) and then
-  snapshot that known-good state — so the nightly environment matches the
-  developer experience byte-for-byte.
+This seed format is distinct from managed operations:
 
-## Files
+| Artifact | Scope | Format |
+| --- | --- | --- |
+| POC seed | Disposable default application database | `.kmpbackup` |
+| Managed tenant backup | One tenant application database | `.json.gz.enc` |
+| Managed platform backup | Platform metadata database | `.pgdump.enc` |
 
-| Path                     | Purpose                                                   |
-|--------------------------|-----------------------------------------------------------|
-| `nightly-seed.kmpbackup` | The encrypted seed blob consumed by the reset job.        |
-| `bake-seed.sh`           | Helper that (re)produces `nightly-seed.kmpbackup` locally.|
-| `.gitattributes`         | Treats `*.kmpbackup` as binary so git doesn't try to diff.|
+See [backup and restore operations](../../../docs/deployment/backup-restore.md)
+for the managed formats.
 
-The scale fixtures use believable but entirely fictional member identities
-and gathering titles. Their machine-readable markers remain deliberately
-obvious: `scale.member+####@example.test`, `SCALE-######`, and
-`scale-seed-gathering-####`. Do not replace the fictional identities with
-production member data.
+## Why the seed is a logical backup
 
-The seed also includes the Ansteorra tenant's production award catalog: 11
-award domains, 5 award levels, and 124 awards. The checked-in catalog contains
-only functional award configuration; it excludes members, recommendations,
-bestowals, credentials, and audit identities. Existing seed award IDs are
-preserved by exact award name so recommendations and bestowals remain valid.
-Production IDs that conflict with an existing seed identity are assigned a
-stable non-conflicting seed ID. The four intentionally local test awards remain
-alongside the production catalog.
+The legacy `BackupService` serializes application records, compresses them, and
+encrypts the result with AES-256-GCM. Restore uses CakePHP's ORM, so an archive
+created from a supported local MySQL/MariaDB or PostgreSQL database can seed the
+POC PostgreSQL database. It is functionally aligned with the curated local seed;
+it is not byte-for-byte database state.
 
-The three SQL seed snapshots are kept in sync by the deterministic generator:
+The archive includes a migration fingerprint. A schema mismatch is a signal to
+rebuild the archive from a clean, current database—not a reason to bypass the
+check in the managed POC workflow.
+
+## Files and data contract
+
+| Path | Purpose |
+| --- | --- |
+| `nightly-seed.kmpbackup` | Tracked encrypted seed artifact |
+| `bake-seed.sh` | Validates curated fixtures and writes a replacement artifact |
+| `.gitattributes` | Marks `*.kmpbackup` as binary |
+
+The artifact is present in the repository. Its size varies with fixtures and is
+not a validity criterion; inspect the actual file with
+`ls -lh deploy/azure/seed/nightly-seed.kmpbackup`.
+
+The scale fixtures use fictional identities and stable markers such as
+`scale.member+####@example.test`, `SCALE-######`, and
+`scale-seed-gathering-####`. Never add production member records, credentials,
+recommendations, bestowals, audit identities, uploaded documents, or other
+customer data.
+
+The seed includes the approved Ansteorra award configuration while excluding
+member and award-transaction data. Keep the deterministic SQL snapshots aligned
+with:
 
 ```bash
 php app/scripts/seed/fictionalize-scale-data.php --write
 php app/scripts/seed/fictionalize-scale-data.php --check
-```
-
-Run `--write` after regenerating a SQL snapshot and commit the generator and
-all three resulting snapshots together. The check derives the actual fixture
-counts from their machine-readable markers, requires synchronized contiguous
-ranges of at least 500 members and 100 gatherings, and ensures the numbered
-human-facing labels do not return. The current snapshots contain 1,500 members
-and 276 gatherings, but those counts may be reduced without changing the
-generator as long as the minimums and marker ranges remain valid.
-
-When a clean local database is already loaded with the scale fixtures, the
-same mappings can be applied before a backup bake without a full reset:
-
-```bash
-php app/scripts/seed/fictionalize-scale-data.php --apply-local-database
-```
-
-This mode is transactionally scoped to the synthetic marker values, enforces
-the same minimum and contiguous-range checks, and refuses non-local database
-hosts. It is safe to rerun, but it is not a substitute for resetting a locally
-modified database before producing a release artifact.
-
-The Ansteorra award catalog has a separate deterministic synchronizer:
-
-```bash
 php app/scripts/seed/sync-ansteorra-award-catalog.php --write
 php app/scripts/seed/sync-ansteorra-award-catalog.php --check
 ```
 
-`--write` updates the managed catalog block in all three SQL seed snapshots;
-`--check` fails when the catalog manifest or any managed block is stale. To
-update an already loaded local database transactionally before baking a
-backup, run:
+The `--write` modes update tracked fixture data. Review those changes before
+baking. The bake helper also runs both `--check` commands and guarded
+`--apply-local-database` operations; those operations refuse non-local database
+hosts.
+
+## What the restore job actually does
+
+`docker/reset-and-seed.sh` runs this sequence against the configured default
+application database:
+
+1. `DEBUG=true bin/cake resetDatabase` drops and recreates its schema.
+2. `bin/cake updateDatabase` applies core and enabled-plugin migrations.
+3. `bin/cake backup restore nightly-seed.kmpbackup --yes --fail-on-not-valid-fk`
+   restores the logical archive through the local backup adapter.
+4. Every restored member password is reset to the known POC test password.
+5. Application caches are cleared.
+
+It does not restore `PLATFORM_DATABASE_URL`, create or restore tenant registry
+databases, restore uploaded documents, or recover production audit evidence.
+Use the platform and tenant workflows for those scopes.
+
+Before starting `<prefix>-restore`, resolve the exact Azure resource group and
+job name and independently confirm that its default database contains only
+disposable POC data. Do not run it against production or a customer database.
+
+## Baking an updated archive
+
+Prerequisites:
+
+- a clean local KMP checkout and working local database;
+- the database reset to an intentional, reviewed fixture state;
+- `BACKUP_ENCRYPTION_KEY` obtained from an approved secret manager without
+  printing it or recording it in shell history;
+- the key matching the version that the POC restore job will use.
+
+From the repository root:
 
 ```bash
-php app/scripts/seed/sync-ansteorra-award-catalog.php --apply-local-database
-php app/scripts/seed/sync-ansteorra-award-catalog.php --check-local-database
-```
-
-The local mode refuses non-local database hosts, validates every referenced
-branch, approval process, and bestowal template before writing, and verifies
-the resulting catalog afterward. The read-only `--check-local-database` mode
-validates the same catalog without changing it. Refreshing the JSON catalog
-from production must use read-only access and must continue to exclude tenant
-member and award transaction data. `bake-seed.sh` runs both the snapshot check
-and the guarded local database sync before creating the encrypted artifact, so
-a stale or incompatible award catalog stops the bake.
-
-`nightly-seed.kmpbackup` is not present on a fresh clone — a maintainer bakes
-it the first time, commits it, and pushes. The image build tolerates its
-absence (`docker/reset-and-seed.sh` fails fast with a helpful message if you
-try to run a data restore without one).
-
-## Encryption key
-
-The backup is encrypted with a shared symmetric key that lives in two places:
-
-1. **Azure Key Vault** under the secret name `backup-encryption-key`
-   (populated by `deploy/azure/bootstrap.sh`; consumed by the reset Container
-   Apps Job via `secretRef`).
-2. **Maintainer's password manager**, so the seed can be re-baked locally.
-
-**Never commit the key.** `bake-seed.sh` reads it from the
-`BACKUP_ENCRYPTION_KEY` environment variable and fails if it's missing. The
-backup CLI reads the same environment variable, keeping the key out of process
-arguments and failure stack traces; `--key` remains available for manual use.
-
-Rotating the key is a two-step deploy:
-
-1. Re-bake `nightly-seed.kmpbackup` with the new key, commit, push.
-2. Update `backup-encryption-key` in Key Vault so the nightly restart sees it.
-
-Do these in the same change — if the key in Key Vault drifts from the key
-the committed blob was baked with, the reset job will fail.
-
-## How to (re)bake the seed
-
-From a developer workstation with the app's local dev stack running
-(Postgres or MySQL both work):
-
-```bash
-# 1. Refresh and validate the deterministic SQL snapshot data.
+# Optional only when the tracked SQL snapshots themselves need regeneration.
 php app/scripts/seed/fictionalize-scale-data.php --write
-php app/scripts/seed/fictionalize-scale-data.php --check
 php app/scripts/seed/sync-ansteorra-award-catalog.php --write
+
+# Validate tracked snapshots.
+php app/scripts/seed/fictionalize-scale-data.php --check
 php app/scripts/seed/sync-ansteorra-award-catalog.php --check
 
-# 2. Make sure local DB is seeded to the state you want to snapshot.
+# Rebuild the local database deliberately before capturing it.
 ./reset_dev_database.sh
 
-# 3. Bake the backup (rotate BACKUP_ENCRYPTION_KEY to match what's in Key Vault).
-export BACKUP_ENCRYPTION_KEY="$(cat ~/.secrets/kmp-nightly-backup-key)"
+# Make BACKUP_ENCRYPTION_KEY available securely, then bake.
+test -n "${BACKUP_ENCRYPTION_KEY:-}"
 ./deploy/azure/seed/bake-seed.sh
 
-# 4. Commit the updated blob.
-git add deploy/azure/seed/nightly-seed.kmpbackup
-git commit -m "chore(seed): refresh nightly seed backup"
+git diff --stat -- deploy/azure/seed/nightly-seed.kmpbackup
 ```
 
-The next nightly image build bakes it in; the next reset job run restores it.
+The helper:
 
-## Refresh cadence
+1. validates the tracked scale fixtures and award catalog;
+2. applies those managed records to the local database using guarded scripts;
+3. runs `CACHE_ENGINE=apcu bin/cake backup create`;
+4. moves the newly created archive to
+   `deploy/azure/seed/nightly-seed.kmpbackup`.
 
-No fixed schedule. Re-bake when:
+Review and commit the binary artifact with the related fixture changes. The
+artifact reaches Azure only after a new application image containing it is
+built and that immutable image digest is deployed.
 
-- A new seed fixture has landed that stakeholders need (e.g. a new gathering
-  activity, workflow definition, or test member role).
-- Schema migrations have landed that change the shape of seeded data
-  significantly. (The fingerprint check will make non-refreshed restores
-  fail loudly.)
+## Encryption-key coordination
 
-Each re-bake is ~15-40 KB today and ~O(few hundred KB) even with thousands
-of members, because the payload is gzipped and only seeded dev data — not
-uploaded documents, backups-of-backups, queue history, or session tokens
-(all excluded; see `BackupService::EXCLUDED_TABLES` and `isExcludedTable`).
+The seed key is a compatibility key for this POC artifact. It is not the
+managed platform backup KEK, and it must never be committed.
 
-## Troubleshooting restore failures
+A safe rotation is coordinated:
 
-**"Backup migration fingerprint does not match current database schema."**
-→ Migrations have advanced since the seed was baked. Either re-bake (normal
-path for the nightly), or pass `--ignore-schema-mismatch` on the restore CLI
-if you *really* know what you're doing.
+1. Generate and escrow the new value through the approved secret process.
+2. Bake and review a new seed archive with that value.
+3. Build the immutable image that contains the new archive.
+4. Deploy the Azure parameters so Key Vault receives the matching
+   `backup-encryption-key` and the restore job definition references the
+   intended image and secret.
+5. Start the restore job only in the disposable POC target and verify the
+   completed execution.
+6. Retain the prior key for the approved recovery window while any old artifact
+   or job revision could still be used, then retire it under the key policy.
 
-**"sodium_crypto_aead_aes256gcm_decrypt returned false"**
-→ Key mismatch. Verify `BACKUP_ENCRYPTION_KEY` (env / Key Vault secret)
-matches the key used when the blob was baked.
+Do not assume that changing Key Vault or restarting only the web app updates a
+Container Apps Job. Verify the job's active definition and a real restore
+execution.
 
-**"foreign key constraint ... cannot be validated"**
-→ The backup carries orphaned rows (rare, but can happen if tables were
-re-parented between seed runs). Bake a fresh one on a clean reset, or pass
-`--fail-on-not-valid-fk=false` if you want the nightly job to tolerate it.
+## Troubleshooting
 
-**"Allowed memory size ... exhausted" during post-restore reconciliation**
-→ `docker/reset-and-seed.sh` gives the restore CLI 512 MB by default. Increase
-`KMP_BACKUP_RESTORE_MEMORY_LIMIT` only if a substantially larger future seed
-requires it and the reset job has enough container memory.
+**Schema fingerprint mismatch**
+
+The application migrations changed after the archive was created, or the local
+source was stale. Reset a current local database and rebake. Do not add
+`--ignore-schema-mismatch` to the managed POC restore.
+
+**Decryption or authentication failure**
+
+The archive and `BACKUP_ENCRYPTION_KEY` do not match, or the artifact is
+corrupt. Compare the intended key versions without printing the secret, verify
+the deployed image digest and job revision, and rebake/redeploy as a coordinated
+change.
+
+**Foreign-key validation failure**
+
+The source seed contains inconsistent or obsolete relationships. Rebuild from a
+clean reset and fix the fixture source. The managed restore intentionally uses
+`--fail-on-not-valid-fk`.
+
+**Memory exhaustion**
+
+The restore script defaults `KMP_BACKUP_RESTORE_MEMORY_LIMIT` to `512M`.
+Increase it only after measuring a larger reviewed seed and confirming the
+Container Apps Job has sufficient memory.

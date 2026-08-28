@@ -1,66 +1,114 @@
+---
+layout: default
+title: "Managed Platform DR Drill Execution Checklist"
+description: "Evidence-driven checklist for rehearsing platform and tenant disaster recovery safely."
+---
+
 # Managed Platform DR Drill Execution Checklist
 
-Use this checklist to run and record a disaster recovery drill against a non-production or explicitly approved drill environment. It ties the drill to the [Managed Platform Region Failover Runbook](region-failover-runbook.md) and the restore-drill controls in [Backup & Restore](backup-restore.md). It does not assert that a DR drill has already happened.
+This checklist records an approved non-production disaster-recovery exercise.
+It is not evidence that a drill has happened. Use it with the
+[region failover planning runbook](region-failover-runbook.md) and
+[backup/restore procedures](backup-restore.md).
 
-[← Back to Deployment Guide](README.md) | [Launch Readiness Gate](launch-readiness-gate.md)
+[← Deployment and operations](README.md) |
+[Launch readiness](launch-readiness-gate.md)
 
-## Drill types
+## Current capability boundary
 
-| Drill type | Frequency before launch | Destructive? | Required evidence |
-|------------|-------------------------|--------------|-------------------|
-| Tabletop | At least one before Ring 0 exit | No | Roles, scenario, decision log, action items |
-| Non-destructive restore drill | Weekly during pilot readiness | No by default | `tenant restore_drill` output and `platform_jobs` row |
-| Regional failover rehearsal | At least one before GA readiness | Use isolated drill environment | Platform restore, tenant restore, DNS plan, smoke tests |
-| KEK escrow reassembly drill | Before production go-live with test/non-production escrow material | Exposes drill shares only | Custodian attendance, fingerprint verification, reseal/rotation notes |
+The repository deploys one Azure region. Geo-redundant PostgreSQL backups and
+GRS storage do not provision a recovery environment, restore databases, validate
+DNS/TLS, or meet an RTO/RPO by themselves. The database audit chain exists;
+Azure WORM storage does not. The bundled Shamir splitter is a non-production
+placeholder and cannot be used as an escrow ceremony.
+
+A regional exercise is blocked until operators separately provision an isolated
+target, networking/DNS/TLS, secret/key access, storage access, and an approved
+platform-database `pg_restore` procedure.
+
+## Candidate drill types
+
+Cadences below are readiness proposals and become requirements only after the
+Platform Owner, Security Lead, and recovery owners approve them.
+
+| Type | Destructive? | Evidence |
+| --- | --- | --- |
+| Tabletop | No | Roles, assumptions, decision log, blockers |
+| Tenant restore plan | No by default | `tenant restore_drill` result and job row |
+| Isolated tenant restore | Yes, drill target only | Archive/key IDs, transcript, data/host smoke |
+| Platform restore | Yes, drill target only | Decrypt, `pg_restore`, platform health, metadata checks |
+| Regional rehearsal | Yes, isolated region | Infrastructure record, platform-first restore, tenants, TLS/DNS, worker cutover |
+| Escrow rehearsal | Only approved non-production material | Approved implementation, custodians, fingerprint, reseal/rotation |
 
 ## Pre-drill safety gate
 
-- [ ] Drill ticket is opened with environment, tenant(s), region(s), and scenario.
-- [ ] Incident Commander, Platform Lead, Database Lead, Storage/Audit Lead, Comms Lead, and Scribe are assigned.
-- [ ] Production customer data is not used unless approved by counsel, Security Lead, Platform Owner, and affected customer.
-- [ ] Backups selected for the drill are recent enough for the target RPO and are not the only copies.
-- [ ] No destructive restore command will run against production unless this is an approved incident response event.
-- [ ] Secret handling rules are repeated: no passwords, tokens, KEKs, Shamir shares, recovery codes, connection strings, or raw exports in tickets or chat.
-- [ ] Observability dashboards and alert routing are available for the drill window.
+- [ ] Ticket names source and target subscriptions/resource groups, regions,
+      databases, storage, tenants, and scenario.
+- [ ] Incident Commander, Platform, Database, Storage/Security, Validation,
+      Comms, and Scribe roles are assigned.
+- [ ] Exact destructive targets are independently resolved and disposable.
+- [ ] Customer production data use, if any, has explicit legal/security/customer
+      approval.
+- [ ] Selected backups are not the only copies and recovery keys are available
+      without exposing them in tickets/chat.
+- [ ] The deployed image digest and migration compatibility are recorded.
+- [ ] Duplicate web/worker/schedule authority is prevented.
+- [ ] Alerts and observation dashboards are ready.
+- [ ] External immutable storage and escrow are marked present with proof or
+      absent—not inferred from application settings.
 
-## Execution steps
+## Execution
 
-1. Open the [Managed Platform Region Failover Runbook](region-failover-runbook.md) and record the selected scenario.
-2. Run read-only preflight from `app/`:
+From `app/`, collect the read-only snapshot:
 
-   ```bash
-   bin/cake platform_health --json
-   bin/cake dr_preflight --freshness-hours 24 --json
-   bin/cake tenant restore_drill --tenant <test-tenant> --lookback-hours 36
-   ```
+```bash
+bin/cake platform_health --json
+bin/cake dr_preflight --freshness-hours 24 --json
+bin/cake tenant restore_drill --tenant <test-tenant> --lookback-hours 36
+```
 
-3. Record platform metadata backup ID, selected tenant backup ID, backup completion time, retention date, and hash.
-4. Restore platform metadata first in the drill environment, then tenant databases, following the restore ordering in the region failover runbook.
-5. Validate host resolution for at least two tenant hostnames and one unknown hostname.
-6. Validate login, member search, document access, queue processing, email-safe dry run, and audit write smoke checks.
-7. Verify WORM audit continuity and immutable storage controls; record any gaps as no-go until resolved or risk-accepted.
-8. Confirm schedules/workers run in exactly one region for the drill environment.
-9. Practice rollback/failback decision and record the cutoff criteria.
-10. Close the drill with a retro, action owners, due dates, and go/no-go recommendation.
+`dr_preflight` checks platform health, backup-row freshness, and
+queued/running jobs. It reports WORM configuration but does not include it in
+the pass result and does not prove archive decryptability, object retention,
+storage immutability, recovery infrastructure, DNS, or RTO/RPO.
 
-## Evidence checklist
+Then:
 
-| Evidence | Owner | Required state |
-|----------|-------|----------------|
-| Scenario and roles | Incident Commander | Complete before drill starts |
-| Preflight JSON output | Platform Lead | Passing or exception accepted by IC |
-| Platform backup metadata | Database Lead | Backup ID, hash, retention, age recorded |
-| Tenant backup metadata | Database Lead | Backup ID, hash, retention, age recorded |
-| Restore command transcript | Database Lead | Redacted, no secrets, timestamped |
-| Tenant smoke test results | Validation Owner | Login/workflows/documents/audit pass |
-| DNS/host-resolution proof | Platform Lead | Expected hosts map, unknown host denied |
-| WORM/immutability proof | Storage/Audit Lead | Retention/legal hold verified |
-| RTO/RPO measurement | Scribe | Actual elapsed time and backup age recorded |
-| Customer/operator communication draft | Comms Lead | Approved template or mock drill note |
-| Action items | Incident Commander | Owner and due date assigned |
+1. Record platform and tenant backup IDs, types, completion times, hashes,
+   retention metadata, and separately controlled recovery-key references.
+2. Restore platform metadata first using the external decrypt/`pg_restore`
+   process in [backup/restore](backup-restore.md#platform-metadata-recovery).
+3. Restore selected tenant databases only after platform metadata is healthy.
+4. Validate at least two tenant hosts plus an unknown host with correct TLS/SNI.
+5. Validate login, lookup, authorization workflows, documents, queue processing,
+   and safe email behavior.
+6. Validate database audit continuity and, only if provisioned, the external
+   immutable/WORM control.
+7. Enable the unified worker/schedules in exactly one region.
+8. Exercise rollback/failback decision points and capture elapsed time and
+   backup age.
+9. Close with a retro, owners, dates, and a fresh Go/no-go recommendation.
 
-## Launch gate interpretation
+## Evidence
 
-- **Go**: Drill or approved rehearsal shows the platform can meet target RTO/RPO, critical tenant smokes pass, and no unresolved P1/P2 action remains.
-- **Conditional go**: Non-critical gaps have owners, due dates, and explicit Platform Owner/Security Lead risk acceptance.
-- **No-go**: Any tenant isolation failure, missing restorable backup, failed WORM continuity, unowned critical alert, unrehearsed rollback path, or inability to restore platform metadata before tenants.
+| Item | Required state |
+| --- | --- |
+| Scenario, exact targets, roles, approvals | Complete before destructive work |
+| Preflight output | Restricted and redacted; exceptions owned |
+| Image digest and migration state | Exact values recorded |
+| Platform `.pgdump.enc` and key reference | Hash/age/retention recorded |
+| Tenant `.json.gz.enc` and key reference | Hash/age/retention recorded |
+| Restore transcript | Timestamped, redacted, target-specific |
+| Tenant/TLS/host smoke | Known hosts correct; unknown host denied |
+| Worker/schedule proof | Exactly one authority |
+| Audit/WORM evidence | Database chain verified; external immutability separately verified if claimed |
+| RTO/RPO measurement | Actual elapsed time and recovery-point age, not estimates |
+| Actions | Owner, severity, due date, retest |
+
+## Launch interpretation
+
+- **Go:** approved targets are met with actual evidence and no unresolved P1/P2.
+- **Conditional go:** non-critical gaps have time-bound, approved risk records.
+- **No-go:** tenant isolation failure, unavailable/restoration-failed platform or
+  tenant backup, duplicate workers, unowned critical gap, or any advertised
+  recovery/WORM/escrow control without evidence.

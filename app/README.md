@@ -1,53 +1,65 @@
-# CakePHP Application Skeleton
+# KMP CakePHP application
 
-![Build Status](https://github.com/cakephp/app/actions/workflows/ci.yml/badge.svg?branch=master)
-[![Total Downloads](https://img.shields.io/packagist/dt/cakephp/app.svg?style=flat-square)](https://packagist.org/packages/cakephp/app)
-[![PHPStan](https://img.shields.io/badge/PHPStan-level%207-brightgreen.svg?style=flat-square)](https://github.com/phpstan/phpstan)
+This directory contains the Kingdom Management Portal runtime. It is a PHP 8.4
+and CakePHP 5.4 application with first-party CakePHP plugins, a Vite-built
+Stimulus/Bootstrap frontend, and PHPUnit, Jest, and Playwright coverage.
 
-A skeleton for creating applications with [CakePHP](https://cakephp.org) 4.x.
+Use the repository-level Docker Compose environment for normal development; it
+provides the platform database, two tenant databases, mail capture, and the
+background worker. See the [root quick start](../README.md) and
+[Docker development guide](../docs/docker-development.md).
 
-The framework source code can be found here: [cakephp/cakephp](https://github.com/cakephp/cakephp).
+## Application layout
 
-## Installation
+| Path | Responsibility |
+| --- | --- |
+| `src/Controller` | Web and REST controllers |
+| `src/Model` | CakePHP tables, entities, and behaviors |
+| `src/Policy` | Authorization policies and query scopes |
+| `src/Services` | Domain, platform, tenancy, workflow, and integration services |
+| `src/KMP` | Shared domain helpers, tenant context, and grid definitions |
+| `templates` | CakePHP layouts, pages, elements, and email templates |
+| `assets` | Vite JavaScript and CSS sources |
+| `plugins` | First-party and bundled CakePHP plugins |
+| `config/Migrations` | Tenant application migrations |
+| `config/PlatformMigrations` | Shared platform metadata migrations |
+| `tests` | PHPUnit, Jest, Playwright BDD, fixtures, and test support |
 
-1. Download [Composer](https://getcomposer.org/doc/00-intro.md) or update `composer self-update`.
-2. Run `php composer.phar create-project --prefer-dist cakephp/app [app_name]`.
+## Common commands
 
-If Composer is installed globally, run
+Run these from `app/` inside the app container unless noted otherwise.
 
 ```bash
-composer create-project --prefer-dist cakephp/app
+bash bin/verify.sh
+vendor/bin/phpunit --testsuite core-unit
+vendor/bin/phpunit --testsuite core-feature
+vendor/bin/phpunit --testsuite plugins
+npm run test:js
+npm run dev
+npm run test:ui
+bin/cake routes
+bin/cake tenant migrate --all --include-suspended --status
 ```
 
-In case you want to use a custom app dir name (e.g. `/myapp/`):
+`npm run dev` is a development-mode Vite build, not a long-running dev server.
+Vite writes hashed assets and `webroot/.vite/manifest.json`; CakePHP templates
+resolve them through `App\View\Helper\ViteHelper`.
 
-```bash
-composer create-project --prefer-dist cakephp/app myapp
-```
+## Tenancy boundary
 
-You can now either use your machine's webserver to view the default home page, or start
-up the built-in webserver with:
+HTTP requests resolve their hostname through the platform database before the
+application datasource is bound. Tenant work must run inside
+`App\KMP\TenantContext` and use the dynamically scoped default datasource.
+Business tables intentionally do not use a shared `tenant_id` discriminator.
+Platform-only code uses the `platform` datasource and must not query tenant
+business data directly.
 
-```bash
-bin/cake server -p 8765
-```
+Read the [multi-tenant architecture guide](../docs/3.1-multi-tenant-architecture.md)
+before adding background work, caches, storage, mail configuration, migrations,
+or platform-admin operations.
 
-Then visit `http://localhost:8765` to see the welcome page.
+## Contribution contracts
 
-## Update
-
-Since this skeleton is a starting point for your application and various files
-would have been modified as per your needs, there isn't a way to provide
-automated upgrades, so you have to do any updates manually.
-
-## Configuration
-
-Read and edit the environment specific `config/app_local.php` and setup the 
-`'Datasources'` and any other configuration relevant for your application.
-Other environment agnostic settings can be changed in `config/app.php`.
-
-## Layout
-
-The app skeleton uses [Milligram](https://milligram.io/) (v1.3) minimalist CSS
-framework by default. You can, however, replace it with any other library or
-custom styles.
+Read [`AGENTS.md`](AGENTS.md) and the nearest child `AGENTS.md` before editing.
+The detailed published guides start at [`../docs/index.md`](../docs/index.md),
+and app-local implementation contracts live in [`docs/`](docs/).

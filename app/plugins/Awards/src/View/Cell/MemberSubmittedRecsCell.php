@@ -17,7 +17,7 @@ use Cake\Log\Log;
  * and administrative viewing with proper permission checks.
  * 
  * @see \Awards\Services\AwardsViewCellProvider View cell registration
- * @see /docs/5.2.17-awards-services.md Full documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.2.17-awards-services.md Full documentation
  */
 class MemberSubmittedRecsCell extends Cell
 {

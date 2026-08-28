@@ -1,122 +1,81 @@
+# Kingdom Management Portal (KMP)
 
-# KingdomMangementPortal
-![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/jhandel/KMP?utm_source=oss&utm_medium=github&utm_campaign=jhandel%2FKMP&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+KMP is a CakePHP 5 membership and operations platform for SCA kingdoms. The
+hosted architecture is database-per-tenant: a platform PostgreSQL database owns
+tenant routing and operations metadata, while each kingdom has an isolated
+application database.
 
-Membership management system for SCA Kingdoms.
+## Developer quick start
 
-Please review the wiki for solution details https://github.com/Ansteorra/KMP/wiki
-
-## Local Development
-
-Local Docker Compose is the default development workflow. Your source stays in this folder, while PHP, Apache, PostgreSQL, Mailpit, Node, Xdebug, queue workers, and scheduled CakePHP cron jobs run in containers.
+Docker Compose is the supported local workflow. It runs PHP 8.4/Apache,
+PostgreSQL 16, Mailpit, pgAdmin, Vite dependencies, and the bounded platform
+scheduler/queue worker.
 
 ```bash
 ./dev-up.sh --build
 ```
 
-After the app is healthy, `dev-up.sh` runs `dev-reset-db.sh --seed` so the database matches the current code and seeded dev users. The app is available at http://localhost:8080, Mailpit at http://localhost:8025, and PostgreSQL at 127.0.0.1:5432. Run Composer, CakePHP, npm, and tests inside the app container:
+On first use, the script copies `app/config/.env.example` to
+`app/config/.env`. Unless `KMP_RESET_DB_ON_UP=false`, every start resets and
+seeds the local platform database plus two tenant databases.
+
+| Service | Default URL |
+| --- | --- |
+| Primary tenant | <http://kmp.localhost:8080> |
+| Second tenant | <http://kmp2.localhost:8080> |
+| Mailpit | <http://localhost:8025> |
+| pgAdmin | <http://localhost:5050> |
+
+The reserved platform-admin host is
+<http://platform.kmp.localhost:8080/platform-admin>. The portal is disabled by
+default; enable it only when working on platform operations.
+
+Run application tooling inside the app container:
 
 ```bash
-docker compose exec app bin/cake migrations status
-docker compose exec app npm run build
-docker compose exec app vendor/bin/phpunit
+docker compose exec app bash bin/verify.sh
+docker compose exec app vendor/bin/phpunit --testsuite core-unit
+docker compose exec app npm run test:js
+docker compose exec app npm run dev
+docker compose exec app bin/cake tenant migrate --all --include-suspended --status
 ```
 
-See [Docker Development](docs/docker-development.md) for host aliases, Xdebug setup, scheduled jobs, database reset, and troubleshooting.
+Seeded developer accounts use `TestPassword`. See
+[`app/tests/TestDataReference.md`](app/tests/TestDataReference.md) for stable
+fixtures and personas. Never reuse development credentials outside the local
+stack.
 
-## Deployment
+Useful lifecycle commands:
 
-KMP is moving to a managed multi-tenant hosting model. The standalone installer is retired for new environments and kept in the repository as archived reference only.
-
-- 📖 [Archived self-hosted deployment reference](docs/deployment/README.md)
-- 🛠️ [Legacy installer implementation notes](installer/README.md)
-
-Dev users all have the password "TestPassword"
-
-Dev Users : 
-* admin@amp.ansteorra.org - System super user
-* agatha@ampdemo.com - Local MoAS
-* bryce@ampdemo.com - Local Seneschal
-* caroline@ampdemo.com - Regional Seneschal
-* devon@ampdemo.com - Regional Armored
-* eirik@ampdemo.com - Kingdom Seneschal
-* garun@ampdemo.com - Kingdom Rapier
-* haylee@ampdemo.com - Kingdom MoAS
-* iris@ampdemo.com - Basic User
-* jael@ampdemo.com - Pricipality Coronet
-* kal@ampdemo.com - Local Landed Nobility with a Canton
-* forest@ampdemo.com - Crown
-* leonard@ampdemo.com - Local Landed Nobility with Stronghold
-* mel@ampdemo.com - Local Exchequer and Kingdom Social Media
-
-## Utility Scripts
-
-### dev-up.sh / dev-down.sh
-Starts or stops the local Docker Compose development stack:
 ```bash
-./dev-up.sh
-./dev-down.sh
+./dev-up.sh                 # start; reset and seed by default
+./dev-reset-db.sh --seed    # rebuild platform and tenant databases
+./dev-down.sh               # stop the stack
+docker compose logs -f app scheduler
 ```
 
-### dev-reset-db.sh
-Resets the Docker development database:
-```bash
-./dev-reset-db.sh
-./dev-reset-db.sh --seed
-```
+## Documentation
 
-Seeded resets advance date-sensitive demo records to the current UTC date. Set
-`KMP_DEV_SEED_AS_OF=YYYY-MM-DD` when a reproducible seed calendar is needed.
+- [Developer documentation](docs/index.md)
+- [Multi-tenant architecture](docs/3.1-multi-tenant-architecture.md)
+- [Docker development](docs/docker-development.md)
+- [Testing contract](app/docs/testing-suite.md)
+- [Managed deployment and operations](docs/8-deployment.md)
+- [Generated API reference portal](docs/api/index.md)
 
-### fix_permissions.sh
-Fixes file permissions for Apache web server access. Run this if you encounter permission errors with logs, tmp, or images directories:
-```bash
-./fix_permissions.sh
-```
+The legacy standalone installer and self-hosted deployment material remain only
+as maintenance references. New hosted environments use the managed
+multi-tenant deployment workflow.
 
-### reset_dev_database.sh
-Resets the development database to a clean state with seed data:
-```bash
-./reset_dev_database.sh
-```
+## Repository map
 
-### load_test.sh
-Runs performance sizing benchmarks (route latency, concurrency, and DB query profile) against the application:
-```bash
-./load_test.sh
-```
+| Path | Responsibility |
+| --- | --- |
+| `app/` | CakePHP application, first-party plugins, frontend, and tests |
+| `docs/` | Published developer and operator documentation |
+| `deploy/azure/` | Managed Azure platform templates and deployment scripts |
+| `docker/` | Local and production container images and entrypoints |
+| `installer/` | Retired standalone installer implementation |
 
-Optional environment overrides:
-```bash
-KMP_BASE_URL=http://127.0.0.1:8080 \
-KMP_LOGIN_EMAIL=admin@amp.ansteorra.org \
-KMP_LOGIN_PASSWORD=TestPassword \
-KMP_CONCURRENCY_LEVELS=1,5,10,20 \
-KMP_CPU_TARGET_UTIL_PCT=70 \
-KMP_MEMORY_TARGET_UTIL_PCT=80 \
-./load_test.sh
-```
-
-### security-checker.sh
-Runs security checks on the application:
-```bash
-./security-checker.sh
-```
-
-### create_erd.sh
-Generates Entity Relationship Diagrams for the database schema:
-```bash
-./create_erd.sh
-```
-
-### make_amp_seed_db.sh
-Creates a seed database for the application:
-```bash
-./make_amp_seed_db.sh
-```
-
-### merge_from_upstream.sh
-Merges changes from the upstream repository:
-```bash
-./merge_from_upstream.sh
-```
+Contributors should read [`AGENTS.md`](AGENTS.md) and the nearest child
+`AGENTS.md` before changing a subtree.

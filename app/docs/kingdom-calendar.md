@@ -1,179 +1,81 @@
-# Kingdom Calendar: Publishing Workflow & Royal Progress
+# Public kingdom calendar
 
-This document covers the public kingdom calendar feature set (issues #58–#64):
-who can publish events, how the public calendar behaves, and how royal
-progress is modeled.
+The calendar is a tenant-host public surface backed by the tenant's gatherings. It is
+unauthenticated, but it is not global: `TenantResolutionMiddleware` must resolve the request
+host before `GatheringsController` can query data.
 
-## Publishing workflow (issue #58)
+## Publication and public links
 
-Gatherings carry an explicit publish flag that controls whether they appear on
-the **public** kingdom calendar and iCal feed:
+`GatheringsController::publish()` is the only normal write path for the guarded publication
+fields:
 
-- `gatherings.published` (bool) — on the public calendar when true
-- `gatherings.published_by` / `published_on` — audit stamp, set by the publish
-  action and cleared on unpublish
+- `published` controls the `/events` listing and `/gatherings/feed` subscription.
+- `published_by` and `published_on` record the publisher and time.
+- `public_page_enabled` independently controls the event landing page at
+  `/gatherings/public-landing/<public_id>`.
 
-Publishing is a **kingdom-level privilege**, deliberately separate from branch
-gathering management so local groups cannot publish kingdom events before
-dates are secured:
+Publishing requires `GatheringPolicy::canPublish` and the “Can Publish Gatherings to Kingdom
+Calendar” permission; ordinary branch event management does not imply that ability. The
+endpoint is `POST /gatherings/publish/<id>?publish=true|false`.
 
-- Policy: `App\Policy\GatheringPolicy::canPublish`
-- Permission: **"Can Publish Gatherings to Kingdom Calendar"** (created by
-  migration `AddPublishGatheringsPermission`). It is granted to **no roles by
-  default** — assign it to the Kingdom Seneschal / Calendar Deputy roles
-  through the role management UI. Super users can always publish.
-- UI: Publish/Unpublish buttons on the gathering view page
-  (`templates/Gatherings/view.php`), shown only to users passing `canPublish`.
-- Endpoint: `POST /gatherings/publish/{id}?publish=true|false`
+For a public event link, prefer an enabled KMP landing page, then `website_url`, then plain
+text. `preregister_url` is an external link shown only while
+`Gathering::is_preregistration_open` is true. Keep these decisions server-side rather than
+reimplementing them in JavaScript.
 
-`published` is guarded against mass assignment on the `Gathering` entity; the
-only write path is `GatheringsController::publish()`.
+## `/events`
 
-### Relationship to `public_page_enabled`
+`GatheringsController::publicCalendar()`:
 
-These are independent controls:
+- selects `published = true` gatherings whose dates overlap today through two years ahead;
+- groups them by the event's timezone;
+- supports `activities[]=<id>` filtering and derives options from upcoming published events;
+- displays branch, location, activity/circle metadata, cancellation state, event and calendar
+  links, and royal-progress snapshots;
+- renders the `public_event` layout with `templates/Gatherings/public_calendar.php` and
+  `assets/css/gatherings_public.css`.
 
-| Flag | Controls | Who sets it |
-|------|----------|-------------|
-| `public_page_enabled` | The per-event public landing page (`/gatherings/public-landing/{public_id}`) | Event stewards / branch gathering managers |
-| `published` | Listing on the public kingdom calendar (`/events`) and the public iCal feed | Kingdom calendar staff only |
+An order circle is a normal gathering activity with `is_circle = true`; names are not used to
+infer the flag at runtime.
 
-### Event link precedence
+## Feed and calendar downloads
 
-Each event has one canonical public web link:
+`GET /gatherings/feed` returns a cacheable multi-event iCalendar document for published
+events from 30 days ago through two years ahead. It accepts supported grid filters under
+`filter[column][]`, emits an `ETag`, and returns `304` for a matching `If-None-Match`.
+Calendar subscriptions must retain the tenant hostname.
 
-1. **Public landing page** when `public_page_enabled` is true — it supersedes
-   the Event Website. The website field is disabled in the add/edit forms
-   while the public page is enabled, and any stored `website_url` is not shown
-   publicly.
-2. **Event Website** (`gatherings.website_url`) otherwise, when populated —
-   rendered as an external link.
-3. Neither → the event appears on the calendar as plain text (no link).
+Per-event downloads use the gathering public ID. Unauthenticated access is allowed only when
+the event is published or its public landing page is enabled; preserve the controller's
+server-side visibility check when changing download links.
 
-On `/events` both the event name and an "Event Page" / "Event Website" quick
-link use this precedence. Per-event `.ics` downloads are public when either
-`published` or `public_page_enabled` is set.
+## Royal progress
 
-### Pre-registration link
+Royal progress is metadata on `gathering_attendances`, not an activity type. The table method
+`applyRoyalProgress()` validates that the member currently holds the selected
+progress-enabled office, then records `progress_office_name` and `progress_branch_name`
+snapshots and forces `share_with_kingdom = true`. Public displays use the snapshots so an old
+event does not change when office assignments change. Progress fields remain guarded from
+normal mass assignment.
 
-`gatherings.preregister_url` holds the external pre-registration / payment URL
-and `gatherings.preregister_closes_on` (a date) is the last day it is offered.
-Pre-registration is currently an external process; KMP only links to it.
+## Theme and embedding constraints
 
-The `Gathering::is_preregistration_open` virtual is the single source of truth:
-it is true when a pre-register URL is set, the gathering is not cancelled, and
-the close date (if any) has not passed. A null close date keeps it open until
-the event; callers still guard on "not past" separately.
+`Plugin.PublicGatherings.CustomCSS` is the supported tenant theme override. It is appended
+after the base `.kc-*` styles by the controller/template path; keep style-end breakout
+protection in place.
 
-The pre-register button appears wherever an upcoming event is shown:
+Linking from an external site is supported. Cross-origin iframe embedding is not: every
+response currently sends `X-Frame-Options: SAMEORIGIN` and CSP
+`frame-ancestors 'self'`. The public layout and back-stack exclusion do not override those
+headers. Do not document or depend on WordPress iframe embedding unless the application gains
+a narrowly reviewed frame policy and corresponding clickjacking tests.
 
-- Public landing page hero (with a "Pre-registration open until <date>" note)
-- `/events` public calendar (quick link with an "until <date>" note)
-- `/calendar?view=list` (authenticated calendar list)
-- The gathering quick-view modal in the calendar
+## Source and verification map
 
-The `calendarGridData` and `quickView` queries select `preregister_url` and
-`preregister_closes_on` explicitly; the public landing/calendar queries load
-all gathering columns.
-
-## Public kingdom calendar (issues #59, #60, #63)
-
-- Route: **`/events`** → `GatheringsController::publicCalendar()`
-  (unauthenticated, read-only, list-first)
-- Lists only `published = true` gatherings from today through +2 years,
-  grouped by month, in each event's own timezone.
-- Shows inline (no expansion needed): dates/times, host branch, location, the
-  event's web link (`gatherings.website_url`, issue #59), a `.ics` download,
-  a cancelled badge when applicable, activity chips, and royal progress with a
-  crown icon (issue #63).
-- **Activity filter**: a no-JS filter bar lets visitors narrow the list by
-  activity (`?activities[]=<id>`). Options are the activities present on any
-  upcoming published event.
-- **Circles are activities flagged `is_circle`**: create an activity (e.g.
-  "Laurel Circle" / "Order of the Pelican"), tick the **Order Circle** switch
-  on the activity add/edit form, and attach it to gatherings. Flagged
-  activities get the order-circle icon and a highlighted chip on `/events`, and
-  the activity filter covers the circles facet. The flag is authoritative — the
-  icon does not depend on the activity name (so "Drum Circle" stays plain). The
-  `is_circle` migration backfilled `TRUE` for existing activities whose name
-  contained "circle" to preserve prior behavior.
-- The header offers a `webcal://` subscription link to the public feed
-  (`/gatherings/feed`), which applies the same `published = true` filter.
-- Template: `templates/Gatherings/public_calendar.php`; styles live in
-  `assets/css/gatherings_public.css` (`.kc-*` classes).
-
-## Royal progress via RSVP metadata (issues #61, #62)
-
-Royal progress is **not** a separate activity type. It is metadata on the
-normal RSVP record (`gathering_attendances`):
-
-- `is_royal_progress` (bool)
-- `progress_office_id` — `officers_offices.id` reference (UI pre-selection
-  only; intentionally no FK)
-- `progress_office_name` / `progress_branch_name` — **snapshots** taken at
-  RSVP time so the progress record keeps its meaning after the office holder
-  changes (issue #62). The `progress_title` virtual field renders them as
-  e.g. "Crown of Ansteorra".
-
-### Which offices count as progress
-
-Offices carry an `is_royal_progress` flag (`officers_offices.is_royal_progress`),
-editable on the office add/edit forms in the Officers plugin. Flag the Crown,
-Coronet, and heir offices; leave everything else off.
-
-### How a progress RSVP is recorded
-
-1. A member who **currently holds** a progress-flagged office opens the normal
-   RSVP modal (gathering view, public landing page, or calendar). The modal
-   shows a "Royal Progress" select listing their current progress-eligible
-   offices (`GatheringAttendancesTable::currentProgressOfficersForMember()`).
-2. On save, the controller passes `progress_officer_id` to
-   `GatheringAttendancesTable::applyRoyalProgress()`, which verifies the
-   officer assignment (belongs to the member, status Current, office flagged)
-   and writes the snapshot. Invalid selections are rejected server-side.
-3. Progress RSVPs are always shared with the kingdom
-   (`share_with_kingdom = true` is forced) — public visibility is the point.
-4. The mobile RSVP JSON endpoints (`mobileRsvp` / `mobileUpdateRsvp`) accept
-   the same `progress_officer_id` field.
-
-All progress fields are guarded against mass assignment; `applyRoyalProgress()`
-is the only write path.
-
-### Where progress is displayed
-
-- `/events` — crown icon on the event row plus a "Progress: Crown of
-  Ansteorra (Sca Name)" line
-- Public landing page hero — "Royal Progress" banner
-- Both use the snapshot fields, never live officer data.
-
-## Theming the public calendar (issue #65)
-
-The `/events` page is built entirely from a set of CSS custom properties
-(`--kc-*`) scoped to `.kingdom-calendar-page` in `assets/css/gatherings_public.css`
-(the heraldic default: parchment, a gules accent, regalia gold, and a
-Marcellus/Spectral type pairing, with each event's date on a shield-shaped
-escutcheon). Reskinning a kingdom is mostly a matter of overriding a handful of
-those variables; power users can target the `.kc-*` classes directly.
-
-The override surface is the **`Plugin.PublicGatherings.CustomCSS`** app setting
-(type `css`, edited in the app-settings code editor). `publicCalendar` injects
-its value into a `<style>` block *after* the base stylesheet, so admin CSS wins.
-The value is guarded against `</style>` breakout. The setting is seeded (by
-migration `AddPublicGatheringsCssAppSetting`) with a fully-commented default that
-documents every theme variable and the key classes — inert until an admin
-uncomments/edits it, so the stock look ships unchanged.
-
-`css` is a first-class app-setting type: it appears in the "Add setting" type
-dropdown and renders in the code editor (no JSON/YAML validation).
-
-## Embedding
-
-The public calendar is self-contained (no app chrome, no authentication) and
-can be linked or iframed from a kingdom WordPress site.
-
-Because `/events` is meant to be embedded, `GatheringsController::publicCalendar`
-is excluded from the back-navigation stack (`$isNoStack` in
-`AppController::beforeFilter`, alongside `NavBar` and `AppSettings::asset`). An
-authenticated user viewing a page that iframes `/events` shares their session
-with the iframe request, so without this exclusion the calendar would push
-itself onto their back-button history.
+- `config/routes.php`
+- `src/Application.php` (tenant middleware order and browser security headers)
+- `src/Controller/GatheringsController.php`
+- `src/Policy/GatheringPolicy.php`
+- `src/Model/Table/GatheringAttendancesTable.php`
+- `templates/Gatherings/public_calendar.php`
+- `assets/css/gatherings_public.css`

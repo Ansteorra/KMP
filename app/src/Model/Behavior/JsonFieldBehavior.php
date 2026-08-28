@@ -14,7 +14,7 @@ use InvalidArgumentException;
  * Enables querying JSON fields using database-specific JSON extraction syntax.
  * Provides addJsonWhere() for $.path-based JSON field filtering.
  *
- * @see /docs/3.2-model-behaviors.md#jsonfield-behavior
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/3.2-model-behaviors.md#jsonfield-behavior
  */
 class JsonFieldBehavior extends Behavior
 {

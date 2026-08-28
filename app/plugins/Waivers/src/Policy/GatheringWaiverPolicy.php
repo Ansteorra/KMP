@@ -20,7 +20,7 @@ use Cake\ORM\TableRegistry;
  * waivers and view pending waivers for gatherings they manage, as long as
  * the gathering has not been closed for waivers.
  *
- * @see /docs/5.7-waivers-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.7-waivers-plugin.md
  * @method bool canAdd(\App\KMP\KmpIdentityInterface $user, \Cake\ORM\Table $table, mixed ...$optionalArgs)
  * @method bool canIndex(\App\KMP\KmpIdentityInterface $user, \Cake\ORM\Table $table, mixed ...$optionalArgs)
  * @method bool canExport(\App\KMP\KmpIdentityInterface $user, \Cake\ORM\Table $table, mixed ...$optionalArgs)

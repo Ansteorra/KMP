@@ -1,99 +1,34 @@
 ---
 name: nightly-deploy
-description: Deploy KMP to the Azure nightly environment. Use when the user asks to deploy to nightly, push updates to nightly, build + deploy the nightly image, reset the nightly database, check nightly health/status, tail nightly logs, or get the nightly URL. Triggers on phrases like "deploy to nightly", "push to nightly", "redeploy nightly", "reset nightly db", "nightly status", "nightly logs", or "nightly health".
+description: Inspect or operate KMP's direct Azure nightly helper without confusing it with the official dev, POC, and production release path.
 ---
 
-# KMP Nightly Azure Deploy
+# KMP direct nightly helper
 
-All nightly deploy operations go through `deploy/azure/nightly-deploy.sh`.
-The script talks directly to Azure via `az` CLI (no dependency on the
-`nightly-deploy-azure.yml` GitHub Actions workflow, which isn't registered
-on `main`). It reuses `gh` only for the *build* step, which hits the
-well-registered `nightly.yml` workflow.
+Use `deploy/azure/nightly-deploy.sh` from the repository root for explicitly requested direct-nightly operations. Begin with:
 
-## Prerequisites
-
-- `az login --tenant 77070ec3-247c-40ce-9a4f-df875ffe914f` (once per codespace)
-- `gh auth login` (for build/status subcommands)
-
-## Live environment
-
-- **Tenant URLs**:
-  - https://poc-alpha.kmpdev.ansteorra.org/
-  - https://poc-beta.kmpdev.ansteorra.org/
-- **Platform admin URL**: https://plat.kmpdev.ansteorra.org/platform-admin/login
-- **Login**: any seeded tenant email + `TestPassword` (example: `admin@test.com`)
-- **Azure RG**: `kmp-nightly-rg` / ACR: `kmpnightlyacrd346d2`
-
-## Usage
-
-Always from the repo root.
-
-| Intent | Command |
-|---|---|
-| Deploy whatever `:nightly` currently is in GHCR | `bash deploy/azure/nightly-deploy.sh deploy` |
-| Rebuild image from HEAD then deploy | `bash deploy/azure/nightly-deploy.sh build` |
-| Build current local checkout, push to ACR, deploy | `bash deploy/azure/nightly-deploy.sh deploy-local` |
-| Local deploy + Awards recommendation migration | `bash deploy/azure/nightly-deploy.sh deploy-local --recommendations` |
-| Deploy + wipe & reseed DB (all passwords → TestPassword) | `bash deploy/azure/nightly-deploy.sh reset` |
-| Run app + platform migrations on current image | `bash deploy/azure/nightly-deploy.sh migrate` |
-| Run migrations + recommendation migration | `bash deploy/azure/nightly-deploy.sh migrate --recommendations` |
-| Reset tenant member passwords to TestPassword | `bash deploy/azure/nightly-deploy.sh reset-passwords` |
-| Smoke-check custom tenant/platform hosts | `bash deploy/azure/nightly-deploy.sh verify-tenants` |
-| Recent GHCR build run status | `bash deploy/azure/nightly-deploy.sh status` |
-| Tail latest running build | `bash deploy/azure/nightly-deploy.sh watch` |
-| Show Container App revisions | `bash deploy/azure/nightly-deploy.sh revisions` |
-| Tail web container logs | `bash deploy/azure/nightly-deploy.sh logs [--tail N]` |
-| Curl `/health` | `bash deploy/azure/nightly-deploy.sh health` |
-| Print the URL | `bash deploy/azure/nightly-deploy.sh url` |
-| Show help | `bash deploy/azure/nightly-deploy.sh help` |
-
-Overrides via env: `IMAGE_TAG`, `NIGHTLY_BRANCH`, `GH_REPO`,
-`AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_ACR_NAME`,
-`AZURE_WEB_APP_NAME`, `AZURE_{MIGRATE,QUEUE,SYNC,RESET}_JOB_NAME`,
-`LOCAL_IMAGE_TAG`, `LOCAL_BUILD_PLATFORM`, `TEST_PASSWORD`.
-
-## What `deploy` does
-
-1. `az acr import ghcr.io/ansteorra/kmp:nightly → kmp:nightly-YYYY-MM-DD-HHMMSS`
-2. Temporarily patches the migrate job to run app migrations, app settings update, and platform migrations, then restores it to `/bin/true`
-3. (if `--recommendations`) runs `bin/cake awards migrate_award_recommendations --apply --allow-open-manual-review`
-4. (if `--reset`) starts the reset job and resets tenant member passwords to `TestPassword`
-5. `az containerapp update --image …` on `kmpnightly-web` — forces a new revision
-6. `az containerapp job update --image …` on queue / sync / reset jobs so their next scheduled run uses the new image
-7. Smoke-checks the custom tenant/platform hosts and polls `https://…/health` for up to 10 min until 200 OK
-
-## Typical flows
-
-### "I just pushed — deploy it"
 ```bash
-bash deploy/azure/nightly-deploy.sh build
-```
-(Script auto-chains into `deploy` after the GH build finishes.)
-
-### "I have uncommitted local changes — push this exact checkout"
-```bash
-bash deploy/azure/nightly-deploy.sh deploy-local --recommendations
+bash deploy/azure/nightly-deploy.sh help
 ```
 
-### "GHCR already has the image I want"
-```bash
-bash deploy/azure/nightly-deploy.sh deploy
-```
+The script and its help output are the authority for current subcommands, environment overrides, resource names, and URLs. Do not copy volatile Azure identifiers into durable guidance.
 
-### "DB is wedged — start over"
-```bash
-bash deploy/azure/nightly-deploy.sh reset
-```
+## Safety boundary
 
-### "Something is broken — what's the pod saying?"
-```bash
-bash deploy/azure/nightly-deploy.sh revisions
-bash deploy/azure/nightly-deploy.sh logs --tail 500
-```
+This helper is separate from the official release contract:
 
-## When NOT to use this skill
+- “Push to dev” and “Do a release” must use `.github/skills/release-deploy/SKILL.md` and the gated GitHub workflows.
+- Direct-nightly deployment does not prove that a commit or digest passed POC gates and must never be used to promote production.
+- `deploy-local` builds and pushes the current checkout. `reset` wipes/reseeds data. `reset-passwords` changes credentials. Run these only when the user explicitly authorizes that exact state change.
+- Confirm the Azure subscription/resource group and authenticated `az`/`gh` identities before any mutation.
+- Treat seeded passwords and accounts as disposable environment fixtures, never production credentials.
 
-- For local dev resets, use `bash reset_dev_database.sh` (MySQL) — not nightly.
-- For production releases, use the release workflow (`.github/workflows/release.yml`).
-- For infra / bicep changes, use `deploy/azure/bootstrap.sh`.
+## Read-only inspection
+
+Use the helper's current read-only subcommands for status, build watching, revisions, logs, health, URL output, or tenant-host verification. Verify command names through `help` before execution.
+
+## What deployment currently coordinates
+
+Source-check the helper and `deploy/azure/cutover-unified-worker.sh` before describing or changing deployment behavior. The direct flow imports or builds an image, captures scheduled-job definitions, starts a unified-worker canary, runs platform and tenant migrations, updates the web revision, probes health and tenant/platform hosts, reconciles backup keys, and parks legacy scheduler jobs after successful cutover. Optional recommendation migration and reset paths add further mutations.
+
+Report the exact command, selected image/tag or digest when available, target environment, health results, and any step not verified.

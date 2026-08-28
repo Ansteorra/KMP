@@ -54,7 +54,7 @@ class AppNavCell extends Cell
      *     ['controller' => 'Members', 'action' => 'index'] // For active states
      * ]);
      * ```
-     * @see templates/cell/AppNav/display.php Template that renders the navigation
+     * @see https://github.com/Ansteorra/KMP/blob/main/app/templates/cell/AppNav/display.php Template that renders the navigation
      * @see \App\Controller\AppController::beforeRender() Where navigation structure is built
      */
     public function display(array $appNav, Member $user, array $navBarState = []): void

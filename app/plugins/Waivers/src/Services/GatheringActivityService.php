@@ -14,7 +14,7 @@ use Cake\Log\Log;
  * Manages business logic for gathering activities and their relationship to
  * waiver requirements. Handles associating waiver types with activities.
  *
- * @see /docs/5.7-waivers-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.7-waivers-plugin.md
  */
 class GatheringActivityService
 {

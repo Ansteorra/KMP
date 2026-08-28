@@ -24,7 +24,7 @@ use ReflectionMethod;
  * Validates permissions through member roles, temporal boundaries, warrant requirements,
  * and policy framework integration. Implements multi-tier caching for performance.
  *
- * @see /docs/4.4-rbac-security-architecture.md For complete RBAC documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/4.4-rbac-security-architecture.md For complete RBAC documentation
  */
 class PermissionsLoader
 {

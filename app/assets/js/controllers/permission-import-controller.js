@@ -40,19 +40,19 @@ class PermissionImport extends Controller {
         buttonContainer: String,  // Selector for external button container
     }
 
-    /** @type {string|null} Base64 encoded import data for final submission */
+    /** Base64 encoded import data for final submission. @type {string|null} */
     importData = null
 
-    /** @type {HTMLInputElement|null} External file input reference */
+    /** External file input reference. @type {HTMLInputElement|null} */
     externalFileInput = null
 
-    /** @type {HTMLElement|null} External import button reference */
+    /** External import button reference. @type {HTMLElement|null} */
     externalImportButton = null
 
-    /** @type {Function|null} Bound handleFileSelect reference for cleanup */
+    /** Bound handleFileSelect reference for cleanup. @type {Function|null} */
     boundHandleFileSelect = null
 
-    /** @type {Function|null} Bound triggerFileSelect reference for cleanup */
+    /** Bound triggerFileSelect reference for cleanup. @type {Function|null} */
     boundTriggerFileSelect = null
 
     /**

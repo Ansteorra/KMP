@@ -181,6 +181,12 @@ jobs:
       - name: Validate workflow definition JSON
         run: cd app && npm run validate:workflows
 
+      - name: Validate developer documentation
+        run: |
+          cd app
+          npm run docs:check
+          npm run docs:js:check
+
       - name: Upload Jest results
         if: success() || failure()
         uses: actions/upload-artifact@v4

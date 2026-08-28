@@ -12,7 +12,7 @@ use Cake\Database\Expression\QueryExpression;
  * Supports both flat filters (legacy AND conditions) and nested expression trees
  * (OR/AND combinations).
  *
- * @see /docs/9.3-dataverse-grid-complete-guide.md For grid configuration options
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/9.3-dataverse-grid-complete-guide.md For grid configuration options
  */
 class GridViewConfig
 {

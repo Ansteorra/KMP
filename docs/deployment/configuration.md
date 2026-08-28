@@ -1,152 +1,133 @@
-# Configuration Reference
+---
+layout: default
+title: "Legacy Self-Hosted Configuration Appendix"
+description: "Archived configuration reference for existing single-database self-hosted KMP installations."
+---
 
-Complete reference for all KMP deployment configuration options.
+# Legacy Self-Hosted Configuration Appendix
 
-[← Back to Deployment Guide](README.md)
+This page is an archived reference for existing single-database installations.
+It is not the managed platform environment reference and is not complete for
+multi-tenancy.
 
-> Legacy note: this page documents self-hosted configuration for archived deployments. New environments should not rely on the retired installer flow.
+For current configuration, use
+[Environment Setup and Variables](../8.1-environment-setup.md) and
+`deploy/azure/main.bicep`.
 
-## Environment Variables
+[← Back to Deployment and Operations](README.md)
 
-### Required
+## Unsupported scope
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `DOMAIN` | Domain name for SSL certificate | `kmp.example.com` |
-| `SECURITY_SALT` | Application security salt (hex string) | `openssl rand -hex 32` |
-| `MYSQL_ROOT_PASSWORD` | Database root password | `openssl rand -base64 24` |
-| `MYSQL_PASSWORD` | Database application user password | `openssl rand -base64 24` |
+The historical Docker/VPC profile uses one MariaDB database, Caddy, the
+production application image, local or credential-based document storage, and an
+optional updater sidecar. It does not provide:
 
-### Application
+- `PLATFORM_DATABASE_URL` or the platform metadata schema;
+- database-per-tenant provisioning and host routing;
+- database-backed platform secrets and tenant KEKs;
+- the managed three-minute unified worker;
+- the managed migration job and tenant fleet migration;
+- encrypted managed tenant/platform backup formats; or
+- same-digest POC-to-production promotion.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `APP_NAME` | `KMP` | Application display name |
-| `DEBUG` | `false` | Enable debug mode (`true`/`false`) |
-| `KMP_IMAGE_TAG` | `latest` | Docker image tag (version or channel) |
-| `KMP_DEPLOY_PROVIDER` | `docker` | Deployment provider identifier (`docker`, `vpc`, `railway`, `fly`, `aws`, `azure`, `shared`) |
-| `DEPLOYMENT_PROVIDER` | `docker` | App runtime provider override (falls back to `KMP_DEPLOY_PROVIDER` when unset) |
+Do not use these values to construct a new managed deployment.
 
-### Database
+## Historical VPC environment
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MYSQL_HOST` | `db` | Database hostname |
-| `MYSQL_DB_NAME` | `kmp` | Database name |
-| `MYSQL_USERNAME` | `kmpuser` | Database username |
-| `MYSQL_PASSWORD` | — | Database password (required) |
-| `MYSQL_ROOT_PASSWORD` | — | Database root password (required for VPC) |
+The archived `deploy/vpc/docker-compose.yml` and
+`deploy/vpc/.env.example` are the exact source of truth. The main variables are:
 
-### Email (SMTP)
+| Variable | Historical purpose |
+| --- | --- |
+| `DOMAIN` | Caddy host and certificate name |
+| `SECURITY_SALT` | CakePHP security salt |
+| `MYSQL_HOST` | Compose MariaDB service, normally `db` |
+| `MYSQL_DB_NAME` | Single application database |
+| `MYSQL_USERNAME` / `MYSQL_PASSWORD` | Application database credentials |
+| `MYSQL_ROOT_PASSWORD` | MariaDB container administration |
+| `KMP_IMAGE_TAG` | Image tag used by Compose |
+| `DOCUMENT_STORAGE_ADAPTER` | `local`, `azure`, or `s3` |
+| `EMAIL_SMTP_HOST` / `EMAIL_SMTP_PORT` | SMTP endpoint |
+| `EMAIL_SMTP_USERNAME` / `EMAIL_SMTP_PASSWORD` | SMTP credentials |
+| `EMAIL_SMTP_TLS` / `EMAIL_FROM` | SMTP TLS and sender |
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `EMAIL_SMTP_HOST` | — | SMTP server hostname |
-| `EMAIL_SMTP_PORT` | `587` | SMTP server port |
-| `EMAIL_SMTP_USERNAME` | — | SMTP authentication username |
-| `EMAIL_SMTP_PASSWORD` | — | SMTP authentication password |
+Use a pinned immutable tag/digest when maintaining an old installation. The
+archived Compose file still uses the historical `ghcr.io/jhandel/kmp` package;
+the current official managed package is `ghcr.io/ansteorra/kmp`. Do not switch
+registries without first proving image compatibility.
 
-### Document Storage
+### Historical document storage names
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DOCUMENT_STORAGE_ADAPTER` | `local` | Storage backend: `local`, `azure`, or `s3` |
-| `AZURE_STORAGE_AUTH_MODE` | `connectionString` | Azure auth mode: `managedIdentity` in Azure, `connectionString` for legacy/dev |
-| `AZURE_STORAGE_ACCOUNT_NAME` | — | Azure Storage account name when using managed identity |
-| `AZURE_STORAGE_CONTAINER_PREFIX` | `documents` | Prefix used to derive per-tenant containers when tenant metadata has no explicit container |
-| `AZURE_STORAGE_CONNECTION_STRING` | — | Legacy/dev Azure Blob Storage connection string; do not use for Azure Container Apps |
-| `AWS_ACCESS_KEY_ID` | — | AWS access key for S3 storage |
-| `AWS_SECRET_ACCESS_KEY` | — | AWS secret key for S3 storage |
-| `AWS_REGION` | `us-east-1` | AWS region for S3 |
-| `AWS_BUCKET` | — | S3 bucket name |
+Current application configuration uses:
 
-## Config File (`~/.kmp/config.yaml`)
+- `AWS_S3_BUCKET` and `AWS_DEFAULT_REGION` as canonical S3 names;
+- `AWS_BUCKET` and `AWS_REGION` only as production-entrypoint compatibility
+  aliases;
+- `AZURE_STORAGE_CONNECTION_STRING` for legacy/dev Azure shared-key access; and
+- managed identity variables for the supported Azure platform.
 
-Legacy self-hosted deployments store management-tool configuration in `~/.kmp/config.yaml`. Existing environments may still use this file, and maintainers can also create it manually when reconstructing an archived self-hosted install.
+Local container storage is not durable unless the deployment mounts a persistent
+volume and backs it up. It is never suitable for ephemeral managed replicas.
 
-```yaml
-# Example config.yaml
-provider: docker
-domain: kmp.example.com
-channel: release
-image: ghcr.io/jhandel/kmp:latest
-backup:
-  enabled: true
-  schedule: "0 3 * * *"
-  retention_days: 30
-  upload: local          # local, s3, or azure
-```
+## Retired management-tool file
 
-### Config Commands
+The archived Go tool reads `~/.kmp/config.yaml` with this shape:
 
-```bash
-kmp config               # View current configuration
-```
+    version: 1
+    deployments:
+      default:
+        provider: docker
+        channel: release
+        domain: kmp.example.org
+        image: ghcr.io/jhandel/kmp
+        image_tag: latest
+        compose_dir: /opt/kmp
+        storage_type: local
+        backup_enabled: true
+        backup_schedule: "0 3 * * *"
+        backup_retention_days: 30
 
-## Database Configuration
+Backup fields are flat under the deployment. The tool does not accept the old
+nested `backup:` example that previously appeared on this page.
 
-### MySQL (Default)
+`kmp install` is retired. Azure, AWS, and VPS providers are stubs; other
+provider methods are incomplete. `kmp update` does not create a backup and
+`kmp rollback` does not restore the database.
 
-KMP uses MySQL/MariaDB as its primary database. The bundled VPC stack includes MariaDB with tuned settings (`mariadb.cnf`):
+## Historical database warning
 
-- `innodb_buffer_pool_size = 256M`
-- `max_connections = 100`
-- Character set: `utf8mb4` with `utf8mb4_unicode_ci` collation
+The VPC scripts and Compose template assume one MariaDB database. Their backup
+script dumps only `MYSQL_DB_NAME`. Those artifacts cannot restore platform
+metadata plus a managed tenant fleet.
 
-### Bring Your Own Database
+Managed Azure uses PostgreSQL Flexible Server and separate `DATABASE_URL` and
+`PLATFORM_DATABASE_URL` connections. Read
+[Backup and Restore](backup-restore.md) before moving data between the
+architectures.
 
-To use an external MySQL database, set the `MYSQL_HOST`, `MYSQL_DB_NAME`, `MYSQL_USERNAME`, and `MYSQL_PASSWORD` environment variables to point to your managed database instance.
+## Secret handling
 
-Requirements:
-- MySQL 5.7+ or MariaDB 10.2+
-- `utf8mb4` character set support
-- A dedicated database and user for KMP
+Never commit `.env` or `~/.kmp/config.yaml`. Keep permissions restricted and
+store recovery copies in an approved encrypted secret manager. Do not paste
+database URLs, storage connection strings, SMTP credentials, salts, KEKs, or
+backup passphrases into tickets or documentation.
 
-## Email / SMTP Setup
+Changing `SECURITY_SALT` can invalidate security-sensitive application state.
+Rotating a database password or storage key also requires updating every runtime
+that consumes it and verifying health; a container restart alone is not a
+complete rotation procedure.
 
-KMP requires SMTP for sending email notifications (password resets, warrant notices, etc.).
+## Historical verification
 
-**Example for common providers:**
+For an existing VPC installation:
 
-```bash
-# Gmail (use App Password, not your Google password)
-EMAIL_SMTP_HOST=smtp.gmail.com
-EMAIL_SMTP_PORT=587
-EMAIL_SMTP_USERNAME=your-email@gmail.com
-EMAIL_SMTP_PASSWORD=your-app-password
+    docker compose ps
+    docker compose logs --tail 200 app
+    curl -fsS https://<legacy-host>/livez
+    curl -fsS https://<legacy-host>/health
 
-# Amazon SES
-EMAIL_SMTP_HOST=email-smtp.us-east-1.amazonaws.com
-EMAIL_SMTP_PORT=587
-EMAIL_SMTP_USERNAME=your-ses-smtp-username
-EMAIL_SMTP_PASSWORD=your-ses-smtp-password
+`/livez` proves only that the container serves the static probe. `/health`
+checks the configured default database and cache and returns HTTP 503 when
+readiness is degraded.
 
-# Mailgun
-EMAIL_SMTP_HOST=smtp.mailgun.org
-EMAIL_SMTP_PORT=587
-EMAIL_SMTP_USERNAME=postmaster@your-domain.com
-EMAIL_SMTP_PASSWORD=your-mailgun-password
-```
-
-## Security Settings
-
-| Setting | Recommendation |
-|---------|---------------|
-| `DEBUG` | Always `false` in production |
-| `SECURITY_SALT` | Unique per deployment, at least 64 hex characters |
-| SSL/TLS | Always enabled — Caddy (VPC) or platform-managed (PaaS) |
-| Database passwords | Randomly generated, at least 24 characters |
-
-## Storage Adapter Configuration
-
-### Local Storage (Default)
-
-Files are stored in the container's filesystem. Suitable for development and small deployments.
-
-### Azure Blob Storage
-
-See the [existing Azure Blob Storage documentation](../8-deployment.md#84-azure-blob-storage-configuration) for detailed setup instructions.
-
-### Amazon S3
-
-Set `DOCUMENT_STORAGE_ADAPTER=s3` and configure the `AWS_*` environment variables listed above.
+New deployments must use the managed runbooks rather than this appendix.

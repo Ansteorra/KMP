@@ -14,6 +14,6 @@ use App\Policy\BasePolicy;
  *
  * @see \App\Policy\BasePolicy Base table authorization functionality
  * @see \Awards\Model\Table\EventsTable Event data management
- * @see /docs/5.2.10-awards-events-table-policy.md Full documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.2.10-awards-events-table-policy.md Full documentation
  */
 class EventsTablePolicy extends BasePolicy {}

@@ -17,7 +17,7 @@ use RuntimeException;
  * Generates non-sequential, secure public identifiers for entities.
  * Prevents ID enumeration attacks by using Base62 random strings.
  *
- * @see /docs/7.1-security-best-practices.md PublicIdBehavior documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/7.1-security-best-practices.md PublicIdBehavior documentation
  */
 class PublicIdBehavior extends Behavior
 {

@@ -42,7 +42,7 @@ use Officers\Services\OfficerWorkflowConditions;
  * Provides complete officer lifecycle management including hierarchical organization,
  * warrant integration, temporal assignments, and service-oriented architecture.
  *
- * @see /docs/5.1-officers-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.1-officers-plugin.md
  */
 class OfficersPlugin extends BasePlugin implements KMPPluginInterface, KMPApiPluginInterface
 {

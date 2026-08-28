@@ -1,26 +1,10 @@
 ---
 name: sync-changelog
-description: Syncs app/CHANGELOG.md with meaningful user-facing changes from git history since last sync. Use when updating the release changelog or user mentions sync changelog.
+description: Builds or refreshes the canonical KMP release section in app/CHANGELOG.md from source-checked git history.
 ---
 
-# Sync Changelog
+# Sync the KMP changelog
 
-Update user-facing `app/CHANGELOG.md` from git history.
+Read and execute `.github/prompts/sync-changelog.prompt.md` in full.
 
-## Workflow
-
-**Read and execute** `.github/prompts/sync-changelog.prompt.md` in full.
-
-## Summary
-
-1. Read `<!-- LAST_SYNCED_COMMIT -->` and `<!-- LAST_SYNCED_DATE -->` markers in `app/CHANGELOG.md`
-2. `git log` from last sync to HEAD (no merges)
-3. Include only user-facing features/improvements/security — exclude refactors, tests, CI, typos
-4. Group related commits; write user-perspective titles
-5. Update sync markers; add entries newest-first
-
-Tags: `New Feature`, `Improvement`, `Security`, `Announcement`
-
-Optional args: `--dry-run`, `--since COMMIT`, `--since-date YYYY-MM-DD`
-
-Changelog displayed at `/pages/changelog`.
+Inspect commits and relevant diffs, include meaningful user-visible fixes as well as features, consolidate duplicates, and preserve the established user-facing format. For a release candidate, the canonical heading is `## KMP <version without leading v> — <Month Day, Year>`. Do not tag, deploy, publish, or move branches as part of a changelog-only request.

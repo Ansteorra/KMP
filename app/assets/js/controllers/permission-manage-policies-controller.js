@@ -50,7 +50,7 @@ class PermissionManagePolicies extends Controller {
         url: String,
     }
 
-    /** @type {Array} Queue for managing sequential AJAX requests to prevent race conditions */
+    /** Queue for managing sequential AJAX requests to prevent race conditions. @type {Array} */
     changeQueue = []
 
     /**

@@ -90,7 +90,7 @@ class NotesCell extends Cell
      * ]);
      * ```
      * @see \App\Model\Table\NotesTable::findByEntity() Alternative finder method
-     * @see templates/cell/Notes/display.php Template that renders the notes interface
+     * @see https://github.com/Ansteorra/KMP/blob/main/app/templates/cell/Notes/display.php Template that renders the notes interface
      */
     public function display($entity_id, $entity_type, $viewPrivate = false, $canCreate = true): void
     {

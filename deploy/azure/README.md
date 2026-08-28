@@ -1,10 +1,14 @@
 # KMP Azure Deployment
 
 The POC KMP environment runs on **Azure Container Apps + Jobs**, backed by
-**Azure Database for PostgreSQL Flexible Server**, with the Docker image
-mirrored nightly from GHCR into an **Azure Container Registry**. Every
-resource is defined in [`main.bicep`](./main.bicep); nothing is clicked in the
-portal.
+**Azure Database for PostgreSQL Flexible Server**. Each green `dev` image is
+resolved by digest and imported from GHCR into Azure Container Registry before
+deployment. Scheduled `main` builds still publish the `nightly` channel but do
+not deploy it automatically.
+
+[`main.bicep`](./main.bicep) defines the core Azure resource shape. GitHub
+environment approval, OIDC setup, DNS, custom-domain validation, and external
+security/recovery controls remain explicit operator work.
 
 PostgreSQL migrations use the `CITEXT` extension for selected human-facing
 columns that historically inherited case-insensitive behavior from MySQL and
@@ -15,12 +19,14 @@ login and before the migration job. The helper updates the server-level
 extensions. Do not run migrations that create or use `citext` or `unaccent`
 before this allowlist step succeeds.
 
-Seed data lives in [`seed/nightly-seed.kmpbackup`](./seed/) — an
-engine-agnostic, AES-256-GCM-encrypted backup produced by
-`seed/bake-seed.sh` from a known-good local dev environment. The in-container
-reset job (`docker/reset-and-seed.sh`) restores this file via
-`bin/cake backup restore`, so the nightly env state is byte-identical to what
-any developer sees after running `reset_dev_database.sh`.
+POC seed data lives in [`seed/nightly-seed.kmpbackup`](./seed/) — an
+engine-agnostic, AES-256-GCM-encrypted logical backup produced by
+`seed/bake-seed.sh` from an approved local dev environment. The destructive
+restore job (`docker/reset-and-seed.sh`) rebuilds the default rehearsal
+database, restores this archive, resets member passwords, and clears caches. It
+is functionally aligned with the curated development seed, not byte-identical
+database state, and it does not restore the platform database or a tenant
+fleet.
 
 ## Architecture
 
@@ -30,7 +36,7 @@ any developer sees after running `reset_dev_database.sh`.
                                                     │  │  kmp-nightly-rg        │
  GitHub Actions (nightly-deploy-azure.yml)         │  │                        │
   1. OIDC → Azure                                  │  │  ACR <prefix>acr<hash> │
-  2. az acr import ghcr→ACR                        └─▶│  └─ kmp:nightly-DATE   │
+  2. az acr import ghcr→ACR                        └─▶│  └─ kmp:poc-*          │
   3. configure + canary unified worker                │                        │
   4. repair + run migrate job (wait)                  │  Key Vault             │
   5. update request-only web + probes                 │  ├─ security-salt      │
@@ -64,11 +70,13 @@ a tenant updates platform metadata and queues tenant-aware work internally; it
 does not add Azure resources.
 
 Default job shapes:
-- `<prefix>-migrate` — manual migration/canary job; entrypoint applies app
-  migrations, clears the app schema cache, applies platform metadata migrations,
-  clears the platform schema cache, then clears the isolated shared model cache
-  so dynamic tenant connection aliases cannot retain stale metadata before web
-  cutover without affecting sessions or application data caches.
+- `<prefix>-migrate` — dedicated migration job. Its explicit command runs
+  application migrations and `updateDatabase`, platform migrations, legacy
+  secret import, backup-key reconciliation, active/suspended tenant fleet
+  migration with fail-fast recovery markers, then the isolated model-cache
+  clear. The production entrypoint may perform its historical application
+  startup pass first, but deployment success is decided by the explicit ordered
+  command.
 - `<prefix>-restore` — manual restore-from-seed operation using
   `/opt/kmp/reset-and-seed.sh`.
 - `<prefix>-provision` — manual tenant provision operation shape. The safe
@@ -105,7 +113,9 @@ image caches must retain the documented `image_cache_gc` schedule.
 
 ## One-time bootstrap
 
-Everything below is idempotent; rerun safely.
+Infrastructure reconciliation is intended to be rerunnable. The bootstrap also
+starts the destructive seed-reset job and currently has no seed-skip option, so
+use it only for a disposable POC and confirm the target before rerunning it.
 
 ### Prerequisites
 - `az` CLI logged in as an account with **Owner** (or Contributor + User
@@ -138,57 +148,69 @@ cd deploy/azure
 ```
 
 This will:
-1. Register required Azure resource providers (already done in your sub).
-2. Create the resource group.
-3. Provision the ACR and `az acr import` the current
+1. Select the configured subscription and ensure the resource group exists.
+2. Provision the ACR and `az acr import` the current
    `ghcr.io/ansteorra/kmp:nightly`.
-4. Deploy all infrastructure from `main.bicep`.
-5. Create an AAD app `kmp-poc-github-oidc` with a federated credential scoped
+3. Deploy all infrastructure from `main.bicep`.
+4. Create an AAD app `kmp-poc-github-oidc` with a federated credential scoped
    to the `Ansteorra/KMP` `poc` environment.
-6. Assign the AAD app **Contributor** on the resource group.
+5. Assign the AAD app **Contributor** on the resource group.
    When PostgreSQL is hosted elsewhere, assign a custom configuration-only role
    on that specific Flexible Server so deployment can preserve and update
    `azure.extensions` without broader access to its resource group.
-7. Push the OIDC, infrastructure names, and PostgreSQL resource group/server
+6. Push the OIDC, infrastructure names, and PostgreSQL resource group/server
    names as non-secret `poc` environment variables via `gh`. The PostgreSQL
    resource group may differ from the Container Apps resource group when an
    existing server hosts isolated POC databases.
-8. Ensure `CITEXT` and `UNACCENT` are present in the PostgreSQL extension allowlist.
-9. Start the `kmp-migrate` job to apply application, platform, and tenant-fleet
+7. Ensure `CITEXT` and `UNACCENT` are present in the PostgreSQL extension allowlist.
+8. Start the `kmp-migrate` job to apply application, platform, and tenant-fleet
    migrations. Active and suspended tenants with pending app or plugin versions
    receive their normal pre-migration recovery marker and backup; current
    tenants are verified without another backup.
 
 Skip `gh` integration with `./bootstrap.sh --skip-gh-secrets`.
 
-### 3. Seed / reset the database
+### 3. Seed / reset the default POC database
 
-Seeding runs **inside the container** via the `kmp-reset` Container Apps Job,
-which mirrors `reset_dev_database.sh`:
+Seeding runs **inside the container** through the destructive
+`<prefix>-restore` Container Apps Job (the Bicep output retains
+`resetJobName` as a compatibility alias). `docker/reset-and-seed.sh` performs:
 
-1. `bin/cake resetDatabase` — drop + recreate schema
-2. Load `/opt/kmp/seed.sql` (the dev seed, baked into the image)
-3. `bin/cake migrations migrate` + `bin/cake updateDatabase`
-4. Reset every member password to `TestPassword`
-5. Clear caches
+1. `bin/cake resetDatabase` — recreate the default application schema;
+2. `bin/cake updateDatabase` — bring core/plugin tables current;
+3. `bin/cake backup restore nightly-seed.kmpbackup` — restore the bundled
+   encrypted logical archive through local backup storage;
+4. reset every member password to `TestPassword`; and
+5. clear application caches.
 
-`bootstrap.sh` kicks this job automatically at the end. To re-run it any time:
+This job does not restore platform metadata or managed tenant databases.
+`bootstrap.sh` starts it for initial POC setup. Re-run it only when intentionally
+discarding the current default POC data:
 
 ```bash
 RG="$AZURE_RESOURCE_GROUP"
-az containerapp job start -g "$RG" -n "${AZURE_NAME_PREFIX}-reset"
+az containerapp job start -g "$RG" -n "${AZURE_NAME_PREFIX}-restore"
 
-# watch progress
-az containerapp logs show -g "$RG" -n "${AZURE_NAME_PREFIX}-reset" --container reset --tail 200 --follow
+# Watch the restore-job execution from the Azure CLI/portal.
+az containerapp job execution list \
+  -g "$RG" \
+  -n "${AZURE_NAME_PREFIX}-restore" \
+  -o table
 ```
 
-The reset job remains an explicit operator action and is not part of the
-automatic POC deployment workflow.
+The restore job is not part of automatic POC release deployment and must never
+run against customer or production data.
 
 ### 4. Verify
 
 ```bash
-WEB=$(az containerapp show -g kmp-nightly-rg -n kmpnightly-web \
+set -a
+source nightly.env
+set +a
+
+WEB=$(az containerapp show \
+      -g "$AZURE_RESOURCE_GROUP" \
+      -n "${AZURE_NAME_PREFIX}-web" \
       --query properties.configuration.ingress.fqdn -o tsv)
 curl -sv "https://$WEB/health"
 ```
@@ -204,7 +226,7 @@ workflow:
 2. Imports the immutable `dev-SHA` image from the official Ansteorra GHCR
    package into the POC ACR
 3. Captures the current web and Job definitions as a rollback artifact
-4. Repairs and manually canaries the one-minute unified worker
+4. Repairs and manually canaries the three-minute unified worker
 5. Repairs `kmp-migrate`, runs application and platform migrations, imports
    missing legacy `KMP_SECRET_*` values into the database-backed store,
    reconciles backup keys, then migrates every active or suspended tenant with
@@ -224,17 +246,19 @@ destructively roll back tenant application data.
 You can also trigger it manually from the **Actions** tab → "POC / Deploy to
 Azure" → **Run workflow**, optionally overriding the image tag.
 
-## Ad-hoc nightly deploys from your workstation
+## Ad-hoc POC deployments from your workstation
 
-Use [`nightly-deploy.sh`](./nightly-deploy.sh) from the repository root for
-operator-driven releases. It talks directly to Azure and is safe to run outside
-GitHub Actions.
+Use [`nightly-deploy.sh`](./nightly-deploy.sh) from the repository root for POC
+operations and rehearsals. It talks directly to Azure; it is not the official
+release path and must not be used for production.
 
 Prerequisites:
 
 ```bash
-az login --tenant 77070ec3-247c-40ce-9a4f-df875ffe914f
-az account set --subscription 0df874b5-82eb-455c-8575-b1f9b589a735
+export AZURE_TENANT_ID="your-tenant-id"
+export AZURE_SUBSCRIPTION_ID="your-subscription-id"
+az login --tenant "$AZURE_TENANT_ID"
+az account set --subscription "$AZURE_SUBSCRIPTION_ID"
 ```
 
 Common flows:
@@ -270,7 +294,7 @@ afterward. The default local image tag is
 `nightly-local-YYYYMMDDHHMMSS`; override with `LOCAL_IMAGE_TAG=...` when you
 want a stable tag.
 
-The helper temporarily patches the `kmpnightly-migrate` Container Apps Job when
+The helper temporarily patches the `<prefix>-migrate` Container Apps Job when
 it needs to run specific commands (`bin/cake migrations migrate`,
 `bin/cake schema_cache clear`, `bin/cake updateDatabase`,
 `bin/cake platform_migrate migrate`,
@@ -427,17 +451,20 @@ az deployment group create \
   --parameters deploy/azure/production.bicepparam
 ```
 
-For a release rehearsal, build an immutable image tag, restore the encrypted
-nightly application seed with the restore job, migrate or restore the platform
-database, and verify `/health`, `/platform-admin/health`, tenant host routing,
-scheduled jobs, Redis-backed sessions, and backup storage. At cutover, replace
-the rehearsal data through the platform and tenant backup/restore workflow; do
-not rerun the destructive nightly-seed restore job against live data.
+For a release rehearsal, deploy an approved immutable POC image digest (or a
+tag pinned to that digest); do not rebuild the release candidate. Use the
+encrypted nightly seed only for a disposable rehearsal default database, then
+migrate or restore the platform database and verify `/health`,
+`/platform-admin/health`, tenant host routing, scheduled jobs, Redis-backed
+sessions, and backup storage. At cutover, replace rehearsal data through the
+platform and tenant backup/restore workflow; never run the destructive seed
+reset against live data.
 
 Production deployment is automated from published, non-prerelease GitHub
-releases. `release.yml` builds and smoke-tests the image, addresses it by digest,
-then pauses at the protected `production` environment for approval. Approval
-promotes that exact digest into the production ACR and runs the same ordered
+releases. `release.yml` first verifies the POC evidence, resolves the already
+built and validated image by immutable digest, and applies release tags without
+rebuilding it. After the protected `production` environment approval, the
+deployment imports that same digest into the production ACR and runs the ordered
 worker canary, application/platform/tenant-fleet migrations, web cutover,
 health probes, and retained-job alignment used by POC. Pending active or
 suspended tenant migrations fail fast after creating their standard recovery
@@ -461,29 +488,30 @@ configured reviewer.
 
 ## Common operations
 
+These examples assume `AZURE_RESOURCE_GROUP` and `AZURE_NAME_PREFIX` are
+exported from the intended environment profile.
+
 | Task | Command |
 |------|---------|
-| Open site | `az containerapp show -g $RG -n kmpnightly-web --query properties.configuration.ingress.fqdn -o tsv` |
-| Tail web logs | `az containerapp logs show -g $RG -n kmpnightly-web --tail 200 --follow` |
-| Run migrations on-demand | `az containerapp job start -g $RG -n kmpnightly-migrate` |
-| See recent queue executions | `az containerapp job execution list -g $RG -n kmpnightly-queue -o table` |
-| Run nightly dispatcher now | `az containerapp job start -g $RG -n kmpnightly-sched-nightly` |
-| Run restore-from-seed | `az containerapp job start -g $RG -n kmpnightly-restore` |
-| Rotate a secret | `az keyvault secret set --vault-name <kv> --name security-salt --value <new>` then `az containerapp revision restart` on the web app |
+| Open site | `az containerapp show -g "$AZURE_RESOURCE_GROUP" -n "${AZURE_NAME_PREFIX}-web" --query properties.configuration.ingress.fqdn -o tsv` |
+| Tail web logs | `az containerapp logs show -g "$AZURE_RESOURCE_GROUP" -n "${AZURE_NAME_PREFIX}-web" --tail 200 --follow` |
+| Run migrations on-demand | `az containerapp job start -g "$AZURE_RESOURCE_GROUP" -n "${AZURE_NAME_PREFIX}-migrate"` |
+| See recent worker executions | `az containerapp job execution list -g "$AZURE_RESOURCE_GROUP" -n "${AZURE_NAME_PREFIX}-queue" -o table` |
+| Run one stored schedule now | From an operator-controlled container with the normal runtime configuration, run `bin/cake platform schedule run <schedule-name>`; do not start a parked `sched-*` compatibility job |
+| Reset the default POC seed database | Start `<prefix>-restore` only after confirming the target is disposable POC data; never use it for production or customer data |
+| Rotate a secret | Follow [environment rotation and verification](../../docs/8.1-environment-setup.md#rotation-and-verification), then refresh every affected web and job revision |
 | Inspect document storage | `az storage container list --account-name <documentStorageAccountName> --auth-mode login -o table` |
-| Nuke and redeploy | `az group delete -n kmp-nightly-rg --yes --no-wait` then rerun `bootstrap.sh` |
+| Retire a disposable POC environment | Obtain explicit approval, confirm the exact resource group, preserve required evidence/backups, and use the organization's Azure teardown procedure |
 
-## Cost expectations (US central)
+## Cost planning
 
-| Resource | SKU | ~ Monthly |
-|----------|-----|-----------|
-| Postgres Flex | B1ms, 32 GB | ~$15 |
-| Container Apps (web) | Consumption, 1 always-on | ~$8–15 |
-| Container Apps Jobs | Consumption, ~300 min/mo | <$2 |
-| ACR | Basic | $5 |
-| Log Analytics | first 5 GB free | $0–3 |
-| Key Vault | standard | <$1 |
-| **Total** | | **~$30–40 / month** |
+Prices and free-tier allowances change, so this repository does not promise a
+monthly total. Estimate each environment from its parameter file and the current
+[Azure Pricing Calculator](https://azure.microsoft.com/pricing/calculator/).
+Include PostgreSQL compute, storage and backup retention; Container Apps minimum
+replicas and job executions; managed Redis; ACR; Key Vault; Log Analytics and
+Application Insights ingestion; document/backup storage; and network egress.
+Production parameters deliberately cost more than the POC profile.
 
 ## Security notes
 
@@ -492,10 +520,12 @@ Managed-platform residency boundaries, retention defaults, breach-notification o
 
 - **Public ingress, HTTPS-only.** All traffic enters through the Container Apps
   auto-issued TLS cert.
-- **Postgres public access with TLS required.** Firewall rule
-  `AllowAzureServices` lets Container Apps in; everything else is rejected.
-  Secrets never hit GitHub — they live in Key Vault and are referenced via
-  user-assigned managed identity.
+- **Postgres currently uses a public endpoint with TLS required.** The
+  `AllowAzureServices` firewall setting is broader than this Container Apps
+  environment; database credentials and host-level application controls remain
+  necessary. The current Bicep does not provide private networking. Runtime
+  secrets live in Key Vault and are referenced through the user-assigned
+  managed identity rather than stored in GitHub.
 - **Encrypted seed payload.** `deploy/azure/seed/nightly-seed.kmpbackup` is
   AES-256-GCM encrypted; even if the repo leaks, the committed blob is
   unreadable without the key stored in Key Vault.
@@ -524,9 +554,21 @@ Managed-platform residency boundaries, retention defaults, breach-notification o
 - `../../.github/workflows/nightly-deploy-azure.yml` — automated POC deployment
   for each green `dev` image
 
-## Known limitations / future work
+## Known limitations and operator-owned controls
 
-- The `dev` branch must exist before automatic POC deployment can begin.
-- Custom domain: the Container App has the default
-  `*.azurecontainerapps.io` FQDN. To add `nightly.ansteorra.org`, attach a
-  managed certificate + CNAME — one day of additional work.
+- The template deploys one Azure region; geo-redundant database backups and GRS
+  storage do not create or validate a ready recovery region.
+- The application has no Azure WORM evidence sink. Immutable evidence retention
+  must be provided and tested externally before claiming that control.
+- Platform Admin is a reserved-host surface in the same web application, not a
+  separately deployed administration application.
+- The managed identity currently receives Blob Data Contributor at the storage
+  account scope. Tenant containers are logical isolation, not per-tenant Azure
+  identities or RBAC boundaries.
+- PostgreSQL uses a public endpoint with `AllowAzureServices` and TLS; the
+  template does not configure a VNet/private endpoint.
+- The encrypted seed reset restores only the default disposable POC database.
+  It does not restore the platform database or a tenant fleet.
+- DNS validation, protected-environment approval, KEK escrow ceremonies,
+  immutable evidence export, penetration testing, and recovery-region
+  orchestration remain operator-owned prerequisites.

@@ -6,7 +6,7 @@
  * Bootstrap modal dialog for anonymous feedback submission to GitHub.
  * 
  * @var bool $activeFeature Whether the plugin is active
- * @see /docs/5.4-github-issue-submitter-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.4-github-issue-submitter-plugin.md
  */
 
 use App\KMP\StaticHelpers;

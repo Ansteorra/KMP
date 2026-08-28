@@ -63,7 +63,7 @@ use Cake\Routing\RouteBuilder;
  * Awards Plugin - Award recommendation management with state machine workflow.
  *
  * @package Awards
- * @see /docs/5.2-awards-plugin.md For complete documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.2-awards-plugin.md For complete documentation
  */
 class AwardsPlugin extends BasePlugin implements KMPPluginInterface
 {

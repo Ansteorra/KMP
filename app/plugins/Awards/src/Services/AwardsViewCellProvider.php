@@ -19,7 +19,7 @@ use Cake\ORM\TableRegistry;
  * @see \App\Services\ViewCellRegistry Centralized view cell management
  * @see \Awards\View\Cell\MemberSubmittedRecsCell Member submitted recommendations
  * @see \Awards\View\Cell\RecsForMemberCell Member received recommendations
- * @see /docs/5.2.17-awards-services.md Full documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.2.17-awards-services.md Full documentation
  */
 class AwardsViewCellProvider
 {

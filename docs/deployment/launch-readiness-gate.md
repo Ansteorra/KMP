@@ -1,73 +1,99 @@
+---
+layout: default
+title: "Managed Platform Launch Readiness Gate"
+description: "Go or no-go evidence gate for security, recovery, operations, and multi-tenant launch readiness."
+---
+
 # Managed Platform Launch Readiness Gate
 
-Use this gate before activating the first production tenant and before expanding pilot rings. The decision is no-go unless required evidence is present, current, and approved, or an explicit risk acceptance is recorded with owner and expiry.
+Use this Go/no-go gate before the first production tenant and before expanding a
+pilot ring. A checked box is not evidence: every required item needs a current,
+restricted evidence link or an explicit risk acceptance with owner and expiry.
 
-[← Back to Deployment Guide](README.md) | [Trust Documentation Index](trust-docs-index.md)
+[← Deployment and operations](README.md) |
+[Trust documentation index](trust-docs-index.md)
+
+## Current gaps that cannot be implied away
+
+The repository currently deploys one Azure region and one web application.
+Platform Admin is a privileged reserved-host surface in that app. Azure WORM
+audit storage, a provisioned recovery region, a production-grade KEK escrow
+ceremony, and tenant/public trust pages are not implemented by the current
+template. A launch claim that depends on one of those controls requires separate
+deployment evidence and approval.
 
 ## Decision record
 
-- Release version / commit / image digest: `[link]`
-- Target tenant(s) / pilot ring: `[name]`
-- Review date and timezone: `[date]`
+- Release tag / commit / immutable image digest: `[link]`
+- Target environment, tenant(s), and ring: `[value]`
+- Review date/timezone: `[value]`
 - Decision: `[go | conditional go | no-go]`
-- Decision owner: `[Platform Owner]`
-- Evidence package: `[restricted link]`
+- Decision owner: `[name]`
+- Restricted evidence package: `[link]`
 
 ## Required launch evidence
 
-| Gate | Required evidence | Owner | Go/no-go criteria |
-|------|-------------------|-------|-------------------|
-| Architecture and tenant isolation | Two-tenant POC, tenant host-resolution tests, isolation negative tests, tenant-scoped storage/cache/session review | Platform Lead | No confirmed cross-tenant data path; unknown hosts denied |
-| Platform database and migrations | Platform migrations applied in staging, release manifest compatibility, tenant migration canary, nightly migration drill history | Platform Lead | No unresolved migration blocker; rollback marker path rehearsed |
-| Secrets and encryption | Secret-store configuration, KEK escrow verification, no plaintext key/log exposure, approved Shamir implementation plan | Security Lead | No plaintext secrets in code/logs/evidence; escrow drill prerequisites met |
-| Backups and restore drills | Fresh platform and tenant backups, non-destructive restore drill records, retention/immutability proof | Database Lead | Backup age within threshold; restore drill current; object retention verified |
-| Disaster recovery | Tabletop or drill evidence tied to [DR checklist](dr-drill-execution-checklist.md), RTO/RPO measurement, failback/rollback notes | Incident Commander | Critical DR steps rehearsed; RTO/RPO risk accepted or met |
-| WORM audit | Audit write smoke, hash-chain continuity, immutable mirror retention proof, fail-closed decision | Storage/Audit Lead | No unowned gap; immutable retention enabled or risk accepted |
-| Platform admin and trust surface | Isolated platform admin ingress, platform-admin auth gate, read-only routes, tenant trust redaction tests | Platform Lead | Tenant traffic cannot reach platform admin; no secret/other-tenant leakage |
-| Security assessment | Approved penetration test scope, final report when completed, findings disposition, regression checklist | Security Lead | Critical findings closed; High findings closed or formally accepted |
-| Accessibility and UI security | [Security Regression Checklist](security-regression-checklist.md), WCAG 2.2 AA evidence for changed UI | QA Lead | Blocking accessibility/security regression fixed or release held |
-| Legal and DPA | Counsel-approved governance, DPA/privacy, breach escalation, subprocessor/residency terms as applicable | Counsel + Data Protection Lead | No customer commitment uses unapproved language |
-| Pilot migration | Rehearsal runbook evidence, rollback rehearsal, go/no-go checklist, communication templates | Platform Owner | Customer-impacting migration has named approvers and rollback deadline |
-| Operations and support | On-call roster, alert routing, runbooks, incident roles, status/customer communication path | Operations Owner | P1/P2 coverage staffed; alerts tested or accepted |
-| Published trust docs | [Trust Docs Index](trust-docs-index.md) packet reviewed and customer-safe | Platform Owner | Published material does not overclaim or expose restricted data |
+| Gate | Evidence | Go/no-go condition |
+| --- | --- | --- |
+| Architecture and tenant isolation | Two-tenant host tests, separate DB evidence, cross-tenant negative tests, logical storage/cache/session review | No cross-tenant path; unknown hosts fail closed |
+| Release and migrations | POC-validated digest; same-digest promotion; exact application/platform/secret/key/tenant-fleet migration result | No pending/failed tenant migration; no rebuild after POC |
+| Secrets and keys | Database secret-store configuration, master-key availability, backup-key readiness, redaction/rotation evidence | No plaintext exposure; missing required key is no-go |
+| Backups and restore | Fresh tenant `.json.gz.enc` and platform `.pgdump.enc` metadata, hashes, recovery-key custody, restore rehearsal | Platform-first recovery is plausible and selected archives are available |
+| Platform Admin | Reserved-host enforcement, password/TOTP, lockout/status, host-bound session, policy/CSRF/confirmation tests for mutating actions | Tenant-host access or session-boundary bypass is no-go |
+| Worker and health | Unified three-minute worker evidence, one active scheduling authority, `/livez` and `/health` probes | No duplicate worker authority; readiness dependencies healthy |
+| Security assessment | Approved penetration-test package, findings/retests, [security regression](security-regression-checklist.md) | Critical closed; High fixed or time-bound accepted |
+| Accessibility | WCAG 2.2 AA evidence for changed customer/operator UI | Untriaged keyboard, focus, label, status, or contrast defect is no-go |
+| Legal/DPA | Counsel-approved residency, retention, subprocessor, breach, and customer language | No unapproved commitment |
+| Pilot migration | Approved importer/cutover procedure, rehearsal, rollback deadline, customer acceptance | All environment-specific placeholders resolved |
+| Operations | Staffed on-call, tested alert path, support/comms ownership | P1/P2 ownership and escalation confirmed |
+| External controls claimed | Immutable audit storage, recovery region, escrow ceremony, private network, or public trust evidence as applicable | Unproven claimed control is no-go |
+| Published trust material | Customer-safe packet matches actual implementation and names gaps | No overclaim or restricted data |
 
-## Go/no-go rules
+Optional release-manifest, migration-canary, and nightly-drill tooling may support
+the evidence package when explicitly configured. They are not part of the
+active Azure deployment and their absence must not be disguised as completed
+evidence.
 
-### Automatic no-go
+## Automatic no-go
 
-- Confirmed cross-tenant data exposure, host misrouting, or authorization boundary bypass.
-- Missing current restorable backup for the tenant or platform metadata needed for launch.
-- Failed WORM audit continuity without explicit incident/risk acceptance.
-- Critical penetration test finding not fixed and retested.
-- Platform admin reachable from normal tenant traffic or accepts spoofed identity headers.
-- Counsel has not approved customer-facing legal, DPA, breach, retention, or residency language.
-- Customer-facing UI changes have untriaged keyboard, focus, label, contrast, or non-color-status accessibility regressions.
+- cross-tenant exposure, host misrouting, or authorization bypass;
+- missing current platform or affected-tenant backup/recovery key;
+- a deployment digest different from the POC-validated digest;
+- failed application, platform, or tenant-fleet migration;
+- tenant-host reachability of Platform Admin or cross-host admin-session reuse;
+- unclosed Critical security finding;
+- an advertised WORM, region-failover, escrow, or trust-page control without
+  verified deployment evidence;
+- unapproved customer legal/residency/retention language; or
+- untriaged WCAG 2.2 AA regression in changed UI.
 
-### Conditional go requirements
+## Conditional-go record
 
-- Each accepted risk has an owner, due date, expiry, mitigation, customer-impact assessment, and approving roles.
-- Security Lead approves any High finding deferral.
-- Platform Owner and affected customer representative approve any pilot migration risk that can affect downtime, data quality, or rollback.
+Every accepted risk must identify:
+
+- the exact gap and affected tenants/data;
+- owner, mitigation, due date, and expiry;
+- customer and operational impact;
+- rollback/containment trigger; and
+- required Security, Platform, Legal, and customer approvals.
 
 ## Approvals
 
 | Role | Name | Decision | Timestamp | Notes |
-|------|------|----------|-----------|-------|
+| --- | --- | --- | --- | --- |
 | Platform Owner | `[name]` | `[go/no-go]` | `[time]` | |
 | Security Lead | `[name]` | `[go/no-go]` | `[time]` | |
-| Database Lead | `[name]` | `[go/no-go]` | `[time]` | |
-| Storage/Audit Lead | `[name]` | `[go/no-go]` | `[time]` | |
-| Incident Commander / Ops | `[name]` | `[go/no-go]` | `[time]` | |
-| Counsel / Data Protection | `[name]` | `[go/no-go]` | `[time]` | |
-| QA / Accessibility | `[name]` | `[go/no-go]` | `[time]` | |
-| Customer representative, if pilot | `[name]` | `[go/no-go]` | `[time]` | |
+| Database/Recovery Lead | `[name]` | `[go/no-go]` | `[time]` | |
+| Operations/Incident Lead | `[name]` | `[go/no-go]` | `[time]` | |
+| Counsel/Data Protection | `[name]` | `[go/no-go]` | `[time]` | |
+| QA/Accessibility | `[name]` | `[go/no-go]` | `[time]` | |
+| Pilot customer representative | `[name]` | `[go/no-go]` | `[time]` | |
 
-## Readiness script
-
-Run the local read-only documentation check from `app/` before review:
+Run from `app/` before review:
 
 ```bash
 bash bin/trust_readiness_check.sh
 ```
 
-The script verifies that required trust documents exist and contain key launch topics. Passing script output is not a substitute for human evidence review or a completed penetration test/DR drill.
+The script checks document presence and keywords only. It does not validate
+infrastructure, execute a drill, approve legal text, or prove a control.

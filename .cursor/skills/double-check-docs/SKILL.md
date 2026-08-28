@@ -1,28 +1,10 @@
 ---
 name: double-check-docs
-description: Reviews KMP documentation for clarity, consistency, completeness, accuracy, and grammar. Use when auditing docs or user asks to review documentation quality.
+description: Audits KMP documentation against current source for accuracy, relevance, consistency, links, and readability.
 ---
 
-# Double-Check Documentation
+# Double-check KMP documentation
 
-Technical writing review of project documentation.
+Read and execute `.github/prompts/doublcheckdocs.prompt.md` in full. It is the canonical documentation-audit workflow.
 
-## Workflow
-
-**Read and execute** `.github/prompts/doublcheckdocs.prompt.md` in full.
-
-## Review criteria
-
-1. **Clarity** — understandable for target audience
-2. **Consistency** — terminology, formatting, style
-3. **Completeness** — no content gaps
-4. **Accuracy** — verify against code when unsure (highest priority)
-5. **Grammar/spelling**
-
-## Scope
-
-- Review each page in `docs/` (skip API-only folders if instructed)
-- Maintain original tone while improving
-- Provide summary of changes per page
-
-When uncertain about technical details, read the relevant source code before editing.
+Verify claims against source rather than duplicated prose, with special attention to tenant/platform boundaries, PostgreSQL, Vite, Turbo Drive being disabled, current commands, and the gated release contract. Preserve each document's audience and intent, label examples clearly, validate links and code fences, and provide one concise audit summary rather than per-page change logs.

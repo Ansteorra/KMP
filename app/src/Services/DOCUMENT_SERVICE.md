@@ -1,443 +1,146 @@
-# DocumentService
+# DocumentService contract
 
-## Overview
+`App\Services\DocumentService` owns document persistence and storage-adapter access. It does
+not own authorization, retention policy, or the parent entity's transaction. Controllers and
+domain services must authorize the owning record before asking it to read, update, or delete a
+document.
 
-The `DocumentService` is a centralized service for managing document uploads, storage, and retrieval throughout the KMP application. It provides a consistent interface for all document-related operations and abstracts storage implementation details from consuming code.
+For the broader model and deployment configuration, see
+[`../../../docs/4.7-document-management-system.md`](../../../docs/4.7-document-management-system.md)
+and [`../../../docs/deployment/configuration.md`](../../../docs/deployment/configuration.md).
 
-## Purpose
+## Data and tenant boundary
 
-- **Centralized Logic**: All document handling code in one place
-- **Storage Abstraction**: Change storage strategy (local → S3) without touching consumer code
-- **Consistency**: Same validation and error handling everywhere
-- **Security**: Centralized security checks for file access
-- **Maintenance**: Easy to update and extend
+A tenant document consists of a tenant-database `documents` row plus an object in local,
+Azure, or legacy S3 storage. The row records `entity_type`, `entity_id`, uploader, original and
+stored names, relative `file_path`, MIME type, size, SHA-256 checksum, metadata, and the
+`storage_adapter` used at write time. Reads use the row's adapter, allowing older objects to
+remain readable after an adapter change.
 
-## Architecture
+The table is resolved from the active `default` connection. Construct the service only after
+`TenantConnectionManager` has entered the intended tenant. Document IDs and owning entity IDs
+are tenant-local and must never be used to select a tenant.
 
-### Storage Pattern
+For managed Azure storage, `TenantDocumentStorageConfigResolver` selects:
 
-Documents are stored using a polymorphic association pattern:
-- `entity_type`: String identifying the owning entity (e.g., 'Waivers.WaiverTypes')
-- `entity_id`: Foreign key to the owning entity
-- `file_path`: Relative path to the stored file
-- `storage_adapter`: Storage backend identifier ('local', 's3', etc.)
+1. the tenant's explicit `tenant_config.documents.blob_container`/`container`, if present;
+2. otherwise `<AZURE_STORAGE_CONTAINER_PREFIX>-<tenant-slug>`; and
+3. an optional tenant `blob_prefix`/`prefix` inside that container.
 
-### File Storage Structure
+Container names are normalized and validated. This is logical object separation in a shared
+storage account, not proof of per-tenant Azure RBAC. The database boundary, resolver, controller
+policy, and storage configuration all remain part of the isolation model. Local and legacy S3
+adapters use their configured shared root/bucket and rely on tenant-local rows plus application
+authorization; managed deployments should use the Azure tenant resolver.
 
-```
-/app/images/uploaded/
-  ├── waiver-templates/
-  │   ├── doc_12345.pdf
-  │   └── doc_67890.pdf
-  ├── member-photos/
-  │   └── doc_11111.jpg
-  └── [other subdirectories]
-```
+## Configuration behavior
 
-## Usage
+`Documents.storage.adapter` selects `local`, `azure`, or `s3` in `config/app.php`.
 
-### In Controllers
+- Local storage uses `Documents.storage.local.path`.
+- Azure supports managed identity (preferred in Container Apps) or a connection string.
+- S3 is a compatibility path and requires the optional Flysystem S3 dependencies.
+- The adapter stored on each document controls later retrieval/deletion.
+
+Azure reads never create a container. A write calls the write-readiness path and may create the
+resolved container. This keeps an authorized read from provisioning infrastructure. If Azure
+initialization fails, the current service logs the error and falls back to local storage;
+operators of a managed environment should alert on that condition because container-local
+storage is not a durable substitute.
+
+## Public methods
+
+| Method | Contract |
+| --- | --- |
+| `createDocument(...)` | Validate upload status, extension allowlist and configured size; compute checksum; store the object; save the tenant row; optionally copy a PDF preview |
+| `getDocumentDownloadResponse(...)` | Return an attachment response using the row's adapter, or `null` when unavailable |
+| `getDocumentInlineResponse(...)` | Return inline content with a sanitized filename, or `null` |
+| `documentPreviewExists(...)` / `getDocumentPreviewResponse(...)` | Check/read the optional `_preview.jpg` beside a PDF |
+| `getImageThumbnailInlineResponse(...)` | Read or lazily generate a bounded JPEG thumbnail after caller authorization |
+| `getImageThumbnailPath(...)` / `getImageThumbnailEtag(...)` | Produce deterministic, versioned derivative identifiers |
+| `updateDocumentEntityId(...)` | Attach a previously created row to its persisted parent |
+| `deleteDocument(...)` | Delete derivatives and original object, then remove the row, returning `ServiceResult` |
+
+Remote reads currently load the object into memory; do not describe them as streaming or use
+this service for unbounded files. `Documents.maxFileSize` bounds normal uploads. Image
+thumbnailing also caps source bytes and pixels and returns the original image when safe
+thumbnail generation is unavailable.
+
+## Upload pattern
+
+Validate the domain-specific MIME/content first, authorize the parent action, and pass the
+server-verified MIME type when available:
 
 ```php
-use App\Services\DocumentService;
-
-class MyController extends AppController
-{
-    private DocumentService $DocumentService;
-    
-    public function initialize(): void
-    {
-        parent::initialize();
-        $this->DocumentService = new DocumentService();
-    }
-}
-```
-
-### Creating Documents
-
-#### Basic Upload
-
-```php
-// From a form upload
-$file = $this->request->getData('uploaded_file');
-
-$result = $this->DocumentService->createDocument(
-    $file,
-    'MyPlugin.MyModel',
-    $entityId,
-    $this->Authentication->getIdentity()->id
+$result = $documentService->createDocument(
+    file: $upload,
+    entityType: 'Waivers.WaiverTypes',
+    entityId: (int)$waiverType->id,
+    uploadedBy: (int)$identity->id,
+    metadata: ['type' => 'waiver_template'],
+    subDirectory: 'waiver-templates',
+    allowedExtensions: ['pdf'],
+    previewTempPath: $previewPath,
+    verifiedMimeType: 'application/pdf',
 );
 
-if ($result->success) {
-    $documentId = $result->data;
-    // Save document_id to your entity
-} else {
-    $this->Flash->error($result->reason);
+if (!$result->success) {
+    return $result;
 }
+
+$documentId = (int)$result->data;
 ```
 
-#### Upload with Metadata
-
-```php
-$result = $this->DocumentService->createDocument(
-    $file,
-    'Waivers.WaiverTypes',
-    $waiverType->id,
-    $uploaderId,
-    ['type' => 'waiver_template', 'source' => 'admin_upload'], // metadata
-    'waiver-templates', // subdirectory
-    ['pdf', 'doc', 'docx'] // allowed extensions
-);
-```
-
-#### Two-Step Creation (Entity ID Not Available)
-
-When you need to save the parent entity first to get its ID:
-
-```php
-// 1. Create document with temporary entity_id
-$result = $this->DocumentService->createDocument(
-    $file,
-    'MyPlugin.MyModel',
-    0, // Temporary placeholder
-    $uploaderId
-);
-
-if ($result->success) {
-    // 2. Save parent entity
-    if ($this->MyModel->save($entity)) {
-        // 3. Update document's entity_id
-        $this->DocumentService->updateDocumentEntityId(
-            $result->data,
-            $entity->id
-        );
-    }
-}
-```
-
-### Downloading Documents
-
-```php
-public function download($id)
-{
-    $entity = $this->MyModel->get($id, contain: ['Documents']);
-    $this->Authorization->authorize($entity, 'view');
-    
-    $response = $this->DocumentService->getDocumentDownloadResponse(
-        $entity->document,
-        'custom_filename.pdf' // Optional custom name
-    );
-    
-    if ($response === null) {
-        $this->Flash->error(__('File not found.'));
-        return $this->redirect(['action' => 'view', $id]);
-    }
-    
-    return $response;
-}
-```
-
-### Deleting Documents
-
-```php
-$result = $this->DocumentService->deleteDocument($documentId);
-
-if ($result->success) {
-    $this->Flash->success(__('Document deleted.'));
-} else {
-    $this->Flash->error($result->reason);
-}
-```
-
-## API Reference
-
-### `createDocument()`
-
-Creates a document record and stores the physical file.
-
-**Parameters:**
-- `UploadedFile $file` - The uploaded file object
-- `string $entityType` - Entity type (e.g., 'Waivers.WaiverTypes')
-- `int $entityId` - Entity ID (use 0 if not yet available)
-- `int $uploadedBy` - Member ID of uploader
-- `array $metadata` - Optional metadata array
-- `string $subDirectory` - Optional subdirectory for storage
-- `array $allowedExtensions` - Allowed file extensions (default: ['pdf'])
-
-**Returns:** `ServiceResult`
-- `success`: true/false
-- `data`: Document ID on success
-- `reason`: Error message on failure
-
-**Example:**
-```php
-$result = $this->DocumentService->createDocument(
-    $uploadedFile,
-    'Waivers.WaiverTypes',
-    $waiverTypeId,
-    $memberId,
-    ['category' => 'template'],
-    'waiver-templates',
-    ['pdf']
-);
-```
-
-### `getDocumentDownloadResponse()`
-
-Gets a Response object for downloading a document.
-
-**Parameters:**
-- `Document $document` - The document entity
-- `string|null $downloadName` - Optional custom filename for download
-
-**Returns:** `Response|null`
-- `Response` object configured for file download
-- `null` if file not found
-
-**Example:**
-```php
-$response = $this->DocumentService->getDocumentDownloadResponse(
-    $document,
-    'custom_name.pdf'
-);
-```
-
-### `updateDocumentEntityId()`
-
-Updates the entity_id of an existing document.
-
-**Parameters:**
-- `int $documentId` - Document ID to update
-- `int $entityId` - New entity ID
-
-**Returns:** `ServiceResult`
-- `success`: true/false
-- `reason`: Error message on failure
-
-**Example:**
-```php
-$result = $this->DocumentService->updateDocumentEntityId(
-    $documentId,
-    $newEntityId
-);
-```
-
-### `deleteDocument()`
-
-Deletes a document record and its physical file.
-
-**Parameters:**
-- `int $documentId` - Document ID to delete
-
-**Returns:** `ServiceResult`
-- `success`: true/false
-- `reason`: Error message on failure
-
-**Example:**
-```php
-$result = $this->DocumentService->deleteDocument($documentId);
-```
-
-## Error Handling
-
-The service uses the `ServiceResult` pattern for consistent error handling:
-
-```php
-$result = $this->DocumentService->createDocument(...);
-
-if ($result->success) {
-    // Success - use $result->data
-    $documentId = $result->data;
-} else {
-    // Failure - display $result->reason
-    $this->Flash->error($result->reason);
-}
-```
-
-### Common Error Messages
-
-- "Invalid file type. Allowed types: pdf, doc"
-- "Failed to create storage directory."
-- "Failed to upload file: [exception message]"
-- "Failed to save document record."
-- "File not found"
-
-## Security Considerations
-
-1. **Path Validation**: Uses `realpath()` to prevent directory traversal attacks
-2. **File Extension Validation**: Server-side validation of allowed extensions
-3. **File Size Limits**: Respects PHP upload limits
-4. **Authorization**: Consumers must implement authorization checks
-5. **Checksum**: SHA-256 checksums stored for integrity verification
-
-## Storage Adapters
-
-### Supported Storage Adapters
-
-DocumentService currently supports these adapters via `Documents.storage.adapter`:
-
-- `local` — Files stored in `/app/images/uploaded/`
-- `s3` — Files stored in an S3-compatible bucket (AWS S3, MinIO, etc)
-- `azure` — Files stored in Azure Blob Storage
-
-Cloud adapters are accessed through Flysystem, so upload/download/delete behavior remains
-consistent for consumer code regardless of where files are stored.
-
-## Integration Examples
-
-### Waivers Plugin
-
-The Waivers plugin uses DocumentService for template uploads:
-
-```php
-// In WaiverTypesController::_handleTemplateUpload()
-$result = $this->DocumentService->createDocument(
-    $file,
-    'Waivers.WaiverTypes',
-    $waiverType->id ?? 0,
-    $this->Authentication->getIdentity()->id,
-    ['type' => 'waiver_template'],
-    'waiver-templates',
-    ['pdf']
-);
-
-if ($result->success) {
-    return ['document_id' => $result->data, 'template_path' => null];
-}
-```
-
-### Future Integrations
-
-Potential uses for DocumentService:
-
-- **Members**: Profile photos, resume uploads
-- **Awards**: Supporting documentation
-- **Officers**: Position descriptions, handbooks
-- **Events**: Flyers, promotional materials
-- **Reports**: Generated PDF reports
-- **Forms**: Filled form submissions
-
-## Testing
-
-### Unit Tests
-
-Test the service in isolation:
-
-```php
-public function testCreateDocument()
-{
-    $mockFile = $this->createMock(UploadedFile::class);
-    $mockFile->method('getSize')->willReturn(1024);
-    $mockFile->method('getError')->willReturn(UPLOAD_ERR_OK);
-    
-    $service = new DocumentService();
-    $result = $service->createDocument(
-        $mockFile,
-        'Test.Entity',
-        1,
-        1
-    );
-    
-    $this->assertTrue($result->success);
-}
-```
-
-### Integration Tests
-
-Test with actual file uploads:
-
-```php
-public function testFileUploadAndDownload()
-{
-    // Upload file
-    $this->post('/my-entity/add', [
-        'name' => 'Test',
-        'file' => [
-            'tmp_name' => TMP . 'test.pdf',
-            'name' => 'test.pdf',
-            'size' => 1024,
-            'error' => UPLOAD_ERR_OK
-        ]
-    ]);
-    
-    $this->assertResponseSuccess();
-    
-    // Download file
-    $this->get('/my-entity/download/1');
-    $this->assertResponseOk();
-    $this->assertHeader('Content-Type', 'application/pdf');
-}
-```
-
-## Logging
-
-The service logs important events:
-
-- **Info**: Document creation, deletion
-- **Warning**: Physical file deletion failures
-- **Error**: Upload failures, missing files, save failures
-
-Example log entries:
-
-```
-[info] Document created successfully {"document_id":123,"entity_type":"Waivers.WaiverTypes"}
-[error] Failed to move uploaded file: Permission denied
-[warning] Failed to delete physical file {"document_id":45,"path":"/path/to/file"}
-```
-
-## Migration Guide
-
-### From Direct File Handling to DocumentService
-
-**Before:**
-```php
-$file = $this->request->getData('file');
-$path = WWW_ROOT . '../uploads/' . $file->getClientFilename();
-$file->moveTo($path);
-$entity->file_path = $path;
-```
-
-**After:**
-```php
-$result = $this->DocumentService->createDocument(
-    $this->request->getData('file'),
-    'MyPlugin.MyModel',
-    $entity->id,
-    $userId
-);
-
-if ($result->success) {
-    $entity->document_id = $result->data;
-}
-```
-
-## Best Practices
-
-1. **Always check ServiceResult.success** before using data
-2. **Use subdirectories** to organize files by type
-3. **Specify allowed extensions** explicitly
-4. **Include meaningful metadata** for future reference
-5. **Implement authorization** in controllers before download
-6. **Handle null responses** from getDocumentDownloadResponse()
-7. **Clean up orphaned documents** when parent entities are deleted
-8. **Use descriptive download names** for better user experience
-
-## Troubleshooting
-
-### "Failed to create storage directory"
-- Check filesystem permissions on `/app/images/uploaded/`
-- Ensure web server has write access
-
-### "File not found" on download
-- Verify file exists at expected path
-- Check database `file_path` matches physical location
-- Look for filesystem permission issues
-
-### "Invalid file type"
-- Ensure allowed extensions include the uploaded file type
-- Check both client-side (HTML5) and server-side validation
-
-### Documents not appearing
-- Verify `entity_type` and `entity_id` are correct
-- Check that association is properly configured in model
-- Use `contain: ['Documents']` when fetching entities
+The extension check inside `DocumentService` is not content verification. File-owning services
+such as Waivers and member profile/registration flows must keep their MIME, image/PDF, size,
+and domain validation before this call.
+
+If the parent ID is unavailable, `entityId: 0` plus `updateDocumentEntityId()` is supported.
+The caller must compensate by deleting the document if the parent save or attachment fails;
+`DocumentService` cannot make a remote object write and an unrelated parent transaction
+atomic.
+
+## Read and delete pattern
+
+1. Resolve the owner through a tenant-scoped query.
+2. Authorize the owner/action with the relevant policy.
+3. Verify the associated document belongs to that owner and expected `entity_type`.
+4. Pass the loaded `Document` entity to the response method.
+5. Return a controlled not-found/error response when the service returns `null`; do not expose
+   storage paths or exception text.
+
+For deletion, authorize and lock/transaction-wrap the domain mutation as needed before calling
+`deleteDocument()`. The service logs storage failures; callers should not report a successful
+domain deletion when required object cleanup failed.
+
+## Security invariants
+
+- Never accept `entity_type`, `entity_id`, adapter, container, prefix, or path as proof of
+  authorization.
+- Keep stored paths relative and let the service sanitize them. Local reads also verify the
+  resolved path remains under the configured base directory.
+- Strip control characters from response filenames and use stored/verified MIME deliberately.
+- Do not log file contents, credentials, signed URLs, sensitive metadata, or raw storage errors
+  to the user.
+- Do not create remote containers or other infrastructure during a read.
+- Derived previews and thumbnails are private objects reached only through authorized app
+  endpoints, not public blob URLs.
+- Cache keys and URLs for document variants must retain tenant context.
+
+## Verification
+
+At minimum, cover:
+
+- accepted and rejected extension/MIME/size cases and upload error codes;
+- object cleanup when the document row cannot be saved;
+- authorized and denied owner reads at the controller/policy layer;
+- adapter recorded at write and honored after configuration changes;
+- tenant-specific Azure container/prefix resolution, invalid names, and two-tenant separation;
+- read paths never provisioning a container and write paths using the intended tenant;
+- traversal and response-filename handling;
+- preview and thumbnail fallback, size/pixel bounds, deterministic path/ETag, and cleanup;
+- unavailable storage and delete failure behavior.
+
+Primary tests live in `tests/TestCase/Services/DocumentServiceTest.php`,
+`tests/TestCase/Services/Storage/TenantDocumentStorageConfigResolverTest.php`, member controller
+and profile/registration service tests, and Waivers plugin upload tests.

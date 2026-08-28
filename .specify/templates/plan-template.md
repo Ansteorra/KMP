@@ -1,113 +1,109 @@
-# Implementation Plan: [FEATURE]
+# Implementation plan: [FEATURE]
 
 **Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+**Input**: `specs/[###-feature-name]/spec.md`
 
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
+**Note**: This template is filled by the Spec Kit planning workflow in `.github/prompts/speckit.plan.prompt.md`.
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+[State the user outcome and the smallest source-backed technical approach.]
 
-## Technical Context
+## Technical context
 
-**Language/Version**: PHP 8.1+  
-**Primary Dependencies**: CakePHP 5.x, Hotwired (Turbo + Stimulus.JS), Bootstrap, Laravel Mix  
-**Storage**: MySQL 5.7+ or MariaDB 10.2+  
-**Testing**: PHPUnit (PHP), Playwright (UI tests - optional)  
-**Target Platform**: Web application (responsive, multi-browser)
-**Project Type**: Web application (CakePHP MVC+ with plugins)  
-**Architecture**: Plugin-based modular architecture, Service layer for business logic, Turbo Frames for partial updates  
-**Performance Goals**: Standard web application performance; <500ms page load, efficient database queries, fast partial updates via Turbo  
-**Constraints**: CakePHP conventions, PSR-12 coding standards, multi-tenant SCA kingdom support, Hotwired patterns for frontend  
-**Scale/Scope**: Multi-kingdom deployment, thousands of members per kingdom, complex role-based permissions, multi-tab/multi-grid interfaces
+**Language/runtime**: PHP 8.4, CakePHP 5; [list other relevant runtimes]
+**Primary dependencies**: [existing KMP services/plugins/frontend components; justify additions]
+**Data scope**: [tenant / platform / both / none]
+**Storage and connection**: PostgreSQL 16; [name tenant/platform connection, cache, documents, or object storage involved]
+**Frontend**: [server-rendered / Stimulus / Turbo Frame or Stream / none]; Turbo Drive remains disabled
+**Assets**: Vite via `app/vite.config.js` and `ViteHelper`
+**Testing**: [targeted PHPUnit/Jest/Playwright lanes and negative/cross-tenant coverage]
+**Target hosts**: [tenant host(s) / platform-admin host / API / background-only]
+**Performance and scale**: [feature-specific measurable target or “no new target”]
+**Operational effects**: [migrations, jobs, mail, files, cache, backup/restore, deployment, none]
+**Constraints/unknowns**: [WCAG 2.2 AA, authorization, compatibility, and unresolved decisions]
 
-## Constitution Check
+Do not replace unknowns with generic numeric targets. Resolve them during research or mark them explicitly.
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+## Constitution check
 
-Verify compliance with KMP Constitution (`.specify/memory/constitution.md`):
+*Gate: complete before research/design and re-check after design.*
 
-- [ ] **CakePHP Conventions**: Follows directory structure, naming conventions, MVC+ pattern, and routing standards
-- [ ] **Plugin Architecture**: Implemented as plugin if self-contained feature; follows plugin structure and integration points
-- [ ] **Hotwired Stack**: Uses Turbo Frames/Streams for partial updates (especially in multi-tab/multi-grid scenarios); Stimulus controllers for interactivity
-- [ ] **Test Coverage**: PHPUnit tests planned for controllers, models, services; fixtures prepared for database tests
-- [ ] **Security & Authorization**: Authentication/authorization considered; Policy classes planned if needed
-- [ ] **Service Layer**: Complex business logic placed in Service classes, not Controllers or Models
-- [ ] **Code Quality**: Code will follow PSR-12, type declarations, PHPDoc comments, and pass CS checks
+- [ ] **Repository contract**: Applicable `AGENTS.md` files and existing patterns were read.
+- [ ] **Ownership**: Core versus plugin ownership and integration points are justified.
+- [ ] **Tenant/platform boundary**: Connection, host, cache, storage, job, and cross-tenant behavior are explicit.
+- [ ] **Authorization/security**: Policies/scopes, negative paths, sensitive data, CSRF, restore locks, and impersonation implications are covered.
+- [ ] **Frontend/accessibility**: Turbo/Stimulus/Vite choices fit current patterns and WCAG 2.2 AA behavior is testable.
+- [ ] **Services/side effects**: Complex workflow and side effects live in explicit services/jobs.
+- [ ] **Schema/operations**: Core, plugin, tenant, and platform migration or deployment effects are identified.
+- [ ] **Verification**: Proportional automated and manual checks are named without hard-coded counts/timings.
+- [ ] **Documentation/release**: Owning docs, `AGENTS.md` guidance, changelog, and release impact are identified.
 
-**Justification for any deviations**: [Explain any necessary deviations from constitution principles]
+**Deviations**: [None, or explain and record them in Complexity tracking.]
 
-## Project Structure
+## Research decisions
 
-### Documentation (this feature)
+For each consequential unknown, record:
 
-```
+- **Decision**: [chosen approach]
+- **Evidence**: [source files, tests, documentation, or measured behavior]
+- **Alternatives considered**: [viable alternatives and why not selected]
+- **Tenant/platform impact**: [isolation and connection implications]
+- **Operational impact**: [migration, job, storage, deployment, rollback]
+
+## Feature documentation
+
+```text
 specs/[###-feature]/
-├── plan.md              # This file (/speckit.plan command output)
-├── research.md          # Phase 0 output (/speckit.plan command)
-├── data-model.md        # Phase 1 output (/speckit.plan command)
-├── quickstart.md        # Phase 1 output (/speckit.plan command)
-├── contracts/           # Phase 1 output (/speckit.plan command)
-└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
+├── spec.md
+├── plan.md
+├── research.md
+├── data-model.md
+├── quickstart.md
+├── contracts/
+└── tasks.md
 ```
 
-### Source Code (KMP CakePHP Structure)
+Include only artifacts the feature needs.
 
-**For Core Features**:
-```
-app/
-├── src/
-│   ├── Controller/         # Controllers for this feature
-│   ├── Model/
-│   │   ├── Entity/        # Entity classes
-│   │   └── Table/         # Table classes
-│   ├── Services/          # Service layer for business logic
-│   ├── Policy/            # Authorization policies
-│   └── View/              # View cells and helpers
-├── templates/             # View templates
-├── assets/
-│   ├── css/              # Feature-specific CSS
-│   └── js/
-│       └── controllers/  # Stimulus.JS controllers
-├── tests/
-│   └── TestCase/
-│       ├── Controller/   # Controller tests
-│       ├── Model/        # Model tests
-│       └── Service/      # Service tests
-└── config/
-    └── Migrations/       # Database migrations
+## Source layout
+
+Choose existing paths; do not scaffold every option.
+
+### Core
+
+```text
+app/src/Controller/
+app/src/Model/
+app/src/Policy/
+app/src/Services/
+app/src/KMP/GridColumns/
+app/templates/
+app/assets/js/controllers/
+app/config/Migrations/
+app/tests/
 ```
 
-**For Plugin-Based Features**:
-```
-app/plugins/[FeatureName]/
-├── src/
-│   ├── [FeatureName]Plugin.php  # Main plugin class
-│   ├── Controller/              # Plugin controllers
-│   ├── Model/                   # Plugin models
-│   ├── Services/                # Plugin services (including NavigationProvider)
-│   ├── Event/                   # Event listeners (CallForCellsHandler, etc.)
-│   └── Policy/                  # Plugin authorization policies
-├── templates/                   # Plugin templates
-├── assets/
-│   ├── css/                     # Plugin CSS
-│   └── js/
-│       └── controllers/         # Plugin Stimulus controllers
-├── tests/                       # Plugin tests
-├── config/
-│   ├── Migrations/              # Plugin migrations
-│   └── bootstrap.php            # Plugin bootstrap
-└── webroot/                     # Plugin public assets
+### Plugin
+
+```text
+app/plugins/[PluginName]/src/
+app/plugins/[PluginName]/templates/
+app/plugins/[PluginName]/assets/
+app/plugins/[PluginName]/config/Migrations/
+app/plugins/[PluginName]/tests/
 ```
 
-**Structure Decision**: [Choose "Core Feature" or "Plugin-Based Feature" and explain the decision based on feature scope and reusability]
+### Platform and tenancy
 
-## Complexity Tracking
+[List platform migration/command/service paths, tenant-aware middleware/connection/cache/storage paths, and host-context tests actually touched.]
 
-*Fill ONLY if Constitution Check has violations that must be justified*
+**Structure decision**: [Exact owning paths and rationale.]
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+## Complexity tracking
+
+*Fill only for constitution deviations.*
+
+| Deviation | Why required | Safe alternative rejected because | Mitigation and verification |
+| --- | --- | --- | --- |
+| [example] | [reason] | [reason] | [controls] |

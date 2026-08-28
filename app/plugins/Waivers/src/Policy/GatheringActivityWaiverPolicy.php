@@ -14,7 +14,7 @@ use Cake\ORM\Table;
  * Provides entity-level authorization for gathering activity waiver operations.
  * Inherits standard CRUD operations from BasePolicy.
  *
- * @see /docs/5.7-waivers-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.7-waivers-plugin.md
  * @method bool canAdd(\App\KMP\KmpIdentityInterface $user, \Cake\ORM\Table $table, mixed ...$optionalArgs)
  * @method bool canIndex(\App\KMP\KmpIdentityInterface $user, \Cake\ORM\Table $table, mixed ...$optionalArgs)
  * @method bool canExport(\App\KMP\KmpIdentityInterface $user, \Cake\ORM\Table $table, mixed ...$optionalArgs)

@@ -44,7 +44,7 @@ use App\Model\Entity\ActiveWindowBaseEntity;
  * @property \Officers\Model\Entity\Officer[] $reports_to_currently
  * @property \Officers\Model\Entity\Officer[] $deputy_to_currently
  *
- * @see /docs/5.1-officers-plugin.md
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.1-officers-plugin.md
  * @see \Officers\Model\Table\OfficersTable
  */
 class Officer extends ActiveWindowBaseEntity

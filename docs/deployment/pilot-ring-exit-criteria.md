@@ -1,191 +1,211 @@
+---
+layout: default
+title: "Pilot Ring Exit Criteria and Rollback Plan"
+description: "Candidate reliability, recovery, security, and rollback criteria for leaving the pilot ring."
+---
+
 # Pilot Ring Exit Criteria and Rollback Plan
 
-Use this runbook to decide when the managed multi-tenant platform is ready for the first real kingdom, when each pilot ring may expand, and when operators must pause or roll back a tenant. Keep the evidence package with the release record for the app revision being promoted.
+This template defines proposed evidence gates for moving managed KMP from
+internal rehearsal to a small tenant pilot. It does not prove that an SLO,
+penetration test, restore, WORM control, or recovery drill has passed. Adopt
+thresholds only after the named owners approve how they are measured.
 
-[← Back to Deployment Guide](README.md)
+[← Deployment and operations](README.md) |
+[Pilot migration](pilot-migration-runbook.md) |
+[Go/no-go template](pilot-go-no-go-checklist.md)
 
-## Scope and related runbooks
+## Implementation facts behind the gates
 
-This document covers pilot readiness, ring progression, migration rollback, customer communications, and the go/no-go evidence package. It references, but does not duplicate, the disaster recovery and restore procedures:
+- Managed Azure is currently single-region.
+- Tenant application data uses separate PostgreSQL databases.
+- Tenant document containers/prefixes are logical boundaries; the managed
+  identity currently has storage-account-wide Blob Data Contributor.
+- Platform Admin is a mutating reserved-host surface in the same web app with
+  password/TOTP, account status/lockout, authorization, and host-bound sessions.
+- The unified worker is one bounded job every three minutes.
+- Tenant backups are `.json.gz.enc`; platform backups are `.pgdump.enc`.
+- The global backup policy supports daily or weekly tenant-fleet cadence and
+  defaults to daily with 30-day retention.
+- The database audit chain exists, but the Azure WORM sink and immutable storage
+  are not implemented by the template.
+- The Shamir splitter is a non-production placeholder, and tenant/public trust
+  pages are roadmap.
+- Release-manifest, canary, and nightly-migration-drill commands are optional
+  tools, not active Azure deployment steps.
 
-- [Two-Tenant Staging POC](multi-tenant-poc.md)
-- [Backup & Restore](backup-restore.md)
-- [Managed Platform Region Failover Runbook](region-failover-runbook.md)
-- [Pilot Go/No-Go Checklist Template](pilot-go-no-go-checklist.md)
-- [Pilot Kingdom Migration Rehearsal Runbook](pilot-migration-runbook.md)
+A gate depending on an external control must be `not implemented` until
+separate evidence exists.
 
-## Pilot readiness gates
+## Evidence gates before a real tenant
 
-Do not invite the first real kingdom until every gate is green and attached to the evidence package.
+| Gate | Required evidence | Proposed threshold |
+| --- | --- | --- |
+| Image/release | POC evidence, release tag/commit, immutable digest, production import result | Production digest exactly matches POC-validated digest |
+| Tenant isolation | Two known tenant hosts plus unknown-host and cross-tenant ID/API/storage tests | No misrouting or cross-tenant access |
+| Migrations | Exact managed application/platform/secret/key/tenant-fleet chain; suspended tenants included | No failed/pending tenant and no skipped required stage |
+| Platform Admin | Allowed/disallowed hosts, password/TOTP, lockout/status, session host binding, privileged mutation auth/audit | No tenant-host access or session/policy bypass |
+| Worker/jobs | Three-minute trigger, bounded args, one scheduling authority, queue/job error handling | No duplicate authority or unowned P1/P2 |
+| Backups | Fresh platform and affected-tenant artifacts, hashes, retention metadata, separate key custody | Both scopes available and decrypt/restore plan approved |
+| Restore | Actual isolated platform `pg_restore` and tenant restore evidence, plus current non-destructive plans | At least one measured end-to-end rehearsal before a real pilot |
+| Audit | Database hash-chain verification | No unexplained chain discontinuity |
+| External WORM | Immutable storage/retention/continuity evidence, only if required or advertised | Verified externally; application config alone never passes |
+| Security/accessibility | Penetration-test/finding status, regression checks, WCAG 2.2 AA evidence for changed UI | Critical closed; other risks owned/approved |
+| Legal/customer | Residency, retention, DPA, support, window, rollback, communications | Counsel and customer approvals recorded |
+| Recovery | Single-region risk acceptance and DR tabletop/rehearsal evidence | No implied multi-region guarantee; actual RTO/RPO recorded |
 
-| Gate | Required evidence | Exit threshold |
-|------|-------------------|----------------|
-| Two-tenant staging POC | Latest `bin/cake tenant_poc --verify-only` output for two distinct hosts and databases | Passes on the release candidate revision |
-| Platform migrations | Nightly migration drill history and rollback rehearsal notes | 4 consecutive weekly green drills; zero unresolved migration blockers |
-| Tenant resolution | Host-resolution smoke tests and logs for canonical and alternate hosts | 99.9% success during a 7-day staging soak; no cross-tenant resolution defects |
-| Authentication | Login smoke tests for platform admin and tenant users, including TOTP bootstrap path | 99.9% success during staging soak; no P1/P2 auth defects open |
-| Backups/restores | Per-pilot-tenant backup completion and restore drill records | Backup age under 24 hours; restore drill for every pilot tenant within 7 days |
-| WORM audit | Audit-write continuity check and immutable storage policy verification | No audit ingestion gaps over 7 days; retention lock verified |
-| Alert handling | Alert queue, failed platform jobs, and on-call drill tickets | All P1 alerts cleared; P2 alerts have owner and due date; page acknowledged under 15 minutes in drill |
-| Security and secrets | KEK escrow verification, storage RBAC review, and high-severity finding list | Escrow verified; no Critical findings; High findings remediated or explicitly accepted by platform owner |
-| Customer support | Named support owner, escalation path, and communication templates | Pilot kingdom knows maintenance window, fallback plan, and support channel |
+## Ring 0 — internal rehearsal
 
-## Ring model
+Use only synthetic, scrubbed, or explicitly approved non-production data.
 
-### Ring 0 — internal platform rehearsal
+Entry:
 
-Ring 0 uses non-production or internal tenants only. Its purpose is to prove platform mechanics before any real kingdom data enters the hosted service.
+- target digest deployed to rehearsal;
+- two tenant databases/hosts plus an unknown host available;
+- unified worker and alert paths configured; and
+- backup/key inputs and exact migration chain ready.
 
-Entry criteria:
-- Current release candidate deployed to staging.
-- Platform migrations, tenant provisioning, tenant resolution, backup, restore drill, WORM audit, and platform health commands have successful staging evidence.
-- Rollback rehearsal has been completed with non-production data.
+Exit:
 
-Exit criteria:
-- All readiness gates are green.
-- At least 4 consecutive weekly migration drills pass without manual data repair.
-- Backup/restore drills are fresh for each rehearsal tenant.
-- No unresolved P1/P2 alerts, failed platform jobs, or tenant-isolation defects remain.
+- every applicable evidence gate is green or explicitly marked as an
+  unimplemented blocker;
+- four **weekly release/migration rehearsals** pass if that cadence is adopted;
+  do not call an optional weekly exercise a “nightly production drill”;
+- one isolated platform-first recovery exercise completes with actual time and
+  recovery-point age;
+- Platform Admin host/auth/session/mutating-action tests pass;
+- no unresolved tenant-isolation, P1, or P2 blocker remains; and
+- external WORM/escrow/recovery controls are proven or excluded from the
+  approved offering and customer language.
 
-### Ring 1 — first real kingdom pilot
+## Ring 1 — first real tenant
 
-Ring 1 is limited to one low-risk kingdom with a named customer contact and an agreed rollback window.
+Limit Ring 1 to one approved low-risk tenant with a named customer contact and
+rollback deadline.
 
-Entry criteria:
-- Ring 0 exit criteria are met.
-- Kingdom has approved the migration window, expected downtime, validation steps, and fallback process.
-- A final source-system backup and export checksum are recorded before migration starts.
+Entry:
 
-Progression criteria:
-- 14 consecutive days without P1 incidents or tenant-isolation defects.
-- Login and tenant resolution meet SLOs for the pilot tenant.
-- Backups complete daily and the first post-migration restore drill completes within 7 days.
-- Customer sign-off confirms core workflows, historical data sampling, documents, and authorization state are acceptable.
+- Ring 0 exit is approved;
+- an environment-specific importer and document-transfer plan passed rehearsal;
+- the final source freeze/export/checksum and target restore inputs are defined;
+- customer/counsel approve region, retention, support, downtime, validation, and
+  rollback; and
+- a release-specific Go/no-go record is signed.
 
-### Ring 2 — expanded pilot cohort
+Proposed progression evidence:
 
-Ring 2 may include 3-5 kingdoms with varied size and workflow complexity. Add one kingdom at a time unless the platform owner explicitly approves batching.
+- 14 consecutive days without P1, tenant-isolation, or unrecovered backup
+  incident;
+- login and host resolution measurements meet the approved pilot targets;
+- tenant-fleet backups run at the configured policy cadence;
+- a post-import backup and non-destructive restore plan complete immediately;
+- an actual isolated restore remains within its approved freshness window; and
+- the customer signs off on counts/samples, documents, roles, and core
+  workflows.
 
-Entry criteria:
-- Ring 1 progression criteria are met.
-- Support, alerting, migration runbook, and rollback templates have been updated from the Ring 1 retro.
-- Capacity review confirms headroom for the cohort.
+## Ring 2 — expanded pilot
 
-Exit criteria for general availability:
-- 30 consecutive days across Ring 2 without P1 platform incidents, unrecovered backup failures, or WORM audit gaps.
-- 95th percentile migration duration is within the published maintenance window.
-- Migration failure rate is below 5%, and every failed rehearsal or live migration has a documented root cause and successful retry or rollback.
-- Restore drill evidence is fresh for every pilot tenant.
-- Pilot retro findings are closed or assigned to the GA backlog with an accepted risk owner.
+Add one tenant at a time unless a written risk decision permits a batch. A
+candidate cohort is three to five tenants with varied size/workflows.
 
-## Operational SLOs and SLIs
+Entry:
 
-Measure these per tenant and platform-wide during pilot. Treat missing telemetry as a failed measurement until corrected.
+- Ring 1 progression is approved;
+- the importer, support, alert, and rollback procedures incorporate the Ring 1
+  retrospective; and
+- PostgreSQL, Redis, storage, worker, telemetry, and on-call capacity have
+  measured headroom.
 
-| Area | SLI | Pilot SLO | Alert / review threshold |
-|------|-----|-----------|--------------------------|
-| Login | Successful interactive logins divided by total login attempts | 99.9% over rolling 7 days | Page on 5-minute error spike above 2%; review any tenant-specific failure cluster |
-| Tenant resolution | Requests with a resolved active tenant and no cross-tenant mismatch | 99.99% over rolling 7 days | Page on any cross-tenant mismatch; investigate 5xx/unknown-host spike above 1% |
-| Migration duration | Time from migration start to tenant validation complete | p95 within approved maintenance window; p50 under 50% of window | Pause expansion when p95 exceeds window or a manual repair is needed |
-| Migration failure rate | Failed migrations divided by attempted rehearsals/live migrations | Under 5% in Ring 2; 0 unresolved live failures | Page on live failure; block next tenant until RCA and retry/rollback evidence exists |
-| Backups | Completed tenant backup age | Latest successful backup under 24 hours | Page when backup age exceeds 36 hours or a backup job fails twice |
-| Restore drills | Age of last successful or planned non-destructive drill | Every pilot tenant within 7 days before migration and weekly during pilot | Block ring progression when any pilot tenant drill is stale |
-| Alert handling | Time to acknowledge and time to resolve/mitigate P1/P2 alerts | P1 ack under 15 minutes, mitigate under 4 hours; P2 owner under 1 business day | Escalate missed ack; pause onboarding on unresolved P1 |
-| WORM audit continuity | Audit events accepted and immutable storage policy intact | No ingestion gaps over 7 days; retention lock continuously enabled | Page on any write failure, retention-policy change, or gap exceeding 15 minutes |
+Proposed GA evidence:
 
-## Data migration rehearsal
+- 30 consecutive days without a P1, tenant-isolation incident, or unrecovered
+  backup failure;
+- every migration failure has root cause and successful retry/rollback evidence;
+- actual migration p95 fits approved customer windows;
+- platform and tenant recovery evidence is current;
+- security/accessibility/legal gaps are closed or formally accepted; and
+- no customer material claims WORM, multi-region recovery, escrow, per-tenant
+  Azure RBAC, or trust pages without proof.
 
-Run at least one full rehearsal per pilot tenant before the live window. Use production-like data volumes, scrubbed when needed, and the same app revision planned for go-live.
+## Candidate SLIs/SLOs
 
-1. Confirm source system is stable and take a pre-rehearsal backup/export.
-2. Provision the target tenant and verify host resolution without sending customer traffic.
-3. Run platform and tenant migrations.
-4. Import data and documents using the live migration procedure.
-5. Validate row counts, key checksums, member search, authorization workflows, document access, login, and audit writes.
-6. Capture duration, failures, manual interventions, and customer-specific defects.
-7. Rehearse fallback by restoring the target tenant to the pre-import state or deleting/reprovisioning the rehearsal tenant.
-8. Update the go/no-go checklist with evidence links and owner sign-off.
+These are planning values, not instrumented guarantees. The owner must name the
+query/dashboard, sample population, exclusions, alert, and evidence location.
+Missing telemetry is a failed measurement.
 
-## Live migration rollback and fallback plan
+| Area | Candidate measure | Candidate pilot target / stop threshold |
+| --- | --- | --- |
+| Login | Successful interactive logins / attempts, per tenant | 99.9% rolling 7 days; investigate tenant cluster; page on severe spike |
+| Tenant routing | Known-host successful resolution and cross-tenant mismatch | 99.99% rolling 7 days; any mismatch is immediate stop |
+| Migration | Duration/failure by rehearsal and live tenant | p95 inside approved window; no unresolved live failure |
+| Worker | Expected versus completed three-minute cycles; queue/job backlog | No prolonged missing cycles, duplicate claims, or unowned failure |
+| Tenant backup | Latest completed backup age versus configured daily/weekly policy | Warn after one cadence; critical after three cadence windows |
+| Platform backup | Latest explicit completed platform backup and usable key | Threshold set by recovery policy; stale/missing blocks cutover |
+| Restore | Last actual isolated restore plus non-destructive plan freshness | Actual rehearsal before Ring 1 and after material format/process change |
+| Alert handling | P1 acknowledgement/mitigation and P2 ownership | Candidate P1 ack <15m, mitigation <4h; P2 owner <1 business day |
+| Database audit | Hash-chain continuity | Any unexplained break is stop/security review |
+| External WORM | Sink acceptance plus storage retention/lock state | Only when deployed; any required-control gap is stop |
 
-Rollback must be simple, rehearsed, and biased toward preserving customer access. Do not continue a live migration after a rollback trigger unless the incident commander explicitly records a go decision.
+## Migration rehearsal requirements
 
-### Before the window
+Follow [the pilot migration runbook](pilot-migration-runbook.md). At minimum:
 
-- Freeze source writes or announce the write cutoff time.
-- Take and verify a final source backup/export and document checksum.
-- Confirm the target tenant backup/restore plan and latest restore drill evidence.
-- Keep old DNS/ingress configuration available until customer sign-off is complete.
-- Pre-stage rollback communications for start, pause, rollback, successful completion, and post-incident follow-up.
+1. approve and checksum the source export and document inventory;
+2. provision/resolve an isolated target without customer traffic;
+3. run the exact target migration/import sequence;
+4. validate counts, relationships, documents, hosts/TLS, login, authorization,
+   queues, and database audit;
+5. create an encrypted post-import tenant backup and recovery-key reference;
+6. run a non-destructive restore plan and an approved isolated real restore;
+7. time rollback and document reconciliation; and
+8. obtain customer/business validation.
 
-### During the window
+## Live rollback model
 
-1. Start the incident channel and name roles: incident commander, migration operator, validation owner, customer communicator, and scribe.
-2. Record timestamps for source freeze, final backup, import start, validation start, DNS cutover, and customer acceptance.
-3. If validation passes, cut traffic to the managed platform and monitor login, tenant resolution, audit writes, and queue jobs for at least 60 minutes.
-4. If validation fails before cutover, keep customers on the source deployment, discard or quarantine the target tenant, and schedule a retry after RCA.
-5. If validation fails after cutover, choose the least-risk rollback path below.
+Before cutover, keep the source available and record its write state, final
+backup/export, DNS target/TTL, and rollback deadline.
 
-### Rollback paths
+| Scenario | Action |
+| --- | --- |
+| Failure before traffic cutover | Keep users on source; quarantine target; preserve evidence |
+| Failure after cutover, no target writes | Return traffic to verified source |
+| Failure after target writes | Freeze both sides; data owner selects reconciliation or source/target recovery |
+| Corruption/isolation/auth failure | Disable affected traffic, preserve forensics, page Platform/Security, pause onboarding |
+| Region outage | Follow [region failover planning](region-failover-runbook.md); do not imply a standby exists |
 
-| Scenario | Preferred action | Notes |
-|----------|------------------|-------|
-| Failure before DNS cutover | Leave kingdom on source deployment; delete or quarantine target tenant | No customer data should be accepted by target tenant |
-| Failure after cutover with no target writes | Repoint DNS/ingress to source deployment | Verify source still has the final pre-cutover state |
-| Failure after limited target writes | Stop writes, export accepted changes, restore source or target according to data-owner decision | Customer communicator must explain expected data reconciliation |
-| Tenant data corruption or isolation defect | Disable tenant traffic, preserve forensic copy, restore from last known-good backup | Page platform owner and security owner; do not onboard more tenants |
-| Regional outage | Follow the [Managed Platform Region Failover Runbook](region-failover-runbook.md) | Keep tenant-specific communications aligned with platform incident updates |
+An image rollback does not reverse schema/data. A tenant logical backup does not
+restore documents, platform metadata, or source-system changes.
 
-## Rollback triggers
+## Immediate pause/rollback triggers
 
-Any of these triggers require pausing onboarding. P1 triggers require immediate rollback or an incident commander decision to continue.
+- any cross-tenant access, host misrouting, or authorization bypass;
+- customer admin unable to log in or complete an agreed critical flow;
+- unexplained critical count/relationship/document mismatch;
+- migration exceeds the approved window without customer extension;
+- required platform/tenant backup or key is unavailable;
+- an actual recovery rehearsal failed or is outside its approved freshness;
+- duplicate worker/schedule authority or unacknowledged P1;
+- database audit-chain failure; or
+- required/advertised external WORM, escrow, recovery, or residency control
+  lacks evidence.
 
-- Cross-tenant data exposure, host misrouting, or authorization boundary failure.
-- Login failure rate above SLO for 15 minutes during the pilot window, or any inability for kingdom admins to sign in after cutover.
-- Migration validation mismatch in critical tables, missing documents, broken authorization workflow state, or unreconciled checksum failure.
-- Migration duration exceeds the approved maintenance window with no customer-approved extension.
-- Backup for the tenant fails or latest restorable backup is older than the threshold before cutover.
-- Restore drill is stale or failed for the tenant being migrated.
-- WORM audit writes fail, immutable retention is disabled, or audit continuity has a gap exceeding 15 minutes.
-- P1 alert is not acknowledged within 15 minutes or there is no staffed incident commander.
-- Customer requests rollback during the agreed acceptance window.
+## Decision and evidence package
 
-## Customer communications outline
+Required approvers are Platform Owner, Migration/Database Lead,
+Operations/Incident Lead, Security/Audit Lead, and the pilot customer
+representative; include Counsel/Data Protection where commitments or residency
+are involved.
 
-Use plain language and keep time estimates conservative.
+Store links—not secrets or raw customer data—to:
 
-1. **Pilot invitation**: explain pilot scope, benefits, known limitations, expected timeline, support channel, and opt-out path.
-2. **Readiness confirmation**: confirm date/time, expected downtime, validation responsibilities, and rollback decision deadline.
-3. **Window start**: announce source freeze and expected next update time.
-4. **Progress updates**: send at least every 30 minutes during the window, even when there is no change.
-5. **Go-live confirmation**: share new URL, validation summary, known issues, support path, and monitoring window.
-6. **Rollback notice**: state that service is returning to the previous deployment, expected restoration time, whether any changes need re-entry, and when RCA will be shared.
-7. **Pilot retro**: summarize what worked, incidents, follow-up actions, and whether the kingdom remains in pilot.
-
-## Go/no-go decision
-
-Hold the go/no-go review no earlier than 1 business day before migration and repeat it if any release, infrastructure, DNS, or migration input changes.
-
-Required approvers:
-- Platform owner
-- Migration operator
-- On-call/operations owner
-- Security or audit owner
-- Customer representative for the pilot kingdom
-
-The decision is **no-go** unless every required checklist item is green or has an explicit written risk acceptance by the platform owner and customer representative.
-
-## Evidence package
-
-Store links or artifacts with the release/migration ticket. Do not paste secrets, raw KEKs, wrapped DEKs, tokens, customer-private records, or full database exports into the package.
-
-Required evidence:
-- Release candidate version, commit SHA, image digest, and deployment timestamp.
-- Successful Ring 0 readiness evidence, including two-tenant POC output.
-- Migration rehearsal logs, validation results, duration, failure rate, and rollback rehearsal result.
-- Latest platform and tenant migration drill history.
-- Latest backup, restore drill, and KEK escrow verification evidence.
-- WORM audit continuity check and immutable retention proof.
-- Alert drill or recent incident evidence showing acknowledgement and escalation performance.
-- Customer communication approvals and go/no-go checklist.
-- Post-pilot retro and action-item closure plan.
+- tag, commit, POC result, and exact image digest;
+- migration/provision/import transcripts and validation summaries;
+- host/TLS and tenant-isolation tests;
+- Platform Admin auth/session/action evidence;
+- worker/jobs/alerts;
+- platform and tenant backup formats, IDs, hashes, ages, retention, and key
+  custody;
+- actual recovery timing and non-destructive plan;
+- database audit and conditional external WORM evidence;
+- security/accessibility/legal approvals;
+- customer messages, Go/no-go record, rollback outcome, and retrospective.

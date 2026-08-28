@@ -1,85 +1,16 @@
 ---
 name: code-verification
-description: Runs KMP quality checks (PHPUnit, Jest, Vite, PHPCS, PHPStan) and guides test writing. Use when verifying changes, before PRs, after implementation, or when the user asks to run tests or verify production readiness.
+description: Runs the current KMP PHPUnit, Jest, Vite, PHPCS, PHPStan, and Playwright checks with tenant-aware safety.
 ---
 
-# Code Verification for KMP
+# Verify KMP changes
 
-Run commands **inside the Docker app container** (`kmp-app`). From repo root:
+Read and follow `.github/skills/code-verification/SKILL.md`. That file is the canonical verification workflow; do not duplicate test totals, timing estimates, or baseline counts here.
 
-```bash
-docker compose exec app bash -lc 'bash bin/verify.sh'
-```
+Key guardrails:
 
-Or use repo-root DB reset before migration-heavy work: `./dev-reset-db.sh --seed`. See `AGENTS.md` § Dev environment.
-
-Inside the container, cwd is `/var/www/html` (= host `./app`).
-
-## Quick verification
-
-```bash
-cd app && bash bin/verify.sh
-```
-
-Runs PHPUnit, Jest, Vite build, PHPCS (changed files), PHPStan.
-
-## Individual checks
-
-| Check | Command | Expected |
-|-------|---------|----------|
-| PHPUnit | `composer test` | 1018+ tests, 0 failures |
-| Jest | `npm run test:js` | 27+ tests, 0 failures |
-| Build | `npm run dev` | Successful build |
-| PHPCS | `composer cs-check` | 0 violations in changed files |
-| PHPStan | `composer stan` | 1 known baseline error only |
-
-**Do not** use `composer test --testsuite all` — incomplete suite (~509/1018).
-
-## Minimum by change type
-
-| Change | Minimum |
-|--------|---------|
-| PHP (controller/model/service/policy) | PHPUnit + PHPCS + PHPStan |
-| Stimulus JS | Jest + build |
-| Template | PHPUnit feature tests + build |
-| Migration | Full PHPUnit + E2E |
-| Config | Full `verify.sh` |
-| CSS only | Build |
-
-## E2E
-
-```bash
-bash dev-up.sh   # repo root
-cd app
-PLAYWRIGHT_BASE_URL=http://127.0.0.1:8080 npm run test:ui
-```
-
-## Database reset
-
-```bash
-sudo bash reset_dev_database.sh   # repo root
-```
-
-## Test patterns
-
-- Controller: extend `HttpIntegrationTestCase`; enable CSRF/security tokens; `authenticateAsSuperUser()` in setUp
-- Model/service: extend `BaseTestCase`; use seed IDs from test support classes
-- Plugin: `PluginIntegrationTestCase` with `PLUGIN_NAME`
-- Stimulus: `tests/js/controllers/*-controller.test.js`
-- BDD: `tests/ui/bdd/@feature-name/` with playwright-bdd
-
-Full examples and edge-case checklists: `.github/skills/code-verification/SKILL.md`
-
-## Mutation testing
-
-- JS: `npm run test:mutate` (security controllers) or `test:mutate:all`
-- PHP: `composer mutate` or `composer mutate:policy`
-
-## Troubleshooting
-
-| Problem | Fix |
-|---------|-----|
-| Table not found | `reset_dev_database.sh` |
-| Jest module error | `cd app && npm install` |
-| Playwright fails | `bash dev-up.sh` |
-| PHPCS on your files | Fix manually — never `phpcbf` repo-wide |
+- Run application commands from `app/` unless the canonical guide says otherwise.
+- Use the narrowest check that covers the change; use `bash bin/verify.sh` for cross-cutting changes when practical.
+- Playwright uses `app/playwright.config.cjs` and host-aware tenant/platform contexts.
+- Root startup, lane, reset, migration, and seed helpers can mutate local data. Read their source and obtain authorization before running them.
+- Fix style issues in changed files manually; never run `phpcbf` repository-wide.

@@ -32,7 +32,7 @@ use App\Model\Table\BaseTable;
  * @method \Activities\Model\Entity\Activity|false save(\Cake\Datasource\EntityInterface $entity, array $options = [])
  * 
  * @see \Activities\Model\Entity\Activity Activity entity class
- * @see /docs/5.6.4-activity-entity-reference.md For comprehensive documentation
+ * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.6.4-activity-entity-reference.md For comprehensive documentation
  */
 class ActivitiesTable extends BaseTable
 {
@@ -159,7 +159,7 @@ class ActivitiesTable extends BaseTable
      * @param \App\Model\Entity\Member $user The user to check
      * @param int $activityId The activity ID to check
      * @return bool True if user can authorize the activity
-     * @see /docs/5.6.4-activity-entity-reference.md For usage examples
+     * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.6.4-activity-entity-reference.md For usage examples
      */
     public static function canAuthorizeActivity($user, int $activityId): bool
     {
@@ -177,7 +177,7 @@ class ActivitiesTable extends BaseTable
      *
      * @param \App\Model\Entity\Member $user The user to check
      * @return bool True if user can authorize any activities
-     * @see /docs/5.6.4-activity-entity-reference.md For usage examples
+     * @see https://github.com/Ansteorra/KMP/blob/main/docs/5.6.4-activity-entity-reference.md For usage examples
      */
     public static function canAuhtorizeAnyActivity($user): bool
     {
