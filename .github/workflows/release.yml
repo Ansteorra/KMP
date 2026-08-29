@@ -273,7 +273,7 @@ jobs:
 
   deploy-production:
     name: Deploy production
-    needs: prepare-production-deploy
+    needs: [verify-promotion-source, prepare-production-deploy]
     permissions:
       contents: read
       id-token: write
@@ -283,4 +283,4 @@ jobs:
       environment_name: production
       source_image: ${{ needs.prepare-production-deploy.outputs.source_image }}
       target_tag: ${{ needs.prepare-production-deploy.outputs.target_tag }}
-      checkout_ref: ${{ github.event.release.tag_name }}
+      checkout_ref: ${{ needs.verify-promotion-source.outputs.source_sha }}
