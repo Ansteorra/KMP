@@ -26,7 +26,7 @@ jobs:
       source_sha: ${{ steps.source.outputs.source_sha }}
     steps:
       - name: Check out the release tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ github.event.release.tag_name }}
@@ -97,10 +97,10 @@ jobs:
         run: .github/scripts/require-workflow-success.sh tests.yml "$SOURCE_SHA" main push 0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to ghcr.io
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -134,7 +134,7 @@ jobs:
     steps:
       - name: Extract release tags
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
@@ -145,10 +145,10 @@ jobs:
             type=raw,value=${{ needs.verify-promotion-source.outputs.channel_version }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to ghcr.io
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -202,7 +202,7 @@ jobs:
           echo "Image digest: $IMAGE_DIGEST"
 
       - name: Upload digest to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: kmp-image-digest.txt
 
@@ -220,7 +220,7 @@ jobs:
       contents: read
     steps:
       - name: Check out the verified release commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.verify-promotion-source.outputs.source_sha }}
           persist-credentials: false
@@ -273,7 +273,7 @@ jobs:
 
   deploy-production:
     name: Deploy production
-    needs: prepare-production-deploy
+    needs: [verify-promotion-source, prepare-production-deploy]
     permissions:
       contents: read
       id-token: write
@@ -283,4 +283,4 @@ jobs:
       environment_name: production
       source_image: ${{ needs.prepare-production-deploy.outputs.source_image }}
       target_tag: ${{ needs.prepare-production-deploy.outputs.target_tag }}
-      checkout_ref: ${{ github.event.release.tag_name }}
+      checkout_ref: ${{ needs.verify-promotion-source.outputs.source_sha }}

@@ -6,6 +6,7 @@ repo_root="$(cd "$here/../.." && pwd)"
 bicep="$here/main.bicep"
 workflow="$repo_root/.github/workflows/azure-deploy.yml"
 poc_workflow="$repo_root/.github/workflows/nightly-deploy-azure.yml"
+release_workflow="$repo_root/.github/workflows/release.yml"
 app_config="$repo_root/app/config/app.php"
 scheduler="$repo_root/docker/scheduler-loop.sh"
 extension_helper="$here/ensure-postgres-extension.sh"
@@ -52,6 +53,12 @@ assert_contains "$workflow" 'AZURE_POSTGRES_SERVER_NAME'
 assert_contains "$workflow" 'ensure-postgres-extension.sh'
 assert_contains "$workflow" '--extension UNACCENT'
 assert_contains "$poc_workflow" 'uses: ./.github/workflows/azure-deploy.yml'
+assert_contains "$release_workflow" 'needs: [verify-promotion-source, prepare-production-deploy]'
+assert_contains "$release_workflow" 'checkout_ref: ${{ needs.verify-promotion-source.outputs.source_sha }}'
+if grep -Fq 'checkout_ref: ${{ github.event.release.tag_name }}' "$release_workflow"; then
+    echo 'Production deployment tooling must use the verified release commit SHA.' >&2
+    exit 1
+fi
 assert_contains "$here/bootstrap.sh" 'ensure-postgres-extension.sh'
 assert_contains "$here/bootstrap.sh" '--extension UNACCENT'
 assert_contains "$here/bootstrap.sh" 'AZURE_POSTGRES_RESOURCE_GROUP'

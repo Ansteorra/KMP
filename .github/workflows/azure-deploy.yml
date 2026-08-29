@@ -58,7 +58,7 @@ jobs:
 
     steps:
       - name: Check out trusted deployment tooling
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.checkout_ref }}
 
@@ -90,7 +90,7 @@ jobs:
           bash deploy/azure/test-runtime-contract.sh
 
       - name: Azure login with GitHub OIDC
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ env.AZURE_CLIENT_ID }}
           tenant-id: ${{ env.AZURE_TENANT_ID }}
@@ -204,7 +204,7 @@ jobs:
 
       - name: Preserve pre-cutover definitions
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: aca-pre-cutover-${{ inputs.environment_name }}-${{ github.run_id }}
           path: ${{ runner.temp }}/kmp-aca-pre-cutover
