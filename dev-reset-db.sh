@@ -950,10 +950,10 @@ BEGIN
     END LOOP;
 END $$;
 SQL
-    SECOND_TENANT_SCHEMA_VERSION="$("${COMPOSE[@]}" exec -T db psql -U "${DB_USER}" -d "${SECOND_TENANT_DB}" -At -c "SELECT MAX(version) FROM phinxlog")"
+    # tenant migrate records the latest version across core and plugin migration
+    # tracks. Preserve it here; MAX(phinxlog.version) only covers the core track.
     "${COMPOSE[@]}" exec -T \
         -e SECOND_TENANT_SLUG="${SECOND_TENANT_SLUG}" \
-        -e SECOND_TENANT_SCHEMA_VERSION="${SECOND_TENANT_SCHEMA_VERSION}" \
         app php -r '
 require "vendor/autoload.php";
 require "config/bootstrap.php";
@@ -962,11 +962,9 @@ use App\Services\Platform\TenantHostResolver;
 use Cake\Datasource\ConnectionManager;
 
 $slug = getenv("SECOND_TENANT_SLUG") ?: "kmp2";
-$schemaVersion = getenv("SECOND_TENANT_SCHEMA_VERSION") ?: null;
 $connection = ConnectionManager::get("platform");
 $connection->update("tenants", [
     "status" => "active",
-    "schema_version" => $schemaVersion,
     "activated_at" => gmdate("Y-m-d H:i:s"),
     "modified_at" => gmdate("Y-m-d H:i:s"),
 ], ["slug" => $slug]);
