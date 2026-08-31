@@ -958,6 +958,7 @@ SQL
 require "vendor/autoload.php";
 require "config/bootstrap.php";
 
+use App\Services\Platform\TenantHostResolver;
 use Cake\Datasource\ConnectionManager;
 
 $slug = getenv("SECOND_TENANT_SLUG") ?: "kmp2";
@@ -969,6 +970,7 @@ $connection->update("tenants", [
     "activated_at" => gmdate("Y-m-d H:i:s"),
     "modified_at" => gmdate("Y-m-d H:i:s"),
 ], ["slug" => $slug]);
+TenantHostResolver::clearCache();
 '
     SECOND_TENANT_MEMBER_COUNT="$("${COMPOSE[@]}" exec -T db psql -U "${DB_USER}" -d "${SECOND_TENANT_DB}" -At -c "SELECT count(*) FROM members")"
     SECOND_TENANT_GATHERING_COUNT="$("${COMPOSE[@]}" exec -T db psql -U "${DB_USER}" -d "${SECOND_TENANT_DB}" -At -c "SELECT count(*) FROM gatherings")"
