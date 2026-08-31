@@ -148,6 +148,45 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
         );
     }
 
+    public function testGridDataSortsByApprovalQueueWithGatheringsVisible(): void
+    {
+        $award = $this->getTableLocator()->get('Awards.Awards')
+            ->find()
+            ->select(['id'])
+            ->firstOrFail();
+        $prefix = 'approval-queue-sort-' . uniqid() . '-';
+        $laterReason = $prefix . 'later';
+        $earlierReason = $prefix . 'earlier';
+        $laterRecommendation = $this->createRecommendation($award->id, $laterReason);
+        $earlierRecommendation = $this->createRecommendation($award->id, $earlierReason);
+        $this->createApprovalRun(
+            (int)$laterRecommendation->id,
+            RecommendationApprovalRun::STATUS_IN_PROGRESS,
+            'Zulu Review',
+        );
+        $this->createApprovalRun(
+            (int)$earlierRecommendation->id,
+            RecommendationApprovalRun::STATUS_IN_PROGRESS,
+            'Alpha Review',
+        );
+
+        $this->get('/awards/recommendations/grid-data?' . http_build_query([
+            'view_id' => 'sys-recs-in-approval',
+            'search' => $prefix,
+            'sort' => 'approval_queue',
+            'direction' => 'asc',
+            'dirty' => ['sort' => 1],
+        ]));
+
+        $this->assertResponseOk();
+        $body = (string)$this->_response->getBody();
+        $earlierPosition = strpos($body, $earlierReason);
+        $laterPosition = strpos($body, $laterReason);
+        $this->assertNotFalse($earlierPosition);
+        $this->assertNotFalse($laterPosition);
+        $this->assertLessThan($laterPosition, $earlierPosition);
+    }
+
     public function testCustomViewCopiesPendingReviewSymbolicFilter(): void
     {
         $award = $this->getTableLocator()->get('Awards.Awards')

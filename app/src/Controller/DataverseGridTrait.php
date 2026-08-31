@@ -14,6 +14,7 @@ use App\Services\GridViewService;
 use Cake\Cache\Cache;
 use Cake\Http\Response;
 use Cake\Log\Log;
+use Cake\ORM\Query\SelectQuery;
 use Cake\Utility\Inflector;
 use DateTime;
 use DateTimeInterface;
@@ -737,14 +738,13 @@ trait DataverseGridTrait
         if ($sortField && $sortDirection) {
             $columnMeta = $columnsMetadata[$sortField] ?? null;
             if ($columnMeta && !empty($columnMeta['sortable'])) {
-                if (isset($columnMeta['queryField'])) {
-                    $actualSortField = $columnMeta['queryField'];
-                } elseif (strpos($sortField, '.') === false) {
-                    $actualSortField = $tableName . '.' . $sortField;
-                } else {
-                    $actualSortField = $sortField;
-                }
-                $baseQuery->orderBy([$actualSortField => strtoupper($sortDirection)]);
+                $baseQuery = $this->applyDataverseGridSort(
+                    $baseQuery,
+                    $sortField,
+                    $sortDirection,
+                    $columnMeta,
+                    $tableName,
+                );
                 $currentSort = ['field' => $sortField, 'direction' => $sortDirection];
             } else {
                 // Column not sortable or not found — fall back to default sort
@@ -759,14 +759,13 @@ trait DataverseGridTrait
                     $sortDirection = $sortConfig['direction'];
                     $columnMeta = $columnsMetadata[$sortField] ?? null;
                     if ($columnMeta && !empty($columnMeta['sortable'])) {
-                        if (isset($columnMeta['queryField'])) {
-                            $actualSortField = $columnMeta['queryField'];
-                        } elseif (strpos($sortField, '.') === false) {
-                            $actualSortField = $tableName . '.' . $sortField;
-                        } else {
-                            $actualSortField = $sortField;
-                        }
-                        $baseQuery->orderBy([$actualSortField => strtoupper($sortDirection)]);
+                        $baseQuery = $this->applyDataverseGridSort(
+                            $baseQuery,
+                            $sortField,
+                            $sortDirection,
+                            $columnMeta,
+                            $tableName,
+                        );
                         $currentSort = ['field' => $sortField, 'direction' => $sortDirection];
                     } else {
                         $baseQuery->orderBy($defaultSort);
@@ -2361,6 +2360,69 @@ trait DataverseGridTrait
         }
 
         return $grouping;
+    }
+
+    /**
+     * Apply a standard field sort or delegate to a column-specific sort handler.
+     *
+     * Custom handlers are useful when a relation sort needs a correlated subquery
+     * or another expression that remains valid in paginator/eager-loader subqueries.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query Query being sorted.
+     * @param string $columnKey Grid column key.
+     * @param string $direction Requested sort direction.
+     * @param array<string,mixed> $columnMeta Column metadata.
+     * @param string $tableName Primary query alias.
+     * @return \Cake\ORM\Query\SelectQuery Sorted query.
+     */
+    private function applyDataverseGridSort(
+        SelectQuery $query,
+        string $columnKey,
+        string $direction,
+        array $columnMeta,
+        string $tableName,
+    ): SelectQuery {
+        $normalizedDirection = strtoupper($direction) === 'DESC' ? 'DESC' : 'ASC';
+        $handler = $columnMeta['customSortHandler'] ?? null;
+        if (is_array($handler)) {
+            $handlerClass = $handler['class'] ?? null;
+            $handlerMethod = $handler['method'] ?? null;
+            if (
+                is_string($handlerClass)
+                && is_string($handlerMethod)
+                && class_exists($handlerClass)
+                && method_exists($handlerClass, $handlerMethod)
+            ) {
+                return call_user_func(
+                    [$handlerClass, $handlerMethod],
+                    $query,
+                    $normalizedDirection,
+                    [
+                        'tableName' => $tableName,
+                        'columnKey' => $columnKey,
+                        'columnMeta' => $columnMeta,
+                        'identity' => $this->request->getAttribute('identity'),
+                    ],
+                );
+            }
+
+            Log::warning(sprintf(
+                'Custom sort handler not found: %s::%s',
+                is_string($handlerClass) ? $handlerClass : '(missing class)',
+                is_string($handlerMethod) ? $handlerMethod : '(missing method)',
+            ));
+        }
+
+        if (isset($columnMeta['queryField'])) {
+            $actualSortField = $columnMeta['queryField'];
+        } elseif (strpos($columnKey, '.') === false) {
+            $actualSortField = $tableName . '.' . $columnKey;
+        } else {
+            $actualSortField = $columnKey;
+        }
+        $query->orderBy([$actualSortField => $normalizedDirection]);
+
+        return $query;
     }
 
     /**

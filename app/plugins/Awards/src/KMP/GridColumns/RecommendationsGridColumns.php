@@ -571,6 +571,10 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'alignment' => 'left',
                 'renderField' => 'current_approval_run.current_step_label',
                 'queryField' => 'CurrentApprovalRun.current_step_label',
+                'customSortHandler' => [
+                    'method' => 'applyApprovalQueueSort',
+                    'class' => self::class,
+                ],
                 'description' => 'Current workflow approval step, when this recommendation is under active approval',
             ],
 
@@ -1039,6 +1043,46 @@ class RecommendationsGridColumns extends BaseGridColumns
         }
 
         return $query->where(['1 = 0']);
+    }
+
+    /**
+     * Sort recommendations by the latest active approval run's current step label.
+     *
+     * A correlated subquery keeps this order expression valid when CakePHP's
+     * belongs-to-many eager loader groups its parent-ID query by recommendation.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query Recommendations query.
+     * @param string $direction Validated ASC or DESC direction.
+     * @param array<string,mixed> $context Grid sort context.
+     * @return \Cake\ORM\Query\SelectQuery Sorted query.
+     */
+    public static function applyApprovalQueueSort(
+        SelectQuery $query,
+        string $direction,
+        array $context = [],
+    ): SelectQuery {
+        $runs = TableRegistry::getTableLocator()->get('Awards.RecommendationApprovalRuns');
+        $latestActiveStep = $runs->find()
+            ->select([$runs->aliasField('current_step_label')])
+            ->where(function (QueryExpression $exp) {
+                return $exp->equalFields(
+                    'RecommendationApprovalRuns.recommendation_id',
+                    'Recommendations.id',
+                );
+            })
+            ->where([
+                $runs->aliasField('status') . ' IN' => [
+                    RecommendationApprovalRun::STATUS_IN_PROGRESS,
+                    RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
+                ],
+            ])
+            ->orderBy([$runs->aliasField('id') => 'DESC'])
+            ->limit(1);
+        if ($direction === 'DESC') {
+            return $query->orderByDesc($latestActiveStep);
+        }
+
+        return $query->orderByAsc($latestActiveStep);
     }
 
     /**

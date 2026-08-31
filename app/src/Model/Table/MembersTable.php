@@ -51,6 +51,14 @@ use Exception;
 class MembersTable extends BaseTable
 {
     /**
+     * Member eligibility dates contribute to cached authorization decisions.
+     */
+    protected const ID_CACHES_TO_CLEAR = [
+        ['permissions_policies', 'member_permissions'],
+        ['member_permissions', 'member_permissions'],
+    ];
+
+    /**
      * Initialize table configuration and associations.
      *
      * @param array<string, mixed> $config Table configuration

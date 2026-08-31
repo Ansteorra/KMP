@@ -1,58 +1,79 @@
 <?php
-if ($user->checkCan("verifyMembership", "Members") && $needVerification) :
+if ($user->checkCan('verifyMembership', 'Members') && $needVerification) :
+    $hasMembershipCard = !empty($member->membership_card_document_id)
+        || !empty($member->membership_card_path);
+    $membershipCardReference = !empty($member->membership_card_document_id)
+        ? 'document:' . (int)$member->membership_card_document_id
+        : 'legacy:' . hash('sha256', (string)$member->membership_card_path);
+    $reuploadFormId = 'membershipCardReuploadRequestForm_' . (int)$member->id;
+    if ($hasMembershipCard) {
+        echo $this->Form->create(null, [
+            'url' => [
+                'controller' => 'Members',
+                'action' => 'requestMembershipCardReupload',
+                $member->id,
+            ],
+            'id' => $reuploadFormId,
+            'class' => 'd-none',
+        ]);
+        echo $this->Form->hidden('expected_card_reference', [
+            'value' => $membershipCardReference,
+        ]);
+        echo $this->Form->end();
+    }
     echo $this->Form->create(null, [
-        "url" => ["controller" => "Members", "action" => "verifyMembership", $member->id],
-        "data-controller" => "member-verify-form",
+        'url' => ['controller' => 'Members', 'action' => 'verifyMembership', $member->id],
+        'data-controller' => 'member-verify-form',
 
     ]);
-    echo $this->Modal->create("Verify Membership", [
-        "id" => "verifyMembershipModal",
-        "close" => true,
-        "form" => true,
+    echo $this->Modal->create('Verify Membership', [
+        'id' => 'verifyMembershipModal',
+        'close' => true,
+        'form' => true,
     ]);
-?>
+    ?>
     <fieldset class="border rounded-3 bg-white shadow-sm p-3">
         <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
             <i class="bi bi-card-checklist text-primary me-1" aria-hidden="true"></i>
-            <?= __("Membership Verification") ?>
+            <?= __('Membership Verification') ?>
         </legend>
         <?php
 
-        echo $this->Form->control("member_id", [
-            "type" => "hidden",
-            "value" => $member->id
+        echo $this->Form->control('member_id', [
+            'type' => 'hidden',
+            'value' => $member->id,
         ]);
         if ($needsParentVerification) {
             if ($needsMemberCardVerification) {
-                echo $this->Form->Control("verify_parent", [
-                    "type" => "checkbox",
-                    "value" => 1,
-                    "checked" => "checked",
-                    "data-action" => "member-verify-form#toggleParent",
+                echo $this->Form->Control('verify_parent', [
+                    'type' => 'checkbox',
+                    'value' => 1,
+                    'checked' => 'checked',
+                    'data-action' => 'member-verify-form#toggleParent',
                 ]);
             } else {
-                echo $this->Form->control("verify_parent", [
-                    "type" => "hidden",
-                    "value" => 1,
+                echo $this->Form->control('verify_parent', [
+                    'type' => 'hidden',
+                    'value' => 1,
                 ]);
             }
             $url = $this->Url->build([
                 'controller' => 'Members',
                 'action' => 'AutoComplete',
-                'plugin' => null
+                'plugin' => null,
             ]);
             echo $this->KMP->autoCompleteControl(
                 $this->Form,
                 'sca_name',
                 'parent_id',
                 $url,
-                "Parent",
+                'Parent',
                 true,
                 false,
                 3,
                 [
                     'data-member-verify-form-target' => 'scaMember',
-                ]
+                ],
             );
         }
         if ($needsMemberCardVerification) {
@@ -70,42 +91,61 @@ if ($user->checkCan("verifyMembership", "Members") && $needVerification) :
                         style="max-width:100%; display:block;"
                         loading="lazy" />
                 </div>
-                <small class="text-muted d-block mb-2"><?= __('Scroll to zoom · Drag to pan · Double-click to reset') ?></small>
+                <small class="text-muted d-block mb-2">
+                    <?= __('Scroll to zoom · Drag to pan · Double-click to reset') ?>
+                </small>
             <?php }
             if ($needsParentVerification) {
-                echo $this->Form->control("verify_membership", [
-                    "type" => "checkbox",
-                    "value" => 1,
-                    "checked" => "checked",
-                    "data-action" => "member-verify-form#toggleMembership",
+                echo $this->Form->control('verify_membership', [
+                    'type' => 'checkbox',
+                    'value' => 1,
+                    'checked' => 'checked',
+                    'data-action' => 'member-verify-form#toggleMembership',
                 ]);
             } else {
-                echo $this->Form->control("verify_membership", [
-                    "type" => "hidden",
-                    "value" => 1,
+                echo $this->Form->control('verify_membership', [
+                    'type' => 'hidden',
+                    'value' => 1,
                 ]);
             }
-            echo $this->Form->control("membership_number", [
+            echo $this->Form->control('membership_number', [
                 'required' => true,
                 'data-member-verify-form-target' => 'membershipNumber',
             ]);
-            echo $this->Form->control("membership_expires_on", [
-                "type" => "date",
+            echo $this->Form->control('membership_expires_on', [
+                'type' => 'date',
                 'required' => true,
-                "empty" => true,
+                'empty' => true,
                 'data-member-verify-form-target' => 'membershipExpDate',
             ]);
         }
         ?>
     </fieldset>
-<?php echo $this->Modal->end([
-        $this->Form->button("Submit", [
-            "class" => "btn btn-primary",
+    <?php
+    $footerButtons = [
+        $this->Form->button(__('Submit'), [
+            'class' => 'btn btn-primary',
         ]),
-        $this->Form->button("Close", [
-            "data-bs-dismiss" => "modal",
-            "type" => "button",
-        ]),
+    ];
+    if ($hasMembershipCard) {
+        $footerButtons[] = $this->Form->button(__('Request new upload'), [
+            'type' => 'button',
+            'class' => 'btn btn-outline-danger',
+            'data-controller' => 'confirmation',
+            'data-action' => 'confirmation#confirm',
+            'data-confirmation-message-value' => __(
+                'Remove this membership card and email the member asking for a new upload?',
+            ),
+            'data-confirmation-title-value' => __('Request a new membership card'),
+            'data-confirmation-confirm-label-value' => __('Remove card and send request'),
+            'data-confirmation-submit-selector-value' => '#' . $reuploadFormId,
+        ]);
+    }
+    $footerButtons[] = $this->Form->button(__('Close'), [
+        'data-bs-dismiss' => 'modal',
+        'type' => 'button',
     ]);
+
+    echo $this->Modal->end($footerButtons);
     echo $this->Form->end();
 endif; ?>

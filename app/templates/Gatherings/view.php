@@ -399,15 +399,17 @@ $publicLandingUrl = $this->Url->build([
 <?= $this->element('gatherings/scheduleTab', [
     'gathering' => $gathering,
     'user' => $user,
+    'courtActivityIds' => $courtActivityIds,
 ]) ?>
 
 <div class="related tab-pane fade m-3" id="nav-activities" role="tabpanel" aria-labelledby="nav-activities-tab"
     data-detail-tabs-target="tabContent" data-tab-order="5" style="order: 5;">
 
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <?php if ($user->checkCan('edit', $gathering)) : ?>
+        <?php if ($canEditGathering || $canAddCourtActivity) : ?>
         <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addActivityModal">
-            <i class="bi bi-plus-circle"></i> <?= __('Add Activity') ?>
+            <i class="bi bi-plus-circle" aria-hidden="true"></i>
+            <?= $canEditGathering ? __('Add Activity') : __('Add Court Activity') ?>
         </button>
         <?php endif; ?>
     </div>
@@ -453,7 +455,7 @@ $publicLandingUrl = $this->Url->build([
                                         ['escape' => false, 'title' => __('View'), 'class' => 'btn btn-sm btn-secondary'],
                                     ) ?>
                         <?php endif; ?>
-                        <?php if ($user->checkCan('edit', $gathering)) : ?>
+                        <?php if ($canEditGathering) : ?>
                         <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal"
                             data-bs-target="#editActivityDescriptionModal" data-activity-id="<?= $activity->id ?>"
                             data-activity-name="<?= h($activity->name) ?>"
@@ -464,7 +466,7 @@ $publicLandingUrl = $this->Url->build([
                         </button>
                         <?php endif; ?>
                         <?php
-                                $canRemoveActivity = $user->checkCan('edit', $gathering) && (
+                                $canRemoveActivity = $canEditGathering && (
                                     !$hasWaivers || (
                                         $waiverRemovalAuthorization !== null &&
                                         $user->checkCan('removeGatheringActivity', $waiverRemovalAuthorization, $activity->id)
@@ -500,8 +502,10 @@ $publicLandingUrl = $this->Url->build([
     <div class="alert alert-secondary">
         <i class="bi bi-info-circle"></i>
         <?= __('No activities have been added to this gathering yet.') ?>
-        <?php if ($user->checkCan('edit', $gathering)) : ?>
-        <?= __('Click "Add Activity" above to get started.') ?>
+        <?php if ($canEditGathering || $canAddCourtActivity) : ?>
+        <?= $canEditGathering
+            ? __('Click "Add Activity" above to get started.')
+            : __('Click "Add Court Activity" above to prepare this gathering for Court.') ?>
         <?php endif; ?>
     </div>
     <?php endif; ?>
@@ -533,18 +537,21 @@ echo $this->KMP->startBlock('modals');
 // Schedule modals are now rendered inside scheduleTab.php for Stimulus scope
 
 // Add Activity Modal
-if ($user->checkCan('edit', $gathering)) {
+if ($canEditGathering || $canAddCourtActivity) {
     echo $this->element('gatherings/addActivityModal', [
         'gathering' => $gathering,
         'availableActivities' => $availableActivities,
         'user' => $user,
+        'courtActivityOnly' => !$canEditGathering,
     ]);
 
     // Edit Activity Description Modal
-    echo $this->element('gatherings/editActivityDescriptionModal', [
-        'gathering' => $gathering,
-        'user' => $user,
-    ]);
+    if ($canEditGathering) {
+        echo $this->element('gatherings/editActivityDescriptionModal', [
+            'gathering' => $gathering,
+            'user' => $user,
+        ]);
+    }
 }
 
 // Clone Gathering Modal

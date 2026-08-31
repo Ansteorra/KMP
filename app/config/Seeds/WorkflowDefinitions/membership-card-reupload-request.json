@@ -1,0 +1,82 @@
+{
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
+    "nodes": {
+        "trigger-reupload-request": {
+            "type": "trigger",
+            "label": "Membership Card Re-upload Requested",
+            "config": {
+                "event": "Members.MembershipCardReuploadRequested",
+                "entityIdField": "memberId"
+            },
+            "position": {
+                "x": 50,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "load-member"
+                }
+            ]
+        },
+        "load-member": {
+            "type": "action",
+            "label": "Load Member",
+            "config": {
+                "action": "Core.GetObjectById",
+                "params": {
+                    "entityType": "Members.Members",
+                    "entityId": "$.trigger.memberId"
+                }
+            },
+            "position": {
+                "x": 350,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "send-reupload-request"
+                }
+            ]
+        },
+        "send-reupload-request": {
+            "type": "action",
+            "label": "Send Membership Card Re-upload Request",
+            "config": {
+                "action": "Core.SendEmail",
+                "params": {
+                    "to": "$.nodes.load-member.result.record.email_address",
+                    "template": "membership-card-reupload-requested",
+                    "replyTo": "$.trigger.contactEmail",
+                    "vars": {
+                        "memberScaName": "$.nodes.load-member.result.record.sca_name",
+                        "contactEmail": "$.trigger.contactEmail"
+                    }
+                }
+            },
+            "position": {
+                "x": 650,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "end-complete"
+                }
+            ]
+        },
+        "end-complete": {
+            "type": "end",
+            "label": "Re-upload Request Sent",
+            "config": {},
+            "position": {
+                "x": 950,
+                "y": 200
+            },
+            "outputs": []
+        }
+    },
+    "startNode": "trigger-reupload-request"
+}

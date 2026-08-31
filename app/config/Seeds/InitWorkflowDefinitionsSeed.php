@@ -263,6 +263,18 @@ class InitWorkflowDefinitionsSeed extends BaseSeed
                 'is_active' => true,
             ],
             [
+                'name' => 'Membership Card Re-upload Request',
+                'slug' => 'membership-card-reupload-request',
+                'description' => 'Notifies a member when an administrator removes an unreadable membership card ' .
+                    'and requests a replacement upload.',
+                'trigger_type' => 'event',
+                'trigger_config' => ['event' => 'Members.MembershipCardReuploadRequested'],
+                'entity_type' => 'Members.Members',
+                'json_file' => 'membership-card-reupload-request.json',
+                'execution_mode' => 'ephemeral',
+                'is_active' => true,
+            ],
+            [
                 'name' => 'Waiver Collection Closure',
                 'slug' => 'waiver-closure',
                 'description' => 'Closes a waiver collection when ready and notifies the gathering organizer.',

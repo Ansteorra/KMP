@@ -5,6 +5,8 @@ namespace App\Test\TestCase\Policy;
 
 use App\Policy\MemberPolicy;
 use App\Test\TestCase\BaseTestCase;
+use Cake\Cache\Cache;
+use Cake\I18n\DateTime;
 
 class MemberPolicyTest extends BaseTestCase
 {
@@ -17,6 +19,13 @@ class MemberPolicyTest extends BaseTestCase
         $this->skipIfPostgres();
         $this->Members = $this->getTableLocator()->get('Members');
         $this->policy = new MemberPolicy();
+        Cache::clearGroup('security');
+    }
+
+    protected function tearDown(): void
+    {
+        Cache::clearGroup('security');
+        parent::tearDown();
     }
 
     protected function loadMember(int $id)
@@ -144,7 +153,7 @@ class MemberPolicyTest extends BaseTestCase
     }
 
     // -------------------------------------------------------
-    // canImportExpirationDates — _hasPolicy only
+    // canImportExpirationDates
     // -------------------------------------------------------
 
     public function testCanImportExpirationDatesRequiresPolicy(): void
@@ -155,6 +164,62 @@ class MemberPolicyTest extends BaseTestCase
         $beforeResult = $this->policy->before($agatha, $target, 'importExpirationDates');
         $this->assertNull($beforeResult);
         $this->assertFalse($this->policy->canImportExpirationDates($agatha, $target));
+    }
+
+    public function testKingdomSeneschalCanImportWithNarrowPermission(): void
+    {
+        $this->grantNarrowImportPermissionToGreaterOfficers();
+        $eirik = $this->loadMember(self::TEST_MEMBER_EIRIK_ID);
+
+        $this->assertTrue(
+            $this->policy->canImportExpirationDates($eirik, $this->Members->newEmptyEntity()),
+        );
+    }
+
+    public function testNonSeneschalGreaterOfficerCannotImportWithNarrowPermission(): void
+    {
+        $this->grantNarrowImportPermissionToGreaterOfficers();
+        $now = DateTime::now();
+        $officer = $this->getTableLocator()->get('Officers.Officers')->find()
+            ->innerJoinWith('Offices')
+            ->select(['member_id'])
+            ->where([
+                'Offices.name' => 'Kingdom MoAS',
+                'Officers.status' => 'Current',
+                'Officers.start_on <=' => $now,
+                'Officers.expires_on >=' => $now,
+                'Officers.revoker_id IS' => null,
+            ])
+            ->firstOrFail();
+        $greaterOfficer = $this->loadMember((int)$officer->member_id);
+
+        $this->assertFalse(
+            $this->policy->canImportExpirationDates($greaterOfficer, $this->Members->newEmptyEntity()),
+        );
+    }
+
+    public function testSiteSecretaryCannotImportWithLegacyManageMembersGrant(): void
+    {
+        $roles = $this->getTableLocator()->get('Roles');
+        $siteSecretary = $roles->find()->where(['name' => 'Site Secretary'])->firstOrFail();
+        $memberRoles = $this->getTableLocator()->get('MemberRoles');
+        $memberRoles->saveOrFail($memberRoles->newEntity([
+            'member_id' => self::TEST_MEMBER_AGATHA_ID,
+            'role_id' => $siteSecretary->id,
+            'branch_id' => null,
+            'start_on' => '2020-01-01',
+            'expires_on' => '2100-01-01',
+            'approver_id' => self::ADMIN_MEMBER_ID,
+        ]));
+        Cache::clearGroup('security');
+        $siteSecretaryMember = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
+
+        $this->assertFalse(
+            $this->policy->canImportExpirationDates(
+                $siteSecretaryMember,
+                $this->Members->newEmptyEntity(),
+            ),
+        );
     }
 
     // -------------------------------------------------------
@@ -221,5 +286,62 @@ class MemberPolicyTest extends BaseTestCase
 
         // Even self-management does not allow delete
         $this->assertFalse($this->policy->canDelete($agatha, $agatha));
+    }
+
+    private function grantNarrowImportPermissionToGreaterOfficers(): void
+    {
+        $permissions = $this->getTableLocator()->get('Permissions');
+        $permission = $permissions->find()
+            ->where(['name' => 'Can Import Member Data'])
+            ->first();
+        if ($permission === null) {
+            $permission = $permissions->newEntity([
+                'name' => 'Can Import Member Data',
+                'require_active_membership' => true,
+                'require_active_background_check' => false,
+                'require_min_age' => 0,
+                'is_system' => true,
+                'is_super_user' => false,
+                'requires_warrant' => true,
+                'scoping_rule' => 'Global',
+            ]);
+            $permissions->saveOrFail($permission);
+        }
+
+        $permissionPolicies = $this->getTableLocator()->get('PermissionPolicies');
+        $policyMapping = $permissionPolicies->find()
+            ->where([
+                'permission_id' => $permission->id,
+                'policy_class' => MemberPolicy::class,
+                'policy_method' => 'canImportExpirationDates',
+            ])
+            ->first();
+        if ($policyMapping === null) {
+            $permissionPolicies->saveOrFail($permissionPolicies->newEntity([
+                'permission_id' => $permission->id,
+                'policy_class' => MemberPolicy::class,
+                'policy_method' => 'canImportExpirationDates',
+            ]));
+        }
+
+        $role = $this->getTableLocator()->get('Roles')->find()
+            ->where(['name' => 'Greater Officer of State'])
+            ->firstOrFail();
+        $rolesPermissions = $this->getTableLocator()->get('RolesPermissions');
+        $roleGrant = $rolesPermissions->find()
+            ->where([
+                'role_id' => $role->id,
+                'permission_id' => $permission->id,
+            ])
+            ->first();
+        if ($roleGrant === null) {
+            $rolesPermissions->saveOrFail($rolesPermissions->newEntity([
+                'role_id' => $role->id,
+                'permission_id' => $permission->id,
+                'created_by' => self::ADMIN_MEMBER_ID,
+            ]));
+        }
+
+        Cache::clearGroup('security');
     }
 }

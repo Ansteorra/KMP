@@ -48,6 +48,8 @@ class GatheringsCalendarController extends Controller {
         this.turboFrame = null
         this.attendanceModalElement = null
         this.attendanceModalInstance = null
+        this.attendanceModalTrigger = null
+        this._attendanceHiddenHandler = null
     }
 
     /**
@@ -462,6 +464,7 @@ class GatheringsCalendarController extends Controller {
         const action = button.dataset.attendanceAction || 'add'
         const gatheringId = button.dataset.gatheringId
         const attendanceId = button.dataset.attendanceId || ''
+        this.attendanceModalTrigger = button
 
         // Get the attendance modal
         const attendanceModal = document.getElementById('attendanceModal')
@@ -491,8 +494,21 @@ class GatheringsCalendarController extends Controller {
             `
 
             if (this.attendanceModalElement !== attendanceModal || !this.attendanceModalInstance) {
+                if (this.attendanceModalElement && this._attendanceHiddenHandler) {
+                    this.attendanceModalElement.removeEventListener(
+                        'hidden.bs.modal',
+                        this._attendanceHiddenHandler,
+                    )
+                }
                 this.attendanceModalElement = attendanceModal
                 this.attendanceModalInstance = new bootstrap.Modal(attendanceModal)
+                this._attendanceHiddenHandler = () => {
+                    if (this.attendanceModalTrigger?.isConnected) {
+                        this.attendanceModalTrigger.focus()
+                    }
+                    this.attendanceModalTrigger = null
+                }
+                attendanceModal.addEventListener('hidden.bs.modal', this._attendanceHiddenHandler)
             }
 
             const showAttendance = () => {
@@ -812,13 +828,18 @@ class GatheringsCalendarController extends Controller {
                 }
             }
 
-            if (this.turboFrame) {
-                // If attendance modal content was rendered into a separate container, try to clean it
-                const attendanceClose = document.querySelector('#attendanceModalContent .btn-close')
-                if (attendanceClose && this._attendanceCloseHandler) {
-                    attendanceClose.removeEventListener('click', this._attendanceCloseHandler)
-                    this._attendanceCloseHandler = null
-                }
+            // If attendance modal content was rendered into a separate container, try to clean it
+            const attendanceClose = document.querySelector('#attendanceModalContent .btn-close')
+            if (attendanceClose && this._attendanceCloseHandler) {
+                attendanceClose.removeEventListener('click', this._attendanceCloseHandler)
+                this._attendanceCloseHandler = null
+            }
+            if (this.attendanceModalElement && this._attendanceHiddenHandler) {
+                this.attendanceModalElement.removeEventListener(
+                    'hidden.bs.modal',
+                    this._attendanceHiddenHandler,
+                )
+                this._attendanceHiddenHandler = null
             }
 
             if (this.modalInstance) {
@@ -828,6 +849,7 @@ class GatheringsCalendarController extends Controller {
                 this.attendanceModalInstance.dispose()
                 this.attendanceModalInstance = null
                 this.attendanceModalElement = null
+                this.attendanceModalTrigger = null
             }
         } catch (e) {
             console.warn('Error during disconnect cleanup:', e)

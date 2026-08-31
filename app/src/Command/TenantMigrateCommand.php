@@ -12,6 +12,7 @@ use App\Services\Platform\PlatformScheduleRunner;
 use App\Services\Platform\PostgresTenantMigrationLockManager;
 use App\Services\Platform\ReleaseCompatibilityChecker;
 use App\Services\Platform\ReleaseManifest;
+use App\Services\Platform\TenantHostResolver;
 use App\Services\Platform\TenantMigrateCommandScrubber;
 use App\Services\Platform\TenantMigrationCatalog;
 use App\Services\Platform\TenantMigrationLockException;
@@ -255,6 +256,7 @@ class TenantMigrateCommand extends Command
                     'schema_version' => $beforeState->targetVersion,
                     'modified_at' => $finishedAt,
                 ], ['id' => $tenant->id]);
+                TenantHostResolver::clearCache(self::PLATFORM_CONNECTION);
                 $io->out(sprintf(
                     'Tenant %s is already current at schema %s; no backup or migration was needed.',
                     $tenant->slug,
@@ -303,6 +305,7 @@ class TenantMigrateCommand extends Command
                     'schema_version' => $result->schemaVersion,
                     'modified_at' => $finishedAt,
                 ], ['id' => $tenant->id]);
+                TenantHostResolver::clearCache(self::PLATFORM_CONNECTION);
             }
             $io->success(sprintf(
                 'Tenant %s migrated to schema %s.',

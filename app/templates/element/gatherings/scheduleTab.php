@@ -8,10 +8,21 @@
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Gathering $gathering
  * @var \App\Model\Entity\User $user
+ * @var array<int, int> $courtActivityIds
  */
 $canEditGathering = $user->checkCan('edit', $gathering);
 $canCreateScheduledActivity = $user->checkCan('createScheduledActivity', $gathering);
 $showScheduleActions = $canEditGathering || $canCreateScheduledActivity;
+$scheduleActivities = $gathering->gathering_activities ?? [];
+if (!$canEditGathering) {
+    $scheduleActivities = array_values(array_filter(
+        $scheduleActivities,
+        static fn($activity): bool => in_array((int)$activity->id, $courtActivityIds, true),
+    ));
+}
+$allowOtherActivities = $canEditGathering;
+$showAddScheduleAction = $canCreateScheduledActivity
+    && ($allowOtherActivities || $scheduleActivities !== []);
 $scheduleStartValue = $this->Timezone->format($gathering->start_date, 'Y-m-d\TH:i', false, null, $gathering);
 $scheduleEndValue = $this->Timezone->format($gathering->end_date, 'Y-m-d\TH:i', false, null, $gathering);
 $addScheduleUrl = $this->Url->build(['action' => 'addScheduledActivity', $gathering->public_id]);
@@ -35,7 +46,7 @@ $deleteScheduleUrl = $this->Url->build(['action' => 'deleteScheduledActivity', $
 
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4><?= __('Event Schedule') ?></h4>
-        <?php if ($canCreateScheduledActivity) : ?>
+        <?php if ($showAddScheduleAction) : ?>
             <button type="button"
                 class="btn btn-sm btn-primary"
                 data-bs-toggle="modal"
@@ -198,18 +209,28 @@ $deleteScheduleUrl = $this->Url->build(['action' => 'deleteScheduledActivity', $
         <div class="alert alert-secondary">
             <i class="bi bi-info-circle"></i>
             <?= __('No activities have been scheduled yet.') ?>
-            <?php if ($canCreateScheduledActivity) : ?>
+            <?php if ($showAddScheduleAction) : ?>
                 <?= __('Click "Add Scheduled Activity" above to create your event schedule.') ?>
+            <?php elseif ($canCreateScheduledActivity) : ?>
+                <?= __('Add a Court activity on the Activities tab before scheduling Court.') ?>
             <?php endif; ?>
         </div>
     <?php endif; ?>
 
     <?php // Modals must be inside the controller scope for Stimulus targets to work
     ?>
-    <?php if ($canCreateScheduledActivity) : ?>
-        <?= $this->element('gatherings/addScheduleModal', ['gathering' => $gathering]) ?>
+    <?php if ($showAddScheduleAction) : ?>
+        <?= $this->element('gatherings/addScheduleModal', [
+            'gathering' => $gathering,
+            'scheduleActivities' => $scheduleActivities,
+            'allowOtherActivities' => $allowOtherActivities,
+        ]) ?>
     <?php endif; ?>
     <?php if ($showScheduleActions) : ?>
-        <?= $this->element('gatherings/editScheduleModal', ['gathering' => $gathering]) ?>
+        <?= $this->element('gatherings/editScheduleModal', [
+            'gathering' => $gathering,
+            'scheduleActivities' => $scheduleActivities,
+            'allowOtherActivities' => $allowOtherActivities,
+        ]) ?>
     <?php endif; ?>
 </div>

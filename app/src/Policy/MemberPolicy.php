@@ -4,15 +4,24 @@ declare(strict_types=1);
 namespace App\Policy;
 
 use App\KMP\KmpIdentityInterface;
+use App\Model\Entity\ActiveWindowBaseEntity;
 use App\Model\Entity\BaseEntity;
 use App\Model\Entity\Member;
+use Cake\I18n\DateTime;
+use Cake\Log\Log;
 use Cake\ORM\Table;
+use Cake\ORM\TableRegistry;
+use Throwable;
 
 /**
  * role policy
  */
 class MemberPolicy extends BasePolicy
 {
+    private const IMPORT_MEMBER_DATA_PERMISSION = 'Can Import Member Data';
+
+    private const KINGDOM_SENESCHAL_OFFICE = 'Kingdom Seneschal';
+
     /**
      * Check if $user can view Member
      *
@@ -236,7 +245,65 @@ class MemberPolicy extends BasePolicy
     ): bool {
         $method = __FUNCTION__;
 
-        return $this->_hasPolicy($user, $method, $entity);
+        if ($this->_isSuperUser($user)) {
+            return true;
+        }
+        if (!$this->_hasPolicy($user, $method, $entity)) {
+            return false;
+        }
+
+        $hasNarrowImportPermission = false;
+        foreach ($this->_getPermissions($user) ?? [] as $permission) {
+            if (
+                ($permission->name ?? null) !== self::IMPORT_MEMBER_DATA_PERMISSION
+                || !isset($permission->policies[self::class][$method])
+            ) {
+                continue;
+            }
+            $hasNarrowImportPermission = true;
+            break;
+        }
+
+        return $hasNarrowImportPermission && $this->isCurrentKingdomSeneschal($user);
+    }
+
+    /**
+     * Confirm the narrow import grant belongs to the current Kingdom Seneschal.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user being authorized.
+     * @return bool
+     */
+    private function isCurrentKingdomSeneschal(KmpIdentityInterface $user): bool
+    {
+        try {
+            $member = $user->getAsMember();
+            $now = DateTime::now();
+            $officers = TableRegistry::getTableLocator()->get('Officers.Officers');
+
+            return $officers->find()
+                ->innerJoinWith('Offices')
+                ->where([
+                    'Officers.member_id' => (int)$member->id,
+                    'Officers.status' => ActiveWindowBaseEntity::CURRENT_STATUS,
+                    'Officers.start_on <=' => $now,
+                    'OR' => [
+                        'Officers.expires_on IS' => null,
+                        'Officers.expires_on >=' => $now,
+                    ],
+                    'Officers.revoker_id IS' => null,
+                    'Offices.name' => self::KINGDOM_SENESCHAL_OFFICE,
+                    'Offices.applicable_branch_types LIKE' => '%"Kingdom"%',
+                    'Offices.deleted IS' => null,
+                ])
+                ->count() > 0;
+        } catch (Throwable $exception) {
+            Log::warning(
+                'Unable to validate the Kingdom Seneschal member-data import grant: '
+                . $exception->getMessage(),
+            );
+
+            return false;
+        }
     }
 
     /**

@@ -48,6 +48,10 @@ Own award domains, levels, recommendations, recommendation feedback approvals, b
 - Bulk synchronization reports may expose bounded record IDs and trusted domain skip reasons, but unexpected exception
   details belong in server logs; user-facing failures use fixed categories.
 - State/status rules and plugin settings are stored in `Awards.*`, `Member.AdditionalInfo.*`, and `Plugin.Awards.*` settings.
+- Scoped Crown, Principality, and Baronial Court Management permissions may attach only activity types that the award
+  catalog declares eligible for presentations, before any bestowal is assigned to that gathering. Planners may create
+  scheduled entries only from those attached Court activities and edit only scheduled Courts they created. They do not
+  gain general gathering editing, generic “Other” scheduling, removal, or deletion.
 - The `awards migrate_award_recommendations` command is registered by the plugin.
 
 ## Work Guidance

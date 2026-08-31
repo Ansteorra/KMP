@@ -196,6 +196,35 @@ class GatheringPolicyTest extends BaseTestCase
         $this->assertTrue($this->policy->canCreateScheduledActivity($user, $gathering));
     }
 
+    public function testDedicatedPolicyCanAddCourtActivity(): void
+    {
+        $gathering = $this->getGathering();
+        $user = $this->createSchedulePolicyUser(1234, 'canAddCourtActivity', (int)$gathering->branch_id);
+
+        $this->assertTrue($this->policy->canAddCourtActivity($user, $gathering));
+        $this->assertTrue($this->policy->canView($user, $gathering));
+    }
+
+    public function testNonPrivilegedUserCannotAddCourtActivity(): void
+    {
+        $gathering = $this->getGathering();
+        $user = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
+
+        $this->assertFalse($this->policy->canAddCourtActivity($user, $gathering));
+    }
+
+    public function testCourtActivityPolicyDoesNotApplyOutsideAssignedBranch(): void
+    {
+        $gathering = $this->getGathering();
+        $user = $this->createSchedulePolicyUser(
+            1234,
+            'canAddCourtActivity',
+            (int)$gathering->branch_id + 1000,
+        );
+
+        $this->assertFalse($this->policy->canAddCourtActivity($user, $gathering));
+    }
+
     public function testDedicatedCreatePolicyCanViewGathering(): void
     {
         $gathering = $this->getGathering();

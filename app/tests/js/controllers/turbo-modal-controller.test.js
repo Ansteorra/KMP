@@ -5,13 +5,20 @@ describe('TurboModalController', () => {
     let controller;
     let originalFetch;
     let originalIntersectionObserver;
+    let originalAccessibility;
 
     beforeEach(() => {
         originalFetch = global.fetch;
         originalIntersectionObserver = global.IntersectionObserver;
+        originalAccessibility = window.KMP_accessibility;
+        window.KMP_accessibility = {
+            ...(window.KMP_accessibility || {}),
+            announce: jest.fn(),
+        };
         document.body.innerHTML = `
             <div class="modal" id="testModal">
                 <form data-controller="turbo-modal"
+                      data-turbo-modal-success-message-value="Your attendance has been registered."
                       action="http://localhost/awards/recommendations/edit/594"
                       method="post"
                       data-action="submit->turbo-modal#submitAsTurboStream turbo:submit-start->turbo-modal#closeModalBeforeSubmit">
@@ -30,6 +37,7 @@ describe('TurboModalController', () => {
         document.body.innerHTML = '';
         global.fetch = originalFetch;
         global.IntersectionObserver = originalIntersectionObserver;
+        window.KMP_accessibility = originalAccessibility;
         jest.restoreAllMocks();
     });
 
@@ -111,6 +119,7 @@ describe('TurboModalController', () => {
         };
         controller.renderTurboStream = jest.fn();
         global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
             redirected: false,
             headers: {
                 get: jest.fn(() => 'text/vnd.turbo-stream.html; charset=UTF-8')
@@ -143,6 +152,57 @@ describe('TurboModalController', () => {
             '<turbo-stream action="remove" target="modal"></turbo-stream>'
         );
         expect(hideMock).toHaveBeenCalledTimes(1);
+        expect(hideMock.mock.invocationCallOrder[0])
+            .toBeLessThan(controller.renderTurboStream.mock.invocationCallOrder[0]);
+        expect(window.KMP_accessibility.announce)
+            .toHaveBeenCalledWith('Your attendance has been registered.');
+    });
+
+    test('setSubmitting updates a submit button associated from outside the form', () => {
+        controller.element.id = 'attendanceModalForm';
+        const externalSubmit = document.createElement('button');
+        externalSubmit.type = 'submit';
+        externalSubmit.setAttribute('form', 'attendanceModalForm');
+        document.body.appendChild(externalSubmit);
+
+        controller.setSubmitting(true);
+
+        expect(externalSubmit.disabled).toBe(true);
+        expect(externalSubmit.getAttribute('aria-busy')).toBe('true');
+
+        controller.setSubmitting(false);
+        expect(externalSubmit.disabled).toBe(false);
+        expect(externalSubmit.getAttribute('aria-busy')).toBe('false');
+    });
+
+    test('successful save still closes and shows feedback if stream rendering fails', async () => {
+        const hideMock = jest.fn();
+        window.bootstrap.Modal = {
+            getInstance: jest.fn(() => ({ hide: hideMock })),
+            getOrCreateInstance: jest.fn(() => ({ hide: hideMock })),
+        };
+        document.body.insertAdjacentHTML('afterbegin', '<div id="flash-messages"></div>');
+        controller.renderTurboStream = jest.fn(() => {
+            throw new Error('stream render failed');
+        });
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            redirected: false,
+            headers: { get: jest.fn(() => 'text/vnd.turbo-stream.html') },
+            text: jest.fn().mockResolvedValue('<turbo-stream></turbo-stream>'),
+        });
+
+        await controller.submitAsTurboStream({
+            preventDefault: jest.fn(),
+            stopImmediatePropagation: jest.fn(),
+        });
+
+        expect(hideMock).toHaveBeenCalledTimes(1);
+        expect(document.getElementById('flash-messages')).toHaveTextContent(
+            'Your attendance has been registered.',
+        );
+        expect(window.KMP_accessibility.announce)
+            .toHaveBeenCalledWith('Your attendance has been registered.');
     });
 
     test('submitAsTurboStream replaces containing frame for non-stream form responses', async () => {

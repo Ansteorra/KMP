@@ -161,7 +161,7 @@ class CoreNavigationProvider
             [
                 'type' => 'link',
                 'mergePath' => ['Members', 'Members'],
-                'label' => 'Import Exp. Dates',
+                'label' => 'Member Data Import',
                 'order' => 50,
                 'url' => [
                     'controller' => 'Members',

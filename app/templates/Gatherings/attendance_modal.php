@@ -15,6 +15,9 @@
 $isEdit = !empty($userAttendance);
 $formId = 'attendanceModalForm';
 $isMinor = $currentUser && $currentUser->age !== null && $currentUser->age < 18;
+$successMessage = $isEdit
+    ? __('Your attendance has been updated.')
+    : __('Your attendance has been registered.');
 ?>
 
 <?php
@@ -23,6 +26,8 @@ $formAttrs = [
     'id' => $formId,
     'data-turbo' => 'true',
     'data-controller' => 'turbo-modal',
+    'data-turbo-modal-success-message-value' => $successMessage,
+    'data-turbo-modal-error-message-value' => __('Unable to save your attendance. Please try again.'),
     'data-action' => implode(' ', [
         'submit->turbo-modal#submitAsTurboStream',
         'turbo:submit-start->turbo-modal#closeModalBeforeSubmit',

@@ -5,7 +5,8 @@
  * 
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Gathering $gathering
- * @var \App\Model\Entity\GatheringActivity[] $availableActivities
+ * @var array<\App\Model\Entity\GatheringActivity> $availableActivities
+ * @var bool $courtActivityOnly
  */
 
 // Build activities list for dropdown
@@ -25,11 +26,16 @@ foreach ($availableActivities as $activity) {
     'data-controller' => 'add-activity-modal'
 ]) ?>
 
-<?php echo $this->Modal->create(__('Add Activity to {0}', $gathering->name), [
+<?php echo $this->Modal->create(
+    $courtActivityOnly
+        ? __('Add Court Activity to {0}', $gathering->name)
+        : __('Add Activity to {0}', $gathering->name),
+    [
     'id' => 'addActivityModal',
     'close' => true,
     'form' => true,
-]); ?>
+    ],
+); ?>
 
 <div class="border rounded-3 bg-white shadow-sm p-3">
     <?php if (!empty($availableActivities)): ?>
@@ -49,7 +55,7 @@ foreach ($availableActivities as $activity) {
 
         <div class="mb-3">
             <label class="form-label text-muted small">
-                <i class="bi bi-info-circle"></i> <?= __('Default Description') ?>
+                <i class="bi bi-info-circle" aria-hidden="true"></i> <?= __('Default Description') ?>
             </label>
             <div id="default-description-display"
                 class="form-control-plaintext text-muted small"
@@ -70,7 +76,9 @@ foreach ($availableActivities as $activity) {
                 'data-add-activity-modal-target' => 'customDescription'
             ]) ?>
             <small class="form-text text-muted">
-                <?= __('Example: Change "Open practice" to "Baronial Championship" for this specific gathering.') ?>
+                <?= $courtActivityOnly
+                    ? __('Example: Identify this session as Royal, Principality, or Baronial Court.')
+                    : __('Example: Change "Open practice" to "Baronial Championship" for this specific gathering.') ?>
             </small>
         </div>
 
@@ -83,14 +91,16 @@ foreach ($availableActivities as $activity) {
         <?php endforeach; ?>
     <?php else: ?>
         <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i>
-            <?= __('All available activities have already been added to this gathering.') ?>
+            <i class="bi bi-info-circle" aria-hidden="true"></i>
+            <?= $courtActivityOnly
+                ? __('All available Court activities have already been added to this gathering.')
+                : __('All available activities have already been added to this gathering.') ?>
         </div>
     <?php endif; ?>
 </div>
 
 <?php echo $this->Modal->end([
-    $this->Form->button(__('Add Activity'), [
+    $this->Form->button($courtActivityOnly ? __('Add Court Activity') : __('Add Activity'), [
         'class' => 'btn btn-primary',
         'id' => 'add_activity_submit',
         'disabled' => empty($availableActivities)
