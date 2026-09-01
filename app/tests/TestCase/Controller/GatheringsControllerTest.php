@@ -145,6 +145,9 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
             ]),
         ], $currentUser);
         $this->assertInstanceOf(GridView::class, $gridView);
+        if (!$gridView instanceof GridView) {
+            return;
+        }
 
         $this->get(
             '/gatherings/grid-data?view_id=' . $gridView->id
@@ -211,6 +214,9 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
             ]),
         ], $currentUser);
         $this->assertInstanceOf(GridView::class, $gridView);
+        if (!$gridView instanceof GridView) {
+            return;
+        }
         $this->assertSame(
             ['schedule_window', 'gathering_type_id'],
             array_column($gridView->getConfigArray()['filters'], 'field'),
@@ -604,6 +610,9 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
             ]),
         ], $member);
         $this->assertInstanceOf(GridView::class, $gridView);
+        if (!$gridView instanceof GridView) {
+            return;
+        }
         $this->authenticateAsMember(self::TEST_MEMBER_BRYCE_ID);
 
         $this->get('/gatherings/calendar-grid-data?' . http_build_query([
@@ -617,7 +626,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains($matching->name);
         $this->assertResponseNotContains($excluded->name);
         $this->assertResponseContains('aria-label="Saved calendar views"');
-        $this->assertResponseContains('class="nav nav-tabs" role="tablist"');
+        $this->assertResponseContains('role="tablist"');
         $this->assertResponseNotContains('flex-nowrap overflow-x-auto');
         $this->assertResponseContains('grid-view#saveView');
         $gridState = $this->viewVariable('gridState');

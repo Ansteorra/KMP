@@ -205,6 +205,26 @@ describe('TurboModalController', () => {
             .toHaveBeenCalledWith('Your attendance has been registered.');
     });
 
+    test('failed turbo stream response renders errors and announces failure', async () => {
+        controller.renderTurboStream = jest.fn();
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: false,
+            redirected: false,
+            headers: { get: jest.fn(() => 'text/vnd.turbo-stream.html') },
+            text: jest.fn().mockResolvedValue('<turbo-stream></turbo-stream>'),
+        });
+
+        await controller.submitAsTurboStream({
+            preventDefault: jest.fn(),
+            stopImmediatePropagation: jest.fn(),
+        });
+
+        expect(controller.renderTurboStream)
+            .toHaveBeenCalledWith('<turbo-stream></turbo-stream>');
+        expect(window.KMP_accessibility.announce)
+            .toHaveBeenCalledWith('Unable to save. Please try again.', { assertive: true });
+    });
+
     test('submitAsTurboStream replaces containing frame for non-stream form responses', async () => {
         global.IntersectionObserver = jest.fn().mockImplementation(() => ({
             disconnect: jest.fn(),

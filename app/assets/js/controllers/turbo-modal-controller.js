@@ -101,6 +101,8 @@ class TurboModal extends Controller {
                 }
                 if (response.ok) {
                     this.announceSuccess();
+                } else {
+                    this.announceFailure();
                 }
                 return;
             }
@@ -116,12 +118,7 @@ class TurboModal extends Controller {
             }
         } catch (error) {
             console.error('Unable to submit modal form:', error);
-            window.KMP_accessibility?.announce?.(
-                this.errorMessageValue
-                    || this.element.dataset.turboModalErrorMessageValue
-                    || 'Unable to save. Please try again.',
-                { assertive: true },
-            );
+            this.announceFailure();
         } finally {
             this.setSubmitting(false);
         }
@@ -178,6 +175,16 @@ class TurboModal extends Controller {
     /** Announce successful completion after the modal starts closing. */
     announceSuccess() {
         window.KMP_accessibility?.announce?.(this.successMessage());
+    }
+
+    /** Announce a failed submission after any server-provided stream is rendered. */
+    announceFailure() {
+        window.KMP_accessibility?.announce?.(
+            this.errorMessageValue
+                || this.element.dataset.turboModalErrorMessageValue
+                || 'Unable to save. Please try again.',
+            { assertive: true },
+        );
     }
 
     /** Return the configured success copy for visible and announced feedback. */

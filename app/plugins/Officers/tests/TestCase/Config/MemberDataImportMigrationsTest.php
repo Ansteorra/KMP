@@ -157,6 +157,40 @@ class MemberDataImportMigrationsTest extends BaseTestCase
         $this->assertSame(0, $remainingGrantCount);
     }
 
+    public function testPluginMigrationRollbackPreservesPreexistingRoleGrant(): void
+    {
+        $this->coreMigration()->up();
+        $connection = ConnectionManager::get('test');
+        $role = $connection->execute(
+            'SELECT id FROM roles WHERE name = ?',
+            ['Greater Officer of State'],
+        )->fetch('assoc');
+        $permission = $connection->execute(
+            'SELECT id FROM permissions WHERE name = ?',
+            ['Can Import Member Data'],
+        )->fetch('assoc');
+        $this->assertIsArray($role);
+        $this->assertIsArray($permission);
+        if (!is_array($role) || !is_array($permission)) {
+            return;
+        }
+        $connection->execute(
+            'INSERT INTO roles_permissions (role_id, permission_id, created, created_by)'
+                . ' VALUES (?, ?, CURRENT_TIMESTAMP, ?)',
+            [(int)$role['id'], (int)$permission['id'], self::ADMIN_MEMBER_ID],
+        );
+
+        $migration = $this->pluginMigration();
+        $migration->up();
+        $migration->down();
+
+        $remainingGrantCount = (int)$connection->execute(
+            'SELECT count(*) FROM roles_permissions WHERE role_id = ? AND permission_id = ?',
+            [(int)$role['id'], (int)$permission['id']],
+        )->fetchColumn(0);
+        $this->assertSame(1, $remainingGrantCount);
+    }
+
     public function testPluginMigrationDoesNotRestoreDeletedFallbackRole(): void
     {
         $this->coreMigration()->up();

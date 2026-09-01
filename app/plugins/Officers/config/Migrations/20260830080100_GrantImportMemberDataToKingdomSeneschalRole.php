@@ -13,6 +13,8 @@ use Migrations\BaseMigration;
  */
 class GrantImportMemberDataToKingdomSeneschalRole extends BaseMigration
 {
+    private const TRACKING_TABLE = 'officers_import_member_data_grants';
+
     /**
      * Grant the permission to configured roles, creating a fresh-install fallback.
      *
@@ -31,32 +33,39 @@ class GrantImportMemberDataToKingdomSeneschalRole extends BaseMigration
         if ($roleIds === []) {
             $roleIds = [$this->ensureFallbackRole()];
         }
+        $this->ensureTrackingTable();
 
         foreach ($roleIds as $roleId) {
-            $this->grantPermission($roleId, $permissionId);
+            $grantId = $this->grantPermission($roleId, $permissionId);
+            if ($grantId !== null) {
+                $this->recordGrant($grantId);
+            }
         }
 
         Cache::clearGroup('security');
     }
 
     /**
-     * Remove grants for this plugin-owned permission and preserve all roles.
+     * Remove only role grants inserted by this migration and preserve all roles.
      *
      * @return void
      */
     public function down(): void
     {
-        $permission = $this->fetchRow(
-            "SELECT id FROM permissions WHERE name = 'Can Import Member Data'",
-        );
-        if (!$permission) {
+        if (!$this->hasTable(self::TRACKING_TABLE)) {
+            Cache::clearGroup('security');
+
             return;
         }
 
-        $permissionId = (int)$permission['id'];
-        $this->execute(
-            "DELETE FROM roles_permissions WHERE permission_id = {$permissionId}",
+        $trackedGrants = $this->fetchAll(
+            'SELECT role_permission_id FROM ' . self::TRACKING_TABLE,
         );
+        foreach ($trackedGrants as $trackedGrant) {
+            $grantId = (int)$trackedGrant['role_permission_id'];
+            $this->execute("DELETE FROM roles_permissions WHERE id = {$grantId}");
+        }
+        $this->table(self::TRACKING_TABLE)->drop()->save();
 
         Cache::clearGroup('security');
     }
@@ -129,22 +138,54 @@ class GrantImportMemberDataToKingdomSeneschalRole extends BaseMigration
      *
      * @param int $roleId Role receiving the permission.
      * @param int $permissionId Permission being granted.
-     * @return void
+     * @return int|null Inserted role-permission id, or null when already granted.
      */
-    private function grantPermission(int $roleId, int $permissionId): void
+    private function grantPermission(int $roleId, int $permissionId): ?int
     {
         $existing = $this->fetchRow(
-            "SELECT 1 FROM roles_permissions
+            "SELECT id FROM roles_permissions
              WHERE role_id = {$roleId} AND permission_id = {$permissionId}",
         );
         if ($existing) {
-            return;
+            return null;
         }
 
         $this->execute(
             "INSERT INTO roles_permissions
                 (role_id, permission_id, created, created_by)
              VALUES ({$roleId}, {$permissionId}, CURRENT_TIMESTAMP, 1)",
+        );
+
+        $grant = $this->fetchRow(
+            "SELECT id FROM roles_permissions
+             WHERE role_id = {$roleId} AND permission_id = {$permissionId}",
+        );
+        if (!$grant) {
+            throw new RuntimeException('Unable to record the member-data import role grant.');
+        }
+
+        return (int)$grant['id'];
+    }
+
+    /** Create the rollback bookkeeping table when needed. */
+    private function ensureTrackingTable(): void
+    {
+        if ($this->hasTable(self::TRACKING_TABLE)) {
+            return;
+        }
+
+        $this->table(self::TRACKING_TABLE, ['id' => false])
+            ->addColumn('role_permission_id', 'integer', ['null' => false])
+            ->addPrimaryKey(['role_permission_id'])
+            ->create();
+    }
+
+    /** Record a role grant owned by this migration. */
+    private function recordGrant(int $grantId): void
+    {
+        $this->execute(
+            'INSERT INTO ' . self::TRACKING_TABLE
+            . " (role_permission_id) VALUES ({$grantId})",
         );
     }
 }

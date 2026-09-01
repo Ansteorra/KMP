@@ -39,14 +39,14 @@ class AddMembershipCardReuploadWorkflow extends BaseMigration
                 "UPDATE workflow_definitions
                     SET is_active = TRUE,
                         execution_mode = 'ephemeral',
-                        modified = '" . date('Y-m-d H:i:s') . "'
+                        modified = '" . gmdate('Y-m-d H:i:s') . "'
                   WHERE id = {$definitionId}",
             );
 
             return;
         }
 
-        $now = date('Y-m-d H:i:s');
+        $now = gmdate('Y-m-d H:i:s');
         $name = $this->sqlEscape('Membership Card Re-upload Request');
         $description = $this->sqlEscape(
             'Notifies a member when an administrator removes an unreadable membership card '
@@ -90,7 +90,7 @@ class AddMembershipCardReuploadWorkflow extends BaseMigration
      */
     private function createVersion(int $definitionId, array $definitionData): void
     {
-        $now = date('Y-m-d H:i:s');
+        $now = gmdate('Y-m-d H:i:s');
         $definitionJson = $this->sqlEscape(json_encode($definitionData, JSON_THROW_ON_ERROR));
         $version = $this->fetchRow(
             "SELECT id FROM workflow_versions

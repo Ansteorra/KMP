@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 if ($user->checkCan('verifyMembership', 'Members') && $needVerification) :
     $hasMembershipCard = !empty($member->membership_card_document_id)
         || !empty($member->membership_card_path);

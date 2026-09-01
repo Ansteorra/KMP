@@ -2852,7 +2852,7 @@ class MembersController extends AppController
      * @param \App\Services\MemberExpirationImportService $importService Import workflow
      * @return \Cake\Http\Response|null
      */
-    public function importExpirationDates(MemberExpirationImportService $importService)
+    public function importExpirationDates(MemberExpirationImportService $importService): ?Response
     {
         $this->request->allowMethod(['get', 'post']);
         $this->Authorization->authorize($this->Members->newEmptyEntity());
@@ -2921,7 +2921,7 @@ class MembersController extends AppController
         MemberRegistrationService $registrationService,
         TriggerDispatcher $dispatcher,
         $id = null,
-    ) {
+    ): Response {
         $this->request->allowMethod(['post']);
 
         $member = $this->Members->get($id);

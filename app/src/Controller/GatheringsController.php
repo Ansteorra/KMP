@@ -478,7 +478,7 @@ class GatheringsController extends AppController
      * Returns a simplified view of a gathering for the calendar quick view modal.
      * This provides essential information without the full page layout.
      *
-     * @param string|null $id Gathering id.
+     * @param string|null $publicId Gathering public id.
      * @return \Cake\Http\Response|null|void Renders quick view partial
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */

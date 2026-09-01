@@ -19,24 +19,21 @@ $showAllTab = $gridState['config']['showAllTab'] ?? true;
 $showViewTabs = $gridState['config']['showViewTabs'] ?? true;
 ?>
 <?php if ($showViewTabs) : ?>
-    <div class="mb-3" data-saved-views-region>
-        <ul class="nav nav-tabs" role="tablist"
+    <div class="mb-3 d-flex align-items-end gap-2" data-saved-views-region>
+        <ul class="nav nav-tabs flex-grow-1" role="tablist"
             aria-label="<?= h($ariaLabel) ?>" data-view-tabs-container>
             <?php if (!$showAllTab) : ?>
                 <li class="d-none" data-no-all-tab></li>
             <?php endif; ?>
-
-            <?php if ($canAddViews) : ?>
-                <li class="nav-item ms-auto" role="presentation">
-                    <button type="button" class="nav-link"
-                        data-action="click-><?= h($controllerName) ?>#saveView"
-                        title="<?= h(__('Save current settings as a new view')) ?>"
-                        aria-label="<?= h(__('Save current settings as a new view')) ?>">
-                        <i class="bi bi-plus-lg" aria-hidden="true"></i>
-                        <span class="visually-hidden"><?= __('Save view') ?></span>
-                    </button>
-                </li>
-            <?php endif; ?>
         </ul>
+        <?php if ($canAddViews) : ?>
+            <button type="button" class="btn btn-outline-secondary flex-shrink-0 mb-1"
+                data-action="click-><?= h($controllerName) ?>#saveView"
+                title="<?= h(__('Save current settings as a new view')) ?>"
+                aria-label="<?= h(__('Save current settings as a new view')) ?>">
+                <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                <span class="visually-hidden"><?= h(__('Save view')) ?></span>
+            </button>
+        <?php endif; ?>
     </div>
 <?php endif; ?>

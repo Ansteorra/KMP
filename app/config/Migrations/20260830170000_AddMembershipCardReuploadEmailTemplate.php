@@ -15,7 +15,7 @@ class AddMembershipCardReuploadEmailTemplate extends BaseMigration
      */
     public function up(): void
     {
-        $now = date('Y-m-d H:i:s');
+        $now = gmdate('Y-m-d H:i:s');
         $availableVars = json_encode([
             'memberScaName',
             'contactEmail',
