@@ -82,7 +82,8 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->get(
             '/gatherings/grid-data?start_date_start=' . $monthStart->format('Y-m-d')
             . '&start_date_end=' . $monthEnd->format('Y-m-d')
-            . '&filter%5Bgathering_type_id%5D%5B%5D=1&dirty%5Bfilters%5D=1',
+            . '&filter%5Bgathering_type_id%5D%5B%5D=1&dirty%5Bfilters%5D=1'
+            . '&search=Grid%20Frame%20Column%20Regression',
         );
 
         $this->assertResponseOk();
