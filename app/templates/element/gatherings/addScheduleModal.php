@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use function Cake\Collection\collection;
 
 /**
@@ -9,6 +11,8 @@ use function Cake\Collection\collection;
  * 
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Gathering $gathering
+ * @var array<\App\Model\Entity\GatheringActivity> $scheduleActivities
+ * @var bool $allowOtherActivities
  */
 ?>
 <div class="modal fade" id="addScheduleModal" tabindex="-1" aria-labelledby="addScheduleModalLabel" aria-hidden="true"
@@ -98,6 +102,7 @@ use function Cake\Collection\collection;
                     </legend>
                     <div class="row g-3">
                         <div class="col-12 col-lg-5">
+                            <?php if ($allowOtherActivities) : ?>
                             <div class="mb-3">
                                 <div class="form-check">
                                     <?= $this->Form->checkbox('is_other', [
@@ -111,18 +116,28 @@ use function Cake\Collection\collection;
                                     </label>
                                 </div>
                             </div>
+                            <?php else : ?>
+                                <?= $this->Form->hidden('is_other', [
+                                    'value' => '0',
+                                    'id' => 'add-is-other',
+                                    'data-gathering-schedule-target' => 'isOtherCheckbox',
+                                ]) ?>
+                            <?php endif; ?>
                             <?= $this->Form->control('gathering_activity_id', [
                                 'type' => 'select',
-                                'options' => $gathering->gathering_activities ?
-                                    collection($gathering->gathering_activities)->combine('id', 'name')->toArray() :
+                                'options' => $scheduleActivities ?
+                                    collection($scheduleActivities)->combine('id', 'name')->toArray() :
                                     [],
                                 'empty' => __('-- Select Activity --'),
                                 'label' => __('Gathering Activity'),
+                                'required' => !$allowOtherActivities,
                                 'class' => 'form-select',
                                 'data-gathering-schedule-target' => 'activitySelect',
                             ]) ?>
                             <small class="form-text text-muted">
-                                <?= __('Select an activity from the gathering\'s activity list, or check "Other" above.') ?>
+                                <?= $allowOtherActivities
+                                    ? __('Select an activity from the gathering\'s activity list, or check "Other" above.')
+                                    : __('Select a Court activity attached to this gathering.') ?>
                             </small>
                         </div>
                         <div class="col-12 col-lg-7">

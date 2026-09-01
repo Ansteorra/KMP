@@ -692,6 +692,25 @@ describe('GatheringsCalendarController', () => {
         expect(global.fetch).toHaveBeenCalledWith('/gatherings/attendance-modal/42?attendance_id=7');
     });
 
+    test('attendance modal restores focus to its list button after closing', async () => {
+        setupController();
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            text: () => Promise.resolve('<div class="modal-body">Form</div>')
+        });
+        const button = document.createElement('button');
+        button.dataset.attendanceAction = 'add';
+        button.dataset.gatheringId = '42';
+        document.body.appendChild(button);
+        const focusSpy = jest.spyOn(button, 'focus');
+
+        await controller.showAttendanceModal({ preventDefault: jest.fn(), currentTarget: button });
+        document.getElementById('attendanceModal').dispatchEvent(new Event('hidden.bs.modal'));
+
+        expect(focusSpy).toHaveBeenCalledTimes(1);
+        expect(controller.attendanceModalTrigger).toBeNull();
+    });
+
     test('showAttendanceModal shows error on fetch failure', async () => {
         setupController();
         global.fetch = jest.fn().mockResolvedValue({

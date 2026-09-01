@@ -82,7 +82,8 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->get(
             '/gatherings/grid-data?start_date_start=' . $monthStart->format('Y-m-d')
             . '&start_date_end=' . $monthEnd->format('Y-m-d')
-            . '&filter%5Bgathering_type_id%5D%5B%5D=1&dirty%5Bfilters%5D=1',
+            . '&filter%5Bgathering_type_id%5D%5B%5D=1&dirty%5Bfilters%5D=1'
+            . '&search=Grid%20Frame%20Column%20Regression',
         );
 
         $this->assertResponseOk();
@@ -145,6 +146,9 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
             ]),
         ], $currentUser);
         $this->assertInstanceOf(GridView::class, $gridView);
+        if (!$gridView instanceof GridView) {
+            return;
+        }
 
         $this->get(
             '/gatherings/grid-data?view_id=' . $gridView->id
@@ -211,6 +215,9 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
             ]),
         ], $currentUser);
         $this->assertInstanceOf(GridView::class, $gridView);
+        if (!$gridView instanceof GridView) {
+            return;
+        }
         $this->assertSame(
             ['schedule_window', 'gathering_type_id'],
             array_column($gridView->getConfigArray()['filters'], 'field'),
@@ -565,6 +572,72 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * Personal calendar views are available to ordinary members and apply saved filters.
+     *
+     * @return void
+     * @uses \App\Controller\GatheringsController::calendarGridData()
+     */
+    public function testCalendarSavedViewsAreAvailableToAllMembers(): void
+    {
+        $branches = $this->getTableLocator()->get('Branches')->find()
+            ->select(['id', 'public_id'])
+            ->where(['public_id IS NOT' => null])
+            ->orderBy(['id' => 'ASC'])
+            ->limit(2)
+            ->all()
+            ->toList();
+        $this->assertCount(2, $branches, 'Seed data must provide two branches for calendar view filtering.');
+
+        $matching = $this->createCalendarGathering('Personal Calendar View Match', false, [
+            'branch_id' => (int)$branches[0]->id,
+            'start_date' => '2099-10-15 10:00:00',
+            'end_date' => '2099-10-15 18:00:00',
+        ]);
+        $excluded = $this->createCalendarGathering('Personal Calendar View Excluded', false, [
+            'branch_id' => (int)$branches[1]->id,
+            'start_date' => '2099-10-16 10:00:00',
+            'end_date' => '2099-10-16 18:00:00',
+        ]);
+        $member = $this->getTableLocator()->get('Members')->get(self::TEST_MEMBER_BRYCE_ID);
+        $gridView = (new GridViewService())->createView([
+            'grid_key' => 'Gatherings.calendar.main',
+            'name' => 'My Branch Calendar',
+            'config' => json_encode([
+                'filters' => [[
+                    'field' => 'branch_id',
+                    'operator' => 'in',
+                    'value' => [(string)$branches[0]->public_id],
+                ]],
+            ]),
+        ], $member);
+        $this->assertInstanceOf(GridView::class, $gridView);
+        if (!$gridView instanceof GridView) {
+            return;
+        }
+        $this->authenticateAsMember(self::TEST_MEMBER_BRYCE_ID);
+
+        $this->get('/gatherings/calendar-grid-data?' . http_build_query([
+            'view_id' => $gridView->id,
+            'view' => 'list',
+            'year' => '2099',
+            'month' => '10',
+        ]));
+
+        $this->assertResponseOk();
+        $this->assertResponseContains($matching->name);
+        $this->assertResponseNotContains($excluded->name);
+        $this->assertResponseContains('aria-label="Saved calendar views"');
+        $this->assertResponseContains('role="tablist"');
+        $this->assertResponseNotContains('flex-nowrap overflow-x-auto');
+        $this->assertResponseContains('grid-view#saveView');
+        $gridState = $this->viewVariable('gridState');
+        $this->assertTrue($gridState['config']['canAddViews']);
+        $this->assertTrue($gridState['config']['showViewTabs']);
+        $this->assertSame((int)$gridView->id, (int)$gridState['view']['currentId']);
+        $this->assertContains('My Branch Calendar', array_column($gridState['view']['available'], 'name'));
+    }
+
+    /**
      * Today navigation renders a scroll target in every calendar mode.
      *
      * @return void
@@ -873,6 +946,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     {
         $gathering = $this->getScheduleTestGathering();
         $memberId = self::TEST_MEMBER_AGATHA_ID;
+        $courtActivity = $this->createCourtActivity($gathering, true);
         $this->grantCourtSchedulePermission($memberId, (int)$gathering->branch_id);
         $this->authenticateAsMember($memberId);
 
@@ -882,7 +956,8 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
             'display_title' => 'Delegated Court Session',
             'description' => 'Created by a court schedule manager.',
             'pre_register' => '0',
-            'is_other' => '1',
+            'is_other' => '0',
+            'gathering_activity_id' => (string)$courtActivity->id,
         ]);
 
         $this->assertResponseOk();
@@ -895,13 +970,89 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
             ])
             ->first();
         $this->assertNotNull($created);
+        $this->assertSame((int)$courtActivity->id, (int)$created->gathering_activity_id);
+    }
+
+    public function testCourtScheduleManagerCanAttachCourtActivityBeforeBestowalAssignment(): void
+    {
+        $gathering = $this->getScheduleTestGathering();
+        $memberId = self::TEST_MEMBER_AGATHA_ID;
+        $courtActivity = $this->createCourtActivity($gathering, false);
+        $this->assertFalse($this->getTableLocator()->get('Awards.Bestowals')->exists([
+            'gathering_id' => (int)$gathering->id,
+        ]));
+        $this->grantCourtSchedulePermission($memberId, (int)$gathering->branch_id);
+        $this->authenticateAsMember($memberId);
+
+        $this->post('/gatherings/add-activity/' . $gathering->id, [
+            'activity_id' => (string)$courtActivity->id,
+            'custom_description' => 'Royal Court for this gathering.',
+        ]);
+
+        $this->assertRedirect(['action' => 'view', $gathering->public_id]);
+        $link = $this->getTableLocator()->get('GatheringsGatheringActivities')->find()
+            ->where([
+                'gathering_id' => (int)$gathering->id,
+                'gathering_activity_id' => (int)$courtActivity->id,
+            ])
+            ->first();
+        $this->assertNotNull($link);
+        $this->assertSame('Royal Court for this gathering.', $link->custom_description);
+    }
+
+    public function testCourtScheduleManagerCannotAttachNonCourtActivity(): void
+    {
+        $gathering = $this->getScheduleTestGathering();
+        $memberId = self::TEST_MEMBER_AGATHA_ID;
+        $nonCourtActivity = $this->createNonCourtActivity();
+        $this->grantCourtSchedulePermission($memberId, (int)$gathering->branch_id);
+        $this->authenticateAsMember($memberId);
+
+        $this->post('/gatherings/add-activity/' . $gathering->id, [
+            'activity_id' => (string)$nonCourtActivity->id,
+        ]);
+
+        $this->assertResponseCode(403);
+        $this->assertFalse($this->getTableLocator()->get('GatheringsGatheringActivities')->exists([
+            'gathering_id' => (int)$gathering->id,
+            'gathering_activity_id' => (int)$nonCourtActivity->id,
+        ]));
+    }
+
+    public function testCourtScheduleManagerCannotScheduleOtherActivity(): void
+    {
+        $gathering = $this->getScheduleTestGathering();
+        $memberId = self::TEST_MEMBER_AGATHA_ID;
+        $this->grantCourtSchedulePermission($memberId, (int)$gathering->branch_id);
+        $this->authenticateAsMember($memberId);
+
+        $this->post('/gatherings/add-scheduled-activity/' . $gathering->public_id, [
+            'start_datetime' => $this->localScheduleInput($gathering, 1),
+            'has_end_time' => '0',
+            'display_title' => 'Forged Other Activity',
+            'description' => 'Should be rejected.',
+            'pre_register' => '0',
+            'is_other' => '1',
+        ]);
+
+        $this->assertResponseCode(403);
+        $this->assertFalse($this->getTableLocator()->get('GatheringScheduledActivities')->exists([
+            'gathering_id' => (int)$gathering->id,
+            'display_title' => 'Forged Other Activity',
+        ]));
     }
 
     public function testCourtScheduleManagerCanEditOwnScheduledActivity(): void
     {
         $gathering = $this->getScheduleTestGathering();
         $memberId = self::TEST_MEMBER_AGATHA_ID;
-        $scheduledActivity = $this->createScheduledActivity($gathering, $memberId, 'Own Court Session');
+        $courtActivity = $this->createCourtActivity($gathering, true);
+        $scheduledActivity = $this->createScheduledActivity(
+            $gathering,
+            $memberId,
+            'Own Court Session',
+            (int)$courtActivity->id,
+        );
         $this->grantCourtSchedulePermission($memberId, (int)$gathering->branch_id);
         $this->authenticateAsMember($memberId);
 
@@ -913,7 +1064,8 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
                 'display_title' => 'Updated Own Court Session',
                 'description' => 'Updated by original creator.',
                 'pre_register' => '0',
-                'is_other' => '1',
+                'is_other' => '0',
+                'gathering_activity_id' => (string)$courtActivity->id,
             ],
         );
 
@@ -927,10 +1079,12 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     {
         $gathering = $this->getScheduleTestGathering();
         $memberId = self::TEST_MEMBER_AGATHA_ID;
+        $courtActivity = $this->createCourtActivity($gathering, true);
         $scheduledActivity = $this->createScheduledActivity(
             $gathering,
             self::ADMIN_MEMBER_ID,
             'Someone Else Court Session',
+            (int)$courtActivity->id,
         );
         $this->grantCourtSchedulePermission($memberId, (int)$gathering->branch_id);
         $this->authenticateAsMember($memberId);
@@ -943,7 +1097,8 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
                 'display_title' => 'Unauthorized Edit Attempt',
                 'description' => 'Should not save.',
                 'pre_register' => '0',
-                'is_other' => '1',
+                'is_other' => '0',
+                'gathering_activity_id' => (string)$courtActivity->id,
             ],
         );
 
@@ -1061,8 +1216,19 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     {
         $gathering = $this->getScheduleTestGathering();
         $memberId = self::TEST_MEMBER_AGATHA_ID;
-        $this->createScheduledActivity($gathering, $memberId, 'Own Delegated Court');
-        $this->createScheduledActivity($gathering, self::ADMIN_MEMBER_ID, 'Other Court');
+        $courtActivity = $this->createCourtActivity($gathering, true);
+        $this->createScheduledActivity(
+            $gathering,
+            $memberId,
+            'Own Delegated Court',
+            (int)$courtActivity->id,
+        );
+        $this->createScheduledActivity(
+            $gathering,
+            self::ADMIN_MEMBER_ID,
+            'Other Court',
+            (int)$courtActivity->id,
+        );
         $this->grantCourtSchedulePermission($memberId, (int)$gathering->branch_id);
         $this->authenticateAsMember($memberId);
 
@@ -1070,7 +1236,10 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
 
         $this->assertResponseOk();
         $this->assertResponseContains('id="nav-schedule-tab"');
+        $this->assertResponseContains('Add Court Activity');
         $this->assertResponseContains('Add Scheduled Activity');
+        $this->assertResponseContains((string)$courtActivity->name);
+        $this->assertResponseNotContains('This is an &quot;Other&quot; activity');
         $this->assertResponseContains('aria-label="Edit Own Delegated Court"');
         $this->assertResponseNotContains('aria-label="Edit Other Court"');
         $this->assertResponseNotContains('aria-label="Delete Own Delegated Court"');
@@ -1602,6 +1771,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
 
         foreach (
             [
+            ['App\\Policy\\GatheringPolicy', 'canAddCourtActivity'],
             ['App\\Policy\\GatheringPolicy', 'canCreateScheduledActivity'],
             ['App\\Policy\\GatheringPolicy', 'canEditScheduledActivity'],
             ] as [$policyClass, $policyMethod]
@@ -1646,8 +1816,12 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         Cache::clearGroup('security');
     }
 
-    private function createScheduledActivity($gathering, int $createdBy, string $title)
-    {
+    private function createScheduledActivity(
+        $gathering,
+        int $createdBy,
+        string $title,
+        ?int $gatheringActivityId = null,
+    ) {
         $scheduledActivities = $this->getTableLocator()->get('GatheringScheduledActivities');
         $scheduledActivity = $scheduledActivities->newEntity([
             'gathering_id' => $gathering->id,
@@ -1656,13 +1830,51 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
             'display_title' => $title,
             'description' => $title . ' description.',
             'pre_register' => false,
-            'is_other' => true,
+            'is_other' => $gatheringActivityId === null,
+            'gathering_activity_id' => $gatheringActivityId,
             'created_by' => $createdBy,
         ]);
         $saved = $scheduledActivities->save($scheduledActivity);
         $this->assertNotFalse($saved, 'Expected scheduled activity fixture to save');
 
         return $saved;
+    }
+
+    private function createCourtActivity($gathering, bool $linkToGathering): object
+    {
+        $activity = $this->getTableLocator()->get('GatheringActivities')->saveOrFail(
+            $this->getTableLocator()->get('GatheringActivities')->newEntity([
+                'name' => 'Scoped Court Activity ' . $gathering->id . '-' . ($linkToGathering ? 'linked' : 'available'),
+                'description' => 'Court-capable activity for authorization testing.',
+            ]),
+        );
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()->select(['id'])->firstOrFail();
+        $awardActivities = $this->getTableLocator()->get('Awards.AwardGatheringActivities');
+        $awardActivities->saveOrFail($awardActivities->newEntity([
+            'award_id' => (int)$award->id,
+            'gathering_activity_id' => (int)$activity->id,
+        ]));
+
+        if ($linkToGathering) {
+            $links = $this->getTableLocator()->get('GatheringsGatheringActivities');
+            $links->saveOrFail($links->newEntity([
+                'gathering_id' => (int)$gathering->id,
+                'gathering_activity_id' => (int)$activity->id,
+                'sort_order' => 999,
+            ]));
+        }
+
+        return $activity;
+    }
+
+    private function createNonCourtActivity(): object
+    {
+        $activities = $this->getTableLocator()->get('GatheringActivities');
+
+        return $activities->saveOrFail($activities->newEntity([
+            'name' => 'Non-Court Authorization Test Activity',
+            'description' => 'Not associated with any award.',
+        ]));
     }
 
     private function localScheduleInput($gathering, int $hoursAfterStart): string

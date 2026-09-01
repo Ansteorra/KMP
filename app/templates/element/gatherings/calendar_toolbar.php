@@ -143,6 +143,12 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
     </div>
 </div>
 
+<?= $this->element('grid_view_tabs', [
+    'gridState' => $gridState,
+    'controllerName' => 'grid-view',
+    'ariaLabel' => __('Saved calendar views'),
+]) ?>
+
 <div class="card mb-3">
     <div class="card-body">
         <div class="row align-items-center g-2">

@@ -16,6 +16,7 @@ use App\Model\Entity\Member;
 use App\Services\CsvExportService;
 use App\Services\ImpersonationService;
 use App\Services\MemberAuthenticationService;
+use App\Services\MemberExpirationImportService;
 use App\Services\MemberProfileService;
 use App\Services\MemberRegistrationService;
 use App\Services\MemberSearchService;
@@ -36,6 +37,7 @@ use Cake\Mailer\MailerAwareTrait;
 use Cake\ORM\Query\SelectQuery;
 use Cake\Routing\Router;
 use Psr\Http\Message\UploadedFileInterface;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -74,6 +76,8 @@ class MembersController extends AppController
     private const QUICK_LOGIN_SETUP_SESSION_KEY = 'QuickLoginSetup';
 
     private const PROFILE_PHOTO_CACHE_CONTROL = 'private, max-age=3600, must-revalidate';
+
+    private const MEMBERSHIP_CARD_REUPLOAD_CONTACT_EMAIL = 'amp-secretary@webminister.ansteorra.org';
 
     /**
      * Request-scoped flag to instruct login UI to clear stale quick-login config.
@@ -2843,55 +2847,217 @@ class MembersController extends AppController
     #region Import/Export calls
 
     /**
-     * Import Member Expiration dates from CSV based on Membership number
+     * Import membership or background-check expiration dates from CSV.
+     *
+     * @param \App\Services\MemberExpirationImportService $importService Import workflow
+     * @return \Cake\Http\Response|null
      */
-    public function importExpirationDates()
+    public function importExpirationDates(MemberExpirationImportService $importService): ?Response
     {
+        $this->request->allowMethod(['get', 'post']);
         $this->Authorization->authorize($this->Members->newEmptyEntity());
+
+        $importTypes = MemberExpirationImportService::getImportTypeOptions();
         if ($this->request->is('post')) {
             $file = $this->request->getData('importData');
-            $file = $file->getStream()->getMetadata('uri');
-            $csv = array_map('str_getcsv', file($file));
-            $this->Members->getConnection()->begin();
-            foreach ($csv as $row) {
-                if (
-                    $row[0] == 'Member Number' ||
-                    $row[1] == 'Expiration Date'
-                ) {
-                    continue;
-                }
+            if (!$file instanceof UploadedFileInterface) {
+                $this->Flash->error(__('Choose a CSV file to upload.'));
+                $this->set(compact('importTypes'));
 
-                $member = $this->Members
-                    ->find()
-                    ->where(['membership_number' => $row[0]])
-                    ->first();
-                if ($member) {
-                    $member->membership_expires_on = new DateTime($row[1]);
-                    $member->setDirty('membership_expires_on', true);
-                    if (!$this->Members->save($member)) {
-                        $this->Members->getConnection()->rollback();
-                        $this->Flash->error(
-                            __(
-                                'Error saving member expiration date at ' .
-                                    $row[0] .
-                                    ' with date ' .
-                                    $row[1] .
-                                    '. All modified have been rolled back.',
-                            ),
-                        );
-
-                        return;
-                    }
-                }
+                return null;
             }
-            $this->Members->getConnection()->commit();
-            $this->Flash->success(__('Expiration dates imported successfully'));
+
+            $result = $importService->import(
+                $file,
+                (string)$this->request->getData('import_type', ''),
+            );
+            if (!$result->success) {
+                $this->Flash->error($result->reason ?? __('The expiration dates could not be imported.'));
+                $this->set(compact('importTypes'));
+
+                return null;
+            }
+
+            /** @var array<string, mixed> $summary */
+            $summary = is_array($result->data) ? $result->data : [];
+            $updatedCount = (int)($summary['updatedCount'] ?? 0);
+            $notFoundMembershipNumbers = (array)($summary['notFoundMembershipNumbers'] ?? []);
+            $this->Flash->success(__n(
+                '{0} member expiration date was imported successfully.',
+                '{0} member expiration dates were imported successfully.',
+                $updatedCount,
+                $updatedCount,
+            ));
+            if ($notFoundMembershipNumbers !== []) {
+                $this->Flash->warning(__n(
+                    'No member matched membership number {0}.',
+                    'No members matched these membership numbers: {0}.',
+                    count($notFoundMembershipNumbers),
+                    implode(', ', $notFoundMembershipNumbers),
+                ));
+            }
+
+            return $this->redirect(['action' => 'importExpirationDates']);
         }
+
+        $this->set(compact('importTypes'));
+
+        return null;
     }
 
     #endregion
 
     #region Verification calls
+
+    /**
+     * Remove an unreadable membership card and request a replacement from the member.
+     *
+     * @param \App\Services\MemberRegistrationService $registrationService Membership-card storage service
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $dispatcher Workflow trigger dispatcher
+     * @param mixed $id Member identifier
+     * @return \Cake\Http\Response|null
+     */
+    public function requestMembershipCardReupload(
+        MemberRegistrationService $registrationService,
+        TriggerDispatcher $dispatcher,
+        $id = null,
+    ): Response {
+        $this->request->allowMethod(['post']);
+
+        $member = $this->Members->get($id);
+        $this->Authorization->authorize($member, 'verifyMembership');
+
+        if ($this->membershipCardReference($member) === null) {
+            $this->Flash->error(__('This member does not have a membership card to replace.'));
+
+            return $this->redirect(['action' => 'view', $member->id]);
+        }
+        $expectedCardReference = (string)$this->request->getData('expected_card_reference', '');
+
+        $contactEmail = trim((string)StaticHelpers::getAppSetting(
+            'Members.AccountVerificationContactEmail',
+            self::MEMBERSHIP_CARD_REUPLOAD_CONTACT_EMAIL,
+            null,
+            true,
+        ));
+        if (filter_var($contactEmail, FILTER_VALIDATE_EMAIL) === false) {
+            $contactEmail = self::MEMBERSHIP_CARD_REUPLOAD_CONTACT_EMAIL;
+        }
+
+        $cardDocumentId = null;
+        $legacyCardPath = null;
+        $connection = $this->Members->getConnection();
+        $connection->enableSavePoints();
+        $connection->begin();
+        try {
+            $member = $this->Members->find()
+                ->where(['Members.id' => $member->id])
+                ->epilog('FOR UPDATE')
+                ->firstOrFail();
+            $currentCardReference = $this->membershipCardReference($member);
+            if (
+                $currentCardReference === null
+                || $expectedCardReference === ''
+                || !hash_equals($currentCardReference, $expectedCardReference)
+            ) {
+                $connection->rollback();
+                $this->Flash->warning(__(
+                    'The membership card changed after this form was opened. '
+                    . 'Review the current upload before requesting a new copy.',
+                ));
+
+                return $this->redirect(['action' => 'view', $member->id]);
+            }
+
+            $cardDocumentId = $member->membership_card_document_id
+                ? (int)$member->membership_card_document_id
+                : null;
+            $legacyCardPath = $cardDocumentId === null
+                ? (string)$member->membership_card_path
+                : null;
+            $member->membership_card_path = null;
+            $member->membership_card_document_id = null;
+            if (!$this->Members->save($member)) {
+                throw new RuntimeException('The member card references could not be cleared.');
+            }
+
+            $results = $this->dispatchWorkflowOrFail(
+                $dispatcher,
+                'membership-card-reupload-request',
+                'Members.MembershipCardReuploadRequested',
+                [
+                    'memberId' => (int)$member->id,
+                    'contactEmail' => $contactEmail,
+                ],
+            );
+            $workflowError = $this->extractWorkflowDispatchFailure(
+                $results,
+                'The membership-card re-upload workflow could not be completed.',
+            );
+            if ($workflowError !== null) {
+                throw new RuntimeException($workflowError);
+            }
+
+            $connection->commit();
+        } catch (Throwable $e) {
+            if ($connection->inTransaction()) {
+                $connection->rollback();
+            }
+            Log::error('Membership-card re-upload request failed.', [
+                'member_id' => (int)$member->id,
+                'error' => $e->getMessage(),
+            ]);
+            $this->Flash->error(__(
+                'The new upload request could not be completed. '
+                . 'The existing membership card was kept. Please try again.',
+            ));
+
+            return $this->redirect(['action' => 'view', $member->id]);
+        }
+
+        try {
+            $deleteResult = $registrationService->deleteMembershipCard($cardDocumentId, $legacyCardPath);
+        } catch (Throwable $e) {
+            $deleteResult = [
+                'success' => false,
+                'message' => $e->getMessage(),
+            ];
+        }
+        if (!$deleteResult['success']) {
+            Log::error('Failed to remove rejected membership card after re-upload request.', [
+                'member_id' => (int)$member->id,
+                'document_id' => $cardDocumentId,
+                'legacy_path' => $legacyCardPath,
+                'error' => $deleteResult['message'] ?? null,
+            ]);
+            $this->Flash->warning(__(
+                'The request was sent, but the old stored card could not be deleted automatically.',
+            ));
+        }
+
+        $this->Flash->success(__(
+            'The membership card was rejected and the member was asked to upload a new copy.',
+        ));
+
+        return $this->redirect(['action' => 'view', $member->id]);
+    }
+
+    /**
+     * Build a stable opaque reference for stale membership-card form detection.
+     *
+     * @param \App\Model\Entity\Member $member Member with a current card reference
+     * @return string|null
+     */
+    private function membershipCardReference(Member $member): ?string
+    {
+        if (!empty($member->membership_card_document_id)) {
+            return 'document:' . (int)$member->membership_card_document_id;
+        }
+
+        $legacyPath = (string)$member->membership_card_path;
+
+        return $legacyPath === '' ? null : 'legacy:' . hash('sha256', $legacyPath);
+    }
 
     /**
      * Verify membership.

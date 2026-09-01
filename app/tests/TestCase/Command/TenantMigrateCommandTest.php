@@ -5,6 +5,7 @@ namespace App\Test\TestCase\Command;
 
 use App\Command\TenantMigrateCommand;
 use App\KMP\TenantMetadata;
+use App\Services\Cache\TenantAwareCache;
 use App\Services\Platform\TenantMigrationLockException;
 use App\Services\Platform\TenantMigrationMarkerResult;
 use App\Services\Platform\TenantMigrationMarkerServiceInterface;
@@ -86,6 +87,24 @@ class TenantMigrateCommandTest extends TestCase
         $this->assertSame('20260516009999', $schemaVersion);
     }
 
+    public function testSuccessfulMigrationClearsTenantHostMapCache(): void
+    {
+        $this->insertTenant('alpha', 'active', '20260516000000');
+        $cache = new TenantAwareCache();
+        $cacheKey = 'tenant_host_map:platform';
+        $this->assertTrue($cache->writePlatform(
+            $cacheKey,
+            ['alpha.test' => ['schema_version' => '20260516000000']],
+            'tenant_host_map',
+        ));
+        $command = $this->commandWithRunner($this->runnerReturning('20260516009999'));
+
+        $result = $command->execute($this->args(['tenant' => 'alpha']), $this->stubIo()['io']);
+
+        $this->assertSame(0, $result);
+        $this->assertNull($cache->readPlatform($cacheKey, 'tenant_host_map'));
+    }
+
     public function testAdvisoryLockConflictFailsCleanly(): void
     {
         $this->insertTenant('alpha');
@@ -161,9 +180,16 @@ class TenantMigrateCommandTest extends TestCase
         $this->assertSame($expectedIds, array_column($tenantIds, 'tenant_id'));
     }
 
-    public function testCurrentTenantSkipsBackupAndMigration(): void
+    public function testCurrentTenantSynchronizesSchemaVersionAndClearsTenantHostMapCache(): void
     {
-        $this->insertTenant('alpha', 'active', '20260516009999');
+        $this->insertTenant('alpha', 'active', '20260516000000');
+        $cache = new TenantAwareCache();
+        $cacheKey = 'tenant_host_map:platform';
+        $this->assertTrue($cache->writePlatform(
+            $cacheKey,
+            ['alpha.test' => ['schema_version' => '20260516000000']],
+            'tenant_host_map',
+        ));
         $runnerCalled = false;
         $markerEvents = [];
         $command = new TenantMigrateCommand();
@@ -192,6 +218,11 @@ class TenantMigrateCommandTest extends TestCase
         $this->assertFalse($runnerCalled);
         $this->assertSame([], $markerEvents);
         $this->assertStringContainsString('no backup or migration was needed', implode("\n", $io['out']->messages()));
+        $schemaVersion = $this->platform()
+            ->execute('SELECT schema_version FROM tenants WHERE slug = ?', ['alpha'])
+            ->fetchColumn(0);
+        $this->assertSame('20260516009999', $schemaVersion);
+        $this->assertNull($cache->readPlatform($cacheKey, 'tenant_host_map'));
     }
 
     public function testMigrationHistoryDriftFailsBeforeBackupOrMigration(): void

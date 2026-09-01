@@ -240,4 +240,84 @@ final class MemberRegistrationServiceTest extends BaseTestCase
             }
         }
     }
+
+    public function testProcessScaCardUploadAcceptsJfifAndStoresCanonicalJpegExtension(): void
+    {
+        $this->assertTrue(extension_loaded('gd'));
+        $tempPath = tempnam(sys_get_temp_dir(), 'member-card-jfif-');
+        $this->assertIsString($tempPath);
+        $image = imagecreatetruecolor(4, 3);
+        $this->assertNotFalse($image);
+        $color = imagecolorallocate($image, 40, 90, 160);
+        imagefill($image, 0, 0, $color);
+        $this->assertTrue(imagejpeg($image, $tempPath));
+        imagedestroy($image);
+
+        $size = filesize($tempPath);
+        $this->assertIsInt($size);
+        $file = new UploadedFile(
+            $tempPath,
+            $size,
+            UPLOAD_ERR_OK,
+            'membership-card.jfif',
+            'application/octet-stream',
+        );
+
+        $documentId = null;
+        try {
+            $result = $this->service->processScaCardUpload(
+                $file,
+                self::ADMIN_MEMBER_ID,
+                self::ADMIN_MEMBER_ID,
+            );
+
+            $this->assertTrue($result['success']);
+            $documentId = (int)$result['documentId'];
+            $document = $this->getTableLocator()->get('Documents')->get($documentId);
+            $this->assertSame('membership-card.jfif', $document->original_filename);
+            $this->assertSame('image/jpeg', $document->mime_type);
+            $this->assertSame('jpg', pathinfo($document->stored_filename, PATHINFO_EXTENSION));
+            $this->assertSame('jpg', pathinfo($document->file_path, PATHINFO_EXTENSION));
+        } finally {
+            if ($documentId !== null) {
+                (new DocumentService())->deleteDocument($documentId);
+            }
+            if (file_exists($tempPath)) {
+                unlink($tempPath);
+            }
+        }
+    }
+
+    public function testProcessScaCardUploadAcceptsVerifiedGifDespiteUntrustedClientMime(): void
+    {
+        $fixturePath = WWW_ROOT . 'img/auth_card_back.gif';
+        $size = filesize($fixturePath);
+        $this->assertIsInt($size);
+        $file = new UploadedFile(
+            $fixturePath,
+            $size,
+            UPLOAD_ERR_OK,
+            'membership-card.gif',
+            'text/plain',
+        );
+
+        $documentId = null;
+        try {
+            $result = $this->service->processScaCardUpload(
+                $file,
+                self::ADMIN_MEMBER_ID,
+                self::ADMIN_MEMBER_ID,
+            );
+
+            $this->assertTrue($result['success']);
+            $documentId = (int)$result['documentId'];
+            $document = $this->getTableLocator()->get('Documents')->get($documentId);
+            $this->assertSame('image/gif', $document->mime_type);
+            $this->assertSame('gif', pathinfo($document->stored_filename, PATHINFO_EXTENSION));
+        } finally {
+            if ($documentId !== null) {
+                (new DocumentService())->deleteDocument($documentId);
+            }
+        }
+    }
 }

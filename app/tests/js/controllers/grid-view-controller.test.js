@@ -59,6 +59,34 @@ describe('GridViewController', () => {
         expect(GridViewController.values).toHaveProperty('stickyDefault', Object);
     });
 
+    test('updateViewTabs renders views when the save action is outside the tablist', () => {
+        controller.element.insertAdjacentHTML('beforeend', `
+            <div data-saved-views-region>
+                <ul data-view-tabs-container role="tablist">
+                    <li class="d-none" data-no-all-tab></li>
+                </ul>
+                <button type="button" data-action="click->grid-view#saveView">Save view</button>
+            </div>
+        `);
+        controller.state = {
+            view: {
+                currentId: 'sys-pending',
+                available: [{
+                    id: 'sys-pending',
+                    name: 'Pending',
+                    canManage: false,
+                }],
+            },
+        };
+
+        expect(() => controller.updateViewTabs()).not.toThrow();
+
+        const tablist = controller.element.querySelector('[data-view-tabs-container]');
+        expect(tablist.querySelector('[role="tab"]')).toHaveTextContent('Pending');
+        expect(tablist.querySelector('[data-action*="saveView"]')).toBeNull();
+        expect(controller.element.querySelector('[data-action*="saveView"]')).not.toBeNull();
+    });
+
     test('connect initializes state to null', () => {
         controller.connect();
         // State gets loaded by loadInlineState

@@ -53,7 +53,13 @@ class TenantHostResolver
     public static function clearCache(string $connectionName = 'platform'): bool
     {
         try {
-            return (new TenantAwareCache())->deletePlatform(self::cacheKey($connectionName), self::CACHE_CONFIG);
+            $cache = new TenantAwareCache();
+            $cacheKey = self::cacheKey($connectionName);
+            if (!is_array($cache->readPlatform($cacheKey, self::CACHE_CONFIG))) {
+                return true;
+            }
+
+            return $cache->deletePlatform($cacheKey, self::CACHE_CONFIG);
         } catch (CakeException $exception) {
             Log::warning('Unable to clear tenant host map cache: ' . $exception->getMessage());
 

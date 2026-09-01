@@ -29,6 +29,15 @@ class MemberRegistrationService
 {
     use LocatorAwareTrait;
 
+    private const MEMBERSHIP_CARD_IMAGE_TYPES = [
+        'image/gif' => 'gif',
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+    ];
+
+    private const MAX_MEMBERSHIP_CARD_PIXELS = 25_000_000;
+
     /**
      * @var \App\Model\Table\MembersTable
      */
@@ -173,23 +182,6 @@ class MemberRegistrationService
             return ['success' => false, 'message' => (string)__('Please choose a membership card image.')];
         }
 
-        $allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/pjpeg'];
-        $clientMediaType = $file->getClientMediaType();
-        if (!in_array($clientMediaType, $allowedTypes, true)) {
-            return [
-                'success' => false,
-                'message' => (string)__('Invalid file type. Only PNG and JPEG images are allowed.'),
-            ];
-        }
-
-        $extension = strtolower(pathinfo((string)$file->getClientFilename(), PATHINFO_EXTENSION));
-        if (!in_array($extension, ['png', 'jpg', 'jpeg'], true)) {
-            return [
-                'success' => false,
-                'message' => (string)__('Invalid file extension. Only .png, .jpg, .jpeg are allowed.'),
-            ];
-        }
-
         $tempPath = $file->getStream()->getMetadata('uri');
         if (!is_string($tempPath) || !is_file($tempPath)) {
             return ['success' => false, 'message' => (string)__('Unable to read the uploaded image.')];
@@ -197,8 +189,35 @@ class MemberRegistrationService
 
         $finfo = new finfo(FILEINFO_MIME_TYPE);
         $actualMimeType = $finfo->file($tempPath);
-        if (!in_array($actualMimeType, ['image/png', 'image/jpeg'], true)) {
+        $canonicalExtension = is_string($actualMimeType)
+            ? (self::MEMBERSHIP_CARD_IMAGE_TYPES[$actualMimeType] ?? null)
+            : null;
+        if ($canonicalExtension === null) {
             return ['success' => false, 'message' => (string)__('File content does not match an allowed image type.')];
+        }
+
+        set_error_handler(static fn(): bool => true);
+        try {
+            $imageInfo = getimagesize($tempPath);
+        } finally {
+            restore_error_handler();
+        }
+        $imageMimeType = is_array($imageInfo) ? ($imageInfo['mime'] ?? null) : null;
+        if ($imageMimeType !== $actualMimeType) {
+            return ['success' => false, 'message' => (string)__('File content does not match an allowed image type.')];
+        }
+
+        $width = (int)($imageInfo[0] ?? 0);
+        $height = (int)($imageInfo[1] ?? 0);
+        if (
+            $width <= 0
+            || $height <= 0
+            || $width > intdiv(self::MAX_MEMBERSHIP_CARD_PIXELS, $height)
+        ) {
+            return [
+                'success' => false,
+                'message' => (string)__('The image dimensions are too large. Please upload a smaller image.'),
+            ];
         }
 
         $result = $this->documentService->createDocument(
@@ -208,8 +227,9 @@ class MemberRegistrationService
             $uploaderId,
             ['type' => 'membership_card'],
             'member-cards',
-            ['png', 'jpg', 'jpeg'],
+            array_values(self::MEMBERSHIP_CARD_IMAGE_TYPES),
             verifiedMimeType: $actualMimeType,
+            verifiedExtension: $canonicalExtension,
         );
         if (!$result->success) {
             return [

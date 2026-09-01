@@ -24,6 +24,11 @@ import * as Turbo from "@hotwired/turbo";
  * The modal will close immediately when the form is submitted.
  */
 class TurboModal extends Controller {
+    static values = {
+        successMessage: String,
+        errorMessage: String,
+    }
+
     /**
      * Initialize - log when controller connects
      */
@@ -81,8 +86,24 @@ class TurboModal extends Controller {
             const contentType = response.headers.get('Content-Type') || '';
 
             if (contentType.includes('text/vnd.turbo-stream.html') || body.includes('<turbo-stream')) {
-                this.renderTurboStream(body);
-                this.closeModal();
+                if (response.ok) {
+                    // Hide first so visible flash feedback is not left behind the modal.
+                    this.closeModal();
+                }
+                try {
+                    this.renderTurboStream(body);
+                } catch (renderError) {
+                    if (!response.ok) {
+                        throw renderError;
+                    }
+                    console.error('Unable to render successful modal response:', renderError);
+                    this.showFallbackSuccess();
+                }
+                if (response.ok) {
+                    this.announceSuccess();
+                } else {
+                    this.announceFailure();
+                }
                 return;
             }
 
@@ -95,6 +116,12 @@ class TurboModal extends Controller {
             if (frame && body !== '') {
                 frame.innerHTML = body;
             }
+            if (!response.ok) {
+                this.announceFailure();
+            }
+        } catch (error) {
+            console.error('Unable to submit modal form:', error);
+            this.announceFailure();
         } finally {
             this.setSubmitting(false);
         }
@@ -148,9 +175,64 @@ class TurboModal extends Controller {
         this.dismissModalBackdrop();
     }
 
+    /** Announce successful completion after the modal starts closing. */
+    announceSuccess() {
+        window.KMP_accessibility?.announce?.(this.successMessage());
+    }
+
+    /** Announce a failed submission after any server-provided stream is rendered. */
+    announceFailure() {
+        window.KMP_accessibility?.announce?.(
+            this.errorMessageValue
+                || this.element.dataset.turboModalErrorMessageValue
+                || 'Unable to save. Please try again.',
+            { assertive: true },
+        );
+    }
+
+    /** Return the configured success copy for visible and announced feedback. */
+    successMessage() {
+        return this.successMessageValue
+            || this.element.dataset.turboModalSuccessMessageValue
+            || 'Saved successfully.';
+    }
+
+    /** Show visible feedback if Turbo cannot apply an otherwise successful stream. */
+    showFallbackSuccess() {
+        const container = document.getElementById('flash-messages');
+        if (!container) {
+            return;
+        }
+
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-success alert-dismissible fade show';
+        alert.setAttribute('role', 'status');
+        alert.append(document.createTextNode(this.successMessage()));
+
+        const closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.className = 'btn-close';
+        closeButton.setAttribute('data-bs-dismiss', 'alert');
+        closeButton.setAttribute('aria-label', 'Close');
+        alert.append(closeButton);
+        container.replaceChildren(alert);
+    }
+
     /** Prevent duplicate submits while the Turbo Stream request is in-flight. */
     setSubmitting(isSubmitting) {
-        this.element.querySelectorAll('button[type="submit"], input[type="submit"]').forEach((control) => {
+        const controls = Array.from(
+            this.element.querySelectorAll('button[type="submit"], input[type="submit"]'),
+        );
+        if (this.element.id) {
+            const escapedId = window.CSS?.escape
+                ? window.CSS.escape(this.element.id)
+                : this.element.id.replace(/(["\\])/g, '\\$1');
+            controls.push(...document.querySelectorAll(
+                `button[type="submit"][form="${escapedId}"], input[type="submit"][form="${escapedId}"]`,
+            ));
+        }
+
+        new Set(controls).forEach((control) => {
             control.disabled = isSubmitting;
             control.setAttribute('aria-busy', isSubmitting ? 'true' : 'false');
         });

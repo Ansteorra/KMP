@@ -706,6 +706,7 @@ class MembersWorkflowActionsTest extends BaseTestCase
         $this->assertContains('Members.Registered', $triggerEvents);
         $this->assertContains('Members.PasswordResetRequested', $triggerEvents);
         $this->assertContains('Members.MembershipVerified', $triggerEvents);
+        $this->assertContains('Members.MembershipCardReuploadRequested', $triggerEvents);
         $this->assertContains('Members.AgeUpTriggered', $triggerEvents);
         $this->assertContains('Members.WarrantableSyncTriggered', $triggerEvents);
 

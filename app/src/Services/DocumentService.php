@@ -529,6 +529,7 @@ class DocumentService
      * @param array $allowedExtensions Optional array of allowed file extensions (default: ['pdf'])
      * @param string|null $previewTempPath Optional path to a temporary JPEG preview to store alongside the document
      * @param string|null $verifiedMimeType Server-verified MIME type, when available
+     * @param string|null $verifiedExtension Server-verified canonical extension, when available
      * @return \App\Services\ServiceResult Success with document ID, or failure with error message
      */
     public function createDocument(
@@ -541,6 +542,7 @@ class DocumentService
         array $allowedExtensions = ['pdf'],
         ?string $previewTempPath = null,
         ?string $verifiedMimeType = null,
+        ?string $verifiedExtension = null,
     ): ServiceResult {
         // Validate file upload
         if ($file->getSize() === 0 || $file->getError() !== UPLOAD_ERR_OK) {
@@ -549,10 +551,12 @@ class DocumentService
 
         // Get original filename and extension
         $originalName = $file->getClientFilename();
-        $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+        $extension = $verifiedExtension !== null
+            ? strtolower(ltrim($verifiedExtension, '.'))
+            : strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
 
         // Validate file extension
-        if (!in_array($extension, $allowedExtensions)) {
+        if (!in_array($extension, $allowedExtensions, true)) {
             $allowed = implode(', ', $allowedExtensions);
 
             return new ServiceResult(

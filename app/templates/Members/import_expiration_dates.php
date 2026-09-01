@@ -1,41 +1,57 @@
 <?php
-$this->extend("/layout/TwitterBootstrap/dashboard");
+$this->extend('/layout/TwitterBootstrap/dashboard');
 
-echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Member Expiration Dates Import';
-$this->KMP->endBlock(); ?>
-<h3>
-    Import Expiration Dates
-</h3>
-<div>
+$this->KMP->startBlock('title');
+echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': Member Data Import';
+$this->KMP->endBlock();
+?>
+<section aria-labelledby="member-data-import-heading">
+    <h1 id="member-data-import-heading" class="h3"><?= __('Member Data Import') ?></h1>
+
     <p>
-        This page is used to import expiration dates for members. The expiration dates are imported from a CSV file. The
-        CSV file must have the following columns:
+        <?= __(
+            'Import membership or background check expiration dates by member number. '
+            . 'Choose the date type before uploading the CSV file.',
+        ) ?>
     </p>
-    <ul>
-        <li>Member Number</li>
-        <li>Expiration Date</li>
-    </ul>
-    <p>
-        The Member Number must match the Member Number of the member in the database. The Expiration Date must be in the
-        format of YYYY-MM-DD. The file must be in CSV format with the first row being a header row.
-    </p>
-    <p>
-        The following is an example of a valid CSV file:
-    <pre>
-            Member Number,Expiration Date
-            12345,2021-12-31
-            67890,2022-12-31
-        </pre>
-    </p>
+
+    <div class="alert alert-info" role="note">
+        <p class="mb-2">
+            <?= __('The CSV must contain exactly two columns and use YYYY-MM-DD dates:') ?>
+        </p>
+        <ul class="mb-0">
+            <li><?= __('Member Number') ?></li>
+            <li><?= __('Expiration Date') ?></li>
+        </ul>
+    </div>
+
+    <p class="mb-2"><?= __('Example CSV:') ?></p>
+    <pre class="bg-light border rounded p-3"><code>Member Number,Expiration Date
+12345,2031-12-31
+67890,2032-01-31</code></pre>
+
     <?= $this->Form->create(null, [
-        "type" => "file",
-        "url" => ["controller" => "Members", "action" => "importExpirationDates"],
+        'type' => 'file',
+        'url' => ['controller' => 'Members', 'action' => 'importExpirationDates'],
     ]) ?>
-    <fieldset>
-        <?php echo $this->Form->control("importData", [
-            "type" => "file",
-            "accept" => ".csv",
-        ]); ?>
-        <?= $this->Form->button(__("Upload", ["class" => "btn-primary"])) ?>
-        <?= $this->Form->end() ?>
+    <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3">
+        <legend class="float-none w-auto px-2 fs-6 fw-semibold">
+            <?= __('Import settings') ?>
+        </legend>
+        <?= $this->Form->control('import_type', [
+            'type' => 'select',
+            'options' => $importTypes,
+            'empty' => __('Choose the expiration date type'),
+            'label' => __('Expiration date type'),
+            'required' => true,
+        ]) ?>
+        <?= $this->Form->control('importData', [
+            'type' => 'file',
+            'accept' => '.csv,text/csv',
+            'label' => __('CSV file'),
+            'required' => true,
+        ]) ?>
+    </fieldset>
+    <?= $this->Form->button(__('Import dates'), ['class' => 'btn btn-primary']) ?>
+    <?= $this->Form->end() ?>
+</section>

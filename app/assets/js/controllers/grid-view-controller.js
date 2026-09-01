@@ -625,15 +625,12 @@ class GridViewController extends Controller {
         // Check if we should show "All" tab (marker present means DON'T show it)
         const showAllTab = !this.element.querySelector('[data-no-all-tab]')
 
-        // Find the "Create View" button to preserve it
-        const createViewBtn = container.querySelector('[data-action*="saveView"]')?.closest('li')
-
         // Find the marker element to preserve it
         const markerElement = container.querySelector('[data-no-all-tab]')?.closest('li')
 
-        // Clear existing tabs (except create button and marker)
+        // Clear existing tabs except the configuration marker.
         container.querySelectorAll('li').forEach(li => {
-            if (li !== createViewBtn && li !== markerElement) {
+            if (li !== markerElement) {
                 li.remove()
             }
         })
@@ -641,7 +638,7 @@ class GridViewController extends Controller {
         // Add "All" tab if enabled
         if (showAllTab) {
             const allTab = this.createViewTab('All', null, !this.state.view.currentId, false, false)
-            container.insertBefore(allTab, createViewBtn)
+            container.appendChild(allTab)
         }
 
         // Add user views
@@ -652,7 +649,7 @@ class GridViewController extends Controller {
                 const canManage = view.canManage !== false
                 const count = view.count || null
                 const viewTab = this.createViewTab(view.name, view.id, isActive, isPreferred, canManage, count)
-                container.insertBefore(viewTab, createViewBtn)
+                container.appendChild(viewTab)
             })
         }
     }

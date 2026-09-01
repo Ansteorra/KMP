@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Config\Seeds;
 
 use Activities\Services\ActivitiesWorkflowProvider;
+use AddMembershipCardReuploadEmailTemplate;
 use App\Services\WorkflowEngine\Providers\MembersWorkflowProvider;
 use App\Services\WorkflowEngine\Providers\WarrantWorkflowProvider;
 use App\Services\WorkflowRegistry\WorkflowActionRegistry;
@@ -14,6 +15,7 @@ use App\Services\WorkflowRegistry\WorkflowTriggerRegistry;
 use App\Test\TestCase\BaseTestCase;
 use Awards\Services\AwardsWorkflowProvider;
 use InitWorkflowDefinitionsSeed;
+use Migrations\Migration\Environment;
 use Officers\Services\OfficersWorkflowProvider;
 use Waivers\Services\WaiversWorkflowProvider;
 
@@ -123,6 +125,35 @@ class InitWorkflowDefinitionsSeedTest extends BaseTestCase
                 sprintf('Dual-path dispatch slug "%s" must be active after seeding.', $slug),
             );
         }
+    }
+
+    public function testMembershipCardReuploadWorkflowUsesMemberEmailTemplate(): void
+    {
+        $definition = $this->loadWorkflowDefinitionJson('membership-card-reupload-request.json');
+        $sendNode = $definition['nodes']['send-reupload-request'];
+        $params = $sendNode['config']['params'];
+
+        $this->assertSame('Core.SendEmail', $sendNode['config']['action']);
+        $this->assertSame('$.nodes.load-member.result.record.email_address', $params['to']);
+        $this->assertSame('membership-card-reupload-requested', $params['template']);
+        $this->assertSame('$.trigger.contactEmail', $params['replyTo']);
+        $this->assertSame('$.nodes.load-member.result.record.sca_name', $params['vars']['memberScaName']);
+
+        require_once ROOT . '/config/Migrations/20260830170000_AddMembershipCardReuploadEmailTemplate.php';
+        $environment = new Environment('membership-card-reupload-template-test', [
+            'connection' => 'test',
+        ]);
+        (new AddMembershipCardReuploadEmailTemplate(20260830170000))
+            ->setAdapter($environment->getAdapter())
+            ->up();
+
+        $template = $this->getTableLocator()->get('EmailTemplates')
+            ->findForSlug('membership-card-reupload-requested');
+        $this->assertNotNull($template);
+        $this->assertTrue($template->is_active);
+        $this->assertStringContainsString('{{contactEmail}}', $template->text_template);
+        $this->assertContains('memberScaName', array_column($template->variables_schema, 'name'));
+        $this->assertContains('contactEmail', array_column($template->variables_schema, 'name'));
     }
 
     public function testObsoleteRecommendationStateWorkflowsAreNotSeeded(): void

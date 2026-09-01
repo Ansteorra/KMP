@@ -66,6 +66,15 @@ class MembersWorkflowProvider
                 ],
             ],
             [
+                'event' => 'Members.MembershipCardReuploadRequested',
+                'label' => 'Membership Card Re-upload Requested',
+                'description' => 'When an administrator rejects a membership card and requests a replacement',
+                'payloadSchema' => [
+                    'memberId' => ['type' => 'integer', 'label' => 'Member ID'],
+                    'contactEmail' => ['type' => 'string', 'label' => 'Membership Verification Contact Email'],
+                ],
+            ],
+            [
                 'event' => 'Members.AgeUpTriggered',
                 'label' => 'Age-Up Triggered (Scheduled)',
                 'description' => 'Scheduled trigger to transition minors who have turned 18',

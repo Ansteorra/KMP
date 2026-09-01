@@ -24,14 +24,11 @@ $gridKeyEscaped = h($gridKey);
 
 // Feature flags from server
 $canFilter = $gridState['config']['canFilter'] ?? true;
-$canAddViews = $gridState['config']['canAddViews'] ?? true;
-$showAllTab = $gridState['config']['showAllTab'] ?? true;
 $hasSearch = $gridState['config']['hasSearch'] ?? false;
 $hasDropdownFilters = $gridState['config']['hasDropdownFilters'] ?? false;
 $hasDateRangeFilters = $gridState['config']['hasDateRangeFilters'] ?? false;
 $canExportCsv = $gridState['config']['canExportCsv'] ?? true;
 $showFilterPills = $gridState['config']['showFilterPills'] ?? true;
-$showViewTabs = $gridState['config']['showViewTabs'] ?? true;
 $enableColumnPicker = $gridState['config']['enableColumnPicker'] ?? true;
 $dateRangeFilterColumns = $gridState['dateRangeFilterColumns'] ?? [];
 $enableBulkSelection = $gridState['config']['enableBulkSelection'] ?? false;
@@ -52,28 +49,10 @@ $searchDescription = !empty($searchableLabels)
 
 <div class="grid-view-toolbar mb-3" data-toolbar-container>
 
-    <?php if ($showViewTabs): ?>
-        <!-- Row 1: View Tabs (populated by JS) -->
-        <div class="mb-3">
-            <ul class="nav nav-tabs" role="tablist" data-view-tabs-container>
-                <!-- JS will populate view tabs here -->
-                <?php if (!$showAllTab): ?>
-                    <!-- Hidden marker for JS to know not to show "All" tab -->
-                    <li style="display: none;" data-no-all-tab></li>
-                <?php endif; ?>
-
-                <?php if ($canAddViews): ?>
-                    <!-- Create View Button -->
-                    <li class="nav-item" role="presentation">
-                        <button type="button" class="nav-link" data-action="click-><?= h($controllerName) ?>#saveView"
-                            title="Create new view" role="tab">
-                            <i class="bi bi-plus-lg"></i>
-                        </button>
-                    </li>
-                <?php endif; ?>
-            </ul>
-        </div>
-    <?php endif; ?>
+    <?= $this->element('grid_view_tabs', [
+        'gridState' => $gridState,
+        'controllerName' => $controllerName,
+    ]) ?>
 
     <!-- Row 2: Filters and Actions -->
     <div class="d-flex justify-content-between align-items-start gap-3">

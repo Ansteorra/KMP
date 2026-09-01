@@ -15,6 +15,62 @@ class GatheringActivityService
     use LocatorAwareTrait;
 
     /**
+     * Return activity types the award catalog allows to present an award.
+     *
+     * AwardGatheringActivities is catalog configuration, not an assignment of a
+     * bestowal to a gathering. It lets a planner attach the right Court activity
+     * before that gathering becomes eligible for matching bestowals. Activity names
+     * are intentionally not used because Court labels vary by branch and tier.
+     *
+     * @return array<int, int>
+     */
+    public function courtActivityIds(): array
+    {
+        if (!class_exists('Awards\\Model\\Table\\AwardGatheringActivitiesTable')) {
+            return [];
+        }
+
+        return $this->fetchTable('Awards.AwardGatheringActivities')
+            ->find()
+            ->select(['gathering_activity_id'])
+            ->distinct(['gathering_activity_id'])
+            ->all()
+            ->extract('gathering_activity_id')
+            ->map(static fn($id): int => (int)$id)
+            ->toList();
+    }
+
+    /**
+     * Check whether the award catalog permits presentations at this activity type.
+     *
+     * @param int $activityId Gathering activity ID
+     * @return bool
+     */
+    public function isCourtActivity(int $activityId): bool
+    {
+        return in_array($activityId, $this->courtActivityIds(), true);
+    }
+
+    /**
+     * Check whether a Court activity is attached to the requested gathering.
+     *
+     * @param int $gatheringId Gathering ID
+     * @param int $activityId Gathering activity ID
+     * @return bool
+     */
+    public function isLinkedCourtActivity(int $gatheringId, int $activityId): bool
+    {
+        if (!$this->isCourtActivity($activityId)) {
+            return false;
+        }
+
+        return $this->fetchTable('GatheringsGatheringActivities')->exists([
+            'gathering_id' => $gatheringId,
+            'gathering_activity_id' => $activityId,
+        ]);
+    }
+
+    /**
      * Check whether the gathering already has uploaded waivers.
      *
      * @param int $gatheringId Gathering id

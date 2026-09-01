@@ -70,6 +70,24 @@ class GatheringPolicy extends BasePolicy
     }
 
     /**
+     * Check if user can attach a court-capable activity to a gathering.
+     *
+     * Full gathering editors retain the general activity-management flow. Court
+     * planners receive this narrower policy through their scoped Awards permission;
+     * the controller additionally verifies that the selected activity can present awards.
+     *
+     * @param \App\KMP\KmpIdentityInterface $user The user
+     * @param \App\Model\Entity\BaseEntity $entity The gathering entity
+     * @param mixed ...$optionalArgs Optional arguments
+     * @return bool
+     */
+    public function canAddCourtActivity(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        return $this->canEdit($user, $entity, ...$optionalArgs)
+            || $this->_hasPolicy($user, __FUNCTION__, $entity);
+    }
+
+    /**
      * Check if user can edit a scheduled activity on a gathering.
      *
      * Full gathering editors and stewards can edit any schedule row. Dedicated
@@ -210,6 +228,7 @@ class GatheringPolicy extends BasePolicy
         // Check if user is a steward for this gathering
         if ($entity instanceof BaseEntity) {
             return $this->_isGatheringSteward($user, $entity)
+                || $this->canAddCourtActivity($user, $entity)
                 || $this->canCreateScheduledActivity($user, $entity)
                 || $this->_hasPolicy($user, 'canEditScheduledActivity', $entity);
         }

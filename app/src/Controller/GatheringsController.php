@@ -375,9 +375,9 @@ class GatheringsController extends AppController
             'tableName' => 'Gatherings',
             'defaultSort' => ['Gatherings.start_date' => 'ASC'],
             'disablePagination' => true,
-            'showAllTab' => false,
-            'showViewTabs' => false,
-            'canAddViews' => false,
+            'showAllTab' => true,
+            'showViewTabs' => true,
+            'canAddViews' => true,
             'canFilter' => true,
             'canExportCsv' => false,
             'enableColumnPicker' => false,
@@ -478,7 +478,7 @@ class GatheringsController extends AppController
      * Returns a simplified view of a gathering for the calendar quick view modal.
      * This provides essential information without the full page layout.
      *
-     * @param string|null $id Gathering id.
+     * @param string|null $publicId Gathering public id.
      * @return \Cake\Http\Response|null|void Renders quick view partial
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
@@ -771,11 +771,12 @@ class GatheringsController extends AppController
      *
      * Displays gathering details including activities and required waivers.
      *
+     * @param \App\Services\GatheringActivityService $activityService Activity eligibility service.
      * @param string|null $id Gathering id.
      * @return \Cake\Http\Response|null|void Renders view
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function view($publicId = null)
+    public function view(GatheringActivityService $activityService, $publicId = null)
     {
         $gathering = $this->Gatherings->find('byPublicId', [$publicId])
             ->contain([
@@ -810,6 +811,9 @@ class GatheringsController extends AppController
 
         $user = $this->Authentication->getIdentity();
         $canView = $user->can('view', $gathering);
+        $canEditGathering = $user->can('edit', $gathering);
+        $canAddCourtActivity = $user->can('addCourtActivity', $gathering);
+        $courtActivityIds = $activityService->courtActivityIds();
 
         //TODO: find a way to do this with out breaking the plugin/core boundry.
         // Check if waivers exist (for activity locking)
@@ -832,8 +836,15 @@ class GatheringsController extends AppController
         $existingActivityIds = array_column($gathering->gathering_activities, 'id');
         $availableActivities = $this->Gatherings->GatheringActivities->find('all')
             ->where(['id NOT IN' => $existingActivityIds ?: [0]])
-            ->orderBy(['name' => 'ASC'])
-            ->all();
+            ->orderBy(['name' => 'ASC']);
+        if (!$canEditGathering) {
+            $availableActivities->where([
+                'GatheringActivities.id IN' => $canAddCourtActivity && $courtActivityIds !== []
+                    ? $courtActivityIds
+                    : [0],
+            ]);
+        }
+        $availableActivities = $availableActivities->all();
 
         // Get total attendance count (all attendance records, including private)
         $totalAttendanceCount = $this->Gatherings->GatheringAttendances
@@ -920,6 +931,9 @@ class GatheringsController extends AppController
             'hasWaivers',
             'waiverRemovalAuthorization',
             'availableActivities',
+            'canEditGathering',
+            'canAddCourtActivity',
+            'courtActivityIds',
             'totalAttendanceCount',
             'userAttendance',
             'kingdomAttendances',
@@ -1366,7 +1380,12 @@ class GatheringsController extends AppController
     {
         $this->request->allowMethod(['post']);
         $gathering = $this->Gatherings->get($id, contain: ['GatheringActivities']);
-        $this->Authorization->authorize($gathering, 'edit');
+        $identity = $this->Authentication->getIdentity();
+        $canEditGathering = $identity->can('edit', $gathering);
+        $this->Authorization->authorize(
+            $gathering,
+            $canEditGathering ? 'edit' : 'addCourtActivity',
+        );
 
         $activityId = $this->request->getData('activity_id');
 
@@ -1374,6 +1393,10 @@ class GatheringsController extends AppController
             $this->Flash->error(__('Please select an activity to add.'));
 
             return $this->redirect(['action' => 'view', $gathering->public_id]);
+        }
+
+        if (!$canEditGathering && !$activityService->isCourtActivity((int)$activityId)) {
+            throw new ForbiddenException(__('You are not authorized to add this activity to the gathering.'));
         }
 
         $existingIds = array_column($gathering->gathering_activities, 'id');
@@ -1584,18 +1607,29 @@ class GatheringsController extends AppController
      * @param string|null $id Gathering id
      * @return \Cake\Http\Response|null JSON response
      */
-    public function addScheduledActivity(GatheringScheduleService $scheduleService, $publicId = null)
-    {
+    public function addScheduledActivity(
+        GatheringScheduleService $scheduleService,
+        GatheringActivityService $activityService,
+        $publicId = null,
+    ) {
         $this->request->allowMethod(['post']);
         $this->viewBuilder()->setClassName('Json');
 
         $gathering = $this->Gatherings->find('byPublicId', [$publicId])->firstOrFail();
         $this->Authorization->authorize($gathering, 'createScheduledActivity');
+        $identity = $this->Authentication->getIdentity();
+        if (!$identity->can('edit', $gathering)) {
+            $this->assertDelegatedCourtScheduleData(
+                $activityService,
+                (int)$gathering->id,
+                $this->request->getData(),
+            );
+        }
 
         $result = $scheduleService->add(
             $this->request->getData(),
             $gathering,
-            $this->Authentication->getIdentity(),
+            $identity,
         );
 
         $this->set($result);
@@ -1615,6 +1649,7 @@ class GatheringsController extends AppController
      */
     public function editScheduledActivity(
         GatheringScheduleService $scheduleService,
+        GatheringActivityService $activityService,
         $gatheringPublicId = null,
         $id = null,
     ) {
@@ -1635,6 +1670,13 @@ class GatheringsController extends AppController
         ) {
             throw new ForbiddenException(__('You are not authorized to edit this scheduled activity.'));
         }
+        if (!$identity->can('edit', $gathering)) {
+            $this->assertDelegatedCourtScheduleData(
+                $activityService,
+                (int)$gathering->id,
+                $this->request->getData(),
+            );
+        }
 
         $result = $scheduleService->edit(
             (int)$id,
@@ -1647,6 +1689,28 @@ class GatheringsController extends AppController
         $this->viewBuilder()->setOption('serialize', ['success', 'message', 'data', 'errors']);
 
         return null;
+    }
+
+    /**
+     * Ensure a delegated Court planner can submit only a linked Court activity.
+     *
+     * @param \App\Services\GatheringActivityService $activityService Activity eligibility service
+     * @param int $gatheringId Gathering ID
+     * @param array<string, mixed> $data Submitted schedule data
+     * @return void
+     */
+    private function assertDelegatedCourtScheduleData(
+        GatheringActivityService $activityService,
+        int $gatheringId,
+        array $data,
+    ): void {
+        $activityId = (int)($data['gathering_activity_id'] ?? 0);
+        $isOther = filter_var($data['is_other'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        if ($isOther || !$activityService->isLinkedCourtActivity($gatheringId, $activityId)) {
+            throw new ForbiddenException(__(
+                'Court planners may schedule only Court activities attached to this gathering.',
+            ));
+        }
     }
 
     /**

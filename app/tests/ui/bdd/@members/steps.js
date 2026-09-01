@@ -399,7 +399,7 @@ Then('the registration emails should match the expected workflow notifications',
 Then('the invalid upload should block registration before any member is created', async ({ page }) => {
     const fixture = ensureFixture(page);
     const flashText = await getFlashText(page);
-    expect(flashText).toContain('Invalid file type. Only PNG and JPEG images are allowed.');
+    expect(flashText).toContain('File content does not match an allowed image type.');
     expect(page.url()).toContain('/members/register');
 
     const state = refreshFixtureState(page);

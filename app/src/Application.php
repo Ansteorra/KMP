@@ -78,6 +78,7 @@ use App\Services\GatheringScheduleService;
 use App\Services\ICalendarService;
 use App\Services\ImpersonationService;
 use App\Services\MemberAuthenticationService;
+use App\Services\MemberExpirationImportService;
 use App\Services\MemberProfileService;
 use App\Services\MemberRegistrationService;
 use App\Services\MemberSearchService;
@@ -780,6 +781,7 @@ class Application extends BaseApplication implements
 
         // Member services extracted from MembersController
         $container->add(MemberAuthenticationService::class);
+        $container->add(MemberExpirationImportService::class);
         $container->add(MemberRegistrationService::class);
         $container->add(MemberProfileService::class);
         $container->add(MemberSearchService::class);
