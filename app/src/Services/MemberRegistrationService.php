@@ -189,13 +189,21 @@ class MemberRegistrationService
 
         $finfo = new finfo(FILEINFO_MIME_TYPE);
         $actualMimeType = $finfo->file($tempPath);
-        $imageContents = file_get_contents($tempPath);
-        $imageInfo = is_string($imageContents) ? getimagesizefromstring($imageContents) : false;
-        $imageMimeType = is_array($imageInfo) ? ($imageInfo['mime'] ?? null) : null;
         $canonicalExtension = is_string($actualMimeType)
             ? (self::MEMBERSHIP_CARD_IMAGE_TYPES[$actualMimeType] ?? null)
             : null;
-        if ($canonicalExtension === null || $imageMimeType !== $actualMimeType) {
+        if ($canonicalExtension === null) {
+            return ['success' => false, 'message' => (string)__('File content does not match an allowed image type.')];
+        }
+
+        set_error_handler(static fn(): bool => true);
+        try {
+            $imageInfo = getimagesize($tempPath);
+        } finally {
+            restore_error_handler();
+        }
+        $imageMimeType = is_array($imageInfo) ? ($imageInfo['mime'] ?? null) : null;
+        if ($imageMimeType !== $actualMimeType) {
             return ['success' => false, 'message' => (string)__('File content does not match an allowed image type.')];
         }
 
