@@ -638,7 +638,7 @@ class GridViewController extends Controller {
         // Add "All" tab if enabled
         if (showAllTab) {
             const allTab = this.createViewTab('All', null, !this.state.view.currentId, false, false)
-            container.insertBefore(allTab, createViewBtn)
+            container.appendChild(allTab)
         }
 
         // Add user views
@@ -649,7 +649,7 @@ class GridViewController extends Controller {
                 const canManage = view.canManage !== false
                 const count = view.count || null
                 const viewTab = this.createViewTab(view.name, view.id, isActive, isPreferred, canManage, count)
-                container.insertBefore(viewTab, createViewBtn)
+                container.appendChild(viewTab)
             })
         }
     }
