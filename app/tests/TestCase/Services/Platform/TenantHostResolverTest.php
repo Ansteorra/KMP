@@ -72,9 +72,14 @@ class TenantHostResolverTest extends TestCase
         ], ['id' => 'tenant-alpha']);
 
         $this->assertSame('alpha', $resolver->resolve('alpha.example.test')?->slug);
-        TenantHostResolver::clearCache();
+        $this->assertTrue(TenantHostResolver::clearCache());
 
         $this->assertSame('beta', $resolver->resolve('alpha.example.test')?->slug);
+    }
+
+    public function testClearCacheSucceedsWhenHostMapIsAlreadyAbsent(): void
+    {
+        $this->assertTrue(TenantHostResolver::clearCache());
     }
 
     public function testResolveDoesNotFailWhenCacheWriteFails(): void
