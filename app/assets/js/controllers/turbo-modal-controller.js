@@ -116,6 +116,9 @@ class TurboModal extends Controller {
             if (frame && body !== '') {
                 frame.innerHTML = body;
             }
+            if (!response.ok) {
+                this.announceFailure();
+            }
         } catch (error) {
             console.error('Unable to submit modal form:', error);
             this.announceFailure();

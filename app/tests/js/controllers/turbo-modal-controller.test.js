@@ -244,6 +244,7 @@ describe('TurboModalController', () => {
         controller.element = document.querySelector('[data-controller="turbo-modal"]');
         controller.renderTurboStream = jest.fn();
         global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
             redirected: false,
             headers: {
                 get: jest.fn(() => 'text/html; charset=UTF-8')
@@ -259,6 +260,40 @@ describe('TurboModalController', () => {
         expect(controller.renderTurboStream).not.toHaveBeenCalled();
         expect(document.getElementById('editRecommendation').innerHTML)
             .toContain('replacement-form');
+    });
+
+    test('failed non-stream response replaces the frame and announces failure', async () => {
+        global.IntersectionObserver = jest.fn().mockImplementation(() => ({
+            disconnect: jest.fn(),
+            observe: jest.fn(),
+            unobserve: jest.fn(),
+        }));
+        document.body.innerHTML = `
+            <turbo-frame id="editRecommendation">
+                <form data-controller="turbo-modal"
+                      action="http://localhost/awards/recommendations/edit/594"
+                      method="post">
+                    <button type="submit">Submit</button>
+                </form>
+            </turbo-frame>
+        `;
+        controller.element = document.querySelector('[data-controller="turbo-modal"]');
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: false,
+            redirected: false,
+            headers: { get: jest.fn(() => 'text/html; charset=UTF-8') },
+            text: jest.fn().mockResolvedValue('<form id="replacement-form"></form>'),
+        });
+
+        await controller.submitAsTurboStream({
+            preventDefault: jest.fn(),
+            stopImmediatePropagation: jest.fn(),
+        });
+
+        expect(document.getElementById('editRecommendation').innerHTML)
+            .toContain('replacement-form');
+        expect(window.KMP_accessibility.announce)
+            .toHaveBeenCalledWith('Unable to save. Please try again.', { assertive: true });
     });
 
     test('renderTurboStream applies stream actions through Turbo', async () => {

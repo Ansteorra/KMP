@@ -808,7 +808,10 @@ $connection->update("tenants", [
     "status" => "active",
     "modified_at" => gmdate("Y-m-d H:i:s"),
 ], ["slug" => $slug]);
-TenantHostResolver::clearCache();
+if (!TenantHostResolver::clearCache()) {
+    fwrite(STDERR, "Unable to clear tenant host map cache.\n");
+    exit(1);
+}
 if ($hostAliases !== []) {
     echo sprintf("Registered second tenant aliases: %s.\n", implode(", ", $hostAliases));
 }
@@ -968,7 +971,10 @@ $connection->update("tenants", [
     "activated_at" => gmdate("Y-m-d H:i:s"),
     "modified_at" => gmdate("Y-m-d H:i:s"),
 ], ["slug" => $slug]);
-TenantHostResolver::clearCache();
+if (!TenantHostResolver::clearCache()) {
+    fwrite(STDERR, "Unable to clear tenant host map cache.\n");
+    exit(1);
+}
 '
     SECOND_TENANT_MEMBER_COUNT="$("${COMPOSE[@]}" exec -T db psql -U "${DB_USER}" -d "${SECOND_TENANT_DB}" -At -c "SELECT count(*) FROM members")"
     SECOND_TENANT_GATHERING_COUNT="$("${COMPOSE[@]}" exec -T db psql -U "${DB_USER}" -d "${SECOND_TENANT_DB}" -At -c "SELECT count(*) FROM gatherings")"
