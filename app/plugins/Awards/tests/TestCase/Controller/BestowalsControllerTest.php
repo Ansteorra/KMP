@@ -436,6 +436,8 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('data-bs-target="#cancelBestowalModal"');
         $this->assertResponseContains('id="cancelBestowalModal"');
         $this->assertResponseContains('name="close_reason"');
+        $this->assertResponseContains('id="cancel-bestowal-reason"');
+        $this->assertResponseContains('for="cancel-bestowal-reason"');
         $this->assertResponseContains('required="required"');
         $this->assertResponseContains('All open bestowal to-dos will be cancelled.');
         $this->assertResponseContains('begin a new approval cycle.');

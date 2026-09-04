@@ -47,6 +47,7 @@ $memberName = $bestowal->member->sca_name ?? $bestowal->member_sca_name ?? __('U
 
                 <?= $this->Form->control('close_reason', [
                     'type' => 'textarea',
+                    'id' => 'cancel-bestowal-reason',
                     'label' => __('Cancellation reason'),
                     'required' => true,
                     'rows' => 4,
