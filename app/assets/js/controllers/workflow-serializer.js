@@ -13,24 +13,19 @@ export default class WorkflowSerializer {
         }
     }
 
-    getNodePorts(type) {
-        switch (type) {
-            case 'trigger': return { inputs: 0, outputs: 1 }
-            case 'action': return { inputs: 1, outputs: 1 }
-            case 'condition': return { inputs: 1, outputs: 2 }
-            case 'approval': return { inputs: 1, outputs: 3 }
-            case 'fork': return { inputs: 1, outputs: 2 }
-            case 'join': return { inputs: 2, outputs: 1 }
-            case 'loop': return { inputs: 1, outputs: 2 }
-            case 'forEach': return { inputs: 1, outputs: 3 }
-            case 'delay': return { inputs: 1, outputs: 1 }
-            case 'subworkflow': return { inputs: 1, outputs: 1 }
-            case 'end': return { inputs: 1, outputs: 0 }
-            default: return { inputs: 1, outputs: 1 }
+    getNodePorts(type, declaredOutputs = []) {
+        const inputCounts = {
+            trigger: 0,
+            join: 2,
+        }
+
+        return {
+            inputs: inputCounts[type] ?? 1,
+            outputs: this.getOutputPortLabels(type, declaredOutputs).length,
         }
     }
 
-    getPortLabel(type, portIndex) {
+    _getKnownOutputPortLabels(type) {
         const portLabels = {
             trigger: ['default'],
             action: ['default'],
@@ -42,12 +37,63 @@ export default class WorkflowSerializer {
             delay: ['default'],
             join: ['default'],
             subworkflow: ['default'],
+            end: [],
         }
-        const zeroBasedIndex = portIndex - 1
-        return portLabels[type]?.[zeroBasedIndex] || `output-${portIndex}`
+
+        return portLabels[type] || ['default']
     }
 
-    buildNodeHTML(type, nodeKey, config) {
+    getOutputPortLabels(type, declaredOutputs = []) {
+        const outputCounts = {
+            trigger: 1,
+            action: 1,
+            condition: 2,
+            approval: 3,
+            fork: 2,
+            join: 1,
+            loop: 2,
+            forEach: 3,
+            delay: 1,
+            subworkflow: 1,
+            end: 0,
+        }
+        const labels = this._getKnownOutputPortLabels(type).slice(0, outputCounts[type] ?? 1)
+
+        for (const output of declaredOutputs || []) {
+            const declaredPort = output?.port || 'default'
+            const existingIndex = labels.findIndex(port => this._portsMatch(port, declaredPort))
+
+            if (existingIndex === -1) {
+                labels.push(declaredPort)
+            } else if (labels[existingIndex] === 'default' && declaredPort === 'next') {
+                // Preserve the seed's preferred alias when the workflow is saved again.
+                labels[existingIndex] = declaredPort
+            }
+        }
+
+        return labels
+    }
+
+    getPortLabel(type, portIndex, outputPortLabels = null) {
+        const zeroBasedIndex = portIndex - 1
+        return outputPortLabels?.[zeroBasedIndex] ||
+            this._getKnownOutputPortLabels(type)[zeroBasedIndex] ||
+            `output-${portIndex}`
+    }
+
+    _portsMatch(first, second) {
+        const normalize = port => ['default', 'next'].includes(port) ? 'default' : port
+
+        return normalize(first) === normalize(second)
+    }
+
+    _getOutputPortIndex(outputPortLabels, declaredPort) {
+        const port = declaredPort || 'default'
+
+        return outputPortLabels.findIndex(label => this._portsMatch(label, port))
+    }
+
+    buildNodeHTML(type, nodeKey, config, outputPortLabels = null) {
         const icons = {
             trigger: 'fa-bolt', action: 'fa-gear', condition: 'fa-diamond',
             approval: 'fa-check-double', fork: 'fa-code-branch', join: 'fa-code-merge',
@@ -112,6 +158,15 @@ export default class WorkflowSerializer {
                 <span class="wf-port-label wf-port-label-yes">Path B</span>
             </div>`
         }
+        if (portLabelsHtml === '' && Array.isArray(outputPortLabels) && outputPortLabels.length > 1) {
+            const labelClasses = ['wf-port-label-yes', 'wf-port-label-no']
+            const labels = outputPortLabels.map((portLabel, index) => {
+                const labelClass = labelClasses[index] || 'wf-port-label-mid'
+
+                return `<span class="wf-port-label ${labelClass}">${this._escapeHtml(portLabel)}</span>`
+            }).join('')
+            portLabelsHtml = `<div class="wf-port-labels">${labels}</div>`
+        }
 
         return `<div class="wf-node wf-node-${type}">
             <div class="wf-node-header">
@@ -153,7 +208,7 @@ export default class WorkflowSerializer {
                     const targetKey = targetNode?.data?.nodeKey || targetNode?.name
                     const port = outputKey.replace('output_', '')
                     outputs.push({
-                        port: this.getPortLabel(type, parseInt(port)),
+                        port: this.getPortLabel(type, parseInt(port), node.data?.outputPortLabels),
                         target: targetKey,
                     })
                 }
@@ -184,39 +239,37 @@ export default class WorkflowSerializer {
 
         editor.clear()
         const nodeIdMap = {}
+        const nodeOutputPortLabels = {}
         const nodeEntries = Object.entries(definition.nodes || {})
-
-        const hasLayout = canvasLayout && typeof canvasLayout === 'object' &&
-            !Array.isArray(canvasLayout) && Object.keys(canvasLayout).length > 0
-
-        let autoPositions = {}
-        if (!hasLayout) {
-            autoPositions = this.computeAutoLayout(definition)
-        }
+        const savedLayout = canvasLayout && typeof canvasLayout === 'object' && !Array.isArray(canvasLayout)
+            ? canvasLayout
+            : {}
+        const autoPositions = this.computeAutoLayout(definition)
 
         for (const [nodeKey, nodeDef] of nodeEntries) {
-            const pos = hasLayout
-                ? (canvasLayout[nodeKey] || { x: 100, y: 100 })
-                : (autoPositions[nodeKey] || { x: 100, y: 100 })
-            const { inputs, outputs } = this.getNodePorts(nodeDef.type)
+            const pos = savedLayout[nodeKey] || nodeDef.position || autoPositions[nodeKey] || { x: 100, y: 100 }
+            const outputPortLabels = this.getOutputPortLabels(nodeDef.type, nodeDef.outputs)
+            const { inputs, outputs } = this.getNodePorts(nodeDef.type, nodeDef.outputs)
             const config = { ...(nodeDef.config || {}), _nodeLabel: nodeDef.label || '' }
-            const html = this.buildNodeHTML(nodeDef.type, nodeKey, config)
+            const html = this.buildNodeHTML(nodeDef.type, nodeKey, config, outputPortLabels)
 
             const drawflowId = editor.addNode(
                 nodeKey, inputs, outputs,
                 pos.x, pos.y, `${nodeKey} wf-type-${nodeDef.type}`,
-                { type: nodeDef.type, config, nodeKey, label: nodeDef.label || '' },
+                { type: nodeDef.type, config, nodeKey, label: nodeDef.label || '', outputPortLabels },
                 html
             )
             nodeIdMap[nodeKey] = drawflowId
+            nodeOutputPortLabels[nodeKey] = outputPortLabels
         }
 
         for (const [nodeKey, nodeDef] of nodeEntries) {
             const sourceId = nodeIdMap[nodeKey]
-            for (const [idx, output] of (nodeDef.outputs || []).entries()) {
+            for (const output of (nodeDef.outputs || [])) {
                 const targetId = nodeIdMap[output.target]
-                if (targetId) {
-                    editor.addConnection(sourceId, targetId, `output_${idx + 1}`, 'input_1')
+                const outputIndex = this._getOutputPortIndex(nodeOutputPortLabels[nodeKey], output.port)
+                if (targetId && outputIndex !== -1) {
+                    editor.addConnection(sourceId, targetId, `output_${outputIndex + 1}`, 'input_1')
                 }
             }
         }

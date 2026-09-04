@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Model\Entity\WarrantRoster;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 use Migrations\BaseSeed;
@@ -445,7 +446,7 @@ class DevLoadBestowalTodoUsersSeed extends BaseSeed
             ->first();
         if ($memberRole === null) {
             $memberRole = $memberRoles->newEmptyEntity();
-            $memberRole->set([
+            $memberRole->patch([
                 'member_id' => $memberId,
                 'role_id' => $roleId,
                 'branch_id' => $branchId,
@@ -458,7 +459,7 @@ class DevLoadBestowalTodoUsersSeed extends BaseSeed
             ], ['guard' => false]);
             $memberRoles->saveOrFail($memberRole);
         } elseif ((int)$memberRole->branch_id !== $branchId) {
-            $memberRole->set([
+            $memberRole->patch([
                 'branch_id' => $branchId,
                 'modified_by' => $adminId,
                 'modified' => $now,
@@ -551,6 +552,9 @@ class DevLoadBestowalTodoUsersSeed extends BaseSeed
         } else {
             $roster = $rosters->patchEntity($roster, $data + ['modified' => $now]);
         }
+        // Workflow-owned state is intentionally guarded on the entity. This
+        // trusted development fixture is pre-approved, so set it explicitly.
+        $roster->status = WarrantRoster::STATUS_APPROVED;
         $rosters->saveOrFail($roster);
 
         return (int)$roster->id;
@@ -589,7 +593,7 @@ class DevLoadBestowalTodoUsersSeed extends BaseSeed
 
         $member = TableRegistry::getTableLocator()->get('Members')->get($memberId);
         $warrant = $warrants->newEmptyEntity();
-        $warrant->set([
+        $warrant->patch([
             'name' => sprintf('Bestowal To-Do Demo Warrant: %s', (string)$member->sca_name),
             'member_id' => $memberId,
             'warrant_roster_id' => $warrantRosterId,

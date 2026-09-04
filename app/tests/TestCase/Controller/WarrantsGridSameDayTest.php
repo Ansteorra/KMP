@@ -134,6 +134,23 @@ class WarrantsGridSameDayTest extends HttpIntegrationTestCase
     }
 
     /**
+     * A replaced warrant belongs to Previous even when its dates are in the future.
+     */
+    public function testPreviousViewIncludesFutureDatedReplacedWarrant(): void
+    {
+        $saved = $this->createTestWarrant(
+            DateTime::now()->modify('+1 month'),
+            DateTime::now()->modify('+7 months'),
+            ['status' => Warrant::REPLACED_STATUS],
+        );
+
+        $this->get('/warrants/grid-data?view_id=sys-warrants-previous&search=' . urlencode($saved->get('name')));
+
+        $this->assertResponseOk();
+        $this->assertResponseContains($saved->get('name'));
+    }
+
+    /**
      * A copied Previous view keeps its symbolic OR scope while filters are edited.
      */
     public function testCopiedPreviousViewKeepsWarrantScopeWhenFiltersAreDirty(): void

@@ -77,6 +77,49 @@ describe('workflow node labels', () => {
         expect(canvasTarget.querySelector('.wf-node-title')).toHaveTextContent('Notify Crown')
     })
 
+    test('changing an imported node label preserves its dynamic output labels', () => {
+        const serializer = new WorkflowSerializer({
+            triggers: [],
+            actions: [{ action: 'Core.SendEmail', label: 'Send Email' }],
+            conditions: [],
+            entities: [],
+        })
+        const nodeData = {
+            name: 'action-123',
+            data: {
+                type: 'action',
+                nodeKey: 'action-123',
+                label: 'Send Email',
+                config: { action: 'Core.SendEmail' },
+                outputPortLabels: ['next', 'error'],
+            },
+        }
+        const editor = {
+            getNodeFromId: jest.fn(() => nodeData),
+            updateNodeDataFromId: jest.fn(),
+        }
+        const canvasTarget = document.createElement('div')
+        canvasTarget.innerHTML = '<div id="node-7"><div class="drawflow_content_node"></div></div>'
+        const designer = {
+            editor,
+            _configPanel: null,
+            _variablePicker: null,
+            _serializer: serializer,
+            nodeConfigTarget: document.createElement('div'),
+            hasNodeConfigTarget: true,
+            canvasTarget,
+            _selectedNodes: new Set(),
+            _updateDirtyState: jest.fn(),
+        }
+        const handler = new WorkflowNodeConfigHandler(designer)
+
+        document.body.innerHTML = '<form data-node-id="7"><input name="label" value="Notify Crown"></form>'
+        handler.updateNodeConfig({ target: document.querySelector('[name="label"]') })
+
+        expect(Array.from(canvasTarget.querySelectorAll('.wf-port-label'))
+            .map(label => label.textContent)).toEqual(['next', 'error'])
+    })
+
     test('imported workflow labels are available in node config metadata', () => {
         const serializer = new WorkflowSerializer({ triggers: [], actions: [], conditions: [], entities: [] })
         const addedNodes = []

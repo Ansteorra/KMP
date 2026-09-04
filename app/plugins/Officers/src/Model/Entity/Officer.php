@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Officers\Model\Entity;
 
-use Cake\ORM\Entity;
+use App\KMP\TimezoneHelper;
 use App\Model\Entity\ActiveWindowBaseEntity;
 
 /**
@@ -32,6 +32,7 @@ use App\Model\Entity\ActiveWindowBaseEntity;
  *
  * @property string $warrant_state Virtual: Active, Pending, Missing, Not Required
  * @property bool $is_editable Virtual: whether assignment can be edited
+ * @property array<array<string, string>> $term_notes_payload Public term-change notes for the edit modal
  * @property string $reports_to_list Virtual: formatted reporting hierarchy
  * @property array $effective_reports_to_currently Virtual: skip-aware hierarchy traversal
  *
@@ -49,6 +50,8 @@ use App\Model\Entity\ActiveWindowBaseEntity;
  */
 class Officer extends ActiveWindowBaseEntity
 {
+    public const TERM_UPDATE_NOTE_SUBJECT = 'Officer Term Updated';
+
     /**
      * Type identification fields for ActiveWindow behavior.
      * Composite key enables temporal management per office per branch.
@@ -109,19 +112,38 @@ class Officer extends ActiveWindowBaseEntity
     }
 
     /**
-     * Determine if assignment can be edited (deputy positions or those with email).
+     * Indicate that assignment fields are eligible for editing.
+     *
+     * This compatibility virtual describes field eligibility only. Authorization
+     * policy still controls which members may edit a particular assignment.
      *
      * @return bool
      */
-    protected function _getIsEditable()
+    protected function _getIsEditable(): bool
     {
-        if ($this->office->is_deputy == true) {
-            return true;
+        return true;
+    }
+
+    /**
+     * Return a minimal, safely serializable view of public term-change notes.
+     *
+     * @return array<array<string, string>>
+     */
+    protected function _getTermNotesPayload(): array
+    {
+        $payload = [];
+        foreach ($this->term_notes ?? [] as $note) {
+            $author = $note->author->sca_name ?? 'Unknown member';
+            $created = $note->created ?? $note->created_on ?? null;
+            $payload[] = [
+                'subject' => (string)($note->subject ?? self::TERM_UPDATE_NOTE_SUBJECT),
+                'body' => (string)($note->body ?? ''),
+                'author' => (string)$author,
+                'created' => $created === null ? '' : TimezoneHelper::formatDateTime($created),
+            ];
         }
-        if ($this->email_address !== null && $this->email_address !== "") {
-            return true;
-        }
-        return false;
+
+        return $payload;
     }
 
     /**

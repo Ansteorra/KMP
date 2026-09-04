@@ -34,6 +34,7 @@ use App\Model\Table\BaseTable;
  * @property \App\Model\Table\WarrantsTable&\Cake\ORM\Association\HasOne $CurrentWarrants
  * @property \App\Model\Table\WarrantsTable&\Cake\ORM\Association\HasMany $PendingWarrants
  * @property \App\Model\Table\WarrantsTable&\Cake\ORM\Association\HasMany $Warrants
+ * @property \App\Model\Table\NotesTable&\Cake\ORM\Association\HasMany $TermNotes
  * @property \Officers\Model\Table\OfficersTable&\Cake\ORM\Association\HasMany $ReportsToCurrently
  * @property \Officers\Model\Table\OfficersTable&\Cake\ORM\Association\HasMany $DeputyToCurrently
  *
@@ -136,6 +137,18 @@ class OfficersTable extends BaseTable
             "conditions" => [
                 "Warrants.entity_type" => "Officers.Officers",
             ],
+        ]);
+
+        $this->hasMany('TermNotes', [
+            'className' => 'Notes',
+            'foreignKey' => 'entity_id',
+            'bindingKey' => 'id',
+            'conditions' => [
+                'TermNotes.entity_type' => 'Officers.Officers',
+                'TermNotes.subject' => Officer::TERM_UPDATE_NOTE_SUBJECT,
+                'TermNotes.private' => false,
+            ],
+            'sort' => ['TermNotes.created' => 'DESC'],
         ]);
 
         $this->hasMany('ReportsToCurrently', [
@@ -336,6 +349,15 @@ class OfficersTable extends BaseTable
             "RevokedBy" => function ($q) {
                 return $q
                     ->select(["id", "sca_name"]);
+            },
+            'TermNotes' => function ($q) {
+                return $q
+                    ->select(['id', 'author_id', 'entity_id', 'subject', 'body', 'created'])
+                    ->contain([
+                        'Authors' => function ($q) {
+                            return $q->select(['id', 'sca_name']);
+                        },
+                    ]);
             },
         ];
 

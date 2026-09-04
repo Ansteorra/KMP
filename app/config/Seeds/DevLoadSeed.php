@@ -21,6 +21,7 @@ class DevLoadSeed extends BaseSeed
      */
     public function run(): void
     {
+        $this->call('DevRepairWarrantRosterApprovalsSeed', ['source' => 'Seeds']);
         $this->call('DevLoadGatheringTypesSeed', ['source' => 'Seeds']);
         $this->call('DevLoadGatheringActivitiesSeed', ['source' => 'Seeds']);
         $this->call('DevLoadGatheringsSeed', ['source' => 'Seeds']);

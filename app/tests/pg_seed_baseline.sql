@@ -33711,6 +33711,15 @@ INSERT INTO "warrant_rosters" ("id", "name", "approvals_required", "approval_cou
 (436, 'Principality Consort : Jael Principality Coronet Demoer', 1, NULL, 'Pending', '2026-02-04 18:02:38', '2026-02-04 18:02:38', 1, 1)
 ON CONFLICT DO NOTHING;
 
+-- Legacy approval history consumed by the warrant workflow backfill.
+-- Production approvers are represented by the retained development admin.
+INSERT INTO "warrant_roster_approvals" ("warrant_roster_id", "approver_id", "approved_on")
+SELECT "id", 1, COALESCE("modified", "created")
+FROM "warrant_rosters"
+WHERE "status" = 'Approved'
+  AND "approval_count" = 1
+ON CONFLICT DO NOTHING;
+
 -- Data for warrants
 INSERT INTO "warrants" ("id", "name", "member_id", "warrant_roster_id", "entity_type", "entity_id", "member_role_id", "expires_on", "start_on", "approved_date", "status", "revoked_reason", "revoker_id", "modified", "created", "created_by", "modified_by") VALUES
 (1, 'System Admin Warrant', 1, 1, 'Direct Grant', -1, 1, '2100-10-10 00:00:00', '2020-01-01 00:00:00', '2020-01-01 00:00:00', 'Current', NULL, NULL, NULL, '2025-01-12 01:02:18', 1, NULL),

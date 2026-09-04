@@ -34992,7 +34992,7 @@ CREATE TABLE `warrant_roster_approvals` (
   KEY `warrant_roster_id` (`warrant_roster_id`),
   CONSTRAINT `warrant_roster_approvals_ibfk_1` FOREIGN KEY (`warrant_roster_id`) REFERENCES `warrant_rosters` (`id`),
   CONSTRAINT `warrant_roster_approvals_ibfk_2` FOREIGN KEY (`approver_id`) REFERENCES `members` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=626 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=634 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -35019,7 +35019,17 @@ INSERT INTO `warrant_roster_approvals` VALUES
 (620,424,1,'2025-12-30 18:24:28'),
 (621,423,1,'2025-12-30 18:24:32'),
 (622,426,1,'2025-12-30 18:24:38'),
-(623,427,1,'2025-12-30 18:24:42');
+(623,427,1,'2025-12-30 18:24:42'),
+(624,395,1,'2025-06-22 19:41:16'),
+(625,396,1,'2025-06-22 19:51:44'),
+(626,397,1,'2025-06-22 20:13:22'),
+(627,398,1,'2025-06-22 20:35:39'),
+(628,399,1,'2025-06-22 20:35:44'),
+(629,400,1,'2025-06-22 20:35:47'),
+(630,401,1,'2025-08-27 23:22:50'),
+(631,402,1,'2025-08-07 21:09:42'),
+(632,404,1,'2025-08-07 21:09:34'),
+(633,405,1,'2025-08-07 21:11:03');
 /*!40000 ALTER TABLE `warrant_roster_approvals` ENABLE KEYS */;
 UNLOCK TABLES;
 

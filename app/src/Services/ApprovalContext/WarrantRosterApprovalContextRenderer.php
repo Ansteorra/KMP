@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Services\ApprovalContext;
 
+use App\Model\Entity\Warrant;
 use App\Model\Entity\WarrantRoster;
 use App\Model\Entity\WorkflowInstance;
 use Cake\ORM\TableRegistry;
@@ -43,7 +44,7 @@ class WarrantRosterApprovalContextRenderer implements ApprovalContextRendererInt
         }
 
         $rosterName = $rosterName ?? __('Unknown Roster');
-        $warrantCount = $this->getWarrantCount((int)$rosterId);
+        $warrantCount = $this->getWarrantCount((int)$rosterId, $roster?->status);
         $creatorName = $this->loadCreatorName($roster->created_by ?? null);
 
         $title = __('Warrant Roster: {0}', $rosterName);
@@ -100,19 +101,25 @@ class WarrantRosterApprovalContextRenderer implements ApprovalContextRendererInt
      * Get the count of warrants in a roster.
      *
      * @param int|null $rosterId Roster ID.
+     * @param string|null $rosterStatus Current roster status.
      * @return int
      */
-    private function getWarrantCount(?int $rosterId): int
+    private function getWarrantCount(?int $rosterId, ?string $rosterStatus): int
     {
         if ($rosterId === null) {
             return 0;
         }
 
         try {
+            $conditions = ['warrant_roster_id' => $rosterId];
+            if ($rosterStatus === WarrantRoster::STATUS_PENDING) {
+                $conditions['status'] = Warrant::PENDING_STATUS;
+            }
+
             return TableRegistry::getTableLocator()
                 ->get('Warrants')
                 ->find()
-                ->where(['warrant_roster_id' => $rosterId])
+                ->where($conditions)
                 ->count();
         } catch (Throwable $e) {
             return 0;

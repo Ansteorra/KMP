@@ -79,9 +79,10 @@ class WarrantRostersGridColumns extends BaseGridColumns
                 'width' => '120px',
                 'alignment' => 'center',
                 'filterOptions' => [
-                    ['value' => 'Pending', 'label' => 'Pending'],
-                    ['value' => 'Approved', 'label' => 'Approved'],
-                    ['value' => 'Declined', 'label' => 'Declined'],
+                    ['value' => WarrantRoster::STATUS_PENDING, 'label' => WarrantRoster::STATUS_PENDING],
+                    ['value' => WarrantRoster::STATUS_APPROVED, 'label' => WarrantRoster::STATUS_APPROVED],
+                    ['value' => WarrantRoster::STATUS_DECLINED, 'label' => WarrantRoster::STATUS_DECLINED],
+                    ['value' => WarrantRoster::STATUS_REPLACED, 'label' => WarrantRoster::STATUS_REPLACED],
                 ],
             ],
 
@@ -150,6 +151,17 @@ class WarrantRostersGridColumns extends BaseGridColumns
                 'config' => [
                     'filters' => [
                         ['field' => 'status', 'operator' => 'eq', 'value' => WarrantRoster::STATUS_DECLINED],
+                    ],
+                ],
+            ],
+            'sys-roster-replaced' => [
+                'id' => 'sys-roster-replaced',
+                'name' => __('Replaced'),
+                'description' => __('Rosters superseded by corrected warrant requests'),
+                'canManage' => false,
+                'config' => [
+                    'filters' => [
+                        ['field' => 'status', 'operator' => 'eq', 'value' => WarrantRoster::STATUS_REPLACED],
                     ],
                 ],
             ],

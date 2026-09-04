@@ -19,6 +19,7 @@ use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
 use Cake\Http\Response;
+use Cake\I18n\Date;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
@@ -183,12 +184,13 @@ class OfficersController extends AppController
     }
 
     /**
-     * Edit officer assignment details (deputy description, email).
+     * Request an update to an officer assignment.
      *
+     * @param \App\Services\WorkflowEngine\TriggerDispatcher $dispatcher Workflow trigger dispatcher
      * @return \Cake\Http\Response|null|void Redirects on completion
      * @throws \Cake\Http\Exception\NotFoundException When officer not found
      */
-    public function edit()
+    public function edit(TriggerDispatcher $dispatcher)
     {
         $this->request->allowMethod(['post']);
         $officer = $this->Officers->get($this->request->getData('id'));
@@ -196,10 +198,93 @@ class OfficersController extends AppController
             throw new NotFoundException();
         }
         $this->Authorization->authorize($officer);
-        $officer->deputy_description = $this->request->getData('deputy_description');
-        $officer->email_address = $this->request->getData('email_address');
-        if ($this->Officers->save($officer)) {
-            $this->Flash->success(__('The officer has been saved.'));
+        if (!in_array($officer->status, [Officer::CURRENT_STATUS, Officer::UPCOMING_STATUS], true)) {
+            $this->Flash->error(__('Only current or upcoming officer assignments can be updated.'));
+
+            return $this->redirect($this->referer());
+        }
+
+        $startOn = $this->normalizeOfficerTermDate($this->request->getData('start_on'));
+        if ($startOn === null) {
+            $this->Flash->error(__('Enter a valid start date.'));
+
+            return $this->redirect($this->referer());
+        }
+
+        $expiresOnInput = $this->request->getData('expires_on');
+        $expiresOn = $this->normalizeOfficerTermDate($expiresOnInput);
+        if ($expiresOn === null && $expiresOnInput !== null && trim((string)$expiresOnInput) !== '') {
+            $this->Flash->error(__('Enter a valid end date.'));
+
+            return $this->redirect($this->referer());
+        }
+        if ($expiresOn !== null && $expiresOn < $startOn) {
+            $this->Flash->error(__('The officer term end date cannot be before the start date.'));
+
+            return $this->redirect($this->referer());
+        }
+
+        $emailAddress = trim((string)$this->request->getData('email_address', ''));
+        $emailAddress = $emailAddress === '' ? null : $emailAddress;
+        if ($emailAddress !== null && filter_var($emailAddress, FILTER_VALIDATE_EMAIL) === false) {
+            $this->Flash->error(__('Enter a valid email address.'));
+
+            return $this->redirect($this->referer());
+        }
+
+        $termNote = trim((string)$this->request->getData('term_note', ''));
+        $currentStartOn = $officer->start_on?->format('Y-m-d');
+        $currentExpiresOn = $officer->expires_on?->format('Y-m-d');
+        $termChanged = $startOn !== $currentStartOn || $expiresOn !== $currentExpiresOn;
+        if ($termChanged && $termNote === '') {
+            $this->Flash->error(__('A note is required when changing the officer term dates.'));
+
+            return $this->redirect($this->referer());
+        }
+
+        $identity = $this->Authentication->getIdentity();
+        $deputyDescription = trim((string)$this->request->getData('deputy_description', ''));
+        $deputyDescription = $deputyDescription === '' ? null : $deputyDescription;
+        $context = [
+            'officerId' => (int)$officer->id,
+            'actorId' => (int)$identity->getIdentifier(),
+            'memberId' => (int)$officer->member_id,
+            'officeId' => (int)$officer->office_id,
+            'branchId' => (int)$officer->branch_id,
+            'startOn' => $startOn,
+            'expiresOn' => $expiresOn,
+            'emailAddress' => $emailAddress,
+            'deputyDescription' => $deputyDescription,
+            'termNote' => $termNote,
+        ];
+
+        try {
+            $result = $this->dispatchWorkflowOrFail(
+                $dispatcher,
+                'officer-assignment-update',
+                'Officers.AssignmentUpdateRequested',
+                $context,
+            );
+            $workflowError = $this->extractWorkflowDispatchFailure(
+                $result,
+                'The officer assignment update workflow could not be completed.',
+            );
+            if ($workflowError !== null) {
+                $this->Flash->error(__($workflowError));
+
+                return $this->redirect($this->referer());
+            }
+
+            $workflowWarning = $this->extractWorkflowDispatchWarning($result);
+            if ($workflowWarning !== null) {
+                $this->Flash->warning(__(
+                    'The officer assignment was saved, but follow-up work needs attention: {0} '
+                    . 'Do not submit this assignment update again; complete the follow-up separately.',
+                    $workflowWarning,
+                ));
+            } else {
+                $this->Flash->success(__('The officer assignment has been updated.'));
+            }
             $stream = $this->tryOfficersGridTurboResponse(
                 $this->getPageContextUrl(),
                 (int)$officer->id,
@@ -207,11 +292,45 @@ class OfficersController extends AppController
             if ($stream !== null) {
                 return $stream;
             }
-        } else {
-            $this->Flash->error(__('The officer could not be saved. Please, try again.'));
+        } catch (Throwable $e) {
+            Log::error('Officer assignment update workflow dispatch failed: ' . $e->getMessage());
+            $this->Flash->error(__('The officer assignment update workflow is not currently available.'));
         }
 
         return $this->redirect($this->referer());
+    }
+
+    /**
+     * Normalize a submitted officer term date.
+     *
+     * @param mixed $value Submitted date value
+     * @return string|null ISO date, or null when blank or invalid
+     */
+    private function normalizeOfficerTermDate(mixed $value): ?string
+    {
+        if (!is_string($value) && !is_int($value)) {
+            return null;
+        }
+
+        $value = trim((string)$value);
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return null;
+        }
+
+        try {
+            $date = Date::createFromFormat('!Y-m-d', $value);
+            $errors = Date::getLastErrors();
+            if (
+                $date->format('Y-m-d') !== $value
+                || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))
+            ) {
+                return null;
+            }
+        } catch (Throwable) {
+            return null;
+        }
+
+        return $value;
     }
 
     /**
@@ -308,6 +427,52 @@ class OfficersController extends AppController
         }
 
         return null;
+    }
+
+    /**
+     * Extract non-fatal workflow warnings after an assignment update was saved.
+     *
+     * @param array<int, mixed> $results Workflow dispatch results from TriggerDispatcher.
+     * @return string|null Combined warning details, or null when all follow-up work completed.
+     */
+    private function extractWorkflowDispatchWarning(array $results): ?string
+    {
+        $warnings = [];
+
+        foreach ($results as $result) {
+            if ($result instanceof ServiceResult) {
+                $workflowResult = is_array($result->data ?? null)
+                    ? ($result->data['workflowResult'] ?? null)
+                    : null;
+            } elseif (is_array($result)) {
+                $workflowResult = isset($result['workflowResult']) && is_array($result['workflowResult'])
+                    ? $result['workflowResult']
+                    : $result;
+            } else {
+                continue;
+            }
+
+            if (!is_array($workflowResult) || ($workflowResult['updated'] ?? false) !== true) {
+                continue;
+            }
+
+            $workflowWarnings = $workflowResult['warnings'] ?? $workflowResult['warning'] ?? [];
+            if (!is_array($workflowWarnings)) {
+                $workflowWarnings = [$workflowWarnings];
+            }
+
+            foreach ($workflowWarnings as $warning) {
+                if (!is_string($warning) || trim($warning) === '') {
+                    continue;
+                }
+
+                $warnings[] = trim($warning);
+            }
+        }
+
+        $warnings = array_values(array_unique($warnings));
+
+        return $warnings === [] ? null : implode(' ', $warnings);
     }
 
     /**
@@ -411,6 +576,15 @@ class OfficersController extends AppController
             },
             'Offices.Departments' => function ($q) {
                 return $q->select(['id', 'name']);
+            },
+            'TermNotes' => function ($q) {
+                return $q
+                    ->select(['id', 'author_id', 'entity_id', 'subject', 'body', 'created'])
+                    ->contain([
+                        'Authors' => function ($q) {
+                            return $q->select(['id', 'sca_name']);
+                        },
+                    ]);
             },
         ];
         if (
@@ -903,6 +1077,11 @@ class OfficersController extends AppController
                 'Members' => fn($q) => $q->select(['id', 'sca_name']),
                 'Offices' => fn($q) => $q->select(['id', 'name', 'requires_warrant', 'deputy_to_id']),
                 'Offices.Departments' => fn($q) => $q->select(['id', 'name']),
+                'TermNotes' => fn($q) => $q
+                    ->select(['id', 'author_id', 'entity_id', 'subject', 'body', 'created'])
+                    ->contain([
+                        'Authors' => fn($q) => $q->select(['id', 'sca_name']),
+                    ]),
             ];
             if ($queryContext->loadsColumn('branch_name')) {
                 $contain['Branches'] = fn($q) => $q->select(['id', 'name']);

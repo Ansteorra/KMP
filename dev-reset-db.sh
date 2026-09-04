@@ -376,6 +376,9 @@ if [ "$LOAD_SEED" = true ]; then
     echo "[post] Advancing date-sensitive seed data to ${SEED_AS_OF}..."
     "${COMPOSE[@]}" exec -T app bin/cake advance_dev_seed_dates --as-of "$SEED_AS_OF"
 
+    echo "[post] Repairing seeded warrant roster approval history..."
+    "${COMPOSE[@]}" exec -T app bin/cake seeds run DevRepairWarrantRosterApprovals
+
     echo "[post] Ensuring bestowal to-do demo users..."
     "${COMPOSE[@]}" exec -T app bin/cake seeds run DevLoadBestowalTodoUsers
 

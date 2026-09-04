@@ -12,6 +12,7 @@ use App\Services\WarrantManager\WarrantRequest;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use App\Services\WorkflowRegistry\WorkflowActionRegistry;
 use App\Services\WorkflowRegistry\WorkflowConditionRegistry;
+use App\Services\WorkflowRegistry\WorkflowTriggerRegistry;
 use App\Test\TestCase\BaseTestCase;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
@@ -57,6 +58,7 @@ class OfficersWorkflowActionsTest extends BaseTestCase
     {
         WorkflowActionRegistry::clear();
         WorkflowConditionRegistry::clear();
+        WorkflowTriggerRegistry::clear();
         parent::tearDown();
     }
 
@@ -78,8 +80,25 @@ class OfficersWorkflowActionsTest extends BaseTestCase
         $this->assertContains('Officers.RecalculateOfficersForOffice', $actionKeys);
         $this->assertContains('Officers.PrepareHireNotificationVars', $actionKeys);
         $this->assertContains('Officers.PrepareReleaseNotificationVars', $actionKeys);
+        $this->assertContains('Officers.UpdateOfficerAssignment', $actionKeys);
+        $this->assertContains('Officers.RequestWarrantExtension', $actionKeys);
+        $this->assertContains('Officers.PrepareAssignmentUpdateNotificationVars', $actionKeys);
+        $extensionAction = WorkflowActionRegistry::getAction('Officers.RequestWarrantExtension');
+        $this->assertArrayHasKey('warning', $extensionAction['outputSchema']);
         $this->assertNotContains('Officers.SendHireNotification', $actionKeys);
         $this->assertNotContains('Officers.SendReleaseNotification', $actionKeys);
+    }
+
+    public function testProviderRegistersAssignmentUpdateTrigger(): void
+    {
+        OfficersWorkflowProvider::register();
+
+        $trigger = WorkflowTriggerRegistry::getTrigger('Officers.AssignmentUpdateRequested');
+
+        $this->assertNotNull($trigger);
+        $this->assertArrayHasKey('termNote', $trigger['payloadSchema']);
+        $this->assertArrayHasKey('startOn', $trigger['payloadSchema']);
+        $this->assertArrayHasKey('expiresOn', $trigger['payloadSchema']);
     }
 
     public function testProviderRegistersAllConditions(): void

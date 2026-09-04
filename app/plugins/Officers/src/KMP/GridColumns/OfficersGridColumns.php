@@ -40,7 +40,8 @@ class OfficersGridColumns extends BaseGridColumns
                 'class' => 'btn-sm btn btn-primary edit-btn',
                 'modalTarget' => '#editOfficerModal',
                 'permission' => 'edit',
-                'condition' => ['is_editable' => true],
+                'title' => 'Edit officer assignment',
+                'ariaLabel' => 'Edit {{member.sca_name}} officer assignment',
                 'dataAttributes' => [
                     'controller' => 'outlet-btn',
                     'action' => 'click->outlet-btn#fireNotice',
@@ -49,6 +50,9 @@ class OfficersGridColumns extends BaseGridColumns
                         'is_deputy' => 'office.is_deputy',
                         'email_address' => 'email_address',
                         'deputy_description' => 'deputy_description',
+                        'start_on' => 'start_on',
+                        'expires_on' => 'expires_on',
+                        'term_notes_payload' => 'term_notes_payload',
                     ],
                 ],
                 'statusFilter' => [

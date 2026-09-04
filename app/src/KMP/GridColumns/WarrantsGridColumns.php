@@ -249,6 +249,9 @@ class WarrantsGridColumns extends BaseGridColumns
                         Warrant::DEACTIVATED_STATUS,
                         Warrant::EXPIRED_STATUS,
                         Warrant::DECLINED_STATUS,
+                        Warrant::RELEASED_STATUS,
+                        Warrant::REPLACED_STATUS,
+                        Warrant::CANCELLED_STATUS,
                     ],
                 ],
             ]);
