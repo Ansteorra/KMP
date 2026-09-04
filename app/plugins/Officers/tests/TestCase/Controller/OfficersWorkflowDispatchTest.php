@@ -20,7 +20,7 @@ use ReflectionProperty;
 /**
  * Tests workflow dispatch in OfficersController.
  *
- * Verifies that assign() and release() route through TriggerDispatcher
+ * Verifies that assign(), edit(), and release() route through TriggerDispatcher
  * and that requestWarrant() delegates to the warrant manager workflow trigger path.
  *
  * @uses \Officers\Controller\OfficersController
@@ -168,7 +168,7 @@ class OfficersWorkflowDispatchTest extends HttpIntegrationTestCase
             'approval_date' => DateTime::now(),
             'start_on' => DateTime::now()->subDays(30),
             'expires_on' => DateTime::now()->addMonths(6),
-            'status' => 'current',
+            'status' => Officer::CURRENT_STATUS,
             'reports_to_office_id' => $office->reports_to_id ?? $office->id,
             'reports_to_branch_id' => self::KINGDOM_BRANCH_ID,
         ]);
@@ -193,6 +193,25 @@ class OfficersWorkflowDispatchTest extends HttpIntegrationTestCase
             'deputy_description' => '',
             'email_address' => 'test@example.com',
         ];
+    }
+
+    /**
+     * Get form data for the edit action.
+     *
+     * @param object $officer Officer being edited
+     * @param array<string, mixed> $overrides Form value overrides
+     * @return array<string, mixed>
+     */
+    private function getEditData(object $officer, array $overrides = []): array
+    {
+        return array_replace([
+            'id' => $officer->id,
+            'start_on' => $officer->start_on->format('Y-m-d'),
+            'expires_on' => $officer->expires_on?->format('Y-m-d') ?? '',
+            'deputy_description' => $officer->deputy_description ?? '',
+            'email_address' => $officer->email_address ?? '',
+            'term_note' => '',
+        ], $overrides);
     }
 
     // ---------------------------------------------------------------
@@ -283,6 +302,365 @@ class OfficersWorkflowDispatchTest extends HttpIntegrationTestCase
 
         $this->assertRedirect();
         $this->assertFlashMessage('Member is not warrantable', 'flash');
+    }
+
+    // ---------------------------------------------------------------
+    // edit() tests
+    // ---------------------------------------------------------------
+
+    /**
+     * Test edit() reports an unavailable workflow without mutating the officer.
+     */
+    public function testEditFlashesErrorWhenWorkflowUnavailable(): void
+    {
+        $this->deactivateWorkflows(['officer-assignment-update']);
+        $officer = $this->createTestOfficer();
+        $originalEmail = $this->Officers->get($officer->id)->email_address;
+
+        $this->mockServiceClean(TriggerDispatcher::class, function () {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->never())->method('dispatch');
+
+            return $mock;
+        });
+
+        $this->post('/officers/officers/edit', $this->getEditData($officer, [
+            'email_address' => 'unavailable@example.com',
+        ]));
+
+        $this->assertRedirect();
+        $this->assertFlashMessage(
+            'The officer assignment update workflow is not currently available.',
+            'flash',
+        );
+        $this->assertSame($originalEmail, $this->Officers->get($officer->id)->email_address);
+    }
+
+    /**
+     * Test edit() dispatches normalized values and performs no direct save.
+     */
+    public function testEditDispatchesNormalizedWorkflowContext(): void
+    {
+        $this->ensureActiveWorkflow('officer-assignment-update');
+        $officer = $this->createTestOfficer();
+        $officer->email_address = 'before@example.com';
+        $officer->deputy_description = 'Before deputy';
+        $this->Officers->saveOrFail($officer);
+
+        $dispatched = false;
+        $this->mockServiceClean(TriggerDispatcher::class, function () use (&$dispatched, $officer) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->method('dispatch')
+                ->willReturnCallback(function (
+                    string $event,
+                    array $context,
+                    ?int $triggeredBy = null,
+                ) use (
+                    &$dispatched,
+                    $officer,
+                ): array {
+                    $dispatched = true;
+                    $this->assertSame('Officers.AssignmentUpdateRequested', $event);
+                    $this->assertSame(self::ADMIN_MEMBER_ID, $triggeredBy);
+                    $this->assertSame((int)$officer->id, $context['officerId']);
+                    $this->assertSame(self::ADMIN_MEMBER_ID, $context['actorId']);
+                    $this->assertSame((int)$officer->member_id, $context['memberId']);
+                    $this->assertSame((int)$officer->office_id, $context['officeId']);
+                    $this->assertSame((int)$officer->branch_id, $context['branchId']);
+                    $this->assertSame($officer->start_on->format('Y-m-d'), $context['startOn']);
+                    $this->assertSame($officer->expires_on->format('Y-m-d'), $context['expiresOn']);
+                    $this->assertSame('after@example.com', $context['emailAddress']);
+                    $this->assertSame('After deputy', $context['deputyDescription']);
+                    $this->assertSame('', $context['termNote']);
+
+                    return [new ServiceResult(true, null, [
+                        'workflowResult' => [
+                            'success' => true,
+                            'data' => ['officerId' => (int)$officer->id],
+                        ],
+                    ])];
+                });
+
+            return $mock;
+        });
+
+        $this->post('/officers/officers/edit', $this->getEditData($officer, [
+            'start_on' => ' ' . $officer->start_on->format('Y-m-d') . ' ',
+            'expires_on' => ' ' . $officer->expires_on->format('Y-m-d') . ' ',
+            'email_address' => ' after@example.com ',
+            'deputy_description' => ' After deputy ',
+        ]));
+
+        $this->assertRedirect();
+        $this->assertTrue($dispatched, 'TriggerDispatcher::dispatch should have been called');
+        $this->assertFlashMessage('The officer assignment has been updated.', 'flash');
+
+        $unchangedOfficer = $this->Officers->get($officer->id);
+        $this->assertSame('before@example.com', $unchangedOfficer->email_address);
+        $this->assertSame('Before deputy', $unchangedOfficer->deputy_description);
+    }
+
+    /**
+     * Test edit() reports a committed update with follow-up warnings without inviting a duplicate retry.
+     */
+    public function testEditReportsSavedWithWarningWithoutInvitingDuplicateRetry(): void
+    {
+        $this->ensureActiveWorkflow('officer-assignment-update');
+        $officer = $this->createTestOfficer();
+
+        $this->mockServiceClean(TriggerDispatcher::class, function () {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->method('dispatch')
+                ->willReturn([
+                    new ServiceResult(true, null, [
+                        'workflowResult' => [
+                            'success' => true,
+                            'updated' => true,
+                            'warnings' => [
+                                'The warrant extension request could not be completed.',
+                                null,
+                            ],
+                        ],
+                    ]),
+                ]);
+
+            return $mock;
+        });
+
+        $this->post('/officers/officers/edit', $this->getEditData($officer, [
+            'email_address' => 'updated@example.com',
+        ]));
+
+        $this->assertRedirect();
+        $this->assertFlashMessage(
+            'The officer assignment was saved, but follow-up work needs attention: '
+            . 'The warrant extension request could not be completed. '
+            . 'Do not submit this assignment update again; complete the follow-up separately.',
+        );
+        $this->assertFlashElement('flash/warning');
+    }
+
+    /**
+     * Test edit() does not label an advisory warning as saved without the updated contract flag.
+     */
+    public function testEditRequiresUpdatedFlagForSavedWithWarningMessage(): void
+    {
+        $this->ensureActiveWorkflow('officer-assignment-update');
+        $officer = $this->createTestOfficer();
+
+        $this->mockServiceClean(TriggerDispatcher::class, function () {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->method('dispatch')
+                ->willReturn([
+                    new ServiceResult(true, null, [
+                        'workflowResult' => [
+                            'success' => true,
+                            'warnings' => ['Advisory only.'],
+                        ],
+                    ]),
+                ]);
+
+            return $mock;
+        });
+
+        $this->post('/officers/officers/edit', $this->getEditData($officer));
+
+        $this->assertRedirect();
+        $this->assertFlashMessage('The officer assignment has been updated.');
+        $this->assertFlashElement('flash/success');
+    }
+
+    /**
+     * Test edit() requires a note when a normalized term date changes.
+     */
+    public function testEditRequiresTermNoteForDateChange(): void
+    {
+        $this->ensureActiveWorkflow('officer-assignment-update');
+        $officer = $this->createTestOfficer();
+        $originalExpiresOn = $officer->expires_on->format('Y-m-d');
+
+        $this->mockServiceClean(TriggerDispatcher::class, function () {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->never())->method('dispatch');
+
+            return $mock;
+        });
+
+        $this->post('/officers/officers/edit', $this->getEditData($officer, [
+            'expires_on' => $officer->expires_on->addMonths(1)->format('Y-m-d'),
+            'term_note' => '   ',
+        ]));
+
+        $this->assertRedirect();
+        $this->assertFlashMessage(
+            'A note is required when changing the officer term dates.',
+            'flash',
+        );
+        $this->assertSame(
+            $originalExpiresOn,
+            $this->Officers->get($officer->id)->expires_on->format('Y-m-d'),
+        );
+    }
+
+    /**
+     * Test edit() rejects crafted updates for terminal assignment states.
+     */
+    public function testEditRejectsReleasedAndExpiredAssignmentsBeforeDispatch(): void
+    {
+        $this->mockServiceClean(TriggerDispatcher::class, function () {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->never())->method('dispatch');
+
+            return $mock;
+        });
+
+        foreach ([Officer::RELEASED_STATUS, Officer::EXPIRED_STATUS] as $status) {
+            $officer = $this->createTestOfficer();
+            $officer->status = $status;
+            $this->Officers->saveOrFail($officer);
+            $originalStart = $officer->start_on->toDateTimeString();
+            $originalEnd = $officer->expires_on->toDateTimeString();
+            $originalEmail = (string)($officer->email_address ?? '');
+
+            $this->post('/officers/officers/edit', $this->getEditData($officer, [
+                'start_on' => DateTime::now()->toDateString(),
+                'expires_on' => DateTime::now()->addMonths(12)->toDateString(),
+                'email_address' => 'crafted-reactivation@example.test',
+                'term_note' => 'Attempt to reactivate a terminal assignment.',
+            ]));
+
+            $this->assertRedirect();
+            $this->assertFlashMessage('Only current or upcoming officer assignments can be updated.');
+            $savedOfficer = $this->Officers->get($officer->id);
+            $this->assertSame($status, $savedOfficer->status);
+            $this->assertSame($originalStart, $savedOfficer->start_on->toDateTimeString());
+            $this->assertSame($originalEnd, $savedOfficer->expires_on->toDateTimeString());
+            $this->assertSame($originalEmail, $savedOfficer->email_address);
+        }
+    }
+
+    /**
+     * Test edit() rejects an invalid required start date before dispatch.
+     */
+    public function testEditRejectsInvalidStartDate(): void
+    {
+        $officer = $this->createTestOfficer();
+        $this->mockServiceClean(TriggerDispatcher::class, function () {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->never())->method('dispatch');
+
+            return $mock;
+        });
+
+        $this->post('/officers/officers/edit', $this->getEditData($officer, [
+            'start_on' => '2026-02-31',
+        ]));
+
+        $this->assertRedirect();
+        $this->assertFlashMessage('Enter a valid start date.', 'flash');
+    }
+
+    /**
+     * Test edit() rejects an invalid optional end date before dispatch.
+     */
+    public function testEditRejectsInvalidEndDate(): void
+    {
+        $officer = $this->createTestOfficer();
+        $this->mockServiceClean(TriggerDispatcher::class, function () {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->never())->method('dispatch');
+
+            return $mock;
+        });
+
+        $this->post('/officers/officers/edit', $this->getEditData($officer, [
+            'expires_on' => 'not-a-date',
+        ]));
+
+        $this->assertRedirect();
+        $this->assertFlashMessage('Enter a valid end date.', 'flash');
+    }
+
+    /**
+     * Test edit() rejects an end date before the start date.
+     */
+    public function testEditRejectsEndDateBeforeStartDate(): void
+    {
+        $officer = $this->createTestOfficer();
+        $this->mockServiceClean(TriggerDispatcher::class, function () {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->never())->method('dispatch');
+
+            return $mock;
+        });
+
+        $this->post('/officers/officers/edit', $this->getEditData($officer, [
+            'expires_on' => $officer->start_on->subDays(1)->format('Y-m-d'),
+            'term_note' => 'Correcting the recorded term.',
+        ]));
+
+        $this->assertRedirect();
+        $this->assertFlashMessage(
+            'The officer term end date cannot be before the start date.',
+            'flash',
+        );
+    }
+
+    /**
+     * Test edit() rejects an invalid optional email before dispatch.
+     */
+    public function testEditRejectsInvalidEmailAddress(): void
+    {
+        $officer = $this->createTestOfficer();
+        $this->mockServiceClean(TriggerDispatcher::class, function () {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->never())->method('dispatch');
+
+            return $mock;
+        });
+
+        $this->post('/officers/officers/edit', $this->getEditData($officer, [
+            'email_address' => 'not-an-email',
+        ]));
+
+        $this->assertRedirect();
+        $this->assertFlashMessage('Enter a valid email address.', 'flash');
+    }
+
+    /**
+     * Test edit() surfaces workflow failure without directly saving changes.
+     */
+    public function testEditFlashesWorkflowFailureWithoutDirectMutation(): void
+    {
+        $this->ensureActiveWorkflow('officer-assignment-update');
+        $officer = $this->createTestOfficer();
+        $officer->email_address = 'unchanged@example.com';
+        $this->Officers->saveOrFail($officer);
+
+        $dispatched = false;
+        $this->mockServiceClean(TriggerDispatcher::class, function () use (&$dispatched) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->method('dispatch')
+                ->willReturnCallback(function () use (&$dispatched): array {
+                    $dispatched = true;
+
+                    return [new ServiceResult(false, 'The update was rejected.')];
+                });
+
+            return $mock;
+        });
+
+        $this->post('/officers/officers/edit', $this->getEditData($officer, [
+            'email_address' => 'should-not-save@example.com',
+        ]));
+
+        $this->assertRedirect();
+        $this->assertTrue($dispatched, 'TriggerDispatcher::dispatch should have been called');
+        $this->assertFlashMessage('The update was rejected.', 'flash');
+        $this->assertSame(
+            'unchanged@example.com',
+            $this->Officers->get($officer->id)->email_address,
+        );
     }
 
     // ---------------------------------------------------------------

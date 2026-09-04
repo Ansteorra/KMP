@@ -33,6 +33,17 @@ class EphemeralWorkflowTest extends BaseTestCase
                 $this->calls[] = ['context' => $context, 'config' => $config];
                 $this->inTransactions[] = ConnectionManager::get('default')->inTransaction();
 
+                if (!empty($config['fail'])) {
+                    return [
+                        'success' => false,
+                        'error' => 'Sensitive follow-up exception detail.',
+                        'data' => ['warning' => 'Follow-up action needs attention.'],
+                    ];
+                }
+                if (array_key_exists('warning', $config)) {
+                    return ['success' => true, 'data' => ['warning' => (string)$config['warning']]];
+                }
+
                 return ['executed' => true];
             }
         };
@@ -154,6 +165,101 @@ class EphemeralWorkflowTest extends BaseTestCase
 
         // Action was executed
         $this->assertCount(1, $this->tracker->calls, 'Ephemeral workflow should still execute actions');
+    }
+
+    public function testEphemeralErrorPortCanReportSavedWithWarning(): void
+    {
+        $slug = $this->createEphemeralWorkflow([
+            'nodes' => [
+                'trigger1' => [
+                    'type' => 'trigger',
+                    'config' => [],
+                    'outputs' => [['target' => 'update', 'port' => 'default']],
+                ],
+                'update' => [
+                    'type' => 'action',
+                    'config' => ['action' => 'EphemeralTest.Run'],
+                    'outputs' => [['target' => 'followUp', 'port' => 'default']],
+                ],
+                'followUp' => [
+                    'type' => 'action',
+                    'config' => ['action' => 'EphemeralTest.Run', 'fail' => true],
+                    'outputs' => [
+                        ['target' => 'unexpectedSuccess', 'port' => 'default'],
+                        ['target' => 'savedWithWarning', 'port' => 'error'],
+                    ],
+                ],
+                'unexpectedSuccess' => [
+                    'type' => 'end',
+                    'config' => ['result' => ['success' => false]],
+                ],
+                'savedWithWarning' => [
+                    'type' => 'end',
+                    'config' => [
+                        'result' => [
+                            'success' => true,
+                            'updated' => true,
+                            'warnings' => ['$.nodes.followUp.result.data.warning'],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $result = $this->engine->startWorkflow($slug, ['test' => true]);
+
+        $this->assertTrue($result->isSuccess());
+        $this->assertCount(2, $this->tracker->calls);
+        $this->assertSame([
+            'success' => true,
+            'updated' => true,
+            'warnings' => ['Follow-up action needs attention.'],
+        ], $result->data['workflowResult']);
+        $this->assertStringNotContainsString(
+            'Sensitive follow-up exception detail.',
+            json_encode($result->data['workflowResult'], JSON_THROW_ON_ERROR),
+        );
+        $this->assertStringNotContainsString(
+            '$.nodes.',
+            json_encode($result->data['workflowResult'], JSON_THROW_ON_ERROR),
+        );
+    }
+
+    public function testEphemeralResultPreservesEmptyWarningWithoutPathFallback(): void
+    {
+        $slug = $this->createEphemeralWorkflow([
+            'nodes' => [
+                'trigger1' => [
+                    'type' => 'trigger',
+                    'config' => [],
+                    'outputs' => [['target' => 'followUp', 'port' => 'default']],
+                ],
+                'followUp' => [
+                    'type' => 'action',
+                    'config' => ['action' => 'EphemeralTest.Run', 'warning' => ''],
+                    'outputs' => [['target' => 'complete', 'port' => 'default']],
+                ],
+                'complete' => [
+                    'type' => 'end',
+                    'config' => [
+                        'result' => [
+                            'success' => true,
+                            'updated' => true,
+                            'warnings' => ['$.nodes.followUp.result.data.warning'],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $result = $this->engine->startWorkflow($slug, ['test' => true]);
+
+        $this->assertTrue($result->isSuccess());
+        $this->assertSame([''], $result->data['workflowResult']['warnings']);
+        $this->assertStringNotContainsString(
+            '$.nodes.',
+            json_encode($result->data['workflowResult'], JSON_THROW_ON_ERROR),
+        );
     }
 
     public function testEphemeralWorkflowDoesNotWrapActionInEngineTransaction(): void

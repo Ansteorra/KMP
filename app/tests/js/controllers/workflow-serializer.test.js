@@ -16,9 +16,14 @@ describe('WorkflowSerializer', () => {
         expect(serializer.getNodePorts('trigger')).toEqual({ inputs: 0, outputs: 1 })
         expect(serializer.getNodePorts('condition')).toEqual({ inputs: 1, outputs: 2 })
         expect(serializer.getNodePorts('approval')).toEqual({ inputs: 1, outputs: 3 })
+        expect(serializer.getNodePorts('fork')).toEqual({ inputs: 1, outputs: 2 })
         expect(serializer.getNodePorts('forEach')).toEqual({ inputs: 1, outputs: 3 })
         expect(serializer.getNodePorts('end')).toEqual({ inputs: 1, outputs: 0 })
         expect(serializer.getNodePorts('unknown')).toEqual({ inputs: 1, outputs: 1 })
+        expect(serializer.getNodePorts('action', [
+            { port: 'next' },
+            { port: 'error' },
+        ])).toEqual({ inputs: 1, outputs: 2 })
     })
 
     test('returns semantic output port labels', () => {
@@ -191,6 +196,64 @@ describe('WorkflowSerializer', () => {
         }))
         expect(added[0].data.config._nodeLabel).toBe('Start')
         expect(editor.addConnection).toHaveBeenCalledWith(1, 2, 'output_1', 'input_1')
+    })
+
+    test('round-trips action success and error routes by semantic port', () => {
+        const serializer = makeSerializer()
+        const moduleData = {}
+        let nextId = 1
+        const editor = {
+            clear: jest.fn(),
+            addNode: jest.fn((name, inputs, outputs, x, y, className, data) => {
+                const id = nextId++
+                const drawflowOutputs = {}
+                for (let index = 1; index <= outputs; index++) {
+                    drawflowOutputs[`output_${index}`] = { connections: [] }
+                }
+                moduleData[id] = { name, inputs, outputs: drawflowOutputs, pos_x: x, pos_y: y, data }
+
+                return id
+            }),
+            addConnection: jest.fn((sourceId, targetId, outputKey) => {
+                const sourceOutput = moduleData[sourceId].outputs[outputKey]
+                if (!sourceOutput) throw new Error(`Missing ${outputKey}`)
+                sourceOutput.connections.push({ node: String(targetId) })
+            }),
+            export: () => ({ drawflow: { Home: { data: moduleData } } }),
+        }
+
+        expect(() => serializer.importWorkflow(editor, {
+            nodes: {
+                action: {
+                    type: 'action',
+                    label: 'Send Email',
+                    config: { action: 'Core.SendEmail' },
+                    position: { x: 100, y: 200 },
+                    outputs: [
+                        { port: 'error', target: 'failed' },
+                        { port: 'next', target: 'complete' },
+                    ],
+                },
+                complete: { type: 'end', label: 'Complete', config: {}, outputs: [] },
+                failed: { type: 'end', label: 'Failed', config: {}, outputs: [] },
+            },
+        }, {})).not.toThrow()
+
+        expect(editor.addNode).toHaveBeenNthCalledWith(
+            1,
+            'action', 1, 2, 100, 200,
+            expect.any(String),
+            expect.objectContaining({ outputPortLabels: ['next', 'error'] }),
+            expect.any(String)
+        )
+        expect(editor.addConnection).toHaveBeenCalledWith(1, 3, 'output_2', 'input_1')
+        expect(editor.addConnection).toHaveBeenCalledWith(1, 2, 'output_1', 'input_1')
+
+        const exported = serializer.exportWorkflow(editor)
+        expect(exported.definition.nodes.action.outputs).toEqual([
+            { port: 'next', target: 'complete' },
+            { port: 'error', target: 'failed' },
+        ])
     })
 
     test('computes deterministic auto-layout layers from output targets', () => {

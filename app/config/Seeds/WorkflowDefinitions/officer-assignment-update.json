@@ -1,0 +1,237 @@
+{
+    "$schema": "./schema.json",
+    "schemaVersion": "1.0",
+    "nodes": {
+        "trigger-assignment-update": {
+            "type": "trigger",
+            "label": "Officer Assignment Update Requested",
+            "config": {
+                "event": "Officers.AssignmentUpdateRequested",
+                "entityIdField": "officerId"
+            },
+            "position": {
+                "x": 50,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "update-officer-assignment"
+                }
+            ]
+        },
+        "update-officer-assignment": {
+            "type": "action",
+            "label": "Update Officer Assignment",
+            "config": {
+                "action": "Officers.UpdateOfficerAssignment",
+                "params": {
+                    "officerId": "$.trigger.officerId",
+                    "actorId": "$.trigger.actorId",
+                    "startOn": "$.trigger.startOn",
+                    "expiresOn": "$.trigger.expiresOn",
+                    "emailAddress": "$.trigger.emailAddress",
+                    "deputyDescription": "$.trigger.deputyDescription",
+                    "termNote": "$.trigger.termNote"
+                }
+            },
+            "position": {
+                "x": 350,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "request-warrant-extension"
+                }
+            ]
+        },
+        "request-warrant-extension": {
+            "type": "action",
+            "label": "Request Warrant Extension When Needed",
+            "config": {
+                "action": "Officers.RequestWarrantExtension",
+                "params": {
+                    "officerId": "$.nodes.update-officer-assignment.result.data.officerId",
+                    "actorId": "$.trigger.actorId",
+                    "existingWarrantMessage": "$.nodes.update-officer-assignment.result.data.warrantMessage"
+                }
+            },
+            "position": {
+                "x": 650,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "prepare-assignment-update-notification-vars"
+                },
+                {
+                    "port": "error",
+                    "target": "prepare-assignment-update-notification-vars",
+                    "label": "Continue with warning"
+                }
+            ]
+        },
+        "prepare-assignment-update-notification-vars": {
+            "type": "action",
+            "label": "Prepare Assignment Update Notification Vars",
+            "config": {
+                "action": "Officers.PrepareAssignmentUpdateNotificationVars",
+                "params": {
+                    "officerId": "$.nodes.update-officer-assignment.result.data.officerId",
+                    "changed": "$.nodes.update-officer-assignment.result.data.changed",
+                    "termChanged": "$.nodes.update-officer-assignment.result.data.termChanged",
+                    "memberId": "$.nodes.update-officer-assignment.result.data.memberId",
+                    "officeId": "$.nodes.update-officer-assignment.result.data.officeId",
+                    "branchId": "$.nodes.update-officer-assignment.result.data.branchId",
+                    "changeSummary": "$.nodes.update-officer-assignment.result.data.changeSummary",
+                    "termChangeNote": "$.nodes.update-officer-assignment.result.data.termChangeNote",
+                    "warrantMessage": "$.nodes.request-warrant-extension.result.data.warrantMessage"
+                }
+            },
+            "position": {
+                "x": 950,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "send-assignment-update-notification"
+                },
+                {
+                    "port": "error",
+                    "target": "end-saved-with-preparation-warning",
+                    "label": "Saved; notification unavailable"
+                }
+            ]
+        },
+        "send-assignment-update-notification": {
+            "type": "action",
+            "label": "Send Assignment Update Notification",
+            "config": {
+                "action": "Core.SendEmail",
+                "params": {
+                    "to": "$.nodes.prepare-assignment-update-notification-vars.result.data.to",
+                    "template": "officer-assignment-updated-notification",
+                    "vars": {
+                        "memberScaName": "$.nodes.prepare-assignment-update-notification-vars.result.data.memberScaName",
+                        "officeName": "$.nodes.prepare-assignment-update-notification-vars.result.data.officeName",
+                        "branchName": "$.nodes.prepare-assignment-update-notification-vars.result.data.branchName",
+                        "startDate": "$.nodes.prepare-assignment-update-notification-vars.result.data.startDate",
+                        "endDate": "$.nodes.prepare-assignment-update-notification-vars.result.data.endDate",
+                        "changeSummary": "$.nodes.prepare-assignment-update-notification-vars.result.data.changeSummary",
+                        "termChangeNote": "$.nodes.prepare-assignment-update-notification-vars.result.data.termChangeNote",
+                        "warrantMessage": "$.nodes.prepare-assignment-update-notification-vars.result.data.warrantMessage",
+                        "siteAdminSignature": "$.nodes.prepare-assignment-update-notification-vars.result.data.siteAdminSignature"
+                    }
+                }
+            },
+            "position": {
+                "x": 1250,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "next",
+                    "target": "end-complete"
+                },
+                {
+                    "port": "error",
+                    "target": "end-saved-with-email-warning",
+                    "label": "Saved; email failed"
+                }
+            ]
+        },
+        "end-complete": {
+            "type": "end",
+            "label": "Assignment Update Complete",
+            "config": {
+                "result": {
+                    "success": true,
+                    "updated": true,
+                    "warnings": [
+                        "$.nodes.request-warrant-extension.result.data.warning"
+                    ],
+                    "data": {
+                        "officerId": "$.nodes.update-officer-assignment.result.data.officerId",
+                        "changed": "$.nodes.update-officer-assignment.result.data.changed",
+                        "termChanged": "$.nodes.update-officer-assignment.result.data.termChanged",
+                        "memberId": "$.nodes.update-officer-assignment.result.data.memberId",
+                        "officeId": "$.nodes.update-officer-assignment.result.data.officeId",
+                        "branchId": "$.nodes.update-officer-assignment.result.data.branchId",
+                        "warrantRequested": "$.nodes.request-warrant-extension.result.data.requested",
+                        "warrantMessage": "$.nodes.request-warrant-extension.result.data.warrantMessage",
+                        "notificationSent": true
+                    }
+                }
+            },
+            "position": {
+                "x": 1550,
+                "y": 200
+            },
+            "outputs": []
+        },
+        "end-saved-with-preparation-warning": {
+            "type": "end",
+            "label": "Assignment Saved; Notification Unavailable",
+            "config": {
+                "result": {
+                    "success": true,
+                    "updated": true,
+                    "warnings": [
+                        "$.nodes.request-warrant-extension.result.data.warning",
+                        "Officer notification details could not be prepared. Notify the officer separately."
+                    ],
+                    "data": {
+                        "officerId": "$.nodes.update-officer-assignment.result.data.officerId",
+                        "changed": "$.nodes.update-officer-assignment.result.data.changed",
+                        "termChanged": "$.nodes.update-officer-assignment.result.data.termChanged",
+                        "memberId": "$.nodes.update-officer-assignment.result.data.memberId",
+                        "officeId": "$.nodes.update-officer-assignment.result.data.officeId",
+                        "branchId": "$.nodes.update-officer-assignment.result.data.branchId",
+                        "warrantRequested": "$.nodes.request-warrant-extension.result.data.requested",
+                        "warrantMessage": "$.nodes.request-warrant-extension.result.data.warrantMessage",
+                        "notificationSent": false
+                    }
+                }
+            },
+            "position": {
+                "x": 1550,
+                "y": 350
+            },
+            "outputs": []
+        },
+        "end-saved-with-email-warning": {
+            "type": "end",
+            "label": "Assignment Saved; Email Failed",
+            "config": {
+                "result": {
+                    "success": true,
+                    "updated": true,
+                    "warnings": [
+                        "$.nodes.request-warrant-extension.result.data.warning",
+                        "The officer notification could not be sent. Notify the officer separately."
+                    ],
+                    "data": {
+                        "officerId": "$.nodes.update-officer-assignment.result.data.officerId",
+                        "changed": "$.nodes.update-officer-assignment.result.data.changed",
+                        "termChanged": "$.nodes.update-officer-assignment.result.data.termChanged",
+                        "memberId": "$.nodes.update-officer-assignment.result.data.memberId",
+                        "officeId": "$.nodes.update-officer-assignment.result.data.officeId",
+                        "branchId": "$.nodes.update-officer-assignment.result.data.branchId",
+                        "warrantRequested": "$.nodes.request-warrant-extension.result.data.requested",
+                        "warrantMessage": "$.nodes.request-warrant-extension.result.data.warrantMessage",
+                        "notificationSent": false
+                    }
+                }
+            },
+            "position": {
+                "x": 1550,
+                "y": 500
+            },
+            "outputs": []
+        }
+    },
+    "startNode": "trigger-assignment-update"
+}

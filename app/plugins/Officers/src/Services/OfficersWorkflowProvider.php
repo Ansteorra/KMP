@@ -74,6 +74,23 @@ class OfficersWorkflowProvider
                     'officeId' => ['type' => 'integer', 'label' => 'Office ID'],
                 ],
             ],
+            [
+                'event' => 'Officers.AssignmentUpdateRequested',
+                'label' => 'Officer Assignment Update Requested',
+                'description' => 'When an authorized user edits an existing officer assignment',
+                'payloadSchema' => [
+                    'officerId' => ['type' => 'integer', 'label' => 'Officer ID'],
+                    'actorId' => ['type' => 'integer', 'label' => 'Updating Member ID'],
+                    'memberId' => ['type' => 'integer', 'label' => 'Officer Member ID'],
+                    'officeId' => ['type' => 'integer', 'label' => 'Office ID'],
+                    'branchId' => ['type' => 'integer', 'label' => 'Branch ID'],
+                    'startOn' => ['type' => 'datetime', 'label' => 'Start Date'],
+                    'expiresOn' => ['type' => 'datetime', 'label' => 'End Date'],
+                    'emailAddress' => ['type' => 'string', 'label' => 'Office Email Address'],
+                    'deputyDescription' => ['type' => 'string', 'label' => 'Deputy Description'],
+                    'termNote' => ['type' => 'string', 'label' => 'Term Change Note'],
+                ],
+            ],
         ]);
     }
 
@@ -83,6 +100,7 @@ class OfficersWorkflowProvider
     private static function registerActions(): void
     {
         $actionsClass = OfficerWorkflowActions::class;
+        $assignmentActionsClass = OfficerAssignmentWorkflowActions::class;
 
         WorkflowActionRegistry::register(self::SOURCE, [
             [
@@ -227,6 +245,80 @@ class OfficersWorkflowProvider
                 ],
                 'serviceClass' => $actionsClass,
                 'serviceMethod' => 'prepareReleaseNotificationVars',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Officers.UpdateOfficerAssignment',
+                'label' => 'Update Officer Assignment',
+                'description' => 'Atomically update an officer term, linked role, required note, '
+                    . 'and retroactive warrant termination',
+                'inputSchema' => [
+                    'officerId' => ['type' => 'integer', 'label' => 'Officer ID', 'required' => true],
+                    'actorId' => ['type' => 'integer', 'label' => 'Updating Member ID', 'required' => true],
+                    'startOn' => ['type' => 'datetime', 'label' => 'Start Date', 'required' => true],
+                    'expiresOn' => ['type' => 'datetime', 'label' => 'End Date'],
+                    'emailAddress' => ['type' => 'string', 'label' => 'Office Email Address'],
+                    'deputyDescription' => ['type' => 'string', 'label' => 'Deputy Description'],
+                    'termNote' => ['type' => 'string', 'label' => 'Term Change Note'],
+                ],
+                'outputSchema' => [
+                    'officerId' => ['type' => 'integer', 'label' => 'Officer ID'],
+                    'memberId' => ['type' => 'integer', 'label' => 'Member ID'],
+                    'officeId' => ['type' => 'integer', 'label' => 'Office ID'],
+                    'branchId' => ['type' => 'integer', 'label' => 'Branch ID'],
+                    'changed' => ['type' => 'boolean', 'label' => 'Assignment Changed'],
+                    'termChanged' => ['type' => 'boolean', 'label' => 'Term Changed'],
+                    'changeSummary' => ['type' => 'string', 'label' => 'Change Summary'],
+                    'termChangeNote' => ['type' => 'string', 'label' => 'Term Change Note'],
+                    'warrantMessage' => ['type' => 'string', 'label' => 'Warrant Message'],
+                ],
+                'serviceClass' => $assignmentActionsClass,
+                'serviceMethod' => 'updateOfficerAssignment',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Officers.RequestWarrantExtension',
+                'label' => 'Request Officer Warrant Extension',
+                'description' => 'Request a covering warrant while preserving the current warrant',
+                'inputSchema' => [
+                    'officerId' => ['type' => 'integer', 'label' => 'Officer ID', 'required' => true],
+                    'actorId' => ['type' => 'integer', 'label' => 'Requesting Member ID', 'required' => true],
+                    'existingWarrantMessage' => ['type' => 'string', 'label' => 'Existing Warrant Message'],
+                ],
+                'outputSchema' => [
+                    'requested' => ['type' => 'boolean', 'label' => 'Extension Requested'],
+                    'rosterId' => ['type' => 'integer', 'label' => 'Warrant Roster ID'],
+                    'warrantMessage' => ['type' => 'string', 'label' => 'Warrant Message'],
+                    'warning' => ['type' => 'string', 'label' => 'Non-fatal Update Warning'],
+                ],
+                'serviceClass' => $assignmentActionsClass,
+                'serviceMethod' => 'requestWarrantExtension',
+                'isAsync' => false,
+            ],
+            [
+                'action' => 'Officers.PrepareAssignmentUpdateNotificationVars',
+                'label' => 'Prepare Assignment Update Notification Vars',
+                'description' => 'Prepare the member email variables for an officer assignment update',
+                'inputSchema' => [
+                    'officerId' => ['type' => 'integer', 'label' => 'Officer ID', 'required' => true],
+                    'changeSummary' => ['type' => 'string', 'label' => 'Change Summary'],
+                    'termChangeNote' => ['type' => 'string', 'label' => 'Term Change Note'],
+                    'warrantMessage' => ['type' => 'string', 'label' => 'Warrant Message'],
+                ],
+                'outputSchema' => [
+                    'to' => ['type' => 'string', 'label' => 'Recipient Email'],
+                    'memberScaName' => ['type' => 'string', 'label' => 'Member SCA Name'],
+                    'officeName' => ['type' => 'string', 'label' => 'Office Name'],
+                    'branchName' => ['type' => 'string', 'label' => 'Branch Name'],
+                    'startDate' => ['type' => 'string', 'label' => 'Start Date'],
+                    'endDate' => ['type' => 'string', 'label' => 'End Date'],
+                    'changeSummary' => ['type' => 'string', 'label' => 'Change Summary'],
+                    'termChangeNote' => ['type' => 'string', 'label' => 'Term Change Note'],
+                    'warrantMessage' => ['type' => 'string', 'label' => 'Warrant Message'],
+                    'siteAdminSignature' => ['type' => 'string', 'label' => 'Site Admin Signature'],
+                ],
+                'serviceClass' => $assignmentActionsClass,
+                'serviceMethod' => 'prepareAssignmentUpdateNotificationVars',
                 'isAsync' => false,
             ],
         ]);

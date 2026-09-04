@@ -20,6 +20,9 @@ use DateTimeInterface;
  */
 interface WarrantManagerInterface
 {
+    /** @var string Informational result reason when an exact in-flight request is reused. */
+    public const REQUEST_REUSED_REASON = 'Equivalent pending warrant request already in flight';
+
     /**
      * Submit a batch of warrant requests for approval.
      *
@@ -27,9 +30,34 @@ interface WarrantManagerInterface
      * @param string $desc Description of the warrant requests
      * @param array<\App\Services\WarrantManager\WarrantRequest> $warrantRequests Array of warrant request objects
      * @param int|null $requestedBy Member ID of the user who initiated the request
-     * @return \App\Services\ServiceResult Success with roster ID, or failure with errors
+     * @return \App\Services\ServiceResult Success with roster ID, or failure with errors.
+     *   Exact retries return the existing roster ID and REQUEST_REUSED_REASON.
      */
     public function request($request_name, $desc, $warrantRequests, ?int $requestedBy = null): ServiceResult;
+
+    /**
+     * Withdraw all in-flight warrants for one exact warrant identity.
+     *
+     * Current warrants are never changed. Matching pending warrants are marked
+     * replaced; shared rosters keep running, while emptied rosters and their
+     * approval workflows are closed.
+     *
+     * @param string $entityType Warranted entity type
+     * @param int $entityId Warranted entity ID
+     * @param int $memberId Warrant recipient
+     * @param int|null $memberRoleId Linked member-role assignment
+     * @param int $requestedBy Member recording the withdrawal
+     * @param string $reason Audit reason
+     * @return \App\Services\ServiceResult Success with the withdrawn warrant count
+     */
+    public function withdrawPendingRequests(
+        string $entityType,
+        int $entityId,
+        int $memberId,
+        ?int $memberRoleId,
+        int $requestedBy,
+        string $reason,
+    ): ServiceResult;
 
     /**
      * Decline an entire warrant roster and cancel all contained warrants.

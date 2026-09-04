@@ -22,6 +22,7 @@ describe('TurboModalController', () => {
                       action="http://localhost/awards/recommendations/edit/594"
                       method="post"
                       data-action="submit->turbo-modal#submitAsTurboStream turbo:submit-start->turbo-modal#closeModalBeforeSubmit">
+                    <div class="d-none" data-turbo-modal-feedback></div>
                     <input type="text" name="field" value="test">
                     <input type="hidden" name="page_context_url" value="/awards/recommendations/turbo-edit-form/594">
                     <button type="submit">Submit</button>
@@ -30,10 +31,12 @@ describe('TurboModalController', () => {
         `;
 
         controller = new TurboModal();
+        controller.initialize();
         controller.element = document.querySelector('[data-controller="turbo-modal"]');
     });
 
     afterEach(() => {
+        jest.useRealTimers();
         document.body.innerHTML = '';
         global.fetch = originalFetch;
         global.IntersectionObserver = originalIntersectionObserver;
@@ -97,6 +100,26 @@ describe('TurboModalController', () => {
         document.body.removeChild(form);
     });
 
+    test('closeModalAndWait uses a bounded fallback when hidden is not emitted', async () => {
+        jest.useFakeTimers();
+        const modal = document.getElementById('testModal');
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+        const hideMock = jest.fn();
+        window.bootstrap.Modal = {
+            getInstance: jest.fn(() => ({ hide: hideMock })),
+            getOrCreateInstance: jest.fn(() => ({ hide: hideMock })),
+        };
+
+        const waiting = controller.closeModalAndWait();
+        expect(hideMock).toHaveBeenCalledTimes(1);
+
+        jest.advanceTimersByTime(750);
+        await waiting;
+
+        expect(controller.modalHideCleanup).toBeNull();
+    });
+
     test('closeModalBeforeSubmit handles no modal parent', () => {
         document.body.innerHTML = `
             <form data-controller="turbo-modal">
@@ -158,6 +181,96 @@ describe('TurboModalController', () => {
             .toHaveBeenCalledWith('Your attendance has been registered.');
     });
 
+    test('successful stream feedback suppresses a competing generic success announcement', async () => {
+        window.bootstrap.Modal = {
+            getInstance: jest.fn(() => ({ hide: jest.fn() })),
+            getOrCreateInstance: jest.fn(() => ({ hide: jest.fn() })),
+        };
+        controller.renderTurboStream = jest.fn();
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            redirected: false,
+            headers: { get: jest.fn(() => 'text/vnd.turbo-stream.html') },
+            text: jest.fn().mockResolvedValue(`
+                <turbo-stream action="replace" target="flash-messages">
+                    <template>
+                        <div id="flash-messages">
+                            <div class="alert alert-warning" role="alert">
+                                Saved with warning. Complete the follow-up separately.
+                            </div>
+                        </div>
+                    </template>
+                </turbo-stream>
+            `),
+        });
+
+        await controller.submitAsTurboStream({
+            preventDefault: jest.fn(),
+            stopImmediatePropagation: jest.fn(),
+        });
+
+        expect(controller.renderTurboStream).toHaveBeenCalled();
+        expect(window.KMP_accessibility.announce).not.toHaveBeenCalled();
+    });
+
+    test('waits for the modal to hide and focuses an asynchronously replaced edit trigger', async () => {
+        const modal = document.getElementById('testModal');
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.insertAdjacentHTML('afterbegin', `
+            <table>
+                <tbody>
+                    <tr id="officers-grid-row-42">
+                        <td><button type="button" class="edit-btn">Old edit</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        `);
+        const hideMock = jest.fn();
+        window.bootstrap.Modal = {
+            getInstance: jest.fn(() => ({ hide: hideMock })),
+            getOrCreateInstance: jest.fn(() => ({ hide: hideMock })),
+        };
+        controller.renderTurboStream = jest.fn(() => {
+            window.requestAnimationFrame(() => {
+                document.getElementById('officers-grid-row-42').outerHTML = `
+                    <tr id="officers-grid-row-42">
+                        <td><button type="button" class="edit-btn">Replacement edit</button></td>
+                    </tr>
+                `;
+            });
+        });
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            redirected: false,
+            headers: { get: jest.fn(() => 'text/vnd.turbo-stream.html') },
+            text: jest.fn().mockResolvedValue(
+                '<turbo-stream action="replace" target="officers-grid-row-42"></turbo-stream>',
+            ),
+        });
+
+        const submission = controller.submitAsTurboStream({
+            preventDefault: jest.fn(),
+            stopImmediatePropagation: jest.fn(),
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(hideMock).toHaveBeenCalledTimes(1);
+        expect(controller.renderTurboStream).not.toHaveBeenCalled();
+
+        modal.dispatchEvent(new Event('hidden.bs.modal'));
+        await submission;
+
+        const replacementEdit = document.querySelector(
+            '#officers-grid-row-42 .edit-btn',
+        );
+        expect(controller.renderTurboStream).toHaveBeenCalled();
+        expect(replacementEdit).toHaveTextContent('Replacement edit');
+        expect(document.activeElement).toBe(replacementEdit);
+    });
+
     test('setSubmitting updates a submit button associated from outside the form', () => {
         controller.element.id = 'attendanceModalForm';
         const externalSubmit = document.createElement('button');
@@ -201,8 +314,7 @@ describe('TurboModalController', () => {
         expect(document.getElementById('flash-messages')).toHaveTextContent(
             'Your attendance has been registered.',
         );
-        expect(window.KMP_accessibility.announce)
-            .toHaveBeenCalledWith('Your attendance has been registered.');
+        expect(window.KMP_accessibility.announce).not.toHaveBeenCalled();
     });
 
     test('failed turbo stream response renders errors and announces failure', async () => {
@@ -221,8 +333,27 @@ describe('TurboModalController', () => {
 
         expect(controller.renderTurboStream)
             .toHaveBeenCalledWith('<turbo-stream></turbo-stream>');
-        expect(window.KMP_accessibility.announce)
-            .toHaveBeenCalledWith('Unable to save. Please try again.', { assertive: true });
+        expect(controller.element.querySelector('[data-turbo-modal-feedback]'))
+            .not.toHaveClass('d-none');
+        expect(controller.element.querySelector('[data-turbo-modal-feedback]'))
+            .toHaveTextContent('Unable to save. Please try again.');
+        expect(window.KMP_accessibility.announce).not.toHaveBeenCalled();
+    });
+
+    test('network failure stays visible inside the modal and is announced', async () => {
+        global.fetch = jest.fn().mockRejectedValue(new Error('network unavailable'));
+
+        await controller.submitAsTurboStream({
+            preventDefault: jest.fn(),
+            stopImmediatePropagation: jest.fn(),
+        });
+
+        const feedback = controller.element.querySelector('[data-turbo-modal-feedback]');
+        expect(feedback).not.toHaveClass('d-none');
+        expect(feedback.querySelector('[role="alert"]'))
+            .toHaveTextContent('Unable to save. Please try again.');
+        expect(window.KMP_accessibility.announce).not.toHaveBeenCalled();
+        expect(controller.element.querySelector('button[type="submit"]').disabled).toBe(false);
     });
 
     test('submitAsTurboStream replaces containing frame for non-stream form responses', async () => {

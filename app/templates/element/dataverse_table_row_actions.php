@@ -38,7 +38,7 @@ $getNestedValue = function ($path, $data) {
  */
 $processTemplate = function ($template, $data) use ($getNestedValue) {
     return preg_replace_callback('/\{\{([^}]+)\}\}/', function ($matches) use ($data, $getNestedValue) {
-        return h($getNestedValue($matches[1], $data) ?? '');
+        return (string)($getNestedValue($matches[1], $data) ?? '');
     }, $template);
 };
 

@@ -8,6 +8,7 @@ use App\Model\Entity\MemberRole;
 use App\Model\Entity\Warrant;
 use App\Model\Entity\WarrantPeriod;
 use App\Model\Entity\WarrantRoster;
+use App\Model\Entity\WorkflowInstance;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
@@ -16,7 +17,8 @@ use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
 use DateTimeInterface;
-use Exception;
+use RuntimeException;
+use Throwable;
 
 class DefaultWarrantManager implements WarrantManagerInterface
 {
@@ -64,87 +66,608 @@ class DefaultWarrantManager implements WarrantManagerInterface
      */
     public function request($request_name, $desc, $warrantRequests, ?int $requestedBy = null): ServiceResult
     {
-        //Create a warrant approval set
-        $warrantRosterTable = TableRegistry::getTableLocator()->get('WarrantRosters');
-        $warrantRoster = $warrantRosterTable->newEmptyEntity();
-        $warrantRoster->created_on = new DateTime();
-        $warrantRoster->status = WarrantRoster::STATUS_PENDING;
-        $warrantRoster->name = $request_name;
-        $warrantRoster->description = $desc;
-        $warrantRoster->approvals_required = StaticHelpers::getAppSetting('Warrant.RosterApprovalsRequired', '2');
-        $warrantRoster->created_by = $requestedBy;
-
-        //start a transaction
-        $warrantRosterTable->getConnection()->begin();
-        if (!$warrantRosterTable->save($warrantRoster)) {
-            //rollback transaction
-            $warrantRosterTable->getConnection()->rollback();
-
-            return new ServiceResult(false, 'Failed to create warrant approval set');
+        $requests = [];
+        if (!is_iterable($warrantRequests)) {
+            return new ServiceResult(false, 'Invalid warrant requests');
         }
-        $warrantRequestTable = TableRegistry::getTableLocator()->get('Warrants');
         foreach ($warrantRequests as $warrantRequest) {
-            $warrantRequestEntity = $warrantRequestTable->newEmptyEntity();
-            $warrantRequestEntity->name = $warrantRequest->name;
-            $warrantRequestEntity->entity_type = $warrantRequest->entity_type;
-            $warrantRequestEntity->entity_id = $warrantRequest->entity_id;
-            $warrantRequestEntity->requester_id = $warrantRequest->requester_id;
-            $warrantRequestEntity->member_id = $warrantRequest->member_id;
-            $warrantRequestEntity->member_role_id = $warrantRequest->member_role_id;
-            //get warrant period
-            $warrantPeriod = $this->getWarrantPeriod($warrantRequest->start_on, $warrantRequest->expires_on);
-            if ($warrantPeriod == null) {
-                //rollback transaction
-                $warrantRosterTable->getConnection()->rollback();
-
-                return new ServiceResult(false, 'Invalid warrant period');
+            if (!$warrantRequest instanceof WarrantRequest) {
+                return new ServiceResult(false, 'Invalid warrant request');
             }
-            $member = TableRegistry::getTableLocator()->get('Members')->get($warrantRequest->member_id);
-            if ($member->warrantable == null) {
-                //rollback transaction
-                $warrantRosterTable->getConnection()->rollback();
-
-                return new ServiceResult(false, "$member->sca_name is not warrantable");
-            }
-            if ($warrantPeriod->start_date > $member->membership_expires_on) {
-                //rollback transaction
-                $warrantRosterTable->getConnection()->rollback();
-
-                return new ServiceResult(false, "Warrant period is after membership expires for $member->sca_name");
-            }
-            //TODO: Reactivate once we get reliable membership data
-            //if ($warrantPeriod->end_on > $member->membership_expires_on) {
-            //    //rollback transaction
-            //    $warrantRosterTable->getConnection()->rollback();
-            //    return new ServiceResult(false, "Warrant period ends after membership expires for $member->sca_name");
-            //}
-            $warrantRequestEntity->start_on = $warrantPeriod->start_date;
-            $warrantRequestEntity->expires_on = $warrantPeriod->end_date;
-            $warrantRequestEntity->status = Warrant::PENDING_STATUS;
-            $warrantRequestEntity->member_role_id = $warrantRequest->member_role_id;
-            $warrantRequestEntity->warrant_roster_id = $warrantRoster->id;
-            if (!$warrantRequestTable->save($warrantRequestEntity)) {
-                //rollback transaction
-                $warrantRosterTable->getConnection()->rollback();
-
-                return new ServiceResult(false, "Failed to create pending warrant for $member->sca_name");
-            }
+            $requests[] = $warrantRequest;
         }
-        //commit transaction
-        $warrantRosterTable->getConnection()->commit();
+        if ($requests === []) {
+            return new ServiceResult(false, 'At least one warrant request is required');
+        }
+
+        $warrantRosterTable = TableRegistry::getTableLocator()->get('WarrantRosters');
+        $connection = $warrantRosterTable->getConnection();
+        $connection->enableSavePoints();
 
         try {
-            $this->triggerDispatcher->dispatch('Warrants.RosterCreated', [
-                'rosterId' => $warrantRoster->id,
-                'rosterName' => $warrantRoster->name,
-                'approvalsRequired' => $warrantRoster->approvals_required,
-                'requesterId' => $requestedBy,
-            ], $requestedBy);
-        } catch (Exception $e) {
-            Log::warning('Workflow trigger dispatch failed for Warrants.RosterCreated: ' . $e->getMessage());
+            return $connection->transactional(function () use (
+                $request_name,
+                $desc,
+                $requests,
+                $requestedBy,
+                $warrantRosterTable,
+            ): ServiceResult {
+                $members = $this->lockRequestedMembers($requests);
+                $normalizedRequests = $this->normalizeRequests($requests, $members);
+                $actorId = $requestedBy ?? $normalizedRequests[0]['requester_id'];
+                if ($actorId <= 0) {
+                    $actorId = null;
+                }
+
+                $pendingWarrants = $this->findMatchingPendingWarrants($normalizedRequests);
+                $workflowIdsByRoster = $this->lockActiveRosterWorkflows(
+                    $this->getRosterIds($pendingWarrants),
+                );
+
+                // Re-read after locking workflow instances so an approval that
+                // won the race cannot be overwritten as a replacement.
+                $pendingWarrants = $this->findMatchingPendingWarrants($normalizedRequests);
+                $existingRosterId = $this->findEquivalentPendingRoster(
+                    $normalizedRequests,
+                    $pendingWarrants,
+                    $workflowIdsByRoster,
+                );
+                if ($existingRosterId !== null) {
+                    return new ServiceResult(
+                        true,
+                        WarrantManagerInterface::REQUEST_REUSED_REASON,
+                        $existingRosterId,
+                    );
+                }
+
+                $warrantRoster = $warrantRosterTable->newEmptyEntity();
+                $warrantRoster->status = WarrantRoster::STATUS_PENDING;
+                $warrantRoster->name = (string)$request_name;
+                $warrantRoster->description = (string)$desc;
+                $warrantRoster->approvals_required = (int)StaticHelpers::getAppSetting(
+                    'Warrant.RosterApprovalsRequired',
+                    '2',
+                );
+                $warrantRoster->created_by = $actorId;
+                if (!$warrantRosterTable->save($warrantRoster)) {
+                    throw new RuntimeException('Failed to create warrant approval set');
+                }
+
+                $warrantTable = TableRegistry::getTableLocator()->get('Warrants');
+                foreach ($normalizedRequests as $normalizedRequest) {
+                    $member = $members[$normalizedRequest['member_id']];
+                    $warrant = $warrantTable->newEmptyEntity();
+                    $warrant->name = $normalizedRequest['name'];
+                    $warrant->entity_type = $normalizedRequest['entity_type'];
+                    $warrant->entity_id = $normalizedRequest['entity_id'];
+                    $warrant->member_id = $normalizedRequest['member_id'];
+                    $warrant->member_role_id = $normalizedRequest['member_role_id'];
+                    $warrant->start_on = $normalizedRequest['start_on'];
+                    $warrant->expires_on = $normalizedRequest['expires_on'];
+                    $warrant->status = Warrant::PENDING_STATUS;
+                    $warrant->warrant_roster_id = $warrantRoster->id;
+                    $warrant->created_by = $normalizedRequest['requester_id'];
+                    if (!$warrantTable->save($warrant)) {
+                        throw new RuntimeException(
+                            "Failed to create pending warrant for {$member->sca_name}",
+                        );
+                    }
+                }
+
+                $replacedRosterIds = $this->supersedePendingWarrants(
+                    $pendingWarrants,
+                    $workflowIdsByRoster,
+                    $actorId,
+                    $warrantRoster->id,
+                    'Warrant requirements changed.',
+                );
+                if ($replacedRosterIds !== []) {
+                    $this->addNewRosterReplacementNote(
+                        $warrantRoster->id,
+                        $replacedRosterIds,
+                        $actorId,
+                    );
+                }
+
+                $dispatchResults = $this->triggerDispatcher->dispatch('Warrants.RosterCreated', [
+                    'rosterId' => $warrantRoster->id,
+                    'rosterName' => $warrantRoster->name,
+                    'approvalsRequired' => $warrantRoster->approvals_required,
+                    'requesterId' => $actorId,
+                ], $actorId);
+                if ($dispatchResults === []) {
+                    throw new RuntimeException('Failed to start warrant roster approval workflow');
+                }
+                foreach ($dispatchResults as $dispatchResult) {
+                    if (!$dispatchResult instanceof ServiceResult || !$dispatchResult->success) {
+                        throw new RuntimeException(
+                            $dispatchResult instanceof ServiceResult
+                                ? ($dispatchResult->reason ?? 'Failed to start warrant roster approval workflow')
+                                : 'Invalid warrant roster workflow result',
+                        );
+                    }
+                }
+
+                return new ServiceResult(true, '', $warrantRoster->id);
+            });
+        } catch (Throwable $e) {
+            Log::error('Warrant request failed: ' . $e->getMessage());
+
+            return new ServiceResult(false, $e->getMessage());
+        }
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function withdrawPendingRequests(
+        string $entityType,
+        int $entityId,
+        int $memberId,
+        ?int $memberRoleId,
+        int $requestedBy,
+        string $reason,
+    ): ServiceResult {
+        $reason = trim($reason);
+        if ($entityType === '' || $entityId <= 0 || $memberId <= 0 || $requestedBy <= 0 || $reason === '') {
+            return new ServiceResult(false, 'Valid warrant identity, actor, and reason are required');
         }
 
-        return new ServiceResult(true, '', $warrantRoster->id);
+        $warrantRosterTable = TableRegistry::getTableLocator()->get('WarrantRosters');
+        $connection = $warrantRosterTable->getConnection();
+        $connection->enableSavePoints();
+
+        try {
+            return $connection->transactional(function () use (
+                $entityType,
+                $entityId,
+                $memberId,
+                $memberRoleId,
+                $requestedBy,
+                $reason,
+            ): ServiceResult {
+                $this->lockMemberIds([$memberId]);
+                $identity = [[
+                    'entity_type' => $entityType,
+                    'entity_id' => $entityId,
+                    'member_id' => $memberId,
+                    'member_role_id' => $memberRoleId,
+                ]];
+                $pendingWarrants = $this->findMatchingPendingWarrants($identity);
+                $workflowIdsByRoster = $this->lockActiveRosterWorkflows(
+                    $this->getRosterIds($pendingWarrants),
+                );
+                $pendingWarrants = $this->findMatchingPendingWarrants($identity);
+                if ($pendingWarrants === []) {
+                    return new ServiceResult(true, '', 0);
+                }
+
+                $this->supersedePendingWarrants(
+                    $pendingWarrants,
+                    $workflowIdsByRoster,
+                    $requestedBy,
+                    null,
+                    $reason,
+                );
+
+                return new ServiceResult(true, '', count($pendingWarrants));
+            });
+        } catch (Throwable $e) {
+            Log::error('Pending warrant withdrawal failed: ' . $e->getMessage());
+
+            return new ServiceResult(false, $e->getMessage());
+        }
+    }
+
+    /**
+     * Lock warrant recipients in a stable order to serialize pending requests.
+     *
+     * @param array<\App\Services\WarrantManager\WarrantRequest> $requests
+     * @return array<int, \App\Model\Entity\Member>
+     */
+    private function lockRequestedMembers(array $requests): array
+    {
+        $memberIds = [];
+        foreach ($requests as $request) {
+            $memberIds[$request->member_id] = true;
+        }
+        $memberIds = array_keys($memberIds);
+
+        return $this->lockMemberIds($memberIds);
+    }
+
+    /**
+     * @param array<int> $memberIds
+     * @return array<int, \App\Model\Entity\Member>
+     */
+    private function lockMemberIds(array $memberIds): array
+    {
+        sort($memberIds);
+
+        $members = [];
+        $memberEntities = TableRegistry::getTableLocator()->get('Members')
+            ->find()
+            ->where(['Members.id IN' => $memberIds])
+            ->orderByAsc('Members.id')
+            ->epilog('FOR UPDATE')
+            ->all();
+        foreach ($memberEntities as $member) {
+            $members[(int)$member->id] = $member;
+        }
+        if (count($members) !== count($memberIds)) {
+            throw new RuntimeException('A warrant recipient was not found');
+        }
+
+        return $members;
+    }
+
+    /**
+     * Resolve requested dates into concrete warrant-period windows.
+     *
+     * @param array<\App\Services\WarrantManager\WarrantRequest> $requests
+     * @param array<int, \App\Model\Entity\Member> $members
+     * @return array<int, array<string, mixed>>
+     */
+    private function normalizeRequests(array $requests, array $members): array
+    {
+        $normalized = [];
+        $seenIdentities = [];
+        $defaultStart = DateTime::now();
+
+        foreach ($requests as $request) {
+            $startOn = $request->start_on ?? $defaultStart;
+            $warrantPeriod = $this->getWarrantPeriod($startOn, $request->expires_on);
+            if ($warrantPeriod === null) {
+                throw new RuntimeException('Invalid warrant period');
+            }
+            if ($warrantPeriod->end_date < $warrantPeriod->start_date) {
+                throw new RuntimeException('Warrant end date cannot be before its start date');
+            }
+
+            $member = $members[$request->member_id];
+            if (!$member->warrantable) {
+                throw new RuntimeException("{$member->sca_name} is not warrantable");
+            }
+            if (
+                $member->membership_expires_on !== null
+                && $warrantPeriod->start_date > $member->membership_expires_on
+            ) {
+                throw new RuntimeException(
+                    "Warrant period is after membership expires for {$member->sca_name}",
+                );
+            }
+
+            $item = [
+                'name' => $request->name,
+                'entity_type' => $request->entity_type,
+                'entity_id' => $request->entity_id,
+                'requester_id' => $request->requester_id,
+                'member_id' => $request->member_id,
+                'member_role_id' => $request->member_role_id,
+                'start_on' => new DateTime($warrantPeriod->start_date->toDateString()),
+                'expires_on' => new DateTime($warrantPeriod->end_date->toDateString()),
+            ];
+            $identityKey = $this->warrantIdentityKey($item);
+            if (isset($seenIdentities[$identityKey])) {
+                throw new RuntimeException('Duplicate warrant subject in request');
+            }
+            $seenIdentities[$identityKey] = true;
+            $normalized[] = $item;
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Find in-flight warrants for any requested warrant subject.
+     *
+     * @param array<int, array<string, mixed>> $normalizedRequests
+     * @return array<\App\Model\Entity\Warrant>
+     */
+    private function findMatchingPendingWarrants(array $normalizedRequests): array
+    {
+        $identityConditions = [];
+        foreach ($normalizedRequests as $request) {
+            $condition = [
+                'Warrants.entity_type' => $request['entity_type'],
+                'Warrants.entity_id' => $request['entity_id'],
+                'Warrants.member_id' => $request['member_id'],
+            ];
+            if ($request['member_role_id'] === null) {
+                $condition['Warrants.member_role_id IS'] = null;
+            } else {
+                $condition['Warrants.member_role_id'] = $request['member_role_id'];
+            }
+            $identityConditions[] = $condition;
+        }
+
+        return TableRegistry::getTableLocator()->get('Warrants')
+            ->find()
+            ->innerJoinWith('WarrantRosters')
+            ->where([
+                'Warrants.status' => Warrant::PENDING_STATUS,
+                'WarrantRosters.status' => WarrantRoster::STATUS_PENDING,
+                'OR' => $identityConditions,
+            ])
+            ->orderByAsc('Warrants.id')
+            ->all()
+            ->toList();
+    }
+
+    /**
+     * @param array<\App\Model\Entity\Warrant> $warrants
+     * @return array<int>
+     */
+    private function getRosterIds(array $warrants): array
+    {
+        $rosterIds = [];
+        foreach ($warrants as $warrant) {
+            $rosterIds[(int)$warrant->warrant_roster_id] = true;
+        }
+
+        return array_keys($rosterIds);
+    }
+
+    /**
+     * Lock approval workflows that can still act on matching pending warrants.
+     *
+     * @param array<int> $rosterIds
+     * @return array<int, array<int>>
+     */
+    private function lockActiveRosterWorkflows(array $rosterIds): array
+    {
+        if ($rosterIds === []) {
+            return [];
+        }
+
+        $workflowIdsByRoster = [];
+        $instances = TableRegistry::getTableLocator()->get('WorkflowInstances')
+            ->find()
+            ->where([
+                'WorkflowInstances.entity_type' => 'WarrantRosters',
+                'WorkflowInstances.entity_id IN' => $rosterIds,
+                'WorkflowInstances.status IN' => WorkflowInstance::ACTIVE_STATUSES,
+            ])
+            ->orderByAsc('WorkflowInstances.id')
+            ->epilog('FOR UPDATE')
+            ->all();
+        foreach ($instances as $instance) {
+            $workflowIdsByRoster[(int)$instance->entity_id][] = (int)$instance->id;
+        }
+
+        return $workflowIdsByRoster;
+    }
+
+    /**
+     * Return a healthy roster only when the request is an exact retry.
+     *
+     * @param array<int, array<string, mixed>> $normalizedRequests
+     * @param array<\App\Model\Entity\Warrant> $pendingWarrants
+     * @param array<int, array<int>> $workflowIdsByRoster
+     * @return int|null
+     */
+    private function findEquivalentPendingRoster(
+        array $normalizedRequests,
+        array $pendingWarrants,
+        array $workflowIdsByRoster,
+    ): ?int {
+        $pendingByIdentity = [];
+        foreach ($pendingWarrants as $warrant) {
+            $pendingByIdentity[$this->warrantIdentityKey([
+                'entity_type' => $warrant->entity_type,
+                'entity_id' => $warrant->entity_id,
+                'member_id' => $warrant->member_id,
+                'member_role_id' => $warrant->member_role_id,
+            ])][] = $warrant;
+        }
+
+        $rosterId = null;
+        foreach ($normalizedRequests as $request) {
+            $candidates = $pendingByIdentity[$this->warrantIdentityKey($request)] ?? [];
+            if (count($candidates) !== 1 || !$this->pendingWarrantIsEquivalent($candidates[0], $request)) {
+                return null;
+            }
+            $candidateRosterId = (int)$candidates[0]->warrant_roster_id;
+            if ($rosterId !== null && $candidateRosterId !== $rosterId) {
+                return null;
+            }
+            $rosterId = $candidateRosterId;
+        }
+
+        if ($rosterId === null || ($workflowIdsByRoster[$rosterId] ?? []) === []) {
+            return null;
+        }
+
+        return $rosterId;
+    }
+
+    /**
+     * @param array<string, mixed> $request
+     */
+    private function pendingWarrantIsEquivalent(Warrant $warrant, array $request): bool
+    {
+        return $warrant->name === $request['name']
+            && $warrant->start_on?->toDateString() === $request['start_on']->toDateString()
+            && $warrant->expires_on?->toDateString() === $request['expires_on']->toDateString();
+    }
+
+    /**
+     * @param array<string, mixed> $warrant
+     */
+    private function warrantIdentityKey(array $warrant): string
+    {
+        return hash('sha256', implode("\0", [
+            (string)$warrant['entity_type'],
+            (string)$warrant['entity_id'],
+            (string)$warrant['member_id'],
+            $warrant['member_role_id'] === null ? 'null' : 'id:' . $warrant['member_role_id'],
+        ]));
+    }
+
+    /**
+     * Replace pending warrants and close old rosters that no longer contain work.
+     *
+     * @param array<\App\Model\Entity\Warrant> $pendingWarrants
+     * @param array<int, array<int>> $workflowIdsByRoster
+     * @param int|null $actorId Member recording the replacement
+     * @param int|null $replacementRosterId Fresh roster ID, or null for withdrawal
+     * @param string $reason Audit reason
+     * @return array<int> Affected old roster IDs
+     */
+    private function supersedePendingWarrants(
+        array $pendingWarrants,
+        array $workflowIdsByRoster,
+        ?int $actorId,
+        ?int $replacementRosterId,
+        string $reason,
+    ): array {
+        $warrantTable = TableRegistry::getTableLocator()->get('Warrants');
+        $warrantRosterTable = TableRegistry::getTableLocator()->get('WarrantRosters');
+        $revokedReason = $replacementRosterId === null
+            ? mb_substr($reason, 0, 255)
+            : "Replaced by warrant roster #{$replacementRosterId} after requirements changed";
+        $replacedRosterIds = [];
+
+        foreach ($pendingWarrants as $pendingWarrant) {
+            $pendingWarrant->status = Warrant::REPLACED_STATUS;
+            $pendingWarrant->revoked_reason = $revokedReason;
+            $pendingWarrant->revoker_id = $actorId;
+            if (!$warrantTable->save($pendingWarrant)) {
+                throw new RuntimeException('Failed to replace an obsolete pending warrant');
+            }
+            $replacedRosterIds[(int)$pendingWarrant->warrant_roster_id] = true;
+        }
+
+        foreach (array_keys($replacedRosterIds) as $replacedRosterId) {
+            $pendingCount = $warrantTable->find()
+                ->where([
+                    'warrant_roster_id' => $replacedRosterId,
+                    'status' => Warrant::PENDING_STATUS,
+                ])
+                ->count();
+            $oldRoster = $warrantRosterTable->get($replacedRosterId);
+            if ($pendingCount === 0 && $oldRoster->status === WarrantRoster::STATUS_PENDING) {
+                $oldRoster->status = WarrantRoster::STATUS_REPLACED;
+                if (!$warrantRosterTable->save($oldRoster)) {
+                    throw new RuntimeException('Failed to close a replaced warrant roster');
+                }
+                $workflowReason = $replacementRosterId === null
+                    ? $reason
+                    : "Pending warrants replaced by roster #{$replacementRosterId}";
+                foreach ($workflowIdsByRoster[$replacedRosterId] ?? [] as $workflowId) {
+                    $cancelResult = $this->triggerDispatcher->getEngine()->cancelWorkflow(
+                        $workflowId,
+                        $workflowReason,
+                    );
+                    if (!$cancelResult->success) {
+                        throw new RuntimeException(
+                            $cancelResult->reason ?? 'Failed to cancel replaced warrant workflow',
+                        );
+                    }
+                }
+            }
+
+            if ($replacementRosterId === null) {
+                $this->addRosterWithdrawalNote(
+                    $replacedRosterId,
+                    $actorId,
+                    $reason,
+                    $pendingCount === 0,
+                );
+            } else {
+                $this->addRosterReplacementNote(
+                    $replacedRosterId,
+                    $replacementRosterId,
+                    $actorId,
+                    $pendingCount === 0,
+                );
+            }
+        }
+
+        return array_keys($replacedRosterIds);
+    }
+
+    /**
+     * Record how an older roster was affected by a replacement request.
+     */
+    private function addRosterReplacementNote(
+        int $oldRosterId,
+        int $newRosterId,
+        ?int $actorId,
+        bool $fullyReplaced,
+    ): void {
+        if ($actorId === null) {
+            return;
+        }
+
+        $body = $fullyReplaced
+            ? "All pending warrants were replaced by warrant roster #{$newRosterId}."
+            : "One or more pending warrants were replaced by warrant roster #{$newRosterId}; "
+                . 'the remaining pending warrants stay in flight.';
+        $this->saveRosterNote($oldRosterId, 'Pending warrant request replaced', $body, $actorId);
+    }
+
+    /**
+     * Record why pending warrants were withdrawn without a replacement roster.
+     */
+    private function addRosterWithdrawalNote(
+        int $rosterId,
+        ?int $actorId,
+        string $reason,
+        bool $fullyReplaced,
+    ): void {
+        if ($actorId === null) {
+            return;
+        }
+
+        $body = $fullyReplaced
+            ? "All pending warrants in this roster were withdrawn. Reason: {$reason}"
+            : 'One or more pending warrants were withdrawn. Remaining pending warrants stay in flight. '
+                . "Reason: {$reason}";
+        $this->saveRosterNote($rosterId, 'Pending warrant request withdrawn', $body, $actorId);
+    }
+
+    /**
+     * @param array<int> $oldRosterIds
+     */
+    private function addNewRosterReplacementNote(
+        int $newRosterId,
+        array $oldRosterIds,
+        ?int $actorId,
+    ): void {
+        if ($actorId === null) {
+            return;
+        }
+
+        sort($oldRosterIds);
+        $rosterReferences = implode(', ', array_map(
+            static fn(int $rosterId): string => "#{$rosterId}",
+            $oldRosterIds,
+        ));
+        $this->saveRosterNote(
+            $newRosterId,
+            'Replacement warrant request',
+            "This roster replaces pending warrant requirements from roster(s) {$rosterReferences}.",
+            $actorId,
+        );
+    }
+
+    /**
+     * Persist a public audit note against a warrant roster.
+     */
+    private function saveRosterNote(int $rosterId, string $subject, string $body, int $actorId): void
+    {
+        $notesTable = TableRegistry::getTableLocator()->get('Notes');
+        $note = $notesTable->newEmptyEntity();
+        $note->entity_type = 'WarrantRosters';
+        $note->entity_id = $rosterId;
+        $note->subject = $subject;
+        $note->body = $body;
+        $note->author_id = $actorId;
+        $note->private = false;
+        if (!$notesTable->save($note)) {
+            throw new RuntimeException('Failed to record warrant roster audit note');
+        }
     }
 
     /**

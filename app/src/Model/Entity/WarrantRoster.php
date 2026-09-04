@@ -177,6 +177,9 @@ class WarrantRoster extends BaseEntity
     /** @var string Roster pending - awaiting required approvals (default state) */
     public const STATUS_PENDING = 'Pending';
 
+    /** @var string Roster replaced - all pending warrants were superseded */
+    public const STATUS_REPLACED = 'Replaced';
+
     /**
      * Mass Assignment Configuration - Security and Data Protection
      *

@@ -239,6 +239,18 @@ class InitWorkflowDefinitionsSeed extends BaseSeed
                 'is_active' => true,
             ],
             [
+                'name' => 'Officer Assignment Update',
+                'slug' => 'officer-assignment-update',
+                'description' => 'Updates an officer assignment, records required term-change notes, requests ' .
+                    'a warrant extension when needed, and notifies the officer.',
+                'trigger_type' => 'event',
+                'trigger_config' => ['event' => 'Officers.AssignmentUpdateRequested'],
+                'entity_type' => 'Officers.Officers',
+                'json_file' => 'officer-assignment-update.json',
+                'execution_mode' => 'ephemeral',
+                'is_active' => true,
+            ],
+            [
                 'name' => 'Warrant Roster Approval',
                 'slug' => 'warrants-roster-approval',
                 'description' => 'Batch approval workflow for warrant rosters: approval gate → ' .

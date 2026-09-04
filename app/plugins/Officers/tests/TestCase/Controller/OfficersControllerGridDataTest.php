@@ -38,6 +38,57 @@ class OfficersControllerGridDataTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
     }
 
+    public function testBlankEmailAssignmentRendersAccessibleEditActionAndTermNotes(): void
+    {
+        TableRegistry::getTableLocator()->get('Members')->updateAll(
+            ['sca_name' => "Admin & O'Neil"],
+            ['id' => self::ADMIN_MEMBER_ID],
+        );
+        $offices = TableRegistry::getTableLocator()->get('Officers.Offices');
+        $office = $offices->find()
+            ->where(['deputy_to_id IS' => null])
+            ->firstOrFail();
+        $officers = TableRegistry::getTableLocator()->get('Officers.Officers');
+        $officer = $officers->newEntity([
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'office_id' => $office->id,
+            'branch_id' => self::KINGDOM_BRANCH_ID,
+            'status' => Officer::CURRENT_STATUS,
+            'start_on' => DateTime::now()->subMonths(1),
+            'expires_on' => DateTime::now()->addMonths(2),
+            'approver_id' => self::ADMIN_MEMBER_ID,
+            'approval_date' => DateTime::now(),
+            'email_address' => '',
+        ]);
+        $officers->saveOrFail($officer);
+        $this->assertTrue($officers->get($officer->id, contain: ['Offices'])->is_editable);
+
+        $notes = TableRegistry::getTableLocator()->get('Notes');
+        $note = $notes->newEmptyEntity();
+        $note->author_id = self::TEST_MEMBER_AGATHA_ID;
+        $note->entity_type = 'Officers.Officers';
+        $note->entity_id = $officer->id;
+        $note->subject = Officer::TERM_UPDATE_NOTE_SUBJECT;
+        $note->body = 'Approved term extension note visible in the edit modal.';
+        $note->private = false;
+        $notes->saveOrFail($note);
+
+        $this->configRequest([
+            'headers' => ['Turbo-Frame' => 'branch-officers-grid-table'],
+        ]);
+        $this->get(sprintf(
+            '/officers/officers/grid-data?branch_id=%d&view_id=sys-officers-current',
+            self::KINGDOM_BRANCH_ID,
+        ));
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('aria-label="Edit Admin &amp; O&#039;Neil officer assignment"');
+        $this->assertResponseNotContains('aria-label="Edit Admin &amp;amp; O&amp;#039;Neil officer assignment"');
+        $this->assertResponseContains('Approved term extension note visible in the edit modal.');
+        $this->assertResponseContains('Agatha Local MoAS Demoer');
+        $this->assertResponseNotContains('Unknown member');
+    }
+
     public function testApiExportsOfficerWithoutExpirationDate(): void
     {
         $officers = TableRegistry::getTableLocator()->get('Officers.Officers');

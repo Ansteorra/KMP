@@ -156,6 +156,149 @@ class InitWorkflowDefinitionsSeedTest extends BaseTestCase
         $this->assertContains('contactEmail', array_column($template->variables_schema, 'name'));
     }
 
+    public function testOfficerAssignmentUpdateWorkflowUsesEphemeralActionContract(): void
+    {
+        require_once ROOT . '/config/Seeds/InitWorkflowDefinitionsSeed.php';
+
+        $seed = new InitWorkflowDefinitionsSeed();
+        $workflowMetaBySlug = [];
+        foreach ($seed->getWorkflowMeta() as $workflowMeta) {
+            $workflowMetaBySlug[$workflowMeta['slug']] = $workflowMeta;
+        }
+
+        $meta = $workflowMetaBySlug['officer-assignment-update'];
+        $this->assertSame(
+            ['event' => 'Officers.AssignmentUpdateRequested'],
+            $meta['trigger_config'],
+        );
+        $this->assertSame('Officers.Officers', $meta['entity_type']);
+        $this->assertSame('ephemeral', $meta['execution_mode']);
+        $this->assertTrue($meta['is_active']);
+
+        $definition = $this->loadWorkflowDefinitionJson('officer-assignment-update.json');
+        $nodes = $definition['nodes'];
+        $this->assertSame('trigger-assignment-update', $definition['startNode']);
+        $this->assertSame(
+            'Officers.AssignmentUpdateRequested',
+            $nodes['trigger-assignment-update']['config']['event'],
+        );
+
+        $update = $nodes['update-officer-assignment']['config'];
+        $this->assertSame('Officers.UpdateOfficerAssignment', $update['action']);
+        $this->assertSame([
+            'officerId' => '$.trigger.officerId',
+            'actorId' => '$.trigger.actorId',
+            'startOn' => '$.trigger.startOn',
+            'expiresOn' => '$.trigger.expiresOn',
+            'emailAddress' => '$.trigger.emailAddress',
+            'deputyDescription' => '$.trigger.deputyDescription',
+            'termNote' => '$.trigger.termNote',
+        ], $update['params']);
+
+        $extension = $nodes['request-warrant-extension']['config'];
+        $this->assertSame('Officers.RequestWarrantExtension', $extension['action']);
+        $this->assertSame('$.trigger.actorId', $extension['params']['actorId']);
+        $this->assertSame(
+            '$.nodes.update-officer-assignment.result.data.warrantMessage',
+            $extension['params']['existingWarrantMessage'],
+        );
+        $this->assertSame(
+            [
+                'next' => 'prepare-assignment-update-notification-vars',
+                'error' => 'prepare-assignment-update-notification-vars',
+            ],
+            array_column($nodes['request-warrant-extension']['outputs'], 'target', 'port'),
+        );
+
+        $prepare = $nodes['prepare-assignment-update-notification-vars']['config'];
+        $this->assertSame('Officers.PrepareAssignmentUpdateNotificationVars', $prepare['action']);
+        $this->assertSame(
+            '$.nodes.update-officer-assignment.result.data.changeSummary',
+            $prepare['params']['changeSummary'],
+        );
+        $this->assertSame(
+            '$.nodes.update-officer-assignment.result.data.termChangeNote',
+            $prepare['params']['termChangeNote'],
+        );
+        $this->assertSame(
+            '$.nodes.request-warrant-extension.result.data.warrantMessage',
+            $prepare['params']['warrantMessage'],
+        );
+        $this->assertSame(
+            'end-saved-with-preparation-warning',
+            array_column(
+                $nodes['prepare-assignment-update-notification-vars']['outputs'],
+                'target',
+                'port',
+            )['error'],
+        );
+
+        $send = $nodes['send-assignment-update-notification']['config'];
+        $this->assertSame('Core.SendEmail', $send['action']);
+        $this->assertSame('officer-assignment-updated-notification', $send['params']['template']);
+        $this->assertSame([
+            'memberScaName',
+            'officeName',
+            'branchName',
+            'startDate',
+            'endDate',
+            'changeSummary',
+            'termChangeNote',
+            'warrantMessage',
+            'siteAdminSignature',
+        ], array_keys($send['params']['vars']));
+        $this->assertSame(
+            'end-saved-with-email-warning',
+            array_column($nodes['send-assignment-update-notification']['outputs'], 'target', 'port')['error'],
+        );
+        $this->assertTrue($nodes['end-complete']['config']['result']['success']);
+        $this->assertTrue($nodes['end-complete']['config']['result']['updated']);
+        $this->assertSame(
+            ['$.nodes.request-warrant-extension.result.data.warning'],
+            $nodes['end-complete']['config']['result']['warnings'],
+        );
+        $prepareWarning = $nodes['end-saved-with-preparation-warning']['config']['result'];
+        $this->assertTrue($prepareWarning['success']);
+        $this->assertTrue($prepareWarning['updated']);
+        $this->assertSame([
+            '$.nodes.request-warrant-extension.result.data.warning',
+            'Officer notification details could not be prepared. Notify the officer separately.',
+        ], $prepareWarning['warnings']);
+        $this->assertNotContains(
+            '$.nodes.send-assignment-update-notification.result.error',
+            $prepareWarning['warnings'],
+        );
+        $this->assertNotContains(
+            '$.nodes.prepare-assignment-update-notification-vars.result.error',
+            $prepareWarning['warnings'],
+        );
+
+        $emailWarning = $nodes['end-saved-with-email-warning']['config']['result'];
+        $this->assertTrue($emailWarning['success']);
+        $this->assertTrue($emailWarning['updated']);
+        $this->assertSame([
+            '$.nodes.request-warrant-extension.result.data.warning',
+            'The officer notification could not be sent. Notify the officer separately.',
+        ], $emailWarning['warnings']);
+        $this->assertNotContains(
+            '$.nodes.send-assignment-update-notification.result.error',
+            $emailWarning['warnings'],
+        );
+
+        $this->registerWorkflowProviders();
+        $assignmentActions = [
+            'Officers.UpdateOfficerAssignment',
+            'Officers.RequestWarrantExtension',
+            'Officers.PrepareAssignmentUpdateNotificationVars',
+        ];
+        foreach ($assignmentActions as $action) {
+            $this->assertNotNull(
+                WorkflowActionRegistry::getAction($action),
+                sprintf('The workflow action "%s" must be registered.', $action),
+            );
+        }
+    }
+
     public function testObsoleteRecommendationStateWorkflowsAreNotSeeded(): void
     {
         require_once ROOT . '/config/Seeds/InitWorkflowDefinitionsSeed.php';
