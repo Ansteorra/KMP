@@ -30,7 +30,7 @@ class BestowalCancellationService
     private BestowalRecommendationSyncService $syncService;
     private RecommendationApprovalWorkflowLifecycleService $approvalLifecycleService;
     private ActionItemService $actionItemService;
-    private RecommendationStateLogService $stateLogService;
+    private RecommendationTransitionService $transitionService;
 
     /**
      * @param \Cake\ORM\Table|null $bestowalsTable Optional injected bestowals table.
@@ -39,7 +39,7 @@ class BestowalCancellationService
      * @param \Awards\Services\BestowalRecommendationSyncService|null $syncService Optional injected sync service.
      * @param \Awards\Services\RecommendationApprovalWorkflowLifecycleService|null $approvalLifecycleService Optional lifecycle service.
      * @param \App\Services\ActionItems\ActionItemService|null $actionItemService Optional action-item service.
-     * @param \Awards\Services\RecommendationStateLogService|null $stateLogService Optional state-log service.
+     * @param \Awards\Services\RecommendationTransitionService|null $transitionService Optional transition service.
      */
     public function __construct(
         ?Table $bestowalsTable = null,
@@ -48,7 +48,7 @@ class BestowalCancellationService
         ?BestowalRecommendationSyncService $syncService = null,
         ?RecommendationApprovalWorkflowLifecycleService $approvalLifecycleService = null,
         ?ActionItemService $actionItemService = null,
-        ?RecommendationStateLogService $stateLogService = null,
+        ?RecommendationTransitionService $transitionService = null,
     ) {
         $this->bestowalsTable = $bestowalsTable ?? $this->fetchTable('Awards.Bestowals');
         $this->recommendationsTable = $recommendationsTable ?? $this->fetchTable('Awards.Recommendations');
@@ -60,7 +60,7 @@ class BestowalCancellationService
                 recommendationsTable: $this->recommendationsTable,
             );
         $this->actionItemService = $actionItemService ?? new ActionItemService();
-        $this->stateLogService = $stateLogService ?? new RecommendationStateLogService();
+        $this->transitionService = $transitionService ?? new RecommendationTransitionService();
     }
 
     /**
@@ -101,29 +101,21 @@ class BestowalCancellationService
                     $cancelledTodoIds = $this->cancelOpenTodos($bestowalId, $actorId);
 
                     $recommendations = $this->resolveLinkedRecommendations($bestowal);
+                    usort(
+                        $recommendations,
+                        static fn($left, $right): int => (int)($left->recommendation_group_id === null)
+                            <=> (int)($right->recommendation_group_id === null),
+                    );
                     $recommendationIds = [];
                     $approvalScopeRecommendationIds = [];
                     foreach ($recommendations as $recommendation) {
-                        $beforeState = (string)$recommendation->state;
-                        $beforeStatus = (string)$recommendation->status;
-                        $recommendation->bestowal_id = null;
-                        $recommendation->gathering_id = null;
-                        $recommendation->given = null;
-                        $recommendation->close_reason = null;
-                        $recommendation->state = $recommendation->recommendation_group_id === null
+                        $targetState = $recommendation->recommendation_group_id === null
                             ? self::RECONSIDERATION_STATE
                             : 'Linked';
-                        $recommendation->modified_by = $actorId;
-                        $savedRecommendation = $this->recommendationsTable->saveOrFail(
+                        $this->transitionService->resetForBestowalCancellation(
+                            $this->recommendationsTable,
                             $recommendation,
-                            ['systemSync' => true],
-                        );
-                        $this->stateLogService->logStateTransition(
-                            (int)$savedRecommendation->id,
-                            $beforeState,
-                            (string)$savedRecommendation->state,
-                            $beforeStatus,
-                            $savedRecommendation->status !== null ? (string)$savedRecommendation->status : null,
+                            $targetState,
                             $actorId,
                         );
                         $recommendationIds[] = (int)$recommendation->id;

@@ -13,6 +13,7 @@ use Cake\Event\EventInterface;
 use Cake\Event\EventManager;
 use Cake\I18n\DateTime;
 use Cake\ORM\Table;
+use Closure;
 
 /**
  * Covers the atomic cancellation, cleanup, and reconsideration handoff.
@@ -22,12 +23,16 @@ class BestowalCancellationServiceTest extends BaseTestCase
     private Table $bestowals;
     private Table $recommendations;
     private Table $actionItems;
+    private ?Closure $workflowListener = null;
 
     /**
      * @var array<int, array<string, mixed>>
      */
     private array $workflowEvents = [];
 
+    /**
+     * Register the workflow event collector used by each cancellation test.
+     */
     protected function setUp(): void
     {
         parent::setUp();
@@ -35,18 +40,28 @@ class BestowalCancellationServiceTest extends BaseTestCase
         $this->bestowals = $this->getTableLocator()->get('Awards.Bestowals');
         $this->recommendations = $this->getTableLocator()->get('Awards.Recommendations');
         $this->actionItems = $this->getTableLocator()->get('ActionItems');
-        EventManager::instance()->on('Workflow.trigger', function (EventInterface $event): void {
+        $this->workflowListener = function (EventInterface $event): void {
             $this->workflowEvents[] = $event->getData();
-        });
+        };
+        EventManager::instance()->on('Workflow.trigger', $this->workflowListener);
     }
 
+    /**
+     * Detach only this test case's workflow event collector.
+     */
     protected function tearDown(): void
     {
-        EventManager::instance()->off('Workflow.trigger');
+        if ($this->workflowListener !== null) {
+            EventManager::instance()->off('Workflow.trigger', $this->workflowListener);
+            $this->workflowListener = null;
+        }
 
         parent::tearDown();
     }
 
+    /**
+     * Cancellation clears operational work and restarts recommendation approval.
+     */
     public function testCancelResetsRecommendationCancelsOpenTodosAndRequestsFreshApproval(): void
     {
         $recommendation = $this->makeRecommendation();
@@ -93,9 +108,9 @@ class BestowalCancellationServiceTest extends BaseTestCase
             ->where(['recommendation_id' => (int)$recommendation->id])
             ->orderByDesc('id')
             ->firstOrFail();
-        $this->assertSame('Need to Schedule', $stateLog->from_state);
+        $this->assertSame('Scheduled', $stateLog->from_state);
         $this->assertSame('Submitted', $stateLog->to_state);
-        $this->assertSame('Scheduling', $stateLog->from_status);
+        $this->assertSame('To Give', $stateLog->from_status);
         $this->assertSame('In Progress', $stateLog->to_status);
 
         $restartEvents = array_values(array_filter(
@@ -113,6 +128,9 @@ class BestowalCancellationServiceTest extends BaseTestCase
         $this->assertArrayNotHasKey('rehydratedFromRunId', $restartEvents[0]['eventData']);
     }
 
+    /**
+     * Create a bestowal-managed recommendation with stale projection fields.
+     */
     private function makeRecommendation(): Recommendation
     {
         $award = $this->getTableLocator()->get('Awards.Awards')->find()->select(['id'])->firstOrFail();
@@ -126,8 +144,8 @@ class BestowalCancellationServiceTest extends BaseTestCase
             'requester_sca_name' => 'Admin von Admin',
             'member_sca_name' => 'Admin von Admin',
             'contact_email' => 'admin@test.com',
-            'status' => 'Scheduling',
-            'state' => 'Need to Schedule',
+            'status' => 'To Give',
+            'state' => 'Scheduled',
             'state_date' => DateTime::now(),
             'gathering_id' => (int)$gathering->id,
             'given' => DateTime::now(),
@@ -139,6 +157,9 @@ class BestowalCancellationServiceTest extends BaseTestCase
         return $this->recommendations->saveOrFail($recommendation);
     }
 
+    /**
+     * Link a recommendation to a new open bestowal.
+     */
     private function makeBestowal(Recommendation $recommendation): Bestowal
     {
         $bestowal = $this->bestowals->saveOrFail($this->bestowals->newEntity([
@@ -161,6 +182,9 @@ class BestowalCancellationServiceTest extends BaseTestCase
         return $bestowal;
     }
 
+    /**
+     * Create a bestowal action item in the requested status.
+     */
     private function makeTodo(int $bestowalId, string $title, string $status): ActionItem
     {
         return $this->actionItems->saveOrFail($this->actionItems->newEntity([

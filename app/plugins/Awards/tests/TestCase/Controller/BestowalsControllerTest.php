@@ -415,6 +415,9 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
         $this->assertNull($saved->gathering_scheduled_activity_id);
     }
 
+    /**
+     * Cancellation UI requires and dispatches an explicit audit reason.
+     */
     public function testViewCancellationModalDispatchesRequiredReason(): void
     {
         $this->ensureActiveWorkflow('awards-bestowal-cancel');
