@@ -107,6 +107,11 @@ else
 fi
 
 if [ "$DB_ENGINE" = "mysql" ]; then
+	echo "[post] Repairing seeded warrant roster approval history..."
+	bin/cake seeds run DevRepairWarrantRosterApprovals
+fi
+
+if [ "$DB_ENGINE" = "mysql" ]; then
 	echo "[post] Validating and applying managed award catalog..."
 	php scripts/seed/sync-ansteorra-award-catalog.php --check
 	php scripts/seed/sync-ansteorra-award-catalog.php --apply-local-database

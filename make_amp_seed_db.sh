@@ -106,9 +106,11 @@ DELETE ev FROM awards_recommendations_events ev
 DELETE ar FROM awards_recommendations ar
 	JOIN tmp_recommendations_to_delete tr ON tr.id = ar.id;
 
-DELETE wrapp FROM warrant_roster_approvals wrapp
-	JOIN members m ON m.id = wrapp.approver_id
-WHERE m.last_name <> 'Demoer' AND m.sca_name <> 'Admin von Admin';
+-- Preserve approval history before pruning its production approvers. All
+-- actor references in this development snapshot are intentionally normalized
+-- to the retained synthetic admin account.
+UPDATE warrant_roster_approvals
+SET approver_id = 1 WHERE approver_id <> 1;
 
 DELETE w FROM warrants w
 	JOIN members m ON m.id = w.member_id
@@ -175,6 +177,35 @@ where
         select warrant_roster_id
         from warrants
     );
+
+-- Some historical source snapshots already lack the approval row represented
+-- by an Approved roster's counter. Restore one transparent synthetic response
+-- so the later workflow migration receives internally consistent seed data.
+INSERT INTO warrant_roster_approvals (warrant_roster_id, approver_id, approved_on)
+SELECT wr.id, 1, COALESCE(wr.modified, wr.created)
+FROM warrant_rosters wr
+LEFT JOIN warrant_roster_approvals wrapp
+    ON wrapp.warrant_roster_id = wr.id
+    AND wrapp.approved_on IS NOT NULL
+WHERE wr.status = 'Approved'
+    AND wr.approval_count = 1
+    AND wrapp.id IS NULL;
+
+SET @broken_warrant_roster_approvals := (
+    SELECT COUNT(*)
+    FROM (
+        SELECT wr.id
+        FROM warrant_rosters wr
+        LEFT JOIN warrant_roster_approvals wrapp
+            ON wrapp.warrant_roster_id = wr.id
+            AND wrapp.approved_on IS NOT NULL
+        WHERE wr.status = 'Approved'
+        GROUP BY wr.id, wr.approval_count
+        HAVING wr.approval_count <> COUNT(DISTINCT wrapp.approver_id)
+    ) broken_rosters
+);
+SELECT CONCAT('[CLEANUP] Broken approved warrant rosters = ', @broken_warrant_roster_approvals) AS info_msg;
+DO CASE WHEN @broken_warrant_roster_approvals > 0 THEN (SELECT 1/0) ELSE 0 END;
 
 -- Finally delete members themselves
 DELETE FROM members WHERE last_name <> 'Demoer' AND sca_name <> 'Admin von Admin';
