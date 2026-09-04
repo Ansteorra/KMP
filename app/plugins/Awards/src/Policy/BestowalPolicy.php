@@ -261,7 +261,8 @@ class BestowalPolicy extends BasePolicy
      */
     public function canCancel(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
-        return $this->canEdit($user, $entity, ...$optionalArgs);
+        return (string)$entity->get('lifecycle_status') === Bestowal::LIFECYCLE_OPEN
+            && $this->canEdit($user, $entity, ...$optionalArgs);
     }
 
     /**

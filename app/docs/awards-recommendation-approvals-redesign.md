@@ -75,7 +75,7 @@ A bestowal has the minimal lifecycle `open`, `given`, or `cancelled`.
 | Open, no gathering | Scheduling / Need to Schedule |
 | Open, gathering assigned | To Give / Scheduled |
 | Given | Closed / Given, with normalized given date |
-| Cancelled | Cancellation service clears links/projection and rehydrates approval when eligible |
+| Cancelled | Cancel open To-Dos, reset to In Progress / Submitted, and start a clean approval cycle |
 
 Open-bestowal synchronization does not overwrite an already closed recommendation or the
 manual `To Give / Announced Not Given` board state. User-facing code cannot transition
@@ -84,6 +84,10 @@ directly into bestowal-managed states; it must invoke the workflow/service bound
 Bestowal To-Dos are parallel operational readiness checks. They do not add lifecycle states.
 Finalization locks the owner, rechecks all gating items, records `given`, and synchronizes
 recommendations. Terminal bestowals cannot regain open To-Dos.
+Cancellation also locks the owner, requires a reason, and audit-cancels every open To-Do while
+preserving completed history. It clears the bestowal-owned recommendation fields, resets one
+standalone recommendation or group head to `In Progress / Submitted`, and requests exactly one
+fresh approval cycle per approval scope; grouped children return to `Linked`.
 
 ## Linking and grouping
 
