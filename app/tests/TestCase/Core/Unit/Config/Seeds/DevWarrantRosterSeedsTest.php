@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Test\TestCase\Core\Unit\Config\Seeds;
@@ -93,6 +92,50 @@ final class DevWarrantRosterSeedsTest extends BaseTestCase
                 ->where(['workflow_approval_id' => $ids['approvalId']])
                 ->count(),
         );
+    }
+
+    /**
+     * An approved roster cannot be repaired without a recorded approval count.
+     *
+     * @return void
+     */
+    public function testRepairSeedRejectsApprovedRosterWithNullApprovalCount(): void
+    {
+        $ids = $this->createBrokenMigratedApproval();
+        $this->getTableLocator()->get('WarrantRosters')->updateAll(
+            ['approval_count' => null],
+            ['id' => $ids['rosterId']],
+        );
+        require_once ROOT . '/config/Seeds/DevRepairWarrantRosterApprovalsSeed.php';
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage(
+            'Approved development roster ' . $ids['rosterId'] . ' has no recorded approval count.',
+        );
+
+        (new DevRepairWarrantRosterApprovalsSeed())->run();
+    }
+
+    /**
+     * An explicit zero count is as inconsistent as a missing count.
+     *
+     * @return void
+     */
+    public function testRepairSeedRejectsApprovedRosterWithZeroApprovalCount(): void
+    {
+        $ids = $this->createBrokenMigratedApproval();
+        $this->getTableLocator()->get('WarrantRosters')->updateAll(
+            ['approval_count' => 0],
+            ['id' => $ids['rosterId']],
+        );
+        require_once ROOT . '/config/Seeds/DevRepairWarrantRosterApprovalsSeed.php';
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage(
+            'Approved development roster ' . $ids['rosterId'] . ' has no recorded approval count.',
+        );
+
+        (new DevRepairWarrantRosterApprovalsSeed())->run();
     }
 
     /**

@@ -271,6 +271,21 @@ describe('TurboModalController', () => {
         expect(document.activeElement).toBe(replacementEdit);
     });
 
+    test('focuses an actionable descendant of the surviving fallback container', async () => {
+        const container = document.createElement('section');
+        const fallbackButton = document.createElement('button');
+        fallbackButton.type = 'button';
+        fallbackButton.textContent = 'Next office';
+        container.appendChild(fallbackButton);
+        document.body.appendChild(container);
+        controller.waitForRenderFrame = jest.fn().mockResolvedValue();
+
+        await controller.restoreFocusAfterStream({ container });
+
+        expect(document.activeElement).toBe(fallbackButton);
+        expect(container).not.toHaveAttribute('tabindex');
+    });
+
     test('setSubmitting updates a submit button associated from outside the form', () => {
         controller.element.id = 'attendanceModalForm';
         const externalSubmit = document.createElement('button');
@@ -354,6 +369,33 @@ describe('TurboModalController', () => {
             .toHaveTextContent('Unable to save. Please try again.');
         expect(window.KMP_accessibility.announce).not.toHaveBeenCalled();
         expect(controller.element.querySelector('button[type="submit"]').disabled).toBe(false);
+    });
+
+    test('clears and reuses fallback feedback inserted outside a nested form', () => {
+        document.body.innerHTML = `
+            <div class="modal" id="nestedFormModal">
+                <div class="modal-body">
+                    <form data-controller="turbo-modal">
+                        <button type="submit">Submit</button>
+                    </form>
+                </div>
+            </div>
+        `;
+        controller.element = document.querySelector('[data-controller="turbo-modal"]');
+
+        expect(controller.showFallbackFailure()).toBe(true);
+        const modal = document.getElementById('nestedFormModal');
+        const feedback = modal.querySelector('[data-turbo-modal-feedback]');
+        expect(feedback).not.toBeNull();
+        expect(controller.element.contains(feedback)).toBe(false);
+
+        controller.clearFailure();
+        expect(feedback).toHaveClass('d-none');
+        expect(feedback).toBeEmptyDOMElement();
+
+        expect(controller.showFallbackFailure()).toBe(true);
+        expect(modal.querySelectorAll('[data-turbo-modal-feedback]')).toHaveLength(1);
+        expect(feedback.querySelectorAll('[role="alert"]')).toHaveLength(1);
     });
 
     test('submitAsTurboStream replaces containing frame for non-stream form responses', async () => {

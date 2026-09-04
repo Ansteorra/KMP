@@ -416,7 +416,12 @@ export default class WorkflowNodeConfigHandler {
             ...(nodeData.data?.config || {}),
             _nodeLabel: nodeData.data?.label || '',
         }
-        const html = this.designer._serializer.buildNodeHTML(type, nodeKey, config)
+        const html = this.designer._serializer.buildNodeHTML(
+            type,
+            nodeKey,
+            config,
+            nodeData.data?.outputPortLabels,
+        )
         const nodeEl = this.designer.canvasTarget.querySelector(`#node-${nodeId}`)
         const contentEl = nodeEl?.querySelector('.drawflow_content_node')
         if (contentEl) {

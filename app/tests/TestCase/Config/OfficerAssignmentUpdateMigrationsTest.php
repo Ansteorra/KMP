@@ -58,6 +58,9 @@ class OfficerAssignmentUpdateMigrationsTest extends BaseTestCase
         $this->assertSame(1, $definitions->find()
             ->where(['slug' => 'officer-assignment-update'])
             ->count());
+
+        $migration->down();
+        $this->assertFalse($definitions->get($definition->id)->is_active);
     }
 
     public function testWorkflowMigrationPreservesTenantCurrentVersion(): void
@@ -108,7 +111,7 @@ class OfficerAssignmentUpdateMigrationsTest extends BaseTestCase
         $definition->name = 'Kingdom Customized Officer Assignment Update';
         $definition->current_version_id = $customVersion->id;
         $definition->execution_mode = 'durable';
-        $definition->is_active = false;
+        $definition->is_active = true;
         $definitions->saveOrFail($definition);
         $versionCount = $versions->find()
             ->where(['workflow_definition_id' => $definition->id])
@@ -120,11 +123,14 @@ class OfficerAssignmentUpdateMigrationsTest extends BaseTestCase
         $this->assertSame('Kingdom Customized Officer Assignment Update', $preserved->name);
         $this->assertSame((int)$customVersion->id, (int)$preserved->current_version_id);
         $this->assertSame('durable', $preserved->execution_mode);
-        $this->assertFalse($preserved->is_active);
+        $this->assertTrue($preserved->is_active);
         $this->assertEquals($customGraph, $versions->get($customVersion->id)->definition);
         $this->assertSame($versionCount, $versions->find()
             ->where(['workflow_definition_id' => $definition->id])
             ->count());
+
+        $this->workflowMigration()->down();
+        $this->assertTrue($definitions->get($definition->id)->is_active);
     }
 
     public function testEmailTemplateMigrationCreatesExpectedVariablesAndPreservesCustomization(): void
@@ -157,6 +163,13 @@ class OfficerAssignmentUpdateMigrationsTest extends BaseTestCase
         ];
         $this->assertTrue($template->is_active);
         $this->assertSame($expectedVars, array_column($template->available_vars, 'name'));
+        $rawTemplate = $templates->getConnection()
+            ->execute('SELECT available_vars FROM email_templates WHERE id = ?', [$template->id])
+            ->fetch('assoc');
+        $rawAvailableVars = is_array($rawTemplate['available_vars'])
+            ? $rawTemplate['available_vars']
+            : json_decode((string)$rawTemplate['available_vars'], true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame($expectedVars, array_column($rawAvailableVars, 'name'));
         $this->assertEqualsCanonicalizing(
             $expectedVars,
             array_column($template->variables_schema, 'name'),
@@ -176,6 +189,44 @@ class OfficerAssignmentUpdateMigrationsTest extends BaseTestCase
         $preserved = $templates->get($template->id);
         $this->assertSame('Kingdom-customized assignment notice', $preserved->subject_template);
         $this->assertFalse($preserved->is_active);
+
+        $preserved->is_active = true;
+        $templates->saveOrFail($preserved);
+        $migration->down();
+        $this->assertFalse($templates->get($template->id)->is_active);
+    }
+
+    public function testEmailTemplateRollbackPreservesPreExistingTemplate(): void
+    {
+        $templates = TableRegistry::getTableLocator()->get('EmailTemplates');
+        $existing = $templates->find()
+            ->where(['slug' => 'officer-assignment-updated-notification'])
+            ->first();
+        if ($existing !== null) {
+            $existing->slug = 'officer-assignment-updated-existing-' . bin2hex(random_bytes(4));
+            $templates->saveOrFail($existing);
+        }
+
+        $tenantTemplate = $templates->saveOrFail($templates->newEntity([
+            'slug' => 'officer-assignment-updated-notification',
+            'name' => 'Tenant Assignment Notification',
+            'description' => 'Tenant-owned template.',
+            'subject_template' => 'Tenant assignment subject',
+            'text_template' => 'Tenant assignment body',
+            'available_vars' => [['name' => 'tenantVariable']],
+            'variables_schema' => [],
+            'is_active' => true,
+            'created_by' => self::ADMIN_MEMBER_ID,
+            'modified_by' => self::ADMIN_MEMBER_ID,
+        ]));
+
+        $migration = $this->emailTemplateMigration();
+        $migration->up();
+        $migration->down();
+
+        $preserved = $templates->get($tenantTemplate->id);
+        $this->assertSame('Tenant Assignment Notification', $preserved->name);
+        $this->assertTrue($preserved->is_active);
     }
 
     private function workflowMigration(): AddOfficerAssignmentUpdateWorkflow

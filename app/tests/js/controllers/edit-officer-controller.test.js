@@ -164,6 +164,8 @@ describe('EditOfficer', () => {
         expect(controller.termNoteTarget).toHaveAttribute('aria-required', 'true');
         expect(controller.termNoteRequiredTarget).not.toHaveClass('d-none');
         expect(controller.statusTarget).toHaveTextContent('A term change note is now required.');
+        expect(window.KMP_accessibility.announce)
+            .toHaveBeenCalledWith('A term change note is now required.');
 
         controller.startOnTarget.value = '2026-02-01';
         controller.termDatesChanged();
@@ -171,6 +173,8 @@ describe('EditOfficer', () => {
         expect(controller.termNoteTarget.required).toBe(false);
         expect(controller.termNoteTarget).toHaveAttribute('aria-required', 'false');
         expect(controller.termNoteRequiredTarget).toHaveClass('d-none');
+        expect(window.KMP_accessibility.announce)
+            .toHaveBeenCalledWith('A term change note is no longer required.');
 
         controller.expiresOnTarget.value = '2027-03-01';
         controller.termDatesChanged();
@@ -249,6 +253,8 @@ describe('EditOfficer', () => {
         controller.element.dispatchEvent(new Event('shown.bs.modal'));
 
         expect(controller.statusTarget).toHaveTextContent('1 existing term note loaded.');
+        expect(window.KMP_accessibility.announce)
+            .toHaveBeenCalledWith('1 existing term note loaded.');
     });
 
     test('shows the empty state for a malformed term notes payload', () => {
@@ -268,6 +274,8 @@ describe('EditOfficer', () => {
         controller.element.dispatchEvent(new Event('shown.bs.modal'));
 
         expect(controller.statusTarget).toHaveTextContent('No existing term notes.');
+        expect(window.KMP_accessibility.announce)
+            .toHaveBeenCalledWith('No existing term notes.');
     });
 
     test('uses the same listener reference when an outlet connects and disconnects', () => {

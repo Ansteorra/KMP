@@ -32,7 +32,7 @@ echo "[INFO] Dropping (if exists) and recreating database, ensuring user & privi
 mysql -u "${DB_USER}" -p"${DB_PASS}" -e "${ADMIN_SQL}"
 
 echo "[INFO] Creating transformed temp SQL (utf8mb4 -> utf8mb3; collation fix)..." >&2
-TEMP_SQL="$(mktemp /tmp/${DB_NAME}_XXXX.sql)"
+TEMP_SQL="$(mktemp "/tmp/${DB_NAME}_XXXX.sql")"
 trap 'rm -f "$TEMP_SQL"' EXIT
 
 # Perform ordered replacements: collation first, then charset
@@ -49,17 +49,8 @@ echo "[INFO] Starting data anonymization / pruning for non-demo users..." >&2
 
 # Build deletion SQL: keep only members with last_name='Demoer' OR sca_name='Admin von Admin'
 read -r -d '' CLEAN_SQL <<'EOSQL' || true
-SET @keep_member_ids = (
-	SELECT GROUP_CONCAT(id) FROM members WHERE last_name='Demoer' OR sca_name='Admin von Admin'
-);
-
 DELETE FROM notes;
 DELETE FROM queued_jobs;
-
--- Safety: if no keep members found, abort
-SET @count_keep = (SELECT COUNT(*) FROM members WHERE last_name='Demoer' OR sca_name='Admin von Admin');
-SELECT CONCAT('[CLEANUP] Keep member count = ', @count_keep) AS info_msg;
-DO CASE WHEN @count_keep = 0 THEN (SELECT 1/0) ELSE 0 END; -- force error if none
 
 -- Temporarily disable FK checks to allow controlled manual cascade ordering
 SET @old_fk = @@FOREIGN_KEY_CHECKS;
@@ -106,12 +97,6 @@ DELETE ev FROM awards_recommendations_events ev
 DELETE ar FROM awards_recommendations ar
 	JOIN tmp_recommendations_to_delete tr ON tr.id = ar.id;
 
--- Preserve approval history before pruning its production approvers. All
--- actor references in this development snapshot are intentionally normalized
--- to the retained synthetic admin account.
-UPDATE warrant_roster_approvals
-SET approver_id = 1 WHERE approver_id <> 1;
-
 DELETE w FROM warrants w
 	JOIN members m ON m.id = w.member_id
 WHERE m.last_name <> 'Demoer' AND m.sca_name <> 'Admin von Admin';
@@ -149,14 +134,13 @@ SELECT COUNT(*) AS warrants_linked_to_deleting_roles_post FROM warrants w
 	JOIN members mdel ON mdel.id = mr.member_id
 	WHERE mdel.last_name <> 'Demoer' AND mdel.sca_name <> 'Admin von Admin';
 
--- Abort if any still remain (should be zero now)
+-- Report any remaining references for Bash to reject before member deletion.
 SET @left_warrants := (
 	SELECT COUNT(*) FROM warrants w
 		JOIN member_roles mr ON mr.id = w.member_role_id
 		JOIN members mdel ON mdel.id = mr.member_id
 		WHERE mdel.last_name <> 'Demoer' AND mdel.sca_name <> 'Admin von Admin'
 );
-DO CASE WHEN @left_warrants > 0 THEN (SELECT 1/0) ELSE 0 END;
 
 DELETE w
 FROM warrant_roster_approvals w
@@ -177,6 +161,48 @@ where
         select warrant_roster_id
         from warrants
     );
+
+-- Preserve the remaining approval history without retaining production
+-- identities. Assign every distinct source approver to a distinct retained
+-- demo member in stable source-ID order so multi-approver rosters stay
+-- multi-approver after pruning.
+DROP TEMPORARY TABLE IF EXISTS tmp_warrant_approver_map;
+CREATE TEMPORARY TABLE tmp_warrant_approver_map (
+	source_approver_id INT PRIMARY KEY,
+	synthetic_approver_id INT NOT NULL UNIQUE
+);
+INSERT INTO tmp_warrant_approver_map (source_approver_id, synthetic_approver_id)
+SELECT source_approvers.approver_id, synthetic_approvers.id
+FROM (
+	SELECT distinct_approvers.approver_id,
+		ROW_NUMBER() OVER (ORDER BY distinct_approvers.approver_id) AS mapping_position
+	FROM (
+		SELECT DISTINCT approver_id
+		FROM warrant_roster_approvals
+	) distinct_approvers
+) source_approvers
+JOIN (
+	SELECT id,
+		ROW_NUMBER() OVER (ORDER BY CASE WHEN id = 1 THEN 0 ELSE 1 END, id) AS mapping_position
+	FROM members
+	WHERE last_name = 'Demoer' OR sca_name = 'Admin von Admin'
+) synthetic_approvers USING (mapping_position);
+
+SET @unmapped_warrant_roster_approvers := (
+	SELECT COUNT(*)
+	FROM (
+		SELECT DISTINCT approver_id
+		FROM warrant_roster_approvals
+	) source_approvers
+	LEFT JOIN tmp_warrant_approver_map approver_map
+		ON approver_map.source_approver_id = source_approvers.approver_id
+	WHERE approver_map.source_approver_id IS NULL
+);
+
+UPDATE warrant_roster_approvals approvals
+JOIN tmp_warrant_approver_map approver_map
+	ON approver_map.source_approver_id = approvals.approver_id
+SET approvals.approver_id = approver_map.synthetic_approver_id;
 
 -- Some historical source snapshots already lack the approval row represented
 -- by an Approved roster's counter. Restore one transparent synthetic response
@@ -201,19 +227,28 @@ SET @broken_warrant_roster_approvals := (
             AND wrapp.approved_on IS NOT NULL
         WHERE wr.status = 'Approved'
         GROUP BY wr.id, wr.approval_count
-        HAVING wr.approval_count <> COUNT(DISTINCT wrapp.approver_id)
+        HAVING COALESCE(wr.approval_count, 0) < 1
+            OR wr.approval_count <> COUNT(DISTINCT wrapp.approver_id)
     ) broken_rosters
 );
-SELECT CONCAT('[CLEANUP] Broken approved warrant rosters = ', @broken_warrant_roster_approvals) AS info_msg;
-DO CASE WHEN @broken_warrant_roster_approvals > 0 THEN (SELECT 1/0) ELSE 0 END;
+SELECT 'UNMAPPED_WARRANT_ROSTER_APPROVERS', @unmapped_warrant_roster_approvers;
+SELECT 'BROKEN_WARRANT_ROSTER_APPROVALS', @broken_warrant_roster_approvals;
+SELECT 'WARRANTS_LINKED_TO_DELETING_ROLES', @left_warrants;
 
--- Finally delete members themselves
+-- The final member deletion runs in a separate client call only after Bash
+-- verifies all counters and exits on any inconsistency.
+SET FOREIGN_KEY_CHECKS=@old_fk;
+EOSQL
+
+read -r -d '' FINALIZE_SQL <<'EOSQL' || true
+SET @old_fk = @@FOREIGN_KEY_CHECKS;
+SET FOREIGN_KEY_CHECKS=0;
+
 DELETE FROM members WHERE last_name <> 'Demoer' AND sca_name <> 'Admin von Admin';
 
 -- Clear all member passwords (set to empty string for seed data)
 UPDATE members SET password='';
 
--- Re-enable FK checks
 SET FOREIGN_KEY_CHECKS=@old_fk;
 
 SELECT 'CLEANUP_COMPLETE' AS status,
@@ -228,13 +263,55 @@ if [ "${DRY_RUN:-0}" = "1" ]; then
 	echo "[DRY_RUN] To execute cleanup set DRY_RUN=0 (or unset) and rerun script." >&2
 else
 	echo "[INFO] Executing cleanup deletions..." >&2
-	mysql -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -e "${CLEAN_SQL}" || { echo '[ERROR] Cleanup failed.' >&2; exit 1; }
-	echo "[INFO] Normalizing actor reference columns (created_by/updated_by/approved_by/approver_id) to 1..." >&2
+	keep_member_count=$(mysql -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -N -B \
+		-e "SELECT COUNT(*) FROM members WHERE last_name = 'Demoer' OR sca_name = 'Admin von Admin'") || {
+		echo '[ERROR] Failed checking retained demo members.' >&2
+		exit 1
+	}
+	if [[ ! "${keep_member_count}" =~ ^[0-9]+$ ]] || [ "${keep_member_count}" -eq 0 ]; then
+		echo '[ERROR] No retained demo members found; cleanup was not started.' >&2
+		exit 1
+	fi
+	cleanup_output=$(mysql -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -N -B -e "${CLEAN_SQL}") || {
+		echo '[ERROR] Cleanup failed.' >&2
+		exit 1
+	}
+	printf '%s\n' "${cleanup_output}"
+	unmapped_approvers=$(printf '%s\n' "${cleanup_output}" | awk -F '\t' \
+		'$1 == "UNMAPPED_WARRANT_ROSTER_APPROVERS" { print $2 }')
+	broken_rosters=$(printf '%s\n' "${cleanup_output}" | awk -F '\t' \
+		'$1 == "BROKEN_WARRANT_ROSTER_APPROVALS" { print $2 }')
+	linked_warrants=$(printf '%s\n' "${cleanup_output}" | awk -F '\t' \
+		'$1 == "WARRANTS_LINKED_TO_DELETING_ROLES" { print $2 }')
+	if [[ ! "${unmapped_approvers}" =~ ^[0-9]+$ ]] \
+		|| [[ ! "${broken_rosters}" =~ ^[0-9]+$ ]] \
+		|| [[ ! "${linked_warrants}" =~ ^[0-9]+$ ]]; then
+		echo '[ERROR] Cleanup consistency counters were missing or invalid.' >&2
+		exit 1
+	fi
+	if [ "${unmapped_approvers}" -ne 0 ]; then
+		echo "[ERROR] ${unmapped_approvers} warrant approver identities lack distinct demo mappings." >&2
+		exit 1
+	fi
+	if [ "${broken_rosters}" -ne 0 ]; then
+		echo "[ERROR] ${broken_rosters} approved warrant rosters have inconsistent approval history." >&2
+		exit 1
+	fi
+	if [ "${linked_warrants}" -ne 0 ]; then
+		echo "[ERROR] ${linked_warrants} warrants still reference roles scheduled for deletion." >&2
+		exit 1
+	fi
+	mysql -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -e "${FINALIZE_SQL}" || {
+		echo '[ERROR] Final member cleanup failed.' >&2
+		exit 1
+	}
+	echo "[INFO] Normalizing actor reference columns to the retained admin account..." >&2
 	actor_updates=$(mysql -u "${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" -N <<'EOSQL'
 SELECT CONCAT('UPDATE `',TABLE_NAME,'` SET `',COLUMN_NAME,'`=1 WHERE `',COLUMN_NAME,'` IS NOT NULL AND `',COLUMN_NAME,'`<>1;')
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_SCHEMA = DATABASE()
-  AND COLUMN_NAME IN ('created_by','updated_by','approved_by','approver_id');
+  AND COLUMN_NAME IN ('created_by','updated_by','approved_by','approver_id')
+  AND NOT (TABLE_NAME = 'warrant_roster_approvals' AND COLUMN_NAME = 'approver_id');
 EOSQL
 )
 	if [ -n "${actor_updates}" ]; then

@@ -9,6 +9,7 @@ class AddOfficerAssignmentUpdatedEmailTemplate extends BaseMigration
     use CrossEngineMigrationTrait;
 
     private const SLUG = 'officer-assignment-updated-notification';
+    private const OWNERSHIP_MARKER = '20260902100000_AddOfficerAssignmentUpdatedEmailTemplate';
 
     /**
      * Add the member-facing officer assignment update template.
@@ -26,15 +27,15 @@ class AddOfficerAssignmentUpdatedEmailTemplate extends BaseMigration
 
         $now = gmdate('Y-m-d H:i:s');
         $availableVars = $this->sqlEscape(json_encode([
-            'memberScaName',
-            'officeName',
-            'branchName',
-            'startDate',
-            'endDate',
-            'changeSummary',
-            'termChangeNote',
-            'warrantMessage',
-            'siteAdminSignature',
+            ['name' => 'memberScaName', '_migration' => self::OWNERSHIP_MARKER],
+            ['name' => 'officeName'],
+            ['name' => 'branchName'],
+            ['name' => 'startDate'],
+            ['name' => 'endDate'],
+            ['name' => 'changeSummary'],
+            ['name' => 'termChangeNote'],
+            ['name' => 'warrantMessage'],
+            ['name' => 'siteAdminSignature'],
         ], JSON_THROW_ON_ERROR));
         $variablesSchema = $this->sqlEscape(json_encode([
             'memberScaName' => ['type' => 'string', 'label' => 'Member SCA Name', 'required' => true],
@@ -97,10 +98,30 @@ class AddOfficerAssignmentUpdatedEmailTemplate extends BaseMigration
      */
     public function down(): void
     {
-        $this->execute(
-            "UPDATE email_templates
-                SET is_active = FALSE
-              WHERE slug = '" . self::SLUG . "'",
+        $template = $this->fetchRow(
+            "SELECT id, available_vars FROM email_templates WHERE slug = '" . self::SLUG . "' LIMIT 1",
         );
+        if (!$template) {
+            return;
+        }
+
+        $availableVars = is_array($template['available_vars'])
+            ? $template['available_vars']
+            : json_decode((string)$template['available_vars'], true);
+        if (!is_array($availableVars)) {
+            return;
+        }
+
+        foreach ($availableVars as $variable) {
+            if (!is_array($variable) || ($variable['_migration'] ?? null) !== self::OWNERSHIP_MARKER) {
+                continue;
+            }
+
+            $this->execute(
+                'UPDATE email_templates SET is_active = FALSE WHERE id = ' . (int)$template['id'],
+            );
+
+            return;
+        }
     }
 }

@@ -204,13 +204,13 @@ describe('WorkflowSerializer', () => {
         let nextId = 1
         const editor = {
             clear: jest.fn(),
-            addNode: jest.fn((name, inputs, outputs, x, y, className, data) => {
+            addNode: jest.fn((name, inputs, outputs, x, y, className, data, html) => {
                 const id = nextId++
                 const drawflowOutputs = {}
                 for (let index = 1; index <= outputs; index++) {
                     drawflowOutputs[`output_${index}`] = { connections: [] }
                 }
-                moduleData[id] = { name, inputs, outputs: drawflowOutputs, pos_x: x, pos_y: y, data }
+                moduleData[id] = { name, inputs, outputs: drawflowOutputs, pos_x: x, pos_y: y, data, html }
 
                 return id
             }),
@@ -249,11 +249,53 @@ describe('WorkflowSerializer', () => {
         expect(editor.addConnection).toHaveBeenCalledWith(1, 3, 'output_2', 'input_1')
         expect(editor.addConnection).toHaveBeenCalledWith(1, 2, 'output_1', 'input_1')
 
+        document.body.innerHTML = moduleData[1].html
+        const renderedPortLabels = Array.from(document.querySelectorAll('.wf-port-label'))
+            .map(label => label.textContent)
+        expect(renderedPortLabels).toEqual(['next', 'error'])
+
         const exported = serializer.exportWorkflow(editor)
         expect(exported.definition.nodes.action.outputs).toEqual([
             { port: 'next', target: 'complete' },
             { port: 'error', target: 'failed' },
         ])
+    })
+
+    test('escapes imported dynamic output labels in node markup', () => {
+        const serializer = makeSerializer()
+        const addedNodeHtml = []
+        const editor = {
+            clear: jest.fn(),
+            addNode: jest.fn((name, inputs, outputs, x, y, className, data, html) => {
+                addedNodeHtml.push(html)
+                return addedNodeHtml.length
+            }),
+            addConnection: jest.fn(),
+        }
+
+        serializer.importWorkflow(editor, {
+            nodes: {
+                action: {
+                    type: 'action',
+                    label: 'Action',
+                    config: {},
+                    outputs: [
+                        { port: 'next', target: 'complete' },
+                        { port: '<img src=x onerror=alert(1)>', target: 'failed' },
+                    ],
+                },
+                complete: { type: 'end', label: 'Complete', config: {}, outputs: [] },
+                failed: { type: 'end', label: 'Failed', config: {}, outputs: [] },
+            },
+        }, {})
+
+        document.body.innerHTML = addedNodeHtml[0]
+        expect(Array.from(document.querySelectorAll('.wf-port-label'))
+            .map(label => label.textContent)).toEqual([
+                'next',
+                '<img src=x onerror=alert(1)>',
+            ])
+        expect(document.querySelector('.wf-port-label img')).toBeNull()
     })
 
     test('computes deterministic auto-layout layers from output targets', () => {

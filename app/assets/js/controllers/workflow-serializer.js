@@ -93,7 +93,7 @@ export default class WorkflowSerializer {
         return outputPortLabels.findIndex(label => this._portsMatch(label, port))
     }
 
-    buildNodeHTML(type, nodeKey, config) {
+    buildNodeHTML(type, nodeKey, config, outputPortLabels = null) {
         const icons = {
             trigger: 'fa-bolt', action: 'fa-gear', condition: 'fa-diamond',
             approval: 'fa-check-double', fork: 'fa-code-branch', join: 'fa-code-merge',
@@ -157,6 +157,15 @@ export default class WorkflowSerializer {
                 <span class="wf-port-label wf-port-label-yes">Path A</span>
                 <span class="wf-port-label wf-port-label-yes">Path B</span>
             </div>`
+        }
+        if (portLabelsHtml === '' && Array.isArray(outputPortLabels) && outputPortLabels.length > 1) {
+            const labelClasses = ['wf-port-label-yes', 'wf-port-label-no']
+            const labels = outputPortLabels.map((portLabel, index) => {
+                const labelClass = labelClasses[index] || 'wf-port-label-mid'
+
+                return `<span class="wf-port-label ${labelClass}">${this._escapeHtml(portLabel)}</span>`
+            }).join('')
+            portLabelsHtml = `<div class="wf-port-labels">${labels}</div>`
         }
 
         return `<div class="wf-node wf-node-${type}">
@@ -242,7 +251,7 @@ export default class WorkflowSerializer {
             const outputPortLabels = this.getOutputPortLabels(nodeDef.type, nodeDef.outputs)
             const { inputs, outputs } = this.getNodePorts(nodeDef.type, nodeDef.outputs)
             const config = { ...(nodeDef.config || {}), _nodeLabel: nodeDef.label || '' }
-            const html = this.buildNodeHTML(nodeDef.type, nodeKey, config)
+            const html = this.buildNodeHTML(nodeDef.type, nodeKey, config, outputPortLabels)
 
             const drawflowId = editor.addNode(
                 nodeKey, inputs, outputs,

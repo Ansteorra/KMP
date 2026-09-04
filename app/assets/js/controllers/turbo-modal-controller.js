@@ -351,10 +351,11 @@ class TurboModal extends Controller {
         if (!(target instanceof HTMLElement)) {
             return;
         }
-        if (!this.findFocusable(target) && !target.hasAttribute('tabindex')) {
+        const focusTarget = this.findFocusable(target) ?? target;
+        if (focusTarget === target && !target.hasAttribute('tabindex')) {
             target.setAttribute('tabindex', '-1');
         }
-        target.focus();
+        focusTarget.focus();
     }
 
     /** Wait one bounded rendering step for Turbo custom elements to update the DOM. */
@@ -440,7 +441,9 @@ class TurboModal extends Controller {
 
     /** Remove stale in-modal failure feedback before retrying a submission. */
     clearFailure() {
-        const container = this.element.querySelector('[data-turbo-modal-feedback]');
+        const container = this.findModalElement()
+            ?.querySelector('[data-turbo-modal-feedback]')
+            ?? this.element.querySelector('[data-turbo-modal-feedback]');
         if (!container) {
             return;
         }
@@ -451,7 +454,9 @@ class TurboModal extends Controller {
 
     /** Resolve or create the visible feedback container inside the active modal. */
     failureContainer() {
-        let container = this.element.querySelector('[data-turbo-modal-feedback]');
+        let container = this.findModalElement()
+            ?.querySelector('[data-turbo-modal-feedback]')
+            ?? this.element.querySelector('[data-turbo-modal-feedback]');
         if (container) {
             return container;
         }

@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 use App\Model\Entity\WarrantRoster;
@@ -159,11 +158,12 @@ class DevRepairWarrantRosterApprovalsSeed extends BaseSeed
     }
 
     /**
-     * Restore the single synthetic response represented by an approved roster.
+     * Reconcile an approved roster with its migrated approval responses.
      *
-     * Development snapshots currently use one required approval per roster. A
-     * different count is rejected so the seed cannot fabricate identities or
-     * silently flatten a future multi-approver history.
+     * Complete response history, including multiple distinct approvers, is
+     * preserved. The seed reconstructs only a single wholly missing response;
+     * absent counts and incomplete or conflicting histories are rejected rather
+     * than fabricating additional approver identities.
      *
      * @param \App\Model\Entity\WorkflowApproval $approval Workflow approval.
      * @param \App\Model\Entity\WarrantRoster $roster Seeded warrant roster.
@@ -178,6 +178,13 @@ class DevRepairWarrantRosterApprovalsSeed extends BaseSeed
         int $adminId,
     ): void {
         $expectedCount = (int)$roster->approval_count;
+        if ($expectedCount < 1) {
+            throw new RuntimeException(sprintf(
+                'Approved development roster %d has no recorded approval count.',
+                (int)$roster->id,
+            ));
+        }
+
         $allResponses = $responses->find()
             ->where(['workflow_approval_id' => $approval->id])
             ->all()

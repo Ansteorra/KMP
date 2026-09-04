@@ -9,6 +9,7 @@ class AddOfficerAssignmentUpdateWorkflow extends BaseMigration
     use CrossEngineMigrationTrait;
 
     private const SLUG = 'officer-assignment-update';
+    private const OWNERSHIP_MARKER = '20260902100100_AddOfficerAssignmentUpdateWorkflow';
 
     /**
      * Add and activate the officer assignment update workflow for existing tenants.
@@ -72,10 +73,25 @@ class AddOfficerAssignmentUpdateWorkflow extends BaseMigration
      */
     public function down(): void
     {
+        $definition = $this->fetchRow(
+            "SELECT wd.id, wv.canvas_layout
+               FROM workflow_definitions wd
+               LEFT JOIN workflow_versions wv ON wv.id = wd.current_version_id
+              WHERE wd.slug = '" . self::SLUG . "'",
+        );
+        if (!$definition) {
+            return;
+        }
+
+        $canvasLayout = is_array($definition['canvas_layout'])
+            ? $definition['canvas_layout']
+            : json_decode((string)$definition['canvas_layout'], true);
+        if (!is_array($canvasLayout) || ($canvasLayout['_migration'] ?? null) !== self::OWNERSHIP_MARKER) {
+            return;
+        }
+
         $this->execute(
-            "UPDATE workflow_definitions
-                SET is_active = FALSE
-              WHERE slug = '" . self::SLUG . "'",
+            'UPDATE workflow_definitions SET is_active = FALSE WHERE id = ' . (int)$definition['id'],
         );
     }
 
@@ -117,6 +133,9 @@ class AddOfficerAssignmentUpdateWorkflow extends BaseMigration
     private function createVersion(int $definitionId, array $definitionData, string $now): void
     {
         $definitionJson = $this->sqlEscape(json_encode($definitionData, JSON_THROW_ON_ERROR));
+        $canvasLayout = $this->sqlEscape(json_encode([
+            '_migration' => self::OWNERSHIP_MARKER,
+        ], JSON_THROW_ON_ERROR));
         $latestVersion = $this->fetchRow(
             "SELECT MAX(version_number) AS version_number
                FROM workflow_versions
@@ -128,7 +147,7 @@ class AddOfficerAssignmentUpdateWorkflow extends BaseMigration
             'INSERT INTO workflow_versions ('
             . 'workflow_definition_id, version_number, definition, canvas_layout, status, '
             . 'published_at, published_by, created_by, created, modified'
-            . ") VALUES ({$definitionId}, {$versionNumber}, '{$definitionJson}', '{}', 'published', "
+            . ") VALUES ({$definitionId}, {$versionNumber}, '{$definitionJson}', '{$canvasLayout}', 'published', "
             . "'{$now}', 1, 1, '{$now}', '{$now}')",
         );
         $createdVersion = $this->fetchRow(

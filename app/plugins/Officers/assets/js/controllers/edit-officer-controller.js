@@ -284,6 +284,7 @@ class EditOfficer extends Controller {
     /** Announce an edit-form state change to assistive technology. */
     announce(message) {
         this.statusTarget.textContent = message;
+        window.KMP_accessibility?.announce?.(message);
     }
 
     /** Register setId listener when outlet button connects. */
