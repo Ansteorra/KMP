@@ -11,6 +11,7 @@ use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\Recommendation;
 use Awards\Services\AwardsWorkflowActions;
+use Awards\Services\BestowalCancellationService;
 use Awards\Services\BestowalCourtSlotService;
 use Awards\Services\BestowalCreationService;
 use Cake\Core\ContainerInterface as CakeContainerInterface;
@@ -412,6 +413,73 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
         $this->assertSame('Updated note', $saved->noble_notes);
         $this->assertTrue((bool)$saved->roaming_court);
         $this->assertNull($saved->gathering_scheduled_activity_id);
+    }
+
+    public function testViewCancellationModalDispatchesRequiredReason(): void
+    {
+        $this->ensureActiveWorkflow('awards-bestowal-cancel');
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()->firstOrFail();
+        $recommendation = $this->createRecommendation((int)$award->id, 'Cancellation UI test');
+        $createResult = (new BestowalCreationService())->createFromRecommendation(
+            (int)$recommendation->id,
+            self::ADMIN_MEMBER_ID,
+        );
+        $this->assertTrue($createResult['success'], $createResult['error'] ?? json_encode($createResult));
+        $bestowalId = (int)$createResult['data']['bestowalId'];
+
+        $this->get('/awards/bestowals/view/' . $bestowalId);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('data-bs-target="#cancelBestowalModal"');
+        $this->assertResponseContains('id="cancelBestowalModal"');
+        $this->assertResponseContains('name="close_reason"');
+        $this->assertResponseContains('required="required"');
+        $this->assertResponseContains('All open bestowal to-dos will be cancelled.');
+        $this->assertResponseContains('begin a new approval cycle.');
+
+        $events = [];
+        $reason = 'The award requires complete reconsideration.';
+        $this->mockServiceClean(TriggerDispatcher::class, function () use (&$events, $bestowalId, $reason) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->exactly(2))
+                ->method('dispatch')
+                ->willReturnCallback(
+                    function (string $event, array $context) use (&$events, $bestowalId, $reason): array {
+                        $events[] = $event;
+                        if ($event === 'Awards.BestowalCancelRequested') {
+                            $this->assertSame($bestowalId, $context['bestowalId']);
+                            $this->assertSame($reason, $context['closeReason']);
+                            $this->assertSame(self::ADMIN_MEMBER_ID, $context['actorId']);
+
+                            return [$this->successfulWorkflowDispatchResult([
+                                'bestowalId' => $bestowalId,
+                                'eventPayload' => [
+                                    'bestowalId' => $bestowalId,
+                                    'closeReason' => $reason,
+                                ],
+                            ])];
+                        }
+
+                        $this->assertSame(BestowalCancellationService::EVENT_NAME, $event);
+                        $this->assertSame($bestowalId, $context['bestowalId']);
+                        $this->assertSame($reason, $context['closeReason']);
+
+                        return [];
+                    },
+                );
+
+            return $mock;
+        });
+
+        $this->post('/awards/bestowals/cancel/' . $bestowalId, [
+            'close_reason' => $reason,
+        ]);
+
+        $this->assertSame(
+            ['Awards.BestowalCancelRequested', BestowalCancellationService::EVENT_NAME],
+            $events,
+        );
+        $this->assertRedirectContains('/awards/bestowals/view/' . $bestowalId);
     }
 
     /**
