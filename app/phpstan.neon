@@ -1,3 +1,18 @@
+includes:
+    - phpstan-baseline.neon
 
 parameters:
-	# your usual configuration options
+    level: 0
+    paths:
+        - src
+        - plugins/Activities/src
+        - plugins/Officers/src
+        - plugins/Awards/src
+        - plugins/Waivers/src
+    scanFiles:
+        - vendor/cakephp/cakephp/src/Core/functions_global.php
+        - vendor/cakephp/cakephp/src/I18n/functions_global.php
+        - vendor/cakephp/cakephp/src/Collection/functions_global.php
+        - config/Seeds/InitWorkflowDefinitionsSeed.php
+    tmpDir: tmp/phpstan
+    reportUnmatchedIgnoredErrors: false

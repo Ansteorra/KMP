@@ -37,10 +37,12 @@ set -a; source "$ENV_FILE"; set +a
 
 # --- args
 SKIP_GH=0
+INFRA_ONLY=0
 GITHUB_REPO="Ansteorra/KMP"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --skip-gh-secrets) SKIP_GH=1; shift ;;
+        --infra-only) INFRA_ONLY=1; shift ;;
         --github-repo) GITHUB_REPO="$2"; shift 2 ;;
         -h|--help) sed -n '3,25p' "$0"; exit 0 ;;
         *) echo "Unknown arg: $1" >&2; exit 64 ;;
@@ -57,9 +59,11 @@ require() {
 }
 for v in AZURE_SUBSCRIPTION_ID AZURE_TENANT_ID AZURE_REGION AZURE_RESOURCE_GROUP \
          AZURE_NAME_PREFIX SECURITY_SALT POSTGRES_ADMIN_PASSWORD BACKUP_ENCRYPTION_KEY \
-         PLATFORM_SECRETS_MASTER_KEY EMAIL_SMTP_HOST EMAIL_SMTP_PORT EMAIL_FROM; do
+         DOCUMENT_CONTAINERS_JSON PLATFORM_SECRETS_MASTER_KEY POSTGRES_RUNTIME_PASSWORD PLATFORM_POSTGRES_RUNTIME_PASSWORD EMAIL_SMTP_HOST EMAIL_SMTP_PORT EMAIL_FROM; do
     require "$v"
 done
+
+python3 "$HERE/check-storage-inventory.py"
 
 echo "=== KMP Azure Bootstrap ==="
 echo "Subscription : $AZURE_SUBSCRIPTION_ID"
@@ -128,7 +132,10 @@ az acr import \
     --image "kmp:nightly" \
     --force
 
-echo "    (pass 2/2) full deployment..."
+IMAGE_DIGEST="$(az acr manifest show-metadata --registry "$ACR_NAME" --name kmp:nightly --query digest -o tsv)"
+[[ "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo 'Invalid imported image digest' >&2; exit 1; }
+deploy_application_infrastructure() {
+    local enable_runtime="$1"
 az deployment group create \
     -g "$AZURE_RESOURCE_GROUP" \
     -n "$DEPLOY_NAME" \
@@ -136,10 +143,15 @@ az deployment group create \
     --parameters \
         location="$AZURE_REGION" \
         namePrefix="$AZURE_NAME_PREFIX" \
+        enableApplicationRuntime="$enable_runtime" \
+        documentContainers="$DOCUMENT_CONTAINERS_JSON" \
+        backupContainerName="${AZURE_BACKUP_STORAGE_CONTAINER:-kmp-backups}" \
         acrName="$ACR_NAME" \
         imageRepository="$IMAGE_REPO" \
-        imageTag="nightly" \
+        imageDigest="$IMAGE_DIGEST" \
         postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" \
+        postgresRuntimePassword="$POSTGRES_RUNTIME_PASSWORD" \
+        platformPostgresRuntimePassword="$PLATFORM_POSTGRES_RUNTIME_PASSWORD" \
         securitySalt="$SECURITY_SALT" \
         backupEncryptionKey="$BACKUP_ENCRYPTION_KEY" \
         platformSecretsMasterKey="$PLATFORM_SECRETS_MASTER_KEY" \
@@ -151,6 +163,9 @@ az deployment group create \
         emailFrom="$EMAIL_FROM" \
         deployerPrincipalId="${DEPLOYER_PRINCIPAL_ID:-}" \
     -o none
+
+}
+deploy_application_infrastructure false
 
 # --- 4. Read outputs
 OUT_FILE="$HERE/.azure-outputs.json"
@@ -175,6 +190,12 @@ SCHED_DAILY_JOB="$(jqget scheduleDailyJobName)"
 SCHED_WEEKLY_JOB="$(jqget scheduleWeeklyJobName)"
 SCHED_NIGHTLY_JOB="$(jqget scheduleNightlyJobName)"
 WEB_APP="$(jqget webAppName)"
+ADMIN_JOB="$(jqget adminWorkerJobName)"
+if [[ "$INFRA_ONLY" == '1' ]]; then
+    echo 'Administrative infrastructure is ready. Review and apply exact job/operator firewall rules before resuming bootstrap.'
+    exit 0
+fi
+
 
 # --- 5. AAD app + federated credential for GitHub OIDC
 AAD_APP_NAME="kmp-poc-github-oidc"
@@ -238,6 +259,7 @@ if [[ $SKIP_GH -eq 0 ]]; then
         gh variable set AZURE_WEB_APP_NAME --body "$WEB_APP" --env poc --repo "$GITHUB_REPO"
         gh variable set AZURE_MIGRATE_JOB_NAME --body "$MIGRATE_JOB" --env poc --repo "$GITHUB_REPO"
         gh variable set AZURE_QUEUE_JOB_NAME --body "$QUEUE_JOB" --env poc --repo "$GITHUB_REPO"
+        gh variable set AZURE_ADMIN_JOB_NAME --body "$ADMIN_JOB" --env poc --repo "$GITHUB_REPO"
         gh variable set AZURE_RESTORE_JOB_NAME --body "$RESTORE_JOB" --env poc --repo "$GITHUB_REPO"
         gh variable set AZURE_PROVISION_JOB_NAME --body "$PROVISION_JOB" --env poc --repo "$GITHUB_REPO"
         gh variable set AZURE_SCHED_HOURLY_JOB_NAME --body "$SCHED_HOURLY_JOB" --env poc --repo "$GITHUB_REPO"
@@ -290,6 +312,12 @@ for attempt in $(seq 1 750); do
     fi
     sleep 10
 done
+
+# Enable web and scheduled workers only after runtime roles and schemas exist.
+deploy_application_infrastructure true
+az deployment group show -g "$AZURE_RESOURCE_GROUP" -n "$DEPLOY_NAME" \
+    --query properties.outputs -o json > "$OUT_FILE"
+WEB_FQDN="$(jqget webAppFqdn)"
 
 # --- 10. Kick the restore job: full schema rebuild + dev seed + password reset
 # NOTE: requires /opt/kmp/reset-and-seed.sh to be present in the image. If you

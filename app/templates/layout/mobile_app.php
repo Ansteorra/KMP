@@ -1198,6 +1198,7 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
     <?= $this->Vite->script('controllers') ?>
     <?= $this->Vite->script('index') ?>
     <?= $this->fetch('script') ?>
+    <?= $this->element('offline_session') ?>
 </head>
 
 <body class="viewMobileCard"<?php if ($mobileSection): ?> data-section="<?= h($mobileSection) ?>"<?php endif; ?>>
@@ -1224,14 +1225,12 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
     $authCardUrlBuilt = $this->Url->build($authCardUrl);
     $logoutUrlBuilt = $this->Url->build(['controller' => 'Members', 'action' => 'logout', 'plugin' => null]);
     ?>
-    <main id="main-content" tabindex="-1" data-controller="member-mobile-card-pwa mobile-pin-gate<?= isset($cardUrl) ? ' member-mobile-card-profile' : '' ?><?= !$skipOfflineOverlay ? ' mobile-offline-overlay' : '' ?>"
+    <main id="main-content" tabindex="-1" data-controller="member-mobile-card-pwa<?= isset($cardUrl) ? ' member-mobile-card-profile' : '' ?><?= !$skipOfflineOverlay ? ' mobile-offline-overlay' : '' ?>"
         <?php if (isset($cardUrl)): ?> data-member-mobile-card-profile-url-value="<?= h($cardUrl) ?>"
         data-member-mobile-card-profile-pwa-ready-value="false" <?php endif; ?>
         data-member-mobile-card-pwa-sw-url-value="<?= $swUrl ?>" data-member-mobile-card-pwa-pwa-ready-value="false"
         data-member-mobile-card-pwa-auth-card-url-value="<?= h($authCardUrlBuilt) ?>"
         data-member-mobile-card-pwa-is-auth-card-value="<?= $isAuthCard ? 'true' : 'false' ?>"
-        data-mobile-pin-gate-email-value="<?= h((string)($currentUser?->email_address ?? '')) ?>"
-        data-mobile-pin-gate-logout-url-value="<?= h($logoutUrlBuilt) ?>"
         <?php if (!$skipOfflineOverlay): ?>
         data-mobile-offline-overlay-auth-card-url-value="<?= h($authCardUrlBuilt) ?>" <?php endif; ?>>
         <div class="mobile-header-bar">
@@ -1319,6 +1318,7 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
             <span data-member-mobile-card-pwa-target="status"
                 class="bg-danger" title="Offline"></span>
         </div>
+        <p class="mx-3 mt-3"><a href="<?= $this->Url->build('/offline') ?>">Protected offline cards and RSVPs</a></p>
         <!-- Page Content -->
         <?= $this->fetch('content') ?>
 
@@ -1338,21 +1338,6 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
             <?= $this->element('copyrightFooter', []) ?>
         </div>
 
-        <!-- PWA Cache List -->
-        <json data-member-mobile-card-pwa-target="urlCache">
-            <?php
-            $cacheList = [];
-            $cacheList[] = $swUrl;
-            $cacheList[] = $this->Vite->getScriptUrl('controllers');
-            $cacheList[] = $this->Vite->getScriptUrl('index');
-            $cacheList[] = $this->Vite->getStyleUrl('app');
-            $cacheList[] = Asset::imageUrl("favicon.ico");
-            $cacheList[] = $this->request->getPath();
-            if ($cardUrlForManifest) {
-                $cacheList[] = $this->Url->build(['controller' => 'Members', 'action' => 'viewMobileCardJson', 'plugin' => null]);
-            }
-            echo json_encode($cacheList); ?>
-        </json>
     </main>
 
 </body>

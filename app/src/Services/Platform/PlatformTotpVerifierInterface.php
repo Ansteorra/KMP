@@ -11,12 +11,14 @@ interface PlatformTotpVerifierInterface
     public function isAvailable(): bool;
 
     /**
-     * Verify a TOTP code for the platform user's secret reference.
+     * Find the moving factor for the supplied code.
      *
-     * @param string $platformUserId Platform user UUID.
      * @param string|null $totpSecretRef Secret-store reference for the user.
      * @param string $totpCode User-provided TOTP code.
-     * @return bool
+     * @return int|null
      */
+    public function matchingCounter(?string $totpSecretRef, string $totpCode): ?int;
+
+    /** Verify only the code; authentication callers must consume the counter. */
     public function verify(string $platformUserId, ?string $totpSecretRef, string $totpCode): bool;
 }

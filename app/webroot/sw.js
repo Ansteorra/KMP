@@ -1,229 +1,62 @@
-/**
- * KMP Service Worker v2.1.1
- * 
- * Features:
- * - Versioned cache with migration support
- * - Network-first with cache fallback strategy
- * - Client notification on updates
- * - Graceful migration from v1.x caches
- */
+/* Only the public offline shell and build-controlled assets belong in Cache Storage. */
+const SW_VERSION = '3.0.0';
+const CACHE_NAME = `kmp-public-offline-v${SW_VERSION}`;
+const SHELL = '/offline';
+const MANIFEST = '/offline/assets';
+const ownedCache = name => name === 'offline-cache-activity-card' || name.startsWith('kmp-mobile-v') || name.startsWith('kmp-public-offline-v');
+const publicResponse = response => response?.ok && !response.redirected
+    && !/no-store|private/i.test(response.headers.get('Cache-Control') || '');
+const assetPath = path => /^\/(?:js|css|fonts|assets)\/[a-zA-Z0-9_.-]+\.(?:js|css|woff2?|png|svg)$/.test(path);
 
-const SW_VERSION = '2.1.1';
-const CACHE_NAME = `kmp-mobile-v${SW_VERSION}`;
+async function installPublicShell() {
+    const manifest = await fetch(MANIFEST, { cache: 'no-store', credentials: 'omit' });
+    if (!publicResponse(manifest) || manifest.headers.get('X-KMP-Public-Offline') !== '1') throw new Error('Invalid offline manifest');
+    const data = await manifest.clone().json();
+    const assets = data.assets.filter(path => typeof path === 'string' && assetPath(path));
+    const shell = await fetch(SHELL, { cache: 'no-store', credentials: 'omit' });
+    if (!publicResponse(shell) || shell.headers.get('X-KMP-Public-Offline') !== '1') throw new Error('Invalid offline shell');
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(MANIFEST, manifest);
+    await cache.put(SHELL, shell);
+    await cache.delete('/offline/ready');
+    await Promise.all(assets.map(async path => {
+        const response = await fetch(path, { credentials: 'omit' });
+        if (!publicResponse(response)) throw new Error('Offline asset unavailable');
+        await cache.put(path, response);
+    }));
+    await cache.put('/offline/ready', new Response('ready'));
+}
 
-// Old cache names to migrate from
-const OLD_CACHE_NAMES = [
-    'offline-cache-activity-card',
-    'kmp-mobile-v1.0.0',
-    'kmp-mobile-v1.1.0',
-    'kmp-mobile-v2.0.0'
-];
-
-// Critical assets to precache on install
-const PRECACHE_URLS = [
-    '/css/app.css',
-    '/js/core.js',
-    '/js/index.js',
-    '/js/controllers.js'
-];
-
-/**
- * Add resources to cache
- * @param {Array} resources - URLs to cache
- */
-const addResourcesToCache = async (resources) => {
-    try {
-        const cache = await caches.open(CACHE_NAME);
-        await cache.addAll(resources);
-        console.log('[SW] Resources cached:', resources.length);
-    } catch (error) {
-        console.error('[SW] Failed to cache resources:', error);
-    }
-};
-
-/**
- * Migrate entries from old caches to new cache
- * @returns {Promise<number>} Number of entries migrated
- */
-const migrateOldCaches = async () => {
-    let migratedCount = 0;
-    const newCache = await caches.open(CACHE_NAME);
-    
-    for (const oldCacheName of OLD_CACHE_NAMES) {
-        try {
-            const oldCache = await caches.open(oldCacheName);
-            const requests = await oldCache.keys();
-            
-            for (const request of requests) {
-                const response = await oldCache.match(request);
-                if (response) {
-                    await newCache.put(request, response);
-                    migratedCount++;
-                }
-            }
-            
-            console.log(`[SW] Migrated ${requests.length} entries from ${oldCacheName}`);
-        } catch (error) {
-            console.warn(`[SW] Could not migrate from ${oldCacheName}:`, error);
-        }
-    }
-    
-    return migratedCount;
-};
-
-/**
- * Delete old caches
- */
-const deleteOldCaches = async () => {
-    const cacheNames = await caches.keys();
-    const deletions = cacheNames
-        .filter(name => name !== CACHE_NAME)
-        .map(name => {
-            console.log('[SW] Deleting old cache:', name);
-            return caches.delete(name);
-        });
-    
-    await Promise.all(deletions);
-};
-
-/**
- * Notify all clients of service worker update
- */
-const notifyClients = async (type, data = {}) => {
-    const clients = await self.clients.matchAll({ type: 'window' });
-    clients.forEach(client => {
-        client.postMessage({
-            type,
-            version: SW_VERSION,
-            ...data
-        });
-    });
-};
-
-// Connection state tracking
-self.offline = false;
-
-// Install event - precache critical assets
-self.addEventListener('install', event => {
-    console.log('[SW] Installing version', SW_VERSION);
-    
-    event.waitUntil(
-        addResourcesToCache(PRECACHE_URLS)
-            .then(() => {
-                console.log('[SW] Precaching complete, skipping wait');
-                return self.skipWaiting();
-            })
-    );
-});
-
-// Activate event - migrate old caches and clean up
-self.addEventListener('activate', event => {
-    console.log('[SW] Activating version', SW_VERSION);
-    
-    event.waitUntil(
-        (async () => {
-            // Migrate entries from old caches
-            await migrateOldCaches();
-            
-            // Delete old caches
-            await deleteOldCaches();
-            
-            // Take control of all clients immediately
-            await self.clients.claim();
-            
-            // Notify clients of update
-            await notifyClients('SW_UPDATED');
-            
-            console.log('[SW] Activation complete');
-        })()
-    );
-});
-
-// Message handler
+// Security cleanup must activate even when an asset is temporarily unavailable.
+self.addEventListener('install', event => event.waitUntil(installPublicShell().catch(() => {}).then(() => self.skipWaiting())));
+self.addEventListener('activate', event => event.waitUntil((async () => {
+    await Promise.all((await caches.keys()).filter(name => ownedCache(name) && name !== CACHE_NAME).map(name => caches.delete(name)));
+    await self.clients.claim();
+    for (const client of await self.clients.matchAll({ type: 'window' })) client.postMessage({ type: 'OFFLINE_SECURITY_UPDATE', version: SW_VERSION });
+})()));
 self.addEventListener('message', event => {
-    if (!event.data || !event.data.type) return;
-    
-    switch (event.data.type) {
-        case 'SKIP_WAITING':
-            console.log('[SW] Skip waiting requested');
-            self.skipWaiting();
-            break;
-            
-        case 'GET_VERSION':
-            event.ports[0]?.postMessage({ version: SW_VERSION });
-            break;
-            
-        case 'CACHE_URLS':
-            const urlsToCache = event.data.payload;
-            if (Array.isArray(urlsToCache)) {
-                addResourcesToCache(urlsToCache);
-            }
-            break;
-            
-        case 'OFFLINE':
-            console.log('[SW] Offline mode');
-            self.offline = true;
-            break;
-            
-        case 'ONLINE':
-            console.log('[SW] Online mode');
-            self.offline = false;
-            break;
-            
-        default:
-            console.warn('[SW] Unknown message type:', event.data.type);
+    if (event.data?.type === 'PREPARE_OFFLINE') {
+        event.waitUntil(installPublicShell().then(() => event.ports[0]?.postMessage({ ready: true }))
+            .catch(() => event.ports[0]?.postMessage({ ready: false })));
     }
+    if (event.data?.type === 'GET_VERSION') event.ports[0]?.postMessage({ version: SW_VERSION });
+    if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
+    // CACHE_URLS from old clients is deliberately unsupported.
 });
-
-// Fetch handler - Network first with cache fallback
 self.addEventListener('fetch', event => {
-    // Only handle http/https requests
-    if (!event.request.url.startsWith('http')) {
-        return;
-    }
-
-    // Only cache GET requests
-    if (event.request.method !== 'GET') {
-        return;
-    }
-
-    // Skip caching for API calls that shouldn't be cached
-    const url = new URL(event.request.url);
-    if (url.pathname.startsWith('/api/csrf') || 
-        url.pathname.includes('/login') ||
-        url.pathname.includes('/logout')) {
-        return;
-    }
-
-    event.respondWith(
-        (async () => {
-            try {
-                // Try network first
-                const networkResponse = await fetch(event.request);
-
-                // Cache successful responses
-                if (networkResponse && networkResponse.status === 200) {
-                    const cache = await caches.open(CACHE_NAME);
-                    cache.put(event.request, networkResponse.clone());
-                }
-
-                return networkResponse;
-            } catch (error) {
-                // Network failed, try cache
-                console.log('[SW] Network failed, serving from cache:', event.request.url);
-                
-                const cachedResponse = await caches.match(event.request, {
-                    ignoreVary: true
-                });
-
-                if (cachedResponse) {
-                    return cachedResponse;
-                }
-
-                // No cache available
-                console.error('[SW] No cache available for:', event.request.url);
-                throw error;
-            }
-        })()
-    );
+    const request = event.request;
+    const url = new URL(request.url);
+    if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+    const mobileNavigation = request.mode === 'navigate' &&
+        /^\/(?:offline\/?|members\/view-mobile-card\/?|gathering-attendances\/my-rsvps\/?|gatherings\/mobile-calendar\/?)$/i.test(url.pathname);
+    if (!mobileNavigation && !assetPath(url.pathname)) return;
+    event.respondWith((async () => {
+        try { return await fetch(request); } catch (error) {
+            const cache = await caches.open(CACHE_NAME);
+            // Assets must already exist in the build allowlist cache. No runtime cache writes.
+            const cached = await cache.match(mobileNavigation ? SHELL : request);
+            if (cached) return cached;
+            throw error;
+        }
+    })());
 });

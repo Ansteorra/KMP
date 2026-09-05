@@ -111,7 +111,7 @@ class RecommendationSubmissionServiceTest extends BaseTestCase
         $this->assertSame($expectedStatus, $stateLog->to_status);
     }
 
-    public function testSubmitPublicHydratesRequesterNameAndPreservesNotFoundBranchSelection(): void
+    public function testSubmitPublicCannotClaimMemberIdentityAndPreservesNotFoundBranchSelection(): void
     {
         $requester = $this->Members->get(self::TEST_MEMBER_BRYCE_ID, select: ['id', 'sca_name']);
         $award = $this->Awards->find()->select(['id', 'name'])->firstOrFail();
@@ -121,7 +121,7 @@ class RecommendationSubmissionServiceTest extends BaseTestCase
             [
                 'award_id' => $award->id,
                 'requester_id' => $requester->id,
-                'requester_sca_name' => 'Should be replaced',
+                'requester_sca_name' => 'Unverified guest name',
                 'contact_email' => 'guest@example.com',
                 'contact_number' => '123-456-7890',
                 'member_sca_name' => 'Unknown Candidate',
@@ -135,8 +135,8 @@ class RecommendationSubmissionServiceTest extends BaseTestCase
         $this->assertTrue($result['success']);
 
         $saved = $result['recommendation'];
-        $this->assertSame(self::TEST_MEMBER_BRYCE_ID, (int)$saved->requester_id);
-        $this->assertSame($requester->sca_name, $saved->requester_sca_name);
+        $this->assertNull($saved->requester_id);
+        $this->assertSame('Unverified guest name', $saved->requester_sca_name);
         $this->assertNull($saved->member_id);
         $this->assertSame(self::TEST_BRANCH_STARGATE_ID, (int)$saved->branch_id);
         $this->assertSame('Not Set', $saved->call_into_court);
@@ -148,7 +148,7 @@ class RecommendationSubmissionServiceTest extends BaseTestCase
         $this->assertSame(self::TEST_BRANCH_STARGATE_ID, $result['output']['branchId']);
         $this->assertNull($result['output']['memberId']);
         $this->assertTrue($result['output']['notFound']);
-        $this->assertSame(self::TEST_MEMBER_BRYCE_ID, $result['eventPayload']['requesterId']);
+        $this->assertNull($result['eventPayload']['requesterId']);
         $this->assertNull($result['eventPayload']['memberId']);
         $this->assertSame('Unknown Candidate', $result['eventPayload']['memberScaName']);
     }

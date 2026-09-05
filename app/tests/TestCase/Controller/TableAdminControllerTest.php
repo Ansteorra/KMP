@@ -36,7 +36,7 @@ class TableAdminControllerTest extends HttpIntegrationTestCase
             $this->markTestSkipped('No non-super-user fixture member available.');
         }
 
-        $this->session(['Auth' => $member]);
+        $this->authenticateAsMember((int)$member->id);
 
         $this->get('/table-admin');
 

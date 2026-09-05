@@ -3,104 +3,109 @@ declare(strict_types=1);
 
 namespace App\Services\Security;
 
-use App\Services\Cache\TenantAwareCache;
+use Cake\Database\Connection;
+use Cake\Database\Driver\Mysql;
+use Cake\Datasource\ConnectionManager;
+use Cake\Http\Exception\ServiceUnavailableException;
+use Cake\Utility\Security;
+use Closure;
 use InvalidArgumentException;
+use Throwable;
 
-/**
- * Fixed-window request rate limiter backed by tenant-aware cache.
- */
+/** Atomic fixed-window limits shared by every replica using the same database. */
 class RequestRateLimiter
 {
     public const BUCKET_EMAIL_TAKEN = 'members.email_taken';
-
     public const BUCKET_SEARCH_MEMBERS = 'members.search_members';
-
     public const BUCKET_GITHUB_ISSUE = 'github.issue_submit';
+    public const BUCKET_RESET_IP = 'members.reset_ip';
+    public const BUCKET_RESET_ACCOUNT = 'members.reset_account';
+    public const BUCKET_RESET_COOLDOWN = 'members.reset_cooldown';
+    public const BUCKET_PIN = 'members.pin';
+    public const BUCKET_PLATFORM_LOGIN_IP = 'platform.login_ip';
+    public const BUCKET_PLATFORM_LOGIN_ACCOUNT = 'platform.login_account';
+    public const BUCKET_PLATFORM_STEP_UP = 'platform.step_up';
 
-    /** @var array<string, array{max: int, window: int}> */
     private const LIMITS = [
-        self::BUCKET_EMAIL_TAKEN => [
-            'max' => 10,
-            'window' => 900,
-        ],
-        self::BUCKET_SEARCH_MEMBERS => [
-            'max' => 15,
-            'window' => 900,
-        ],
-        self::BUCKET_GITHUB_ISSUE => [
-            'max' => 5,
-            'window' => 3600,
-        ],
+        self::BUCKET_EMAIL_TAKEN => ['max' => 10, 'window' => 900],
+        self::BUCKET_SEARCH_MEMBERS => ['max' => 15, 'window' => 900],
+        self::BUCKET_GITHUB_ISSUE => ['max' => 5, 'window' => 3600],
+        self::BUCKET_RESET_IP => ['max' => 10, 'window' => 900],
+        self::BUCKET_RESET_ACCOUNT => ['max' => 3, 'window' => 3600],
+        self::BUCKET_RESET_COOLDOWN => ['max' => 1, 'window' => 300],
+        self::BUCKET_PIN => ['max' => 5, 'window' => 300],
+        self::BUCKET_PLATFORM_LOGIN_IP => ['max' => 20, 'window' => 900],
+        self::BUCKET_PLATFORM_LOGIN_ACCOUNT => ['max' => 5, 'window' => 900],
+        self::BUCKET_PLATFORM_STEP_UP => ['max' => 5, 'window' => 900],
     ];
 
-    /**
-     * @param \App\Services\Cache\TenantAwareCache $cache Tenant-scoped cache
-     * @param string $cacheConfig Cake cache config name
-     */
-    public function __construct(
-        private readonly TenantAwareCache $cache = new TenantAwareCache(),
-        private readonly string $cacheConfig = 'default',
-    ) {
+    private readonly Closure $clock;
+
+    /** Use an explicit connection for tests or platform operations. */
+    public function __construct(private readonly ?Connection $connection = null, ?callable $clock = null)
+    {
+        $this->clock = $clock !== null ? $clock(...) : static fn(): int => time();
     }
 
-    /**
-     * Record an attempt and return whether it is allowed.
-     *
-     * Limits are sized for anonymous form helpers: a few valid checks plus
-     * roughly five user mistakes within a fifteen-minute window.
-     *
-     * @param string $bucket Rate-limit bucket identifier
-     * @param string $clientKey Client identifier (typically IP address)
-     * @return \App\Services\Security\RateLimitResult
-     */
+    /** Atomically reserve an attempt; database errors fail closed. */
     public function attempt(string $bucket, string $clientKey): RateLimitResult
     {
-        $limits = self::LIMITS[$bucket] ?? throw new InvalidArgumentException("Unknown rate limit bucket: {$bucket}");
-        $maxAttempts = $limits['max'];
-        $windowSeconds = $limits['window'];
-        $now = time();
-
-        $cacheKey = sprintf('rate_limit:%s:%s', $bucket, $this->normalizeClientKey($clientKey));
-        $state = $this->cache->read($cacheKey, $this->cacheConfig);
-
-        if (!is_array($state) || !isset($state['count'], $state['reset_at']) || (int)$state['reset_at'] <= $now) {
-            $this->cache->write($cacheKey, [
-                'count' => 1,
-                'reset_at' => $now + $windowSeconds,
-            ], $this->cacheConfig);
-
-            return new RateLimitResult(true, $maxAttempts - 1, 0);
+        $limits = self::LIMITS[$bucket] ?? throw new InvalidArgumentException('Unknown rate limit bucket.');
+        $now = ($this->clock)();
+        $expires = (intdiv($now, $limits['window']) + 1) * $limits['window'];
+        $scope = str_starts_with($bucket, 'platform.') ? 'platform' : MemberSessionState::tenantId();
+        if ($scope === null) {
+            throw new ServiceUnavailableException('Authentication context is unavailable.');
         }
+        $key = hash_hmac('sha256', json_encode([$scope, $bucket, $clientKey, $expires]), Security::getSalt());
+        try {
+            $connectionName = $scope === 'single-tenant' ? 'default' : 'platform';
+            $connection = $this->connection ?? ConnectionManager::get($connectionName);
 
-        $count = (int)$state['count'];
-        $resetAt = (int)$state['reset_at'];
-        $retryAfter = max(1, $resetAt - $now);
+            return $connection->transactional(function (Connection $connection) use ($key, $expires, $limits, $now) {
+                $sql = 'INSERT INTO security_rate_limits (bucket_key, attempts, expires_at) VALUES (:key, 0, :expires)';
+                if ($connection->getDriver() instanceof Mysql) {
+                    $sql .= ' ON DUPLICATE KEY UPDATE bucket_key = bucket_key';
+                } else {
+                    $sql .= ' ON CONFLICT (bucket_key) DO NOTHING';
+                }
+                $connection->execute($sql, ['key' => $key, 'expires' => $expires]);
+                $changed = $connection->execute(
+                    'UPDATE security_rate_limits SET attempts = attempts + 1 ' .
+                    'WHERE bucket_key = :key AND attempts < :max',
+                    ['key' => $key, 'max' => $limits['max']],
+                )->rowCount();
+                $row = $connection->execute(
+                    'SELECT attempts FROM security_rate_limits WHERE bucket_key = :key',
+                    ['key' => $key],
+                )->fetch('assoc');
+                // Bounded retention: only timestamps and opaque keyed digests are stored.
+                $connection->execute(
+                    'DELETE FROM security_rate_limits WHERE expires_at < :cutoff',
+                    ['cutoff' => $now - 86400],
+                );
 
-        if ($count >= $maxAttempts) {
-            return new RateLimitResult(false, 0, $retryAfter);
+                return new RateLimitResult(
+                    $changed === 1,
+                    max(0, $limits['max'] - (int)$row['attempts']),
+                    $changed === 1 ? 0 : max(1, $expires - $now),
+                    $changed === 1 ? $key : null,
+                );
+            });
+        } catch (Throwable $exception) {
+            throw new ServiceUnavailableException('Request protection is temporarily unavailable.', null, $exception);
         }
-
-        $this->cache->write($cacheKey, [
-            'count' => $count + 1,
-            'reset_at' => $resetAt,
-        ], $this->cacheConfig);
-
-        return new RateLimitResult(true, $maxAttempts - $count - 1, 0);
     }
 
-    /**
-     * Sanitize client key for cache storage.
-     *
-     * @param string $clientKey Raw client key
-     * @return string
-     */
-    private function normalizeClientKey(string $clientKey): string
+    /** Release one successful MFA reservation without forgiving earlier failures. */
+    public function releaseSuccessfulAttempt(RateLimitResult $attempt): void
     {
-        $clientKey = trim($clientKey);
-        if ($clientKey === '') {
-            return 'unknown';
+        if (!$attempt->allowed || $attempt->reservationKey === null || $this->connection === null) {
+            return;
         }
-
-        return preg_replace('/[^A-Za-z0-9_.:-]+/', '_', $clientKey) ?? 'unknown';
+        $this->connection->execute(
+            'UPDATE security_rate_limits SET attempts = attempts - 1 WHERE bucket_key = :key AND attempts > 0',
+            ['key' => $attempt->reservationKey],
+        );
     }
 }

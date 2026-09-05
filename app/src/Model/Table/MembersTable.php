@@ -342,6 +342,16 @@ class MembersTable extends BaseTable
     {
         $entity->ageUpReview();
         $entity->warrantableReview();
+        foreach (['password', 'email_address', 'status', 'deleted'] as $field) {
+            if ($entity->isNew() || $entity->isDirty($field)) {
+                $entity->set('auth_version', bin2hex(random_bytes(32)));
+                if (!$entity->isNew()) {
+                    $entity->set('password_token', null);
+                    $entity->set('password_token_expires_on', null);
+                }
+                break;
+            }
+        }
     }
 
     /**

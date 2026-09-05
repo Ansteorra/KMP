@@ -203,7 +203,7 @@ describe('renderProfilePhoto', () => {
     expect(controller.profilePhotoContainerTarget.hidden).toBe(false);
     expect(controller.profilePhotoTarget.src).toContain('/photos/test.jpg');
     expect(controller.zoomPhotoTarget.src).toContain('/photos/test.jpg');
-    expect(controller.cacheProfilePhotoForOffline).toHaveBeenCalledWith('/photos/test.jpg');
+    expect(controller.cacheProfilePhotoForOffline).not.toHaveBeenCalled();
   });
 
   test('hides container when photoUrl is null', () => {
@@ -225,7 +225,7 @@ describe('renderProfilePhoto', () => {
     controller.hasProfilePhotoContainerTarget = false;
     // Should not throw
     expect(() => controller.renderProfilePhoto('/photos/ok.jpg')).not.toThrow();
-    expect(controller.cacheProfilePhotoForOffline).toHaveBeenCalledWith('/photos/ok.jpg');
+    expect(controller.cacheProfilePhotoForOffline).not.toHaveBeenCalled();
   });
 
   test('skips setting src when profilePhoto target is absent', () => {
@@ -608,89 +608,14 @@ describe('loadCard', () => {
 
 // ---------- cacheProfilePhotoForOffline ----------
 
-describe('cacheProfilePhotoForOffline', () => {
-  let controller;
-  let originalNavigator;
-  let originalConsoleWarn;
-
-  beforeEach(() => {
-    controller = createController();
-    originalNavigator = navigator;
-    originalConsoleWarn = console.warn;
-    console.warn = jest.fn();
-  });
-
-  afterEach(() => {
-    console.warn = originalConsoleWarn;
-    jest.restoreAllMocks();
-  });
-
-  test('posts message to service worker when available', async () => {
-    const postMessageMock = jest.fn();
-    Object.defineProperty(navigator, 'serviceWorker', {
-      value: {
-        ready: Promise.resolve({
-          active: { postMessage: postMessageMock },
-        }),
-      },
-      configurable: true,
-    });
-
-    await controller.cacheProfilePhotoForOffline('/photos/test.jpg');
-
-    expect(postMessageMock).toHaveBeenCalledWith({
-      type: 'CACHE_URLS',
-      payload: ['/photos/test.jpg'],
-    });
-
-    // Clean up
-    Object.defineProperty(navigator, 'serviceWorker', {
-      value: undefined,
-      configurable: true,
-    });
-  });
-
-  test('does nothing when serviceWorker is not available', async () => {
-    // In jsdom, navigator.serviceWorker may not exist
-    const orig = navigator.serviceWorker;
-    Object.defineProperty(navigator, 'serviceWorker', {
-      value: undefined,
-      configurable: true,
-    });
-
-    // Should not throw
-    await expect(controller.cacheProfilePhotoForOffline('/photos/test.jpg')).resolves.toBeUndefined();
-
-    Object.defineProperty(navigator, 'serviceWorker', {
-      value: orig,
-      configurable: true,
-    });
-  });
-
-  test('does nothing for empty URL', async () => {
-    await expect(controller.cacheProfilePhotoForOffline('')).resolves.toBeUndefined();
-  });
-
-  test('does nothing for non-string URL', async () => {
-    await expect(controller.cacheProfilePhotoForOffline(null)).resolves.toBeUndefined();
-  });
-
-  test('logs warning when service worker ready rejects', async () => {
-    Object.defineProperty(navigator, 'serviceWorker', {
-      value: {
-        ready: Promise.reject(new Error('SW not ready')),
-      },
-      configurable: true,
-    });
-
-    await controller.cacheProfilePhotoForOffline('/photos/test.jpg');
-
-    expect(console.warn).toHaveBeenCalled();
-
-    Object.defineProperty(navigator, 'serviceWorker', {
-      value: undefined,
-      configurable: true,
-    });
+describe('private profile photos', () => {
+  test('displaying a private photo never sends a service-worker cache request', () => {
+    const controller = createController();
+    const postMessage = jest.fn();
+    Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: { controller: { postMessage } } });
+    controller.renderProfilePhoto('/members/mobile-card-photo');
+    expect(postMessage).not.toHaveBeenCalled();
+    Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: undefined });
   });
 });
 

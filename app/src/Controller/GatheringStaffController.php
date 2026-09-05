@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use Cake\Http\Exception\ForbiddenException;
+use Authorization\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
 use Exception;
 
@@ -224,10 +224,8 @@ class GatheringStaffController extends AppController
     /**
      * AJAX method to get member contact info using public IDs
      *
-     * SECURITY: Public ID-based access control:
-     * 1. Requires gathering_public_id that user has edit permission on
-     * 2. Uses non-sequential public IDs instead of internal database IDs
-     * 3. No enumeration possible without valid gathering access
+     * Requires gathering editing and target-member PII permission.
+     * Public identifiers do not grant access to contact details.
      *
      * @return \Cake\Http\Response|null JSON response
      */
@@ -248,20 +246,24 @@ class GatheringStaffController extends AppController
 
         try {
             // SECURITY CHECK: Verify user can edit this gathering
-            // This prevents users from harvesting PII by trying different member public IDs
+            // Target-member authorization below separately protects contact information.
             $gathering = $this->GatheringStaff->Gatherings->find('byPublicId', [$gatheringPublicId])->firstOrFail();
             $this->Authorization->authorize($gathering, 'edit');
 
             // Only after authorization passes, fetch member info
             $member = $this->GatheringStaff->Members->find('byPublicId', [$memberPublicId])
-                ->select(['id', 'public_id', 'sca_name', 'email_address', 'phone_number'])
+                ->select(['id', 'public_id', 'branch_id', 'parent_id', 'birth_month', 'birth_year',
+                    'sca_name', 'email_address', 'phone_number'])
                 ->firstOrFail();
+
+            $this->Authorization->authorize($member, 'viewPii');
 
             $this->set('data', [
                 'email' => $member->email_address,
                 'phone' => $member->phone_number,
             ]);
         } catch (ForbiddenException $e) {
+            $this->response = $this->response->withStatus(403);
             $this->set('data', ['error' => 'Not authorized to access this information']);
         } catch (Exception $e) {
             $this->set('data', ['error' => 'Member or gathering not found']);

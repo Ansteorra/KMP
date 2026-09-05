@@ -75,7 +75,7 @@ multi-tenant deployment workflow.
 | `docs/` | Published developer and operator documentation |
 | `deploy/azure/` | Managed Azure platform templates and deployment scripts |
 | `docker/` | Local and production container images and entrypoints |
-| `installer/` | Retired standalone installer implementation |
+| `installer/` | Retired tooling migration notice |
 
 Contributors should read [`AGENTS.md`](AGENTS.md) and the nearest child
 `AGENTS.md` before changing a subtree.

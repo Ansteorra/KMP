@@ -14,6 +14,10 @@ local setup, deployment, and the complete documentation map.
 | [`kingdom-calendar.md`](kingdom-calendar.md) | Tenant-host public calendar, feed, publication, and royal progress |
 | [`testing-suite.md`](testing-suite.md) | App-local test harness and multi-tenant verification quick reference |
 | [`domain-risk-matrix.md`](domain-risk-matrix.md) | Risk gates, with tenant/platform trust boundaries as P0 |
+| [`security-remediation-log.md`](security-remediation-log.md) | Prioritized security and PII findings, ownership areas, and remediation acceptance checks |
+| [`authentication-security.md`](authentication-security.md) | Tenant-bound sessions, revocation, recovery throttles, and platform authentication |
+| [`protected-offline-access.md`](protected-offline-access.md) | Encrypted cards and RSVPs, device unlock, expiry, and offline limitations |
+| [`privacy-boundaries.md`](privacy-boundaries.md) | Per-record PII, attendance consent, nomination input, and document/log handling |
 
 ## Awards implementation decisions
 

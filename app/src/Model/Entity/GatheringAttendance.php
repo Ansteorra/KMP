@@ -47,6 +47,8 @@ class GatheringAttendance extends BaseEntity
         'share_with_hosting_group' => true,
         'share_with_crown' => true,
         'is_public' => true,
+        // Set only by the actor-bound offline RSVP endpoint.
+        'offline_request_id' => false,
         // Royal progress fields are set via GatheringAttendancesTable::applyRoyalProgress()
         // after the officer assignment is verified; never from request data.
         'is_royal_progress' => false,

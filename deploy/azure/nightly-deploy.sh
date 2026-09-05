@@ -68,6 +68,7 @@ ACR="${AZURE_ACR_NAME:-kmpnightlyacrd346d2}"
 WEB="${AZURE_WEB_APP_NAME:-kmpnightly-web}"
 MIGRATE_JOB="${AZURE_MIGRATE_JOB_NAME:-kmpnightly-migrate}"
 QUEUE_JOB="${AZURE_QUEUE_JOB_NAME:-kmpnightly-queue}"
+ADMIN_JOB="${AZURE_ADMIN_JOB_NAME:-kmpnightly-admin}"
 RESET_JOB="${AZURE_RESET_JOB_NAME:-kmpnightly-reset}"
 SYNC_JOB="${AZURE_SYNC_JOB_NAME:-kmpnightly-sync}"
 SCHED_HOURLY_JOB="${AZURE_SCHED_HOURLY_JOB_NAME:-}"
@@ -174,7 +175,7 @@ restore_migrate_job_default() {
     patch_job_command \
         "$MIGRATE_JOB" \
         '["/usr/local/bin/docker-entrypoint.sh"]' \
-        '["/bin/sh","-lc","bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake platform secrets import-env && bin/cake platform backup-keys ensure --allow-read-only && bin/cake tenant migrate --all --include-suspended --fail-fast && bin/cake cache clear _cake_model_"]'
+        '["/bin/sh","-lc","bin/cake platform database privileges && bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake platform secrets import-env && bin/cake platform backup-keys ensure --allow-read-only && bin/cake tenant migrate --all --include-suspended --fail-fast && bin/cake platform database privileges && bin/cake platform storage documents && bin/cake cache clear _cake_model_"]'
 }
 
 run_migrate_command() {
@@ -336,7 +337,7 @@ build_local_image() {
     docker buildx build \
         --platform "${LOCAL_BUILD_PLATFORM:-linux/amd64}" \
         --file docker/Dockerfile.prod \
-        --build-arg BASE_IMAGE="${BASE_IMAGE:-ghcr.io/ansteorra/kmp-base:php84}" \
+        --build-arg BASE_IMAGE="${BASE_IMAGE:-runtime-base}" \
         --build-arg APP_VERSION="$app_version" \
         --build-arg RELEASE_CHANNEL="${RELEASE_CHANNEL:-nightly-local}" \
         --tag "$image_ref" \
@@ -355,6 +356,13 @@ build_local_image() {
 
 deploy_image_ref() {
     local image_ref="$1" do_reset="${2:-0}"
+    if [[ "$image_ref" != *@sha256:* ]]; then
+        local image_digest
+        image_digest="$(az acr manifest show-metadata --registry "$ACR" --name "${image_ref#*/}" --query digest -o tsv)"
+        [[ "$image_digest" =~ ^sha256:[0-9a-f]{64}$ ]] || die 'Invalid image digest'
+        image_ref="${image_ref%:*}@${image_digest}"
+    fi
+
     ensure_az
 
     local snapshot_dir legacy_args=()
@@ -370,6 +378,8 @@ deploy_image_ref() {
         --web-app "$WEB" \
         --migrate-job "$MIGRATE_JOB" \
         --worker-job "$QUEUE_JOB" \
+        --admin-job "$ADMIN_JOB" \
+        --privileged-job "$RESET_JOB" \
         --image "$image_ref" \
         --snapshot-dir "$snapshot_dir" \
         "${legacy_args[@]}"

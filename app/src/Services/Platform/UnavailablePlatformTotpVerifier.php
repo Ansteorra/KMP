@@ -16,6 +16,12 @@ class UnavailablePlatformTotpVerifier implements PlatformTotpVerifierInterface
     /**
      * @inheritDoc
      */
+    public function matchingCounter(?string $totpSecretRef, string $totpCode): ?int
+    {
+        return null;
+    }
+
+    /** @inheritDoc */
     public function verify(string $platformUserId, ?string $totpSecretRef, string $totpCode): bool
     {
         return false;

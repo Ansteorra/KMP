@@ -173,9 +173,9 @@ class BackupStorageServiceTest extends BaseTestCase
 
     public function testAzureManagedIdentityConfigurationInitializesAdapter(): void
     {
-        $originalConfig = Configure::read('Documents.storage');
+        $originalConfig = Configure::read('Backups.storage');
         $path = TMP . 'backup-managed-identity-test';
-        Configure::write('Documents.storage', [
+        Configure::write('Backups.storage', [
             'adapter' => 'azure',
             'azure' => [
                 'authMode' => 'managedIdentity',
@@ -199,14 +199,14 @@ class BackupStorageServiceTest extends BaseTestCase
 
             $this->assertSame('azure', $service->getAdapterType());
         } finally {
-            Configure::write('Documents.storage', $originalConfig);
+            Configure::write('Backups.storage', $originalConfig);
         }
     }
 
     public function testAzureManagedIdentityRequiresAccountName(): void
     {
-        $originalConfig = Configure::read('Documents.storage');
-        Configure::write('Documents.storage', [
+        $originalConfig = Configure::read('Backups.storage');
+        Configure::write('Backups.storage', [
             'adapter' => 'azure',
             'azure' => [
                 'authMode' => 'managedIdentity',
@@ -221,7 +221,7 @@ class BackupStorageServiceTest extends BaseTestCase
             );
             new BackupStorageService();
         } finally {
-            Configure::write('Documents.storage', $originalConfig);
+            Configure::write('Backups.storage', $originalConfig);
         }
     }
 }

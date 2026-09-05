@@ -11,16 +11,20 @@ use App\KMP\GridColumns\MemberRolesGridColumns;
 use App\KMP\GridColumns\MembersGridColumns;
 use App\KMP\GridColumns\VerifyQueueGridColumns;
 use App\KMP\StaticHelpers;
+use App\Mailer\KMPMailer;
 use App\Mailer\QueuedMailerAwareTrait;
 use App\Model\Entity\Member;
 use App\Services\CsvExportService;
 use App\Services\ImpersonationService;
 use App\Services\MemberAuthenticationService;
 use App\Services\MemberExpirationImportService;
+use App\Services\MemberPrivacy;
 use App\Services\MemberProfileService;
 use App\Services\MemberRegistrationService;
 use App\Services\MemberSearchService;
 use App\Services\QuickLoginDeviceService;
+use App\Services\Security\MemberSessionState;
+use App\Services\Security\OfflineIdentity;
 use App\Services\Security\RequestRateLimiter;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
@@ -30,6 +34,7 @@ use Cake\Event\EventInterface;
 use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
+use Cake\Http\Exception\ServiceUnavailableException;
 use Cake\Http\Response;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
@@ -205,6 +210,12 @@ class MembersController extends AppController
             );
         }
 
+        if (!$impersonationService->isValid($session)) {
+            $session->destroy();
+            $this->Authentication->logout();
+
+            return $this->redirect(['action' => 'login']);
+        }
         $impersonationService->stop($session);
 
         try {
@@ -259,6 +270,9 @@ class MembersController extends AppController
         $identity = $this->request->getAttribute('identity');
         $canViewPii = $identity ? $identity->checkCan('viewPii', $this->Members->newEmptyEntity()) : false;
         $previousPiiSetting = MembersGridColumns::setIncludePii($canViewPii);
+        $previousQueryPii = MembersGridColumns::setQueryPii(
+            $identity ? $identity->checkCan('queryPii', $this->Members->newEmptyEntity()) : false,
+        );
 
         try {
             $queryContext = $this->resolveDataverseGridQueryContext([
@@ -278,6 +292,12 @@ class MembersController extends AppController
                 $baseQuery->contain($contain);
             }
             $baseQuery = $this->Authorization->applyScope($baseQuery, 'index');
+            $baseQuery->formatResults(static function ($results) use ($identity) {
+                return $results->map(static fn(Member $member): Member => MemberPrivacy::listRow(
+                    $member,
+                    $identity !== null && $identity->can('viewPii', $member),
+                ));
+            });
             // Use unified trait for grid processing (saved views mode)
             $result = $this->processDataverseGrid([
                 'gridKey' => 'Members.index.main',
@@ -334,6 +354,7 @@ class MembersController extends AppController
             }
         } finally {
             MembersGridColumns::setIncludePii($previousPiiSetting);
+            MembersGridColumns::setQueryPii($previousQueryPii);
         }
     }
 
@@ -1506,7 +1527,10 @@ class MembersController extends AppController
             throw new NotFoundException();
         }
 
-        return $this->serveProfilePhoto($profileService, $member, 'member_mobile_card_photo_');
+        return OfflineIdentity::bind(
+            $this->serveProfilePhoto($profileService, $member, 'member_mobile_card_photo_'),
+            $this->request,
+        );
     }
 
     /**
@@ -1788,6 +1812,7 @@ class MembersController extends AppController
      */
     public function viewMobileCardJson($id = null)
     {
+        $this->response = OfflineIdentity::bind($this->response, $this->request);
         $currentUser = $this->Authentication->getIdentity();
         if (!$currentUser) {
             throw new NotFoundException();
@@ -1808,7 +1833,6 @@ class MembersController extends AppController
                 'Members.membership_number',
                 'Members.membership_expires_on',
                 'Members.background_check_expires_on',
-                'Members.additional_info',
                 'Members.profile_photo_document_id',
             ])
             ->contain([
@@ -1842,6 +1866,8 @@ class MembersController extends AppController
             ->setOption('serialize', 'responseData');
         $this->enablePluginViewCellsForFragment();
         $this->set(compact('member'));
+        $this->set('mobileCardDto', true);
+        $this->response = $this->response->withType('application/json')->withHeader('Cache-Control', 'no-store');
         $this->viewBuilder()->setTemplate('view_card_json');
     }
 
@@ -1950,7 +1976,8 @@ class MembersController extends AppController
             $passwordReset->validate($this->request->getData());
             if ($passwordReset->getErrors()) {
                 $session = $this->request->getSession();
-                $session->write('passwordResetData', $this->request->getData());
+                $session->delete('passwordResetData');
+                $this->Flash->error(__('The password did not meet the requirements.'));
 
                 return $this->redirect(['action' => 'view', $member->id]);
             }
@@ -1959,7 +1986,15 @@ class MembersController extends AppController
             $member->password_token_expires_on = null;
             $member->failed_login_attempts = 0;
             if ($this->Members->save($member)) {
-                $this->Flash->success(__('The password has been changed.'));
+                $this->Flash->success(__(
+                    'The password has been changed. All previous sessions and quick login PINs are revoked.',
+                ));
+                if ((int)$this->request->getAttribute('identity')->getIdentifier() === (int)$member->id) {
+                    $this->Authentication->logout();
+                    $this->response = $this->response->withHeader('X-KMP-Offline-Clear', '1');
+
+                    return $this->redirect(['action' => 'login']);
+                }
 
                 return $this->redirect(['action' => 'view', $member->id]);
             }
@@ -1969,38 +2004,67 @@ class MembersController extends AppController
         }
     }
 
+    /** Revoke all sessions and PIN devices using the existing password-management permission. */
+    public function revokeSessions(MemberAuthenticationService $authService, $id = null)
+    {
+        $this->request->allowMethod(['post']);
+        $member = $this->Members->get($id);
+        $this->Authorization->authorize($member, 'changePassword');
+        if (!$authService->revokeCredentials($member)) {
+            throw new ServiceUnavailableException('Credentials could not be revoked.');
+        }
+        if ((int)$this->request->getAttribute('identity')->getIdentifier() === (int)$member->id) {
+            $this->Authentication->logout();
+            $this->request->getSession()->destroy();
+            $this->response = $this->response->withHeader('X-KMP-Offline-Clear', '1');
+
+            return $this->redirect(['action' => 'login']);
+        }
+        $this->Flash->success(__('All sessions and quick login PINs for this member have been revoked.'));
+
+        return $this->redirect(['action' => 'view', $member->id]);
+    }
+
     /**
      * Forgot password.
      */
     public function forgotPassword(MemberAuthenticationService $authService)
     {
         $this->Authorization->skipAuthorization();
+        $this->request->allowMethod(['get', 'post']);
         if ($this->request->is('post')) {
-            $result = $authService->generatePasswordResetToken(
-                (string)$this->request->getData('email_address'),
-            );
+            $limiter = new RequestRateLimiter();
+            $limit = $limiter->attempt($limiter::BUCKET_RESET_IP, $this->request->clientIp() ?? 'unknown');
+            $result = $limit->allowed
+                ? $authService->generatePasswordResetToken((string)$this->request->getData('email_address'))
+                : ['found' => false];
             if ($result['found']) {
-                $this->queueMail('KMP', 'sendFromTemplate', $result['email'], [
-                    '_templateId' => 'password-reset',
-                    'email' => $result['email'],
-                    'passwordResetUrl' => $result['resetUrl'],
-                    'siteAdminSignature' => StaticHelpers::getAppSetting('Email.SiteAdminSignature', '', null, true),
-                ]);
-                $this->Flash->success(
-                    __(
-                        'If your email is on file, a password reset link has been sent.',
-                    ),
-                );
-
-                return $this->redirect(['action' => 'login']);
-            } else {
-                $this->Flash->error(
-                    __(
-                        'Your email was not found, please contact the Marshalate Secretary at ' .
-                            $result['secretaryEmail'],
-                    ),
-                );
+                try {
+                    // Recovery never performs network mail delivery during this public request.
+                    $this->queueMailJob([
+                        'class' => KMPMailer::class,
+                        'action' => 'sendFromTemplate',
+                        'vars' => [
+                            'to' => $result['email'],
+                            '_templateId' => 'password-reset',
+                            'email' => $result['email'],
+                            'passwordResetUrl' => $result['resetUrl'],
+                            'siteAdminSignature' => StaticHelpers::getAppSetting(
+                                'Email.SiteAdminSignature',
+                                '',
+                                null,
+                                true,
+                            ),
+                        ],
+                    ]);
+                } catch (Throwable) {
+                    // Neither response nor diagnostics reveal the account or reset credential.
+                    Log::warning('security.password_recovery.enqueue_failed');
+                }
             }
+            $this->Flash->success(__('If your email is on file, a password reset link has been sent.'));
+
+            return $this->redirect(['action' => 'login']);
         }
         $headerImage = StaticHelpers::getAppSetting(
             'KMP.Login.Graphic',
@@ -2028,7 +2092,14 @@ class MembersController extends AppController
             $this->request->is('post') &&
             $passwordReset->validate($this->request->getData())
         ) {
-            $authService->resetPassword($member, $this->request->getData('new_password'));
+            if (!$authService->resetPassword($member, $this->request->getData('new_password'))) {
+                $this->Flash->error(__('The reset link is no longer valid. Please request a new one.'));
+
+                return $this->redirect(['action' => 'forgotPassword']);
+            }
+            $this->Authentication->logout();
+            $this->request->getSession()->delete('QuickLoginSetup');
+            $this->response = $this->response->withHeader('X-KMP-Offline-Clear', '1');
             $this->Flash->success(__('Password successfully reset'));
 
             return $this->redirect(['action' => 'login']);
@@ -2201,6 +2272,9 @@ class MembersController extends AppController
             'device_id' => $deviceId,
             'email_address' => (string)$member->email_address,
             'redirect_target' => $redirectPath,
+            'tenant_id' => MemberSessionState::tenantId(),
+            'auth_version' => (string)$member->auth_version,
+            'created_at' => time(),
         ]);
         $this->Flash->info(__('One more step: set your quick login PIN for this device.'));
 
@@ -2225,7 +2299,12 @@ class MembersController extends AppController
 
         $pendingSetup = $this->request->getSession()->read(self::QUICK_LOGIN_SETUP_SESSION_KEY);
         $pendingMemberId = is_array($pendingSetup) ? (int)($pendingSetup['member_id'] ?? 0) : 0;
-        if (!is_array($pendingSetup) || $pendingMemberId !== (int)$identity->id) {
+        if (
+            !is_array($pendingSetup) || $pendingMemberId !== (int)$identity->id
+            || ($pendingSetup['tenant_id'] ?? null) !== MemberSessionState::tenantId()
+            || ($pendingSetup['auth_version'] ?? null) !== (string)$identity->auth_version
+            || (int)($pendingSetup['created_at'] ?? 0) < time() - 600
+        ) {
             $this->clearPendingQuickLoginSetup();
             $this->Flash->warning(__('Quick login setup is not pending for this session.'));
 
@@ -2357,6 +2436,12 @@ class MembersController extends AppController
             return null;
         }
 
+        $limiter = new RequestRateLimiter();
+        if (!$limiter->attempt($limiter::BUCKET_PIN, strtolower($emailAddress) . ':' . $deviceId)->allowed) {
+            $this->Flash->error(__('Quick login failed. Please try again later or use your password.'));
+
+            return null;
+        }
         $member = $this->Members->find()
             ->where(CaseInsensitiveQuery::equals('Members.email_address', $emailAddress))
             ->first();
@@ -2378,6 +2463,7 @@ class MembersController extends AppController
             ->where([
                 'member_id' => $member->id,
                 'device_id' => $deviceId,
+                'auth_version' => (string)$member->auth_version,
             ])
             ->first();
         if ($device === null) {
@@ -2520,6 +2606,9 @@ class MembersController extends AppController
     {
         $this->Authorization->skipAuthorization();
         $this->Authentication->logout();
+        $this->request->getSession()->delete('QuickLoginSetup');
+        $this->request->getSession()->delete('Impersonation');
+        $this->response = $this->response->withHeader('X-KMP-Offline-Clear', '1');
 
         return $this->redirect([
             'controller' => 'Members',

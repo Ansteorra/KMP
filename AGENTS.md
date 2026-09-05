@@ -167,4 +167,4 @@ Durable development boundaries with their own local contracts:
 | `docs/AGENTS.md` | Published project documentation and Jekyll documentation site |
 | `deploy/AGENTS.md` | Cloud deployment templates, scripts, and environment examples |
 | `docker/AGENTS.md` | Container images, entrypoints, local runtime scripts, and Docker support files |
-| `installer/AGENTS.md` | Go-based installer and release packaging workflow |
+| `installer/AGENTS.md` | Retirement notice for removed installer and updater tooling |

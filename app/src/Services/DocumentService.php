@@ -5,18 +5,16 @@ namespace App\Services;
 
 use App\Model\Entity\Document;
 use App\Model\Table\DocumentsTable;
-use App\Services\Storage\AzureManagedIdentityTokenCredential;
+use App\Services\Storage\AzureBlobClientFactory;
 use App\Services\Storage\TenantDocumentStorageConfigResolver;
 use Aws\S3\S3Client;
 use AzureOss\FlysystemAzureBlobStorage\AzureBlobStorageAdapter;
-use AzureOss\Storage\Blob\BlobServiceClient;
 use Cake\Core\Configure;
 use Cake\Http\Response;
 use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Exception;
 use GdImage;
-use GuzzleHttp\Psr7\Uri;
 use Laminas\Diactoros\Stream;
 use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
 use League\Flysystem\Filesystem as FlysystemFilesystem;
@@ -108,15 +106,7 @@ class DocumentService
             $azureConfig = (new TenantDocumentStorageConfigResolver())->resolveAzureConfig();
 
             if (!$this->azureConfigHasCredential($azureConfig)) {
-                Log::error(
-                    'Azure storage credentials are not configured. Set managedIdentity with ' .
-                        'AZURE_STORAGE_ACCOUNT_NAME, or configure AZURE_STORAGE_CONNECTION_STRING. ' .
-                        'Falling back to local storage.',
-                );
-                $this->adapter = 'local';
-                $this->initializeLocalAdapter();
-
-                return;
+                throw new RuntimeException('Azure document storage authentication is not configured.');
             }
 
             try {
@@ -128,9 +118,7 @@ class DocumentService
                     'auth_mode' => $azureConfig['authMode'] ?? 'connectionString',
                 ]);
             } catch (Exception $e) {
-                Log::error('Failed to initialize Azure Blob Storage: ' . $e->getMessage());
-                $this->adapter = 'local';
-                $this->initializeLocalAdapter();
+                throw new RuntimeException('Azure document storage initialization failed.', 0, $e);
             }
         } elseif ($this->adapter === 's3') {
             // Amazon S3 configuration
@@ -396,11 +384,13 @@ class DocumentService
      */
     private function azureConfigHasCredential(array $azureConfig): bool
     {
-        if (!empty($azureConfig['connectionString'])) {
-            return true;
-        }
+        try {
+            AzureBlobClientFactory::normalize($azureConfig);
 
-        return ($azureConfig['authMode'] ?? null) === 'managedIdentity' && !empty($azureConfig['accountName']);
+            return true;
+        } catch (RuntimeException) {
+            return false;
+        }
     }
 
     /**
@@ -409,35 +399,21 @@ class DocumentService
      */
     private function createAzureFilesystem(
         array $azureConfig,
-        bool $ensureContainerExists = false,
     ): FlysystemFilesystem {
         $container = (string)($azureConfig['container'] ?? 'documents');
         $prefix = (string)($azureConfig['prefix'] ?? '');
-        $connectionString = $azureConfig['connectionString'] ?? null;
-
-        if (is_string($connectionString) && $connectionString !== '') {
-            $blobServiceClient = BlobServiceClient::fromConnectionString($connectionString);
-        } else {
-            $accountName = (string)($azureConfig['accountName'] ?? '');
-            $clientId = $azureConfig['managedIdentityClientId'] ?? null;
-            $credential = new AzureManagedIdentityTokenCredential(is_string($clientId) ? $clientId : null);
-            $blobServiceClient = new BlobServiceClient(
-                new Uri(sprintf('https://%s.blob.core.windows.net/', $accountName)),
-                $credential,
-            );
-        }
+        $blobServiceClient = AzureBlobClientFactory::create($azureConfig);
 
         $containerClient = $blobServiceClient->getContainerClient($container);
-        if ($ensureContainerExists) {
-            $containerClient->createIfNotExists();
-        }
+        // Container lifecycle belongs to the dedicated administrative provisioner.
+        // Runtime writes have blob-only permissions and must never create containers.
         $adapter = new AzureBlobStorageAdapter($containerClient, $prefix);
 
         return new FlysystemFilesystem($adapter);
     }
 
     /**
-     * Ensure write-time infrastructure exists without adding provisioning calls to reads.
+     * Refresh the tenant-bound adapter for writes; infrastructure is provisioned by admin jobs.
      */
     private function ensureFilesystemReadyForWrite(): void
     {
@@ -451,7 +427,7 @@ class DocumentService
         }
 
         $this->azureConfig = $azureConfig;
-        $this->filesystem = $this->createAzureFilesystem($azureConfig, true);
+        $this->filesystem = $this->createAzureFilesystem($azureConfig);
     }
 
     /**

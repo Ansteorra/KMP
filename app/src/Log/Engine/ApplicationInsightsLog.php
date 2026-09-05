@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Log\Engine;
 
+use App\Log\LogPrivacy;
 use Cake\Log\Engine\BaseLog;
 use Cake\Log\Formatter\DefaultFormatter;
 use DateTimeImmutable;
@@ -177,14 +178,15 @@ class ApplicationInsightsLog extends BaseLog
             return;
         }
 
-        $message = $this->interpolate($message, $context);
+        $context = LogPrivacy::context($context);
+        $message = $this->interpolate(LogPrivacy::message($message), $context);
 
         $sanitizer = $this->getConfig('messageSanitizer');
         if (is_callable($sanitizer)) {
             $message = (string)$sanitizer($message);
         }
 
-        $this->buffer[] = $this->buildPayload((string)$level, $message, $context);
+        $this->buffer[] = $this->buildPayload((string)$level, LogPrivacy::message($message), $context);
 
         if (count($this->buffer) >= max(1, (int)$this->getConfig('batchSize'))) {
             $this->flush();

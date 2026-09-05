@@ -5,7 +5,10 @@ namespace App\Command;
 
 use App\Services\Backups\BackupRetentionService;
 use App\Services\Backups\BackupStorageFactory;
+use App\Services\Platform\AdministrativeDatabase;
+use App\Services\Platform\PlatformAdminJobEnqueuer;
 use App\Services\Platform\PlatformAuditService;
+use App\Services\Platform\PlatformJobRunner;
 use Cake\Command\Command;
 use Cake\Console\Arguments;
 use Cake\Console\ConsoleIo;
@@ -53,6 +56,19 @@ final class PlatformBackupsPruneCommand extends Command
             $platform = ConnectionManager::get('platform');
             if (!$platform instanceof Connection) {
                 throw new RuntimeException('Platform database connection is unavailable.');
+            }
+            if (!AdministrativeDatabase::enabled()) {
+                (new PlatformAdminJobEnqueuer($platform, new PlatformAuditService($platform)))->enqueue(
+                    PlatformJobRunner::JOB_BACKUPS_PRUNE,
+                    null,
+                    null,
+                    ['limit' => $limit],
+                    'backup-retention:' . gmdate('Y-m-d-H') . ':' . $limit,
+                    'Scheduled archive retention requires the administrative storage identity.',
+                );
+                $io->out('Backup retention queued for the administrative worker.');
+
+                return self::CODE_SUCCESS;
             }
             $result = (new BackupRetentionService(
                 $platform,

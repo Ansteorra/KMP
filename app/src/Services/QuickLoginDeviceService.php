@@ -55,6 +55,7 @@ class QuickLoginDeviceService
         }
 
         $device->member_id = (int)$member->id;
+        $device->auth_version = (string)$member->auth_version;
         $device->device_id = $deviceId;
         $device->pin_hash = (new DefaultPasswordHasher())->hash($pin);
         $device->failed_attempts = 0;

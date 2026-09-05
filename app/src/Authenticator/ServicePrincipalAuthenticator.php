@@ -21,7 +21,6 @@ use Psr\Http\Message\ServerRequestInterface;
  * Transport:
  * - Authorization: Bearer {token}
  * - X-API-Key: {token}
- * - api_key query param
  */
 class ServicePrincipalAuthenticator extends AbstractAuthenticator
 {
@@ -34,7 +33,6 @@ class ServicePrincipalAuthenticator extends AbstractAuthenticator
         'header' => 'Authorization',
         'tokenPrefix' => 'Bearer',
         'apiKeyHeader' => 'X-API-Key',
-        'apiKeyQueryParam' => 'api_key',
     ];
 
     /**
@@ -150,12 +148,6 @@ class ServicePrincipalAuthenticator extends AbstractAuthenticator
         $apiKeyHeader = $request->getHeaderLine($this->_config['apiKeyHeader']);
         if (!empty($apiKeyHeader)) {
             return trim($apiKeyHeader);
-        }
-
-        $apiKeyQueryParam = $this->_config['apiKeyQueryParam'];
-        $apiKeyQueryValue = $request->getQueryParams()[$apiKeyQueryParam] ?? null;
-        if (is_string($apiKeyQueryValue) && $apiKeyQueryValue !== '') {
-            return trim($apiKeyQueryValue);
         }
 
         return null;

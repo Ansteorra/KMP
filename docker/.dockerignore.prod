@@ -18,13 +18,13 @@ app/.phpunit.cache
 
 # Dev containers
 .devcontainer
+.container-home
 
 # Documentation
 docs
 app/docs
 *.md
 !app/README.md
-!app/CHANGELOG.md
 
 # IDE and editor files
 .vscode
@@ -33,19 +33,21 @@ app/docs
 .editorconfig
 app/.editorconfig
 
-# Docker dev files
+# Docker dev files that are not needed in the build context.
+# Keep files copied by docker/Dockerfile.app available to BuildKit.
 docker/Dockerfile.app
 docker/entrypoint.sh
 docker/.env.example
+!docker/entrypoint.sh
+!docker/app_local.php
+!docker/apache-vhost.conf
 
 # Dev scripts
 dev-up.sh
 dev-down.sh
 dev-reset-db.sh
 dev-seed-db.sh
-# dev_seed_clean.sql is intentionally bundled in the prod image so the
-# Azure "reset" Container Apps Job can restore a known demo state.
-!dev_seed_clean.sql
+dev_seed_clean.sql
 reset_dev_database.sh
 create_erd.sh
 create_todo_list.sh
@@ -76,7 +78,6 @@ test-waiver.png
 *.log
 .env
 .env.*
-!docker/.env.example
 app/config/.env
 app/config/.env.*
 
@@ -85,3 +86,42 @@ app/phpdoc.dist.xml
 app/jsdoc.config.json
 app/babel.config.json
 app/.babelrc
+
+# Never send local runtime state, credentials, generated dependencies, or audit data.
+app/config/app_local.php
+app/vendor
+app/tmp
+app/logs
+app/backups
+app/images/uploaded
+app/images/cache
+app/webroot/uploads
+app/webroot/images/uploaded
+**/node_modules
+**/vendor
+**/security-reports
+**/coverage
+**/*.sql
+**/*.sql.gz
+**/*.dump
+**/*.kmpbackup
+**/*.pem
+**/*.key
+**/.env
+**/.env.*
+!deploy/azure/seed/nightly-seed.kmpbackup
+!app/CHANGELOG.md
+
+# Local cloud/agent state and audit tooling are never production build inputs.
+.azure
+.codex
+.agents
+.copilot
+.claude
+.playwright-cli
+security
+**/__pycache__
+app/config/secrets.local.json
+deploy/azure/nightly.env
+deploy/azure/*.secret
+deploy/azure/.azure-outputs.json

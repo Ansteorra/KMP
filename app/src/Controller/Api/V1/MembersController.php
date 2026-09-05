@@ -52,12 +52,19 @@ class MembersController extends ApiController
 
         if ($this->request->getQuery('search')) {
             $search = (string)$this->request->getQuery('search');
+            $privateIds = $this->fetchTable('Members')->find()->select(['Members.id']);
+            $privateIds = $identity->applyScope('viewPii', $privateIds);
             $query->where([
                 'OR' => [
                     CaseInsensitiveQuery::contains('Members.sca_name', $search),
-                    CaseInsensitiveQuery::contains('Members.first_name', $search),
-                    CaseInsensitiveQuery::contains('Members.last_name', $search),
-                    CaseInsensitiveQuery::contains('Members.email_address', $search),
+                    [
+                        'Members.id IN' => $privateIds,
+                        'OR' => [
+                            CaseInsensitiveQuery::contains('Members.first_name', $search),
+                            CaseInsensitiveQuery::contains('Members.last_name', $search),
+                            CaseInsensitiveQuery::contains('Members.email_address', $search),
+                        ],
+                    ],
                 ],
             ]);
         }
@@ -117,7 +124,7 @@ class MembersController extends ApiController
             ] : null,
         ];
 
-        if ($detailed) {
+        if ($detailed && $this->Authentication->getIdentity()?->can('viewPii', $member)) {
             $data += [
                 'first_name' => $member->first_name,
                 'last_name' => $member->last_name,

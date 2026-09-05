@@ -3,14 +3,12 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Services\Storage\AzureManagedIdentityTokenCredential;
+use App\Services\Storage\AzureBlobClientFactory;
 use Aws\S3\S3Client;
 use AzureOss\FlysystemAzureBlobStorage\AzureBlobStorageAdapter;
-use AzureOss\Storage\Blob\BlobServiceClient;
 use Cake\Core\Configure;
 use Cake\Log\Log;
 use Exception;
-use GuzzleHttp\Psr7\Uri;
 use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
 use League\Flysystem\Filesystem as FlysystemFilesystem;
 use League\Flysystem\FilesystemException;
@@ -160,7 +158,7 @@ class BackupStorageService
      */
     private function initializeFilesystem(): void
     {
-        $config = Configure::read('Documents.storage', []);
+        $config = Configure::read('Backups.storage', []);
         $this->adapter = $config['adapter'] ?? 'local';
 
         if ($this->adapter === 'azure') {
@@ -174,7 +172,7 @@ class BackupStorageService
             try {
                 $this->filesystem = $this->createAzureFilesystem($azureConfig);
             } catch (Exception $e) {
-                Log::error('Azure backup storage init failed: ' . $e->getMessage());
+                Log::error('Azure backup storage initialization failed.');
                 throw new RuntimeException('Azure backup storage initialization failed.', 0, $e);
             }
         } elseif ($this->adapter === 's3') {
@@ -205,11 +203,13 @@ class BackupStorageService
                 $adapter = new AwsS3V3Adapter($s3Client, $bucket, 'backups/');
                 $this->filesystem = new FlysystemFilesystem($adapter);
             } catch (Exception $e) {
-                Log::error('S3 backup storage init failed: ' . $e->getMessage());
+                Log::error('S3 backup storage initialization failed.');
                 throw new RuntimeException('S3 backup storage initialization failed.', 0, $e);
             }
-        } else {
+        } elseif ($this->adapter === 'local') {
             $this->initializeLocalAdapter();
+        } else {
+            throw new RuntimeException('Unsupported backup storage adapter.');
         }
     }
 
@@ -218,11 +218,13 @@ class BackupStorageService
      */
     private function azureConfigHasCredential(array $azureConfig): bool
     {
-        if (!empty($azureConfig['connectionString'])) {
-            return true;
-        }
+        try {
+            AzureBlobClientFactory::normalize($azureConfig);
 
-        return ($azureConfig['authMode'] ?? null) === 'managedIdentity' && !empty($azureConfig['accountName']);
+            return true;
+        } catch (RuntimeException) {
+            return false;
+        }
     }
 
     /**
@@ -232,26 +234,17 @@ class BackupStorageService
      */
     protected function createAzureFilesystem(array $azureConfig): FlysystemFilesystem
     {
-        $connectionString = $azureConfig['connectionString'] ?? null;
-        if (is_string($connectionString) && $connectionString !== '') {
-            $blobServiceClient = BlobServiceClient::fromConnectionString($connectionString);
-        } else {
-            $accountName = (string)($azureConfig['accountName'] ?? '');
-            $clientId = $azureConfig['managedIdentityClientId'] ?? null;
-            $credential = new AzureManagedIdentityTokenCredential(is_string($clientId) ? $clientId : null);
-            $blobServiceClient = new BlobServiceClient(
-                new Uri(sprintf('https://%s.blob.core.windows.net/', $accountName)),
-                $credential,
-            );
-        }
+        $blobServiceClient = AzureBlobClientFactory::create($azureConfig);
 
-        $container = (string)($azureConfig['container'] ?? 'documents');
-        $containerClient = $blobServiceClient->getContainerClient($container);
-        try {
-            $containerClient->createIfNotExists();
-        } catch (Exception $e) {
-            Log::warning('Azure backup container ensure step skipped: ' . $e->getMessage());
+        $container = $azureConfig['container'] ?? null;
+        if (
+            !is_string($container) || !preg_match('/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/D', $container)
+            || str_contains($container, '--')
+        ) {
+            throw new RuntimeException('Azure backup storage requires an explicit valid archive container.');
         }
+        // Dedicated infrastructure owns container creation; runtime access is read-only.
+        $containerClient = $blobServiceClient->getContainerClient($container);
         $adapter = new AzureBlobStorageAdapter($containerClient, 'backups/');
 
         return new FlysystemFilesystem($adapter);

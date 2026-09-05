@@ -8,10 +8,12 @@ param releaseChannel = 'staging'
 
 param acrName = readEnvironmentVariable('AZURE_ACR_NAME', 'kmpstageacrplaceholder')
 param imageRepository = readEnvironmentVariable('KMP_STAGING_IMAGE_REPOSITORY', '<acr-login-server>/kmp')
-param imageTag = readEnvironmentVariable('KMP_STAGING_IMAGE_TAG', 'staging')
+param imageDigest = readEnvironmentVariable('KMP_STAGING_IMAGE_DIGEST', 'staging')
 
 param postgresAdminUser = 'kmpadmin'
 param postgresAdminPassword = readEnvironmentVariable('POSTGRES_ADMIN_PASSWORD')
+param postgresRuntimePassword = readEnvironmentVariable('POSTGRES_RUNTIME_PASSWORD')
+param platformPostgresRuntimePassword = readEnvironmentVariable('PLATFORM_POSTGRES_RUNTIME_PASSWORD')
 param postgresDatabaseName = 'kmp_staging'
 param platformPostgresDatabaseName = 'kmp_staging_platform'
 
@@ -44,3 +46,7 @@ param enableScheduleHourlyJob = false
 param enableScheduleDailyJob = false
 param enableScheduleWeeklyJob = false
 param enableScheduleNightlyJob = false
+
+// Explicit reviewed inventory; include legacy and registered tenant document containers.
+param documentContainers = json(readEnvironmentVariable('DOCUMENT_CONTAINERS_JSON'))
+param backupContainerName = readEnvironmentVariable('AZURE_BACKUP_STORAGE_CONTAINER', 'kmp-backups')

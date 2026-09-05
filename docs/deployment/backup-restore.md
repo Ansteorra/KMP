@@ -244,22 +244,11 @@ Do not say escrow is implemented merely because the metadata command exists.
 
 ## Historical VPC backups
 
-`deploy/vpc/backup.sh` is an unsupported single-database MariaDB dump. It does
-not include platform metadata, other tenant databases, document objects, or
-database-backed secrets.
-
-The Azure upload option in that script uses the Azure CLI with
-`--auth-mode login`; it does not consume
-`AZURE_STORAGE_CONNECTION_STRING`. S3 upload uses the AWS CLI. Both require
-operator authentication and external retention verification.
-
-`deploy/vpc/restore.sh` streams SQL into the live single database after a prompt.
-It does not quiesce application writes, recreate the database transactionally,
-verify application/schema compatibility, or take a pre-restore backup. Do not
-use it for managed tenancy or as a production recovery guarantee.
-
-The retired `kmp backup` command has no `--list` option. `kmp restore` delegates
-to an incomplete historical provider and is not a managed restore path.
+The legacy backup/restore scripts and management executables have been removed. They
+produced plaintext single-database dumps and did not cover platform metadata, tenant fleets,
+document objects or database-backed secrets. Do not reinstall them for managed tenancy.
+Follow the [legacy retirement instructions](https://github.com/Ansteorra/KMP/blob/main/installer/README.md) to disable schedules and secure historical copies; deleting
+scripts from source does not remove installed jobs or existing backup objects.
 
 ## Complete recovery scope
 

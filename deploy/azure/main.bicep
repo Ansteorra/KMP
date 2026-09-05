@@ -7,7 +7,7 @@
 //   - User-Assigned Managed Identity      (ACR pull + Key Vault read + Blob RBAC)
 //   - Azure Key Vault                     (RBAC; app secrets incl. backup encryption key)
 //   - Azure Storage Account               (private document blobs via managed identity)
-//   - Azure Database for PostgreSQL Flex  (B1ms, PG 16, public w/ Allow Azure services)
+//   - Azure Database for PostgreSQL Flex  (B1ms, PG 16, public with explicit source rules)
 //   - Container Apps Environment          (Consumption)
 //   - Container App: <prefix>-web         (ingress external, scale 1→3)
 //   - Fixed Container Apps schedule-shape Jobs (not per tenant):
@@ -34,7 +34,9 @@ param namePrefix string = 'kmpnightly'
 param imageRepository string
 
 @description('Image tag to deploy (e.g. "nightly" or "nightly-2026-04-17").')
-param imageTag string = 'nightly'
+@minLength(71)
+@maxLength(71)
+param imageDigest string
 
 @description('Release channel exposed to the application runtime.')
 param releaseChannel string = 'nightly'
@@ -46,8 +48,22 @@ param runtimeEnvironment string = 'nightly'
 param postgresAdminUser string = 'kmpadmin'
 
 @secure()
-@description('Postgres admin password (also used as the application credential for nightly — no separate app role).')
+@description('Postgres schema/provisioning password, available only to administrative jobs.')
 param postgresAdminPassword string
+
+@description('Distinct DML-only role for the default application database.')
+param postgresRuntimeUser string = 'kmp_runtime'
+
+@secure()
+@minLength(24)
+param postgresRuntimePassword string
+
+@description('Distinct DML-only role for platform metadata.')
+param platformPostgresRuntimeUser string = 'kmp_platform_runtime'
+
+@secure()
+@minLength(24)
+param platformPostgresRuntimePassword string
 
 @description('Postgres application database name.')
 param postgresDatabaseName string = 'kmp_nightly'
@@ -167,6 +183,12 @@ param managedRedisPersistentConnections bool = false
 @description('Enable host-based tenant resolution.')
 param tenancyEnabled bool = false
 
+@description('Explicit inventory of existing document containers. Provisioning adds grants for newly created tenant containers.')
+param documentContainers array = [ 'documents' ]
+
+@description('Dedicated encrypted archive container; never include this in documentContainers.')
+param backupContainerName string = 'kmp-backups'
+
 @description('Enable the isolated platform administration portal.')
 param platformAdminPortalEnabled bool = false
 
@@ -224,6 +246,9 @@ param frontDoorCustomDomains array = []
 // =============================================================================
 // Fixed schedule-shape job controls
 // =============================================================================
+@description('Enable web and scheduled runtime resources after administrative role/migration preparation. Use false for the first security infrastructure phase.')
+param enableApplicationRuntime bool = true
+
 @description('Global switch for provisioning Container Apps Jobs. Jobs are fixed schedule shapes; tenant fan-out happens in platform schedules and queue tables.')
 param enableContainerJobs bool = true
 
@@ -288,7 +313,10 @@ var kvName = take('${namePrefix}-kv-${take(suffix, 6)}', 24)
 var pgName = '${namePrefix}-pg-${take(suffix, 6)}'
 var managedRedisName = take('${namePrefix}-redis-${toLower(managedRedisClusteringPolicy)}-${take(suffix, 6)}', 60)
 var managedOpenTelemetryEnabled = enableApplicationInsights && applicationInsightsTransport == 'otlp'
-var uamiName = '${namePrefix}-id'
+var uamiName = '${namePrefix}-runtime-v2-id'
+var adminUamiName = '${namePrefix}-admin-v2-id'
+var runtimeKvName = take('${namePrefix}-rtkv-${take(suffix, 6)}', 24)
+var adminWorkerJobName = '${namePrefix}-admin'
 var documentStorageName = '${namePrefix}docs${take(suffix, 6)}'
 var documentContainerPrefix = 'documents'
 var acaEnvName = '${namePrefix}-acaenv'
@@ -370,6 +398,21 @@ resource uami 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   location: location
 }
 
+resource adminUami 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: adminUamiName
+  location: location
+}
+
+resource adminAcrPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(acr.id, adminUami.id, 'acrpull')
+  scope: acr
+  properties: {
+    principalId: adminUami.properties.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
+  }
+}
+
 // AcrPull role on the ACR
 resource acrPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(acr.id, uami.id, 'acrpull')
@@ -419,16 +462,118 @@ resource documentBlobService 'Microsoft.Storage/storageAccounts/blobServices@202
   }
 }
 
-// UAMI -> Storage Blob Data Contributor on the document storage account.
-// This lets the app create/write tenant containers without account keys.
-resource documentBlobContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(documentStorage.id, uami.id, 'blob-data-contributor')
-  scope: documentStorage
+var documentBlobCondition = loadTextContent('../../app/resources/security/document-blob-condition.txt')
+
+resource runtimeDocumentRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' = {
+  name: guid(resourceGroup().id, namePrefix, 'runtime-document-blobs-v2')
+  properties: {
+    roleName: '${namePrefix} runtime document blobs'
+    description: 'Document blob read/write/delete only; container lifecycle and delegation keys are excluded.'
+    type: 'CustomRole'
+    assignableScopes: [ resourceGroup().id ]
+    permissions: [{
+      actions: [ 'Microsoft.Storage/storageAccounts/blobServices/containers/read' ]
+      notActions: []
+      dataActions: [
+        'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read'
+        'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/write'
+        'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/delete'
+      ]
+      notDataActions: []
+    }]
+  }
+}
+resource administrativeStorageRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' = {
+  name: guid(resourceGroup().id, namePrefix, 'administrative-storage-v2')
+  properties: {
+    roleName: '${namePrefix} administrative storage'
+    description: 'Provision private containers and manage document/archive blobs; no container deletion or SAS delegation.'
+    type: 'CustomRole'
+    assignableScopes: [ resourceGroup().id ]
+    permissions: [{
+      actions: [
+        'Microsoft.Storage/storageAccounts/blobServices/containers/read'
+        'Microsoft.Storage/storageAccounts/blobServices/containers/write'
+      ]
+      notActions: []
+      dataActions: [
+        'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read'
+        'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/write'
+        'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/delete'
+      ]
+      notDataActions: []
+    }]
+  }
+}
+resource backupArchiveReaderRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' = {
+  name: guid(resourceGroup().id, namePrefix, 'archive-reader-v2')
+  properties: {
+    roleName: '${namePrefix} archive reader'
+    description: 'Read encrypted backup archives for authorized portal downloads; cannot modify or delete archives.'
+    type: 'CustomRole'
+    assignableScopes: [ resourceGroup().id ]
+    permissions: [{
+      actions: [ 'Microsoft.Storage/storageAccounts/blobServices/containers/read' ]
+      notActions: []
+      dataActions: [ 'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read' ]
+      notDataActions: []
+    }]
+  }
+}
+resource documentContainerResources 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = [for container in documentContainers: {
+  parent: documentBlobService
+  name: container
+  properties: { publicAccess: 'None' }
+}]
+resource documentBlobContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for (container, i) in documentContainers: {
+  name: guid(documentContainerResources[i].id, uami.id, 'document-blobs-v2')
+  scope: documentContainerResources[i]
   properties: {
     principalId: uami.properties.principalId
     principalType: 'ServicePrincipal'
-    // Storage Blob Data Contributor
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
+    roleDefinitionId: runtimeDocumentRole.id
+    conditionVersion: '2.0'
+    condition: documentBlobCondition
+  }
+}]
+resource backupContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: documentBlobService
+  name: backupContainerName
+  properties: { publicAccess: 'None' }
+}
+resource backupArchiveReaderAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(backupContainer.id, uami.id, 'archive-reader-v2')
+  scope: backupContainer
+  properties: {
+    principalId: uami.properties.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: backupArchiveReaderRole.id
+  }
+}
+resource documentGrantDelegatorRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' = {
+  name: guid(resourceGroup().id, namePrefix, 'document-grant-delegator-v2')
+  properties: {
+    roleName: '${namePrefix} document grant delegator'
+    description: 'Create/read document role assignments; constrained to the fixed runtime principal and blob-only role.'
+    type: 'CustomRole'
+    assignableScopes: [ resourceGroup().id ]
+    permissions: [{
+      actions: [ 'Microsoft.Authorization/roleAssignments/write', 'Microsoft.Authorization/roleAssignments/read' ]
+      notActions: []
+      dataActions: []
+      notDataActions: []
+    }]
+  }
+}
+resource documentGrantDelegation 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(documentStorage.id, adminUami.id, 'document-grant-delegation-v2')
+  scope: documentStorage
+  properties: {
+    principalId: adminUami.properties.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: documentGrantDelegatorRole.id
+    conditionVersion: '2.0'
+    condition: '(!(ActionMatches{\'Microsoft.Authorization/roleAssignments/write\'})) OR (@Request[Microsoft.Authorization/roleAssignments:RoleDefinitionId] GuidEquals ${runtimeDocumentRole.name} AND @Request[Microsoft.Authorization/roleAssignments:PrincipalId] GuidEquals ${uami.properties.principalId} AND @Request[Microsoft.Authorization/roleAssignments:PrincipalType] StringEqualsIgnoreCase \'ServicePrincipal\')'
   }
 }
 
@@ -449,10 +594,55 @@ resource kv 'Microsoft.KeyVault/vaults@2023-07-01' = {
   }
 }
 
+// A new vault avoids exposing historical administrative credential versions to runtime.
+resource runtimeKv 'Microsoft.KeyVault/vaults@2023-07-01' = {
+  name: runtimeKvName
+  location: location
+  properties: {
+    tenantId: subscription().tenantId
+    sku: { family: 'A', name: 'standard' }
+    enableRbacAuthorization: true
+    enableSoftDelete: true
+    softDeleteRetentionInDays: keyVaultSoftDeleteRetentionDays
+    enablePurgeProtection: keyVaultPurgeProtection
+    publicNetworkAccess: 'Enabled'
+  }
+}
+
+resource adminVaultAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(kv.id, adminUami.id, 'secretsuser')
+  scope: kv
+  properties: {
+    principalId: adminUami.properties.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
+  }
+}
+
+resource adminRuntimeVaultAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(runtimeKv.id, adminUami.id, 'secretsuser')
+  scope: runtimeKv
+  properties: {
+    principalId: adminUami.properties.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
+  }
+}
+
+resource adminDocumentBlobRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(documentStorage.id, adminUami.id, 'blob-data-contributor')
+  scope: documentStorage
+  properties: {
+    principalId: adminUami.properties.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: administrativeStorageRole.id
+  }
+}
+
 // UAMI -> Key Vault Secrets User (read)
 resource kvSecretsUserToUami 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(kv.id, uami.id, 'secretsuser')
-  scope: kv
+  name: guid(runtimeKv.id, uami.id, 'secretsuser')
+  scope: runtimeKv
   properties: {
     principalId: uami.properties.principalId
     principalType: 'ServicePrincipal'
@@ -475,7 +665,7 @@ resource kvSecretsOfficerToDeployer 'Microsoft.Authorization/roleAssignments@202
 
 // =============================================================================
 // Azure Database for PostgreSQL — Flexible Server (PG 16)
-// The baseline uses admin credentials directly (no separate app role).
+// Runtime roles are reconciled by the dedicated administrative migration job.
 // =============================================================================
 resource pg 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
   name: pgName
@@ -503,15 +693,19 @@ resource pg 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
   }
 }
 
-// Firewall rule: allow all Azure services (0.0.0.0 - 0.0.0.0 is the Azure "special" rule)
-resource pgFwAzure 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2024-08-01' = {
+// Explicit public egress allowlist. Reconcile reported ACA app/job addresses before cutover.
+// Empty input grants no public database access; never substitute the all-Azure rule.
+@description('Verified public IPv4 sources for PostgreSQL; no 0.0.0.0 Azure-wide exception.')
+param postgresAllowedClientIps array = []
+
+resource pgFirewall 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2024-08-01' = [for ip in postgresAllowedClientIps: if (ip != '0.0.0.0') {
   parent: pg
-  name: 'AllowAzureServices'
+  name: 'kmp-egress-${replace(ip, '.', '-')}'
   properties: {
-    startIpAddress: '0.0.0.0'
-    endIpAddress: '0.0.0.0'
+    startIpAddress: ip
+    endIpAddress: ip
   }
-}
+}]
 
 // Application database
 resource pgDb 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2024-08-01' = {
@@ -568,27 +762,27 @@ resource managedRedisDatabase 'Microsoft.Cache/redisEnterprise/databases@2025-07
 // DATABASE_URL is stored as a single secret so the container entrypoint can
 // consume it directly via secretRef — no in-container composition needed.
 // =============================================================================
-var databaseUrlValue = 'postgres://${postgresAdminUser}:${postgresAdminPassword}@${pg.properties.fullyQualifiedDomainName}:5432/${postgresDatabaseName}?sslmode=require'
-var platformDatabaseUrlValue = 'postgres://${postgresAdminUser}:${postgresAdminPassword}@${pg.properties.fullyQualifiedDomainName}:5432/${platformPostgresDatabaseName}?sslmode=require'
+var databaseUrlValue = 'postgres://${postgresRuntimeUser}:${uriComponent(postgresRuntimePassword)}@${pg.properties.fullyQualifiedDomainName}:5432/${postgresDatabaseName}?ssl=true&ssl_mode=require'
+var platformDatabaseUrlValue = 'postgres://${platformPostgresRuntimeUser}:${uriComponent(platformPostgresRuntimePassword)}@${pg.properties.fullyQualifiedDomainName}:5432/${platformPostgresDatabaseName}?ssl=true&ssl_mode=require'
 var redisUrlValue = enableManagedRedis ? 'rediss://:${managedRedisDatabase.listKeys().primaryKey}@${managedRedis.properties.hostName}:10000/0' : 'unused'
 
 resource secretSecuritySalt 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: kv
+  parent: runtimeKv
   name: 'security-salt'
   properties: { value: securitySalt }
 }
 resource secretDatabaseUrl 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: kv
+  parent: runtimeKv
   name: 'database-url'
   properties: { value: databaseUrlValue }
 }
 resource secretPlatformDatabaseUrl 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: kv
+  parent: runtimeKv
   name: 'platform-database-url'
   properties: { value: platformDatabaseUrlValue }
 }
 resource secretPlatformSecretsMasterKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: kv
+  parent: runtimeKv
   name: 'platform-secrets-master-key'
   properties: { value: platformSecretsMasterKey }
 }
@@ -598,27 +792,38 @@ resource secretPostgresAdmin 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   properties: { value: postgresAdminPassword }
 }
 resource secretBackupKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: kv
+  parent: runtimeKv
   name: 'backup-encryption-key'
   properties: { value: backupEncryptionKey }
 }
 resource secretSmtpPassword 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: kv
+  parent: runtimeKv
   name: 'email-smtp-password'
   properties: { value: empty(emailSmtpPassword) ? 'unused' : emailSmtpPassword }
 }
 resource secretRedisUrl 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: kv
+  parent: runtimeKv
   name: 'redis-url'
   properties: { value: redisUrlValue }
 }
 resource secretAppInsightsConnectionString 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (enableApplicationInsights) {
-  parent: kv
+  parent: runtimeKv
   name: 'appinsights-connection-string'
   properties: { value: appInsights.properties.ConnectionString }
 }
 
 // =============================================================================
+resource secretDatabaseAdminUrl 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: kv
+  name: 'database-admin-url'
+  properties: { value: 'postgres://${postgresAdminUser}:${uriComponent(postgresAdminPassword)}@${pg.properties.fullyQualifiedDomainName}:5432/${postgresDatabaseName}?ssl=true&ssl_mode=require' }
+}
+resource secretPlatformDatabaseAdminUrl 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: kv
+  name: 'platform-database-admin-url'
+  properties: { value: 'postgres://${postgresAdminUser}:${uriComponent(postgresAdminPassword)}@${pg.properties.fullyQualifiedDomainName}:5432/${platformPostgresDatabaseName}?ssl=true&ssl_mode=require' }
+}
+
 // Container Apps Environment
 // =============================================================================
 resource acaEnv 'Microsoft.App/managedEnvironments@2024-10-02-preview' = {
@@ -688,7 +893,7 @@ var applicationInsightsEnv = enableApplicationInsights ? concat([
 var commonEnv = concat([
   // entrypoint.prod.sh parses DATABASE_URL to auto-detect engine + compose
   // config/app_local.php. postgres:// prefix triggers Postgres behaviour
-  // (pg_isready probe, sslmode=require honoured by the PDO driver).
+  // (pg_isready probe, explicit TLS options honoured by the CakePHP PDO driver).
   { name: 'DATABASE_URL', secretRef: 'database-url' }
   { name: 'PLATFORM_DATABASE_URL', secretRef: 'platform-database-url' }
   { name: 'SECURITY_SALT', secretRef: 'security-salt' }
@@ -724,6 +929,8 @@ var commonEnv = concat([
   { name: 'AZURE_STORAGE_AUTH_MODE', value: 'managedIdentity' }
   { name: 'AZURE_STORAGE_ACCOUNT_NAME', value: documentStorage.name }
   { name: 'AZURE_STORAGE_CONTAINER_PREFIX', value: documentContainerPrefix }
+  { name: 'BACKUP_STORAGE_ADAPTER', value: 'azure' }
+  { name: 'AZURE_BACKUP_STORAGE_CONTAINER', value: backupContainerName }
 ], applicationInsightsEnv)
 
 var webEnv = concat(commonEnv, [
@@ -778,6 +985,12 @@ var commonSecrets = concat([
   }
 ] : [])
 
+var adminSecrets = concat(map(commonSecrets, secret => union(secret, { identity: adminUami.id })), [
+  { name: 'database-admin-url', keyVaultUrl: secretDatabaseAdminUrl.properties.secretUri, identity: adminUami.id }
+  { name: 'platform-database-admin-url', keyVaultUrl: secretPlatformDatabaseAdminUrl.properties.secretUri, identity: adminUami.id }
+])
+var adminRegistries = [{ server: acr.properties.loginServer, identity: adminUami.id }]
+
 var commonRegistries = [
   {
     server: acr.properties.loginServer
@@ -785,12 +998,12 @@ var commonRegistries = [
   }
 ]
 
-var fullImage = '${imageRepository}:${imageTag}'
+var fullImage = '${imageRepository}@${imageDigest}'
 
 // =============================================================================
 // Container App — web
 // =============================================================================
-resource web 'Microsoft.App/containerApps@2024-03-01' = {
+resource web 'Microsoft.App/containerApps@2024-03-01' = if (enableApplicationRuntime) {
   name: webAppName
   location: location
   identity: {
@@ -861,6 +1074,7 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
     acrPullRole
     kvSecretsUserToUami
     documentBlobContributorRole
+    backupArchiveReaderAssignment
     pgDb
     pgPlatformDb
   ]
@@ -871,7 +1085,7 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
 // Staging parameter files can enable this to mirror the intended production edge
 // topology while keeping the Container App as the origin.
 // =============================================================================
-resource frontDoorProfile 'Microsoft.Cdn/profiles@2024-02-01' = if (deployFrontDoor) {
+resource frontDoorProfile 'Microsoft.Cdn/profiles@2024-02-01' = if (deployFrontDoor && enableApplicationRuntime) {
   name: frontDoorProfileName
   location: 'global'
   sku: {
@@ -879,7 +1093,7 @@ resource frontDoorProfile 'Microsoft.Cdn/profiles@2024-02-01' = if (deployFrontD
   }
 }
 
-resource frontDoorEndpoint 'Microsoft.Cdn/profiles/afdEndpoints@2024-02-01' = if (deployFrontDoor) {
+resource frontDoorEndpoint 'Microsoft.Cdn/profiles/afdEndpoints@2024-02-01' = if (deployFrontDoor && enableApplicationRuntime) {
   parent: frontDoorProfile
   name: frontDoorEndpointName
   location: 'global'
@@ -888,7 +1102,7 @@ resource frontDoorEndpoint 'Microsoft.Cdn/profiles/afdEndpoints@2024-02-01' = if
   }
 }
 
-resource frontDoorOriginGroup 'Microsoft.Cdn/profiles/originGroups@2024-02-01' = if (deployFrontDoor) {
+resource frontDoorOriginGroup 'Microsoft.Cdn/profiles/originGroups@2024-02-01' = if (deployFrontDoor && enableApplicationRuntime) {
   parent: frontDoorProfile
   name: frontDoorOriginGroupName
   properties: {
@@ -906,7 +1120,7 @@ resource frontDoorOriginGroup 'Microsoft.Cdn/profiles/originGroups@2024-02-01' =
   }
 }
 
-resource frontDoorOrigin 'Microsoft.Cdn/profiles/originGroups/origins@2024-02-01' = if (deployFrontDoor) {
+resource frontDoorOrigin 'Microsoft.Cdn/profiles/originGroups/origins@2024-02-01' = if (deployFrontDoor && enableApplicationRuntime) {
   parent: frontDoorOriginGroup
   name: frontDoorOriginName
   properties: {
@@ -921,7 +1135,7 @@ resource frontDoorOrigin 'Microsoft.Cdn/profiles/originGroups/origins@2024-02-01
   }
 }
 
-resource frontDoorCustomDomain 'Microsoft.Cdn/profiles/customDomains@2024-02-01' = [for domain in frontDoorCustomDomains: if (deployFrontDoor) {
+resource frontDoorCustomDomain 'Microsoft.Cdn/profiles/customDomains@2024-02-01' = [for domain in frontDoorCustomDomains: if (deployFrontDoor && enableApplicationRuntime) {
   parent: frontDoorProfile
   name: domain.name
   properties: {
@@ -933,7 +1147,7 @@ resource frontDoorCustomDomain 'Microsoft.Cdn/profiles/customDomains@2024-02-01'
   }
 }]
 
-resource frontDoorRoute 'Microsoft.Cdn/profiles/afdEndpoints/routes@2024-02-01' = if (deployFrontDoor) {
+resource frontDoorRoute 'Microsoft.Cdn/profiles/afdEndpoints/routes@2024-02-01' = if (deployFrontDoor && enableApplicationRuntime) {
   parent: frontDoorEndpoint
   name: frontDoorRouteName
   properties: {
@@ -967,18 +1181,18 @@ var jobEnvWorker = concat(commonEnv, [
   { name: 'KMP_SKIP_MIGRATIONS', value: 'true' }
 ])
 
-var jobEnvMigrate = concat(commonEnv, [
-  { name: 'KMP_SKIP_CRON', value: 'true' }
-  // migrate job keeps migrations enabled so entrypoint applies app migrations.
-])
-
-// Restore job: force local backup storage adapter so the restore reads the
-// bundled .kmpbackup file from ${ROOT}/backups/ instead of Azure Blob.
-var jobEnvRestore = concat(commonEnv, [
+var administrativeEnv = concat(commonEnv, [
+  { name: 'AZURE_DOCUMENT_STORAGE_RESOURCE_ID', value: documentStorage.id }
+  { name: 'AZURE_DOCUMENT_RUNTIME_ROLE_ID', value: runtimeDocumentRole.id }
+  { name: 'AZURE_DOCUMENT_RUNTIME_ID', value: uami.id }
+  { name: 'KMP_ADMIN_JOB', value: 'true' }
+  { name: 'DATABASE_ADMIN_URL', secretRef: 'database-admin-url' }
+  { name: 'PLATFORM_DATABASE_ADMIN_URL', secretRef: 'platform-database-admin-url' }
   { name: 'KMP_SKIP_CRON', value: 'true' }
   { name: 'KMP_SKIP_MIGRATIONS', value: 'true' }
-  { name: 'DOCUMENT_STORAGE_ADAPTER', value: 'local' }
 ])
+var jobEnvMigrate = administrativeEnv
+var jobEnvRestore = administrativeEnv
 
 var manualShapeJobDefinitions = [
   {
@@ -994,7 +1208,7 @@ var manualShapeJobDefinitions = [
     args: [
       '/bin/sh'
       '-lc'
-      'bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake platform secrets import-env && bin/cake platform backup-keys ensure --allow-read-only && bin/cake tenant migrate --all --include-suspended --fail-fast && bin/cake cache clear _cake_model_'
+      'bin/cake platform database privileges && bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake platform secrets import-env && bin/cake platform backup-keys ensure --allow-read-only && bin/cake tenant migrate --all --include-suspended --fail-fast && bin/cake platform database privileges && bin/cake platform storage documents && bin/cake cache clear _cake_model_'
     ]
   }
   {
@@ -1017,7 +1231,7 @@ var manualShapeJobDefinitions = [
     retryLimit: 0
     cpu: '0.5'
     memory: '1Gi'
-    env: jobEnvWorker
+    env: administrativeEnv
     command: [ '/usr/local/bin/docker-entrypoint.sh' ]
     // Safe default: print help. Operators override args at start time for a tenant.
     args: [ 'bin/cake', 'tenant', 'provision', '--help' ]
@@ -1025,6 +1239,21 @@ var manualShapeJobDefinitions = [
 ]
 
 var scheduledShapeJobDefinitions = [
+  {
+    enabled: enableQueueWorkerJob
+    name: adminWorkerJobName
+    containerName: 'admin'
+    cron: queueWorkerCron
+    timeout: 7200
+    retryLimit: 0
+    parallelism: 1
+    completionCount: 1
+    cpu: '0.5'
+    memory: '1Gi'
+    env: administrativeEnv
+    command: [ '/usr/local/bin/docker-entrypoint.sh' ]
+    args: [ 'bin/cake', 'platform', 'jobs', 'run', '--limit', '1' ]
+  }
   {
     enabled: enableQueueWorkerJob
     name: queueWorkerJobName
@@ -1123,7 +1352,7 @@ resource manualShapeJobs 'Microsoft.App/jobs@2024-03-01' = [for job in manualSha
   location: location
   identity: {
     type: 'UserAssigned'
-    userAssignedIdentities: { '${uami.id}': {} }
+    userAssignedIdentities: { '${adminUami.id}': {} }
   }
   properties: {
     environmentId: acaEnv.id
@@ -1135,8 +1364,8 @@ resource manualShapeJobs 'Microsoft.App/jobs@2024-03-01' = [for job in manualSha
         parallelism: 1
         replicaCompletionCount: 1
       }
-      registries: commonRegistries
-      secrets: commonSecrets
+      registries: adminRegistries
+      secrets: adminSecrets
     }
     template: {
       containers: [
@@ -1145,7 +1374,8 @@ resource manualShapeJobs 'Microsoft.App/jobs@2024-03-01' = [for job in manualSha
           image: fullImage
           resources: { cpu: json(job.cpu), memory: job.memory }
           env: concat(job.env, [
-            { name: 'AZURE_CLIENT_ID', value: uami.properties.clientId }
+            { name: 'AZURE_CLIENT_ID', value: adminUami.properties.clientId }
+            { name: 'AZURE_DOCUMENT_RUNTIME_PRINCIPAL_ID', value: uami.properties.principalId }
           ])
           command: job.command
           args: job.args
@@ -1154,20 +1384,22 @@ resource manualShapeJobs 'Microsoft.App/jobs@2024-03-01' = [for job in manualSha
     }
   }
   dependsOn: [
-    acrPullRole
-    kvSecretsUserToUami
-    documentBlobContributorRole
+    adminAcrPullRole
+    adminVaultAccess
+    adminRuntimeVaultAccess
+    adminDocumentBlobRole
+    documentGrantDelegation
     pgDb
     pgPlatformDb
   ]
 }]
 
-resource scheduledShapeJobs 'Microsoft.App/jobs@2024-03-01' = [for job in scheduledShapeJobDefinitions: if (enableContainerJobs && job.enabled) {
+resource scheduledShapeJobs 'Microsoft.App/jobs@2024-03-01' = [for job in scheduledShapeJobDefinitions: if (enableApplicationRuntime && enableContainerJobs && job.enabled) {
   name: job.name
   location: location
   identity: {
     type: 'UserAssigned'
-    userAssignedIdentities: { '${uami.id}': {} }
+    userAssignedIdentities: job.name == adminWorkerJobName ? { '${adminUami.id}': {} } : { '${uami.id}': {} }
   }
   properties: {
     environmentId: acaEnv.id
@@ -1180,8 +1412,8 @@ resource scheduledShapeJobs 'Microsoft.App/jobs@2024-03-01' = [for job in schedu
         parallelism: job.parallelism
         replicaCompletionCount: job.completionCount
       }
-      registries: commonRegistries
-      secrets: commonSecrets
+      registries: job.name == adminWorkerJobName ? adminRegistries : commonRegistries
+      secrets: job.name == adminWorkerJobName ? adminSecrets : commonSecrets
     }
     template: {
       containers: [
@@ -1190,8 +1422,10 @@ resource scheduledShapeJobs 'Microsoft.App/jobs@2024-03-01' = [for job in schedu
           image: fullImage
           resources: { cpu: json(job.cpu), memory: job.memory }
           env: concat(job.env, [
-            { name: 'AZURE_CLIENT_ID', value: uami.properties.clientId }
-          ])
+            { name: 'AZURE_CLIENT_ID', value: job.name == adminWorkerJobName ? adminUami.properties.clientId : uami.properties.clientId }
+          ], job.name == adminWorkerJobName ? [
+            { name: 'AZURE_DOCUMENT_RUNTIME_PRINCIPAL_ID', value: uami.properties.principalId }
+          ] : [])
           command: job.command
           args: job.args
         }
@@ -1199,9 +1433,15 @@ resource scheduledShapeJobs 'Microsoft.App/jobs@2024-03-01' = [for job in schedu
     }
   }
   dependsOn: [
+    adminAcrPullRole
+    adminVaultAccess
+    adminRuntimeVaultAccess
+    adminDocumentBlobRole
+    documentGrantDelegation
     acrPullRole
     kvSecretsUserToUami
     documentBlobContributorRole
+    backupArchiveReaderAssignment
     pgDb
     pgPlatformDb
   ]
@@ -1224,8 +1464,8 @@ output documentStorageAccountName string = documentStorage.name
 output documentStorageContainerPrefix string = documentContainerPrefix
 output uamiId string = uami.id
 output uamiPrincipalId string = uami.properties.principalId
-output webAppFqdn string = web.properties.configuration.ingress.fqdn
-output webAppName string = web.name
+output webAppFqdn string = enableApplicationRuntime ? web.properties.configuration.ingress.fqdn : ''
+output webAppName string = webAppName
 output migrateJobName string = migrateJobName
 output restoreJobName string = restoreJobName
 output provisionJobName string = provisionJobName
@@ -1241,5 +1481,9 @@ output resetJobName string = restoreJobName
 output acaEnvName string = acaEnv.name
 output appInsightsName string = enableApplicationInsights ? appInsights.name : ''
 output telemetryWorkbookId string = enableApplicationInsights && deployTelemetryWorkbook ? telemetryWorkbook.id : ''
-output frontDoorProfileName string = deployFrontDoor ? frontDoorProfile.name : ''
-output frontDoorEndpointHostName string = deployFrontDoor ? frontDoorEndpoint.properties.hostName : ''
+output frontDoorProfileName string = deployFrontDoor && enableApplicationRuntime ? frontDoorProfile.name : ''
+output frontDoorEndpointHostName string = deployFrontDoor && enableApplicationRuntime ? frontDoorEndpoint.properties.hostName : ''
+
+output runtimeIdentityId string = uami.id
+output administrativeIdentityId string = adminUami.id
+output adminWorkerJobName string = adminWorkerJobName

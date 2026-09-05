@@ -7,7 +7,9 @@ use App\Controller\AppController;
 use App\Controller\ManagedBackupDownloadTrait;
 use App\Services\Backups\BackupRecoveryKeyService;
 use App\Services\Backups\TenantBackupService;
+use App\Services\Platform\PlatformAdminHost;
 use App\Services\Platform\PlatformBackupPolicyService;
+use App\Services\Platform\PlatformTotpChallengeService;
 use App\Services\Platform\PlatformTotpVerifier;
 use App\Services\Secrets\SecretStoreFactory;
 use Cake\Core\Configure;
@@ -39,6 +41,9 @@ class PlatformAdminAppController extends AppController
      */
     public function beforeFilter(EventInterface $event)
     {
+        if (!PlatformAdminHost::allows($this->request->getUri()->getHost())) {
+            throw new NotFoundException('Not found.');
+        }
         parent::beforeFilter($event);
         $this->Authentication->allowUnauthenticated([(string)$this->request->getParam('action')]);
         $this->Authorization->skipAuthorization();
@@ -191,7 +196,10 @@ class PlatformAdminAppController extends AppController
         $userId = (string)($admin['id'] ?? '');
         $sessionHost = strtolower(rtrim((string)($admin['host'] ?? ''), '.'));
         $requestHost = strtolower(rtrim($this->request->getUri()->getHost(), '.'));
-        if ($email === '' || $userId === '' || $sessionHost !== $requestHost) {
+        if (
+            $email === '' || $userId === '' || $sessionHost !== $requestHost
+            || ($admin['version'] ?? null) !== 1 || !is_string($admin['auth_version'] ?? null)
+        ) {
             $session->delete('PlatformAdmin');
 
             return null;
@@ -199,7 +207,7 @@ class PlatformAdminAppController extends AppController
 
         try {
             $row = $this->platform()->execute(
-                'SELECT id, email, status, locked_until FROM platform_users ' .
+                'SELECT id, email, status, locked_until, auth_version FROM platform_users ' .
                 'WHERE id = :id AND lower(email) = :email LIMIT 1',
                 ['id' => $userId, 'email' => $email],
             )->fetch('assoc');
@@ -209,7 +217,10 @@ class PlatformAdminAppController extends AppController
             return null;
         }
 
-        if (!is_array($row) || !$this->statusIsAllowed((string)($row['status'] ?? ''))) {
+        if (
+            !is_array($row) || !$this->statusIsAllowed((string)($row['status'] ?? ''))
+            || !hash_equals((string)$row['auth_version'], $admin['auth_version'])
+        ) {
             $session->delete('PlatformAdmin');
 
             return null;
@@ -279,6 +290,7 @@ class PlatformAdminAppController extends AppController
             (string)($mfaConfig['algorithm'] ?? 'sha1'),
         );
 
-        return $verifier->verify($platformAdminId, $row['totp_secret_ref'] ?? null, $totp);
+        return (new PlatformTotpChallengeService($this->platform(), $verifier))
+            ->consume($platformAdminId, $row['totp_secret_ref'] ?? null, $totp);
     }
 }

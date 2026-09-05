@@ -1,12 +1,4 @@
 // Mock services before importing controller
-jest.mock('../../../assets/js/services/offline-queue-service.js', () => ({
-    __esModule: true,
-    default: {
-        init: jest.fn().mockResolvedValue(undefined),
-        enqueue: jest.fn().mockResolvedValue(undefined)
-    }
-}));
-
 jest.mock('../../../assets/js/services/rsvp-cache-service.js', () => ({
     __esModule: true,
     default: {

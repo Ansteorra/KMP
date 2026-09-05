@@ -46,14 +46,20 @@ class PlatformTotpVerifier implements PlatformTotpVerifierInterface
      */
     public function verify(string $platformUserId, ?string $totpSecretRef, string $totpCode): bool
     {
+        return $this->matchingCounter($totpSecretRef, $totpCode) !== null;
+    }
+
+    /** Return the matched moving factor; callers must atomically consume it. */
+    public function matchingCounter(?string $totpSecretRef, string $totpCode): ?int
+    {
         $totpCode = trim($totpCode);
         if ($totpSecretRef === null || !preg_match('/^\d{' . $this->digits . '}$/', $totpCode)) {
-            return false;
+            return null;
         }
 
         $secret = $this->secretStore->get($totpSecretRef);
         if ($secret === null || $secret->isEmpty()) {
-            return false;
+            return null;
         }
 
         $counter = intdiv(($this->clock)(), $this->period);
@@ -64,11 +70,11 @@ class PlatformTotpVerifier implements PlatformTotpVerifierInterface
             }
             $candidate = $this->codeForCounter($secret, $candidateCounter);
             if ($candidate !== null && hash_equals($candidate, $totpCode)) {
-                return true;
+                return $candidateCounter;
             }
         }
 
-        return false;
+        return null;
     }
 
     /**
