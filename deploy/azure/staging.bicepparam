@@ -8,7 +8,8 @@ param releaseChannel = 'staging'
 
 param acrName = readEnvironmentVariable('AZURE_ACR_NAME', 'kmpstageacrplaceholder')
 param imageRepository = readEnvironmentVariable('KMP_STAGING_IMAGE_REPOSITORY', '<acr-login-server>/kmp')
-param imageDigest = readEnvironmentVariable('KMP_STAGING_IMAGE_DIGEST', 'staging')
+// Required immutable digest: sha256: followed by all 64 hexadecimal characters.
+param imageDigest = readEnvironmentVariable('KMP_STAGING_IMAGE_DIGEST')
 
 param postgresAdminUser = 'kmpadmin'
 param postgresAdminPassword = readEnvironmentVariable('POSTGRES_ADMIN_PASSWORD')

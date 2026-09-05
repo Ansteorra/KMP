@@ -60,6 +60,9 @@ FAKE);
                 'port' => 6543, 'ssl' => true, 'ssl_mode' => 'verify-full',
                 'ssl_ca' => '/synthetic/ca.pem', 'ssl_cert' => '/synthetic/client.pem', 'ssl_key' => '/synthetic/client.key',
             ], '6543', 'verify-full'],
+            'enabled TLS without mode' => [['ssl' => true], '5432', 'require'],
+            'enabled TLS with empty mode' => [['ssl' => true, 'ssl_mode' => ''], '5432', 'require'],
+            'explicit CA verification' => [['ssl' => true, 'ssl_mode' => 'verify-ca'], '5432', 'verify-ca'],
             'legacy URL TLS' => [['sslmode' => 'require'], '5432', 'require'],
             'default connection' => [[], '5432', 'prefer'],
         ];

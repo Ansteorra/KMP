@@ -22,6 +22,13 @@ assert_contains() {
     fi
 }
 
+assert_contains "$here/staging.bicepparam" "param imageDigest = readEnvironmentVariable('KMP_STAGING_IMAGE_DIGEST')"
+assert_contains "$here/README.md" 'export KMP_STAGING_IMAGE_DIGEST='
+if grep -Fq 'KMP_STAGING_IMAGE_TAG' "$here/staging.bicepparam" "$here/README.md"; then
+    echo 'Staging deployment instructions must require an immutable image digest.' >&2
+    exit 1
+fi
+
 assert_contains "$bicep" "param queueWorkerCron string = '*/3 * * * *'"
 assert_contains "$bicep" 'param queueWorkerReplicaTimeoutSeconds int = 3600'
 assert_contains "$bicep" 'param enableScheduleHourlyJob bool = false'

@@ -130,7 +130,6 @@ class ServicePrincipalAuthenticator extends AbstractAuthenticator
      * Supports:
      * - Authorization: Bearer <token>
      * - X-API-Key: <token>
-     * - ?api_key=<token>
      *
      * @param \Psr\Http\Message\ServerRequestInterface $request Request
      * @return string|null Token or null if not found

@@ -11,6 +11,7 @@ use Cake\Database\Connection;
 use Cake\Database\Driver\Postgres;
 use Cake\Datasource\ConnectionManager;
 use Cake\TestSuite\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 
 class PgRestoreTenantBackupRestorerTest extends TestCase
@@ -85,6 +86,32 @@ FAKE);
         $this->assertFalse($captured['PGHOSTADDR']);
         $this->assertFalse($captured['PGSERVICE']);
         $this->assertStringNotContainsString('password', implode(' ', $captured['argv']));
+    }
+
+    /**
+     * @return array<string, array{array<string, mixed>}>
+     */
+    public static function enabledTlsWithoutMode(): array
+    {
+        return [
+            'unspecified mode' => [['ssl' => true]],
+            'empty mode' => [['ssl' => true, 'ssl_mode' => '']],
+            'null mode' => [['ssl' => true, 'ssl_mode' => null]],
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $config Administrative datasource options
+     * @return void
+     */
+    #[DataProvider('enabledTlsWithoutMode')]
+    public function testEnabledTlsNeverAllowsPlaintextByDefault(array $config): void
+    {
+        $this->configureAdministrativeConnection($config);
+        $captured = $this->runRestore();
+        $this->assertSame('require', $captured['PGSSLMODE']);
+        $this->assertFalse($captured['PGHOSTADDR']);
+        $this->assertFalse($captured['PGSERVICE']);
     }
 
     public function testLegacyDatabaseUrlSslmodeStillRequiresTls(): void

@@ -8,7 +8,7 @@ Ordinary web and queue processes use distinct DML-only PostgreSQL roles through 
 
 Only dedicated migration, provisioning, restore, and administrative-runner jobs receive `KMP_ADMIN_JOB=true`, `DATABASE_ADMIN_URL`, and `PLATFORM_DATABASE_ADMIN_URL`. Application bootstrap rejects administrative URLs in ordinary processes. The administrative connection is selected after local configuration, and tenant administrative work refuses a different database server. Configure one administrative job per database server when expanding beyond the current server.
 
-Backup and restore subprocesses preserve the selected administrative port and TLS policy and ignore inherited libpq environment overrides. Generated database URLs use CakePHP-recognized `ssl=true&ssl_mode=require` options.
+Backup and restore subprocesses preserve the selected administrative port and TLS policy and ignore inherited libpq environment overrides. When `ssl=true` is configured without a nonempty TLS mode, subprocesses require TLS; an explicit `ssl_mode` or legacy `sslmode` remains authoritative. Generated database URLs use CakePHP-recognized `ssl=true&ssl_mode=require` options.
 
 The normal scheduler/queue runner leaves operational platform jobs queued. The separate `${namePrefix}-admin` job runs `bin/cake platform jobs run --limit 1`. Give GitHub environments the new `AZURE_ADMIN_JOB_NAME` variable. All jobs receive the same verified image digest. Cutover validates process/identity separation, parks the admin schedule and waits for existing administrative executions before migrations, and resumes it after web health checks.
 

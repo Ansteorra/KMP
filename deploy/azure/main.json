@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.46.1.21595",
-      "templateHash": "3085130078836283766"
+      "templateHash": "2615910102751145165"
     }
   },
   "parameters": {
@@ -36,7 +36,7 @@
       "minLength": 71,
       "maxLength": 71,
       "metadata": {
-        "description": "Image tag to deploy (e.g. \"nightly\" or \"nightly-2026-04-17\")."
+        "description": "Immutable image digest from the verified build: sha256: followed by 64 lowercase hexadecimal characters."
       }
     },
     "releaseChannel": {

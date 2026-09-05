@@ -33,7 +33,7 @@ param namePrefix string = 'kmpnightly'
 @description('Container image reference (without tag) in the internal ACR. Typically "<acr-login-server>/kmp".')
 param imageRepository string
 
-@description('Image tag to deploy (e.g. "nightly" or "nightly-2026-04-17").')
+@description('Immutable image digest from the verified build: sha256: followed by 64 lowercase hexadecimal characters.')
 @minLength(71)
 @maxLength(71)
 param imageDigest string

@@ -26,7 +26,8 @@ final class PostgresClientEnvironment
         }
         $env['PGPASSWORD'] = $password->reveal();
         $sslMode = (string)($config['ssl_mode'] ?? $config['sslmode'] ?? '');
-        $env['PGSSLMODE'] = $sslMode !== '' ? $sslMode : (!empty($config['ssl']) ? 'allow' : 'prefer');
+        // Enabling TLS must not default to libpq's plaintext-first `allow` mode.
+        $env['PGSSLMODE'] = $sslMode !== '' ? $sslMode : (!empty($config['ssl']) ? 'require' : 'prefer');
         foreach (
             ['ssl_key' => 'PGSSLKEY', 'ssl_cert' => 'PGSSLCERT', 'ssl_ca' => 'PGSSLROOTCERT'] as $key => $variable
         ) {
