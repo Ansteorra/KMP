@@ -17,6 +17,7 @@ final class RateLimitResult
         public readonly bool $allowed,
         public readonly int $remaining,
         public readonly int $retryAfterSeconds,
+        public readonly ?string $reservationKey = null,
     ) {
     }
 }

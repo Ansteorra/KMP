@@ -1,0 +1,94 @@
+name: Security Gates
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: Published immutable candidate to audit without rebuilding
+        required: false
+        type: string
+        default: ''
+  workflow_dispatch:
+  schedule:
+    - cron: '17 5 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  security:
+    name: Locked dependencies and final image
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      matrix:
+        platform: ${{ fromJSON(inputs.image != '' && '["linux/amd64","linux/arm64"]' || '["linux/amd64"]') }}
+    env:
+      TRIVY_PLATFORM: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.4'
+          tools: composer
+          coverage: none
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+      - name: Check scanner and deployment contracts
+        run: |
+          python3 -m unittest discover -s security -p 'test_*.py'
+          python3 deploy/azure/test-postgres-firewall.py
+          python3 deploy/azure/test-database-job-contract.py
+          bash deploy/azure/test-runtime-contract.sh
+          bash security-checker.sh
+      - if: inputs.image == ''
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+      - name: Build final artifact without publishing
+        if: inputs.image == ''
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: .
+          file: docker/Dockerfile.prod
+          no-cache-filters: ${{ github.event_name == 'schedule' && 'runtime-base' || '' }}
+          load: true
+          push: false
+          tags: kmp-security:ci
+          cache-from: type=gha,scope=kmp-security
+          cache-to: type=gha,mode=max,scope=kmp-security
+      - name: Verify packaged database privilege boundaries
+        if: inputs.image == ''
+        env:
+          KMP_TEST_PHP_IMAGE: kmp-security:ci
+          KMP_TEST_USE_IMAGE_SOURCE: '1'
+        run: bash deploy/azure/test-postgres-privileges.sh
+      - name: Install verified scanner
+        env:
+          SCANNER_DIR: ${{ runner.temp }}/kmp-trivy
+        run: |
+          set -euo pipefail
+          mkdir -p "$SCANNER_DIR"
+          curl --fail --silent --show-error --location --proto '=https' \
+            https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-64bit.tar.gz \
+            --output "$SCANNER_DIR/trivy.tar.gz"
+          printf '%s  %s\n' '2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a' "$SCANNER_DIR/trivy.tar.gz" | sha256sum --check
+          tar -xzf "$SCANNER_DIR/trivy.tar.gz" -C "$SCANNER_DIR" trivy
+          echo "$SCANNER_DIR" >> "$GITHUB_PATH"
+      - name: Audit final image and create SBOM
+        env:
+          CANDIDATE_IMAGE: ${{ inputs.image }}
+        run: |
+          set -euo pipefail
+          IMAGE=kmp-security:ci
+          if [[ -n "$CANDIDATE_IMAGE" ]]; then
+            [[ "$CANDIDATE_IMAGE" =~ ^ghcr.io/[a-z0-9_./-]+@sha256:[0-9a-f]{64}$ ]] || exit 1
+            IMAGE="$CANDIDATE_IMAGE"
+          fi
+          bash security-checker.sh --image "$IMAGE" --reports '${{ runner.temp }}/kmp-security-reports'
+      - name: Retain security evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: security-evidence-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/kmp-security-reports
+          retention-days: 30

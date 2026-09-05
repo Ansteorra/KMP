@@ -6,6 +6,8 @@ namespace App\Controller;
 use App\KMP\GridColumns\GatheringAttendancesGridColumns;
 use App\KMP\GridRowDomId;
 use App\KMP\TimezoneHelper;
+use App\Services\Security\OfflineIdentity;
+use Cake\Database\Exception\QueryException;
 use Cake\Http\Response;
 use Cake\I18n\DateTime as CakeDateTime;
 use Cake\Log\Log;
@@ -355,6 +357,18 @@ class GatheringAttendancesController extends AppController
         $this->request->allowMethod(['post']);
 
         $data = $this->request->getData();
+        if (!OfflineIdentity::matches($this->request, $data)) {
+            $this->Authorization->skipAuthorization();
+
+            return $this->jsonResponse(['success' => false, 'error' => 'Offline account changed. Sign in again.'], 403);
+        }
+        $requestId = $data['offline_request_id'] ?? null;
+        $requestIdPattern = '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/Di';
+        if (!is_string($requestId) || !preg_match($requestIdPattern, $requestId)) {
+            $this->Authorization->skipAuthorization();
+
+            return $this->jsonResponse(['success' => false, 'error' => 'Offline request ID required'], 400);
+        }
 
         // Validate gathering_id
         if (empty($data['gathering_id'])) {
@@ -368,8 +382,10 @@ class GatheringAttendancesController extends AppController
         }
 
         $today = CakeDateTime::now()->startOfDay();
-        if ($gathering->end_date < $today) {
-            return $this->jsonResponse(['success' => false, 'error' => 'Cannot RSVP to a past gathering'], 400);
+        if ($gathering->cancelled_at !== null || $gathering->end_date < $today) {
+            return $this->jsonResponse([
+                'success' => false, 'error' => 'Cannot RSVP to a cancelled or past gathering',
+            ], 400);
         }
 
         $currentUser = $this->Authentication->getIdentity();
@@ -383,11 +399,13 @@ class GatheringAttendancesController extends AppController
             ->first();
 
         if ($existing) {
+            $this->Authorization->authorize($existing, 'edit');
+
             return $this->jsonResponse([
-                'success' => false,
-                'error' => 'You are already registered for this gathering',
+                'success' => true,
+                'message' => 'Already registered; existing RSVP preserved',
                 'attendance_id' => $existing->id,
-            ], 400);
+            ]);
         }
 
         // Create attendance
@@ -395,20 +413,30 @@ class GatheringAttendancesController extends AppController
             'gathering_id' => $data['gathering_id'],
             'member_id' => $currentUser->id,
             'is_public' => '0',
-            'share_with_kingdom' => $data['share_with_kingdom'] ?? false,
-            'share_with_hosting_group' => $data['share_with_hosting_group'] ?? false,
-            'share_with_crown' => $data['share_with_crown'] ?? false,
-            'public_note' => $data['public_note'] ?? null,
+            'share_with_kingdom' => false,
+            'share_with_hosting_group' => false,
+            'share_with_crown' => false,
+            'public_note' => null,
             'created_by' => $currentUser->id,
         ]);
 
+        $gatheringAttendance->set('offline_request_id', $requestId);
         $this->Authorization->authorize($gatheringAttendance, 'add');
 
-        if (!$this->applyProgressFromRequest($gatheringAttendance, $data)) {
-            return $this->jsonResponse(['success' => false, 'error' => 'Invalid royal progress selection'], 400);
+        try {
+            $saved = $this->GatheringAttendances->save($gatheringAttendance);
+        } catch (QueryException $exception) {
+            // A duplicate retry must never create another attendance.
+            $saved = $this->GatheringAttendances->find()->where([
+                'offline_request_id' => $requestId,
+                'member_id' => $currentUser->id,
+                'gathering_id' => $data['gathering_id'],
+            ])->first();
+            if ($saved) {
+                $gatheringAttendance = $saved;
+            }
         }
-
-        if ($this->GatheringAttendances->save($gatheringAttendance)) {
+        if ($saved) {
             return $this->jsonResponse([
                 'success' => true,
                 'message' => 'RSVP confirmed!',
@@ -505,6 +533,7 @@ class GatheringAttendancesController extends AppController
      */
     public function myRsvps()
     {
+        $this->response = OfflineIdentity::bind($this->response, $this->request);
         $currentUser = $this->Authentication->getIdentity();
 
         // Use user's timezone for accurate "today" comparison

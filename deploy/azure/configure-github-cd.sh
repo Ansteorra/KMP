@@ -303,6 +303,7 @@ configure_environment() {
     local daily_job="${11}"
     local postgres_resource_group="${12:-$resource_group}"
     local postgres_server
+    local admin_job="${13:-${web_app%-web}-admin}"
 
     postgres_server="$(discover_postgres_server "$postgres_resource_group")"
     ensure_postgres_access "$app_id" "$postgres_resource_group" "$postgres_server"
@@ -317,6 +318,7 @@ configure_environment() {
     set_variable "$environment" AZURE_WEB_APP_NAME "$web_app"
     set_variable "$environment" AZURE_MIGRATE_JOB_NAME "$migrate_job"
     set_variable "$environment" AZURE_QUEUE_JOB_NAME "$queue_job"
+    set_variable "$environment" AZURE_ADMIN_JOB_NAME "$admin_job"
     set_variable "$environment" AZURE_RESTORE_JOB_NAME "$restore_job"
 
     if [[ -n "$provision_job" ]]; then

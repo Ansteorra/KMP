@@ -37,6 +37,11 @@ for value in resource_group web_app image; do
     fi
 done
 
+if [[ ! "$image" =~ ^[a-zA-Z0-9][a-zA-Z0-9./:_-]*@sha256:[0-9a-f]{64}$ ]]; then
+    echo 'Deployment requires an immutable image reference ending in @sha256:<64 lowercase hex>.' >&2
+    exit 64
+fi
+
 if "$dry_run"; then
     printf 'Would update %s/%s to %s with request-only flags and split probes.\n' \
         "$resource_group" "$web_app" "$image"

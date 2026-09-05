@@ -9,8 +9,10 @@ Usage:
     --web-app APP \
     --migrate-job JOB \
     --worker-job JOB \
+    --admin-job JOB \
     --image IMAGE \
     [--legacy-job JOB ...] \
+    [--privileged-job JOB ...] \
     [--snapshot-dir DIR] \
     [--dry-run]
 
@@ -28,10 +30,12 @@ resource_group=''
 web_app=''
 migrate_job=''
 worker_job=''
+admin_job=''
 image=''
 snapshot_dir=''
 dry_run=false
 legacy_jobs=()
+privileged_jobs=()
 existing_legacy_jobs=()
 
 while [[ $# -gt 0 ]]; do
@@ -40,8 +44,10 @@ while [[ $# -gt 0 ]]; do
         --web-app) web_app="$2"; shift 2 ;;
         --migrate-job) migrate_job="$2"; shift 2 ;;
         --worker-job) worker_job="$2"; shift 2 ;;
+        --admin-job) admin_job="$2"; shift 2 ;;
         --image) image="$2"; shift 2 ;;
         --legacy-job) legacy_jobs+=("$2"); shift 2 ;;
+        --privileged-job) privileged_jobs+=("$2"); shift 2 ;;
         --snapshot-dir) snapshot_dir="$2"; shift 2 ;;
         --dry-run) dry_run=true; shift ;;
         -h|--help) usage; exit 0 ;;
@@ -49,12 +55,17 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-for value in resource_group web_app migrate_job worker_job image; do
+for value in resource_group web_app migrate_job worker_job admin_job image; do
     if [[ -z "${!value}" ]]; then
         echo "Missing required argument: $value" >&2
         exit 64
     fi
 done
+
+if [[ ! "$image" =~ ^[a-zA-Z0-9][a-zA-Z0-9./:_-]*@sha256:[0-9a-f]{64}$ ]]; then
+    echo 'Deployment requires an immutable image reference ending in @sha256:<64 lowercase hex>.' >&2
+    exit 64
+fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 snapshot_dir="${snapshot_dir:-./kmp-aca-snapshot-$(date -u +%Y%m%dT%H%M%SZ)}"
@@ -114,14 +125,10 @@ patch_job_runtime() {
                     .name != "KMP_SKIP_CRON"
                     and .name != "KMP_SKIP_MIGRATIONS"
                 )))
-                + if $envMode == "migrate" then
-                    [{"name": "KMP_SKIP_CRON", "value": "true"}]
-                  else
-                    [
-                        {"name": "KMP_SKIP_CRON", "value": "true"},
-                        {"name": "KMP_SKIP_MIGRATIONS", "value": "true"}
-                    ]
-                  end
+                + [
+                    {"name": "KMP_SKIP_CRON", "value": "true"},
+                    {"name": "KMP_SKIP_MIGRATIONS", "value": "true"}
+                  ]
             )
         ) as $template
         | {
@@ -251,6 +258,13 @@ if ! "$dry_run"; then
     az containerapp show -g "$resource_group" -n "$web_app" -o json > "$snapshot_dir/web.json"
     az containerapp job show -g "$resource_group" -n "$migrate_job" -o json > "$snapshot_dir/migrate-job.json"
     az containerapp job show -g "$resource_group" -n "$worker_job" -o json > "$snapshot_dir/worker-job.json"
+    az containerapp job show -g "$resource_group" -n "$admin_job" -o json > "$snapshot_dir/admin-job.json"
+    for job in "${privileged_jobs[@]}"; do
+        [[ -n "$job" ]] || continue
+        az containerapp job show -g "$resource_group" -n "$job" -o json > "$snapshot_dir/privileged-${job}.json"
+    done
+    python3 "$script_dir/check-database-job-contract.py" "$snapshot_dir"
+
     for job in "${legacy_jobs[@]}"; do
         [[ -n "$job" ]] || continue
         if az containerapp job show -g "$resource_group" -n "$job" -o json \
@@ -265,6 +279,26 @@ if ! "$dry_run"; then
 fi
 if "$dry_run"; then
     existing_legacy_jobs=("${legacy_jobs[@]}")
+fi
+
+# Pause administrative claims while the migration job reconciles schemas and roles.
+patch_job_runtime "$admin_job" "$image" '0 0 1 1 *' 7200 0 1 1 worker \
+    '["/usr/local/bin/docker-entrypoint.sh"]' \
+    '["bin/cake","platform","jobs","run","--limit","1"]'
+
+
+# Parking the schedule does not stop executions already restoring/provisioning.
+# Wait for them to finish before changing ownership or running migrations.
+if ! "$dry_run"; then
+    admin_idle=false
+    for attempt in $(seq 1 750); do
+        active_count="$(az containerapp job execution list -g "$resource_group" -n "$admin_job" -o json |
+            jq '[.[] | select(.properties.status != "Succeeded" and .properties.status != "Failed" and .properties.status != "Stopped")] | length')"
+        if [[ "$active_count" == '0' ]]; then admin_idle=true; break; fi
+        echo 'Waiting for existing administrative work to finish before migrations.'
+        sleep 10
+    done
+    "$admin_idle" || { echo 'Administrative work did not quiesce; migration cutover stopped.' >&2; exit 1; }
 fi
 
 # The pre-migration canary may see legacy queue schedule rows. Queue/platform
@@ -293,7 +327,7 @@ patch_job_runtime \
     1 \
     migrate \
     '["/usr/local/bin/docker-entrypoint.sh"]' \
-    '["/bin/sh","-lc","bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake platform secrets import-env && bin/cake platform backup-keys ensure --allow-read-only && bin/cake tenant migrate --all --include-suspended --fail-fast && bin/cake cache clear _cake_model_"]'
+    '["/bin/sh","-lc","bin/cake platform database privileges && bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake platform secrets import-env && bin/cake platform backup-keys ensure --allow-read-only && bin/cake tenant migrate --all --include-suspended --fail-fast && bin/cake platform database privileges && bin/cake platform storage documents && bin/cake cache clear _cake_model_"]'
 
 start_and_wait "$migrate_job" 'application, platform, and tenant migrations' 750
 
@@ -327,6 +361,11 @@ else
 fi
 probe "https://${fqdn}/livez" livez
 probe "https://${fqdn}/health" health
+
+patch_job_runtime "$admin_job" "$image" '*/3 * * * *' 7200 0 1 1 worker \
+    '["/usr/local/bin/docker-entrypoint.sh"]' \
+    '["bin/cake","platform","jobs","run","--limit","1"]'
+
 
 for job in "${existing_legacy_jobs[@]}"; do
     [[ -n "$job" ]] || continue

@@ -7,6 +7,7 @@ use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\BaseEntity;
 use App\Model\Entity\Member;
 use Cake\ORM\Table;
+use Cake\ORM\TableRegistry;
 
 /**
  * GatheringAttendance policy
@@ -16,6 +17,53 @@ use Cake\ORM\Table;
  */
 class GatheringAttendancePolicy extends BasePolicy
 {
+    /** Consent and recipient scope for attendance enrichment outside the owner's page. */
+    public function canViewShared(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        if ($this->canManageMemberAttendance($user, (int)$entity->member_id)) {
+            return true;
+        }
+        $member = $entity->member ?? TableRegistry::getTableLocator()->get('Members')
+            ->find()->where(['id' => (int)$entity->member_id])->first();
+        if (!$member || !$member->branch_id) {
+            return false;
+        }
+        if (
+            $entity->share_with_crown && $this->_hasPolicy(
+                $user,
+                'canViewCrown',
+                $entity,
+                (int)$member->branch_id,
+            )
+        ) {
+            return true;
+        }
+        if (
+            $entity->share_with_hosting_group && $entity->gathering
+            && $user->can('viewAttendance', $entity->gathering)
+        ) {
+            return true;
+        }
+        if (!$entity->share_with_kingdom || !$user instanceof Member || !$user->branch_id) {
+            return false;
+        }
+        $branches = TableRegistry::getTableLocator()->get('Branches');
+        $memberPath = $branches->getAllParents((int)$member->branch_id);
+        $actorPath = $branches->getAllParents((int)$user->branch_id);
+
+        return (int)($memberPath[array_key_first($memberPath)] ?? $member->branch_id)
+            === (int)($actorPath[array_key_first($actorPath)] ?? $user->branch_id);
+    }
+
+    /** Explicit crown-recipient grant, populated by the Awards permission migration. */
+    public function canViewCrown(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        $member = $entity->member;
+
+        return $member && $member->branch_id
+            && $this->_hasPolicy($user, __FUNCTION__, $entity, (int)$member->branch_id);
+    }
+
     /**
      * Check if user can add gathering attendance
      *

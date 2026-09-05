@@ -7,6 +7,7 @@ use App\Log\Engine\ApplicationInsightsLog;
 use Cake\TestSuite\TestCase;
 use InvalidArgumentException;
 use RuntimeException;
+use Stringable;
 
 class ApplicationInsightsLogTest extends TestCase
 {
@@ -49,6 +50,44 @@ class ApplicationInsightsLogTest extends TestCase
             ApplicationInsightsLog::TELEMETRY_SCHEMA_VERSION,
             $trace['data']['baseData']['properties']['telemetry_schema_version'],
         );
+    }
+
+    public function testPrivateContextIsRemovedBeforeInterpolationAndBothTransports(): void
+    {
+        foreach (['https', 'otlp'] as $transport) {
+            $captured = [];
+            $config = ['batchSize' => 1, 'emitSelfMetrics' => false];
+            if ($transport === 'https') {
+                $config['connectionString'] = 'InstrumentationKey=test-key;IngestionEndpoint=https://example.test/';
+                $config['transport'] = static function ($endpoint, $json) use (&$captured): void {
+                    $captured[] = $json;
+                };
+            } else {
+                $config['otlpEmitter'] = static function ($batch) use (&$captured): void {
+                    $captured[] = json_encode($batch);
+                };
+            }
+            $logger = new ApplicationInsightsLog($config);
+            $logger->log('error', 'waiver.failed {notes}', [
+                'event' => 'waiver.failed',
+                'notes' => 'PRIVATE_NOTE_CANARY',
+                'nested' => ['email' => 'PRIVATE_EMAIL_CANARY@example.test', 'bytes' => 'PRIVATE_FILE_CANARY'],
+                'object' => new class implements Stringable {
+                    public function __toString(): string
+                    {
+                        throw new RuntimeException('Object must never be serialized');
+                    }
+                },
+                'request_target' => '/members/reset-password/PRIVATE_TOKEN_CANARY?api_key=PRIVATE_KEY_CANARY',
+                'duration_ms' => 12,
+            ]);
+            $logger->shutdown();
+            $this->assertNotEmpty($captured);
+            $output = implode('', $captured);
+            $this->assertStringNotContainsString('PRIVATE_', $output);
+            $this->assertStringContainsString('waiver.failed', $output);
+            $this->assertStringContainsString('duration_ms', $output);
+        }
     }
 
     public function testMissingInstrumentationKeyFailsConfiguration(): void
@@ -119,13 +158,13 @@ class ApplicationInsightsLogTest extends TestCase
         $logger = new ApplicationInsightsLog([
             'connectionString' => 'InstrumentationKey=test-key;IngestionEndpoint=https://example.test/',
             'batchSize' => 1,
-            'messageSanitizer' => static fn(string $msg): string => str_replace('secret', '<redacted>', $msg),
+            'messageSanitizer' => static fn(string $msg): string => str_replace('CUSTOM_MARKER', '<redacted>', $msg),
             'transport' => function (string $endpoint, string $json) use (&$sent): void {
                 $sent[] = compact('endpoint', 'json');
             },
         ]);
 
-        $logger->log('info', "SELECT * FROM members WHERE token = 'secret'");
+        $logger->log('info', 'Custom diagnostic CUSTOM_MARKER');
 
         $payload = json_decode($sent[0]['json'], true, 512, JSON_THROW_ON_ERROR);
         $this->assertStringContainsString('<redacted>', $payload[0]['data']['baseData']['message']);

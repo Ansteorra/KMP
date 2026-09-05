@@ -67,9 +67,6 @@ while [ "$#" -gt 0 ]; do
     shift
 done
 
-# Known PHPStan baseline errors that cannot be suppressed (type covariance in HtmlHelper)
-PHPSTAN_KNOWN_ERRORS=1
-
 PASS=0
 FAIL=0
 RESULTS=()
@@ -123,16 +120,34 @@ run_check "Vite Build" 'npm run dev 2>&1 | tail -10; test "${PIPESTATUS[0]}" -eq
 # 7. PHPCS (pre-existing violations are baselined — only check files we've changed)
 run_check "PHPCS Code Style" '
     # Check only staged/modified files for PHPCS violations
-    ALL_CHANGED_PHP=$(
-        cd "$APP_DIR/.." &&
-        {
-            git diff --name-only --diff-filter=ACMR HEAD -- app/src app/plugins app/tests app/config/PlatformMigrations
-            git ls-files --others --exclude-standard -- app/src app/plugins app/tests app/config/PlatformMigrations
-        } 2>/dev/null |
-            grep "\.php$" |
-            sort -u |
-            sed "s|^app/||"
-    )
+    if [ -n "${KMP_VERIFY_CHANGED_PHP_FILE:-}" ]; then
+        # Container mounts may omit .git. The caller supplies the reviewed relative
+        # file list generated from the same checkout; missing manifests fail closed.
+        test -f "$KMP_VERIFY_CHANGED_PHP_FILE" || exit 1
+        ALL_CHANGED_PHP=$(cat "$KMP_VERIFY_CHANGED_PHP_FILE")
+    else
+        git -C "$APP_DIR/.." rev-parse --show-toplevel >/dev/null 2>&1 || {
+            echo "Git metadata unavailable; supply KMP_VERIFY_CHANGED_PHP_FILE from the checkout." >&2
+            exit 1
+        }
+        ALL_CHANGED_PHP=$(
+            cd "$APP_DIR/.." &&
+            {
+                git diff --name-only --diff-filter=ACMR HEAD -- app/src app/plugins app/tests app/config/PlatformMigrations
+                git ls-files --others --exclude-standard -- app/src app/plugins app/tests app/config/PlatformMigrations
+            } |
+                grep "\.php$" |
+                sort -u |
+                sed "s|^app/||"
+        )
+    fi
+    while IFS= read -r file; do
+        [ -z "$file" ] && continue
+        case "$file" in
+            /*|*../*|../*) echo "Unsafe PHPCS manifest path." >&2; exit 1 ;;
+        esac
+        [[ "$file" == *.php && -f "$file" ]] || exit 1
+    done <<< "$ALL_CHANGED_PHP"
     CHANGED_PHP=$(echo "$ALL_CHANGED_PHP" | grep -v "^plugins/Queue/" || true)
     CHANGED_QUEUE_PHP=$(echo "$ALL_CHANGED_PHP" | grep "^plugins/Queue/" || true)
     if [ -z "$CHANGED_PHP" ]; then
@@ -140,7 +155,7 @@ run_check "PHPCS Code Style" '
     else
         echo "Checking changed files: $CHANGED_PHP"
         echo "$CHANGED_PHP" | xargs vendor/bin/phpcs --colors 2>&1
-        test "${PIPESTATUS[0]}" -eq 0 || exit 1
+        test "${PIPESTATUS[1]}" -eq 0 || exit 1
     fi
     if [ -n "$CHANGED_QUEUE_PHP" ]; then
         # Queue is an embedded upstream plugin with its own PSR2R standard, which is
@@ -161,32 +176,9 @@ run_check "Azure Deployment Contract" '
     fi
 '
 
-# 9. PHPStan Static Analysis (with known baseline errors)
+# 9. PHPStan Static Analysis: only explicit configured baseline entries are ignored.
 run_check "PHPStan Static Analysis" '
-    OUTPUT=$(vendor/bin/phpstan analyse --no-progress --memory-limit=1G 2>&1)
-    EXIT_CODE=$?
-    echo "$OUTPUT" | tail -10
-
-    if [ $EXIT_CODE -eq 0 ]; then
-        exit 0
-    fi
-
-    # PHPStan with no level configured exits 1 with "No rules detected" — treat as pass
-    if echo "$OUTPUT" | grep -q "No rules detected"; then
-        echo "ℹ️  No PHPStan rules configured — skipping static analysis"
-        exit 0
-    fi
-
-    # Check if only known baseline errors remain
-    ERROR_COUNT=$(echo "$OUTPUT" | grep -oP "Found \K[0-9]+" | tail -1)
-    KNOWN='"$PHPSTAN_KNOWN_ERRORS"'
-    if [ "$ERROR_COUNT" = "$KNOWN" ]; then
-        echo "ℹ️  $ERROR_COUNT errors are known baseline issues (type covariance in HtmlHelper)"
-        exit 0
-    else
-        echo "⚠️  Expected $KNOWN known errors but found ${ERROR_COUNT:-unknown}"
-        exit 1
-    fi
+    vendor/bin/phpstan analyse --no-progress --memory-limit=1G
 '
 
 if [ -n "$WITH_COVERAGE" ]; then

@@ -77,7 +77,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
     {
         Configure::write('Platform.adminPortal.enabled', false);
 
-        $this->get('/platform-admin');
+        $this->get('http://platform.kmp.localhost/platform-admin');
 
         $this->assertResponseCode(404);
     }
@@ -86,7 +86,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
     {
         $this->enablePortal();
 
-        $this->get('/platform-admin');
+        $this->get('http://platform.kmp.localhost/platform-admin');
 
         $this->assertRedirectContains('/platform-admin/login');
     }
@@ -96,16 +96,36 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         $this->session(['Auth' => new Member(['id' => 1, 'email_address' => 'tenant@example.test'])]);
 
-        $this->get('/platform-admin');
+        $this->get('http://platform.kmp.localhost/platform-admin');
 
         $this->assertRedirectContains('/platform-admin/login');
+    }
+
+    public function testPlatformLoginAndAuthenticatedPagesRejectTenantOrigins(): void
+    {
+        $this->enablePortal();
+        $this->get('http://kmp.localhost/platform-admin/login');
+        $this->assertResponseCode(404);
+        $this->loginAsPlatformAdmin();
+        $this->get('http://kmp.localhost/platform-admin');
+        $this->assertResponseCode(404);
+    }
+
+    public function testRevokedPlatformSessionCannotViewDashboard(): void
+    {
+        $this->enablePortal();
+        $this->loginAsPlatformAdmin();
+        $this->platform()->update('platform_users', ['auth_version' => 'revoked'], ['id' => 'platform-admin-1']);
+        $this->get('http://platform.kmp.localhost/platform-admin');
+        $this->assertRedirectContains('/platform-admin/login');
+        $this->assertSession(null, 'PlatformAdmin');
     }
 
     public function testLoginRendersForm(): void
     {
         $this->enablePortal();
 
-        $this->get('/platform-admin/login');
+        $this->get('http://platform.kmp.localhost/platform-admin/login');
 
         $this->assertResponseOk();
         $this->assertResponseContains('Platform Admin');
@@ -117,8 +137,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
 
         $this->session([]);
-        $this->configRequest(['headers' => ['Host' => 'platform.kmp.localhost']]);
-        $this->post('/platform-admin/login', [
+        $this->post('http://platform.kmp.localhost/platform-admin/login', [
             'email' => 'admin@example.org',
             'password' => 'TestPassword',
             'totp' => $this->totpCode(),
@@ -151,15 +170,16 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         ]);
         $this->session([
             'PlatformAdmin' => [
+                'version' => 1,
+                'auth_version' => 'initial',
                 'id' => 'platform-admin-1',
                 'email' => 'admin@example.org',
                 'status' => 'active',
                 'host' => 'platform.kmp.localhost',
             ],
         ]);
-        $this->configRequest(['headers' => ['Host' => 'platform.kmp.localhost']]);
 
-        $this->get('/platform-admin');
+        $this->get('http://platform.kmp.localhost/platform-admin');
 
         $this->assertResponseOk();
         $this->assertResponseContains('Platform operations');
@@ -173,8 +193,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         $this->platform()->update('platform_users', ['status' => 'pending_enrollment'], ['id' => 'platform-admin-1']);
 
-        $this->configRequest(['headers' => ['Host' => 'platform.kmp.localhost']]);
-        $this->post('/platform-admin/login', [
+        $this->post('http://platform.kmp.localhost/platform-admin/login', [
             'email' => 'admin@example.org',
             'password' => 'TestPassword',
             'totp' => $this->totpCode(),
@@ -194,7 +213,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
     {
         $this->enablePortal();
 
-        $this->post('/platform-admin/login', [
+        $this->post('http://platform.kmp.localhost/platform-admin/login', [
             'email' => 'admin@example.org',
             'password' => 'wrong',
             'totp' => $this->totpCode(),
@@ -203,7 +222,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
 
         $this->assertResponseOk();
         $this->assertResponseContains('Platform admin login failed.');
-        $this->get('/platform-admin');
+        $this->get('http://platform.kmp.localhost/platform-admin');
         $this->assertRedirectContains('/platform-admin/login');
     }
 
@@ -212,7 +231,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         Configure::write('Platform.adminPortal.detailedLoginErrors', true);
 
-        $this->post('/platform-admin/login', [
+        $this->post('http://platform.kmp.localhost/platform-admin/login', [
             'email' => 'admin@example.org',
             'password' => 'wrong',
             'totp' => $this->totpCode(),
@@ -229,7 +248,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         Configure::write('Platform.adminPortal.detailedLoginErrors', true);
 
-        $this->post('/platform-admin/login', [
+        $this->post('http://platform.kmp.localhost/platform-admin/login', [
             'email' => 'wrong@example.org',
             'password' => 'TestPassword',
             'totp' => $this->totpCode(),
@@ -245,7 +264,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
     {
         $this->enablePortal();
 
-        $this->post('/platform-admin/login', [
+        $this->post('http://platform.kmp.localhost/platform-admin/login', [
             'email' => 'wrong@example.org',
             'password' => 'TestPassword',
             'totp' => $this->totpCode(),
@@ -262,7 +281,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         Configure::write('Platform.adminPortal.detailedLoginErrors', true);
 
-        $this->post('/platform-admin/login', [
+        $this->post('http://platform.kmp.localhost/platform-admin/login', [
             'email' => 'admin@example.org',
             'password' => 'TestPassword',
             'totp' => '000000',
@@ -278,7 +297,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         $this->loginAsPlatformAdmin();
 
-        $this->get('/platform-admin');
+        $this->get('http://platform.kmp.localhost/platform-admin');
 
         $this->assertResponseOk();
         $this->assertResponseContains('Platform operations');
@@ -299,7 +318,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         $this->loginAsPlatformAdmin();
 
-        $this->get('/platform-admin/tenants/example');
+        $this->get('http://platform.kmp.localhost/platform-admin/tenants/example');
 
         $this->assertResponseOk();
         $this->assertResponseContains('Example Tenant');
@@ -315,15 +334,15 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         $this->loginAsPlatformAdmin();
 
-        $this->get('/platform-admin/tenants');
+        $this->get('http://platform.kmp.localhost/platform-admin/tenants');
         $this->assertResponseOk();
         $this->assertResponseContains('Onboard a kingdom');
-        $this->get('/platform-admin/tenants/add');
+        $this->get('http://platform.kmp.localhost/platform-admin/tenants/add');
         $this->assertResponseOk();
         $this->assertResponseContains('Tenant super user email');
         $this->assertResponseContains('The user sets their password through Forgot Password.');
 
-        $this->post('/platform-admin/tenants/add', [
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/add', [
             'slug' => 'newkingdom',
             'display_name' => 'New Kingdom',
             'status' => 'provisioning',
@@ -386,7 +405,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         $this->loginAsPlatformAdmin();
 
-        $this->post('/platform-admin/tenants/add', [
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/add', [
             'slug' => 'newkingdom',
             'display_name' => 'New Kingdom',
             'status' => 'provisioning',
@@ -414,7 +433,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         $this->loginAsPlatformAdmin();
 
-        $this->post('/platform-admin/tenants/add', [
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/add', [
             'slug' => 'newkingdom',
             'display_name' => 'New Kingdom',
             'status' => 'provisioning',
@@ -445,7 +464,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->loginAsPlatformAdmin();
         $this->platform()->update('tenants', ['status' => 'provisioning'], ['id' => 'tenant-1']);
 
-        $this->post('/platform-admin/tenants/example/edit', [
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/edit', [
             'slug' => 'example',
             'display_name' => 'Example Tenant',
             'status' => 'active',
@@ -471,11 +490,11 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         $this->loginAsPlatformAdmin();
 
-        $this->get('/platform-admin/tenants/example/edit');
+        $this->get('http://platform.kmp.localhost/platform-admin/tenants/example/edit');
         $this->assertResponseOk();
         $this->assertResponseContains('Edit Tenant');
 
-        $this->post('/platform-admin/tenants/example/edit', [
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/edit', [
             'slug' => 'ignored-change',
             'display_name' => 'Example Updated',
             'status' => 'suspended',
@@ -515,7 +534,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         $this->loginAsPlatformAdmin();
 
-        $this->post('/platform-admin/tenants/example/suspend', [
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/suspend', [
             'confirmation' => 'SUSPEND example',
             'reason' => 'Investigating elevated tenant errors.',
             'totp' => $this->totpCode(),
@@ -529,10 +548,10 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->assertSame('suspended', $tenant['status']);
         $this->assertNotEmpty($tenant['suspended_at']);
 
-        $this->post('/platform-admin/tenants/example/reactivate', [
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/reactivate', [
             'confirmation' => 'REACTIVATE example',
             'reason' => 'Tenant health has recovered.',
-            'totp' => $this->totpCode(),
+            'totp' => $this->totpCode(30),
         ]);
 
         $this->assertRedirectContains('/platform-admin/tenants/example');
@@ -553,7 +572,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         $this->loginAsPlatformAdmin();
 
-        $this->get('/platform-admin/tenants/example/backups');
+        $this->get('http://platform.kmp.localhost/platform-admin/tenants/example/backups');
         $this->assertResponseOk();
         $this->assertResponseContains('Tenant Backups');
         $this->assertResponseContains('Queue backup');
@@ -563,7 +582,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->assertResponseContains('id="tenant-backup-tenant-kmpbackup-1-delete-confirmation"');
         $this->assertResponseNotContains('id="confirmation"');
 
-        $this->post('/platform-admin/tenants/example/backups/create', [
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/backups/create', [
             'retention_days' => '45',
             'nonce' => 'tenant-backup-test',
         ]);
@@ -591,12 +610,12 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         $this->loginAsPlatformAdmin();
 
-        $this->get('/platform-admin/backups');
+        $this->get('http://platform.kmp.localhost/platform-admin/backups');
         $this->assertResponseOk();
         $this->assertResponseContains('Platform Database Backup');
         $this->assertResponseContains('Tenant Backup Administration');
 
-        $this->post('/platform-admin/backups/platform/create', [
+        $this->post('http://platform.kmp.localhost/platform-admin/backups/platform/create', [
             'retention_days' => '60',
             'nonce' => 'platform-backup-test',
         ]);
@@ -638,14 +657,14 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'created_at' => '2026-07-10 00:01:00',
         ]);
 
-        $this->get('/platform-admin/jobs/' . $jobId);
+        $this->get('http://platform.kmp.localhost/platform-admin/jobs/' . $jobId);
 
         $this->assertResponseOk();
         $this->assertResponseContains('Progress timeline');
         $this->assertResponseContains('Backup worker exited unsuccessfully.');
         $this->assertResponseNotContains('token=[redacted] failed');
 
-        $this->post('/platform-admin/jobs/' . $jobId . '/retry', [
+        $this->post('http://platform.kmp.localhost/platform-admin/jobs/' . $jobId . '/retry', [
             'confirmation' => 'RETRY job',
             'reason' => 'Retry after correcting worker storage.',
             'totp' => $this->totpCode(),
@@ -667,7 +686,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         $this->loginAsPlatformAdmin();
 
-        $this->post('/platform-admin/tenants/example/backups/tenant-kmpbackup-1/restore', [
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/backups/tenant-kmpbackup-1/restore', [
             'confirmation' => 'RESTORE example',
             'reason' => 'Testing tenant restore guardrails',
             'totp' => $this->totpCode(),
@@ -681,7 +700,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->assertSame(0, (int)$count);
 
         $this->platform()->update('tenants', ['status' => 'suspended'], ['id' => 'tenant-1']);
-        $this->post('/platform-admin/tenants/example/backups/tenant-kmpbackup-1/restore', [
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/backups/tenant-kmpbackup-1/restore', [
             'confirmation' => 'RESTORE example',
             'reason' => 'Testing tenant restore guardrails',
             'totp' => $this->totpCode(),
@@ -704,7 +723,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         $this->loginAsPlatformAdmin();
 
-        $this->post('/platform-admin/tenants/example/backups/backup-1/download', [
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/backups/backup-1/download', [
             'confirmation' => 'DOWNLOAD example',
             'reason' => 'Testing tenant download guardrails',
             'totp' => $this->totpCode(),
@@ -751,7 +770,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
                 'wrapped_dek_metadata' => json_encode($encryption->wrappedDekMetadata, JSON_THROW_ON_ERROR),
             ], ['id' => 'tenant-kmpbackup-1']);
 
-            $this->post('/platform-admin/tenants/example/backups/' . $backupId . '/recovery-key', [
+            $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/backups/' . $backupId . '/recovery-key', [
                 'confirmation' => 'DOWNLOAD KEY example',
                 'reason' => 'Testing portable tenant recovery key export.',
                 'totp' => $this->totpCode(),
@@ -807,7 +826,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
                 'wrapped_dek_metadata' => json_encode($encryption->wrappedDekMetadata, JSON_THROW_ON_ERROR),
             ], ['id' => 'platform-kmpbackup-1']);
 
-            $this->post('/platform-admin/backups/platform/' . $backupId . '/recovery-key', [
+            $this->post('http://platform.kmp.localhost/platform-admin/backups/platform/' . $backupId . '/recovery-key', [
                 'confirmation' => 'DOWNLOAD KEY platform',
                 'reason' => 'Testing portable platform recovery key export.',
                 'totp' => $this->totpCode(),
@@ -839,7 +858,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         $this->loginAsPlatformAdmin();
 
-        $this->get('/platform-admin/backups');
+        $this->get('http://platform.kmp.localhost/platform-admin/backups');
 
         $this->assertResponseOk();
         $this->assertResponseContains('disaster-recovery runbook');
@@ -880,7 +899,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'database_name' => 'platform',
         ]);
 
-        $this->get('/platform-admin/backups');
+        $this->get('http://platform.kmp.localhost/platform-admin/backups');
         $this->assertResponseOk();
         $platformBody = (string)$this->_response->getBody();
         $this->assertStringContainsString('data-controller="guarded-action-modal"', $platformBody);
@@ -898,7 +917,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         );
         $this->assertSame(1, substr_count($platformBody, 'id="platform-backup-action-modal"'));
 
-        $this->get('/platform-admin/tenants/example/backups');
+        $this->get('http://platform.kmp.localhost/platform-admin/tenants/example/backups');
         $this->assertResponseOk();
         $tenantBody = (string)$this->_response->getBody();
         $this->assertStringContainsString('data-controller="guarded-action-modal"', $tenantBody);
@@ -928,7 +947,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         try {
             (new BackupStorageService())->write($objectPath, 'encrypted tenant backup');
 
-            $this->post('/platform-admin/tenants/example/backups/tenant-kmpbackup-1/delete', [
+            $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/backups/tenant-kmpbackup-1/delete', [
                 'confirmation' => 'DELETE BACKUP example',
                 'reason' => 'Remove the superseded tenant recovery point.',
                 'totp' => $this->totpCode(),
@@ -977,7 +996,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         $this->loginAsPlatformAdmin();
 
-        $this->get('/platform-admin/tenants/example/config');
+        $this->get('http://platform.kmp.localhost/platform-admin/tenants/example/config');
 
         $this->assertResponseOk();
         $this->assertResponseContains('Tenant Configuration');
@@ -990,7 +1009,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->assertResponseNotContains('super-secret-password');
 
         $this->loginAsPlatformAdmin();
-        $this->post('/platform-admin/tenants/example/config', [
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/config', [
             'documents_blob_container' => 'documents-example',
             'documents_blob_prefix' => 'tenants/example',
             'email_mode' => 'sendgrid',
@@ -1026,7 +1045,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         $this->session(['Auth' => new Member(['id' => 1, 'email_address' => 'tenant@example.test'])]);
 
-        $this->get('/platform-admin/tenants/example/config');
+        $this->get('http://platform.kmp.localhost/platform-admin/tenants/example/config');
 
         $this->assertRedirectContains('/platform-admin/login');
     }
@@ -1036,7 +1055,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         $this->loginAsPlatformAdmin();
 
-        $this->post('/platform-admin/tenants/example/config', [
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/config', [
             'documents_blob_container' => 'documents-example',
             'documents_blob_prefix' => '',
             'email_mode' => 'sendgrid',
@@ -1060,7 +1079,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         $this->loginAsPlatformAdmin();
 
-        $this->post('/platform-admin/tenants/example/config', [
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/config', [
             'documents_blob_container' => 'documents-example',
             'documents_blob_prefix' => '',
             'email_mode' => 'webhook',
@@ -1080,7 +1099,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enablePortal();
         $this->loginAsPlatformAdmin();
 
-        $this->post('/platform-admin/tenants/example/config', [
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/config', [
             'documents_blob_container' => 'documents-example',
             'documents_blob_prefix' => '',
             'email_mode' => 'default',
@@ -1104,7 +1123,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
     {
         $this->enableDataConsole();
 
-        $this->get('/platform-admin/data-console');
+        $this->get('http://platform.kmp.localhost/platform-admin/data-console');
 
         $this->assertRedirectContains('/platform-admin/login');
     }
@@ -1114,7 +1133,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enableDataConsole();
         $this->authenticateAsSuperUser();
 
-        $this->get('/platform-admin/data-console');
+        $this->get('http://platform.kmp.localhost/platform-admin/data-console');
 
         $this->assertRedirectContains('/platform-admin/login');
     }
@@ -1124,7 +1143,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enableDataConsole();
         $this->loginAsPlatformAdmin();
 
-        $this->get('/platform-admin/data-console?query=backups&limit=1');
+        $this->get('http://platform.kmp.localhost/platform-admin/data-console?query=backups&limit=1');
 
         $this->assertResponseOk();
         $this->assertResponseContains('Platform Data Console');
@@ -1149,7 +1168,7 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->enableDataConsole();
         $this->loginAsPlatformAdmin();
 
-        $this->get('/platform-admin/data-console?query=SELECT%20*%20FROM%20platform_users');
+        $this->get('http://platform.kmp.localhost/platform-admin/data-console?query=SELECT%20*%20FROM%20platform_users');
 
         $this->assertResponseCode(400);
         $auditCount = $this->platform()->execute(
@@ -1171,10 +1190,12 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
     {
         $this->session([
             'PlatformAdmin' => [
+                'version' => 1,
+                'auth_version' => 'initial',
                 'id' => 'platform-admin-1',
                 'email' => 'admin@example.org',
                 'status' => 'active',
-                'host' => 'localhost',
+                'host' => 'platform.kmp.localhost',
             ],
         ]);
     }
@@ -1242,9 +1263,10 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
 
     private function createSchema(): void
     {
+        ConnectionManager::get('platform')->execute('CREATE TABLE security_rate_limits (bucket_key VARCHAR(64) PRIMARY KEY, attempts INT, expires_at BIGINT)');
         $connection = $this->platform();
         $connection->execute(
-            'CREATE TABLE platform_users (
+            'CREATE TABLE platform_users ( auth_version VARCHAR(64) DEFAULT "initial", last_accepted_totp_counter BIGINT NULL,
                 id TEXT PRIMARY KEY,
                 email TEXT NOT NULL UNIQUE,
                 password_hash TEXT NOT NULL,
@@ -1559,11 +1581,11 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         ]);
     }
 
-    private function totpCode(): string
+    private function totpCode(int $offset = 0): string
     {
         $verifier = new PlatformTotpVerifier($this->secretStore());
 
-        return $verifier->codeForTimestamp($this->totpSecret, time());
+        return $verifier->codeForTimestamp($this->totpSecret, time() + $offset);
     }
 
     private function secretStore(): SecretStoreInterface

@@ -23,6 +23,7 @@ class TenantProvisionCommandTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Configure::write('Database.adminJob', true);
 
         $this->originalSecrets = (array)Configure::read('Secrets');
         $this->originalPlatformConfig = ConnectionManager::getConfig('platform');
@@ -69,6 +70,7 @@ class TenantProvisionCommandTest extends TestCase
             unlink($this->secretFile);
         }
 
+        Configure::write('Database.adminJob', false);
         parent::tearDown();
     }
 

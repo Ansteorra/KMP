@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\KMP\Telemetry;
 
+use App\Log\LogPrivacy;
 use Cake\Database\Log\LoggedQuery;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
@@ -114,8 +115,8 @@ final class RequestQueryCounter extends AbstractLogger
             'request_id' => $requestId,
             'request_method' => strtoupper($method),
             'request_host' => $host,
-            'request_path' => $path,
-            'request_target' => $target,
+            'request_path' => LogPrivacy::path($path),
+            'request_target' => LogPrivacy::path($target),
             'turbo_frame' => $turboFrame,
             'is_ajax' => $isAjax,
         ];

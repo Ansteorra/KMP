@@ -21,6 +21,7 @@ Own the CakePHP application runtime: PHP source, configuration, templates, front
 - Store date/time values in UTC and convert or pre-format for display through project timezone helpers.
 - Use Vite (`vite.config.js`) for frontend bundles and the generated manifest in `webroot/.vite/manifest.json`.
 - Keep plugin behavior isolated in the plugin unless a shared abstraction belongs in core `app/src`.
+- Runtime database roles are DML-only. Schema/provisioning/restore work requires a dedicated CLI `KMP_ADMIN_JOB` with separate administrative URLs; ordinary queue workers leave platform operational jobs for the administrative runner.
 - Release deployment first runs `platform secrets import-env` and backup-key
   reconciliation, then uses `tenant migrate --all --include-suspended
   --fail-fast`; the import is missing-only so a stale environment value cannot

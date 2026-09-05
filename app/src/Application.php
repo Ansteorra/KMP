@@ -57,6 +57,7 @@ use App\Controller\WorkflowDefinitionsController;
 use App\Controller\WorkflowInstancesController;
 use App\KMP\KmpIdentityInterface;
 use App\KMP\Telemetry\RequestQueryCounter;
+use App\Log\LogPrivacy;
 use App\Middleware\RestoreMaintenanceMiddleware;
 use App\Middleware\TenantResolutionMiddleware;
 // Authorization usings
@@ -466,7 +467,7 @@ class Application extends BaseApplication implements
                     'method' => $request->getMethod(),
                     'request_id' => (string)$request->getAttribute('kmp_request_id', 'unknown'),
                     'host' => $request->getUri()->getHost(),
-                    'path' => $request->getUri()->getPath(),
+                    'path' => LogPrivacy::path($request->getUri()->getPath()),
                     'route_template' => $routeTemplate,
                     'status' => $response->getStatusCode(),
                     'duration_ms' => round($durationMs, 2),
@@ -991,7 +992,6 @@ class Application extends BaseApplication implements
                 'header' => 'Authorization',
                 'tokenPrefix' => 'Bearer',
                 'apiKeyHeader' => 'X-API-Key',
-                'apiKeyQueryParam' => 'api_key',
             ]);
 
             // No identifier needed - authenticator handles the full lookup
@@ -1020,10 +1020,31 @@ class Application extends BaseApplication implements
 
         // Load authenticators in order of precedence
         // Session authenticator should always be first for performance
-        $service->loadAuthenticator('Authentication.Session'); // Check existing sessions first
+        $service->loadAuthenticator('MemberSession'); // Check existing sessions first
 
         // Form authenticator handles login form submissions
         $service->loadAuthenticator('Authentication.Form', [
+            'identifier' => ['KMPBruteForcePassword' => [
+                'resolver' => [
+                    'className' => 'Authentication.Orm', // Use ORM for database lookups
+                    'userModel' => 'Members', // Members table for user data
+                ],
+                'fields' => $fields, // Field mapping for credentials
+
+                // Password hasher configuration with fallback support
+                // Allows migration from legacy password formats to modern hashing
+                'passwordHasher' => [
+                    'className' => 'Authentication.Fallback', // Fallback hasher for migration
+                    'hashers' => [
+                        'Authentication.Default', // Modern bcrypt hashing (preferred)
+                        [
+                            'className' => 'Authentication.Legacy', // Legacy password support
+                            'hashType' => 'md5', // Old MD5 hashing (deprecated)
+                            'salt' => false, // No salt for legacy MD5
+                        ],
+                    ],
+                ],
+            ]],
             'fields' => $fields, // Field mapping configuration
             'loginUrl' => Router::url([ // Form submission target URL
                 'prefix' => false, // No route prefix
@@ -1031,30 +1052,6 @@ class Application extends BaseApplication implements
                 'controller' => 'Members', // MembersController
                 'action' => 'login', // login action
             ]),
-        ]);
-
-        // Load custom identifier with brute force protection
-        // This replaces the standard password identifier with enhanced security
-        $service->loadIdentifier('KMPBruteForcePassword', [
-            'resolver' => [
-                'className' => 'Authentication.Orm', // Use ORM for database lookups
-                'userModel' => 'Members', // Members table for user data
-            ],
-            'fields' => $fields, // Field mapping for credentials
-
-            // Password hasher configuration with fallback support
-            // Allows migration from legacy password formats to modern hashing
-            'passwordHasher' => [
-                'className' => 'Authentication.Fallback', // Fallback hasher for migration
-                'hashers' => [
-                    'Authentication.Default', // Modern bcrypt hashing (preferred)
-                    [
-                        'className' => 'Authentication.Legacy', // Legacy password support
-                        'hashType' => 'md5', // Old MD5 hashing (deprecated)
-                        'salt' => false, // No salt for legacy MD5
-                    ],
-                ],
-            ],
         ]);
 
         return $service;

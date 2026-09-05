@@ -84,7 +84,7 @@ remove_container() {
 cleanup_existing_dev_containers() {
     conflicts_file="$(mktemp -t kmp-dev-conflicts.XXXXXX)"
 
-    for container_name in kmp-app kmp-worker kmp-scheduler kmp-db kmp-pgadmin kmp-mailpit; do
+    for container_name in kmp-app kmp-worker kmp-scheduler kmp-admin-worker kmp-db kmp-pgadmin kmp-mailpit; do
         container_id="$(docker container inspect --format '{{.Id}}' "$container_name" 2>/dev/null || true)"
         if [ -n "$container_id" ]; then
             echo "$container_id fixed KMP container name ${container_name}" >> "$conflicts_file"
@@ -176,11 +176,11 @@ fi
 echo "   📧 Mailpit:      $MAILPIT_URL"
 echo "   🗄️  PostgreSQL:   127.0.0.1:${DB_HOST_PORT}"
 echo "   🐘 pgAdmin:      http://localhost:${PGADMIN_PORT}"
-echo "   ⚙️  Background:    docker compose logs -f scheduler"
+echo "   ⚙️  Background:    docker compose logs -f scheduler admin-worker"
 echo ""
 echo "Useful commands:"
 echo "   docker compose logs -f app    # Follow app logs"
-echo "   docker compose logs -f scheduler # Follow queue and scheduled task logs"
+echo "   docker compose logs -f scheduler admin-worker # Follow background job logs"
 echo "   docker compose exec app bash  # Shell into app container"
 echo "   ./dev-reset-db.sh             # Reset database"
 echo "   ./dev-down.sh                 # Stop environment"

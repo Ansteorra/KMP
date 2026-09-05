@@ -33,7 +33,7 @@ class QueryLogFormatterTest extends TestCase
 
         $this->assertStringContainsString(
             '[request_id=abc123 query_number=1 method=GET host=example.test '
-            . 'path=/members/view/1 target=/members/view/1?tab=profile turbo_frame=- ajax=0]',
+            . 'path=/members/view/:value target=/members/view/:value turbo_frame=- ajax=0]',
             $line,
         );
     }

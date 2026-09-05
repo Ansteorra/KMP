@@ -8,6 +8,7 @@ use App\Services\Backups\TenantBackupEncryptor;
 use App\Services\Backups\TenantBackupService;
 use App\Services\Backups\TenantRestoreService;
 use App\Test\TestCase\Support\ArraySecretStore;
+use Cake\Core\Configure;
 use Cake\Database\Connection;
 use Cake\Database\Driver\Sqlite;
 use Cake\Datasource\ConnectionManager;
@@ -25,6 +26,7 @@ class TenantRestoreServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Configure::write('Database.adminJob', true);
         $this->previousPlatformConfig = ConnectionManager::getConfig('platform');
         if (in_array('platform', ConnectionManager::configured(), true)) {
             ConnectionManager::drop('platform');
@@ -48,6 +50,7 @@ class TenantRestoreServiceTest extends TestCase
         if ($this->previousPlatformConfig !== null) {
             ConnectionManager::setConfig('platform', $this->previousPlatformConfig);
         }
+        Configure::write('Database.adminJob', false);
         parent::tearDown();
     }
 

@@ -31,7 +31,7 @@ assert_contains "$bicep" "httpGet: { path: '/livez', port: 80 }"
 assert_contains "$bicep" "periodSeconds: 60"
 assert_contains "$bicep" "'worker'"
 assert_contains "$bicep" "'--cycle-budget'"
-schema_safe_migration_command='bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake platform secrets import-env && bin/cake platform backup-keys ensure --allow-read-only && bin/cake tenant migrate --all --include-suspended --fail-fast && bin/cake cache clear _cake_model_'
+schema_safe_migration_command='bin/cake platform database privileges && bin/cake migrations migrate && bin/cake schema_cache clear && bin/cake updateDatabase && bin/cake platform_migrate migrate && bin/cake schema_cache clear --connection platform && bin/cake platform secrets import-env && bin/cake platform backup-keys ensure --allow-read-only && bin/cake tenant migrate --all --include-suspended --fail-fast && bin/cake platform database privileges && bin/cake platform storage documents && bin/cake cache clear _cake_model_'
 assert_contains "$bicep" "$schema_safe_migration_command"
 assert_contains "$bicep" 'timeout: 7200'
 assert_contains "$here/main.json" "$schema_safe_migration_command"
@@ -127,14 +127,15 @@ fi
 "$here/update-web-runtime.sh" \
     --resource-group test-rg \
     --web-app test-web \
-    --image example.azurecr.io/kmp:test \
+    --image example.azurecr.io/kmp@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
     --dry-run >/dev/null
 "$here/cutover-unified-worker.sh" \
     --resource-group test-rg \
     --web-app test-web \
     --migrate-job test-migrate \
     --worker-job test-worker \
-    --image example.azurecr.io/kmp:test \
+    --admin-job test-admin \
+    --image example.azurecr.io/kmp@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
     --legacy-job test-scheduler \
     --dry-run >/dev/null
 "$here/rollback-unified-worker.sh" \
@@ -195,7 +196,7 @@ JSON
 JSON
     fi
 elif [[ "$1" == "containerapp" && "$2" == "revision" && "$3" == "show" ]]; then
-    printf '%s\n' "${FAKE_AZ_REVISION_IMAGE:-example.azurecr.io/kmp:test}"
+    printf '%s\n' "${FAKE_AZ_REVISION_IMAGE:-example.azurecr.io/kmp@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}"
 elif [[ "$1" == "rest" ]]; then
     while [[ $# -gt 0 ]]; do
         if [[ "$1" == "--body" ]]; then
@@ -217,24 +218,24 @@ FAKE_AZ_PATCH="$tmpdir/web-patch.json" \
     "$here/update-web-runtime.sh" \
         --resource-group test-rg \
         --web-app test-web \
-        --image example.azurecr.io/kmp:test >/dev/null
+        --image example.azurecr.io/kmp@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa >/dev/null
 if ! jq -e '
     .properties.template.revisionSuffix != "cachefix1"
-    and (.properties.template.revisionSuffix | startswith("test-"))
-    and .properties.template.containers[0].image == "example.azurecr.io/kmp:test"
+    and (.properties.template.revisionSuffix | startswith("aaaaaaaaaaaaaaaaaaaaaaaa-"))
+    and .properties.template.containers[0].image == "example.azurecr.io/kmp@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 ' "$tmpdir/web-patch.json" >/dev/null; then
     echo 'Web runtime patch did not replace the stale revision suffix and image.' >&2
     exit 1
 fi
 FAKE_AZ_PATCH="$tmpdir/sanitized-web-patch.json" \
-    FAKE_AZ_REVISION_IMAGE='example.azurecr.io/kmp:9foo__bar' \
+    FAKE_AZ_REVISION_IMAGE='example.azurecr.io/kmp@sha256:9999999999999999999999999999999999999999999999999999999999999999' \
     PATH="$tmpdir:$PATH" \
     "$here/update-web-runtime.sh" \
         --resource-group test-rg \
         --web-app test-web \
-        --image example.azurecr.io/kmp:9foo__bar >/dev/null
+        --image example.azurecr.io/kmp@sha256:9999999999999999999999999999999999999999999999999999999999999999 >/dev/null
 if ! jq -e '
-    (.properties.template.revisionSuffix | startswith("r-9foo-bar-"))
+    (.properties.template.revisionSuffix | startswith("r-999999999999999999999999-"))
     and (.properties.template.revisionSuffix | contains("--") | not)
 ' "$tmpdir/sanitized-web-patch.json" >/dev/null; then
     echo 'Web runtime patch generated an invalid revision suffix.' >&2
@@ -246,7 +247,7 @@ if FAKE_AZ_PATCH="$tmpdir/failed-web-patch.json" \
     "$here/update-web-runtime.sh" \
         --resource-group test-rg \
         --web-app test-web \
-        --image example.azurecr.io/kmp:test >/dev/null 2>&1; then
+        --image example.azurecr.io/kmp@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa >/dev/null 2>&1; then
     echo 'Web runtime update reported success after failed provisioning.' >&2
     exit 1
 fi
@@ -259,7 +260,7 @@ if FAKE_AZ_PATCH="$tmpdir/web-patch.json" \
         --web-app test-web \
         --container web \
         --revision "test-web--$revision_suffix" \
-        --image example.azurecr.io/kmp:test >/dev/null 2>&1; then
+        --image example.azurecr.io/kmp@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa >/dev/null 2>&1; then
     echo 'Web revision verification accepted an unexpected image.' >&2
     exit 1
 fi
@@ -271,7 +272,7 @@ for invalid_attempts in 0 -1 invalid; do
             --web-app test-web \
             --container web \
             --revision "test-web--$revision_suffix" \
-            --image example.azurecr.io/kmp:test >/dev/null 2>&1; then
+            --image example.azurecr.io/kmp@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa >/dev/null 2>&1; then
         echo "Web revision verification accepted invalid attempt count: $invalid_attempts" >&2
         exit 1
     fi

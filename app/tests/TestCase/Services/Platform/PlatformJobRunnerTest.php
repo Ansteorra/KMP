@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Services\Platform;
 
 use App\Command\PlatformBackupCommand;
+use App\Command\PlatformBackupsPruneCommand;
 use App\Command\TenantBackupCommand;
 use App\Command\TenantRestoreCommand;
 use App\Services\Platform\PlatformJobRunner;
@@ -12,6 +13,7 @@ use Cake\Core\Configure;
 use Cake\Database\Connection;
 use Cake\Database\Driver\Sqlite;
 use Cake\TestSuite\TestCase;
+use LogicException;
 
 class PlatformJobRunnerTest extends TestCase
 {
@@ -29,6 +31,7 @@ class PlatformJobRunnerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Configure::write('Database.adminJob', true);
         $this->previousSecrets = (array)Configure::read('Secrets');
         $this->secretDirectory = TMP . 'tests' . DS . 'platform-job-runner-secrets-' . uniqid('', true);
         mkdir($this->secretDirectory, 0700, true);
@@ -60,7 +63,40 @@ class PlatformJobRunnerTest extends TestCase
         if ($this->secretDirectory !== '' && is_dir($this->secretDirectory)) {
             rmdir($this->secretDirectory);
         }
+        Configure::write('Database.adminJob', false);
         parent::tearDown();
+    }
+
+    public function testOrdinaryWorkerLeavesAdministrativeJobsQueued(): void
+    {
+        Configure::write('Database.adminJob', false);
+        $this->insertJob('job-unprivileged', PlatformJobRunner::JOB_TENANT_RESTORE, []);
+        $result = (new PlatformJobRunner($this->connection))->run(1, static function (): int {
+            throw new LogicException('An ordinary worker must never invoke an administrative command.');
+        });
+        $this->assertSame(['claimed' => 0, 'completed' => 0, 'failed' => 0], $result);
+        $this->assertSame('queued', $this->connection->execute(
+            'SELECT status FROM platform_jobs WHERE id = ?',
+            ['job-unprivileged'],
+        )->fetchColumn(0));
+    }
+
+    public function testRetentionIsLeftQueuedUntilAdministrativeWorkerRuns(): void
+    {
+        $this->insertJob('job-retention', PlatformJobRunner::JOB_BACKUPS_PRUNE, ['limit' => 50]);
+        Configure::write('Database.adminJob', false);
+        $runner = new PlatformJobRunner($this->connection);
+        $calls = [];
+        $commandRunner = static function (string $command, array $arguments) use (&$calls): int {
+            $calls[] = [$command, $arguments];
+
+            return 0;
+        };
+        $this->assertSame(['claimed' => 0, 'completed' => 0, 'failed' => 0], $runner->run(1, $commandRunner));
+        $this->assertSame([], $calls);
+        Configure::write('Database.adminJob', true);
+        $this->assertSame(['claimed' => 1, 'completed' => 1, 'failed' => 0], $runner->run(1, $commandRunner));
+        $this->assertSame([[PlatformBackupsPruneCommand::class, ['--limit', '50']]], $calls);
     }
 
     public function testRunsTenantProvisioningJobWithoutLeakingSecrets(): void

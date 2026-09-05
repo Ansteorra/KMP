@@ -14,10 +14,14 @@ class PlatformAdminCommandTest extends TestCase
     use ConsoleIntegrationTestTrait;
 
     private string $secretFile;
+    private mixed $originalSecrets;
+    private ?array $originalPlatformConfig;
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->originalSecrets = Configure::read('Secrets');
+        $this->originalPlatformConfig = ConnectionManager::getConfig('platform');
         $directory = dirname(__DIR__, 3) . DS . 'tmp' . DS . 'tests';
         if (!is_dir($directory)) {
             mkdir($directory, 0770, true);
@@ -47,6 +51,10 @@ class PlatformAdminCommandTest extends TestCase
             unlink($this->secretFile);
         }
         ConnectionManager::drop('platform');
+        if ($this->originalPlatformConfig !== null) {
+            ConnectionManager::setConfig('platform', $this->originalPlatformConfig);
+        }
+        Configure::write('Secrets', $this->originalSecrets);
         parent::tearDown();
     }
 
@@ -95,6 +103,7 @@ class PlatformAdminCommandTest extends TestCase
             'id' => 'platform-admin-1',
             'email' => 'admin@example.org',
             'password_hash' => password_hash('OldPassword', PASSWORD_DEFAULT),
+            'auth_version' => 'before-password-reset',
             'status' => 'active',
             'totp_secret_ref' => 'platform.admin.platform-admin-1.totp',
             'totp_enrolled_at' => '2026-05-16 12:00:00',
@@ -114,12 +123,13 @@ class PlatformAdminCommandTest extends TestCase
         $this->assertOutputRegExp('/New password \(shown once\): [A-Za-z0-9_-]{32}/');
         $output = implode("\n", $this->_out->messages());
         preg_match('/New password \(shown once\): (?<password>[A-Za-z0-9_-]{32})/', $output, $matches);
-        $row = $connection->execute('SELECT password_hash, failed_login_count, locked_until FROM platform_users')
+        $row = $connection->execute('SELECT password_hash, auth_version, failed_login_count, locked_until FROM platform_users')
             ->fetch('assoc');
         $this->assertIsArray($row);
         $this->assertTrue(password_verify((string)$matches['password'], (string)$row['password_hash']));
         $this->assertSame(0, (int)$row['failed_login_count']);
         $this->assertNull($row['locked_until']);
+        $this->assertNotSame('before-password-reset', $row['auth_version']);
     }
 
     private function resetPlatformConnection(): void
@@ -144,6 +154,8 @@ class PlatformAdminCommandTest extends TestCase
                 email TEXT NOT NULL UNIQUE,
                 password_hash TEXT NOT NULL,
                 status TEXT NOT NULL,
+                auth_version TEXT NOT NULL DEFAULT \'initial\',
+                last_accepted_totp_counter INTEGER NULL,
                 totp_secret_ref TEXT NULL,
                 totp_enrolled_at TEXT NULL,
                 failed_login_count INTEGER NOT NULL DEFAULT 0,

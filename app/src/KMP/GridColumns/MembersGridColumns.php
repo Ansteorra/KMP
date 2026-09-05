@@ -18,6 +18,17 @@ class MembersGridColumns extends BaseGridColumns
      */
     protected static bool $includePii = true;
 
+    protected static bool $queryPii = false;
+
+    /** Restrict private-field queries when permission is scoped to individual records. */
+    public static function setQueryPii(bool $allowed): bool
+    {
+        $previous = static::$queryPii;
+        static::$queryPii = $allowed;
+
+        return $previous;
+    }
+
     /**
      * Control inclusion of PII columns for the current request.
      *
@@ -291,6 +302,16 @@ class MembersGridColumns extends BaseGridColumns
             }
         }
 
+        if (!static::$queryPii) {
+            foreach (static::getPiiColumnKeys() as $piiKey) {
+                if (isset($columns[$piiKey])) {
+                    $columns[$piiKey]['searchable'] = false;
+                    $columns[$piiKey]['sortable'] = false;
+                    $columns[$piiKey]['filterable'] = false;
+                }
+            }
+        }
+
         // Add actions column as the last column
         /**
          *$columns['actions'] = [
@@ -371,6 +392,7 @@ class MembersGridColumns extends BaseGridColumns
     {
         return [
             'membership_number',
+            'membership_expires_on',
             'first_name',
             'last_name',
             'email_address',

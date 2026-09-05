@@ -14,12 +14,13 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use App\Log\LogPrivacy;
 use App\Services\Cache\TenantAwareCache;
 use App\Services\ImpersonationService;
 use Cake\Cache\Cache;
 use Cake\Database\Exception\DatabaseException;
 use Cake\Datasource\EntityInterface;
-use Cake\I18n\FrozenTime;
+use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\Table;
@@ -247,10 +248,10 @@ class BaseTable extends Table
             'table_name' => $this->getTable(),
             'entity_primary_key' => $primaryValue,
             'request_method' => $method,
-            'request_url' => $request->getRequestTarget(),
+            'request_url' => LogPrivacy::path($request->getRequestTarget()),
             'ip_address' => $request->clientIp(),
             'metadata' => $metadataJson,
-            'created' => FrozenTime::now(),
+            'created' => DateTime::now(),
         ], ['accessibleFields' => ['*' => true]]);
 
         if ($logEntity->hasErrors()) {

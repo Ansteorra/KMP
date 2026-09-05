@@ -1,5 +1,7 @@
 # KMP Azure Deployment
 
+For the current runtime/admin identity boundary, new secure inputs, role reconciliation, and rollout order, read [Security infrastructure rollout](security-rollout.md).
+
 The POC KMP environment runs on **Azure Container Apps + Jobs**, backed by
 **Azure Database for PostgreSQL Flexible Server**. Each green `dev` image is
 resolved by digest and imported from GHCR into Azure Container Registry before

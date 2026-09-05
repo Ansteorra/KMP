@@ -140,6 +140,23 @@ if (file_exists(CONFIG . "secrets.php")) {
     Configure::load("secrets", "default");
 }
 
+
+// Administrative credentials are injected only into dedicated CLI jobs. Resolve them
+// after app_local overrides, never from a request or a database-backed secret store.
+$administrativeJob = PHP_SAPI === 'cli' && filter_var(env('KMP_ADMIN_JOB', false), FILTER_VALIDATE_BOOLEAN);
+Configure::write('Database.adminJob', $administrativeJob);
+if ($administrativeJob) {
+    foreach (['default' => 'DATABASE_ADMIN_URL', 'platform' => 'PLATFORM_DATABASE_ADMIN_URL'] as $name => $variable) {
+        $url = env($variable);
+        if (!is_string($url) || $url === '') {
+            throw new RuntimeException('Dedicated administrative jobs require both administrative database URLs.');
+        }
+        Configure::write('Datasources.' . $name . '.url', $url);
+    }
+} elseif (env('DATABASE_ADMIN_URL') || env('PLATFORM_DATABASE_ADMIN_URL')) {
+    throw new RuntimeException('Administrative database credentials must not be supplied to web or ordinary workers.');
+}
+
 #if (Configure::read('debug')) {
 #    $this->addPlugin('Cake/Repl');
 #}

@@ -6,6 +6,20 @@ Stay up to date with the latest features, improvements, and announcements for th
 <!-- LAST_SYNCED_COMMIT: 753e0047271639eeed7348f26dd9f1d6ac664321 -->
 <!-- LAST_SYNCED_DATE: 2026-08-11 -->
 
+## Unreleased — Security and privacy
+
+- Member and platform sessions now refresh current account permissions and are revoked after security changes. Members can sign out all devices.
+- Private member fields, contact lookup, exports and attendance sharing now use the recipient's permissions and consent.
+- Offline authorization cards and RSVPs use encrypted storage with device unlock where supported or a strong offline passphrase. Online refresh is required within seven days.
+- Invalid PDF uploads are rejected before a waiver becomes active, and diagnostic logging excludes sensitive request and document content.
+- Public nominations accept only supported submission fields and links to existing gatherings.
+- Dependency, container and deployment verification is strengthened, with separate runtime and administrative database/storage access.
+- Legacy installer, updater and backup/restore executables are retired; existing operators must disable installed copies and secure historical backups.
+
+Deployment requires migrations, one-time sign-in, quick-login device re-enrollment and fresh offline enrollment. API integrations must use Bearer or X-API-Key headers. Follow the [security rollout](../deploy/azure/security-rollout.md) and [remediation register](docs/security-remediation-log.md) before production promotion. Physical-device offline acceptance, production access checks, private networking and historical-data cleanup remain outstanding.
+
+---
+
 ## KMP 1.5.9 — August 16, 2026
 
 ### Workflow Editing and Publishing Hotfix

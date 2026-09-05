@@ -640,7 +640,6 @@ class GatheringWaiversController extends AppController
             Log::debug('Waiver upload POST data received', [
                 'keys' => array_keys($data),
                 'waiver_type_id' => $data['waiver_type_id'] ?? null,
-                'notes' => $data['notes'] ?? '',
                 'waiver_images_count' => isset($data['waiver_images']) ? count($data['waiver_images']) : 0,
             ]);
 
@@ -757,7 +756,7 @@ class GatheringWaiversController extends AppController
                     $this->Flash->error(__('Failed to upload waiver: {0}', $result->getError()));
                 }
             } catch (Exception $e) {
-                Log::error('Waiver upload error: ' . $e->getMessage());
+                Log::error('Waiver upload error: ');
 
                 // Handle exception for AJAX request
                 if ($this->request->is('ajax')) {
@@ -1640,7 +1639,7 @@ class GatheringWaiversController extends AppController
                 }
             } catch (Exception $e) {
                 $this->Flash->error(__('Error uploading waiver: {0}', $e->getMessage()));
-                Log::error('Waiver upload error: ' . $e->getMessage());
+                Log::error('Waiver upload error: ');
             }
         }
 
@@ -1751,7 +1750,7 @@ class GatheringWaiversController extends AppController
                 $this->viewBuilder()->setOption('serialize', ['success', 'message']);
             }
         } catch (Exception $e) {
-            Log::error('Error creating waiver exemption: ' . $e->getMessage());
+            Log::error('Error creating waiver exemption: ');
             $this->set('success', false);
             $this->set('message', __('An error occurred: {0}', $e->getMessage()));
             $this->viewBuilder()->setOption('serialize', ['success', 'message']);

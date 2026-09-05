@@ -9,6 +9,7 @@ use App\Model\Entity\Member;
 use App\Services\Secrets\SecretStoreFactory;
 use App\Services\Secrets\SensitiveString;
 use App\Services\Secrets\WritableSecretStoreInterface;
+use App\Services\Storage\TenantDocumentProvisioner;
 use App\Services\TenantDefaultSettingsInitializer;
 use Authentication\PasswordHasher\DefaultPasswordHasher;
 use Cake\Command\Command;
@@ -22,6 +23,7 @@ use Cake\ORM\Locator\TableLocator;
 use Cake\Utility\Text;
 use Migrations\Command\MigrateCommand;
 use RuntimeException;
+use function Cake\Core\env;
 
 /**
  * Provisions tenant metadata, database resources, migrations, and lifecycle state.
@@ -49,6 +51,7 @@ class TenantProvisioningService
         ?callable $commandRunner = null,
         ?callable $progress = null,
     ): TenantProvisioningResult {
+        AdministrativeDatabase::requireJob();
         $platform = $this->platformConnection();
         $request = $request->normalized((string)($platform->config()['host'] ?? 'localhost'));
         $this->validateRequest($request, $platform);
@@ -83,6 +86,8 @@ class TenantProvisioningService
         } else {
             $this->progress($progress, 'warning', 'Skipping tenant migrations; tenant will remain provisioning.');
         }
+
+        (new TenantDocumentProvisioner())->ensure(TenantMetadata::fromPlatformRow($tenant));
 
         $this->markTenantStatus($platform, (string)$tenant['id'], $request->finalStatus, $schemaVersion);
         $tenant = $platform->execute('SELECT * FROM tenants WHERE id = ?', [$tenant['id']])->fetch('assoc') ?: $tenant;
@@ -119,6 +124,52 @@ class TenantProvisioningService
         $this->assertValidHost($request->host);
         $this->assertValidIdentifier((string)$request->dbName, 'database name');
         $this->assertValidIdentifier((string)$request->dbRole, 'database role');
+        if ($request->dbRole === ($platform->config()['username'] ?? null)) {
+            throw new RuntimeException('The administrative database role cannot be used as a tenant runtime role.');
+        }
+        $registered = $platform->execute(
+            'SELECT db_server, db_name, db_role FROM tenants WHERE slug = ?',
+            [$request->slug],
+        )->fetch('assoc');
+        if (is_array($registered)) {
+            $binding = [
+                'db_server' => $request->dbServer,
+                'db_name' => $request->dbName,
+                'db_role' => $request->dbRole,
+            ];
+            foreach ($binding as $key => $value) {
+                if ((string)$registered[$key] !== (string)$value) {
+                    throw new RuntimeException(
+                        'Registered tenant database bindings cannot be changed during provisioning.',
+                    );
+                }
+            }
+        }
+        $conflict = $platform->execute(
+            'SELECT 1 FROM tenants WHERE slug <> ? AND db_server = ? AND (db_name = ? OR db_role = ?)',
+            [$request->slug, $request->dbServer, $request->dbName, $request->dbRole],
+        )->fetchColumn(0);
+        if ($conflict !== false) {
+            throw new RuntimeException('Another registered tenant already uses the requested database or role.');
+        }
+        if ($platform->getDriver() instanceof Postgres) {
+            if ($request->dbName === ($platform->config()['database'] ?? null)) {
+                throw new RuntimeException('The platform database cannot be provisioned as a tenant database.');
+            }
+
+            if (strtolower((string)$request->dbServer) !== strtolower((string)$platform->config()['host'])) {
+                throw new RuntimeException('Tenant provisioning requires an administrative job on the tenant server.');
+            }
+            $this->assertDedicatedRuntimeRole($request, is_array($registered));
+            $unsafeRole = $platform->execute(
+                'SELECT 1 FROM pg_roles WHERE rolname = ? AND (rolsuper OR rolreplication OR rolbypassrls)',
+                [$request->dbRole],
+            )->fetchColumn(0);
+            if ($unsafeRole !== false) {
+                throw new RuntimeException('A privileged database role cannot be used as a tenant runtime role.');
+            }
+        }
+
         $this->assertValidBlobContainer((string)$request->blobContainer);
         $this->assertValidIdentifier($request->smokeTable, 'smoke-test table');
         if (!preg_match('/^[a-z0-9][a-z0-9_.-]{0,63}$/', $request->region)) {
@@ -156,6 +207,33 @@ class TenantProvisioningService
         }
         if ($request->displayName === '') {
             throw new RuntimeException('A non-empty --display-name or --name is required.');
+        }
+    }
+
+    /** Reject reuse of the platform/default runtime credentials before provisioning writes. */
+    private function assertDedicatedRuntimeRole(TenantProvisioningRequest $request, bool $alreadyRegistered): void
+    {
+        foreach (['PLATFORM_DATABASE_URL', 'DATABASE_URL'] as $variable) {
+            $url = parse_url((string)env($variable, ''));
+            if (
+                !is_array($url) || !isset($url['host'], $url['user'], $url['path'])
+                || !in_array($url['scheme'] ?? '', ['postgres', 'postgresql'], true)
+            ) {
+                throw new RuntimeException('Explicit runtime PostgreSQL URLs are required before tenant provisioning.');
+            }
+            if ($request->dbRole !== rawurldecode($url['user'])) {
+                continue;
+            }
+            if ($variable === 'PLATFORM_DATABASE_URL') {
+                throw new RuntimeException('The platform runtime role cannot be used as a tenant runtime role.');
+            }
+            if (
+                !$alreadyRegistered
+                || strtolower((string)$request->dbServer) !== strtolower($url['host'])
+                || $request->dbName !== rawurldecode(ltrim($url['path'], '/'))
+            ) {
+                throw new RuntimeException('The default runtime role is reserved for its existing registered tenant.');
+            }
         }
     }
 
@@ -335,76 +413,11 @@ class TenantProvisioningService
             ->execute('SELECT 1 FROM pg_database WHERE datname = ?', [$request->dbName])
             ->fetchColumn(0);
         if (!$dbExists) {
-            $platform->execute(sprintf('CREATE DATABASE %s OWNER %s', $quotedDb, $quotedRole));
+            $platform->execute(sprintf('CREATE DATABASE %s', $quotedDb));
             $this->progress($progress, 'info', sprintf('Created PostgreSQL database: %s', $request->dbName));
         }
 
-        $platform->execute(sprintf('GRANT ALL PRIVILEGES ON DATABASE %s TO %s', $quotedDb, $quotedRole));
-        $this->grantTenantSchemaPrivileges($platform, (string)$request->dbName, (string)$request->dbRole, $password);
-    }
-
-    /**
-     * Grant tenant role ownership and create privileges on the public schema.
-     */
-    private function grantTenantSchemaPrivileges(
-        Connection $platform,
-        string $dbName,
-        string $dbRole,
-        SensitiveString $password,
-    ): void {
-        $serverConfig = $platform->config();
-        $baseConfig = ConnectionManager::getConfig('default');
-        if ($baseConfig === null) {
-            throw new RuntimeException('Default datasource configuration is not available.');
-        }
-        unset($baseConfig['url']);
-
-        $adminConnectionName = 'tenant_schema_admin';
-        if (in_array($adminConnectionName, ConnectionManager::configured(), true)) {
-            ConnectionManager::drop($adminConnectionName);
-        }
-        ConnectionManager::setConfig($adminConnectionName, array_merge($baseConfig, [
-            'host' => $serverConfig['host'] ?? 'localhost',
-            'database' => $dbName,
-            'username' => $serverConfig['username'] ?? null,
-            'password' => $serverConfig['password'] ?? null,
-        ]));
-
-        try {
-            /** @var \Cake\Database\Connection $adminConnection */
-            $adminConnection = ConnectionManager::get($adminConnectionName);
-            $driver = $adminConnection->getDriver();
-            $quotedRole = $driver->quoteIdentifier($dbRole);
-            $adminConnection->execute(sprintf('ALTER SCHEMA public OWNER TO %s', $quotedRole));
-            $adminConnection->execute(sprintf('GRANT ALL ON SCHEMA public TO %s', $quotedRole));
-            $this->verifyTenantRoleCanCreateInPublicSchema($dbName, $dbRole, $password);
-        } finally {
-            ConnectionManager::drop($adminConnectionName);
-        }
-    }
-
-    /**
-     * Verify the tenant role can create and drop objects in the tenant database.
-     */
-    private function verifyTenantRoleCanCreateInPublicSchema(
-        string $dbName,
-        string $dbRole,
-        SensitiveString $password,
-    ): void {
-        $probeConnectionName = 'tenant_schema_probe';
-        if (in_array($probeConnectionName, ConnectionManager::configured(), true)) {
-            ConnectionManager::drop($probeConnectionName);
-        }
-        $this->configureNamedTenantConnection($probeConnectionName, $dbName, $dbRole, $password);
-
-        try {
-            /** @var \Cake\Database\Connection $probeConnection */
-            $probeConnection = ConnectionManager::get($probeConnectionName);
-            $probeConnection->execute('CREATE TABLE IF NOT EXISTS __kmp_schema_privilege_probe (id INTEGER)');
-            $probeConnection->execute('DROP TABLE IF EXISTS __kmp_schema_privilege_probe');
-        } finally {
-            ConnectionManager::drop($probeConnectionName);
-        }
+        (new PostgresRuntimePrivileges($platform))->reconcile((string)$request->dbName, (string)$request->dbRole);
     }
 
     /**
@@ -512,22 +525,11 @@ class TenantProvisioningService
         string $dbRole,
         SensitiveString $password,
     ): void {
-        $baseConfig = ConnectionManager::getConfig('default');
-        if ($baseConfig === null) {
-            throw new RuntimeException('Default datasource configuration is not available.');
-        }
-        unset($baseConfig['url']);
-
+        $baseConfig = AdministrativeDatabase::forTenant($this->platformConnection()->config(), $dbServer, $dbName);
         if (in_array(self::TENANT_CONNECTION, ConnectionManager::configured(), true)) {
             ConnectionManager::drop(self::TENANT_CONNECTION);
         }
-
-        ConnectionManager::setConfig(self::TENANT_CONNECTION, array_merge($baseConfig, [
-            'host' => $dbServer,
-            'database' => $dbName,
-            'username' => $dbRole,
-            'password' => $password->reveal(),
-        ]));
+        ConnectionManager::setConfig(self::TENANT_CONNECTION, $baseConfig);
     }
 
     /**

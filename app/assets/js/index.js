@@ -1,3 +1,4 @@
+import { startOfflineSessionObserver } from './services/offline-session-service.js';
 
 // export for others scripts to use
 import { Application, Controller } from "@hotwired/stimulus";
@@ -98,3 +99,5 @@ document.addEventListener('turbo:before-cache', () => {
     document.body.classList.remove('modal-open');
     document.querySelectorAll('.modal-backdrop').forEach((backdrop) => backdrop.remove());
 });
+
+startOfflineSessionObserver();

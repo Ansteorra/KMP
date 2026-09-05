@@ -19,7 +19,7 @@ class PgDumpPlatformDatabaseBackupDumper implements PlatformDatabaseBackupDumper
     public function buildArgv(array $platformConfig, string $outputPath): array
     {
         $host = (string)($platformConfig['host'] ?? '');
-        $port = (string)($platformConfig['port'] ?? '');
+        $port = (string)($platformConfig['port'] ?? 5432);
         $database = (string)($platformConfig['database'] ?? '');
         $username = (string)($platformConfig['username'] ?? '');
         $this->assertSafeHost($host);
@@ -64,8 +64,7 @@ class PgDumpPlatformDatabaseBackupDumper implements PlatformDatabaseBackupDumper
             1 => ['pipe', 'w'],
             2 => ['pipe', 'w'],
         ];
-        $processEnv = getenv();
-        $env = array_merge(is_array($processEnv) ? $processEnv : [], ['PGPASSWORD' => $databasePassword->reveal()]);
+        $env = PostgresClientEnvironment::fromConfig($platformConfig, $databasePassword);
         $process = proc_open($argv, $descriptorSpec, $pipes, null, $env);
         if (!is_resource($process)) {
             throw new RuntimeException('Unable to start platform pg_dump process.');
@@ -113,7 +112,7 @@ class PgDumpPlatformDatabaseBackupDumper implements PlatformDatabaseBackupDumper
 
     private function assertSafePort(string $port): void
     {
-        if ($port !== '' && !preg_match('/^[0-9]{1,5}$/', $port)) {
+        if (!ctype_digit($port) || (int)$port < 1 || (int)$port > 65535) {
             throw new RuntimeException('Unsafe platform database port for pg_dump.');
         }
     }

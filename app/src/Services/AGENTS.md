@@ -22,7 +22,7 @@ Own reusable business workflows, side effects, integrations, registries, workflo
   the exact persisted system note constant; changing that text requires migrating existing logs.
 - Services assume authorization has already been enforced unless the service is specifically an authorization helper.
 - Tenant-aware data must use tenant-safe cache keys and context handling.
-- Document reads must not provision remote containers. Derived image variants use deterministic, versioned paths and bounded lazy generation after controller authorization.
+- Document reads and writes must not provision remote containers. Azure container lifecycle and restricted runtime grants belong to dedicated administrative provisioning; archives use independent `Backups.storage` configuration. Derived image variants use deterministic, versioned paths and bounded lazy generation after controller authorization.
 
 ## Work Guidance
 

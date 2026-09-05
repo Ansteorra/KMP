@@ -185,6 +185,7 @@ $this->KMP->endBlock();
     <?= $this->fetch("css") ?>
     <?= $this->fetch("manifest") ?>
     <?= $this->fetch("topscript") ?>
+    <?= $this->element('offline_session') ?>
 </head>
 
 <?php

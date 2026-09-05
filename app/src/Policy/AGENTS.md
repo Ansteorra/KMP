@@ -18,6 +18,8 @@ Own authorization decisions and row-level scopes for core resources through Cake
 - Let `BasePolicy::before()` handle super-user bypass.
 - Preserve flexible signatures on base and overridable policy methods.
 - Return explicit authorization failures consistently with nearby policy code.
+- Record visibility does not imply PII visibility. Apply `viewPii` per member to serializers, contact lookups and exports; private-field searches require the matching scope.
+- Attendance enrichment uses `GatheringAttendancePolicy::canViewShared` so audience consent and recipient branch scope are checked together.
 
 ## Work Guidance
 

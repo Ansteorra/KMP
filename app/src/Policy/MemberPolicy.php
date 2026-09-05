@@ -59,6 +59,45 @@ class MemberPolicy extends BasePolicy
     }
 
     /**
+     * Private-field sorting/filtering requires permission across the entire result set.
+     */
+    public function canQueryPii(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        return $this->_getBranchIdsForPolicy($user, 'canViewPii') === null;
+    }
+
+    /**
+     * Restrict private-field searches to records whose private fields the actor may read.
+     */
+    public function scopeViewPii(KmpIdentityInterface $user, mixed $query): mixed
+    {
+        $branchIds = $this->_getBranchIdsForPolicy($user, 'canViewPii');
+        if ($branchIds === null) {
+            return $query;
+        }
+        $alias = $query->getRepository()->getAlias();
+        $conditions = [[$alias . '.branch_id IN' => $branchIds ?: [-1]]];
+        if ($user instanceof Member && (int)$user->id > 0) {
+            $conditions[] = [$alias . '.id' => (int)$user->id];
+            $cutoff = DateTime::now()->subYears(18);
+            $conditions[] = [
+                $alias . '.parent_id' => (int)$user->id,
+                $alias . '.birth_month >=' => 1,
+                $alias . '.birth_month <=' => 12,
+                'OR' => [
+                    [$alias . '.birth_year >' => (int)$cutoff->format('Y')],
+                    [
+                        $alias . '.birth_year' => (int)$cutoff->format('Y'),
+                        $alias . '.birth_month >' => (int)$cutoff->format('n'),
+                    ],
+                ],
+            ];
+        }
+
+        return $query->where(['OR' => $conditions]);
+    }
+
+    /**
      * Check if $user can view their own profile
      *
      * @param \App\KMP\KmpIdentityInterface $user The user.

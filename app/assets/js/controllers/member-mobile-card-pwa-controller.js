@@ -239,7 +239,7 @@ class MemberMobileCardPWA extends MobileControllerBase {
      */
     async registerServiceWorker() {
         try {
-            const registration = await navigator.serviceWorker.register(this.swUrlValue);
+            const registration = await navigator.serviceWorker.register(this.swUrlValue, { updateViaCache: 'none' });
             this.sw = registration;
             
             // Listen for messages from service worker
@@ -247,14 +247,6 @@ class MemberMobileCardPWA extends MobileControllerBase {
             
             // Wait for service worker to be active
             await this.waitForActive(registration);
-            
-            // Send URLs to cache
-            if (this.urlCacheValue && registration.active) {
-                registration.active.postMessage({
-                    type: 'CACHE_URLS',
-                    payload: this.urlCacheValue
-                });
-            }
             
             // Dispatch PWA ready event
             const event = new CustomEvent('pwa-ready', { bubbles: true });

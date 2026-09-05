@@ -35,6 +35,7 @@ class MemberQuickLoginDevice extends BaseEntity
      * @var array<string, bool>
      */
     protected array $_accessible = [
+        'auth_version' => false,
         'member_id' => true,
         'device_id' => true,
         'pin_hash' => true,
@@ -55,6 +56,7 @@ class MemberQuickLoginDevice extends BaseEntity
      * @var array<string> Fields hidden from serialization
      */
     protected array $_hidden = [
+        'auth_version',
         'pin_hash',
     ];
 }
