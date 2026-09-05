@@ -21,7 +21,8 @@ If `app/config/.env` does not exist yet, `./dev-up.sh` creates it from `app/conf
 | Service | Container | Purpose | Default host access |
 |---------|-----------|---------|---------------------|
 | `app` | `kmp-app` | PHP 8.4, Apache, Composer, Node, Xdebug | http://kmp.localhost:8080 |
-| `scheduler` | `kmp-scheduler` | Queue and scheduled-task loop using the same app image and database config | Docker logs |
+| `scheduler` | `kmp-scheduler` | Queue and scheduled-task loop using runtime database access | Docker logs |
+| `admin-worker` | `kmp-admin-worker` | Dedicated CLI worker for provisioning, migrations, backups, and restores | Docker logs |
 | `db` | `kmp-db` | PostgreSQL 16 | `127.0.0.1:5432` |
 | `pgadmin` | `kmp-pgadmin` | PostgreSQL administration UI for local development | http://localhost:5050 |
 | `mailpit` | `kmp-mailpit` | Local email capture | http://localhost:8025, SMTP `127.0.0.1:1025` |
@@ -42,6 +43,12 @@ docker compose exec app vendor/bin/phpunit
 ```
 
 `node_modules` is stored in a Docker volume. This keeps dependencies out of the host checkout; use container commands for Vite, Jest, Playwright, and other npm-based tools.
+
+The complete `bash bin/verify.sh` suite needs a full checkout with Git metadata
+and root deployment scripts, which the default app-only mount omits. Run it from
+`app/` in a checkout with PHP 8.4, Git, Node, Composer and npm dependencies, and
+local test databases configured for that execution environment. Targeted tests
+can continue to run in the app container as shown above.
 
 ## Local Host Aliases
 
@@ -134,13 +141,25 @@ Set `KMP_DEV_SEED_AS_OF=YYYY-MM-DD` to reproduce the seed calendar for a specifi
 date. At the end of each reset, the script rebuilds `KMP_DEV_test` from the reset
 development schema so PHPUnit can run immediately.
 
-Platform metadata uses a separate PostgreSQL database and migration track:
+Platform metadata uses a separate PostgreSQL database and migration track.
+Run schema changes and tenant provisioning in a disposable administrative CLI
+container. The `admin-worker` service supplies `KMP_ADMIN_JOB` and administrative
+database configuration; keep those settings out of the running app and scheduler.
+The PHP entrypoint runs only the requested command:
 
 ```bash
-docker compose exec app bin/cake platform_migrate migrate
-docker compose exec app bin/cake platform_migrate status
-docker compose exec app bin/cake platform_migrate rollback
+docker compose --env-file app/config/.env run --rm --no-deps --entrypoint php \
+  admin-worker bin/cake.php platform_migrate migrate
+docker compose --env-file app/config/.env run --rm --no-deps --entrypoint php \
+  admin-worker bin/cake.php platform_migrate status
+docker compose --env-file app/config/.env run --rm --no-deps --entrypoint php \
+  admin-worker bin/cake.php tenant migrate --all --include-suspended
 ```
+
+Use the same invocation for `tenant provision <slug>` and its desired options;
+inspect them with `admin-worker bin/cake.php tenant provision --help` after the
+same Compose arguments. The local stack must already be running because these
+commands use `--no-deps`.
 
 `./dev-reset-db.sh` also recreates and migrates the local platform database, then
 registers local tenant metadata. By default it creates an active `kmp` tenant
@@ -152,7 +171,9 @@ baseline schema/data, then prune it to four standard demo users with
 `@amp2demo.com` login emails and no gatherings. Override `KMP_DEV_TENANT_*` in
 `app/config/.env` only when testing a different baseline tenant identity; future
 tenant creation should go through the platform tenant provisioning flow rather
-than new environment variables.
+than new environment variables. The reset pauses running background workers,
+uses the isolated administrative CLI for provisioning and both tenants'
+migrations, then restarts the workers that were running before the reset.
 
 Set `KMP_DEV_SECOND_TENANT_HOST` to change the second tenant's primary host, or
 set `KMP_DEV_SECOND_TENANT_HOST_ALIASES` to register additional HTTP/HTTPS edge
@@ -195,20 +216,23 @@ started safely, leave the existing dumps unchanged and report the blocker.
 
 ## Queue and Scheduled Jobs
 
-Local Docker runs all background work in one scheduler service instead of cron
-inside the web container. The scheduler is independently observable and
-restartable while the web container remains request-only.
+Local Docker runs ordinary queues and schedules in the scheduler service, and
+privileged platform operations in a separate administrative worker. Both start
+with `./dev-up.sh` and are independently observable and restartable while the web
+container handles requests.
 
 | Service | Command | Purpose |
 |----------|---------|---------|
 | `scheduler` | `kmp-scheduler-loop` | Dispatch platform schedules and continuously drain default, tenant, and platform queues |
+| `admin-worker` | `kmp-admin-job-loop-dev` | Run `platform jobs run --limit 1` for queued provisioning, backup, restore, and migration operations |
 
 With `KMP_TENANCY_ENABLED=true`, the scheduler loop polls every ten seconds by
 default. Each poll runs `bin/cake platform worker run` when its five-second
 queue interval is due. Each cycle dispatches due
 platform schedules, drains up to 100 jobs or 45 seconds from each datasource
-within a 240-second fleet budget, then claims one queued platform job. Tenant
-ordering rotates between cycles and duplicate physical datasources are skipped.
+within a 240-second fleet budget. Privileged platform jobs are claimed only by
+the administrative worker. Tenant ordering rotates between cycles and duplicate
+physical datasources are skipped.
 Queue cycles repeat while work remains instead of waiting for a minute cron tick. In
 single-database mode, the scheduler loop drains the default queue directly and
 runs the legacy commands listed below.
@@ -217,7 +241,8 @@ runs the legacy commands listed below.
 |----------|---------|---------|
 | `KMP_SCHEDULER_POLL_INTERVAL` | `10` seconds | Sleep between scheduler-loop checks |
 | `KMP_QUEUE_DRAIN_INTERVAL` | `5` seconds | Minimum due interval for the bounded worker/default-queue cycle |
-| `KMP_SKIP_INITIAL_DB_SETUP` | `true` on `scheduler` | Keep schema initialization owned by the web container |
+| `KMP_SKIP_INITIAL_DB_SETUP` | `true` on both workers | Prevent workers from repeating entrypoint schema initialization |
+| `KMP_ADMIN_JOB_POLL_INTERVAL` | `10` seconds | Sleep between administrative job cycles |
 | `KMP_WORKFLOW_SCHEDULER_INTERVAL` | `60` seconds | `bin/cake workflow_scheduler` |
 | `KMP_ACTIVE_WINDOW_SYNC_INTERVAL` | `900` seconds | `bin/cake sync_active_window_statuses` |
 | `KMP_MEMBER_WARRANTABLE_SYNC_INTERVAL` | `86400` seconds | `bin/cake sync_member_warrantable_statuses` |
@@ -226,10 +251,10 @@ runs the legacy commands listed below.
 Inspect background output with:
 
 ```bash
-docker compose logs -f scheduler
+docker compose logs -f scheduler admin-worker
 ```
 
-`KMP_SKIP_CRON=true` is set for the Compose app and scheduler services so
+`KMP_SKIP_CRON=true` is set for the Compose app and both worker services so
 the old in-container cron path does not duplicate background work. Manual runs
 use the same container-first pattern:
 
@@ -309,7 +334,7 @@ docker compose down -v
 ### Wrong worktree is serving locally
 
 Run `./dev-up.sh` from the worktree you want active. It removes existing
-`kmp-app`, the legacy `kmp-worker`, `kmp-scheduler`, `kmp-db`, `kmp-pgadmin`,
+`kmp-app`, the legacy `kmp-worker`, `kmp-scheduler`, `kmp-admin-worker`, `kmp-db`, `kmp-pgadmin`,
 and `kmp-mailpit` containers and any running containers publishing the
 configured app, database, pgAdmin, or Mailpit ports before starting the current
 stack.

@@ -9,7 +9,7 @@ application database.
 
 Docker Compose is the supported local workflow. It runs PHP 8.4/Apache,
 PostgreSQL 16, Mailpit, pgAdmin, Vite dependencies, and the bounded platform
-scheduler/queue worker.
+scheduler/queue worker plus a separate administrative job worker.
 
 ```bash
 ./dev-up.sh --build
@@ -33,12 +33,26 @@ default; enable it only when working on platform operations.
 Run application tooling inside the app container:
 
 ```bash
-docker compose exec app bash bin/verify.sh
 docker compose exec app vendor/bin/phpunit --testsuite core-unit
 docker compose exec app npm run test:js
 docker compose exec app npm run dev
-docker compose exec app bin/cake tenant migrate --all --include-suspended --status
 ```
+
+Run tenant provisioning and migrations in the dedicated administrative CLI
+container. Compose supplies its administrative configuration without granting it
+to the running web app:
+
+```bash
+docker compose --env-file app/config/.env run --rm --no-deps --entrypoint php \
+  admin-worker bin/cake.php tenant migrate --all --include-suspended --status
+```
+
+For the complete verification suite, run `cd app && bash bin/verify.sh` from a
+full checkout with Git metadata, PHP 8.4, Composer and npm dependencies, Node,
+and the local test databases configured for that environment. The default app
+container mounts only `app/`; it lacks the Git metadata and root deployment
+scripts required for complete checkout verification. See
+[Docker development](docs/docker-development.md) for administrative commands.
 
 Seeded developer accounts use `TestPassword`. See
 [`app/tests/TestDataReference.md`](app/tests/TestDataReference.md) for stable
