@@ -51,7 +51,7 @@ $memberName = $bestowal->member->sca_name ?? $bestowal->member_sca_name ?? __('U
                     'label' => __('Cancellation reason'),
                     'required' => true,
                     'rows' => 4,
-                    'placeholder' => __('Explain why this bestowal requires complete reconsideration.'),
+                    'placeholder' => __('Why is this bestowal being reverted to recommendation(s)? eg. need to reconsider, need to add group in more recommendations, no longer ready to bestow, etc.'),
                     'aria-describedby' => 'cancelBestowalReasonHelp',
                 ]) ?>
                 <div id="cancelBestowalReasonHelp" class="form-text">
