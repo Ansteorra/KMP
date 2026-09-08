@@ -36,7 +36,7 @@
         "@babel/plugin-transform-runtime": "^7.29.0",
         "@babel/preset-env": "^7.29.0",
         "@babel/runtime": "^7.29.2",
-        "@playwright/test": "^1.58.2",
+        "@playwright/test": "^1.63.0",
         "@stryker-mutator/core": "^9.6.1",
         "@stryker-mutator/jest-runner": "^9.6.1",
         "@testing-library/jest-dom": "^6.9.1",
