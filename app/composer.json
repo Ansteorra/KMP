@@ -10,7 +10,7 @@
         "ext-intl": "*",
         "ext-sodium": "*",
         "ext-yaml": "*",
-        "admad/cakephp-glide": "^6.0",
+        "admad/cakephp-glide": "^7.0",
         "azure-oss/storage-blob-flysystem": "^1.2",
         "cakephp/authentication": "^3.0",
         "cakephp/authorization": "^3.1",
