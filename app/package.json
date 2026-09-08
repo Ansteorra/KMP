@@ -62,7 +62,7 @@
         "drawflow": "^0.0.60",
         "easymde": "^2.20.0",
         "face-api.js": "^0.22.2",
-        "pdfjs-dist": "^5.4.624",
+        "pdfjs-dist": "^6.3.289",
         "picomatch": "^4.0.4",
         "popper.js": "^1.16.1",
         "qrcode": "^1.5.4",
