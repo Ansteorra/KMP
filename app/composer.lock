@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "582cbbdcb77d75a698f4bfdacbeea02a",
+    "content-hash": "b3d908fa03ff3655f5d60d94a590db81",
     "packages": [
         {
             "name": "admad/cakephp-glide",
@@ -72,41 +72,78 @@
             "time": "2025-03-21T15:10:46+00:00"
         },
         {
-            "name": "azure-oss/storage",
-            "version": "1.5.0",
+            "name": "azure-oss/identity",
+            "version": "1.0.4",
             "source": {
                 "type": "git",
-                "url": "https://github.com/php-oss-for-azure/azure-storage-php.git",
-                "reference": "c065ad267ca54a2dca7ffcb22915a4f7ab10bbea"
+                "url": "https://github.com/php-oss-for-azure/azure-identity-php.git",
+                "reference": "ea794d1d766c2c03039479baa013b2ef10533a98"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/php-oss-for-azure/azure-storage-php/zipball/c065ad267ca54a2dca7ffcb22915a4f7ab10bbea",
-                "reference": "c065ad267ca54a2dca7ffcb22915a4f7ab10bbea",
+                "url": "https://api.github.com/repos/php-oss-for-azure/azure-identity-php/zipball/ea794d1d766c2c03039479baa013b2ef10533a98",
+                "reference": "ea794d1d766c2c03039479baa013b2ef10533a98",
                 "shasum": ""
             },
             "require": {
-                "caseyamcl/guzzle_retry_middleware": "^2.10",
-                "ext-curl": "*",
-                "ext-json": "*",
-                "ext-simplexml": "*",
-                "guzzlehttp/guzzle": "^7.8",
-                "php": "^8.1"
+                "ext-openssl": "*",
+                "php": "^8.1",
+                "php-http/discovery": "^1.20",
+                "psr/http-client": "^1.0",
+                "psr/http-factory": "^1.0",
+                "psr/http-message": "^2.0"
             },
             "require-dev": {
-                "ext-zlib": "*",
-                "guzzlehttp/test-server": "^0.1.0",
-                "laravel/pint": "1.20.0",
-                "phpbench/phpbench": "^1.3",
+                "guzzlehttp/guzzle": "^7.10 || ^8.0",
+                "laravel/pint": "^1.27",
+                "phpstan/extension-installer": "^1.4",
                 "phpstan/phpstan": "^2.1",
                 "phpstan/phpstan-deprecation-rules": "^2.0",
+                "phpstan/phpstan-phpunit": "^2.0",
                 "phpstan/phpstan-strict-rules": "^2.0",
-                "phpunit/phpunit": "^10.5"
+                "phpunit/phpunit": "^13.0"
+            },
+            "suggest": {
+                "guzzlehttp/guzzle": "Provides a PSR-18 HTTP client and PSR-17 factories (used by default when installed)."
             },
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "AzureOss\\Storage\\": "src/"
+                    "AzureOss\\Identity\\": "./"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "support": {
+                "source": "https://github.com/php-oss-for-azure/azure-identity-php/tree/1.0.4"
+            },
+            "time": "2026-09-04T05:57:32+00:00"
+        },
+        {
+            "name": "azure-oss/storage-blob",
+            "version": "2.3.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-oss-for-azure/azure-storage-blob-php.git",
+                "reference": "2333cad9c507062a8ae5536b02ec1f8099f1d48e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-oss-for-azure/azure-storage-blob-php/zipball/2333cad9c507062a8ae5536b02ec1f8099f1d48e",
+                "reference": "2333cad9c507062a8ae5536b02ec1f8099f1d48e",
+                "shasum": ""
+            },
+            "require": {
+                "azure-oss/storage-common": "^2.0",
+                "ext-curl": "*",
+                "ext-json": "*",
+                "ext-simplexml": "*",
+                "guzzlehttp/guzzle": "^7.8 || ^8.0",
+                "php": "^8.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "AzureOss\\Storage\\Blob\\": ""
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -123,7 +160,7 @@
                     "email": "pimjansen@gmail.com"
                 }
             ],
-            "description": "Azure Storage PHP SDK",
+            "description": "Azure Blob Storage PHP SDK",
             "keywords": [
                 "azure",
                 "php",
@@ -131,41 +168,33 @@
                 "storage"
             ],
             "support": {
-                "issues": "https://github.com/Azure-OSS/azure-storage-php/issues",
-                "source": "https://github.com/Azure-OSS/azure-storage-php/tree/1.5.0"
+                "source": "https://github.com/php-oss-for-azure/azure-storage-blob-php/tree/2.3.1"
             },
-            "time": "2025-09-30T11:49:04+00:00"
+            "time": "2026-09-04T05:57:32+00:00"
         },
         {
             "name": "azure-oss/storage-blob-flysystem",
-            "version": "1.2.1",
+            "version": "2.2.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/php-oss-for-azure/azure-storage-blob-flysystem-php.git",
-                "reference": "faec5c735dd91517e36c0f585d4097dadfa33398"
+                "reference": "85ae64006ae9b49dcec432cbfb95591a4b1c199b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/php-oss-for-azure/azure-storage-blob-flysystem-php/zipball/faec5c735dd91517e36c0f585d4097dadfa33398",
-                "reference": "faec5c735dd91517e36c0f585d4097dadfa33398",
+                "url": "https://api.github.com/repos/php-oss-for-azure/azure-storage-blob-flysystem-php/zipball/85ae64006ae9b49dcec432cbfb95591a4b1c199b",
+                "reference": "85ae64006ae9b49dcec432cbfb95591a4b1c199b",
                 "shasum": ""
             },
             "require": {
-                "azure-oss/storage": "^1.2",
+                "azure-oss/storage-blob": "^2.2",
                 "league/flysystem": "^3.28",
-                "php": "^8.1"
-            },
-            "require-dev": {
-                "laravel/pint": "^1.16",
-                "league/flysystem-adapter-test-utilities": "^3.28",
-                "phpstan/phpstan": "^1.11",
-                "phpunit/phpunit": "^10.5",
-                "rector/rector": "^1.2"
+                "php": "^8.2"
             },
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "AzureOss\\FlysystemAzureBlobStorage\\": "src/"
+                    "AzureOss\\Storage\\BlobFlysystem\\": ""
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -184,10 +213,51 @@
             ],
             "description": "Flysystem adapter for Azure Storage PHP",
             "support": {
-                "issues": "https://github.com/Azure-OSS/azure-storage-php-adapter-flysystem/issues",
-                "source": "https://github.com/Azure-OSS/azure-storage-php-adapter-flysystem/tree/1.2.1"
+                "source": "https://github.com/php-oss-for-azure/azure-storage-blob-flysystem-php/tree/2.2.2"
             },
-            "time": "2025-08-12T07:37:15+00:00"
+            "time": "2026-09-04T05:57:32+00:00"
+        },
+        {
+            "name": "azure-oss/storage-common",
+            "version": "2.2.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-oss-for-azure/azure-storage-common-php.git",
+                "reference": "be9f2c36c2b16037aeab2762b40ebf807f1de5c9"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-oss-for-azure/azure-storage-common-php/zipball/be9f2c36c2b16037aeab2762b40ebf807f1de5c9",
+                "reference": "be9f2c36c2b16037aeab2762b40ebf807f1de5c9",
+                "shasum": ""
+            },
+            "require": {
+                "azure-oss/identity": "^1.0",
+                "caseyamcl/guzzle_retry_middleware": "^2.13 || ^3.0",
+                "guzzlehttp/guzzle": "^7.8 || ^8.0",
+                "php": "^8.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "AzureOss\\Storage\\Common\\": ""
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Brecht Vermeersch",
+                    "email": "brechtvermeersch@outlook.be"
+                }
+            ],
+            "description": "Shared primitives for Azure Storage PHP SDK packages",
+            "support": {
+                "source": "https://github.com/php-oss-for-azure/azure-storage-common-php/tree/2.2.1"
+            },
+            "time": "2026-09-04T05:57:32+00:00"
         },
         {
             "name": "brick/math",
@@ -677,30 +747,30 @@
         },
         {
             "name": "caseyamcl/guzzle_retry_middleware",
-            "version": "v2.13.0",
+            "version": "v3.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/caseyamcl/guzzle_retry_middleware.git",
-                "reference": "17c9299cde438b00bbeb099c6480319a81636a60"
+                "reference": "9417c2fa1cef84eb57413bdc7a2c81e4d42770f0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/caseyamcl/guzzle_retry_middleware/zipball/17c9299cde438b00bbeb099c6480319a81636a60",
-                "reference": "17c9299cde438b00bbeb099c6480319a81636a60",
+                "url": "https://api.github.com/repos/caseyamcl/guzzle_retry_middleware/zipball/9417c2fa1cef84eb57413bdc7a2c81e4d42770f0",
+                "reference": "9417c2fa1cef84eb57413bdc7a2c81e4d42770f0",
                 "shasum": ""
             },
             "require": {
-                "guzzlehttp/guzzle": "^6.3|^7.0",
-                "php": "^7.1|^8.0"
+                "guzzlehttp/guzzle": "^8.0",
+                "php": "^7.4|^8.0"
             },
             "require-dev": {
                 "jaschilz/php-coverage-badger": "^2.0",
                 "nesbot/carbon": "^2.0|^3.0",
                 "phpstan/extension-installer": "^1.0",
-                "phpstan/phpstan": "^1.0",
+                "phpstan/phpstan": "^2.0",
                 "phpunit/phpunit": "^7.5|^8.0|^9.0",
-                "squizlabs/php_codesniffer": "^3.5",
-                "symfony/var-dumper": "^5.0|^6.0|^7.0"
+                "squizlabs/php_codesniffer": "^4.0",
+                "symfony/var-dumper": "^5.0|^6.0|^7.0|^8.0"
             },
             "type": "library",
             "extra": {
@@ -725,7 +795,7 @@
                     "role": "Developer"
                 }
             ],
-            "description": "Guzzle v6+ retry middleware that handles 429/503 status codes and connection timeouts",
+            "description": "Guzzle v8 retry middleware that handles 429/503 status codes and connection timeouts",
             "homepage": "https://github.com/caseyamcl/guzzle_retry_middleware",
             "keywords": [
                 "Guzzle",
@@ -738,7 +808,7 @@
             ],
             "support": {
                 "issues": "https://github.com/caseyamcl/guzzle_retry_middleware/issues",
-                "source": "https://github.com/caseyamcl/guzzle_retry_middleware/tree/v2.13.0"
+                "source": "https://github.com/caseyamcl/guzzle_retry_middleware/tree/v3.0.0"
             },
             "funding": [
                 {
@@ -746,7 +816,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-07-11T12:33:22+00:00"
+            "time": "2026-08-02T15:14:06+00:00"
         },
         {
             "name": "composer/ca-bundle",
@@ -1468,26 +1538,27 @@
         },
         {
             "name": "guzzlehttp/guzzle",
-            "version": "7.15.3",
+            "version": "8.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/guzzle.git",
-                "reference": "ae311b8f045ea93ce7b1c9cdb7cec06c53f944bc"
+                "reference": "93939470950a9b11e2e84204166ef5e048c55fe4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/ae311b8f045ea93ce7b1c9cdb7cec06c53f944bc",
-                "reference": "ae311b8f045ea93ce7b1c9cdb7cec06c53f944bc",
+                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/93939470950a9b11e2e84204166ef5e048c55fe4",
+                "reference": "93939470950a9b11e2e84204166ef5e048c55fe4",
                 "shasum": ""
             },
             "require": {
                 "ext-json": "*",
-                "guzzlehttp/promises": "^2.5.2",
-                "guzzlehttp/psr7": "^2.13",
-                "php": "^7.2.5 || ^8.0",
+                "guzzlehttp/promises": "^3.0.2",
+                "guzzlehttp/psr7": "^3.1",
+                "php": "^7.4 || ^8.0",
                 "psr/http-client": "^1.0",
-                "symfony/deprecation-contracts": "^2.5 || ^3.0",
-                "symfony/polyfill-php80": "^1.25"
+                "psr/http-factory": "^1.0",
+                "symfony/polyfill-php80": "^1.25",
+                "symfony/polyfill-php82": "^1.27"
             },
             "provide": {
                 "psr/http-client-implementation": "1.0"
@@ -1495,10 +1566,10 @@
             "require-dev": {
                 "bamarni/composer-bin-plugin": "^1.8.2",
                 "ext-curl": "*",
-                "guzzle/client-integration-tests": "3.0.3",
-                "guzzlehttp/test-server": "^0.7",
+                "guzzle/client-integration-tests": "4.0.1",
+                "guzzlehttp/test-server": "^1.0.1",
                 "php-http/message-factory": "^1.1",
-                "phpunit/phpunit": "^8.5.52 || ^9.6.34",
+                "phpunit/phpunit": "^9.6.34",
                 "psr/log": "^1.1 || ^2.0 || ^3.0"
             },
             "suggest": {
@@ -1514,9 +1585,6 @@
                 }
             },
             "autoload": {
-                "files": [
-                    "src/functions_include.php"
-                ],
                 "psr-4": {
                     "GuzzleHttp\\": "src/"
                 }
@@ -1576,7 +1644,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/guzzle/issues",
-                "source": "https://github.com/guzzle/guzzle/tree/7.15.3"
+                "source": "https://github.com/guzzle/guzzle/tree/8.2.0"
             },
             "funding": [
                 {
@@ -1592,29 +1660,28 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-08-05T19:48:21+00:00"
+            "time": "2026-09-06T13:55:09+00:00"
         },
         {
             "name": "guzzlehttp/promises",
-            "version": "2.5.2",
+            "version": "3.0.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/promises.git",
-                "reference": "2823687acff28b2dbe67b2508a6b300e2c3fa4ce"
+                "reference": "42118e66a53c492effaf92bc357e931985d5c6f9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/promises/zipball/2823687acff28b2dbe67b2508a6b300e2c3fa4ce",
-                "reference": "2823687acff28b2dbe67b2508a6b300e2c3fa4ce",
+                "url": "https://api.github.com/repos/guzzle/promises/zipball/42118e66a53c492effaf92bc357e931985d5c6f9",
+                "reference": "42118e66a53c492effaf92bc357e931985d5c6f9",
                 "shasum": ""
             },
             "require": {
-                "php": "^7.2.5 || ^8.0",
-                "symfony/deprecation-contracts": "^2.5 || ^3.0"
+                "php": "^7.4 || ^8.0"
             },
             "require-dev": {
                 "bamarni/composer-bin-plugin": "^1.8.2",
-                "phpunit/phpunit": "^8.5.52 || ^9.6.34"
+                "phpunit/phpunit": "^9.6.34"
             },
             "type": "library",
             "extra": {
@@ -1660,7 +1727,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/promises/issues",
-                "source": "https://github.com/guzzle/promises/tree/2.5.2"
+                "source": "https://github.com/guzzle/promises/tree/3.0.2"
             },
             "funding": [
                 {
@@ -1676,39 +1743,39 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-08-05T19:30:54+00:00"
+            "time": "2026-08-24T10:00:26+00:00"
         },
         {
             "name": "guzzlehttp/psr7",
-            "version": "2.13.0",
+            "version": "3.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/psr7.git",
-                "reference": "dad89620b7a6edb60c15858442eb2e408b45d8f4"
+                "reference": "a3059ba1a84c9139c4ae03cf0f45bea276c97c74"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/psr7/zipball/dad89620b7a6edb60c15858442eb2e408b45d8f4",
-                "reference": "dad89620b7a6edb60c15858442eb2e408b45d8f4",
+                "url": "https://api.github.com/repos/guzzle/psr7/zipball/a3059ba1a84c9139c4ae03cf0f45bea276c97c74",
+                "reference": "a3059ba1a84c9139c4ae03cf0f45bea276c97c74",
                 "shasum": ""
             },
             "require": {
-                "php": "^7.2.5 || ^8.0",
-                "psr/http-factory": "^1.0",
-                "psr/http-message": "^1.1 || ^2.0",
-                "ralouphie/getallheaders": "^3.0",
-                "symfony/deprecation-contracts": "^2.5 || ^3.0",
-                "symfony/polyfill-php80": "^1.25"
+                "php": "^7.4 || ^8.0",
+                "psr/http-factory": "^1.1",
+                "psr/http-message": "^2.0",
+                "symfony/polyfill-php80": "^1.25",
+                "symfony/polyfill-php82": "^1.27"
             },
             "provide": {
-                "psr/http-factory-implementation": "1.0",
-                "psr/http-message-implementation": "1.0"
+                "psr/http-factory-implementation": "1.1",
+                "psr/http-message-implementation": "2.0"
             },
             "require-dev": {
                 "bamarni/composer-bin-plugin": "^1.8.2",
                 "http-interop/http-factory-tests": "1.1.0",
                 "jshttp/mime-db": "1.54.0.1",
-                "phpunit/phpunit": "^8.5.52 || ^9.6.34"
+                "php-http/psr7-integration-tests": "^1.5.1",
+                "phpunit/phpunit": "^9.6.34"
             },
             "suggest": {
                 "laminas/laminas-httphandlerrunner": "Emit PSR-7 responses"
@@ -1779,7 +1846,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/psr7/issues",
-                "source": "https://github.com/guzzle/psr7/tree/2.13.0"
+                "source": "https://github.com/guzzle/psr7/tree/3.1.0"
             },
             "funding": [
                 {
@@ -1795,7 +1862,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-07-16T22:23:49+00:00"
+            "time": "2026-08-24T11:02:13+00:00"
         },
         {
             "name": "intervention/gif",
@@ -3912,50 +3979,6 @@
                 "source": "https://github.com/php-fig/simple-cache/tree/3.0.0"
             },
             "time": "2021-10-29T13:26:27+00:00"
-        },
-        {
-            "name": "ralouphie/getallheaders",
-            "version": "3.0.3",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/ralouphie/getallheaders.git",
-                "reference": "120b605dfeb996808c31b6477290a714d356e822"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/ralouphie/getallheaders/zipball/120b605dfeb996808c31b6477290a714d356e822",
-                "reference": "120b605dfeb996808c31b6477290a714d356e822",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=5.6"
-            },
-            "require-dev": {
-                "php-coveralls/php-coveralls": "^2.1",
-                "phpunit/phpunit": "^5 || ^6.5"
-            },
-            "type": "library",
-            "autoload": {
-                "files": [
-                    "src/getallheaders.php"
-                ]
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Ralph Khattar",
-                    "email": "ralph.khattar@gmail.com"
-                }
-            ],
-            "description": "A polyfill for getallheaders.",
-            "support": {
-                "issues": "https://github.com/ralouphie/getallheaders/issues",
-                "source": "https://github.com/ralouphie/getallheaders/tree/develop"
-            },
-            "time": "2019-03-08T08:55:37+00:00"
         },
         {
             "name": "ramsey/collection",
@@ -9682,16 +9705,16 @@
         },
         {
             "name": "symfony/polyfill-intl-normalizer",
-            "version": "v1.38.0",
+            "version": "v1.42.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-intl-normalizer.git",
-                "reference": "2d446c214bdbe5b71bde5011b060a05fece3ae6b"
+                "reference": "aa20edea75bd9c48cfecc8360922e5a6e5c44502"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-intl-normalizer/zipball/2d446c214bdbe5b71bde5011b060a05fece3ae6b",
-                "reference": "2d446c214bdbe5b71bde5011b060a05fece3ae6b",
+                "url": "https://api.github.com/repos/symfony/polyfill-intl-normalizer/zipball/aa20edea75bd9c48cfecc8360922e5a6e5c44502",
+                "reference": "aa20edea75bd9c48cfecc8360922e5a6e5c44502",
                 "shasum": ""
             },
             "require": {
@@ -9743,7 +9766,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-intl-normalizer/tree/v1.38.0"
+                "source": "https://github.com/symfony/polyfill-intl-normalizer/tree/v1.42.0"
             },
             "funding": [
                 {
@@ -9763,7 +9786,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-05-25T13:48:31+00:00"
+            "time": "2026-08-07T06:33:24+00:00"
         },
         {
             "name": "symfony/polyfill-php73",
