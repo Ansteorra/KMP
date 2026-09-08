@@ -6,7 +6,7 @@
 #   - Code mounted at /var/www/html
 #   - Environment variables for configuration
 
-FROM php:8.4-apache-bookworm
+FROM php:8.5-apache-bookworm
 
 ARG NODE_VERSION=24.15.0
 
