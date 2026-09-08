@@ -507,16 +507,16 @@
         },
         {
             "name": "cakephp/chronos",
-            "version": "3.5.0",
+            "version": "3.5.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/cakephp/chronos.git",
-                "reference": "e6e777b534244911566face8a5dbdbd7f7bda5a6"
+                "reference": "00c16f165a762226d58f9cf88f43e54e41093f84"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/cakephp/chronos/zipball/e6e777b534244911566face8a5dbdbd7f7bda5a6",
-                "reference": "e6e777b534244911566face8a5dbdbd7f7bda5a6",
+                "url": "https://api.github.com/repos/cakephp/chronos/zipball/00c16f165a762226d58f9cf88f43e54e41093f84",
+                "reference": "00c16f165a762226d58f9cf88f43e54e41093f84",
                 "shasum": ""
             },
             "require": {
@@ -562,7 +562,7 @@
                 "issues": "https://github.com/cakephp/chronos/issues",
                 "source": "https://github.com/cakephp/chronos"
             },
-            "time": "2026-04-10T02:50:39+00:00"
+            "time": "2026-09-06T02:30:12+00:00"
         },
         {
             "name": "cakephp/migrations",
@@ -749,16 +749,16 @@
         },
         {
             "name": "composer/ca-bundle",
-            "version": "1.5.13",
+            "version": "1.5.14",
             "source": {
                 "type": "git",
                 "url": "https://github.com/composer/ca-bundle.git",
-                "reference": "c008272789979f709f7fcb32c2ecf1d2db5e84e5"
+                "reference": "0c8abba0634f637bd78c4e451981da368d403463"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/composer/ca-bundle/zipball/c008272789979f709f7fcb32c2ecf1d2db5e84e5",
-                "reference": "c008272789979f709f7fcb32c2ecf1d2db5e84e5",
+                "url": "https://api.github.com/repos/composer/ca-bundle/zipball/0c8abba0634f637bd78c4e451981da368d403463",
+                "reference": "0c8abba0634f637bd78c4e451981da368d403463",
                 "shasum": ""
             },
             "require": {
@@ -805,7 +805,7 @@
             "support": {
                 "irc": "irc://irc.freenode.org/composer",
                 "issues": "https://github.com/composer/ca-bundle/issues",
-                "source": "https://github.com/composer/ca-bundle/tree/1.5.13"
+                "source": "https://github.com/composer/ca-bundle/tree/1.5.14"
             },
             "funding": [
                 {
@@ -817,7 +817,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-07-18T12:35:13+00:00"
+            "time": "2026-08-21T14:57:29+00:00"
         },
         {
             "name": "composer/semver",
@@ -953,27 +953,27 @@
         },
         {
             "name": "dereuromark/cakephp-templating",
-            "version": "0.2.13",
+            "version": "0.2.14",
             "source": {
                 "type": "git",
                 "url": "https://github.com/dereuromark/cakephp-templating.git",
-                "reference": "7660b9eb470921c9343f54bcf49e1b4d5ea4a7b7"
+                "reference": "b88aeea2d0752b8a11dc18afdb4aec8515065a64"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/dereuromark/cakephp-templating/zipball/7660b9eb470921c9343f54bcf49e1b4d5ea4a7b7",
-                "reference": "7660b9eb470921c9343f54bcf49e1b4d5ea4a7b7",
+                "url": "https://api.github.com/repos/dereuromark/cakephp-templating/zipball/b88aeea2d0752b8a11dc18afdb4aec8515065a64",
+                "reference": "b88aeea2d0752b8a11dc18afdb4aec8515065a64",
                 "shasum": ""
             },
             "require": {
                 "cakephp/cakephp": "^5.1.3",
-                "php": ">=8.1"
+                "php": ">=8.2"
             },
             "require-dev": {
                 "dereuromark/cakephp-ide-helper": "^2.0.2",
                 "ext-yaml": "*",
                 "fig-r/psr2r-sniffer": "dev-master",
-                "phpunit/phpunit": "^10.5 || ^11.5 || ^12.1"
+                "phpunit/phpunit": "^11.5 || ^12.1 || ^13.0"
             },
             "type": "cakephp-plugin",
             "autoload": {
@@ -995,7 +995,10 @@
             "description": "CakePHP plugin around templating and (font) icons",
             "homepage": "https://github.com/dereuromark/cakephp-templating",
             "keywords": [
+                "FontAwesome",
+                "bootstrap",
                 "cakephp",
+                "helper",
                 "icons",
                 "plugin",
                 "templating"
@@ -1004,7 +1007,7 @@
                 "issues": "https://github.com/dereuromark/cakephp-templating/issues",
                 "source": "https://github.com/dereuromark/cakephp-templating"
             },
-            "time": "2025-11-18T12:58:47+00:00"
+            "time": "2026-05-03T15:14:35+00:00"
         },
         {
             "name": "dereuromark/cakephp-tools",
