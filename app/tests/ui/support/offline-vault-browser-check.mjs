@@ -26,6 +26,7 @@ try {
     await page.evaluate(async () => {
         const now = Date.now();
         await vault.enroll({ owner: 'synthetic-member-a', epoch: 'synthetic-epoch', serverTime: now, expiresAt: now + 604800000 }, 'device');
+        while (vault.pendingDevice) await vault.continueDeviceEnrollment();
         await vault.mutate(data => { data.card = { name: 'SYNTHETIC-PRIVATE-MARKER' }; });
     });
     assert.equal(await page.evaluate(async () => JSON.stringify(await vault.stored()).includes('SYNTHETIC-PRIVATE-MARKER')), false);
@@ -42,10 +43,10 @@ try {
     assert.equal(await page.evaluate(() => vault.stored()), null);
     await page.evaluate(async () => {
         const now = Date.now();
-        await vault.enroll({ owner: 'synthetic-member-a', epoch: 'synthetic-epoch', serverTime: now, expiresAt: now + 604800000 }, 'passphrase', 'synthetic four words woodland');
+        await vault.enroll({ owner: 'synthetic-member-a', epoch: 'synthetic-epoch', serverTime: now, expiresAt: now + 604800000 }, 'pin', '01234567');
         await vault.mutate(data => { data.card = { name: 'SYNTHETIC-PASSPHRASE-MARKER' }; });
         vault.lock();
-        await vault.unlock('synthetic four words woodland');
+        await vault.unlock('01234567');
         await vault.clear();
         for (const name of ['kmp-rsvp-cache', 'kmp-offline-queue']) await new Promise((resolve, reject) => {
             const request = indexedDB.open(name, 1);
@@ -69,7 +70,7 @@ try {
         assert.deepEqual(result, []);
     }
     await cdp.send('WebAuthn.removeVirtualAuthenticator', { authenticatorId });
-    console.log('PASS: real IndexedDB ciphertext, PRF wrap/unwrap after reload with browser offline, account purge, passphrase fallback, plaintext database tombstones.');
+    console.log('PASS: real IndexedDB ciphertext, PRF wrap/unwrap after reload with browser offline, account purge, numeric PIN fallback, plaintext database tombstones.');
     console.log('Physical device PIN/biometrics and provider offline operation still require manual device acceptance.');
     await context.close();
 } finally {

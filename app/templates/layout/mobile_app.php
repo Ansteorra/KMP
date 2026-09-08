@@ -798,27 +798,6 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
         gap: 12px;
     }
 
-    .mobile-pin-gate-overlay {
-        position: fixed;
-        inset: 0;
-        z-index: 10000;
-        background: rgba(44, 24, 16, 0.94);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-        backdrop-filter: blur(8px);
-    }
-
-    .mobile-pin-gate-card {
-        width: min(420px, 100%);
-        background: var(--mobile-card-bg);
-        border-radius: 4px;
-        padding: 24px;
-        border: 2px solid rgba(139, 105, 20, 0.3);
-        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.35);
-    }
-
     /* ============================================
            Form Elements - Larger text, tighter padding
            ============================================ */
@@ -1264,6 +1243,11 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
                     'badge' => null
                 ];
             }
+
+            $mobileMenuItems[] = [
+                'label' => 'Manage passkeys', 'icon' => 'bi-key', 'url' => '/passkeys',
+                'order' => -9, 'color' => 'auth-card', 'badge' => null,
+            ];
 
             // Filter out current page from menu items
             $currentUrl = $this->Url->build([

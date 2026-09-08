@@ -20,7 +20,9 @@ if [ ! -x "$jest_bin" ]; then
 fi
 
 security_sources=(
-    "assets/js/controllers/mobile-pin-gate-controller.js"
+    "assets/js/controllers/passkey-controller.js"
+    "assets/js/controllers/offline-vault-controller.js"
+    "assets/js/services/offline-vault-service.js"
     "assets/js/controllers/face-photo-validator-controller.js"
     "assets/js/controllers/login-device-auth-controller.js"
     "assets/js/controllers/member-mobile-card-pwa-controller.js"
@@ -28,7 +30,9 @@ security_sources=(
 )
 
 security_tests=(
-    "tests/js/controllers/mobile-pin-gate-controller.test.js"
+    "tests/js/controllers/passkey-controller.test.js"
+    "tests/js/controllers/offline-vault-controller.test.js"
+    "tests/js/services/offline-vault-service.test.js"
     "tests/js/controllers/face-photo-validator-controller.test.js"
     "tests/js/controllers/face-photo-validator-analysis.test.js"
     "tests/js/controllers/login-device-auth-controller.test.js"

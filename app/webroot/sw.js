@@ -1,5 +1,5 @@
 /* Only the public offline shell and build-controlled assets belong in Cache Storage. */
-const SW_VERSION = '3.0.0';
+const SW_VERSION = '3.1.0';
 const CACHE_NAME = `kmp-public-offline-v${SW_VERSION}`;
 const SHELL = '/offline';
 const MANIFEST = '/offline/assets';
@@ -47,8 +47,12 @@ self.addEventListener('fetch', event => {
     const request = event.request;
     const url = new URL(request.url);
     if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+    // These paths may display the PUBLIC shell when disconnected. Their responses
+    // are never stored: the fetch handler below performs cache reads only.
+    const offlineEntryPaths = ['/offline', '/members/login', '/members/view-mobile-card',
+        '/gathering-attendances/my-rsvps', '/gatherings/mobile-calendar'];
     const mobileNavigation = request.mode === 'navigate' &&
-        /^\/(?:offline\/?|members\/view-mobile-card\/?|gathering-attendances\/my-rsvps\/?|gatherings\/mobile-calendar\/?)$/i.test(url.pathname);
+        offlineEntryPaths.includes(url.pathname.toLowerCase().replace(/\/$/, ''));
     if (!mobileNavigation && !assetPath(url.pathname)) return;
     event.respondWith((async () => {
         try { return await fetch(request); } catch (error) {

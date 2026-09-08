@@ -6,16 +6,26 @@
     <div class="alert alert-info" role="status" aria-live="polite" aria-atomic="true" data-offline-vault-target="status">Checking offline storage…</div>
     <div data-offline-vault-target="enroll" hidden>
         <h2 class="h4">Enable offline access</h2>
-        <p>Use this only on a device you control. Device unlock uses your device PIN or biometrics where supported.
-            If unavailable, choose a separate offline passphrase. This does not change how you sign in to KMP.</p>
-        <button type="button" class="btn btn-primary mb-3" data-action="offline-vault#enrollDevice">Use device unlock</button>
+        <p>Use this only on a device you control. Device unlock uses Face ID, Touch ID or your device screen lock where supported.
+            You can also choose a 6–8 digit offline PIN.</p>
+        <button type="button" class="btn btn-outline-primary mb-3" data-action="offline-vault#enrollDevice">Use device unlock</button>
+        <div data-offline-vault-target="deviceSetup" class="border rounded p-3 mb-3" hidden>
+            <p>Follow each step here to test device encryption. Creating a passkey alone does not finish offline setup.</p>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-primary" data-offline-vault-target="deviceNext" data-action="offline-vault#continueDevice">Create offline passkey</button>
+                <button type="button" class="btn btn-outline-secondary" data-action="offline-vault#cancelDevice">Cancel device setup</button>
+            </div>
+        </div>
         <form data-action="submit->offline-vault#enrollPassphrase">
-            <label for="offline-new-passphrase" class="form-label">Offline passphrase</label>
-            <input id="offline-new-passphrase" type="password" class="form-control" autocomplete="new-password" minlength="15" maxlength="128"
+            <label for="offline-new-passphrase" class="form-label">Offline PIN</label>
+            <input id="offline-new-passphrase" type="password" inputmode="numeric" pattern="[0-9]{6,8}" class="form-control" autocomplete="new-password" minlength="6" maxlength="8"
                 required aria-describedby="offline-passphrase-help" data-offline-vault-target="newPassphrase">
-            <p id="offline-passphrase-help" class="form-text">Use 15–128 characters, such as several unrelated words. Do not reuse your KMP password or enter a short PIN.
-                Without your unlock method, you must reconnect and replace the saved data.</p>
-            <button type="submit" class="btn btn-outline-primary">Use offline passphrase</button>
+            <p id="offline-passphrase-help" class="form-text">Use 6–8 digits. This PIN unlocks saved cards and RSVPs in this browser.
+                Without your unlock method, reconnect and replace the saved data.</p>
+            <label for="offline-confirm-pin" class="form-label">Confirm offline PIN</label>
+            <input id="offline-confirm-pin" type="password" inputmode="numeric" pattern="[0-9]{6,8}" class="form-control mb-3" autocomplete="new-password" minlength="6" maxlength="8"
+                required aria-describedby="offline-passphrase-help" data-offline-vault-target="confirmPin">
+            <button type="submit" class="btn btn-primary">Save with offline PIN</button>
         </form>
     </div>
     <div data-offline-vault-target="locked" hidden>

@@ -87,7 +87,7 @@ production. Every fix needs the acceptance checks below and an exact deployed-ca
 ## Implemented controls and rollout evidence
 
 - **SEC-001/002/006/010/016:** tenant-bound identity envelopes, per-request identity and
-  permission reload, authentication epochs, session/PIN revocation, platform-host rejection,
+  permission reload, authentication epochs, session/passkey revocation, platform-host rejection,
   session renewal, atomic TOTP consumption and database-backed recovery limits. See
   [authentication security](authentication-security.md). HTTP lifecycle and retained-session
   role-revocation tests pass; a 16-process counter race admits exactly the configured limit.
@@ -97,9 +97,9 @@ production. Every fix needs the acceptance checks below and an exact deployed-ca
   including header-authenticated API requests and contact/attendance denials. See
   [privacy boundaries](privacy-boundaries.md).
 - **SEC-004/012:** public-only worker caching and a separate encrypted, owner-bound offline
-  vault with PRF unlock or an explicitly selected strong passphrase. Legacy plaintext stores
+  vault with tested PRF unlock or an explicitly selected 6–8 digit offline PIN. Legacy plaintext stores
   are purged, not imported. Synthetic Chromium covers ciphertext, reopen/lock, unlock failure,
-  passphrase and virtual PRF, offline access, and owner changes. Two real local-app browser runs
+  legacy passphrase, numeric PIN and virtual PRF, offline access, and owner changes. Two real local-app browser runs
   also prove cross-tab locking, encrypted queue survival across offline reload, private RSVP
   synchronization, duplicate protection, logout cleanup and copied-cookie cross-tenant denial. See
   [protected offline access](protected-offline-access.md). Physical phone/OS support in
@@ -133,9 +133,8 @@ production. Every fix needs the acceptance checks below and an exact deployed-ca
   [retirement instructions](../../installer/README.md); historical plaintext backups remain
   an explicit operator responsibility.
 
-This PR is initially based on `codex/bestowal-cancellation-workflow`; retarget it to `main`
-after PR #722 merges. Deployment requires application and platform migrations, one-time
-login and device re-enrollment, and a fresh offline enrollment. Do not roll back to the
+This PR targets `main` after prerequisite PR #722 merged. Deployment requires application and platform migrations, one-time
+login and native passkey enrollment, and a fresh offline enrollment. Do not roll back to the
 unbound-session or plaintext-cache code after cutover; preserve additive migrations and use
 an audited forward fix. Production promotion must use the exact POC-verified image digest
 and the existing approval gates. Never deploy a locally built review tag directly.
@@ -579,3 +578,33 @@ Record named owner, target date, code/config commit, deployment digest when rele
 results and limitations. Close only when acceptance checks pass on the deployed candidate.
 Time-limited acceptance requires accountable approver, compensating control and expiry.
 Keep detailed reproduction data out of public tickets until disclosure/remediation is coordinated.
+
+### Mobile authentication follow-up (2026-09-08)
+
+Member quick-login PIN authentication and the browser PIN overlay are retired in
+favor of native WebAuthn login. Password login/recovery remains available; adding a
+passkey requires password reauthentication. Login challenges are tenant/session/
+origin-bound, database-consumed once, and require user verification. Member
+credential epochs revoke passkeys alongside sessions. Offline PRF prompts now use
+explicit steps with cancellation and hard deadlines; no vault is committed until
+wrap/unwrap succeeds. The approved offline-only fallback is a confirmed 6–8 digit
+numeric PIN with PBKDF2-HMAC-SHA256 (600,000 iterations), with the lower resistance
+to offline guessing explicitly accepted. No fast local PIN verifier is retained.
+
+The passkey migration requires rollout and deletes old server PIN hashes. Physical
+iOS 26 Safari/Home Screen offline verification remains outstanding; virtual browser
+tests cannot establish that device/provider compatibility. See
+[protected offline access](protected-offline-access.md) for migration, rollback
+constraints and manual acceptance steps.
+
+Local follow-up verification: 3,413 PHP tests / 14,683 assertions (seven existing
+skips), 119 Jest suites / 1,892 tests, all repository verification gates, ten smoke
+and 35 journey scenarios with one worker and no database reset. The dedicated
+synthetic passkey browser check covers password reauthentication, native enrollment,
+server-verified login, session-cookie rotation, removal denial, focus and mobile
+reflow. Offline application acceptance covers numeric PIN unlock after reopening,
+encrypted queue persistence/sync, private cache exclusion and cross-tenant denial.
+Security-scoped Jest coverage runs all 197 selected tests successfully. The local
+Composer autoloader was regenerated with the configured CakePHP plugin after the
+initial dependency install omitted plugin test fixtures. Physical iOS acceptance and
+production rollout are still outstanding.

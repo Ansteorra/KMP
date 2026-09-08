@@ -5,7 +5,6 @@ namespace App\Test\TestCase\Core\Feature\Members;
 
 use App\Model\Entity\Member;
 use App\Services\MemberAuthenticationService;
-use App\Services\QuickLoginDeviceService;
 use App\Services\Security\MemberSessionState;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Authentication\PasswordHasher\DefaultPasswordHasher;
@@ -44,13 +43,19 @@ class MemberSecurityLifecycleTest extends HttpIntegrationTestCase
     {
         $member = $this->admin();
         $state = MemberSessionState::fromMember($member);
-        $devices = new QuickLoginDeviceService();
-        $this->assertTrue($devices->saveDevicePin($member, 'security-test-device-123456', '438259'));
+        $devices = $this->getTableLocator()->get('MemberPasskeys');
+        $device = $devices->newEmptyEntity();
+        $device->patch([
+            'member_id' => $member->id, 'credential_hash' => hash('sha256', 'synthetic'),
+            'credential_id' => 'synthetic', 'public_key' => 'synthetic', 'user_handle' => 'synthetic',
+            'auth_version' => $member->auth_version, 'rp_id' => 'localhost', 'signature_counter' => 0,
+            'revision' => bin2hex(random_bytes(32)), 'label' => 'Synthetic', 'created_at' => time(),
+        ], ['guard' => false]);
+        $devices->saveOrFail($device);
         $member->password = 'ReplacementPasswordWithEntropy123!';
         $this->getTableLocator()->get('Members')->saveOrFail($member);
         $this->assertNotSame($state['auth_version'], $member->auth_version);
-        $device = $this->getTableLocator()->get('MemberQuickLoginDevices')->find()
-            ->where(['device_id' => 'security-test-device-123456'])->firstOrFail();
+        $device = $devices->get($device->id);
         $this->assertNotSame($member->auth_version, $device->auth_version);
         $this->session(['Auth' => $state]);
         $this->get('/members/profile');
@@ -136,7 +141,7 @@ class MemberSecurityLifecycleTest extends HttpIntegrationTestCase
             ],
         ]);
         $this->post('/members/setup-quick-login-pin', ['quick_login_pin' => '438259', 'quick_login_pin_confirm' => '438259']);
-        $this->assertSession(null, 'QuickLoginSetup');
+        $this->assertResponseCode(404);
         $this->assertFalse($this->getTableLocator()->get('MemberQuickLoginDevices')
             ->exists(['device_id' => 'expired-enrollment-123456']));
     }

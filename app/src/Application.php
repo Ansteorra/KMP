@@ -92,7 +92,6 @@ use App\Services\Platform\PlatformScheduleRunner;
 use App\Services\Platform\PlatformWorkerService;
 use App\Services\Platform\QueueDrainService;
 use App\Services\Platform\TenantMigrationCatalog;
-use App\Services\QuickLoginDeviceService;
 use App\Services\Secrets\SecretStoreFactory;
 use App\Services\Secrets\SecretStoreInterface;
 use App\Services\Security\RequestRateLimiter;
@@ -787,7 +786,6 @@ class Application extends BaseApplication implements
         $container->add(MemberProfileService::class);
         $container->add(MemberSearchService::class);
         $container->add(RequestRateLimiter::class);
-        $container->add(QuickLoginDeviceService::class);
         $cacheFactory = fn() => new TenantAwareCache(filter_var(
             (string)env('KMP_TENANT_CACHE_REQUIRE_CONTEXT', 'false'),
             FILTER_VALIDATE_BOOLEAN,

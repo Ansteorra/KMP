@@ -25,6 +25,7 @@
         "friendsofcake/cakepdf": "^5.0",
         "friendsofcake/cakephp-csvview": "^5.0",
         "jeremyharris/cakephp-lazyload": "^5.0",
+        "lbuchs/webauthn": "^2.2",
         "league/flysystem": "^3.0",
         "mobiledetect/mobiledetectlib": "^4.8.03",
         "muffin/footprint": "^4.0",

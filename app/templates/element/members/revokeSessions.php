@@ -7,7 +7,7 @@ if ($securityIdentity && $securityIdentity->can('changePassword', $member)) : ?>
     ['plugin' => null, 'controller' => 'Members', 'action' => 'revokeSessions', $member->id],
     [
         'class' => 'btn btn-outline-danger btn-sm online-only-btn',
-        'confirm' => __('Sign out all devices for this member and disable their quick login devices? This also signs you out if this is your account. Disconnected offline cards expire within seven days.'),
+        'confirm' => __('Sign out all devices for this member and revoke their passkeys? This also signs you out if this is your account. Disconnected offline cards expire within seven days.'),
     ],
 ) ?>
 <?php endif; ?>

@@ -2,7 +2,9 @@
 /** @type {import('@stryker-mutator/api/core').PartialStrykerOptions} */
 const scope = process.env.STRYKER_MUTATE_SCOPE ?? 'security';
 const securityCriticalMutate = [
-  'assets/js/controllers/mobile-pin-gate-controller.js',
+  'assets/js/controllers/passkey-controller.js',
+  'assets/js/controllers/offline-vault-controller.js',
+  'assets/js/services/offline-vault-service.js',
   'assets/js/controllers/face-photo-validator-controller.js',
   'assets/js/controllers/login-device-auth-controller.js',
   'assets/js/controllers/member-mobile-card-pwa-controller.js',

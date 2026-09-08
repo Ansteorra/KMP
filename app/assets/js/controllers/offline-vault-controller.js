@@ -6,14 +6,14 @@ import rsvps from '../services/rsvp-cache-service.js';
 /** Accessible foreground enrollment, unlock, refresh and RSVP sync for the public offline shell. */
 class OfflineVaultController extends Controller {
     static targets = ['status', 'enroll', 'newPassphrase', 'locked', 'deviceUnlock', 'passphraseForm', 'passphrase',
-        'unlocked', 'verified', 'card', 'rsvps', 'events', 'forget'];
+        'unlocked', 'verified', 'card', 'rsvps', 'events', 'forget', 'deviceSetup', 'deviceNext', 'confirmPin'];
 
     async connect() {
         this.connected = true;
         this.lastActivity = Date.now();
         this.onState = () => this.render().catch(() => this.message('Unable to read offline storage.'));
         this.onActivity = () => { this.lastActivity = Date.now(); };
-        this.onVisibility = () => { if (document.hidden && !this.devicePrompt) vault.lock(); };
+        this.onVisibility = () => { if (document.hidden && !this.devicePrompt) { this.deviceContext = null; vault.lock(); } };
         window.addEventListener('kmp:offline-state', this.onState);
         window.addEventListener('pointerdown', this.onActivity);
         window.addEventListener('keydown', this.onActivity);
@@ -47,12 +47,13 @@ class OfflineVaultController extends Controller {
     async run(operation) {
         if (this.busy) return;
         this.busy = true;
-        this.element.setAttribute('aria-busy', 'true');
+        this.enrollTarget.setAttribute('aria-busy', 'true');
         try { await operation(); } catch (error) { this.message(error.message || 'The operation did not complete. Please retry.'); }
         finally {
             this.busy = false;
-            this.element.removeAttribute('aria-busy');
+            this.enrollTarget.removeAttribute('aria-busy');
             this.newPassphraseTarget.value = ''; this.passphraseTarget.value = '';
+            if (this.hasConfirmPinTarget) this.confirmPinTarget.value = '';
             this.lastActivity = Date.now();
             if (document.hidden) vault.lock();
         }
@@ -82,28 +83,84 @@ class OfflineVaultController extends Controller {
         });
     }
 
-    async enrollDevice() { await this.enroll('device'); }
-    async enrollPassphrase(event) { event.preventDefault(); await this.enroll('passphrase', this.newPassphraseTarget.value); }
+    async enrollDevice() {
+        await this.run(async () => {
+            this.message('Preparing this browser for offline access…');
+            this.deviceContext = await currentOfflineContext();
+            await this.prepareShell();
+            this.deviceSetupTarget.hidden = false;
+            this.deviceNextTarget.textContent = 'Create offline passkey';
+            this.message('Browser ready. Create a separate passkey for offline device unlock.');
+            this.deviceNextTarget.focus();
+        });
+    }
+    async continueDevice() {
+        await this.run(async () => {
+            this.devicePrompt = true;
+            try {
+                // Invoke WebAuthn directly from this tap, before any network or storage work.
+                const step = vault.pendingDevice
+                    ? await vault.continueDeviceEnrollment()
+                    : await vault.enroll(this.deviceContext, 'device');
+                if (step === 'complete') {
+                    this.deviceContext = null;
+                    this.deviceSetupTarget.hidden = true;
+                    await this.finishEnrollment();
+                } else {
+                    this.deviceNextTarget.textContent = step === 'wrap' ? 'Continue with device unlock' : 'Verify device unlock';
+                    this.message(step === 'wrap'
+                        ? 'Passkey created. Continue to check whether this device supports offline encryption.'
+                        : 'Encryption ready. Verify device unlock once more before saving offline data.');
+                    this.deviceNextTarget.focus();
+                }
+            } finally { this.devicePrompt = false; }
+        });
+    }
+    async cancelDevice() {
+        this.deviceContext = null;
+        vault.lock();
+        this.deviceSetupTarget.hidden = true;
+        this.message('Device setup cancelled. You can retry or choose an offline PIN.');
+        this.newPassphraseTarget.focus();
+    }
+    async enrollPassphrase(event) {
+        event.preventDefault();
+        if (this.newPassphraseTarget.value !== this.confirmPinTarget.value) {
+            this.confirmPinTarget.setAttribute('aria-invalid', 'true');
+            this.message('The PINs do not match. Enter the same PIN in both fields.');
+            this.confirmPinTarget.focus();
+            return;
+        }
+        this.confirmPinTarget.removeAttribute('aria-invalid');
+        await this.enroll('pin', this.newPassphraseTarget.value);
+    }
     async enroll(method, passphrase = '') {
         await this.run(async () => {
-            this.message('Setting up protected offline access…');
+            vault.lock();
+            this.deviceContext = null;
+            this.deviceSetupTarget.hidden = true;
+            this.message('Preparing this browser for offline access…');
             const context = await currentOfflineContext();
             await this.prepareShell();
-            this.devicePrompt = method === 'device';
-            try { await vault.enroll(context, method, passphrase); } finally { this.devicePrompt = false; }
-            if (document.hidden) { vault.lock(); throw new Error('Return to this page to unlock offline access.'); }
-            await refreshOfflineSnapshot();
-            await this.render();
-            this.message('Offline data saved. Test device unlock in airplane mode before travelling.');
-            this.unlockedTarget.querySelector('button')?.focus();
+            this.message('Encrypting offline access…');
+            await vault.enroll(context, method, passphrase);
+            await this.finishEnrollment();
         });
+    }
+    async finishEnrollment() {
+        if (document.hidden) { vault.lock(); throw new Error('Return to this page to unlock offline access.'); }
+        this.message('Unlock method verified. Downloading your card and RSVPs…');
+        await refreshOfflineSnapshot();
+        await this.render();
+        this.message('Offline data saved. Open this page in airplane mode and test unlock before travelling.');
+        this.unlockedTarget.querySelector('button')?.focus();
     }
     async unlockDevice() { await this.unlock(); }
     async unlockPassphrase(event) { event.preventDefault(); await this.unlock(this.passphraseTarget.value); }
     async unlock(passphrase = '') {
         await this.run(async () => {
-            this.devicePrompt = (await vault.metadata())?.wrapper.method === 'device';
-            try { await vault.unlock(passphrase); } finally { this.devicePrompt = false; }
+            this.devicePrompt = this.metadata?.wrapper.method === 'device';
+            try { await vault.unlock(passphrase, this.metadata); } finally { this.devicePrompt = false; }
             if (document.hidden) { vault.lock(); throw new Error('Return to this page to unlock offline access.'); }
             await this.render();
             this.unlockedTarget.querySelector('button')?.focus();
@@ -147,6 +204,7 @@ class OfflineVaultController extends Controller {
         this.renderId = renderId;
         const metadata = await vault.metadata();
         if (!this.connected || this.renderId !== renderId) return;
+        this.metadata = metadata;
         const unlocked = !!metadata && !!vault.key;
         this.enrollTarget.hidden = !!metadata;
         this.lockedTarget.hidden = !metadata || unlocked;
@@ -154,13 +212,19 @@ class OfflineVaultController extends Controller {
         this.forgetTarget.hidden = !metadata;
         this.cardTarget.replaceChildren(); this.rsvpsTarget.replaceChildren(); this.eventsTarget.replaceChildren();
         if (!metadata) {
+            if (this.busy || this.deviceContext) return;
             this.message(sessionStorage.getItem('kmp.offline.migrated') === '1'
                 ? 'The security update removed old offline data and unsynced RSVPs. Sign in online to save protected copies.'
                 : 'Sign in online, then choose how to protect offline access.');
             return;
         }
         this.deviceUnlockTarget.hidden = metadata.wrapper.method !== 'device';
-        this.passphraseFormTarget.hidden = metadata.wrapper.method !== 'passphrase';
+        this.passphraseFormTarget.hidden = metadata.wrapper.method === 'device';
+        const isPin = metadata.wrapper.method === 'pin';
+        this.passphraseTarget.inputMode = isPin ? 'numeric' : 'text';
+        this.passphraseTarget.maxLength = isPin ? 8 : 128;
+        const label = this.passphraseFormTarget.querySelector('label');
+        if (label) label.textContent = isPin ? 'Offline PIN' : 'Offline passphrase';
         if (!unlocked) { this.message('Saved information is locked.'); return; }
         const data = await vault.read();
         if (!this.connected || !vault.key || this.renderId !== renderId) return;

@@ -17,10 +17,9 @@ final class MembersLoginPageTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
         $this->assertResponseContains('Log in');
         $this->assertResponseContains('Sign in');
-        $this->assertResponseContains('Quick login');
-        $this->assertResponseContains('Email + Password');
-        $this->assertResponseContains('After you sign in, you\'ll set your quick login PIN on this device.');
-        $this->assertStringNotContainsString('Quick login PIN (4-10 digits)', (string)$this->_response->getBody());
+        $this->assertResponseContains('Sign in with a passkey');
+        $this->assertResponseContains('Open saved offline cards and RSVPs');
+        $this->assertResponseNotContains('name="quick_login_pin"');
     }
 
     public function testQuickLoginOutOfSyncShowsClearErrorAndResetInstruction(): void
@@ -40,9 +39,7 @@ final class MembersLoginPageTest extends HttpIntegrationTestCase
         ]);
 
         $this->assertResponseOk();
-        $this->assertResponseContains('Quick login was disabled on this device. Please sign in with your email and password.');
-        $this->assertResponseContains('name="quick_login_disabled"');
-        $this->assertResponseContains('data-login-device-auth-target="quickDisabled"');
-        $this->assertResponseContains('data-login-device-auth-target="quickDisabledEmail"');
+        $this->assertResponseContains('PIN login has been retired.');
+        $this->assertSession(null, 'Auth');
     }
 }

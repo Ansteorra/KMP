@@ -52,3 +52,20 @@ test('offline preparation reports failure instead of claiming readiness when a p
     await preparation;
     expect(port.postMessage).toHaveBeenCalledWith({ ready: false });
 });
+
+test('login navigation falls back to the public shell without caching a login response', async () => {
+    const { handlers, stores, context } = worker();
+    stores.set('kmp-public-offline-v3.1.0', new Map([['/offline', 'PUBLIC-SHELL']]));
+    const navigate = async () => {
+        let pending;
+        handlers.fetch({ request: { url: 'https://kmp.test/members/login', method: 'GET', mode: 'navigate' },
+            respondWith: promise => { pending = promise; } });
+        return pending;
+    };
+    context.fetch.mockResolvedValue('PRIVATE-LOGIN-HTML');
+    expect(await navigate()).toBe('PRIVATE-LOGIN-HTML');
+    expect(JSON.stringify([...stores].map(([name, rows]) => [name, [...rows]]))).not.toContain('PRIVATE-LOGIN-HTML');
+    context.fetch.mockRejectedValue(new Error('Disconnected'));
+    expect(await navigate()).toBe('PUBLIC-SHELL');
+    expect(stores.get('kmp-public-offline-v3.1.0').size).toBe(1);
+});

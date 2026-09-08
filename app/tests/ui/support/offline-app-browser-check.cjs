@@ -48,7 +48,7 @@ const stored = page => page.evaluate(() => new Promise((resolve, reject) => {
         query.onerror = reject;
     };
 }));
-const waitIdle = page => page.waitForFunction(() => !document.querySelector('[data-controller=offline-vault]').hasAttribute('aria-busy'), null, { timeout: 60000 });
+const waitIdle = page => page.waitForFunction(() => !document.querySelector('[data-offline-vault-target=enroll]').hasAttribute('aria-busy'), null, { timeout: 60000 });
 
 (async () => {
     const fixture = runPhpJson(tenantFixture);
@@ -62,13 +62,14 @@ const waitIdle = page => page.waitForFunction(() => !document.querySelector('[da
         await page.goto('/offline');
         await page.waitForSelector('[data-offline-vault-target=enroll]:not([hidden])');
         assert.equal(await page.locator('meta[name=kmp-offline-session], meta[name=csrfToken], #debug-kit-toolbar').count(), 0);
-        await page.locator('#offline-new-passphrase').fill('synthetic four words woodland');
-        await page.getByRole('button', { name: 'Use offline passphrase', exact: true }).click();
+        await page.locator('#offline-new-passphrase').fill('01234567');
+        await page.locator('#offline-confirm-pin').fill('01234567');
+        await page.getByRole('button', { name: 'Save with offline PIN', exact: true }).click();
         await waitIdle(page);
         assert.match(await page.locator('[data-offline-vault-target=status]').textContent(), /Offline data saved/);
         assert.equal(await page.locator('[data-offline-vault-target=card] dl').count(), 1);
         const record = await stored(page);
-        assert.equal(record.wrapper.method, 'passphrase');
+        assert.equal(record.wrapper.method, 'pin');
         assert.equal(JSON.stringify(record).includes(fixture.name), false);
         const paths = await page.evaluate(async () => {
             const paths = [];
@@ -90,7 +91,7 @@ const waitIdle = page => page.waitForFunction(() => !document.querySelector('[da
         await page.reload({ waitUntil: 'domcontentloaded' });
         await page.waitForSelector('[data-offline-vault-target=locked]:not([hidden])');
         assert.equal(await page.locator('[data-offline-vault-target=card]').textContent(), '');
-        await page.locator('#offline-unlock-passphrase').fill('synthetic four words woodland');
+        await page.locator('#offline-unlock-passphrase').fill('01234567');
         await page.getByRole('button', { name: 'Unlock offline data', exact: true }).click();
         await page.waitForSelector('[data-offline-vault-target=card] dl');
         await page.getByRole('button', { name: `Queue private RSVP for ${fixture.name}`, exact: true }).click();
@@ -102,7 +103,7 @@ const waitIdle = page => page.waitForFunction(() => !document.querySelector('[da
         // Startup cleanup preserves the new encrypted, owner-bound queue across reloads.
         await page.reload({ waitUntil: 'domcontentloaded' });
         await page.waitForSelector('[data-offline-vault-target=locked]:not([hidden])');
-        await page.locator('#offline-unlock-passphrase').fill('synthetic four words woodland');
+        await page.locator('#offline-unlock-passphrase').fill('01234567');
         await page.getByRole('button', { name: 'Unlock offline data', exact: true }).click();
         await page.waitForSelector('[data-offline-vault-target=card] dl');
         assert.equal((await page.evaluate(() => window.RsvpCacheService.getPendingRsvps()))[0].id, pending[0].id);
@@ -133,7 +134,7 @@ const waitIdle = page => page.waitForFunction(() => !document.querySelector('[da
         await otherTab.waitForSelector('[data-offline-vault-target=locked]:not([hidden])');
         await page.bringToFront();
         if (await page.locator('[data-offline-vault-target=locked]').isVisible()) {
-            await page.locator('#offline-unlock-passphrase').fill('synthetic four words woodland');
+            await page.locator('#offline-unlock-passphrase').fill('01234567');
             await page.getByRole('button', { name: 'Unlock offline data', exact: true }).click();
             await page.waitForSelector('[data-offline-vault-target=card] dl');
         }

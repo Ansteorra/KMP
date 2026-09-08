@@ -33,7 +33,7 @@ test('stored records contain no PII or keys, survive reopen locked, and decrypt 
     expect(reopened.key).toBeNull(); expect(reopened.wrappingKey).toBeNull();
 });
 
-test('a short or numeric PIN never becomes an offline encryption credential', async () => {
+test('legacy passphrase enrollment retains its original validation', async () => {
     await expect(vault.enroll(context(), 'passphrase', '123456')).rejects.toThrow('15–128');
     await expect(vault.enroll(context(), 'passphrase', '123456789012345678')).rejects.toThrow('15–128');
     expect(vault.record).toBeUndefined();
@@ -78,6 +78,11 @@ test('device enrollment requires a reproducible PRF and actual unwrap, not the s
     const get = jest.fn().mockImplementation(() => Promise.resolve(credential(result)));
     Object.defineProperty(navigator, 'credentials', { configurable: true, value: { create: jest.fn().mockResolvedValue(credential()), get } });
     await vault.enroll(context(), 'device');
+    expect(get).not.toHaveBeenCalled();
+    expect(vault.record).toBeUndefined();
+    expect(await vault.continueDeviceEnrollment()).toBe('verify');
+    expect(vault.record).toBeUndefined();
+    expect(await vault.continueDeviceEnrollment()).toBe('complete');
     expect(get).toHaveBeenCalledTimes(2);
     expect(get.mock.calls[0][0].publicKey.userVerification).toBe('required');
     expect(JSON.stringify(vault.record)).not.toContain('results');
@@ -92,6 +97,48 @@ test('PRF enabled without usable output does not enroll or fall back to plaintex
         create: jest.fn().mockResolvedValue({ rawId: new Uint8Array([1]), response: {}, getClientExtensionResults: () => ({ prf: { enabled: true } }) }),
         get: jest.fn().mockResolvedValue({ getClientExtensionResults: () => ({ prf: {} }) })
     } });
-    await expect(vault.enroll(context(), 'device')).rejects.toThrow('Device encryption');
+    await vault.enroll(context(), 'device');
+    await expect(vault.continueDeviceEnrollment()).rejects.toThrow('Device encryption');
+    expect(vault.record).toBeUndefined();
+});
+
+
+test.each(['012345', '0123456', '01234567'])('explicit numeric PIN %s encrypts and unlocks offline without losing leading zeros', async pin => {
+    await vault.enroll(context(), 'pin', pin);
+    await vault.mutate(data => { data.card = { name: 'PIN-ENCRYPTED-PRIVATE' }; });
+    expect(JSON.stringify(vault.record)).not.toContain('PIN-ENCRYPTED-PRIVATE');
+    expect(vault.record.wrapper).toMatchObject({ method: 'pin', iterations: 600000 });
+    vault.lock(false);
+    await expect(vault.unlock(pin.slice(1))).rejects.toThrow('Unable to unlock');
+    await vault.unlock(pin);
+    expect((await vault.read()).card.name).toBe('PIN-ENCRYPTED-PRIVATE');
+});
+
+test.each(['12345', '123456789', '12a456', '１２３４５６', ' 123456'])('rejects malformed offline PIN %s', async pin => {
+    await expect(vault.enroll(context(), 'pin', pin)).rejects.toThrow('6–8 digits');
+    expect(vault.record).toBeUndefined();
+});
+
+test('OS prompt timeout cannot leave setup pending or commit a late credential', async () => {
+    jest.useFakeTimers();
+    let complete;
+    Object.defineProperty(navigator, 'credentials', { configurable: true, value: {
+        create: jest.fn(() => new Promise(resolve => { complete = resolve; }))
+    } });
+    const pending = vault.enroll(context(), 'device');
+    const rejection = expect(pending).rejects.toThrow('timed out');
+    await jest.advanceTimersByTimeAsync(45000);
+    await rejection;
+    complete({ rawId: new Uint8Array([1]), response: {}, getClientExtensionResults: () => ({ prf: { enabled: true } }) });
+    await Promise.resolve();
+    expect(vault.record).toBeUndefined(); expect(vault.pendingDevice).toBeUndefined();
+    jest.useRealTimers();
+});
+
+test('session lock aborts an outstanding OS prompt even when the browser ignores abort', async () => {
+    Object.defineProperty(navigator, 'credentials', { configurable: true, value: { create: jest.fn(() => new Promise(() => {})) } });
+    const pending = vault.enroll(context(), 'device');
+    vault.lock(false);
+    await expect(pending).rejects.toThrow('cancelled');
     expect(vault.record).toBeUndefined();
 });

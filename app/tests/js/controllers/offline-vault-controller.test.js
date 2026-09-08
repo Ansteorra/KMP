@@ -1,6 +1,7 @@
 import OfflineController from '../../../assets/js/controllers/offline-vault-controller.js';
+import { currentOfflineContext, refreshOfflineSnapshot } from '../../../assets/js/services/offline-data-service.js';
 import vault from '../../../assets/js/services/offline-vault-service.js';
-jest.mock('../../../assets/js/services/offline-vault-service.js', () => ({ __esModule: true, default: { key: {}, metadata: jest.fn(), read: jest.fn(), lock: jest.fn(), unlock: jest.fn() }, purgeLegacyOfflineStorage: jest.fn() }));
+jest.mock('../../../assets/js/services/offline-vault-service.js', () => ({ __esModule: true, default: { key: {}, metadata: jest.fn(), read: jest.fn(), lock: jest.fn(), unlock: jest.fn(), enroll: jest.fn(), continueDeviceEnrollment: jest.fn() }, purgeLegacyOfflineStorage: jest.fn() }));
 jest.mock('../../../assets/js/services/offline-data-service.js', () => ({ currentOfflineContext: jest.fn(), refreshOfflineSnapshot: jest.fn() }));
 jest.mock('../../../assets/js/services/rsvp-cache-service.js', () => ({ __esModule: true, default: {} }));
 let controller;
@@ -13,6 +14,7 @@ beforeEach(() => {
         const element = document.createElement(['passphrase', 'newPassphrase'].includes(name) ? 'input' : 'div');
         controller[`${name}Target`] = element; controller.element.append(element);
     });
+    controller.hasConfirmPinTarget = true;
     controller.unlockedTarget.append(document.createElement('button'));
     controller.statusTarget.setAttribute('role', 'status');
     vault.key = {};
@@ -50,4 +52,30 @@ test('the explicit lock action moves focus into the selected unlock control', as
     vault.lock.mockImplementation(() => { vault.key = null; });
     await controller.lock();
     expect(document.activeElement).toBe(controller.passphraseTarget);
+});
+
+
+test('device setup prepares assets before offering a separate, focused credential step', async () => {
+    currentOfflineContext.mockResolvedValue({ owner: 'a', epoch: 'b' });
+    controller.prepareShell = jest.fn().mockResolvedValue();
+    controller.deviceNextTarget = document.createElement('button'); controller.element.append(controller.deviceNextTarget);
+    await controller.enrollDevice();
+    expect(vault.enroll).not.toHaveBeenCalled();
+    expect(controller.deviceNextTarget.textContent).toBe('Create offline passkey');
+    expect(document.activeElement).toBe(controller.deviceNextTarget);
+    vault.enroll.mockResolvedValue('wrap');
+    await controller.continueDevice();
+    expect(vault.enroll).toHaveBeenCalledWith({ owner: 'a', epoch: 'b' }, 'device');
+    expect(vault.continueDeviceEnrollment).not.toHaveBeenCalled();
+    expect(controller.deviceNextTarget.textContent).toBe('Continue with device unlock');
+    expect(refreshOfflineSnapshot).not.toHaveBeenCalled();
+});
+
+test('an incorrect PIN confirmation focuses the invalid field without enrolling', async () => {
+    controller.confirmPinTarget = document.createElement('input'); controller.element.append(controller.confirmPinTarget);
+    controller.newPassphraseTarget.value = '012345'; controller.confirmPinTarget.value = '654321';
+    await controller.enrollPassphrase({ preventDefault: jest.fn() });
+    expect(controller.confirmPinTarget.getAttribute('aria-invalid')).toBe('true');
+    expect(document.activeElement).toBe(controller.confirmPinTarget);
+    expect(vault.enroll).not.toHaveBeenCalled();
 });

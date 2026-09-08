@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\Model\Behavior;
 
-use Cake\I18n\Datetime;
+use Cake\I18n\DateTime;
 use Cake\ORM\Behavior;
 use Cake\ORM\Query\SelectQuery;
 
@@ -21,16 +21,16 @@ class ActiveWindowBehavior extends Behavior
      * Find records starting in the future or not yet expired.
      *
      * @param \Cake\ORM\Query\SelectQuery $query The query to modify
-     * @param \Cake\I18n\Datetime|null $effectiveDate Date to check against (defaults to now)
+     * @param \Cake\I18n\DateTime|null $effectiveDate Date to check against (defaults to now)
      * @return \Cake\ORM\Query\SelectQuery Modified query with upcoming conditions
      */
-    public function findUpcoming(SelectQuery $query, ?Datetime $effectiveDate = null): SelectQuery
+    public function findUpcoming(SelectQuery $query, ?DateTime $effectiveDate = null): SelectQuery
     {
         //get the alias of the current table
 
         $alias = $this->_table->getAlias();
-        if ($effectiveDate == null || !$effectiveDate instanceof Datetime) {
-            $effectiveDate = Datetime::now();
+        if ($effectiveDate == null || !$effectiveDate instanceof DateTime) {
+            $effectiveDate = DateTime::now();
         }
 
         return $query->where([
@@ -46,15 +46,15 @@ class ActiveWindowBehavior extends Behavior
      * Find records currently active (started and not expired).
      *
      * @param \Cake\ORM\Query\SelectQuery $query The query to modify
-     * @param \Cake\I18n\Datetime|null $effectiveDate Date to check against (defaults to now)
+     * @param \Cake\I18n\DateTime|null $effectiveDate Date to check against (defaults to now)
      * @return \Cake\ORM\Query\SelectQuery Modified query with current active conditions
      */
-    public function findCurrent(SelectQuery $query, ?Datetime $effectiveDate = null): SelectQuery
+    public function findCurrent(SelectQuery $query, ?DateTime $effectiveDate = null): SelectQuery
     {
         //get the alias of the current table
         $alias = $this->_table->getAlias();
-        if ($effectiveDate == null || !$effectiveDate instanceof Datetime) {
-            $effectiveDate = Datetime::now();
+        if ($effectiveDate == null || !$effectiveDate instanceof DateTime) {
+            $effectiveDate = DateTime::now();
         }
 
         return $query->where([
@@ -70,16 +70,16 @@ class ActiveWindowBehavior extends Behavior
      * Find records that have expired (expires_on < effective date).
      *
      * @param \Cake\ORM\Query\SelectQuery $query The query to modify
-     * @param \Cake\I18n\Datetime|null $effectiveDate Date to check against (defaults to now)
+     * @param \Cake\I18n\DateTime|null $effectiveDate Date to check against (defaults to now)
      * @return \Cake\ORM\Query\SelectQuery Modified query with expired conditions
      */
-    public function findPrevious(SelectQuery $query, ?Datetime $effectiveDate = null): SelectQuery
+    public function findPrevious(SelectQuery $query, ?DateTime $effectiveDate = null): SelectQuery
     {
         //get the alias of the current table
 
         $alias = $this->_table->getAlias();
-        if ($effectiveDate == null || !$effectiveDate instanceof Datetime) {
-            $effectiveDate = Datetime::now();
+        if ($effectiveDate == null || !$effectiveDate instanceof DateTime) {
+            $effectiveDate = DateTime::now();
         }
 
         return $query->where([$alias . '.expires_on <' => $effectiveDate]);

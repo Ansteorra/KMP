@@ -2,6 +2,14 @@
 
 This change prepares infrastructure and application controls. Production remains unchanged until the existing POC and production release gates complete. Keep raw discovery output, what-if output, image scanner reports, and credential evidence in restricted operator storage.
 
+Apply the tenant `20260908120000_AddMemberPasskeys` migration before web cutover.
+It creates native credential/challenge tables and deletes legacy quick-login PIN
+hashes; members sign in with their password and enroll new passkeys. This migration
+refuses rollback. Confirm the trusted TLS proxy configuration preserves the public
+HTTPS origin, since passkeys are bound to the exact tenant host. Offline snapshots
+need separate enrollment and physical-device acceptance; see
+[protected offline access](../../app/docs/protected-offline-access.md).
+
 ## Database identities and ordering
 
 Ordinary web and queue processes use distinct DML-only PostgreSQL roles through `DATABASE_URL` and `PLATFORM_DATABASE_URL`. Registered tenants retain their distinct runtime role/password. Runtime roles receive only CONNECT, schema USAGE, table SELECT/INSERT/UPDATE/DELETE, sequence USAGE/SELECT, and execution of application functions. They do not own databases, schemas, or tables and cannot create roles, databases, schemas, temporary tables, or persistent tables.

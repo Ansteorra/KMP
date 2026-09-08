@@ -17,6 +17,8 @@ const announce = () => window.dispatchEvent(new CustomEvent('kmp:offline-state')
 
 /** Purge ownerless pre-vault databases rather than guessing who owns their rows. */
 export async function purgeLegacyOfflineStorage() {
+    localStorage.removeItem('kmp.quickLogin.config');
+    localStorage.removeItem('kmp.quickLogin.deviceId');
     if (typeof caches !== 'undefined') {
         await Promise.all((await caches.keys()).filter(name =>
             name === 'offline-cache-activity-card' || name.startsWith('kmp-mobile-v')
@@ -122,16 +124,40 @@ export class OfflineVaultService {
             { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
     }
 
+    /** Bound OS prompts even when a browser ignores WebAuthn's timeout hint. */
+    async credentialRequest(method, options) {
+        if (!navigator.credentials?.[method]) throw new Error('Device unlock is unavailable. Use an offline PIN.');
+        const controller = new AbortController();
+        this.promptController = controller;
+        let timer;
+        try {
+            return await Promise.race([
+                navigator.credentials[method]({ ...options, signal: controller.signal }),
+                new Promise((resolve, reject) => {
+                    controller.signal.addEventListener('abort', () => reject(new Error('Device unlock cancelled or timed out. Retry or use an offline PIN.')), { once: true });
+                    timer = setTimeout(() => controller.abort(), 45000);
+                })
+            ]);
+        } finally {
+            clearTimeout(timer);
+            if (this.promptController === controller) this.promptController = null;
+        }
+    }
+
     async deviceKey(wrapper) {
-        const credential = await navigator.credentials.get({ publicKey: {
+        const credential = await this.credentialRequest('get', { publicKey: {
             challenge: random(32), rpId: location.hostname, userVerification: 'required', timeout: 60000,
             allowCredentials: [{ type: 'public-key', id: unb64(wrapper.credentialId), transports: wrapper.transports }],
             extensions: { prf: { eval: { first: unb64(wrapper.input) } } }
         } });
         const result = credential?.getClientExtensionResults()?.prf?.results?.first;
         if (!result || result.byteLength !== 32 || b64(credential.rawId) !== wrapper.credentialId) {
-            throw new Error('Device encryption is unavailable. Choose an offline passphrase.');
+            throw new Error('Device encryption is unavailable. Use an offline PIN.');
         }
+        return this.prfKey(result, wrapper);
+    }
+
+    async prfKey(result, wrapper) {
         const material = await crypto.subtle.importKey('raw', result, 'HKDF', false, ['deriveKey']);
         const key = await crypto.subtle.deriveKey({ name: 'HKDF', hash: 'SHA-256', salt: unb64(wrapper.input),
             info: bytes('KMP offline key wrapping v1') }, material, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
@@ -145,50 +171,84 @@ export class OfflineVaultService {
         if (method === 'passphrase' && (passphrase.length < 15 || passphrase.length > 128 || /^\d+$/.test(passphrase))) {
             throw new Error('Use a passphrase of 15–128 characters, not a numeric PIN.');
         }
+        if (method === 'pin' && !/^[0-9]{6,8}$/.test(passphrase)) throw new Error('Use a PIN of 6–8 digits.');
         const record = { version: VERSION, id: crypto.randomUUID(), revision: crypto.randomUUID(), owner: context.owner,
             epoch: context.epoch, verifiedAt: context.serverTime, expiresAt: context.expiresAt };
         if (!this.valid(record)) throw new Error('Check the device clock before enabling offline access.');
         let wrapper;
         let wrappingKey;
         if (method === 'device') {
-            if (!navigator.credentials?.create || !crypto.subtle) throw new Error('Choose an offline passphrase on this device.');
+            if (!navigator.credentials?.create || !crypto.subtle) throw new Error('Use an offline PIN on this device.');
             const input = b64(random(32));
-            const credential = await navigator.credentials.create({ publicKey: {
+            const credential = await this.credentialRequest('create', { publicKey: {
                 challenge: random(32), rp: { id: location.hostname, name: 'KMP offline access' },
                 user: { id: random(32), name: 'KMP offline access', displayName: 'KMP offline access' },
                 pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
                 authenticatorSelection: { authenticatorAttachment: 'platform', residentKey: 'preferred', userVerification: 'required' },
                 attestation: 'none', timeout: 60000, extensions: { prf: { eval: { first: unb64(input) } } }
             } });
-            if (!credential?.getClientExtensionResults()?.prf?.enabled) throw new Error('Device encryption is unavailable. Choose an offline passphrase.');
+            if (!credential?.getClientExtensionResults()?.prf?.enabled) throw new Error('Device encryption is unavailable. Use an offline PIN.');
             wrapper = { method, input, credentialId: b64(credential.rawId), transports: credential.response.getTransports?.() || ['internal'] };
-            wrappingKey = await this.deviceKey(wrapper);
-        } else if (method === 'passphrase') {
+            if (generation !== this.generation) throw new Error('Offline setup was cancelled by a session change.');
+            // Each assertion needs its own tap on Safari. Never chain OS prompts.
+            const result = credential.getClientExtensionResults()?.prf?.results?.first;
+            const pending = { record, wrapper, generation };
+            if (result?.byteLength === 32) {
+                const key = await this.prfKey(result, wrapper);
+                await this.sealRecord(record, wrapper, key);
+            }
+            if (generation !== this.generation) throw new Error('Offline setup was cancelled by a session change.');
+            this.pendingDevice = pending;
+            return record.payload ? 'verify' : 'wrap';
+        } else if (method === 'passphrase' || method === 'pin') {
             wrapper = { method, salt: b64(random(32)), iterations: ITERATIONS };
             wrappingKey = await this.passphraseKey(passphrase, wrapper.salt);
         } else throw new Error('Choose an offline unlock method.');
+        await this.sealRecord(record, wrapper, wrappingKey);
+        await this.activateRecord(record, wrappingKey, generation);
+    }
+
+    async sealRecord(record, wrapper, wrappingKey) {
         const raw = random(32);
+        try {
+            const key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+            record.wrapper = { ...wrapper, sealed: await this.crypt(wrappingKey, raw, record, 'key') };
+            record.payload = await this.crypt(key, bytes(JSON.stringify({ card: null, months: {}, rsvps: [], pending: [] })), record, 'payload');
+        } finally { raw.fill(0); }
+    }
+
+    /** Called directly from a new user gesture; incomplete setup stays only in memory. */
+    async continueDeviceEnrollment() {
+        const pending = this.pendingDevice;
+        if (!pending || pending.generation !== this.generation) throw new Error('Start device setup again.');
+        const wrappingKey = await this.deviceKey(pending.wrapper);
+        if (pending.generation !== this.generation) throw new Error('Offline setup was cancelled by a session change.');
+        if (!pending.record.payload) {
+            await this.sealRecord(pending.record, pending.wrapper, wrappingKey);
+            return 'verify';
+        }
+        await this.activateRecord(pending.record, wrappingKey, pending.generation);
+        this.pendingDevice = null;
+        return 'complete';
+    }
+
+    async activateRecord(record, wrappingKey, generation) {
+        const raw = await this.decrypt(wrappingKey, record.wrapper.sealed, record, 'key');
         const key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
-        record.wrapper = { ...wrapper, sealed: await this.crypt(wrappingKey, raw, record, 'key') };
-        raw.fill(0);
-        record.payload = await this.crypt(key, bytes(JSON.stringify({ card: null, months: {}, rsvps: [], pending: [] })), record, 'payload');
-        // Prove the authenticator can reproduce the key, not just report extension support.
-        const checkKey = method === 'device' ? await this.deviceKey(wrapper) : wrappingKey;
-        const unwrapped = await this.decrypt(checkKey, record.wrapper.sealed, record, 'key');
-        const verifiedKey = await crypto.subtle.importKey('raw', unwrapped, 'AES-GCM', false, ['encrypt', 'decrypt']);
-        new Uint8Array(unwrapped).fill(0);
-        await this.decrypt(verifiedKey, record.payload, record, 'payload');
-        if (generation !== this.generation) throw new Error('Offline setup was cancelled by a session change.');
+        new Uint8Array(raw).fill(0);
+        await this.decrypt(key, record.payload, record, 'payload');
+        if (generation !== this.generation || !this.valid(record)) throw new Error('Offline setup was cancelled or expired.');
         await this.commit(record);
-        this.key = verifiedKey; this.wrappingKey = checkKey; this.activeId = record.id;
+        if (generation !== this.generation) { await this.commit(null); throw new Error('Offline setup was cancelled.'); }
+        this.key = key; this.wrappingKey = wrappingKey; this.activeId = record.id;
         this.channel?.postMessage('changed');
         announce();
     }
 
-    async unlock(passphrase = '') {
+    async unlock(passphrase = '', preparedRecord = null) {
         const generation = this.generation;
-        const record = await this.metadata();
-        if (!record) throw new Error('Connect and sign in to refresh offline access.');
+        const record = preparedRecord || await this.metadata();
+        if (!record || !this.valid(record)) throw new Error('Connect and sign in to refresh offline access.');
         try {
             const wrappingKey = record.wrapper.method === 'device' ? await this.deviceKey(record.wrapper)
                 : await this.passphraseKey(passphrase, record.wrapper.salt, record.wrapper.iterations);
@@ -206,6 +266,8 @@ export class OfflineVaultService {
 
     lock(broadcast = true) {
         this.generation++;
+        this.promptController?.abort();
+        this.pendingDevice = null;
         this.key = null; this.wrappingKey = null; this.activeId = null;
         if (broadcast) {
             this.channel?.postMessage('locked');
@@ -217,6 +279,8 @@ export class OfflineVaultService {
     async clear() {
         if (this.clearing) return this.clearing;
         this.generation++;
+        this.promptController?.abort();
+        this.pendingDevice = null;
         this.key = null; this.wrappingKey = null; this.activeId = null;
         this.channel?.postMessage('cleared');
         try { localStorage.setItem('kmp.offline.lock', crypto.randomUUID()); } catch { /* Storage may be disabled. */ }
