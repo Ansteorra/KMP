@@ -243,8 +243,9 @@ class PlatformAdminRecoveryServiceTest extends TestCase
 
     private function createSchema(): void
     {
+        $this->connection->execute('CREATE TABLE security_rate_limits (bucket_key VARCHAR(64) PRIMARY KEY, attempts INT, expires_at BIGINT)');
         $this->connection->execute(
-            'CREATE TABLE platform_users (
+            'CREATE TABLE platform_users ( auth_version VARCHAR(64) DEFAULT "initial", last_accepted_totp_counter BIGINT NULL,
                 id TEXT PRIMARY KEY,
                 email TEXT NOT NULL UNIQUE,
                 password_hash TEXT NOT NULL,

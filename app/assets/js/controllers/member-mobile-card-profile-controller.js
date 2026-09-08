@@ -192,22 +192,6 @@ class MemberMobileCardProfile extends MobileControllerBase {
             if (this.hasZoomPhotoTarget) {
                 this.zoomPhotoTarget.src = photoUrl;
             }
-            this.cacheProfilePhotoForOffline(photoUrl);
-        }
-    }
-
-    async cacheProfilePhotoForOffline(photoUrl) {
-        if (!('serviceWorker' in navigator) || typeof photoUrl !== "string" || photoUrl.length === 0) {
-            return;
-        }
-        try {
-            const registration = await navigator.serviceWorker.ready;
-            registration?.active?.postMessage({
-                type: 'CACHE_URLS',
-                payload: [photoUrl]
-            });
-        } catch (error) {
-            console.warn('[member-mobile-card-profile] Could not queue profile photo for offline cache', error);
         }
     }
 
@@ -220,6 +204,7 @@ class MemberMobileCardProfile extends MobileControllerBase {
             
             const pluginData = data[key];
             for (let sectionKey in pluginData) {
+                if (sectionKey === 'offline_sections') continue;
                 const sectionData = pluginData[sectionKey];
                 if (Object.keys(sectionData).length === 0) continue;
                 

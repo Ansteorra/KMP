@@ -111,6 +111,8 @@ class Member extends BaseEntity implements
      * @var array<string, bool>
      */
     protected array $_accessible = [
+        'auth_version' => false,
+        'password_reset_requested_at' => false,
         'modified' => true,
         'password' => true,
         'sca_name' => true,
@@ -151,6 +153,8 @@ class Member extends BaseEntity implements
      * @var array<string> Fields hidden from serialization
      */
     protected array $_hidden = [
+        'auth_version',
+        'password_reset_requested_at',
         'password',
         'password_token',
         'password_token_expires_on',

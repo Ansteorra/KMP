@@ -121,23 +121,8 @@ revision when recording evidence.
 
 ## Historical self-hosted maintenance
 
-The `kmp` management tool and Docker/VPC, Fly.io, and Railway pages are
-historical and unsupported for new deployments.
-
-Facts that matter when maintaining an old installation:
-
-- `kmp install` is retired and returns an error.
-- `kmp update --check` checks registry availability; `kmp status` reports
-  deployment health and version but does not check for updates.
-- `kmp update` pulls/restarts through its provider and verifies health. It does
-  not create a database backup.
-- `kmp rollback` does not restore a database or reverse migrations. Several
-  providers are stubs, and the Docker provider may have no recorded prior tag.
-- Historical production-image startup migrations can continue after migration
-  errors and are not safe substitutes for the managed deployment job.
-- A legacy VPC SQL backup covers one MariaDB database only.
-
-For an existing legacy deployment, take and verify an engine-appropriate backup,
-pin an immutable version, rehearse in a clone, and define schema rollback
-manually before changing production. The project does not provide a safe
-one-command rollback for that architecture.
+The legacy management executables and updater distribution are retired and removed.
+Follow the [legacy retirement instructions](https://github.com/Ansteorra/KMP/blob/main/installer/README.md) to disable installed copies, updater services and scheduled
+jobs before maintenance. Existing operators must take verified engine-appropriate backups,
+pin an immutable image, rehearse in a clone and define schema recovery explicitly.
+Historical plaintext backups require separate encryption, access review and retention cleanup.

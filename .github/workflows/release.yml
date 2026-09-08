@@ -26,7 +26,7 @@ jobs:
       source_sha: ${{ steps.source.outputs.source_sha }}
     steps:
       - name: Check out the release tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           ref: ${{ github.event.release.tag_name }}
@@ -97,10 +97,10 @@ jobs:
         run: .github/scripts/require-workflow-success.sh tests.yml "$SOURCE_SHA" main push 0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
 
       - name: Log in to ghcr.io
-        uses: docker/login-action@v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -134,7 +134,7 @@ jobs:
     steps:
       - name: Extract release tags
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
@@ -145,10 +145,10 @@ jobs:
             type=raw,value=${{ needs.verify-promotion-source.outputs.channel_version }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
 
       - name: Log in to ghcr.io
-        uses: docker/login-action@v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -202,7 +202,7 @@ jobs:
           echo "Image digest: $IMAGE_DIGEST"
 
       - name: Upload digest to release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           files: kmp-image-digest.txt
 
@@ -220,7 +220,7 @@ jobs:
       contents: read
     steps:
       - name: Check out the verified release commit
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.verify-promotion-source.outputs.source_sha }}
           persist-credentials: false

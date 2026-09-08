@@ -6,6 +6,7 @@ namespace App\Test\TestCase\Services;
 use App\Services\PdfProcessingService;
 use App\Services\ServiceResult;
 use App\Test\TestCase\BaseTestCase;
+use setasign\Fpdi\Fpdi;
 
 class PdfProcessingServiceTest extends BaseTestCase
 {
@@ -15,7 +16,6 @@ class PdfProcessingServiceTest extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->skipIfPostgres();
         $this->service = new PdfProcessingService();
     }
 
@@ -39,20 +39,11 @@ class PdfProcessingServiceTest extends BaseTestCase
         $pdfPath = ROOT . DS . 'tests' . DS . 'test_pdf_' . uniqid() . '.pdf';
         $this->trackFile($pdfPath);
 
-        // Minimal valid PDF content
-        $content = "%PDF-1.4\n";
-        $content .= "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n";
-        $content .= "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n";
-        $content .= "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>\nendobj\n";
-        $content .= "xref\n0 4\n";
-        $content .= "0000000000 65535 f \n";
-        $content .= "0000000009 00000 n \n";
-        $content .= "0000000058 00000 n \n";
-        $content .= "0000000115 00000 n \n";
-        $content .= "trailer\n<< /Size 4 /Root 1 0 R >>\n";
-        $content .= "startxref\n196\n%%EOF\n";
-
-        file_put_contents($pdfPath, $content);
+        $pdf = new Fpdi();
+        $pdf->AddPage();
+        $pdf->SetFont('Arial', '', 12);
+        $pdf->Cell(40, 10, 'Synthetic security test');
+        $pdf->Output('F', $pdfPath);
 
         return $pdfPath;
     }
@@ -73,6 +64,37 @@ class PdfProcessingServiceTest extends BaseTestCase
         file_put_contents($path, 'This is not really a PDF');
 
         return $path;
+    }
+
+    public function testInvalidSinglePdfNeverCopiesSuccessfully(): void
+    {
+        $input = $this->createFakePdfExtension();
+        $output = sys_get_temp_dir() . '/kmp-invalid-' . bin2hex(random_bytes(6)) . '.pdf';
+        $this->trackFile($output);
+        $this->assertFalse($this->service->mergePdfs([$input], $output)->success);
+        $this->assertFileDoesNotExist($output);
+    }
+
+    public function testMixedMergeRejectsWholeUploadInsteadOfSkippingInvalidInput(): void
+    {
+        $output = sys_get_temp_dir() . '/kmp-mixed-' . bin2hex(random_bytes(6)) . '.pdf';
+        $this->trackFile($output);
+        $result = $this->service->mergePdfs([$this->createTestPdf(), $this->createFakePdfExtension()], $output);
+        $this->assertFalse($result->success);
+        $this->assertFileDoesNotExist($output);
+    }
+
+    public function testValidSingleAndMultiplePdfsPreservePageCount(): void
+    {
+        foreach ([1, 2] as $count) {
+            $output = sys_get_temp_dir() . '/kmp-valid-' . bin2hex(random_bytes(6)) . '.pdf';
+            $this->trackFile($output);
+            $inputs = array_map(fn(): string => $this->createTestPdf(), range(1, $count));
+            $result = $this->service->mergePdfs($inputs, $output);
+            $this->assertTrue($result->success, $result->reason ?? '');
+            $this->assertSame($count, $result->data['page_count']);
+            $this->assertSame($count, $this->service->getPageCount($output));
+        }
     }
 
     public function testInstantiation(): void

@@ -213,8 +213,8 @@ continuity, verify the external storage/retention control rather than treating
 
 The archived VPC stack uses services named by
 `deploy/vpc/docker-compose.yml` (including `app` and `db`), one MariaDB
-database, Caddy, and a privileged updater sidecar. It is unsupported for new
-deployments.
+database and Caddy. Older installed copies may still have a privileged updater sidecar;
+disable it using the [legacy retirement instructions](https://github.com/Ansteorra/KMP/blob/main/installer/README.md). This stack is unsupported for new deployments.
 
 For an existing instance:
 
@@ -224,10 +224,9 @@ For an existing instance:
     curl -fsS https://<legacy-host>/livez
     curl -fsS https://<legacy-host>/health
 
-Do not follow old advice to restore a SQL dump and immediately rerun
-`kmp update`. The management tool does not create an automatic backup or restore
-a database during rollback, and several providers are incomplete. Define a
-deployment-specific recovery plan before changing an old system.
+The legacy management, updater and backup/restore executables have been removed.
+Define a deployment-specific recovery plan before changing an old system; no automatic
+image rollback can restore a database or reverse migrations.
 
 ## Evidence for an issue
 

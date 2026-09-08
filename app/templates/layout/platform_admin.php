@@ -52,6 +52,7 @@ $navItems = [
     <title><?= h($this->fetch('title') ?: __('Platform Admin')) ?></title>
     <?= $this->Html->meta('csrf-token', $this->request->getAttribute('csrfToken')) ?>
     <?= $this->Vite->css('app') ?>
+    <?= $this->element('offline_session') ?>
 </head>
 <body class="platform-admin">
     <a class="visually-hidden-focusable" href="#main-content"><?= __('Skip to main content') ?></a>

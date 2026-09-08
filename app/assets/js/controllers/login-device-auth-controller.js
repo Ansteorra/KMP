@@ -7,6 +7,7 @@ class LoginDeviceAuthController extends Controller {
         "quickExperience",
         "passwordForm",
         "quickForm",
+        "quickPin",
         "email",
         "rememberId",
         "quickEnable",
@@ -153,6 +154,11 @@ class LoginDeviceAuthController extends Controller {
     applyMode() {
         const quickAvailable = Boolean(this.quickConfig);
         const quickActive = quickAvailable && this.loginMode === "quick";
+
+        if (this.hasQuickPinTarget) {
+            this.quickPinTarget.required = quickActive;
+            this.quickPinTarget.disabled = !quickActive;
+        }
 
         if (this.hasQuickExperienceTarget) {
             this.quickExperienceTarget.classList.toggle("d-none", !quickActive);

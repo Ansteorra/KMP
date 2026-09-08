@@ -178,7 +178,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
 
                     if ($existingInstance) {
                         Log::warning(
-                            "WorkflowEngine: Duplicate instance prevented for definition '{$workflowSlug}'"
+                            "WorkflowEngine: Duplicate instance prevented for definition '{$workflowDef->slug}'"
                             . " entity_type={$resolvedEntityType} entity_id={$entityId}"
                             . " — existing instance #{$existingInstance->id} is '{$existingInstance->status}'.",
                         );

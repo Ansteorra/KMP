@@ -9,10 +9,12 @@ param runtimeEnvironment = 'production'
 
 param acrName = readEnvironmentVariable('AZURE_ACR_NAME')
 param imageRepository = readEnvironmentVariable('KMP_PRODUCTION_IMAGE_REPOSITORY')
-param imageTag = readEnvironmentVariable('KMP_PRODUCTION_IMAGE_TAG')
+param imageDigest = readEnvironmentVariable('KMP_PRODUCTION_IMAGE_DIGEST')
 
 param postgresAdminUser = 'kmpadmin'
 param postgresAdminPassword = readEnvironmentVariable('POSTGRES_ADMIN_PASSWORD')
+param postgresRuntimePassword = readEnvironmentVariable('POSTGRES_RUNTIME_PASSWORD')
+param platformPostgresRuntimePassword = readEnvironmentVariable('PLATFORM_POSTGRES_RUNTIME_PASSWORD')
 param postgresDatabaseName = 'kmp_production'
 param platformPostgresDatabaseName = 'kmp_production_platform'
 param postgresSkuName = 'Standard_B1ms'
@@ -81,3 +83,7 @@ param enableScheduleHourlyJob = false
 param enableScheduleDailyJob = false
 param enableScheduleWeeklyJob = false
 param enableScheduleNightlyJob = false
+
+// Explicit reviewed inventory; include legacy and registered tenant document containers.
+param documentContainers = json(readEnvironmentVariable('DOCUMENT_CONTAINERS_JSON'))
+param backupContainerName = readEnvironmentVariable('AZURE_BACKUP_STORAGE_CONTAINER', 'kmp-backups')

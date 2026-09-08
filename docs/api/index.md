@@ -34,9 +34,9 @@ curl \
   'https://tenant.example.org/api/v1/service-principals/me'
 ```
 
-The current authenticator also accepts `X-API-Key` and the legacy `api_key`
-query parameter. Avoid query-string credentials because URLs can be retained in
-logs and browser history.
+The authenticator also accepts `X-API-Key`. URL query credentials are no longer
+accepted; migrate any `api_key` integration to one of these headers before rollout.
+Never put credentials into URLs, logs, or browser history.
 
 A token is resolved inside the tenant chosen by the request host. A valid token from one
 tenant must not authorize a request to another tenant host. API controllers return JSON and

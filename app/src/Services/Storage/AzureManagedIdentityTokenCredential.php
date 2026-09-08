@@ -24,14 +24,21 @@ class AzureManagedIdentityTokenCredential implements TokenCredential
      *
      * @param string|null $clientId User-assigned managed identity client ID
      * @param \GuzzleHttp\Client|null $client HTTP client
+     * @param string $resource Allowed token audience
      */
-    public function __construct(private readonly ?string $clientId = null, ?Client $client = null)
-    {
+    public function __construct(
+        private readonly ?string $clientId = null,
+        ?Client $client = null,
+        private readonly string $resource = self::RESOURCE,
+    ) {
+        if (!in_array($resource, [self::RESOURCE, 'https://management.azure.com/'], true)) {
+            throw new RuntimeException('Unsupported managed-identity token audience.');
+        }
         $this->client = $client ?? new Client(['timeout' => 5]);
     }
 
     /**
-     * Fetch an access token for Azure Storage.
+     * Fetch an access token for the configured Azure audience.
      *
      * @return \AzureOss\Storage\Common\Auth\AccessToken
      */
@@ -62,7 +69,7 @@ class AzureManagedIdentityTokenCredential implements TokenCredential
 
         $query = [
             'api-version' => '2019-08-01',
-            'resource' => self::RESOURCE,
+            'resource' => $this->resource,
         ];
         if ($this->clientId !== null && $this->clientId !== '') {
             $query['client_id'] = $this->clientId;
@@ -80,7 +87,7 @@ class AzureManagedIdentityTokenCredential implements TokenCredential
     {
         $query = [
             'api-version' => '2018-02-01',
-            'resource' => self::RESOURCE,
+            'resource' => $this->resource,
         ];
         if ($this->clientId !== null && $this->clientId !== '') {
             $query['client_id'] = $this->clientId;

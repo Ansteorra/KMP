@@ -1,5 +1,7 @@
 # KMP Azure Deployment
 
+For the current runtime/admin identity boundary, new secure inputs, role reconciliation, and rollout order, read [Security infrastructure rollout](security-rollout.md).
+
 The POC KMP environment runs on **Azure Container Apps + Jobs**, backed by
 **Azure Database for PostgreSQL Flexible Server**. Each green `dev` image is
 resolved by digest and imported from GHCR into Azure Container Registry before
@@ -365,27 +367,37 @@ Front Door Standard profile in front of the Container App to mirror the intended
 production edge topology.
 
 Use [`staging.bicepparam`](./staging.bicepparam) as the starting point. It keeps
-secrets out of git by reading secure values from environment variables:
+secrets out of git by reading secure values from environment variables.
+`KMP_STAGING_IMAGE_DIGEST` is required: use `sha256:` followed by all 64 lowercase
+hexadecimal characters from the verified build. Use the digest for the image in
+`KMP_STAGING_IMAGE_REPOSITORY`; a mutable tag cannot be used in its place.
 
 ```bash
 export AZURE_REGION=centralus
 export AZURE_ACR_NAME=<precreated-or-planned-acr-name>
 export KMP_STAGING_IMAGE_REPOSITORY=<acr-login-server>/kmp
-export KMP_STAGING_IMAGE_TAG=staging
+export KMP_STAGING_IMAGE_DIGEST='sha256:<64-hex-characters-from-the-verified-build>'
 export POSTGRES_ADMIN_PASSWORD=<from-password-manager>
+export POSTGRES_RUNTIME_PASSWORD=<from-password-manager>
+export PLATFORM_POSTGRES_RUNTIME_PASSWORD=<from-password-manager>
 export SECURITY_SALT=<from-password-manager>
 export BACKUP_ENCRYPTION_KEY=<from-password-manager>
 export PLATFORM_SECRETS_MASTER_KEY=<from-password-manager>
 export EMAIL_SMTP_HOST=<smtp-host>
 export EMAIL_FROM=staging-noreply@example.org
 export AZURE_DEPLOYER_PRINCIPAL_ID=<your-entra-object-id>
+export DOCUMENT_CONTAINERS_JSON='["documents","documents-tenant-a"]' # Reviewed staging inventory
 ```
 
 Safe local/static validation:
 
 ```bash
 az bicep build --file deploy/azure/main.bicep
+az bicep build-params --file deploy/azure/staging.bicepparam --stdout > /dev/null
 ```
+
+The parameter compilation requires the environment values above. Its output is
+discarded because the generated parameters contain secrets.
 
 Safe Azure validation (requires credentials but does not create/update
 resources):

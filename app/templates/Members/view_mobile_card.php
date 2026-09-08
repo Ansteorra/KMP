@@ -158,3 +158,7 @@ $uploadLimits = $this->KMP->getUploadLimits();
         </div>
     </div>
 </div>
+
+<div class="mx-3 my-3">
+    <?= $this->element('members/revokeSessions', ['member' => $member]) ?>
+</div>

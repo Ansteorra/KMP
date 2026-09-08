@@ -140,7 +140,10 @@ class PlatformAdminRecoveryService
             throw new RuntimeException('Emergency login failed.');
         }
         $userId = (string)$user['id'];
-        if (!$this->totpVerifier->verify($userId, $user['totp_secret_ref'] ?? null, $totpCode)) {
+        if (
+            !(new PlatformTotpChallengeService($this->connection, $this->totpVerifier))
+            ->consume($userId, $user['totp_secret_ref'] ?? null, $totpCode)
+        ) {
             $this->audit('platform.admin.emergency_login.failed', $userId, 'platform_user', $userId, null, [
                 'email_hash' => hash('sha256', $email),
                 'reason' => 'invalid_totp',
@@ -170,9 +173,13 @@ class PlatformAdminRecoveryService
 
         $this->connection->begin();
         try {
-            $this->connection->update('platform_user_recovery_codes', [
+            if (
+                $this->connection->update('platform_user_recovery_codes', [
                 'used_at' => $this->formatTime($now),
-            ], ['id' => $recoveryCodeId]);
+                ], ['id' => $recoveryCodeId, 'used_at IS' => null])->rowCount() !== 1
+            ) {
+                throw new RuntimeException('Emergency login failed.');
+            }
             $this->connection->insert('platform_auth_sessions', [
                 'id' => $sessionId,
                 'platform_user_id' => $userId,
@@ -229,7 +236,10 @@ class PlatformAdminRecoveryService
             throw new RuntimeException('Recovery code rotation failed.');
         }
         $userId = (string)$user['id'];
-        if (!$this->totpVerifier->verify($userId, $user['totp_secret_ref'] ?? null, $totpCode)) {
+        if (
+            !(new PlatformTotpChallengeService($this->connection, $this->totpVerifier))
+            ->consume($userId, $user['totp_secret_ref'] ?? null, $totpCode)
+        ) {
             $this->audit('platform.admin.recovery_codes.rotate_failed', $userId, 'platform_user', $userId, $reason, [
                 'email_hash' => hash('sha256', $email),
                 'reason' => 'invalid_totp',
@@ -297,12 +307,20 @@ class PlatformAdminRecoveryService
 
         $password = new SensitiveString($this->randomToken(24));
         $now = $this->now();
-        $this->connection->update('platform_users', [
-            'password_hash' => password_hash($password->reveal(), PASSWORD_DEFAULT),
-            'failed_login_count' => 0,
-            'locked_until' => null,
-            'modified_at' => $now,
-        ], ['id' => (string)$user['id']]);
+        $this->connection->transactional(function () use ($password, $now, $user): void {
+            $this->connection->update('platform_users', [
+                'password_hash' => password_hash($password->reveal(), PASSWORD_DEFAULT),
+                'auth_version' => bin2hex(random_bytes(32)),
+                'failed_login_count' => 0,
+                'locked_until' => null,
+                'modified_at' => $now,
+            ], ['id' => (string)$user['id']]);
+            $this->connection->update(
+                'platform_auth_sessions',
+                ['revoked_at' => $now],
+                ['platform_user_id' => (string)$user['id'], 'revoked_at IS' => null],
+            );
+        });
         $this->audit(
             'platform.admin.password_reset.completed',
             (string)$user['id'],

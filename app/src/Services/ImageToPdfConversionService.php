@@ -5,6 +5,7 @@ namespace App\Services;
 
 use Cake\Log\Log;
 use Exception;
+use finfo;
 use GdImage;
 
 /**
@@ -92,9 +93,9 @@ class ImageToPdfConversionService
             return $result;
         } catch (Exception $e) {
             unset($image);
-            Log::error('PDF conversion error: ' . $e->getMessage());
+            Log::error('PDF conversion error: ');
 
-            return new ServiceResult(false, 'Error during PDF conversion: ' . $e->getMessage());
+            return new ServiceResult(false, 'Unable to process every file. Check the file types and size limits.');
         }
     }
 
@@ -188,9 +189,9 @@ class ImageToPdfConversionService
 
             $previewPath = $this->createPreviewFromJpegData($firstPageJpegData);
 
-            Log::error('Multi-image PDF conversion error: ' . $e->getMessage());
+            Log::error('Multi-image PDF conversion error: ');
 
-            return new ServiceResult(false, 'Error during PDF conversion: ' . $e->getMessage());
+            return new ServiceResult(false, 'Unable to process every file. Check the file types and size limits.');
         }
     }
 
@@ -252,23 +253,8 @@ class ImageToPdfConversionService
         // Get image info
         $imageInfo = getimagesize($imagePath);
         if ($imageInfo === false) {
-            // Save the failing file for debugging
-            //$debugPath = TMP . 'failed_image_' . date('Y-m-d_His') . '_' . basename($imagePath);
-            //copy($imagePath, $debugPath);
-
-            // Try to determine if it's an SVG or other unsupported format
-            $fileContent = file_get_contents($imagePath, false, null, 0, 1024);
-            $fileHeader = bin2hex(substr($fileContent, 0, 16));
-
-            // Log detailed debug info
-            Log::error('Failed to read image file', [
-                'path' => $imagePath,
-                //'saved_to' => $debugPath,
-                'file_size' => filesize($imagePath),
-                'file_header_hex' => $fileHeader,
-                'file_header_text' => substr($fileContent, 0, 64),
-                'mime_type' => mime_content_type($imagePath),
-            ]);
+            $fileContent = (string)file_get_contents($imagePath, false, null, 0, 1024);
+            Log::error('image.invalid', ['event' => 'image.invalid', 'file_size' => filesize($imagePath)]);
 
             if (strpos($fileContent, '<svg') !== false || strpos($fileContent, '<?xml') !== false) {
                 $error = 'SVG files are not supported. Please upload '
@@ -887,6 +873,44 @@ class ImageToPdfConversionService
         return "%PDF-1.4\n" . implode('', $objects) . $xref . $trailer;
     }
 
+    /** Validate and re-encode optional browser previews before storing them as images. */
+    public function saveClientThumbnail(string $dataUri, string $path): bool
+    {
+        if (strlen($dataUri) > 1400000 || !preg_match('~^data:image/(?:png|jpeg);base64,~', $dataUri)) {
+            return false;
+        }
+        $bytes = base64_decode(explode(',', $dataUri, 2)[1], true);
+        if ($bytes === false || strlen($bytes) > 1048576) {
+            return false;
+        }
+        set_error_handler(static fn(): bool => true);
+        try {
+            $info = getimagesizefromstring($bytes);
+        } finally {
+            restore_error_handler();
+        }
+        if (
+            $info === false || !in_array($info[2], [IMAGETYPE_PNG, IMAGETYPE_JPEG], true)
+            || $info[0] < 1 || $info[1] < 1 || $info[0] * $info[1] > 1048576
+        ) {
+            return false;
+        }
+        set_error_handler(static fn(): bool => true);
+        try {
+            $image = imagecreatefromstring($bytes);
+        } finally {
+            restore_error_handler();
+        }
+        if ($image === false) {
+            return false;
+        }
+        try {
+            return imagepng($image, $path);
+        } finally {
+            imagedestroy($image);
+        }
+    }
+
     /**
      * Process mixed uploads (images and PDFs) into a single PDF document.
      *
@@ -930,18 +954,17 @@ class ImageToPdfConversionService
                 }
 
                 if (!file_exists($filePath)) {
-                    Log::warning("File not found during mixed conversion: {$filePath}");
-                    continue;
+                    throw new Exception('An uploaded file is unavailable.');
                 }
 
-                // Determine file type from original filename extension or mime type
-                $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
-                $isPdf = $extension === 'pdf' || $mimeType === 'application/pdf';
+                // Client filenames and MIME declarations do not establish file type.
+                $mimeType = (new finfo(FILEINFO_MIME_TYPE))->file($filePath);
+                $isPdf = $mimeType === 'application/pdf';
 
                 if ($isPdf) {
                     // It's a PDF - track path and original name for error reporting
                     $pdfPaths[] = ['path' => $filePath, 'name' => $originalName];
-                } elseif (in_array($extension, self::SUPPORTED_FORMATS, true) || $this->isImageMimeType($mimeType)) {
+                } elseif (is_string($mimeType) && $this->isImageMimeType($mimeType)) {
                     // Track first image for thumbnail (only if no files processed yet)
                     if ($firstImagePath === null && empty($pdfPaths)) {
                         $firstImagePath = $filePath;
@@ -963,7 +986,7 @@ class ImageToPdfConversionService
                     // Track converted image with original name
                     $pdfPaths[] = ['path' => $tempPdfPath, 'name' => $originalName];
                 } else {
-                    Log::warning("Unsupported file type skipped: ext={$extension}, mime={$mimeType}");
+                    throw new Exception('An uploaded file type is not supported.');
                 }
             }
 
@@ -1006,9 +1029,12 @@ class ImageToPdfConversionService
                 'skipped_files' => $mergeResult->data['skipped_files'] ?? [],
             ]);
         } catch (Exception $e) {
-            Log::error('Mixed PDF conversion error: ' . $e->getMessage());
+            Log::error('pdf.conversion_failed', ['event' => 'pdf.conversion_failed']);
+            if (is_file($outputPath)) {
+                unlink($outputPath);
+            }
 
-            return new ServiceResult(false, 'Error during PDF conversion: ' . $e->getMessage());
+            return new ServiceResult(false, 'Unable to process every file. Check the file types and size limits.');
         } finally {
             // Clean up temporary files
             foreach ($tempFiles as $tempFile) {
@@ -1101,7 +1127,7 @@ class ImageToPdfConversionService
 
             return $thumbnailPath;
         } catch (Exception $e) {
-            Log::warning('Failed to generate image thumbnail: ' . $e->getMessage());
+            Log::warning('Failed to generate image thumbnail: ');
 
             return null;
         }

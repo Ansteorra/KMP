@@ -90,14 +90,13 @@ The archived Go tool reads `~/.kmp/config.yaml` with this shape:
 Backup fields are flat under the deployment. The tool does not accept the old
 nested `backup:` example that previously appeared on this page.
 
-`kmp install` is retired. Azure, AWS, and VPS providers are stubs; other
-provider methods are incomplete. `kmp update` does not create a backup and
-`kmp rollback` does not restore the database.
+The installer, updater and backup/restore executables have been removed. This configuration
+is historical only. Follow the [legacy retirement instructions](https://github.com/Ansteorra/KMP/blob/main/installer/README.md) for existing installations.
 
 ## Historical database warning
 
-The VPC scripts and Compose template assume one MariaDB database. Their backup
-script dumps only `MYSQL_DB_NAME`. Those artifacts cannot restore platform
+The retained Compose template assumes one MariaDB database. Removed backup scripts
+dumped only `MYSQL_DB_NAME`. Historical archives cannot restore platform
 metadata plus a managed tenant fleet.
 
 Managed Azure uses PostgreSQL Flexible Server and separate `DATABASE_URL` and

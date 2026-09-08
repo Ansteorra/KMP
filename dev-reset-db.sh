@@ -30,6 +30,12 @@ if [ -f "$ENV_FILE" ]; then
     COMPOSE+=(--env-file "$ENV_FILE")
 fi
 
+# Provisioning and tenant migrations run in an isolated CLI container. Do not
+# inject administrative credentials or KMP_ADMIN_JOB into the running web app.
+run_administrative_cake() {
+    "${COMPOSE[@]}" run --rm --no-deps --entrypoint php admin-worker bin/cake.php "$@"
+}
+
 env_or_file() {
     name="$1"
     default="$2"
@@ -102,7 +108,7 @@ ensure_app_container_mounts_this_checkout
 BACKGROUND_SERVICES_TO_RESTART=()
 APP_SERVICE_STOPPED=false
 INITIAL_DB_SETUP_SKIP_FILE="app/config/.skip-initial-db-setup"
-for service in worker scheduler; do
+for service in worker scheduler admin-worker; do
     if printf '%s\n' "$RUNNING_SERVICES" | grep -x "$service" >/dev/null; then
         BACKGROUND_SERVICES_TO_RESTART+=("$service")
     fi
@@ -714,12 +720,12 @@ if ($tenantHostAliases !== []) {
 }
 echo sprintf("Seeded dev platform admin %s with password %s and TOTP secret %s.\n", $platformAdminEmail, $platformAdminPassword, $platformAdminTotpSecret);
 '
-    "${COMPOSE[@]}" exec -T app bin/cake tenant migrate \
+    run_administrative_cake tenant migrate \
         --tenant "$PRIMARY_TENANT_SLUG" \
         --skip-pre-migration-marker
 
     echo "      Provisioning second local tenant through the platform command..."
-    "${COMPOSE[@]}" exec -T app bin/cake tenant provision "$SECOND_TENANT_SLUG" \
+    run_administrative_cake tenant provision "$SECOND_TENANT_SLUG" \
         --display-name "$SECOND_TENANT_DISPLAY_NAME" \
         --host "$SECOND_TENANT_HOST" \
         --db-name "$SECOND_TENANT_DB" \
@@ -819,7 +825,7 @@ if ($hostAliases !== []) {
     echo sprintf("Registered second tenant aliases: %s.\n", implode(", ", $hostAliases));
 }
 '
-    "${COMPOSE[@]}" exec -T app bin/cake tenant migrate \
+    run_administrative_cake tenant migrate \
         --tenant "$SECOND_TENANT_SLUG" \
         --skip-pre-migration-marker
 fi

@@ -38,6 +38,14 @@ class WaiverFileService
      */
     private RetentionPolicyService $retentionPolicyService;
 
+    /** Remove only existing temporary output; absence is an expected cleanup condition. */
+    private function removeTemporaryFile(string $path): void
+    {
+        if (is_file($path)) {
+            unlink($path);
+        }
+    }
+
     /**
      * Constructor
      */
@@ -100,9 +108,9 @@ class WaiverFileService
         );
 
         if (!$retentionResult->success) {
-            @unlink($pdfPath);
+            $this->removeTemporaryFile($pdfPath);
             if ($previewPath !== null && file_exists($previewPath)) {
-                @unlink($previewPath);
+                $this->removeTemporaryFile($previewPath);
             }
 
             return $retentionResult;
@@ -121,12 +129,12 @@ class WaiverFileService
         ]);
 
         if (!$GatheringWaivers->save($gatheringWaiver, ['checkRules' => false])) {
-            @unlink($pdfPath);
+            $this->removeTemporaryFile($pdfPath);
             if ($previewPath !== null && file_exists($previewPath)) {
-                @unlink($previewPath);
+                $this->removeTemporaryFile($previewPath);
             }
             $errors = $gatheringWaiver->getErrors();
-            Log::error('Failed to save waiver record', ['errors' => $errors, 'data' => $gatheringWaiver->toArray()]);
+            Log::error('Failed to save waiver record', ['gathering_waiver_id' => $gatheringWaiver->id]);
             $errorMessages = [];
             foreach ($errors as $field => $fieldErrors) {
                 foreach ($fieldErrors as $error) {
@@ -165,9 +173,9 @@ class WaiverFileService
                 $previewPath,
             );
         } catch (Throwable $exception) {
-            @unlink($pdfPath);
+            $this->removeTemporaryFile($pdfPath);
             if ($previewPath !== null && file_exists($previewPath)) {
-                @unlink($previewPath);
+                $this->removeTemporaryFile($previewPath);
             }
 
             $GatheringWaivers->delete($gatheringWaiver);
@@ -179,11 +187,11 @@ class WaiverFileService
             return new ServiceResult(false, __('Failed to save document: {0}', $exception->getMessage()));
         }
 
-        @unlink($pdfPath);
+        $this->removeTemporaryFile($pdfPath);
 
         if (!$documentResult->success) {
             if ($previewPath !== null && file_exists($previewPath)) {
-                @unlink($previewPath);
+                $this->removeTemporaryFile($previewPath);
             }
             Log::error('Document service returned failure', [
                 'gathering_waiver_id' => $gatheringWaiver->id,
@@ -284,21 +292,14 @@ class WaiverFileService
             ]);
         }
 
-        // Use client-generated thumbnail only if first file was a PDF
-        if (!$firstFileIsImage && $clientThumbnail !== null && str_starts_with($clientThumbnail, 'data:image/')) {
-            $parts = explode(',', $clientThumbnail, 2);
-            if (count($parts) === 2) {
-                $imageData = base64_decode($parts[1]);
-                if ($imageData !== false) {
-                    $clientThumbPath = $tmpDir . DIRECTORY_SEPARATOR . $uniqueId . '_thumb.png';
-                    if (file_put_contents($clientThumbPath, $imageData) !== false) {
-                        if ($previewPath !== null && file_exists($previewPath)) {
-                            @unlink($previewPath);
-                        }
-                        $previewPath = $clientThumbPath;
-                        Log::debug('Using client-generated thumbnail for PDF');
-                    }
+        // A client preview is optional; retain the server placeholder unless it validates and re-encodes.
+        if (!$firstFileIsImage && $clientThumbnail !== null) {
+            $clientThumbPath = $tmpDir . DIRECTORY_SEPARATOR . $uniqueId . '_thumb.png';
+            if ($this->imageToPdfConversionService->saveClientThumbnail($clientThumbnail, $clientThumbPath)) {
+                if ($previewPath !== null && file_exists($previewPath)) {
+                    unlink($previewPath);
                 }
+                $previewPath = $clientThumbPath;
             }
         }
 
@@ -310,9 +311,9 @@ class WaiverFileService
         );
 
         if (!$retentionResult->success) {
-            @unlink($pdfPath);
+            $this->removeTemporaryFile($pdfPath);
             if ($previewPath !== null && file_exists($previewPath)) {
-                @unlink($previewPath);
+                $this->removeTemporaryFile($previewPath);
             }
 
             return $retentionResult;
@@ -330,12 +331,12 @@ class WaiverFileService
         ]);
 
         if (!$GatheringWaivers->save($gatheringWaiver, ['checkRules' => false])) {
-            @unlink($pdfPath);
+            $this->removeTemporaryFile($pdfPath);
             if ($previewPath !== null && file_exists($previewPath)) {
-                @unlink($previewPath);
+                $this->removeTemporaryFile($previewPath);
             }
             $errors = $gatheringWaiver->getErrors();
-            Log::error('Failed to save waiver record', ['errors' => $errors, 'data' => $gatheringWaiver->toArray()]);
+            Log::error('Failed to save waiver record', ['gathering_waiver_id' => $gatheringWaiver->id]);
             $errorMessages = [];
             foreach ($errors as $field => $fieldErrors) {
                 foreach ($fieldErrors as $error) {
@@ -376,9 +377,9 @@ class WaiverFileService
                 $previewPath,
             );
         } catch (Throwable $exception) {
-            @unlink($pdfPath);
+            $this->removeTemporaryFile($pdfPath);
             if ($previewPath !== null && file_exists($previewPath)) {
-                @unlink($previewPath);
+                $this->removeTemporaryFile($previewPath);
             }
 
             $GatheringWaivers->delete($gatheringWaiver);
@@ -390,11 +391,11 @@ class WaiverFileService
             return new ServiceResult(false, __('Failed to save document: {0}', $exception->getMessage()));
         }
 
-        @unlink($pdfPath);
+        $this->removeTemporaryFile($pdfPath);
 
         if (!$documentResult->success) {
             if ($previewPath !== null && file_exists($previewPath)) {
-                @unlink($previewPath);
+                $this->removeTemporaryFile($previewPath);
             }
             Log::error('Document service returned failure (multi-image)', [
                 'gathering_waiver_id' => $gatheringWaiver->id,
@@ -420,12 +421,6 @@ class WaiverFileService
             'document_id' => $documentId,
             'page_count' => $pageCount,
         ];
-
-        if (!empty($skippedFiles)) {
-            $resultData['skipped_files'] = $skippedFiles;
-            $fileList = implode(', ', $skippedFiles);
-            $resultData['warning'] = __('The following file(s) could not be processed due to unsupported PDF compression and were skipped: {0}', $fileList);
-        }
 
         return new ServiceResult(true, null, $resultData);
     }

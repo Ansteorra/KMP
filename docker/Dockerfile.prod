@@ -1,26 +1,25 @@
 # KMP Production Container
-#
-# 3-stage build designed for fast rebuilds:
-#
-#   Stage 1 (node-builder):   --platform=$BUILDPLATFORM  → runs NATIVE on CI (no QEMU)
-#   Stage 2 (php-deps):       --platform=$BUILDPLATFORM  → runs NATIVE on CI (no QEMU)
-#   Stage 3 (runtime):        FROM kmp-base              → COPY only, zero compilation
-#
-# PHP extension compilation lives in docker/Dockerfile.base (built infrequently).
-# Expected app-image build time: 5-10 min (vs ~90 min previously).
+# Isolated asset/dependency stages feed the production image. By default the
+# shared native runtime is built from the pinned PHP image and install script.
+# A reviewed, scanned prebuilt runtime digest can be supplied explicitly.
 
 # Base image with all PHP extensions pre-compiled.
-# Falls back to the prebuilt PHP 8.4 base image when no override is supplied.
-ARG BASE_IMAGE=ghcr.io/jhandel/kmp-base:php84
+# The default builds the pinned patched runtime; a reviewed digest may override it.
+ARG BASE_IMAGE=runtime-base
 ARG APP_VERSION=dev
-ARG NODE_VERSION=24.15.0
+
+
+FROM php:8.4.25-apache-trixie@sha256:51da594c844a97f31b1cd6b1ac6660982f40788f4fe13e75f7fd39e2f9b58651 AS runtime-base
+COPY --from=mlocati/php-extension-installer:latest@sha256:b6d3fa381b9ba5cf051117c1c601d6a523b590e534bf3d56eb4fbe352949c138 /usr/bin/install-php-extensions /usr/local/bin/
+COPY docker/install-runtime.sh /usr/local/bin/install-kmp-runtime
+RUN sh /usr/local/bin/install-kmp-runtime
 
 # =============================================================================
 # Stage 1: Frontend assets
 # --platform=$BUILDPLATFORM: always runs on the CI runner's native arch (amd64)
 # No QEMU penalty for Node.js/Vite even in multi-platform builds.
 # =============================================================================
-FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS node-builder
+FROM --platform=$BUILDPLATFORM node:24-alpine@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf AS node-builder
 
 WORKDIR /build
 
@@ -43,7 +42,7 @@ RUN npm run build
 # --ignore-platform-reqs: skips PHP extension checks at install time (extensions
 # are present at runtime in the base image).
 # =============================================================================
-FROM --platform=$BUILDPLATFORM composer:2 AS php-deps
+FROM --platform=$BUILDPLATFORM composer:2@sha256:d8f6343d3fae98107426bc49163ccad46ef85aabd4a27d80a74401fab4aba332 AS php-deps
 
 WORKDIR /app
 
@@ -57,9 +56,18 @@ RUN composer install \
     --ignore-platform-reqs \
     --no-autoloader
 
-# Copy full app source, then generate optimized autoloader
-COPY app/ ./
+# Copy only deployable source; runtime data and preinstalled vendor never enter this stage.
+COPY app/bin/ ./bin/
+COPY app/config/ ./config/
+COPY app/src/ ./src/
+COPY app/templates/ ./templates/
+COPY app/plugins/ ./plugins/
+COPY app/webroot/ ./webroot/
+COPY app/resources/ ./resources/
+COPY app/scripts/seed/ ./scripts/seed/
+COPY app/CHANGELOG.md ./
 RUN test -s CHANGELOG.md \
+    && test -s resources/security/document-blob-condition.txt \
     && (composer dump-autoload --optimize --no-dev --ignore-platform-reqs \
         || composer dump-autoload --no-dev --ignore-platform-reqs)
 # Result: /app/ has all PHP source + vendor/, no node_modules
@@ -81,7 +89,8 @@ LABEL org.opencontainers.image.description="Kingdom Management Portal"
 
 WORKDIR /var/www/html
 
-RUN (a2dismod mpm_event mpm_worker || true) && a2enmod mpm_prefork
+RUN php -r 'if (version_compare(PHP_VERSION, "8.4.24", "<") || !extension_loaded("gd")) { exit(1); }' \
+    && (a2dismod mpm_event mpm_worker || true) && a2enmod mpm_prefork
 
 # Copy PHP application (source + vendor/, no node_modules)
 COPY --from=php-deps /app/ ./

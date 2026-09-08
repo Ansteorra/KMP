@@ -4,9 +4,8 @@ declare(strict_types=1);
 namespace App\Services;
 
 use Cake\Log\Log;
-use Exception;
-use setasign\Fpdi\Fpdi;
-use Smalot\PdfParser\Parser;
+use Symfony\Component\Process\Process;
+use Throwable;
 
 /**
  * Handles PDF file operations for waiver uploads.
@@ -30,49 +29,7 @@ class PdfProcessingService
      */
     public function validatePdf(string $filePath): ServiceResult
     {
-        if (!file_exists($filePath)) {
-            return new ServiceResult(false, 'File does not exist');
-        }
-
-        $fileSize = filesize($filePath);
-        if ($fileSize > self::MAX_PDF_SIZE) {
-            $maxMb = self::MAX_PDF_SIZE / 1024 / 1024;
-
-            return new ServiceResult(false, "PDF file exceeds maximum size of {$maxMb}MB");
-        }
-
-        // Check PDF magic bytes
-        $handle = fopen($filePath, 'rb');
-        if (!$handle) {
-            return new ServiceResult(false, 'Unable to read file');
-        }
-        $header = fread($handle, 5);
-        fclose($handle);
-
-        if ($header !== '%PDF-') {
-            return new ServiceResult(false, 'File is not a valid PDF');
-        }
-
-        // Try to parse and count pages
-        try {
-            $parser = new Parser();
-            $pdf = $parser->parseFile($filePath);
-            $pages = $pdf->getPages();
-            $pageCount = count($pages);
-
-            if ($pageCount === 0) {
-                return new ServiceResult(false, 'PDF contains no pages');
-            }
-
-            return new ServiceResult(true, null, [
-                'page_count' => $pageCount,
-                'file_size' => $fileSize,
-            ]);
-        } catch (Exception $e) {
-            Log::error('PDF validation error: ' . $e->getMessage());
-
-            return new ServiceResult(false, 'Unable to read PDF file: ' . $e->getMessage());
-        }
+        return $this->runWorker('validate', [$filePath]);
     }
 
     /**
@@ -100,101 +57,61 @@ class PdfProcessingService
      */
     public function mergePdfs(array $pdfInfos, string $outputPath): ServiceResult
     {
-        if (empty($pdfInfos)) {
-            return new ServiceResult(false, 'No PDF files provided');
+        $paths = array_map(
+            static fn($info): string => is_string($info) ? $info : (string)($info['path'] ?? ''),
+            $pdfInfos,
+        );
+        $result = $this->runWorker('merge', $paths, $outputPath);
+        if (!$result->success && is_file($outputPath)) {
+            unlink($outputPath);
         }
 
-        // Normalize input - support both simple paths and path+name arrays
-        $normalizedInfos = [];
-        foreach ($pdfInfos as $info) {
-            if (is_string($info)) {
-                $normalizedInfos[] = ['path' => $info, 'name' => basename($info)];
-            } else {
-                $normalizedInfos[] = [
-                    'path' => $info['path'] ?? '',
-                    'name' => $info['name'] ?? basename($info['path'] ?? ''),
-                ];
+        return $result;
+    }
+
+    /** Isolate untrusted parsers from the request process and bound memory and wall time. */
+    private function runWorker(string $operation, array $paths, ?string $outputPath = null): ServiceResult
+    {
+        if ($paths === [] || count($paths) > 100) {
+            return new ServiceResult(false, $paths === [] ? 'No PDF files provided' : 'Select at most 100 PDF files.');
+        }
+        $totalBytes = 0;
+        foreach ($paths as $path) {
+            if (!is_file($path) || !is_readable($path)) {
+                return new ServiceResult(false, 'File does not exist or cannot be read.');
             }
-        }
-
-        // If only one PDF, just copy it
-        if (count($normalizedInfos) === 1) {
-            $path = $normalizedInfos[0]['path'];
-            if (!copy($path, $outputPath)) {
-                return new ServiceResult(false, 'Failed to copy PDF file');
+            $size = filesize($path);
+            if ($size === false || $size < 5 || $size > self::MAX_PDF_SIZE) {
+                return new ServiceResult(false, 'A PDF file is empty or exceeds the 50 MB limit.');
             }
-            $pageCount = $this->getPageCount($outputPath);
-
-            return new ServiceResult(true, null, ['page_count' => $pageCount]);
+            if (file_get_contents($path, false, null, 0, 5) !== '%PDF-') {
+                return new ServiceResult(false, 'File is not a valid PDF');
+            }
+            $totalBytes += $size;
         }
-
+        if ($totalBytes > 104857600) {
+            return new ServiceResult(false, 'The combined PDFs exceed the 100 MB limit.');
+        }
         try {
-            $fpdi = new Fpdi();
-            $totalPages = 0;
-            $skippedFiles = [];
-
-            foreach ($normalizedInfos as $pdfInfo) {
-                $pdfPath = $pdfInfo['path'];
-                $pdfName = $pdfInfo['name'];
-
-                if (!file_exists($pdfPath)) {
-                    Log::warning("PDF file not found during merge: {$pdfPath}");
-                    continue;
-                }
-
-                try {
-                    $pageCount = $fpdi->setSourceFile($pdfPath);
-                    for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
-                        $templateId = $fpdi->importPage($pageNo);
-                        $size = $fpdi->getTemplateSize($templateId);
-
-                        // Add page with same dimensions as source
-                        $fpdi->AddPage($size['orientation'], [$size['width'], $size['height']]);
-                        $fpdi->useTemplate($templateId);
-                        $totalPages++;
-                    }
-                } catch (Exception $e) {
-                    // Check if this is the compression/parser error
-                    if (
-                        strpos($e->getMessage(), 'compression technique') !== false ||
-                        strpos($e->getMessage(), 'not supported by the free parser') !== false
-                    ) {
-                        Log::warning("Skipping PDF with unsupported compression: {$pdfName}");
-                        $skippedFiles[] = $pdfName;
-                        continue;
-                    }
-                    // Re-throw other errors
-                    throw $e;
-                }
+            $process = new Process([
+                PHP_BINDIR . '/php', '-d', 'memory_limit=256M', '-d', 'display_errors=0',
+                '-d', 'log_errors=0', dirname(__DIR__, 2) . '/bin/pdf-worker.php',
+            ]);
+            $process->setTimeout(30);
+            $process->setInput(json_encode([
+                'operation' => $operation, 'paths' => $paths, 'output' => $outputPath,
+            ], JSON_THROW_ON_ERROR));
+            $process->run();
+            $data = json_decode($process->getOutput(), true);
+            if (!$process->isSuccessful() || !is_array($data) || ($data['page_count'] ?? 0) < 1) {
+                return new ServiceResult(false, 'Unable to process the PDF. Use a supported PDF or upload images.');
             }
 
-            if ($totalPages === 0) {
-                if (!empty($skippedFiles)) {
-                    return new ServiceResult(
-                        false,
-                        'Could not process PDF files. Some PDFs use '
-                        . 'compression not supported by this system. '
-                        . 'Please try uploading images instead, or '
-                        . 'use a simpler PDF format.',
-                    );
-                }
+            return new ServiceResult(true, null, $data);
+        } catch (Throwable) {
+            Log::warning('pdf.processing_failed', ['event' => 'pdf.processing_failed']);
 
-                return new ServiceResult(false, 'No pages found in PDF files');
-            }
-
-            $fpdi->Output($outputPath, 'F');
-
-            $result = ['page_count' => $totalPages];
-            if (!empty($skippedFiles)) {
-                $result['skipped_files'] = $skippedFiles;
-                $result['warning'] = 'Some PDF files were skipped due to unsupported compression';
-            }
-
-            return new ServiceResult(true, null, $result);
-        } catch (Exception $e) {
-            Log::error('PDF merge error: ' . $e->getMessage());
-
-            return new ServiceResult(false, 'Failed to merge PDF files: ' . $e->getMessage());
+            return new ServiceResult(false, 'PDF processing exceeded its limits or could not complete.');
         }
     }
 

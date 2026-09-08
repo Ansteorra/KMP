@@ -88,6 +88,7 @@ if (
 <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal"
     id='passwordModalBtn'>Change Password</button>
 <?php } ?>
+<?= $this->element('members/revokeSessions', ['member' => $member]) ?>
 <?php if (!empty($user) && method_exists($user, 'isSuperUser') && $user->isSuperUser() && empty($impersonationState) && $user->id !== $member->id) : ?>
 <?= $this->Form->postLink(
         __('Impersonate Member'),

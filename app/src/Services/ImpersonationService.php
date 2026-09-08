@@ -3,11 +3,14 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Log\LogPrivacy;
 use App\Model\Entity\Member;
 use App\Services\Cache\TenantAwareCache;
+use App\Services\Security\MemberSessionState;
 use Cake\Cache\Cache;
+use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Http\Session;
-use Cake\I18n\FrozenTime;
+use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
 use Cake\Routing\Router;
@@ -37,11 +40,13 @@ class ImpersonationService
     {
         $state = [
             'active' => true,
+            'tenant_id' => MemberSessionState::tenantId(),
+            'auth_version' => (string)$impersonator->auth_version,
             'impersonator_id' => (int)$impersonator->id,
             'impersonator_name' => (string)$impersonator->sca_name,
             'impersonated_member_id' => (int)$target->id,
             'impersonated_member_name' => (string)$target->sca_name,
-            'started_at' => FrozenTime::now()->toIso8601String(),
+            'started_at' => DateTime::now()->toIso8601String(),
         ];
 
         $session->write(self::SESSION_KEY, $state);
@@ -101,6 +106,32 @@ class ImpersonationService
         return $state;
     }
 
+    /** Validate the original administrator as well as the effective identity. */
+    public function isValid(Session $session): bool
+    {
+        $state = $this->getState($session);
+        if ($state === null) {
+            return true;
+        }
+        if (
+            MemberSessionState::tenantId() === null
+            || ($state['tenant_id'] ?? null) !== MemberSessionState::tenantId()
+            || !is_string($state['auth_version'] ?? null)
+        ) {
+            return false;
+        }
+        try {
+            $admin = TableRegistry::getTableLocator()->get('Members')->get((int)$state['impersonator_id']);
+        } catch (RecordNotFoundException) {
+            return false;
+        }
+
+        return (int)($state['impersonated_member_id'] ?? 0) === (int)$session->read('Auth.member_id')
+            && MemberSessionState::eligible($admin)
+            && hash_equals((string)$admin->auth_version, $state['auth_version'])
+            && $admin->isSuperUser();
+    }
+
     /**
      * Determine whether impersonation is active for the given session.
      *
@@ -132,10 +163,10 @@ class ImpersonationService
             'impersonator_id' => (int)$impersonator->id,
             'impersonated_member_id' => (int)$target->id,
             'event' => $event,
-            'request_url' => $request?->getRequestTarget(),
+            'request_url' => $request ? LogPrivacy::path($request->getRequestTarget()) : null,
             'ip_address' => $request?->clientIp(),
             'user_agent' => $request?->getHeaderLine('User-Agent'),
-            'created' => FrozenTime::now(),
+            'created' => DateTime::now(),
         ];
 
         $log = $logsTable->newEntity($data, ['accessibleFields' => ['*' => true]]);

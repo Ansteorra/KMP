@@ -7,7 +7,7 @@ Own cloud deployment templates, environment examples, bootstrap scripts, CI/CD d
 ## Ownership
 
 - `deploy/azure` owns Azure Bicep/JSON templates, environment parameters, OIDC configuration, Container Apps cutover scripts, and Azure environment examples.
-- `deploy/vpc` owns VPC-oriented Docker Compose, Caddy, database config, backup, restore, and environment examples.
+- `deploy/vpc` owns VPC-oriented Docker Compose, Caddy, database config, retirement guidance, and environment examples.
 - Application behavior and defaults remain in `app/`; deployment files should parameterize environment-specific values.
 
 ## Local Contracts
@@ -20,6 +20,8 @@ Own cloud deployment templates, environment examples, bootstrap scripts, CI/CD d
 - A successful `dev` image build deploys automatically to POC. Published non-prerelease `v*` releases require `production` environment approval before exact-digest promotion.
 - Both environments must use `.github/workflows/azure-deploy.yml` and the ordered unified-worker cutover rather than duplicating migration or web-update logic.
 - PostgreSQL extensions required by application migrations must be allowlisted through `azure.extensions` before the migration job starts; preserve existing allowlisted extensions when adding one, and use the PostgreSQL-specific resource group when the database server is shared across environment resource groups.
+- Database/schema operations run only in dedicated `KMP_ADMIN_JOB` processes with administrative URLs and an isolated identity. Ordinary web/queue identities use DML roles and cannot read administrative secrets; see `azure/security-rollout.md`.
+- Azure document grants require a reviewed container inventory; archives use a separate read-only runtime container. Run administrative storage reconciliation and verify archive migration/effective permissions before switching backends; see `azure/security-rollout.md`.
 - Before web cutover, run the idempotent legacy environment secret import,
   reconcile backup keys, and run `tenant migrate --all --include-suspended
   --fail-fast`. The import must never overwrite a database-backed secret and

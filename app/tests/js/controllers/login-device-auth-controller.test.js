@@ -411,6 +411,19 @@ describe('LoginDeviceAuthController', () => {
       return controller;
     }
 
+    test('only the active quick-login mode requires and submits its PIN', () => {
+      const controller = buildControllerForApplyMode({ email: 'a@b.com' }, 'quick');
+      controller.hasQuickPinTarget = true;
+      controller.quickPinTarget = document.createElement('input');
+      controller.applyMode();
+      expect(controller.quickPinTarget.required).toBe(true);
+      expect(controller.quickPinTarget.disabled).toBe(false);
+      controller.loginMode = 'password';
+      controller.applyMode();
+      expect(controller.quickPinTarget.required).toBe(false);
+      expect(controller.quickPinTarget.disabled).toBe(true);
+    });
+
     test('shows quick experience when quickConfig exists and mode is quick', () => {
       const cfg = { email: 'a@b.com', deviceId: 'd', pinSalt: 's', pinHash: 'h' };
       const controller = buildControllerForApplyMode(cfg, 'quick');

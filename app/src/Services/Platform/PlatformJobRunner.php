@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Services\Platform;
 
 use App\Command\PlatformBackupCommand;
+use App\Command\PlatformBackupsPruneCommand;
 use App\Command\TenantBackupCommand;
 use App\Command\TenantRestoreCommand;
 use App\Services\Backups\PlatformDatabaseBackupService;
@@ -22,6 +23,7 @@ use Throwable;
 class PlatformJobRunner
 {
     public const JOB_TENANT_PROVISION = 'tenant_provision';
+    public const JOB_BACKUPS_PRUNE = 'backups_prune';
     public const JOB_TENANT_BACKUP = TenantBackupService::JOB_TYPE;
     public const JOB_TENANT_RESTORE = TenantRestoreService::JOB_TYPE;
     public const JOB_PLATFORM_BACKUP = PlatformDatabaseBackupService::JOB_TYPE;
@@ -34,6 +36,7 @@ class PlatformJobRunner
         self::JOB_TENANT_BACKUP,
         self::JOB_TENANT_RESTORE,
         self::JOB_PLATFORM_BACKUP,
+        self::JOB_BACKUPS_PRUNE,
     ];
 
     /**
@@ -61,6 +64,12 @@ class PlatformJobRunner
     {
         if ($limit < 1 || $limit > 100) {
             throw new RuntimeException('Platform job runner limit must be between 1 and 100.');
+        }
+
+        // Ordinary web/queue identities cannot retrieve administrative secrets and
+        // leave operational jobs queued for the isolated administrative runner.
+        if (!AdministrativeDatabase::enabled()) {
+            return ['claimed' => 0, 'completed' => 0, 'failed' => 0];
         }
 
         $jobs = $this->claimQueuedJobs($limit);
@@ -137,6 +146,7 @@ class PlatformJobRunner
     private function runJob(array $job, callable $commandRunner): void
     {
         match ((string)$job['job_type']) {
+            self::JOB_BACKUPS_PRUNE => $this->runBackupsPrune($job, $commandRunner),
             self::JOB_TENANT_PROVISION => $this->runTenantProvisioning($job, $commandRunner),
             self::JOB_TENANT_BACKUP => $this->runTenantBackup($job, $commandRunner),
             self::JOB_TENANT_RESTORE => $this->runTenantRestore($job, $commandRunner),
@@ -146,6 +156,22 @@ class PlatformJobRunner
                 $job['job_type'],
             )),
         };
+    }
+
+    /**
+     * @param array<string, mixed> $job Retention job
+     * @param callable $commandRunner Administrative command runner
+     */
+    private function runBackupsPrune(array $job, callable $commandRunner): void
+    {
+        $parameters = $this->parameters($job);
+        $limit = filter_var($parameters['limit'] ?? 200, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1, 'max_range' => 1000],
+        ]);
+        if ($limit === false) {
+            throw new RuntimeException('Invalid backup retention limit.');
+        }
+        $this->runCommand($commandRunner, PlatformBackupsPruneCommand::class, ['--limit', (string)$limit]);
     }
 
     /**

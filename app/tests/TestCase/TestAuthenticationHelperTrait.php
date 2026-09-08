@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase;
 
+use App\Services\Security\MemberSessionState;
 use Cake\ORM\TableRegistry;
 
 /**
@@ -12,8 +13,8 @@ use Cake\ORM\TableRegistry;
  * Provides convenient methods to authenticate as the test super user
  * or other predefined test accounts.
  *
- * Sessions must contain a Member entity (not a plain array) because
- * the authorization middleware expects KmpIdentityInterface.
+ * Sessions contain a tenant-bound credential envelope. The authenticator reloads
+ * the Member identity before authorization.
  */
 trait TestAuthenticationHelperTrait
 {
@@ -32,7 +33,7 @@ trait TestAuthenticationHelperTrait
         $member = $membersTable->find()
             ->where(['email_address IN' => ['admin@amp.ansteorra.org', 'admin@test.com']])
             ->firstOrFail();
-        $this->session(['Auth' => $member]);
+        $this->session(['Auth' => MemberSessionState::fromMember($member)]);
     }
 
     /**
@@ -59,7 +60,7 @@ trait TestAuthenticationHelperTrait
     {
         $membersTable = TableRegistry::getTableLocator()->get('Members');
         $member = $membersTable->get($memberId);
-        $this->session(['Auth' => $member]);
+        $this->session(['Auth' => MemberSessionState::fromMember($member)]);
     }
 
     /**
@@ -86,8 +87,8 @@ trait TestAuthenticationHelperTrait
             if (is_object($auth) && isset($auth->id)) {
                 return (int)$auth->id;
             }
-            if (is_array($auth) && !empty($auth['id'])) {
-                return (int)$auth['id'];
+            if (is_array($auth) && !empty($auth['member_id'])) {
+                return (int)$auth['member_id'];
             }
         }
         // Fall back to pre-request session data
@@ -96,8 +97,8 @@ trait TestAuthenticationHelperTrait
             if (is_object($auth) && isset($auth->id)) {
                 return (int)$auth->id;
             }
-            if (is_array($auth) && !empty($auth['id'])) {
-                return (int)$auth['id'];
+            if (is_array($auth) && !empty($auth['member_id'])) {
+                return (int)$auth['member_id'];
             }
         }
 

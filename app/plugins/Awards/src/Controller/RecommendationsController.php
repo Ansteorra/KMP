@@ -28,6 +28,7 @@ use Awards\Services\RecommendationFeedbackService;
 use Awards\Services\RecommendationFormService;
 use Awards\Services\RecommendationGroupingService;
 use Awards\Services\RecommendationQueryService;
+use Awards\Services\RecommendationSubmissionInput;
 use Awards\Services\RecommendationSubmissionService;
 use Awards\Services\RecommendationUiModeService;
 use Awards\Services\RecommendationUpdateService;
@@ -292,7 +293,7 @@ class RecommendationsController extends AppController
         $attendances = $attendanceTable->find()
             ->contain([
                 'Gatherings' => function ($q) {
-                    return $q->select(['id', 'name', 'start_date', 'end_date']);
+                    return $q->select(['id', 'name', 'start_date', 'end_date', 'branch_id']);
                 },
             ])
             ->where([
@@ -307,7 +308,7 @@ class RecommendationsController extends AppController
         // Build the map: member_id => [gatherings]
         $result = [];
         foreach ($attendances as $attendance) {
-            if (!$attendance->gathering) {
+            if (!$attendance->gathering || !$this->Authentication->getIdentity()?->can('viewShared', $attendance)) {
                 continue;
             }
             $memberId = $attendance->member_id;
@@ -1029,7 +1030,7 @@ class RecommendationsController extends AppController
                 $attendances = $attendanceTable->find()
                     ->contain([
                         'Gatherings' => function ($q) {
-                            return $q->select(['id', 'name', 'start_date', 'end_date', 'public_id']);
+                            return $q->select(['id', 'name', 'start_date', 'end_date', 'public_id', 'branch_id']);
                         },
                     ])
                     ->where([
@@ -1043,7 +1044,7 @@ class RecommendationsController extends AppController
                     ->all();
 
                 foreach ($attendances as $attendance) {
-                    if ($attendance->gathering) {
+                    if ($attendance->gathering && $this->Authentication->getIdentity()?->can('viewShared', $attendance)) {
                         $memberAttendanceGatherings[] = $attendance->gathering;
                     }
                 }
@@ -1675,7 +1676,7 @@ class RecommendationsController extends AppController
                     'awards-recommendation-submitted',
                     'Awards.RecommendationCreateRequested',
                     [
-                        'data' => $this->request->getData(),
+                        'data' => RecommendationSubmissionInput::normalize((array)$this->request->getData(), true),
                         'requesterContext' => [
                             'id' => (int)$user->id,
                             'sca_name' => (string)$user->sca_name,
@@ -1777,7 +1778,7 @@ class RecommendationsController extends AppController
                     'awards-recommendation-submitted',
                     'Awards.RecommendationCreateRequested',
                     [
-                        'data' => $this->request->getData(),
+                        'data' => RecommendationSubmissionInput::normalize((array)$this->request->getData(), true),
                         'submissionMode' => 'public',
                     ],
                 );
@@ -2082,14 +2083,16 @@ class RecommendationsController extends AppController
             $attendanceTable = $this->fetchTable('GatheringAttendances');
             $attendances = $attendanceTable->find()
                 ->where([
-                    'member_id' => $memberId,
-                    'deleted IS' => null,
+                    'GatheringAttendances.member_id' => $memberId,
+                    'GatheringAttendances.deleted IS' => null,
                 ])
-                ->select(['gathering_id', 'share_with_crown'])
+                ->contain(['Gatherings', 'Members'])
                 ->toArray();
 
             foreach ($attendances as $attendance) {
-                $attendanceMap[$attendance->gathering_id] = $attendance->share_with_crown;
+                if ($this->Authentication->getIdentity()?->can('viewShared', $attendance)) {
+                    $attendanceMap[$attendance->gathering_id] = $attendance->share_with_crown;
+                }
             }
         }
 
@@ -2171,8 +2174,7 @@ class RecommendationsController extends AppController
     {
         $this->request->allowMethod(['get']);
 
-        // Skip authorization - this is a data endpoint for add/edit forms
-        // Authorization is handled at the form action level
+        // Gathering options are public. Every attendance record is separately authorized below.
         $this->Authorization->skipAuthorization();
 
         try {
@@ -2248,14 +2250,16 @@ class RecommendationsController extends AppController
                     $attendanceTable = $this->fetchTable('GatheringAttendances');
                     $attendances = $attendanceTable->find()
                         ->where([
-                            'member_id' => $member->id,
-                            'deleted IS' => null,
+                            'GatheringAttendances.member_id' => $member->id,
+                            'GatheringAttendances.deleted IS' => null,
                         ])
-                        ->select(['gathering_id', 'share_with_crown'])
+                        ->contain(['Gatherings', 'Members'])
                         ->toArray();
 
                     foreach ($attendances as $attendance) {
-                        $attendanceMap[$attendance->gathering_id] = $attendance->share_with_crown;
+                        if ($this->Authentication->getIdentity()?->can('viewShared', $attendance)) {
+                            $attendanceMap[$attendance->gathering_id] = $attendance->share_with_crown;
+                        }
                     }
                 }
             }

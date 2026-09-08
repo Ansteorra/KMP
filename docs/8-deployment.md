@@ -193,15 +193,8 @@ WORM mirror until that integration is implemented and verified.
 
 ## 8.9 Historical self-hosting
 
-The archived VPC/Fly/Railway and installer pages may help maintain an existing
-single-database installation. They are unsupported for new deployments and do
-not provide managed tenancy. In particular:
-
-- `kmp install` and `bin/cake kmp_install` are retired and return errors.
-- Several installer providers are stubs.
-- `kmp update` does not create a database backup.
-- `kmp rollback` does not restore a database or reverse migrations.
-- The VPC scripts back up one MariaDB database, not platform metadata and a
-  tenant fleet.
-
-Treat those pages as historical context, not a production runbook.
+The installer, updater, backup and restore executables and their publishing workflows
+have been removed. Existing binaries, scheduled tasks and Docker socket mounts are not
+removed by this repository change. Follow the [legacy retirement instructions](https://github.com/Ansteorra/KMP/blob/main/installer/README.md)
+to disable them, protect historical plaintext backups and plan migration to managed Azure.
+The archived VPC/Fly/Railway pages describe historical installations only.

@@ -474,7 +474,7 @@ describe('MemberMobileCardPWA registerServiceWorker', () => {
     }
   });
 
-  test('registers SW, waits for active, sends cache URLs, dispatches pwa-ready', async () => {
+  test('registers SW, waits for active, never submits private cache URLs, dispatches pwa-ready', async () => {
     const postMessage = jest.fn();
     const mockRegistration = {
       active: { postMessage },
@@ -496,12 +496,9 @@ describe('MemberMobileCardPWA registerServiceWorker', () => {
 
     await controller.registerServiceWorker();
 
-    expect(navigator.serviceWorker.register).toHaveBeenCalledWith('/sw.js');
+    expect(navigator.serviceWorker.register).toHaveBeenCalledWith('/sw.js', { updateViaCache: 'none' });
     expect(controller.sw).toBe(mockRegistration);
-    expect(postMessage).toHaveBeenCalledWith({
-      type: 'CACHE_URLS',
-      payload: ['/page1', '/page2'],
-    });
+    expect(postMessage).not.toHaveBeenCalled();
     expect(readyListener).toHaveBeenCalledTimes(1);
   });
 

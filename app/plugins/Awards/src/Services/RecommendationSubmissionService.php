@@ -7,6 +7,7 @@ use Awards\Model\Entity\Recommendation;
 use Awards\Model\Table\RecommendationsTable;
 use Cake\Log\Log;
 use Cake\ORM\Exception\PersistenceFailedException;
+use InvalidArgumentException;
 use Throwable;
 
 class RecommendationSubmissionService
@@ -17,6 +18,7 @@ class RecommendationSubmissionService
 
     private RecommendationStateLogService $stateLogService;
 
+    /** Inject the submission state log writer. */
     public function __construct(?RecommendationStateLogService $stateLogService = null)
     {
         $this->stateLogService = $stateLogService ?? new RecommendationStateLogService();
@@ -54,16 +56,8 @@ class RecommendationSubmissionService
         return $this->submit(
             $recommendationsTable,
             $data,
-            function (Recommendation $recommendation) use ($recommendationsTable): void {
-                if ($recommendation->requester_id === null) {
-                    return;
-                }
-
-                $requester = $recommendationsTable->Requesters->get(
-                    $recommendation->requester_id,
-                    select: ['sca_name'],
-                );
-                $recommendation->requester_sca_name = $requester->sca_name;
+            function (Recommendation $recommendation): void {
+                $recommendation->requester_id = null;
             },
             'Error submitting public recommendation: ',
         );
@@ -80,6 +74,27 @@ class RecommendationSubmissionService
         callable $hydrateRequester,
         string $logPrefix,
     ): array {
+        try {
+            $data = RecommendationSubmissionInput::normalize($data);
+            $ids = $data['gatherings']['_ids'];
+            if (
+                $ids !== [] && $recommendationsTable->Gatherings->find()
+                    ->where(['Gatherings.id IN' => $ids])->count() !== count($ids)
+            ) {
+                throw new InvalidArgumentException('Invalid gathering selection.');
+            }
+        } catch (InvalidArgumentException $exception) {
+            return [
+                'success' => false,
+                'recommendation' => null,
+                'output' => null,
+                'eventName' => null,
+                'eventPayload' => null,
+                'errorCode' => 'invalid_submission',
+                'message' => $exception->getMessage(),
+                'errors' => [],
+            ];
+        }
         $resolved = $this->resolveMemberPublicId($recommendationsTable, $data);
         if ($resolved['success'] === false) {
             return [
@@ -112,7 +127,7 @@ class RecommendationSubmissionService
                     $recommendation = $recommendationsTable->patchEntity(
                         $recommendation,
                         $workingData,
-                        ['associated' => ['Gatherings']],
+                        ['associated' => ['Gatherings' => ['onlyIds' => true]]],
                     );
 
                     $hydrateRequester($recommendation);

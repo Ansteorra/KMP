@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
+use App\Services\Platform\PlatformAdminHost;
 use App\Services\Platform\PlatformHealthCheckerInterface;
 use App\Services\Platform\PlatformHealthService;
 use App\Services\Platform\TenantHostResolver;
@@ -56,6 +57,14 @@ class TenantResolutionMiddleware implements MiddlewareInterface
      */
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
+        $path = $request->getUri()->getPath();
+        $prefix = $request->getAttribute('params')['prefix'] ?? null;
+        if (
+            ($prefix === 'PlatformAdmin' || preg_match('#^/platform-admin(?:/|$)#i', $path))
+            && !PlatformAdminHost::allows($request->getUri()->getHost())
+        ) {
+            return new Response(['status' => 404, 'body' => 'Not found.']);
+        }
         if (!$this->enabled) {
             return $handler->handle($request);
         }

@@ -6,8 +6,8 @@ namespace App\Model\Table;
 use ArrayObject;
 use Cake\Datasource\EntityInterface;
 use Cake\Event\Event;
-use Cake\Http\Session;
 use Cake\ORM\RulesChecker;
+use Cake\Routing\Router;
 use Cake\Validation\Validator;
 
 /**
@@ -110,8 +110,8 @@ class RolesPermissionsTable extends BaseTable
     public function beforeSave(Event $event, EntityInterface $entity, ArrayObject $options): void
     {
         if ($entity->isNew() && empty($entity->created_by)) {
-            $user = (new Session())->read('Auth');
-            $entity->created_by = $user['id'];
+            $identity = Router::getRequest()?->getAttribute('identity');
+            $entity->created_by = $identity?->getIdentifier();
         }
     }
 }

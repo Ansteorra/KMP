@@ -190,6 +190,7 @@ class MemberCardProfile extends Controller {
                     }
                     var pluginData = data[key];
                     for (let sectionKey in pluginData) {
+                        if (sectionKey === 'offline_sections') continue;
                         var sectionData = pluginData[sectionKey];
                         var groupCount = sectionData.length;
                         if (groupCount === 0) {

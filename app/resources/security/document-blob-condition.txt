@@ -1,0 +1,5 @@
+(
+  (!(ActionMatches{'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read'} OR ActionMatches{'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/write'} OR ActionMatches{'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/delete'}))
+  OR
+  (!(SubOperationMatches{'Blob.List'}) AND !(@Resource[Microsoft.Storage/storageAccounts/blobServices/containers/blobs:path] StringLike 'backups/*'))
+)

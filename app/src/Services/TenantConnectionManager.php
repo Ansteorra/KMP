@@ -5,6 +5,7 @@ namespace App\Services;
 
 use App\KMP\TenantContext;
 use App\KMP\TenantMetadata;
+use App\Services\Platform\AdministrativeDatabase;
 use App\Services\Secrets\SecretStoreInterface;
 use Cake\Database\Connection;
 use Cake\Datasource\ConnectionManager;
@@ -90,6 +91,20 @@ class TenantConnectionManager
      */
     public function buildConnectionConfig(TenantMetadata $tenant): array
     {
+        if (AdministrativeDatabase::enabled()) {
+            /** @var \Cake\Database\Connection $administrativeConnection */
+            $administrativeConnection = ConnectionManager::get('platform');
+
+            return array_merge(
+                AdministrativeDatabase::forTenant(
+                    $administrativeConnection->config(),
+                    $tenant->dbServer,
+                    $tenant->dbName,
+                ),
+                ['name' => self::CONNECTION_ALIAS],
+            );
+        }
+
         $password = $this->secretStore->get(sprintf('tenant.%s.db.password', $tenant->slug));
         if ($password === null) {
             throw new RuntimeException(sprintf('Missing database password secret for tenant "%s".', $tenant->slug));

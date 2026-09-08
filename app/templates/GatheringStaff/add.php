@@ -75,7 +75,7 @@
                         <strong>Note:</strong> Stewards must provide either an email address or phone number.
                     </div>
                     <div class="alert alert-info" id="contact-auto-fill-notice" style="display: none;">
-                        <strong>Tip:</strong> Contact info will be automatically filled from the member's AMP account when you select a member.
+                        <strong>Tip:</strong> Contact info is filled only when you have permission to view it. Otherwise, enter contact details provided for this role.
                     </div>
 
                     <?php

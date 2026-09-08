@@ -35,6 +35,7 @@
         "setasign/fpdf": "^1.8",
         "setasign/fpdi": "^2.6.4",
         "smalot/pdfparser": "^2.12.3",
+        "symfony/process": "^7.4",
         "symfony/yaml": "^7.4"
     },
     "require-dev": {

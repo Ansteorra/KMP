@@ -6,7 +6,9 @@ declare(strict_types=1);
 namespace App\Services\Backups;
 
 use App\KMP\TenantMetadata;
+use App\Services\Platform\AdministrativeDatabase;
 use App\Services\Secrets\SensitiveString;
+use Cake\Datasource\ConnectionManager;
 use RuntimeException;
 
 class PgRestoreTenantBackupRestorer implements TenantBackupRestorerInterface
@@ -51,14 +53,27 @@ class PgRestoreTenantBackupRestorer implements TenantBackupRestorerInterface
         if (!is_file($backupPath)) {
             throw new RuntimeException('Decrypted tenant backup file is missing.');
         }
+        AdministrativeDatabase::requireJob();
+        /** @var \Cake\Database\Connection $connection */
+        $connection = ConnectionManager::get('platform');
+        $config = AdministrativeDatabase::forTenant(
+            $connection->config(),
+            $targetTenant->dbServer,
+            $targetTenant->dbName,
+        );
         $argv = $this->buildArgv($targetTenant, $backupPath);
+        $argv[array_search('--username', $argv, true) + 1] = (string)$config['username'];
+        $port = (string)($config['port'] ?? 5432);
+        if (!ctype_digit($port) || (int)$port < 1 || (int)$port > 65535) {
+            throw new RuntimeException('Unsafe administrative database port for pg_restore.');
+        }
+        array_splice($argv, 1, 0, ['--port', $port]);
         $descriptorSpec = [
             0 => ['pipe', 'r'],
             1 => ['pipe', 'w'],
             2 => ['pipe', 'w'],
         ];
-        $processEnv = getenv();
-        $env = array_merge(is_array($processEnv) ? $processEnv : [], ['PGPASSWORD' => $databasePassword->reveal()]);
+        $env = PostgresClientEnvironment::fromConfig($config, new SensitiveString((string)$config['password']));
         $process = proc_open($argv, $descriptorSpec, $pipes, null, $env);
         if (!is_resource($process)) {
             throw new RuntimeException('Unable to start pg_restore process.');

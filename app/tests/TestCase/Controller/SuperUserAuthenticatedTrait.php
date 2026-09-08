@@ -3,13 +3,13 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
+use App\Services\Security\MemberSessionState;
 use Cake\TestSuite\IntegrationTestTrait;
 
 /**
  * SuperUserAuthenticatedTrait
  *
  * @deprecated Use TestAuthenticationHelperTrait (via HttpIntegrationTestCase) instead.
- *   This trait writes to the database and is incompatible with transaction rollback.
  *   Extend HttpIntegrationTestCase and call $this->authenticateAsSuperUser() instead.
  * @see \App\Test\TestCase\TestAuthenticationHelperTrait
  * @see \App\Test\TestCase\Support\HttpIntegrationTestCase
@@ -24,8 +24,8 @@ trait SuperUserAuthenticatedTrait
      * This method:
      * 1. Enables CSRF and security tokens
      * 2. Loads the test super user from the database
-     * 3. Loads and attaches the super user permission
-     * 4. Sets up the session with the authenticated user
+     * 3. Reads the current credential epoch
+     * 4. Stores a tenant-bound credential envelope for normal authentication
      *
      * @return void
      */
@@ -36,29 +36,9 @@ trait SuperUserAuthenticatedTrait
         $this->enableCsrfToken();
         $this->enableSecurityToken();
 
-        $membersTable = $this->getTableLocator()->get('Members');
-
-        // Look up test super user by email (works with auto-increment fixtures)
-        $member = $membersTable->findByEmailAddress('admin@amp.ansteorra.org')->firstOrFail();
-        $member->warrantableReview();
-
-        // Load the super user permission to enable authorization
-        // This simulates what happens in production when permissions are loaded dynamically
-        $permissionsTable = $this->getTableLocator()->get('Permissions');
-        $superUserPermission = $permissionsTable->findByName('Is Super User')->first();
-
-        if ($superUserPermission) {
-            // Manually set permissions on the member entity for testing
-            $member->set('permissions', [$superUserPermission]);
-        }
-
-        // Save without triggering beforeSave to avoid recursion
-        $membersTable->save($member, ['checkRules' => false, 'callbacks' => false]);
-
-        // Set up session with authenticated member
-        $this->session([
-            'Auth' => $member,
-        ]);
+        $member = $this->getTableLocator()->get('Members')->find()
+            ->where(['email_address IN' => ['admin@amp.ansteorra.org', 'admin@test.com']])->firstOrFail();
+        $this->session(['Auth' => MemberSessionState::fromMember($member)]);
     }
 
     /**
@@ -69,7 +49,7 @@ trait SuperUserAuthenticatedTrait
     protected function getAuthenticatedMemberId(): int
     {
         $membersTable = $this->getTableLocator()->get('Members');
-        $member = $membersTable->findByEmailAddress('admin@amp.ansteorra.org')->firstOrFail();
+        $member = $membersTable->find()->where(['email_address IN' => ['admin@amp.ansteorra.org', 'admin@test.com']])->firstOrFail();
 
         return $member->id;
     }

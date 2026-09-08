@@ -134,12 +134,12 @@ class RequestQueryCounterTest extends TestCase
         $this->assertCount(1, $captured);
         $this->assertStringStartsWith(
             '[request_id=abc123 query_number=1 method=GET host=example.test '
-            . 'path=/members/view/1 target=/members/view/1?tab=profile turbo_frame=- ajax=0]',
+            . 'path=/members/view/:value target=/members/view/:value turbo_frame=- ajax=0]',
             $captured[0]['message'],
         );
         $this->assertSame('abc123', $captured[0]['context']['request_id']);
         $this->assertSame(1, $captured[0]['context']['request_query_number']);
-        $this->assertSame('/members/view/1?tab=profile', $captured[0]['context']['request_target']);
+        $this->assertSame('/members/view/:value', $captured[0]['context']['request_target']);
     }
 
     public function testClearRequestRemovesDelegatedQueryLogContext(): void

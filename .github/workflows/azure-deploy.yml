@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       source_image:
-        description: Immutable or channel-qualified GHCR image reference
+        description: Immutable GHCR image reference ending in @sha256:digest
         required: true
         type: string
       target_tag:
@@ -37,6 +37,7 @@ jobs:
       group: azure-${{ inputs.environment_name }}-deploy
       cancel-in-progress: false
     env:
+      DEPLOY_ENVIRONMENT: ${{ inputs.environment_name }}
       SOURCE_IMAGE: ${{ inputs.source_image }}
       TARGET_TAG: ${{ inputs.target_tag }}
       AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
@@ -49,6 +50,7 @@ jobs:
       AZURE_WEB_APP_NAME: ${{ vars.AZURE_WEB_APP_NAME }}
       AZURE_MIGRATE_JOB_NAME: ${{ vars.AZURE_MIGRATE_JOB_NAME }}
       AZURE_QUEUE_JOB_NAME: ${{ vars.AZURE_QUEUE_JOB_NAME }}
+      AZURE_ADMIN_JOB_NAME: ${{ vars.AZURE_ADMIN_JOB_NAME }}
       AZURE_RESTORE_JOB_NAME: ${{ vars.AZURE_RESTORE_JOB_NAME }}
       AZURE_PROVISION_JOB_NAME: ${{ vars.AZURE_PROVISION_JOB_NAME }}
       AZURE_SCHED_HOURLY_JOB_NAME: ${{ vars.AZURE_SCHED_HOURLY_JOB_NAME }}
@@ -58,7 +60,7 @@ jobs:
 
     steps:
       - name: Check out trusted deployment tooling
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.checkout_ref }}
 
@@ -90,7 +92,7 @@ jobs:
           bash deploy/azure/test-runtime-contract.sh
 
       - name: Azure login with GitHub OIDC
-        uses: azure/login@v3
+        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3
         with:
           client-id: ${{ env.AZURE_CLIENT_ID }}
           tenant-id: ${{ env.AZURE_TENANT_ID }}
@@ -113,33 +115,33 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          az acr import \
-            --name "$AZURE_ACR_NAME" \
-            --source "$SOURCE_IMAGE" \
-            --image "kmp:$TARGET_TAG" \
-            --username "$GHCR_USERNAME" \
-            --password "$GHCR_TOKEN" \
-            --force \
-            --only-show-errors
-
-          ACR_LOGIN_SERVER="$(az acr show \
-            --name "$AZURE_ACR_NAME" \
-            --query loginServer \
-            --output tsv)"
-          IMAGE_REF="${ACR_LOGIN_SERVER}/kmp:${TARGET_TAG}"
-          echo "IMAGE_REF=$IMAGE_REF" >> "$GITHUB_ENV"
-
-          if [[ "$SOURCE_IMAGE" == *@sha256:* ]]; then
-            SOURCE_DIGEST="${SOURCE_IMAGE##*@}"
-            IMPORTED_DIGEST="$(az acr manifest show-metadata \
-              --registry "$AZURE_ACR_NAME" \
-              --name "kmp:$TARGET_TAG" \
-              --query digest \
-              --output tsv)"
-            if [[ "$IMPORTED_DIGEST" != "$SOURCE_DIGEST" ]]; then
-              echo "Imported digest $IMPORTED_DIGEST does not match $SOURCE_DIGEST" >&2
-              exit 1
-            fi
+          if [[ ! "$SOURCE_IMAGE" =~ @sha256:[0-9a-f]{64}$ ]]; then
+            echo 'Only a verified immutable source image may be deployed.' >&2
+            exit 64
+          fi
+          SOURCE_DIGEST="${SOURCE_IMAGE##*@}"
+          EXISTING_DIGEST="$(az acr manifest show-metadata --registry "$AZURE_ACR_NAME" \
+            --name "kmp:$TARGET_TAG" --query digest --output tsv 2>/dev/null || true)"
+          if [[ -n "$EXISTING_DIGEST" && "$EXISTING_DIGEST" != "$SOURCE_DIGEST" && "$DEPLOY_ENVIRONMENT" == 'production' ]]; then
+            echo 'Refusing to replace an existing production release tag with different bytes.' >&2
+            exit 1
+          fi
+          if [[ "$EXISTING_DIGEST" != "$SOURCE_DIGEST" ]]; then
+            az acr import --name "$AZURE_ACR_NAME" --source "$SOURCE_IMAGE" \
+              --image "kmp:$TARGET_TAG" --username "$GHCR_USERNAME" --password "$GHCR_TOKEN" \
+              --force --only-show-errors
+          fi
+          IMPORTED_DIGEST="$(az acr manifest show-metadata --registry "$AZURE_ACR_NAME" \
+            --name "kmp:$TARGET_TAG" --query digest --output tsv)"
+          if [[ "$IMPORTED_DIGEST" != "$SOURCE_DIGEST" ]]; then
+            echo 'Imported manifest differs from the verified source digest.' >&2
+            exit 1
+          fi
+          ACR_LOGIN_SERVER="$(az acr show --name "$AZURE_ACR_NAME" --query loginServer --output tsv)"
+          echo "IMAGE_REF=${ACR_LOGIN_SERVER}/kmp@${SOURCE_DIGEST}" >> "$GITHUB_ENV"
+          if [[ "$DEPLOY_ENVIRONMENT" == 'production' ]]; then
+            az acr repository update --name "$AZURE_ACR_NAME" --image "kmp:$TARGET_TAG" \
+              --write-enabled false --delete-enabled false --only-show-errors --output none
           fi
 
       - name: Cut over worker, migrations, and web
@@ -163,6 +165,9 @@ jobs:
             --web-app "$AZURE_WEB_APP_NAME" \
             --migrate-job "$AZURE_MIGRATE_JOB_NAME" \
             --worker-job "$AZURE_QUEUE_JOB_NAME" \
+            --admin-job "$AZURE_ADMIN_JOB_NAME" \
+            --privileged-job "$AZURE_RESTORE_JOB_NAME" \
+            --privileged-job "$AZURE_PROVISION_JOB_NAME" \
             --image "$IMAGE_REF" \
             --snapshot-dir "$SNAPSHOT_DIR" \
             "${legacy_args[@]}"
@@ -204,7 +209,7 @@ jobs:
 
       - name: Preserve pre-cutover definitions
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: aca-pre-cutover-${{ inputs.environment_name }}-${{ github.run_id }}
           path: ${{ runner.temp }}/kmp-aca-pre-cutover

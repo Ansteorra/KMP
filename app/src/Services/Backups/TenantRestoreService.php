@@ -6,6 +6,7 @@ declare(strict_types=1);
 namespace App\Services\Backups;
 
 use App\KMP\TenantMetadata;
+use App\Services\Platform\AdministrativeDatabase;
 use App\Services\Platform\PlatformScheduleRunner;
 use App\Services\Secrets\SecretStoreInterface;
 use Cake\Database\Connection;
@@ -40,6 +41,7 @@ class TenantRestoreService
         bool $dryRun = false,
         ?string $platformJobId = null,
     ): TenantRestoreResult {
+        AdministrativeDatabase::requireJob();
         $backupId = strtolower(trim($backupId));
         $mode = strtolower(trim($mode));
         $targetTenantSlug = $targetTenantSlug === null ? null : strtolower(trim($targetTenantSlug));

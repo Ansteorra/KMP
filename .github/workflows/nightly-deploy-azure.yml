@@ -32,10 +32,10 @@ jobs:
       target_tag: ${{ steps.image.outputs.target_tag }}
     steps:
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
 
       - name: Log in to ghcr.io
-        uses: docker/login-action@v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -78,9 +78,15 @@ jobs:
           echo "source_sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "target_tag=$TARGET_TAG" >> "$GITHUB_OUTPUT"
 
+  candidate-security:
+    needs: prepare
+    uses: ./.github/workflows/security.yml
+    with:
+      image: ${{ needs.prepare.outputs.source_image }}
+
   deploy:
     name: Deploy POC
-    needs: prepare
+    needs: [prepare, candidate-security]
     permissions:
       contents: read
       id-token: write
@@ -102,10 +108,10 @@ jobs:
       packages: write
     steps:
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
 
       - name: Log in to ghcr.io
-        uses: docker/login-action@v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}

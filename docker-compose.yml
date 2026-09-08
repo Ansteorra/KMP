@@ -168,6 +168,25 @@ services:
       KMP_SKIP_INITIAL_DB_SETUP: "true"
     stop_grace_period: 30s
 
+  admin-worker:
+    <<: *app-base
+    container_name: kmp-admin-worker
+    restart: unless-stopped
+    command: ["sh", "/usr/local/bin/kmp-admin-job-loop-dev"]
+    volumes:
+      - ./app:/var/www/html:cached
+      - composer-cache:/root/.composer/cache
+      - node-modules:/var/www/html/node_modules
+      - ./docker/admin-job-loop.sh:/usr/local/bin/kmp-admin-job-loop-dev:ro
+    environment:
+      <<: *app-environment
+      KMP_ADMIN_JOB: "true"
+      DATABASE_ADMIN_URL: postgres://${POSTGRES_USER:-KMPSQLDEV}:${POSTGRES_PASSWORD:-kmpdevpass}@db:5432/${POSTGRES_DB:-KMP_DEV}
+      PLATFORM_DATABASE_ADMIN_URL: postgres://${POSTGRES_USER:-KMPSQLDEV}:${POSTGRES_PASSWORD:-kmpdevpass}@db:5432/${PLATFORM_DB_DATABASE:-KMP_PLATFORM}
+      KMP_SKIP_CRON: "true"
+      KMP_SKIP_INITIAL_DB_SETUP: "true"
+    stop_grace_period: 30s
+
 volumes:
   kmp-pg-data:
     name: kmp-pg-data

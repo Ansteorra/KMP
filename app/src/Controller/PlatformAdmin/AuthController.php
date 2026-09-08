@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace App\Controller\PlatformAdmin;
 
+use App\Services\Platform\PlatformTotpChallengeService;
 use App\Services\Platform\PlatformTotpVerifier;
 use App\Services\Secrets\SecretStoreFactory;
+use App\Services\Security\RequestRateLimiter;
 use Cake\Core\Configure;
 use Cake\Http\Response;
 use DateTimeImmutable;
@@ -32,6 +34,14 @@ class AuthController extends PlatformAdminAppController
         $password = (string)$this->request->getData('password', '');
         $totp = trim((string)$this->request->getData('totp', ''));
         $redirect = $this->safeRedirect((string)$this->request->getData('redirect', '/platform-admin'));
+        $limiter = new RequestRateLimiter($this->platform());
+        $ipLimit = $limiter->attempt($limiter::BUCKET_PLATFORM_LOGIN_IP, $this->request->clientIp() ?? 'unknown');
+        $accountLimit = $limiter->attempt($limiter::BUCKET_PLATFORM_LOGIN_ACCOUNT, $email);
+        if (!$ipLimit->allowed || !$accountLimit->allowed) {
+            $this->Flash->error(__('Platform admin login failed.'));
+
+            return null;
+        }
         $user = $this->findLoginUser($email);
 
         $failureMessage = $this->loginFailureMessage($user, $email, $password, $totp);
@@ -45,7 +55,11 @@ class AuthController extends PlatformAdminAppController
 
         $this->recordSuccessfulLogin($user, $password);
         $session = $this->request->getSession();
+        $session->delete('PlatformAdmin');
+        $session->renew();
         $session->write('PlatformAdmin', [
+            'version' => 1,
+            'auth_version' => (string)$user['auth_version'],
             'id' => (string)$user['id'],
             'email' => (string)$user['email'],
             'status' => (string)$user['status'] === 'pending_enrollment' ? 'active' : (string)$user['status'],
@@ -64,6 +78,7 @@ class AuthController extends PlatformAdminAppController
     public function logout(): ?Response
     {
         $this->request->getSession()->delete('PlatformAdmin');
+        $this->request->getSession()->renew();
         $this->Flash->success(__('You have been logged out of platform admin.'));
 
         return $this->redirect(['prefix' => 'PlatformAdmin', 'controller' => 'Auth', 'action' => 'login']);
@@ -81,7 +96,8 @@ class AuthController extends PlatformAdminAppController
         }
 
         $row = $this->platform()->execute(
-            'SELECT id, email, password_hash, status, totp_secret_ref, failed_login_count, locked_until ' .
+            'SELECT id, email, password_hash, status, totp_secret_ref, ' .
+            'failed_login_count, locked_until, auth_version ' .
             'FROM platform_users WHERE lower(email) = :email LIMIT 1',
             ['email' => $email],
         )->fetch('assoc');
@@ -111,7 +127,8 @@ class AuthController extends PlatformAdminAppController
             (string)($mfaConfig['algorithm'] ?? 'sha1'),
         );
 
-        return $verifier->verify($userId, is_string($secretRef) ? $secretRef : null, $totp);
+        return (new PlatformTotpChallengeService($this->platform(), $verifier))
+            ->consume($userId, is_string($secretRef) ? $secretRef : null, $totp);
     }
 
     /**
@@ -148,7 +165,7 @@ class AuthController extends PlatformAdminAppController
      */
     private function loginFailureText(string $detailedMessage): string
     {
-        if (Configure::read('Platform.adminPortal.detailedLoginErrors')) {
+        if (Configure::read('debug') && Configure::read('Platform.adminPortal.detailedLoginErrors')) {
             return $detailedMessage;
         }
 
@@ -174,18 +191,10 @@ class AuthController extends PlatformAdminAppController
      */
     private function recordFailedLogin(string $userId, int $currentFailedCount): void
     {
-        $failedCount = $currentFailedCount + 1;
-        $fields = [
-            'failed_login_count' => $failedCount,
-            'modified_at' => $this->dbNow(),
-        ];
-        if ($failedCount >= self::MAX_FAILED_LOGINS) {
-            $fields['locked_until'] = (new DateTimeImmutable())
-                ->modify(sprintf('+%d minutes', self::LOCK_MINUTES))
-                ->format('Y-m-d H:i:s');
-        }
-
-        $this->platform()->update('platform_users', $fields, ['id' => $userId]);
+        $this->platform()->execute(
+            'UPDATE platform_users SET failed_login_count = failed_login_count + 1, modified_at = :now WHERE id = :id',
+            ['now' => $this->dbNow(), 'id' => $userId],
+        );
     }
 
     /**

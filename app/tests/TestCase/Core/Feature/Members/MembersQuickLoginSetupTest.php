@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Core\Feature\Members;
 
+use App\Services\Security\MemberSessionState;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Authentication\PasswordHasher\DefaultPasswordHasher;
 use Cake\I18n\DateTime;
@@ -33,12 +34,15 @@ final class MembersQuickLoginSetupTest extends HttpIntegrationTestCase
 
         $deviceId = 'test-device-quick-login-1234';
         $this->session([
-            'Auth' => $member,
+            'Auth' => MemberSessionState::fromMember($member),
             'QuickLoginSetup' => [
                 'member_id' => (int)$member->id,
                 'device_id' => $deviceId,
                 'email_address' => (string)$member->email_address,
                 'redirect_target' => '/members/profile',
+                'tenant_id' => MemberSessionState::tenantId(),
+                'auth_version' => (string)$member->auth_version,
+                'created_at' => time(),
             ],
         ]);
         $this->configRequest([
@@ -98,12 +102,15 @@ final class MembersQuickLoginSetupTest extends HttpIntegrationTestCase
         $this->assertNotFalse($quickLoginDevices->save($existingDevice));
 
         $this->session([
-            'Auth' => $member,
+            'Auth' => MemberSessionState::fromMember($member),
             'QuickLoginSetup' => [
                 'member_id' => (int)$member->id,
                 'device_id' => $deviceId,
                 'email_address' => (string)$member->email_address,
                 'redirect_target' => '/members/profile',
+                'tenant_id' => MemberSessionState::tenantId(),
+                'auth_version' => (string)$member->auth_version,
+                'created_at' => time(),
             ],
         ]);
 

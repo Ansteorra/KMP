@@ -194,6 +194,8 @@ $appInsightsLogConfig = [
 ];
 
 return [
+    // The public offline shell must never contain request-specific debug markup.
+    'DebugKit' => ['ignorePathsPattern' => '#^/offline(?:/|$)#'],
     /** @var bool Enable debug mode - set via DEBUG environment variable */
     "debug" => filter_var(env("DEBUG", false), FILTER_VALIDATE_BOOLEAN),
 
@@ -676,7 +678,9 @@ return [
          */
         "debug" => [
             /** @var string Log engine class */
-            "className" => FileLog::class,
+            "className" => \App\Log\Engine\PrivateFileLog::class,
+            "mask" => 0600,
+            "dirMask" => 0700,
 
             /** @var string Log file directory path */
             "path" => LOGS,
@@ -703,7 +707,9 @@ return [
          */
         "error" => [
             /** @var string Log engine class */
-            "className" => FileLog::class,
+            "className" => \App\Log\Engine\PrivateFileLog::class,
+            "mask" => 0600,
+            "dirMask" => 0700,
 
             /** @var string Log file directory path */
             "path" => LOGS,
@@ -730,7 +736,9 @@ return [
          */
         "queries" => [
             /** @var string Log engine class */
-            "className" => FileLog::class,
+            "className" => \App\Log\Engine\PrivateFileLog::class,
+            "mask" => 0600,
+            "dirMask" => 0700,
 
             /** @var array Formatter that adds HTTP request correlation details */
             "formatter" => [
@@ -764,7 +772,9 @@ return [
          */
         "performance" => [
             /** @var string Log engine class */
-            "className" => FileLog::class,
+            "className" => \App\Log\Engine\PrivateFileLog::class,
+            "mask" => 0600,
+            "dirMask" => 0700,
 
             /** @var string Log file directory path */
             "path" => LOGS,
@@ -814,9 +824,8 @@ return [
 
                 /**
                  * Redact bound parameter values and PII patterns from SQL
-                 * before export. Local file logs (channel "queries") stay
-                 * raw because they live on the application host. Anything
-                 * leaving the host must be sanitized.
+                 * before export. PrivateFileLog also redacts all local query
+                 * copies, including the shared debug channel.
                  *
                  * @var callable
                  */
@@ -885,6 +894,24 @@ return [
 
                 /** @var string Path to icon definitions JSON file */
                 'path' => WWW_ROOT . 'assets/bootstrap-icons/font/bootstrap-icons.json',
+            ],
+        ],
+    ],
+    'Backups' => [
+        // Archives have independent configuration and container permissions.
+        'storage' => [
+            'adapter' => env('BACKUP_STORAGE_ADAPTER', 'local'),
+            'azure' => [
+                'authMode' => env('AZURE_STORAGE_AUTH_MODE', 'connectionString'),
+                'accountName' => env('AZURE_STORAGE_ACCOUNT_NAME'),
+                'managedIdentityClientId' => env('AZURE_CLIENT_ID'),
+                'connectionString' => env('AZURE_BACKUP_STORAGE_CONNECTION_STRING'),
+                'container' => env('AZURE_BACKUP_STORAGE_CONTAINER'),
+            ],
+            's3' => [
+                'bucket' => env('AWS_BACKUP_S3_BUCKET'),
+                'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+                'endpoint' => env('AWS_BACKUP_S3_ENDPOINT'),
             ],
         ],
     ],

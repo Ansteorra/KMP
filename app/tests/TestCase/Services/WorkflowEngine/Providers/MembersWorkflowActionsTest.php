@@ -16,6 +16,7 @@ use App\Test\TestCase\BaseTestCase;
 use Cake\Database\Driver\Postgres;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * Tests for Members workflow actions, conditions, and provider registration.
@@ -383,29 +384,42 @@ class MembersWorkflowActionsTest extends BaseTestCase
         $this->assertEquals(Member::STATUS_UNVERIFIED_MINOR, $result['data']['previousStatus']);
     }
 
-    public function testAssignStatusAndTokensPreservesExistingAdultResetToken(): void
+    /**
+     * @return array<string, array{string, bool}>
+     */
+    public static function registrationTokenStatusProvider(): array
     {
-        $this->skipIfPostgres();
+        return [
+            'reactivation revokes old credentials' => [Member::STATUS_DEACTIVATED, true],
+            'unchanged active registration preserves its link' => [Member::STATUS_ACTIVE, false],
+        ];
+    }
 
+    #[DataProvider('registrationTokenStatusProvider')]
+    public function testAssignStatusAndTokensHonorsCredentialRevocation(string $status, bool $revoked): void
+    {
         $uid = substr(md5(uniqid('assign')), 0, 8);
         $conn = $this->membersTable->getConnection();
-        $existingToken = 'keep-existing-token';
+        $existingToken = bin2hex(random_bytes(16));
+        $existingVersion = bin2hex(random_bytes(32));
         $futureExpiry = DateTime::now()->addDays(1)->format('Y-m-d H:i:s');
         $conn->execute(
             "INSERT INTO members (
                 public_id, sca_name, first_name, last_name, email_address, password,
-                password_token, password_token_expires_on, status, birth_month, birth_year, branch_id, created
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
+                password_token, password_token_expires_on, auth_version,
+                status, birth_month, birth_year, branch_id, created
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
             [
                 $uid,
-                'Preserve Token Adult',
-                'Preserve',
+                'Registration Token Adult',
+                'Registration',
                 'Token',
-                'preserve_' . $uid . '@example.com',
+                'registration_' . $uid . '@example.com',
                 password_hash('test12345', PASSWORD_DEFAULT),
                 $existingToken,
                 $futureExpiry,
-                Member::STATUS_DEACTIVATED,
+                $existingVersion,
+                $status,
                 1,
                 (int)date('Y') - 30,
                 self::KINGDOM_BRANCH_ID,
@@ -418,8 +432,17 @@ class MembersWorkflowActionsTest extends BaseTestCase
         $this->assertTrue($result['success']);
 
         $updated = $this->membersTable->get($memberId);
-        $this->assertSame($existingToken, $updated->password_token);
         $this->assertEquals(Member::STATUS_ACTIVE, $updated->status);
+        $this->assertSame(!$revoked, (new MemberAuthenticationService())->validateResetToken($existingToken)['valid']);
+        if ($revoked) {
+            $this->assertNull($updated->password_token);
+            $this->assertNull($updated->password_token_expires_on);
+            $this->assertNotSame($existingVersion, $updated->auth_version);
+        } else {
+            $this->assertSame($existingToken, $updated->password_token);
+            $this->assertSame($futureExpiry, $updated->password_token_expires_on->format('Y-m-d H:i:s'));
+            $this->assertSame($existingVersion, $updated->auth_version);
+        }
     }
 
     public function testAgeUpMemberTransitionsVerifiedMinorToVerifiedMembership(): void

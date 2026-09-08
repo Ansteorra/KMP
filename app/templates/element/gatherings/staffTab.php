@@ -553,15 +553,17 @@ foreach ($gathering->gathering_staff as $staff) {
 
                     if (autoFillNotice) autoFillNotice.style.display = 'block';
 
-                    // SECURITY: Use public IDs instead of internal database IDs
-                    // Both member and gathering require public_id which prevents enumeration
+                    // The server authorizes both the gathering and target member.
                     const gatheringPublicId = '<?= $gathering->public_id ?>';
 
                     fetch('<?= $this->Url->build(['controller' => 'GatheringStaff', 'action' => 'getMemberContactInfo']) ?>?member_public_id=' + memberPublicId + '&gathering_public_id=' + gatheringPublicId)
                         .then(response => response.json())
                         .then(data => {
                             if (data.error) {
-                                console.error('Error fetching member info:', data.error);
+                                if (autoFillNotice) {
+                                    autoFillNotice.textContent = 'Enter contact details provided for this role.';
+                                    autoFillNotice.setAttribute('role', 'status');
+                                }
                                 return;
                             }
 

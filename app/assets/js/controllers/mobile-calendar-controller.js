@@ -1,5 +1,4 @@
 import MobileControllerBase from "./mobile-controller-base.js";
-import offlineQueueService from "../services/offline-queue-service.js";
 import rsvpCacheService from "../services/rsvp-cache-service.js";
 
 /**
@@ -205,7 +204,7 @@ class MobileCalendarController extends MobileControllerBase {
                 
                 // Cache user's RSVPs when online
                 if (navigator.onLine && data.data.events) {
-                    rsvpCacheService.cacheUserRsvps(data.data.events).catch(err => {
+                    rsvpCacheService.cacheUserRsvps(data.data.events, `${this.yearValue}-${this.monthValue}`).catch(err => {
                         console.warn('[Calendar] Failed to cache RSVPs:', err);
                     });
                 }

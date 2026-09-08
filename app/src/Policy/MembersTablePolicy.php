@@ -12,6 +12,12 @@ use Cake\ORM\Table;
  */
 class MembersTablePolicy extends BasePolicy
 {
+    /** Restrict searches of private member fields using the entity policy. */
+    public function scopeViewPii(KmpIdentityInterface $user, mixed $query): mixed
+    {
+        return (new MemberPolicy())->scopeViewPii($user, $query);
+    }
+
     /**
      * Check if user can access indexDv scope (Dataverse grid view)
      * Uses the same authorization scope as the standard index action

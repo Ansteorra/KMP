@@ -119,7 +119,6 @@ class WaiverDashboardService
         $query = $Gatherings->find()
             ->where([
                 'OR' => [
-                    'Gatherings.end_date >=' => $todayString,
                     'AND' => [
                         'Gatherings.end_date IS' => null,
                         'Gatherings.start_date >=' => $todayString,

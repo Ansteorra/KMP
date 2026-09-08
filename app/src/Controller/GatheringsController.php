@@ -10,6 +10,7 @@ use App\Services\GatheringActivityService;
 use App\Services\GatheringCloneService;
 use App\Services\GatheringScheduleService;
 use App\Services\ICalendarService;
+use App\Services\Security\OfflineIdentity;
 use Cake\Cache\Cache;
 use Cake\Event\EventInterface;
 use Cake\Http\Exception\ForbiddenException;
@@ -2218,6 +2219,7 @@ class GatheringsController extends AppController
      */
     public function mobileCalendarData()
     {
+        $this->response = OfflineIdentity::bind($this->response, $this->request);
         $securityGathering = $this->Gatherings->newEmptyEntity();
         $this->Authorization->authorize($securityGathering, 'index');
 
