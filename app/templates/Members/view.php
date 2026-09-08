@@ -84,13 +84,11 @@ if (
 ) { ?>
 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal"
     id='editModalBtn'>Edit</button>
-<?php if ((int)$user->id === (int)$member->id) : ?>
-<button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#passkeyModal">Manage passkeys</button>
-<?php endif; ?>
-<button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal"
-    id='passwordModalBtn'>Change Password</button>
 <?php } ?>
-<?= $this->element('members/revokeSessions', ['member' => $member]) ?>
+<?php if ($user->can('changePassword', $member)) : ?>
+<button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#passkeyModal"
+    data-security-url="<?= h($this->Url->build(['controller' => 'Members', 'action' => 'security', $member->id])) ?>">Security</button>
+<?php endif; ?>
 <?php if (!empty($user) && method_exists($user, 'isSuperUser') && $user->isSuperUser() && empty($impersonationState) && $user->id !== $member->id) : ?>
 <?= $this->Form->postLink(
         __('Impersonate Member'),
@@ -341,9 +339,6 @@ $this->KMP->endBlock() ?>
 echo $this->KMP->startBlock('modals');
 // Start writing to modal block in layout
 echo $this->element('members/editModal', [
-    'user' => $user,
-]);
-echo $this->element('members/changePasswordModal', [
     'user' => $user,
 ]);
 echo $this->element('members/verifyMembershipModal', [

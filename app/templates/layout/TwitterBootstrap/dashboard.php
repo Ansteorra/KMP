@@ -120,7 +120,7 @@ $url = $fullBaseUrl . '/keepalive';
             ]) ?>
             <span class="fs-5"><?= h($this->KMP->getAppSetting('KMP.ShortSiteTitle')) ?></span>
         </div>
-        <ul class="navbar-nav flex-row px-3">
+        <ul class="navbar-nav flex-row flex-wrap justify-content-end gap-1 px-3 py-1">
             <?php foreach ($headerLinks as $key => $value) :
                 $key = str_replace('KMP.HeaderLink.', '', $key);
                 $keys = explode('.', $key);

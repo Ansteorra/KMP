@@ -10,12 +10,13 @@ class SecurityDialogController extends Controller {
             const opener = event.relatedTarget;
             this.returnFocus = opener?.closest('[data-controller="member-mobile-card-menu"]')
                 ?.querySelector('[data-member-mobile-card-menu-target="fab"]') || opener;
-            this.frameTarget.innerHTML = '<p role="status">Loading your passkeys…</p>';
-            this.frameTarget.src = this.urlValue;
+            this.frameTarget.innerHTML = '<p role="status">Loading Security…</p>';
+            this.frameTarget.src = opener?.dataset.securityUrl || this.urlValue;
         };
         this.closed = () => {
             this.frameTarget.removeAttribute('src');
             this.frameTarget.innerHTML = '';
+            delete this.frameTarget.dataset.securitySection;
             this.returnFocus?.focus();
         };
         this.element.addEventListener('shown.bs.modal', this.opened);
@@ -24,13 +25,13 @@ class SecurityDialogController extends Controller {
 
     loaded() {
         if (!this.element.classList.contains('show')) { this.closed(); return; }
-        this.frameTarget.querySelector('[data-passkey-target="heading"]')?.focus();
+        this.frameTarget.querySelector('[data-security-settings-target="heading"], [data-passkey-target="heading"]')?.focus();
     }
 
     failed(event) {
         event.preventDefault();
         if (!this.element.classList.contains('show')) return;
-        this.frameTarget.innerHTML = '<p role="alert">We could not load your passkeys. Close this window and try again. If you have been signed out, sign in first.</p>';
+        this.frameTarget.innerHTML = '<p role="alert">We could not load Security. Close this window and try again. If you have been signed out, sign in first.</p>';
     }
 
     disconnect() {

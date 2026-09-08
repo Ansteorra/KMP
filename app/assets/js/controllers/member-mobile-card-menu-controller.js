@@ -113,6 +113,7 @@ class MemberMobileCardMenu extends MobileControllerBase {
             button.type = 'button';
             button.dataset.bsToggle = 'modal';
             button.dataset.bsTarget = item.modalTarget;
+            button.dataset.securityUrl = item.url;
         } else {
             button.href = item.url;
         }

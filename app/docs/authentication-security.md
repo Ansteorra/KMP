@@ -15,11 +15,11 @@ Password recovery returns the same success message and redirect for known, unkno
 
 ## Member security dialogs
 
-Desktop account actions and the mobile menu open passkey management in a Bootstrap modal, without navigating away. The `/passkeys` link remains a small entry page for bookmarks. Private settings load in a Turbo Frame only when the modal opens and are discarded on close.
+A **Security** button on the member profile (including the mobile card/profile) opens password, passkey and sign-out actions in one Bootstrap modal, without navigating away. The traditional **Sign out** link remains in the main header. Members see all options on their own profile. Editors with password-management permission see only **Reset password** and **Sign out all devices** on another member’s profile; another member’s passkeys are never listed or enrolled. Existing `/passkeys` bookmarks return to the member profile. Private settings load in a Turbo Frame only when the modal opens and are discarded on close.
 
-Members without an active passkey start with a three-step wizard: a plain-language explanation, KMP password confirmation and a separate device-prompt tap. Only one step is visible at a time, with progress, Back/Cancel controls and an explicit success screen. Password values and pending options are cleared on Back, close and disconnect. Closing cancels pending native requests. Focus moves to each step heading and returns to the opening control (the Menu button on mobile).
+Members without an active passkey start with a three-step wizard: a plain-language explanation, KMP password confirmation and a separate device-prompt tap. Only one step is visible at a time, with progress, Back/Cancel controls and an explicit success screen. Password values and pending options are cleared on Back, close and disconnect. Closing cancels pending native requests. Focus moves to each step heading and returns to the opening control.
 
-Removing a passkey uses an in-dialog consequence/confirmation step and completion screen. Signing out all devices uses its own confirmation modal, explicitly explaining password sign-in, passkey revocation and the disconnected-card expiry limit. Existing server permissions, reauthentication requirements and revocation behavior remain authoritative.
+Removing a passkey uses an in-dialog consequence/confirmation step and completion screen. Changing a password uses an explanation and new-password wizard. Signing out all devices uses a confirmation step in the same dialog, explicitly explaining password sign-in, passkey revocation and the disconnected-card expiry limit. Existing server permissions, reauthentication requirements and revocation behavior remain authoritative.
 
 ## Shared throttles
 

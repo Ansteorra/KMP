@@ -35,7 +35,11 @@ class PasskeyController extends Controller {
     start() { this.abort?.abort(); this.options = null; this.clearPassword(); this.show('intro'); }
     passwordStep() { this.abort?.abort(); this.options = null; this.clearPassword(); this.show('password'); }
     manage() { this.show('manage'); }
-    refresh() { this.element.closest('turbo-frame').reload(); }
+    refresh() {
+        const frame = this.element.closest('turbo-frame');
+        frame.dataset.securitySection = 'passkeys';
+        frame.reload();
+    }
     confirmRemove(event) {
         this.removeId = event.currentTarget.dataset.id;
         this.removeNameTarget.textContent = event.currentTarget.dataset.label;

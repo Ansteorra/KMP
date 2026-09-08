@@ -40,7 +40,7 @@ class RevokeSessionsTest extends TestCase
                 $this->assertStringContainsString('Sign out all devices', $html);
                 $this->assertStringContainsString('/members/revoke-sessions/101', $html);
                 $this->assertStringContainsString('method="post"', $html);
-                $this->assertStringContainsString('data-bs-target="#revokeSessionsModal-101"', $html);
+                $this->assertStringContainsString('security-settings#home', $html);
                 $this->assertStringContainsString('including this device', $html);
                 $this->assertStringContainsString('may remain available for up to seven days', $html);
             } else {

@@ -14,12 +14,11 @@ class MemberPasskeysTest extends HttpIntegrationTestCase
         $this->assertRedirectContains('/members/login');
     }
 
-    public function testManagementEntryOpensAModalInsteadOfAnInlineForm(): void
+    public function testManagementBookmarkReturnsToTheMemberProfile(): void
     {
         $this->authenticateAsSuperUser();
         $this->get('/passkeys');
-        $this->assertResponseOk();
-        $this->assertResponseContains('data-bs-target="#passkeyModal"');
+        $this->assertRedirect('/members/profile');
         $this->assertResponseNotContains('data-passkey-target="password"');
     }
 
@@ -33,6 +32,39 @@ class MemberPasskeysTest extends HttpIntegrationTestCase
         $this->assertResponseContains('data-step="password" hidden');
         $this->assertResponseNotContains('<body');
         $this->assertResponseNotContains('id="passkeyModal"');
+    }
+
+    public function testSecurityDialogGroupsAllOwnAccountActions(): void
+    {
+        $this->authenticateAsSuperUser();
+        $this->configRequest(['headers' => ['Turbo-Frame' => 'passkey-settings']]);
+        $this->get('/members/security');
+        $this->assertResponseOk();
+        $this->assertResponseContains('Your account security');
+        $this->assertResponseContains('Manage passkeys');
+        $this->assertResponseContains('Change password');
+        $this->assertResponseContains('Sign out this device');
+        $this->assertResponseContains('Sign out all devices');
+    }
+
+    public function testOrdinaryMemberCannotOpenAnotherMembersSecurity(): void
+    {
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->get('/members/security/' . self::ADMIN_MEMBER_ID);
+        $this->assertRedirectContains('/pages/unauthorized');
+        $this->assertResponseNotContains('security-settings#open');
+    }
+
+    public function testAdministratorCannotManageAnotherMembersPasskeys(): void
+    {
+        $this->authenticateAsSuperUser();
+        $this->configRequest(['headers' => ['Turbo-Frame' => 'passkey-settings']]);
+        $this->get('/members/security/' . self::TEST_MEMBER_AGATHA_ID);
+        $this->assertResponseOk();
+        $this->assertResponseContains('Reset password');
+        $this->assertResponseNotContains('Change password');
+        $this->assertResponseNotContains('Manage passkeys');
+        $this->assertResponseNotContains('Sign out this device');
     }
 
     public function testOptionsRejectMissingCsrf(): void

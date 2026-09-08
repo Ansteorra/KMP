@@ -25,19 +25,19 @@ class PasskeysController extends AppController
     }
 
     /** List only the signed-in member's credentials. */
-    public function index(): void
+    public function index(): ?Response
     {
         $this->request->allowMethod(['get']);
         $member = $this->owner();
+        if (!$this->request->getHeaderLine('Turbo-Frame')) {
+            return $this->redirect('/members/profile');
+        }
         $passkeys = $this->fetchTable('MemberPasskeys')->find()
             ->select(['id', 'label', 'created_at', 'last_used_at', 'auth_version'])
             ->where(['member_id' => $member->id])->orderByDesc('id')->all();
-        $mobile = StaticHelpers::isMobilePhone($this->request->getHeaderLine('User-Agent'));
-        if ($mobile && !$this->request->getHeaderLine('Turbo-Frame')) {
-            $this->viewBuilder()->setLayout('mobile_app');
-            $this->set('mobileTitle', 'Your passkeys');
-        }
-        $this->set(compact('passkeys', 'member', 'mobile'));
+        $this->set(compact('passkeys', 'member'));
+
+        return null;
     }
 
     /** Password reauthentication is required to add a login credential. */

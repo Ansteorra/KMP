@@ -11,7 +11,7 @@ Stay up to date with the latest features, improvements, and announcements for th
 - Member and platform sessions now refresh current account permissions and are revoked after security changes. Members can sign out all devices.
 - Private member fields, contact lookup, exports and attendance sharing now use the recipient's permissions and consent.
 - Offline authorization cards and RSVPs use encrypted storage with tested device unlock where supported or an explicitly selected 6–8 digit offline PIN. Online refresh is required within seven days.
-- Native passkeys replace quick-login PINs. Manage passkeys in a guided dialog from your account or mobile menu; password login and recovery remain available. Offline device setup now uses explicit steps, cancellation and time limits.
+- Native passkeys replace quick-login PINs. Use Security on your member profile for guided password, passkey and sign-out actions; password login and recovery remain available. Offline device setup now uses explicit steps, cancellation and time limits.
 - Invalid PDF uploads are rejected before a waiver becomes active, and diagnostic logging excludes sensitive request and document content.
 - Public nominations accept only supported submission fields and links to existing gatherings.
 - Dependency, container and deployment verification is strengthened, with separate runtime and administrative database/storage access.

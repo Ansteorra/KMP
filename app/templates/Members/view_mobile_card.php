@@ -160,5 +160,6 @@ $uploadLimits = $this->KMP->getUploadLimits();
 </div>
 
 <div class="mx-3 my-3">
-    <?= $this->element('members/revokeSessions', ['member' => $member]) ?>
+    <button type="button" class="btn btn-outline-secondary online-only-btn" data-bs-toggle="modal"
+        data-bs-target="#passkeyModal">Security</button>
 </div>

@@ -236,7 +236,8 @@ if ($this->fetch("main_content_wrapped")) {
 }
 echo $this->fetch("tb_footer");
 echo $this->fetch("modals");
-if ($this->request->getAttribute("identity")) {
+if ($this->request->getAttribute("identity") && $this->request->getParam("controller") === "Members"
+    && $this->request->getParam("action") === "view") {
     echo $this->element("members/passkeyModal");
 }
 echo $this->fetch("tb_body_end");

@@ -25,6 +25,7 @@ use App\Services\Security\OfflineIdentity;
 use App\Services\Security\RequestRateLimiter;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
+use Cake\Collection\Collection;
 use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Event\EventInterface;
 use Cake\Http\Exception\BadRequestException;
@@ -1905,6 +1906,28 @@ class MembersController extends AppController
 
     #region Password specific calls
 
+    /** Render authorized member security actions inside the shared dialog. */
+    public function security($id = null): ?Response
+    {
+        $this->request->allowMethod(['get']);
+        $identity = $this->request->getAttribute('identity');
+        $member = $this->Members->get($id ?? $identity->getIdentifier());
+        $this->Authorization->authorize($member, 'changePassword');
+        if (!$this->request->getHeaderLine('Turbo-Frame')) {
+            return $this->redirect(['action' => 'view', $member->id]);
+        }
+        $isSelf = (int)$identity->getIdentifier() === (int)$member->id;
+        $canManagePasskeys = $isSelf && !(new ImpersonationService())->isActive($this->request->getSession());
+        $passkeys = $canManagePasskeys
+            ? $this->fetchTable('MemberPasskeys')->find()
+                ->select(['id', 'label', 'auth_version'])->where(['member_id' => $member->id])->orderByDesc('id')->all()
+            : new Collection([]);
+        $passwordReset = new ResetPasswordForm();
+        $this->set(compact('member', 'isSelf', 'canManagePasskeys', 'passkeys', 'passwordReset'));
+
+        return null;
+    }
+
     /**
      * Change password.
      *
@@ -1933,7 +1956,7 @@ class MembersController extends AppController
             $member->failed_login_attempts = 0;
             if ($this->Members->save($member)) {
                 $this->Flash->success(__(
-                    'The password has been changed. All previous sessions and quick login PINs are revoked.',
+                    'The password has been changed. All previous sessions and passkeys are revoked.',
                 ));
                 if ((int)$this->request->getAttribute('identity')->getIdentifier() === (int)$member->id) {
                     $this->Authentication->logout();
