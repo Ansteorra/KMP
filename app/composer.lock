@@ -1198,30 +1198,31 @@
         },
         {
             "name": "friendsofcake/bootstrap-ui",
-            "version": "5.1.1",
+            "version": "5.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/FriendsOfCake/bootstrap-ui.git",
-                "reference": "177e9a4c35ed3a6c673a99ed37886607b9e0c6cf"
+                "reference": "a238d5279611a9341d14e065879123ecf299693f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/FriendsOfCake/bootstrap-ui/zipball/177e9a4c35ed3a6c673a99ed37886607b9e0c6cf",
-                "reference": "177e9a4c35ed3a6c673a99ed37886607b9e0c6cf",
+                "url": "https://api.github.com/repos/FriendsOfCake/bootstrap-ui/zipball/a238d5279611a9341d14e065879123ecf299693f",
+                "reference": "a238d5279611a9341d14e065879123ecf299693f",
                 "shasum": ""
             },
             "require": {
-                "cakephp/cakephp": "^5.1.4"
+                "cakephp/cakephp": "^5.1.4",
+                "php": ">=8.2"
             },
             "require-dev": {
                 "cakephp/bake": "^3.0",
                 "cakephp/cakephp-codesniffer": "^5.1",
-                "phpunit/phpunit": "^10.5.5 || ^11.1.3"
+                "phpunit/phpunit": "^11.5.3 || ^12.4 || ^13.0"
             },
             "type": "cakephp-plugin",
             "autoload": {
                 "psr-4": {
-                    "BootstrapUI\\": "src"
+                    "BootstrapUI\\": "src/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -1250,7 +1251,7 @@
                 "issues": "http://github.com/friendsofcake/bootstrap-ui/issues",
                 "source": "http://github.com/friendsofcake/bootstrap-ui"
             },
-            "time": "2025-04-01T16:50:47+00:00"
+            "time": "2026-06-17T06:50:29+00:00"
         },
         {
             "name": "friendsofcake/cakepdf",
