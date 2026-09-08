@@ -45,6 +45,13 @@ Own award domains, levels, recommendations, recommendation feedback approvals, b
   must not implicitly finalize a bestowal. Finalization audit-cancels any remaining open optional to-dos as not
   applicable before marking the bestowal Given; completed history remains unchanged, and the cancellations roll back
   if finalization fails.
+  Cancelling an open bestowal requires a recorded reason and is treated as complete reconsideration. While holding the
+  same bestowal mutex, cancellation audit-cancels every open To-Do, preserves completed To-Do history, clears the
+  bestowal links and bestowal-owned fields, resets each standalone recommendation or group head to `In Progress /
+  Submitted`, and returns grouped children to `Linked`. Consumed, superseded, and active approval runs are cancelled
+  with `bestowal_cancelled`; then exactly one new existing-recommendation approval workflow is requested per approval
+  scope, even when no prior rehydratable run exists. The bestowal becomes `cancelled` only if the entire cleanup and
+  restart request succeeds.
 - Bulk synchronization reports may expose bounded record IDs and trusted domain skip reasons, but unexpected exception
   details belong in server logs; user-facing failures use fixed categories.
 - State/status rules and plugin settings are stored in `Awards.*`, `Member.AdditionalInfo.*`, and `Plugin.Awards.*` settings.

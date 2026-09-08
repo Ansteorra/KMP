@@ -2637,10 +2637,11 @@ Then('the bestowal detail page should show {string} in the source row', async ({
 });
 
 When('I cancel the open bestowal from the detail page', async ({ page }) => {
-    await page.getByRole('link', { name: 'Cancel Bestowal' }).click();
-    const confirmDialog = page.getByRole('dialog', { name: 'Confirm action' });
+    await page.getByRole('button', { name: 'Cancel Bestowal', exact: true }).click();
+    const confirmDialog = page.getByRole('dialog', { name: 'Cancel Bestowal' });
     await expect(confirmDialog).toBeVisible({ timeout: 10000 });
-    await confirmDialog.getByRole('button', { name: 'Confirm' }).click();
+    await confirmDialog.getByLabel('Cancellation reason').fill('E2E complete reconsideration');
+    await confirmDialog.getByRole('button', { name: 'Cancel Bestowal and Reconsider' }).click();
     await page.waitForLoadState('networkidle');
 });
 

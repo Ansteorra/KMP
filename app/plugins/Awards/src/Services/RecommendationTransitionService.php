@@ -82,6 +82,41 @@ class RecommendationTransitionService
     }
 
     /**
+     * Reset a bestowal-owned recommendation through the canonical transition path.
+     *
+     * The caller owns the surrounding bestowal transaction. Clearing the link
+     * first permits the normal save callbacks, state log, and grouping side
+     * effects to run without treating this system transition as a user edit.
+     *
+     * @param \Cake\ORM\Table $recommendationsTable Recommendations table instance.
+     * @param \Awards\Model\Entity\Recommendation $recommendation Linked recommendation.
+     * @param string $targetState Reconsideration state for the head or child.
+     * @param int $actorId Current user ID.
+     * @return array<string, mixed>
+     */
+    public function resetForBestowalCancellation(
+        Table $recommendationsTable,
+        Recommendation $recommendation,
+        string $targetState,
+        int $actorId,
+    ): array {
+        $this->statePolicyService->assertUserCanTargetRecommendationState($targetState);
+        $recommendation->bestowal_id = null;
+        $recommendation->gathering_id = null;
+        $recommendation->given = null;
+        $recommendation->close_reason = null;
+
+        return $this->applyTransition(
+            $recommendationsTable,
+            $recommendation,
+            $targetState,
+            [],
+            $actorId,
+            self::SINGLE_NOTE_SUBJECT,
+        );
+    }
+
+    /**
      * Transition multiple recommendations and return structured transition data.
      *
      * @param \Cake\ORM\Table $recommendationsTable Recommendations table instance.

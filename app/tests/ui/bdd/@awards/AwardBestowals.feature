@@ -72,7 +72,14 @@ Feature: Award Bestowals
         Then I should see the flash message "The bestowal has been cancelled."
         And the bestowal detail page should show "Cancelled" in the state row
         And the "wf-crown" recommendation should not be linked to a bestowal
+        And the "wf-crown" recommendation record should have state "Submitted"
+        And the "wf-crown" recommendation record should have status "In Progress"
+        When I open the bestowal to-dos tab
+        Then the bestowal to-dos should not include "Event Scheduled"
+        And the bestowal to-dos should not include "Given"
         And the "wf-crown" recommendation workflow run should have terminal reason "bestowal_cancelled"
+        When the workflow engine processes pending work
+        Then the "wf-crown" recommendation should have a workflow run with status "in_progress"
 
     Scenario: Different awards for the same member generate separate bestowals
         Given I am logged in as "admin@amp.ansteorra.org"

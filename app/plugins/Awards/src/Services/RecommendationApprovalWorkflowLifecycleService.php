@@ -389,14 +389,63 @@ class RecommendationApprovalWorkflowLifecycleService
     }
 
     /**
+     * Start one clean approval cycle for each unlinked recommendation scope.
+     *
+     * Unlike ordinary link removal, cancellation is a complete reconsideration:
+     * a fresh cycle is requested even when no rehydratable historical run exists.
+     *
+     * @param array<int> $recommendationIds Recommendation or group-head IDs.
+     * @param int $actorId Actor ID.
+     * @param string $reason Restart reason.
+     * @return array<int, array<string, mixed>> Workflow dispatch requests by approval-scope ID.
+     */
+    public function restartUnlinkedRecommendations(array $recommendationIds, int $actorId, string $reason): array
+    {
+        $scopeIds = $this->resolveApprovalScopeRecommendationIds($recommendationIds, false);
+        $results = [];
+        foreach ($scopeIds as $recommendationId) {
+            if ($this->hasActiveRun($recommendationId)) {
+                continue;
+            }
+
+            $previousRun = $this->findLatestRehydratableRun($recommendationId);
+            $eventData = [
+                'recommendationId' => $recommendationId,
+                'actorId' => $actorId,
+                'rehydrationReason' => $reason,
+            ];
+            if ($previousRun !== null) {
+                $eventData['rehydratedFromRunId'] = (int)$previousRun->id;
+            }
+
+            $event = new Event('Workflow.trigger', $this, [
+                'eventName' => 'Awards.ExistingRecommendationApprovalRequested',
+                'eventData' => $eventData,
+                'triggeredBy' => $actorId,
+            ]);
+            EventManager::instance()->dispatch($event);
+            $results[$recommendationId] = [
+                'previousRunId' => $previousRun !== null ? (int)$previousRun->id : null,
+                'reason' => $reason,
+            ];
+        }
+
+        return $results;
+    }
+
+    /**
      * Cancel consumed/superseded run projections tied to a cancelled bestowal.
      *
      * @param int $bestowalId Bestowal ID.
      * @param int $actorId Actor ID.
+     * @param array<int> $recommendationIds Recommendation scopes whose active runs must also be cancelled.
      * @return array<int> Updated run IDs.
      */
-    public function markRunsForBestowalCancellation(int $bestowalId, int $actorId): array
-    {
+    public function markRunsForBestowalCancellation(
+        int $bestowalId,
+        int $actorId,
+        array $recommendationIds = [],
+    ): array {
         $runs = $this->approvalRunsTable->find()
             ->where([
                 'OR' => [
@@ -405,10 +454,19 @@ class RecommendationApprovalWorkflowLifecycleService
                 ],
                 'deleted IS' => null,
             ])
-            ->all();
+            ->all()
+            ->indexBy('id')
+            ->toArray();
+        foreach ($this->findActiveRuns($recommendationIds) as $activeRun) {
+            $runs[(int)$activeRun->id] = $activeRun;
+        }
 
         $runIds = [];
         foreach ($runs as $run) {
+            $this->cancelWorkflowProjection(
+                (int)$run->workflow_instance_id,
+                RecommendationApprovalRun::TERMINAL_REASON_BESTOWAL_CANCELLED,
+            );
             $this->markRunTerminal(
                 $run,
                 RecommendationApprovalRun::STATUS_CANCELLED,

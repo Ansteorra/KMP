@@ -14,6 +14,8 @@ $this->extend('/layout/TwitterBootstrap/view_record');
 
 $memberName = $bestowal->member->sca_name ?? $bestowal->member_sca_name ?? __('Unknown Member');
 $protectedFieldAccess ??= ['heraldNotes' => false, 'crownFields' => false];
+$canCancel = (string)$bestowal->lifecycle_status === Bestowal::LIFECYCLE_OPEN
+    && $user->checkCan('cancel', $bestowal);
 
 echo $this->KMP->startBlock('title');
 echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': ' . __('View Bestowal') . ' - ' . h($memberName);
@@ -41,12 +43,16 @@ if ($user->checkCan('edit', $bestowal)) {
             ),
         ],
     );
-    echo $this->Form->postLink(
+}
+if ($canCancel) {
+    echo $this->Html->tag(
+        'button',
         __('Cancel Bestowal'),
-        ['action' => 'cancel', $bestowal->id],
         [
+            'type' => 'button',
             'class' => 'btn btn-danger btn-sm',
-            'confirm' => __('Are you sure you want to cancel this bestowal?'),
+            'data-bs-toggle' => 'modal',
+            'data-bs-target' => '#cancelBestowalModal',
         ],
     );
 }
@@ -58,6 +64,9 @@ if ($user->checkCan('edit', $bestowal)) {
         'modalId' => 'editBestowalModal',
         'initialBestowalId' => $bestowal->id,
     ]);
+}
+if ($canCancel) {
+    echo $this->element('bestowalCancelModal', compact('bestowal'));
 }
 $this->KMP->endBlock();
 

@@ -855,16 +855,19 @@ class BestowalsController extends AppController
         $this->request->allowMethod(['post']);
 
         $user = $this->request->getAttribute('identity');
-        $emptyBestowal = $this->Bestowals->newEmptyEntity();
-        $this->Authorization->authorize($emptyBestowal, 'cancel');
-
         $bestowalId = $this->request->getData('bestowalId')
             ?? $this->request->getData('id')
             ?? $id;
-        $closeReason = (string)($this->request->getData('close_reason') ?? 'Cancelled from bestowal view');
+        $closeReason = trim((string)($this->request->getData('close_reason') ?? ''));
+        if (!empty($bestowalId)) {
+            $bestowal = $this->Bestowals->get((int)$bestowalId);
+            $this->Authorization->authorize($bestowal, 'cancel');
+        }
 
         if (empty($bestowalId)) {
             $this->Flash->error(__('Bestowal ID is required.'));
+        } elseif ($closeReason === '') {
+            $this->Flash->error(__('A cancellation reason is required.'));
         } else {
             $result = $this->dispatchBestowalMutation(
                 $triggerDispatcher,
