@@ -6,14 +6,16 @@ class LoginDeviceAuthController extends Controller {
     static values = { retry: Boolean };
 
     connect() {
+        let remembered = false;
         try {
             localStorage.removeItem('kmp.quickLogin.config');
             localStorage.removeItem('kmp.quickLogin.deviceId');
             const email = localStorage.getItem('kmp.login.rememberedId') || '';
             if (!this.emailTarget.value) this.emailTarget.value = email;
             this.rememberIdTarget.checked = !!email;
+            remembered = !!email && this.emailTarget.value === email;
         } catch { /* Storage restrictions must not prevent password login. */ }
-        this.showPassword(!!this.retryValue && this.emailTarget.checkValidity());
+        this.showPassword((!!this.retryValue || remembered) && this.emailTarget.checkValidity());
     }
 
     submit(event) {

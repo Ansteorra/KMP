@@ -9,7 +9,8 @@ class MemoryVault extends OfflineVaultService {
         this.record = record ? structuredClone(record) : null;
     }
 }
-const context = () => ({ owner: 'member-a', epoch: 'epoch-a', serverTime: Date.now(), expiresAt: Date.now() + MAX_AGE });
+// Use one timestamp so crossing a millisecond cannot exceed the seven-day contract.
+const context = (serverTime = Date.now()) => ({ owner: 'member-a', epoch: 'epoch-a', serverTime, expiresAt: serverTime + MAX_AGE });
 const passphrase = 'four separate woodland rivers';
 let vault;
 beforeEach(() => {
@@ -64,7 +65,7 @@ test('expiry and account/security-epoch changes purge the old vault', async () =
 test('online refresh extends authenticated expiry, preserves pending requests, and stays decryptable after relock', async () => {
     await vault.enroll(context(), 'passphrase', passphrase);
     await vault.mutate(data => { data.pending.push({ id: 'request-a' }); });
-    const refreshed = { ...context(), serverTime: Date.now() + 1000, expiresAt: Date.now() + MAX_AGE + 1000 };
+    const refreshed = context(Date.now() + 1000);
     await vault.refresh(refreshed, { card: { name: 'refreshed' }, rsvps: [], months: {} });
     vault.lock(false); await vault.unlock(passphrase);
     expect((await vault.read()).pending).toEqual([{ id: 'request-a' }]);

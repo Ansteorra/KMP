@@ -15,7 +15,7 @@ Password recovery returns the same success message and redirect for known, unkno
 
 ## Member login
 
-Login starts with an email address and **Continue**, followed by password entry and an optional **Use a passkey** button. Continue changes local form state only: it does not look up the account or disclose whether it exists or has passkeys. Changing the email clears the password and returns focus to the email field. Rejected password attempts retain the password step and focus. Without JavaScript, the ordinary email/password form remains usable.
+Login starts with an email address and **Continue**, followed by password entry and an optional **Use a passkey** button. A valid remembered ID skips Continue and opens the password/passkey step immediately; **Change email address** remains available. Continue changes local form state only: it does not look up the account or disclose whether it exists or has passkeys. Changing the email clears the password and returns focus to the email field. Rejected password attempts retain the password step and focus. Without JavaScript, the ordinary email/password form remains usable.
 
 Supported browsers can offer saved passkeys in native username autofill using conditional WebAuthn mediation. Options remain discoverable and account-independent; the signed credential determines the authenticated identity. Autofill errors stay quiet, requests expire before their server challenge, and password submission, explicit passkey login and leaving the page cancel pending autofill. Explicit passkey login remains available for another device. Enrollment guidance stays in the authenticated profile Security wizard.
 

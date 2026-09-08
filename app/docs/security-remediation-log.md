@@ -633,3 +633,9 @@ server passkey tests / 37 assertions, 10 serial smoke scenarios and 35 serial jo
 plus real-server synthetic browser coverage for conditional and explicit passkey login,
 revocation denial, no-JavaScript password login, mobile refresh and keyboard focus.
 Physical-device compatibility and production rollout remain outstanding.
+
+Remembered-ID verification: valid saved identifiers open password/passkey entry directly,
+while malformed saved identifiers stay editable. Change email still clears the password
+and restores email focus. All 1,914 Jest tests pass, with actual-browser checks for the
+saved-ID path. The offline-vault test fixture now derives verification and expiry from
+one timestamp, eliminating a millisecond-boundary CI failure without relaxing expiry.

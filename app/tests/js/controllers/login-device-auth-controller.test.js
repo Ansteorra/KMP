@@ -83,3 +83,24 @@ test('a rejected password attempt returns to password entry with the submitted e
     expect(document.activeElement).toBe(controller.passwordTarget);
     expect(controller.emailTarget.value).toBe('retry@example.invalid');
 });
+
+
+test('a valid remembered identifier skips Continue and keeps Change email available', () => {
+    localStorage.setItem('kmp.login.rememberedId', 'remembered@example.invalid');
+    controller.connect();
+    expect(controller.emailTarget.value).toBe('remembered@example.invalid');
+    expect(controller.passwordVisible).toBe(true);
+    expect(controller.continueTarget.hidden).toBe(true);
+    expect(controller.changeEmailTarget.hidden).toBe(false);
+    expect(document.activeElement).toBe(controller.passwordTarget);
+    controller.back();
+    expect(controller.emailTarget.readOnly).toBe(false);
+    expect(controller.continueTarget.hidden).toBe(false);
+});
+
+test('an invalid remembered identifier remains editable on the email step', () => {
+    localStorage.setItem('kmp.login.rememberedId', 'invalid-email');
+    controller.connect();
+    expect(controller.passwordVisible).toBe(false);
+    expect(controller.emailTarget.readOnly).toBe(false);
+});
