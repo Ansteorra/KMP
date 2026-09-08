@@ -17,7 +17,9 @@ final class MembersLoginPageTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
         $this->assertResponseContains('Log in');
         $this->assertResponseContains('Sign in');
-        $this->assertResponseContains('Sign in with a passkey');
+        $this->assertResponseContains('Use a passkey');
+        $this->assertResponseContains('autocomplete="username webauthn"');
+        $this->assertResponseContains('data-login-device-auth-target="continue"');
         $this->assertResponseContains('Open saved offline cards and RSVPs');
         $this->assertResponseNotContains('name="quick_login_pin"');
     }
