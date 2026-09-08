@@ -16,7 +16,7 @@ test('an OS prompt that ignores abort still releases busy state and never submit
     jest.useFakeTimers();
     let finish;
     navigator.credentials.get.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
-    controller.post = jest.fn().mockResolvedValue({ publicKey: { challenge: 'AQID' } });
+    controller.post = jest.fn().mockImplementation(async () => ({ publicKey: { challenge: 'AQID' } }));
     const pending = controller.login();
     await jest.advanceTimersByTimeAsync(60000);
     await pending;
@@ -29,7 +29,7 @@ test('an OS prompt that ignores abort still releases busy state and never submit
 });
 
 test('leaving the page aborts the current authentication operation', async () => {
-    controller.post = jest.fn().mockResolvedValue({ publicKey: { challenge: 'AQID' } });
+    controller.post = jest.fn().mockImplementation(async () => ({ publicKey: { challenge: 'AQID' } }));
     const pending = controller.login();
     await Promise.resolve(); await Promise.resolve();
     controller.disconnect();
@@ -76,4 +76,83 @@ test('closing a modal aborts a native prompt and clears password and options', (
     expect(controller.connected).toBe(false);
     expect(controller.options).toBeNull();
     expect(controller.passwordTarget.value).toBe('');
+});
+
+function enableAutofill() {
+    controller.autofillValue = true;
+    Object.defineProperty(window, 'PublicKeyCredential', { configurable: true, value: {
+        isConditionalMediationAvailable: jest.fn().mockResolvedValue(true)
+    } });
+    controller.post = jest.fn().mockImplementation(async () => ({ publicKey: { challenge: 'AQID' } }));
+}
+
+test('conditional autofill is account-independent, quiet, and abortable without blocking password entry', async () => {
+    enableAutofill();
+    const pending = controller.autofill();
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+    expect(controller.post).toHaveBeenCalledWith('login-options', {}, expect.any(AbortSignal));
+    expect(navigator.credentials.get).toHaveBeenCalledWith(expect.objectContaining({ mediation: 'conditional' }));
+    expect(controller.busy).toBeFalsy();
+    expect(controller.statusTarget.textContent).toBe('');
+    controller.cancelAutofill();
+    await pending;
+    expect(controller.autofillPending).toBeNull();
+});
+
+test('unsupported conditional UI does not request options or show an error', async () => {
+    enableAutofill();
+    window.PublicKeyCredential.isConditionalMediationAvailable.mockResolvedValue(false);
+    await controller.autofill();
+    expect(controller.post).not.toHaveBeenCalled();
+    expect(controller.statusTarget.textContent).toBe('');
+});
+
+test('a stalled conditional OS request expires and a late credential is never submitted', async () => {
+    jest.useFakeTimers();
+    enableAutofill();
+    let finish;
+    navigator.credentials.get.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    const pending = controller.autofill();
+    await jest.advanceTimersByTimeAsync(90000);
+    await pending;
+    expect(controller.autofillPending).toBeNull();
+    expect(controller.statusTarget.textContent).toBe('');
+    finish({ response: {} });
+    await Promise.resolve(); await Promise.resolve();
+    expect(controller.post).toHaveBeenCalledTimes(1);
+});
+
+test('explicit login replaces an ignored conditional prompt and disconnect cancels both', async () => {
+    enableAutofill();
+    const conditional = controller.autofill();
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+    const explicit = controller.login();
+    await conditional;
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+    expect(controller.autofillAbort.signal.aborted).toBe(true);
+    expect(navigator.credentials.get).toHaveBeenLastCalledWith(expect.not.objectContaining({ mediation: 'conditional' }));
+    controller.disconnect();
+    await explicit;
+    expect(controller.post.mock.calls.map(call => call[0])).toEqual(['login-options', 'login-options']);
+});
+
+
+test('password submission cancels explicit authentication as well as conditional autofill', () => {
+    controller.abort = new AbortController();
+    controller.autofillAbort = new AbortController();
+    controller.cancelLogin();
+    expect(controller.abort.signal.aborted).toBe(true);
+    expect(controller.autofillAbort.signal.aborted).toBe(true);
+});
+
+test('leaving during capability detection never issues a login challenge', async () => {
+    enableAutofill();
+    let finish;
+    window.PublicKeyCredential.isConditionalMediationAvailable.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    const pending = controller.autofill();
+    controller.disconnect();
+    await pending;
+    finish(true);
+    await Promise.resolve(); await Promise.resolve();
+    expect(controller.post).not.toHaveBeenCalled();
 });

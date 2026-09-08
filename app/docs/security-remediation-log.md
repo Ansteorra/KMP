@@ -622,3 +622,14 @@ untouched. Private routes still reject missing tenant bindings. Eight targeted P
 tests / 26 assertions, 121 Jest suites / 1,902 tests, and actual-host browser checks
 verify card JSON, card rendering, and session preservation after refresh. No production
 changes or relaxed private-route authentication were required.
+
+The email-first login follow-up keeps account and passkey existence private: Continue
+changes local form state only, while native conditional autofill uses account-independent
+challenges. Password entry and an explicit passkey option follow the email step. Back
+clears the password, failed password attempts retain the second step, and password
+submission cancels pending passkey operations. The authenticated Security wizard remains
+the enrollment entry point. Verification passes: 121 Jest suites / 1,912 tests, 10
+server passkey tests / 37 assertions, 10 serial smoke scenarios and 35 serial journeys,
+plus real-server synthetic browser coverage for conditional and explicit passkey login,
+revocation denial, no-JavaScript password login, mobile refresh and keyboard focus.
+Physical-device compatibility and production rollout remain outstanding.

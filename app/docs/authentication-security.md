@@ -13,6 +13,12 @@ Native passkey enrollment at `/passkeys` requires password reauthentication and 
 
 Password recovery returns the same success message and redirect for known, unknown and throttled accounts. Recovery mail always enters the asynchronous queue, including when general mail queuing is disabled; queue failures retain that public response and emit only a fixed failure event without account or token details. Issuance has a five-minute atomic account cooldown and a one-hour reset-link lifetime. Token consumption and password replacement are a single conditional database write, so concurrent redemption succeeds at most once. Registration links issued by the existing registration workflow remain supported with their existing expiry.
 
+## Member login
+
+Login starts with an email address and **Continue**, followed by password entry and an optional **Use a passkey** button. Continue changes local form state only: it does not look up the account or disclose whether it exists or has passkeys. Changing the email clears the password and returns focus to the email field. Rejected password attempts retain the password step and focus. Without JavaScript, the ordinary email/password form remains usable.
+
+Supported browsers can offer saved passkeys in native username autofill using conditional WebAuthn mediation. Options remain discoverable and account-independent; the signed credential determines the authenticated identity. Autofill errors stay quiet, requests expire before their server challenge, and password submission, explicit passkey login and leaving the page cancel pending autofill. Explicit passkey login remains available for another device. Enrollment guidance stays in the authenticated profile Security wizard.
+
 ## Member security dialogs
 
 A **Security** button on the member profile (including the mobile card/profile) opens password, passkey and sign-out actions in one Bootstrap modal, without navigating away. The traditional **Sign out** link remains in the main header. Members see all options on their own profile. Editors with password-management permission see only **Reset password** and **Sign out all devices** on another member’s profile; another member’s passkeys are never listed or enrolled. Existing `/passkeys` bookmarks return to the member profile. Private settings load in a Turbo Frame only when the modal opens and are discarded on close.

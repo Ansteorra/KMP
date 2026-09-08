@@ -10,7 +10,7 @@ Feature: User Authentication
         When I navigate to a protected route "/roles"
         Then I should see the login form
         And I should see the email address field
-        And I should see the password field
+        And I should see the email-first login step
 
     Scenario: Show validation errors for empty form
         When I submit the login form without entering credentials

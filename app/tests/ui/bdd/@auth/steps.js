@@ -50,7 +50,7 @@ When('I navigate to a protected route {string}', async ({ page }, route) => {
 
 // Form visibility steps  
 Then('I should see the login form', async ({ page }) => {
-    const loginController = page.locator('[data-controller="login-device-auth"]');
+    const loginController = page.locator('[data-controller~="login-device-auth"]');
     await expect(loginController).toBeVisible();
 });
 
@@ -58,19 +58,22 @@ Then('I should see the email address field', async ({ page }) => {
     await expect(page.locator('#email-address')).toBeVisible();
 });
 
-Then('I should see the password field', async ({ page }) => {
-    await expect(page.locator('#password')).toBeVisible();
+Then('I should see the email-first login step', async ({ page }) => {
+    await expect(page.locator('#password')).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Use a passkey', exact: true })).toBeHidden();
 });
 
 // Form submission steps
 When('I submit the login form without entering credentials', async ({ page }) => {
-    await page.locator('input[type="submit"][value="Sign in"]').click();
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
 });
 
 When('I enter invalid credentials', async ({ page }, dataTable) => {
     const data = dataTable.rowsHash();
 
     await page.locator('#email-address').fill(data.email);
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await page.locator('#password').fill(data.password);
 });
 
@@ -78,6 +81,7 @@ When('I enter valid admin credentials', async ({ page }, dataTable) => {
     const data = dataTable.rowsHash();
 
     await page.locator('#email-address').fill(data.email);
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await page.locator('#password').fill(data.password);
 });
 
@@ -87,13 +91,14 @@ When('I submit the login form', async ({ page }) => {
 
 // Validation and error steps
 Then('I should see validation error messages', async ({ page }) => {
-    const errorMessages = page.locator('.error, .invalid-feedback, .alert-danger');
-    await expect(errorMessages.first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#email-address:invalid')).toBeVisible();
 });
 
 Then('I should see an authentication error message', async ({ page }) => {
     const errorMessage = page.locator('.error, .invalid-feedback, .alert-danger, .flash-error');
     await expect(errorMessage.first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#password')).toBeVisible();
+    await expect(page.locator('#password')).toBeFocused();
 });
 
 // Success steps

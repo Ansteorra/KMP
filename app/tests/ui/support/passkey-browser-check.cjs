@@ -39,6 +39,14 @@ echo json_encode($result, JSON_THROW_ON_ERROR);
     const fixture = runPhpJson(fixtureScript);
     const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
     const context = await browser.newContext({ baseURL: origin, ignoreHTTPSErrors: true, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 Version/26.0 Mobile/15E148 Safari/604.1' });
+    // Exercise explicit and conditional login separately: a virtual device can select immediately.
+    await context.addInitScript(() => {
+        if (window.PublicKeyCredential) {
+            const available = PublicKeyCredential.isConditionalMediationAvailable?.bind(PublicKeyCredential);
+            PublicKeyCredential.isConditionalMediationAvailable = async () =>
+                !!window.testConditionalPasskey && !!await available?.();
+        }
+    });
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
@@ -98,7 +106,17 @@ echo json_encode($result, JSON_THROW_ON_ERROR);
         await dialog.getByRole('button', { name: 'Done', exact: true }).click();
         const cookiesBefore = await context.cookies();
         await page.goto('/members/logout');
-        await page.getByRole('button', { name: 'Sign in with a passkey', exact: true }).click();
+        await page.evaluate(() => {
+            window.testConditionalPasskey = true;
+            document.querySelector('#email-address').blur();
+            document.querySelector('#email-address').focus();
+        });
+        await page.waitForURL(url => !url.pathname.endsWith('/login'), { timeout: 15000 });
+        assert.ok(!page.url().endsWith('/login'), 'Conditional autofill must verify the signature and sign in');
+        await page.goto('/members/logout');
+        await page.locator('#email-address').fill(fixture.email);
+        await page.getByRole('button', { name: 'Continue', exact: true }).click();
+        await page.getByRole('button', { name: 'Use a passkey', exact: true }).click();
         await page.waitForURL(url => !url.pathname.endsWith('/login'), { timeout: 15000 });
         await openPasskeys();
         await dialog.getByRole('button', { name: `Remove ${name}`, exact: true }).waitFor();
@@ -108,7 +126,9 @@ echo json_encode($result, JSON_THROW_ON_ERROR);
         await dialog.getByRole('button', { name: 'Remove passkey', exact: true }).click();
         await dialog.getByRole('heading', { name: 'Passkey removed', exact: true }).waitFor();
         await page.goto('/members/logout');
-        await page.getByRole('button', { name: 'Sign in with a passkey', exact: true }).click();
+        await page.locator('#email-address').fill(fixture.email);
+        await page.getByRole('button', { name: 'Continue', exact: true }).click();
+        await page.getByRole('button', { name: 'Use a passkey', exact: true }).click();
         await page.getByText('Passkey verification failed. Retry or sign in with your password.', { exact: true }).waitFor();
         console.log('Security acceptance: password login');
         await loginAs(page, fixture.email);
@@ -147,12 +167,23 @@ echo json_encode($result, JSON_THROW_ON_ERROR);
             await desk.getByRole('link', { name: 'Sign out', exact: true }).click();
             await desk.waitForURL('**/members/login');
         } finally { await desktop.close(); }
+        const basic = await browser.newContext({ baseURL: origin, ignoreHTTPSErrors: true, javaScriptEnabled: false });
+        try {
+            const login = await basic.newPage();
+            await login.goto('/members/login');
+            assert.equal(await login.locator('#password').isVisible(), true);
+            assert.equal(await login.getByRole('button', { name: 'Continue', exact: true }).isVisible(), false);
+            await login.locator('#email-address').fill(fixture.email);
+            await login.locator('#password').fill('SyntheticChangedPassword');
+            await login.getByRole('button', { name: 'Sign in', exact: true }).click();
+            await login.getByRole('link', { name: 'Sign out', exact: true }).waitFor();
+        } finally { await basic.close(); }
         await openSecurity(page);
         await dialog.getByRole('button', { name: /^Sign out all devices/ }).click();
         await dialog.getByRole('button', { name: 'Sign out all devices', exact: true }).click();
         await page.waitForURL('**/members/login');
         assert.deepEqual(errors, []);
-        console.log('PASS: password-authorized passkey enrollment, real server signature verification, login after logout, removal denial, mobile and desktop modals, password change, both sign-out choices, focus and mobile reflow.');
+        console.log('PASS: password-authorized passkey enrollment, conditional autofill and explicit login with real server signature verification, login after logout, removal denial, mobile and desktop modals, password change, both sign-out choices, no-JavaScript password login, focus and mobile reflow.');
     } finally {
         await browser.close();
         runPhpJson(fixtureScript, { cleanup: fixture.id, email: fixture.email });

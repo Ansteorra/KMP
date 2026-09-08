@@ -39,6 +39,7 @@ const loginAs = async (page, emailAddress, password = 'TestPassword') => {
     await page.goto('/members/login', { waitUntil: 'load' });
     await waitForPageBody(page);
     await page.locator('#email-address').fill(emailAddress);
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await page.locator('#password').fill(password);
 
     const submitButton = page.getByRole('button', { name: 'Sign in', exact: true });

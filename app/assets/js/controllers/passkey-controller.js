@@ -6,16 +6,18 @@ const encode = value => btoa(String.fromCharCode(...new Uint8Array(value))).repl
 /** Native member authentication. The OS owns verification and private key storage. */
 class PasskeyController extends Controller {
     static targets = ['status', 'password', 'label', 'continue', 'panel', 'heading', 'progress', 'work', 'removeName'];
-    static values = { initial: String };
+    static values = { initial: String, autofill: Boolean };
 
     connect() {
         this.connected = true;
+        if (this.autofillValue) this.autofill();
         if (this.hasHeadingTarget) this.show(this.initialValue || 'intro', false);
         this.modal = this.element.closest('.modal');
         this.onClosing = () => { this.connected = false; this.abort?.abort(); this.options = null; this.clearPassword(); };
         this.modal?.addEventListener('hide.bs.modal', this.onClosing);
     }
     disconnect() {
+        this.cancelAutofill();
         this.connected = false; this.abort?.abort(); this.options = null; this.clearPassword();
         this.modal?.removeEventListener('hide.bs.modal', this.onClosing);
     }
@@ -53,8 +55,7 @@ class PasskeyController extends Controller {
     }
     message(text) { if (this.connected) this.statusTarget.textContent = text; }
 
-    async post(action, data = {}) {
-        const signal = this.abort.signal;
+    async post(action, data = {}, signal = this.abort.signal) {
         const response = await fetch(`/passkeys/${action}`, {
             method: 'POST', credentials: 'same-origin', cache: 'no-store', redirect: 'error',
             headers: { 'Content-Type': 'application/json', Accept: 'application/json',
@@ -98,7 +99,43 @@ class PasskeyController extends Controller {
         }
     }
 
+    cancelAutofill() { this.autofillAbort?.abort(); }
+    cancelLogin() { this.cancelAutofill(); this.abort?.abort(); }
+
+    async autofill() {
+        if (!this.autofillValue || this.autofillPending || this.busy || !this.connected) return;
+        const abort = new AbortController();
+        this.autofillAbort = abort;
+        this.autofillPending = Promise.race([
+            this.offerAutofill(abort),
+            new Promise(resolve => abort.signal.addEventListener('abort', resolve, { once: true }))
+        ]);
+        try { await this.autofillPending; }
+        finally { this.autofillPending = null; }
+    }
+
+    async offerAutofill(abort) {
+        const signal = abort.signal;
+        // Bound the pending request to less than the server challenge lifetime.
+        const timeout = setTimeout(() => abort.abort(), 90000);
+        signal.addEventListener('abort', () => clearTimeout(timeout), { once: true });
+        try {
+            if (!await window.PublicKeyCredential?.isConditionalMediationAvailable?.()) return;
+            signal.throwIfAborted();
+            const options = await this.post('login-options', {}, signal);
+            options.publicKey.challenge = decode(options.publicKey.challenge);
+            const credential = await navigator.credentials.get({ ...options, mediation: 'conditional', signal });
+            signal.throwIfAborted();
+            if (!credential) return;
+            const result = await this.post('login', { credential: this.response(credential) }, signal);
+            if (this.connected) window.location.assign(result.redirect);
+        } catch { /* Autofill is optional. Password and explicit passkey login remain available. */ }
+        finally { clearTimeout(timeout); }
+    }
+
     async login() {
+        this.cancelAutofill();
+        await this.autofillPending;
         await this.run(async () => {
             if (!navigator.credentials?.get) throw new Error('Passkeys are unavailable in this browser. Use your password.');
             this.message('Choose your KMP login passkey…');

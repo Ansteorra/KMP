@@ -12,6 +12,7 @@ Stay up to date with the latest features, improvements, and announcements for th
 - Private member fields, contact lookup, exports and attendance sharing now use the recipient's permissions and consent.
 - Offline authorization cards and RSVPs use encrypted storage with tested device unlock where supported or an explicitly selected 6–8 digit offline PIN. Online refresh is required within seven days.
 - Native passkeys replace quick-login PINs. Use Security on your member profile for guided password, passkey and sign-out actions; password login and recovery remain available. Offline device setup now uses explicit steps, cancellation and time limits.
+- Login now starts with your email address, with password entry and optional passkey sign-in on the next step. Supported browsers can suggest saved passkeys automatically.
 - Mobile connectivity checks no longer invalidate a signed-in session before loading card data.
 - Invalid PDF uploads are rejected before a waiver becomes active, and diagnostic logging excludes sensitive request and document content.
 - Public nominations accept only supported submission fields and links to existing gatherings.
