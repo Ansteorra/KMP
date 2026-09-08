@@ -608,3 +608,17 @@ Security-scoped Jest coverage runs all 197 selected tests successfully. The loca
 Composer autoloader was regenerated with the configured CakePHP plugin after the
 initial dependency install omitted plugin test fixtures. Physical iOS acceptance and
 production rollout are still outstanding.
+
+Profile Security now groups the owner's passkey/password/sign-out actions in guided
+modal steps. Authorized editors see only password reset and sign-out-all for another
+member. The traditional header Sign out link remains. Owner/editor permission tests,
+modal cancellation/focus tests, and real browser password/passkey/sign-out checks pass.
+
+A subsequent mobile regression was reproduced with a synthetic member: the public
+readiness probe bypassed tenant resolution but received the browser's session cookie,
+causing the tenant session validator to discard a valid login before card loading.
+The probe now omits credentials, and routed public health checks leave member sessions
+untouched. Private routes still reject missing tenant bindings. Eight targeted PHP
+tests / 26 assertions, 121 Jest suites / 1,902 tests, and actual-host browser checks
+verify card JSON, card rendering, and session preservation after refresh. No production
+changes or relaxed private-route authentication were required.

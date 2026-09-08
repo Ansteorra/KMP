@@ -21,6 +21,10 @@ Members without an active passkey start with a three-step wizard: a plain-langua
 
 Removing a passkey uses an in-dialog consequence/confirmation step and completion screen. Changing a password uses an explanation and new-password wizard. Signing out all devices uses a confirmation step in the same dialog, explicitly explaining password sign-in, passkey revocation and the disconnected-card expiry limit. Existing server permissions, reauthentication requirements and revocation behavior remain authoritative.
 
+## Public readiness probes
+
+Mobile connectivity checks call `/health` without browser credentials. The routed public `Health::index` action does not authenticate or invalidate member sessions: readiness runs outside tenant resolution, so it cannot validate a tenant-bound session. Private routes still fail closed on missing tenant bindings. Regression coverage includes preserving an existing session across a health request and subsequently loading/refreshing the mobile card.
+
 ## Shared throttles
 
 `security_rate_limits` stores only keyed digests, counters and expiry timestamps. Multitenant requests use the platform database with immutable tenant namespaces; single-tenant requests use the default database. Platform actions use a separate namespace. No replica-local cache or Redis service is required. A counter-store outage fails closed before protected work. Expired rows are removed after a day.

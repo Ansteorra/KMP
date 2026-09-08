@@ -62,8 +62,16 @@ echo json_encode($result, JSON_THROW_ON_ERROR);
         };
         console.log('Security acceptance: password login');
         await loginAs(page, fixture.email);
-        await page.goto('/members/view-mobile-card');
+        const [cardResponse] = await Promise.all([
+            page.waitForResponse(response => new URL(response.url()).pathname === '/members/view-mobile-card-json'),
+            page.goto('/members/view-mobile-card')
+        ]);
+        assert.equal(cardResponse.status(), 200);
+        const card = await cardResponse.json();
+        assert.ok(card.member?.branch, 'Mobile card must render authenticated data');
         const mobileUrl = page.url();
+        await page.reload();
+        assert.equal(page.url(), mobileUrl, 'Mobile refresh must retain the authenticated session');
         await openPasskeys();
         await dialog.getByRole('heading', { name: 'An easier way to sign in' }).waitFor();
         await dialog.getByRole('button', { name: 'Get started', exact: true }).click();

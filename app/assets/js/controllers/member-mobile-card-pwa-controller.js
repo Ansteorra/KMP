@@ -103,7 +103,7 @@ class MemberMobileCardPWA extends MobileControllerBase {
                         'X-Requested-With': 'XMLHttpRequest',
                         'Accept': 'application/json'
                     },
-                    credentials: 'same-origin',
+                    credentials: 'omit',
                     signal: controller.signal
                 });
                 // Any HTTP response confirms network reachability.

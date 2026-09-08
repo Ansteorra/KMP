@@ -21,12 +21,20 @@ class MemberSessionAuthenticator extends SessionAuthenticator
     /** @inheritDoc */
     public function authenticate(ServerRequestInterface $request): ResultInterface
     {
+        $params = $request->getAttribute('params', []);
+        // Public readiness checks run without a tenant and must not touch member credentials.
+        if (
+            ($params['controller'] ?? null) === 'Health' && ($params['action'] ?? null) === 'index'
+            && empty($params['plugin']) && empty($params['prefix'])
+        ) {
+            return new Result(null, Result::FAILURE_IDENTITY_NOT_FOUND);
+        }
         $session = $request->getAttribute('session');
         $state = $session->read('Auth');
         if (!$state) {
             return new Result(null, Result::FAILURE_IDENTITY_NOT_FOUND);
         }
-        // Login submissions must prove the submitted credentials, including PIN enrollment.
+        // Login submissions must prove the submitted credentials.
         if (
             $request->getMethod() === 'POST'
             && ($request->getAttribute('params')['controller'] ?? null) === 'Members'
