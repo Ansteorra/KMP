@@ -1246,7 +1246,7 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
 
             $mobileMenuItems[] = [
                 'label' => 'Manage passkeys', 'icon' => 'bi-key', 'url' => '/passkeys',
-                'order' => -9, 'color' => 'auth-card', 'badge' => null,
+                'order' => -9, 'color' => 'auth-card', 'badge' => null, 'modalTarget' => '#passkeyModal',
             ];
 
             // Filter out current page from menu items
@@ -1324,6 +1324,7 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
 
     </main>
 
+<?= $this->element('members/passkeyModal') ?>
 </body>
 
 </html>

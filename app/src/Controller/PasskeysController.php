@@ -33,7 +33,7 @@ class PasskeysController extends AppController
             ->select(['id', 'label', 'created_at', 'last_used_at', 'auth_version'])
             ->where(['member_id' => $member->id])->orderByDesc('id')->all();
         $mobile = StaticHelpers::isMobilePhone($this->request->getHeaderLine('User-Agent'));
-        if ($mobile) {
+        if ($mobile && !$this->request->getHeaderLine('Turbo-Frame')) {
             $this->viewBuilder()->setLayout('mobile_app');
             $this->set('mobileTitle', 'Your passkeys');
         }
@@ -123,6 +123,9 @@ class PasskeysController extends AppController
                 throw new ForbiddenException('Passkey unavailable.');
             }
         });
+        if (str_contains($this->request->getHeaderLine('Accept'), 'application/json')) {
+            return $this->json(['removed' => true]);
+        }
         $this->Flash->success(__('Passkey removed.'));
 
         return $this->redirect(['action' => 'index']);

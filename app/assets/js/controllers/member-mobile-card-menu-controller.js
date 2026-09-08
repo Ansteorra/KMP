@@ -108,8 +108,14 @@ class MemberMobileCardMenu extends MobileControllerBase {
      * @returns {HTMLElement} Menu item button element
      */
     createMenuItem(item) {
-        const button = document.createElement('a');
-        button.href = item.url;
+        const button = document.createElement(item.modalTarget ? 'button' : 'a');
+        if (item.modalTarget) {
+            button.type = 'button';
+            button.dataset.bsToggle = 'modal';
+            button.dataset.bsTarget = item.modalTarget;
+        } else {
+            button.href = item.url;
+        }
         button.className = `btn btn-${item.color || 'primary'} btn-lg w-100 mb-2 d-flex align-items-center justify-content-between mobile-menu-item`;
         button.setAttribute('data-member-mobile-card-menu-target', 'menuItem');
         button.setAttribute('data-action', 'click->member-mobile-card-menu#closeMenu');

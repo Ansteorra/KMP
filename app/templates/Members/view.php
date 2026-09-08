@@ -85,7 +85,7 @@ if (
 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal"
     id='editModalBtn'>Edit</button>
 <?php if ((int)$user->id === (int)$member->id) : ?>
-<a class="btn btn-outline-primary btn-sm" href="/passkeys">Manage passkeys</a>
+<button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#passkeyModal">Manage passkeys</button>
 <?php endif; ?>
 <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal"
     id='passwordModalBtn'>Change Password</button>

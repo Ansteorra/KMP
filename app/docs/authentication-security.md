@@ -13,6 +13,14 @@ Native passkey enrollment at `/passkeys` requires password reauthentication and 
 
 Password recovery returns the same success message and redirect for known, unknown and throttled accounts. Recovery mail always enters the asynchronous queue, including when general mail queuing is disabled; queue failures retain that public response and emit only a fixed failure event without account or token details. Issuance has a five-minute atomic account cooldown and a one-hour reset-link lifetime. Token consumption and password replacement are a single conditional database write, so concurrent redemption succeeds at most once. Registration links issued by the existing registration workflow remain supported with their existing expiry.
 
+## Member security dialogs
+
+Desktop account actions and the mobile menu open passkey management in a Bootstrap modal, without navigating away. The `/passkeys` link remains a small entry page for bookmarks. Private settings load in a Turbo Frame only when the modal opens and are discarded on close.
+
+Members without an active passkey start with a three-step wizard: a plain-language explanation, KMP password confirmation and a separate device-prompt tap. Only one step is visible at a time, with progress, Back/Cancel controls and an explicit success screen. Password values and pending options are cleared on Back, close and disconnect. Closing cancels pending native requests. Focus moves to each step heading and returns to the opening control (the Menu button on mobile).
+
+Removing a passkey uses an in-dialog consequence/confirmation step and completion screen. Signing out all devices uses its own confirmation modal, explicitly explaining password sign-in, passkey revocation and the disconnected-card expiry limit. Existing server permissions, reauthentication requirements and revocation behavior remain authoritative.
+
 ## Shared throttles
 
 `security_rate_limits` stores only keyed digests, counters and expiry timestamps. Multitenant requests use the platform database with immutable tenant namespaces; single-tenant requests use the default database. Platform actions use a separate namespace. No replica-local cache or Redis service is required. A counter-store outage fails closed before protected work. Expired rows are removed after a day.

@@ -23,6 +23,11 @@ class RevokeSessionsTest extends TestCase
                 {
                 }
 
+                public function getIdentifier(): int
+                {
+                    return 101;
+                }
+
                 public function can(string $action, mixed $resource): bool
                 {
                     return $action === 'changePassword' && $resource->id === 101 && $this->allowed;
@@ -35,7 +40,9 @@ class RevokeSessionsTest extends TestCase
                 $this->assertStringContainsString('Sign out all devices', $html);
                 $this->assertStringContainsString('/members/revoke-sessions/101', $html);
                 $this->assertStringContainsString('method="post"', $html);
-                $this->assertStringContainsString('Disconnected offline cards expire within seven days', $html);
+                $this->assertStringContainsString('data-bs-target="#revokeSessionsModal-101"', $html);
+                $this->assertStringContainsString('including this device', $html);
+                $this->assertStringContainsString('may remain available for up to seven days', $html);
             } else {
                 $this->assertStringNotContainsString('revoke-sessions', $html);
             }

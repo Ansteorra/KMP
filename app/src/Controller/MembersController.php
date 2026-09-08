@@ -1950,7 +1950,7 @@ class MembersController extends AppController
         }
     }
 
-    /** Revoke all sessions and PIN devices using the existing password-management permission. */
+    /** Revoke all sessions and passkeys using the existing password-management permission. */
     public function revokeSessions(MemberAuthenticationService $authService, $id = null)
     {
         $this->request->allowMethod(['post']);
@@ -1966,7 +1966,7 @@ class MembersController extends AppController
 
             return $this->redirect(['action' => 'login']);
         }
-        $this->Flash->success(__('All sessions and quick login PINs for this member have been revoked.'));
+        $this->Flash->success(__('All sessions and passkeys for this member have been revoked.'));
 
         return $this->redirect(['action' => 'view', $member->id]);
     }

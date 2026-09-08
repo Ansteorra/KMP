@@ -236,6 +236,9 @@ if ($this->fetch("main_content_wrapped")) {
 }
 echo $this->fetch("tb_footer");
 echo $this->fetch("modals");
+if ($this->request->getAttribute("identity")) {
+    echo $this->element("members/passkeyModal");
+}
 echo $this->fetch("tb_body_end");
 echo $this->fetch("script");
 //echo $this->AssetCompress->script('app-combined');

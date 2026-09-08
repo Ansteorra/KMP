@@ -40,6 +40,14 @@ describe('MemberMobileCardMenuController', () => {
         jest.restoreAllMocks();
     });
 
+    test('modal menu items are buttons that open a dialog without navigation', () => {
+        const button = controller.createMenuItem({ label: 'Manage passkeys', url: '/passkeys', modalTarget: '#passkeyModal' });
+        expect(button.tagName).toBe('BUTTON');
+        expect(button.type).toBe('button');
+        expect(button.dataset.bsTarget).toBe('#passkeyModal');
+        expect(button.hasAttribute('href')).toBe(false);
+    });
+
     // --- Static properties ---
 
     test('has correct static targets', () => {

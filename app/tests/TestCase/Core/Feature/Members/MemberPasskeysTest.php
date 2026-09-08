@@ -14,6 +14,27 @@ class MemberPasskeysTest extends HttpIntegrationTestCase
         $this->assertRedirectContains('/members/login');
     }
 
+    public function testManagementEntryOpensAModalInsteadOfAnInlineForm(): void
+    {
+        $this->authenticateAsSuperUser();
+        $this->get('/passkeys');
+        $this->assertResponseOk();
+        $this->assertResponseContains('data-bs-target="#passkeyModal"');
+        $this->assertResponseNotContains('data-passkey-target="password"');
+    }
+
+    public function testMobileFrameContainsOnlyTheGuidedSettings(): void
+    {
+        $this->authenticateAsSuperUser();
+        $this->configRequest(['headers' => ['Turbo-Frame' => 'passkey-settings', 'User-Agent' => 'iPhone']]);
+        $this->get('/passkeys');
+        $this->assertResponseOk();
+        $this->assertResponseContains('<turbo-frame id="passkey-settings">');
+        $this->assertResponseContains('data-step="password" hidden');
+        $this->assertResponseNotContains('<body');
+        $this->assertResponseNotContains('id="passkeyModal"');
+    }
+
     public function testOptionsRejectMissingCsrf(): void
     {
         $this->post('/passkeys/login-options');
