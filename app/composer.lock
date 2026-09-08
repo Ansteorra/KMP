@@ -4,25 +4,26 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "07aadb3b96a73ced873cc1723b912f2d",
+    "content-hash": "582cbbdcb77d75a698f4bfdacbeea02a",
     "packages": [
         {
             "name": "admad/cakephp-glide",
-            "version": "6.0.0",
+            "version": "7.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ADmad/cakephp-glide.git",
-                "reference": "0ae85da930cf7b6ceb8a1883f00eaedda9986a93"
+                "reference": "a5f4e97e303af8362a88172757efa4ecf9f29761"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ADmad/cakephp-glide/zipball/0ae85da930cf7b6ceb8a1883f00eaedda9986a93",
-                "reference": "0ae85da930cf7b6ceb8a1883f00eaedda9986a93",
+                "url": "https://api.github.com/repos/ADmad/cakephp-glide/zipball/a5f4e97e303af8362a88172757efa4ecf9f29761",
+                "reference": "a5f4e97e303af8362a88172757efa4ecf9f29761",
                 "shasum": ""
             },
             "require": {
                 "cakephp/cakephp": "^5.0",
-                "league/glide": "^2.3"
+                "league/glide": "^3.0",
+                "php": ">=8.1"
             },
             "require-dev": {
                 "phpunit/phpunit": "^10.1"
@@ -68,7 +69,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2023-09-28T20:23:27+00:00"
+            "time": "2025-03-21T15:10:46+00:00"
         },
         {
             "name": "azure-oss/storage",
@@ -507,16 +508,16 @@
         },
         {
             "name": "cakephp/chronos",
-            "version": "3.5.0",
+            "version": "3.5.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/cakephp/chronos.git",
-                "reference": "e6e777b534244911566face8a5dbdbd7f7bda5a6"
+                "reference": "00c16f165a762226d58f9cf88f43e54e41093f84"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/cakephp/chronos/zipball/e6e777b534244911566face8a5dbdbd7f7bda5a6",
-                "reference": "e6e777b534244911566face8a5dbdbd7f7bda5a6",
+                "url": "https://api.github.com/repos/cakephp/chronos/zipball/00c16f165a762226d58f9cf88f43e54e41093f84",
+                "reference": "00c16f165a762226d58f9cf88f43e54e41093f84",
                 "shasum": ""
             },
             "require": {
@@ -562,7 +563,7 @@
                 "issues": "https://github.com/cakephp/chronos/issues",
                 "source": "https://github.com/cakephp/chronos"
             },
-            "time": "2026-04-10T02:50:39+00:00"
+            "time": "2026-09-06T02:30:12+00:00"
         },
         {
             "name": "cakephp/migrations",
@@ -749,16 +750,16 @@
         },
         {
             "name": "composer/ca-bundle",
-            "version": "1.5.13",
+            "version": "1.5.14",
             "source": {
                 "type": "git",
                 "url": "https://github.com/composer/ca-bundle.git",
-                "reference": "c008272789979f709f7fcb32c2ecf1d2db5e84e5"
+                "reference": "0c8abba0634f637bd78c4e451981da368d403463"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/composer/ca-bundle/zipball/c008272789979f709f7fcb32c2ecf1d2db5e84e5",
-                "reference": "c008272789979f709f7fcb32c2ecf1d2db5e84e5",
+                "url": "https://api.github.com/repos/composer/ca-bundle/zipball/0c8abba0634f637bd78c4e451981da368d403463",
+                "reference": "0c8abba0634f637bd78c4e451981da368d403463",
                 "shasum": ""
             },
             "require": {
@@ -805,7 +806,7 @@
             "support": {
                 "irc": "irc://irc.freenode.org/composer",
                 "issues": "https://github.com/composer/ca-bundle/issues",
-                "source": "https://github.com/composer/ca-bundle/tree/1.5.13"
+                "source": "https://github.com/composer/ca-bundle/tree/1.5.14"
             },
             "funding": [
                 {
@@ -817,7 +818,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-07-18T12:35:13+00:00"
+            "time": "2026-08-21T14:57:29+00:00"
         },
         {
             "name": "composer/semver",
@@ -1794,50 +1795,32 @@
             "time": "2026-07-16T22:23:49+00:00"
         },
         {
-            "name": "intervention/image",
-            "version": "2.7.2",
+            "name": "intervention/gif",
+            "version": "4.2.4",
             "source": {
                 "type": "git",
-                "url": "https://github.com/Intervention/image.git",
-                "reference": "04be355f8d6734c826045d02a1079ad658322dad"
+                "url": "https://github.com/Intervention/gif.git",
+                "reference": "c3598a16ebe7690cd55640c44144a9df383ea73c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Intervention/image/zipball/04be355f8d6734c826045d02a1079ad658322dad",
-                "reference": "04be355f8d6734c826045d02a1079ad658322dad",
+                "url": "https://api.github.com/repos/Intervention/gif/zipball/c3598a16ebe7690cd55640c44144a9df383ea73c",
+                "reference": "c3598a16ebe7690cd55640c44144a9df383ea73c",
                 "shasum": ""
             },
             "require": {
-                "ext-fileinfo": "*",
-                "guzzlehttp/psr7": "~1.1 || ^2.0",
-                "php": ">=5.4.0"
+                "php": "^8.1"
             },
             "require-dev": {
-                "mockery/mockery": "~0.9.2",
-                "phpunit/phpunit": "^4.8 || ^5.7 || ^7.5.15"
-            },
-            "suggest": {
-                "ext-gd": "to use GD library based image processing.",
-                "ext-imagick": "to use Imagick based image processing.",
-                "intervention/imagecache": "Caching extension for the Intervention Image library"
+                "phpstan/phpstan": "^2.1",
+                "phpunit/phpunit": "^10.0 || ^11.0  || ^12.0",
+                "slevomat/coding-standard": "~8.0",
+                "squizlabs/php_codesniffer": "^3.8"
             },
             "type": "library",
-            "extra": {
-                "laravel": {
-                    "aliases": {
-                        "Image": "Intervention\\Image\\Facades\\Image"
-                    },
-                    "providers": [
-                        "Intervention\\Image\\ImageServiceProvider"
-                    ]
-                },
-                "branch-alias": {
-                    "dev-master": "2.4-dev"
-                }
-            },
             "autoload": {
                 "psr-4": {
-                    "Intervention\\Image\\": "src/Intervention/Image"
+                    "Intervention\\Gif\\": "src"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -1851,19 +1834,17 @@
                     "homepage": "https://intervention.io/"
                 }
             ],
-            "description": "Image handling and manipulation library with support for Laravel integration",
-            "homepage": "http://image.intervention.io/",
+            "description": "Native PHP GIF Encoder/Decoder",
+            "homepage": "https://github.com/intervention/gif",
             "keywords": [
+                "animation",
                 "gd",
-                "image",
-                "imagick",
-                "laravel",
-                "thumbnail",
-                "watermark"
+                "gif",
+                "image"
             ],
             "support": {
-                "issues": "https://github.com/Intervention/image/issues",
-                "source": "https://github.com/Intervention/image/tree/2.7.2"
+                "issues": "https://github.com/Intervention/gif/issues",
+                "source": "https://github.com/Intervention/gif/tree/4.2.4"
             },
             "funding": [
                 {
@@ -1873,9 +1854,89 @@
                 {
                     "url": "https://github.com/Intervention",
                     "type": "github"
+                },
+                {
+                    "url": "https://ko-fi.com/interventionphp",
+                    "type": "ko_fi"
                 }
             ],
-            "time": "2022-05-21T17:30:32+00:00"
+            "time": "2026-01-04T09:27:23+00:00"
+        },
+        {
+            "name": "intervention/image",
+            "version": "3.11.8",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Intervention/image.git",
+                "reference": "cf04c8dd245697f701057c13d4bfe140d584e738"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Intervention/image/zipball/cf04c8dd245697f701057c13d4bfe140d584e738",
+                "reference": "cf04c8dd245697f701057c13d4bfe140d584e738",
+                "shasum": ""
+            },
+            "require": {
+                "ext-mbstring": "*",
+                "intervention/gif": "^4.2",
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "mockery/mockery": "^1.6",
+                "phpstan/phpstan": "^2.1",
+                "phpunit/phpunit": "^10.0 || ^11.0 || ^12.0",
+                "slevomat/coding-standard": "~8.0",
+                "squizlabs/php_codesniffer": "^4"
+            },
+            "suggest": {
+                "ext-exif": "Recommended to be able to read EXIF data properly."
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Intervention\\Image\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Oliver Vogel",
+                    "email": "oliver@intervention.io",
+                    "homepage": "https://intervention.io"
+                }
+            ],
+            "description": "PHP Image Processing",
+            "homepage": "https://image.intervention.io",
+            "keywords": [
+                "gd",
+                "image",
+                "imagick",
+                "resize",
+                "thumbnail",
+                "watermark"
+            ],
+            "support": {
+                "issues": "https://github.com/Intervention/image/issues",
+                "source": "https://github.com/Intervention/image/tree/3.11.8"
+            },
+            "funding": [
+                {
+                    "url": "https://paypal.me/interventionio",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/Intervention",
+                    "type": "github"
+                },
+                {
+                    "url": "https://ko-fi.com/interventionphp",
+                    "type": "ko_fi"
+                }
+            ],
+            "time": "2026-05-01T08:20:10+00:00"
         },
         {
             "name": "jeremyharris/cakephp-lazyload",
@@ -2159,16 +2220,16 @@
         },
         {
             "name": "league/flysystem",
-            "version": "3.30.1",
+            "version": "3.36.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/flysystem.git",
-                "reference": "c139fd65c1f796b926f4aec0df37f6caa959a8da"
+                "reference": "f7fb152932f30072d573510cbd4dd657d6475b25"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/flysystem/zipball/c139fd65c1f796b926f4aec0df37f6caa959a8da",
-                "reference": "c139fd65c1f796b926f4aec0df37f6caa959a8da",
+                "url": "https://api.github.com/repos/thephpleague/flysystem/zipball/f7fb152932f30072d573510cbd4dd657d6475b25",
+                "reference": "f7fb152932f30072d573510cbd4dd657d6475b25",
                 "shasum": ""
             },
             "require": {
@@ -2236,22 +2297,22 @@
             ],
             "support": {
                 "issues": "https://github.com/thephpleague/flysystem/issues",
-                "source": "https://github.com/thephpleague/flysystem/tree/3.30.1"
+                "source": "https://github.com/thephpleague/flysystem/tree/3.36.0"
             },
-            "time": "2025-10-20T15:35:26+00:00"
+            "time": "2026-09-02T08:00:27+00:00"
         },
         {
             "name": "league/flysystem-local",
-            "version": "3.29.0",
+            "version": "3.35.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/flysystem-local.git",
-                "reference": "e0e8d52ce4b2ed154148453d321e97c8e931bd27"
+                "reference": "a099b24dce160f3b2239043d13d47c4a1a214ea4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/flysystem-local/zipball/e0e8d52ce4b2ed154148453d321e97c8e931bd27",
-                "reference": "e0e8d52ce4b2ed154148453d321e97c8e931bd27",
+                "url": "https://api.github.com/repos/thephpleague/flysystem-local/zipball/a099b24dce160f3b2239043d13d47c4a1a214ea4",
+                "reference": "a099b24dce160f3b2239043d13d47c4a1a214ea4",
                 "shasum": ""
             },
             "require": {
@@ -2285,34 +2346,35 @@
                 "local"
             ],
             "support": {
-                "source": "https://github.com/thephpleague/flysystem-local/tree/3.29.0"
+                "source": "https://github.com/thephpleague/flysystem-local/tree/3.35.3"
             },
-            "time": "2024-08-09T21:24:39+00:00"
+            "time": "2026-08-12T13:29:21+00:00"
         },
         {
             "name": "league/glide",
-            "version": "2.3.2",
+            "version": "3.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/glide.git",
-                "reference": "b8e946dd87c79a9dce3290707ab90b5b52602813"
+                "reference": "555bb802f951246ce454b86075dccb8b27156185"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/glide/zipball/b8e946dd87c79a9dce3290707ab90b5b52602813",
-                "reference": "b8e946dd87c79a9dce3290707ab90b5b52602813",
+                "url": "https://api.github.com/repos/thephpleague/glide/zipball/555bb802f951246ce454b86075dccb8b27156185",
+                "reference": "555bb802f951246ce454b86075dccb8b27156185",
                 "shasum": ""
             },
             "require": {
-                "intervention/image": "^2.7",
-                "league/flysystem": "^2.0|^3.0",
-                "php": "^7.2|^8.0",
+                "intervention/image": "^3.9.1",
+                "league/flysystem": "^3.0",
+                "php": "^8.1",
                 "psr/http-message": "^1.0|^2.0"
             },
             "require-dev": {
-                "mockery/mockery": "^1.3.3",
-                "phpunit/php-token-stream": "^3.1|^4.0",
-                "phpunit/phpunit": "^8.5|^9.0"
+                "friendsofphp/php-cs-fixer": "^3.48",
+                "mockery/mockery": "^1.6",
+                "phpstan/phpstan": "^2.0",
+                "phpunit/phpunit": "^10.5 || ^11.0 || ^12.5"
             },
             "type": "library",
             "autoload": {
@@ -2350,22 +2412,22 @@
             ],
             "support": {
                 "issues": "https://github.com/thephpleague/glide/issues",
-                "source": "https://github.com/thephpleague/glide/tree/2.3.2"
+                "source": "https://github.com/thephpleague/glide/tree/3.2.0"
             },
-            "time": "2025-03-21T13:48:39+00:00"
+            "time": "2026-02-19T11:57:40+00:00"
         },
         {
             "name": "league/mime-type-detection",
-            "version": "1.16.0",
+            "version": "1.17.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/mime-type-detection.git",
-                "reference": "2d6702ff215bf922936ccc1ad31007edc76451b9"
+                "reference": "f5f47eff7c48ed1003069a2ca67f316fb4021c76"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/mime-type-detection/zipball/2d6702ff215bf922936ccc1ad31007edc76451b9",
-                "reference": "2d6702ff215bf922936ccc1ad31007edc76451b9",
+                "url": "https://api.github.com/repos/thephpleague/mime-type-detection/zipball/f5f47eff7c48ed1003069a2ca67f316fb4021c76",
+                "reference": "f5f47eff7c48ed1003069a2ca67f316fb4021c76",
                 "shasum": ""
             },
             "require": {
@@ -2375,7 +2437,7 @@
             "require-dev": {
                 "friendsofphp/php-cs-fixer": "^3.2",
                 "phpstan/phpstan": "^0.12.68",
-                "phpunit/phpunit": "^8.5.8 || ^9.3 || ^10.0"
+                "phpunit/phpunit": "^8.5.8 || ^9.3 || ^10.0 || ^11.0 || ^12.0"
             },
             "type": "library",
             "autoload": {
@@ -2396,7 +2458,7 @@
             "description": "Mime-type detection for Flysystem",
             "support": {
                 "issues": "https://github.com/thephpleague/mime-type-detection/issues",
-                "source": "https://github.com/thephpleague/mime-type-detection/tree/1.16.0"
+                "source": "https://github.com/thephpleague/mime-type-detection/tree/1.17.0"
             },
             "funding": [
                 {
@@ -2408,7 +2470,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2024-09-21T08:32:55+00:00"
+            "time": "2026-07-09T11:49:27+00:00"
         },
         {
             "name": "mobiledetect/mobiledetectlib",
