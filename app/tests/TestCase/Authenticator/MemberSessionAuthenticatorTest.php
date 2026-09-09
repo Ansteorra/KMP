@@ -8,7 +8,6 @@ use App\KMP\TenantContext;
 use App\KMP\TenantMetadata;
 use App\Model\Entity\Member;
 use App\Services\Security\MemberSessionState;
-use Authentication\Identifier\IdentifierCollection;
 use Cake\Core\Configure;
 use Cake\Http\ServerRequest;
 use Cake\Http\Session;
@@ -30,7 +29,7 @@ class MemberSessionAuthenticatorTest extends TestCase
             $session->write('Auth', $state);
             $session->write('QuickLoginSetup', ['private' => true]);
             $request = (new ServerRequest())->withAttribute('session', $session);
-            $authenticator = new MemberSessionAuthenticator(new IdentifierCollection());
+            $authenticator = new MemberSessionAuthenticator();
             $this->assertFalse($authenticator->authenticate($request)->isValid());
             $this->assertNull($session->read('Auth'));
             $this->assertNull($session->read('QuickLoginSetup'));
@@ -41,7 +40,7 @@ class MemberSessionAuthenticatorTest extends TestCase
     {
         $session = new Session();
         $session->write('Auth', new Member(['id' => 7]));
-        $authenticator = new MemberSessionAuthenticator(new IdentifierCollection());
+        $authenticator = new MemberSessionAuthenticator();
         $request = (new ServerRequest())->withAttribute('session', $session);
         $this->assertFalse($authenticator->authenticate($request)->isValid());
         $this->assertNull($session->read('Auth'));

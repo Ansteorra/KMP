@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Authenticator;
 
 use App\Authenticator\ServicePrincipalAuthenticator;
-use Authentication\Identifier\IdentifierCollection;
 use Cake\Http\ServerRequest;
 use Cake\TestSuite\TestCase;
 
@@ -12,7 +11,7 @@ class ServicePrincipalHeaderTest extends TestCase
 {
     public function testUrlCredentialsAreIgnoredAndHeadersRemainSupported(): void
     {
-        $authenticator = new class (new IdentifierCollection()) extends ServicePrincipalAuthenticator {
+        $authenticator = new class extends ServicePrincipalAuthenticator {
             public function token(ServerRequest $request): ?string
             {
                 return $this->extractToken($request);

@@ -120,7 +120,7 @@ use App\Services\WorkflowRegistry\WorkflowPluginLoader;
 use Authentication\AuthenticationService;
 use Authentication\AuthenticationServiceInterface;
 use Authentication\AuthenticationServiceProviderInterface;
-use Authentication\Identifier\AbstractIdentifier;
+use Authentication\Identifier\PasswordIdentifier;
 use Authentication\Middleware\AuthenticationMiddleware;
 use Authorization\AuthorizationServiceInterface;
 use Authorization\AuthorizationServiceProviderInterface;
@@ -966,7 +966,7 @@ class Application extends BaseApplication implements
      * @param \Psr\Http\Message\ServerRequestInterface $request Current HTTP request
      * @return \Authentication\AuthenticationServiceInterface Configured authentication service
      * @throws \Authentication\Exception\AuthenticationException If authentication setup fails
-     * @see \Authentication\Identifier\AbstractIdentifier Base identifier interface
+     * @see \Authentication\Identifier\PasswordIdentifier Password credential field mapping
      * @see \Authentication\Authenticator\SessionAuthenticator Session handling
      * @see \Authentication\Authenticator\FormAuthenticator Form processing
      * @see \Authentication\PasswordHasher\FallbackPasswordHasher Password migration
@@ -1014,8 +1014,8 @@ class Application extends BaseApplication implements
         // Define credential field mapping for database lookup
         // Maps form field names to database column names
         $fields = [
-            AbstractIdentifier::CREDENTIAL_USERNAME => 'email_address', // Use email as username
-            AbstractIdentifier::CREDENTIAL_PASSWORD => 'password', // Password field name
+            PasswordIdentifier::CREDENTIAL_USERNAME => 'email_address', // Use email as username
+            PasswordIdentifier::CREDENTIAL_PASSWORD => 'password', // Password field name
         ];
 
         // Load authenticators in order of precedence
@@ -1024,7 +1024,8 @@ class Application extends BaseApplication implements
 
         // Form authenticator handles login form submissions
         $service->loadAuthenticator('Authentication.Form', [
-            'identifier' => ['KMPBruteForcePassword' => [
+            'identifier' => [
+                'className' => 'KMPBruteForcePassword',
                 'resolver' => [
                     'className' => 'Authentication.Orm', // Use ORM for database lookups
                     'userModel' => 'Members', // Members table for user data
@@ -1044,7 +1045,7 @@ class Application extends BaseApplication implements
                         ],
                     ],
                 ],
-            ]],
+            ],
             'fields' => $fields, // Field mapping configuration
             'loginUrl' => Router::url([ // Form submission target URL
                 'prefix' => false, // No route prefix
