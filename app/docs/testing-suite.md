@@ -68,7 +68,14 @@ rerun after a successful reset; do not add competing resets inside scenarios. Sc
 Mailpit assertions with unique fixture tokens so background work from another scenario cannot
 satisfy them accidentally.
 
-Coverage and mutation checks are opt-in:
+Coverage and mutation checks are opt-in. Run `npm ci` first: mutation testing uses
+the locked Stryker core and Jest runner, which must be upgraded together. Dependabot
+groups `@stryker-mutator/*` updates to preserve that compatibility. Jest loads
+`babel.jest.config.json` explicitly so Stryker’s Babel parser does not load
+Jest’s Babel presets and plugins. Babel core, its presets/runtime/plugins, and the
+Jest transformer must also be upgraded together; Dependabot groups that toolchain
+to avoid incompatible peer dependencies. Regenerate npm lockfiles with the npm 11
+toolchain used in CI so nested peer dependencies are recorded consistently:
 
 ```bash
 bash bin/verify.sh --with-coverage

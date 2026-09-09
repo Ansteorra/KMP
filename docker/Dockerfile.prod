@@ -9,7 +9,7 @@ ARG BASE_IMAGE=runtime-base
 ARG APP_VERSION=dev
 
 
-FROM php:8.4.25-apache-trixie@sha256:51da594c844a97f31b1cd6b1ac6660982f40788f4fe13e75f7fd39e2f9b58651 AS runtime-base
+FROM php:8.5.10-apache-trixie@sha256:609de4eac65a03f20975441c9c3f313811d785575f0d02413c630753ab5c5532 AS runtime-base
 COPY --from=mlocati/php-extension-installer:latest@sha256:b6d3fa381b9ba5cf051117c1c601d6a523b590e534bf3d56eb4fbe352949c138 /usr/bin/install-php-extensions /usr/local/bin/
 COPY docker/install-runtime.sh /usr/local/bin/install-kmp-runtime
 RUN sh /usr/local/bin/install-kmp-runtime
@@ -19,7 +19,7 @@ RUN sh /usr/local/bin/install-kmp-runtime
 # --platform=$BUILDPLATFORM: always runs on the CI runner's native arch (amd64)
 # No QEMU penalty for Node.js/Vite even in multi-platform builds.
 # =============================================================================
-FROM --platform=$BUILDPLATFORM node:24-alpine@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf AS node-builder
+FROM --platform=$BUILDPLATFORM node:26-alpine@sha256:2d984a15c9b54fd0aeb608b8e0d0d83529eb34d2966db27a1fb4f1edc3d298a3 AS node-builder
 
 WORKDIR /build
 

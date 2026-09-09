@@ -18,7 +18,7 @@ module.exports = {
     '^@hotwired/stimulus$': '<rootDir>/tests/js/__mocks__/stimulus.js'
   },
   transform: {
-    '^.+\\.js$': 'babel-jest'
+    '^.+\\.js$': ['babel-jest', { configFile: require.resolve('./babel.jest.config.json'), babelrc: false }]
   },
   testTimeout: 10000,
   verbose: true

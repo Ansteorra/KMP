@@ -8,7 +8,7 @@ use App\Model\Table\DocumentsTable;
 use App\Services\Storage\AzureBlobClientFactory;
 use App\Services\Storage\TenantDocumentStorageConfigResolver;
 use Aws\S3\S3Client;
-use AzureOss\FlysystemAzureBlobStorage\AzureBlobStorageAdapter;
+use AzureOss\Storage\BlobFlysystem\AzureBlobStorageAdapter;
 use Cake\Core\Configure;
 use Cake\Http\Response;
 use Cake\Log\Log;

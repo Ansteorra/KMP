@@ -5,7 +5,7 @@ namespace App\Services;
 
 use App\Services\Storage\AzureBlobClientFactory;
 use Aws\S3\S3Client;
-use AzureOss\FlysystemAzureBlobStorage\AzureBlobStorageAdapter;
+use AzureOss\Storage\BlobFlysystem\AzureBlobStorageAdapter;
 use Cake\Core\Configure;
 use Cake\Log\Log;
 use Exception;

@@ -2,6 +2,17 @@ version: 2
 updates:
   - package-ecosystem: npm
     directories: ["/", "/app"]
+    groups:
+      babel-jest:
+        patterns:
+          - "@babel/*"
+          - "babel-jest"
+          - "babel-plugin-transform-import-meta"
+          - "jest"
+          - "jest-*"
+      stryker:
+        patterns:
+          - "@stryker-mutator/*"
     schedule:
       interval: weekly
   - package-ecosystem: composer
