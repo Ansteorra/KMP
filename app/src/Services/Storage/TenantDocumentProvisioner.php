@@ -5,7 +5,8 @@ namespace App\Services\Storage;
 
 use App\KMP\TenantMetadata;
 use App\Services\Platform\AdministrativeDatabase;
-use AzureOss\Storage\Common\Auth\TokenCredential;
+use AzureOss\Identity\TokenCredential;
+use AzureOss\Identity\TokenRequestContext;
 use Cake\Core\Configure;
 use Closure;
 use GuzzleHttp\Client;
@@ -20,7 +21,7 @@ final class TenantDocumentProvisioner
 {
     /**
      * @param \GuzzleHttp\Client|null $client Management HTTP client
-     * @param \AzureOss\Storage\Common\Auth\TokenCredential|null $credential Management credential
+     * @param \AzureOss\Identity\TokenCredential|null $credential Management credential
      * @param \Closure|null $createContainer Optional test container creator
      */
     public function __construct(
@@ -53,8 +54,9 @@ final class TenantDocumentProvisioner
                 'https://management.azure.com/',
             );
             $client = $this->client ?? new Client(['timeout' => 20, 'allow_redirects' => false]);
+            $token = $credential->getToken(new TokenRequestContext(['https://management.azure.com/.default']));
             $response = $client->put($grant['url'], [
-                RequestOptions::HEADERS => ['Authorization' => 'Bearer ' . $credential->getToken()->accessToken],
+                RequestOptions::HEADERS => ['Authorization' => 'Bearer ' . $token->token],
                 RequestOptions::JSON => $grant['body'],
                 RequestOptions::ALLOW_REDIRECTS => false,
             ]);

@@ -3,8 +3,9 @@ declare(strict_types=1);
 
 namespace App\Services\Storage;
 
-use AzureOss\Storage\Common\Auth\AccessToken;
-use AzureOss\Storage\Common\Auth\TokenCredential;
+use AzureOss\Identity\AccessToken;
+use AzureOss\Identity\TokenCredential;
+use AzureOss\Identity\TokenRequestContext;
 use DateTimeImmutable;
 use GuzzleHttp\Client;
 use GuzzleHttp\RequestOptions;
@@ -40,10 +41,15 @@ class AzureManagedIdentityTokenCredential implements TokenCredential
     /**
      * Fetch an access token for the configured Azure audience.
      *
-     * @return \AzureOss\Storage\Common\Auth\AccessToken
+     * @param \AzureOss\Identity\TokenRequestContext $context Requested OAuth scopes
+     * @return \AzureOss\Identity\AccessToken
      */
-    public function getToken(): AccessToken
+    public function getToken(TokenRequestContext $context): AccessToken
     {
+        if ($context->scopes !== [$this->resource . '.default']) {
+            throw new RuntimeException('Requested token scopes do not match the configured Azure audience.');
+        }
+
         $endpoint = getenv('IDENTITY_ENDPOINT') ?: getenv('MSI_ENDPOINT') ?: null;
         if (is_string($endpoint) && $endpoint !== '') {
             return $this->getTokenFromAppServiceEndpoint($endpoint);
@@ -56,7 +62,7 @@ class AzureManagedIdentityTokenCredential implements TokenCredential
      * Fetch a token from App Service/Container Apps managed identity endpoint.
      *
      * @param string $endpoint Identity endpoint URL
-     * @return \AzureOss\Storage\Common\Auth\AccessToken
+     * @return \AzureOss\Identity\AccessToken
      */
     private function getTokenFromAppServiceEndpoint(string $endpoint): AccessToken
     {
@@ -81,7 +87,7 @@ class AzureManagedIdentityTokenCredential implements TokenCredential
     /**
      * Fetch a token from the Azure Instance Metadata Service endpoint.
      *
-     * @return \AzureOss\Storage\Common\Auth\AccessToken
+     * @return \AzureOss\Identity\AccessToken
      */
     private function getTokenFromImds(): AccessToken
     {
@@ -103,7 +109,7 @@ class AzureManagedIdentityTokenCredential implements TokenCredential
     /**
      * @param array<string, string> $headers Request headers
      * @param array<string, string> $query Query parameters
-     * @return \AzureOss\Storage\Common\Auth\AccessToken
+     * @return \AzureOss\Identity\AccessToken
      */
     private function requestToken(string $endpoint, array $headers, array $query): AccessToken
     {
@@ -129,6 +135,6 @@ class AzureManagedIdentityTokenCredential implements TokenCredential
             throw new RuntimeException('Azure managed identity response did not include token expiry.');
         }
 
-        return new AccessToken($data['access_token'], $expiresAt);
+        return new AccessToken($data['access_token'], $expiresAt, 'Bearer');
     }
 }
