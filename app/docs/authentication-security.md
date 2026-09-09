@@ -5,6 +5,8 @@ title: Authentication security
 
 # Authentication security
 
+CakePHP Authentication 4 uses `MemberSession` first and a form authenticator with an explicit `KMPBruteForcePassword` identifier. Keep that identifier configured through `className`: it preserves account lockouts and eligibility checks, case-insensitive email lookup, and legacy password migration. Credential field constants belong to `PasswordIdentifier`; the removed identifier collection is not used.
+
 Member sessions store a versioned credential envelope containing the immutable tenant identifier, member identifier, credential epoch and issuance time. They do not store profile data or permission snapshots. Each authenticated request loads the current member from the resolved tenant database, checks account eligibility and compares the credential epoch. Missing tenant context, copied cookies from another tenant, legacy serialized sessions and revoked epochs fail closed. Database failures never fall back to cached identities.
 
 Password changes, completed password resets, email changes, account status changes and deletion rotate an opaque `auth_version` value. Existing reset links are invalidated on these security changes. All sessions and quick login PINs from the previous epoch stop working. Explicit `POST /members/revoke-sessions/{id}` performs the same revocation under the existing password-management authorization. Revoking yourself ends the current session. Revocation is effective on the next request; a request already executing can complete.
