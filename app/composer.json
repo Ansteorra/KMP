@@ -13,7 +13,7 @@
         "admad/cakephp-glide": "^7.0",
         "azure-oss/identity": "^1.0.4",
         "azure-oss/storage-blob-flysystem": "^2.2",
-        "cakephp/authentication": "^3.0",
+        "cakephp/authentication": "^4.2",
         "cakephp/authorization": "^3.1",
         "cakephp/cakephp": "5.4.1",
         "cakephp/migrations": "^5.1",
