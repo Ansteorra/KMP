@@ -47,7 +47,7 @@ class MemberSessionAuthenticatorTest extends TestCase
             $request = (new ServerRequest(['environment' => ['REQUEST_METHOD' => 'HEAD']]))
                 ->withAttribute('session', $session)
                 ->withAttribute('params', ['controller' => 'Health', 'action' => 'index']);
-            $authenticator = new MemberSessionAuthenticator(new IdentifierCollection());
+            $authenticator = new MemberSessionAuthenticator();
             $this->assertFalse($authenticator->authenticate($request)->isValid());
             $this->assertSame($state, $session->read('Auth'));
 
