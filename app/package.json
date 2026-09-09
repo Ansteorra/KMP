@@ -54,11 +54,14 @@
         "vite": "^6.3.1"
     },
     "dependencies": {
+        "@fontsource/cinzel": "5.3.0",
+        "@fontsource/crimson-pro": "5.3.0",
         "@fortawesome/fontawesome-free": "^7.2.0",
         "@hotwired/stimulus": "^3.2.2",
         "@hotwired/turbo": "^8.0.23",
         "@techstark/opencv-js": "^4.12.0-release.1",
         "bootstrap": "^5.3.8",
+        "bootstrap-icons": "1.11.3",
         "drawflow": "^0.0.60",
         "easymde": "^2.20.0",
         "face-api.js": "^0.22.2",

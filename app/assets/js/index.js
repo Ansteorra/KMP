@@ -1,3 +1,5 @@
+import { installOfflineFetchCapture } from './services/offline-fetch-service.js';
+import { reportOfflineSaveFailure } from './services/offline-runtime-service.js';
 import { startOfflineSessionObserver } from './services/offline-session-service.js';
 
 // export for others scripts to use
@@ -23,6 +25,7 @@ window.KMP_utils = KMP_utils;
 window.bootstrap = bootstrap;
 window.KMP_accessibility = KMP_accessibility;
 window.KMP_accessibility.installCakeConfirmAdapter();
+installOfflineFetchCapture(window, reportOfflineSaveFailure);
 const stimulusApp = Application.start();
 window.Stimulus = stimulusApp;
 

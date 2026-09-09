@@ -25,10 +25,12 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
 
 <div class="mobile-events-container" data-controller="mobile-calendar" data-section="events"
     data-mobile-calendar-year-value="<?= $defaultYear ?>" data-mobile-calendar-month-value="<?= $defaultMonth ?>"
-    data-mobile-calendar-data-url-value="<?= $this->Url->build(['action' => 'mobileCalendarData']) ?>"
+    data-mobile-calendar-data-url-value="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'mobileCalendarData']) ?>"
     data-mobile-calendar-rsvp-url-value="<?= h($rsvpUrl) ?>"
     data-mobile-calendar-unrsvp-url-value="<?= h($unrsvpUrl) ?>"
-    data-mobile-calendar-update-rsvp-url-value="<?= h($updateRsvpUrl) ?>" role="application" aria-label="Events list">
+    data-mobile-calendar-update-rsvp-url-value="<?= h($updateRsvpUrl) ?>" aria-label="Events list">
+
+    <?= $this->element('offline_rsvp_form') ?>
 
     <!-- Month Quick Navigation -->
     <div class="mobile-events-nav mx-3 mb-3">
@@ -39,7 +41,7 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
             </button>
 
             <div class="d-flex align-items-center gap-2">
-                <select class="form-select form-select-sm" data-mobile-calendar-target="monthSelect"
+                <select class="form-select form-select-sm" data-mobile-calendar-target="monthSelect" aria-label="Month"
                     data-action="change->mobile-calendar#jumpToMonth" style="width: auto;">
                     <option value="1">January</option>
                     <option value="2">February</option>
@@ -55,7 +57,7 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
                     <option value="12">December</option>
                 </select>
 
-                <select class="form-select form-select-sm" data-mobile-calendar-target="yearSelect"
+                <select class="form-select form-select-sm" data-mobile-calendar-target="yearSelect" aria-label="Year"
                     data-action="change->mobile-calendar#jumpToMonth" style="width: auto;">
                 </select>
             </div>
@@ -80,23 +82,23 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
             <span class="input-group-text bg-white border-end-0">
                 <i class="bi bi-search text-muted"></i>
             </span>
-            <input type="text" class="form-control border-start-0" placeholder="Search events..."
+            <input type="text" class="form-control border-start-0" placeholder="Search events..." aria-label="Search events"
                 data-mobile-calendar-target="searchInput" data-action="input->mobile-calendar#handleSearch">
             <button type="button" class="btn btn-outline-secondary" data-action="click->mobile-calendar#toggleFilters"
-                data-mobile-calendar-target="filterToggle" aria-label="Toggle filters">
+                data-mobile-calendar-target="filterToggle" aria-label="Toggle filters" aria-controls="event-filters" aria-expanded="false">
                 <i class="bi bi-funnel"></i>
             </button>
         </div>
     </div>
 
     <!-- Filter Panel (collapsible) -->
-    <div class="mobile-events-filters mx-3 mb-2" data-mobile-calendar-target="filterPanel" hidden>
+    <div class="mobile-events-filters mx-3 mb-2" data-mobile-calendar-target="filterPanel" id="event-filters" hidden>
         <div class="card">
             <div class="card-body py-2">
                 <!-- Event Type Filter -->
                 <div class="mb-2">
-                    <label class="form-label small mb-1">Event Type</label>
-                    <select class="form-select form-select-sm" data-mobile-calendar-target="typeFilter"
+                    <label for="event-typeFilter" class="form-label small mb-1">Event Type</label>
+                    <select class="form-select form-select-sm" data-mobile-calendar-target="typeFilter" id="event-typeFilter"
                         data-action="change->mobile-calendar#applyFilters">
                         <option value="">All Types</option>
                     </select>
@@ -104,8 +106,8 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
 
                 <!-- Activity Type Filter -->
                 <div class="mb-2">
-                    <label class="form-label small mb-1">Activity</label>
-                    <select class="form-select form-select-sm" data-mobile-calendar-target="activityFilter"
+                    <label for="event-activityFilter" class="form-label small mb-1">Activity</label>
+                    <select class="form-select form-select-sm" data-mobile-calendar-target="activityFilter" id="event-activityFilter"
                         data-action="change->mobile-calendar#applyFilters">
                         <option value="">All Activities</option>
                     </select>
@@ -113,8 +115,8 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
 
                 <!-- Branch Filter -->
                 <div class="mb-2">
-                    <label class="form-label small mb-1">Branch</label>
-                    <select class="form-select form-select-sm" data-mobile-calendar-target="branchFilter"
+                    <label for="event-branchFilter" class="form-label small mb-1">Branch</label>
+                    <select class="form-select form-select-sm" data-mobile-calendar-target="branchFilter" id="event-branchFilter"
                         data-action="change->mobile-calendar#applyFilters">
                         <option value="">All Branches</option>
                     </select>

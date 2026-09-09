@@ -6,11 +6,15 @@ Stay up to date with the latest features, improvements, and announcements for th
 <!-- LAST_SYNCED_COMMIT: 753e0047271639eeed7348f26dd9f1d6ac664321 -->
 <!-- LAST_SYNCED_DATE: 2026-08-11 -->
 
-## Unreleased — Security and privacy
+## Unreleased — Security, privacy, and trusted offline access
 
 - Member and platform sessions now refresh current account permissions and are revoked after security changes. Members can sign out all devices.
 - Private member fields, contact lookup, exports and attendance sharing now use the recipient's permissions and consent.
-- Offline authorization cards and RSVPs use encrypted storage with device unlock where supported or a strong offline passphrase. Online refresh is required within seven days.
+- Trust a personal device through a guided PIN or passkey setup with clear completion and offline-readiness messages. Existing quick-login PIN users receive guidance to sign in with their password and set up device unlock again.
+- Authorization cards, events, and RSVPs use the same mobile screens online and offline. Trusted devices keep approved information current automatically while connected; online refresh is required within seven days.
+- Offline RSVPs retain the member’s visibility choices and send after reconnection. Logging out locks encrypted saved information, which can be reopened with the device PIN or passkey even without internet.
+- Login switches cleanly between device unlock and email/password; offline login shows only device unlock. Signed-in pages avoid redundant unlock prompts, and connection updates appear once.
+- Account security actions share a guided, mobile-friendly dialog, and device messages use the configured short site title.
 - Invalid PDF uploads are rejected before a waiver becomes active, and diagnostic logging excludes sensitive request and document content.
 - Public nominations accept only supported submission fields and links to existing gatherings.
 - Dependency, container and deployment verification is strengthened, with separate runtime and administrative database/storage access.

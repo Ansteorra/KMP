@@ -85,10 +85,13 @@ if (
 ) { ?>
 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal"
     id='editModalBtn'>Edit</button>
-<button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal"
-    id='passwordModalBtn'>Change Password</button>
 <?php } ?>
-<?= $this->element('members/revokeSessions', ['member' => $member]) ?>
+<?php if ($user->can('changePassword', $member)) : ?>
+<button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#securityModal"
+    data-security-url="<?= h($this->Url->build(['controller' => 'Members', 'action' => 'security', $member->id])) ?>">
+    Security
+</button>
+<?php endif; ?>
 <?php if (!empty($user) && method_exists($user, 'isSuperUser') && $user->isSuperUser() && empty($impersonationState) && $user->id !== $member->id) : ?>
 <?= $this->Form->postLink(
         __('Impersonate Member'),
@@ -428,9 +431,7 @@ echo $this->KMP->startBlock('modals');
 echo $this->element('members/editModal', [
     'user' => $user,
 ]);
-echo $this->element('members/changePasswordModal', [
-    'user' => $user,
-]);
+echo $this->element('members/securityModal');
 echo $this->element('members/verifyMembershipModal', [
     'user' => $user,
     'needVerification' => $needVerification,

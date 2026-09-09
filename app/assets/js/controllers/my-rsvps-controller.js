@@ -1,3 +1,4 @@
+import vault from '../services/offline-vault-service.js';
 import MobileControllerBase from "./mobile-controller-base";
 import rsvpCacheService from "../services/rsvp-cache-service.js";
 
@@ -7,9 +8,15 @@ import rsvpCacheService from "../services/rsvp-cache-service.js";
  * Handles RSVP editing using the attendance modal on the My RSVPs page.
  */
 class MyRsvpsController extends MobileControllerBase {
-    static targets = ["modal", "modalBody", "actionButtons", "upcomingList", "pastList", "pastEmptyState", "upcomingCount", "pastCount"];
+    static targets = ["modal", "modalBody", "actionButtons", "upcomingList", "pastList", "pastEmptyState", "upcomingCount", "pastCount", "status"];
+    static values = { dataUrl: String };
 
     onConnect() {
+        this.onSavedOpen = () => this.loadRsvps();
+        window.addEventListener('kmp:offline-unlocked', this.onSavedOpen);
+        this.onSavedClear = () => { this.upcomingListTarget.replaceChildren(); this.pastListTarget.replaceChildren(); };
+        window.addEventListener('kmp:offline-revoked', this.onSavedClear);
+        this.loadRsvps();
         this.modal = null;
         this.currentGatheringId = null;
         
@@ -26,10 +33,96 @@ class MyRsvpsController extends MobileControllerBase {
         
         // Set up modal event listener
         if (this.hasModalTarget) {
-            this.modalTarget.addEventListener('hidden.bs.modal', () => {
-                this.onModalHidden();
-            });
+            this.onHidden = () => this.onModalHidden();
+            this.modalTarget.addEventListener('hidden.bs.modal', this.onHidden);
         }
+    }
+
+    async loadRsvps() {
+        if (!this.hasDataUrlValue || this.loadingRsvps) return;
+        this.loadingRsvps = true;
+        const generation = vault.generation;
+        try {
+            const response = await this.fetchWithRetry(this.dataUrlValue);
+            const body = await response.json();
+            if (generation !== vault.generation) return;
+            if (!body.success || !body.data) throw new Error('Unable to load your RSVPs.');
+            this.upcomingListTarget.replaceChildren(...body.data.upcoming.map(row => this.rsvpCard(row, false)));
+            this.pastListTarget.replaceChildren(...body.data.past.map(row => this.rsvpCard(row, true)));
+            for (const [target, title, message] of [
+                [this.upcomingListTarget, 'No Upcoming RSVPs', "You haven't RSVPed to any upcoming gatherings yet."],
+                [this.pastListTarget, 'No Past RSVPs', 'No past gatherings in the last 90 days.']
+            ]) {
+                if (!target.childElementCount) {
+                    const card = document.createElement('div'); card.className = 'card empty-state-card';
+                    const body = document.createElement('div'); body.className = 'card-body text-center py-4';
+                    const heading = document.createElement('h3'); heading.className = 'h5'; heading.textContent = title;
+                    const text = document.createElement('p'); text.className = 'text-muted'; text.textContent = message;
+                    body.append(heading, text); card.append(body); target.append(card);
+                }
+            }
+            this.updateBadgeCounts();
+            this.updateOnlineButtons();
+            this.statusTarget.textContent = response.headers?.get('X-KMP-Offline-Saved') ? 'Showing your last saved update.' : '';
+        } catch (error) {
+            if (this.hasStatusTarget) this.statusTarget.textContent = 'Connect and sign in to load your RSVPs.';
+        } finally { this.loadingRsvps = false; }
+    }
+
+    /** One event-card renderer for both the live API and the saved response. */
+    rsvpCard(row, past) {
+        const event = row.gathering;
+        const add = (parent, tag, cls, text) => {
+            const element = document.createElement(tag); element.className = cls; element.textContent = text;
+            parent.append(element); return element;
+        };
+        const card = document.createElement('article');
+        card.className = `mobile-event-card ${past ? 'past' : 'attending'} ${event.is_cancelled ? 'cancelled' : ''}`;
+        card.dataset.endDate = event.end_date;
+        if (event.is_cancelled) add(card, 'div', 'mobile-event-cancelled-banner', 'CANCELLED');
+        const header = add(card, 'div', 'mobile-event-header', '');
+        const info = add(header, 'div', 'mobile-event-info', '');
+        if (event.type) {
+            const badge = add(info, 'span', 'mobile-event-type-badge mb-1', event.type.name);
+            const color = /^#[a-f0-9]{6}$/i.test(event.type.color || '') ? event.type.color : '#6c757d';
+            const rgb = color.slice(1).match(/../g).map(hex => parseInt(hex, 16) / 255)
+                .map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+            badge.style.backgroundColor = color;
+            badge.style.color = rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722 > 0.179 ? '#000' : '#fff';
+        }
+        const name = add(info, 'a', 'mobile-event-name text-decoration-none online-only-btn', event.name);
+        name.href = `/gatherings/view/${encodeURIComponent(event.public_id)}`;
+        const date = new Date(event.start_date + 'T00:00:00');
+        add(info, 'div', 'mobile-event-meta', `${date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', ...(past ? { year: 'numeric' } : {}) })} ${past ? '' : event.start_time || ''}`);
+        add(info, 'div', 'mobile-event-meta', [event.branch, event.location].filter(Boolean).join(' · '));
+        const sharing = [row.sharing?.kingdom && 'Kingdom', row.sharing?.hosting_group && 'hosting group', row.sharing?.crown && 'Crown'].filter(Boolean);
+        if (sharing.length) add(info, 'div', 'mobile-event-meta', `Shared: ${sharing.join(', ')}`);
+        if (row.note) add(info, 'p', 'small mb-1', row.note);
+        if (row.pending_id) {
+            add(info, 'p', 'small mb-1', 'Waiting to send — saved on this device.');
+            const cancel = add(info, 'button', 'btn btn-outline-secondary btn-sm', 'Cancel waiting RSVP');
+            cancel.type = 'button'; cancel.dataset.requestId = row.pending_id; cancel.dataset.action = 'my-rsvps#cancelPending';
+        } else if (!past && !event.is_cancelled) {
+            const actions = add(info, 'div', 'mobile-event-actions-row mt-2', '');
+            if (event.public_page_enabled) {
+                const details = add(actions, 'a', 'btn btn-sm btn-outline-secondary online-only-btn', 'Details');
+                details.href = `/gatherings/public-landing/${encodeURIComponent(event.public_id)}?from=mobile`;
+            }
+            const edit = add(actions, 'button', 'btn btn-sm btn-outline-success online-only-btn', 'Edit');
+            edit.type = 'button'; edit.dataset.action = 'my-rsvps#editRsvp';
+            edit.dataset.gatheringId = event.id; edit.dataset.attendanceId = row.attendance_id;
+        }
+        if (!event.is_cancelled && !row.pending_id) {
+            const mark = add(header, 'i', `bi ${past ? 'bi-check-circle text-muted' : 'bi-check-circle-fill text-success'}`, '');
+            mark.setAttribute('aria-hidden', 'true');
+        }
+        return card;
+    }
+
+    async cancelPending(event) {
+        await rsvpCacheService.removePendingRsvp(event.currentTarget.dataset.requestId);
+        await this.loadRsvps();
+        window.KMP_accessibility.announce('Waiting RSVP cancelled.');
     }
 
     /**
@@ -147,24 +240,29 @@ class MyRsvpsController extends MobileControllerBase {
      */
     onConnectionStateChanged(isOnline) {
         this.updateOnlineButtons();
+        if (isOnline) this.loadRsvps();
     }
 
     /**
      * Update online-only buttons based on connection state
      */
     updateOnlineButtons() {
-        const buttons = this.element.querySelectorAll('.online-only-btn');
+        const buttons = this.element.querySelectorAll('.online-only-btn, #past-tab');
         buttons.forEach(btn => {
-            if (navigator.onLine) {
+            if (this.online) {
                 btn.classList.remove('disabled');
                 btn.style.opacity = '1';
                 btn.style.pointerEvents = 'auto';
                 btn.removeAttribute('aria-disabled');
+                if (btn.tagName === 'BUTTON') btn.disabled = false;
+                btn.removeAttribute('tabindex');
             } else {
                 btn.classList.add('disabled');
                 btn.style.opacity = '0.5';
                 btn.style.pointerEvents = 'none';
                 btn.setAttribute('aria-disabled', 'true');
+                if (btn.tagName === 'BUTTON') btn.disabled = true;
+                btn.tabIndex = -1;
             }
         });
     }
@@ -174,7 +272,7 @@ class MyRsvpsController extends MobileControllerBase {
      */
     async editRsvp(event) {
         // Don't allow editing when offline
-        if (!navigator.onLine) {
+        if (!this.online) {
             window.KMP_accessibility.announce('You need to be online to edit RSVPs.', { assertive: true });
             return;
         }
@@ -382,6 +480,9 @@ class MyRsvpsController extends MobileControllerBase {
     }
 
     onDisconnect() {
+        window.removeEventListener('kmp:offline-unlocked', this.onSavedOpen);
+        if (this.hasModalTarget && this.onHidden) this.modalTarget.removeEventListener('hidden.bs.modal', this.onHidden);
+        window.removeEventListener('kmp:offline-revoked', this.onSavedClear);
         if (this.modal) {
             this.modal.dispose();
             this.modal = null;

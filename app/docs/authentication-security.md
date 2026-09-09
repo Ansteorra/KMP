@@ -13,6 +13,31 @@ PIN enrollment requires a password-authenticated pending setup bound to tenant, 
 
 Password recovery returns the same success message and redirect for known, unknown and throttled accounts. Recovery mail always enters the asynchronous queue, including when general mail queuing is disabled; queue failures retain that public response and emit only a fixed failure event without account or token details. Issuance has a five-minute atomic account cooldown and a one-hour reset-link lifetime. Token consumption and password replacement are a single conditional database write, so concurrent redemption succeeds at most once. Registration links issued by the existing registration workflow remain supported with their existing expiry.
 
+## Member security controls
+
+A **Security** button in the member profile toolbar and below the mobile auth card
+opens the shared Bootstrap dialog. Its private Turbo Frame loads only while open
+and is cleared on close. Opening `/members/security/{id}` requires the existing
+`changePassword` authority for that member; another member’s URL grants no access.
+Direct navigation returns to the profile. The guided actions explain password
+change/reset and signing out all devices before the final POST. Only the account
+owner sees **Sign out this device**. Keyboard focus moves to each step’s heading
+and returns to the opener when the dialog closes. The existing quick-login device
+review tab remains on the profile, with its existing permission checks.
+
+Password login remains available. Browsers with an old quick PIN configuration retire
+that configuration and explain that online password sign-in is required before
+setting up a new PIN or passkey. New
+**Trust this personal device** setup verifies the KMP password, then encrypts the
+saved login and offline data behind a device PIN or passkey. The same local unlock
+works on the normal login page and in the offline mobile app. An unlocked copy
+can restore the normal server session using its saved password and fresh login
+form tokens. Logout ends server authentication and locks all local tabs while
+preserving the encrypted copy. Explicit device removal and credential revocation
+remove it. See [trusted device storage and boundaries](protected-offline-access.md).
+Public health probes skip member
+authentication so a connectivity check cannot destroy a valid tenant session.
+
 ## Shared throttles
 
 `security_rate_limits` stores only keyed digests, counters and expiry timestamps. Multitenant requests use the platform database with immutable tenant namespaces; single-tenant requests use the default database. Platform actions use a separate namespace. No replica-local cache or Redis service is required. A counter-store outage fails closed with a service-unavailable response before protected work. Expired rows are removed after a day.
@@ -40,4 +65,4 @@ Apply `20260905090000_AddPlatformAuthenticationState` to the platform database a
 
 Do not roll back to the vulnerable session implementation after issuing new sessions. Coordinate any rollback with a session purge and forward security fix. No production migration or credential changes are performed by the repository tests.
 
-Targeted PHPUnit coverage is in `MemberSessionAuthenticatorTest`, `MemberSecurityLifecycleTest`, `PasswordRecoveryDispatchHttpTest`, `MembersQuickLoginSetupTest`, `ServicePrincipalHeaderTest`, `RequestRateLimiterTest`, `PlatformTotpChallengeServiceTest`, `PlatformAdminRecoveryServiceTest`, `PlatformAdminPortalTest` and `TenantResolutionMiddlewareTest`. Run these with the repository test database, never against production. Explicit logout and self-revocation send `X-KMP-Offline-Clear: 1` for the offline session observer.
+Targeted PHPUnit coverage is in `MemberSessionAuthenticatorTest`, `MemberSecurityLifecycleTest`, `PasswordRecoveryDispatchHttpTest`, `MembersQuickLoginSetupTest`, `ServicePrincipalHeaderTest`, `RequestRateLimiterTest`, `PlatformTotpChallengeServiceTest`, `PlatformAdminRecoveryServiceTest`, `PlatformAdminPortalTest` and `TenantResolutionMiddlewareTest`. Run these with the repository test database, never against production. Logout sends `X-KMP-Offline-Lock: 1`; self-revocation sends `X-KMP-Offline-Clear: 1`. Both have host-only cookie signals for redirect delivery.

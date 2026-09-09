@@ -1,8 +1,10 @@
+import { shortSiteTitle } from '../services/app-branding-service.js';
 import { Controller } from "@hotwired/stimulus";
 import QuickLoginService from "../services/quick-login-service.js";
 
 class LoginDeviceAuthController extends Controller {
     static targets = [
+        "passwordLogin", "deviceExperience", "deviceSwitch", "offlineNotice", "migrationNotice",
         "passwordExperience",
         "quickExperience",
         "passwordForm",
@@ -28,6 +30,8 @@ class LoginDeviceAuthController extends Controller {
     ];
 
     initialize() {
+        this.deviceAvailable = null;
+        this.loginChoice = new URLSearchParams(location.search).get("method") === "password" ? "password" : null;
         this.deviceId = null;
         this.quickConfig = null;
         this.loginMode = "password";
@@ -39,12 +43,17 @@ class LoginDeviceAuthController extends Controller {
 
     connect() {
         this.deviceId = QuickLoginService.getOrCreateDeviceId();
-        this.quickConfig = this.getQuickConfigForDevice();
+        if (this.hasPasswordLoginTarget) QuickLoginService.beginPinMigration();
+        this.quickConfig = this.hasPasswordLoginTarget ? null : this.getQuickConfigForDevice();
         this.handleServerQuickLoginDisabled();
         this.applyDeviceId();
         this.initializeLoginMode();
         this.syncQuickPreference();
         this.syncEmail();
+        this.connectionChanged = () => this.renderLoginMethods();
+        window.addEventListener("online", this.connectionChanged);
+        window.addEventListener("offline", this.connectionChanged);
+        this.renderLoginMethods();
 
         if (this.hasPasswordFormTarget) {
             this.passwordFormTarget.addEventListener("submit", this._passwordSubmitHandler);
@@ -58,6 +67,8 @@ class LoginDeviceAuthController extends Controller {
     }
 
     disconnect() {
+        window.removeEventListener("online", this.connectionChanged);
+        window.removeEventListener("offline", this.connectionChanged);
         if (this.hasPasswordFormTarget) {
             this.passwordFormTarget.removeEventListener("submit", this._passwordSubmitHandler);
         }
@@ -67,6 +78,63 @@ class LoginDeviceAuthController extends Controller {
         if (this.hasPinSetupFormTarget) {
             this.pinSetupFormTarget.removeEventListener("submit", this._pinSetupSubmitHandler);
         }
+    }
+
+    deviceAvailability(event) {
+        this.deviceAvailable = event.detail.available;
+        if (this.deviceAvailable) QuickLoginService.completePinMigration();
+        this.renderLoginMethods();
+    }
+
+    /** Only one sign-in method is visible; password sign-in requires a connection. */
+    renderLoginMethods() {
+        if (!this.hasPasswordLoginTarget) return;
+        const online = navigator.onLine;
+        if (this.hasMigrationNoticeTarget) {
+            this.migrationNoticeTarget.hidden = this.deviceAvailable !== false || !QuickLoginService.needsPinMigration();
+        }
+        const passwordHadFocus = this.passwordLoginTarget.contains(document.activeElement);
+        const wasPassword = this.element.dataset.loginMethod === "password";
+        if (!online) this.loginChoice = "device";
+        const device = !online || (this.deviceAvailable && this.loginChoice !== "password");
+        this.element.dataset.loginMethod = device ? "device" : "password";
+        this.passwordLoginTarget.hidden = !online || this.deviceAvailable === null || device;
+        this.deviceExperienceTarget.hidden = online && !device;
+        this.deviceSwitchTarget.hidden = !online || !this.deviceAvailable;
+        this.offlineNoticeTarget.hidden = online;
+        this.offlineNoticeTarget.textContent = this.deviceAvailable
+            ? `You’re offline. Use your PIN or passkey to unlock ${shortSiteTitle()}.`
+            : "You’re offline. Connect to sign in and set up device unlock.";
+        if (this.passwordLoginTarget.hidden && wasPassword) this.clearPasswordEntries();
+        if (!online && passwordHadFocus) this.focusDeviceUnlock();
+    }
+
+    clearPasswordEntries() {
+        this.passwordLoginTarget.querySelectorAll('input[type="password"]').forEach(input => { input.value = ""; });
+    }
+
+    focusDeviceUnlock() {
+        const control = this.deviceExperienceTarget.querySelector('[data-offline-access-target="unlockPin"]:not([disabled])')
+            || this.deviceExperienceTarget.querySelector('[data-offline-access-target="unlockButton"]');
+        if (this.deviceAvailable && control) control.focus();
+        else this.offlineNoticeTarget.focus();
+    }
+
+    showPasswordLogin(event) {
+        event.preventDefault();
+        if (!navigator.onLine) { this.renderLoginMethods(); return; }
+        this.loginChoice = "password";
+        this.switchToPassword(event);
+        this.renderLoginMethods();
+        this.emailTarget.focus();
+    }
+
+    switchToDevice(event) {
+        event.preventDefault();
+        this.loginChoice = "device";
+        this.clearPasswordEntries();
+        this.renderLoginMethods();
+        this.focusDeviceUnlock();
     }
 
     applyDeviceId() {
@@ -241,7 +309,8 @@ class LoginDeviceAuthController extends Controller {
         }
     }
 
-    handlePasswordSubmit() {
+    handlePasswordSubmit(event) {
+        if (!navigator.onLine) { event?.preventDefault(); this.renderLoginMethods(); return; }
         const email = this.currentEmail();
         const quickSelected = this.hasQuickEnableTarget && this.quickEnableTarget.checked;
         if (quickSelected) {
@@ -260,7 +329,8 @@ class LoginDeviceAuthController extends Controller {
         }
     }
 
-    handleQuickSubmit() {
+    handleQuickSubmit(event) {
+        if (!navigator.onLine) { event?.preventDefault(); this.renderLoginMethods(); return; }
         const email = this.quickConfig ? this.quickConfig.email : this.currentEmail();
         if (this.hasQuickEmailTarget) {
             this.quickEmailTarget.value = email;

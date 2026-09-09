@@ -5,18 +5,18 @@ export async function privateJson(path, options = {}) {
     const url = new URL(path, location.origin);
     if (url.origin !== location.origin) throw new Error('Invalid offline request.');
     const { expectedContext, ...requestOptions } = options;
-    const response = await fetch(url.href, { ...requestOptions, credentials: 'same-origin', cache: 'no-store', redirect: 'manual',
+    const response = await fetch(url.href, { ...requestOptions, kmpOfflineCapture: false, credentials: 'same-origin', cache: 'no-store', redirect: 'manual',
         signal: requestOptions.signal || AbortSignal.timeout?.(30000),
         headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', ...options.headers } });
     if (response.type === 'opaqueredirect' || response.redirected || response.status === 401 || response.status === 403 || response.headers.get('X-KMP-Offline-Clear') === '1') {
-        await vault.clear();
+        if (response.headers.get('X-KMP-Offline-Clear') === '1' || (await vault.metadata())?.wrapper.method !== 'trusted') await vault.clear();
         throw new Error('Sign in online to continue.');
     }
+    if (!response.ok || !response.headers.get('Content-Type')?.includes('application/json')) throw new Error('Unable to refresh. Sign in online and retry.');
     if (expectedContext && (response.headers.get('X-KMP-Offline-Owner') !== expectedContext.owner || response.headers.get('X-KMP-Offline-Epoch') !== expectedContext.epoch)) {
         await vault.clear();
         throw new Error('Account changed during refresh. Sign in again.');
     }
-    if (!response.ok || !response.headers.get('Content-Type')?.includes('application/json')) throw new Error('Unable to refresh. Sign in online and retry.');
     return response.json();
 }
 
@@ -24,6 +24,12 @@ export async function currentOfflineContext() {
     const response = await privateJson('/offline/context');
     if (response.success !== true || !response.data?.owner || !response.data?.epoch) throw new Error('Sign in online to continue.');
     return vault.verifyContext(response.data);
+}
+
+let lastRequestTime = 0;
+export function offlineRequestTime() {
+    lastRequestTime = Math.max(Date.now(), lastRequestTime + 1);
+    return lastRequestTime;
 }
 
 const text = (value, max = 250) => typeof value === 'string' ? value.slice(0, max) : '';
@@ -34,6 +40,7 @@ export function projectCard(response) {
         first_name: text(member.first_name), last_name: text(member.last_name), sca_name: text(member.sca_name),
         branch: text(member.branch?.name), membership_number: text(member.membership_number),
         membership_expires_on: text(member.membership_expires_on), background_check_expires_on: text(member.background_check_expires_on),
+        can_share_rsvp_with_kingdom: member.can_share_rsvp_with_kingdom === true,
         sections: []
     };
     // Plugins opt in with a portable text-only offline_sections DTO. Unknown plugin fields are excluded.
@@ -53,6 +60,9 @@ export function projectCard(response) {
 export function projectEvent(event) {
     return { gathering_id: Number(event.gathering_id ?? event.id), public_id: text(event.public_id), name: text(event.name),
         start_date: text(event.start_date), start_time: text(event.start_time), end_date: text(event.end_date),
+        type: event.type ? { name: text(event.type.name), color: /^#[a-f0-9]{6}$/i.test(event.type.color || '') ? event.type.color : '#6c757d' } : null,
+        activities: (Array.isArray(event.activities) ? event.activities : []).slice(0, 50).map(activity => ({ name: text(activity.name) })),
+        public_page_enabled: !!event.public_page_enabled,
         location: text(event.location, 1000), branch: text(event.branch), is_cancelled: event.is_cancelled === true,
         attendance_id: Number(event.attendance_id) || null, user_attending: !!event.user_attending,
         share_with_kingdom: !!event.share_with_kingdom, share_with_hosting_group: !!event.share_with_hosting_group,
@@ -63,7 +73,8 @@ async function thumbnail(url, context) {
     if (!url) return null;
     const photoUrl = new URL(url, location.origin);
     if (photoUrl.origin !== location.origin || !photoUrl.pathname.endsWith('/members/mobile-card-photo')) return null;
-    const response = await fetch(photoUrl.href, { cache: 'no-store', credentials: 'same-origin', redirect: 'error' });
+    const response = await fetch(photoUrl.href, { cache: 'no-store', credentials: 'same-origin', redirect: 'error',
+        signal: AbortSignal.timeout?.(4000) });
     if (!response.ok) return null;
     if (response.headers.get('X-KMP-Offline-Owner') !== context.owner || response.headers.get('X-KMP-Offline-Epoch') !== context.epoch) {
         await vault.clear();
@@ -82,10 +93,19 @@ async function thumbnail(url, context) {
     } finally { bitmap.close(); }
 }
 
+export function projectRsvps(response) {
+    return [...response.data.upcoming, ...response.data.past].map(item => projectEvent({ ...item.gathering,
+        attendance_id: item.attendance_id, user_attending: true, public_note: item.note,
+        share_with_kingdom: item.sharing.kingdom, share_with_hosting_group: item.sharing.hosting_group,
+        share_with_crown: item.sharing.crown }));
+}
+
 export async function refreshOfflineSnapshot() {
     const context = await currentOfflineContext();
     if (!vault.key) throw new Error('Unlock offline access first.');
+    const resourceTimes = { card: offlineRequestTime() };
     const cardResponse = await privateJson('/members/view-mobile-card-json', { expectedContext: context });
+    resourceTimes.rsvps = offlineRequestTime();
     const own = await privateJson('/gathering-attendances/my-rsvps', { expectedContext: context });
     if (!own.success) throw new Error('Unable to refresh RSVPs.');
     const card = projectCard(cardResponse);
@@ -95,14 +115,13 @@ export async function refreshOfflineSnapshot() {
         const date = new Date(context.serverTime);
         date.setDate(1); date.setMonth(date.getMonth() + offset);
         const scope = `${date.getFullYear()}-${date.getMonth() + 1}`;
+        resourceTimes[`month:${scope}`] = offlineRequestTime();
         const result = await privateJson(`/gatherings/mobile-calendar-data?year=${date.getFullYear()}&month=${date.getMonth() + 1}`, { expectedContext: context });
         if (!result.success || !Array.isArray(result.data?.events)) throw new Error('Unable to refresh the event list.');
         months[scope] = result.data.events.map(projectEvent);
     }
-    const rsvps = [...(own.data.upcoming || []), ...(own.data.past || [])].map(item => projectEvent({ ...item.gathering,
-        attendance_id: item.attendance_id, user_attending: true, public_note: item.note,
-        share_with_kingdom: item.sharing.kingdom, share_with_hosting_group: item.sharing.hosting_group, share_with_crown: item.sharing.crown }));
+    const rsvps = projectRsvps(own);
     // Check again after collecting responses: another tab may have changed the login during the fetches.
     await currentOfflineContext();
-    await vault.refresh(context, { card, months, rsvps });
+    await vault.refresh(context, { card, months, rsvps, resourceTimes });
 }

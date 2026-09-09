@@ -20,6 +20,15 @@ class HealthControllerTest extends HttpIntegrationTestCase
         $this->assertTrue($payload['cache']);
     }
 
+    public function testReadinessDoesNotInvalidateAnExistingTenantSession(): void
+    {
+        $state = ['version' => 1, 'tenant_id' => 'tenant-a', 'member_id' => self::ADMIN_MEMBER_ID, 'auth_version' => 'epoch-a'];
+        $this->session(['Auth' => $state]);
+        $this->get('/health');
+        $this->assertResponseOk();
+        $this->assertSession($state, 'Auth');
+    }
+
     public function testHealthRejectsRedisFallbackToLocalCacheOrSessions(): void
     {
         $originalCacheRuntime = Configure::read('Platform.runtime.cache');

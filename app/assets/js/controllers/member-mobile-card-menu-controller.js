@@ -32,6 +32,15 @@ class MemberMobileCardMenu extends MobileControllerBase {
         console.log("MemberMobileCardMenu connected");
         this.loadMenuItems();
         this.renderMenu();
+        if (this.hasMenuTarget && this.hasFabTarget) {
+            this.menuTarget.id ||= `mobile-menu-${crypto.randomUUID()}`;
+            this.fabTarget.setAttribute('aria-controls', this.menuTarget.id);
+            this.fabTarget.setAttribute('aria-expanded', 'false');
+        }
+        this._handleEscape = event => {
+            if (event.key === 'Escape' && this.menuOpen) { this.closeMenu(); this.fabTarget.focus(); }
+        };
+        document.addEventListener('keydown', this._handleEscape);
         
         // Register outside click handler
         this._handleOutsideClick = this.bindHandler('outsideClick', this.handleOutsideClick);
@@ -57,6 +66,8 @@ class MemberMobileCardMenu extends MobileControllerBase {
      * Called after base class disconnect
      */
     onDisconnect() {
+        document.removeEventListener('keydown', this._handleEscape);
+        clearTimeout(this.menuTimer);
         document.removeEventListener('click', this._handleOutsideClick);
         document.removeEventListener('touchstart', this._handleOutsideClick);
         document.removeEventListener('connection-status-changed', this._handleConnectionStatus);
@@ -113,7 +124,6 @@ class MemberMobileCardMenu extends MobileControllerBase {
         button.className = `btn btn-${item.color || 'primary'} btn-lg w-100 mb-2 d-flex align-items-center justify-content-between mobile-menu-item`;
         button.setAttribute('data-member-mobile-card-menu-target', 'menuItem');
         button.setAttribute('data-action', 'click->member-mobile-card-menu#closeMenu');
-        button.setAttribute('role', 'button');
         button.setAttribute('aria-label', item.label);
         
         // Store the item data for offline state management
@@ -174,6 +184,8 @@ class MemberMobileCardMenu extends MobileControllerBase {
     openMenu() {
         if (!this.hasMenuTarget) return;
 
+        clearTimeout(this.menuTimer);
+        if (this.hasFabTarget) this.fabTarget.setAttribute('aria-expanded', 'true');
         this.menuOpen = true;
         this.menuTarget.hidden = false;
         
@@ -186,7 +198,7 @@ class MemberMobileCardMenu extends MobileControllerBase {
         }
 
         // Remove animation class after animation completes
-        setTimeout(() => {
+        this.menuTimer = setTimeout(() => {
             this.menuTarget.classList.remove('menu-opening');
         }, 300);
     }
@@ -198,6 +210,8 @@ class MemberMobileCardMenu extends MobileControllerBase {
     closeMenu() {
         if (!this.hasMenuTarget) return;
 
+        clearTimeout(this.menuTimer);
+        if (this.hasFabTarget) this.fabTarget.setAttribute('aria-expanded', 'false');
         this.menuOpen = false;
         
         // Add closing animation class
@@ -209,7 +223,7 @@ class MemberMobileCardMenu extends MobileControllerBase {
         }
 
         // Hide after animation completes
-        setTimeout(() => {
+        this.menuTimer = setTimeout(() => {
             this.menuTarget.hidden = true;
             this.menuTarget.classList.remove('menu-closing');
         }, 300);
@@ -246,14 +260,14 @@ class MemberMobileCardMenu extends MobileControllerBase {
         if (!this.hasMenuItemTarget) return;
 
         // Items that should remain enabled when offline
-        const offlineAllowedLabels = ['Auth Card', 'My RSVPs'];
+        const offlineAllowedLabels = ['Auth Card', 'My RSVPs', 'Events'];
 
         this.menuItemTargets.forEach(item => {
             const itemUrl = item.dataset.itemUrl;
             const itemLabel = item.dataset.itemLabel;
             
             // Check if this item should be allowed offline
-            const isAllowedOffline = offlineAllowedLabels.includes(itemLabel) || 
+            const isAllowedOffline = /\/(?:members\/view-mobile-card|gathering-attendances\/my-rsvps|gatherings\/mobile-calendar)\/?$/.test(new URL(itemUrl || '/', location.origin).pathname) || offlineAllowedLabels.includes(itemLabel) ||
                               (this.authCardUrl && itemUrl && itemUrl.includes('viewMobileCard'));
             
             if (!this.online && !isAllowedOffline) {

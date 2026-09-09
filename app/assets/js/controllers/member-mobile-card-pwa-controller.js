@@ -71,6 +71,7 @@ class MemberMobileCardPWA extends MobileControllerBase {
         
         const statusEl = this.statusTarget;
         
+        statusEl.setAttribute('aria-label', isOnline ? 'Online' : 'Offline');
         if (isOnline) {
             statusEl.title = 'Online';
             statusEl.classList.remove('bg-danger');
@@ -117,9 +118,9 @@ class MemberMobileCardPWA extends MobileControllerBase {
 
         const previous = this.online;
         MobileControllerBase.setOnlineState(isOnline, true);
-        this.updateStatusDisplay(isOnline);
-        if (previous !== isOnline) {
-            this.dispatchStatusEvent(isOnline ? 'online' : 'offline');
+        this.updateStatusDisplay(this.online);
+        if (previous !== this.online) {
+            this.dispatchStatusEvent(this.online ? 'online' : 'offline');
         }
     }
 

@@ -1110,3 +1110,94 @@ describe('LoginDeviceAuthController', () => {
     });
   });
 });
+
+describe('device unlock and password views', () => {
+  let controller;
+  beforeEach(() => {
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    document.body.innerHTML = `<main><section id="device"><form>
+      <input data-offline-access-target="unlockPin" type="password">
+      <button data-offline-access-target="unlockButton">Unlock KMP</button></form></section>
+      <section id="password"><button id="switch">Use device unlock</button>
+      <input id="email" type="email"><input id="secret" type="password"></section>
+      <p id="offline" tabindex="-1"></p></main>`;
+    controller = new LoginDeviceAuthController();
+    controller.element = document.querySelector('main');
+    controller.initialize();
+    controller.hasPasswordLoginTarget = true;
+    controller.passwordLoginTarget = document.querySelector('#password');
+    controller.deviceExperienceTarget = document.querySelector('#device');
+    controller.deviceSwitchTarget = document.querySelector('#switch');
+    controller.offlineNoticeTarget = document.querySelector('#offline');
+    controller.emailTarget = document.querySelector('#email');
+    controller.switchToPassword = jest.fn();
+    controller.deviceAvailability({ detail: { available: true } });
+  });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  test('switches between mutually exclusive views and clears passwords on return', () => {
+    expect(controller.passwordLoginTarget.hidden).toBe(true);
+    controller.showPasswordLogin({ preventDefault: jest.fn() });
+    expect(controller.passwordLoginTarget.hidden).toBe(false);
+    expect(controller.deviceExperienceTarget.hidden).toBe(true);
+    expect(controller.emailTarget).toHaveFocus();
+    document.querySelector('#secret').value = 'temporary input';
+    controller.switchToDevice({ preventDefault: jest.fn() });
+    expect(controller.deviceExperienceTarget.hidden).toBe(false);
+    expect(controller.passwordLoginTarget.hidden).toBe(true);
+    expect(document.querySelector('#secret').value).toBe('');
+    expect(document.querySelector('[data-offline-access-target=unlockPin]')).toHaveFocus();
+  });
+
+  test('losing connection switches away from passwords and preserves a usable focus', () => {
+    controller.showPasswordLogin({ preventDefault: jest.fn() });
+    document.querySelector('#secret').value = 'temporary input';
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    controller.renderLoginMethods();
+    expect(controller.passwordLoginTarget.hidden).toBe(true);
+    expect(controller.deviceSwitchTarget.hidden).toBe(true);
+    expect(controller.offlineNoticeTarget.hidden).toBe(false);
+    expect(document.querySelector('#secret').value).toBe('');
+    expect(document.querySelector('[data-offline-access-target=unlockPin]')).toHaveFocus();
+    controller.showPasswordLogin({ preventDefault: jest.fn() });
+    expect(controller.passwordLoginTarget.hidden).toBe(true);
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    controller.renderLoginMethods();
+    expect(controller.passwordLoginTarget.hidden).toBe(true);
+  });
+
+  test('a browser without trust offers only online sign-in and an offline explanation', () => {
+    controller.deviceAvailability({ detail: { available: false } });
+    expect(controller.passwordLoginTarget.hidden).toBe(false);
+    expect(controller.deviceExperienceTarget.hidden).toBe(true);
+    expect(controller.deviceSwitchTarget.hidden).toBe(true);
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    controller.renderLoginMethods();
+    expect(controller.passwordLoginTarget.hidden).toBe(true);
+    expect(controller.offlineNoticeTarget.textContent).toContain('Connect to sign in');
+  });
+
+  test('legacy migration notice survives offline switching and clears for modern device unlock', () => {
+    localStorage.setItem(QuickLoginService.storageKeys.pinMigration, '1');
+    controller.hasMigrationNoticeTarget = true;
+    controller.migrationNoticeTarget = document.createElement('div');
+    controller.deviceAvailability({ detail: { available: false } });
+    expect(controller.migrationNoticeTarget.hidden).toBe(false);
+    expect(controller.passwordLoginTarget.hidden).toBe(false);
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    controller.renderLoginMethods();
+    expect(controller.migrationNoticeTarget.hidden).toBe(false);
+    expect(controller.passwordLoginTarget.hidden).toBe(true);
+    controller.deviceAvailability({ detail: { available: true } });
+    expect(controller.migrationNoticeTarget.hidden).toBe(true);
+    expect(QuickLoginService.needsPinMigration()).toBe(false);
+  });
+
+  test('offline password and legacy PIN form submissions are blocked', () => {
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    const event = { preventDefault: jest.fn() };
+    controller.handlePasswordSubmit(event);
+    controller.handleQuickSubmit(event);
+    expect(event.preventDefault).toHaveBeenCalledTimes(2);
+  });
+});

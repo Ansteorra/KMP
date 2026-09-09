@@ -173,6 +173,7 @@ $this->KMP->endBlock();
 
 <head>
     <?= $this->Html->charset() ?>
+    <meta name="kmp-short-site-title" content="<?= h($this->KMP->getAppSetting('KMP.ShortSiteTitle')) ?>">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title><?= h($this->fetch("title")) ?></title>
     <script>
@@ -226,6 +227,9 @@ if (!empty($impersonationState)) {
         </div>
     </div>
 <?php
+}
+if ($this->request->getAttribute('identity')) {
+    echo $this->element('offline_access');
 }
 if ($this->fetch("main_content_wrapped")) {
     echo $this->fetch("content");

@@ -11,7 +11,6 @@ use Cake\Database\Exception\QueryException;
 use Cake\Http\Response;
 use Cake\I18n\DateTime as CakeDateTime;
 use Cake\Log\Log;
-use Cake\Routing\Router;
 use DateTime;
 use DateTimeZone;
 use Exception;
@@ -413,9 +412,9 @@ class GatheringAttendancesController extends AppController
             'gathering_id' => $data['gathering_id'],
             'member_id' => $currentUser->id,
             'is_public' => '0',
-            'share_with_kingdom' => false,
-            'share_with_hosting_group' => false,
-            'share_with_crown' => false,
+            'share_with_kingdom' => in_array($data['share_with_kingdom'] ?? false, [true, 1, '1'], true),
+            'share_with_hosting_group' => in_array($data['share_with_hosting_group'] ?? false, [true, 1, '1'], true),
+            'share_with_crown' => in_array($data['share_with_crown'] ?? false, [true, 1, '1'], true),
             'public_note' => null,
             'created_by' => $currentUser->id,
         ]);
@@ -534,6 +533,12 @@ class GatheringAttendancesController extends AppController
     public function myRsvps()
     {
         $this->response = OfflineIdentity::bind($this->response, $this->request);
+        if (!$this->wantsJson()) {
+            $this->set('authCardUrl', '/members/view-mobile-card');
+            $this->viewBuilder()->setLayout('mobile_app');
+
+            return;
+        }
         $currentUser = $this->Authentication->getIdentity();
 
         // Use user's timezone for accurate "today" comparison
@@ -573,84 +578,74 @@ class GatheringAttendancesController extends AppController
             ->order(['Gatherings.start_date' => 'DESC'])
             ->all();
 
-        if ($this->wantsJson()) {
-            $data = ['upcoming' => [], 'past' => []];
-            $userTimezone = TimezoneHelper::getUserTimezone($currentUser);
+        $data = ['upcoming' => [], 'past' => []];
+        $userTimezone = TimezoneHelper::getUserTimezone($currentUser);
 
-            foreach ($upcomingAttendances as $attendance) {
-                $gathering = $attendance->gathering;
-                $startLocal = TimezoneHelper::toUserTimezone($gathering->start_date, $userTimezone);
-                $endLocal = TimezoneHelper::toUserTimezone($gathering->end_date, $userTimezone);
+        foreach ($upcomingAttendances as $attendance) {
+            $gathering = $attendance->gathering;
+            $startLocal = TimezoneHelper::toUserTimezone($gathering->start_date, $userTimezone);
+            $endLocal = TimezoneHelper::toUserTimezone($gathering->end_date, $userTimezone);
 
-                $data['upcoming'][] = [
-                    'attendance_id' => $attendance->id,
-                    'gathering' => [
-                        'id' => $gathering->id,
-                        'public_id' => $gathering->public_id,
-                        'name' => $gathering->name,
-                        'start_date' => $startLocal->format('Y-m-d'),
-                        'start_time' => $startLocal->format('H:i'),
-                        'end_date' => $endLocal->format('Y-m-d'),
-                        'location' => $gathering->location,
-                        'is_cancelled' => $gathering->cancelled_at !== null,
-                        'branch' => $gathering->branch ? $gathering->branch->name : null,
-                        'type' => $gathering->gathering_type ? [
-                            'name' => $gathering->gathering_type->name,
-                            'color' => $gathering->gathering_type->color,
-                        ] : null,
-                    ],
-                    'sharing' => [
-                        'kingdom' => $attendance->share_with_kingdom,
-                        'hosting_group' => $attendance->share_with_hosting_group,
-                        'crown' => $attendance->share_with_crown,
-                    ],
-                    'note' => $attendance->public_note,
-                ];
-            }
-
-            foreach ($pastAttendances as $attendance) {
-                $gathering = $attendance->gathering;
-                $startLocal = TimezoneHelper::toUserTimezone($gathering->start_date, $userTimezone);
-                $endLocal = TimezoneHelper::toUserTimezone($gathering->end_date, $userTimezone);
-
-                $data['past'][] = [
-                    'attendance_id' => $attendance->id,
-                    'gathering' => [
-                        'id' => $gathering->id,
-                        'public_id' => $gathering->public_id,
-                        'name' => $gathering->name,
-                        'start_date' => $startLocal->format('Y-m-d'),
-                        'start_time' => $startLocal->format('H:i'),
-                        'end_date' => $endLocal->format('Y-m-d'),
-                        'location' => $gathering->location,
-                        'is_cancelled' => $gathering->cancelled_at !== null,
-                        'branch' => $gathering->branch ? $gathering->branch->name : null,
-                        'type' => $gathering->gathering_type ? [
-                            'name' => $gathering->gathering_type->name,
-                            'color' => $gathering->gathering_type->color,
-                        ] : null,
-                    ],
-                    'sharing' => [
-                        'kingdom' => $attendance->share_with_kingdom,
-                        'hosting_group' => $attendance->share_with_hosting_group,
-                        'crown' => $attendance->share_with_crown,
-                    ],
-                    'note' => $attendance->public_note,
-                ];
-            }
-
-            return $this->jsonResponse(['success' => true, 'data' => $data]);
+            $data['upcoming'][] = [
+                'attendance_id' => $attendance->id,
+                'gathering' => [
+                    'id' => $gathering->id,
+                    'public_id' => $gathering->public_id,
+                    'name' => $gathering->name,
+                    'start_date' => $startLocal->format('Y-m-d'),
+                    'start_time' => $startLocal->format('H:i'),
+                    'end_date' => $endLocal->format('Y-m-d'),
+                    'location' => $gathering->location,
+                    'is_cancelled' => $gathering->cancelled_at !== null,
+                    'public_page_enabled' => (bool)$gathering->public_page_enabled,
+                    'branch' => $gathering->branch ? $gathering->branch->name : null,
+                    'type' => $gathering->gathering_type ? [
+                        'name' => $gathering->gathering_type->name,
+                        'color' => $gathering->gathering_type->color,
+                    ] : null,
+                ],
+                'sharing' => [
+                    'kingdom' => $attendance->share_with_kingdom,
+                    'hosting_group' => $attendance->share_with_hosting_group,
+                    'crown' => $attendance->share_with_crown,
+                ],
+                'note' => $attendance->public_note,
+            ];
         }
 
-        // For non-JSON requests, set view variables
-        $this->set('upcomingAttendances', $upcomingAttendances);
-        $this->set('pastAttendances', $pastAttendances);
-        $this->set('authCardUrl', Router::url([
-            'controller' => 'Members',
-            'action' => 'viewMobileCard',
-            'plugin' => null,
-        ]));
-        $this->viewBuilder()->setLayout('mobile_app');
+        foreach ($pastAttendances as $attendance) {
+            $gathering = $attendance->gathering;
+            $startLocal = TimezoneHelper::toUserTimezone($gathering->start_date, $userTimezone);
+            $endLocal = TimezoneHelper::toUserTimezone($gathering->end_date, $userTimezone);
+
+            $data['past'][] = [
+                'attendance_id' => $attendance->id,
+                'gathering' => [
+                    'id' => $gathering->id,
+                    'public_id' => $gathering->public_id,
+                    'name' => $gathering->name,
+                    'start_date' => $startLocal->format('Y-m-d'),
+                    'start_time' => $startLocal->format('H:i'),
+                    'end_date' => $endLocal->format('Y-m-d'),
+                    'location' => $gathering->location,
+                    'is_cancelled' => $gathering->cancelled_at !== null,
+                    'public_page_enabled' => (bool)$gathering->public_page_enabled,
+                    'branch' => $gathering->branch ? $gathering->branch->name : null,
+                    'type' => $gathering->gathering_type ? [
+                        'name' => $gathering->gathering_type->name,
+                        'color' => $gathering->gathering_type->color,
+                    ] : null,
+                ],
+                'sharing' => [
+                    'kingdom' => $attendance->share_with_kingdom,
+                    'hosting_group' => $attendance->share_with_hosting_group,
+                    'crown' => $attendance->share_with_crown,
+                ],
+                'note' => $attendance->public_note,
+            ];
+        }
+
+        return $this->jsonResponse(['success' => true, 'data' => $data]);
     }
 
     /**

@@ -65,6 +65,7 @@ Deliver small, correct, verified changes that match the existing CakePHP 5, Stim
 - Put business workflows in `app/src/Services` or plugin `src/Services`, not templates.
 - Frontend controllers live in `*-controller.js`, use static targets/values/outlets, and register in `window.Controllers`.
 - User-facing templates and frontend changes must preserve WCAG 2.2 Level AA accessibility.
+- Use `KMP.ShortSiteTitle` for user-facing app names, including offline messages and passkey display names. JavaScript uses `shortSiteTitle()` from `app-branding-service.js`; preserve internal identifiers and cryptographic domain strings.
 - Tests should use project base classes and seeded constants instead of raw magic IDs.
 
 ## Commands

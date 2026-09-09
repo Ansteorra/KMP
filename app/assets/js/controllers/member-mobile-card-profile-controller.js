@@ -1,4 +1,5 @@
 import MobileControllerBase from "./mobile-controller-base.js";
+import vault from "../services/offline-vault-service.js";
 
 /**
  * MemberMobileCardProfile Stimulus Controller
@@ -46,6 +47,14 @@ class MemberMobileCardProfile extends MobileControllerBase {
      */
     onConnect() {
         this.element.addEventListener('pwa-ready', this.handlePwaReady);
+        this.onSavedOpen = () => this.loadCard();
+        window.addEventListener('kmp:offline-unlocked', this.onSavedOpen);
+        this.onSavedClear = () => {
+            this.cardSetTarget.replaceChildren();
+            for (const target of ['name', 'scaName', 'branchName', 'membershipInfo', 'backgroundCheck', 'lastUpdate']) this[`${target}Target`].textContent = '';
+            this.renderProfilePhoto(null); this.memberDetailsTarget.hidden = true;
+        };
+        window.addEventListener('kmp:offline-revoked', this.onSavedClear);
         this.updatePhotoActionsForConnection(this.online);
         
         // Check if PWA is already ready
@@ -59,6 +68,8 @@ class MemberMobileCardProfile extends MobileControllerBase {
      */
     onDisconnect() {
         this.element.removeEventListener('pwa-ready', this.handlePwaReady);
+        window.removeEventListener('kmp:offline-unlocked', this.onSavedOpen);
+        window.removeEventListener('kmp:offline-revoked', this.onSavedClear);
     }
 
     /**
@@ -68,6 +79,7 @@ class MemberMobileCardProfile extends MobileControllerBase {
      */
     onConnectionStateChanged(isOnline) {
         this.updatePhotoActionsForConnection(isOnline);
+        if (isOnline && this.pwaReadyValue) this.loadCard();
     }
 
     /**
@@ -114,35 +126,30 @@ class MemberMobileCardProfile extends MobileControllerBase {
     /**
      * Load member profile data with retry logic
      */
-    async loadCard() {
-        if (!this.pwaReadyValue) return;
-        
-        this.cardSetTarget.innerHTML = "";
-        this.loadingTarget.hidden = false;
-        this.memberDetailsTarget.hidden = true;
-        if (this.hasProfilePhotoContainerTarget) {
-            this.profilePhotoContainerTarget.hidden = true;
-        }
 
+    async loadCard() {
+        if (!this.pwaReadyValue || this.loadingCard) return;
+        this.loadingCard = true;
+        const generation = vault.generation;
+        if (!this.nameTarget.textContent && this.hasProfilePhotoContainerTarget) this.profilePhotoContainerTarget.hidden = true;
         try {
-            // Use base class fetchWithRetry for reliability
             const response = await this.fetchWithRetry(this.urlValue);
             const data = await response.json();
-            
-            this.loadingTarget.hidden = true;
-            this.memberDetailsTarget.hidden = false;
-            
+            if (generation !== vault.generation) return;
+            if (!data.member) throw new Error('Connect to load your card.');
+            this.cardSetTarget.replaceChildren();
             this.renderMemberData(data);
-        } catch (error) {
-            console.error("Error loading card:", error);
-            this.loadingTarget.hidden = true;
+            const verified = response.headers?.get('X-KMP-Offline-Verified');
+            if (verified) this.lastUpdateTarget.textContent = new Date(Number(verified)).toLocaleString();
             this.memberDetailsTarget.hidden = false;
-            this.nameTarget.textContent = "Error loading card data";
-            
-            // Show retry button if offline
-            if (!this.online) {
-                this.showOfflineMessage();
+        } catch (error) {
+            if (!this.nameTarget.textContent) {
+                this.memberDetailsTarget.hidden = false;
+                this.nameTarget.textContent = 'Connect to load your card.';
             }
+        } finally {
+            this.loadingTarget.hidden = true;
+            this.loadingCard = false;
         }
     }
 
@@ -184,6 +191,10 @@ class MemberMobileCardProfile extends MobileControllerBase {
 
         if (this.hasProfilePhotoContainerTarget) {
             this.profilePhotoContainerTarget.hidden = !hasPhoto;
+        }
+        if (!hasPhoto) {
+            if (this.hasProfilePhotoTarget) this.profilePhotoTarget.removeAttribute('src');
+            if (this.hasZoomPhotoTarget) this.zoomPhotoTarget.removeAttribute('src');
         }
         if (hasPhoto) {
             if (this.hasProfilePhotoTarget) {
@@ -300,6 +311,10 @@ class MemberMobileCardProfile extends MobileControllerBase {
      * @param {boolean} isOnline Current connectivity state.
      */
     updatePhotoActionsForConnection(isOnline) {
+        this.element?.querySelectorAll('.online-only-btn').forEach(button => {
+            button.disabled = !isOnline || !!document.querySelector('meta[name="kmp-offline-shell"]');
+            button.setAttribute('aria-disabled', String(button.disabled));
+        });
         if (this.hasPhotoManageButtonTarget) {
             this.photoManageButtonTarget.hidden = !isOnline;
         }

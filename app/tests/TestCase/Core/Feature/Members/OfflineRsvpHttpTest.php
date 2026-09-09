@@ -7,7 +7,7 @@ use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Cake\ORM\Table;
 use Cake\Utility\Text;
 
-/** Replay requests must preserve the current actor and the original private RSVP. */
+/** Replay requests must preserve the current actor and the original RSVP visibility. */
 class OfflineRsvpHttpTest extends HttpIntegrationTestCase
 {
     private bool $originalSavePoints;
@@ -58,7 +58,7 @@ class OfflineRsvpHttpTest extends HttpIntegrationTestCase
         $this->assertSame(0, $this->attendances()->find()->where(['gathering_id' => $gathering->id])->count());
     }
 
-    public function testDuplicateReplayCreatesOnePrivateRsvpAndPreservesLaterEdits(): void
+    public function testDuplicateReplayPreservesChosenVisibilityAndLaterEdits(): void
     {
         $gathering = $this->gathering();
         $context = $this->contextFor(self::TEST_MEMBER_AGATHA_ID);
@@ -74,14 +74,14 @@ class OfflineRsvpHttpTest extends HttpIntegrationTestCase
         $this->assertTrue($this->json()['success']);
         $attendance = $this->attendances()->find()->where(['gathering_id' => $gathering->id])->firstOrFail();
         $this->assertSame(self::TEST_MEMBER_AGATHA_ID, (int)$attendance->member_id);
-        $this->assertFalse($attendance->share_with_kingdom);
-        $this->assertFalse($attendance->share_with_crown);
+        $this->assertTrue($attendance->share_with_kingdom);
+        $this->assertTrue($attendance->share_with_crown);
         $this->assertFalse($attendance->share_with_hosting_group);
         $this->assertFalse($attendance->is_public);
         $this->assertNull($attendance->public_note);
         $this->assertSame($data['offline_request_id'], $attendance->offline_request_id);
 
-        $attendance->share_with_crown = true;
+        $attendance->share_with_crown = false;
         $attendance->public_note = 'Later authorized online edit';
         $this->attendances()->saveOrFail($attendance);
         $this->post('/gathering-attendances/mobile-rsvp', $data);
@@ -90,8 +90,50 @@ class OfflineRsvpHttpTest extends HttpIntegrationTestCase
         $this->assertSame((int)$attendance->id, (int)$this->json()['attendance_id']);
         $this->assertSame(1, $this->attendances()->find()->where(['gathering_id' => $gathering->id])->count());
         $fresh = $this->attendances()->get($attendance->id);
-        $this->assertTrue($fresh->share_with_crown);
+        $this->assertFalse($fresh->share_with_crown);
         $this->assertSame('Later authorized online edit', $fresh->public_note);
+    }
+
+    public function testLegacyQueueIsPrivateAndHostingGroupIsAnIndependentChoice(): void
+    {
+        $gathering = $this->gathering();
+        $context = $this->contextFor(self::TEST_MEMBER_AGATHA_ID);
+        $this->post('/gathering-attendances/mobile-rsvp', $this->payload($gathering->id, $context));
+        $this->assertResponseOk();
+        $attendance = $this->attendances()->find()->where(['gathering_id' => $gathering->id])->firstOrFail();
+        $this->assertFalse($attendance->share_with_kingdom);
+        $this->assertFalse($attendance->share_with_hosting_group);
+        $this->assertFalse($attendance->share_with_crown);
+
+        $other = $this->gathering();
+        $this->post('/gathering-attendances/mobile-rsvp', $this->payload($other->id, $context) + [
+            'share_with_hosting_group' => true,
+            'share_with_kingdom' => 'false',
+            'share_with_crown' => ['true'],
+        ]);
+        $this->assertResponseOk();
+        $attendance = $this->attendances()->find()->where(['gathering_id' => $other->id])->firstOrFail();
+        $this->assertFalse($attendance->share_with_kingdom);
+        $this->assertTrue($attendance->share_with_hosting_group);
+        $this->assertFalse($attendance->share_with_crown);
+    }
+
+    public function testMinorCannotShareWithKingdomThroughTheQueue(): void
+    {
+        $this->getTableLocator()->get('Members')->updateAll(
+            ['birth_year' => (int)date('Y') - 10, 'birth_month' => 1],
+            ['id' => self::TEST_MEMBER_AGATHA_ID],
+        );
+        $gathering = $this->gathering();
+        $context = $this->contextFor(self::TEST_MEMBER_AGATHA_ID);
+        $this->post('/gathering-attendances/mobile-rsvp', $this->payload($gathering->id, $context) + [
+            'share_with_kingdom' => true,
+            'share_with_hosting_group' => true,
+        ]);
+        $this->assertResponseOk();
+        $attendance = $this->attendances()->find()->where(['gathering_id' => $gathering->id])->firstOrFail();
+        $this->assertFalse($attendance->share_with_kingdom);
+        $this->assertTrue($attendance->share_with_hosting_group);
     }
 
     public function testRequestIdCannotBeReusedForAnotherGathering(): void

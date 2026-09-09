@@ -141,6 +141,7 @@ describe('MyRsvpsController', () => {
 
     test('updateOnlineButtons disables buttons when offline', () => {
         Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+        MobileControllerBase.setOnlineState(false, false);
 
         controller.updateOnlineButtons();
 
@@ -164,6 +165,7 @@ describe('MyRsvpsController', () => {
 
     test('editRsvp prevents editing when offline', async () => {
         Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+        MobileControllerBase.setOnlineState(false, false);
 
         await controller.editRsvp({
             currentTarget: { dataset: { gatheringId: '1', attendanceId: '2' } }

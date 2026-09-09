@@ -37,6 +37,29 @@ class MemberSessionAuthenticatorTest extends TestCase
         });
     }
 
+    public function testTenantlessHealthProbeLeavesTheMemberSessionUntouched(): void
+    {
+        $original = Configure::read('KMP.tenancy.enabled');
+        Configure::write('KMP.tenancy.enabled', true);
+        try {
+            $state = ['version' => 1, 'tenant_id' => 'tenant-a', 'member_id' => 7, 'auth_version' => 'epoch-a'];
+            $session = new Session();
+            $session->write('Auth', $state);
+            $request = (new ServerRequest(['environment' => ['REQUEST_METHOD' => 'HEAD']]))
+                ->withAttribute('session', $session)
+                ->withAttribute('params', ['controller' => 'Health', 'action' => 'index']);
+            $authenticator = new MemberSessionAuthenticator(new IdentifierCollection());
+            $this->assertFalse($authenticator->authenticate($request)->isValid());
+            $this->assertSame($state, $session->read('Auth'));
+
+            $privateRequest = $request->withAttribute('params', ['controller' => 'Members', 'action' => 'viewMobileCardJson']);
+            $this->assertFalse($authenticator->authenticate($privateRequest)->isValid());
+            $this->assertNull($session->read('Auth'), 'Private routes still reject a missing tenant binding.');
+        } finally {
+            Configure::write('KMP.tenancy.enabled', $original);
+        }
+    }
+
     public function testLegacySessionIsRejectedBeforeMemberLookup(): void
     {
         $session = new Session();

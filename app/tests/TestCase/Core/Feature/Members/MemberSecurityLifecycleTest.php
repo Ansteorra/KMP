@@ -116,8 +116,28 @@ class MemberSecurityLifecycleTest extends HttpIntegrationTestCase
         $this->post('/members/revoke-sessions/' . $member->id);
         $this->assertRedirectContains('/members/login');
         $this->assertHeader('X-KMP-Offline-Clear', '1');
+        $this->assertCookie('1', 'kmp_offline_clear');
         $this->assertSession(null, 'Auth');
         $this->assertNotSame($member->auth_version, $this->getTableLocator()->get('Members')->get($member->id)->auth_version);
+    }
+
+    public function testDirectLogoutLocksOfflineCopyAcrossRedirect(): void
+    {
+        $this->authenticateAsSuperUser();
+        $this->get('/members/logout');
+        $this->assertRedirectContains('/members/login');
+        $this->assertHeader('X-KMP-Offline-Lock', '1');
+        $this->assertCookie('1', 'kmp_offline_lock');
+        $this->assertSession(null, 'Auth');
+    }
+
+    public function testLogoutAfterSessionExpiryStillLocksTrustedDevice(): void
+    {
+        $this->session([]);
+        $this->get('/members/logout');
+        $this->assertRedirectContains('/members/login');
+        $this->assertHeader('X-KMP-Offline-Lock', '1');
+        $this->assertCookie('1', 'kmp_offline_lock');
     }
 
     public function testExpiredPinEnrollmentRequiresPasswordLoginAgain(): void

@@ -517,4 +517,34 @@ class AppController extends Controller
 
         return $isAjax || $turboRequest || $turboStreamRequest || $gridDataRequest || $assetRequest;
     }
+
+    /** Resolve shared tenant branding for the online and cached mobile templates. */
+    protected function appSettingImageDataUri(string $settingName): ?string
+    {
+        $appSettings = $this->fetchTable('AppSettings');
+        $payload = $appSettings->getAssetPayload($settingName);
+        if ($payload !== null) {
+            return sprintf('data:%s;base64,%s', (string)$payload['mime'], (string)$payload['data']);
+        }
+
+        $value = StaticHelpers::getAppSetting($settingName);
+        if (!is_string($value) || $value === '' || str_starts_with($value, '/')) {
+            return null;
+        }
+
+        $path = WWW_ROOT . 'img' . DS . $value;
+        if (!is_file($path)) {
+            return null;
+        }
+
+        $contents = file_get_contents($path);
+        if ($contents === false) {
+            return null;
+        }
+
+        $mime = getimagesize($path);
+        $mimeType = is_array($mime) && isset($mime['mime']) ? (string)$mime['mime'] : 'image/png';
+
+        return sprintf('data:%s;base64,%s', $mimeType, base64_encode($contents));
+    }
 }
