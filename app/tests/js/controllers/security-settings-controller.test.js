@@ -47,3 +47,7 @@ test('device setup shows one task and restores the Security choices afterward', 
     controller.deviceSetup({ detail: { active: false } });
     expect(controller.overviewTargets.every(element => !element.hidden)).toBe(true);
 });
+
+test('registers the Security settings controller', () => {
+    expect(window.Controllers['security-settings']).toBe(SecuritySettingsController);
+});

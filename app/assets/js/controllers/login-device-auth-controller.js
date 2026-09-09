@@ -98,7 +98,7 @@ class LoginDeviceAuthController extends Controller {
         if (!online) this.loginChoice = "device";
         const device = !online || (this.deviceAvailable && this.loginChoice !== "password");
         this.element.dataset.loginMethod = device ? "device" : "password";
-        this.passwordLoginTarget.hidden = !online || this.deviceAvailable === null || device;
+        this.passwordLoginTarget.hidden = !online || device;
         this.deviceExperienceTarget.hidden = online && !device;
         this.deviceSwitchTarget.hidden = !online || !this.deviceAvailable;
         this.offlineNoticeTarget.hidden = online;

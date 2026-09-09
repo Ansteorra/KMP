@@ -1135,6 +1135,15 @@ describe('device unlock and password views', () => {
   });
   afterEach(() => { document.body.innerHTML = ''; });
 
+  test.each([true, false])('unknown device availability keeps password login usable only online (%s)', online => {
+    controller.initialize();
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: online });
+    controller.renderLoginMethods();
+    expect(controller.passwordLoginTarget.hidden).toBe(!online);
+    expect(controller.deviceExperienceTarget.hidden).toBe(online);
+    expect(controller.deviceSwitchTarget.hidden).toBe(true);
+  });
+
   test('switches between mutually exclusive views and clears passwords on return', () => {
     expect(controller.passwordLoginTarget.hidden).toBe(true);
     controller.showPasswordLogin({ preventDefault: jest.fn() });

@@ -128,7 +128,9 @@ The shared application observer restores an already unlocked tab on ordinary
 pages and in the public offline shell. It never prompts for a PIN or passkey in
 the background, and never opens a locked protected record without user action. It updates while KMP is open, after reconnecting, on
 returning to the app, and during foreground retry intervals. Successful updates
-are throttled for five minutes within a page lifetime. A fresh signed-in context
+are throttled for five minutes within a page lifetime. Forced updates for reconnects
+and newly queued RSVPs bypass that throttle, including when they wait for an
+in-progress update to finish. A fresh signed-in context
 is checked before synchronizing. An unlocked protected copy can use its saved
 password to restore an expired server session before syncing; failed login does
 not grant server access and waiting work remains queued. Pending RSVPs send before a complete card, RSVP,
@@ -268,7 +270,9 @@ setting through the escaped `kmp-short-site-title` meta tag, including cached
 public mobile shells. JavaScript reads it through `shortSiteTitle()` and writes
 messages as text. Passkey display names use the same setting. Older shells
 without this metadata use the neutral phrase “this app”. A saved offline shell
-retains the title from its last online refresh.
+retains the title from its last online refresh. Legacy branding image paths must
+resolve to files inside `webroot/img`; traversal and symlinks outside that directory
+are rejected before reading a file.
 
 Internal names, storage keys, protocol headers, and cryptographic domain strings
 remain stable; changing a display title does not invalidate saved device keys.

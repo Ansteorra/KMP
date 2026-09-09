@@ -532,8 +532,9 @@ class AppController extends Controller
             return null;
         }
 
-        $path = WWW_ROOT . 'img' . DS . $value;
-        if (!is_file($path)) {
+        $basePath = realpath(WWW_ROOT . 'img');
+        $path = realpath(WWW_ROOT . 'img' . DS . $value);
+        if ($basePath === false || $path === false || !is_file($path) || !str_starts_with($path, $basePath . DS)) {
             return null;
         }
 

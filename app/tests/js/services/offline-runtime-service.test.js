@@ -68,3 +68,25 @@ test('reconnection during an outdated failing request immediately retries the fr
     expect(data.refreshOfflineSnapshot).toHaveBeenCalledTimes(1);
     expect(runtime.offlineStatus.ready).toBe(true);
 });
+
+test('an RSVP queued during a successful refresh sends immediately afterward', async () => {
+    let finishSnapshot;
+    let snapshotStarted;
+    const started = new Promise(resolve => { snapshotStarted = resolve; });
+    data.refreshOfflineSnapshot.mockImplementationOnce(() => new Promise(resolve => {
+        finishSnapshot = resolve;
+        snapshotStarted();
+    }));
+    const first = runtime.updateTrustedDevice();
+    await started;
+    rsvps.getPendingCount.mockResolvedValue(1);
+    rsvps.syncPendingRsvps.mockResolvedValue({ failed: 0, success: 1 });
+    const queued = runtime.updateTrustedDevice(true);
+    expect(rsvps.syncPendingRsvps).not.toHaveBeenCalled();
+    finishSnapshot();
+    await Promise.all([first, queued]);
+    expect(rsvps.syncPendingRsvps).toHaveBeenCalledTimes(1);
+    expect(data.refreshOfflineSnapshot).toHaveBeenCalledTimes(2);
+    await runtime.updateTrustedDevice();
+    expect(data.refreshOfflineSnapshot).toHaveBeenCalledTimes(2);
+});

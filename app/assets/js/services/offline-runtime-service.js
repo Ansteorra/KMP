@@ -46,7 +46,7 @@ export async function prepareOfflineShell() {
 /** One foreground coordinator shared by ordinary pages and the offline shell. */
 export async function updateTrustedDevice(force = false) {
     // A reconnect can arrive while a request made before reconnection is still failing.
-    if (updating) return force ? updating.then(() => updateTrustedDevice()) : updating;
+    if (updating) return force ? updating.then(() => updateTrustedDevice(true)) : updating;
     updating = (async () => {
         if (!await vault.openTrusted()) return;
         if (!navigator.onLine) { announce('You’re offline. Changes will send when you reconnect.'); return; }

@@ -1,10 +1,10 @@
 import QuickLoginService from '../../../assets/js/services/quick-login-service.js';
 import OfflineAccessController from '../../../assets/js/controllers/offline-access-controller.js';
-import { loginWithSavedPassword } from '../../../assets/js/services/device-login-service.js';
-import { updateTrustedDevice } from '../../../assets/js/services/offline-runtime-service.js';
+import { loginWithSavedPassword, verifyDevicePassword } from '../../../assets/js/services/device-login-service.js';
+import { updateTrustedDevice, prepareOfflineShell } from '../../../assets/js/services/offline-runtime-service.js';
 import vault from '../../../assets/js/services/offline-vault-service.js';
 jest.mock('../../../assets/js/services/offline-vault-service.js', () => ({ __esModule: true, default: { metadata: jest.fn(), unlock: jest.fn() } }));
-jest.mock('../../../assets/js/services/offline-runtime-service.js', () => ({ offlineStatus: { message: '' }, updateTrustedDevice: jest.fn() }));
+jest.mock('../../../assets/js/services/offline-runtime-service.js', () => ({ offlineStatus: { message: '' }, updateTrustedDevice: jest.fn(), prepareOfflineShell: jest.fn() }));
 jest.mock('../../../assets/js/services/device-login-service.js', () => ({ loginWithSavedPassword: jest.fn(), verifyDevicePassword: jest.fn() }));
 let controller;
 beforeEach(() => {
@@ -71,6 +71,35 @@ describe('guided device setup', () => {
         vault.metadata.mockResolvedValue({ snapshotSaved: true, wrapper: { method: 'trusted', unlockMethod: 'device' }, expiresAt: Date.now() + 86400000 });
     });
     afterEach(() => { document.head.innerHTML = ''; document.body.innerHTML = ''; history.replaceState({}, '', '/'); });
+
+    test('verifies the password and prepares offline assets before choosing an unlock method', async () => {
+        const verified = { context: { owner: 'member', epoch: 'epoch' }, login: { email: 'member@example.test', password: 'setup input' }, generation: 1 };
+        verifyDevicePassword.mockResolvedValue(verified);
+        controller.showStep(1);
+        controller.passwordTarget.value = 'setup input';
+        const event = { preventDefault: jest.fn() };
+        await controller.setupDevice(event);
+        expect(event.preventDefault).toHaveBeenCalled();
+        expect(verifyDevicePassword).toHaveBeenCalledWith('setup input');
+        expect(prepareOfflineShell).toHaveBeenCalledTimes(1);
+        expect(verifyDevicePassword.mock.invocationCallOrder[0]).toBeLessThan(prepareOfflineShell.mock.invocationCallOrder[0]);
+        expect(controller.pendingSetup).toBe(verified);
+        expect(controller.passwordTarget.value).toBe('');
+        expect(controller.setupStep).toBe(2);
+        expect(controller.stepHeadingTarget).toHaveFocus();
+    });
+
+    test('a rejected password stays on the first step with an accessible error', async () => {
+        verifyDevicePassword.mockRejectedValue(new Error('Check your password and try again.'));
+        controller.showStep(1);
+        controller.passwordTarget.value = 'incorrect input';
+        await controller.setupDevice({ preventDefault: jest.fn() });
+        expect(prepareOfflineShell).not.toHaveBeenCalled();
+        expect(controller.pendingSetup).toBeFalsy();
+        expect(controller.setupStep).toBe(1);
+        expect(controller.setupErrorMessageTarget).toHaveFocus();
+        expect(controller.setupErrorMessageTarget.textContent).toBe('Check your password and try again.');
+    });
 
     test.each(['/members/view/123', '/members/view-mobile-card'])('signed-in online page %s does not ask to unlock a locked copy', async path => {
         history.replaceState({}, '', path);

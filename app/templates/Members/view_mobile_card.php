@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Mobile Card View - Using mobile_app Layout
