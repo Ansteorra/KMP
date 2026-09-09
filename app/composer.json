@@ -46,7 +46,7 @@
         "cakephp/repl": "^2.0",
         "dereuromark/cakephp-dto": "^2.1.0",
         "dereuromark/cakephp-ide-helper": "^2.0.0",
-        "infection/infection": "^0.32",
+        "infection/infection": "^0.35",
         "josegonzalez/dotenv": "^4.0",
         "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^10.1.0",
