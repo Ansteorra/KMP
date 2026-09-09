@@ -32,7 +32,7 @@
         "validate:workflows": "node scripts/validate-workflow-definitions.mjs"
     },
     "devDependencies": {
-        "@babel/core": "^7.29.6",
+        "@babel/core": "^8.0.1",
         "@babel/plugin-transform-runtime": "^7.29.0",
         "@babel/preset-env": "^7.29.0",
         "@babel/runtime": "^7.29.2",
