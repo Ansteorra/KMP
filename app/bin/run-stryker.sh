@@ -26,8 +26,8 @@ echo "==> Running Stryker mutation testing ($scope)..."
 if [ -x "node_modules/.bin/stryker" ]; then
     STRYKER_MUTATE_SCOPE="$scope" node_modules/.bin/stryker run stryker.config.js "$@"
 else
-    echo "==> Local Stryker binary not found; using npm exec fallback."
-    STRYKER_MUTATE_SCOPE="$scope" npm exec --yes --package=@stryker-mutator/core@8.7.0 --package=@stryker-mutator/jest-runner@8.7.0 -- stryker run stryker.config.js "$@"
+    echo "==> Local Stryker binary not found. Run npm ci in app/ first." >&2
+    exit 1
 fi
 
 echo "==> Stryker report: tests/mutation-reports/stryker-$scope-report.html"

@@ -2,6 +2,10 @@ version: 2
 updates:
   - package-ecosystem: npm
     directories: ["/", "/app"]
+    groups:
+      stryker:
+        patterns:
+          - "@stryker-mutator/*"
     schedule:
       interval: weekly
   - package-ecosystem: composer
