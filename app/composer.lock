@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3a1126cde9c54f36c8c03253c6dbc0aa",
+    "content-hash": "6892a58a081283ac3b76992686141cd2",
     "packages": [
         {
             "name": "admad/cakephp-glide",
@@ -454,16 +454,16 @@
         },
         {
             "name": "cakephp/cakephp",
-            "version": "5.4.1",
+            "version": "5.4.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/cakephp/cakephp.git",
-                "reference": "52c341146709a5510eb0bf094991e27153f8d5c6"
+                "reference": "887b641de9f7aba06071f98f17edcbc573cbcf63"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/cakephp/cakephp/zipball/52c341146709a5510eb0bf094991e27153f8d5c6",
-                "reference": "52c341146709a5510eb0bf094991e27153f8d5c6",
+                "url": "https://api.github.com/repos/cakephp/cakephp/zipball/887b641de9f7aba06071f98f17edcbc573cbcf63",
+                "reference": "887b641de9f7aba06071f98f17edcbc573cbcf63",
                 "shasum": ""
             },
             "require": {
@@ -575,7 +575,7 @@
                 "issues": "https://github.com/cakephp/cakephp/issues",
                 "source": "https://github.com/cakephp/cakephp"
             },
-            "time": "2026-07-29T02:48:38+00:00"
+            "time": "2026-09-06T01:09:54+00:00"
         },
         {
             "name": "cakephp/chronos",
@@ -1326,16 +1326,16 @@
         },
         {
             "name": "friendsofcake/cakepdf",
-            "version": "5.1.0",
+            "version": "5.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/FriendsOfCake/CakePdf.git",
-                "reference": "e48ce0be0b843840db09cc041c4aeef2c8bc5bb5"
+                "reference": "9c478eba9fa697513b5fd7ec69cdf0a37d81869c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/FriendsOfCake/CakePdf/zipball/e48ce0be0b843840db09cc041c4aeef2c8bc5bb5",
-                "reference": "e48ce0be0b843840db09cc041c4aeef2c8bc5bb5",
+                "url": "https://api.github.com/repos/FriendsOfCake/CakePdf/zipball/9c478eba9fa697513b5fd7ec69cdf0a37d81869c",
+                "reference": "9c478eba9fa697513b5fd7ec69cdf0a37d81869c",
                 "shasum": ""
             },
             "require": {
@@ -1343,16 +1343,18 @@
                 "php": ">=8.1"
             },
             "require-dev": {
-                "cakephp/cakephp-codesniffer": "^5.0",
+                "cakephp/cakephp-codesniffer": "^5.3",
                 "dompdf/dompdf": "^3.0",
                 "mpdf/mpdf": "^8.1.6",
-                "phpunit/phpunit": "^10.5.5 || ^11.1.3",
+                "phpunit/phpunit": "^10.5.58 || ^11.1.3 || ^12.4",
+                "tecnickcom/tc-lib-pdf": "^8.5",
                 "tecnickcom/tcpdf": "^6.3"
             },
             "suggest": {
                 "dompdf/dompdf": "If you wish to use the DomPdf engine",
                 "mpdf/mpdf": "If you wish to use the Mpdf engine",
-                "tecnickcom/tcpdf": "If you wish to use the Tcpdf engine"
+                "tecnickcom/tc-lib-pdf": "If you wish to use the TcLibPdf engine (successor of the deprecated tcpdf)",
+                "tecnickcom/tcpdf": "If you wish to use the Tcpdf engine (deprecated, use tc-lib-pdf instead)"
             },
             "type": "cakephp-plugin",
             "autoload": {
@@ -1368,22 +1370,22 @@
             "homepage": "http://github.com/friendsofcake/CakePdf",
             "support": {
                 "issues": "https://github.com/FriendsOfCake/CakePdf/issues",
-                "source": "https://github.com/FriendsOfCake/CakePdf/tree/5.1.0"
+                "source": "https://github.com/FriendsOfCake/CakePdf/tree/5.3.0"
             },
-            "time": "2025-01-30T04:08:48+00:00"
+            "time": "2026-06-19T18:25:26+00:00"
         },
         {
             "name": "friendsofcake/cakephp-csvview",
-            "version": "5.0.0",
+            "version": "5.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/FriendsOfCake/cakephp-csvview.git",
-                "reference": "c2e539c6e8a53c4fcbc27bfa3776f535dea96dc1"
+                "reference": "03202e366b1045fc04859cdecaf59b20ae1610de"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/FriendsOfCake/cakephp-csvview/zipball/c2e539c6e8a53c4fcbc27bfa3776f535dea96dc1",
-                "reference": "c2e539c6e8a53c4fcbc27bfa3776f535dea96dc1",
+                "url": "https://api.github.com/repos/FriendsOfCake/cakephp-csvview/zipball/03202e366b1045fc04859cdecaf59b20ae1610de",
+                "reference": "03202e366b1045fc04859cdecaf59b20ae1610de",
                 "shasum": ""
             },
             "require": {
@@ -1448,7 +1450,7 @@
                 "issues": "https://github.com/friendsofcake/cakephp-csvview/issues",
                 "source": "https://github.com/friendsofcake/cakephp-csvview"
             },
-            "time": "2023-10-13T18:16:38+00:00"
+            "time": "2026-05-12T09:25:52+00:00"
         },
         {
             "name": "google/protobuf",
@@ -2546,29 +2548,28 @@
         },
         {
             "name": "mobiledetect/mobiledetectlib",
-            "version": "4.8.09",
+            "version": "4.11.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/serbanghita/Mobile-Detect.git",
-                "reference": "a06fe2e546a06bb8c2639d6823d5250b2efb3209"
+                "reference": "ab39168b7556f44c11c80be1222b44b239f5c2e4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/serbanghita/Mobile-Detect/zipball/a06fe2e546a06bb8c2639d6823d5250b2efb3209",
-                "reference": "a06fe2e546a06bb8c2639d6823d5250b2efb3209",
+                "url": "https://api.github.com/repos/serbanghita/Mobile-Detect/zipball/ab39168b7556f44c11c80be1222b44b239f5c2e4",
+                "reference": "ab39168b7556f44c11c80be1222b44b239f5c2e4",
                 "shasum": ""
             },
             "require": {
-                "php": ">=8.0",
-                "psr/cache": "^3.0",
-                "psr/simple-cache": "^3"
+                "php": ">=8.2",
+                "psr/simple-cache": "^1.0 || ^2.0 || ^3.0"
             },
             "require-dev": {
-                "friendsofphp/php-cs-fixer": "^v3.65.0",
-                "phpbench/phpbench": "^1.2",
-                "phpstan/phpstan": "^1.12.x-dev",
-                "phpunit/phpunit": "^9.6.18",
-                "squizlabs/php_codesniffer": "^3.11.1"
+                "friendsofphp/php-cs-fixer": "3.95.1",
+                "phpbench/phpbench": "1.6.1",
+                "phpstan/phpstan": "2.1.47",
+                "phpunit/phpunit": "9.6.34",
+                "squizlabs/php_codesniffer": "3.13.5"
             },
             "type": "library",
             "autoload": {
@@ -2599,7 +2600,7 @@
             ],
             "support": {
                 "issues": "https://github.com/serbanghita/Mobile-Detect/issues",
-                "source": "https://github.com/serbanghita/Mobile-Detect/tree/4.8.09"
+                "source": "https://github.com/serbanghita/Mobile-Detect/tree/4.11.0"
             },
             "funding": [
                 {
@@ -2607,7 +2608,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-12-10T15:32:06+00:00"
+            "time": "2026-05-24T12:32:40+00:00"
         },
         {
             "name": "muffin/footprint",
@@ -3351,55 +3352,6 @@
                 "source": "https://github.com/php-http/discovery/tree/1.20.0"
             },
             "time": "2024-10-02T11:20:13+00:00"
-        },
-        {
-            "name": "psr/cache",
-            "version": "3.0.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/php-fig/cache.git",
-                "reference": "aa5030cfa5405eccfdcb1083ce040c2cb8d253bf"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/php-fig/cache/zipball/aa5030cfa5405eccfdcb1083ce040c2cb8d253bf",
-                "reference": "aa5030cfa5405eccfdcb1083ce040c2cb8d253bf",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=8.0.0"
-            },
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "1.0.x-dev"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Psr\\Cache\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "PHP-FIG",
-                    "homepage": "https://www.php-fig.org/"
-                }
-            ],
-            "description": "Common interface for caching libraries",
-            "keywords": [
-                "cache",
-                "psr",
-                "psr-6"
-            ],
-            "support": {
-                "source": "https://github.com/php-fig/cache/tree/3.0.0"
-            },
-            "time": "2021-02-03T23:26:27+00:00"
         },
         {
             "name": "psr/clock",
