@@ -74,7 +74,8 @@ groups `@stryker-mutator/*` updates to preserve that compatibility. Jest loads
 `babel.jest.config.json` explicitly so Stryker’s Babel parser does not load
 Jest’s Babel presets and plugins. Babel core, its presets/runtime/plugins, and the
 Jest transformer must also be upgraded together; Dependabot groups that toolchain
-to avoid incompatible peer dependencies:
+to avoid incompatible peer dependencies. Regenerate npm lockfiles with the npm 11
+toolchain used in CI so nested peer dependencies are recorded consistently:
 
 ```bash
 bash bin/verify.sh --with-coverage
