@@ -1373,16 +1373,16 @@
         },
         {
             "name": "friendsofcake/cakephp-csvview",
-            "version": "5.0.0",
+            "version": "5.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/FriendsOfCake/cakephp-csvview.git",
-                "reference": "c2e539c6e8a53c4fcbc27bfa3776f535dea96dc1"
+                "reference": "03202e366b1045fc04859cdecaf59b20ae1610de"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/FriendsOfCake/cakephp-csvview/zipball/c2e539c6e8a53c4fcbc27bfa3776f535dea96dc1",
-                "reference": "c2e539c6e8a53c4fcbc27bfa3776f535dea96dc1",
+                "url": "https://api.github.com/repos/FriendsOfCake/cakephp-csvview/zipball/03202e366b1045fc04859cdecaf59b20ae1610de",
+                "reference": "03202e366b1045fc04859cdecaf59b20ae1610de",
                 "shasum": ""
             },
             "require": {
@@ -1447,7 +1447,7 @@
                 "issues": "https://github.com/friendsofcake/cakephp-csvview/issues",
                 "source": "https://github.com/friendsofcake/cakephp-csvview"
             },
-            "time": "2023-10-13T18:16:38+00:00"
+            "time": "2026-05-12T09:25:52+00:00"
         },
         {
             "name": "google/protobuf",
