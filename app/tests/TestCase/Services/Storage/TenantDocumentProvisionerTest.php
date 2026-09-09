@@ -5,8 +5,9 @@ namespace App\Test\TestCase\Services\Storage;
 
 use App\Services\BackupStorageService;
 use App\Services\Storage\TenantDocumentProvisioner;
-use AzureOss\Storage\Common\Auth\AccessToken;
-use AzureOss\Storage\Common\Auth\TokenCredential;
+use AzureOss\Identity\AccessToken;
+use AzureOss\Identity\TokenCredential;
+use AzureOss\Identity\TokenRequestContext;
 use Cake\Core\Configure;
 use Cake\TestSuite\TestCase;
 use DateTimeImmutable;
@@ -88,9 +89,13 @@ class TenantDocumentProvisionerTest extends TestCase
         $handler->push(Middleware::history($history));
         $created = [];
         $credential = new class implements TokenCredential {
-            public function getToken(): AccessToken
+            public function getToken(TokenRequestContext $context): AccessToken
             {
-                return new AccessToken('synthetic-management-token', new DateTimeImmutable('+1 hour'));
+                if ($context->scopes !== ['https://management.azure.com/.default']) {
+                    throw new RuntimeException('Wrong management scope.');
+                }
+
+                return new AccessToken('synthetic-management-token', new DateTimeImmutable('+1 hour'), 'Bearer');
             }
         };
         $provisioner = new TenantDocumentProvisioner(
@@ -148,9 +153,13 @@ class TenantDocumentProvisionerTest extends TestCase
     {
         $client = new Client(['handler' => HandlerStack::create(new MockHandler([new Response(403)]))]);
         $credential = new class implements TokenCredential {
-            public function getToken(): AccessToken
+            public function getToken(TokenRequestContext $context): AccessToken
             {
-                return new AccessToken('synthetic-management-token', new DateTimeImmutable('+1 hour'));
+                if ($context->scopes !== ['https://management.azure.com/.default']) {
+                    throw new RuntimeException('Wrong management scope.');
+                }
+
+                return new AccessToken('synthetic-management-token', new DateTimeImmutable('+1 hour'), 'Bearer');
             }
         };
         $this->expectException(RuntimeException::class);
