@@ -1325,16 +1325,16 @@
         },
         {
             "name": "friendsofcake/cakepdf",
-            "version": "5.1.0",
+            "version": "5.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/FriendsOfCake/CakePdf.git",
-                "reference": "e48ce0be0b843840db09cc041c4aeef2c8bc5bb5"
+                "reference": "9c478eba9fa697513b5fd7ec69cdf0a37d81869c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/FriendsOfCake/CakePdf/zipball/e48ce0be0b843840db09cc041c4aeef2c8bc5bb5",
-                "reference": "e48ce0be0b843840db09cc041c4aeef2c8bc5bb5",
+                "url": "https://api.github.com/repos/FriendsOfCake/CakePdf/zipball/9c478eba9fa697513b5fd7ec69cdf0a37d81869c",
+                "reference": "9c478eba9fa697513b5fd7ec69cdf0a37d81869c",
                 "shasum": ""
             },
             "require": {
@@ -1342,16 +1342,18 @@
                 "php": ">=8.1"
             },
             "require-dev": {
-                "cakephp/cakephp-codesniffer": "^5.0",
+                "cakephp/cakephp-codesniffer": "^5.3",
                 "dompdf/dompdf": "^3.0",
                 "mpdf/mpdf": "^8.1.6",
-                "phpunit/phpunit": "^10.5.5 || ^11.1.3",
+                "phpunit/phpunit": "^10.5.58 || ^11.1.3 || ^12.4",
+                "tecnickcom/tc-lib-pdf": "^8.5",
                 "tecnickcom/tcpdf": "^6.3"
             },
             "suggest": {
                 "dompdf/dompdf": "If you wish to use the DomPdf engine",
                 "mpdf/mpdf": "If you wish to use the Mpdf engine",
-                "tecnickcom/tcpdf": "If you wish to use the Tcpdf engine"
+                "tecnickcom/tc-lib-pdf": "If you wish to use the TcLibPdf engine (successor of the deprecated tcpdf)",
+                "tecnickcom/tcpdf": "If you wish to use the Tcpdf engine (deprecated, use tc-lib-pdf instead)"
             },
             "type": "cakephp-plugin",
             "autoload": {
@@ -1367,9 +1369,9 @@
             "homepage": "http://github.com/friendsofcake/CakePdf",
             "support": {
                 "issues": "https://github.com/FriendsOfCake/CakePdf/issues",
-                "source": "https://github.com/FriendsOfCake/CakePdf/tree/5.1.0"
+                "source": "https://github.com/FriendsOfCake/CakePdf/tree/5.3.0"
             },
-            "time": "2025-01-30T04:08:48+00:00"
+            "time": "2026-06-19T18:25:26+00:00"
         },
         {
             "name": "friendsofcake/cakephp-csvview",
