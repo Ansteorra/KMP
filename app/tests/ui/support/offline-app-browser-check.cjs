@@ -65,6 +65,12 @@ const stored = page => page.evaluate(() => new Promise((resolve, reject) => {
     };
 }));
 const waitIdle = page => page.waitForFunction(() => !document.querySelector('[data-controller~=offline-vault]').hasAttribute('aria-busy'), null, { timeout: 60000 });
+const choosePin = async scope => {
+    await expect(scope.locator('[data-offline-access-target=stepLabel]')).toHaveText('Step 2 of 3');
+    const method = scope.getByLabel('Unlock this device with', { exact: true });
+    if (await method.isVisible()) await method.selectOption('pin');
+    await expect(scope.getByLabel('Choose a PIN (6–12 digits)', { exact: true })).toBeVisible();
+};
 
 (async () => {
     const fixture = runPhpJson(tenantFixture);
@@ -85,7 +91,7 @@ const waitIdle = page => page.waitForFunction(() => !document.querySelector('[da
         await page.getByRole('button', { name: 'Trust this personal device', exact: true }).click();
         await page.getByLabel(`Current ${siteTitle} password`, { exact: true }).fill(fixture.password);
         await page.getByRole('button', { name: 'Continue', exact: true }).click();
-        await page.getByLabel('Unlock this device with', { exact: true }).selectOption('pin');
+        await choosePin(page);
         await page.getByLabel('Choose a PIN (6–12 digits)', { exact: true }).fill('582694');
         await page.getByLabel('Repeat your PIN', { exact: true }).fill('582694');
         await page.getByRole('button', { name: 'Save PIN and trust device', exact: true }).click();
@@ -326,7 +332,7 @@ const waitIdle = page => page.waitForFunction(() => !document.querySelector('[da
         await trust.getByRole('button', { name: 'Trust this personal device', exact: true }).click();
         await trust.getByLabel(`Current ${siteTitle} password`, { exact: true }).fill(fixture.password);
         await trust.getByRole('button', { name: 'Continue', exact: true }).click();
-        await trust.getByLabel('Unlock this device with', { exact: true }).selectOption('pin');
+        await choosePin(trust);
         await trust.getByLabel('Choose a PIN (6–12 digits)', { exact: true }).fill('582694');
         await trust.getByLabel('Repeat your PIN', { exact: true }).fill('582694');
         await trust.getByRole('button', { name: 'Save PIN and trust device', exact: true }).click();
