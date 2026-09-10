@@ -61,7 +61,7 @@
         "@hotwired/turbo": "^8.0.23",
         "@techstark/opencv-js": "^5.0.0-release.1",
         "bootstrap": "^5.3.8",
-        "bootstrap-icons": "1.11.3",
+        "bootstrap-icons": "1.13.1",
         "drawflow": "^0.0.60",
         "easymde": "^2.20.0",
         "face-api.js": "^0.22.2",
