@@ -54,6 +54,14 @@ assert_contains "$here/bootstrap.sh" 'for attempt in $(seq 1 750)'
 assert_contains "$here/nightly-deploy.sh" 'run_migrate_command "shared model cache clear" bin/cake cache clear _cake_model_'
 assert_contains "$app_config" '"prefix" => "kmp_model_"'
 assert_contains "$workflow" 'cutover-unified-worker.sh'
+assert_contains "$workflow" 'AZURE_ADMIN_JOB_NAME; do'
+assert_contains "$workflow" 'python3 deploy/azure/check-database-job-contract.py --azure'
+preflight_line="$(grep -n 'check-database-job-contract.py --azure' "$workflow" | cut -d: -f1)"
+first_mutation_line="$(grep -n 'name: Allow PostgreSQL text search extensions' "$workflow" | cut -d: -f1)"
+if (( preflight_line >= first_mutation_line )); then
+    echo 'Live isolation preflight must run before deployment mutations.' >&2
+    exit 1
+fi
 assert_contains "$workflow" 'Preserve pre-cutover definitions'
 assert_contains "$workflow" 'AZURE_POSTGRES_RESOURCE_GROUP'
 assert_contains "$workflow" 'AZURE_POSTGRES_SERVER_NAME'
