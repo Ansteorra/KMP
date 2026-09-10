@@ -10,25 +10,33 @@ uncommitted local changes or bypass a failed quality gate.
 
 ## Intent: "push to dev"
 
-This means release the selected official `main` commit to POC only.
+This means build and deploy the selected official `dev` candidate to POC only.
+Release-note preparation may be committed directly on `dev`, with a `dev` →
+`main` PR holding the team's manual acceptance checklist.
 
 1. Inspect the worktree and fetch `upstream`.
-2. Resolve the requested commit, defaulting to `upstream/main`.
-3. Confirm the commit is on official `main` and that updating `dev` is a
-   fast-forward. Never force-push `dev`.
-4. Confirm `Quality Gates` passed for the exact merged `main` commit.
-5. Push the exact commit to `refs/heads/dev`; create the branch if it does not
-   exist.
-6. Watch `Nightly / Dev Docker Image`. It verifies that existing exact-commit
-   evidence instead of rerunning the suites, then builds and smoke-tests one
-   immutable release-candidate image.
-7. Watch `POC / Deploy to Azure`. It imports the tested image, verifies its
+2. Resolve the requested candidate. Preserve explicitly requested dev work;
+   otherwise default to the selected official `main` commit only if it can
+   fast-forward `dev`. Never discard unmerged dev commits or force-push `dev`.
+3. Complete the requested candidate changes and appropriate local verification,
+   then push the exact committed candidate to official `refs/heads/dev`.
+4. Watch `Quality Gates` for that exact `dev` push. The same suites run on both
+   `main` and `dev` pushes. Pull-request checks may test a synthetic merge and
+   cannot substitute for exact branch-push evidence.
+5. Watch `Nightly / Dev Docker Image`. It requires successful push evidence for
+   its exact SHA and source branch (`dev` for POC candidates, `main` for scheduled
+   nightly builds), then builds and smoke-tests one immutable candidate image.
+6. Watch `POC / Deploy to Azure`. It imports the tested image, verifies its
    digest, runs the worker canary and migrations, cuts over web traffic, and
-   aligns retained jobs. A successful deployment records the POC-validated
-   digest for production promotion.
-8. Verify POC readiness, tenant and platform hosts, login, queue/worker
-   processing, and the changed user journeys.
-9. Do not create a production release or change production.
+   aligns retained jobs. Success records the POC-validated digest for that SHA.
+7. Verify POC readiness, tenant and platform hosts, login, queue/worker
+   processing, and the changed user journeys. Record the SHA/digest in the PR.
+8. Do not merge the PR before the team's review/sign-off. POC success does not
+   authorize a stable release or production changes.
+9. After merge, production still requires exact-commit `main` push quality
+   evidence and POC validation. A merge/squash or any later edit that changes the
+   candidate SHA requires advancing `dev` and repeating candidate/POC validation
+   for that merged SHA. Never reuse a different SHA's digest as release evidence.
 
 ## Intent: "do a release"
 
@@ -41,7 +49,7 @@ publish and promote a stable production release.
 - Otherwise inspect the latest stable `v*` release. Default to the next patch
   version; require explicit user direction for a major or minor bump unless the
   existing changelog already identifies that release.
-- Start from official `main`, never from uncommitted files or a fork-only commit.
+- Select the production candidate from official `main`, never from uncommitted files or a fork-only commit. Preparation and team acceptance can happen on official `dev` before merge.
 
 ### 2. Prepare one source of release notes
 
@@ -56,7 +64,7 @@ Before POC testing:
    noise unless users are affected.
 5. Update `LAST_SYNCED_COMMIT` to the candidate code commit and
    `LAST_SYNCED_DATE`.
-6. Commit the changelog on the release branch and get it merged into `main`.
+6. Commit the changelog on the requested preparation branch (`dev` for the team-validation flow), retain the manual checklist in its PR, and get it approved and merged into `main`.
 7. Treat the resulting merged `main` commit as the immutable release candidate.
 
 The Markdown under the new KMP version heading is the canonical release body.
