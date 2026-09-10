@@ -70,7 +70,7 @@
         "popper.js": "^1.16.1",
         "qrcode": "^1.5.4",
         "smol-toml": "^1.8.0",
-        "undici": "^7.29.0"
+        "undici": "^8.10.2"
     },
     "browserslist": [
         "defaults"
