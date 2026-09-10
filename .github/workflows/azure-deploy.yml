@@ -79,7 +79,8 @@ jobs:
             AZURE_POSTGRES_SERVER_NAME \
             AZURE_WEB_APP_NAME \
             AZURE_MIGRATE_JOB_NAME \
-            AZURE_QUEUE_JOB_NAME; do
+            AZURE_QUEUE_JOB_NAME \
+            AZURE_ADMIN_JOB_NAME; do
             if [[ -z "${!name}" ]]; then
               echo "Missing required $DEPLOY_ENVIRONMENT environment variable: $name" >&2
               exit 64
@@ -97,6 +98,9 @@ jobs:
           client-id: ${{ env.AZURE_CLIENT_ID }}
           tenant-id: ${{ env.AZURE_TENANT_ID }}
           subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify deployed database job isolation
+        run: python3 deploy/azure/check-database-job-contract.py --azure
 
       - name: Allow PostgreSQL text search extensions
         run: |

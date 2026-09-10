@@ -12,6 +12,26 @@ Backup and restore subprocesses preserve the selected administrative port and TL
 
 The normal scheduler/queue runner leaves operational platform jobs queued. The separate `${namePrefix}-admin` job runs `bin/cake platform jobs run --limit 1`. Give GitHub environments the new `AZURE_ADMIN_JOB_NAME` variable. All jobs receive the same verified image digest. Cutover validates process/identity separation, parks the admin schedule and waits for existing administrative executions before migrations, and resumes it after web health checks.
 
+The regular deployment workflow validates `AZURE_ADMIN_JOB_NAME` up front and
+reads the existing web, worker, migration, admin, and configured retained jobs
+before changing PostgreSQL configuration or importing an image. This preflight
+uses `check-database-job-contract.py --azure` with the same `AZURE_*` resource
+names as the workflow. It reads definitions in memory without exporting them.
+The cutover repeats the isolation check against its rollback snapshots.
+
+A missing admin job or old shared identity means the one-time infrastructure
+transition is incomplete. Setting the variable alone, pointing it at the queue
+job, or cloning the old job with its shared identity does not satisfy the
+contract. Ordinary image deployment does not provision this infrastructure.
+
+For installations using a shared PostgreSQL server, inventory the database owner
+and login-role bindings first. Limit the transition to the selected environment's
+databases, roles, vaults, identities, and storage. Do not run the fresh-server
+bootstrap against an existing shared deployment: it provisions database
+infrastructure and can run a destructive seed reset. Any change to a shared
+server administrator credential or another environment requires a separately
+reviewed maintenance plan.
+
 Use a maintenance window for the initial privilege transition:
 
 1. Generate separate random runtime passwords, at least 24 bytes each, for `POSTGRES_RUNTIME_PASSWORD` and `PLATFORM_POSTGRES_RUNTIME_PASSWORD`. Supply these through the secure Bicep inputs. Runtime role names must be distinct from each other and from every tenant role and schema owner.
