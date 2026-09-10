@@ -50,7 +50,7 @@
         "jsdoc": "^4.0.5",
         "jsdom": "^30.0.1",
         "lodash": "^4.18.1",
-        "playwright-bdd": "^9.2.0",
+        "playwright-bdd": "^9.2.1",
         "vite": "^8.2.2"
     },
     "dependencies": {
