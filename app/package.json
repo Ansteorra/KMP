@@ -63,7 +63,7 @@
         "bootstrap": "^5.3.8",
         "bootstrap-icons": "1.11.3",
         "drawflow": "^0.0.60",
-        "easymde": "^2.20.0",
+        "easymde": "^2.21.0",
         "face-api.js": "^0.22.2",
         "pdfjs-dist": "^6.3.289",
         "picomatch": "^4.0.7",
