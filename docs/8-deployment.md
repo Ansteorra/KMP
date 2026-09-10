@@ -109,7 +109,7 @@ rehearsal tools; the active Azure workflow does not currently generate a
 The official release path builds once and promotes by immutable digest:
 
 1. A green commit on official `main` is fast-forwarded to `dev`.
-2. `Nightly / Dev Docker Image` builds a multi-architecture
+2. `Nightly / Dev Docker Image` builds an AMD64
    `ghcr.io/ansteorra/kmp:dev-<sha>` image and smoke-checks it.
 3. `POC / Deploy to Azure` imports that digest, canaries the worker, runs the
    migration contract, cuts over web, probes it, and records

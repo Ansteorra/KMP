@@ -1,8 +1,8 @@
 name: Build KMP Base Image
 
 # Triggers when the base image definition changes, or manually.
-# This build is SLOW (~60-90 min for arm64 QEMU) but rare.
-# Once published, all app builds use this pre-compiled base.
+# Publishes the AMD64 base used by Dockerfile.ci. Production builds refresh
+# their runtime directly; local development builds a separate image.
 on:
   push:
     branches: [main]
@@ -31,9 +31,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
 
@@ -50,7 +47,7 @@ jobs:
           context: .
           file: docker/Dockerfile.base
           no-cache: ${{ github.event_name == 'schedule' }}
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: |
             ${{ env.BASE_IMAGE }}:php84
