@@ -970,26 +970,26 @@
         },
         {
             "name": "dereuromark/cakephp-shim",
-            "version": "3.5.0",
+            "version": "3.9.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/dereuromark/cakephp-shim.git",
-                "reference": "c851a87e16fa5a3ac08ad3c2b48d21e6d44d6da0"
+                "reference": "a934aec92d4e85e521f10346df3051cdcde793de"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/dereuromark/cakephp-shim/zipball/c851a87e16fa5a3ac08ad3c2b48d21e6d44d6da0",
-                "reference": "c851a87e16fa5a3ac08ad3c2b48d21e6d44d6da0",
+                "url": "https://api.github.com/repos/dereuromark/cakephp-shim/zipball/a934aec92d4e85e521f10346df3051cdcde793de",
+                "reference": "a934aec92d4e85e521f10346df3051cdcde793de",
                 "shasum": ""
             },
             "require": {
-                "cakephp/cakephp": "^5.0.7",
-                "php": ">=8.1"
+                "cakephp/cakephp": "^5.1.1",
+                "php": ">=8.2"
             },
             "require-dev": {
                 "dereuromark/cakephp-ide-helper": "^2.0.0",
                 "fig-r/psr2r-sniffer": "dev-master",
-                "phpunit/phpunit": "^10.1"
+                "phpunit/phpunit": "^11.5 || ^12.1 || ^13.0"
             },
             "type": "cakephp-plugin",
             "autoload": {
@@ -1010,18 +1010,22 @@
                 }
             ],
             "description": "A CakePHP plugin to shim applications between major framework versions.",
-            "homepage": "https://github.com/dereuromark/cakephp-shim",
+            "homepage": "https://dereuromark.github.io/cakephp-shim/",
             "keywords": [
                 "cakephp",
+                "compatibility",
                 "helpers",
+                "migration",
                 "plugin",
-                "shim"
+                "shim",
+                "upgrade"
             ],
             "support": {
+                "docs": "https://dereuromark.github.io/cakephp-shim/",
                 "issues": "https://github.com/dereuromark/cakephp-shim/issues",
                 "source": "https://github.com/dereuromark/cakephp-shim"
             },
-            "time": "2025-04-05T09:42:11+00:00"
+            "time": "2026-05-25T03:25:20+00:00"
         },
         {
             "name": "dereuromark/cakephp-templating",
@@ -1083,16 +1087,16 @@
         },
         {
             "name": "dereuromark/cakephp-tools",
-            "version": "3.13.0",
+            "version": "3.13.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/dereuromark/cakephp-tools.git",
-                "reference": "32791a0b2e093893f8780614d86d0534a2fd9803"
+                "reference": "106366692218360d44d05a8f89caaf7279232c82"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/dereuromark/cakephp-tools/zipball/32791a0b2e093893f8780614d86d0534a2fd9803",
-                "reference": "32791a0b2e093893f8780614d86d0534a2fd9803",
+                "url": "https://api.github.com/repos/dereuromark/cakephp-tools/zipball/106366692218360d44d05a8f89caaf7279232c82",
+                "reference": "106366692218360d44d05a8f89caaf7279232c82",
                 "shasum": ""
             },
             "require": {
@@ -1100,8 +1104,11 @@
                 "dereuromark/cakephp-shim": "^3.0.0",
                 "php": ">=8.2"
             },
+            "conflict": {
+                "cakephp/authentication": "<4.0.0"
+            },
             "require-dev": {
-                "cakephp/authentication": "^3.1.0",
+                "cakephp/authentication": "^4.0.0",
                 "fig-r/psr2r-sniffer": "dev-master",
                 "mobiledetect/mobiledetectlib": "^4.8.09",
                 "phpunit/phpunit": "^11.5 || ^12.1 || ^13.0",
@@ -1145,7 +1152,7 @@
                 "issues": "https://github.com/dereuromark/cakephp-tools/issues",
                 "source": "https://github.com/dereuromark/cakephp-tools"
             },
-            "time": "2026-05-25T15:02:37+00:00"
+            "time": "2026-07-18T16:56:14+00:00"
         },
         {
             "name": "dragonmantank/cron-expression",
