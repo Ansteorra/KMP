@@ -5,6 +5,7 @@ jest.mock('../../../assets/js/services/rsvp-cache-service.js', () => ({
         init: jest.fn().mockResolvedValue(undefined),
         cacheUserRsvps: jest.fn().mockResolvedValue(undefined),
         getPendingCount: jest.fn().mockResolvedValue(0),
+        getPendingRsvps: jest.fn().mockResolvedValue([{ gathering_id: 1, id: 'waiting' }]),
         syncPendingRsvps: jest.fn().mockResolvedValue({ success: 0, failed: 0 }),
         queueOfflineRsvp: jest.fn().mockResolvedValue(undefined),
         updateCachedRsvp: jest.fn().mockResolvedValue(undefined),
@@ -39,7 +40,7 @@ jest.mock('../../../assets/js/controllers/mobile-controller-base.js', () => {
         }
 
         get online() {
-            return this._online !== undefined ? this._online : true;
+            return navigator.onLine && this._online !== false;
         }
 
         set online(val) {
@@ -709,6 +710,18 @@ describe('MobileCalendarController', () => {
         expect(controller.errorTarget.hidden).toBe(false);
     });
 
+    test('renders a saved API response through the normal calendar renderer', async () => {
+        setupController();
+        controller.online = false;
+        global.fetch = jest.fn().mockResolvedValue({ json: async () => ({ success: true, data: {
+            events: [{ id: 1, name: 'Saved practice', start_date: '2025-06-15', end_date: '2025-06-15' }]
+        } }) });
+        await controller.loadCalendarData();
+        expect(controller.eventListTarget.textContent).toContain('Saved practice');
+        expect(controller.errorTarget.hidden).toBe(true);
+        expect(controller.loadingTarget.hidden).toBe(true);
+    });
+
     // ==================== updatePendingBanner ====================
 
     test('updatePendingBanner shows banner when pending RSVPs exist', async () => {
@@ -993,7 +1006,7 @@ describe('MobileCalendarController', () => {
     test('handleRsvpClick queues offline RSVP when offline', async () => {
         setupController();
         Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
-        jest.spyOn(controller, 'queueOfflineRsvp').mockResolvedValue(undefined);
+        jest.spyOn(controller, 'showOfflineRsvpForm').mockResolvedValue(undefined);
 
         controller.filteredEvents = [{ id: 42, name: 'Test Event' }];
 
@@ -1007,7 +1020,7 @@ describe('MobileCalendarController', () => {
 
         await controller.handleRsvpClick(event);
 
-        expect(controller.queueOfflineRsvp).toHaveBeenCalledWith(
+        expect(controller.showOfflineRsvpForm).toHaveBeenCalledWith(
             expect.objectContaining({ id: 42 }),
             button
         );

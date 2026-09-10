@@ -51,6 +51,8 @@ app/webroot/js/*-[A-Za-z0-9_-]*.js
 app/webroot/js/*.LICENSE.txt
 app/webroot/js/pdf.worker.min.mjs
 app/webroot/css/*-[A-Za-z0-9_-]*.css
+app/webroot/fonts/*-[A-Za-z0-9_-]*.woff
+app/webroot/fonts/*-[A-Za-z0-9_-]*.woff2
 
 # Azure deploy local settings (never commit — contains secrets)
 .azure/

@@ -1,5 +1,13 @@
 @import 'bootstrap.css';
-@import url("https://unpkg.com/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css");
+@import 'bootstrap-icons/font/bootstrap-icons.css';
+@import '@fontsource/cinzel/latin-400.css';
+@import '@fontsource/cinzel/latin-500.css';
+@import '@fontsource/cinzel/latin-600.css';
+@import '@fontsource/cinzel/latin-700.css';
+@import '@fontsource/crimson-pro/latin-400.css';
+@import '@fontsource/crimson-pro/latin-500.css';
+@import '@fontsource/crimson-pro/latin-600.css';
+@import '@fontsource/crimson-pro/latin-400-italic.css';
 @import 'bootstrap-icon-sizes.css';
 @import 'dashboard.css';
 @import 'platform-admin.css';
@@ -1155,4 +1163,39 @@ tr.row-expanded .toggle-icon.bi-chevron-down {
     min-height: 0 !important;
     height: auto;
     resize: none;
+}
+
+/* The shared trust wizard fits mobile cards and the Security dialog. */
+.trusted-device .trusted-device-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    margin-block: 1rem;
+}
+
+.trusted-device .btn,
+.trusted-device .form-control,
+.trusted-device .form-select {
+    min-height: 44px;
+}
+
+.trusted-device [tabindex="-1"]:focus-visible {
+    outline: 3px solid #0a58ca;
+    outline-offset: 3px;
+}
+
+@media (max-width: 575.98px) {
+    .trusted-device .trusted-device-actions {
+        flex-direction: column;
+    }
+
+    .trusted-device .trusted-device-actions .btn {
+        width: 100%;
+        white-space: normal;
+    }
+
+    .trusted-device .form-control,
+    .trusted-device .form-select {
+        font-size: 1rem;
+    }
 }

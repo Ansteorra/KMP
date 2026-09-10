@@ -25,6 +25,7 @@ class MobileControllerBase extends Controller {
     static isOnline = navigator.onLine;
     static connectionListeners = new Set();
     static initialized = false;
+    static dataOffline = false;
 
     /**
      * Initialize static connection listeners once
@@ -33,7 +34,12 @@ class MobileControllerBase extends Controller {
     static initializeConnectionListeners() {
         if (MobileControllerBase.initialized) return;
         
+        window.addEventListener('kmp:offline-source', event => {
+            MobileControllerBase.dataOffline = event.detail.offline;
+            MobileControllerBase.setOnlineState(navigator.onLine, true);
+        });
         window.addEventListener('online', () => {
+            MobileControllerBase.dataOffline = false;
             MobileControllerBase.setOnlineState(true, true);
         });
         
@@ -50,7 +56,7 @@ class MobileControllerBase extends Controller {
      * @param {boolean} notify
      */
     static setOnlineState(isOnline, notify = true) {
-        const normalized = Boolean(isOnline);
+        const normalized = Boolean(isOnline) && !MobileControllerBase.dataOffline;
         const changed = MobileControllerBase.isOnline !== normalized;
         MobileControllerBase.isOnline = normalized;
 

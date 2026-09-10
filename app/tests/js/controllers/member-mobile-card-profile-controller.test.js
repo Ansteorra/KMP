@@ -563,14 +563,14 @@ describe('loadCard', () => {
 
     await controller.loadCard();
 
-    expect(controller.nameTarget.textContent).toBe('Error loading card data');
+    expect(controller.nameTarget.textContent).toBe('Connect to load your card.');
     expect(controller.loadingTarget.hidden).toBe(true);
     expect(controller.memberDetailsTarget.hidden).toBe(false);
 
     MobileControllerBase.isOnline = origOnline;
   });
 
-  test('shows offline message with retry button when fetch fails and offline', async () => {
+  test('explains that an unsaved card needs a connection', async () => {
     const MobileControllerBase = Object.getPrototypeOf(Object.getPrototypeOf(controller)).constructor;
     const origOnline = MobileControllerBase.isOnline;
     MobileControllerBase.isOnline = false;
@@ -579,11 +579,20 @@ describe('loadCard', () => {
 
     await controller.loadCard();
 
-    expect(controller.nameTarget.textContent).toBe('Error loading card data');
-    const retryBtn = controller.cardSetTarget.querySelector('button');
-    expect(retryBtn).not.toBeNull();
+    expect(controller.nameTarget.textContent).toBe('Connect to load your card.');
+    expect(controller.loadingTarget.hidden).toBe(true);
 
     MobileControllerBase.isOnline = origOnline;
+  });
+
+  test('a failed refresh leaves the saved card visible', async () => {
+    controller.nameTarget.textContent = 'Saved Member';
+    controller.memberDetailsTarget.hidden = false;
+    controller.fetchWithRetry = jest.fn().mockRejectedValue(new Error('Disconnected'));
+    await controller.loadCard();
+    expect(controller.nameTarget.textContent).toBe('Saved Member');
+    expect(controller.memberDetailsTarget.hidden).toBe(false);
+    expect(controller.loadingTarget.hidden).toBe(true);
   });
 
   test('hides profile photo container while loading', async () => {

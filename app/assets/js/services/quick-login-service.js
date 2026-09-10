@@ -1,7 +1,8 @@
 const STORAGE_KEYS = {
     rememberedId: "kmp.login.rememberedId",
     deviceId: "kmp.quickLogin.deviceId",
-    quickConfig: "kmp.quickLogin.config"
+    quickConfig: "kmp.quickLogin.config",
+    pinMigration: "kmp.quickLogin.migration.v1"
 };
 
 const hasSecureCryptoSupport = () => (
@@ -98,6 +99,28 @@ const QuickLoginService = {
     getQuickConfig() {
         const raw = localStorage.getItem(STORAGE_KEYS.quickConfig);
         return parseQuickConfig(raw);
+    },
+
+    /** Retire the old browser PIN without losing the guidance across password login. */
+    beginPinMigration() {
+        const legacy = this.getQuickConfig();
+        if (legacy) {
+            try {
+                localStorage.setItem(STORAGE_KEYS.pinMigration, "1");
+                if (!this.getRememberedId()) this.setRememberedId(legacy.email);
+                this.clearQuickConfig();
+            } catch { /* Keep the legacy record as the reminder if storage is full. */ }
+        }
+        return this.needsPinMigration();
+    },
+
+    needsPinMigration() {
+        return localStorage.getItem(STORAGE_KEYS.pinMigration) === "1" || !!this.getQuickConfig();
+    },
+
+    completePinMigration() {
+        this.clearQuickConfig();
+        localStorage.removeItem(STORAGE_KEYS.pinMigration);
     },
 
     clearQuickConfig() {

@@ -31,6 +31,7 @@ use App\Services\WorkflowEngine\TriggerDispatcher;
 use Authentication\PasswordHasher\DefaultPasswordHasher;
 use Cake\Datasource\Exception\RecordNotFoundException;
 use Cake\Event\EventInterface;
+use Cake\Http\Cookie\Cookie;
 use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
@@ -106,6 +107,7 @@ class MembersController extends AppController
         $this->Authorization->authorizeModel('index', 'verifyQueue', 'gridData', 'verifyQueueGridData');
         $this->Authentication->allowUnauthenticated([
             'login',
+            'logout', // Explicit local sign-out must also work after the server session expires.
             'approversList',
             'forgotPassword',
             'resetPassword',
@@ -1860,6 +1862,7 @@ class MembersController extends AppController
         } else {
             $member->profile_photo_url = null;
         }
+        $member->can_share_rsvp_with_kingdom = $currentUser->age === null || $currentUser->age >= 18;
         $this->Authorization->skipAuthorization();
         $this->viewBuilder()
             ->setClassName('Ajax')
@@ -1959,6 +1962,23 @@ class MembersController extends AppController
 
     #region Password specific calls
 
+    /** Render member-authorized security actions in the shared dialog. */
+    public function security($id = null): ?Response
+    {
+        $this->request->allowMethod(['get']);
+        $identity = $this->request->getAttribute('identity');
+        $member = $this->Members->get($id ?? $identity->getIdentifier());
+        $this->Authorization->authorize($member, 'changePassword');
+        if ($this->request->getHeaderLine('Turbo-Frame') !== 'security-settings') {
+            return $this->redirect(['action' => 'view', $member->id]);
+        }
+        $isSelf = (int)$identity->getIdentifier() === (int)$member->id;
+        $passwordReset = new ResetPasswordForm();
+        $this->set(compact('member', 'isSelf', 'passwordReset'));
+
+        return null;
+    }
+
     /**
      * Change password.
      *
@@ -1991,7 +2011,7 @@ class MembersController extends AppController
                 ));
                 if ((int)$this->request->getAttribute('identity')->getIdentifier() === (int)$member->id) {
                     $this->Authentication->logout();
-                    $this->response = $this->response->withHeader('X-KMP-Offline-Clear', '1');
+                    $this->invalidateOfflineTrust();
 
                     return $this->redirect(['action' => 'login']);
                 }
@@ -2016,7 +2036,7 @@ class MembersController extends AppController
         if ((int)$this->request->getAttribute('identity')->getIdentifier() === (int)$member->id) {
             $this->Authentication->logout();
             $this->request->getSession()->destroy();
-            $this->response = $this->response->withHeader('X-KMP-Offline-Clear', '1');
+            $this->invalidateOfflineTrust();
 
             return $this->redirect(['action' => 'login']);
         }
@@ -2099,7 +2119,7 @@ class MembersController extends AppController
             }
             $this->Authentication->logout();
             $this->request->getSession()->delete('QuickLoginSetup');
-            $this->response = $this->response->withHeader('X-KMP-Offline-Clear', '1');
+            $this->invalidateOfflineTrust();
             $this->Flash->success(__('Password successfully reset'));
 
             return $this->redirect(['action' => 'login']);
@@ -2599,6 +2619,16 @@ class MembersController extends AppController
         $this->Members->save($member);
     }
 
+    /** Deliver local invalidation even when the browser follows a redirect immediately. */
+    private function invalidateOfflineTrust(): void
+    {
+        $this->response = $this->response->withHeader('X-KMP-Offline-Clear', '1')
+            ->withCookie(Cookie::create('kmp_offline_clear', '1', [
+                'path' => '/', 'httponly' => false, 'samesite' => 'Strict',
+                'secure' => $this->request->getUri()->getScheme() === 'https',
+            ]));
+    }
+
     /**
      * Logout.
      */
@@ -2608,7 +2638,11 @@ class MembersController extends AppController
         $this->Authentication->logout();
         $this->request->getSession()->delete('QuickLoginSetup');
         $this->request->getSession()->delete('Impersonation');
-        $this->response = $this->response->withHeader('X-KMP-Offline-Clear', '1');
+        $this->response = $this->response->withHeader('X-KMP-Offline-Lock', '1')
+            ->withCookie(Cookie::create('kmp_offline_lock', '1', [
+                'path' => '/', 'httponly' => false, 'samesite' => 'Strict',
+                'secure' => $this->request->getUri()->getScheme() === 'https',
+            ]));
 
         return $this->redirect([
             'controller' => 'Members',
@@ -3344,39 +3378,4 @@ class MembersController extends AppController
     }
 
     #endregion
-
-    /**
-     * Build a data URI for an image app setting, supporting legacy filenames.
-     *
-     * @param string $settingName App setting name
-     * @return string|null
-     */
-    private function appSettingImageDataUri(string $settingName): ?string
-    {
-        $appSettings = $this->fetchTable('AppSettings');
-        $payload = $appSettings->getAssetPayload($settingName);
-        if ($payload !== null) {
-            return sprintf('data:%s;base64,%s', (string)$payload['mime'], (string)$payload['data']);
-        }
-
-        $value = StaticHelpers::getAppSetting($settingName);
-        if (!is_string($value) || $value === '' || str_starts_with($value, '/')) {
-            return null;
-        }
-
-        $path = WWW_ROOT . 'img' . DS . $value;
-        if (!is_file($path)) {
-            return null;
-        }
-
-        $contents = file_get_contents($path);
-        if ($contents === false) {
-            return null;
-        }
-
-        $mime = getimagesize($path);
-        $mimeType = is_array($mime) && isset($mime['mime']) ? (string)$mime['mime'] : 'image/png';
-
-        return sprintf('data:%s;base64,%s', $mimeType, base64_encode($contents));
-    }
 }

@@ -6,21 +6,40 @@
  * @var bool $quickLoginDisabled
  * @var string $quickLoginDisabledEmail
  */
-$Member = []; ?>
+$Member = [];
+$shortSiteTitle = $this->KMP->getAppSetting('KMP.ShortSiteTitle');
+?>
 <?php $this->extend('/layout/TwitterBootstrap/signin');
 
 echo $this->KMP->startBlock('title');
-echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': Login';
+echo $shortSiteTitle . ': Login';
 $this->KMP->endBlock(); ?>
-<div data-controller="login-device-auth">
+<div data-controller="login-device-auth"
+    data-action="kmp:device-login-availability->login-device-auth#deviceAvailability
+        kmp:password-login->login-device-auth#showPasswordLogin">
     <div class="card login-card form-signin">
         <?= $this->Html->image($this->KMP->assetUrl($headerImage), [
             'class' => 'card-img-top',
             'alt' => 'site logo',
         ]) ?>
         <div class="card-body">
-            <h5 class="card-title">Log in</h5>
-            <div class="card-text">
+            <h1 class="card-title h5">Log in</h1>
+            <div class="alert alert-info text-start" role="status"
+                data-login-device-auth-target="migrationNotice" hidden>
+                <h2 class="h6">A fresh start for PIN login</h2>
+                <p class="mb-0"><?= h($shortSiteTitle) ?> has updated device unlock. Your old PIN no longer works.
+                    Connect to the internet and sign in with your email and password once.
+                    Then we’ll help you set up a new PIN or passkey for online and offline access.</p>
+            </div>
+            <p class="small" role="status" tabindex="-1" data-login-device-auth-target="offlineNotice" hidden></p>
+            <div id="device-login" data-login-device-auth-target="deviceExperience">
+                <?= $this->element('offline_access') ?>
+            </div>
+            <div class="card-text" id="password-login" data-trusted-password-login
+                data-login-device-auth-target="passwordLogin">
+                <button type="button" class="btn btn-outline-secondary w-100 py-2 mb-3"
+                    aria-controls="device-login" data-login-device-auth-target="deviceSwitch"
+                    data-action="login-device-auth#switchToDevice" hidden>Use device unlock</button>
                 <?= $this->Form->hidden('quick_login_disabled', [
                     'value' => !empty($quickLoginDisabled) ? '1' : '0',
                     'data-login-device-auth-target' => 'quickDisabled',
@@ -127,18 +146,6 @@ $this->KMP->endBlock(); ?>
                             <?= __('Remember my ID') ?>
                         </label>
                     </div>
-
-                    <div class="form-check text-start mb-1">
-                        <input class="form-check-input" type="checkbox" value="1" id="quick-login-enable"
-                            name="quick_login_enable" data-login-device-auth-target="quickEnable"
-                            data-action="change->login-device-auth#syncQuickPreference">
-                        <label class="form-check-label" for="quick-login-enable">
-                            <?= __('Quick login on this device') ?>
-                        </label>
-                    </div>
-                    <small class="text-muted d-block mb-2 text-start">
-                        <?= __("After you sign in, you'll set your quick login PIN on this device.") ?>
-                    </small>
 
                     <?= $this->Form->submit(__('Sign in'), [
                         'class' => 'w-100 btn btn-lg btn-primary',

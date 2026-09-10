@@ -26,6 +26,7 @@ try {
     await page.evaluate(async () => {
         const now = Date.now();
         await vault.enroll({ owner: 'synthetic-member-a', epoch: 'synthetic-epoch', serverTime: now, expiresAt: now + 604800000 }, 'device');
+        while (vault.pendingDevice) await vault.continueDeviceEnrollment();
         await vault.mutate(data => { data.card = { name: 'SYNTHETIC-PRIVATE-MARKER' }; });
     });
     assert.equal(await page.evaluate(async () => JSON.stringify(await vault.stored()).includes('SYNTHETIC-PRIVATE-MARKER')), false);
@@ -68,9 +69,23 @@ try {
         }), name);
         assert.deepEqual(result, []);
     }
+    await page.evaluate(async () => {
+        const now = Date.now();
+        await vault.trust({ owner: 'synthetic-member-a', epoch: 'synthetic-epoch', serverTime: now, expiresAt: now + 604800000 });
+        await vault.mutate(data => { data.card = { name: 'TRUSTED-PRIVATE-MARKER' }; data.pending = [{ id: 'waiting' }]; });
+        if ((await vault.stored()).wrapper.key.extractable) throw new Error('Trusted key must be nonextractable');
+    });
+    await page.reload(); await page.waitForFunction(() => !!window.vault);
+    await context.setOffline(true);
+    await page.evaluate(() => vault.openTrusted());
+    assert.equal(await page.evaluate(async () => (await vault.read()).card.name), 'TRUSTED-PRIVATE-MARKER');
+    assert.deepEqual(await page.evaluate(async () => (await vault.read()).pending), [{ id: 'waiting' }]);
+    await page.evaluate(() => vault.clear());
+    assert.equal(await page.evaluate(() => vault.openTrusted()), false);
+    await context.setOffline(false);
     await cdp.send('WebAuthn.removeVirtualAuthenticator', { authenticatorId });
     console.log('PASS: real IndexedDB ciphertext, PRF wrap/unwrap after reload with browser offline, account purge, passphrase fallback, plaintext database tombstones.');
-    console.log('Physical device PIN/biometrics and provider offline operation still require manual device acceptance.');
+    console.log('PASS: trusted nonextractable CryptoKey survives real IndexedDB reload, opens offline without credentials, retains queued requests, and is removed by explicit clearing.');
     await context.close();
 } finally {
     await browser.close();

@@ -7,6 +7,7 @@ KMP is a PHP 8.4 and CakePHP 5.4 application with a Vite frontend, Stimulus cont
 - Work primarily in `app/` for application code. The repository root contains deployment, installer, docs, and agent configuration.
 - Preserve existing behavior unless the user explicitly asks for a behavior change.
 - Keep all user-facing UI WCAG 2.2 Level AA compliant; treat accessibility regressions as bugs.
+- Use `KMP.ShortSiteTitle` for user-facing app names. JavaScript reads the escaped page metadata through `shortSiteTitle()` in `app-branding-service.js`, including cached offline shells. Do not change internal identifiers or cryptographic domain strings when changing display branding.
 - Prefer the project's base classes, helpers, services, and registries over new one-off abstractions.
 - Search for an existing pattern before adding a new one. Core patterns usually already exist in `app/src`, `app/templates/element`, `app/assets/js/controllers`, and the first-party plugins.
 - Keep edits surgical. Do not reformat unrelated files or apply broad automated fixes.

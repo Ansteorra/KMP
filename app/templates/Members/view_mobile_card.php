@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Mobile Card View - Using mobile_app Layout
@@ -10,9 +11,7 @@
  * The member-mobile-card-profile controller is initialized in the layout.
  */
 
-use Cake\I18n\Date;
-
-$now = Date::now();
+$publicOfflineShell = $publicOfflineShell ?? false;
 $uploadLimits = $this->KMP->getUploadLimits();
 ?>
 
@@ -20,12 +19,14 @@ $uploadLimits = $this->KMP->getUploadLimits();
     <div class="card-body">
         <div class="d-flex align-items-center justify-content-between mb-3">
             <span class="fs-5 text-muted"><?= h($message_variables["kingdom"]) ?> Activity Authorization</span>
+            <?php if (!$publicOfflineShell) : ?>
             <button type="button" class="btn btn-link btn-sm text-decoration-none mobile-card-photo-manage-btn"
                 hidden
                 data-member-mobile-card-profile-target="photoManageButton"
                 data-bs-toggle="modal" data-bs-target="#mobileCardPhotoUploadModal">
                 <i class="bi bi-camera me-1"></i><?= __('Photo') ?>
             </button>
+            <?php endif; ?>
         </div>
         <div class="text-center py-4" data-member-mobile-card-profile-target="loading">
             <div class="spinner-border" style="width: 3rem; height: 3rem;" role="status">
@@ -61,6 +62,7 @@ $uploadLimits = $this->KMP->getUploadLimits();
 </div>
 <div id="pluginCards" class="mt-3" data-member-mobile-card-profile-target="cardSet"></div>
 
+<?php if (!$publicOfflineShell) : ?>
 <?= $this->Form->create(null, [
     'url' => ['controller' => 'Members', 'action' => 'mobileCardUploadProfilePhoto'],
     'type' => 'file',
@@ -137,6 +139,7 @@ $uploadLimits = $this->KMP->getUploadLimits();
     </div>
 </div>
 <?= $this->Form->end() ?>
+<?php endif; ?>
 
 <div class="modal fade mobile-photo-zoom-modal" id="mobileCardPhotoZoomModal" tabindex="-1"
     aria-labelledby="mobileCardPhotoZoomModalLabel" aria-hidden="true">
@@ -160,5 +163,12 @@ $uploadLimits = $this->KMP->getUploadLimits();
 </div>
 
 <div class="mx-3 my-3">
-    <?= $this->element('members/revokeSessions', ['member' => $member]) ?>
+    <?php if ($publicOfflineShell) : ?>
+    <button type="button" class="btn btn-outline-secondary online-only-btn" disabled aria-disabled="true"
+        title="Connect and sign in to open Security">Security</button>
+    <?php elseif ($this->request->getAttribute('identity')->can('changePassword', $member)) : ?>
+    <button type="button" class="btn btn-outline-secondary online-only-btn" data-bs-toggle="modal"
+        data-bs-target="#securityModal">Security</button>
+        <?= $this->element('members/securityModal') ?>
+    <?php endif; ?>
 </div>

@@ -7,8 +7,6 @@
  * Upcoming events can be edited; past events are read-only and require online access.
  * 
  * @var \App\View\AppView $this
- * @var \Cake\ORM\ResultSet $upcomingAttendances
- * @var \Cake\ORM\ResultSet $pastAttendances
  * @var string $authCardUrl
  */
 
@@ -18,22 +16,18 @@ $this->set('mobileSection', 'rsvps');
 $this->set('mobileIcon', 'bi-calendar-check');
 $this->set('mobileBackUrl', $authCardUrl);
 
-$currentUser = $this->request->getAttribute('identity');
-$userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
-
-$upcomingCount = $upcomingAttendances->count();
-$pastCount = $pastAttendances->count();
 ?>
 
-<div class="my-rsvps-container mx-3 mt-3" data-controller="my-rsvps" data-section="rsvps">
+<div class="my-rsvps-container mx-3 mt-3" data-controller="my-rsvps"
+    data-my-rsvps-data-url-value="/gathering-attendances/my-rsvps" data-section="rsvps">
+    <p role="status" aria-live="polite" data-my-rsvps-target="status">Loading your RSVPs…</p>
     <!-- Tabs Navigation -->
     <ul class="nav nav-tabs rsvp-tabs mb-3" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming-pane"
                 type="button" role="tab" aria-controls="upcoming-pane" aria-selected="true">
                 <i class="bi bi-calendar-event me-1"></i>Upcoming
-                <span class="badge bg-primary ms-1" data-my-rsvps-target="upcomingCount"
-                    <?= $upcomingCount == 0 ? 'hidden' : '' ?>><?= $upcomingCount ?></span>
+                <span class="badge bg-primary ms-1" data-my-rsvps-target="upcomingCount" hidden>0</span>
             </button>
         </li>
         <li class="nav-item online-only" role="presentation">
@@ -49,157 +43,13 @@ $pastCount = $pastAttendances->count();
         <!-- Upcoming RSVPs Tab -->
         <div class="tab-pane fade show active" id="upcoming-pane" role="tabpanel" aria-labelledby="upcoming-tab"
             tabindex="0">
-            <?php if ($upcomingAttendances->isEmpty()): ?>
-            <!-- Empty State -->
-            <div class="card empty-state-card">
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-calendar-check d-block fs-1 mb-3" style="color: var(--section-rsvps);"></i>
-                    <h3 class="h5 mb-2">No Upcoming RSVPs</h3>
-                    <p class="text-muted mb-4">
-                        You haven't RSVPed to any upcoming gatherings yet.
-                    </p>
-                    <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'mobileCalendar']) ?>"
-                        class="btn btn-primary online-only-btn">
-                        <i class="bi bi-calendar me-2"></i>Browse Calendar
-                    </a>
-                </div>
-            </div>
-            <?php else: ?>
-            <!-- Upcoming RSVP List -->
-            <div class="rsvp-list" data-my-rsvps-target="upcomingList">
-                <?php foreach ($upcomingAttendances as $attendance):
-                        $gathering = $attendance->gathering;
-                        $startLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, $userTimezone);
-                        $endLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, $userTimezone);
-                        $typeColor = $gathering->gathering_type ? $gathering->gathering_type->color : '#6c757d';
-                    ?>
-                <div class="mobile-event-card <?= $gathering->cancelled_at ? 'cancelled' : 'attending' ?>" data-end-date="<?= $endLocal->format('Y-m-d') ?>">
-                    <?php if ($gathering->cancelled_at): ?>
-                    <div class="mobile-event-cancelled-banner">
-                        <i class="bi bi-x-circle-fill me-2"></i>CANCELLED
-                    </div>
-                    <?php endif; ?>
-                    <div class="mobile-event-header">
-                        <div class="mobile-event-info">
-                            <?php if ($gathering->gathering_type): ?>
-                            <span class="mobile-event-type-badge mb-1" style="background-color: <?= h($typeColor) ?>; color: white;">
-                                <?= h($gathering->gathering_type->name) ?>
-                            </span>
-                            <?php endif; ?>
-                            <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id]) ?>"
-                                class="mobile-event-name <?= $gathering->cancelled_at ? 'cancelled' : '' ?> text-decoration-none">
-                                <?= h($gathering->name) ?>
-                            </a>
-                            <div class="mobile-event-meta">
-                                <span><i class="bi bi-calendar3"></i> <?= $startLocal->format('D, M j') ?></span>
-                                <span><i class="bi bi-clock"></i> <?= $startLocal->format('g:i A') ?></span>
-                            </div>
-                            <div class="mobile-event-meta">
-                                <?php if ($gathering->branch): ?>
-                                <span><i class="bi bi-building"></i> <?= h($gathering->branch->name) ?></span>
-                                <?php endif; ?>
-                                <?php if ($gathering->location): ?>
-                                <span><i class="bi bi-geo-alt"></i> <?= h($gathering->location) ?></span>
-                                <?php endif; ?>
-                            </div>
-                            <?php if ($attendance->is_shared): ?>
-                            <div class="mobile-event-meta">
-                                <span><i class="bi bi-share"></i> Shared: <?= h($attendance->sharing_description) ?></span>
-                            </div>
-                            <?php endif; ?>
-                            <?php if (!$gathering->cancelled_at): ?>
-                            <div class="mobile-event-actions-row mt-2" data-my-rsvps-target="actionButtons">
-                                <?php if ($gathering->public_page_enabled): ?>
-                                <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'publicLanding', $gathering->public_id, '?' => ['from' => 'mobile']]) ?>"
-                                    class="btn btn-sm btn-outline-secondary online-only-btn">
-                                    <i class="bi bi-info-circle me-1"></i>Details
-                                </a>
-                                <?php endif; ?>
-                                <button type="button" class="btn btn-sm btn-outline-success online-only-btn"
-                                    data-action="click->my-rsvps#editRsvp" data-gathering-id="<?= h($gathering->id) ?>"
-                                    data-attendance-id="<?= h($attendance->id) ?>">
-                                    <i class="bi bi-pencil me-1"></i>Edit
-                                </button>
-                            </div>
-                            <?php endif; ?>
-                        </div>
-                        <div class="mobile-event-actions">
-                            <?php if (!$gathering->cancelled_at): ?>
-                            <i class="bi bi-check-circle-fill text-success"></i>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
-                <?php endforeach; ?>
-            </div>
-            <?php endif; ?>
+            <div class="rsvp-list" data-my-rsvps-target="upcomingList"></div>
         </div>
 
         <!-- Past RSVPs Tab (Online Only) -->
         <div class="tab-pane fade online-only" id="past-pane" role="tabpanel" aria-labelledby="past-tab" tabindex="0">
             <!-- Past RSVP List -->
             <div class="rsvp-list" data-my-rsvps-target="pastList">
-                <?php if ($pastAttendances->isEmpty()): ?>
-                <!-- Empty State (will be replaced if events are moved from upcoming) -->
-                <div class="card empty-state-card" data-my-rsvps-target="pastEmptyState">
-                    <div class="card-body text-center py-4">
-                        <i class="bi bi-clock-history d-block fs-1 mb-3 text-muted"></i>
-                        <h3 class="h5 mb-2">No Past RSVPs</h3>
-                        <p class="text-muted mb-0">
-                            No past gatherings in the last 90 days.
-                        </p>
-                    </div>
-                </div>
-                <?php else: ?>
-                <?php foreach ($pastAttendances as $attendance):
-                        $gathering = $attendance->gathering;
-                        $startLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, $userTimezone);
-                        $endLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, $userTimezone);
-                        $typeColor = $gathering->gathering_type ? $gathering->gathering_type->color : '#6c757d';
-                    ?>
-                <div class="mobile-event-card past <?= $gathering->cancelled_at ? 'cancelled' : '' ?>">
-                    <?php if ($gathering->cancelled_at): ?>
-                    <div class="mobile-event-cancelled-banner">
-                        <i class="bi bi-x-circle-fill me-2"></i>CANCELLED
-                    </div>
-                    <?php endif; ?>
-                    <div class="mobile-event-header">
-                        <div class="mobile-event-info">
-                            <?php if ($gathering->gathering_type): ?>
-                            <span class="mobile-event-type-badge mb-1" style="background-color: <?= h($typeColor) ?>; color: white;">
-                                <?= h($gathering->gathering_type->name) ?>
-                            </span>
-                            <?php endif; ?>
-                            <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id]) ?>"
-                                class="mobile-event-name <?= $gathering->cancelled_at ? 'cancelled' : '' ?> text-decoration-none">
-                                <?= h($gathering->name) ?>
-                            </a>
-                            <div class="mobile-event-meta">
-                                <span><i class="bi bi-calendar3"></i> <?= $startLocal->format('D, M j, Y') ?></span>
-                            </div>
-                            <div class="mobile-event-meta">
-                                <?php if ($gathering->branch): ?>
-                                <span><i class="bi bi-building"></i> <?= h($gathering->branch->name) ?></span>
-                                <?php endif; ?>
-                                <?php if ($gathering->location): ?>
-                                <span><i class="bi bi-geo-alt"></i> <?= h($gathering->location) ?></span>
-                                <?php endif; ?>
-                            </div>
-                            <?php if ($attendance->is_shared): ?>
-                            <div class="mobile-event-meta">
-                                <span><i class="bi bi-share"></i> Shared: <?= h($attendance->sharing_description) ?></span>
-                            </div>
-                            <?php endif; ?>
-                        </div>
-                        <div class="mobile-event-actions">
-                            <?php if (!$gathering->cancelled_at): ?>
-                            <i class="bi bi-check-circle text-muted"></i>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
-                <?php endforeach; ?>
-                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -207,7 +57,7 @@ $pastCount = $pastAttendances->count();
     <!-- Quick Link to Calendar -->
     <div class="text-center mt-4 mb-5">
         <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'mobileCalendar']) ?>"
-            class="btn btn-outline-secondary online-only-btn">
+            class="btn btn-outline-secondary">
             <i class="bi bi-calendar me-2"></i>View Calendar
         </a>
     </div>

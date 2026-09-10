@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Core\Feature\Members;
 
+use App\KMP\StaticHelpers;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use Cake\Core\Configure;
 
 /**
  * Smoke-test the public login page to validate routing and rendering.
@@ -19,8 +21,28 @@ final class MembersLoginPageTest extends HttpIntegrationTestCase
         $this->assertResponseContains('Sign in');
         $this->assertResponseContains('Quick login');
         $this->assertResponseContains('Email + Password');
-        $this->assertResponseContains('After you sign in, you\'ll set your quick login PIN on this device.');
+        $this->assertResponseContains('Device PIN');
+        $this->assertResponseContains('Unlock ' . h(StaticHelpers::getAppSetting('KMP.ShortSiteTitle')));
+        $this->assertResponseContains('name="kmp-short-site-title"');
         $this->assertStringNotContainsString('Quick login PIN (4-10 digits)', (string)$this->_response->getBody());
+    }
+
+    public function testConfiguredBrandingIsEscapedInLoginAndPublicOfflineShells(): void
+    {
+        $original = Configure::read('KMP.ShortSiteTitle');
+        Configure::write('KMP.ShortSiteTitle', 'Guild & <Friends>');
+        try {
+            foreach (['/members/login', '/offline', '/offline?page=rsvps', '/offline?page=calendar'] as $url) {
+                $this->get($url);
+                $this->assertResponseOk();
+                $this->assertResponseContains('name="kmp-short-site-title" content="Guild &amp; &lt;Friends&gt;"');
+                $this->assertResponseContains('Unlock Guild &amp; &lt;Friends&gt;');
+                $this->assertResponseNotContains('Unlock KMP');
+                $this->assertResponseNotContains('Guild & <Friends>');
+            }
+        } finally {
+            Configure::write('KMP.ShortSiteTitle', $original);
+        }
     }
 
     public function testQuickLoginOutOfSyncShowsClearErrorAndResetInstruction(): void

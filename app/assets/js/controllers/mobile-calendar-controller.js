@@ -1,5 +1,6 @@
 import MobileControllerBase from "./mobile-controller-base.js";
 import rsvpCacheService from "../services/rsvp-cache-service.js";
+import vault from "../services/offline-vault-service.js";
 
 /**
  * Mobile Events Controller
@@ -21,7 +22,7 @@ class MobileCalendarController extends MobileControllerBase {
         "searchInput", "filterPanel", "filterToggle",
         "typeFilter", "activityFilter", "branchFilter", "rsvpFilter",
         "monthSelect", "yearSelect",
-        "rsvpSheet", "rsvpContent",
+        "rsvpSheet", "rsvpContent", "offlineRsvpForm",
         "pendingBanner", "pendingCount", "syncBtn"
     ]
     
@@ -82,6 +83,20 @@ class MobileCalendarController extends MobileControllerBase {
         this.createBottomSheet();
         
         // Load initial data
+        this.onSavedOpen = () => this.loadCalendarData();
+        window.addEventListener('kmp:offline-unlocked', this.onSavedOpen);
+        this.onSavedClear = () => {
+            this.currentLoad = null; this.calendarData = null; this.eventListTarget.replaceChildren();
+            if (this.rsvpModalElement) {
+                bootstrap.Modal.getInstance(this.rsvpModalElement)?.hide();
+                this.rsvpModalElement.querySelector('.modal-content')?.replaceChildren();
+            }
+        };
+        window.addEventListener('kmp:offline-revoked', this.onSavedClear);
+        if (document.querySelector('meta[name="kmp-offline-shell"]')) {
+            this.yearValue = new Date().getFullYear(); this.monthValue = new Date().getMonth() + 1;
+            this.restoreFromUrlParams(); this.updateNavigationSelectors();
+        }
         this.loadCalendarData();
     }
 
@@ -112,8 +127,21 @@ class MobileCalendarController extends MobileControllerBase {
      * Called after base class disconnect
      */
     onDisconnect() {
+        this.currentLoad = null;
+        window.removeEventListener('kmp:offline-unlocked', this.onSavedOpen);
+        window.removeEventListener('kmp:offline-revoked', this.onSavedClear);
         this.element.removeEventListener('touchstart', this._handleTouchStart);
         this.element.removeEventListener('touchend', this._handleTouchEnd);
+        const modalEl = this.rsvpModalElement;
+        if (modalEl) {
+            modalEl.removeEventListener('hidden.bs.modal', this.onRsvpModalHidden);
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            const dispose = () => { modal?.dispose(); modalEl.remove(); };
+            if (modalEl.classList.contains('show') && modal) {
+                modalEl.addEventListener('hidden.bs.modal', dispose, { once: true });
+                modal.hide();
+            } else dispose();
+        }
     }
 
     /**
@@ -191,6 +219,8 @@ class MobileCalendarController extends MobileControllerBase {
      * Load calendar data from server
      */
     async loadCalendarData() {
+        const generation = vault.generation;
+        const request = this.currentLoad = Symbol();
         this.showLoading();
         
         const url = `${this.dataUrlValue}?year=${this.yearValue}&month=${this.monthValue}`;
@@ -198,12 +228,13 @@ class MobileCalendarController extends MobileControllerBase {
         try {
             const response = await this.fetchWithRetry(url);
             const data = await response.json();
+            if (request !== this.currentLoad || generation !== vault.generation) return;
             
             if (data.success) {
                 this.calendarData = data.data;
                 
                 // Cache user's RSVPs when online
-                if (navigator.onLine && data.data.events) {
+                if (this.online && data.data.events && !vault.trusted) {
                     rsvpCacheService.cacheUserRsvps(data.data.events, `${this.yearValue}-${this.monthValue}`).catch(err => {
                         console.warn('[Calendar] Failed to cache RSVPs:', err);
                     });
@@ -219,6 +250,8 @@ class MobileCalendarController extends MobileControllerBase {
                 this.showError('Failed to load events');
             }
         } catch (error) {
+            if (request !== this.currentLoad || generation !== vault.generation) return;
+            this.calendarData = null;
             console.error('Calendar load error:', error);
             this.showError(this.online ? 'Failed to load events' : 'You\'re offline');
         }
@@ -240,7 +273,7 @@ class MobileCalendarController extends MobileControllerBase {
                 }
                 // Hide sync button when offline
                 if (this.hasSyncBtnTarget) {
-                    this.syncBtnTarget.hidden = !navigator.onLine;
+                    this.syncBtnTarget.hidden = !this.online;
                 }
             } else {
                 this.pendingBannerTarget.hidden = true;
@@ -255,7 +288,7 @@ class MobileCalendarController extends MobileControllerBase {
      * Sync pending RSVPs to server
      */
     async syncPendingRsvps() {
-        if (!navigator.onLine) {
+        if (!this.online) {
             this.showToast('Cannot sync while offline', 'warning');
             return;
         }
@@ -432,6 +465,7 @@ class MobileCalendarController extends MobileControllerBase {
      */
     toggleFilters() {
         this.filterPanelTarget.hidden = !this.filterPanelTarget.hidden;
+        if (this.hasFilterToggleTarget) this.filterToggleTarget.setAttribute('aria-expanded', String(!this.filterPanelTarget.hidden));
         
         // Update filter toggle button appearance
         if (this.hasFilterToggleTarget) {
@@ -648,7 +682,7 @@ class MobileCalendarController extends MobileControllerBase {
     renderWeekEvents(events) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const isOnline = navigator.onLine;
+        const isOnline = this.online;
         
         return events.map(event => {
             const eventDate = new Date(event.start_date + 'T00:00:00');
@@ -665,11 +699,11 @@ class MobileCalendarController extends MobileControllerBase {
             const typeStyle = `background-color: ${typeColor}; color: ${typeTextColor};`;
             
             // Show RSVP button for future events; when offline only show for new RSVPs (not edit)
-            const canRsvpOffline = !event.user_attending;
-            const showRsvpButton = !event.is_cancelled && !isPast && (isOnline || canRsvpOffline);
+            const canRsvpOffline = !event.user_attending && !event.pending_id;
+            const showRsvpButton = !event.is_cancelled && !isPast && !event.pending_id && (isOnline || canRsvpOffline);
             
             // For edit mode when attending - only show when online
-            const showEditButton = !event.is_cancelled && !isPast && event.user_attending && isOnline;
+            const showEditButton = !event.is_cancelled && !isPast && event.user_attending && !event.pending_id && isOnline;
             
             const rsvpBtnClass = event.user_attending 
                 ? 'btn btn-outline-success mobile-event-rsvp-btn' 
@@ -720,6 +754,7 @@ class MobileCalendarController extends MobileControllerBase {
                             ` : ''}
                         </div>
                         <div class="mobile-event-actions">
+                            ${event.pending_id ? `<span class="small">Waiting to send</span><button type="button" class="btn btn-outline-secondary btn-sm" data-request-id="${this.escapeHtml(event.pending_id)}" data-action="mobile-calendar#cancelPending">Cancel waiting RSVP</button>` : ''}
                             ${showEditButton ? `
                                 <button type="button" 
                                         class="${rsvpBtnClass}"
@@ -866,9 +901,18 @@ class MobileCalendarController extends MobileControllerBase {
         document.body.appendChild(modal);
         
         // Listen for modal hidden to refresh data
-        modal.addEventListener('hidden.bs.modal', () => {
-            this.loadCalendarData();
-        });
+        this.rsvpModalElement = modal;
+        this.onRsvpModalHidden = async () => {
+            if (this.localRsvpForm && !this.localRsvpSaved) return;
+            const event = this.currentRsvpEvent;
+            await this.loadCalendarData();
+            if (!event || !this.rsvpModalElement?.isConnected) return;
+            const button = [...this.eventListTarget.querySelectorAll('button')].find(button =>
+                Number(button.dataset.eventId) === event.id ||
+                (event.pending_id && button.dataset.requestId === event.pending_id));
+            button?.focus();
+        };
+        modal.addEventListener('hidden.bs.modal', this.onRsvpModalHidden);
     }
 
     /**
@@ -885,35 +929,36 @@ class MobileCalendarController extends MobileControllerBase {
         
         if (!eventData) return;
         
-        if (navigator.onLine) {
+        if (this.online) {
             // When online, show the modal for full RSVP options
             this.showRsvpSheet(event);
         } else {
-            // When offline, queue a simple RSVP
-            await this.queueOfflineRsvp(eventData, button);
+            // Save visibility choices locally before queuing the RSVP
+            await this.showOfflineRsvpForm(eventData, button);
         }
     }
 
     /**
      * Queue an RSVP for sync when back online
      */
-    async queueOfflineRsvp(eventData, button) {
+    async queueOfflineRsvp(eventData, button, choices = {}) {
+        const originalHtml = button.innerHTML;
         try {
             // Disable button and show loading
-            const originalHtml = button.innerHTML;
             button.disabled = true;
             button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
             
             await rsvpCacheService.queueOfflineRsvp({
                 gathering_id: eventData.id,
                 gathering_name: eventData.name,
-                share_with_kingdom: false,
-                share_with_hosting_group: false,
-                share_with_crown: false,
+                share_with_kingdom: choices.share_with_kingdom === true,
+                share_with_hosting_group: choices.share_with_hosting_group === true,
+                share_with_crown: choices.share_with_crown === true,
                 public_note: ''
             });
             
             // Update local state to show as attending
+            eventData.pending_id = (await rsvpCacheService.getPendingRsvps()).find(row => row.gathering_id === eventData.id)?.id;
             eventData.user_attending = true;
             
             // Update button to show success
@@ -923,22 +968,66 @@ class MobileCalendarController extends MobileControllerBase {
             
             this.showToast('RSVP queued - will sync when online', 'info');
             
-            // Re-render after short delay
-            setTimeout(() => {
-                this.showEventList();
-            }, 1000);
-            
+            return true;
         } catch (error) {
             console.error('Failed to queue offline RSVP:', error);
             this.showToast('Failed to queue RSVP', 'danger');
             button.disabled = false;
+            button.innerHTML = originalHtml;
+            return false;
         }
     }
 
-    /**
-     * Show RSVP modal by loading attendance modal content from server
-     */
+    /** Use the normal RSVP modal for local visibility choices before saving the queue entry. */
+    async showOfflineRsvpForm(eventData, trigger) {
+        const generation = vault.generation;
+        try {
+            const saved = await vault.read();
+            if (generation !== vault.generation) return;
+            const modalEl = document.getElementById('mobileRsvpModal');
+            const content = modalEl.querySelector('.modal-content');
+            content.replaceChildren(this.offlineRsvpFormTarget.content.cloneNode(true));
+            content.querySelector('[data-rsvp-event-name]').textContent = eventData.name;
+            const kingdom = content.querySelector('[name=share_with_kingdom]');
+            kingdom.disabled = saved.card?.can_share_rsvp_with_kingdom !== true;
+            content.querySelector('[data-rsvp-kingdom-choice]').hidden = kingdom.disabled;
+            this.currentRsvpEvent = eventData;
+            this.localRsvpForm = true;
+            this.localRsvpSaved = false;
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            const focus = () => content.querySelector('input:not(:disabled)')?.focus();
+            modalEl.addEventListener('shown.bs.modal', focus, { once: true });
+            modalEl.addEventListener('hidden.bs.modal', () => {
+                modalEl.removeEventListener('shown.bs.modal', focus);
+                if (trigger.isConnected) trigger.focus();
+            }, { once: true });
+            content.querySelector('form').addEventListener('submit', async event => {
+                event.preventDefault();
+                const submit = content.querySelector('[type=submit]');
+                if (submit.disabled || generation !== vault.generation) return;
+                const form = new FormData(event.currentTarget);
+                const choices = Object.fromEntries(['share_with_kingdom', 'share_with_hosting_group', 'share_with_crown']
+                    .map(field => [field, form.get(field) === '1']));
+                if (await this.queueOfflineRsvp(eventData, submit, choices)) {
+                    this.localRsvpSaved = true;
+                    modal.hide();
+                }
+                else content.querySelector('[data-rsvp-save-status]').textContent = 'Your RSVP was not saved. Please try again.';
+            });
+            modal.show();
+        } catch {
+            this.showToast('Connect and sign in to prepare RSVPs on this device.', 'warning');
+        }
+    }
+
+    async cancelPending(event) {
+        await rsvpCacheService.removePendingRsvp(event.currentTarget.dataset.requestId);
+        await this.loadCalendarData();
+        this.showToast('Waiting RSVP cancelled.', 'info');
+    }
+
     async showRsvpSheet(event) {
+        this.localRsvpForm = false;
         event.preventDefault();
         event.stopPropagation();
         

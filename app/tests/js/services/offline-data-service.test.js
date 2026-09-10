@@ -1,6 +1,6 @@
 import { privateJson, projectCard } from '../../../assets/js/services/offline-data-service.js';
 import vault from '../../../assets/js/services/offline-vault-service.js';
-jest.mock('../../../assets/js/services/offline-vault-service.js', () => ({ __esModule: true, default: { clear: jest.fn().mockResolvedValue() } }));
+jest.mock('../../../assets/js/services/offline-vault-service.js', () => ({ __esModule: true, default: { metadata: jest.fn(), clear: jest.fn().mockResolvedValue() } }));
 test('card projection excludes raw entity and unreviewed plugin fields', () => {
     const result = projectCard({ member: { first_name: 'Card', additional_info: 'PRIVATE-NOTES', auth_version: 'SECRET', branch: { name: 'Branch', address: 'PII' } },
         plugin: { arbitrary: 'PRIVATE-PLUGIN', offline_sections: [{ title: 'Authorizations', items: [{ label: 'Activity', expires_on: '2099-01-01', secret: 'EXCLUDED' }] }] } });
@@ -16,4 +16,16 @@ test('an individual wrong-owner snapshot response clears the vault even if surro
 test('a login redirect cannot be accepted as a successful sync or snapshot', async () => {
     global.fetch = jest.fn().mockResolvedValue({ type: 'opaqueredirect', headers: { get: () => null } });
     await expect(privateJson('/offline/context')).rejects.toThrow('Sign in');
+});
+
+
+test('session timeout preserves trusted storage but explicit invalidation still clears it', async () => {
+    vault.clear.mockClear();
+    vault.metadata.mockResolvedValue({ wrapper: { method: 'trusted' } });
+    global.fetch = jest.fn().mockResolvedValue({ status: 401, headers: { get: () => null } });
+    await expect(privateJson('/offline/context')).rejects.toThrow('Sign in');
+    expect(vault.clear).not.toHaveBeenCalled();
+    global.fetch.mockResolvedValue({ status: 403, headers: { get: key => key === 'X-KMP-Offline-Clear' ? '1' : null } });
+    await expect(privateJson('/offline/context')).rejects.toThrow('Sign in');
+    expect(vault.clear).toHaveBeenCalledTimes(1);
 });
