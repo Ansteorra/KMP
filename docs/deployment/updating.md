@@ -20,8 +20,8 @@ web Container App does not run migrations on startup.
 2. Wait for `Quality Gates` to pass for that exact commit.
 3. Fast-forward official `dev` to that commit and push `dev`.
 4. `Nightly / Dev Docker Image` verifies the existing quality-gate evidence,
-   builds `ghcr.io/ansteorra/kmp:dev-<short-sha>` for amd64 and arm64, and
-   smoke-checks the image.
+   builds `ghcr.io/ansteorra/kmp:dev-<short-sha>` for AMD64, scans it, and
+   smoke-checks that immutable image digest.
 5. `POC / Deploy to Azure` resolves the immutable GHCR digest, imports it to POC
    ACR, captures rollback evidence, canaries the unified worker, runs the ordered
    migration job, cuts over web, verifies `/livez` and `/health`, and aligns
@@ -35,6 +35,21 @@ web Container App does not run migrations on startup.
 A scheduled `main` build publishes the `nightly` channel but does not
 automatically deploy it to POC. POC deployment is triggered by a successful
 `dev` image build or an explicit workflow dispatch.
+
+The reusable security workflow needs `packages: read` and logs in to GHCR with
+its job token when scanning a published candidate. Local pull-request image
+scans do not require registry login. An authentication or scanner error blocks
+deployment just as a failed vulnerability check does.
+
+GitHub app and base image builds target `linux/amd64`, matching Azure. Runtime
+OS packages are still refreshed before compiling extensions for each candidate.
+Local Docker Compose builds `docker/Dockerfile.app`, and VS Code builds
+`.devcontainer/Dockerfile`; neither pulls the nightly application image.
+
+To investigate a failed scan without repeating a successful build, manually run
+`Security Gates` with `image` set to the published `ghcr.io/ansteorra/kmp@sha256:...`
+reference. This audits the existing AMD64 image; it does not deploy it or replace
+the successful build, smoke-test, and POC evidence required for promotion.
 
 ### Release to production
 

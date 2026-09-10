@@ -9,22 +9,26 @@ on:
         type: string
         default: ''
   workflow_dispatch:
+    inputs:
+      image:
+        description: Published immutable AMD64 candidate to audit without rebuilding (optional)
+        required: false
+        type: string
+        default: ''
   schedule:
     - cron: '17 5 * * 1'
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   security:
     name: Locked dependencies and final image
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    strategy:
-      matrix:
-        platform: ${{ fromJSON(inputs.image != '' && '["linux/amd64","linux/arm64"]' || '["linux/amd64"]') }}
     env:
-      TRIVY_PLATFORM: ${{ matrix.platform }}
+      TRIVY_PLATFORM: linux/amd64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
@@ -51,6 +55,7 @@ jobs:
           context: .
           file: docker/Dockerfile.prod
           no-cache-filters: ${{ github.event_name == 'schedule' && 'runtime-base' || '' }}
+          platforms: linux/amd64
           load: true
           push: false
           tags: kmp-security:ci
@@ -74,6 +79,13 @@ jobs:
           printf '%s  %s\n' '2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a' "$SCANNER_DIR/trivy.tar.gz" | sha256sum --check
           tar -xzf "$SCANNER_DIR/trivy.tar.gz" -C "$SCANNER_DIR" trivy
           echo "$SCANNER_DIR" >> "$GITHUB_PATH"
+      - name: Log in to GHCR for the published candidate
+        if: inputs.image != ''
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Audit final image and create SBOM
         env:
           CANDIDATE_IMAGE: ${{ inputs.image }}
@@ -89,6 +101,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: security-evidence-${{ strategy.job-index }}
+          name: security-evidence-amd64
           path: ${{ runner.temp }}/kmp-security-reports
           retention-days: 30
