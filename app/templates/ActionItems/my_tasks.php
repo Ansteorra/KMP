@@ -22,7 +22,7 @@ $this->KMP->endBlock(); ?>
 <h3><i class="bi bi-check2-all me-2" aria-hidden="true"></i><?= __('My To-Dos') ?></h3>
 <p class="text-muted">
     <?= __(
-        'Checks assigned to you across the kingdom. Required checks must be done before an item can be finalized.',
+        'Checks assigned to you across the kingdom. Review the effects shown before completing or reopening a check.',
     ) ?>
 </p>
 
