@@ -54,7 +54,8 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile.prod
-          no-cache-filters: ${{ github.event_name == 'schedule' && 'runtime-base' || '' }}
+          # Every gate must test current OS fixes, including branch-push evidence.
+          no-cache-filters: runtime-base
           platforms: linux/amd64
           load: true
           push: false

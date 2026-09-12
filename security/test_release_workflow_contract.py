@@ -105,6 +105,11 @@ print(os.environ['WORKFLOW_RESPONSE'])
                                 env=env, capture_output=True, text=True, timeout=5)
         self.assertNotEqual(0, result.returncode)
 
+    def test_security_build_refreshes_native_packages_for_pushes_as_well_as_schedules(self):
+        security = (ROOT / '.github/workflows/security.yml').read_text()
+        self.assertRegex(security, r'(?m)^          no-cache-filters: runtime-base$')
+        self.assertIn('cache-from: type=gha,scope=kmp-security', security)
+
     def test_image_build_still_depends_on_evidence_and_production_requires_main(self):
         nightly = (ROOT / '.github/workflows/nightly.yml').read_text()
         self.assertRegex(nightly, r'  build-and-push:\n    needs: \[quality-gate-evidence\]')
