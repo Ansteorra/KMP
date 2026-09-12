@@ -181,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const promptEl = modal.querySelector('[data-todo-target="prompt"]');
         if (promptEl) {
-            promptEl.firstChild.textContent = config.prompt + ' ';
+            promptEl.firstChild.textContent = (btn.dataset.todoConfirmation || config.prompt) + ' ';
         }
 
         const modalTitle = modal.querySelector('[data-todo-target="modalTitle"]');

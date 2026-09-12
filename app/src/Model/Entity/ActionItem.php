@@ -75,6 +75,7 @@ class ActionItem extends BaseEntity
         'branch_id' => true,
         'status' => true,
         'is_gating' => true,
+        'is_terminal' => true,
         'sort_order' => true,
         'source_ref' => true,
         'completion_config' => true,
@@ -150,7 +151,7 @@ class ActionItem extends BaseEntity
     public function canAutoCompleteWhenRequirementsSatisfied(): bool
     {
         $config = $this->completion_config;
-        if (!is_array($config)) {
+        if ($this->is_terminal || !is_array($config)) {
             return false;
         }
 

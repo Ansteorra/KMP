@@ -475,6 +475,10 @@ class ActionItemsController extends AppController
 
             $completionForm = ActionItemCompletionFormRegistry::formFor($item, $user);
             $item->completion_form_data = $completionForm?->toArray() ?? [];
+            $lifecycle = new ActionItemService();
+            $item->owner_mutable = $lifecycle->ownerIsMutable($item);
+            $item->complete_confirmation = $lifecycle->confirmationFor($item, 'complete');
+            $item->reopen_confirmation = $lifecycle->confirmationFor($item, 'reopen');
         }
     }
 
@@ -698,6 +702,8 @@ class ActionItemsController extends AppController
                     'title' => (string)$item->title,
                     'description' => (string)($item->description ?? ''),
                     'isGating' => (bool)$item->is_gating,
+                    'isTerminal' => (bool)$item->is_terminal,
+                    'confirmation' => (new ActionItemService())->confirmationFor($item, 'complete'),
                     'branchName' => (string)($item->branch->name ?? ''),
                     'modified' => $item->modified?->toIso8601String(),
                     'completionForm' => $completionForm?->toArray(),

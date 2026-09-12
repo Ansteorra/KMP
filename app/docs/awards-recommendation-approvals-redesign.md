@@ -82,7 +82,7 @@ manual `To Give / Announced Not Given` board state. User-facing code cannot tran
 directly into bestowal-managed states; it must invoke the workflow/service boundary.
 
 Bestowal To-Dos are parallel operational readiness checks. They do not add lifecycle states.
-Finalization locks the owner, rechecks all gating items, records `given`, and synchronizes
+Finalization locks the owner, rechecks its stored terminal/gating rules, records `given`, and synchronizes
 recommendations. Terminal bestowals cannot regain open To-Dos.
 Cancellation also locks the owner, requires a reason, and audit-cancels every open To-Do while
 preserving completed history. It clears the bestowal-owned recommendation fields, resets one
@@ -119,3 +119,19 @@ multi-row cleanup in controllers.
 - `plugins/Awards/tests/TestCase/Services/*Approval*Test.php`
 - `plugins/Awards/tests/TestCase/Services/Bestowal*Test.php`
 - `plugins/Awards/tests/TestCase/Services/RecommendationGroupingServiceTest.php`
+
+## Terminal Bestowal To-Dos and scheduling reversal
+
+Template items and materialized ActionItems carry `is_terminal` (default false). At most one non-deleted template item may be terminal. Built-in `given` items are configured during migration; existing open bestowals retain their snapshots until explicit template synchronization. The signature includes terminal configuration. Synchronization preserves completed history and never finalizes a bestowal, even if its newly terminal task was completed previously.
+
+A terminal task is always manually completed. Its own field requirements apply, but it overrides unfinished sibling requirements. The confirmation lists the unfinished work. The registered completion provider implements `ActionItemLifecycleProviderInterface`; its callback runs inside the core owner/item transaction. Completion, sibling audit cancellations as not applicable, Given state, and recommendation projection commit together or roll back together. Ordinary completion cannot finalize an owner with a terminal snapshot. Templates without a terminal retain all-required-task finalization. Explicit Mark Given also supports already-completed terminal snapshots without rewriting their history.
+
+Finalized owners expose read-only checklists. Reopening a field-backed task on an open bestowal undoes its assignment: gathering removal also clears court assignment, while court removal retains the gathering. Agenda placement, recommendation fields, and dependent tasks reconcile atomically. Gathering and scheduled activity records are preserved. A terminal action may still explicitly finalize unscheduled work.
+
+## Background recommendation synchronization
+
+The process-specific POST enqueues an `Awards.ApprovalSync` tenant job and returns immediately. `ApprovalSyncRuns` and `ApprovalSyncItems` persist status and result provenance independently of queue retention. A coordinator discovers at most 100 recommendation IDs per delivery, then individual jobs restart each outdated candidate using its expected active run IDs. Each restart and its result commit together. Duplicate clicks reuse an active run; duplicate deliveries skip committed results.
+
+Workers recheck the requesting member's synchronization policy and the process/published-workflow fingerprint. A change stops remaining work with an explanation. Individual failures preserve the previous approval and do not undo successful recommendations. Exhausted queue retries are visible as an interruption; starting synchronization again discovers remaining outdated work. The authorized status endpoint is read-only, uncached, and returns counts plus at most 100 affected recommendation IDs with safe failure categories. The process page polls while active and supports manual refresh. No email or external notification is sent by this progress feature.
+
+Local release regression: after the documented seeded reset, run `node tests/ui/support/release-validation-browser-check.cjs` from `app/`. It uses a tenant-bound browser session to test scheduling reversal, terminal override, preserved finalized history, keyboard confirmation/focus, and the actual tenant queue/status page. It creates synthetic bestowal work and cleans it up. `PLAYWRIGHT_BASE_URL` may point at a configured local alias; the fixture guard rejects remote databases. Registered completion providers resolve table-owning services after tenant binding, so nested transitions share the owner's connection and transaction.

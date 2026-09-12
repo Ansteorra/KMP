@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Awards\Services;
 
 use App\Services\ActionItems\ActionItemService;
+use App\Services\ServiceResult;
 use Awards\Model\Entity\Bestowal;
 use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
@@ -322,6 +323,32 @@ class BestowalUpdateService
                 'processedCount' => 0,
             ],
         ];
+    }
+
+    /** Undo a checklist assignment while the ActionItem service holds the owner mutex. */
+    public function reopenScheduling(int $bestowalId, int $actorId, bool $clearGathering): ServiceResult
+    {
+        $table = $this->fetchTable('Awards.Bestowals');
+        $bestowal = $table->find()->where(['id' => $bestowalId])->epilog('FOR UPDATE')->firstOrFail();
+        if (!$bestowal->allowsActionItemMutations()) {
+            return new ServiceResult(false, 'This bestowal is finalized and its checklist is read-only.');
+        }
+        if ($clearGathering) {
+            $bestowal->set('gathering_id', null, ['guard' => false]);
+        }
+        $this->clearCourtAssignment($bestowal);
+        $bestowal->set('modified_by', $actorId, ['guard' => false]);
+        $table->saveOrFail($bestowal);
+        (new CourtAgendaService())->syncAgendaPlacementForBestowal($bestowal, $actorId);
+        $sync = $this->syncService->syncFromBestowal($bestowalId, $actorId);
+        if (empty($sync['success'])) {
+            return new ServiceResult(false, 'The bestowal scheduling changes could not be synchronized.');
+        }
+
+        return $this->actionItemService->syncRequiredFieldCompletionStates(
+            Bestowal::ACTION_ITEM_ENTITY_TYPE,
+            $bestowalId,
+        );
     }
 
     /**

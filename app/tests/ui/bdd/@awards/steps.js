@@ -2657,6 +2657,13 @@ Then('the bestowal to-dos should include {string}', async ({ page }, title) => {
     await expect(getBestowalTodoItem(page, title)).toBeVisible({ timeout: 15000 });
 });
 
+Then('the bestowal checklist should be read-only with closed tasks', async ({ page }) => {
+    const checklist = page.locator('[data-controller=awards-bestowal-todos]');
+    await expect(checklist).toContainText('read-only');
+    await expect(checklist).toContainText('Closed — not applicable');
+    await expect(checklist.getByRole('link')).toHaveCount(0);
+});
+
 Then('the bestowal to-dos should not include {string}', async ({ page }, title) => {
     await expect(getBestowalTodoItem(page, title)).toHaveCount(0);
 });
@@ -2681,10 +2688,10 @@ Then('the bestowal to-do {string} should show a court assigned', async ({ page }
     await expect(item).toContainText('Court assigned');
 });
 
-Then('the bestowal mark-given action should be disabled', async ({ page }) => {
+Then('the bestowal terminal mark-given action should be available', async ({ page }) => {
     const todoPanel = page.locator('#nav-bestowalTodos');
-    await expect(todoPanel.getByRole('button', { name: 'Mark Given' })).toBeDisabled();
-    await expect(todoPanel).toContainText('Complete all required checks before the bestowal can be marked given.');
+    await expect(todoPanel.getByRole('link', { name: 'Mark Given', exact: true })).toBeVisible();
+    await expect(todoPanel).toContainText('Terminal — marks Given');
 });
 
 When('I assign the first available gathering and complete the bestowal to-do {string}', async ({ page }, title) => {

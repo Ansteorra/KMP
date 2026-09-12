@@ -39,31 +39,20 @@ echo $this->KMP->startBlock('pageTitle') ?>
 
 <?= $this->KMP->startBlock('recordActions') ?>
 <?php if ($user->checkCan('syncOpenRecommendations', $approvalProcess)) : ?>
-    <?php if ($outdatedRecommendationCount > 0) : ?>
-        <?= $this->Form->create(null, [
-            'url' => ['action' => 'syncApprovalProcess', $approvalProcess->id],
-            'class' => 'd-inline-block',
-            'data-turbo-frame' => '_top',
-        ]) ?>
-        <?= $this->Form->button(__('Sync Outdated Recommendations ({0})', $outdatedRecommendationCount), [
-            'class' => 'btn btn-outline-primary btn-sm',
-            'data-confirm-message' => __(
-                'Restart the {0} outdated open recommendation(s) assigned to this approval process? '
-                . 'Only recommendations using an older process snapshot or workflow version will restart. '
-                . 'Their existing runs and pending approvals will be cancelled, while prior responses remain '
-                . 'in history without carrying into the new run. This action does not create a bestowal.',
-                $outdatedRecommendationCount,
-            ),
-            'data-confirm-title' => __('Synchronize {0}', $approvalProcess->name),
-            'data-confirm-label' => __('Sync Now'),
-        ]) ?>
-        <?= $this->Form->end() ?>
-    <?php else : ?>
-        <button type="button" class="btn btn-outline-secondary btn-sm" disabled
-            aria-describedby="approval-process-sync-status">
-            <?= __('Sync Outdated Recommendations') ?>
-        </button>
-    <?php endif; ?>
+    <?= $this->Form->create(null, [
+        'url' => ['action' => 'syncApprovalProcess', $approvalProcess->id],
+        'class' => 'd-inline-block',
+        'data-turbo-frame' => '_top',
+    ]) ?>
+    <?= $this->Form->button(__('Sync Outdated Recommendations'), [
+        'class' => 'btn btn-outline-primary btn-sm',
+        'data-confirm-message' => __('Find outdated recommendations and restart their approvals in the '
+            . 'background? Prior responses remain history and do not count '
+            . 'toward replacement runs. This does not create a bestowal.'),
+        'data-confirm-title' => __('Synchronize {0}', $approvalProcess->name),
+        'data-confirm-label' => __('Sync Now'),
+    ]) ?>
+    <?= $this->Form->end() ?>
 <?php endif; ?>
 <?php if ($user->checkCan('edit', $approvalProcess)) : ?>
     <?= $this->Html->link(
@@ -106,14 +95,34 @@ echo $this->KMP->startBlock('pageTitle') ?>
 <tr>
     <th scope="row"><?= __('Outdated Open Recommendations') ?></th>
     <td id="approval-process-sync-status">
-        <?php if ($outdatedRecommendationCount > 0) : ?>
-            <?= __(
-                '{0} recommendation(s) are using an older approval process snapshot or workflow version.',
-                $outdatedRecommendationCount,
-            ) ?>
-        <?php else : ?>
-            <?= __('All open recommendations assigned to this process are current.') ?>
-        <?php endif; ?>
+        <?php if ($user->checkCan('syncOpenRecommendations', $approvalProcess)) : ?>
+        <div data-controller="awards-approval-sync"
+            data-awards-approval-sync-url-value="<?= h($this->Url->build([
+                'action' => 'syncStatus', $approvalProcess->id,
+            ])) ?>"
+            data-awards-approval-sync-initial-value="<?= h(json_encode($syncStatus ?? [])) ?>">
+            <p role="status" aria-live="polite" data-awards-approval-sync-target="status">
+                <?= __('Candidate discovery and synchronization run in the background.') ?>
+            </p>
+            <ul data-awards-approval-sync-target="attention" aria-label="<?= __('Recommendation results') ?>"></ul>
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" disabled
+                    data-awards-approval-sync-target="previous" data-action="awards-approval-sync#previousPage">
+                    <?= __('Previous results') ?>
+                </button>
+                <span data-awards-approval-sync-target="page"></span>
+                <button type="button" class="btn btn-sm btn-outline-secondary" disabled
+                    data-awards-approval-sync-target="next" data-action="awards-approval-sync#nextPage">
+                    <?= __('Next results') ?>
+                </button>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-action="awards-approval-sync#refresh">
+                <?= __('Refresh progress') ?>
+            </button>
+        </div>
+        <?php else :
+            ?><?= __('Synchronization progress is available to process synchronization administrators.') ?><?php
+        endif; ?>
     </td>
 </tr>
 <?php $this->KMP->endBlock() ?>

@@ -143,6 +143,8 @@ class MobileActionItemsController extends MobileControllerBase {
         const itemId = parseInt(button.dataset.itemId || "0", 10)
         if (itemId <= 0) return
 
+        const record = this._groups.flatMap(group => group.items || []).find(item => Number(item.id) === itemId)
+        if (record?.isTerminal && !await window.KMP_accessibility.confirm(record.confirmation)) return
         this._submitting = true
         const item = button.closest("[data-item-id]")
         if (item) {

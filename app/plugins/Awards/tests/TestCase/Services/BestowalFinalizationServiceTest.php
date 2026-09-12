@@ -17,9 +17,11 @@ use Awards\Model\Entity\BestowalTodoTemplateItem;
 use Awards\Services\BestowalCancellationService;
 use Awards\Services\BestowalFinalizationService;
 use Awards\Services\BestowalRecommendationSyncService;
+use Awards\Services\BestowalTodoCompletionFormProvider;
 use Awards\Services\BestowalTodoMaterializationService;
 use Cake\Event\Event;
 use Cake\Event\EventManager;
+use Cake\I18n\DateTime;
 use Cake\ORM\Table;
 
 /**
@@ -67,6 +69,149 @@ class BestowalFinalizationServiceTest extends BaseTestCase
             ActionItemCompletionFormRegistry::register($source, $provider);
         }
         parent::tearDown();
+    }
+
+    public function testCourtReopenPreservesGatheringAndTerminalRemainsDeliberate(): void
+    {
+        ActionItemCompletionFormRegistry::register('AwardsBestowals', new BestowalTodoCompletionFormProvider());
+        $gathering = $this->getTableLocator()->get('Gatherings')->find()->firstOrFail();
+        $bestowal = $this->makeBestowal(['gathering_id' => $gathering->id, 'roaming_court' => true]);
+        $schedule = $this->makeTodo((int)$bestowal->id, ['source_ref' => 'event_scheduled', 'status' => ActionItem::STATUS_COMPLETED]);
+        $court = $this->makeTodo((int)$bestowal->id, ['source_ref' => 'added_to_agenda', 'status' => ActionItem::STATUS_COMPLETED]);
+        $terminal = $this->makeTodo((int)$bestowal->id, ['is_terminal' => true]);
+        $this->assertTrue($this->actionItemService->reopen((int)$court->id, self::ADMIN_MEMBER_ID)->success);
+        $saved = $this->bestowals->get($bestowal->id);
+        $this->assertSame($gathering->id, $saved->gathering_id);
+        $this->assertFalse($saved->roaming_court);
+        $this->assertSame(ActionItem::STATUS_COMPLETED, $this->actionItems->get($schedule->id)->status);
+        $this->assertSame(ActionItem::STATUS_OPEN, $this->actionItems->get($terminal->id)->status);
+        $this->assertTrue($this->actionItemService->complete((int)$terminal->id, self::ADMIN_MEMBER_ID)->success);
+        $this->assertFalse($this->actionItemService->complete((int)$terminal->id, self::ADMIN_MEMBER_ID)->success);
+        $this->assertSame(1, $this->getTableLocator()->get('ActionItemLogs')->find()->where(['action_item_id' => $terminal->id])->count());
+    }
+
+    public function testReversalFailureRollsBackAssignmentsAndTaskHistory(): void
+    {
+        $provider = new class extends BestowalTodoCompletionFormProvider {
+            public function afterTransition(ActionItem $item, int $actorId, string $fromStatus, array $data = []): ServiceResult
+            {
+                parent::afterTransition($item, $actorId, $fromStatus, $data);
+
+                return new ServiceResult(false, 'Injected reversal failure');
+            }
+        };
+        ActionItemCompletionFormRegistry::register('AwardsBestowals', $provider);
+        $gathering = $this->getTableLocator()->get('Gatherings')->find()->firstOrFail();
+        $bestowal = $this->makeBestowal(['gathering_id' => $gathering->id, 'roaming_court' => true]);
+        $schedule = $this->makeTodo((int)$bestowal->id, ['source_ref' => 'event_scheduled', 'status' => ActionItem::STATUS_COMPLETED]);
+        $this->assertFalse($this->actionItemService->reopen((int)$schedule->id, self::ADMIN_MEMBER_ID)->success);
+        $saved = $this->bestowals->get($bestowal->id);
+        $this->assertSame($gathering->id, $saved->gathering_id);
+        $this->assertTrue($saved->roaming_court);
+        $this->assertSame(ActionItem::STATUS_COMPLETED, $this->actionItems->get($schedule->id)->status);
+    }
+
+    public function testCompletedGivenAdoptsTerminalOnlyOnSyncAndNeedsExplicitFinalization(): void
+    {
+        ActionItemCompletionFormRegistry::register('AwardsBestowals', new BestowalTodoCompletionFormProvider());
+        $bestowal = $this->makeBestowal();
+        $given = $this->makeTodo((int)$bestowal->id, ['source_ref' => 'given',
+            'status' => ActionItem::STATUS_COMPLETED, 'completed_at' => '2026-09-01 12:00:00',
+            'completed_by' => self::ADMIN_MEMBER_ID]);
+        $this->assertFalse((bool)$given->is_terminal);
+        $result = $this->actionItemService->synchronizeFor(Bestowal::ACTION_ITEM_ENTITY_TYPE, (int)$bestowal->id, [[
+            'source_ref' => 'given', 'title' => 'Presented', 'is_terminal' => true,
+            'assignee_type' => ActionItem::ASSIGNEE_TYPE_MEMBER,
+            'assignee_config' => ['member_id' => self::ADMIN_MEMBER_ID],
+        ]], self::KINGDOM_BRANCH_ID, self::ADMIN_MEMBER_ID);
+        $this->assertTrue($result->success, (string)$result->reason);
+        $saved = $this->actionItems->get($given->id);
+        $this->assertTrue($saved->is_terminal);
+        $this->assertSame(ActionItem::STATUS_COMPLETED, $saved->status);
+        $this->assertEquals($given->completed_at, $saved->completed_at);
+        $this->assertSame($given->completed_by, $saved->completed_by);
+        $this->assertSame(Bestowal::LIFECYCLE_OPEN, $this->bestowals->get($bestowal->id)->lifecycle_status);
+        $date = new DateTime('2026-09-10 13:30:00');
+        $this->assertTrue((new BestowalFinalizationService())->markGiven((int)$bestowal->id, self::ADMIN_MEMBER_ID, $date)->success);
+        $this->assertEquals($date, $this->bestowals->get($bestowal->id)->bestowed_at);
+        $this->assertEquals($given->completed_at, $this->actionItems->get($given->id)->completed_at);
+    }
+
+    public function testTerminalTaskOverridesRequiredTasksAndPreservesHistory(): void
+    {
+        ActionItemCompletionFormRegistry::register('AwardsBestowals', new BestowalTodoCompletionFormProvider());
+        $bestowal = $this->makeBestowal();
+        $terminal = $this->makeTodo((int)$bestowal->id, ['title' => 'Presented', 'is_terminal' => true]);
+        $required = $this->makeTodo((int)$bestowal->id, ['title' => 'Scheduling', 'is_gating' => true]);
+        $history = $this->makeTodo((int)$bestowal->id, ['title' => 'Done', 'status' => ActionItem::STATUS_COMPLETED]);
+        $result = $this->actionItemService->complete((int)$terminal->id, self::ADMIN_MEMBER_ID);
+        $this->assertTrue($result->success, (string)$result->reason);
+        $this->assertSame(Bestowal::LIFECYCLE_GIVEN, $this->bestowals->get($bestowal->id)->lifecycle_status);
+        $this->assertSame(ActionItem::STATUS_CANCELLED, $this->actionItems->get($required->id)->status);
+        $this->assertSame(ActionItem::STATUS_COMPLETED, $this->actionItems->get($history->id)->status);
+        $log = $this->getTableLocator()->get('ActionItemLogs')->find()->where(['action_item_id' => $required->id])->firstOrFail();
+        $this->assertStringContainsString('Presented', $log->note);
+        $this->assertStringContainsString('not applicable', $log->note);
+    }
+
+    public function testOrdinaryCompletionCannotFinalizeWithTerminalSnapshot(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $this->makeTodo((int)$bestowal->id, ['is_terminal' => true, 'is_gating' => false]);
+        $ordinary = $this->makeTodo((int)$bestowal->id, ['title' => 'Required']);
+        $this->assertTrue($this->actionItemService->complete((int)$ordinary->id, self::ADMIN_MEMBER_ID)->success);
+        $this->assertSame(Bestowal::LIFECYCLE_OPEN, $this->bestowals->get($bestowal->id)->lifecycle_status);
+    }
+
+    public function testTerminalLifecycleFailureRollsBackTaskAndBestowal(): void
+    {
+        $provider = new class extends BestowalTodoCompletionFormProvider {
+            public function afterTransition(ActionItem $item, int $actorId, string $fromStatus, array $data = []): ServiceResult
+            {
+                $result = parent::afterTransition($item, $actorId, $fromStatus, $data);
+
+                return $item->is_terminal ? new ServiceResult(false, 'Injected lifecycle failure') : $result;
+            }
+        };
+        ActionItemCompletionFormRegistry::register('AwardsBestowals', $provider);
+        $bestowal = $this->makeBestowal();
+        $terminal = $this->makeTodo((int)$bestowal->id, ['is_terminal' => true]);
+        $required = $this->makeTodo((int)$bestowal->id, ['title' => 'Still required']);
+        $result = $this->actionItemService->complete((int)$terminal->id, self::ADMIN_MEMBER_ID);
+        $this->assertFalse($result->success);
+        $this->assertSame(Bestowal::LIFECYCLE_OPEN, $this->bestowals->get($bestowal->id)->lifecycle_status);
+        $this->assertSame(ActionItem::STATUS_OPEN, $this->actionItems->get($terminal->id)->status);
+        $this->assertSame(ActionItem::STATUS_OPEN, $this->actionItems->get($required->id)->status);
+        $this->assertSame(0, $this->getTableLocator()->get('ActionItemLogs')->find()->where(['action_item_id IN' => [$terminal->id, $required->id]])->count());
+    }
+
+    public function testTerminalOwnRequirementsRemainRequiredAndNeverAutoComplete(): void
+    {
+        ActionItemCompletionFormRegistry::register('AwardsBestowals', new BestowalTodoCompletionFormProvider());
+        $bestowal = $this->makeBestowal();
+        $terminal = $this->makeTodo((int)$bestowal->id, ['is_terminal' => true,
+            'completion_config' => ['auto_complete_when_satisfied' => true, 'required_fields' => [[
+                'provider' => BestowalTodoTemplateItem::COMPLETION_PROVIDER_BESTOWAL_GATHERING,
+                'field' => 'gathering_id',
+            ]]]]);
+        $this->assertTrue($terminal->hasCompletionRequirements());
+        $this->assertFalse($terminal->canAutoCompleteWhenRequirementsSatisfied());
+        $this->assertFalse($this->actionItemService->complete((int)$terminal->id, self::ADMIN_MEMBER_ID)->success);
+        $this->assertSame(Bestowal::LIFECYCLE_OPEN, $this->bestowals->get($bestowal->id)->lifecycle_status);
+    }
+
+    public function testReopeningSchedulingClearsAssignmentsAndReopensAgenda(): void
+    {
+        ActionItemCompletionFormRegistry::register('AwardsBestowals', new BestowalTodoCompletionFormProvider());
+        $gathering = $this->getTableLocator()->get('Gatherings')->find()->firstOrFail();
+        $bestowal = $this->makeBestowal(['gathering_id' => $gathering->id, 'roaming_court' => true]);
+        $schedule = $this->makeTodo((int)$bestowal->id, ['source_ref' => 'event_scheduled', 'status' => ActionItem::STATUS_COMPLETED]);
+        $agenda = $this->makeTodo((int)$bestowal->id, ['source_ref' => 'added_to_agenda', 'status' => ActionItem::STATUS_COMPLETED]);
+        $this->assertTrue($this->actionItemService->reopen((int)$schedule->id, self::ADMIN_MEMBER_ID)->success);
+        $saved = $this->bestowals->get($bestowal->id);
+        $this->assertNull($saved->gathering_id);
+        $this->assertFalse($saved->roaming_court);
+        $this->assertSame(ActionItem::STATUS_OPEN, $this->actionItems->get($agenda->id)->status);
     }
 
     /**
@@ -452,7 +597,7 @@ class BestowalFinalizationServiceTest extends BaseTestCase
         );
 
         $this->assertFalse($result->success);
-        $this->assertSame('The to-do owner is no longer active.', $result->reason);
+        $this->assertSame('This bestowal is given; its checklist is read-only.', $result->reason);
         $this->assertSame(ActionItem::STATUS_COMPLETED, $this->actionItems->get($todo->id)->status);
     }
 
@@ -469,7 +614,7 @@ class BestowalFinalizationServiceTest extends BaseTestCase
         );
 
         $this->assertFalse($result->success);
-        $this->assertSame('The to-do owner is no longer active.', $result->reason);
+        $this->assertSame('This bestowal is cancelled; its checklist is read-only.', $result->reason);
         $this->assertSame(ActionItem::STATUS_OPEN, $this->actionItems->get($todo->id)->status);
     }
 
@@ -491,7 +636,7 @@ class BestowalFinalizationServiceTest extends BaseTestCase
         );
 
         $this->assertFalse($result->success);
-        $this->assertSame('The to-do owner is no longer active.', $result->reason);
+        $this->assertSame('This bestowal is given; its checklist is read-only.', $result->reason);
         $this->assertSame(0, $this->actionItems->find()->where([
             'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
             'entity_id' => (int)$bestowal->id,
