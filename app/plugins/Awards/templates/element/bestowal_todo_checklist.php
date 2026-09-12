@@ -21,6 +21,7 @@
  * @var int $gatingPercent
  * @var string $currentPageUrl
  */
+use App\Model\Entity\ActionItem;
 
 $todoItems = $todoItems ?? [];
 $todoEligibility = $todoEligibility ?? [];
@@ -33,6 +34,9 @@ $currentPageUrl = $currentPageUrl ?? '';
 $progressId = $progressId ?? 'bestowal-todo-progress-label';
 ?>
 <div data-controller="awards-bestowal-todos" data-turbo="false">
+    <?php if (isset($bestowal) && !$bestowal->allowsActionItemMutations()) : ?>
+        <p class="alert alert-info"><?= h($bestowal->actionItemReadOnlyReason()) ?></p>
+    <?php endif; ?>
     <?php if (empty($todoItems)) : ?>
         <p class="text-muted"><?= __('No to-do checks are configured for this award yet.') ?></p>
     <?php else : ?>
@@ -67,11 +71,17 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                             <?php if ($item->isCompleted()) : ?>
                                 <i class="bi bi-check-square-fill text-success me-1" aria-hidden="true"></i>
                                 <span class="visually-hidden"><?= __('Completed task:') ?></span>
+                            <?php elseif ($item->status === ActionItem::STATUS_CANCELLED) : ?>
+                                <i class="bi bi-dash-square text-secondary me-1" aria-hidden="true"></i>
+                                <span class="visually-hidden"><?= __('Closed task:') ?></span>
                             <?php else : ?>
                                 <i class="bi bi-hourglass-split text-secondary me-1" aria-hidden="true"></i>
                                 <span class="visually-hidden"><?= __('Open task:') ?></span>
                             <?php endif; ?>
                             <?= h($item->title) ?>
+                            <?php if ($item->is_terminal) :
+                                ?><span class="badge bg-primary"><?= __('Terminal — marks Given') ?></span><?php
+                            endif; ?>
                         </div>
                         <?php if (!empty($item->description)) : ?>
                             <div class="small text-muted"><?= h($item->description) ?></div>
@@ -79,6 +89,8 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                         <div class="mt-1">
                             <?php if ($item->isCompleted()) : ?>
                                 <span class="badge bg-success"><?= __('Completed') ?></span>
+                            <?php elseif ($item->status === ActionItem::STATUS_CANCELLED) : ?>
+                                <span class="badge bg-secondary"><?= __('Closed — not applicable') ?></span>
                             <?php else : ?>
                                 <span class="badge bg-light text-dark border"><?= __('Open') ?></span>
                             <?php endif; ?>
@@ -176,7 +188,10 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                     )
                                     ?>
                                 </div>
-                                <button type="submit" class="btn btn-sm btn-success">
+                                <button type="submit" class="btn btn-sm btn-success"
+                                    <?php if ($item->is_terminal) :
+                                        ?>data-confirm-message="<?= h($item->complete_confirmation) ?>"<?php
+                                    endif; ?>>
                                     <?= __('Assign Gathering and Complete') ?>
                                 </button>
                                 <?= $this->Form->end() ?>
@@ -221,7 +236,10 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                     )
                                     ?>
                                 </div>
-                                <button type="submit" class="btn btn-sm btn-success">
+                                <button type="submit" class="btn btn-sm btn-success"
+                                    <?php if ($item->is_terminal) :
+                                        ?>data-confirm-message="<?= h($item->complete_confirmation) ?>"<?php
+                                    endif; ?>>
                                     <?= __('Assign Court and Complete') ?>
                                 </button>
                                 <?= $this->Form->end() ?>
@@ -236,7 +254,8 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                 [
                                     'class' => 'btn btn-sm btn-success',
                                     'data' => ['current_page' => $currentPageUrl],
-                                    'confirm' => __('Mark "{0}" complete?', $item->title),
+                                    'confirm' => $item->complete_confirmation
+                                        ?? __('Mark "{0}" complete?', $item->title),
                                     'aria-label' => __('Mark complete: {0}', $item->title),
                                 ],
                             ) ?>
@@ -248,7 +267,7 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                     'escapeTitle' => false,
                                     'class' => 'btn btn-sm btn-outline-secondary',
                                     'data' => ['current_page' => $currentPageUrl],
-                                    'confirm' => __('Reopen "{0}"?', $item->title),
+                                    'confirm' => $item->reopen_confirmation ?? __('Reopen "{0}"?', $item->title),
                                     'aria-label' => __('Reopen: {0}', $item->title),
                                 ],
                             ) ?>
@@ -257,7 +276,10 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                 <?= h((string)($blocker['label'] ?? __('Waiting on prerequisite'))) ?>
                             </span>
                         <?php else : ?>
-                            <span class="text-muted small"><?= __('Not assigned to you') ?></span>
+                            <span class="text-muted small">
+                                <?= isset($bestowal) && !$bestowal->allowsActionItemMutations()
+                                ? __('Read-only') : __('Not assigned to you') ?>
+                            </span>
                         <?php endif; ?>
                     </div>
                 </li>

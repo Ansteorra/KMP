@@ -153,6 +153,7 @@ class BestowalTodoTemplateItemsTable extends BaseTable
             );
 
         $validator
+            ->boolean('is_terminal')
             ->boolean('is_gating')
             ->notEmptyString('is_gating');
 
@@ -186,6 +187,22 @@ class BestowalTodoTemplateItemsTable extends BaseTable
         $rules->add($rules->isUnique(['template_id', 'item_key']), [
             'errorField' => 'item_key',
             'message' => __('Item keys must be unique within a template.'),
+        ]);
+
+        $rules->add(function ($entity): bool {
+            if (!$entity->is_terminal || $entity->deleted !== null) {
+                return true;
+            }
+
+            return !$this->exists([
+                'template_id' => $entity->template_id,
+                'is_terminal' => true,
+                'deleted IS' => null,
+                'id !=' => $entity->id ?? 0,
+            ]);
+        }, 'oneTerminal', [
+            'errorField' => 'is_terminal',
+            'message' => __('A template can have only one terminal item. Unset the current terminal item first.'),
         ]);
 
         return $rules;

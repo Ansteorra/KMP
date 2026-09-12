@@ -95,8 +95,11 @@ class RecommendationApprovalWorkflowSyncService
      *
      * @return array<int, array<int>> Active run IDs keyed by recommendation ID.
      */
-    private function findOutdatedRecommendationRunMap(int $approvalProcessId): array
+    public function findOutdatedRecommendationRunMap(int $approvalProcessId, ?array $recommendationIds = null): array
     {
+        if ($recommendationIds === []) {
+            return [];
+        }
         $process = $this->fetchTable('Awards.ApprovalProcesses')->get($approvalProcessId, contain: [
             'ApprovalProcessSteps',
         ]);
@@ -118,6 +121,9 @@ class RecommendationApprovalWorkflowSyncService
                 'Recommendations.state IN' => self::APPROVAL_STATES,
                 'Recommendations.bestowal_id IS' => null,
                 'Recommendations.recommendation_group_id IS' => null,
+            ])
+            ->where($recommendationIds === null ? [] : [
+                'RecommendationApprovalRuns.recommendation_id IN' => $recommendationIds,
             ])
             ->orderBy([
                 'RecommendationApprovalRuns.recommendation_id' => 'ASC',
@@ -252,7 +258,7 @@ class RecommendationApprovalWorkflowSyncService
      *
      * @return array{status:string,cancelledRunCount?:int,newRunId?:int}
      */
-    private function restartRecommendation(
+    public function restartRecommendation(
         int $recommendationId,
         int $approvalProcessId,
         array $expectedRunIds,

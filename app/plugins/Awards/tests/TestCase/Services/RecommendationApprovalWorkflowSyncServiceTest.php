@@ -20,6 +20,7 @@ use App\Test\TestCase\BaseTestCase;
 use Awards\Model\Entity\ApprovalProcessStep;
 use Awards\Model\Entity\Recommendation;
 use Awards\Model\Entity\RecommendationApprovalRun;
+use Awards\Services\ApprovalSyncJobService;
 use Awards\Services\AwardsWorkflowActions;
 use Awards\Services\AwardsWorkflowProvider;
 use Awards\Services\RecommendationApprovalProcessService;
@@ -45,6 +46,77 @@ class RecommendationApprovalWorkflowSyncServiceTest extends BaseTestCase
         $this->clearWorkflowRegistries();
 
         parent::tearDown();
+    }
+
+    public function testExhaustedWorkerCanBeResumedWithoutInterruptingItsLastActiveAttempt(): void
+    {
+        $scenario = $this->createSubmittedSyncScenario();
+        $service = new ApprovalSyncJobService($this->createWorkflowSyncService($scenario['engine']));
+        $run = $service->enqueue((int)$scenario['process']->id, self::ADMIN_MEMBER_ID);
+        $jobs = $this->getTableLocator()->get('Queue.QueuedJobs');
+        $conditions = ['reference' => 'awards-approval-sync:' . $run->id];
+        $jobs->updateAll(['attempts' => 4, 'fetched' => DateTime::now()], $conditions);
+        $this->assertSame('queued', $service->latest((int)$scenario['process']->id)['status']);
+        $this->assertSame($run->id, $service->enqueue((int)$scenario['process']->id, self::ADMIN_MEMBER_ID)->id);
+        $jobs->updateAll(['fetched' => DateTime::now()->subSeconds(121)], $conditions);
+        $this->assertSame('interrupted', $service->latest((int)$scenario['process']->id)['status']);
+        $replacement = $service->enqueue((int)$scenario['process']->id, self::ADMIN_MEMBER_ID);
+        $this->assertNotSame($run->id, $replacement->id);
+        $service->work(['runId' => $run->id, 'cursor' => 0]);
+        $this->assertSame('interrupted', $this->getTableLocator()->get('Awards.ApprovalSyncRuns')->get($run->id)->status);
+    }
+
+    public function testBackgroundSyncStopsWhenConfigurationChanges(): void
+    {
+        $scenario = $this->createSubmittedSyncScenario();
+        $service = new ApprovalSyncJobService($this->createWorkflowSyncService($scenario['engine']));
+        $run = $service->enqueue((int)$scenario['process']->id, self::ADMIN_MEMBER_ID);
+        $this->changeProcessThresholdToAny((int)$scenario['process']->id);
+        $service->work(['runId' => $run->id, 'cursor' => 0]);
+        $status = $service->latest((int)$scenario['process']->id);
+        $this->assertSame('interrupted', $status['status']);
+        $this->assertStringContainsString('Configuration changed', $status['message']);
+        $this->assertSame(0, array_sum($status['counts']));
+    }
+
+    public function testBackgroundDiscoveryUsesBoundedPagesAndDuplicatePagesAreIgnored(): void
+    {
+        $scenario = $this->createSubmittedSyncScenario();
+        for ($i = 0; $i < 101; $i++) {
+            $this->createRecommendation((int)$scenario['award']->id);
+        }
+        $service = new ApprovalSyncJobService($this->createWorkflowSyncService($scenario['engine']));
+        $run = $service->enqueue((int)$scenario['process']->id, self::ADMIN_MEMBER_ID);
+        $service->work(['runId' => $run->id, 'cursor' => 0]);
+        $runs = $this->getTableLocator()->get('Awards.ApprovalSyncRuns');
+        $progress = $runs->get($run->id);
+        $this->assertFalse($progress->discovery_complete);
+        $cursor = $progress->cursor;
+        $service->work(['runId' => $run->id, 'cursor' => 0]);
+        $this->assertSame($cursor, $runs->get($run->id)->cursor);
+        $service->work(['runId' => $run->id, 'cursor' => $cursor]);
+        $this->assertSame('completed', $service->latest((int)$scenario['process']->id)['status']);
+    }
+
+    public function testBackgroundSyncPersistsResultsAndDuplicateDeliveryDoesNotRestartAgain(): void
+    {
+        $scenario = $this->createSubmittedSyncScenario();
+        $started = $this->startPartiallyApprovedSubmittedWorkflow($scenario['engine'], (int)$scenario['award']->id);
+        $this->changeProcessThresholdToAny((int)$scenario['process']->id);
+        $service = new ApprovalSyncJobService($this->createWorkflowSyncService($scenario['engine']));
+        $run = $service->enqueue((int)$scenario['process']->id, self::ADMIN_MEMBER_ID);
+        $duplicate = $service->enqueue((int)$scenario['process']->id, self::ADMIN_MEMBER_ID);
+        $this->assertSame($run->id, $duplicate->id);
+        $service->work(['runId' => $run->id, 'cursor' => 0]);
+        $item = $this->getTableLocator()->get('Awards.ApprovalSyncItems')->find()->where(['sync_run_id' => $run->id])->firstOrFail();
+        $service->work(['runId' => $run->id, 'itemId' => $item->id]);
+        $service->work(['runId' => $run->id, 'itemId' => $item->id]);
+        $status = $service->latest((int)$scenario['process']->id);
+        $this->assertSame('completed', $status['status'], json_encode($status));
+        $this->assertSame(1, $status['counts']['restarted']);
+        $this->assertSame(1, $this->getTableLocator()->get('Awards.RecommendationApprovalRuns')->find()->where([
+            'recommendation_id' => $started['recommendationId'], 'status IN' => ['in_progress', 'pending'],
+        ])->count());
     }
 
     public function testSyncCancelsInflightProgressAndStartsFreshCurrentWorkflows(): void
@@ -365,6 +437,66 @@ class RecommendationApprovalWorkflowSyncServiceTest extends BaseTestCase
         $this->assertSame(1, $result->data['activeRunFailedCount']);
         $this->assertSame($failed['recommendationId'], $result->data['failures'][0]['recommendationId']);
         $this->assertStringNotContainsString('Synthetic private', json_encode($result->data));
+
+        $this->assertSame(RecommendationApprovalRun::STATUS_IN_PROGRESS, $this->getTableLocator()
+            ->get('Awards.RecommendationApprovalRuns')->get($failed['runId'])->status);
+        $this->assertSame(WorkflowInstance::STATUS_WAITING, $this->getTableLocator()->get('WorkflowInstances')
+            ->get($failed['instanceId'])->status);
+        $this->assertSame(WorkflowApproval::STATUS_PENDING, $this->getTableLocator()->get('WorkflowApprovals')
+            ->get($failed['approvalId'])->status);
+
+        $healthyOldRun = $this->getTableLocator()->get('Awards.RecommendationApprovalRuns')
+            ->get($healthy['runId']);
+        $this->assertSame(RecommendationApprovalRun::STATUS_CANCELLED, $healthyOldRun->status);
+        $healthyReplacement = $this->activeRunForRecommendation($healthy['recommendationId']);
+        $this->assertNotSame($healthy['runId'], (int)$healthyReplacement->id);
+        $this->assertSame(0, $this->getTableLocator()->get('Awards.Bestowals')->find()->count());
+    }
+
+    public function testBackgroundFailurePreservesOriginalAndContinuesOtherRecommendations(): void
+    {
+        $scenario = $this->createSubmittedSyncScenario();
+        $failed = $this->startPartiallyApprovedSubmittedWorkflow(
+            $scenario['engine'],
+            (int)$scenario['award']->id,
+        );
+        $healthy = $this->startPartiallyApprovedSubmittedWorkflow(
+            $scenario['engine'],
+            (int)$scenario['award']->id,
+        );
+        $this->changeProcessThresholdToAny((int)$scenario['process']->id);
+
+        $realEngine = $scenario['engine'];
+        $selectiveEngine = $this->createMock(WorkflowEngineInterface::class);
+        $selectiveEngine->expects($this->exactly(2))
+            ->method('dispatchTrigger')
+            ->willReturnCallback(static function (
+                string $eventName,
+                array $eventData,
+                ?int $triggeredBy,
+            ) use (
+                $failed,
+                $realEngine,
+            ): array {
+                if ((int)$eventData['recommendationId'] === $failed['recommendationId']) {
+                    return [new ServiceResult(false, 'Synthetic private restart failure.')];
+                }
+
+                return $realEngine->dispatchTrigger($eventName, $eventData, $triggeredBy);
+            });
+
+        $service = new ApprovalSyncJobService($this->createWorkflowSyncService($selectiveEngine));
+        $run = $service->enqueue((int)$scenario['process']->id, self::ADMIN_MEMBER_ID);
+        $service->work(['runId' => $run->id, 'cursor' => 0]);
+        foreach ($this->getTableLocator()->get('Awards.ApprovalSyncItems')->find()->where(['sync_run_id' => $run->id]) as $item) {
+            $service->work(['runId' => $run->id, 'itemId' => $item->id]);
+            $service->work(['runId' => $run->id, 'itemId' => $item->id]);
+        }
+        $status = $service->latest((int)$scenario['process']->id);
+        $this->assertSame('partial_failure', $status['status']);
+        $this->assertSame(1, $status['counts']['failed']);
+        $this->assertSame(1, $status['counts']['restarted']);
+        $this->assertStringNotContainsString('Synthetic private', json_encode($status));
 
         $this->assertSame(RecommendationApprovalRun::STATUS_IN_PROGRESS, $this->getTableLocator()
             ->get('Awards.RecommendationApprovalRuns')->get($failed['runId'])->status);

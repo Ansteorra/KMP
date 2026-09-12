@@ -107,6 +107,7 @@ class ActionItemsTable extends BaseTable
             ->notEmptyString('status');
 
         $validator
+            ->boolean('is_terminal')
             ->boolean('is_gating')
             ->notEmptyString('is_gating');
 

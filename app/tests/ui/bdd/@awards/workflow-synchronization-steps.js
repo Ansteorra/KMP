@@ -3,6 +3,7 @@ const { expect } = require('@playwright/test');
 const {
     runPhpJson,
     waitForPageBody,
+    waitForQueueSettled,
 } = require('../../support/ui-helpers.cjs');
 
 const { Given, When, Then, After } = createBdd();
@@ -807,9 +808,9 @@ When('I open the recommendation synchronization confirmation with the keyboard',
     const fixture = syncFixture(page);
     await openSyncConfirmation(
         page,
-        'Sync Outdated Recommendations (1)',
+        'Sync Outdated Recommendations',
         `Synchronize ${fixture.processName}`,
-        'older process snapshot or workflow version',
+        'restart their approvals in the background',
     );
 });
 
@@ -852,7 +853,7 @@ When('I dismiss the synchronization confirmation with Escape', async ({ page }) 
 
 Then('focus should return to the recommendation synchronization control', async ({ page }) => {
     await expect(page.getByRole('button', {
-        name: 'Sync Outdated Recommendations (1)',
+        name: 'Sync Outdated Recommendations',
         exact: true,
     })).toBeFocused();
 });
@@ -865,15 +866,18 @@ When('I confirm recommendation synchronization with the keyboard', async ({ page
     const fixture = syncFixture(page);
     await submitSyncConfirmation(
         page,
-        'Sync Outdated Recommendations (1)',
+        'Sync Outdated Recommendations',
         `Synchronize ${fixture.processName}`,
         `/awards/approval-processes/sync-approval-process/${fixture.processId}`,
-        `Found 1 outdated open recommendation(s) assigned to ${fixture.processName}`,
-        1,
+        'is queued',
+        0,
     );
 });
 
 Then('the in-flight recommendation should restart without carrying its approval forward', async ({ page }) => {
+    await waitForQueueSettled({ tenantSlug: 'kmp', timeoutMs: 60000 });
+    await page.getByRole('button', { name: 'Refresh progress', exact: true }).click();
+    await expect(page.locator('[data-awards-approval-sync-target=status]')).toContainText('completed');
     const state = inspectRecommendationSync(page);
     assertRecommendationRestarted(page, state);
     page.__awardWorkflowSyncFixture.firstRecommendationSyncState = state;
@@ -886,17 +890,15 @@ Then('recommendation synchronization should not create a bestowal', async ({ pag
     expect(state.recommendationBestowalId).toBeNull();
 });
 
-Then('recommendation synchronization should be disabled because the replacement is current', async ({ page }) => {
+Then('recommendation synchronization should report one restart and preserve the current replacement', async ({ page }) => {
     const fixture = syncFixture(page);
     const state = inspectRecommendationSync(page);
     assertRecommendationRestarted(page, state);
     expect(state.activeRunId).toBe(fixture.firstReplacementRunId);
     expect(state.runCount).toBe(2);
     const control = page.getByRole('button', { name: 'Sync Outdated Recommendations', exact: true });
-    await expect(control).toBeDisabled();
-    await expect(page.locator('#approval-process-sync-status')).toContainText(
-        'All open recommendations assigned to this process are current.',
-    );
+    await expect(control).toBeEnabled();
+    await expect(page.locator('#approval-process-sync-status')).toContainText('1 restarted');
 });
 
 Given('I create an open bestowal for the To-Do synchronization fixture', async ({ page }) => {

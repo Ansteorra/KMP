@@ -120,7 +120,7 @@ production. Every fix needs the acceptance checks below and an exact deployed-ca
   findings but retains 30 native advisory IDs (121 package rows), including a libxml2 issue,
   for explicit release triage in restricted reports. This is not a vulnerability-free image.
   The shared base also builds successfully; CI must independently build and scan amd64.
-  Published candidates and scheduled checks refresh native layers instead of reusing stale APT caches.
+  Published candidates and every security-gate image build refresh native layers instead of reusing stale APT caches; branch-push checks must receive available OS fixes too.
 - **SEC-009/023/024:** see the [Azure security rollout](../../deploy/azure/security-rollout.md)
   for separated runtime/administrative credentials and jobs, idempotent PostgreSQL grants,
   exact firewall planning and drift checks, managed storage identity, and 35-day retention.

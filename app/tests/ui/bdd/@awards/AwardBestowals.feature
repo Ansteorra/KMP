@@ -39,7 +39,7 @@ Feature: Award Bestowals
         Then the bestowal to-dos should include "Event Scheduled"
         And the bestowal to-do "Event Scheduled" should require a gathering
         Then the bestowal to-dos should include "Given"
-        And the bestowal mark-given action should be disabled
+        And the bestowal terminal mark-given action should be available
         When I assign the first available gathering and complete the bestowal to-do "Event Scheduled"
         Then I should see the flash message "Marked complete."
         And the "wf-crown" recommendation record should have state "Scheduled"
@@ -58,8 +58,9 @@ Feature: Award Bestowals
         And the "wf-crown" recommendation record should have state "Given"
         And the "wf-crown" recommendation record should have status "Closed"
         When I open the bestowal to-dos tab
-        Then the bestowal to-dos should not include "Scroll Ready"
-        And the bestowal to-dos should not include "Insignia Ready"
+        Then the bestowal to-dos should include "Scroll Ready"
+        And the bestowal to-dos should include "Insignia Ready"
+        And the bestowal checklist should be read-only with closed tasks
 
     Scenario: Cancelling a linked bestowal updates lifecycle state
         Given I am logged in as "admin@amp.ansteorra.org"
@@ -75,8 +76,9 @@ Feature: Award Bestowals
         And the "wf-crown" recommendation record should have state "Submitted"
         And the "wf-crown" recommendation record should have status "In Progress"
         When I open the bestowal to-dos tab
-        Then the bestowal to-dos should not include "Event Scheduled"
-        And the bestowal to-dos should not include "Given"
+        Then the bestowal to-dos should include "Event Scheduled"
+        And the bestowal to-dos should include "Given"
+        And the bestowal checklist should be read-only with closed tasks
         And the "wf-crown" recommendation workflow run should have terminal reason "bestowal_cancelled"
         When the workflow engine processes pending work
         Then the "wf-crown" recommendation should have a workflow run with status "in_progress"

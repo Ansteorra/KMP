@@ -286,8 +286,13 @@ Do not run `phpcbf` across the whole codebase. The PHPCS config intentionally ex
 
 - Invoke `.github/skills/release-deploy` when the user says "push to dev",
   "do a release", or asks to release or promote KMP.
-- "Push to dev" is POC-only: fast-forward official `dev` from the selected
-  official `main` commit, then monitor and verify the gated POC deployment.
+- "Push to dev" is POC-only: publish the selected candidate to official `dev`
+  without rewriting history, then monitor its exact-commit push quality gates,
+  image build, and POC deployment. Release preparation can be committed directly
+  to `dev` and reviewed through a `dev` → `main` PR. Default to the selected
+  official `main` commit only when it can fast-forward `dev` without discarding
+  unmerged work. Dev image builds require dev-push evidence; scheduled main
+  builds require main-push evidence. PR checks do not substitute for either.
 - "Do a release" must update `app/CHANGELOG.md` before POC testing. The new KMP
   version section is the canonical release body and must also be used for the
   GitHub Release notes.

@@ -3,24 +3,73 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: 753e0047271639eeed7348f26dd9f1d6ac664321 -->
-<!-- LAST_SYNCED_DATE: 2026-08-11 -->
+<!-- LAST_SYNCED_COMMIT: 1e0a44f99d49d122f22e955bc84bbe72e59603fe -->
+<!-- LAST_SYNCED_DATE: 2026-09-12 -->
 
-## Unreleased — Security, privacy, and trusted offline access
+## KMP 1.5.10 — September 15, 2026
 
-- Member and platform sessions now refresh current account permissions and are revoked after security changes. Members can sign out all devices.
-- Private member fields, contact lookup, exports and attendance sharing now use the recipient's permissions and consent.
-- Trust a personal device through a guided PIN or passkey setup with clear completion and offline-readiness messages. Existing quick-login PIN users receive guidance to sign in with their password and set up device unlock again.
-- Authorization cards, events, and RSVPs use the same mobile screens online and offline. Trusted devices keep approved information current automatically while connected; online refresh is required within seven days.
-- Offline RSVPs retain the member’s visibility choices and send after reconnection. Logging out locks encrypted saved information, which can be reopened with the device PIN or passkey even without internet.
-- Login switches cleanly between device unlock and email/password; offline login shows only device unlock. Signed-in pages avoid redundant unlock prompts, and connection updates appear once.
-- Account security actions share a guided, mobile-friendly dialog, and device messages use the configured short site title.
-- Invalid PDF uploads are rejected before a waiver becomes active, and diagnostic logging excludes sensitive request and document content.
-- Public nominations accept only supported submission fields and links to existing gatherings.
-- Dependency, container and deployment verification is strengthened, with separate runtime and administrative database/storage access.
-- Legacy installer, updater and backup/restore executables are retired; existing operators must disable installed copies and secure historical backups.
+KMP 1.5.10 improves award and officer workflows, member administration, saved views, and trusted-device access. It also strengthens account security, privacy, document handling, and deployment controls. These notes cover changes since KMP 1.5.9; publication and production rollout are pending.
 
-Deployment requires migrations, one-time sign-in, quick-login device re-enrollment and fresh offline enrollment. API integrations must use Bearer or X-API-Key headers. Follow the [security rollout](../deploy/azure/security-rollout.md) and [remediation register](docs/security-remediation-log.md) before production promotion. Physical-device offline acceptance, production access checks, private networking and historical-data cleanup remain outstanding.
+### Awards, Recommendations, and Court Planning
+
+- Rejected recommendations now close as **No Action** and retain the rejection reason. Final approval sends recommendations directly to an open bestowal in **Need to Schedule**, without new King Approved or Queen Approved intermediate states. Scheduling and conferral update linked recommendations to **Scheduled** and **Given**, respectively. Migrations also correct eligible historical rejected recommendations.
+- **Sync Outdated Recommendations** on an approval process restarts its eligible outdated open recommendations at the first step of the current process. Synchronization runs in recoverable background jobs, with persistent progress and restarted/skipped/failed results on the process page. Repeated clicks reuse the active run. Previous runs and responses remain in the audit history, but previous decisions do not count toward the replacement review. Already-current, unrelated, closed, grouped-child, and bestowal-owned records are excluded; synchronization itself never approves a recommendation or creates a bestowal.
+- **Sync Outdated Bestowals** on a to-do template updates its outdated open bestowals to the current template. Matching completion history is preserved, removed items are cancelled with an audit trail, and applicable items and prerequisites are reconciled. Empty templates and an explicit Required field of None are respected. Synchronization never marks a bestowal Given.
+- Synchronization requires the appropriate award/template administration authority or the new **Can Synchronize Award Workflows** permission, which requires a warrant and is granted to the Ansteorran Crown role. Each action is limited to the selected process or template. Approval synchronization discovers outdated work in the background; template synchronization becomes unavailable when no eligible outdated bestowals remain.
+- Removing a grouped recommendation during active review starts that child's own current approval process from step one while the group head and remaining children keep their progress. Removing one child preserves a remaining head-plus-child group; **Ungroup All** explicitly dissolves the group. Bestowal-owned recommendations remain protected from incompatible regrouping.
+- Cancelling an open bestowal now requires a reason. Cancellation closes open to-dos with an audit trail, retains completed history, clears bestowal-owned recommendation fields, and starts a fresh review for each standalone recommendation or group head; grouped children return to Linked. Finalized bestowals show read-only checklists and reject stale to-do changes.
+- Bestowal To-Do Templates can designate one **Terminal** task. Built-in **Given** tasks are terminal: deliberately completing one marks the bestowal Given and audit-closes every unfinished required or optional task as not applicable. The confirmation lists unfinished work; completed history is retained. Terminal tasks never complete automatically, and their own configured field requirements still apply. Templates without a terminal task retain their existing completion rules.
+- Existing open bestowals adopt terminal settings only through **Sync Outdated Bestowals**. Synchronization preserves history and never finalizes a bestowal, including when Given was previously checked. Those bestowals require explicit finalization confirmation.
+- Reopening a scheduling task now confirms and reverses its assignment. Reopening Event Scheduled removes this bestowal's event and court assignments and reconciles dependent tasks; reopening Added to Agenda removes court assignment and agenda placement while retaining the event. These changes do not delete gatherings or court activities. A terminal Given action can still explicitly finalize the bestowal with unfinished scheduling work.
+- Ad-hoc bestowals support recipients without a linked member account or recommendation. Creation and editing support shared notes, and a permission-aware Notes tab displays the bestowal's notes.
+- Public and signed-in award recommendation forms now accept multiline reasons. Recommendation gathering visibility is retained, while public submissions are limited to supported fields and links to existing gatherings.
+- Scoped Crown, Principality, and Baronial Court planners can attach eligible Court activities before assigning a bestowal, schedule those Courts, and edit their own scheduled Court entries without receiving general gathering-edit permissions.
+
+### Officers and Warrants
+
+- Officer assignments can be edited even when no office email is present. The edit dialog supports office email, deputy description, start/end dates, and existing term-note history; changing term dates requires a new audit note.
+- A tenant-customizable assignment-update workflow coordinates the assignment, granted role, warrant coverage, and member email. Shortening a term shortens issued warrant coverage; correcting a term into the past ends access when the correction is recorded.
+- Extending a term requests additional warrant coverage while preserving the current issued warrant. Coverage is limited by the term and available warrant period, with a warning when a later part of the term still needs coverage. Matching pending requests are reused; changed requests replace stale pending work without removing unrelated requests from shared rosters. Replaced rosters are identifiable in the roster views.
+- Member profiles show the current or most recent officer warrant expiration with expandable warrant history ordered by expiration.
+- Office **Reports To**, **Deputy To**, and **Grants Role** fields use searchable, alphabetically ordered autocomplete controls that preserve existing selections and hide inactive hierarchy fields.
+
+### Members, Gatherings, and Saved Views
+
+- SCA-name and other supported case-insensitive searches also ignore diacritics, so unaccented text can find accented names.
+- **Member Data Import** can update either membership or background-check expiration dates using a two-column CSV. It validates date formats, headers, and duplicate member numbers, reports unmatched numbers, and restricts access to super users or the current Kingdom Seneschal with the dedicated import permission.
+- Membership reviewers can **Request new upload** for an unreadable card, with a workflow-driven email to the member. Membership-card validation supports genuine JPEG/JFIF, PNG, GIF, and WebP images and rejects invalid content.
+- Saved/custom grid views retain visible, locked system filters when copied or saved. Recommendations, My Approvals, My To-Dos, Gatherings, and Warrants retain their required personal, status, and time constraints.
+- My Approvals and My To-Dos support custom views. Approvals add requester-name filtering and corrected queue sorting; to-dos add title, required/optional, and gathering filters. Replaced approvals explain why a new process needs fresh decisions.
+- Authenticated gathering-calendar users can create personal saved views and switch them through shared view tabs. Successful attendance registration closes its modal and gives accessible saved feedback. Modal errors, repeat submissions, and focus restoration are handled more consistently.
+- Workflow designer loading and saving preserve declared output branches, including next/default aliases and custom outputs, and position nodes sensibly when saved layout information is incomplete.
+
+### Account Security, Trusted Devices, and Offline Access
+
+- Member sessions are bound to their tenant and reload current permissions. Password, email, account-status, and other credential changes revoke earlier sessions and devices. **Security** provides guided password and sign-out actions, including **Sign out all devices**, in a mobile-friendly dialog.
+- **Trust this personal device** verifies the account password, then protects the saved login and approved offline information with a 6–12 digit PIN or a supported device passkey. Setup confirms both protection and offline readiness; unsupported passkeys offer a PIN fallback. Choosing Not now leaves the browser online-only.
+- Trusted devices use the same mobile authorization card, Events, and My RSVPs screens online and offline. Approved data refreshes automatically while the app is open and connected, and remains usable for up to seven days after verification. Individual authorization expirations remain visible. Mobile fonts and icons are bundled for offline use.
+- Offline RSVPs are encrypted and retain the member's explicit Kingdom, Hosting Group, and Nobility/Crown sharing choices. They send after reconnection and authentication, with duplicate protection on retries. Notes, changes to confirmed attendance, and cancellation of confirmed RSVPs still require online access; closed-app background sending is not promised.
+- Logout ends the server session and locks saved information across tabs. The trusted device can still reopen the encrypted copy offline with its PIN/passkey. **Stop trusting this device** removes the copy and waiting RSVPs; observed credential revocation or account changes invalidate it. Disconnected devices cannot receive revocation until they reconnect.
+- Login switches between device unlock and email/password, offers only device unlock while offline, and avoids redundant prompts on signed-in pages. Security and device messages use the configured short site title. Legacy quick-login PIN users receive instructions to sign in online with their password and set up a new PIN or passkey.
+- Public offline shells exclude personalized HTML and private responses; approved private information is held separately in the encrypted vault. Known legacy plaintext browser caches are cleared when devices load the update.
+- Password recovery uses generic responses and shared throttling. Platform administration is restricted to configured platform hosts; MFA and recovery codes cannot be reused. API credentials are accepted only through Bearer or X-API-Key headers, not URL query parameters.
+
+### Privacy, Documents, and Runtime Updates
+
+- Member details, contact lookups, API responses, grids, and exports apply each target member's private-information permissions. Private-field search/filter/sort controls respect those permissions. Attendance details in award and gathering helpers follow the recipient's authority and the member's sharing consent, including restrictions for minors.
+- Every uploaded PDF is validated before a waiver becomes active. Invalid, unsupported, oversized, or partly invalid batches fail without reporting partial success. Bounded PDF processing and thumbnail validation reduce resource exposure, and diagnostics omit sensitive document, request, and member content.
+- Runtime updates include CakePHP 5.4.2, Authentication 4.2.1, the Azure storage SDK integration, image/PDF libraries, and the frontend build and editor dependencies. Production container defaults move to pinned PHP 8.5.10 on Debian Trixie, Node 26 asset builds, and AMD64 images for Azure. Native document/image processing, login, printing, and exports require candidate-level regression checks.
+- Developer documentation and API references are refreshed, with stricter documentation checks and reproducible development seed dates, award catalogs, and warrant-approval history.
+
+### Upgrade and Operator Actions
+
+- Apply core, platform, Awards, and Officers migrations in the documented order. Fleet migrations include suspended tenants, back up tenants with pending changes, verify core/plugin histories, and clear tenant routing caches after success. A suspended tenant cannot reactivate with an outdated schema.
+- Legacy environment secrets import only when the encrypted database store is missing the value; existing rotated values take precedence. Backup-key reconciliation and migrations retain their safety checks.
+- Azure deployment requires separate runtime and administrative database identities, vault/storage grants, and a dedicated administrative job. Deployment now checks that infrastructure before changing PostgreSQL configuration or importing an image. This check does not create missing infrastructure; existing shared-identity installations need the one-time transition first.
+- Dev candidates run the full quality gates for their exact commit before image publication and POC deployment, allowing team validation through a dev-to-main PR before merge. Production still requires main-branch quality evidence and POC validation for the exact release commit.
+- Backup storage is configured independently from document storage, with dedicated encrypted archives and administrative backup/restore/retention work. Builds and releases use pinned inputs, immutable image digests, security gates, and software inventories; the same validated digest is promoted later.
+- Plan for one-time member/platform sign-in and legacy device re-enrollment. Move any URL-token integrations to supported credential headers. Legacy installer, updater, and backup/restore executables are retired; operators must disable installed copies and secure historical backups and logs.
+- Follow the [security rollout guide](https://github.com/Ansteorra/KMP/blob/main/deploy/azure/security-rollout.md) and [remediation register](https://github.com/Ansteorra/KMP/blob/main/app/docs/security-remediation-log.md). Physical-device acceptance, the infrastructure transition, effective production access checks, residual native-advisory review, private networking, and historical-data cleanup require explicit follow-through. Code changes and passing automated tests do not establish production readiness.
 
 ---
 

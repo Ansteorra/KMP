@@ -7,6 +7,7 @@ use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\ActionItem;
 use App\Services\ActionItems\ActionItemCompletionForm;
 use App\Services\ActionItems\ActionItemCompletionFormProviderInterface;
+use App\Services\ActionItems\ActionItemLifecycleProviderInterface;
 use App\Services\ServiceResult;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
@@ -17,18 +18,15 @@ use RuntimeException;
 /**
  * Supplies Awards-owned completion UI and apply logic for bestowal gathering todos.
  */
-class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProviderInterface
+class BestowalTodoCompletionFormProvider implements
+    ActionItemCompletionFormProviderInterface,
+    ActionItemLifecycleProviderInterface
 {
     use LocatorAwareTrait;
 
-    private BestowalUpdateService $bestowalUpdateService;
+    private ?BestowalUpdateService $bestowalUpdateService;
 
     private BestowalCourtSlotService $courtSlotService;
-
-    /**
-     * @var array<int, \Awards\Model\Entity\Bestowal|null>
-     */
-    private array $bestowalMemo = [];
 
     /**
      * @param \Awards\Services\BestowalUpdateService|null $bestowalUpdateService Shared bestowal update service.
@@ -38,7 +36,7 @@ class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProv
         ?BestowalUpdateService $bestowalUpdateService = null,
         ?BestowalCourtSlotService $courtSlotService = null,
     ) {
-        $this->bestowalUpdateService = $bestowalUpdateService ?? new BestowalUpdateService();
+        $this->bestowalUpdateService = $bestowalUpdateService;
         $this->courtSlotService = $courtSlotService ?? new BestowalCourtSlotService();
     }
 
@@ -51,9 +49,64 @@ class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProv
             return false;
         }
 
-        return $this->gatheringRequirementConfig($item) !== null
+        return $item->is_terminal
+            || $this->gatheringRequirementConfig($item) !== null
             || $this->courtSlotRequirementConfig($item) !== null
             || $this->hasPrerequisite($item);
+    }
+
+    /** @inheritDoc */
+    public function transitionConfirmation(ActionItem $item, string $operation): string
+    {
+        if ($operation === 'reopen') {
+            if ($this->gatheringRequirementConfig($item) !== null) {
+                return __('Reopen "{0}"? This removes this bestowal’s event and court '
+                    . 'assignments and reopens affected scheduling tasks.', $item->title);
+            }
+            if ($this->courtSlotRequirementConfig($item) !== null) {
+                return __('Reopen "{0}"? This removes this bestowal’s court assignment and '
+                    . 'agenda placement, keeping its event.', $item->title);
+            }
+
+            return __('Reopen "{0}"?', $item->title);
+        }
+        if (!$item->is_terminal) {
+            return __('Mark "{0}" complete?', $item->title);
+        }
+        $remaining = $this->fetchTable('ActionItems')->find()
+            ->where(['entity_type' => $item->entity_type, 'entity_id' => $item->entity_id,
+                'status' => ActionItem::STATUS_OPEN, 'id !=' => $item->id])
+            ->all()->extract('title')->toList();
+
+        return __(
+            'Complete "{0}" and mark this bestowal Given? Unfinished tasks will close as not applicable: {1}.',
+            $item->title,
+            $remaining === [] ? __('None') : implode(', ', $remaining),
+        );
+    }
+
+    /** @inheritDoc */
+    public function afterTransition(ActionItem $item, int $actorId, string $fromStatus, array $data = []): ServiceResult
+    {
+        if ($item->is_terminal && $item->isCompleted()) {
+            return (new BestowalFinalizationService())->finalizeTerminalCompletion(
+                $item,
+                $actorId,
+                $data['bestowed_at'] ?? null,
+            );
+        }
+        if ($item->isOpen() && $fromStatus === ActionItem::STATUS_COMPLETED) {
+            $gathering = $this->gatheringRequirementConfig($item) !== null;
+            if ($gathering || $this->courtSlotRequirementConfig($item) !== null) {
+                return ($this->bestowalUpdateService ?? new BestowalUpdateService())->reopenScheduling(
+                    (int)$item->entity_id,
+                    $actorId,
+                    $gathering,
+                );
+            }
+        }
+
+        return new ServiceResult(true);
     }
 
     /**
@@ -173,7 +226,6 @@ class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProv
             if (!$this->fetchTable('Awards.Bestowals')->save($bestowal)) {
                 return new ServiceResult(false, 'Failed to assign the bestowal to a court agenda.');
             }
-            unset($this->bestowalMemo[(int)$bestowal->id]);
 
             return new ServiceResult(true, null, [
                 'bestowalId' => (int)$bestowal->id,
@@ -199,7 +251,7 @@ class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProv
             return new ServiceResult(false, 'You are not allowed to assign a gathering for this bestowal.');
         }
 
-        $result = $this->bestowalUpdateService->assignGathering(
+        $result = ($this->bestowalUpdateService ?? new BestowalUpdateService())->assignGathering(
             $this->fetchTable('Awards.Bestowals'),
             (int)$bestowal->id,
             $gatheringId,
@@ -210,7 +262,6 @@ class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProv
         if (!($result['success'] ?? false)) {
             return new ServiceResult(false, (string)($result['error'] ?? 'Failed to assign the gathering.'));
         }
-        unset($this->bestowalMemo[(int)$bestowal->id]);
 
         return new ServiceResult(true, null, $result['data'] ?? []);
     }
@@ -317,7 +368,7 @@ class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProv
      */
     private function validatePrerequisites(ActionItem $item, ?Bestowal $bestowal = null): ServiceResult
     {
-        if (!$this->hasPrerequisite($item)) {
+        if ($item->is_terminal || !$this->hasPrerequisite($item)) {
             return new ServiceResult(true);
         }
 
@@ -374,9 +425,6 @@ class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProv
             return null;
         }
         $bestowalId = (int)$item->entity_id;
-        if (array_key_exists($bestowalId, $this->bestowalMemo)) {
-            return $this->bestowalMemo[$bestowalId];
-        }
 
         /** @var \Awards\Model\Entity\Bestowal|null $bestowal */
         $bestowal = $this->fetchTable('Awards.Bestowals')->find()
@@ -389,7 +437,7 @@ class BestowalTodoCompletionFormProvider implements ActionItemCompletionFormProv
             ])
             ->first();
 
-        return $this->bestowalMemo[$bestowalId] = $bestowal;
+        return $bestowal;
     }
 
     /**

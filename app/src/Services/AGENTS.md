@@ -19,7 +19,10 @@ Own reusable business workflows, side effects, integrations, registries, workflo
 - Azure managed-identity credentials implement `azure-oss/identity` with an explicit `TokenRequestContext`. Storage and administrative management audiences remain separate; reject requested scopes that do not match the configured audience before contacting the identity endpoint.
 - An actor-driven ActionItem completion is committed before its follow-on required-field cascade runs. If that cascade
   fails, return a successful `ServiceResult` with `data.cascadeWarning` so callers preserve the committed outcome and
-  visibly report the related work that still needs attention. Automatic definition-sync cancellation provenance is
+  visibly report the related work that still needs attention. Owner-specific terminal completion and scheduling reversal
+  use the optional `ActionItemLifecycleProviderInterface` on registered completion providers. Its transition callback
+  runs inside the owner/item transaction after the item audit row; failure rolls back the item and all owner changes.
+  Terminal completions skip the ordinary post-commit cascade and cannot auto-complete from satisfied fields. Automatic definition-sync cancellation provenance is
   the exact persisted system note constant; changing that text requires migrating existing logs.
 - Services assume authorization has already been enforced unless the service is specifically an authorization helper.
 - Tenant-aware data must use tenant-safe cache keys and context handling.

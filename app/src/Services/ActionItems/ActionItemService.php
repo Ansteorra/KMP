@@ -44,6 +44,26 @@ class ActionItemService
 
     public const SYSTEM_REQUIREMENT_REOPEN_NOTE = 'Reopened automatically after required fields were cleared.';
 
+    /** Read-only lifecycle metadata shared by desktop, mobile, and plugin checklists. */
+    public function ownerIsMutable(ActionItem $item): bool
+    {
+        $owner = TableRegistry::getTableLocator()->get((string)$item->entity_type)
+            ->find()->where(['id' => $item->entity_id])->first();
+
+        return $this->ownerAllowsActionItemMutations($owner, (string)$item->entity_type);
+    }
+
+    /** Describe side effects before the user confirms an item transition. */
+    public function confirmationFor(ActionItem $item, string $operation): string
+    {
+        $provider = ActionItemCompletionFormRegistry::providerFor($item);
+        if ($provider instanceof ActionItemLifecycleProviderInterface) {
+            return $provider->transitionConfirmation($item, $operation);
+        }
+
+        return $operation === 'reopen' ? __('Reopen "{0}"?', $item->title) : __('Mark "{0}" complete?', $item->title);
+    }
+
     /**
      * Persisted provenance marker matched exactly against action_item_logs.note.
      * Do not reword without migrating existing log rows first.
@@ -132,6 +152,7 @@ class ActionItemService
                 'branch_id' => array_key_exists('branch_id', $definition) ? $definition['branch_id'] : $branchId,
                 'status' => ActionItem::STATUS_OPEN,
                 'is_gating' => array_key_exists('is_gating', $definition) ? (bool)$definition['is_gating'] : true,
+                'is_terminal' => (bool)($definition['is_terminal'] ?? false),
                 'sort_order' => $definition['sort_order'] ?? $index,
                 'source_ref' => $sourceRef,
                 'completion_config' => $definition['completion_config'] ?? null,
@@ -204,8 +225,8 @@ class ActionItemService
             ): array {
                 $owner = $this->lockOwner($entityType, $entityId);
                 if (!$this->ownerAllowsActionItemMutations($owner, $entityType)) {
-                    $failureReason = 'The to-do owner is no longer active.';
-                    throw new RuntimeException('The to-do owner is no longer active.');
+                    $failureReason = $this->ownerReadOnlyReason($owner);
+                    throw new RuntimeException($failureReason);
                 }
                 $items = $this->ActionItems->find()
                     ->where([
@@ -446,6 +467,7 @@ class ActionItemService
                 'assignee_config' => $assigneeConfig,
                 'branch_id' => $definitionBranchId === null ? null : (int)$definitionBranchId,
                 'is_gating' => array_key_exists('is_gating', $definition) ? (bool)$definition['is_gating'] : true,
+                'is_terminal' => (bool)($definition['is_terminal'] ?? false),
                 'sort_order' => (int)($definition['sort_order'] ?? $position - 1),
                 'source_ref' => $sourceRef,
                 'completion_config' => $completionConfig,
@@ -684,6 +706,12 @@ class ActionItemService
                 );
             }
 
+            // A completed terminal snapshot is historical until explicit finalization.
+            // Definition/field reconciliation must never reopen it or finalize its owner.
+            if ($item->is_terminal) {
+                $skipped++;
+                continue;
+            }
             $requirementResult = $provider->validateCompletion($item);
             if ($item->isCompleted() && !$requirementResult->success) {
                 $result = $this->transition(
@@ -808,6 +836,7 @@ class ActionItemService
                 &$item,
                 &$didTransition,
                 &$transactionFailure,
+                $dispatchCompletionEvent,
             ): ServiceResult {
                 /** @var \App\Model\Entity\ActionItem|null $ownerContext */
                 $ownerContext = $this->ActionItems->find()
@@ -822,7 +851,7 @@ class ActionItemService
                     (int)$ownerContext->entity_id,
                 );
                 if (!$this->ownerAllowsActionItemMutations($owner, (string)$ownerContext->entity_type)) {
-                    return new ServiceResult(false, 'The to-do owner is no longer active.');
+                    return new ServiceResult(false, $this->ownerReadOnlyReason($owner));
                 }
 
                 /** @var \App\Model\Entity\ActionItem|null $item */
@@ -885,6 +914,18 @@ class ActionItemService
                     'created_by' => $actorId,
                 ]);
                 $this->ActionItemLogs->saveOrFail($log);
+                if ($actorId !== null && $dispatchCompletionEvent) {
+                    $provider = ActionItemCompletionFormRegistry::providerFor($item);
+                    if ($provider instanceof ActionItemLifecycleProviderInterface) {
+                        $lifecycleResult = $provider->afterTransition($item, $actorId, $fromStatus, $completionData);
+                        if (!$lifecycleResult->success) {
+                            $transactionFailure = $lifecycleResult;
+                            throw new RuntimeException('Owner lifecycle transition failed.');
+                        }
+                    } elseif ($item->is_terminal) {
+                        throw new RuntimeException('Terminal to-do requires an owner lifecycle provider.');
+                    }
+                }
                 $didTransition = true;
 
                 return new ServiceResult(true, null, $item);
@@ -912,6 +953,7 @@ class ActionItemService
             && $didTransition
             && $item instanceof ActionItem
             && $toStatus === ActionItem::STATUS_COMPLETED
+            && !$item->is_terminal
         ) {
             $cascadeResult = null;
             $warningReason = null;
@@ -1004,6 +1046,14 @@ class ActionItemService
             ->where([$ownerTable->getAlias() . '.' . $primaryKey => $entityId])
             ->epilog('FOR UPDATE')
             ->first();
+    }
+
+    /** Explain stale requests using the owner's domain lifecycle. */
+    private function ownerReadOnlyReason(?EntityInterface $owner): string
+    {
+        return $owner instanceof ActionItemOwnerInterface
+            ? $owner->actionItemReadOnlyReason()
+            : 'This to-do belongs to a finalized or unavailable record and is read-only.';
     }
 
     /**

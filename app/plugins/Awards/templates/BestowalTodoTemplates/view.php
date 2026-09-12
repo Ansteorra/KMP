@@ -184,7 +184,10 @@ echo $this->KMP->startBlock('pageTitle') ?>
                 <tr>
                     <td><?= h($item->sort_order) ?></td>
                     <td>
-                        <strong><?= h($item->label) ?></strong><br>
+                        <strong><?= h($item->label) ?></strong>
+                        <?php if ($item->is_terminal) : ?>
+                            <span class="badge bg-primary"><?= __('Terminal — marks Given') ?></span>
+                        <?php endif; ?><br>
                         <small class="text-muted"><?= h($item->item_key) ?></small>
                     </td>
                     <td><?= h($assigneeSourceLabel($item)) ?></td>
@@ -315,11 +318,22 @@ echo $this->KMP->startBlock('pageTitle') ?>
         ),
         ]);
         echo $this->Form->control('sort_order', ['type' => 'number', 'value' => $item?->sort_order ?? 1]);
+        echo $this->Form->control('is_terminal', [
+            'type' => 'checkbox',
+            'checked' => $item?->is_terminal ?? false,
+            'data-awards-bestowal-todo-item-form-target' => 'terminal',
+            'data-action' => 'change->awards-bestowal-todo-item-form#sync',
+            'label' => __('Terminal: completing this task marks the bestowal Given'),
+            'help' => __('One per template. Requires manual confirmation; unfinished '
+                . 'required and optional tasks close as not applicable. Sync '
+                . 'existing bestowals to apply changes.'),
+        ]);
         echo $this->Form->control('is_gating', [
         'type' => 'checkbox',
         'switch' => true,
         'checked' => $item?->is_gating ?? true,
-        'label' => __('Gating (must be complete before Mark Given)'),
+        'label' => __('Required for ordinary finalization'),
+        'help' => __('A terminal task can close unfinished required tasks as not applicable.'),
         ]);
         echo '</fieldset>';
         echo '</div>';
@@ -456,6 +470,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
         'help' => __('Bulk or To-Do completion flows may complete this check in the same action that sets the field.'),
         ]);
         echo $this->Form->control('auto_complete_when_satisfied', [
+        'data-awards-bestowal-todo-item-form-target' => 'autoComplete',
         'type' => 'checkbox',
         'switch' => true,
         'checked' => $autoCompleteWhenSatisfied,

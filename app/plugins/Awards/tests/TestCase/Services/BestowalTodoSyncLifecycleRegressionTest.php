@@ -43,6 +43,27 @@ class BestowalTodoSyncLifecycleRegressionTest extends BaseTestCase
         parent::tearDown();
     }
 
+    public function testTemplateAllowsOnlyOneLiveTerminalAndPreservesAssignee(): void
+    {
+        $templates = $this->getTableLocator()->get('Awards.BestowalTodoTemplates');
+        $template = $templates->saveOrFail($templates->newEntity(['name' => 'Terminal uniqueness', 'is_active' => true]));
+        $items = $this->getTableLocator()->get('Awards.BestowalTodoTemplateItems');
+        $definition = ['template_id' => $template->id, 'item_key' => 'given', 'label' => 'Presented',
+            'assignee_type' => BestowalTodoTemplateItem::ASSIGNEE_TYPE_MEMBER,
+            'assignee_source_id' => self::ADMIN_MEMBER_ID, 'branch_mode' => BestowalTodoTemplateItem::BRANCH_MODE_AWARD,
+            'is_gating' => true, 'is_terminal' => true, 'sort_order' => 1];
+        $first = $items->saveOrFail($items->newEntity($definition));
+        $second = $items->newEntity(array_merge($definition, ['item_key' => 'other', 'label' => 'Other']));
+        $this->assertFalse($items->save($second));
+        $this->assertArrayHasKey('is_terminal', $second->getErrors());
+        $first->is_terminal = false;
+        $items->saveOrFail($first);
+        $second = $items->newEntity(array_merge($definition, ['item_key' => 'other', 'label' => 'Other']));
+        $this->assertNotFalse($items->save($second));
+        $this->assertSame(self::ADMIN_MEMBER_ID, $items->get($first->id)->assignee_source_id);
+        $this->assertSame(self::ADMIN_MEMBER_ID, $items->get($second->id)->assignee_source_id);
+    }
+
     public function testDeletedOwnerRejectsStaleSynchronizationAndQueuedTransitions(): void
     {
         $templates = $this->getTableLocator()->get('Awards.BestowalTodoTemplates');
@@ -120,7 +141,7 @@ class BestowalTodoSyncLifecycleRegressionTest extends BaseTestCase
             false,
         );
         $this->assertFalse($queuedCompletion->success);
-        $this->assertSame('The to-do owner is no longer active.', $queuedCompletion->reason);
+        $this->assertSame('This bestowal has been deleted; its checklist is read-only.', $queuedCompletion->reason);
         $this->assertSame(ActionItem::STATUS_OPEN, $actionItems->get($actionItemId)->status);
 
         $bestowals->getConnection()->delete('awards_bestowals', ['id' => (int)$staleBestowal->id]);
@@ -134,7 +155,7 @@ class BestowalTodoSyncLifecycleRegressionTest extends BaseTestCase
             false,
         );
         $this->assertFalse($hardDeletedCancellation->success);
-        $this->assertSame('The to-do owner is no longer active.', $hardDeletedCancellation->reason);
+        $this->assertSame('This to-do belongs to a finalized or unavailable record and is read-only.', $hardDeletedCancellation->reason);
         $this->assertSame(ActionItem::STATUS_OPEN, $actionItems->get($actionItemId)->status);
     }
 

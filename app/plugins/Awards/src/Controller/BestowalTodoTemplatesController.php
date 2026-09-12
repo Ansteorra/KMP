@@ -480,6 +480,7 @@ class BestowalTodoTemplatesController extends AppController
         }
 
         $data['is_gating'] = !empty($data['is_gating']);
+        $data['is_terminal'] = !empty($data['is_terminal']);
 
         unset(
             $data['role_source_id'],

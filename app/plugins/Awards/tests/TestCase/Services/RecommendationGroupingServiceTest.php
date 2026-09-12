@@ -95,7 +95,7 @@ class RecommendationGroupingServiceTest extends BaseTestCase
         $this->assertSame($childOriginState, $log->to_state);
     }
 
-    public function testRemoveFromGroupAutoUngroupsFinalChildAndRestoresBothOrigins(): void
+    public function testRemoveFromGroupPreservesFinalChildAndHead(): void
     {
         $head = $this->createTestRecommendation(['state' => $this->stateForStatus('In Progress', ['Linked'])]);
         $firstChildOrigin = $this->differentNonLinkedState((string)$head->state);
@@ -115,15 +115,12 @@ class RecommendationGroupingServiceTest extends BaseTestCase
         $freshFirstChild = $this->recommendationsTable->get((int)$firstChild->id);
         $freshSecondChild = $this->recommendationsTable->get((int)$secondChild->id);
         $this->assertNull($freshFirstChild->recommendation_group_id);
-        $this->assertNull($freshSecondChild->recommendation_group_id);
+        $this->assertSame((int)$head->id, (int)$freshSecondChild->recommendation_group_id);
         $this->assertSame($firstChildOrigin, $freshFirstChild->state);
-        $this->assertSame($secondChildOrigin, $freshSecondChild->state);
+        $this->assertSame('Linked', $freshSecondChild->state);
         $this->assertNull($freshFirstChild->group_origin_state);
-        $this->assertNull($freshSecondChild->group_origin_state);
-
-        $secondChildLog = $this->latestStateLogFor((int)$secondChild->id);
-        $this->assertSame('Linked', $secondChildLog->from_state);
-        $this->assertSame($secondChildOrigin, $secondChildLog->to_state);
+        $this->assertSame($secondChildOrigin, $freshSecondChild->group_origin_state);
+        $this->assertSame($head->state, $this->recommendationsTable->get((int)$head->id)->state);
     }
 
     public function testSoftDeletingHeadRestoresChildrenUsingOriginSnapshots(): void

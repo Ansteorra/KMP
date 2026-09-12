@@ -264,7 +264,9 @@ $gatingPercent = $todoGatingTotal > 0 ? (int)round($todoGatingDone / $todoGating
                     <i class="bi bi-award-fill text-success me-1" aria-hidden="true"></i>
                     <?= __('This bestowal has been marked given.') ?>
                 </p>
-            <?php elseif ($allGatingComplete) : ?>
+            <?php elseif (!$bestowal->allowsActionItemMutations()) : ?>
+                <p class="mb-0"><?= h($bestowal->actionItemReadOnlyReason()) ?></p>
+            <?php elseif ($allGatingComplete || !empty($terminalTodo)) : ?>
                 <?= $this->Form->postLink(
                     '<i class="bi bi-award me-1" aria-hidden="true"></i>' . __('Mark Given'),
                     ['plugin' => 'Awards', 'controller' => 'Bestowals', 'action' => 'markGiven'],
@@ -272,10 +274,14 @@ $gatingPercent = $todoGatingTotal > 0 ? (int)round($todoGatingDone / $todoGating
                         'escapeTitle' => false,
                         'class' => 'btn btn-primary',
                         'data' => ['bestowalId' => $bestowal->id, 'current_page' => $currentPageUrl],
-                        'confirm' => __('Mark this bestowal as given?'),
+                        'confirm' => $terminalTodo?->complete_confirmation ?? __('Mark this bestowal as given?'),
                     ],
                 ) ?>
-                <p class="form-text mb-0"><?= __('All required checks are complete.') ?></p>
+                <p class="form-text mb-0">
+                    <?= !empty($terminalTodo)
+                        ? __('The terminal task closes remaining work as not applicable.')
+                        : __('All required checks are complete.') ?>
+                </p>
             <?php else : ?>
                 <button type="button" class="btn btn-primary" disabled
                     aria-describedby="mark-given-help"><?= __('Mark Given') ?></button>
