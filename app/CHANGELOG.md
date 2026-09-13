@@ -3,7 +3,7 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: 63546aefae55cd065064a639a0c57eefd701405d -->
+<!-- LAST_SYNCED_COMMIT: ca84d1e7c1a205de528b31a2f031c7c9619f21ef -->
 <!-- LAST_SYNCED_DATE: 2026-09-13 -->
 
 ## KMP 1.5.10 — September 15, 2026
@@ -45,6 +45,12 @@ KMP 1.5.10 improves award and officer workflows, member administration, saved vi
 - My Approvals and My To-Dos support custom views. Approvals add requester-name filtering and corrected queue sorting; to-dos add title, required/optional, and gathering filters. Replaced approvals explain why a new process needs fresh decisions.
 - Authenticated gathering-calendar users can create personal saved views and switch them through shared view tabs. Successful attendance registration closes its modal and gives accessible saved feedback. Modal errors, repeat submissions, and focus restoration are handled more consistently.
 - Workflow designer loading and saving preserve declared output branches, including next/default aliases and custom outputs, and position nodes sensibly when saved layout information is incomplete.
+
+### Activity Authorizations
+
+- Migrated activity authorization workflows resolve their authorization from the workflow's entity association or trigger data, so approval and denial no longer depend on a missing request-creation step. Conflicting references stop safely.
+- Failed authorization creation, activation, or denial stops the workflow before later notifications or completion. Request creation returns the exact record ID instead of looking up the latest pending request.
+- A separately operated, previewable SQL repair supports reviewed legacy workflows on 1.5.9 and 1.5.10. It preserves approval evidence, restores approved authorizations using original approval dates and approvers, closes explicitly reviewed renewal predecessors, and records repair history. Installing 1.5.10 does not automatically approve historical requests.
 
 ### Account Security, Trusted Devices, and Offline Access
 
