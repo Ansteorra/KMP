@@ -111,6 +111,8 @@ class BestowalTodoViewTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
         $this->assertResponseContains('Gathering required');
         $this->assertResponseContains('Assign Gathering and Complete');
+        $this->assertResponseContains('Choose a gathering to complete this task.');
+        $this->assertResponseNotContains('Not assigned to you');
     }
 
     public function testViewBlocksAgendaTodoUntilEventScheduledIsComplete(): void

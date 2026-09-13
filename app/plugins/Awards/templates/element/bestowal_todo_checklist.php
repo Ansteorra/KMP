@@ -271,6 +271,12 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                     'aria-label' => __('Reopen: {0}', $item->title),
                                 ],
                             ) ?>
+                        <?php elseif ($canAssignRequirement) : ?>
+                            <span class="text-muted small">
+                                <?= $requirementField === 'court_slot'
+                                ? __('Choose a court to complete this task.')
+                                : __('Choose a gathering to complete this task.') ?>
+                            </span>
                         <?php elseif ($blocked) : ?>
                             <span class="text-muted small">
                                 <?= h((string)($blocker['label'] ?? __('Waiting on prerequisite'))) ?>

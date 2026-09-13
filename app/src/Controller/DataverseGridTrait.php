@@ -699,12 +699,13 @@ trait DataverseGridTrait
                             continue;
                         }
 
-                        // Use queryField from column metadata if available
+                        // Match live dropdowns: relation filters use IDs, not display fields.
                         $columnMeta = $columnsMetadata[$field] ?? null;
-                        $queryField = $columnMeta['queryField'] ?? null;
+                        $queryField = $columnMeta['filterQueryField'] ?? $columnMeta['queryField'] ?? null;
 
                         if ($queryField !== null) {
-                            $qualifiedField = $queryField;
+                            $qualifiedField = str_contains($queryField, '.')
+                                ? $queryField : $tableName . '.' . $queryField;
                         } elseif (strpos($field, '.') === false) {
                             $qualifiedField = $tableName . '.' . $field;
                         } else {
