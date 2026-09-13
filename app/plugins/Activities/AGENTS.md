@@ -16,6 +16,8 @@ Own member authorization and participation workflows for activities, activity gr
 - Migration order is `1` in `app/config/plugins.php`; this plugin is a base dependency for later domain plugins.
 - Authorization lifecycle logic belongs in `AuthorizationManagerInterface` implementations and related services.
 - Navigation and view-cell UI must go through `ActivitiesNavigationProvider` and `ActivitiesViewCellProvider`.
+- Activation and denial resolve the persisted workflow `entity_id` before `trigger.authorizationId`, with legacy action parameters as a fallback. Conflicting authoritative IDs or lifecycle failures stop the workflow; never return a success-shaped false result.
+- Reviewed legacy authorization repairs use `config/repairs/migrated-authorizations.sql` with a tenant-specific manifest. Preview first; preserve approval responses and original execution logs, and record additive repair evidence. See the repair runbook in `app/docs`.
 - Settings use `Activities.*` and `Plugin.Activities.*` keys through `StaticHelpers`.
 
 ## Work Guidance
