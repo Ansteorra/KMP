@@ -3,8 +3,8 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: ca84d1e7c1a205de528b31a2f031c7c9619f21ef -->
-<!-- LAST_SYNCED_DATE: 2026-09-13 -->
+<!-- LAST_SYNCED_COMMIT: e4e8d78a871c04bc7e87e443b4568da98a2ed77d -->
+<!-- LAST_SYNCED_DATE: 2026-09-14 -->
 
 ## KMP 1.5.10 — September 15, 2026
 
@@ -44,6 +44,7 @@ KMP 1.5.10 improves award and officer workflows, member administration, saved vi
 - Saved/custom grid views retain visible, locked system filters when copied or saved. Recommendations, My Approvals, My To-Dos, Gatherings, and Warrants retain their required personal, status, and time constraints.
 - My Approvals and My To-Dos support custom views. Approvals add requester-name filtering and corrected queue sorting; to-dos add title, required/optional, and gathering filters. Replaced approvals explain why a new process needs fresh decisions.
 - Authenticated gathering-calendar users can create personal saved views and switch them through shared view tabs. Successful attendance registration closes its modal and gives accessible saved feedback. Modal errors, repeat submissions, and focus restoration are handled more consistently.
+- Gathering-calendar Month, Week, and List controls keep their selected indicator in sync after navigation and saved-view updates. Event titles in List View open the gathering page without a “Content missing” error.
 - Workflow designer loading and saving preserve declared output branches, including next/default aliases and custom outputs, and position nodes sensibly when saved layout information is incomplete.
 
 ### Activity Authorizations
@@ -72,6 +73,7 @@ KMP 1.5.10 improves award and officer workflows, member administration, saved vi
 
 ### Upgrade and Operator Actions
 
+- Restored PostgreSQL backups preserve conditional uniqueness, including the rule allowing one terminal task per bestowal template.
 - Apply core, platform, Awards, and Officers migrations in the documented order. Fleet migrations include suspended tenants, back up tenants with pending changes, verify core/plugin histories, and clear tenant routing caches after success. A suspended tenant cannot reactivate with an outdated schema.
 - Legacy environment secrets import only when the encrypted database store is missing the value; existing rotated values take precedence. Backup-key reconciliation and migrations retain their safety checks.
 - Azure deployment requires separate runtime and administrative database identities, vault/storage grants, and a dedicated administrative job. Deployment now checks that infrastructure before changing PostgreSQL configuration or importing an image. This check does not create missing infrastructure; existing shared-identity installations need the one-time transition first.
