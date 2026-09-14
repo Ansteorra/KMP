@@ -25,6 +25,7 @@ Own reusable business workflows, side effects, integrations, registries, workflo
   Terminal completions skip the ordinary post-commit cascade and cannot auto-complete from satisfied fields. Automatic definition-sync cancellation provenance is
   the exact persisted system note constant; changing that text requires migrating existing logs.
 - Services assume authorization has already been enforced unless the service is specifically an authorization helper.
+- Logical backup manifests preserve PostgreSQL partial-index predicates; restore must not widen conditional uniqueness. Unsupported target engines must fail while planning, before dropping tables.
 - Tenant-aware data must use tenant-safe cache keys and context handling.
 - Document reads and writes must not provision remote containers. Azure container lifecycle and restricted runtime grants belong to dedicated administrative provisioning; archives use independent `Backups.storage` configuration. Derived image variants use deterministic, versioned paths and bounded lazy generation after controller authorization.
 

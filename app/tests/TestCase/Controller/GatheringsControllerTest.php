@@ -16,6 +16,8 @@ use Awards\Model\Entity\CourtAgendaSegment;
 use Cake\Cache\Cache;
 use DateTimeImmutable;
 use DateTimeZone;
+use DOMDocument;
+use DOMXPath;
 use Waivers\Policy\GatheringWaiverPolicy;
 
 /**
@@ -635,6 +637,46 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertTrue($gridState['config']['showViewTabs']);
         $this->assertSame((int)$gridView->id, (int)$gridState['view']['currentId']);
         $this->assertContains('My Branch Calendar', array_column($gridState['view']['available'], 'name'));
+    }
+
+    /**
+     * Calendar navigation exposes the rendered mode and opens list events outside its frame.
+     *
+     * @return void
+     */
+    public function testCalendarViewControlsAndListEventTargets(): void
+    {
+        $this->createCalendarGathering('Calendar Navigation Target', false, [
+            'start_date' => '2099-10-15 10:00:00',
+            'end_date' => '2099-10-15 18:00:00',
+        ]);
+        $this->createCalendarGathering('Cancelled Calendar Navigation Target', true, [
+            'start_date' => '2099-10-16 10:00:00',
+            'end_date' => '2099-10-16 18:00:00',
+        ]);
+        foreach (['month', 'week', 'list'] as $mode) {
+            $this->get('/gatherings/calendar-grid-data?year=2099&month=10&view=' . $mode);
+            $this->assertResponseOk();
+            $dom = new DOMDocument();
+            $previous = libxml_use_internal_errors(true);
+            try {
+                $dom->loadHTML((string)$this->_response->getBody());
+            } finally {
+                libxml_clear_errors();
+                libxml_use_internal_errors($previous);
+            }
+            $xpath = new DOMXPath($dom);
+            $selected = $xpath->query('//a[@data-calendar-view-mode][@aria-current="true"]');
+            $this->assertCount(1, $selected);
+            $this->assertSame($mode, $selected->item(0)->getAttribute('data-calendar-view-mode'));
+            if ($mode === 'list') {
+                $titles = $xpath->query('//h5/a[contains(@href,"/gatherings/view/")]');
+                $this->assertGreaterThanOrEqual(2, $titles->length);
+                foreach ($titles as $title) {
+                    $this->assertSame('_top', $title->getAttribute('data-turbo-frame'));
+                }
+            }
+        }
     }
 
     /**

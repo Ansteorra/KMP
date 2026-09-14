@@ -67,6 +67,12 @@ baking. The bake helper also runs both `--check` commands and guarded
 `--apply-local-database` operations; those operations refuse non-local database
 hosts.
 
+The curated Local Treasurer office grants the **Local Warranted Officer** role,
+which provides branch-scoped waiver access. Keep this mapping aligned across all
+three SQL snapshots and the baked archive. New appointments inherit the role;
+warrants alone do not grant permissions. This seed configuration is for future
+refreshes and does not repair existing POC appointments or change production.
+
 ## What the restore job actually does
 
 `docker/reset-and-seed.sh` runs this sequence against the configured default
@@ -178,3 +184,9 @@ clean reset and fix the fixture source. The managed restore intentionally uses
 The restore script defaults `KMP_BACKUP_RESTORE_MEMORY_LIMIT` to `512M`.
 Increase it only after measuring a larger reviewed seed and confirming the
 Container Apps Job has sufficient memory.
+
+Validate each rebaked archive with `backup restore --fail-on-not-valid-fk` in a
+new, disposable local database using the matching POC key. Verify the target
+database name before restore. The current archive includes PostgreSQL partial
+index predicates and requires the corresponding restore support; SQL snapshot
+changes alone do not update the artifact consumed by POC.
