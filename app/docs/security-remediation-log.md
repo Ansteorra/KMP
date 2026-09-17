@@ -110,7 +110,8 @@ production. Every fix needs the acceptance checks below and an exact deployed-ca
   logs, invalid single/mixed PDFs and preserved valid page counts. Historical logs and backups
   require separate access review and cleanup; the code change does not erase old data.
 - **SEC-008/014/015/017/022/026:** clean production source copies, patched dependency locks,
-  removal of guifier, pinned build inputs, PHP 8.4.25 on Debian Trixie with refreshed native
+  removal of guifier, pinned build inputs, and historical PHP 8.4.25/arm64 validation
+  on Debian Trixie with refreshed native
   packages and rebuilt extensions, immutable web/job image payloads, fail-closed scans and
   static analysis, and CycloneDX SBOM generation. Composer, both npm locks and the Ruby
   documentation lock pass current advisory gates. The finished arm64 image passes 40 native
@@ -119,7 +120,10 @@ production. Every fix needs the acceptance checks below and an exact deployed-ca
   and application development dependencies. The final scan has zero fixable High/Critical
   findings but retains 30 native advisory IDs (121 package rows), including a libxml2 issue,
   for explicit release triage in restricted reports. This is not a vulnerability-free image.
-  The shared base also builds successfully; CI must independently build and scan amd64.
+  These PHP 8.4.25/arm64 counts describe that historical image, not the current candidate.
+  The current `docker/Dockerfile.prod` default pins **PHP 8.5.10 on Debian Trixie**;
+  Nightly builds it for **linux/amd64** without a `BASE_IMAGE` override. Use the
+  exact candidate digest's CI scan and SBOM for current advisory triage.
   Published candidates and every security-gate image build refresh native layers instead of reusing stale APT caches; branch-push checks must receive available OS fixes too.
 - **SEC-009/023/024:** see the [Azure security rollout](../../deploy/azure/security-rollout.md)
   for separated runtime/administrative credentials and jobs, idempotent PostgreSQL grants,

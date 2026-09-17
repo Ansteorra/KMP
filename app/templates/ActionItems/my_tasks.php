@@ -176,7 +176,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const titleEl = modal.querySelector('[data-todo-target="title"]');
         if (titleEl) {
-            titleEl.textContent = title;
+            titleEl.textContent = btn.dataset.todoConfirmation ? '' : title;
+            titleEl.hidden = !!btn.dataset.todoConfirmation;
         }
 
         const promptEl = modal.querySelector('[data-todo-target="prompt"]');

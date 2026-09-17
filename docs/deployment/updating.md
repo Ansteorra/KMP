@@ -37,10 +37,19 @@ web Container App does not run migrations on startup.
    Admin access on its reserved host, backup readiness, and the release's changed
    user journeys. Keep the team's results and sign-off in the PR before merging.
 
-After merge, production still requires successful **main-push** quality evidence
-and POC validation for the exact release SHA. If merging/squashing or a later edit
-changes the SHA, advance `dev` to that merged candidate and repeat its build and
-POC validation; an earlier dev SHA's image is not evidence for the merge commit.
+Merge the release PR with an ancestry-preserving merge commit (or fast-forward),
+**not squash or rebase**. Production requires successful **main-push** quality
+evidence and POC validation for the exact resulting release SHA. Fetch upstream,
+verify `git merge-base --is-ancestor upstream/dev upstream/main`, then fast-forward
+`dev` with `git merge --ff-only upstream/main` and push it to repeat image/POC
+validation for that Main SHA. An earlier Dev image is not merge-commit evidence.
+
+If that ancestry check fails after a squash/rebase or divergent Dev work, preserve
+both branches. Obtain a reviewed reconciliation merge on `main` containing the
+current Dev tip, and use its new SHA as the candidate. Do not reset/force-push Dev
+or merge Main back into Dev to claim validation of a different SHA. Manual POC
+image dispatch currently does not record the exact-SHA evidence tag needed for
+stable promotion.
 
 A scheduled `main` build requires exact-commit main-push quality evidence and
 publishes the `nightly` channel but does not

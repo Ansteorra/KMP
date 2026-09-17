@@ -77,27 +77,7 @@ class BestowalFinalizationService
             return new ServiceResult(false, 'Bestowal ID is required.');
         }
 
-        $terminal = $this->terminalItem($bestowalId);
-        if ($terminal !== null) {
-            $actor = $this->fetchTable('Members')->get($actorId);
-            if (!$actor->isSuperUser() && !$this->actionItemService->isMemberEligible($terminal, $actorId)) {
-                return new ServiceResult(false, 'You are not assigned to the terminal to-do.');
-            }
-            if (!$terminal->isCompleted()) {
-                return $this->actionItemService->complete(
-                    (int)$terminal->id,
-                    $actorId,
-                    null,
-                    !$actor->isSuperUser(),
-                    $bestowedAt === null ? [] : ['bestowed_at' => $bestowedAt],
-                    $actor,
-                );
-            }
-
-            return $this->finalizeWithLockedRecheck($bestowalId, $actorId, $bestowedAt, true, true);
-        }
-
-        return $this->finalizeWithLockedRecheck($bestowalId, $actorId, $bestowedAt, true);
+        return $this->finalizeWithLockedRecheck($bestowalId, $actorId, $bestowedAt, true, true, true);
     }
 
     /** Find the terminal snapshot, not the live template definition. */
@@ -116,7 +96,15 @@ class BestowalFinalizationService
         int $actorId,
         ?DateTimeInterface $bestowedAt = null,
     ): ServiceResult {
-        return $this->finalizeWithLockedRecheck((int)$item->entity_id, $actorId, $bestowedAt, true, true);
+        return $this->finalizeWithLockedRecheck(
+            (int)$item->entity_id,
+            $actorId,
+            $bestowedAt,
+            true,
+            true,
+            false,
+            (int)$item->id,
+        );
     }
 
     /**
@@ -146,6 +134,9 @@ class BestowalFinalizationService
      * @param int $actorId Member performing or causing the action.
      * @param \DateTimeInterface|null $bestowedAt Optional bestowed timestamp.
      * @param bool $strict Whether readiness failures should be surfaced.
+     * @param bool $terminalAction Whether a terminal task may finalize the bestowal.
+     * @param bool $explicitAction Whether to authorize and complete the current terminal task.
+     * @param int|null $terminalItemId Expected terminal task for a lifecycle callback.
      * @return \App\Services\ServiceResult
      */
     private function finalizeWithLockedRecheck(
@@ -154,6 +145,8 @@ class BestowalFinalizationService
         ?DateTimeInterface $bestowedAt,
         bool $strict,
         bool $terminalAction = false,
+        bool $explicitAction = false,
+        ?int $terminalItemId = null,
     ): ServiceResult {
         $connection = $this->bestowals->getConnection();
         $savePointsWereEnabled = $connection->isSavePointsEnabled();
@@ -168,6 +161,8 @@ class BestowalFinalizationService
                 $bestowedAt,
                 $strict,
                 $terminalAction,
+                $explicitAction,
+                $terminalItemId,
             ): ServiceResult {
                 $bestowal = $this->loadBestowal($bestowalId, true);
                 if ($bestowal === null) {
@@ -189,7 +184,40 @@ class BestowalFinalizationService
                     );
                 }
                 $terminal = $this->terminalItem($bestowalId);
+                if ($terminalItemId !== null && (int)($terminal?->id ?? 0) !== $terminalItemId) {
+                    return new ServiceResult(false, 'The terminal to-do changed; reload the bestowal and try again.');
+                }
                 if ($terminal !== null) {
+                    if ($explicitAction) {
+                        $actor = $this->fetchTable('Members')->get($actorId);
+                        if (
+                            !$actor->isSuperUser()
+                            && !$this->actionItemService->isMemberEligible($terminal, $actorId)
+                        ) {
+                            return new ServiceResult(false, 'You are not assigned to the terminal to-do.');
+                        }
+                        if (!$terminal->isCompleted()) {
+                            $result = $this->actionItemService->complete(
+                                (int)$terminal->id,
+                                $actorId,
+                                null,
+                                !$actor->isSuperUser(),
+                                $bestowedAt === null ? [] : ['bestowed_at' => $bestowedAt],
+                                $actor,
+                            );
+                            if (!$result->success) {
+                                throw new RuntimeException(
+                                    $result->reason ?? 'The terminal to-do could not be completed.',
+                                );
+                            }
+                            $saved = $this->loadBestowal($bestowalId);
+                            if ($saved?->lifecycle_status !== Bestowal::LIFECYCLE_GIVEN) {
+                                throw new RuntimeException('Terminal completion did not finalize the bestowal.');
+                            }
+
+                            return new ServiceResult(true, null, $saved);
+                        }
+                    }
                     if (!$terminalAction || !$terminal->isCompleted()) {
                         return new ServiceResult(!$strict, 'Complete the terminal to-do to mark this bestowal Given.');
                     }

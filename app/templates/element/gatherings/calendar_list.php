@@ -21,7 +21,7 @@ $currentUser = $this->getRequest()->getAttribute('identity');
 $userTimezone = TimezoneHelper::getUserTimezone($currentUser);
 
 // Get current date in user's timezone
-$today = new DateTime($todayDate ?? 'now', new DateTimeZone($userTimezone));
+$today = new DateTime($todayDate, new DateTimeZone($userTimezone));
 $today->setTime(0, 0, 0);
 $todayInRange = $startDate instanceof DateTimeInterface
     && $endDate instanceof DateTimeInterface

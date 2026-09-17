@@ -185,8 +185,10 @@ The restore script defaults `KMP_BACKUP_RESTORE_MEMORY_LIMIT` to `512M`.
 Increase it only after measuring a larger reviewed seed and confirming the
 Container Apps Job has sufficient memory.
 
-Validate each rebaked archive with `backup restore --fail-on-not-valid-fk` in a
-new, disposable local database using the matching POC key. Verify the target
-database name before restore. The current archive includes PostgreSQL partial
+From `app/`, place the rebaked archive in the configured backups directory and
+validate it with `bin/cake backup restore nightly-seed.kmpbackup --yes --fail-on-not-valid-fk`
+against a new, disposable local database using the matching POC key. Configure the
+isolated administrative connection and verify its database name before running
+this destructive restore command. The current archive includes PostgreSQL partial
 index predicates and requires the corresponding restore support; SQL snapshot
 changes alone do not update the artifact consumed by POC.

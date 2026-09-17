@@ -33,10 +33,19 @@ Release-note preparation may be committed directly on `dev`, with a `dev` →
    processing, and the changed user journeys. Record the SHA/digest in the PR.
 8. Do not merge the PR before the team's review/sign-off. POC success does not
    authorize a stable release or production changes.
-9. After merge, production still requires exact-commit `main` push quality
-   evidence and POC validation. A merge/squash or any later edit that changes the
-   candidate SHA requires advancing `dev` and repeating candidate/POC validation
-   for that merged SHA. Never reuse a different SHA's digest as release evidence.
+9. Merge `dev` into `main` with an ancestry-preserving merge commit (or a
+   fast-forward), never squash or rebase. After merge, require exact-commit
+   `main` push quality evidence and POC validation of that resulting SHA.
+   Fetch upstream and verify `git merge-base --is-ancestor upstream/dev upstream/main`
+   then, while on `dev`, fast-forward with `git merge --ff-only upstream/main`.
+   Push `dev` and repeat its image build and POC validation for the merged SHA.
+   If ancestry fails, stop: a squash/rebase or divergent Dev work cannot be
+   repaired by resetting Dev or merging Main back into Dev, which creates a
+   different SHA. First obtain a reviewed reconciliation merge on `main` that
+   contains the current Dev tip, then validate that new Main commit through the
+   same fast-forward procedure. Manual POC image dispatch currently does not
+   record the exact-SHA evidence tag required for stable promotion.
+   Never reuse a different SHA's digest as release evidence.
 
 ## Intent: "do a release"
 

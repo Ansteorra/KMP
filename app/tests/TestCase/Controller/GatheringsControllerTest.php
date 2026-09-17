@@ -1308,12 +1308,13 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     private function createCalendarGathering(string $name, bool $published, array $extra = []): object
     {
         $gatherings = $this->getTableLocator()->get('Gatherings');
+        $futureDate = new DateTimeImmutable('+10 days', new DateTimeZone('America/Chicago'));
         $gathering = $gatherings->newEntity($extra + [
             'branch_id' => 2,
             'gathering_type_id' => 1,
             'name' => $name,
-            'start_date' => '2026-09-15 10:00:00',
-            'end_date' => '2026-09-15 18:00:00',
+            'start_date' => $futureDate->setTime(10, 0),
+            'end_date' => $futureDate->setTime(18, 0),
             'timezone' => 'America/Chicago',
             'created_by' => self::ADMIN_MEMBER_ID,
         ]);

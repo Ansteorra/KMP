@@ -41,7 +41,7 @@ Own award domains, levels, recommendations, recommendation feedback approvals, b
   An assigned empty template is an authoritative zero-item process, and an explicit Required field `None` overrides
   legacy key-based defaults. Materialization, synchronization, ActionItem transitions, and finalization serialize on
   the persisted bestowal before locking its ActionItems; cancellation uses the same mutex, and finalization rechecks
-  the stored terminal/gating rules while holding it. Given/cancelled bestowals reject queued ActionItem mutations. Each ActionItem reconciliation
+  the stored terminal/gating rules while holding it. Explicit Mark Given selects the terminal snapshot and checks its assignee only after acquiring that same owner lock; the completion callback must match that terminal ID. Given/cancelled bestowals reject queued ActionItem mutations. Each ActionItem reconciliation
   is atomic, and initial materialization/backfill only targets open bestowals.
   Required-field reconciliation must use bounded passes until stable so prerequisite chains converge independent of
   template sort order. Completion events are deferred until the whole batch is stable, and definition synchronization

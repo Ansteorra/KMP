@@ -111,6 +111,78 @@ class BestowalFinalizationServiceTest extends BaseTestCase
         $this->assertSame(ActionItem::STATUS_COMPLETED, $this->actionItems->get($schedule->id)->status);
     }
 
+    public function testMarkGivenAuthorizesTheTerminalSelectedAfterTheOwnerLock(): void
+    {
+        ActionItemCompletionFormRegistry::register('AwardsBestowals', new BestowalTodoCompletionFormProvider());
+        foreach ([ActionItem::STATUS_OPEN, ActionItem::STATUS_COMPLETED] as $status) {
+            $bestowal = $this->makeBestowal();
+            $old = $this->makeTodo((int)$bestowal->id, [
+                'is_terminal' => true, 'status' => $status,
+                'assignee_config' => ['member_id' => self::TEST_MEMBER_AGATHA_ID],
+            ]);
+            $replacement = $this->makeTodo((int)$bestowal->id, ['status' => $status]);
+            $items = $this->actionItems;
+            $service = new class extends BestowalFinalizationService {
+                public mixed $beforeLock;
+
+                protected function loadBestowal(int $bestowalId, bool $forUpdate = false): ?Bestowal
+                {
+                    if ($forUpdate && $this->beforeLock !== null) {
+                        $callback = $this->beforeLock;
+                        $this->beforeLock = null;
+                        $callback();
+                    }
+
+                    return parent::loadBestowal($bestowalId, $forUpdate);
+                }
+            };
+            // Model a synchronization that wins immediately before Mark Given acquires the owner.
+            $service->beforeLock = static function () use ($items, $old, $replacement): void {
+                $items->updateAll(['is_terminal' => false], ['id' => $old->id]);
+                $items->updateAll(['is_terminal' => true], ['id' => $replacement->id]);
+            };
+            $result = $service->markGiven((int)$bestowal->id, self::TEST_MEMBER_AGATHA_ID);
+            $this->assertFalse($result->success);
+            $this->assertSame('You are not assigned to the terminal to-do.', $result->reason);
+            $this->assertSame(Bestowal::LIFECYCLE_OPEN, $this->bestowals->get($bestowal->id)->lifecycle_status);
+            $this->assertSame($status, $items->get($old->id)->status);
+            $this->assertSame($status, $items->get($replacement->id)->status);
+        }
+    }
+
+    public function testTerminalCallbackRejectsADifferentTerminalSnapshot(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $stale = $this->makeTodo((int)$bestowal->id, ['status' => ActionItem::STATUS_COMPLETED]);
+        $this->makeTodo((int)$bestowal->id, ['is_terminal' => true, 'status' => ActionItem::STATUS_COMPLETED]);
+        $result = $this->finalizationService()->finalizeTerminalCompletion($stale, self::ADMIN_MEMBER_ID);
+        $this->assertFalse($result->success);
+        $this->assertStringContainsString('terminal to-do changed', $result->reason);
+        $this->assertSame(Bestowal::LIFECYCLE_OPEN, $this->bestowals->get($bestowal->id)->lifecycle_status);
+    }
+
+    public function testMarkGivenRollsBackCompletionWithoutFinalization(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $terminal = $this->makeTodo((int)$bestowal->id, ['is_terminal' => true]);
+        $items = $this->actionItems;
+        // Model a faulty completion handler that writes the task but never finalizes its owner.
+        $completion = $this->getMockBuilder(ActionItemService::class)->onlyMethods(['complete'])->getMock();
+        $completion->expects($this->once())->method('complete')->willReturnCallback(
+            static function (int $itemId) use ($items): ServiceResult {
+                $items->updateAll(['status' => ActionItem::STATUS_COMPLETED], ['id' => $itemId]);
+
+                return new ServiceResult(true);
+            },
+        );
+        $service = new BestowalFinalizationService($completion);
+        $result = $service->markGiven((int)$bestowal->id, self::ADMIN_MEMBER_ID);
+        $this->assertFalse($result->success);
+        $this->assertSame('Terminal completion did not finalize the bestowal.', $result->reason);
+        $this->assertSame(ActionItem::STATUS_OPEN, $this->actionItems->get($terminal->id)->status);
+        $this->assertSame(Bestowal::LIFECYCLE_OPEN, $this->bestowals->get($bestowal->id)->lifecycle_status);
+    }
+
     public function testCompletedGivenAdoptsTerminalOnlyOnSyncAndNeedsExplicitFinalization(): void
     {
         ActionItemCompletionFormRegistry::register('AwardsBestowals', new BestowalTodoCompletionFormProvider());

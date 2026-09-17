@@ -458,6 +458,8 @@ class ActionItemsController extends AppController
         $includeBranch = in_array('branch', $visibleColumns, true);
         $ownerDescriptors = $includeOwner ? $this->buildOwnerDescriptors($items) : [];
 
+        $lifecycle = new ActionItemService();
+        $ownerMutability = [];
         foreach ($items as $item) {
             $item->status_label = ucfirst((string)$item->status);
             $item->requirement = $item->is_gating ? __('Required') : __('Optional');
@@ -475,8 +477,8 @@ class ActionItemsController extends AppController
 
             $completionForm = ActionItemCompletionFormRegistry::formFor($item, $user);
             $item->completion_form_data = $completionForm?->toArray() ?? [];
-            $lifecycle = new ActionItemService();
-            $item->owner_mutable = $lifecycle->ownerIsMutable($item);
+            $ownerKey = $item->entity_type . ':' . $item->entity_id;
+            $item->owner_mutable = $ownerMutability[$ownerKey] ??= $lifecycle->ownerIsMutable($item);
             $item->complete_confirmation = $lifecycle->confirmationFor($item, 'complete');
             $item->reopen_confirmation = $lifecycle->confirmationFor($item, 'reopen');
         }

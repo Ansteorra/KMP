@@ -63,7 +63,8 @@ class RecommendationApprovalWorkflowSyncServiceTest extends BaseTestCase
         $replacement = $service->enqueue((int)$scenario['process']->id, self::ADMIN_MEMBER_ID);
         $this->assertNotSame($run->id, $replacement->id);
         $service->work(['runId' => $run->id, 'cursor' => 0]);
-        $this->assertSame('interrupted', $this->getTableLocator()->get('Awards.ApprovalSyncRuns')->get($run->id)->status);
+        $this->assertSame('interrupted', $this->getTableLocator()
+            ->get('Awards.ApprovalSyncRuns')->get($run->id)->status);
     }
 
     public function testBackgroundSyncStopsWhenConfigurationChanges(): void
@@ -108,7 +109,8 @@ class RecommendationApprovalWorkflowSyncServiceTest extends BaseTestCase
         $duplicate = $service->enqueue((int)$scenario['process']->id, self::ADMIN_MEMBER_ID);
         $this->assertSame($run->id, $duplicate->id);
         $service->work(['runId' => $run->id, 'cursor' => 0]);
-        $item = $this->getTableLocator()->get('Awards.ApprovalSyncItems')->find()->where(['sync_run_id' => $run->id])->firstOrFail();
+        $item = $this->getTableLocator()->get('Awards.ApprovalSyncItems')->find()
+            ->where(['sync_run_id' => $run->id])->firstOrFail();
         $service->work(['runId' => $run->id, 'itemId' => $item->id]);
         $service->work(['runId' => $run->id, 'itemId' => $item->id]);
         $status = $service->latest((int)$scenario['process']->id);
@@ -488,7 +490,9 @@ class RecommendationApprovalWorkflowSyncServiceTest extends BaseTestCase
         $service = new ApprovalSyncJobService($this->createWorkflowSyncService($selectiveEngine));
         $run = $service->enqueue((int)$scenario['process']->id, self::ADMIN_MEMBER_ID);
         $service->work(['runId' => $run->id, 'cursor' => 0]);
-        foreach ($this->getTableLocator()->get('Awards.ApprovalSyncItems')->find()->where(['sync_run_id' => $run->id]) as $item) {
+        $syncItems = $this->getTableLocator()->get('Awards.ApprovalSyncItems')->find()
+            ->where(['sync_run_id' => $run->id]);
+        foreach ($syncItems as $item) {
             $service->work(['runId' => $run->id, 'itemId' => $item->id]);
             $service->work(['runId' => $run->id, 'itemId' => $item->id]);
         }

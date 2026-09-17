@@ -923,15 +923,10 @@ class BestowalsController extends AppController
     }
 
     /**
-     * Mark a bestowal as Given, gated on completion of all gating to-dos.
+     * Explicitly finalize through the current terminal task, or legacy gating rules.
      *
-     * This is the one-click finalize action: it refuses to finalize until every
-     * gating action item for the bestowal is complete, then sets the bestowal's
-     * `lifecycle_status` to "given" (recording the bestowed timestamp) and syncs
-     * any linked recommendations to their "Given" state so recommendation
-     * notifications still fire. Completing the gating "Given" to-do directly also
-     * finalizes the bestowal automatically via BestowalTodoCompletionListener;
-     * this action covers the explicit button path.
+     * The service locks the bestowal before checking task eligibility and atomically
+     * updates its checklist, bestowed timestamp, and linked recommendations.
      *
      * @param \Awards\Services\BestowalFinalizationService $finalizationService Bestowal finalize service
      * @return \Cake\Http\Response|null
@@ -953,7 +948,13 @@ class BestowalsController extends AppController
             return $this->redirectAfterBestowalMutation($pageContext, $bestowalId);
         }
 
-        $bestowedAt = new DateTime($this->request->getData('bestowed_at') ?: 'now');
+        try {
+            $bestowedAt = new DateTime($this->request->getData('bestowed_at') ?: 'now');
+        } catch (Throwable) {
+            $this->Flash->error(__('Enter a valid bestowed date.'));
+
+            return $this->redirectAfterBestowalMutation($pageContext, $bestowalId);
+        }
         $result = $finalizationService->markGiven((int)$bestowalId, (int)$user->id, $bestowedAt);
 
         if ($result->success) {
