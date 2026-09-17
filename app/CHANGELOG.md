@@ -3,8 +3,8 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: e4e8d78a871c04bc7e87e443b4568da98a2ed77d -->
-<!-- LAST_SYNCED_DATE: 2026-09-14 -->
+<!-- LAST_SYNCED_COMMIT: ccf943ae2d9de62e4db76aa5439bf436828c08e3 -->
+<!-- LAST_SYNCED_DATE: 2026-09-17 -->
 
 ## KMP 1.5.10 — September 15, 2026
 
@@ -19,6 +19,7 @@ KMP 1.5.10 improves award and officer workflows, member administration, saved vi
 - Removing a grouped recommendation during active review starts that child's own current approval process from step one while the group head and remaining children keep their progress. Removing one child preserves a remaining head-plus-child group; **Ungroup All** explicitly dissolves the group. Bestowal-owned recommendations remain protected from incompatible regrouping.
 - Cancelling an open bestowal now requires a reason. Cancellation closes open to-dos with an audit trail, retains completed history, clears bestowal-owned recommendation fields, and starts a fresh review for each standalone recommendation or group head; grouped children return to Linked. Finalized bestowals show read-only checklists and reject stale to-do changes.
 - Bestowal To-Do Templates can designate one **Terminal** task. Built-in **Given** tasks are terminal: deliberately completing one marks the bestowal Given and audit-closes every unfinished required or optional task as not applicable. The confirmation lists unfinished work; completed history is retained. Terminal tasks never complete automatically, and their own configured field requirements still apply. Templates without a terminal task retain their existing completion rules.
+- **Mark Given** validates malformed dates without changing the bestowal and checks the current terminal task and its assignee after locking the bestowal. Concurrent template synchronization cannot bypass that authorization; failed finalization rolls back task completion.
 - Existing open bestowals adopt terminal settings only through **Sync Outdated Bestowals**. Synchronization preserves history and never finalizes a bestowal, including when Given was previously checked. Those bestowals require explicit finalization confirmation.
 - Reopening a scheduling task now confirms and reverses its assignment. Reopening Event Scheduled removes this bestowal's event and court assignments and reconciles dependent tasks; reopening Added to Agenda removes court assignment and agenda placement while retaining the event. These changes do not delete gatherings or court activities. A terminal Given action can still explicitly finalize the bestowal with unfinished scheduling work.
 - Ad-hoc bestowals support recipients without a linked member account or recommendation. Creation and editing support shared notes, and a permission-aware Notes tab displays the bestowal's notes.
@@ -42,6 +43,7 @@ KMP 1.5.10 improves award and officer workflows, member administration, saved vi
 - Saved relation filters, including Bestowals Award Group, Award Type, Member, Award, and Gathering, reload correctly after saving and switching views. Existing saved filters work without recreation.
 - PostgreSQL grid sorting by office/member names, award abbreviations, and approval queues correctly loads related warrants and gatherings. Platform-admin error pages render without a secondary changelog-link routing error.
 - Saved/custom grid views retain visible, locked system filters when copied or saved. Recommendations, My Approvals, My To-Dos, Gatherings, and Warrants retain their required personal, status, and time constraints.
+- My To-Dos displays each completion or reopening confirmation once and reuses owner-state checks for tasks belonging to the same record.
 - My Approvals and My To-Dos support custom views. Approvals add requester-name filtering and corrected queue sorting; to-dos add title, required/optional, and gathering filters. Replaced approvals explain why a new process needs fresh decisions.
 - Authenticated gathering-calendar users can create personal saved views and switch them through shared view tabs. Successful attendance registration closes its modal and gives accessible saved feedback. Modal errors, repeat submissions, and focus restoration are handled more consistently.
 - Gathering-calendar Month, Week, and List controls keep their selected indicator in sync after navigation and saved-view updates. Event titles in List View open the gathering page without a “Content missing” error.
