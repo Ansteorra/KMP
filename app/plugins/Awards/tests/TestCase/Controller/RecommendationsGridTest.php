@@ -187,6 +187,25 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
         $this->assertLessThan($laterPosition, $earlierPosition);
     }
 
+    public function testSubmittedGridAwardSortLoadsGatherings(): void
+    {
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()->firstOrFail();
+        $gathering = $this->getTableLocator()->get('Gatherings')->find()->firstOrFail();
+        $recommendation = $this->createRecommendation((int)$award->id, 'Sorted submitted recommendation');
+        $recommendations = $this->getTableLocator()->get('Awards.Recommendations');
+        $recommendations->getAssociation('Gatherings')->link($recommendation, [$gathering]);
+        $this->get('/awards/recommendations/member-submitted-recs-grid-data/' . self::ADMIN_MEMBER_ID
+            . '?' . http_build_query([
+                'sort' => 'award_name',
+                'direction' => 'asc',
+                'columns' => 'id,award_name,gatherings',
+                'search' => 'Sorted submitted recommendation',
+            ]));
+        $this->assertResponseOk();
+        $this->assertResponseContains('data-id="' . $recommendation->id . '"');
+        $this->assertResponseContains((string)$gathering->name);
+    }
+
     public function testCustomViewCopiesPendingReviewSymbolicFilter(): void
     {
         $award = $this->getTableLocator()->get('Awards.Awards')

@@ -25,6 +25,7 @@ opens updates; scheduled verification detects newly disclosed advisories. A base
 produce a tested immutable application image before release promotion. Production deploys
 remain approval-gated and never rebuild the POC-tested image.
 
-Published candidates rebuild the native runtime stage so cached APT layers cannot hide new
-security updates. Scheduled base/security builds also refresh native layers; application
+Published candidates and every security-gate image build refresh the native runtime stage so
+cached APT layers cannot hide new security updates, including branch-push quality evidence.
+Scheduled base builds also refresh native layers; application
 asset and Composer stages retain their normal caches.

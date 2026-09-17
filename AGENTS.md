@@ -90,9 +90,12 @@ Run these from `app/` unless noted.
 
 ## Release phrase contracts
 
-- **"Push to dev"** means fast-forward the official `dev` branch to the selected
-  official `main` commit, monitor the gated image build and POC deployment, and
-  verify POC. It never changes production.
+- **"Push to dev"** means publish the selected candidate to official `dev`
+  without rewriting history, monitor its exact-commit quality gates, image build,
+  and POC deployment, and verify POC. Release preparation may happen directly on
+  `dev` with a `dev` → `main` PR for team validation. It never changes production.
+  When no dev-specific candidate is requested, use the selected official `main`
+  commit if it can fast-forward `dev`; never discard unmerged dev work.
 - **"Do a release"** means update `app/CHANGELOG.md` before POC testing, use that
   release section verbatim for the GitHub Release notes, validate the exact
   changelog-bearing commit and image digest in POC, publish a stable `v*`

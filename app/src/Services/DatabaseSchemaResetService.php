@@ -352,10 +352,11 @@ class DatabaseSchemaResetService
                     continue;
                 }
                 $sql[] = sprintf(
-                    'CREATE UNIQUE INDEX %s ON %s (%s)',
+                    'CREATE UNIQUE INDEX %s ON %s (%s)%s',
                     $driver->quoteIdentifier($this->indexIdentifier($driver, $tableName, $constraintName)),
                     $driver->quoteIdentifier($tableName),
                     $columnsSql,
+                    $this->indexPredicateSql($driver, $constraint),
                 );
             }
             foreach (($tableSpec['indexes'] ?? []) as $indexName => $index) {
@@ -368,16 +369,33 @@ class DatabaseSchemaResetService
                 }
                 $unique = ($index['type'] ?? '') === 'unique' ? 'UNIQUE ' : '';
                 $sql[] = sprintf(
-                    'CREATE %sINDEX %s ON %s (%s)',
+                    'CREATE %sINDEX %s ON %s (%s)%s',
                     $unique,
                     $driver->quoteIdentifier($this->indexIdentifier($driver, $tableName, $indexName)),
                     $driver->quoteIdentifier($tableName),
                     $columnsSql,
+                    $this->indexPredicateSql($driver, $index),
                 );
             }
         }
 
         return $sql;
+    }
+
+    /**
+     * @param array<string, mixed> $index
+     */
+    private function indexPredicateSql(Mysql|Postgres $driver, array $index): string
+    {
+        $predicate = trim((string)($index['where'] ?? ''));
+        if ($predicate === '') {
+            return '';
+        }
+        if (!$driver instanceof Postgres) {
+            throw new RuntimeException('Cannot restore PostgreSQL partial indexes to MySQL.');
+        }
+
+        return ' WHERE ' . $predicate;
     }
 
     /**
