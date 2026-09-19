@@ -111,6 +111,8 @@ class BestowalTodoViewTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
         $this->assertResponseContains('Gathering required');
         $this->assertResponseContains('Assign Gathering and Complete');
+        $this->assertResponseContains('Choose a gathering to complete this task.');
+        $this->assertResponseNotContains('Not assigned to you');
     }
 
     public function testViewBlocksAgendaTodoUntilEventScheduledIsComplete(): void
@@ -191,6 +193,29 @@ class BestowalTodoViewTest extends HttpIntegrationTestCase
         $this->assertNull($reloadedBestowal->gathering_scheduled_activity_id);
         $reloadedTodo = TableRegistry::getTableLocator()->get('ActionItems')->get($agendaTodo->id);
         $this->assertTrue($reloadedTodo->isCompleted());
+    }
+
+    public function testMarkGivenRejectsMalformedDatesWithoutChangingTheChecklist(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $todo = $this->makeTodo((int)$bestowal->id, ['status' => ActionItem::STATUS_COMPLETED]);
+        $this->enableRetainFlashMessages();
+        foreach (['definitely-not-a-date', ['unexpected' => 'array']] as $date) {
+            $this->post('/awards/bestowals/mark-given', ['bestowalId' => $bestowal->id, 'bestowed_at' => $date]);
+            $this->assertResponseCode(302);
+            $this->assertFlashMessage('Enter a valid bestowed date.');
+            $saved = $this->getTableLocator()->get('Awards.Bestowals')->get($bestowal->id);
+            $this->assertSame(Bestowal::LIFECYCLE_OPEN, $saved->lifecycle_status);
+            $this->assertNull($saved->bestowed_at);
+            $this->assertSame(ActionItem::STATUS_COMPLETED, $this->getTableLocator()
+                ->get('ActionItems')->get($todo->id)->status);
+        }
+        $this->post('/awards/bestowals/mark-given', [
+            'bestowalId' => $bestowal->id, 'bestowed_at' => '2026-09-15 12:30:00',
+        ]);
+        $this->assertResponseCode(302);
+        $this->assertSame(Bestowal::LIFECYCLE_GIVEN, $this->getTableLocator()
+            ->get('Awards.Bestowals')->get($bestowal->id)->lifecycle_status);
     }
 
     /**

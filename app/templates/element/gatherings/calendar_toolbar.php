@@ -40,6 +40,7 @@ $buildFrameUrl = function (array $overrides = []) use ($baseParams) {
             unset($params[$key]);
         }
     }
+
     return [
         'controller' => 'Gatherings',
         'action' => 'calendarGridData',
@@ -49,7 +50,7 @@ $buildFrameUrl = function (array $overrides = []) use ($baseParams) {
 
 // Calculate week start date for week view
 $weekStartDate = null;
-if ($viewMode === 'week' && $startDate instanceof \DateTimeInterface) {
+if ($viewMode === 'week' && $startDate instanceof DateTimeInterface) {
     $weekStartDate = clone $startDate;
     $weekDay = (int)$weekStartDate->format('w');
     if ($weekDay > 0) {
@@ -58,7 +59,7 @@ if ($viewMode === 'week' && $startDate instanceof \DateTimeInterface) {
 }
 
 // Build navigation URLs
-if ($viewMode === 'week' && $weekStartDate instanceof \DateTimeInterface) {
+if ($viewMode === 'week' && $weekStartDate instanceof DateTimeInterface) {
     $prevWeek = (clone $weekStartDate)->modify('-7 days');
     $nextWeek = (clone $weekStartDate)->modify('+7 days');
 
@@ -108,12 +109,12 @@ if ($viewMode === 'week' && $weekStartDate instanceof \DateTimeInterface) {
 }
 
 $weekLinkStart = $weekStartDate
-    ?? ($startDate instanceof \DateTimeInterface ? $startDate : new \DateTimeImmutable(sprintf('%04d-%02d-01', $year, $month)));
+    ?? ($startDate instanceof DateTimeInterface ? $startDate : new DateTimeImmutable(sprintf('%04d-%02d-01', $year, $month)));
 
 $monthUrl = $buildFrameUrl(['view' => 'month', 'week_start' => null, 'scroll_to_today' => null]);
 $weekUrl = $buildFrameUrl([
     'view' => 'week',
-    'week_start' => $weekLinkStart instanceof \DateTimeInterface ? $weekLinkStart->format('Y-m-d') : date('Y-m-d'),
+    'week_start' => $weekLinkStart instanceof DateTimeInterface ? $weekLinkStart->format('Y-m-d') : date('Y-m-d'),
     'scroll_to_today' => null,
 ]);
 $listUrl = $buildFrameUrl(['view' => 'list', 'week_start' => null, 'scroll_to_today' => null]);
@@ -135,7 +136,7 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
             data-turbo-frame="_top">
             <i class="bi bi-list" aria-hidden="true"></i> <?= __('List View') ?>
         </a>
-        <?php if ($canAddGathering): ?>
+        <?php if ($canAddGathering) : ?>
             <a class="btn btn-primary" href="<?= $this->Url->build(['action' => 'add']) ?>" data-turbo-frame="_top">
                 <i class="bi bi-plus-circle" aria-hidden="true"></i> <?= __('Add Gathering') ?>
             </a>
@@ -153,7 +154,7 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
     <div class="card-body">
         <div class="row align-items-center g-2">
             <div class="col-auto">
-                <?php if ($prevUrl): ?>
+                <?php if ($prevUrl) : ?>
                     <?= $this->Html->link('<i class="bi bi-chevron-left" aria-hidden="true"></i><span class="visually-hidden">' . h($viewMode === 'week' ? __('Previous Week') : __('Previous Month')) . '</span>', $prevUrl, [
                         'escape' => false,
                         'class' => 'btn btn-outline-primary',
@@ -170,7 +171,7 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
                 </h4>
             </div>
             <div class="col-auto">
-                <?php if ($nextUrl): ?>
+                <?php if ($nextUrl) : ?>
                     <?= $this->Html->link('<i class="bi bi-chevron-right" aria-hidden="true"></i><span class="visually-hidden">' . h($viewMode === 'week' ? __('Next Week') : __('Next Month')) . '</span>', $nextUrl, [
                         'escape' => false,
                         'class' => 'btn btn-outline-primary',
@@ -193,25 +194,31 @@ $canAddGathering = $identity && $identity->checkCan('add', $tempGathering);
             </div>
             <div class="col-auto">
                 <div class="btn-group" role="group" aria-label="<?= __('View mode') ?>">
-                    <?= $this->Html->link('<i class="bi bi-calendar3" aria-hidden="true"></i><span class="visually-hidden">' . h(__('Month View')) . '</span>', $monthUrl, [
+                    <?= $this->Html->link('<i class="bi bi-calendar3" aria-hidden="true"></i><span class="visually-hidden">' . h(__('Month View')) . '</span><i aria-hidden="true" data-calendar-view-indicator class="bi bi-check2 ms-1' . ($viewMode === 'month' ? '' : ' d-none') . '"></i>', $monthUrl, [
                         'escape' => false,
                         'class' => 'btn btn-sm ' . ($viewMode === 'month' ? 'btn-primary' : 'btn-outline-primary'),
                         'title' => __('Month View'),
                         'aria-label' => __('Month View'),
+                        'aria-current' => $viewMode === 'month' ? 'true' : null,
+                        'data-calendar-view-mode' => 'month',
                         'data-turbo-frame' => 'gatherings-calendar-grid-table',
                     ]) ?>
-                    <?= $this->Html->link('<i class="bi bi-calendar-week" aria-hidden="true"></i><span class="visually-hidden">' . h(__('Week View')) . '</span>', $weekUrl, [
+                    <?= $this->Html->link('<i class="bi bi-calendar-week" aria-hidden="true"></i><span class="visually-hidden">' . h(__('Week View')) . '</span><i aria-hidden="true" data-calendar-view-indicator class="bi bi-check2 ms-1' . ($viewMode === 'week' ? '' : ' d-none') . '"></i>', $weekUrl, [
                         'escape' => false,
                         'class' => 'btn btn-sm ' . ($viewMode === 'week' ? 'btn-primary' : 'btn-outline-primary'),
                         'title' => __('Week View'),
                         'aria-label' => __('Week View'),
+                        'aria-current' => $viewMode === 'week' ? 'true' : null,
+                        'data-calendar-view-mode' => 'week',
                         'data-turbo-frame' => 'gatherings-calendar-grid-table',
                     ]) ?>
-                    <?= $this->Html->link('<i class="bi bi-list-ul" aria-hidden="true"></i><span class="visually-hidden">' . h(__('List View')) . '</span>', $listUrl, [
+                    <?= $this->Html->link('<i class="bi bi-list-ul" aria-hidden="true"></i><span class="visually-hidden">' . h(__('List View')) . '</span><i aria-hidden="true" data-calendar-view-indicator class="bi bi-check2 ms-1' . ($viewMode === 'list' ? '' : ' d-none') . '"></i>', $listUrl, [
                         'escape' => false,
                         'class' => 'btn btn-sm ' . ($viewMode === 'list' ? 'btn-primary' : 'btn-outline-primary'),
                         'title' => __('List View'),
                         'aria-label' => __('List View'),
+                        'aria-current' => $viewMode === 'list' ? 'true' : null,
+                        'data-calendar-view-mode' => 'list',
                         'data-turbo-frame' => 'gatherings-calendar-grid-table',
                     ]) ?>
                 </div>

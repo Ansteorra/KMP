@@ -139,6 +139,27 @@ class OfficersControllerGridDataTest extends HttpIntegrationTestCase
         $this->assertResponseContains('Exp. ' . $currentExpiration->format('M j, Y'));
     }
 
+    public function testBranchGridRelationSortsLoadPendingWarrants(): void
+    {
+        [$officer, , , $warrantIds] = $this->prepareOfficerWarrantHistory();
+        $this->getTableLocator()->get('Warrants')->updateAll(
+            ['status' => Warrant::PENDING_STATUS],
+            ['id' => $warrantIds[1]],
+        );
+        foreach (['office_name', 'member_sca_name'] as $sort) {
+            $this->get('/officers/officers/grid-data?' . http_build_query([
+                'branch_id' => $officer->branch_id,
+                'view_id' => 'sys-officers-current',
+                'sort' => $sort,
+                'direction' => 'asc',
+                'limit' => 25,
+            ]));
+            $this->assertResponseOk();
+            $this->assertResponseContains('Pending');
+            $this->assertResponseContains('data-id="' . $officer->id . '"');
+        }
+    }
+
     public function testWarrantHistoryReturnsAllWarrantsForOfficerAssignment(): void
     {
         [$officer, $currentExpiration, $expiredExpiration] = $this->prepareOfficerWarrantHistory();

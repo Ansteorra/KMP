@@ -3,17 +3,55 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
 
+use App\Services\BackupSchemaManifestService;
 use App\Services\DatabaseSchemaResetService;
 use App\Test\TestCase\BaseTestCase;
 use Cake\Database\Driver\Mysql;
 use Cake\Database\Driver\Postgres;
 use ReflectionMethod;
+use RuntimeException;
 
 /**
  * @covers \App\Services\DatabaseSchemaResetService
  */
 class DatabaseSchemaResetServiceTest extends BaseTestCase
 {
+    public function testPartialUniqueIndexSurvivesSchemaExportAndRecreation(): void
+    {
+        $this->assertInstanceOf(Postgres::class, $this->connection->getDriver());
+        $table = 'backup_partial_index_test';
+        $this->connection->execute("CREATE TABLE $table (id INT PRIMARY KEY, template_id INT, terminal BOOLEAN)");
+        $this->connection->execute("CREATE UNIQUE INDEX backup_one_terminal ON $table (template_id) WHERE terminal");
+        $manifest = (new BackupSchemaManifestService())->export([], 'test');
+        $plan = new ReflectionMethod(DatabaseSchemaResetService::class, 'buildResetPlan');
+        $sql = $plan->invoke(new DatabaseSchemaResetService(), $this->connection->getDriver(), [
+            $table => $manifest['tables'][$table],
+        ]);
+        $this->connection->execute("DROP TABLE $table");
+        $this->connection->execute($sql['tables'][0]['sql']);
+        foreach ($sql['indexes'] as $indexSql) {
+            $this->connection->execute($indexSql);
+        }
+        $this->connection->execute("INSERT INTO $table VALUES (1, 1, FALSE), (2, 1, FALSE), (3, 1, TRUE)");
+        $this->assertSame(3, (int)$this->connection->execute("SELECT COUNT(*) FROM $table")->fetchColumn(0));
+        // A duplicate terminal is still rejected, without aborting the enclosing test transaction.
+        $this->connection->execute("INSERT INTO $table VALUES (4, 1, TRUE) ON CONFLICT DO NOTHING");
+        $this->assertSame(3, (int)$this->connection->execute("SELECT COUNT(*) FROM $table")->fetchColumn(0));
+    }
+
+    public function testPartialIndexesRejectUnsupportedTargetBeforeReset(): void
+    {
+        $plan = new ReflectionMethod(DatabaseSchemaResetService::class, 'buildResetPlan');
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Cannot restore PostgreSQL partial indexes to MySQL');
+        $plan->invoke(new DatabaseSchemaResetService(), new Mysql([]), [
+            'items' => [
+                'columns' => ['id' => ['type' => 'integer']],
+                'indexes' => ['active_items' => ['columns' => ['id'], 'where' => 'id > 0']],
+            ],
+        ]);
+    }
+
     public function testColumnTypeSqlSupportsFractionalTemporalTypes(): void
     {
         $service = new DatabaseSchemaResetService();

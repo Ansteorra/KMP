@@ -152,6 +152,58 @@ describe('GatheringsCalendarController', () => {
         expect(eventNames).toContain('grid-view:navigated');
     });
 
+    test.each(['month', 'week', 'list'])('connect selects the rendered %s mode', mode => {
+        controller = setupController();
+        controller.element.dataset.gatheringsCalendarViewValue = mode;
+        controller.element.insertAdjacentHTML('afterbegin', viewModeLinks());
+        controller.connect();
+        const selected = document.querySelectorAll('[data-calendar-view-mode][aria-current="true"]');
+        expect(selected).toHaveLength(1);
+        expect(selected[0].dataset.calendarViewMode).toBe(mode);
+        expect(selected[0].classList.contains('btn-primary')).toBe(true);
+        expect(selected[0].querySelector('[data-calendar-view-indicator]').classList.contains('d-none')).toBe(false);
+        controller.disconnect();
+    });
+
+    function viewModeLinks() {
+        return ['month', 'week', 'list'].map(mode => `
+            <a href="#${mode}" data-calendar-view-mode="${mode}" class="btn btn-outline-primary">
+                ${mode}<i data-calendar-view-indicator class="d-none" aria-hidden="true"></i>
+            </a>`).join('');
+    }
+
+    test('frame replacements synchronize the outer toolbar without moving focus', () => {
+        controller = setupController();
+        const outer = document.createElement('div');
+        outer.dataset.controller = 'grid-view';
+        controller.element.before(outer);
+        outer.innerHTML = viewModeLinks();
+        outer.append(controller.element);
+        const focused = outer.querySelector('[data-calendar-view-mode="list"]');
+        focused.focus();
+        // URL/sticky defaults can lag behind a frame; rendered mode is authoritative.
+        window.history.replaceState({}, '', '/gatherings/calendar?view=month');
+        for (const mode of ['month', 'week', 'list', 'list', 'month']) {
+            controller.element.dataset.gatheringsCalendarViewValue = mode;
+            controller.updateViewMode();
+            const selected = outer.querySelectorAll('[aria-current="true"]');
+            expect(selected).toHaveLength(1);
+            expect(selected[0].dataset.calendarViewMode).toBe(mode);
+            expect(outer.querySelectorAll('[data-calendar-view-mode].btn-primary')).toHaveLength(1);
+            expect(outer.querySelectorAll('[data-calendar-view-indicator]:not(.d-none)')).toHaveLength(1);
+            expect(document.activeElement).toBe(focused);
+        }
+    });
+
+    test('missing or invalid rendered mode leaves the current toolbar unchanged', () => {
+        controller = setupController();
+        controller.element.insertAdjacentHTML('afterbegin', viewModeLinks());
+        controller.updateViewMode();
+        controller.element.dataset.gatheringsCalendarViewValue = 'invalid';
+        controller.updateViewMode();
+        expect(document.querySelector('[aria-current="true"]').dataset.calendarViewMode).toBe('month');
+    });
+
     // ==================== Disconnect ====================
 
     test('disconnect removes window event listeners', () => {
