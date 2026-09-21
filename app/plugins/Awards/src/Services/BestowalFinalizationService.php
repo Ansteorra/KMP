@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Awards\Services;
 
+use App\Model\Entity\ActionItem;
+use App\Services\ActionItems\ActionItemCompletionFormRegistry;
 use App\Services\ActionItems\ActionItemService;
 use App\Services\ServiceResult;
 use Awards\Model\Entity\Bestowal;
@@ -16,13 +18,10 @@ use Throwable;
 /**
  * BestowalFinalizationService - shared "Mark Given" finalization for bestowals.
  *
- * Encapsulates the lifecycle flip to "given" so both the explicit one-click
- * action (BestowalsController::markGiven) and the automatic auto-finalize
- * listener (BestowalTodoCompletionListener) apply identical rules: every gating
- * to-do must be complete, a cancelled bestowal can never be given, and an
- * already-given bestowal is a no-op. Finalizing also syncs linked
- * recommendations to their "Given" state so recommendation notifications fire,
- * and audit-closes any unfinished optional to-dos as not applicable.
+ * Terminal completion finalizes inside the ActionItem transaction and audit-closes
+ * unfinished siblings, including required tasks. Without a terminal snapshot,
+ * all gating items must be completed. Linked recommendations synchronize in
+ * the same transaction; completed checklist history remains unchanged.
  */
 class BestowalFinalizationService
 {
@@ -78,7 +77,34 @@ class BestowalFinalizationService
             return new ServiceResult(false, 'Bestowal ID is required.');
         }
 
-        return $this->finalizeWithLockedRecheck($bestowalId, $actorId, $bestowedAt, true);
+        return $this->finalizeWithLockedRecheck($bestowalId, $actorId, $bestowedAt, true, true, true);
+    }
+
+    /** Find the terminal snapshot, not the live template definition. */
+    public function terminalItem(int $bestowalId): ?ActionItem
+    {
+        return $this->fetchTable('ActionItems')->find()->where([
+            'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+            'entity_id' => $bestowalId, 'is_terminal' => true,
+            'status !=' => ActionItem::STATUS_CANCELLED,
+        ])->first();
+    }
+
+    /** Called inside the owner-locked ActionItem transaction. */
+    public function finalizeTerminalCompletion(
+        ActionItem $item,
+        int $actorId,
+        ?DateTimeInterface $bestowedAt = null,
+    ): ServiceResult {
+        return $this->finalizeWithLockedRecheck(
+            (int)$item->entity_id,
+            $actorId,
+            $bestowedAt,
+            true,
+            true,
+            false,
+            (int)$item->id,
+        );
     }
 
     /**
@@ -108,6 +134,9 @@ class BestowalFinalizationService
      * @param int $actorId Member performing or causing the action.
      * @param \DateTimeInterface|null $bestowedAt Optional bestowed timestamp.
      * @param bool $strict Whether readiness failures should be surfaced.
+     * @param bool $terminalAction Whether a terminal task may finalize the bestowal.
+     * @param bool $explicitAction Whether to authorize and complete the current terminal task.
+     * @param int|null $terminalItemId Expected terminal task for a lifecycle callback.
      * @return \App\Services\ServiceResult
      */
     private function finalizeWithLockedRecheck(
@@ -115,6 +144,9 @@ class BestowalFinalizationService
         int $actorId,
         ?DateTimeInterface $bestowedAt,
         bool $strict,
+        bool $terminalAction = false,
+        bool $explicitAction = false,
+        ?int $terminalItemId = null,
     ): ServiceResult {
         $connection = $this->bestowals->getConnection();
         $savePointsWereEnabled = $connection->isSavePointsEnabled();
@@ -128,6 +160,9 @@ class BestowalFinalizationService
                 $actorId,
                 $bestowedAt,
                 $strict,
+                $terminalAction,
+                $explicitAction,
+                $terminalItemId,
             ): ServiceResult {
                 $bestowal = $this->loadBestowal($bestowalId, true);
                 if ($bestowal === null) {
@@ -147,6 +182,56 @@ class BestowalFinalizationService
                             : 'Bestowal is not open; no change.',
                         $strict ? null : $bestowal,
                     );
+                }
+                $terminal = $this->terminalItem($bestowalId);
+                if ($terminalItemId !== null && (int)($terminal?->id ?? 0) !== $terminalItemId) {
+                    return new ServiceResult(false, 'The terminal to-do changed; reload the bestowal and try again.');
+                }
+                if ($terminal !== null) {
+                    if ($explicitAction) {
+                        $actor = $this->fetchTable('Members')->get($actorId);
+                        if (
+                            !$actor->isSuperUser()
+                            && !$this->actionItemService->isMemberEligible($terminal, $actorId)
+                        ) {
+                            return new ServiceResult(false, 'You are not assigned to the terminal to-do.');
+                        }
+                        if (!$terminal->isCompleted()) {
+                            $result = $this->actionItemService->complete(
+                                (int)$terminal->id,
+                                $actorId,
+                                null,
+                                !$actor->isSuperUser(),
+                                $bestowedAt === null ? [] : ['bestowed_at' => $bestowedAt],
+                                $actor,
+                            );
+                            if (!$result->success) {
+                                throw new RuntimeException(
+                                    $result->reason ?? 'The terminal to-do could not be completed.',
+                                );
+                            }
+                            $saved = $this->loadBestowal($bestowalId);
+                            if ($saved?->lifecycle_status !== Bestowal::LIFECYCLE_GIVEN) {
+                                throw new RuntimeException('Terminal completion did not finalize the bestowal.');
+                            }
+
+                            return new ServiceResult(true, null, $saved);
+                        }
+                    }
+                    if (!$terminalAction || !$terminal->isCompleted()) {
+                        return new ServiceResult(!$strict, 'Complete the terminal to-do to mark this bestowal Given.');
+                    }
+
+                    $provider = ActionItemCompletionFormRegistry::providerFor($terminal);
+                    $requirements = $provider?->validateCompletion($terminal);
+                    if ($requirements === null || !$requirements->success) {
+                        return $requirements ?? new ServiceResult(
+                            false,
+                            'Terminal completion provider is unavailable.',
+                        );
+                    }
+
+                    return $this->applyGiven($bestowal, $actorId, $bestowedAt);
                 }
                 $gatingComplete = $this->actionItemService->allGatingComplete(
                     Bestowal::ACTION_ITEM_ENTITY_TYPE,
@@ -246,7 +331,9 @@ class BestowalFinalizationService
             $result = $this->actionItemService->cancel(
                 (int)$item->id,
                 $actorId,
-                self::FINALIZATION_SKIP_NOTE,
+                ($terminal = $this->terminalItem($bestowalId)) !== null
+                    ? sprintf('Terminal to-do "%s" completed; remaining to-do is not applicable.', $terminal->title)
+                    : self::FINALIZATION_SKIP_NOTE,
                 false,
             );
             if (!$result->isSuccess()) {

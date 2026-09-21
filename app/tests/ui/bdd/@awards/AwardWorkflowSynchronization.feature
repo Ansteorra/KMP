@@ -15,7 +15,7 @@ Feature: Award workflow synchronization
         When I confirm recommendation synchronization with the keyboard
         Then the in-flight recommendation should restart without carrying its approval forward
         And recommendation synchronization should not create a bestowal
-        Then recommendation synchronization should be disabled because the replacement is current
+        Then recommendation synchronization should report one restart and preserve the current replacement
         Given I create an open bestowal for the To-Do synchronization fixture
         Given I change the fixture's current bestowal to-do template
         When I open the bestowal to-do synchronization page

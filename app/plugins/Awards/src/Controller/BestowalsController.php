@@ -367,14 +367,17 @@ class BestowalsController extends AppController
         $todoItems = $actionItemService->getItemsForEntity(
             Bestowal::ACTION_ITEM_ENTITY_TYPE,
             (int)$bestowal->id,
+            !$bestowal->allowsActionItemMutations(),
         );
         $todoEligibility = [];
         $todoGatingTotal = 0;
         $todoGatingDone = 0;
         foreach ($todoItems as $todoItem) {
-            $todoEligibility[$todoItem->id] = $isSuperUser
-                || $actionItemService->isMemberEligible($todoItem, $memberId);
-            if ($todoItem->is_gating) {
+            $todoEligibility[$todoItem->id] = $bestowal->allowsActionItemMutations()
+                && ($isSuperUser || $actionItemService->isMemberEligible($todoItem, $memberId));
+            $todoItem->complete_confirmation = $actionItemService->confirmationFor($todoItem, 'complete');
+            $todoItem->reopen_confirmation = $actionItemService->confirmationFor($todoItem, 'reopen');
+            if ($todoItem->is_gating && $todoItem->status !== ActionItem::STATUS_CANCELLED) {
                 $todoGatingTotal++;
                 if ($todoItem->isCompleted()) {
                     $todoGatingDone++;
@@ -385,6 +388,13 @@ class BestowalsController extends AppController
             Bestowal::ACTION_ITEM_ENTITY_TYPE,
             (int)$bestowal->id,
         );
+        $terminalTodo = null;
+        foreach ($todoItems as $todoItem) {
+            if ($todoItem->is_terminal && $todoItem->status !== ActionItem::STATUS_CANCELLED) {
+                $terminalTodo = $todoItem;
+            }
+        }
+        $this->set('terminalTodo', $terminalTodo);
         $todoRequirementStatus = $this->buildTodoRequirementStatus($todoItems, $bestowal);
         $todoBlockedStatus = $this->buildTodoBlockedStatus($todoItems, $bestowal);
         $gatingPercent = $todoGatingTotal > 0
@@ -481,7 +491,10 @@ class BestowalsController extends AppController
         $status = [];
 
         foreach ($items as $todoItem) {
-            if ((string)$todoItem->source_ref !== BestowalTodoTemplateItem::ITEM_KEY_ADDED_TO_AGENDA) {
+            if (
+                $todoItem->is_terminal
+                || (string)$todoItem->source_ref !== BestowalTodoTemplateItem::ITEM_KEY_ADDED_TO_AGENDA
+            ) {
                 continue;
             }
 
@@ -910,15 +923,10 @@ class BestowalsController extends AppController
     }
 
     /**
-     * Mark a bestowal as Given, gated on completion of all gating to-dos.
+     * Explicitly finalize through the current terminal task, or legacy gating rules.
      *
-     * This is the one-click finalize action: it refuses to finalize until every
-     * gating action item for the bestowal is complete, then sets the bestowal's
-     * `lifecycle_status` to "given" (recording the bestowed timestamp) and syncs
-     * any linked recommendations to their "Given" state so recommendation
-     * notifications still fire. Completing the gating "Given" to-do directly also
-     * finalizes the bestowal automatically via BestowalTodoCompletionListener;
-     * this action covers the explicit button path.
+     * The service locks the bestowal before checking task eligibility and atomically
+     * updates its checklist, bestowed timestamp, and linked recommendations.
      *
      * @param \Awards\Services\BestowalFinalizationService $finalizationService Bestowal finalize service
      * @return \Cake\Http\Response|null
@@ -940,7 +948,13 @@ class BestowalsController extends AppController
             return $this->redirectAfterBestowalMutation($pageContext, $bestowalId);
         }
 
-        $bestowedAt = $this->request->getData('bestowed_at') ?? new DateTime();
+        try {
+            $bestowedAt = new DateTime($this->request->getData('bestowed_at') ?: 'now');
+        } catch (Throwable) {
+            $this->Flash->error(__('Enter a valid bestowed date.'));
+
+            return $this->redirectAfterBestowalMutation($pageContext, $bestowalId);
+        }
         $result = $finalizationService->markGiven((int)$bestowalId, (int)$user->id, $bestowedAt);
 
         if ($result->success) {
@@ -1639,6 +1653,8 @@ class BestowalsController extends AppController
             }
 
             $bestowalId = (int)$item->entity_id;
+            $option['isTerminal'] = (bool)$item->is_terminal;
+            $option['confirmation'] = $actionItemService->confirmationFor($item, 'complete');
             $optionsByBestowal[$bestowalId][$option['key']] = $option;
         }
 
@@ -1742,7 +1758,7 @@ class BestowalsController extends AppController
      */
     private function isTodoBlockedByPrerequisite(ActionItem $item, array $siblingItems): bool
     {
-        if ((string)$item->source_ref !== BestowalTodoTemplateItem::ITEM_KEY_ADDED_TO_AGENDA) {
+        if ($item->is_terminal || (string)$item->source_ref !== BestowalTodoTemplateItem::ITEM_KEY_ADDED_TO_AGENDA) {
             return false;
         }
 

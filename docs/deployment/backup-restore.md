@@ -55,6 +55,13 @@ Legacy tenant `pg_dump` records remain readable by compatibility paths, but new
 tenant backups are JSON. The JSON engine materializes logical/compressed data in
 worker memory; size workers and prove restore behavior for large tenants.
 
+PostgreSQL schema manifests preserve partial-index predicates, including the
+one-terminal-task-per-bestowal-template constraint. Restore recreates the
+condition instead of applying uniqueness to every row. Restoring such an archive
+to MySQL is rejected before schema reset because MySQL cannot represent a
+PostgreSQL partial index directly. Older archives that already omitted the
+predicate must be rebaked from the intact source schema.
+
 ## Key readiness
 
 A writable platform secret store can create missing backup KEKs:
