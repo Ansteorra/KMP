@@ -110,6 +110,12 @@ class MemberPolicy extends BasePolicy
         return true;
     }
 
+    /** Passkeys are self-service credentials, never delegated member administration. */
+    public function canManagePasskey(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        return $entity instanceof Member && (int)$user->getIdentifier() === (int)$entity->id;
+    }
+
     /**
      * Check if $user can partial edit Member
      *

@@ -25,7 +25,9 @@ final class TrustedDeviceLoginTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
         $this->assertHeader('Cache-Control', 'no-store');
         $body = json_decode((string)$this->_response->getBody(), true);
-        $this->assertSame(['success' => true, 'email' => $member->email_address], $body);
+        $this->assertTrue($body['success']);
+        $this->assertSame($member->email_address, $body['email']);
+        $this->assertSame(32, strlen(base64_decode($body['passkey']['challenge'])));
         $this->assertResponseNotContains($password);
     }
 

@@ -20,7 +20,7 @@ export async function verifyDevicePassword(password) {
         response.headers.get('X-KMP-Offline-Epoch') !== context.epoch) throw new Error('Your sign-in changed. Start device setup again.');
     const result = await response.json();
     if (!result.success || !result.email) throw new Error(`Check your ${shortSiteTitle()} password and try again.`);
-    return { context, generation, login: { email: result.email, password } };
+    return { context, generation, passkey: result.passkey, login: { email: result.email, password } };
 }
 
 /** Use the normal password login, including fresh CSRF and form protection, after local unlock. */
