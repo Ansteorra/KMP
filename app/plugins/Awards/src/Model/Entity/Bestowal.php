@@ -144,6 +144,16 @@ class Bestowal extends BaseEntity implements ActionItemOwnerInterface
     /**
      * Bestowal To-Dos are immutable after the bestowal becomes terminal.
      */
+    public function actionItemReadOnlyReason(): string
+    {
+        if ($this->deleted !== null) {
+            return 'This bestowal has been deleted; its checklist is read-only.';
+        }
+
+        return sprintf('This bestowal is %s; its checklist is read-only.', $this->lifecycle_status);
+    }
+
+    /** Whether checklist transitions remain permitted. */
     public function allowsActionItemMutations(): bool
     {
         return $this->deleted === null && $this->isActiveBestowal();

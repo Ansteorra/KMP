@@ -458,6 +458,8 @@ class ActionItemsController extends AppController
         $includeBranch = in_array('branch', $visibleColumns, true);
         $ownerDescriptors = $includeOwner ? $this->buildOwnerDescriptors($items) : [];
 
+        $lifecycle = new ActionItemService();
+        $ownerMutability = [];
         foreach ($items as $item) {
             $item->status_label = ucfirst((string)$item->status);
             $item->requirement = $item->is_gating ? __('Required') : __('Optional');
@@ -475,6 +477,10 @@ class ActionItemsController extends AppController
 
             $completionForm = ActionItemCompletionFormRegistry::formFor($item, $user);
             $item->completion_form_data = $completionForm?->toArray() ?? [];
+            $ownerKey = $item->entity_type . ':' . $item->entity_id;
+            $item->owner_mutable = $ownerMutability[$ownerKey] ??= $lifecycle->ownerIsMutable($item);
+            $item->complete_confirmation = $lifecycle->confirmationFor($item, 'complete');
+            $item->reopen_confirmation = $lifecycle->confirmationFor($item, 'reopen');
         }
     }
 
@@ -698,6 +704,8 @@ class ActionItemsController extends AppController
                     'title' => (string)$item->title,
                     'description' => (string)($item->description ?? ''),
                     'isGating' => (bool)$item->is_gating,
+                    'isTerminal' => (bool)$item->is_terminal,
+                    'confirmation' => (new ActionItemService())->confirmationFor($item, 'complete'),
                     'branchName' => (string)($item->branch->name ?? ''),
                     'modified' => $item->modified?->toIso8601String(),
                     'completionForm' => $completionForm?->toArray(),

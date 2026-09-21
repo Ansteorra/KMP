@@ -13,14 +13,15 @@ declare(strict_types=1);
  * @var string $todayDate
  */
 
+use App\KMP\TimezoneHelper;
 use Cake\I18n\DateTime;
 
 // Get current user for timezone conversion
 $currentUser = $this->getRequest()->getAttribute('identity');
-$userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
+$userTimezone = TimezoneHelper::getUserTimezone($currentUser);
 
 // Get current date in user's timezone
-$today = new DateTime($todayDate ?? 'now', new \DateTimeZone($userTimezone));
+$today = new DateTime($todayDate, new DateTimeZone($userTimezone));
 $today->setTime(0, 0, 0);
 $todayInRange = $startDate instanceof DateTimeInterface
     && $endDate instanceof DateTimeInterface
@@ -39,22 +40,22 @@ $renderTodayMarker = function () use ($today): void {
 
 <div class="card">
     <div class="card-body">
-        <?php if ($gatherings->count() === 0): ?>
-            <?php if ($todayInRange): ?>
+        <?php if ($gatherings->count() === 0) : ?>
+            <?php if ($todayInRange) : ?>
                 <?php $renderTodayMarker() ?>
             <?php endif; ?>
             <div class="alert alert-info">
                 <i class="bi bi-info-circle"></i>
                 No gatherings found for the selected period and filters.
             </div>
-        <?php else: ?>
+        <?php else : ?>
             <div class="list-group">
-                <?php foreach ($gatherings as $gathering): ?>
+                <?php foreach ($gatherings as $gathering) : ?>
                     <?php
                     // Convert gathering dates to gathering's timezone for display (prioritizes event location timezone)
                     // Pass null for member to use app default timezone fallback, matching Gathering::_getIsMultiDay logic
-                    $startInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
-                    $endInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
+                    $startInUserTz = TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
+                    $endInUserTz = TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
 
                     // Defensive fallback: if timezone conversion failed, use original dates
                     if ($startInUserTz === null) {
@@ -76,7 +77,7 @@ $renderTodayMarker = function () use ($today): void {
                     $isCancelled = $gathering->is_cancelled ?? false;
                     $bgColor = $isCancelled ? '#6c757d' : ($gathering->gathering_type->color ?? '#0d6efd');
                     ?>
-                    <?php if ($todayInRange && !$todayMarkerRendered && $endInUserTz >= $today): ?>
+                    <?php if ($todayInRange && !$todayMarkerRendered && $endInUserTz >= $today) : ?>
                         <?php $renderTodayMarker() ?>
                         <?php $todayMarkerRendered = true; ?>
                     <?php endif; ?>
@@ -86,7 +87,7 @@ $renderTodayMarker = function () use ($today): void {
                             <div class="col-md-8">
                                 <div class="d-flex w-100 justify-content-between align-items-start">
                                     <h5 class="mb-1">
-                                        <?php if ($isCancelled): ?>
+                                        <?php if ($isCancelled) : ?>
                                             <span class="badge bg-danger me-2">
                                                 <i class="bi bi-x-circle"></i> CANCELLED
                                             </span>
@@ -94,9 +95,12 @@ $renderTodayMarker = function () use ($today): void {
                                         <?= $this->Html->link(
                                             h($gathering->name),
                                             ['action' => 'view', $gathering->public_id],
-                                            ['class' => 'text-decoration-none' . ($isCancelled ? ' text-decoration-line-through text-muted' : '')]
+                                            [
+                                                'class' => 'text-decoration-none' . ($isCancelled ? ' text-decoration-line-through text-muted' : ''),
+                                                'data-turbo-frame' => '_top',
+                                            ],
                                         ) ?>
-                                        <?php if ($isAttending && !$isCancelled): ?>
+                                        <?php if ($isAttending && !$isCancelled) : ?>
                                             <span class="badge bg-success ms-2">
                                                 <i class="bi bi-check-circle"></i> Attending
                                             </span>
@@ -110,7 +114,7 @@ $renderTodayMarker = function () use ($today): void {
                                 <p class="mb-1">
                                     <i class="bi bi-geo-alt"></i>
                                     <strong><?= h($gathering->branch->name) ?></strong>
-                                    <?php if ($hasLocation): ?>
+                                    <?php if ($hasLocation) : ?>
                                         <br>
                                         <small class="text-muted ms-3">
                                             <?= h($gathering->location) ?>
@@ -120,25 +124,25 @@ $renderTodayMarker = function () use ($today): void {
 
                                 <p class="mb-1">
                                     <i class="bi bi-calendar-event"></i>
-                                    <?php if ($isMultiDay): ?>
+                                    <?php if ($isMultiDay) : ?>
                                         <?= $this->Timezone->format($startInUserTz, null, 'M j, Y') ?>
                                         - <?= $this->Timezone->format($endInUserTz, null, 'M j, Y') ?>
                                         <span class="badge bg-warning text-dark ms-2">
                                             <?= $startInUserTz->diffInDays($endInUserTz) + 1 ?> days
                                         </span>
-                                    <?php else: ?>
+                                    <?php else : ?>
                                         <?= $this->Timezone->format($startInUserTz, null, 'l, F j, Y') ?>
                                     <?php endif; ?>
                                 </p>
 
-                                <?php if (!empty($gathering->gathering_activities)): ?>
+                                <?php if (!empty($gathering->gathering_activities)) : ?>
                                     <p class="mb-1">
                                         <i class="bi bi-activity"></i>
                                         <small>
                                             <?php
                                             $activityNames = array_map(
                                                 fn($a) => h($a->name),
-                                                $gathering->gathering_activities
+                                                $gathering->gathering_activities,
                                             );
                                             echo implode(', ', $activityNames);
                                             ?>
@@ -146,12 +150,12 @@ $renderTodayMarker = function () use ($today): void {
                                     </p>
                                 <?php endif; ?>
 
-                                <?php if (!empty($gathering->description)): ?>
+                                <?php if (!empty($gathering->description)) : ?>
                                     <p class="mb-0 text-muted small">
                                         <?= $this->Text->truncate(
                                             h($gathering->description),
                                             200,
-                                            ['ellipsis' => '...', 'exact' => false]
+                                            ['ellipsis' => '...', 'exact' => false],
                                         ) ?>
                                     </p>
                                 <?php endif; ?>
@@ -166,10 +170,10 @@ $renderTodayMarker = function () use ($today): void {
                                             'class' => 'btn btn-sm btn-outline-primary',
                                             'escape' => false,
                                             'data-turbo-frame' => '_top',
-                                        ]
+                                        ],
                                     ) ?>
 
-                                    <?php if (!$isPast && !$isCancelled): ?>
+                                    <?php if (!$isPast && !$isCancelled) : ?>
                                         <?php
                                         $attendanceRecord = $isAttending
                                             ? ($gathering->gathering_attendances[0] ?? null)
@@ -180,13 +184,13 @@ $renderTodayMarker = function () use ($today): void {
                                             data-action="click->gatherings-calendar#showAttendanceModal"
                                             data-gathering-id="<?= $gathering->id ?>"
                                             data-attendance-action="<?= $isAttending ? 'edit' : 'add' ?>"
-                                            <?php if ($attendanceRecord): ?>
+                                            <?php if ($attendanceRecord) : ?>
                                             data-attendance-id="<?= $attendanceRecord->id ?>"
                                             <?php endif; ?>>
                                             <i class="bi bi-calendar-check"></i>
                                             <?= $isAttending ? 'Update' : 'Mark' ?> Attendance
                                         </button>
-                                    <?php elseif (!$isPast && $isCancelled && $isAttending): ?>
+                                    <?php elseif (!$isPast && $isCancelled && $isAttending) : ?>
                                         <?php
                                         $attendanceRecord = $gathering->gathering_attendances[0] ?? null;
                                         ?>
@@ -195,26 +199,26 @@ $renderTodayMarker = function () use ($today): void {
                                             data-action="click->gatherings-calendar#showAttendanceModal"
                                             data-gathering-id="<?= $gathering->id ?>"
                                             data-attendance-action="edit"
-                                            <?php if ($attendanceRecord): ?>
+                                            <?php if ($attendanceRecord) : ?>
                                             data-attendance-id="<?= $attendanceRecord->id ?>"
                                             <?php endif; ?>>
                                             <i class="bi bi-pencil"></i> Edit Attendance
                                         </button>
                                     <?php endif; ?>
 
-                                    <?php if (!$isPast && $gathering->is_preregistration_open): ?>
+                                    <?php if (!$isPast && $gathering->is_preregistration_open) : ?>
                                         <a href="<?= h($gathering->preregister_url) ?>"
                                             target="_blank" rel="noopener"
                                             class="btn btn-sm btn-warning"
                                             title="<?= h(__('Pre-register and pay for this event (external site)')) ?>">
                                             <i class="bi bi-ticket-perforated"></i> Pre-Register
-                                            <?php if ($gathering->preregister_closes_on !== null): ?>
+                                            <?php if ($gathering->preregister_closes_on !== null) : ?>
                                                 <small>(<?= __('until {0}', h($gathering->preregister_closes_on->format('M j'))) ?>)</small>
                                             <?php endif; ?>
                                         </a>
                                     <?php endif; ?>
 
-                                    <?php if ($hasLocation): ?>
+                                    <?php if ($hasLocation) : ?>
                                         <button type="button"
                                             class="btn btn-sm btn-outline-info"
                                             data-action="click->gatherings-calendar#showLocation"
@@ -227,7 +231,7 @@ $renderTodayMarker = function () use ($today): void {
                         </div>
                     </div>
                 <?php endforeach; ?>
-                <?php if ($todayInRange && !$todayMarkerRendered): ?>
+                <?php if ($todayInRange && !$todayMarkerRendered) : ?>
                     <?php $renderTodayMarker() ?>
                 <?php endif; ?>
             </div>

@@ -77,6 +77,7 @@ class GatheringsCalendarController extends Controller {
         }
 
         this.updateCalendarHeader()
+        this.updateViewMode()
         this.updateCalendarNavigation()
         this.updateFeedUrl()
 
@@ -202,6 +203,30 @@ class GatheringsCalendarController extends Controller {
         }
 
         return state
+    }
+
+    /**
+     * Keep the static toolbar aligned with the successfully rendered frame.
+     */
+    updateViewMode() {
+        const calendar = this.getCalendarElement()
+        const mode = calendar?.dataset.gatheringsCalendarViewValue
+        if (!['month', 'week', 'list'].includes(mode)) {
+            return
+        }
+
+        const root = calendar.closest('[data-controller~="grid-view"]') || this.element
+        root.querySelectorAll('[data-calendar-view-mode]').forEach(link => {
+            const selected = link.dataset.calendarViewMode === mode
+            link.classList.toggle('btn-primary', selected)
+            link.classList.toggle('btn-outline-primary', !selected)
+            if (selected) {
+                link.setAttribute('aria-current', 'true')
+            } else {
+                link.removeAttribute('aria-current')
+            }
+            link.querySelector('[data-calendar-view-indicator]')?.classList.toggle('d-none', !selected)
+        })
     }
 
     updateCalendarHeader() {
