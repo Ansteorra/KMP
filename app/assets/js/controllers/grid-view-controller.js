@@ -102,6 +102,8 @@ class GridViewController extends Controller {
      * Cleanup when controller disconnects
      */
     disconnect() {
+        this.subscriptionRequest?.abort()
+        this.subscriptionRequest = null
         if (this.searchDebounceTimer) {
             clearTimeout(this.searchDebounceTimer)
             this.searchDebounceTimer = null
@@ -1374,17 +1376,26 @@ class GridViewController extends Controller {
     async subscribeToView(event) {
         event.preventDefault()
         const form = event.currentTarget
-        if (!form.reportValidity()) return
-        const button = form.querySelector('button[type="submit"]')
+        if (!form.reportValidity() || this.subscriptionRequest) return
+        const button = event.submitter || form.querySelector('button[type="submit"]')
         if (button.disabled) return
+        const restoreFocus = document.activeElement === button
+        const sample = button.hasAttribute("data-subscription-sample")
+        const endpoint = sample ? button.getAttribute("formaction") : form.action
+        const buttons = Array.from(form.querySelectorAll('button[type="submit"]'))
+        const disabledStates = buttons.map(item => item.disabled)
+        const request = new AbortController()
+        this.subscriptionRequest = request
         const status = form.querySelector("[data-subscription-status]")
-        button.disabled = true
-        status.textContent = "Saving subscription…"
+        buttons.forEach(item => { item.disabled = true })
+        form.setAttribute("aria-busy", "true")
+        status.textContent = sample ? "Sending sample…" : "Saving subscription…"
         try {
             const url = new URL(this.buildUrl({
                 view_id: this.state.view.currentId || "all", page: null
             }), window.location.origin)
-            const response = await fetch(form.action, {
+            const response = await fetch(endpoint, {
+                signal: request.signal,
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json", "Accept": "application/json",
@@ -1399,12 +1410,24 @@ class GridViewController extends Controller {
                 })
             })
             const data = await response.json().catch(() => ({}))
-            if (!response.ok || !data.success) throw new Error(typeof data.error === "string" ? data.error : "Unable to subscribe to this view. Check your access and try again.")
-            status.textContent = "Subscribed. Manage or cancel this subscription from your profile."
+            if (!response.ok || !data.success) {
+                throw new Error(typeof data.error === "string" ? data.error : (
+                    sample ? "Unable to send a sample. Check your access and try again." :
+                        "Unable to subscribe to this view. Check your access and try again."
+                ))
+            }
+            status.textContent = sample ?
+                "Sample sent to your account email. No subscription was created or changed." :
+                "Subscribed. Manage or cancel this subscription from your profile."
         } catch (error) {
-            status.textContent = error.message || "Unable to save the subscription. Please try again."
+            if (error.name !== "AbortError") {
+                status.textContent = error.message || "Unable to complete the request. Please try again."
+            }
         } finally {
-            button.disabled = false
+            buttons.forEach((item, index) => { item.disabled = disabledStates[index] })
+            form.setAttribute("aria-busy", "false")
+            if (restoreFocus && button.isConnected && document.activeElement === document.body) button.focus()
+            if (this.subscriptionRequest === request) this.subscriptionRequest = null
         }
     }
 

@@ -42,6 +42,53 @@ class GridSubscriptionServiceTest extends BaseTestCase
         };
     }
 
+    public function testSampleUsesCurrentEmailAndFiltersWithoutChangingSubscriptions(): void
+    {
+        $subscription = $this->subscription();
+        $table = $this->getTableLocator()->get('GridSubscriptions');
+        $before = $table->get($subscription->id)->toArray();
+        $count = $table->find()->count();
+        $reports = $this->createMock(GridSubscriptionReportService::class);
+        $reports->expects($this->once())->method('generate')->with(
+            self::ADMIN_MEMBER_ID,
+            'Core.actionItems.myTasks',
+            ['view_id' => 'sys-todos-open', 'search' => 'Unsaved filter'],
+            'http://localhost',
+        )->willReturn(['headers' => ['Task'], 'rows' => []]);
+        $service = $this->service($reports);
+        $this->getTableLocator()->get('Members')->updateAll(
+            ['email_address' => 'sample-owner@example.test'],
+            ['id' => self::ADMIN_MEMBER_ID],
+        );
+        $service->sendSample(self::ADMIN_MEMBER_ID, [
+            'gridKey' => 'Core.actionItems.myTasks', 'name' => 'Current view',
+            'query' => 'view_id=sys-todos-open&search=Unsaved%20filter',
+            'email' => 'someone-else@example.test', 'member_id' => self::TEST_MEMBER_AGATHA_ID,
+        ], 'http://localhost');
+        $this->assertCount(1, $service->sent);
+        $this->assertSame('sample-owner@example.test', $service->sent[0]['email']);
+        $this->assertTrue($service->sent[0]['report']['sample']);
+        $this->assertSame([], $service->sent[0]['report']['rows']);
+        $this->assertSame($count, $table->find()->count());
+        $this->assertEquals($before, $table->get($subscription->id)->toArray());
+    }
+
+    public function testSampleDoesNotSendWhenGridAccessIsDenied(): void
+    {
+        $reports = $this->createMock(GridSubscriptionReportService::class);
+        $reports->method('generate')->willThrowException(new ForbiddenException('Access removed'));
+        $service = $this->service($reports);
+        try {
+            $service->sendSample(self::ADMIN_MEMBER_ID, [
+                'gridKey' => 'Core.actionItems.myTasks', 'name' => 'Denied view', 'query' => '',
+            ], 'http://localhost');
+            $this->fail('Expected denied grid access.');
+        } catch (ForbiddenException $exception) {
+            $this->assertSame('Access removed', $exception->getMessage());
+        }
+        $this->assertSame([], $service->sent);
+    }
+
     public function testDeliveryUsesFreshReportAndCurrentEmailAndCannotRepeat(): void
     {
         $subscription = $this->subscription();

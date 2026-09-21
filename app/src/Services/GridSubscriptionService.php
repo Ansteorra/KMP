@@ -53,21 +53,15 @@ class GridSubscriptionService
     /** Validate current grid access before recording the member's opt-in. */
     public function subscribe(int $memberId, array $data, string $origin): GridSubscription
     {
-        $gridKey = (string)($data['gridKey'] ?? '');
-        GridSubscriptionRegistry::get($gridKey);
+        [$gridKey, $name, $query] = $this->requestedView($data);
         $days = filter_var($data['intervalDays'] ?? null, FILTER_VALIDATE_INT);
         if (!in_array($days, [1, 3, 7], true)) {
             throw new InvalidArgumentException('Choose daily, every 3 days, or weekly.');
-        }
-        $name = trim((string)($data['name'] ?? ''));
-        if ($name === '' || mb_strlen($name) > 150) {
-            throw new InvalidArgumentException('Enter a subscription name of 150 characters or fewer.');
         }
         $table = $this->fetchTable('GridSubscriptions');
         if ($table->find()->where(['member_id' => $memberId])->count() >= 25) {
             throw new InvalidArgumentException('Cancel an existing subscription before adding another (maximum 25).');
         }
-        $query = $this->normalizeQuery((string)($data['query'] ?? ''));
         $reports = $this->reports ?? throw new LogicException('Report service is required.');
         $reports->generate($memberId, $gridKey, $query, $origin);
         $subscription = $table->newEmptyEntity();
@@ -79,6 +73,33 @@ class GridSubscriptionService
         ], ['guard' => false]);
 
         return $table->saveOrFail($subscription);
+    }
+
+    /** Send the current authorized view to its requesting member without scheduling anything. */
+    public function sendSample(int $memberId, array $data, string $origin): void
+    {
+        [$gridKey, $name, $query] = $this->requestedView($data);
+        $reports = $this->reports ?? throw new LogicException('Report service is required.');
+        $report = $reports->generate($memberId, $gridKey, $query, $origin);
+        $member = $this->fetchTable('Members')->get($memberId);
+        if (!filter_var($member->email_address, FILTER_VALIDATE_EMAIL)) {
+            throw new InvalidArgumentException('Update your account email address before requesting a sample.');
+        }
+        $report['sample'] = true;
+        $this->send($member->email_address, $name, $report);
+    }
+
+    /** Share view validation between immediate samples and recurring subscriptions. */
+    private function requestedView(array $data): array
+    {
+        $gridKey = (string)($data['gridKey'] ?? '');
+        GridSubscriptionRegistry::get($gridKey);
+        $name = trim((string)($data['name'] ?? ''));
+        if ($name === '' || mb_strlen($name) > 150) {
+            throw new InvalidArgumentException('Enter a subscription name of 150 characters or fewer.');
+        }
+
+        return [$gridKey, $name, $this->normalizeQuery((string)($data['query'] ?? ''))];
     }
 
     /** Queue bounded work atomically, reclaiming abandoned claims after one hour. */

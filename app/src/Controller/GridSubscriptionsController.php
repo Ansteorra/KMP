@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Services\GridSubscriptionService;
+use App\Services\Security\RequestRateLimiter;
 use Cake\Http\Response;
 use InvalidArgumentException;
 
@@ -14,7 +15,7 @@ class GridSubscriptionsController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authorization->authorizeModel('index', 'add');
+        $this->Authorization->authorizeModel('index', 'add', 'sample');
     }
 
     /** List only the authenticated member’s subscriptions. */
@@ -39,6 +40,36 @@ class GridSubscriptionsController extends AppController
             return $this->response->withType('application/json')->withStringBody(json_encode([
                 'success' => true, 'id' => $subscription->id,
             ], JSON_THROW_ON_ERROR));
+        } catch (InvalidArgumentException $exception) {
+            return $this->response->withStatus(422)->withType('application/json')->withStringBody(json_encode([
+                'success' => false, 'error' => $exception->getMessage(),
+            ], JSON_THROW_ON_ERROR));
+        }
+    }
+
+    /** Send a bounded one-time sample only to the authenticated member's account email. */
+    public function sample(GridSubscriptionService $subscriptions, RequestRateLimiter $limiter): Response
+    {
+        $this->request->allowMethod(['post']);
+        $memberId = (int)$this->request->getAttribute('identity')->getIdentifier();
+        $limit = $limiter->attempt(RequestRateLimiter::BUCKET_GRID_EMAIL_SAMPLE, (string)$memberId);
+        if (!$limit->allowed) {
+            return $this->response->withStatus(429)->withType('application/json')
+                ->withHeader('Retry-After', (string)$limit->retryAfterSeconds)
+                ->withStringBody(json_encode([
+                    'success' => false, 'error' => 'Sample limit reached. Please wait a few minutes and try again.',
+                ], JSON_THROW_ON_ERROR));
+        }
+        $uri = $this->request->getUri();
+        try {
+            $subscriptions->sendSample(
+                $memberId,
+                $this->request->getData(),
+                $uri->getScheme() . '://' . $uri->getAuthority(),
+            );
+
+            return $this->response->withType('application/json')
+                ->withStringBody(json_encode(['success' => true], JSON_THROW_ON_ERROR));
         } catch (InvalidArgumentException $exception) {
             return $this->response->withStatus(422)->withType('application/json')->withStringBody(json_encode([
                 'success' => false, 'error' => $exception->getMessage(),

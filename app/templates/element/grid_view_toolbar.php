@@ -78,6 +78,11 @@ $searchDescription = !empty($searchableLabels)
             </div>
             <p class="small text-muted mt-2"><?= __('The first email is due after the selected interval. Results use your current permissions each time.') ?></p>
             <button type="submit" class="btn btn-primary"><?= __('Subscribe') ?></button>
+            <button type="submit" class="btn btn-outline-secondary" data-subscription-sample
+                formaction="<?= h($this->Url->build(['plugin' => null, 'controller' => 'GridSubscriptions', 'action' => 'sample'])) ?>">
+                <?= __('Send me a sample') ?>
+            </button>
+            <p class="small text-muted mt-2"><?= __('Samples go to your account email without creating or changing a subscription.') ?></p>
             <p class="mt-2 mb-0" role="status" data-subscription-status></p>
         </form>
     </details>

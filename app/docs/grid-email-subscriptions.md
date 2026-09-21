@@ -8,6 +8,18 @@ check is due after that interval. The scheduler checks due subscriptions every
 a link to the full view. **Email subscriptions** on the member's own profile
 lists active/stopped subscriptions and lets the owner cancel them.
 
+**Send me a sample** uses the currently applied view settings and sends immediately
+to the signed-in member's account email, without saving a view, adding a
+subscription, or changing any existing delivery dates. An empty sample explains
+why scheduled emails would be skipped. Samples use the same report authorization
+and mailer as recurring delivery and are limited to five requests per member per
+tenant in a five-minute window.
+
+Email layout is code-managed: `GridSubscriptionMailer` renders the bundled HTML
+and plain-text `templates/email/*/grid_subscription.php` templates. They ship with
+the application image; no database email-template installation or POC-specific
+setup is needed. They do not appear in the editable Email Templates screen.
+
 ## Delivery and access
 
 Settings live in the tenant's `grid_subscriptions` table. The platform schedule

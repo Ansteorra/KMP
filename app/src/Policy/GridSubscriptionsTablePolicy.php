@@ -21,6 +21,12 @@ class GridSubscriptionsTablePolicy extends BasePolicy
         return true;
     }
 
+    /** Samples use the same opt-in and source-grid authorization as subscriptions. */
+    public function canSample(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        return $this->canAdd($user, $entity, ...$optionalArgs);
+    }
+
     /** Limit the list to the authenticated member. */
     public function scopeIndex(KmpIdentityInterface $user, $query)
     {

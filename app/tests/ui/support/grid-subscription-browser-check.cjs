@@ -35,6 +35,9 @@ $result = $manager->withTenant($tenant, function () use ($input, $app) {
         $tables->get('ActionItems')->saveOrFail($item);
         return ['itemId' => $item->id, 'title' => $item->title];
     }
+    if ($input['mode'] === 'subscription-count') {
+        return ['count' => $tables->get('GridSubscriptions')->find()->where(['member_id' => $member->id])->count()];
+    }
     if ($input['mode'] === 'revoke') {
         foreach ($tables->get('MemberRoles')->find()->where(['member_id' => $member->id]) as $role) {
             $tables->get('MemberRoles')->deleteOrFail($role);
@@ -121,6 +124,41 @@ $result = $manager->withTenant($tenant, function () use ($input, $app) {
         await page.getByText('Email this view', { exact: true }).click();
         await page.getByLabel('Subscription name', { exact: true }).fill('Synthetic subscription browser check');
         await page.getByLabel('Frequency', { exact: true }).selectOption('3');
+        const sampleButton = page.getByRole('button', { name: 'Send me a sample', exact: true });
+        await sampleButton.focus();
+        await page.keyboard.press('Enter');
+        await expect(page.locator('[data-subscription-status]')).toContainText('Sample sent to your account email.');
+        await expect(sampleButton).toBeFocused();
+        assert.equal(runPhpJson(scoped, { ...fixture, mode: 'subscription-count' }).count, 0);
+        const sampleApi = await request.newContext();
+        const sampleResponse = await sampleApi.get(getMailpitApiUrl('api/v1/search') + '?query=' + encodeURIComponent('to:' + fixture.email));
+        const sampleMessages = (await sampleResponse.json()).messages || [];
+        const sample = sampleMessages.find(message => message.Subject.includes('Sample: Synthetic subscription browser check'));
+        assert(sample, 'Immediate sample must reach local Mailpit before subscribing');
+        const sampleBody = await (await sampleApi.get(getMailpitApiUrl('api/v1/message/' + sample.ID))).json();
+        assert(sampleBody.Text.includes(extra.title));
+        assert(sampleBody.Text.includes('one-time sample'));
+        assert(sampleBody.HTML.includes('one-time sample'));
+        assert(!sampleBody.HTML.includes('You subscribed to this summary'));
+        await page.goto('/action-items/my-tasks?view_id=sys-todos-open&search=synthetic-no-match-' + fixture.memberId);
+        await page.getByText('Email this view', { exact: true }).click();
+        await page.getByLabel('Subscription name', { exact: true }).fill('Synthetic empty sample');
+        await page.getByRole('button', { name: 'Send me a sample', exact: true }).click();
+        await expect(page.locator('[data-subscription-status]')).toContainText('Sample sent to your account email.');
+        const emptyResponse = await sampleApi.get(getMailpitApiUrl('api/v1/search') + '?query=' + encodeURIComponent('to:' + fixture.email));
+        const emptySample = ((await emptyResponse.json()).messages || []).find(message => message.Subject.includes('Sample: Synthetic empty sample'));
+        assert(emptySample, 'Empty sample must still be sent');
+        const emptyBody = await (await sampleApi.get(getMailpitApiUrl('api/v1/message/' + emptySample.ID))).json();
+        assert(emptyBody.Text.includes('No rows match this view right now.'));
+        assert(emptyBody.HTML.includes('No rows match this view right now.'));
+        assert(!emptyBody.Text.includes(extra.title));
+        assert.equal(runPhpJson(scoped, { ...fixture, mode: 'subscription-count' }).count, 0);
+        await sampleApi.dispose();
+        await page.goto('/action-items/my-tasks');
+        await page.getByText('Email this view', { exact: true }).click();
+        await page.getByLabel('Subscription name', { exact: true }).fill('Synthetic subscription browser check');
+        await page.getByLabel('Frequency', { exact: true }).selectOption('3');
+
         await page.getByRole('button', { name: 'Subscribe', exact: true }).click();
         await expect(page.locator('[data-subscription-status]')).toContainText('Subscribed.');
         await page.screenshot({ path: '/tmp/kmp-grid-subscription.png', fullPage: true });
@@ -129,7 +167,7 @@ $result = $manager->withTenant($tenant, function () use ($input, $app) {
         const api = await request.newContext();
         const response = await api.get(getMailpitApiUrl('api/v1/search') + '?query=' + encodeURIComponent('to:' + fixture.email));
         const messages = (await response.json()).messages || [];
-        const summary = messages.find(message => message.Subject.includes('Synthetic subscription browser check'));
+        const summary = messages.find(message => message.Subject.includes('Synthetic subscription browser check') && !message.Subject.includes('Sample:'));
         assert(summary, 'Summary must reach local Mailpit');
         const message = await (await api.get(getMailpitApiUrl('api/v1/message/' + summary.ID))).json();
         assert(message.Text.includes(extra.title));
@@ -150,7 +188,7 @@ $result = $manager->withTenant($tenant, function () use ($input, $app) {
         assert.equal(stopped.status, 'stopped', 'Revoking roles must stop an existing grid subscription');
         assert.equal(stopped.sent, false, 'No email after permission loss');
         assert.deepEqual(errors, []);
-        console.log('PASS: collapsed keyboard-accessible waiver sections; desktop/mobile modal scrolling and focus; subscribe → scheduler → authorized queue email → Mailpit → profile cancellation; revoked roles stop delivery');
+        console.log('PASS: collapsed keyboard-accessible waiver sections; desktop/mobile modal scrolling and focus; subscribe → scheduler → authorized queue email → Mailpit → profile cancellation; immediate populated/empty samples using unsaved filters without subscribing; revoked roles stop delivery');
     } finally {
         await browser.close();
         if (fixture) {
