@@ -56,30 +56,55 @@ class ActivitiesWorkflowActions
             $result = $this->authManager->request($memberId, $activityId, $approverId, $isRenewal);
 
             if (!$result->success) {
-                Log::warning('Workflow CreateAuthorizationRequest: ' . $result->reason);
-
-                return ['authorizationId' => null];
+                throw new RuntimeException($result->reason ?? 'Failed to create authorization request');
             }
 
-            // Fetch the created authorization
-            $authTable = TableRegistry::getTableLocator()->get('Activities.Authorizations');
-            $auth = $authTable->find()
-                ->where([
-                    'member_id' => $memberId,
-                    'activity_id' => $activityId,
-                    'status' => 'Pending',
-                ])
-                ->orderBy(['Authorizations.id' => 'DESC'])
-                ->first();
+            $authorizationId = $result->data['authorizationId'] ?? null;
+            if (!is_int($authorizationId) || $authorizationId <= 0) {
+                throw new RuntimeException('Authorization request did not return an authorization ID');
+            }
 
-            return [
-                'authorizationId' => $auth ? $auth->id : null,
-            ];
+            return ['authorizationId' => $authorizationId];
         } catch (Throwable $e) {
             Log::error('Workflow CreateAuthorizationRequest failed: ' . $e->getMessage());
 
-            return ['authorizationId' => null];
+            throw $e;
         }
+    }
+
+    /**
+     * Resolve persisted entity metadata before trigger data and legacy action parameters.
+     * Conflicting authoritative references must fail instead of mutating a different authorization.
+     *
+     * @param array $context Engine-owned action context
+     * @param array $config Resolved action configuration
+     * @return int Authorization ID
+     */
+    private function resolveAuthorizationId(array $context, array $config): int
+    {
+        $entityId = null;
+        if (!empty($context['instanceId'])) {
+            $instance = TableRegistry::getTableLocator()->get('WorkflowInstances')->get($context['instanceId']);
+            if ($instance->entity_type !== 'Activities.Authorizations') {
+                throw new RuntimeException('Workflow is not associated with activity authorizations');
+            }
+            $entityId = $instance->entity_id;
+        }
+        $triggerId = $context['trigger']['authorizationId'] ?? null;
+        foreach ([$entityId, $triggerId] as $id) {
+            if ($id !== null && filter_var($id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false) {
+                throw new RuntimeException('Workflow has an invalid authorization reference');
+            }
+        }
+        if ($entityId !== null && $triggerId !== null && (int)$entityId !== (int)$triggerId) {
+            throw new RuntimeException('Workflow entity and trigger authorization IDs disagree');
+        }
+        $id = $entityId ?? $triggerId ?? $this->resolveValue($config['authorizationId'] ?? null, $context);
+        if (filter_var($id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false) {
+            throw new RuntimeException('Workflow has no valid authorization ID');
+        }
+
+        return (int)$id;
     }
 
     /**
@@ -92,7 +117,7 @@ class ActivitiesWorkflowActions
     public function activateAuthorization(array $context, array $config): array
     {
         try {
-            $authorizationId = (int)$this->resolveValue($config['authorizationId'], $context);
+            $authorizationId = $this->resolveAuthorizationId($context, $config);
             $approverId = $this->resolveValue($config['approverId'] ?? null, $context);
             if (!$approverId) {
                 $approverId = $context['resumeData']['approverId'] ?? $context['triggeredBy'] ?? 0;
@@ -102,9 +127,7 @@ class ActivitiesWorkflowActions
             $result = $this->authManager->activate($authorizationId, $approverId);
 
             if (!$result->success) {
-                Log::warning('Workflow ActivateAuthorization: ' . $result->reason);
-
-                return ['activated' => false, 'memberRoleId' => null];
+                throw new RuntimeException($result->reason ?? 'Authorization activation failed');
             }
 
             $data = $result->data ?? [];
@@ -116,7 +139,7 @@ class ActivitiesWorkflowActions
         } catch (Throwable $e) {
             Log::error('Workflow ActivateAuthorization failed: ' . $e->getMessage());
 
-            return ['activated' => false, 'memberRoleId' => null];
+            throw $e;
         }
     }
 
@@ -133,7 +156,7 @@ class ActivitiesWorkflowActions
     public function handleDenial(array $context, array $config): array
     {
         try {
-            $authorizationId = (int)$this->resolveValue($config['authorizationId'], $context);
+            $authorizationId = $this->resolveAuthorizationId($context, $config);
             $approverId = $this->resolveValue($config['approverId'] ?? null, $context);
             if (!$approverId) {
                 $approverId = $context['resumeData']['approverId'] ?? $context['triggeredBy'] ?? 0;
@@ -150,12 +173,7 @@ class ActivitiesWorkflowActions
             $authorization = $authTable->get($authorizationId);
 
             if ($authorization->status !== Authorization::PENDING_STATUS) {
-                Log::warning(
-                    "Workflow HandleDenial: authorization {$authorizationId} is not pending "
-                    . "(status: {$authorization->status})",
-                );
-
-                return ['denied' => false];
+                throw new RuntimeException('Only pending authorizations can be denied');
             }
 
             $authorization->status = Authorization::DENIED_STATUS;
@@ -165,16 +183,14 @@ class ActivitiesWorkflowActions
             $authorization->expires_on = DateTime::now()->subSeconds(1);
 
             if (!$authTable->save($authorization)) {
-                Log::error("Workflow HandleDenial: failed to save authorization {$authorizationId}");
-
-                return ['denied' => false];
+                throw new RuntimeException('Failed to save authorization denial');
             }
 
             return ['denied' => true];
         } catch (Throwable $e) {
             Log::error('Workflow HandleDenial failed: ' . $e->getMessage());
 
-            return ['denied' => false];
+            throw $e;
         }
     }
 

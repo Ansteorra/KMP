@@ -22,7 +22,7 @@ env:
 
 jobs:
   quality-gate-evidence:
-    name: Verify main quality gates
+    name: Verify branch quality gates
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -30,7 +30,13 @@ jobs:
       - name: Require successful gates for this commit
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: .github/scripts/require-workflow-success.sh tests.yml "$GITHUB_SHA" main push
+        run: |
+          set -euo pipefail
+          case "$GITHUB_REF_NAME" in
+            main|dev) ;;
+            *) echo "Candidate builds require official main or dev." >&2; exit 1 ;;
+          esac
+          .github/scripts/require-workflow-success.sh tests.yml "$GITHUB_SHA" "$GITHUB_REF_NAME" push
 
   build-and-push:
     needs: [quality-gate-evidence]
