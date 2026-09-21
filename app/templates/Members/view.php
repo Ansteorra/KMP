@@ -87,6 +87,9 @@ if (
 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal"
     id='editModalBtn'>Edit</button>
 <?php } ?>
+<?php if ((int)$user->id === (int)$member->id): ?>
+<?= $this->Html->link(__('Email subscriptions'), ['controller' => 'GridSubscriptions', 'action' => 'index'], ['class' => 'btn btn-outline-secondary btn-sm']) ?>
+<?php endif; ?>
 <?php if ($user->can('changePassword', $member)) : ?>
 <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#securityModal"
     data-security-url="<?= h($this->Url->build(['controller' => 'Members', 'action' => 'security', $member->id])) ?>">

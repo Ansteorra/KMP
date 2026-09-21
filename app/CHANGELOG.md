@@ -36,6 +36,10 @@ KMP 1.5.10 improves award and officer workflows, member administration, saved vi
 
 ### Members, Gatherings, and Saved Views
 
+- **Email this view** sends a summary of up to 50 matching rows and a link from My Approvals, My To-Dos, Warrant Rosters, and Bestowals daily, every three days, or weekly. Empty results are skipped. Manage or cancel subscriptions from your profile; deliveries use current permissions and stop when account or view access is lost.
+- Waiver Dashboard sections start collapsed. Gathering waiver summaries show Uploaded, Exempted, Declined, or Pending status, reasons, uploader, and upload date; retention details remain on the individual waiver page.
+- Long modal content scrolls within short desktop and mobile viewports, including forms and Turbo Frames.
+
 - SCA-name and other supported case-insensitive searches also ignore diacritics, so unaccented text can find accented names.
 - **Member Data Import** can update either membership or background-check expiration dates using a two-column CSV. It validates date formats, headers, and duplicate member numbers, reports unmatched numbers, and restricts access to super users or the current Kingdom Seneschal with the dedicated import permission.
 - Membership reviewers can **Request new upload** for an unreadable card, with a workflow-driven email to the member. Membership-card validation supports genuine JPEG/JFIF, PNG, GIF, and WebP images and rejects invalid content.

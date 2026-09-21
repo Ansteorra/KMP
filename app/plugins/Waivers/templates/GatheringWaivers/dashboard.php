@@ -251,17 +251,19 @@ $this->KMP->endBlock();
     <div class="row mb-4">
         <div class="col-md-12">
             <div class="card border-primary">
-                <div class="card-header bg-primary text-white"
-                    data-bs-toggle="collapse" data-bs-target="#collapse-calendar" aria-expanded="true">
-                    <h5 class="mb-0 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <button type="button" class="card-header bg-primary text-white collapsed w-100 text-start"
+                        data-bs-toggle="collapse" data-bs-target="#collapse-calendar" aria-expanded="false" aria-controls="collapse-calendar">
+                        <span class="mb-0 d-flex justify-content-between align-items-center w-100">
                         <span>
                             <i class="bi bi-calendar3"></i>
                             <?= __('Waiver Clerk Calendar') ?>
                         </span>
                         <i class="bi bi-chevron-down"></i>
-                    </h5>
-                </div>
-                <div id="collapse-calendar" class="collapse show">
+                    </span>
+                    </button>
+                </h5>
+                <div id="collapse-calendar" class="collapse">
                     <div class="card-body"
                         data-controller="waiver-calendar"
                         data-waiver-calendar-url-value="<?= $this->Url->build(['action' => 'calendarData', 'plugin' => 'Waivers']) ?>">
@@ -310,18 +312,20 @@ $this->KMP->endBlock();
         <div class="row mb-4">
             <div class="col-md-12">
                 <div class="card border-info">
-                    <div class="card-header bg-info text-dark"
-                        data-bs-toggle="collapse" data-bs-target="#collapse-ready-close" aria-expanded="true">
-                        <h5 class="mb-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                    <button type="button" class="card-header bg-info text-dark collapsed w-100 text-start"
+                        data-bs-toggle="collapse" data-bs-target="#collapse-ready-close" aria-expanded="false" aria-controls="collapse-ready-close">
+                        <span class="mb-0 d-flex justify-content-between align-items-center w-100">
                             <span>
                                 <i class="bi bi-check2-square"></i>
                                 <?= __('Ready for Review & Close') ?>
                                 <span class="badge bg-light text-dark"><?= count($gatheringsReadyToClose) ?></span>
                             </span>
                             <i class="bi bi-chevron-down"></i>
-                        </h5>
-                    </div>
-                    <div id="collapse-ready-close" class="collapse show">
+                        </span>
+                    </button>
+                </h5>
+                    <div id="collapse-ready-close" class="collapse">
                         <div class="card-body">
                             <p class="text-muted mb-3">
                                 <i class="bi bi-info-circle"></i>
@@ -418,18 +422,20 @@ $this->KMP->endBlock();
         <div class="row mb-4">
             <div class="col-md-12">
                 <div class="card border-warning">
-                    <div class="card-header bg-warning text-dark"
-                        data-bs-toggle="collapse" data-bs-target="#collapse-needing-closed" aria-expanded="true">
-                        <h5 class="mb-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                    <button type="button" class="card-header bg-warning text-dark collapsed w-100 text-start"
+                        data-bs-toggle="collapse" data-bs-target="#collapse-needing-closed" aria-expanded="false" aria-controls="collapse-needing-closed">
+                        <span class="mb-0 d-flex justify-content-between align-items-center w-100">
                             <span>
                                 <i class="bi bi-clipboard-check"></i>
                                 <?= __('In Progress Waivers') ?>
                                 <span class="badge bg-dark"><?= count($gatheringsNeedingClosed) ?></span>
                             </span>
                             <i class="bi bi-chevron-down"></i>
-                        </h5>
-                    </div>
-                    <div id="collapse-needing-closed" class="collapse show">
+                        </span>
+                    </button>
+                </h5>
+                    <div id="collapse-needing-closed" class="collapse">
                         <div class="card-body">
                             <p class="text-muted mb-3">
                                 <i class="bi bi-info-circle"></i>
@@ -532,18 +538,20 @@ $this->KMP->endBlock();
         <div class="row mb-4">
             <div class="col-md-12">
                 <div class="card border-danger">
-                    <div class="card-header bg-danger text-white"
-                        data-bs-toggle="collapse" data-bs-target="#collapse-needing-waivers" aria-expanded="true">
-                        <h5 class="mb-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                    <button type="button" class="card-header bg-danger text-white collapsed w-100 text-start"
+                        data-bs-toggle="collapse" data-bs-target="#collapse-needing-waivers" aria-expanded="false" aria-controls="collapse-needing-waivers">
+                        <span class="mb-0 d-flex justify-content-between align-items-center w-100">
                             <span>
                                 <i class="bi bi-x-circle-fill"></i>
                                 <?= __('Gatherings Needing Waivers') ?>
                                 <span class="badge bg-light text-dark"><?= count($gatheringsMissingWaivers) ?></span>
                             </span>
                             <i class="bi bi-chevron-down"></i>
-                        </h5>
-                    </div>
-                    <div id="collapse-needing-waivers" class="collapse show">
+                        </span>
+                    </button>
+                </h5>
+                    <div id="collapse-needing-waivers" class="collapse">
                         <div class="card-body">
                             <div class="table-responsive">
                                 <table class="table table-hover table-danger">
@@ -636,18 +644,20 @@ $this->KMP->endBlock();
         <div class="row mb-4">
             <div class="col-md-12">
                 <div class="card">
-                    <div class="card-header"
-                        data-bs-toggle="collapse" data-bs-target="#collapse-upcoming" aria-expanded="true">
-                        <h5 class="mb-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                    <button type="button" class="card-header collapsed w-100 text-start"
+                        data-bs-toggle="collapse" data-bs-target="#collapse-upcoming" aria-expanded="false" aria-controls="collapse-upcoming">
+                        <span class="mb-0 d-flex justify-content-between align-items-center w-100">
                             <span>
                                 <i class="bi bi-exclamation-triangle-fill"></i>
                                 <?= __('Waivers Due (Next 30 Days)') ?>
                                 <span class="badge bg-dark"><?= count($gatheringsNeedingWaivers) ?></span>
                             </span>
                             <i class="bi bi-chevron-down"></i>
-                        </h5>
-                    </div>
-                    <div id="collapse-upcoming" class="collapse show">
+                        </span>
+                    </button>
+                </h5>
+                    <div id="collapse-upcoming" class="collapse">
                         <div class="card-body">
                             <div class="table-responsive">
                                 <table class="table table-hover">
@@ -735,15 +745,17 @@ $this->KMP->endBlock();
         <div class="row mb-4">
             <div class="col-md-12">
                 <div class="card">
-                    <div class="card-header bg-warning"
-                        data-bs-toggle="collapse" data-bs-target="#collapse-branches" aria-expanded="false">
-                        <h5 class="mb-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                    <button type="button" class="card-header bg-warning collapsed w-100 text-start"
+                        data-bs-toggle="collapse" data-bs-target="#collapse-branches" aria-expanded="false" aria-controls="collapse-branches">
+                        <span class="mb-0 d-flex justify-content-between align-items-center w-100">
                             <span>
                                 <i class="bi bi-building"></i> <?= __('Branches with Compliance Issues') ?>
                             </span>
                             <i class="bi bi-chevron-down"></i>
-                        </h5>
-                    </div>
+                        </span>
+                    </button>
+                </h5>
                     <div id="collapse-branches" class="collapse">
                         <div class="card-body">
                             <div class="table-responsive">
@@ -787,15 +799,17 @@ $this->KMP->endBlock();
     <div class="row mb-4">
         <div class="col-md-12">
             <div class="card">
-                <div class="card-header bg-info text-dark"
-                    data-bs-toggle="collapse" data-bs-target="#collapse-recent" aria-expanded="false">
-                    <h5 class="mb-0 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <button type="button" class="card-header bg-info text-dark collapsed w-100 text-start"
+                        data-bs-toggle="collapse" data-bs-target="#collapse-recent" aria-expanded="false" aria-controls="collapse-recent">
+                        <span class="mb-0 d-flex justify-content-between align-items-center w-100">
                         <span>
                             <i class="bi bi-clock-history"></i> <?= __('Recent Activity & Waiver Types') ?>
                         </span>
                         <i class="bi bi-chevron-down"></i>
-                    </h5>
-                </div>
+                    </span>
+                    </button>
+                </h5>
                 <div id="collapse-recent" class="collapse">
                     <div class="card-body">
                         <div class="row">
@@ -885,17 +899,19 @@ $this->KMP->endBlock();
         <div class="row mb-4">
             <div class="col-md-12">
                 <div class="card border-secondary">
-                    <div class="card-header bg-secondary text-white"
-                        data-bs-toggle="collapse" data-bs-target="#collapse-closed" aria-expanded="false">
-                        <h5 class="mb-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                    <button type="button" class="card-header bg-secondary text-white collapsed w-100 text-start"
+                        data-bs-toggle="collapse" data-bs-target="#collapse-closed" aria-expanded="false" aria-controls="collapse-closed">
+                        <span class="mb-0 d-flex justify-content-between align-items-center w-100">
                             <span>
                                 <i class="bi bi-lock-fill"></i>
                                 <?= __('Closed Gatherings') ?>
                                 <span class="badge bg-light text-dark"><?= count($closedGatherings) ?></span>
                             </span>
                             <i class="bi bi-chevron-down"></i>
-                        </h5>
-                    </div>
+                        </span>
+                    </button>
+                </h5>
                     <div id="collapse-closed" class="collapse">
                         <div class="card-body">
                             <p class="text-muted mb-3">

@@ -27,6 +27,7 @@ Own reusable business workflows, side effects, integrations, registries, workflo
 - Services assume authorization has already been enforced unless the service is specifically an authorization helper.
 - Logical backup manifests preserve PostgreSQL partial-index predicates; restore must not widen conditional uniqueness. Unsupported target engines must fail while planning, before dropping tables.
 - Tenant-aware data must use tenant-safe cache keys and context handling.
+- Grid email subscriptions use the server-owned `GridSubscriptionRegistry`. Every delivery reruns the registered read-only grid with a fresh recipient identity and current authorization; queue only subscription IDs/claim tokens, never report rows. See `app/docs/grid-email-subscriptions.md`.
 - Document reads and writes must not provision remote containers. Azure container lifecycle and restricted runtime grants belong to dedicated administrative provisioning; archives use independent `Backups.storage` configuration. Derived image variants use deterministic, versioned paths and bounded lazy generation after controller authorization.
 
 ## Work Guidance

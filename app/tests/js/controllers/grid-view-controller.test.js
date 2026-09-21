@@ -41,6 +41,43 @@ describe('GridViewController', () => {
         jest.restoreAllMocks();
     });
 
+    test('subscription preserves the selected view and filters and announces success', async () => {
+        controller.element.insertAdjacentHTML('beforeend', `<form action="/grid-subscriptions/add">
+            <input name="subscriptionName" value="Warrant approvals">
+            <select name="intervalDays"><option value="3">Every 3 days</option></select>
+            <button type="submit">Subscribe</button><p role="status" data-subscription-status></p>
+        </form>`);
+        controller.state = { view: { currentId: 'sys-pending' }, config: { gridKey: 'Workflows.approvals.main' } };
+        controller.buildUrl = jest.fn(() => '/approvals/approvals?view_id=sys-pending&filter[workflow][]=warrants');
+        controller.getCsrfToken = () => 'test-csrf';
+        global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true }) });
+        const form = controller.element.querySelector('form');
+        const preventDefault = jest.fn();
+        await controller.subscribeToView({ preventDefault, currentTarget: form });
+        const options = fetch.mock.calls[0][1];
+        expect(preventDefault).toHaveBeenCalled();
+        expect(options.headers['X-CSRF-Token']).toBe('test-csrf');
+        expect(JSON.parse(options.body)).toMatchObject({ name: 'Warrant approvals', intervalDays: 3 });
+        expect(JSON.parse(options.body).query).toContain('filter[workflow][]=warrants');
+        expect(form.querySelector('[role=status]')).toHaveTextContent('Subscribed.');
+        expect(form.querySelector('button')).not.toBeDisabled();
+    });
+
+    test('subscription restores the button and announces a readable server failure', async () => {
+        controller.element.insertAdjacentHTML('beforeend', `<form action="/grid-subscriptions/add">
+            <input name="subscriptionName" value="My tasks"><input name="intervalDays" value="1">
+            <button type="submit">Subscribe</button><p role="status" data-subscription-status></p>
+        </form>`);
+        controller.state = { view: { currentId: 'sys-todos-open' }, config: { gridKey: 'Core.actionItems.myTasks' } };
+        controller.buildUrl = () => '/action-items/my-tasks';
+        controller.getCsrfToken = () => 'test-csrf';
+        global.fetch = jest.fn().mockResolvedValue({ ok: false, json: async () => { throw new Error('Invalid JSON'); } });
+        const form = controller.element.querySelector('form');
+        await controller.subscribeToView({ preventDefault() {}, currentTarget: form });
+        expect(form.querySelector('[role=status]')).toHaveTextContent('Check your access');
+        expect(form.querySelector('button')).not.toBeDisabled();
+    });
+
     test('registers on window.Controllers', () => {
         expect(window.Controllers['grid-view']).toBe(GridViewController);
     });

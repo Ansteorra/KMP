@@ -1363,6 +1363,51 @@ class GridViewController extends Controller {
         this.navigate(url.pathname + url.search) // Table frame nav
     }
 
+    /** Populate the opt-in form with the currently selected view name. */
+    prepareSubscription(event) {
+        const form = event.currentTarget.closest("details").querySelector("form")
+        const name = form.elements.namedItem("subscriptionName")
+        if (!name.value) name.value = this.state.view.currentName || "My view"
+    }
+
+    /** Save recurring delivery settings without changing the selected grid view. */
+    async subscribeToView(event) {
+        event.preventDefault()
+        const form = event.currentTarget
+        if (!form.reportValidity()) return
+        const button = form.querySelector('button[type="submit"]')
+        if (button.disabled) return
+        const status = form.querySelector("[data-subscription-status]")
+        button.disabled = true
+        status.textContent = "Saving subscription…"
+        try {
+            const url = new URL(this.buildUrl({
+                view_id: this.state.view.currentId || "all", page: null
+            }), window.location.origin)
+            const response = await fetch(form.action, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json", "Accept": "application/json",
+                    "X-CSRF-Token": this.getCsrfToken(), "X-Requested-With": "XMLHttpRequest"
+                },
+                credentials: "same-origin",
+                body: JSON.stringify({
+                    gridKey: this.state.config.gridKey,
+                    name: form.elements.namedItem("subscriptionName").value.trim(),
+                    intervalDays: Number(form.elements.namedItem("intervalDays").value),
+                    query: url.search.slice(1)
+                })
+            })
+            const data = await response.json().catch(() => ({}))
+            if (!response.ok || !data.success) throw new Error(typeof data.error === "string" ? data.error : "Unable to subscribe to this view. Check your access and try again.")
+            status.textContent = "Subscribed. Manage or cancel this subscription from your profile."
+        } catch (error) {
+            status.textContent = error.message || "Unable to save the subscription. Please try again."
+        } finally {
+            button.disabled = false
+        }
+    }
+
     /**
      * Save current state as new view
      */

@@ -8,6 +8,7 @@ use App\KMP\StaticHelpers;
 use App\Services\ActionItems\ActionItemCompletionFormRegistry;
 use App\Services\ActionItems\ActionItemService;
 use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
+use App\Services\GridSubscriptionRegistry;
 use App\Services\NavigationRegistry;
 use App\Services\ViewCellRegistry;
 use App\Services\WorkflowEngine\TriggerDispatcher;
@@ -99,6 +100,12 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
      */
     public function bootstrap(PluginApplicationInterface $app): void
     {
+        GridSubscriptionRegistry::register(
+            'Awards.Bestowals.index.main',
+            'Bestowals',
+            ['plugin' => 'Awards', 'controller' => 'Bestowals', 'action' => 'gridData'],
+            ['plugin' => 'Awards', 'controller' => 'Bestowals', 'action' => 'index'],
+        );
         // Register navigation items instead of using event handlers
         NavigationRegistry::register(
             'Awards',

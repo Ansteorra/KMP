@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Services\Platform;
 
 use App\Command\AgeUpMembersCommand;
+use App\Command\GridSubscriptionsEnqueueCommand;
 use App\Command\PlatformBackupsPruneCommand;
 use App\Command\PlatformJobsPruneCommand;
 use App\Command\PlatformJobsRunCommand;
@@ -44,6 +45,7 @@ class AllowlistedPlatformScheduleDispatcher implements PlatformScheduleDispatche
      */
     private const TENANT_SAFE_COMMANDS = [
         'workflow_scheduler' => WorkflowSchedulerCommand::class,
+        'grid_subscriptions_enqueue' => GridSubscriptionsEnqueueCommand::class,
         'sync_active_window_statuses' => SyncActiveWindowStatusesCommand::class,
         'sync_member_warrantable_statuses' => SyncMemberWarrantableStatusesCommand::class,
         'age_up_members' => AgeUpMembersCommand::class,
@@ -197,6 +199,10 @@ class AllowlistedPlatformScheduleDispatcher implements PlatformScheduleDispatche
 
         if ($command instanceof WorkflowSchedulerCommand) {
             return $command->lastResult()['dispatched'];
+        }
+
+        if ($command instanceof GridSubscriptionsEnqueueCommand) {
+            return $command->lastQueued();
         }
 
         return 1;

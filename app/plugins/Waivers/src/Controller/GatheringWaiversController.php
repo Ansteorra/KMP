@@ -15,6 +15,7 @@ use Cake\Log\Log;
 use Cake\Routing\Router;
 use Exception;
 use Waivers\KMP\GridColumns\GatheringWaiversGridColumns;
+use Waivers\Services\GatheringWaiverSummaryService;
 use Waivers\Services\WaiverDashboardService;
 use Waivers\Services\WaiverFileService;
 use Waivers\Services\WaiverMobileService;
@@ -86,7 +87,7 @@ class GatheringWaiversController extends AppController
             // Get all waivers for this gathering
             $query = $this->GatheringWaivers->find()
                 ->where(['gathering_id' => $gatheringId])
-                ->contain(['WaiverTypes', 'Documents'])
+                ->contain(['WaiverTypes', 'Documents', 'CreatedByMembers'])
                 ->orderBy(['GatheringWaivers.created' => 'DESC']);
 
             $gatheringWaivers = $this->paginate($query);
@@ -115,25 +116,13 @@ class GatheringWaiversController extends AppController
                 }
             }
 
-            // Calculate waiver counts per type (excluding declined waivers)
-            $waiverCounts = $this->GatheringWaivers->find()
-                ->where([
-                    'gathering_id' => $gatheringId,
-                    'declined_at IS' => null, // Exclude declined waivers from counts
-                ])
-                ->contain(['WaiverTypes'])
-                ->select([
-                    'waiver_type_id',
-                    'count' => $query->func()->count('*'),
-                ])
-                ->groupBy('waiver_type_id')
-                ->toArray();
-
-            // Format counts for easy lookup
-            $countsMap = [];
-            foreach ($waiverCounts as $count) {
-                $countsMap[$count->waiver_type_id] = $count->count;
-            }
+            $summary = (new GatheringWaiverSummaryService())->summarize(
+                (int)$gatheringId,
+                $requiredWaiverTypes,
+            );
+            $countsMap = $summary['countsMap'];
+            $this->set('exemptionCounts', $summary['exemptionCounts']);
+            $this->set('pendingWaiverTypes', $summary['pendingWaiverTypes']);
 
             // Check if user can close/reopen waivers for this gathering
             $tempWaiver = $this->GatheringWaivers->newEmptyEntity();
