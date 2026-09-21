@@ -18,8 +18,10 @@ $shortSiteTitle = $this->KMP->getAppSetting('KMP.ShortSiteTitle');
                 Trust this personal device
             </button>
             <button type="button" class="btn btn-outline-secondary py-2" data-action="offline-access#decline">
-                Not now
+                Use online only
             </button>
+            <p class="small text-muted mt-2 mb-0">Your choice is remembered for this account in this browser.
+                You can change it later in Security.</p>
         </div>
         <div data-offline-access-target="wizard" hidden>
             <p class="small fw-semibold mb-2" data-offline-access-target="stepLabel"></p>

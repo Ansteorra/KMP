@@ -1,5 +1,6 @@
 import OfflineController from '../../../assets/js/controllers/offline-vault-controller.js';
 import vault from '../../../assets/js/services/offline-vault-service.js';
+import { devicePromptDismissed } from '../../../assets/js/services/device-prompt-preference-service.js';
 import { trustThisDevice } from '../../../assets/js/services/offline-runtime-service.js';
 jest.mock('../../../assets/js/services/offline-runtime-service.js', () => ({ trustThisDevice: jest.fn(), updateTrustedDevice: jest.fn(), offlineStatus: { message: 'Ready offline.' } }));
 jest.mock('../../../assets/js/services/offline-vault-service.js', () => ({ __esModule: true, default: { key: {}, metadata: jest.fn(), lock: jest.fn(), unlock: jest.fn(), clear: jest.fn() } }));
@@ -84,4 +85,21 @@ test('recovery errors remain visible and progress cannot replace expiry instruct
         expect(controller.statusTarget.hidden).toBe(false);
         expect(controller.statusTarget.textContent).toBe('Unable to unlock. Try again.');
     } finally { controller.disconnect(); }
+});
+
+test.each([true, false])('offline removal remembers the owner only when confirmed: %s', async confirmed => {
+    localStorage.clear(); sessionStorage.clear(); document.head.innerHTML = '';
+    const accessibility = window.KMP_accessibility;
+    window.KMP_accessibility = { confirm: jest.fn().mockResolvedValue(confirmed) };
+    vault.metadata.mockResolvedValue({ ...record, owner: 'offline-member' });
+    vault.clear.mockImplementation(async () => { vault.metadata.mockResolvedValue(null); });
+    try {
+        await controller.forget();
+        document.head.innerHTML = '<meta name="kmp-offline-session" content=\'{"owner":"offline-member"}\'>';
+        expect(devicePromptDismissed()).toBe(confirmed);
+        expect(vault.clear).toHaveBeenCalledTimes(confirmed ? 1 : 0);
+    } finally {
+        window.KMP_accessibility = accessibility;
+        localStorage.clear(); sessionStorage.clear(); document.head.innerHTML = '';
+    }
 });

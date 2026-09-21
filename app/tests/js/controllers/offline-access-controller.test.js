@@ -72,6 +72,57 @@ describe('guided device setup', () => {
     });
     afterEach(() => { document.head.innerHTML = ''; document.body.innerHTML = ''; history.replaceState({}, '', '/'); });
 
+    test('online-only choice survives a new session without hiding Security setup', async () => {
+        vault.metadata.mockResolvedValue(null);
+        await controller.render();
+        expect(controller.element.hidden).toBe(false);
+        controller.decline();
+        expect(controller.statusTarget).toHaveFocus();
+        expect(controller.statusTarget.textContent).toContain('remember your choice after logout');
+        sessionStorage.clear();
+        controller.declinedPromptKey = null;
+        await controller.render();
+        expect(controller.element.hidden).toBe(true);
+        const frame = document.createElement('turbo-frame');
+        document.body.append(frame);
+        frame.append(controller.element);
+        await controller.render();
+        expect(controller.element.hidden).toBe(false);
+        expect(controller.choiceTarget.hidden).toBe(false);
+        controller.trust();
+        expect(controller.stepHeadingTarget).toHaveFocus();
+    });
+
+    test('another account still receives its own device choice', async () => {
+        vault.metadata.mockResolvedValue(null);
+        await controller.render();
+        controller.decline();
+        document.querySelector('meta').content = JSON.stringify({ owner: 'another-member', epoch: 'epoch' });
+        await controller.render();
+        expect(controller.element.hidden).toBe(false);
+        expect(controller.choiceTarget.hidden).toBe(false);
+        expect(vault.unlock).not.toHaveBeenCalled();
+    });
+
+    test('successful protected setup clears an earlier online-only choice', async () => {
+        controller.decline();
+        controller.retrySave = jest.fn();
+        await controller.completeSetup('pin');
+        controller.resetSetup();
+        vault.metadata.mockResolvedValue(null);
+        sessionStorage.clear();
+        await controller.render();
+        expect(controller.element.hidden).toBe(false);
+    });
+
+    test('an unprotected legacy copy does not defeat the remembered choice', async () => {
+        vault.metadata.mockResolvedValue({ wrapper: { method: 'trusted' } });
+        await controller.render();
+        controller.decline();
+        await controller.render();
+        expect(controller.element.hidden).toBe(true);
+    });
+
     test('verifies the password and prepares offline assets before choosing an unlock method', async () => {
         const verified = { context: { owner: 'member', epoch: 'epoch' }, login: { email: 'member@example.test', password: 'setup input' }, generation: 1 };
         verifyDevicePassword.mockResolvedValue(verified);

@@ -9,6 +9,7 @@ import { prepareOfflineShell, updateTrustedDevice, offlineStatus } from '../serv
 import { verifyDevicePassword, loginWithSavedPassword } from '../services/device-login-service.js';
 import { checkPasskeySupport, forgetPasskeyFailure, unavailablePasskey } from '../services/passkey-support-service.js';
 import QuickLoginService from '../services/quick-login-service.js';
+import { devicePromptKey, devicePromptDismissed, rememberDevicePromptChoice } from '../services/device-prompt-preference-service.js';
 
 /** Guide personal-device setup and show explicit protection and offline-readiness results. */
 class OfflineAccessController extends Controller {
@@ -88,7 +89,7 @@ class OfflineAccessController extends Controller {
         if (serverLogin && !this.loginPreparationAttempted) this.prepareLogin();
         if (this.hasAddPinTarget) this.addPinTarget.hidden = !onlineOnly || !eligible || !!this.setupStep || this.completed;
         if (protectedDevice) QuickLoginService.completePinMigration();
-        const dismissed = sessionStorage.getItem('kmp.offline.declined') === '1';
+        const dismissed = devicePromptDismissed() || (!!devicePromptKey() && this.declinedPromptKey === devicePromptKey());
         const migrating = !protectedDevice && QuickLoginService.needsPinMigration();
         const showMigration = migrating && (!eligible || !dismissed || !!this.element.closest('turbo-frame')) && !this.setupStep && !this.completed
             && !this.element.closest('[data-controller~="login-device-auth"]');
@@ -101,7 +102,8 @@ class OfflineAccessController extends Controller {
         if (this.hasTrustButtonTarget) this.trustButtonTarget.textContent = migrating ? 'Set up new PIN or passkey' : 'Trust this personal device';
         if ((this.setupStep || this.completed) && (!eligible || (this.completed && (!protectedDevice || (!vault.key && !onlineOnly))))) this.resetSetup();
         this.element.hidden = (signedInPage && locked && !this.setupStep && !this.completed)
-            || (!showMigration && !record && (!eligible || (dismissed && !settings)));
+            || (!showMigration && !record && !eligible)
+            || (eligible && dismissed && !settings && !protectedDevice && !this.setupStep && !this.completed);
         if (this.hasChoiceTarget) this.choiceTarget.hidden = !eligible || protectedDevice || !!this.setupStep || this.completed;
         const compact = !this.completed && !this.setupStep && protectedDevice && !locked && eligible && !settings;
         this.element.classList.toggle('card', !compact);
@@ -415,6 +417,8 @@ class OfflineAccessController extends Controller {
     }
 
     async completeSetup(method) {
+        rememberDevicePromptChoice(false);
+        this.declinedPromptKey = null;
         QuickLoginService.completePinMigration();
         this.resetSetup();
         this.completed = true;
@@ -551,9 +555,12 @@ class OfflineAccessController extends Controller {
     }
 
     decline() {
-        sessionStorage.setItem('kmp.offline.declined', '1');
+        const remembered = rememberDevicePromptChoice(true);
+        this.declinedPromptKey = devicePromptKey();
         this.choiceTarget.hidden = true;
-        this.statusTarget.textContent = `This browser will use ${shortSiteTitle()} online. You can trust it later in Security.`;
+        this.statusTarget.textContent = remembered
+            ? `This browser will use ${shortSiteTitle()} online. We’ll remember your choice after logout. You can trust it later in Security.`
+            : `This browser will use ${shortSiteTitle()} online. Your browser could not save this choice for future visits. You can trust it later in Security.`;
         this.statusTarget.focus();
     }
 
@@ -566,6 +573,8 @@ class OfflineAccessController extends Controller {
                 await removePasskey(record.wrapper.authentication, await currentOfflineContext());
             }
             await vault.clear();
+            rememberDevicePromptChoice(true, record?.owner);
+            this.declinedPromptKey = devicePromptKey();
             await this.render();
             this.statusTarget.textContent = 'This device is no longer trusted. Saved information has been removed.';
             this.statusTarget.focus();

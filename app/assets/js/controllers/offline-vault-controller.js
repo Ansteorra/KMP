@@ -1,5 +1,6 @@
 import { Controller } from '@hotwired/stimulus';
 import vault from '../services/offline-vault-service.js';
+import { rememberDevicePromptChoice } from '../services/device-prompt-preference-service.js';
 import { trustThisDevice, updateTrustedDevice, offlineStatus } from '../services/offline-runtime-service.js';
 
 /** Device recovery only. Normal mobile templates and controllers own all application rendering. */
@@ -75,7 +76,11 @@ class OfflineVaultController extends Controller {
     lock() { vault.signOut(); }
     async forget() {
         if (!await window.KMP_accessibility.confirm('Remove saved information and any unsent RSVPs from this device?')) return;
-        await this.run(() => vault.clear());
+        await this.run(async () => {
+            const record = await vault.metadata();
+            await vault.clear();
+            rememberDevicePromptChoice(true, record?.owner);
+        });
         this.enrollTarget.querySelector('a')?.focus();
     }
 }

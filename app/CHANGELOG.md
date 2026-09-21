@@ -36,6 +36,8 @@ KMP 1.5.10 improves award and officer workflows, member administration, saved vi
 
 ### Members, Gatherings, and Saved Views
 
+- Device setup remembers **Use online only** for each account in the current browser across logout and future visits. Security remains available to change the choice; stopping trust also suppresses repeat setup prompts.
+
 - **Email this view** sends a summary of up to 50 matching rows and a link from My Approvals, My To-Dos, Warrant Rosters, and Bestowals daily, every three days, or weekly. **Send me a sample** sends the current view immediately without creating or changing a subscription. Kingdoms can customize the email in Email Templates and select it in App Settings. Empty scheduled results are skipped. Manage or cancel subscriptions from your profile; deliveries use current permissions and stop when account or view access is lost.
 - Waiver Dashboard sections start collapsed. Gathering waiver summaries show Uploaded, Exempted, Declined, or Pending status, reasons, uploader, and upload date; retention details remain on the individual waiver page.
 - Long modal content scrolls within short desktop and mobile viewports, including forms and Turbo Frames.

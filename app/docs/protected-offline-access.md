@@ -69,6 +69,15 @@ this device** explicitly removes them. New passkey devices must be online and
 signed in to remove their server registration as well as their local copy. Password reset, credential revocation,
 account changes, and impersonation still invalidate the copy when observed.
 
+**Use online only** remembers the prompt dismissal in browser-local storage for
+that origin and account, across logout, new tabs, and browser restarts. It has no
+automatic expiry; clearing site data removes it. Security always exposes device
+setup so the member can change their choice. Completing setup clears the opt-out;
+**Stop trusting this device** removes the protected copy and remembers the opt-out
+again. Storage-blocked browsers use a session/in-memory fallback and explain when
+the choice could not be saved for future visits. This preference controls only
+the setup prompt; it never enrolls, unlocks, or restores access to a vault.
+
 ## Server and local authentication
 
 `MemberPasskeys` stores public keys and credential IDs in the tenant database,
