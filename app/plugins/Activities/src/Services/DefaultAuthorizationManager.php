@@ -118,7 +118,7 @@ class DefaultAuthorizationManager implements AuthorizationManagerInterface
             return new ServiceResult(false, 'Failed to save authorization');
         }
 
-        return new ServiceResult(true);
+        return new ServiceResult(true, null, ['authorizationId' => (int)$auth->id]);
     }
 
     /**
