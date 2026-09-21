@@ -6,7 +6,10 @@ namespace App\Test\TestCase\Mailer;
 use AddGridEmailSummaryTemplate;
 use App\KMP\StaticHelpers;
 use App\Mailer\GridSubscriptionMailer;
+use App\Model\Table\AppSettingsTable;
+use App\Services\Cache\TenantAwareCache;
 use App\Test\TestCase\BaseTestCase;
+use Cake\Cache\Cache;
 use Cake\ORM\TableRegistry;
 use DOMDocument;
 use DOMXPath;
@@ -77,6 +80,13 @@ class GridSubscriptionMailerTest extends BaseTestCase
         ]);
         $templates->saveOrFail($template);
         StaticHelpers::setAppSetting('Email.GridSubscriptionTemplate', $template->slug);
+        StaticHelpers::getAppSetting('KMP.ShortSiteTitle');
+        $cacheKey = TenantAwareCache::tenantScopedKey('app_settings_all');
+        $payload = Cache::read($cacheKey, 'default');
+        $payload['values']['Email.GridSubscriptionTemplate'] = 'grid-email-summary';
+        Cache::write($cacheKey, $payload, 'default');
+        AppSettingsTable::clearRequestCaches();
+        $this->assertSame('grid-email-summary', StaticHelpers::getAppSetting('Email.GridSubscriptionTemplate'));
         foreach ([true, false] as $sample) {
             $mailer = new GridSubscriptionMailer();
             $mailer->summary('grid-sample@example.test', 'Pending work', $this->report($sample));

@@ -11,12 +11,10 @@ class GridSubscriptionMailer extends KMPMailer
     /** Both samples and scheduled summaries use the tenant's selected editable template. */
     public function summary(string $email, string $name, array $report): void
     {
-        $slug = trim((string)StaticHelpers::getAppSetting(
-            'Email.GridSubscriptionTemplate',
-            'grid-email-summary',
-            'string',
-            true,
-        ));
+        // Read the selection afresh for long-lived workers and separate web replicas.
+        $setting = $this->getTableLocator()->get('AppSettings')->find()
+            ->select(['value'])->where(['name' => 'Email.GridSubscriptionTemplate'])->first();
+        $slug = trim((string)($setting?->value ?? ''));
         if ($slug === '' || is_numeric($slug)) {
             throw new RuntimeException('Email.GridSubscriptionTemplate must name an active email template slug.');
         }

@@ -21,7 +21,8 @@ tenant in a five-minute window.
 and plain-text body for both samples and recurring summaries. **App Settings →
 Email.GridSubscriptionTemplate** selects the template by slug (default:
 `grid-email-summary`). A kingdom can edit the default or create another active
-template and put its slug in this setting. No workflow is involved.
+template and put its slug in this setting. No workflow is involved. Each send reads the selection and template afresh so
+worker lifetimes and cached settings do not delay kingdom edits.
 
 The deployment migration creates missing defaults for every tenant, including
 POC and newly provisioned kingdoms, and preserves existing settings/templates.
