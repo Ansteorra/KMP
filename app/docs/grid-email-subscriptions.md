@@ -15,10 +15,28 @@ why scheduled emails would be skipped. Samples use the same report authorization
 and mailer as recurring delivery and are limited to five requests per member per
 tenant in a five-minute window.
 
-Email layout is code-managed: `GridSubscriptionMailer` renders the bundled HTML
-and plain-text `templates/email/*/grid_subscription.php` templates. They ship with
-the application image; no database email-template installation or POC-specific
-setup is needed. They do not appear in the editable Email Templates screen.
+## Kingdom email customization
+
+**Email Templates → Grid Email Summary** controls the subject, Markdown/HTML body,
+and plain-text body for both samples and recurring summaries. **App Settings →
+Email.GridSubscriptionTemplate** selects the template by slug (default:
+`grid-email-summary`). A kingdom can edit the default or create another active
+template and put its slug in this setting. No workflow is involved.
+
+The deployment migration creates missing defaults for every tenant, including
+POC and newly provisioned kingdoms, and preserves existing settings/templates.
+No manual template installation is needed. Rollback retains these tenant-owned
+records. Missing, inactive, or invalid selected templates fail delivery visibly
+and follow normal scheduled-job retry handling; there is no hard-coded fallback.
+
+Available variables are listed in the template editor. Use `resultsTable` in the
+Markdown body for the escaped table and `resultsText` in the plain-text body.
+`summaryName`, `gridLabel`, `rowCount`, `rowLimit`, `viewUrl`, `manageUrl`,
+`siteTitle`, and `siteAdminSignature` provide labels, counts, links, and branding.
+`isSample`, `hasRows`, and `isEmpty` support conditional wording. Templates only
+receive the currently authorized, bounded report; editing the email cannot add
+columns or bypass data permissions. **Send me a sample** previews the currently
+selected template and current view together.
 
 ## Delivery and access
 

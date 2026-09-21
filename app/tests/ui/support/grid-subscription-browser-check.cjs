@@ -33,7 +33,18 @@ $result = $manager->withTenant($tenant, function () use ($input, $app) {
             'branch_id' => $member->branch_id, 'status' => 'open', 'is_gating' => false, 'sort_order' => 0,
         ]);
         $tables->get('ActionItems')->saveOrFail($item);
-        return ['itemId' => $item->id, 'title' => $item->title];
+        $templates = $tables->get('EmailTemplates');
+        $default = $templates->find()->where(['slug' => 'grid-email-summary'])->firstOrFail();
+        $custom = $templates->newEntity($default->toArray());
+        $custom->slug = 'synthetic-grid-summary-' . $member->id;
+        $custom->name = 'Synthetic kingdom grid summary ' . $member->id;
+        $custom->html_template .= "\n\nSynthetic kingdom template customization";
+        $custom->text_template .= "\n\nSynthetic kingdom template customization";
+        $templates->saveOrFail($custom);
+        $previousTemplate = \App\KMP\StaticHelpers::getAppSetting('Email.GridSubscriptionTemplate');
+        \App\KMP\StaticHelpers::setAppSetting('Email.GridSubscriptionTemplate', $custom->slug, 'string', true);
+        return ['itemId' => $item->id, 'title' => $item->title, 'templateId' => $custom->id,
+            'templateSlug' => $custom->slug, 'previousTemplate' => $previousTemplate];
     }
     if ($input['mode'] === 'subscription-count') {
         return ['count' => $tables->get('GridSubscriptions')->find()->where(['member_id' => $member->id])->count()];
@@ -62,6 +73,12 @@ $result = $manager->withTenant($tenant, function () use ($input, $app) {
         return ['sent' => $subscription->last_sent_at !== null, 'status' => $subscription->status];
     }
     if ($input['mode'] === 'cleanup') {
+        if (!empty($input['templateId'])) {
+            if (\App\KMP\StaticHelpers::getAppSetting('Email.GridSubscriptionTemplate') === $input['templateSlug']) {
+                \App\KMP\StaticHelpers::setAppSetting('Email.GridSubscriptionTemplate', $input['previousTemplate'], 'string', true);
+            }
+            $tables->get('EmailTemplates')->deleteAll(['id' => $input['templateId'], 'slug' => $input['templateSlug']]);
+        }
         $tables->get('GridSubscriptions')->deleteAll(['member_id' => $member->id]);
         $tables->get('MemberRoles')->deleteAll(['member_id' => $member->id]);
         if (!empty($input['itemId'])) {
@@ -137,6 +154,8 @@ $result = $manager->withTenant($tenant, function () use ($input, $app) {
         assert(sample, 'Immediate sample must reach local Mailpit before subscribing');
         const sampleBody = await (await sampleApi.get(getMailpitApiUrl('api/v1/message/' + sample.ID))).json();
         assert(sampleBody.Text.includes(extra.title));
+        assert(sampleBody.Text.includes('Synthetic kingdom template customization'));
+        assert(sampleBody.HTML.includes('Synthetic kingdom template customization'));
         assert(sampleBody.Text.includes('one-time sample'));
         assert(sampleBody.HTML.includes('one-time sample'));
         assert(!sampleBody.HTML.includes('You subscribed to this summary'));
@@ -171,6 +190,8 @@ $result = $manager->withTenant($tenant, function () use ($input, $app) {
         assert(summary, 'Summary must reach local Mailpit');
         const message = await (await api.get(getMailpitApiUrl('api/v1/message/' + summary.ID))).json();
         assert(message.Text.includes(extra.title));
+        assert(message.Text.includes('Synthetic kingdom template customization'));
+        assert(message.HTML.includes('Synthetic kingdom template customization'));
         assert(message.Text.includes('http://kmp.localhost:8080/action-items/my-tasks'));
         await api.dispose();
         await page.goto('/grid-subscriptions');
@@ -188,7 +209,7 @@ $result = $manager->withTenant($tenant, function () use ($input, $app) {
         assert.equal(stopped.status, 'stopped', 'Revoking roles must stop an existing grid subscription');
         assert.equal(stopped.sent, false, 'No email after permission loss');
         assert.deepEqual(errors, []);
-        console.log('PASS: collapsed keyboard-accessible waiver sections; desktop/mobile modal scrolling and focus; subscribe → scheduler → authorized queue email → Mailpit → profile cancellation; immediate populated/empty samples using unsaved filters without subscribing; revoked roles stop delivery');
+        console.log('PASS: collapsed keyboard-accessible waiver sections; desktop/mobile modal scrolling and focus; subscribe → scheduler → authorized queue email → Mailpit → profile cancellation; immediate populated/empty samples using unsaved filters without subscribing; kingdom-selected editable template used for samples and scheduled delivery; revoked roles stop delivery');
     } finally {
         await browser.close();
         if (fixture) {
