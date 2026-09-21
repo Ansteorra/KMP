@@ -611,14 +611,15 @@ class GridViewConfig
         }
 
         // Determine the qualified field name:
-        // 1. If column metadata has queryField, use it (already qualified or will be qualified)
+        // 1. Prefer the filter ID field over the display/sort field.
         // 2. Otherwise, qualify with table name if not already qualified
         $columnMeta = $columnsMetadata[$field] ?? null;
-        $queryField = $columnMeta['queryField'] ?? null;
+        $queryField = $columnMeta['filterQueryField'] ?? $columnMeta['queryField'] ?? null;
 
         if ($queryField !== null) {
             // Use queryField from column metadata (may be already qualified like 'AwardBranch.type')
-            $qualifiedField = $queryField;
+            $qualifiedField = $tableName && !str_contains($queryField, '.')
+                ? $tableName . '.' . $queryField : $queryField;
         } elseif ($tableName && strpos($field, '.') === false) {
             // No queryField defined, qualify with table name
             $qualifiedField = $tableName . '.' . $field;

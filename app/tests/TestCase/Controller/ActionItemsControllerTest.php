@@ -522,7 +522,7 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
     public function testCompleteButtonsDoNotRenderCheckmarkIcons(): void
     {
         $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
-        $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID);
+        $this->makeBestowalMemberItem(self::TEST_MEMBER_AGATHA_ID);
 
         $this->get('/action-items/my-tasks-data');
 
@@ -890,6 +890,26 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
      *
      * @return void
      */
+    public function testTerminalMobileCompletionHonorsAssignmentAndRejectsFinalizedReopen(): void
+    {
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $terminal = $this->makeBestowalMemberItem(self::TEST_MEMBER_AGATHA_ID, ['is_terminal' => true]);
+        $required = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, ['entity_id' => $terminal->entity_id]);
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest']]);
+        $this->post('/action-items/complete/' . $terminal->id);
+        $this->assertResponseOk();
+        $this->assertSame(Bestowal::LIFECYCLE_GIVEN, TableRegistry::getTableLocator()
+            ->get('Awards.Bestowals')->get($terminal->entity_id)->lifecycle_status);
+        $this->assertSame(ActionItem::STATUS_CANCELLED, TableRegistry::getTableLocator()
+            ->get('ActionItems')->get($required->id)->status);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest']]);
+        $this->post('/action-items/reopen/' . $terminal->id);
+        $this->assertResponseCode(422);
+        $this->assertResponseContains('This bestowal is given; its checklist is read-only.');
+    }
+
     public function testCompleteViaTurboStreamRefreshesGrid(): void
     {
         $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);

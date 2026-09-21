@@ -25,6 +25,8 @@ class AwardsBestowalBulkTodo extends Controller {
 
     connect() {
         this.boundHandleShow = this.handleShow.bind(this);
+        this.boundSubmit = this.confirmTerminal.bind(this);
+        this.element.addEventListener("submit", this.boundSubmit);
         this.boundCheckChange = this.handleCheckChange.bind(this);
         this.boundGatheringChange = this.updateSubmitState.bind(this);
         this.element.addEventListener("show.bs.modal", this.boundHandleShow);
@@ -37,8 +39,26 @@ class AwardsBestowalBulkTodo extends Controller {
         }
     }
 
+    async confirmTerminal(event) {
+        if (this.confirmedSubmission) {
+            this.confirmedSubmission = false;
+            return;
+        }
+        const key = this.hasCheckSelectTarget ? this.checkSelectTarget.value : "";
+        const messages = (this.currentRows || []).flatMap(row => row.options
+            .filter(option => option.key === key && option.isTerminal)
+            .map(option => `Bestowal #${row.id}: ${option.confirmation}`));
+        if (!messages.length) return;
+        event.preventDefault();
+        if (await window.KMP_accessibility.confirm(messages.join("\n\n"))) {
+            this.confirmedSubmission = true;
+            event.target.requestSubmit(event.submitter);
+        }
+    }
+
     disconnect() {
         this.element.removeEventListener("show.bs.modal", this.boundHandleShow);
+        this.element.removeEventListener("submit", this.boundSubmit);
         if (this.hasCheckSelectTarget) {
             this.checkSelectTarget.removeEventListener("change", this.boundCheckChange);
         }

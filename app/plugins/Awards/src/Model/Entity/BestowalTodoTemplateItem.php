@@ -122,6 +122,7 @@ class BestowalTodoTemplateItem extends BaseEntity
         'branch_mode' => true,
         'branch_type' => true,
         'is_gating' => true,
+        'is_terminal' => true,
         'required_field' => true,
         'required_field_config' => true,
         'sort_order' => true,
@@ -173,7 +174,7 @@ class BestowalTodoTemplateItem extends BaseEntity
 
         return [
             ActionItem::COMPLETION_CONFIG_AUTO_COMPLETE => (bool)(
-                $config[ActionItem::COMPLETION_CONFIG_AUTO_COMPLETE] ?? false
+                !$this->is_terminal && ($config[ActionItem::COMPLETION_CONFIG_AUTO_COMPLETE] ?? false)
             ),
             'required_fields' => [$fieldConfig],
         ];
