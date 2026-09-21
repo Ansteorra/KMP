@@ -1,16 +1,14 @@
 <?php
+declare(strict_types=1);
+
 /** @var \App\View\AppView $this */
-$this->extend('/layout/TwitterBootstrap/dashboard');
-$this->assign('title', __('Email subscriptions'));
 ?>
-<h1><?= __('Email subscriptions') ?></h1>
+<turbo-frame id="email-subscriptions">
+<div tabindex="-1" data-subscription-feedback role="status">
+    <?= $this->Flash->render() ?>
+</div>
 <p><?= __('Summaries use your current access. Empty results are skipped.') ?>
     <?= __('Subscriptions stop if your account or view is no longer available.') ?></p>
-<?= $this->Html->link(
-    __('Back to my profile'),
-    ['controller' => 'Members', 'action' => 'view', $user->public_id],
-    ['class' => 'btn btn-outline-secondary mb-3'],
-) ?>
 <?php if ($subscriptions->isEmpty()) : ?>
     <p><?= __('You have no email subscriptions. Use “Email this view” in a supported grid to add one.') ?></p>
 <?php else : ?>
@@ -31,12 +29,33 @@ $this->assign('title', __('Email subscriptions'));
             endif; ?></td>
         <td><?= $subscription->status === 'active'
             ? $this->Timezone->format($subscription->next_run_at, $user, 'M d, Y g:i A') : '—' ?></td>
-        <td><?= $this->Form->postLink(__('Cancel'), ['action' => 'delete', $subscription->id], [
-            'class' => 'btn btn-outline-danger btn-sm', 'confirm' => __('Cancel {0}?', $subscription->name),
-            'aria-label' => __('Cancel subscription {0}', $subscription->name),
-            ]) ?></td>
+        <td>
+            <?= $this->Form->create(null, [
+                'url' => ['action' => 'delete', $subscription->id],
+                'data-turbo' => 'true',
+            ]) ?>
+            <?= $this->Form->button(__('Cancel'), [
+                'class' => 'btn btn-outline-danger btn-sm',
+                'aria-label' => __('Cancel subscription {0}', $subscription->name),
+                'type' => 'button',
+                'data-action' => 'grid-subscriptions-dialog#requestCancellation',
+                'data-cancel-subscription' => true,
+            ]) ?>
+            <div hidden data-cancel-confirmation>
+                <p class="small mb-2"><?= h(__('Cancel {0}?', $subscription->name)) ?></p>
+                <button type="button" class="btn btn-secondary btn-sm" data-keep-subscription
+                    data-action="grid-subscriptions-dialog#keepSubscription"><?= __('Keep subscription') ?></button>
+                <?= $this->Form->button(__('Cancel subscription'), [
+                    'class' => 'btn btn-outline-danger btn-sm',
+                    'aria-label' => __('Confirm cancellation of {0}', $subscription->name),
+                ]) ?>
+            </div>
+            <?= $this->Form->end() ?>
+        </td>
     </tr>
            <?php endforeach; ?></tbody>
 </table>
 </div>
 <?php endif; ?>
+
+</turbo-frame>

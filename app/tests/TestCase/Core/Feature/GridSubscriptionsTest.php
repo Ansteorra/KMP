@@ -19,6 +19,18 @@ class GridSubscriptionsTest extends HttpIntegrationTestCase
         parent::tearDown();
     }
 
+    public function testManagementLinkOpensTheSignedInMembersProfileModal(): void
+    {
+        $this->authenticateAsSuperUser();
+        $this->get('/grid-subscriptions');
+        $this->assertRedirectContains('/members/view/' . self::ADMIN_MEMBER_ID . '?emailSubscriptions=1');
+        Router::reload();
+        $this->get('/members/view/' . self::ADMIN_MEMBER_ID . '?emailSubscriptions=1');
+        $this->assertResponseOk();
+        $this->assertResponseContains('id="emailSubscriptionsButton"');
+        $this->assertResponseContains('data-grid-subscriptions-dialog-auto-open-value="true"');
+    }
+
     public function testSampleSendsForTheSignedInMemberWithoutScheduling(): void
     {
         $this->authenticateAsSuperUser();
@@ -79,12 +91,16 @@ class GridSubscriptionsTest extends HttpIntegrationTestCase
         $this->assertSame(3, $subscription->interval_days);
         // Bootstrap settings audits must not read the previous simulated request's closed CLI session.
         Router::reload();
+        $this->configRequest(['headers' => ['Turbo-Frame' => 'email-subscriptions']]);
         $this->get('/grid-subscriptions');
         $this->assertResponseOk();
         $this->assertResponseContains('My pending work');
+        $this->assertResponseContains('<turbo-frame id="email-subscriptions">');
+        $this->assertResponseNotContains('Back to my profile');
         $this->enableCsrfToken();
         $this->enableSecurityToken();
         $this->post('/grid-subscriptions/delete/' . $id);
+        $this->assertResponseCode(303);
         $this->assertRedirectContains('/grid-subscriptions');
         $this->assertFalse($this->getTableLocator()->get('GridSubscriptions')->exists(['id' => $id]));
     }
@@ -127,6 +143,7 @@ class GridSubscriptionsTest extends HttpIntegrationTestCase
         ], ['guard' => false]);
         $table->saveOrFail($subscription);
         $this->authenticateAsSuperUser();
+        $this->configRequest(['headers' => ['Turbo-Frame' => 'email-subscriptions']]);
         $this->get('/grid-subscriptions');
         $this->assertResponseOk();
         $this->assertResponseNotContains('Private subscription');
@@ -136,6 +153,7 @@ class GridSubscriptionsTest extends HttpIntegrationTestCase
         $this->assertRedirectContains('/pages/unauthorized');
         $this->assertTrue($table->exists(['id' => $subscription->id]));
     }
+
     public function testDeletedSavedViewCannotFallBackToAllRows(): void
     {
         $this->authenticateAsSuperUser();
@@ -155,5 +173,4 @@ class GridSubscriptionsTest extends HttpIntegrationTestCase
         $this->assertResponseCode(403);
         $this->assertFalse($this->getTableLocator()->get('GridSubscriptions')->exists(['name' => 'Deleted']));
     }
-
 }

@@ -19,10 +19,20 @@ class GridSubscriptionsController extends AppController
     }
 
     /** List only the authenticated member’s subscriptions. */
-    public function index(): void
+    public function index(): ?Response
     {
+        $this->request->allowMethod(['get']);
+        if ($this->request->getHeaderLine('Turbo-Frame') !== 'email-subscriptions') {
+            return $this->redirect([
+                'controller' => 'Members', 'action' => 'view',
+                $this->request->getAttribute('identity')->getIdentifier(),
+                '?' => ['emailSubscriptions' => '1'],
+            ]);
+        }
         $query = $this->Authorization->applyScope($this->fetchTable('GridSubscriptions')->find(), 'index');
         $this->set('subscriptions', $query->orderBy(['created' => 'DESC'])->all());
+
+        return null;
     }
 
     /** Validate and create an opt-in subscription for the authenticated member. */
@@ -87,6 +97,6 @@ class GridSubscriptionsController extends AppController
         $table->deleteOrFail($subscription);
         $this->Flash->success(__('Email subscription cancelled.'));
 
-        return $this->redirect(['action' => 'index']);
+        return $this->redirect(['action' => 'index'], 303);
     }
 }

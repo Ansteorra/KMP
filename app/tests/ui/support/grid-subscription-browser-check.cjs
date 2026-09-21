@@ -194,11 +194,42 @@ $result = $manager->withTenant($tenant, function () use ($input, $app) {
         assert(message.HTML.includes('Synthetic kingdom template customization'));
         assert(message.Text.includes('http://kmp.localhost:8080/action-items/my-tasks'));
         await api.dispose();
+        // Existing email management links must land on the profile and open its dialog.
         await page.goto('/grid-subscriptions');
-        await expect(page.getByText('Synthetic subscription browser check', { exact: true })).toBeVisible();
-        await page.getByRole('link', { name: 'Cancel subscription Synthetic subscription browser check', exact: true }).click();
-        await page.locator('[data-dialog-confirm]').click();
-        await expect(page.getByText('You have no email subscriptions.', { exact: false })).toBeVisible();
+        await page.waitForURL(url => /\/members\/view\//.test(url.pathname));
+        const profileUrl = page.url();
+        const subscriptionsModal = page.getByRole('dialog', { name: 'Email subscriptions', exact: true });
+        const subscriptionsButton = page.getByRole('button', { name: 'Email subscriptions', exact: true });
+        await expect(subscriptionsModal).toBeVisible();
+        await expect(subscriptionsModal.getByText('Synthetic subscription browser check', { exact: true })).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(subscriptionsModal).not.toBeVisible();
+        await expect(subscriptionsButton).toBeFocused();
+        await page.keyboard.press('Enter');
+        await expect(subscriptionsModal).toBeVisible();
+        await expect(subscriptionsModal.getByRole('heading', { name: 'Email subscriptions' })).toBeFocused();
+        const cancelSubscription = subscriptionsModal.getByRole('button', { name: 'Cancel subscription Synthetic subscription browser check', exact: true });
+        await cancelSubscription.focus();
+        await page.keyboard.press('Enter');
+        await expect(subscriptionsModal.getByRole('button', { name: 'Keep subscription', exact: true })).toBeFocused();
+        await page.keyboard.press('Enter');
+        await expect(cancelSubscription).toBeFocused();
+        assert.equal(runPhpJson(scoped, { ...fixture, mode: 'subscription-count' }).count, 1);
+        await page.keyboard.press('Enter');
+        await subscriptionsModal.getByRole('button', { name: 'Confirm cancellation of Synthetic subscription browser check', exact: true }).click();
+        await expect(subscriptionsModal.getByText('You have no email subscriptions.', { exact: false })).toBeVisible();
+        await expect(subscriptionsModal.locator('[data-subscription-feedback]')).toBeFocused();
+        assert.equal(page.url(), profileUrl, 'Cancellation must stay on the profile');
+        assert.equal(runPhpJson(scoped, { ...fixture, mode: 'subscription-count' }).count, 0);
+        await page.setViewportSize({ width: 375, height: 480 });
+        await expect(subscriptionsModal.locator('.modal-footer').getByRole('button', { name: 'Close', exact: true })).toBeInViewport();
+        await subscriptionsModal.locator('.modal-footer').getByRole('button', { name: 'Close', exact: true }).click();
+        await expect(subscriptionsButton).toBeFocused();
+        await subscriptionsButton.click();
+        await expect(subscriptionsModal.getByText('You have no email subscriptions.', { exact: false })).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(subscriptionsButton).toBeFocused();
+        await page.setViewportSize({ width: 1000, height: 600 });
         await page.goto('/warrant-rosters');
         await page.getByText('Email this view', { exact: true }).click();
         await page.getByLabel('Subscription name', { exact: true }).fill('Synthetic role loss check');
@@ -209,7 +240,7 @@ $result = $manager->withTenant($tenant, function () use ($input, $app) {
         assert.equal(stopped.status, 'stopped', 'Revoking roles must stop an existing grid subscription');
         assert.equal(stopped.sent, false, 'No email after permission loss');
         assert.deepEqual(errors, []);
-        console.log('PASS: collapsed keyboard-accessible waiver sections; desktop/mobile modal scrolling and focus; subscribe → scheduler → authorized queue email → Mailpit → profile cancellation; immediate populated/empty samples using unsaved filters without subscribing; kingdom-selected editable template used for samples and scheduled delivery; revoked roles stop delivery');
+        console.log('PASS: collapsed keyboard-accessible waiver sections; desktop/mobile modal scrolling and focus; subscribe → scheduler → authorized queue email → Mailpit → profile modal cancellation; management links, keyboard reopening/close, status focus, and mobile close controls; immediate populated/empty samples using unsaved filters without subscribing; kingdom-selected editable template used for samples and scheduled delivery; revoked roles stop delivery');
     } finally {
         await browser.close();
         if (fixture) {

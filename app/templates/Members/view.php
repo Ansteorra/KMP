@@ -87,8 +87,11 @@ if (
 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal"
     id='editModalBtn'>Edit</button>
 <?php } ?>
-<?php if ((int)$user->id === (int)$member->id): ?>
-<?= $this->Html->link(__('Email subscriptions'), ['controller' => 'GridSubscriptions', 'action' => 'index'], ['class' => 'btn btn-outline-secondary btn-sm']) ?>
+<?php if ((int)$user->id === (int)$member->id) : ?>
+<button type="button" id="emailSubscriptionsButton" class="btn btn-outline-secondary btn-sm"
+    data-bs-toggle="modal" data-bs-target="#emailSubscriptionsModal">
+    <?= __('Email subscriptions') ?>
+</button>
 <?php endif; ?>
 <?php if ($user->can('changePassword', $member)) : ?>
 <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#securityModal"
@@ -436,6 +439,9 @@ echo $this->element('members/editModal', [
     'user' => $user,
 ]);
 echo $this->element('members/securityModal');
+if ((int)$user->id === (int)$member->id) {
+    echo $this->element('members/emailSubscriptionsModal');
+}
 echo $this->element('members/verifyMembershipModal', [
     'user' => $user,
     'needVerification' => $needVerification,

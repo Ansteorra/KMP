@@ -6,7 +6,9 @@ retained. A subscription can run daily, every three days, or weekly; its first
 check is due after that interval. The scheduler checks due subscriptions every
 15 minutes. Empty results are skipped. Emails contain up to 50 visible rows and
 a link to the full view. **Email subscriptions** on the member's own profile
-lists active/stopped subscriptions and lets the owner cancel them.
+opens a scrollable modal listing active/stopped subscriptions. Cancellation updates
+the list and announces success without leaving the profile. Existing management
+links redirect to the signed-in member’s profile and open this same modal.
 
 **Send me a sample** uses the currently applied view settings and sends immediately
 to the signed-in member's account email, without saving a view, adding a
