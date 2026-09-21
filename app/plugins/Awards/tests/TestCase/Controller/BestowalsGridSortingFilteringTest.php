@@ -147,6 +147,7 @@ class BestowalsGridSortingFilteringTest extends HttpIntegrationTestCase
             $this->assertResponseOk();
             $this->assertResponseContains('data-id="' . $earlier->id . '"');
             $this->assertResponseNotContains('data-id="' . $later->id . '"');
+            $this->assertSavedRelationFilter($column, $value, $prefix, $earlier, $later);
         }
 
         foreach (['member_sca_name', 'awards', 'gathering_name'] as $sortColumn) {
@@ -355,6 +356,7 @@ class BestowalsGridSortingFilteringTest extends HttpIntegrationTestCase
             $this->assertResponseOk();
             $this->assertResponseContains('data-id="' . $matching->id . '"');
             $this->assertResponseNotContains('data-id="' . $other->id . '"');
+            $this->assertSavedRelationFilter($column, $value, $prefix, $matching, $other);
         }
     }
 
@@ -377,6 +379,46 @@ class BestowalsGridSortingFilteringTest extends HttpIntegrationTestCase
         $this->assertResponseContains('<turbo-frame');
         $this->assertResponseContains('id="bestowals-grid-table"');
         $this->assertResponseContains($prefix);
+    }
+
+    /**
+     * Saved views must use the same relation ID filters as live dropdowns.
+     */
+    private function assertSavedRelationFilter(
+        string $column,
+        int $value,
+        string $search,
+        Bestowal $matching,
+        Bestowal $other,
+    ): void {
+        $views = $this->getTableLocator()->get('GridViews');
+        $filter = ['field' => $column, 'operator' => 'in', 'value' => [$value]];
+        foreach ([false, true] as $useExpression) {
+            $config = [
+                'filters' => [$filter, ['field' => '_search', 'operator' => 'contains', 'value' => $search]],
+                'columns' => [['key' => 'id', 'visible' => true, 'order' => 0]],
+            ];
+            if ($useExpression) {
+                $config['expression'] = ['type' => 'AND', 'conditions' => [$filter]];
+            }
+            $view = $views->saveOrFail($views->newEntity([
+                'grid_key' => 'Awards.Bestowals.index.main',
+                'member_id' => self::ADMIN_MEMBER_ID,
+                'name' => 'Saved relation ' . $column,
+                'config' => json_encode($config, JSON_THROW_ON_ERROR),
+                'is_default' => false,
+                'is_system_default' => false,
+            ]));
+            foreach (['bestowals-grid', 'bestowals-grid-table'] as $frame) {
+                $this->configRequest(['headers' => ['Turbo-Frame' => $frame]]);
+                $this->get('/awards/bestowals/grid-data?view_id=' . $view->id);
+                $this->assertResponseOk();
+                $this->assertResponseContains('id="' . $frame . '"');
+                $this->assertResponseContains('data-id="' . $matching->id . '"');
+                $this->assertResponseNotContains('data-id="' . $other->id . '"');
+            }
+        }
+        $this->configRequest(['headers' => ['Turbo-Frame' => '']]);
     }
 
     private function createMember(string $scaName): Member

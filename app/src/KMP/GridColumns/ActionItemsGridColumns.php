@@ -303,10 +303,12 @@ class ActionItemsGridColumns extends BaseGridColumns
                 'class' => 'btn btn-sm btn-success',
                 'modalTarget' => '#todoCompleteModal',
                 'statusFilter' => [ActionItem::STATUS_OPEN],
+                'condition' => ['owner_mutable' => true],
                 'dataAttributes' => [
                     'todo-id' => '{{id}}',
                     'todo-title' => '{{title}}',
                     'todo-mode' => 'complete',
+                    'todo-confirmation' => ['_rowField' => 'complete_confirmation'],
                     'todo-completion-form' => ['_rowField' => 'completion_form_data'],
                 ],
             ],
@@ -318,10 +320,12 @@ class ActionItemsGridColumns extends BaseGridColumns
                 'class' => 'btn btn-sm btn-outline-secondary',
                 'modalTarget' => '#todoCompleteModal',
                 'statusFilter' => [ActionItem::STATUS_COMPLETED],
+                'condition' => ['owner_mutable' => true],
                 'dataAttributes' => [
                     'todo-id' => '{{id}}',
                     'todo-title' => '{{title}}',
                     'todo-mode' => 'reopen',
+                    'todo-confirmation' => ['_rowField' => 'reopen_confirmation'],
                 ],
             ],
         ];

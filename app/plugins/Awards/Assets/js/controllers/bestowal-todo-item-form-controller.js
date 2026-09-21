@@ -2,6 +2,8 @@ import { Controller } from "@hotwired/stimulus"
 
 class AwardsBestowalTodoItemForm extends Controller {
     static targets = [
+        "terminal",
+        "autoComplete",
         "assigneeType",
         "sourceGroup",
         "branchMode",
@@ -24,6 +26,10 @@ class AwardsBestowalTodoItemForm extends Controller {
             this.hasRequiredFieldTarget ? this.requiredFieldTarget.value !== "" : false,
             this.hasRequiredFieldOptionsGroupTarget ? this.requiredFieldOptionsGroupTarget : null,
         );
+        if (this.hasTerminalTarget && this.hasAutoCompleteTarget) {
+            this.autoCompleteTarget.disabled = this.terminalTarget.checked;
+            if (this.terminalTarget.checked) this.autoCompleteTarget.checked = false;
+        }
     }
 
     syncSourceGroups() {

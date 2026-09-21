@@ -154,7 +154,7 @@ class RecommendationGroupingService
     }
 
     /**
-     * Remove a single child from its group and auto-restore the final child.
+     * Remove only the selected child, preserving the head and all remaining children.
      *
      * @param int $childId Child recommendation ID.
      * @param int|null $actorId Current user ID.
@@ -177,18 +177,6 @@ class RecommendationGroupingService
 
             $headId = (int)$child->recommendation_group_id;
             $this->restoreRecommendationToOrigin($child, $actorId);
-
-            $remainingCount = $this->recommendationsTable->find()
-                ->where(['recommendation_group_id' => $headId])
-                ->count();
-
-            if ($remainingCount === 1) {
-                /** @var \Awards\Model\Entity\Recommendation $lastChild */
-                $lastChild = $this->recommendationsTable->find()
-                    ->where(['recommendation_group_id' => $headId])
-                    ->firstOrFail();
-                $this->restoreRecommendationToOrigin($lastChild, $actorId);
-            }
 
             return $headId;
         });

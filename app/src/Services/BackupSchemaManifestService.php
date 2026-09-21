@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use Cake\Database\Driver\Postgres;
 use Cake\Datasource\ConnectionManager;
 
 /**
@@ -46,6 +47,25 @@ class BackupSchemaManifestService
             if (method_exists($schema, 'indexes') && method_exists($schema, 'getIndex')) {
                 foreach ($schema->indexes() as $indexName) {
                     $indexes[$indexName] = $this->normalizeDefinition($schema->getIndex($indexName) ?? []);
+                }
+            }
+
+            // Cake's PostgreSQL schema reflection omits partial-index predicates.
+            // Preserve them so restore cannot turn conditional uniqueness into a table-wide constraint.
+            if ($connection->getDriver() instanceof Postgres) {
+                $predicates = $connection->execute(
+                    'SELECT c.relname AS name, pg_get_expr(i.indpred, i.indrelid) AS predicate '
+                    . 'FROM pg_catalog.pg_index i JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid '
+                    . 'WHERE i.indrelid = to_regclass(?) AND i.indpred IS NOT NULL',
+                    [$connection->getDriver()->quoteIdentifier($tableName)],
+                )->fetchAll('assoc');
+                foreach ($predicates as $index) {
+                    $name = $index['name'];
+                    if (isset($constraints[$name])) {
+                        $constraints[$name]['where'] = $index['predicate'];
+                    } elseif (isset($indexes[$name])) {
+                        $indexes[$name]['where'] = $index['predicate'];
+                    }
                 }
             }
 

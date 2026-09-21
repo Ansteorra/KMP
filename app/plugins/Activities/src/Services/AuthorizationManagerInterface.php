@@ -1,10 +1,8 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Activities\Services;
 
-use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Services\ServiceResult;
 
 /**
@@ -32,7 +30,7 @@ interface AuthorizationManagerInterface
      * @param int $activityId ID of activity for authorization
      * @param int $approverId ID of assigned approver
      * @param bool $isRenewal Whether this is a renewal request
-     * @return ServiceResult Success with request data or error details
+     * @return \App\Services\ServiceResult Success with the inserted authorizationId, or error details
      */
     public function request(
         int $requesterId,
@@ -50,12 +48,12 @@ interface AuthorizationManagerInterface
      * @param int $authorizationId ID of authorization to revoke
      * @param int $revokerId ID of administrator performing revocation
      * @param string $revokedReason Detailed reason for revocation
-     * @return ServiceResult Success with revocation confirmation or error details
+     * @return \App\Services\ServiceResult Success with revocation confirmation or error details
      */
     public function revoke(
         int $authorizationId,
         int $revokerId,
-        string $revokedReason
+        string $revokedReason,
     ): ServiceResult;
 
     /**
@@ -66,7 +64,7 @@ interface AuthorizationManagerInterface
      *
      * @param int $authorizationId ID of authorization to activate
      * @param int $approverId ID of the final approver triggering activation
-     * @return ServiceResult Success with activation data or error details
+     * @return \App\Services\ServiceResult Success with activation data or error details
      */
     public function activate(
         int $authorizationId,
@@ -81,10 +79,10 @@ interface AuthorizationManagerInterface
      *
      * @param int $authorizationId ID of authorization to retract
      * @param int $requesterId ID of member retracting (must be owner)
-     * @return ServiceResult Success with retraction confirmation or error details
+     * @return \App\Services\ServiceResult Success with retraction confirmation or error details
      */
     public function retract(
         int $authorizationId,
-        int $requesterId
+        int $requesterId,
     ): ServiceResult;
 }
