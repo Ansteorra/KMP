@@ -15,6 +15,7 @@ Own KMP-specific reusable helpers, grid column metadata, permission loading, ide
 - Grid column definitions extend `App\KMP\GridColumns\BaseGridColumns`.
 - Implement `getColumns()` and set metadata such as `defaultVisible`, `searchable`, `sortable`, `filterable`, and `filterType`.
 - Override `getSystemViews()` for built-in grid views.
+- Saved flat filters and expression trees must honor `filterQueryField` before `queryField`, just like live dropdowns. Relation filters persist IDs even when the visible column displays or sorts by a name.
 - Use helper methods such as `getSearchableColumns()` and `getDropdownFilterColumns()` instead of duplicating metadata scans.
 - Keep utility methods deterministic and avoid request-specific state unless the class is explicitly context-aware.
 

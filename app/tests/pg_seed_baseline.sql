@@ -30448,7 +30448,7 @@ INSERT INTO "officers_offices" ("id", "name", "department_id", "requires_warrant
 (73, 'Kingdom Treasurer', 6, TRUE, TRUE, FALSE, TRUE, NULL, NULL, 24, '2025-01-13 20:37:59', '2025-01-13 20:37:38', 1, 1073, NULL, '"Kingdom"', NULL, ''),
 (74, 'Kingdom Treasurer Deputy', 6, TRUE, FALSE, FALSE, FALSE, 73, NULL, 24, '2025-01-13 20:39:20', '2025-01-13 20:38:42', 1, 1073, NULL, '"Kingdom"', 73, ''),
 (75, 'Deleted: Regional Treasurer', 6, TRUE, TRUE, FALSE, TRUE, 73, NULL, 24, '2025-01-13 20:46:18', '2025-01-13 20:40:26', 1, 1073, '2025-01-13 20:46:18', '"Principality","Region"', 73, ''),
-(76, 'Local Treasurer', 6, TRUE, TRUE, FALSE, TRUE, NULL, NULL, 24, '2025-01-13 21:03:50', '2025-01-13 20:41:04', 1, 1096, NULL, '"Local Group"', 77, ''),
+(76, 'Local Treasurer', 6, TRUE, TRUE, FALSE, TRUE, NULL, 1122, 24, '2025-01-13 21:03:50', '2025-01-13 20:41:04', 1, 1096, NULL, '"Local Group"', 77, ''),
 (77, 'Regional Treasurer', 6, TRUE, TRUE, FALSE, TRUE, NULL, NULL, 24, '2025-01-13 20:47:07', '2025-01-13 20:47:07', 1, 1073, NULL, '"Principality","Region"', 73, ''),
 (78, 'Kingdom Social Media Deputy', 2, TRUE, FALSE, FALSE, FALSE, 50, NULL, 24, '2025-01-13 21:56:33', '2025-01-13 21:56:33', 1, 1096, NULL, '"Kingdom"', 50, ''),
 (79, 'Regional Chronicler Deputy', 9, TRUE, FALSE, FALSE, FALSE, 8, NULL, 24, '2025-01-13 22:03:17', '2025-01-13 22:03:17', 1, 1073, NULL, '"Principality","Region"', 8, ''),

@@ -12,4 +12,7 @@ interface ActionItemOwnerInterface
      * Whether the owner's ActionItems may still change state or definition.
      */
     public function allowsActionItemMutations(): bool;
+
+    /** Explain why stale requests cannot change this owner's checklist. */
+    public function actionItemReadOnlyReason(): string;
 }

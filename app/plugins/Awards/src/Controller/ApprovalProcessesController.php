@@ -8,6 +8,7 @@ use App\KMP\CaseInsensitiveQuery;
 use App\Services\CsvExportService;
 use Awards\KMP\GridColumns\ApprovalProcessesGridColumns;
 use Awards\Model\Entity\ApprovalProcessStep;
+use Awards\Services\ApprovalSyncJobService;
 use Awards\Services\AwardApprovalResolverService;
 use Awards\Services\RecommendationApprovalWorkflowSyncService;
 use Cake\Http\Exception\NotFoundException;
@@ -59,50 +60,29 @@ class ApprovalProcessesController extends AppController
         $approvalProcess = $this->ApprovalProcesses->get($id);
         $this->Authorization->authorize($approvalProcess, 'syncOpenRecommendations');
         $identity = $this->request->getAttribute('identity');
-        $result = $syncService->syncApprovalProcess(
+        $run = (new ApprovalSyncJobService($syncService))->enqueue(
             (int)$approvalProcess->id,
             (int)$identity->getIdentifier(),
         );
-        $data = is_array($result->getData()) ? $result->getData() : [];
-        $summary = __(
-            'Found {0} outdated open recommendation(s) assigned to {1}: {2} restarted '
-            . 'after cancelling {3} prior run(s), {4} skipped, and {5} failed.',
-            (int)($data['candidateCount'] ?? 0),
-            (string)$approvalProcess->name,
-            (int)($data['restartedCount'] ?? 0),
-            (int)($data['cancelledRunCount'] ?? 0),
-            (int)($data['activeRunSkippedCount'] ?? 0),
-            (int)($data['activeRunFailedCount'] ?? 0),
-        );
-        $attentionRecommendationIds = [];
-        foreach ($data['failures'] ?? [] as $attention) {
-            if (is_array($attention) && !empty($attention['recommendationId'])) {
-                $attentionRecommendationIds[] = (int)$attention['recommendationId'];
-            }
-        }
-        $attentionRecommendationIds = array_values(array_unique($attentionRecommendationIds));
-        if ($attentionRecommendationIds !== []) {
-            $shownIds = array_slice($attentionRecommendationIds, 0, 10);
-            $summary .= ' ' . __('Recommendations needing attention: #{0}.', implode(', #', $shownIds));
-            if (count($attentionRecommendationIds) > count($shownIds)) {
-                $summary .= ' ' . __('{0} more not shown.', count($attentionRecommendationIds) - count($shownIds));
-            }
-        }
-        $activeRunFailureCount = (int)($data['activeRunFailedCount'] ?? 0);
-        $summary .= $this->operationCategorySummary([
-            __('Active workflow restart error') => $activeRunFailureCount,
-        ], __('Failure categories'));
-
-        if (!$result->isSuccess()) {
-            $reason = $result->getError();
-            $this->Flash->error($reason === null ? $summary : $summary . ' ' . $reason);
-        } elseif ((int)($data['failedCount'] ?? 0) > 0) {
-            $this->Flash->warning($summary);
-        } else {
-            $this->Flash->success($summary);
-        }
+        $this->Flash->success(__('Synchronization #{0} is queued. Progress appears on this page; '
+            . 'you may leave while it runs.', $run->id));
 
         return $this->redirect(['action' => 'view', $approvalProcess->id]);
+    }
+
+    /** Read-only progress, protected by the same process synchronization policy. */
+    public function syncStatus($id, RecommendationApprovalWorkflowSyncService $syncService): Response
+    {
+        $this->request->allowMethod(['get']);
+        $process = $this->ApprovalProcesses->get($id);
+        $this->Authorization->authorize($process, 'syncOpenRecommendations');
+        $status = (new ApprovalSyncJobService($syncService))->latest(
+            (int)$id,
+            (int)$this->request->getQuery('page', 1),
+        );
+
+        return $this->response->withType('application/json')->withHeader('Cache-Control', 'no-store')
+            ->withStringBody(json_encode($status, JSON_THROW_ON_ERROR));
     }
 
     /**
@@ -214,9 +194,10 @@ class ApprovalProcessesController extends AppController
         }
 
         $this->Authorization->authorize($approvalProcess);
-        $outdatedRecommendationCount = $syncService === null
-            ? 0
-            : $syncService->countOutdatedRecommendations((int)$approvalProcess->id);
+        $outdatedRecommendationCount = null; // Candidate discovery belongs to the background job.
+        $syncStatus = $syncService === null ? []
+            : (new ApprovalSyncJobService($syncService))->latest((int)$approvalProcess->id);
+        $this->set('syncStatus', $syncStatus);
 
         $previewAwardId = $this->request->getQuery('preview_award_id');
         $preview = null;

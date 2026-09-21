@@ -16,23 +16,43 @@ web Container App does not run migrations on startup.
 
 ### Release to POC
 
-1. Merge the approved pull request into official `main`.
-2. Wait for `Quality Gates` to pass for that exact commit.
-3. Fast-forward official `dev` to that commit and push `dev`.
-4. `Nightly / Dev Docker Image` verifies the existing quality-gate evidence,
-   builds `ghcr.io/ansteorra/kmp:dev-<short-sha>` for AMD64, scans it, and
-   smoke-checks that immutable image digest.
-5. `POC / Deploy to Azure` resolves the immutable GHCR digest, imports it to POC
+1. Prepare the selected candidate on official `dev` and open a `dev` → `main`
+   PR when the team needs to validate changes before merge. Commit the release
+   version and notes before testing; record manual results against the running SHA.
+   If starting from approved `main` instead, fast-forward `dev` to that commit
+   without discarding unmerged dev work. Never force-push the branch.
+2. Push `dev`. `Quality Gates` runs the full suites on that exact branch commit,
+   and `Nightly / Dev Docker Image` waits for successful **dev-push** evidence
+   for the same SHA. Pull-request runs are not accepted as branch-push evidence.
+3. The image workflow builds `ghcr.io/ansteorra/kmp:dev-<short-sha>` for AMD64,
+   scans it, and smoke-checks that immutable image digest. Failed or missing
+   quality evidence blocks image publication and POC deployment.
+4. `POC / Deploy to Azure` resolves the immutable GHCR digest, imports it to POC
    ACR, captures rollback evidence, canaries the unified worker, runs the ordered
    migration job, cuts over web, verifies `/livez` and `/health`, and aligns
    retained jobs.
-6. Only after that deployment succeeds, the workflow applies
+5. Only after that deployment succeeds, the workflow applies
    `poc-validated-<12-char-sha>` to the same digest.
-7. Validate tenant login, host resolution, queue/worker processing, Platform
+6. Validate tenant login, host resolution, queue/worker processing, Platform
    Admin access on its reserved host, backup readiness, and the release's changed
-   user journeys.
+   user journeys. Keep the team's results and sign-off in the PR before merging.
 
-A scheduled `main` build publishes the `nightly` channel but does not
+Merge the release PR with an ancestry-preserving merge commit (or fast-forward),
+**not squash or rebase**. Production requires successful **main-push** quality
+evidence and POC validation for the exact resulting release SHA. Fetch upstream,
+verify `git merge-base --is-ancestor upstream/dev upstream/main`, then fast-forward
+`dev` with `git merge --ff-only upstream/main` and push it to repeat image/POC
+validation for that Main SHA. An earlier Dev image is not merge-commit evidence.
+
+If that ancestry check fails after a squash/rebase or divergent Dev work, preserve
+both branches. Obtain a reviewed reconciliation merge on `main` containing the
+current Dev tip, and use its new SHA as the candidate. Do not reset/force-push Dev
+or merge Main back into Dev to claim validation of a different SHA. Manual POC
+image dispatch currently does not record the exact-SHA evidence tag needed for
+stable promotion.
+
+A scheduled `main` build requires exact-commit main-push quality evidence and
+publishes the `nightly` channel but does not
 automatically deploy it to POC. POC deployment is triggered by a successful
 `dev` image build or an explicit workflow dispatch.
 
