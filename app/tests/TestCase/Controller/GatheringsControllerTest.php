@@ -273,6 +273,46 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseNotContains('Created By');
     }
 
+    /** Scheduled activities with end times must render decimal durations without a type error. */
+    public function testViewRendersScheduledActivityDurations(): void
+    {
+        $gathering = $this->createCalendarGathering('Schedule Duration Regression', false);
+        $scheduledActivities = $this->getTableLocator()->get('GatheringScheduledActivities');
+        $expectedLabels = [30 => '0.5 hours', 60 => '1.0 hour', 90 => '1.5 hours', 120 => '2.0 hours'];
+        foreach ($expectedLabels as $minutes => $label) {
+            $activity = $this->createScheduledActivity(
+                $gathering,
+                self::ADMIN_MEMBER_ID,
+                'Duration ' . $minutes,
+            );
+            $activity->has_end_time = true;
+            $activity->end_datetime = $activity->start_datetime->modify('+' . $minutes . ' minutes');
+            $scheduledActivities->saveOrFail($activity);
+        }
+        $this->createScheduledActivity($gathering, self::ADMIN_MEMBER_ID, 'Open-ended activity');
+
+        $this->get('/gatherings/view/' . $gathering->public_id);
+        $this->assertResponseOk();
+        $document = new DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+        try {
+            $document->loadHTML((string)$this->_response->getBody());
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
+        $xpath = new DOMXPath($document);
+        foreach ($expectedLabels as $minutes => $label) {
+            $cells = $xpath->query('//tr[td/strong[text()="Duration ' . $minutes . '"]]/td[1]');
+            $this->assertCount(1, $cells);
+            $text = preg_replace('/\s+/', ' ', $cells->item(0)->textContent);
+            $this->assertStringContainsString('(' . $label . ')', $text);
+        }
+        $openEndedCells = $xpath->query('//tr[td/strong[text()="Open-ended activity"]]/td[1]');
+        $this->assertCount(1, $openEndedCells);
+        $this->assertStringNotContainsString('hour', $openEndedCells->item(0)->textContent);
+    }
+
     /**
      * Creator metadata remains visible when a gathering has no explicit timezone.
      *

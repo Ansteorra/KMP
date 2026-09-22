@@ -129,7 +129,7 @@ $deleteScheduleUrl = $this->Url->build(['action' => 'deleteScheduledActivity', $
                                     <br>
                                     <small class="text-muted">
                                         (<?= number_format($scheduledActivity->duration_hours, 1) ?>
-                                        <?= __n('hour', 'hours', $scheduledActivity->duration_hours) ?>)
+                                        <?= $scheduledActivity->duration_hours === 1.0 ? __('hour') : __('hours') ?>)
                                     </small>
                                 <?php endif; ?>
                             </td>

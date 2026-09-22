@@ -27,6 +27,7 @@ KMP 1.5.11 adds scheduled grid emails, more flexible passkey setup, and remember
 
 ### Waivers, Gatherings, and Navigation
 
+- Gathering details open correctly when scheduled activities have end times, and schedule durations retain fractional hours.
 - Waiver Dashboard sections start collapsed so it is easier to find the section you need.
 - Gathering waiver summaries show Uploaded, Exempted, Declined, or Pending status, reasons, uploader, and upload date. Decline eligibility appears with the actions; retention details remain on the individual waiver page.
 - Long modal content scrolls within short desktop and mobile viewports, including forms and embedded content.
