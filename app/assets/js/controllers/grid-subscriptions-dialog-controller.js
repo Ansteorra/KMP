@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import { Modal } from 'bootstrap';
 
 /** Manage subscriptions in the profile without navigating away after cancellation. */
 class GridSubscriptionsDialogController extends Controller {
@@ -6,10 +7,15 @@ class GridSubscriptionsDialogController extends Controller {
     static values = { url: String, autoOpen: Boolean };
 
     connect() {
+        this.modal = Modal.getOrCreateInstance(this.element);
+        this.modalOpening = false;
+        this.onModalOpening = () => { this.modalOpening = true; };
+        this.onModalShown = () => { this.modalOpening = false; };
+        this.element.addEventListener('show.bs.modal', this.onModalOpening);
+        this.element.addEventListener('shown.bs.modal', this.onModalShown);
         if (this.autoOpenValue) {
             this.autoOpenRequest = requestAnimationFrame(() => {
-                window.bootstrap.Modal.getOrCreateInstance(this.element)
-                    .show(document.getElementById('emailSubscriptionsButton'));
+                this.modal.show(document.getElementById('emailSubscriptionsButton'));
             });
         }
     }
@@ -58,6 +64,26 @@ class GridSubscriptionsDialogController extends Controller {
 
     disconnect() {
         cancelAnimationFrame(this.autoOpenRequest);
+        this.element.removeEventListener('show.bs.modal', this.onModalOpening);
+        this.element.removeEventListener('shown.bs.modal', this.onModalShown);
+        const modal = this.modal;
+        this.modal = null;
+        if (!modal) return;
+        if (this.modalOpening || this.element.getAttribute('aria-modal') === 'true') {
+            // Let Bootstrap release its backdrop, scroll lock and transition callbacks first.
+            const wasRemoved = !this.element.isConnected;
+            const hide = () => modal.hide();
+            this.element.addEventListener('hidden.bs.modal', () => {
+                this.element.removeEventListener('shown.bs.modal', hide);
+                if (this.modal === modal) return; // Reconnected while the hide was completing.
+                modal.dispose();
+                if (wasRemoved) this.element.remove();
+            }, { once: true });
+            this.element.addEventListener('shown.bs.modal', hide, { once: true });
+            modal.hide();
+        } else {
+            modal.dispose();
+        }
     }
 }
 window.Controllers ||= {};

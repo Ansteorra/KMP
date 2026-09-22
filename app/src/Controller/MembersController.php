@@ -2213,6 +2213,9 @@ class MembersController extends AppController
                     'success' => false, 'message' => 'Passkey sign-in failed. Try again or sign in with your password.',
                 ], JSON_THROW_ON_ERROR));
         }
+        $member->last_login = DateTime::now();
+        $member->setDirty('modified', true);
+        $this->Members->saveOrFail($member);
         $this->Authentication->setIdentity($member);
 
         return $this->redirectAfterSuccessfulLogin()->withHeader('Cache-Control', 'no-store');

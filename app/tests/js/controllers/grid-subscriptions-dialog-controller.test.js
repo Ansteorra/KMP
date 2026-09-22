@@ -1,3 +1,4 @@
+import { Modal } from 'bootstrap';
 import GridSubscriptionsDialogController from '../../../assets/js/controllers/grid-subscriptions-dialog-controller.js';
 
 let controller;
@@ -54,4 +55,56 @@ test('cancellation asks for confirmation in place and keeping it restores the ac
     expect(keep.parentElement.hidden).toBe(true);
     expect(button.hidden).toBe(false);
     expect(document.activeElement).toBe(button);
+});
+
+
+test('owns the shared Bootstrap instance and disposes it when disconnected', () => {
+    controller.element.innerHTML = '<div class="modal-dialog"></div>';
+    const existing = Modal.getOrCreateInstance(controller.element);
+    controller.connect();
+    expect(controller.modal).toBe(existing);
+    controller.disconnect();
+    expect(Modal.getInstance(controller.element)).toBeNull();
+    expect(controller.modal).toBeNull();
+    controller.connect();
+    expect(controller.modal).not.toBe(existing);
+});
+
+test('auto-open uses the owned modal and disconnect cancels a pending open', () => {
+    controller.element.innerHTML = '<div class="modal-dialog"></div>';
+    controller.element.classList.remove('show');
+    jest.useFakeTimers();
+    controller.autoOpenValue = true;
+    controller.connect();
+    const show = jest.spyOn(controller.modal, 'show').mockImplementation(() => {});
+    jest.runOnlyPendingTimers();
+    expect(show).toHaveBeenCalledWith(document.getElementById('emailSubscriptionsButton'));
+    controller.disconnect();
+    controller.connect();
+    const pendingShow = jest.spyOn(controller.modal, 'show').mockImplementation(() => {});
+    controller.disconnect();
+    jest.runOnlyPendingTimers();
+    expect(pendingShow).not.toHaveBeenCalled();
+    jest.useRealTimers();
+});
+
+
+test.each(['opening', 'shown', 'closing'])('disconnect during %s releases backdrop and scroll lock after transitions', stage => {
+    jest.useFakeTimers();
+    controller.element.className = 'modal fade';
+    controller.element.innerHTML = '<div class="modal-dialog"><div class="modal-content"></div></div>';
+    controller.connect();
+    const modal = controller.modal;
+    modal.show();
+    if (stage !== 'opening') jest.runAllTimers();
+    if (stage === 'closing') modal.hide();
+    controller.element.remove();
+    controller.disconnect();
+    jest.runAllTimers();
+    expect(Modal.getInstance(controller.element)).toBeNull();
+    expect(document.querySelector('.modal-backdrop')).toBeNull();
+    expect(document.body).not.toHaveClass('modal-open');
+    expect(document.body.style.overflow).toBe('');
+    expect(controller.element.isConnected).toBe(false);
+    jest.useRealTimers();
 });

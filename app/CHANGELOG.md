@@ -15,6 +15,8 @@ KMP 1.5.11 adds scheduled grid emails, more flexible passkey setup, and remember
 - Passkeys that support offline encryption can protect both login and offline information. Other passkeys, including compatible password-manager passkeys, remain usable for online login; add a PIN for offline decryption or finish online-only setup with a clear warning and add the PIN later. When offline, use the passkey for authentication and the PIN to unlock saved information when passkey authentication is available; PIN-only access remains available when it is not.
 - Device setup remembers **Use online only** for each account in the current browser across logout and future visits. **Security** remains available to change the choice, and stopping trust also suppresses repeat setup prompts.
 
+- Successful passkey sign-ins update the member’s last-login time, keeping member records current.
+
 ### Grid Email Subscriptions
 
 - **Email this view** sends a summary of up to 50 matching rows and a link from My Approvals, My To-Dos, Warrant Rosters, and Bestowals daily, every three days, or weekly. Subscriptions capture the current view, including unsaved filters, search, sorting, and columns. Empty scheduled results are skipped.
