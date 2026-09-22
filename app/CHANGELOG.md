@@ -3,8 +3,39 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: ccf943ae2d9de62e4db76aa5439bf436828c08e3 -->
-<!-- LAST_SYNCED_DATE: 2026-09-17 -->
+<!-- LAST_SYNCED_COMMIT: 52d7c7a2347a8a54f265534b87c0ba2b56c9e6dd -->
+<!-- LAST_SYNCED_DATE: 2026-09-22 -->
+
+## KMP 1.5.11 — September 25, 2026
+
+KMP 1.5.11 adds scheduled grid emails, more flexible passkey setup, and remembered device choices. It also improves waiver review, modal usability, gathering attendance, and back-arrow navigation.
+
+### Passkeys and Device Choices
+
+- Passkeys that support offline encryption can protect both login and offline information. Other passkeys, including compatible password-manager passkeys, remain usable for online login; add a PIN for offline decryption or finish online-only setup with a clear warning and add the PIN later. When offline, use the passkey for authentication and the PIN to unlock saved information when passkey authentication is available; PIN-only access remains available when it is not.
+- Device setup remembers **Use online only** for each account in the current browser across logout and future visits. **Security** remains available to change the choice, and stopping trust also suppresses repeat setup prompts.
+
+### Grid Email Subscriptions
+
+- **Email this view** sends a summary of up to 50 matching rows and a link from My Approvals, My To-Dos, Warrant Rosters, and Bestowals daily, every three days, or weekly. Subscriptions capture the current view, including unsaved filters, search, sorting, and columns. Empty scheduled results are skipped.
+- **Send me a sample** emails the current view immediately without creating a subscription or changing its schedule.
+- Manage or cancel subscriptions in a scrollable modal on your profile. Cancellation stays in the modal, and management links from emails open your own profile correctly.
+- Each delivery checks current account permissions and view access. Subscriptions stop gracefully when that access is lost.
+- Kingdoms can customize the subject and email bodies in **Email Templates → Grid Email Summary** and choose the template in **App Settings → Email.GridSubscriptionTemplate**. Samples and scheduled emails use the same template, and changes apply to subsequent sends without a workflow.
+
+### Waivers, Gatherings, and Navigation
+
+- Waiver Dashboard sections start collapsed so it is easier to find the section you need.
+- Gathering waiver summaries show Uploaded, Exempted, Declined, or Pending status, reasons, uploader, and upload date. Decline eligibility appears with the actions; retention details remain on the individual waiver page.
+- Long modal content scrolls within short desktop and mobile viewports, including forms and embedded content.
+- **Mark Your Attendance** in Gathering Details reliably opens RSVP, and successful saves close the dialog. Reopening the gathering shows the updated attendance, with improved keyboard focus handling.
+- App back arrows return to full pages instead of unstyled modal content. Modal requests and background activity no longer interfere with navigation history, and previously affected history clears automatically.
+
+### Upgrade Notes
+
+- Apply the core and platform migrations through the normal deployment workflow to install subscription storage, its recurring schedule, and the default email template and setting. Existing kingdom email customizations are preserved.
+
+---
 
 ## KMP 1.5.10 — September 15, 2026
 
@@ -36,12 +67,6 @@ KMP 1.5.10 improves award and officer workflows, member administration, saved vi
 
 ### Members, Gatherings, and Saved Views
 
-- Device setup remembers **Use online only** for each account in the current browser across logout and future visits. Security remains available to change the choice; stopping trust also suppresses repeat setup prompts.
-
-- **Email this view** sends a summary of up to 50 matching rows and a link from My Approvals, My To-Dos, Warrant Rosters, and Bestowals daily, every three days, or weekly. **Send me a sample** sends the current view immediately without creating or changing a subscription. Kingdoms can customize the email in Email Templates and select it in App Settings. Empty scheduled results are skipped. Manage or cancel subscriptions from your profile; deliveries use current permissions and stop when account or view access is lost.
-- Waiver Dashboard sections start collapsed. Gathering waiver summaries show Uploaded, Exempted, Declined, or Pending status, reasons, uploader, and upload date; retention details remain on the individual waiver page.
-- Long modal content scrolls within short desktop and mobile viewports, including forms and Turbo Frames.
-
 - SCA-name and other supported case-insensitive searches also ignore diacritics, so unaccented text can find accented names.
 - **Member Data Import** can update either membership or background-check expiration dates using a two-column CSV. It validates date formats, headers, and duplicate member numbers, reports unmatched numbers, and restricts access to super users or the current Kingdom Seneschal with the dedicated import permission.
 - Membership reviewers can **Request new upload** for an unreadable card, with a workflow-driven email to the member. Membership-card validation supports genuine JPEG/JFIF, PNG, GIF, and WebP images and rejects invalid content.
@@ -50,10 +75,8 @@ KMP 1.5.10 improves award and officer workflows, member administration, saved vi
 - PostgreSQL grid sorting by office/member names, award abbreviations, and approval queues correctly loads related warrants and gatherings. Platform-admin error pages render without a secondary changelog-link routing error.
 - Saved/custom grid views retain visible, locked system filters when copied or saved. Recommendations, My Approvals, My To-Dos, Gatherings, and Warrants retain their required personal, status, and time constraints.
 - My To-Dos displays each completion or reopening confirmation once and reuses owner-state checks for tasks belonging to the same record.
-- Email subscription management opens in a profile modal. Cancellation stays in the modal, and management links from emails open the member’s own profile correctly.
 - My Approvals and My To-Dos support custom views. Approvals add requester-name filtering and corrected queue sorting; to-dos add title, required/optional, and gathering filters. Replaced approvals explain why a new process needs fresh decisions.
 - Authenticated gathering-calendar users can create personal saved views and switch them through shared view tabs. Successful attendance registration closes its modal and gives accessible saved feedback. Modal errors, repeat submissions, and focus restoration are handled more consistently.
-- Gathering Details now opens RSVP reliably. App back arrows retain full pages and skip modal content, redirects, downloads, and background requests; existing polluted navigation history resets automatically.
 - Gathering-calendar Month, Week, and List controls keep their selected indicator in sync after navigation and saved-view updates. Event titles in List View open the gathering page without a “Content missing” error.
 - Workflow designer loading and saving preserve declared output branches, including next/default aliases and custom outputs, and position nodes sensibly when saved layout information is incomplete.
 
