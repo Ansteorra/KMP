@@ -20,7 +20,6 @@ use App\Services\ImpersonationService;
 use App\Services\RestoreStatusService;
 use App\Services\ViewCellRegistry;
 use Cake\Controller\Controller;
-use Cake\Core\Configure;
 use Cake\Event\Event;
 use Cake\Event\EventInterface;
 use Cake\Event\EventManager;
@@ -157,12 +156,7 @@ class AppController extends Controller
             $this->request->getParam('pass'),
         ];
 
-        // Build current URL with base path
-        $baseSub = Configure::read('App.base');
         $currentUrl = $this->request->getRequestTarget();
-        if ($baseSub != null) {
-            $currentUrl = $baseSub . $currentUrl;
-        }
         $this->set('currentUrl', $currentUrl);
 
         // Navigation history management
@@ -195,39 +189,9 @@ class AppController extends Controller
             $isNoStack = true;
         }
 
-        $pageStack = $session->read('pageStack', []);
-        if ($params['action'] == 'index') {
-            $pageStack = [];
-        }
-
         $isFragmentRequest = $this->isFragmentRequest();
-        if (!$isNoStack) {
-            $isNoStack = $this->request->getQuery('nostack') != null;
-        }
-        $isPostType = $this->request->is('post') || $this->request->is('put') || $this->request->is('delete');
-
-        // Update page stack
-        if (!$isFragmentRequest && !$isPostType && !$isNoStack) {
-            if (empty($pageStack)) {
-                $pageStack[] = $currentUrl;
-            }
-            $historyCount = count($pageStack);
-
-            // Handle back navigation
-            if (($historyCount > 1) && ($pageStack[$historyCount - 2] == $currentUrl)) {
-                $historyCount--;
-                array_pop($pageStack);
-            }
-
-            if ($pageStack[$historyCount - 1] != $currentUrl) {
-                $pageStack[] = $currentUrl;
-            }
-        }
-
-        if (!$isFragmentRequest) {
-            $session->write('pageStack', $pageStack);
-        }
-        $this->set('pageStack', $pageStack);
+        $this->set('pageStack', (array)$session->read('pageStack', []));
+        $this->set('skipPageHistory', $isNoStack || $this->request->getQuery('nostack') !== null);
 
         $impersonationService = new ImpersonationService();
         $impersonationState = $impersonationService->getState($session);
@@ -410,6 +374,7 @@ class AppController extends Controller
     public function beforeRender(EventInterface $event)
     {
         parent::beforeRender($event);
+        $this->recordPageHistory();
 
         if ($this->viewBuilder()->hasVar('pluginViewCells')) {
             return;
@@ -433,6 +398,49 @@ class AppController extends Controller
         }
 
         $this->set('pluginViewCells', $this->pluginViewCells);
+    }
+
+    /** Record only successful document renders, after actions have selected their response/layout. */
+    private function recordPageHistory(): void
+    {
+        $status = $this->response->getStatusCode();
+        $layout = $this->viewBuilder()->getLayout();
+        $destination = $this->request->getHeaderLine('Sec-Fetch-Dest');
+        $acceptsDocument = str_contains($this->request->getHeaderLine('Accept'), 'text/html');
+        if (
+            !$this->request->is('get') || $this->isFragmentRequest()
+            || $this->viewBuilder()->getVar('skipPageHistory')
+            || !$this->viewBuilder()->isAutoLayoutEnabled()
+            || in_array($layout, ['ajax', 'turbo_frame'], true)
+            || ($destination !== '' && $destination !== 'document' && !($destination === 'empty' && $acceptsDocument))
+            || $status < 200 || $status >= 300
+            || !str_starts_with($this->response->getType(), 'text/html')
+            || $this->response->hasHeader('Content-Disposition')
+        ) {
+            return;
+        }
+
+        $session = $this->request->getSession();
+        // Discard entries recorded before fragment/redirect responses were excluded.
+        $stack = $session->read('pageStackVersion') === 2 ? (array)$session->read('pageStack', []) : [];
+        $stack = array_values(array_filter(
+            $stack,
+            static fn($url) => is_string($url) && str_starts_with($url, '/') && !str_starts_with($url, '//'),
+        ));
+        $url = $this->request->getRequestTarget();
+        if ($this->request->getParam('action') === 'index') {
+            $stack = [];
+        }
+        $previous = array_search($url, $stack, true);
+        if ($previous !== false) {
+            $stack = array_slice($stack, 0, $previous + 1);
+        } else {
+            $stack[] = $url;
+        }
+        $stack = array_slice($stack, -50);
+        $session->write('pageStack', $stack);
+        $session->write('pageStackVersion', 2);
+        $this->set('pageStack', $stack);
     }
 
     /**

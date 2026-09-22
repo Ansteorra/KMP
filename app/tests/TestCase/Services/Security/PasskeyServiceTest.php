@@ -67,7 +67,12 @@ final class PasskeyServiceTest extends BaseTestCase
         $member = $this->request->getAttribute('identity');
         $options = $this->service->registrationOptions($this->request, $member);
         $details = openssl_pkey_get_details($this->key);
-        $cose = $this->cbor([1 => 2, 3 => -7, -1 => 1, -2 => $details['ec']['x'], -3 => $details['ec']['y']]);
+        // OpenSSL may omit leading zero bytes; COSE P-256 coordinates must be 32 bytes.
+        $cose = $this->cbor([
+            1 => 2, 3 => -7, -1 => 1,
+            -2 => str_pad($details['ec']['x'], 32, "\0", STR_PAD_LEFT),
+            -3 => str_pad($details['ec']['y'], 32, "\0", STR_PAD_LEFT),
+        ]);
         $authData = hash('sha256', 'localhost', true) . chr(0x45) . pack('N', 0)
             . str_repeat("\0", 16) . pack('n', strlen($this->credential)) . $this->credential . $cose;
         $attestation = $this->cbor(['fmt' => 'none', 'attStmt' => [], 'authData' => $authData]);

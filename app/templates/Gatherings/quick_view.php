@@ -28,7 +28,7 @@ $showAttendanceControls = isset($canAttend)
         <!-- Cancelled Banner -->
         <div class="alert alert-danger mb-3" role="alert">
             <h5 class="alert-heading mb-1">
-                <i class="bi bi-exclamation-triangle-fill"></i>
+                <i aria-hidden="true" class="bi bi-exclamation-triangle-fill"></i>
                 <?= __('EVENT CANCELLED') ?>
             </h5>
             <?php if (!empty($gathering->cancellation_reason)): ?>
@@ -52,20 +52,20 @@ $showAttendanceControls = isset($canAttend)
         <!-- Date and Location -->
         <div class="row mb-3">
             <div class="col-md-6">
-                <h6><i class="bi bi-calendar-event"></i> Date & Time</h6>
+                <h6><i aria-hidden="true" class="bi bi-calendar-event"></i> Date & Time</h6>
                 <?php if ($gathering->start_date->format('Y-m-d') === $gathering->end_date->format('Y-m-d')): ?>
                     <p>
                         <?= $this->Timezone->format($gathering->start_date, 'l, F j, Y', false, null, $gathering) ?><br>
                         <small class="text-muted">
                             <?= $this->Timezone->format($gathering->start_date, 'g:i A', false, null, $gathering) ?>
-                            <i class="bi bi-arrow-right"></i>
+                            <i aria-hidden="true" class="bi bi-arrow-right"></i>
                             <?= $this->Timezone->format($gathering->end_date, 'g:i A', false, null, $gathering) ?>
                         </small>
                     </p>
                 <?php else: ?>
                     <p>
                         <?= $this->Timezone->format($gathering->start_date, 'M j, Y g:i A', false, null, $gathering) ?>
-                        <i class="bi bi-arrow-right"></i>
+                        <i aria-hidden="true" class="bi bi-arrow-right"></i>
                         <?= $this->Timezone->format($gathering->end_date, 'M j, Y g:i A', false, null, $gathering) ?>
                         <br>
                         <small class="text-muted">
@@ -79,13 +79,13 @@ $showAttendanceControls = isset($canAttend)
                 <?php endif; ?>
                 <?php if (!empty($gathering->timezone)): ?>
                     <small class="text-muted">
-                        <i class="bi bi-clock"></i> <?= h($gathering->timezone) ?>
+                        <i aria-hidden="true" class="bi bi-clock"></i> <?= h($gathering->timezone) ?>
                         (<?= $this->Timezone->getAbbreviation($gathering->start_date, $gathering->timezone) ?>)
                     </small>
                 <?php endif; ?>
             </div>
             <div class="col-md-6">
-                <h6><i class="bi bi-geo-alt"></i> Location</h6>
+                <h6><i aria-hidden="true" class="bi bi-geo-alt"></i> Location</h6>
                 <p>
                     <strong><?= h($gathering->branch->name) ?></strong><br>
                     <?php if (!empty($gathering->location)): ?>
@@ -101,7 +101,7 @@ $showAttendanceControls = isset($canAttend)
         <?php if (!empty($gathering->location)): ?>
             <div class="mb-3">
                 <h6 class="text-muted mb-2">
-                    <i class="bi bi-geo-alt-fill"></i> <?= __('Location') ?>
+                    <i aria-hidden="true" class="bi bi-geo-alt-fill"></i> <?= __('Location') ?>
                 </h6>
 
                 <?php if (!empty($gathering->latitude) && !empty($gathering->longitude)): ?>
@@ -116,7 +116,7 @@ $showAttendanceControls = isset($canAttend)
 
                 <!-- Navigation Buttons -->
                 <h6 class="text-muted mb-2 mt-3">
-                    <i class="bi bi-signpost-2-fill"></i> <?= __('Navigate') ?>
+                    <i aria-hidden="true" class="bi bi-signpost-2-fill"></i> <?= __('Navigate') ?>
                 </h6>
                 <div class="d-flex gap-2 flex-wrap">
                     <?php
@@ -128,27 +128,27 @@ $showAttendanceControls = isset($canAttend)
                     <a href="https://www.google.com/maps/dir/?api=1&destination=<?= $mapQuery ?>" target="_blank"
                         class="btn btn-primary btn-sm" data-turbo-frame="_top"
                         title="<?= __('Get directions in Google Maps') ?>">
-                        <i class="bi bi-signpost-2-fill"></i> <?= __('Get Directions') ?>
+                        <i aria-hidden="true" class="bi bi-signpost-2-fill"></i> <?= __('Get Directions') ?>
                     </a>
 
                     <div class="btn-group" role="group">
                         <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle"
                             data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-box-arrow-up-right"></i> <?= __('Open In...') ?>
+                            <i aria-hidden="true" class="bi bi-box-arrow-up-right"></i> <?= __('Open In...') ?>
                         </button>
                         <ul class="dropdown-menu">
                             <li>
                                 <a class="dropdown-item"
                                     href="https://www.google.com/maps/search/?api=1&query=<?= $mapQuery ?>" target="_blank"
                                     data-turbo-frame="_top">
-                                    <i class="bi bi-google"></i> <?= __('Google Maps') ?>
+                                    <i aria-hidden="true" class="bi bi-google"></i> <?= __('Google Maps') ?>
                                 </a>
                             </li>
                             <li>
                                 <a class="dropdown-item"
                                     href="https://maps.apple.com/?<?= (!empty($gathering->latitude) && !empty($gathering->longitude)) ? 'll=' . $gathering->latitude . ',' . $gathering->longitude . '&q=' . urlencode($gathering->location) : 'q=' . urlencode($gathering->location) ?>"
                                     target="_blank" data-turbo-frame="_top">
-                                    <i class="bi bi-apple"></i> <?= __('Apple Maps') ?>
+                                    <i aria-hidden="true" class="bi bi-apple"></i> <?= __('Apple Maps') ?>
                                 </a>
                             </li>
                         </ul>
@@ -171,7 +171,7 @@ $showAttendanceControls = isset($canAttend)
         <?php if (!empty($gathering->description)): ?>
             <div class="mb-3">
                 <h6 class="text-muted mb-2">
-                    <i class="bi bi-file-text"></i> <?= __('Description') ?>
+                    <i aria-hidden="true" class="bi bi-file-text"></i> <?= __('Description') ?>
                 </h6>
                 <div class="markdown-content">
                     <?= $this->Markdown->toHtml($gathering->description) ?>
@@ -182,7 +182,7 @@ $showAttendanceControls = isset($canAttend)
         <!-- Activities -->
         <?php if (!empty($gathering->gathering_activities)): ?>
             <div class="mb-3">
-                <h6><i class="bi bi-activity"></i> Activities</h6>
+                <h6><i aria-hidden="true" class="bi bi-activity"></i> Activities</h6>
                 <div class="d-flex flex-wrap gap-2">
                     <?php foreach ($gathering->gathering_activities as $activity): ?>
                         <span class="badge bg-secondary"><?= h($activity->name) ?></span>
@@ -194,7 +194,8 @@ $showAttendanceControls = isset($canAttend)
         <!-- Attendance -->
         <?php if (!empty($gathering->gathering_attendances)): ?>
             <div class="mb-3">
-                <h6><i class="bi bi-people"></i> Attendees (<?= count($gathering->gathering_attendances) ?>)</h6>
+                <h6><i aria-hidden="true" class="bi bi-people"></i>
+                    Attendees (<?= count($gathering->gathering_attendances) ?>)</h6>
                 <div class="d-flex flex-wrap gap-2">
                     <?php foreach ($gathering->gathering_attendances as $attendance): ?>
                         <?php if (isset($attendance->member)): ?>
@@ -205,7 +206,7 @@ $showAttendanceControls = isset($canAttend)
                     <?php endforeach; ?>
                     <?php if (count($gathering->gathering_attendances) >= 10): ?>
                         <span class="badge bg-light text-dark border">
-                            <i class="bi bi-three-dots"></i> more
+                            <i aria-hidden="true" class="bi bi-three-dots"></i> more
                         </span>
                     <?php endif; ?>
                 </div>
@@ -216,17 +217,18 @@ $showAttendanceControls = isset($canAttend)
         <div class="mb-3">
             <?php if ($isPastEvent): ?>
                 <div class="alert alert-secondary" role="alert">
-                    <i class="bi bi-info-circle me-2"></i>
+                    <i aria-hidden="true" class="bi bi-info-circle me-2"></i>
                     <?= __('This gathering has already ended.') ?>
                 </div>
             <?php elseif ($isCancelled && !$userAttendance): ?>
                 <div class="alert alert-warning" role="alert">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <i aria-hidden="true" class="bi bi-exclamation-triangle me-2"></i>
                     <?= __('This gathering has been cancelled. New attendance registrations are not accepted.') ?>
                 </div>
             <?php elseif ($userAttendance): ?>
                 <div class="alert <?= $isCancelled ? 'alert-warning' : 'alert-success' ?> d-flex align-items-center" role="alert">
-                    <i class="bi bi-<?= $isCancelled ? 'exclamation-triangle' : 'check-circle' ?>-fill me-2"></i>
+                    <i aria-hidden="true"
+                        class="bi bi-<?= $isCancelled ? 'exclamation-triangle' : 'check-circle' ?>-fill me-2"></i>
                     <div class="flex-grow-1">
                         <?php if ($isCancelled): ?>
                             <strong><?= __('You were registered for this cancelled gathering.') ?></strong>
@@ -242,14 +244,14 @@ $showAttendanceControls = isset($canAttend)
                         data-attendance-id="<?= $userAttendance->id ?>" data-gathering-id="<?= $gathering->id ?>"
                         data-attendance-action="edit" data-attendance-notes="<?= h($userAttendance->notes ?? '') ?>"
                         data-attendance-share-kingdom="<?= $userAttendance->share_with_kingdom ? '1' : '0' ?>">
-                        <i class="bi bi-pencil"></i> <?= __('Edit') ?>
+                        <i aria-hidden="true" class="bi bi-pencil"></i> <?= __('Edit') ?>
                     </button>
                 </div>
             <?php else: ?>
                 <button type="button" class="btn btn-success w-100"
                     data-action="click->gatherings-calendar#showAttendanceModal" data-gathering-id="<?= $gathering->id ?>"
                     data-attendance-action="add">
-                    <i class="bi bi-calendar-check"></i> <?= __('Mark Your Attendance') ?>
+                    <i aria-hidden="true" class="bi bi-calendar-check"></i> <?= __('Mark Your Attendance') ?>
                 </button>
             <?php endif; ?>
         </div>
@@ -260,7 +262,7 @@ $showAttendanceControls = isset($canAttend)
                 <a href="<?= h($gathering->preregister_url) ?>" target="_blank" rel="noopener"
                     class="btn btn-warning fw-bold"
                     title="<?= h(__('Pre-register and pay for this event (external site)')) ?>">
-                    <i class="bi bi-ticket-perforated"></i> Pre-Register
+                    <i aria-hidden="true" class="bi bi-ticket-perforated"></i> Pre-Register
                     <?php if ($gathering->preregister_closes_on !== null): ?>
                         <small>(<?= __('until {0}', h($gathering->preregister_closes_on->format('M j'))) ?>)</small>
                     <?php endif; ?>
@@ -268,15 +270,18 @@ $showAttendanceControls = isset($canAttend)
             <?php endif; ?>
             <?php if (!$isPastEvent): ?>
                 <?= $this->Html->link(
-                    '<i class="bi bi-calendar-plus"></i> Add to Calendar',
+                    '<i aria-hidden="true" class="bi bi-calendar-plus"></i> Add to Calendar',
                     ['action' => 'downloadCalendar', $gathering->public_id],
                     ['class' => 'btn btn-outline-success', 'escape' => false, 'data-turbo-frame' => '_top']
                 ) ?>
             <?php endif; ?>
             <?= $this->Html->link(
-                '<i class="bi bi-eye"></i> Full Details',
+                '<i aria-hidden="true" class="bi bi-eye"></i> Full Details',
                 ['action' => 'view', $gathering->public_id],
-                ['class' => 'btn btn-primary', 'escape' => false, 'data-turbo-frame' => '_top']
+                [
+                    'class' => 'btn btn-primary', 'escape' => false,
+                    'data-turbo-frame' => '_top', 'data-turbo' => 'false',
+                ],
             ) ?>
         </div>
     </div>

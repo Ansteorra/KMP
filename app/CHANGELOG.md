@@ -53,6 +53,7 @@ KMP 1.5.10 improves award and officer workflows, member administration, saved vi
 - Email subscription management opens in a profile modal. Cancellation stays in the modal, and management links from emails open the member’s own profile correctly.
 - My Approvals and My To-Dos support custom views. Approvals add requester-name filtering and corrected queue sorting; to-dos add title, required/optional, and gathering filters. Replaced approvals explain why a new process needs fresh decisions.
 - Authenticated gathering-calendar users can create personal saved views and switch them through shared view tabs. Successful attendance registration closes its modal and gives accessible saved feedback. Modal errors, repeat submissions, and focus restoration are handled more consistently.
+- Gathering Details now opens RSVP reliably. App back arrows retain full pages and skip modal content, redirects, downloads, and background requests; existing polluted navigation history resets automatically.
 - Gathering-calendar Month, Week, and List controls keep their selected indicator in sync after navigation and saved-view updates. Event titles in List View open the gathering page without a “Content missing” error.
 - Workflow designer loading and saving preserve declared output branches, including next/default aliases and custom outputs, and position nodes sensibly when saved layout information is incomplete.
 

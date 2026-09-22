@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Controller;
 
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * App\Controller\GatheringAttendancesController Test Case
@@ -18,7 +19,8 @@ class GatheringAttendancesControllerTest extends HttpIntegrationTestCase
         $this->authenticateAsSuperUser();
     }
 
-    public function testCalendarRsvpReturnsTurboStreamAfterSave(): void
+    #[DataProvider('rsvpFormats')]
+    public function testCalendarRsvpReturnsRequestedFormatAfterSave(string $accept): void
     {
         $gatherings = $this->getTableLocator()->get('Gatherings');
         $gathering = $gatherings->saveOrFail($gatherings->newEntity([
@@ -34,7 +36,8 @@ class GatheringAttendancesControllerTest extends HttpIntegrationTestCase
 
         $this->configRequest([
             'headers' => [
-                'Accept' => 'text/vnd.turbo-stream.html',
+                'Accept' => $accept,
+                'X-Requested-With' => 'XMLHttpRequest',
             ],
         ]);
         $this->post('/gathering-attendances/add', [
@@ -44,7 +47,7 @@ class GatheringAttendancesControllerTest extends HttpIntegrationTestCase
         ]);
 
         $this->assertResponseOk();
-        $this->assertContentType('text/vnd.turbo-stream.html');
+        $this->assertContentType($accept);
         $this->assertResponseContains('Your attendance has been registered.');
         $this->assertSame(
             1,
@@ -56,5 +59,10 @@ class GatheringAttendancesControllerTest extends HttpIntegrationTestCase
                 ])
                 ->count(),
         );
+    }
+
+    public static function rsvpFormats(): array
+    {
+        return [['text/vnd.turbo-stream.html'], ['application/json']];
     }
 }

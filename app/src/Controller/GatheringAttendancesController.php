@@ -42,6 +42,10 @@ class GatheringAttendancesController extends AppController
      */
     private function wantsJson(): bool
     {
+        if ($this->wantsTurboStreamRequest()) {
+            return false;
+        }
+
         return $this->request->is('ajax') ||
                $this->request->accepts('application/json') ||
                $this->request->getHeaderLine('Accept') === 'application/json';
