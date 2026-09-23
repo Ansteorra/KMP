@@ -2,7 +2,9 @@
 
 Members can choose **Email this view** in My Approvals, My To-Dos, Warrant Rosters,
 and the main Bestowals grid. The selected view, filters, search, and sorting are
-retained. A subscription can run daily, every three days, or weekly; its first
+retained. New subscription names default to **tab name - page name**, such as
+**Pending - My Approvals** or **Pending - My To-Dos**, and remain editable.
+Existing subscription names are unchanged. A subscription can run daily, every three days, or weekly; its first
 check is due after that interval. The scheduler checks due subscriptions every
 15 minutes. Empty results are skipped. Emails contain up to 50 visible rows and
 a link to the full view. **Email subscriptions** on the member's own profile

@@ -19,6 +19,21 @@ class GridSubscriptionsTest extends HttpIntegrationTestCase
         parent::tearDown();
     }
 
+    public function testSubscriptionFormsExposeTheirRegisteredPageNames(): void
+    {
+        $this->authenticateAsSuperUser();
+        $pages = [
+            '/approvals/approvals-grid-data' => 'My Approvals',
+            '/action-items/my-tasks-grid-data' => 'My To-Dos',
+        ];
+        foreach ($pages as $url => $label) {
+            Router::reload();
+            $this->get($url);
+            $this->assertResponseOk();
+            $this->assertResponseContains('data-subscription-page-name="' . $label . '"');
+        }
+    }
+
     public function testManagementLinkOpensTheSignedInMembersProfileModal(): void
     {
         $this->authenticateAsSuperUser();

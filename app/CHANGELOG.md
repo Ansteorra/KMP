@@ -19,6 +19,8 @@ KMP 1.5.11 adds scheduled grid emails, more flexible passkey setup, and remember
 
 ### Grid Email Subscriptions
 
+- New subscription names include the tab and page, such as **Pending - My Approvals**, so matching tab names are easy to distinguish.
+
 - **Email this view** sends a summary of up to 50 matching rows and a link from My Approvals, My To-Dos, Warrant Rosters, and Bestowals daily, every three days, or weekly. Subscriptions capture the current view, including unsaved filters, search, sorting, and columns. Empty scheduled results are skipped.
 - **Send me a sample** emails the current view immediately without creating a subscription or changing its schedule.
 - Manage or cancel subscriptions in a scrollable modal on your profile. Cancellation stays in the modal, and management links from emails open your own profile correctly.
@@ -26,6 +28,8 @@ KMP 1.5.11 adds scheduled grid emails, more flexible passkey setup, and remember
 - Kingdoms can customize the subject and email bodies in **Email Templates → Grid Email Summary** and choose the template in **App Settings → Email.GridSubscriptionTemplate**. Samples and scheduled emails use the same template, and changes apply to subsequent sends without a workflow.
 
 ### Waivers, Gatherings, and Navigation
+
+- **Config** menu entries appear alphabetically, including plugin settings.
 
 - Gathering details open correctly when scheduled activities have end times, and schedule durations retain fractional hours.
 - Waiver Dashboard sections start collapsed so it is easier to find the section you need.

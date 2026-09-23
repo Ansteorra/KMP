@@ -59,7 +59,8 @@ $searchDescription = !empty($searchableLabels)
         <summary class="btn btn-outline-secondary" data-action="click-><?= h($controllerName) ?>#prepareSubscription">
             <i class="bi bi-envelope" aria-hidden="true"></i> <?= __('Email this view') ?>
         </summary>
-        <form class="border rounded p-3 mt-2" data-action="submit-><?= h($controllerName) ?>#subscribeToView"
+        <form data-subscription-page-name="<?= h(\App\Services\GridSubscriptionRegistry::get($gridKey)['label']) ?>"
+            class="border rounded p-3 mt-2" data-action="submit-><?= h($controllerName) ?>#subscribeToView"
             action="<?= h($this->Url->build(['plugin' => null, 'controller' => 'GridSubscriptions', 'action' => 'add'])) ?>" method="post">
             <p><?= __('Receive up to 50 current matching rows and a link to this view. Empty results are skipped. You can cancel from your profile.') ?></p>
             <div class="row g-3">

@@ -41,6 +41,27 @@ describe('GridViewController', () => {
         jest.restoreAllMocks();
     });
 
+    test.each(['My Approvals', 'My To-Dos', 'Warrant Rosters', 'Bestowals'])(
+        'subscription defaults include the tab and %s page name', pageName => {
+            controller.element.insertAdjacentHTML('beforeend', `<details><summary>Email this view</summary>
+                <form><input name="subscriptionName" maxlength="150"></form></details>`);
+            const form = controller.element.querySelector('form');
+            form.dataset.subscriptionPageName = pageName;
+            controller.state = { view: { currentName: 'Pending' } };
+            const event = { currentTarget: controller.element.querySelector('summary') };
+            controller.prepareSubscription(event);
+            expect(form.elements.subscriptionName.value).toBe(`Pending - ${pageName}`);
+            form.elements.subscriptionName.value = 'My custom summary';
+            controller.prepareSubscription(event);
+            expect(form.elements.subscriptionName.value).toBe('My custom summary');
+            form.elements.subscriptionName.value = '';
+            controller.state.view.currentName = 'A'.repeat(150);
+            controller.prepareSubscription(event);
+            expect(form.elements.subscriptionName.value).toHaveLength(150);
+            expect(form.elements.subscriptionName.value).toMatch(new RegExp(` - ${pageName}$`));
+        }
+    );
+
     test('subscription preserves the selected view and filters and announces success', async () => {
         controller.element.insertAdjacentHTML('beforeend', `<form action="/grid-subscriptions/add">
             <input name="subscriptionName" value="Warrant approvals">

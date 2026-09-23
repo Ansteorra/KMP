@@ -1365,11 +1365,15 @@ class GridViewController extends Controller {
         this.navigate(url.pathname + url.search) // Table frame nav
     }
 
-    /** Populate the opt-in form with the currently selected view name. */
+    /** Default new subscription names to the selected tab and registered page label. */
     prepareSubscription(event) {
         const form = event.currentTarget.closest("details").querySelector("form")
         const name = form.elements.namedItem("subscriptionName")
-        if (!name.value) name.value = this.state.view.currentName || "My view"
+        if (name.value) return
+        const viewName = this.state?.view?.currentName || "My view"
+        const pageName = form.dataset.subscriptionPageName
+        const suffix = pageName ? ` - ${pageName}` : ""
+        name.value = viewName.slice(0, Math.max(0, 150 - suffix.length)) + suffix
     }
 
     /** Save recurring delivery settings without changing the selected grid view. */
