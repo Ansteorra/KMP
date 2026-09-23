@@ -5,10 +5,16 @@ const { chromium } = require('playwright');
 const { expect } = require('@playwright/test');
 const { loginAs, runPhpJson } = require('./ui-helpers.cjs');
 const source = fs.readFileSync(require.resolve('./offline-app-browser-check.cjs'), 'utf8');
-const fixtureSource = source.match(/const tenantFixture = String.raw`([\s\S]*?)`;/)[1]
-    .replace("'created_by' => $admin->id, 'location'", "'public_page_enabled' => true, 'created_by' => $admin->id, 'location'")
-    .replace("return ['id' => $gathering->id, 'name'", "return ['publicId' => $gathering->public_id, 'startDate' => $gathering->start_date->format('Y-m-d'), 'id' => $gathering->id, 'name'")
-    .replace("$attendance->deleteAll(['gathering_id' => $gathering->id]);", "$attendance->deleteAll(['gathering_id' => $gathering->id]); $locator->get('GatheringScheduledActivities')->deleteAll(['gathering_id' => $gathering->id]);");
+const fixtureMatch = source.match(/const tenantFixture = String.raw`([\s\S]*?)`;/);
+assert.ok(fixtureMatch, 'tenantFixture not found in offline-app-browser-check.cjs');
+const patch = (text, from, to) => {
+    assert.ok(text.includes(from), `tenantFixture patch target not found: ${from}`);
+    return text.replace(from, to);
+};
+let fixtureSource = fixtureMatch[1];
+fixtureSource = patch(fixtureSource, "'created_by' => $admin->id, 'location'", "'public_page_enabled' => true, 'created_by' => $admin->id, 'location'");
+fixtureSource = patch(fixtureSource, "return ['id' => $gathering->id, 'name'", "return ['publicId' => $gathering->public_id, 'startDate' => $gathering->start_date->format('Y-m-d'), 'id' => $gathering->id, 'name'");
+fixtureSource = patch(fixtureSource, "$attendance->deleteAll(['gathering_id' => $gathering->id]);", "$attendance->deleteAll(['gathering_id' => $gathering->id]); $locator->get('GatheringScheduledActivities')->deleteAll(['gathering_id' => $gathering->id]);");
 
 async function verifySchedule(page, fixture) {
     const errors = [];
@@ -43,17 +49,32 @@ async function verifySchedule(page, fixture) {
     let row = page.locator('#nav-schedule tr').filter({ hasText: 'Quarter-hour browser check' });
     await expect(row).toContainText('11:45 PM');
     await expect(row).toContainText('1:15 AM');
+    await expect(row).toContainText('90 minutes');
     const publicPage = await page.context().newPage();
     await publicPage.goto('/gatherings/public-landing/' + fixture.publicId);
     await expect(publicPage.getByText('Quarter-hour browser check', { exact: true })).toBeVisible();
     await expect(publicPage.locator('body')).toContainText('11:45 PM');
     await expect(publicPage.locator('body')).toContainText('1:15 AM');
     await publicPage.close();
+    for (const minutes of [15, 45]) {
+        await row.getByRole('button', { name: 'Edit Quarter-hour browser check', exact: true }).click();
+        const editor = page.locator('#editScheduleModal');
+        await expect(editor).toBeFocused();
+        await editor.getByLabel('Duration', { exact: true }).selectOption(String(minutes));
+        const [, response] = await Promise.all([
+            page.waitForEvent('load'),
+            page.waitForResponse(response => response.request().method() === 'POST').then(response => response.json()),
+            editor.getByRole('button', { name: 'Save Changes', exact: true }).click(),
+        ]);
+        assert.equal(response.success, true);
+        await page.locator('#nav-schedule-tab').click();
+        await expect(row).toContainText(`${minutes} minutes`);
+    }
     await page.setViewportSize({ width: 375, height: 480 });
     await row.getByRole('button', { name: 'Edit Quarter-hour browser check', exact: true }).click();
     const edit = page.locator('#editScheduleModal');
     await expect(edit).toBeFocused();
-    await expect(edit.getByLabel('Duration', { exact: true })).toHaveValue('90');
+    await expect(edit.getByLabel('Duration', { exact: true })).toHaveValue('45');
     await edit.getByLabel('Duration', { exact: true }).focus();
     await page.keyboard.press('Home');
     await page.keyboard.press('End');
@@ -75,21 +96,25 @@ async function verifySchedule(page, fixture) {
     await expect(edit).not.toBeVisible();
     await expect(editTrigger).toBeFocused();
     assert.deepEqual(errors, []);
-    console.log('PASS: quarter-hour choices; 15–240 minute durations; midnight save and public times; mobile keyboard Other/save/reopen/Escape; no browser errors');
+    console.log('PASS: quarter-hour choices; 15–240 minute durations; midnight save and public times; exact 15/45-minute labels; mobile keyboard Other/save/reopen/Escape; no browser errors');
 }
 
 if (require.main === module) {
     (async () => {
         const fixture = runPhpJson(fixtureSource);
-        const browser = await chromium.launch({ args: ['--no-sandbox'] });
+        let browser;
         try {
+            browser = await chromium.launch({ args: ['--no-sandbox'] });
             const context = await browser.newContext({ baseURL: 'http://kmp.localhost:8080', viewport: { width: 1100, height: 480 }, timezoneId: 'Asia/Tokyo' });
             const page = await context.newPage();
             await loginAs(page, 'admin@amp.ansteorra.org');
             await verifySchedule(page, fixture);
         } finally {
-            await browser.close();
-            runPhpJson(fixtureSource, { cleanup: fixture.id, name: fixture.name, memberId: fixture.memberId, email: fixture.email });
+            try {
+                await browser?.close();
+            } finally {
+                runPhpJson(fixtureSource, { cleanup: fixture.id, name: fixture.name, memberId: fixture.memberId, email: fixture.email });
+            }
         }
     })().catch(error => { console.error(error.stack); process.exitCode = 1; });
 }

@@ -323,12 +323,15 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         }
     }
 
-    /** Scheduled activities with end times must render decimal durations without a type error. */
+    /** Scheduled activities show exact minute durations, including quarter-hour choices. */
     public function testViewRendersScheduledActivityDurations(): void
     {
         $gathering = $this->createCalendarGathering('Schedule Duration Regression', false);
         $scheduledActivities = $this->getTableLocator()->get('GatheringScheduledActivities');
-        $expectedLabels = [30 => '0.5 hours', 60 => '1.0 hour', 90 => '1.5 hours', 120 => '2.0 hours'];
+        $expectedLabels = [
+            1 => '1 minute', 15 => '15 minutes', 30 => '30 minutes', 45 => '45 minutes',
+            60 => '60 minutes', 90 => '90 minutes', 120 => '120 minutes', 240 => '240 minutes',
+        ];
         foreach ($expectedLabels as $minutes => $label) {
             $activity = $this->createScheduledActivity(
                 $gathering,
@@ -360,7 +363,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         }
         $openEndedCells = $xpath->query('//tr[td/strong[text()="Open-ended activity"]]/td[1]');
         $this->assertCount(1, $openEndedCells);
-        $this->assertStringNotContainsString('hour', $openEndedCells->item(0)->textContent);
+        $this->assertStringNotContainsString('minute', $openEndedCells->item(0)->textContent);
     }
 
     /**

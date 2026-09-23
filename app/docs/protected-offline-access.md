@@ -66,7 +66,10 @@ appears in page markup, plaintext persistent storage, or the service-worker cach
 **Log out** ends the server session and locks the local copy in every open tab;
 it preserves the encrypted login, offline data, and waiting RSVPs. **Stop trusting
 this device** explicitly removes them. New passkey devices must be online and
-signed in to remove their server registration as well as their local copy. Password reset, credential revocation,
+signed in to remove their server registration as well as their local copy, including
+from the public recovery screen. Revocation must succeed before local information
+is cleared; offline, signed-out, or failed requests leave it available for retry.
+Password reset, credential revocation,
 account changes, and impersonation still invalidate the copy when observed.
 
 **Use online only** remembers the prompt dismissal in browser-local storage for

@@ -46,7 +46,8 @@ and quarter-hour time choices are in the gathering timezone. Durations offer
 15-minute increments through four hours; **Other — see description** clears the
 end time and leaves timing details to the description. `GatheringScheduleService`
 computes the end in UTC so elapsed durations survive midnight and daylight-saving
-changes. Existing gathering range rules also validate the computed end.
+changes. Existing gathering range rules also validate the computed end. Schedule rows
+display durations in minutes so quarter-hour increments remain exact.
 
 Editing preserves an existing off-quarter start choice and selects the stored
 elapsed duration. Durations outside the picker offer **Keep current end** until

@@ -130,6 +130,35 @@ const fixtureScript = source.match(/const tenantFixture = String.raw`([\s\S]*?)`
                 await page.screenshot({ path: '/tmp/kmp-offline-failure.png', fullPage: true });
                 throw error;
             });
+            if (scenario === 'supported') {
+                const device = page.locator('[data-offline-vault-target=device]');
+                await device.locator('summary').click();
+                await device.getByRole('button', { name: 'Stop trusting this device', exact: true }).click();
+                const confirm = page.locator('[data-dialog-confirm]');
+                await expect(confirm).toBeFocused();
+                await confirm.click();
+                await expect(page.locator('[data-offline-vault-target=status]')).toContainText('Connect and sign in');
+                await expect(device).toBeVisible();
+                await expect(page.locator('[data-member-mobile-card-profile-target=memberDetails]')).toBeVisible();
+                console.log('PASS: offline public recovery retains the passkey-protected copy when revocation is unavailable');
+                offline = false; await context.setOffline(false);
+                await signIn();
+                // Keep the recovery page open while its normal background refresh completes.
+                await page.evaluate(() => sessionStorage.setItem('kmp.offline.resume', String(Date.now())));
+                await page.goto('/offline');
+                await device.locator('summary').click();
+                await device.getByRole('button', { name: 'Stop trusting this device', exact: true }).click();
+                await expect(confirm).toBeFocused();
+                const [removed] = await Promise.all([
+                    page.waitForResponse(response => response.url().endsWith('/offline/remove-passkey') && response.request().method() === 'POST'),
+                    confirm.click(),
+                ]);
+                expect(removed.status()).toBe(204);
+                await expect(page.locator('[data-offline-vault-target=enroll]')).toBeVisible();
+                await expect(page.locator('[data-offline-vault-target=enroll] a')).toBeFocused();
+                await expect(device).toBeHidden();
+                console.log('PASS: signed-in public recovery revokes the server passkey before clearing the local copy');
+            }
             assert.deepEqual(errors, []);
             await context.close();
             runPhpJson(fixtureScript, { cleanup: fixture.id, name: fixture.name, memberId: fixture.memberId, email: fixture.email });

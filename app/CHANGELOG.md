@@ -15,6 +15,8 @@ KMP 1.5.11 adds scheduled grid emails, more flexible passkey setup, and remember
 - Passkeys that support offline encryption can protect both login and offline information. Other passkeys, including compatible password-manager passkeys, remain usable for online login; add a PIN for offline decryption or finish online-only setup with a clear warning and add the PIN later. When offline, use the passkey for authentication and the PIN to unlock saved information when passkey authentication is available; PIN-only access remains available when it is not.
 - Device setup remembers **Use online only** for each account in the current browser across logout and future visits. **Security** remains available to change the choice, and stopping trust also suppresses repeat setup prompts.
 
+- Stopping device trust from the public recovery screen now revokes its server passkey before removing saved information. Failed revocation preserves the saved copy for retry.
+
 - Successful passkey sign-ins update the member’s last-login time, keeping member records current.
 
 ### Grid Email Subscriptions
@@ -32,6 +34,7 @@ KMP 1.5.11 adds scheduled grid emails, more flexible passkey setup, and remember
 - **Config** menu entries appear alphabetically, including plugin settings.
 
 - Schedule activities with quarter-hour start times and a duration from 15 minutes to 4 hours, or choose **Other — see description** for an open-ended activity. Existing schedule times remain intact when editing.
+- Schedule duration labels show exact minutes, including 15- and 45-minute activities.
 - Gathering details open correctly when scheduled activities have end times, and schedule durations retain fractional hours.
 - Waiver Dashboard sections start collapsed so it is easier to find the section you need.
 - Gathering waiver summaries show Uploaded, Exempted, Declined, or Pending status, reasons, uploader, and upload date. Decline eligibility appears with the actions; retention details remain on the individual waiver page.

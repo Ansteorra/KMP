@@ -6,14 +6,21 @@ const { expect } = require('@playwright/test');
 const { loginAs, runPhpJson } = require('./ui-helpers.cjs');
 
 const source = fs.readFileSync(require.resolve('./offline-app-browser-check.cjs'), 'utf8');
-const fixturePhp = source.match(/const tenantFixture = String.raw`([\s\S]*?)`;/)[1]
-    .replace("'name' => $name, 'branch_id'", "'public_page_enabled' => true, 'name' => $name, 'branch_id'")
-    .replace("return ['id' => $gathering->id", "return ['publicId' => $gathering->public_id, 'id' => $gathering->id");
+const fixtureMatch = source.match(/const tenantFixture = String.raw`([\s\S]*?)`;/);
+assert.ok(fixtureMatch, 'tenantFixture not found in offline-app-browser-check.cjs');
+const patch = (text, from, to) => {
+    assert.ok(text.includes(from), `tenantFixture patch target not found: ${from}`);
+    return text.replace(from, to);
+};
+let fixturePhp = fixtureMatch[1];
+fixturePhp = patch(fixturePhp, "'name' => $name, 'branch_id'", "'public_page_enabled' => true, 'name' => $name, 'branch_id'");
+fixturePhp = patch(fixturePhp, "return ['id' => $gathering->id", "return ['publicId' => $gathering->public_id, 'id' => $gathering->id");
 
 (async () => {
     const fixture = runPhpJson(fixturePhp);
-    const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+    let browser;
     try {
+        browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
         const context = await browser.newContext({ baseURL: 'http://kmp.localhost:8080' });
         const page = await context.newPage();
         const errors = [];
@@ -94,7 +101,10 @@ const fixturePhp = source.match(/const tenantFixture = String.raw`([\s\S]*?)`;/)
         }
         assert.deepEqual(errors, []);
     } finally {
-        await browser.close();
-        runPhpJson(fixturePhp, { cleanup: fixture.id, name: fixture.name, memberId: fixture.memberId, email: fixture.email });
+        try {
+            await browser?.close();
+        } finally {
+            runPhpJson(fixturePhp, { cleanup: fixture.id, name: fixture.name, memberId: fixture.memberId, email: fixture.email });
+        }
     }
 })().catch(error => { console.error(error.stack); process.exitCode = 1; });
