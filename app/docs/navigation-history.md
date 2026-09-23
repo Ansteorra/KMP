@@ -38,3 +38,19 @@ Verify this path with `node tests/ui/support/public-gathering-attendance-browser
 from `app/`; it creates and removes local synthetic records and covers mouse and
 keyboard registration, updates, removal/cancellation, and focus return at desktop
 and mobile sizes.
+
+## Gathering schedule timing
+
+Add and edit schedule dialogs share `gatherings/scheduleTimingFields`. Start dates
+and quarter-hour time choices are in the gathering timezone. Durations offer
+15-minute increments through four hours; **Other — see description** clears the
+end time and leaves timing details to the description. `GatheringScheduleService`
+computes the end in UTC so elapsed durations survive midnight and daylight-saving
+changes. Existing gathering range rules also validate the computed end.
+
+Editing preserves an existing off-quarter start choice and selects the stored
+elapsed duration. Durations outside the picker offer **Keep current end** until
+the user chooses a replacement duration. These preservation choices
+do not appear in new entries. Existing datetime-based clients remain supported.
+
+Browser acceptance: `node tests/ui/support/gathering-schedule-browser-check.cjs`.

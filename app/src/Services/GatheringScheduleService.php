@@ -22,7 +22,7 @@ class GatheringScheduleService
 
     /**
      * Prepare request data for a scheduled activity: timezone conversion,
-     * "is_other" and "has_end_time" flag handling.
+     * duration selection and activity flags.
      *
      * @param array $data Raw request data
      * @param \App\Model\Entity\Gathering $gathering The parent gathering
@@ -40,12 +40,19 @@ class GatheringScheduleService
             $data['end_datetime'] = TimezoneHelper::toUtc($data['end_datetime'], $timezone);
         }
 
+        if (isset($data['duration_minutes']) && $data['duration_minutes'] !== 'existing') {
+            $data['has_end_time'] = $data['duration_minutes'] !== 'other';
+            $data['end_datetime'] = $data['has_end_time'] && !empty($data['start_datetime'])
+                ? $data['start_datetime']->addMinutes((int)$data['duration_minutes'])
+                : null;
+        }
+
         // Handle "other" checkbox
         if (!empty($data['is_other'])) {
             $data['gathering_activity_id'] = null;
         }
 
-        // Handle "has_end_time" checkbox — clear end_datetime if unchecked
+        // Open-ended entries have no stored end time.
         if (empty($data['has_end_time'])) {
             $data['end_datetime'] = null;
         }
@@ -63,6 +70,9 @@ class GatheringScheduleService
      */
     public function add(array $data, Gathering $gathering, mixed $identity): array
     {
+        if (!$this->validDuration($data)) {
+            return ['success' => false, 'message' => __('Choose a duration from 15 minutes to 4 hours, or Other.')];
+        }
         $data['gathering_id'] = $gathering->id;
         $data['created_by'] = $identity->id;
 
@@ -114,8 +124,15 @@ class GatheringScheduleService
             ];
         }
 
+        if (!$this->validDuration($data, true)) {
+            return ['success' => false, 'message' => __('Choose a duration from 15 minutes to 4 hours, or Other.')];
+        }
         $data['modified_by'] = $identity->id;
         $data = $this->prepareData($data, $gathering, $identity);
+        if (($data['duration_minutes'] ?? null) === 'existing') {
+            $data['end_datetime'] = $entity->end_datetime;
+            $data['has_end_time'] = $entity->has_end_time;
+        }
 
         $entity = $table->patchEntity($entity, $data);
 
@@ -132,6 +149,28 @@ class GatheringScheduleService
             'message' => __('Could not update scheduled activity.'),
             'errors' => $this->flattenErrors($entity->getErrors()),
         ];
+    }
+
+    /**
+     * Accept the duration picker while retaining compatibility with existing datetime clients.
+     *
+     * @param array $data Submitted fields.
+     * @param bool $editing Whether an existing end time can be retained.
+     * @return bool
+     */
+    private function validDuration(array $data, bool $editing = false): bool
+    {
+        if (!array_key_exists('duration_minutes', $data)) {
+            return true;
+        }
+        $allowed = array_map('strval', range(15, 240, 15));
+        $allowed[] = 'other';
+        if ($editing) {
+            $allowed[] = 'existing';
+        }
+
+        return is_scalar($data['duration_minutes'])
+            && in_array((string)$data['duration_minutes'], $allowed, true);
     }
 
     /**

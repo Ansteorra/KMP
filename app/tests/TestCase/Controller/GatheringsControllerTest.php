@@ -273,6 +273,56 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseNotContains('Created By');
     }
 
+    /** The duration picker persists computed ends and can switch back to an open-ended entry. */
+    public function testScheduleDurationPickerPersistsAndEdits(): void
+    {
+        $gathering = $this->createCalendarGathering('Duration picker', false, [
+            'start_date' => new DateTimeImmutable('2026-10-10 00:00:00', new DateTimeZone('UTC')),
+            'end_date' => new DateTimeImmutable('2026-10-12 00:00:00', new DateTimeZone('UTC')),
+        ]);
+        $data = [
+            'start_datetime' => '2026-10-10T23:45', 'duration_minutes' => '90',
+            'is_other' => '1', 'display_title' => 'Midnight activity', 'description' => 'Timing regression',
+        ];
+        $this->post('/gatherings/add-scheduled-activity/' . $gathering->public_id, $data);
+        $this->assertResponseOk();
+        $result = json_decode((string)$this->_response->getBody(), true);
+        $this->assertTrue($result['success'], json_encode($result));
+        $table = $this->getTableLocator()->get('GatheringScheduledActivities');
+        $activity = $table->get($result['data']['id']);
+        $this->assertTrue($activity->has_end_time);
+        $this->assertSame('2026-10-11 04:45', $activity->start_datetime->format('Y-m-d H:i'));
+        $this->assertSame('2026-10-11 06:15', $activity->end_datetime->format('Y-m-d H:i'));
+
+        $url = '/gatherings/edit-scheduled-activity/' . $gathering->public_id . '/' . $activity->id;
+        $this->post($url, array_replace($data, ['duration_minutes' => 'existing', 'display_title' => 'Renamed']));
+        $this->assertTrue(json_decode((string)$this->_response->getBody(), true)['success']);
+        $this->assertSame('2026-10-11 06:15', $table->get($activity->id)->end_datetime->format('Y-m-d H:i'));
+
+        $this->post($url, array_replace($data, ['duration_minutes' => 'other']));
+        $this->assertTrue(json_decode((string)$this->_response->getBody(), true)['success']);
+        $this->assertNull($table->get($activity->id)->end_datetime);
+        $this->assertFalse($table->get($activity->id)->has_end_time);
+    }
+
+    /** Reject unsupported durations and activities whose computed end exceeds the gathering. */
+    public function testScheduleDurationPickerRejectsInvalidAndOutOfRangeDurations(): void
+    {
+        $gathering = $this->createCalendarGathering('Duration bounds', false, [
+            'start_date' => new DateTimeImmutable('2026-10-10 00:00:00', new DateTimeZone('UTC')),
+            'end_date' => new DateTimeImmutable('2026-10-10 23:00:00', new DateTimeZone('UTC')),
+        ]);
+        foreach (['17', '0', '-15', '241', 'existing', '60'] as $duration) {
+            $this->post('/gatherings/add-scheduled-activity/' . $gathering->public_id, [
+                'start_datetime' => '2026-10-10T17:45', 'duration_minutes' => $duration,
+                'is_other' => '1', 'display_title' => 'Must not save',
+            ]);
+            $this->assertResponseOk();
+            $result = json_decode((string)$this->_response->getBody(), true);
+            $this->assertFalse($result['success'], json_encode($result));
+        }
+    }
+
     /** Scheduled activities with end times must render decimal durations without a type error. */
     public function testViewRendersScheduledActivityDurations(): void
     {

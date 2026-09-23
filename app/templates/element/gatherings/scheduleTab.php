@@ -167,6 +167,7 @@ $deleteScheduleUrl = $this->Url->build(['action' => 'deleteScheduledActivity', $
                                             data-gathering-activity-id="<?= h($gatheringActivityId) ?>"
                                             data-start-datetime="<?= h($scheduledStartInput) ?>"
                                             data-end-datetime="<?= h($scheduledEndInput) ?>"
+                                            data-duration-minutes="<?= h((string)($scheduledActivity->duration_hours * 60)) ?>"
                                             data-display-title="<?= h($scheduledActivity->display_title) ?>"
                                             data-description="<?= h($scheduledActivity->description) ?>"
                                             data-pre-register="<?= $preRegisterValue ?>"
