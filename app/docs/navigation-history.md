@@ -28,3 +28,13 @@ Verify with `NavigationHistoryTest`, the calendar controller Jest tests, and the
 local gathering navigation browser check. Cover calendar → quick view → RSVP,
 full details → RSVP → app back arrow, modal transitions, frame refreshes,
 filtered calendar return URLs, and keyboard focus.
+
+Public gathering landing pages load the limited `public-event` runtime for
+Bootstrap, public gathering behavior, and accessible removal confirmations.
+Turbo Drive stays disabled, and attendance forms use normal server redirects.
+The app and public gathering stylesheets share `modal.css`, including scrolling
+through form wrappers and keeping dialog actions reachable in short windows.
+Verify this path with `node tests/ui/support/public-gathering-attendance-browser-check.cjs`
+from `app/`; it creates and removes local synthetic records and covers mouse and
+keyboard registration, updates, removal/cancellation, and focus return at desktop
+and mobile sizes.

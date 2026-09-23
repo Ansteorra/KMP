@@ -44,6 +44,7 @@ export default defineConfig({
             input: {
                 // Main app entry
                 index: resolve(__dirname, 'assets/js/index.js'),
+                'public-event': resolve(__dirname, 'assets/js/public-event.js'),
                 // All controllers + services via glob entry
                 controllers: resolve(__dirname, 'assets/js/controllers-entry.js'),
                 // CSS entries

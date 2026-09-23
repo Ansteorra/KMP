@@ -8,6 +8,8 @@ Own source JavaScript, CSS, Vite entrypoints, frontend dependencies, and build-t
 
 - `vite.config.js` owns frontend entrypoints, output paths, manifest generation, chunking, and copied static assets.
 - `assets/js/index.js` starts global frontend behavior.
+- `assets/js/public-event.js` starts the limited public-page runtime: Bootstrap, accessible confirmations, and public gathering behavior. Public pages keep native form submission.
+- `assets/css/modal.css` owns shared dialog scrolling for both the app and public gathering stylesheets.
 - `assets/js/controllers-entry.js` discovers controllers and services for bundling.
 - `assets/css` owns CSS entry files.
 - Plugin frontend source remains in plugin `assets` directories and is wired through Vite inputs when needed.
