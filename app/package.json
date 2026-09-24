@@ -48,7 +48,7 @@
         "jest": "^30.5.1",
         "jest-environment-jsdom": "^30.5.1",
         "jsdoc": "^4.0.5",
-        "jsdom": "^30.0.1",
+        "jsdom": "^30.1.0",
         "lodash": "^4.18.1",
         "playwright-bdd": "^9.2.1",
         "vite": "^8.3.0"
