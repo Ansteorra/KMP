@@ -1,3 +1,4 @@
+import { passkeyDebug } from '../../../assets/js/services/passkey-debug-service.js';
 import { webcrypto } from 'crypto';
 import { OfflineVaultService, MAX_AGE } from '../../../assets/js/services/offline-vault-service.js';
 
@@ -291,4 +292,177 @@ test('missing creation support metadata is checked with real assertions before c
     vault.lock(false);
     await vault.unlock();
     expect(vault.key).not.toBeNull();
+});
+
+
+test('trusted passkey creation starts in the click before asynchronous storage work', async () => {
+    let gestureActive = true;
+    const create = jest.fn(() => {
+        if (!gestureActive) throw new DOMException('User gesture expired', 'NotAllowedError');
+        return Promise.resolve({ rawId: new Uint8Array([1]), response: {}, getClientExtensionResults: () => ({}) });
+    });
+    Object.defineProperty(navigator, 'credentials', { configurable: true, value: { create } });
+    const enrollment = vault.enroll(context(), 'device', '', savedLogin);
+    gestureActive = false;
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(create.mock.calls[0][0].publicKey.authenticatorSelection).toEqual({ residentKey: 'preferred', userVerification: 'required' });
+    await expect(enrollment).resolves.toBe('wrap');
+    expect(vault.pendingDevice.wrapper.transports).toEqual([]);
+    expect(vault.record).toBeUndefined();
+});
+
+test('a session change during creation cannot prepare a trusted passkey', async () => {
+    let finish;
+    Object.defineProperty(navigator, 'credentials', { configurable: true, value: {
+        create: jest.fn(() => new Promise(resolve => { finish = resolve; }))
+    } });
+    const enrollment = vault.enroll(context(), 'device', '', savedLogin);
+    vault.lock(false);
+    finish({ rawId: new Uint8Array([1]), response: {}, getClientExtensionResults: () => ({}) });
+    await expect(enrollment).rejects.toThrow('cancelled');
+    expect(vault.pendingDevice).toBeFalsy();
+    expect(vault.record).toBeUndefined();
+});
+
+test('creation still checks existing ownership before preparing a trusted passkey', async () => {
+    await vault.enroll(context(), 'pin', devicePin, savedLogin);
+    Object.defineProperty(navigator, 'credentials', { configurable: true, value: {
+        create: jest.fn().mockResolvedValue({ rawId: new Uint8Array([1]), response: {}, getClientExtensionResults: () => ({}) })
+    } });
+    await expect(vault.enroll({ ...context(), owner: 'member-b' }, 'device', '', savedLogin)).rejects.toThrow('original member');
+    expect(vault.pendingDevice).toBeFalsy();
+    expect(vault.record).toBeNull();
+});
+
+test('a saved credential that explicitly lacks PRF never becomes a trusted device', async () => {
+    Object.defineProperty(navigator, 'credentials', { configurable: true, value: {
+        create: jest.fn().mockResolvedValue({ rawId: new Uint8Array([1]), response: {}, getClientExtensionResults: () => ({ prf: { enabled: false } }) })
+    } });
+    await expect(vault.enroll(context(), 'device', '', savedLogin)).rejects.toMatchObject({ code: 'PASSKEY_UNAVAILABLE' });
+    expect(vault.pendingDevice).toBeFalsy();
+    expect(vault.record).toBeUndefined();
+    expect(vault.key).toBeNull();
+});
+
+
+describe('shareable passkey diagnostics', () => {
+    let log;
+    const events = () => JSON.parse(passkeyDebug.report()).events;
+    const credential = (value, id = [1, 2, 3]) => ({ rawId: new Uint8Array(id), response: {},
+        getClientExtensionResults: () => value ? { prf: { results: { first: new Uint8Array(32).fill(value).buffer } } } : {} });
+    beforeEach(() => {
+        log = jest.spyOn(console, 'info').mockImplementation(() => {});
+        passkeyDebug.start();
+    });
+    afterEach(() => { passkeyDebug.clear(); log.mockRestore(); jest.useRealTimers(); });
+
+    test.each([
+        ['missing PRF', credential(0), 0, true],
+        ['wrong credential', credential(7, [9]), 32, false]
+    ])('identifies %s without recording credentials or saved login data', async (label, returned, prfBytes, credentialMatches) => {
+        Object.defineProperty(navigator, 'credentials', { configurable: true, value: {
+            create: jest.fn().mockResolvedValue(credential(0)), get: jest.fn().mockResolvedValue(returned)
+        } });
+        await vault.enroll(context(), 'device', '', savedLogin);
+        await expect(vault.continueDeviceEnrollment()).rejects.toMatchObject({ code: 'PASSKEY_UNAVAILABLE' });
+        expect(events()).toEqual(expect.arrayContaining([
+            expect.objectContaining({ stage: 'get-prf', prfBytes, credentialMatches }),
+            expect.objectContaining({ stage: 'get-prf-rejected' })
+        ]));
+        expect(events().some(event => event.stage === 'derive-start')).toBe(false);
+        expect(passkeyDebug.report()).not.toContain('AQID');
+        expect(passkeyDebug.report()).not.toContain(savedLogin.password);
+        expect(passkeyDebug.report()).not.toContain(savedLogin.email);
+    });
+
+    test('distinguishes changed PRF output from missing output by recording the failed unwrap', async () => {
+        Object.defineProperty(navigator, 'credentials', { configurable: true, value: {
+            create: jest.fn().mockResolvedValue(credential(7)), get: jest.fn().mockResolvedValue(credential(8))
+        } });
+        await vault.enroll(context(), 'device', '', savedLogin);
+        await expect(vault.continueDeviceEnrollment()).rejects.toMatchObject({ name: 'OperationError' });
+        expect(events()).toEqual(expect.arrayContaining([
+            expect.objectContaining({ stage: 'get-prf', prfBytes: 32, credentialMatches: true }),
+            expect.objectContaining({ stage: 'verify-error', error: 'OperationError' })
+        ]));
+        expect(events().some(event => event.stage === 'verify-key-opened')).toBe(false);
+        expect(vault.record).toBeUndefined();
+    });
+
+    test('records a successful encryption and reopen with actual WebCrypto', async () => {
+        Object.defineProperty(navigator, 'credentials', { configurable: true, value: {
+            create: jest.fn().mockResolvedValue(credential(0)), get: jest.fn().mockImplementation(async () => credential(7))
+        } });
+        await expect(vault.enroll(context(), 'device', '', savedLogin)).resolves.toBe('wrap');
+        await expect(vault.continueDeviceEnrollment()).resolves.toBe('verify');
+        await expect(vault.continueDeviceEnrollment()).resolves.toBe('complete');
+        expect(events().filter(event => event.stage.startsWith('verify-')).map(event => event.stage)).toEqual([
+            'verify-start', 'verify-key-opened', 'verify-payload-opened', 'verify-committed'
+        ]);
+        expect((await vault.read()).login).toEqual(savedLogin);
+    });
+
+    test('a hung provider leaves a start event and records the eventual timeout', async () => {
+        jest.useFakeTimers();
+        Object.defineProperty(navigator, 'credentials', { configurable: true, value: {
+            create: jest.fn(() => new Promise(() => {}))
+        } });
+        const result = expect(vault.enroll(context(), 'device', '', savedLogin)).rejects.toThrow('timed out');
+        expect(events().at(-1).stage).toBe('create-start');
+        await jest.advanceTimersByTimeAsync(120000);
+        await result;
+        expect(events().map(event => event.stage)).toEqual(['debug-start', 'create-start', 'prompt-aborted', 'create-error']);
+        expect(vault.record).toBeUndefined();
+    });
+});
+
+async function pendingHybrid() {
+    const verified = context();
+    const authentication = { credentialId: 'AQID', origin: location.origin, rpId: location.hostname, publicKey: 'test-public-key', algorithm: -7 };
+    vault.pendingDevice = { requiresPin: true, generation: vault.generation, revision: null,
+        record: { version: 1, id: 'hybrid-record', revision: 'initial', ...verified, verifiedAt: verified.serverTime },
+        wrapper: { authentication }, payload: { card: null, months: {}, rsvps: [], pending: [], login: { email: 'synthetic', password: 'private-value' } } };
+    return authentication;
+}
+
+test('online-only setup persists public credentials without a payload, password, or decrypting key', async () => {
+    await pendingHybrid();
+    await vault.finishOnlinePasskey();
+    expect(vault.record.wrapper.unlockMethod).toBe('passkey');
+    expect(vault.record.payload).toBeUndefined();
+    expect(vault.key).toBeNull();
+    expect(JSON.stringify(vault.record)).not.toContain('private-value');
+    await expect(vault.unlock('582694')).rejects.toThrow('needs an offline PIN');
+});
+
+test('hybrid requires fresh passkey proof before PIN and binds authentication metadata to ciphertext', async () => {
+    await pendingHybrid();
+    await vault.finishPasskeyWithPin('582694');
+    expect(vault.record.wrapper.unlockMethod).toBe('passkey-pin');
+    vault.lock(false);
+    await expect(vault.unlock('582694')).rejects.toThrow('Verify your passkey');
+    vault.pendingUnlock = { id: vault.record.id, generation: vault.generation, until: Date.now() + 10000 };
+    await vault.unlock('582694');
+    expect((await vault.read(true)).login.password).toBe('private-value');
+    vault.lock(false);
+    vault.record.wrapper.unlockMethod = 'pin';
+    delete vault.record.wrapper.authentication;
+    await expect(vault.unlock('582694')).rejects.toThrow('Unable to unlock');
+    expect(vault.key).toBeNull();
+});
+
+test('expired proof and proof from an earlier lock cannot authorize the offline PIN', async () => {
+    await pendingHybrid(); await vault.finishPasskeyWithPin('582694'); vault.lock(false);
+    vault.pendingUnlock = { id: vault.record.id, generation: vault.generation, until: Date.now() - 1 };
+    await expect(vault.unlock('582694')).rejects.toThrow('Verify your passkey');
+    vault.pendingUnlock.until = Date.now() + 10000; vault.lock(false);
+    await expect(vault.unlock('582694')).rejects.toThrow('Verify your passkey');
+});
+
+test('adding an offline PIN preserves an online-only credential instead of creating another passkey', async () => {
+    const authentication = await pendingHybrid(); await vault.finishOnlinePasskey();
+    await vault.prepareExistingPasskey(context(), { email: 'synthetic', password: 'updated' });
+    expect(vault.pendingDevice.wrapper.authentication).toEqual(authentication);
+    expect(vault.pendingDevice.requiresPin).toBeUndefined();
+    await expect(vault.finishPasskeyWithPin('582694')).rejects.toThrow('Verify your passkey');
 });

@@ -2,7 +2,7 @@
 
 /**
  * Public Event Landing Page Layout
- * 
+ *
  * A minimal, beautiful layout for public gathering pages
  * No authentication required - optimized for mobile and desktop
  */
@@ -662,8 +662,7 @@
         <?= $this->fetch('content') ?>
     </main>
 
-    <!-- Bootstrap JS for dropdowns and interactive components -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <?= $this->Vite->script('public-event') ?>
 
     <?= $this->fetch('script') ?>
 </body>

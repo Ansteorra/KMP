@@ -109,7 +109,7 @@ $this->KMP->endBlock();
         <i class="bi bi-info-circle"></i>
         <?= __('No waivers have been uploaded for this gathering yet.') ?>
     </div>
-<?php else: ?>
+<?php endif; ?>
     <!-- Waiver Count Summary -->
     <div class="row mb-4">
         <div class="col-md-12">
@@ -136,6 +136,11 @@ $this->KMP->endBlock();
                                                 <?= isset($countsMap[$activityWaiver->waiver_type_id]) ? $countsMap[$activityWaiver->waiver_type_id] : 0 ?>
                                             </p>
                                             <p class="text-muted small"><?= __('waivers uploaded') ?></p>
+                                            <?php if (!empty($exemptionCounts[$activityWaiver->waiver_type_id])): ?>
+                                                <span class="badge bg-info text-dark"><?= __('Exempted') ?></span>
+                                            <?php elseif (empty($countsMap[$activityWaiver->waiver_type_id])): ?>
+                                                <span class="badge bg-warning text-dark"><?= __('Pending') ?></span>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                 </div>
@@ -153,8 +158,9 @@ $this->KMP->endBlock();
             <thead>
                 <tr>
                     <th><?= $this->Paginator->sort('waiver_type_id', __('Waiver Type')) ?></th>
-                    <th><?= $this->Paginator->sort('status', __('Status')) ?></th>
-                    <th><?= $this->Paginator->sort('retention_date', __('Retention Until')) ?></th>
+                    <th scope="col"><?= __('Status') ?></th>
+                    <th scope="col"><?= __('Reason') ?></th>
+                    <th scope="col"><?= __('Uploaded By') ?></th>
                     <th><?= $this->Paginator->sort('created', __('Uploaded')) ?></th>
                     <th class="actions text-end"><?= __('Actions') ?></th>
                 </tr>
@@ -168,38 +174,27 @@ $this->KMP->endBlock();
                         <td>
                             <?php if ($waiver->is_declined): ?>
                                 <span class="badge bg-danger"><?= __('Declined') ?></span>
-                            <?php elseif ($waiver->status === 'active'): ?>
-                                <span class="badge bg-success"><?= __('Active') ?></span>
-                            <?php elseif ($waiver->status === 'expired'): ?>
-                                <span class="badge bg-danger"><?= __('Expired') ?></span>
+                            <?php elseif ($waiver->is_exemption): ?>
+                                <span class="badge bg-info text-dark"><?= __('Exempted') ?></span>
                             <?php else: ?>
-                                <span class="badge bg-secondary"><?= h($waiver->status) ?></span>
-                            <?php endif; ?>
-                            <?php if ($waiver->can_be_declined): ?>
-                                <br><small class="text-muted"><i class="bi bi-clock"></i> <?= __('Can be declined') ?></small>
+                                <span class="badge bg-success"><?= __('Uploaded') ?></span>
                             <?php endif; ?>
                         </td>
-                        <td>
-                            <?= $this->Timezone->format($waiver->retention_date, null, 'M d, Y') ?>
-                            <?php
-                            $today = new \Cake\I18n\Date();
-                            $daysUntilExpiry = $today->diffInDays($waiver->retention_date, false);
-                            if ($daysUntilExpiry < 0): ?>
-                                <br><small class="text-danger"><?= __('Expired {0} days ago', abs($daysUntilExpiry)) ?></small>
-                            <?php elseif ($daysUntilExpiry < 90): ?>
-                                <br><small class="text-warning"><?= __('Expires in {0} days', $daysUntilExpiry) ?></small>
-                            <?php endif; ?>
-                        </td>
+                        <td><?= h($waiver->is_declined ? $waiver->decline_reason : ($waiver->exemption_reason ?? '')) ?></td>
+                        <td><?= h($waiver->created_by_member?->sca_name ?? __('Unknown')) ?></td>
                         <td>
                             <?= $this->Timezone->format($waiver->created, null, 'M d, Y') ?>
                             <br>
                             <small class="text-muted"><?= $this->Timezone->format($waiver->created, null, 'g:i A') ?></small>
                         </td>
                         <td class="actions text-end">
+                            <?php if ($waiver->can_be_declined): ?>
+                                <small class="d-block text-muted mb-1"><?= __('Can be declined') ?></small>
+                            <?php endif; ?>
                             <?= $this->Html->link(
                                 '<i class="bi bi-binoculars-fill"></i>',
                                 ['action' => 'view', $waiver->id],
-                                ['class' => 'btn btn-sm btn-secondary', 'escape' => false, 'title' => __('View')]
+                                ['class' => 'btn btn-sm btn-secondary', 'escape' => false, 'title' => __('View'), 'aria-label' => __('View waiver')]
                             ) ?>
                             <?php if ($waiver->status === 'expired'): ?>
                                 <?= $this->Form->postLink(
@@ -216,10 +211,21 @@ $this->KMP->endBlock();
                         </td>
                     </tr>
                 <?php endforeach; ?>
+                <?php if ((int)$this->getRequest()->getQuery('page', 1) === 1): ?>
+                    <?php foreach ($pendingWaiverTypes as $waiverType): ?>
+                    <tr>
+                        <td><strong><?= h($waiverType->name) ?></strong></td>
+                        <td><span class="badge bg-warning text-dark"><?= __('Pending') ?></span></td>
+                        <td><?= __('No upload or exemption recorded.') ?></td>
+                        <td>—</td><td>—</td><td></td>
+                    </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </tbody>
         </table>
     </div>
 
+    <?php if (!$gatheringWaivers->isEmpty()): ?>
     <div class="paginator">
         <ul class="pagination">
             <?= $this->Paginator->first('<< ' . __('first')) ?>
@@ -231,4 +237,5 @@ $this->KMP->endBlock();
         <p><?= $this->Paginator->counter(__('Page {{page}} of {{pages}}, showing {{current}} record(s) out of {{count}} total')) ?>
         </p>
     </div>
-<?php endif; ?>
+
+    <?php endif; ?>

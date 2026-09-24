@@ -2,13 +2,15 @@
 
 declare(strict_types=1);
 
+use App\KMP\TimezoneHelper;
+
 use function Cake\Collection\collection;
 
 /**
  * Add Scheduled Activity Modal
- * 
+ *
  * Modal form for adding a new scheduled activity to a gathering.
- * 
+ *
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Gathering $gathering
  * @var array<\App\Model\Entity\GatheringActivity> $scheduleActivities
@@ -21,7 +23,7 @@ use function Cake\Collection\collection;
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="addScheduleModalLabel">
-                    <i class="bi bi-calendar-plus"></i> <?= __('Add Scheduled Activity') ?>
+                    <i class="bi bi-calendar-plus" aria-hidden="true"></i> <?= __('Add Scheduled Activity') ?>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"
                     aria-label="<?= __('Close') ?>"></button>
@@ -33,18 +35,18 @@ use function Cake\Collection\collection;
             ]) ?>
             <div class="modal-body bg-light-subtle">
                 <div class="alert alert-info border-start border-info border-4">
-                    <i class="bi bi-info-circle"></i>
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
                     <?php
-                    $timezone = \App\KMP\TimezoneHelper::getGatheringTimezone($gathering, $this->getRequest()->getAttribute('identity'));
+                    $timezone = TimezoneHelper::getGatheringTimezone($gathering, $this->getRequest()->getAttribute('identity'));
                     ?>
                     <?= __(
                         'This gathering runs from {0} to {1}. Scheduled activities must fall within these dates.',
                         $this->Timezone->format($gathering->start_date, 'F j, Y g:i A', false, null, $gathering),
-                        $this->Timezone->format($gathering->end_date, 'F j, Y g:i A', false, null, $gathering)
+                        $this->Timezone->format($gathering->end_date, 'F j, Y g:i A', false, null, $gathering),
                     ) ?>
                     <br>
                     <small>
-                        <i class="bi bi-clock"></i> <?= __('All times in {0}', $timezone) ?>
+                        <i class="bi bi-clock" aria-hidden="true"></i> <?= __('All times in {0}', $timezone) ?>
                     </small>
                 </div>
 
@@ -53,46 +55,7 @@ use function Cake\Collection\collection;
                         <i class="bi bi-clock text-primary me-1" aria-hidden="true"></i>
                         <?= __('Schedule Timing') ?>
                     </legend>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <?= $this->Form->control('start_datetime', [
-                                'type' => 'datetime-local',
-                                'label' => __('Start Date & Time'),
-                                'required' => true,
-                                'class' => 'form-control',
-                                'id' => 'add-start-datetime',
-                                'data-gathering-schedule-target' => 'startDatetime',
-                                'data-action' => 'change->gathering-schedule#validateDatetimeRange',
-                            ]) ?>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-1">
-                                <div class="form-check">
-                                    <?= $this->Form->checkbox('has_end_time', [
-                                        'id' => 'add-has-end-time',
-                                        'class' => 'form-check-input',
-                                        'value' => '1',
-                                        'data-gathering-schedule-target' => 'hasEndTimeCheckbox',
-                                        'data-action' => 'change->gathering-schedule#toggleEndTime',
-                                    ]) ?>
-                                    <label class="form-check-label" for="add-has-end-time">
-                                        <?= __('End Date & Time') ?>
-                                    </label>
-                                </div>
-                            </div>
-                            <div data-gathering-schedule-target="endTimeContainer" style="display: none;">
-                                <?= $this->Form->control('end_datetime', [
-                                    'type' => 'datetime-local',
-                                    'required' => false,
-                                    'label' => false,
-                                    'class' => 'form-control',
-                                    'id' => 'add-end-datetime',
-                                    'data-gathering-schedule-target' => 'endDatetime',
-                                    'data-action' => 'change->gathering-schedule#validateDatetimeRange',
-                                ]) ?>
-                            </div>
-                        </div>
-                    </div>
+                    <?= $this->element('gatherings/scheduleTimingFields', ['mode' => 'add']) ?>
                 </fieldset>
 
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
@@ -176,7 +139,7 @@ use function Cake\Collection\collection;
                     <?= __('Cancel') ?>
                 </button>
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-plus-circle"></i> <?= __('Add Scheduled Activity') ?>
+                    <i class="bi bi-plus-circle" aria-hidden="true"></i> <?= __('Add Scheduled Activity') ?>
                 </button>
             </div>
             <?= $this->Form->end() ?>

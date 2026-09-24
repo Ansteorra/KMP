@@ -188,9 +188,6 @@ $this->KMP->startBlock("modals");
     </div>
 </div>
 
-</turbo-frame>
-</div>
-
 <!-- Attendance Modal - Reusing attendGatheringModal element -->
 <?php
 // Create a temporary gathering object for the modal (will be populated via JS)

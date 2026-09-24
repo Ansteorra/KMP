@@ -249,15 +249,17 @@ class NavigationCell extends Cell
         uasort($parents, function ($a, $b) {
             return $a['order'] <=> $b['order'];
         });
-        //foreach parent sort children by order
+        // Config combines core and plugin links alphabetically; other sections use configured order.
         foreach ($parents as &$parent) {
             if (!isset($parent['children'])) {
                 continue;
             }
-            uasort($parent['children'], function ($a, $b) {
-                $returnval = $a['order'] <=> $b['order'];
+            uasort($parent['children'], function ($a, $b) use ($parent) {
+                if (($parent['id'] ?? '') === 'navheader_config') {
+                    return strnatcasecmp($a['label'], $b['label']);
+                }
 
-                return $returnval;
+                return $a['order'] <=> $b['order'];
             });
             //foreach child sort sublinks by order
             foreach ($parent['children'] as &$child) {

@@ -72,6 +72,57 @@ describe('guided device setup', () => {
     });
     afterEach(() => { document.head.innerHTML = ''; document.body.innerHTML = ''; history.replaceState({}, '', '/'); });
 
+    test('online-only choice survives a new session without hiding Security setup', async () => {
+        vault.metadata.mockResolvedValue(null);
+        await controller.render();
+        expect(controller.element.hidden).toBe(false);
+        controller.decline();
+        expect(controller.statusTarget).toHaveFocus();
+        expect(controller.statusTarget.textContent).toContain('remember your choice after logout');
+        sessionStorage.clear();
+        controller.declinedPromptKey = null;
+        await controller.render();
+        expect(controller.element.hidden).toBe(true);
+        const frame = document.createElement('turbo-frame');
+        document.body.append(frame);
+        frame.append(controller.element);
+        await controller.render();
+        expect(controller.element.hidden).toBe(false);
+        expect(controller.choiceTarget.hidden).toBe(false);
+        controller.trust();
+        expect(controller.stepHeadingTarget).toHaveFocus();
+    });
+
+    test('another account still receives its own device choice', async () => {
+        vault.metadata.mockResolvedValue(null);
+        await controller.render();
+        controller.decline();
+        document.querySelector('meta').content = JSON.stringify({ owner: 'another-member', epoch: 'epoch' });
+        await controller.render();
+        expect(controller.element.hidden).toBe(false);
+        expect(controller.choiceTarget.hidden).toBe(false);
+        expect(vault.unlock).not.toHaveBeenCalled();
+    });
+
+    test('successful protected setup clears an earlier online-only choice', async () => {
+        controller.decline();
+        controller.retrySave = jest.fn();
+        await controller.completeSetup('pin');
+        controller.resetSetup();
+        vault.metadata.mockResolvedValue(null);
+        sessionStorage.clear();
+        await controller.render();
+        expect(controller.element.hidden).toBe(false);
+    });
+
+    test('an unprotected legacy copy does not defeat the remembered choice', async () => {
+        vault.metadata.mockResolvedValue({ wrapper: { method: 'trusted' } });
+        await controller.render();
+        controller.decline();
+        await controller.render();
+        expect(controller.element.hidden).toBe(true);
+    });
+
     test('verifies the password and prepares offline assets before choosing an unlock method', async () => {
         const verified = { context: { owner: 'member', epoch: 'epoch' }, login: { email: 'member@example.test', password: 'setup input' }, generation: 1 };
         verifyDevicePassword.mockResolvedValue(verified);
@@ -269,12 +320,18 @@ describe('guided device setup', () => {
         controller.setupStep = 2;
         const verified = { login: {} };
         controller.pendingSetup = verified;
+        controller.pinTarget.setAttribute('data-trust-control', '');
+        controller.setupProgressTarget.hidden = false;
         await controller.run(async () => { throw Object.assign(new Error('Unsupported'), { code: 'PASSKEY_UNAVAILABLE' }); });
         expect(controller.methodChoiceTarget.hidden).toBe(true);
         expect(controller.methodTarget.value).toBe('pin');
         expect(controller.pinTarget).toHaveFocus();
         expect(controller.pendingSetup).toBe(verified);
         expect(controller.continueTarget.hidden).toBe(true);
+        expect(controller.setupProgressTarget.hidden).toBe(true);
+        expect(controller.availabilityTarget.textContent).toContain('authentication could not be completed');
+        expect(controller.availabilityTarget.textContent).toContain('select another provider');
+        expect(controller.recheckTarget.hidden).toBe(false);
     });
 
     test('cancelled browser prompts offer retry without claiming incompatibility or completion', async () => {
@@ -322,4 +379,45 @@ describe('guided device setup', () => {
         expect(controller.navigate).not.toHaveBeenCalled();
     });
 
+});
+
+describe('separate authentication and decryption', () => {
+    beforeEach(() => {
+        vault.hasOfflineAuthentication = jest.fn().mockReturnValue(false);
+        vault.authenticateOffline = jest.fn();
+        controller.render = jest.fn();
+        controller.unlockPinTarget = document.createElement('input');
+        controller.record = { id: 'hybrid', wrapper: { method: 'trusted', unlockMethod: 'passkey-pin', authentication: {} } };
+    });
+    test('offline hybrid first verifies the passkey and does not attempt PIN decryption', async () => {
+        Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+        await controller.unlockDevice({ preventDefault: jest.fn() });
+        expect(vault.authenticateOffline).toHaveBeenCalledWith(controller.record);
+        expect(vault.unlock).not.toHaveBeenCalled();
+    });
+    test('a canceled offline passkey cannot fall through to PIN', async () => {
+        Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+        vault.authenticateOffline.mockRejectedValue(new DOMException('Canceled', 'NotAllowedError'));
+        await controller.unlockDevice({ preventDefault: jest.fn() });
+        expect(vault.unlock).not.toHaveBeenCalled();
+        expect(controller.errorMessage).toContain('authentication wasn’t completed');
+    });
+    test('after verified authentication the offline PIN unlocks the vault', async () => {
+        Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+        vault.hasOfflineAuthentication.mockReturnValue(true);
+        controller.unlockPinTarget.value = '582694';
+        await controller.unlockDevice({ preventDefault: jest.fn() });
+        expect(vault.unlock).toHaveBeenCalledWith('582694');
+        expect(vault.authenticateOffline).not.toHaveBeenCalled();
+        expect(controller.unlockPinTarget.value).toBe('');
+    });
+    test('an online-only completion explains the missing PIN without attempting an offline save', async () => {
+        controller.completedMethod = 'passkey';
+        controller.readinessTarget = document.createElement('p');
+        controller.retryTarget = document.createElement('button');
+        controller.renderCompletion(false);
+        expect(controller.readinessTarget.textContent).toContain('cannot open saved information offline');
+        expect(controller.readinessTarget.textContent).toContain('Security');
+        expect(controller.retryTarget.hidden).toBe(true);
+    });
 });

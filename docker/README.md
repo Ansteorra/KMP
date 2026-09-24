@@ -131,3 +131,7 @@ bash deploy/azure/test-runtime-contract.sh
 This checks the web skip flags, ordered migration command, unified worker
 arguments, and retained job shape. Build/test changes should also follow the
 verification commands in [`docker/AGENTS.md`](AGENTS.md).
+
+Grid email subscriptions use the tenant-scoped `grid-subscriptions` platform schedule.
+Single-tenant local scheduling invokes `bin/cake grid_subscriptions_enqueue` every
+15 minutes; both modes deliver through the existing queue worker.

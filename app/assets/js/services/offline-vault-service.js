@@ -1,3 +1,5 @@
+import { registerPasskey, verifyPasskeyAssertion, passkeyRequest } from './passkey-auth-service.js';
+import { tracePasskey, tracePasskeyError } from './passkey-debug-service.js';
 import { shortSiteTitle } from './app-branding-service.js';
 import { unavailablePasskey, forgetPasskeyFailure } from './passkey-support-service.js';
 
@@ -117,7 +119,8 @@ export class OfflineVaultService {
     }
 
     aad(record, kind) {
-        return bytes(JSON.stringify([location.origin, VERSION, record.id, record.owner, record.epoch, record.verifiedAt, record.expiresAt, kind]));
+        const binding = record.wrapper?.authentication ? [record.wrapper.unlockMethod, record.wrapper.authentication] : [];
+        return bytes(JSON.stringify([location.origin, VERSION, record.id, record.owner, record.epoch, record.verifiedAt, record.expiresAt, kind, ...binding]));
     }
 
     async crypt(key, value, record, kind) {
@@ -139,18 +142,27 @@ export class OfflineVaultService {
 
     /** Bound OS prompts even when a browser ignores WebAuthn's timeout hint. */
     async credentialRequest(method, options) {
+        tracePasskey(`${method}-start`, { transports: options.publicKey?.allowCredentials?.[0]?.transports });
         if (!navigator.credentials?.[method]) throw new Error('Device unlock is unavailable. Choose a PIN instead.');
         const controller = new AbortController();
         this.promptController = controller;
         let timer;
         try {
-            return await Promise.race([
+            const credential = await Promise.race([
                 navigator.credentials[method]({ ...options, signal: controller.signal }),
                 new Promise((resolve, reject) => {
-                    controller.signal.addEventListener('abort', () => reject(new Error('Device unlock cancelled or timed out. Retry or choose a PIN instead.')), { once: true });
+                    controller.signal.addEventListener('abort', () => {
+                        tracePasskey('prompt-aborted');
+                        reject(new Error('Device unlock cancelled or timed out. Retry or choose a PIN instead.'));
+                    }, { once: true });
                     timer = setTimeout(() => controller.abort(), 120000);
                 })
             ]);
+            tracePasskey(`${method}-returned`, { credentialReturned: !!credential, attachment: credential?.authenticatorAttachment });
+            return credential;
+        } catch (error) {
+            tracePasskeyError(`${method}-error`, error);
+            throw error;
         } finally {
             clearTimeout(timer);
             if (this.promptController === controller) this.promptController = null;
@@ -158,67 +170,99 @@ export class OfflineVaultService {
     }
 
     async deviceKey(wrapper) {
-        const credential = await this.credentialRequest('get', { publicKey: {
+        let credential;
+        if (wrapper.authentication) {
+            const options = passkeyRequest(wrapper.authentication, undefined, unb64(wrapper.input));
+            credential = await this.credentialRequest('get', options);
+            await verifyPasskeyAssertion(credential, wrapper.authentication, options.publicKey.challenge);
+        } else {
+            credential = await this.credentialRequest('get', { publicKey: {
             challenge: random(32), rpId: location.hostname, userVerification: 'required', timeout: 120000,
             allowCredentials: [{ type: 'public-key', id: unb64(wrapper.credentialId), transports: wrapper.transports }],
             extensions: { prf: { eval: { first: unb64(wrapper.input) } } }
         } });
-        const result = credential?.getClientExtensionResults()?.prf?.results?.first;
-        if (!result || result.byteLength !== 32 || b64(credential.rawId) !== wrapper.credentialId) {
+        }
+        const prf = credential?.getClientExtensionResults()?.prf;
+        const result = prf?.results?.first;
+        const credentialMatches = !!credential && b64(credential.rawId) === wrapper.credentialId;
+        tracePasskey('get-prf', { hasPrf: !!prf, prfEnabled: prf?.enabled ?? null,
+            prfBytes: result?.byteLength ?? 0, credentialMatches });
+        if (!result || result.byteLength !== 32 || !credentialMatches) {
+            tracePasskey('get-prf-rejected');
+            if (wrapper.authentication) throw Object.assign(new Error('This passkey needs an offline PIN.'), { code: 'PRF_UNAVAILABLE' });
             throw unavailablePasskey(`This passkey cannot protect ${shortSiteTitle()}’s offline information. Use a ${shortSiteTitle()} PIN on this device.`);
         }
         return this.prfKey(result, wrapper);
     }
 
     async prfKey(result, wrapper) {
-        const material = await crypto.subtle.importKey('raw', result, 'HKDF', false, ['deriveKey']);
-        const key = await crypto.subtle.deriveKey({ name: 'HKDF', hash: 'SHA-256', salt: unb64(wrapper.input),
-            info: bytes('KMP offline key wrapping v1') }, material, { name: 'AES-GCM', length: 256 }, !!wrapper.unlockMethod, ['encrypt', 'decrypt']);
-        new Uint8Array(result).fill(0);
-        return key;
+        tracePasskey('derive-start');
+        try {
+            const material = await crypto.subtle.importKey('raw', result, 'HKDF', false, ['deriveKey']);
+            const key = await crypto.subtle.deriveKey({ name: 'HKDF', hash: 'SHA-256', salt: unb64(wrapper.input),
+                info: bytes('KMP offline key wrapping v1') }, material, { name: 'AES-GCM', length: 256 }, !!wrapper.unlockMethod, ['encrypt', 'decrypt']);
+            new Uint8Array(result).fill(0);
+            tracePasskey('derive-complete');
+            return key;
+        } catch (error) {
+            tracePasskeyError('derive-error', error);
+            throw error;
+        }
     }
 
-    async enroll(context, method, passphrase = '', login = null) {
+    /** Start the browser prompt before storage awaits can consume the initiating user gesture. */
+    async createDeviceCredential(registration = null) {
+        if (!navigator.credentials?.create || !crypto.subtle) throw new Error('Choose a PIN on this device.');
+        const input = b64(random(32));
+        const credential = await this.credentialRequest('create', { publicKey: {
+            challenge: registration ? unb64(registration.challenge) : random(32), rp: { id: location.hostname, name: `${shortSiteTitle()} offline access` },
+            user: { id: random(32), name: `${shortSiteTitle()} offline access`, displayName: `${shortSiteTitle()} offline access` },
+            pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+            authenticatorSelection: { residentKey: 'preferred', userVerification: 'required' },
+            attestation: 'none', timeout: 120000, extensions: { prf: { eval: { first: unb64(input) } } }
+        } });
+        if (!credential) throw new Error(`Passkey setup was not completed. Try again or choose a ${shortSiteTitle()} PIN.`);
+        const prf = credential.getClientExtensionResults()?.prf;
+        // Support metadata alone is not proof. Some providers only return usable output on get().
+        tracePasskey('create-prf', { hasPrf: !!prf, prfEnabled: prf?.enabled ?? null,
+            prfBytes: prf?.results?.first?.byteLength ?? 0 });
+        if (prf?.enabled === false && !registration) {
+            tracePasskey('create-prf-disabled');
+            throw unavailablePasskey(`Your browser saved a passkey, but it cannot use it to protect ${shortSiteTitle()}’s offline information. Use a ${shortSiteTitle()} PIN on this device.`);
+        }
+        return { input, credential, prf };
+    }
+
+    async enroll(context, method, passphrase = '', login = null, registration = null) {
         const generation = this.generation;
         if (!context?.owner || !context?.epoch || context.impersonating || !navigator.onLine) throw new Error('Sign in online to enable offline access.');
         if (method === 'pin' && !/^\d{6,12}$/.test(passphrase)) throw new Error('Choose a PIN with 6–12 digits.');
         if (method === 'passphrase' && (passphrase.length < 15 || passphrase.length > 128 || /^\d+$/.test(passphrase))) {
             throw new Error('Use at least 15 characters, such as four unrelated words.');
         }
-        if (login) await this.verifyContext(context);
-        const previous = login ? await this.metadata() : null;
-        if (previous && !this.key) throw new Error('Unlock your saved information before changing device protection.');
-        const payload = login ? { ...(previous ? await this.read(true) : { card: null, months: {}, rsvps: [], pending: [] }), login } : null;
         const record = { version: VERSION, id: crypto.randomUUID(), revision: crypto.randomUUID(), owner: context.owner,
             epoch: context.epoch, verifiedAt: context.serverTime, expiresAt: context.expiresAt };
         if (!this.valid(record)) throw new Error('Check the device clock before enabling offline access.');
-        if (previous) {
+        const device = method === 'device' ? await this.createDeviceCredential(registration) : null;
+        if (generation !== this.generation) throw new Error('Offline setup was cancelled by a session change.');
+        if (login) await this.verifyContext(context);
+        const previous = login ? await this.metadata() : null;
+        if (previous && !this.key && previous.wrapper.unlockMethod !== 'passkey') throw new Error('Unlock your saved information before changing device protection.');
+        const payload = login ? { ...(previous && previous.wrapper.unlockMethod !== 'passkey' ? await this.read(true) : { card: null, months: {}, rsvps: [], pending: [] }), login } : null;
+        if (previous && previous.wrapper.unlockMethod !== 'passkey') {
             record.verifiedAt = previous.verifiedAt; record.expiresAt = previous.expiresAt;
             record.snapshotSaved = previous.snapshotSaved;
         }
         let wrapper;
         let wrappingKey;
         if (method === 'device') {
-            if (!navigator.credentials?.create || !crypto.subtle) throw new Error('Choose a PIN on this device.');
-            const input = b64(random(32));
-            const credential = await this.credentialRequest('create', { publicKey: {
-                challenge: random(32), rp: { id: location.hostname, name: `${shortSiteTitle()} offline access` },
-                user: { id: random(32), name: `${shortSiteTitle()} offline access`, displayName: `${shortSiteTitle()} offline access` },
-                pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-                authenticatorSelection: { authenticatorAttachment: 'platform', residentKey: 'preferred', userVerification: 'required' },
-                attestation: 'none', timeout: 120000, extensions: { prf: { eval: { first: unb64(input) } } }
-            } });
-            if (!credential) throw new Error(`Passkey setup was not completed. Try again or choose a ${shortSiteTitle()} PIN.`);
-            const prf = credential.getClientExtensionResults()?.prf;
-            // Support metadata alone is not proof. Some providers only return usable output on get().
-            console.info('[KMP device setup]', { stage: 'passkey-created', prfEnabled: prf?.enabled === true,
-                hasPrfOutput: prf?.results?.first?.byteLength === 32 });
-            if (prf?.enabled === false) throw unavailablePasskey(`Your browser saved a passkey, but it cannot use it to protect ${shortSiteTitle()}’s offline information. Use a ${shortSiteTitle()} PIN on this device.`);
-            wrapper = { method: login ? 'trusted' : method, ...(login ? { unlockMethod: 'device' } : {}), input, credentialId: b64(credential.rawId), transports: credential.response.getTransports?.() || ['internal'] };
+            const { input, credential, prf } = device;
+            const authentication = registration ? await registerPasskey(credential, context) : null;
+            wrapper = { method: login ? 'trusted' : method, ...(login ? { unlockMethod: 'device' } : {}), input, ...(authentication ? { authentication } : {}), credentialId: b64(credential.rawId), transports: credential.response.getTransports?.() || [] };
             if (generation !== this.generation) throw new Error('Offline setup was cancelled by a session change.');
             // Each assertion needs its own tap on Safari. Never chain OS prompts.
             const result = prf?.results?.first;
-            const pending = { record, wrapper, generation, payload, revision: previous?.revision ?? null };
+            const pending = { record, wrapper, generation, payload, previous, revision: previous?.revision ?? null };
             if (result?.byteLength === 32) {
                 const key = await this.prfKey(result, wrapper);
                 await this.sealRecord(record, wrapper, key, payload);
@@ -290,11 +334,18 @@ export class OfflineVaultService {
     }
 
     async sealRecord(record, wrapper, wrappingKey, payload = null) {
+        const device = (wrapper.unlockMethod || wrapper.method) === 'device';
+        if (device) tracePasskey('seal-start');
         const raw = random(32);
         try {
             const key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
-            record.wrapper = { ...wrapper, sealed: await this.crypt(wrappingKey, raw, record, 'key') };
+            record.wrapper = { ...wrapper };
+            record.wrapper.sealed = await this.crypt(wrappingKey, raw, record, 'key');
             record.payload = await this.crypt(key, bytes(JSON.stringify(payload || { card: null, months: {}, rsvps: [], pending: [] })), record, 'payload');
+            if (device) tracePasskey('seal-complete');
+        } catch (error) {
+            if (device) tracePasskeyError('seal-error', error);
+            throw error;
         } finally { raw.fill(0); }
     }
 
@@ -302,7 +353,14 @@ export class OfflineVaultService {
     async continueDeviceEnrollment() {
         const pending = this.pendingDevice;
         if (!pending || pending.generation !== this.generation) throw new Error('Start device setup again.');
-        const wrappingKey = await this.deviceKey(pending.wrapper);
+        let wrappingKey;
+        try { wrappingKey = await this.deviceKey(pending.wrapper); }
+        catch (error) {
+            if (error.code !== 'PRF_UNAVAILABLE') throw error;
+            if (pending.generation !== this.generation) throw new Error('Device setup was cancelled.');
+            pending.requiresPin = true;
+            return 'pin';
+        }
         if (pending.generation !== this.generation) throw new Error('Offline setup was cancelled by a session change.');
         if (!pending.record.payload) {
             await this.sealRecord(pending.record, pending.wrapper, wrappingKey, pending.payload);
@@ -315,22 +373,98 @@ export class OfflineVaultService {
         return 'complete';
     }
 
-    async activateRecord(record, wrappingKey, generation, revision = null) {
-        const raw = await this.decrypt(wrappingKey, record.wrapper.sealed, record, 'key');
-        const key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
-        new Uint8Array(raw).fill(0);
-        await this.decrypt(key, record.payload, record, 'payload');
-        if (generation !== this.generation || !this.valid(record)) throw new Error('Offline setup was cancelled or expired.');
-        await this.commit(record, revision);
-        if (generation !== this.generation) {
-            await this.commit(null, record.revision).catch(() => {});
-            throw new Error('Offline setup was cancelled.');
+    /** Preserve a verified authentication credential when PRF is absent. */
+    async finishPasskeyWithPin(pin) {
+        const pending = this.pendingDevice;
+        if (!pending?.requiresPin || pending.generation !== this.generation) throw new Error('Verify your passkey again.');
+        if (!/^\d{6,12}$/.test(pin)) throw new Error('Choose a PIN with 6–12 digits.');
+        const wrapper = { method: 'trusted', unlockMethod: 'passkey-pin', authentication: pending.wrapper.authentication,
+            salt: b64(random(32)), iterations: ITERATIONS };
+        const key = await this.passphraseKey(pin, wrapper.salt, ITERATIONS, true);
+        await this.sealRecord(pending.record, wrapper, key, pending.payload);
+        localStorage.removeItem('kmp.offline.revoked');
+        await this.activateRecord(pending.record, key, pending.generation, pending.revision);
+        this.pendingDevice = null;
+    }
+
+    /** Online-only registration contains public authentication data and no saved private payload. */
+    async finishOnlinePasskey() {
+        const pending = this.pendingDevice;
+        if (!pending?.requiresPin || pending.generation !== this.generation) throw new Error('Verify your passkey again.');
+        if (pending.previous && pending.previous.wrapper.unlockMethod !== 'passkey') {
+            throw new Error('Add an offline PIN to preserve your saved information and waiting RSVPs.');
         }
-        this.key = key; this.wrappingKey = wrappingKey; this.activeId = record.id;
-        this.trusted = record.wrapper.method === 'trusted';
-        await this.rememberSession(record, wrappingKey);
-        this.channel?.postMessage('changed');
+        pending.record.wrapper = { method: 'trusted', unlockMethod: 'passkey', authentication: pending.wrapper.authentication };
+        delete pending.record.payload;
+        localStorage.removeItem('kmp.offline.revoked');
+        await this.commit(pending.record, pending.revision);
+        if (pending.generation !== this.generation) {
+            await this.commit(null, pending.record.revision).catch(() => {});
+            throw new Error('Device setup was cancelled.');
+        }
+        this.pendingDevice = null;
+        this.activeId = pending.record.id;
+        this.trusted = true;
         announce();
+    }
+
+    /** Add offline protection to an existing online-only passkey, after a fresh password check. */
+    async prepareExistingPasskey(context, login) {
+        const generation = this.generation;
+        await this.verifyContext(context);
+        const previous = await this.metadata();
+        if (previous?.wrapper.unlockMethod !== 'passkey' || generation !== this.generation || !navigator.onLine) {
+            throw new Error('Start device setup again while signed in online.');
+        }
+        const record = { version: VERSION, id: crypto.randomUUID(), revision: crypto.randomUUID(), owner: context.owner,
+            epoch: context.epoch, verifiedAt: context.serverTime, expiresAt: context.expiresAt };
+        this.pendingDevice = { record, wrapper: { ...previous.wrapper, unlockMethod: 'device', input: b64(random(32)), credentialId: previous.wrapper.authentication.credentialId },
+            generation, previous, revision: previous.revision,
+            payload: { card: null, months: {}, rsvps: [], pending: [], login } };
+    }
+
+    /** Keep the offline authentication step in memory, short-lived and bound to this exact vault. */
+    async authenticateOffline(record) {
+        const generation = this.generation;
+        this.pendingUnlock = null;
+        const options = passkeyRequest(record.wrapper.authentication);
+        const credential = await this.credentialRequest('get', options);
+        await verifyPasskeyAssertion(credential, record.wrapper.authentication, options.publicKey.challenge);
+        if (generation !== this.generation) throw new Error('Device was locked. Try again.');
+        this.pendingUnlock = { id: record.id, generation, until: Date.now() + 120000 };
+    }
+
+    hasOfflineAuthentication(record) {
+        return this.pendingUnlock?.id === record?.id && this.pendingUnlock.generation === this.generation
+            && this.pendingUnlock.until > Date.now();
+    }
+
+    async activateRecord(record, wrappingKey, generation, revision = null) {
+        const device = (record.wrapper.unlockMethod || record.wrapper.method) === 'device';
+        if (device) tracePasskey('verify-start');
+        try {
+            const raw = await this.decrypt(wrappingKey, record.wrapper.sealed, record, 'key');
+            if (device) tracePasskey('verify-key-opened');
+            const key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+            new Uint8Array(raw).fill(0);
+            await this.decrypt(key, record.payload, record, 'payload');
+            if (device) tracePasskey('verify-payload-opened');
+            if (generation !== this.generation || !this.valid(record)) throw new Error('Offline setup was cancelled or expired.');
+            await this.commit(record, revision);
+            if (device) tracePasskey('verify-committed');
+            if (generation !== this.generation) {
+                await this.commit(null, record.revision).catch(() => {});
+                throw new Error('Offline setup was cancelled.');
+            }
+            this.key = key; this.wrappingKey = wrappingKey; this.activeId = record.id;
+            this.trusted = record.wrapper.method === 'trusted';
+            await this.rememberSession(record, wrappingKey);
+            this.channel?.postMessage('changed');
+            announce();
+        } catch (error) {
+            if (device) tracePasskeyError('verify-error', error);
+            throw error;
+        }
     }
 
     async unlock(passphrase = '', preparedRecord = null) {
@@ -338,10 +472,12 @@ export class OfflineVaultService {
         const record = preparedRecord || await this.metadata();
         if (!record || !this.valid(record)) throw new Error('Connect and sign in to refresh offline access.');
         const method = record.wrapper.unlockMethod || record.wrapper.method;
+        if (method === 'passkey') throw new Error('This device needs an offline PIN. Connect and add one in Security.');
+        if (method === 'passkey-pin' && !this.hasOfflineAuthentication(record)) throw new Error('Verify your passkey before entering the offline PIN.');
         const attemptsKey = `kmp.offline.attempts.${record.id}`;
         let attempts = {};
         try { attempts = JSON.parse(localStorage.getItem(attemptsKey) || '{}'); } catch { /* Invalid local hint. */ }
-        if (method === 'pin' && attempts.until > Date.now()) throw new Error('Too many PIN attempts. Wait a minute and try again.');
+        if (['pin', 'passkey-pin'].includes(method) && attempts.until > Date.now()) throw new Error('Too many PIN attempts. Wait a minute and try again.');
         try {
             const wrappingKey = method === 'trusted' ? record.wrapper.key : method === 'device' ? await this.deviceKey(record.wrapper)
                 : await this.passphraseKey(passphrase, record.wrapper.salt, record.wrapper.iterations, !!record.wrapper.unlockMethod);
@@ -359,7 +495,7 @@ export class OfflineVaultService {
             localStorage.removeItem('kmp.offline.signedOut');
             announce();
         } catch {
-            if (method === 'pin') localStorage.setItem(attemptsKey, JSON.stringify({ count: (attempts.count || 0) + 1,
+            if (['pin', 'passkey-pin'].includes(method)) localStorage.setItem(attemptsKey, JSON.stringify({ count: (attempts.count || 0) + 1,
                 until: (attempts.count || 0) >= 4 ? Date.now() + 60000 : 0 }));
             this.lock(); throw new Error('Unable to unlock. Check your PIN or passkey and try again.');
         }
@@ -405,6 +541,7 @@ export class OfflineVaultService {
         this.generation++;
         this.promptController?.abort();
         this.pendingDevice = null;
+        this.pendingUnlock = null;
         this.key = null; this.wrappingKey = null; this.activeId = null; this.trusted = false;
         window.dispatchEvent(new CustomEvent('kmp:offline-revoked'));
         if (broadcast) {
@@ -420,6 +557,7 @@ export class OfflineVaultService {
         this.generation++;
         this.promptController?.abort();
         this.pendingDevice = null;
+        this.pendingUnlock = null;
         this.key = null; this.wrappingKey = null; this.activeId = null; this.trusted = false;
         window.dispatchEvent(new CustomEvent('kmp:offline-revoked'));
         this.channel?.postMessage('cleared');

@@ -107,6 +107,24 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
     }
 
+    /** The upload summary identifies document state and uploader without retention clutter. */
+    public function testSummaryShowsUploadStateAndUploader(): void
+    {
+        $waivers = $this->getTableLocator()->get('Waivers.GatheringWaivers');
+        $waiver = $waivers->find()->contain(['CreatedByMembers'])->firstOrFail();
+        $waiver->declined_at = null;
+        $waiver->is_exemption = true;
+        $waiver->exemption_reason = 'No minors attended this synthetic check.';
+        $waivers->saveOrFail($waiver);
+        $this->get('/waivers/gathering-waivers?gathering_id=' . $waiver->gathering_id);
+        $this->assertResponseOk();
+        $this->assertResponseContains('Exempted');
+        $this->assertResponseContains('No minors attended this synthetic check.');
+        $this->assertResponseContains('Uploaded By');
+        $this->assertResponseContains(h($waiver->created_by_member->sca_name));
+        $this->assertResponseNotContains('Retention Until');
+    }
+
     /**
      * Test view method
      *

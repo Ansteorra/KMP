@@ -129,7 +129,7 @@ class GatheringScheduledActivity extends Entity
             return null;
         }
 
-        return $this->start_datetime->diffInHours($this->end_datetime, true);
+        return $this->start_datetime->diffInSeconds($this->end_datetime, true) / 3600;
     }
 
     /**

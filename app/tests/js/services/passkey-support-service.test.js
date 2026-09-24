@@ -1,3 +1,4 @@
+import { passkeyDebug } from '../../../assets/js/services/passkey-debug-service.js';
 import { checkPasskeySupport, unavailablePasskey, forgetPasskeyFailure } from '../../../assets/js/services/passkey-support-service.js';
 
 let api;
@@ -11,25 +12,25 @@ beforeEach(() => {
 });
 afterEach(() => jest.useRealTimers());
 
-test.each([{}, { 'extension:prf': false }])('hides the option when browser capabilities omit PRF: %j', async capabilities => {
+test.each([{}, { 'extension:prf': false }])('allows authentication when browser capabilities omit PRF: %j', async capabilities => {
     api.getClientCapabilities.mockResolvedValue(capabilities);
-    await expect(checkPasskeySupport()).resolves.toEqual({ available: false, reason: 'browser' });
+    await expect(checkPasskeySupport()).resolves.toEqual({ available: true });
     expect(navigator.credentials.create).not.toHaveBeenCalled();
     expect(navigator.credentials.get).not.toHaveBeenCalled();
 });
-test('requires an available device authenticator without opening a prompt', async () => {
+test('allows password managers and security keys without a built-in authenticator or prompt', async () => {
     api.isUserVerifyingPlatformAuthenticatorAvailable.mockResolvedValue(false);
-    await expect(checkPasskeySupport()).resolves.toEqual({ available: false, reason: 'device' });
+    await expect(checkPasskeySupport()).resolves.toEqual({ available: true });
     expect(navigator.credentials.create).not.toHaveBeenCalled();
 });
 test('unknown older browsers can try a passkey; support still requires actual cryptographic verification', async () => {
     delete api.getClientCapabilities;
     await expect(checkPasskeySupport()).resolves.toEqual({ available: true });
 });
-test('remembers provider incompatibility until explicit recheck or expiry', async () => {
+test('an old PRF failure hint never disables authentication', async () => {
     const now = Date.now();
     expect(unavailablePasskey('Unavailable').code).toBe('PASSKEY_UNAVAILABLE');
-    await expect(checkPasskeySupport()).resolves.toEqual({ available: false, reason: 'provider' });
+    await expect(checkPasskeySupport()).resolves.toEqual({ available: true });
     forgetPasskeyFailure();
     await expect(checkPasskeySupport()).resolves.toEqual({ available: true });
     unavailablePasskey('Unavailable');
@@ -42,4 +43,21 @@ test('a hung capability probe never leaves setup waiting indefinitely', async ()
     const check = checkPasskeySupport();
     await jest.advanceTimersByTimeAsync(2000);
     await expect(check).resolves.toEqual({ available: true });
+});
+
+
+test('diagnostics identify a cached rejection and the capability result after recheck', async () => {
+    const log = jest.spyOn(console, 'info').mockImplementation(() => {});
+    passkeyDebug.start();
+    try {
+        unavailablePasskey('Not supported');
+        await checkPasskeySupport();
+        expect(JSON.parse(passkeyDebug.report()).events.some(event => event.stage === 'support-cached-failure')).toBe(true);
+        forgetPasskeyFailure();
+        await checkPasskeySupport();
+        expect(JSON.parse(passkeyDebug.report()).events).toEqual(expect.arrayContaining([
+            expect.objectContaining({ stage: 'support-hint-cleared' }),
+            expect.objectContaining({ stage: 'support-prf', prfEnabled: true })
+        ]));
+    } finally { passkeyDebug.clear(); log.mockRestore(); }
 });

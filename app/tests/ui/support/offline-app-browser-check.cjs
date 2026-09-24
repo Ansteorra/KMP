@@ -68,8 +68,10 @@ const waitIdle = page => page.waitForFunction(() => !document.querySelector('[da
 const choosePin = async scope => {
     await expect(scope.locator('[data-offline-access-target=stepLabel]')).toHaveText('Step 2 of 3');
     const method = scope.getByLabel('Unlock this device with', { exact: true });
+    const pin = scope.getByLabel('Choose a PIN (6–12 digits)', { exact: true });
+    await expect.poll(async () => await method.isVisible() || await pin.isVisible()).toBe(true);
     if (await method.isVisible()) await method.selectOption('pin');
-    await expect(scope.getByLabel('Choose a PIN (6–12 digits)', { exact: true })).toBeVisible();
+    await expect(pin).toBeVisible();
 };
 
 (async () => {
@@ -78,6 +80,8 @@ const choosePin = async scope => {
     const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
     try {
         const context = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://kmp.localhost:8080', viewport: { width: 390, height: 844 } });
+        // This lane verifies PIN-only fallback; dedicated passkey checks cover capable authenticators.
+        await context.addInitScript(() => Object.defineProperty(window, 'PublicKeyCredential', { value: undefined, configurable: true }));
         let disconnected = false;
         // Also block worker-owned requests so worker restarts cannot escape offline emulation.
         await context.route('**/*', route => disconnected && route.request().serviceWorker()
@@ -294,13 +298,22 @@ const choosePin = async scope => {
 
         // Shared browsers do not save private data until the user explicitly trusts them.
         const deviceContext = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://kmp.localhost:8080', viewport: { width: 390, height: 844 } });
+        await deviceContext.addInitScript(() => Object.defineProperty(window, 'PublicKeyCredential', { value: undefined, configurable: true }));
         const devicePage = await deviceContext.newPage();
         devicePage.on('pageerror', error => errors.push(error.message));
         await loginAs(devicePage, fixture.email, fixture.password);
         await devicePage.goto('/members/view-mobile-card');
-        await devicePage.getByRole('button', { name: 'Not now', exact: true }).click();
+        await devicePage.getByRole('button', { name: 'Use online only', exact: true }).click();
         await devicePage.reload();
         assert.equal(await devicePage.getByRole('button', { name: 'Trust this personal device', exact: true }).isVisible(), false);
+        await devicePage.goto('/members/logout');
+        await loginAs(devicePage, fixture.email, fixture.password);
+        await devicePage.goto('/members/view-mobile-card');
+        await expect(devicePage.getByRole('button', { name: 'Trust this personal device', exact: true })).toBeHidden();
+        const returnPage = await deviceContext.newPage();
+        await returnPage.goto('/members/view-mobile-card');
+        await expect(returnPage.getByRole('button', { name: 'Trust this personal device', exact: true })).toBeHidden();
+        await returnPage.close();
         const security = devicePage.getByRole('button', { name: 'Security', exact: true });
         await security.click();
         await devicePage.getByRole('heading', { name: 'Your account security', exact: true }).waitFor();
@@ -347,7 +360,7 @@ const choosePin = async scope => {
         await expect(security).toBeFocused();
         assert.deepEqual(errors, []);
         await deviceContext.close();
-        console.log('PASS: shared-device opt-out, Security modal focus/escape and password validation.');
+        console.log('PASS: shared-device opt-out across logout/login and new tabs, Security modal focus/escape and password validation.');
     } finally {
         await browser.close();
         runPhpJson(tenantFixture, { cleanup: fixture.id, name: fixture.name, memberId: fixture.memberId, email: fixture.email });

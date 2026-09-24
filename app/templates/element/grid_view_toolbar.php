@@ -54,6 +54,41 @@ $searchDescription = !empty($searchableLabels)
         'controllerName' => $controllerName,
     ]) ?>
 
+    <?php if (\App\Services\GridSubscriptionRegistry::supports($gridKey)): ?>
+    <details class="mb-3 grid-subscription">
+        <summary class="btn btn-outline-secondary" data-action="click-><?= h($controllerName) ?>#prepareSubscription">
+            <i class="bi bi-envelope" aria-hidden="true"></i> <?= __('Email this view') ?>
+        </summary>
+        <form data-subscription-page-name="<?= h(\App\Services\GridSubscriptionRegistry::get($gridKey)['label']) ?>"
+            class="border rounded p-3 mt-2" data-action="submit-><?= h($controllerName) ?>#subscribeToView"
+            action="<?= h($this->Url->build(['plugin' => null, 'controller' => 'GridSubscriptions', 'action' => 'add'])) ?>" method="post">
+            <p><?= __('Receive up to 50 current matching rows and a link to this view. Empty results are skipped. You can cancel from your profile.') ?></p>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="subscription-name-<?= $gridKeyEscaped ?>"><?= __('Subscription name') ?></label>
+                    <input class="form-control" id="subscription-name-<?= $gridKeyEscaped ?>" name="subscriptionName" maxlength="150" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="subscription-frequency-<?= $gridKeyEscaped ?>"><?= __('Frequency') ?></label>
+                    <select class="form-select" id="subscription-frequency-<?= $gridKeyEscaped ?>" name="intervalDays">
+                        <option value="1"><?= __('Daily') ?></option>
+                        <option value="3"><?= __('Every 3 days') ?></option>
+                        <option value="7"><?= __('Weekly') ?></option>
+                    </select>
+                </div>
+            </div>
+            <p class="small text-muted mt-2"><?= __('The first email is due after the selected interval. Results use your current permissions each time.') ?></p>
+            <button type="submit" class="btn btn-primary"><?= __('Subscribe') ?></button>
+            <button type="submit" class="btn btn-outline-secondary" data-subscription-sample
+                formaction="<?= h($this->Url->build(['plugin' => null, 'controller' => 'GridSubscriptions', 'action' => 'sample'])) ?>">
+                <?= __('Send me a sample') ?>
+            </button>
+            <p class="small text-muted mt-2"><?= __('Samples go to your account email without creating or changing a subscription.') ?></p>
+            <p class="mt-2 mb-0" role="status" data-subscription-status></p>
+        </form>
+    </details>
+    <?php endif; ?>
+
     <!-- Row 2: Filters and Actions -->
     <div class="d-flex justify-content-between align-items-start gap-3">
         <!-- Left: Active filter badges -->

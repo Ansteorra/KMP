@@ -21,13 +21,13 @@ class GatheringScheduleController extends Controller {
         "editActivitySelect",
         "editIsOtherCheckbox",
         "startDatetime",
-        "endDatetime",
         "editStartDatetime",
-        "editEndDatetime",
-        "hasEndTimeCheckbox",
-        "editHasEndTimeCheckbox",
-        "endTimeContainer",
-        "editEndTimeContainer"
+        "startDate",
+        "startTime",
+        "duration",
+        "editStartDate",
+        "editStartTime",
+        "editDuration"
     ]
 
     static values = {
@@ -39,89 +39,69 @@ class GatheringScheduleController extends Controller {
         deleteUrl: String
     }
 
-    /**
-     * Initialize controller
-     */
-    connect() {
-        console.log('Gathering schedule controller connected');
-        // Note: setupDateTimeLimits() is called when the modal opens (resetAddForm)
-        // because Stimulus values may not be initialized yet during connect()
-    }
-
-    /**
-     * Setup min/max limits on datetime inputs based on gathering dates
-     * This is called when modals open to ensure values are set
-     */
+    /** Set date bounds without letting the browser timezone alter gathering wall times. */
     setupDateTimeLimits() {
-        // Validate that gathering dates are present and in correct format (YYYY-MM-DDTHH:MM)
-        const datetimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
-        if (!this.gatheringStartValue || !this.gatheringEndValue || 
-            !datetimePattern.test(this.gatheringStartValue) || 
-            !datetimePattern.test(this.gatheringEndValue)) {
-            console.warn('Invalid gathering dates - skipping datetime limits setup');
-            console.log('Start:', this.gatheringStartValue, 'End:', this.gatheringEndValue);
-            return;
-        }
-
-        // Use the gathering start/end times directly (already in gathering timezone)
-        const minDatetime = this.gatheringStartValue;
-        const maxDatetime = this.gatheringEndValue;
-
-        // Set limits on add form inputs
-        if (this.hasStartDatetimeTarget) {
-            this.startDatetimeTarget.min = minDatetime;
-            this.startDatetimeTarget.max = maxDatetime;
-            
-            // Set default to start of gathering if empty
-            if (!this.startDatetimeTarget.value) {
-                this.startDatetimeTarget.value = this.gatheringStartValue;
-            }
-        }
-
-        if (this.hasEndDatetimeTarget) {
-            this.endDatetimeTarget.min = minDatetime;
-            this.endDatetimeTarget.max = maxDatetime;
-            
-            // Don't set a default value - end time is optional
-        }
-
-        // Set limits on edit form inputs
-        if (this.hasEditStartDatetimeTarget) {
-            this.editStartDatetimeTarget.min = minDatetime;
-            this.editStartDatetimeTarget.max = maxDatetime;
-        }
-
-        if (this.hasEditEndDatetimeTarget) {
-            this.editEndDatetimeTarget.min = minDatetime;
-            this.editEndDatetimeTarget.max = maxDatetime;
+        for (const input of [...this.startDateTargets, ...this.editStartDateTargets]) {
+            input.min = this.gatheringStartValue.slice(0, 10);
+            input.max = this.gatheringEndValue.slice(0, 10);
         }
     }
 
-    /**
-     * Reset add form when modal is opened
-     */
-    resetAddForm(event) {
-        // Setup datetime limits when modal opens (values are guaranteed to be available now)
+    /** Default new activities to the first quarter-hour within the gathering. */
+    resetAddForm() {
         this.setupDateTimeLimits();
-        
-        // Validate that gathering dates are present and in correct format (YYYY-MM-DDTHH:MM)
-        const datetimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
-        if (!this.gatheringStartValue || !this.gatheringEndValue || 
-            !datetimePattern.test(this.gatheringStartValue) || 
-            !datetimePattern.test(this.gatheringEndValue)) {
-            console.warn('Invalid gathering dates - skipping form reset defaults');
-            return;
-        }
+        const start = new Date(`${this.gatheringStartValue}Z`);
+        if (Number.isNaN(start.getTime())) return;
+        start.setUTCMinutes(Math.ceil(start.getUTCMinutes() / 15) * 15, 0, 0);
+        const value = start.toISOString().slice(0, 16);
+        this.startDateTarget.value = value.slice(0, 10);
+        this.startTimeTarget.value = value.slice(11);
+        this.durationTarget.value = '60';
+        this.updateTiming(false);
+    }
 
-        // Reset to defaults - use gathering start time
-        if (this.hasStartDatetimeTarget) {
-            this.startDatetimeTarget.value = this.gatheringStartValue;
+    /** Keep the submitted local datetime in sync with the labeled date/time controls. */
+    timingChanged(event) {
+        this.updateTiming(event.target.form === this.editFormTarget);
+    }
+
+    /** Validate gathering boundaries on a visible control so native errors are reachable. */
+    updateTiming(edit) {
+        const date = edit ? this.editStartDateTarget : this.startDateTarget;
+        const time = edit ? this.editStartTimeTarget : this.startTimeTarget;
+        const datetime = edit ? this.editStartDatetimeTarget : this.startDatetimeTarget;
+        datetime.value = date.value && time.value ? `${date.value}T${time.value}` : '';
+        const outside = datetime.value && (datetime.value < this.gatheringStartValue ||
+            datetime.value > this.gatheringEndValue);
+        time.setCustomValidity(outside ? 'Start time must fall within the gathering dates and times.' : '');
+    }
+
+    /** Preserve saved times without adding off-quarter choices to new activities. */
+    setEditTiming(start, end, hasEndTime, duration = null) {
+        this.editStartDateTarget.value = start.slice(0, 10);
+        const time = start.slice(11, 16);
+        this.editStartTimeTarget.querySelectorAll('[data-existing]').forEach(option => option.remove());
+        if (!Array.from(this.editStartTimeTarget.options).some(option => option.value === time)) {
+            const option = new Option(`${time} (current)`, time);
+            option.dataset.existing = 'true';
+            this.editStartTimeTarget.add(option);
         }
-        
-        if (this.hasEndDatetimeTarget) {
-            // Don't set a default value - end time is optional
-            this.endDatetimeTarget.value = '';
+        this.editStartTimeTarget.value = time;
+        this.editDurationTarget.querySelectorAll('[data-existing]').forEach(option => option.remove());
+        // Preserve the exact stored end, including across daylight-saving transitions.
+        const standardDuration = Array.from(this.editDurationTarget.options)
+            .some(option => option.value === duration);
+        if (hasEndTime && standardDuration) {
+            this.editDurationTarget.value = duration;
+        } else if (hasEndTime && end) {
+            const option = new Option(`Keep current end: ${end.replace('T', ' ')}`, 'existing');
+            option.dataset.existing = 'true';
+            this.editDurationTarget.add(option);
+            this.editDurationTarget.value = 'existing';
+        } else {
+            this.editDurationTarget.value = 'other';
         }
+        this.updateTiming(true);
     }
 
     /**
@@ -163,62 +143,6 @@ class GatheringScheduleController extends Controller {
     }
 
     /**
-     * Toggle end time field visibility for add form
-     */
-    toggleEndTime(event) {
-        const hasEndTime = event.target.checked;
-        
-        if (this.hasEndTimeContainerTarget) {
-            this.endTimeContainerTarget.style.display = hasEndTime ? 'block' : 'none';
-        }
-        
-        // Clear end time if unchecking
-        if (!hasEndTime && this.hasEndDatetimeTarget) {
-            this.endDatetimeTarget.value = '';
-        } else {
-            // If checking, set default end time to one hour after start time
-            if (this.hasStartDatetimeTarget && this.startDatetimeTarget.value) {
-                const startDate = new Date(this.startDatetimeTarget.value);
-                startDate.setHours(startDate.getHours() + 1);
-                const year = startDate.getFullYear();
-                const month = String(startDate.getMonth() + 1).padStart(2, '0');
-                const day = String(startDate.getDate()).padStart(2, '0');
-                const hours = String(startDate.getHours()).padStart(2, '0');
-                const minutes = String(startDate.getMinutes()).padStart(2, '0');
-                this.endDatetimeTarget.value = `${year}-${month}-${day}T${hours}:${minutes}`;
-            }
-        }
-    }
-
-    /**
-     * Toggle end time field visibility for edit form
-     */
-    toggleEditEndTime(event) {
-        const hasEndTime = event.target.checked;
-        
-        if (this.hasEditEndTimeContainerTarget) {
-            this.editEndTimeContainerTarget.style.display = hasEndTime ? 'block' : 'none';
-        }
-        
-        // Clear end time if unchecking
-        if (!hasEndTime && this.hasEditEndDatetimeTarget) {
-            this.editEndDatetimeTarget.value = '';
-        } else {
-            // If checking, set default end time to one hour after start time
-            if (this.hasEditStartDatetimeTarget && this.editStartDatetimeTarget.value) {
-                const startDate = new Date(this.editStartDatetimeTarget.value);
-                startDate.setHours(startDate.getHours() + 1);
-                const year = startDate.getFullYear();
-                const month = String(startDate.getMonth() + 1).padStart(2, '0');
-                const day = String(startDate.getDate()).padStart(2, '0');
-                const hours = String(startDate.getHours()).padStart(2, '0');
-                const minutes = String(startDate.getMinutes()).padStart(2, '0');
-                this.editEndDatetimeTarget.value = `${year}-${month}-${day}T${hours}:${minutes}`;
-            }
-        }
-    }
-
-    /**
      * Open edit modal and populate with activity data
      */
     openEditModal(event) {
@@ -228,10 +152,10 @@ class GatheringScheduleController extends Controller {
         this.setupDateTimeLimits();
         
         const button = event.currentTarget;
+        this.editTrigger = button;
         
         // Get data attributes from the button
         const activityId = button.dataset.activityId;
-        const activityName = button.dataset.activityName;
         const gatheringActivityId = button.dataset.gatheringActivityId;
         const startDatetime = button.dataset.startDatetime;
         const endDatetime = button.dataset.endDatetime;
@@ -247,65 +171,29 @@ class GatheringScheduleController extends Controller {
         
         form.querySelector('[name="gathering_activity_id"]').value = gatheringActivityId || '';
         form.querySelector('[name="start_datetime"]').value = startDatetime;
-        form.querySelector('[name="end_datetime"]').value = endDatetime || '';
         form.querySelector('[name="display_title"]').value = displayTitle;
         form.querySelector('[name="description"]').value = description || '';
         
         // Use getElementById for checkboxes to avoid hidden input conflicts
         document.getElementById('edit-pre-register').checked = preRegister;
         document.getElementById('edit-is-other').checked = isOther;
-        document.getElementById('edit-has-end-time').checked = hasEndTime;
         
         // Handle activity select state based on is_other
         const activitySelect = this.editActivitySelectTarget;
         activitySelect.disabled = isOther;
         activitySelect.required = !isOther;
         
-        // Handle end time container visibility
-        if (this.hasEditEndTimeContainerTarget) {
-            this.editEndTimeContainerTarget.style.display = hasEndTime ? 'block' : 'none';
-        }
-        
+        this.setEditTiming(startDatetime, endDatetime, hasEndTime, button.dataset.durationMinutes);
+
         // Show the modal
-        const modal = new bootstrap.Modal(this.editModalTarget);
+        const modal = bootstrap.Modal.getOrCreateInstance(this.editModalTarget);
         modal.show();
     }
 
-    /**
-     * Validate datetime is within gathering range
-     */
-    validateDatetimeRange(event) {
-        const input = event.target;
-        const value = input.value;
-        
-        if (!value) return;
-        
-        const minDatetime = `${this.gatheringStartValue}T00:00`;
-        const maxDatetime = `${this.gatheringEndValue}T23:59`;
-        
-        const selectedDate = new Date(value);
-        const minDate = new Date(minDatetime);
-        const maxDate = new Date(maxDatetime);
-        
-        if (selectedDate < minDate || selectedDate > maxDate) {
-            input.setCustomValidity(`Date must be between ${this.formatDate(minDate)} and ${this.formatDate(maxDate)}`);
-            input.reportValidity();
-        } else {
-            input.setCustomValidity('');
-        }
-    }
-
-    /**
-     * Format date for display
-     */
-    formatDate(date) {
-        return date.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric', 
-            year: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit'
-        });
+    /** Return keyboard focus to the schedule entry after closing its editor. */
+    restoreEditFocus() {
+        if (this.editTrigger?.isConnected) this.editTrigger.focus();
+        this.editTrigger = null;
     }
 
     /**
@@ -354,6 +242,8 @@ class GatheringScheduleController extends Controller {
         event.preventDefault();
         
         const form = event.target;
+        this.updateTiming(false);
+        if (!form.reportValidity()) return;
         const formData = new FormData(form);
         
         try {
@@ -396,6 +286,8 @@ class GatheringScheduleController extends Controller {
         event.preventDefault();
         
         const form = event.target;
+        this.updateTiming(true);
+        if (!form.reportValidity()) return;
         const formData = new FormData(form);
         
         try {
@@ -433,7 +325,8 @@ class GatheringScheduleController extends Controller {
      */
     showFlashMessage(type, message) {
         // Create flash message element
-        const flashContainer = document.querySelector('.flash-messages') || this.createFlashContainer();
+        const flashContainer = this.element.querySelector('.modal.show .modal-body') ||
+            document.querySelector('.flash-messages') || this.createFlashContainer();
         
         const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
         const flashDiv = document.createElement('div');
@@ -452,7 +345,8 @@ class GatheringScheduleController extends Controller {
         closeButton.setAttribute('aria-label', 'Close');
         flashDiv.appendChild(closeButton);
         
-        flashContainer.appendChild(flashDiv);
+        flashContainer.prepend(flashDiv);
+        flashDiv.scrollIntoView?.({ block: 'nearest' });
         
         // Auto-dismiss after 5 seconds
         setTimeout(() => {

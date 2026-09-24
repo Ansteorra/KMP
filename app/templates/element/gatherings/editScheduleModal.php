@@ -1,12 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
+use App\KMP\TimezoneHelper;
+
 use function Cake\Collection\collection;
 
 /**
  * Edit Scheduled Activity Modal
- * 
+ *
  * Modal form for editing an existing scheduled activity.
- * 
+ *
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Gathering $gathering
  * @var array<\App\Model\Entity\GatheringActivity> $scheduleActivities
@@ -14,12 +18,13 @@ use function Cake\Collection\collection;
  */
 ?>
 <div class="modal fade" id="editScheduleModal" tabindex="-1" aria-labelledby="editScheduleModalLabel" aria-hidden="true"
-    data-gathering-schedule-target="editModal">
+    data-gathering-schedule-target="editModal"
+    data-action="hidden.bs.modal->gathering-schedule#restoreEditFocus">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="editScheduleModalLabel">
-                    <i class="bi bi-pencil-fill"></i> <?= __('Edit Scheduled Activity') ?>
+                    <i class="bi bi-pencil-fill" aria-hidden="true"></i> <?= __('Edit Scheduled Activity') ?>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"
                     aria-label="<?= __('Close') ?>"></button>
@@ -31,18 +36,18 @@ use function Cake\Collection\collection;
             ]) ?>
             <div class="modal-body bg-light-subtle">
                 <div class="alert alert-info border-start border-info border-4">
-                    <i class="bi bi-info-circle"></i>
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
                     <?php
-                    $timezone = \App\KMP\TimezoneHelper::getGatheringTimezone($gathering, $this->getRequest()->getAttribute('identity'));
+                    $timezone = TimezoneHelper::getGatheringTimezone($gathering, $this->getRequest()->getAttribute('identity'));
                     ?>
                     <?= __(
                         'This gathering runs from {0} to {1}. Scheduled activities must fall within these dates.',
                         $this->Timezone->format($gathering->start_date, 'F j, Y g:i A', false, null, $gathering),
-                        $this->Timezone->format($gathering->end_date, 'F j, Y g:i A', false, null, $gathering)
+                        $this->Timezone->format($gathering->end_date, 'F j, Y g:i A', false, null, $gathering),
                     ) ?>
                     <br>
                     <small>
-                        <i class="bi bi-clock"></i> <?= __('All times in {0}', $timezone) ?>
+                        <i class="bi bi-clock" aria-hidden="true"></i> <?= __('All times in {0}', $timezone) ?>
                     </small>
                 </div>
 
@@ -51,46 +56,7 @@ use function Cake\Collection\collection;
                         <i class="bi bi-clock text-primary me-1" aria-hidden="true"></i>
                         <?= __('Schedule Timing') ?>
                     </legend>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <?= $this->Form->control('start_datetime', [
-                                'type' => 'datetime-local',
-                                'label' => __('Start Date & Time'),
-                                'required' => true,
-                                'class' => 'form-control',
-                                'id' => 'edit-start-datetime',
-                                'data-gathering-schedule-target' => 'editStartDatetime',
-                                'data-action' => 'change->gathering-schedule#validateDatetimeRange',
-                            ]) ?>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-1">
-                                <div class="form-check">
-                                    <?= $this->Form->checkbox('has_end_time', [
-                                        'id' => 'edit-has-end-time',
-                                        'class' => 'form-check-input',
-                                        'value' => '1',
-                                        'data-gathering-schedule-target' => 'editHasEndTimeCheckbox',
-                                        'data-action' => 'change->gathering-schedule#toggleEditEndTime',
-                                    ]) ?>
-                                    <label class="form-check-label" for="edit-has-end-time">
-                                        <?= __('End Date & Time') ?>
-                                    </label>
-                                </div>
-                            </div>
-                            <div data-gathering-schedule-target="editEndTimeContainer" style="display: none;">
-                                <?= $this->Form->control('end_datetime', [
-                                    'type' => 'datetime-local',
-                                    'label' => false,
-                                    'required' => false,
-                                    'class' => 'form-control',
-                                    'id' => 'edit-end-datetime',
-                                    'data-gathering-schedule-target' => 'editEndDatetime',
-                                    'data-action' => 'change->gathering-schedule#validateDatetimeRange',
-                                ]) ?>
-                            </div>
-                        </div>
-                    </div>
+                    <?= $this->element('gatherings/scheduleTimingFields', ['mode' => 'edit']) ?>
                 </fieldset>
 
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
@@ -174,7 +140,7 @@ use function Cake\Collection\collection;
                     <?= __('Cancel') ?>
                 </button>
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save"></i> <?= __('Save Changes') ?>
+                    <i class="bi bi-save" aria-hidden="true"></i> <?= __('Save Changes') ?>
                 </button>
             </div>
             <?= $this->Form->end() ?>

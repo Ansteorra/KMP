@@ -41,6 +41,103 @@ describe('GridViewController', () => {
         jest.restoreAllMocks();
     });
 
+    test.each(['My Approvals', 'My To-Dos', 'Warrant Rosters', 'Bestowals'])(
+        'subscription defaults include the tab and %s page name', pageName => {
+            controller.element.insertAdjacentHTML('beforeend', `<details><summary>Email this view</summary>
+                <form><input name="subscriptionName" maxlength="150"></form></details>`);
+            const form = controller.element.querySelector('form');
+            form.dataset.subscriptionPageName = pageName;
+            controller.state = { view: { currentName: 'Pending' } };
+            const event = { currentTarget: controller.element.querySelector('summary') };
+            controller.prepareSubscription(event);
+            expect(form.elements.subscriptionName.value).toBe(`Pending - ${pageName}`);
+            form.elements.subscriptionName.value = 'My custom summary';
+            controller.prepareSubscription(event);
+            expect(form.elements.subscriptionName.value).toBe('My custom summary');
+            form.elements.subscriptionName.value = '';
+            controller.state.view.currentName = 'A'.repeat(150);
+            controller.prepareSubscription(event);
+            expect(form.elements.subscriptionName.value).toHaveLength(150);
+            expect(form.elements.subscriptionName.value).toMatch(new RegExp(` - ${pageName}$`));
+        }
+    );
+
+    test('subscription preserves the selected view and filters and announces success', async () => {
+        controller.element.insertAdjacentHTML('beforeend', `<form action="/grid-subscriptions/add">
+            <input name="subscriptionName" value="Warrant approvals">
+            <select name="intervalDays"><option value="3">Every 3 days</option></select>
+            <button type="submit">Subscribe</button><p role="status" data-subscription-status></p>
+        </form>`);
+        controller.state = { view: { currentId: 'sys-pending' }, config: { gridKey: 'Workflows.approvals.main' } };
+        controller.buildUrl = jest.fn(() => '/approvals/approvals?view_id=sys-pending&filter[workflow][]=warrants');
+        controller.getCsrfToken = () => 'test-csrf';
+        global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true }) });
+        const form = controller.element.querySelector('form');
+        const preventDefault = jest.fn();
+        await controller.subscribeToView({ preventDefault, currentTarget: form });
+        const options = fetch.mock.calls[0][1];
+        expect(preventDefault).toHaveBeenCalled();
+        expect(options.headers['X-CSRF-Token']).toBe('test-csrf');
+        expect(JSON.parse(options.body)).toMatchObject({ name: 'Warrant approvals', intervalDays: 3 });
+        expect(JSON.parse(options.body).query).toContain('filter[workflow][]=warrants');
+        expect(form.querySelector('[role=status]')).toHaveTextContent('Subscribed.');
+        expect(form.querySelector('button')).not.toBeDisabled();
+    });
+
+    test('subscription restores the button and announces a readable server failure', async () => {
+        controller.element.insertAdjacentHTML('beforeend', `<form action="/grid-subscriptions/add">
+            <input name="subscriptionName" value="My tasks"><input name="intervalDays" value="1">
+            <button type="submit">Subscribe</button><p role="status" data-subscription-status></p>
+        </form>`);
+        controller.state = { view: { currentId: 'sys-todos-open' }, config: { gridKey: 'Core.actionItems.myTasks' } };
+        controller.buildUrl = () => '/action-items/my-tasks';
+        controller.getCsrfToken = () => 'test-csrf';
+        global.fetch = jest.fn().mockResolvedValue({ ok: false, json: async () => { throw new Error('Invalid JSON'); } });
+        const form = controller.element.querySelector('form');
+        await controller.subscribeToView({ preventDefault() {}, currentTarget: form });
+        expect(form.querySelector('[role=status]')).toHaveTextContent('Check your access');
+        expect(form.querySelector('button')).not.toBeDisabled();
+    });
+
+    test('sample sends the current unsaved view and prevents duplicate requests', async () => {
+        controller.element.insertAdjacentHTML('beforeend', `<form action="/grid-subscriptions/add">
+            <input name="subscriptionName" value="Current view"><input name="intervalDays" value="3">
+            <button type="submit">Subscribe</button>
+            <button type="submit" data-subscription-sample formaction="/grid-subscriptions/sample">Send me a sample</button>
+            <p role="status" data-subscription-status></p>
+        </form>`);
+        controller.state = { view: { currentId: 'sys-todos-open' }, config: { gridKey: 'Core.actionItems.myTasks' } };
+        controller.buildUrl = () => '/action-items/my-tasks?view_id=sys-todos-open&search=Unsaved&columns=title';
+        controller.getCsrfToken = () => 'test-csrf';
+        let resolve;
+        global.fetch = jest.fn(() => new Promise(done => { resolve = done; }));
+        const form = controller.element.querySelector('form');
+        const button = form.querySelector('[data-subscription-sample]');
+        const event = { preventDefault() {}, currentTarget: form, submitter: button };
+        const pending = controller.subscribeToView(event);
+        expect(form).toHaveAttribute('aria-busy', 'true');
+        expect(button).toBeDisabled();
+        expect(form.querySelector('button')).toBeDisabled();
+        await controller.subscribeToView(event);
+        expect(fetch).toHaveBeenCalledTimes(1);
+        expect(fetch.mock.calls[0][0]).toBe('/grid-subscriptions/sample');
+        expect(JSON.parse(fetch.mock.calls[0][1].body).query).toContain('search=Unsaved&columns=title');
+        resolve({ ok: true, json: async () => ({ success: true }) });
+        await pending;
+        expect(form.querySelector('[role=status]')).toHaveTextContent('Sample sent to your account email');
+        expect(form.querySelector('[role=status]')).toHaveTextContent('No subscription was created or changed');
+        expect(form).toHaveAttribute('aria-busy', 'false');
+        expect(button).not.toBeDisabled();
+    });
+
+    test('disconnect aborts a pending email request', () => {
+        controller.subscriptionRequest = new AbortController();
+        const signal = controller.subscriptionRequest.signal;
+        controller.disconnect();
+        expect(signal.aborted).toBe(true);
+        expect(controller.subscriptionRequest).toBeNull();
+    });
+
     test('registers on window.Controllers', () => {
         expect(window.Controllers['grid-view']).toBe(GridViewController);
     });

@@ -76,6 +76,8 @@ use App\Services\CsvExportService;
 use App\Services\GatheringActivityService;
 use App\Services\GatheringCloneService;
 use App\Services\GatheringScheduleService;
+use App\Services\GridSubscriptionReportService;
+use App\Services\GridSubscriptionService;
 use App\Services\ICalendarService;
 use App\Services\ImpersonationService;
 use App\Services\MemberAuthenticationService;
@@ -745,6 +747,12 @@ class Application extends BaseApplication implements
      */
     public function services(ContainerInterface $container): void
     {
+        $container->add(
+            GridSubscriptionReportService::class,
+            fn() => new GridSubscriptionReportService($this),
+        );
+        $container->add(GridSubscriptionService::class)
+            ->addArgument(GridSubscriptionReportService::class);
         // Register ActiveWindowManager for date-bounded entity management
         // This service handles entities that have validity periods (start/end dates)
         $container->add(

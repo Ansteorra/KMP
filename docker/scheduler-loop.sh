@@ -13,6 +13,7 @@ tenancy_enabled="${KMP_TENANCY_ENABLED:-false}"
 
 started_at="$(date +%s)"
 last_workflow=0
+last_grid_subscriptions=0
 last_active_window=0
 last_warrantable="$started_at"
 last_age_up="$started_at"
@@ -68,6 +69,7 @@ while true; do
             "bin/cake queue run -q --max-jobs 25 --max-runtime 45 --exit-when-empty" \
             "$last_queue" \
             "$queue_interval")"
+        last_grid_subscriptions="$(run_due "grid subscriptions" "bin/cake grid_subscriptions_enqueue" "$last_grid_subscriptions" 900)"
         last_workflow="$(run_due "workflow scheduler" "$workflow_command" "$last_workflow" "$workflow_interval")"
         last_active_window="$(run_due "active-window sync" "$active_window_command" "$last_active_window" "$active_window_interval")"
         last_warrantable="$(run_due "member warrantable sync" "$warrantable_command" "$last_warrantable" "$warrantable_interval")"

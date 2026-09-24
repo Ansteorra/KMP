@@ -3,8 +3,50 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: ccf943ae2d9de62e4db76aa5439bf436828c08e3 -->
-<!-- LAST_SYNCED_DATE: 2026-09-17 -->
+<!-- LAST_SYNCED_COMMIT: 52d7c7a2347a8a54f265534b87c0ba2b56c9e6dd -->
+<!-- LAST_SYNCED_DATE: 2026-09-22 -->
+
+## KMP 1.5.11 — September 25, 2026
+
+KMP 1.5.11 adds scheduled grid emails, more flexible passkey setup, and remembered device choices. It also improves waiver review, modal usability, gathering attendance, and back-arrow navigation.
+
+### Passkeys and Device Choices
+
+- Passkeys that support offline encryption can protect both login and offline information. Other passkeys, including compatible password-manager passkeys, remain usable for online login; add a PIN for offline decryption or finish online-only setup with a clear warning and add the PIN later. When offline, use the passkey for authentication and the PIN to unlock saved information when passkey authentication is available; PIN-only access remains available when it is not.
+- Device setup remembers **Use online only** for each account in the current browser across logout and future visits. **Security** remains available to change the choice, and stopping trust also suppresses repeat setup prompts.
+
+- Stopping device trust from the public recovery screen now revokes its server passkey before removing saved information. Failed revocation preserves the saved copy for retry.
+
+- Successful passkey sign-ins update the member’s last-login time, keeping member records current.
+
+### Grid Email Subscriptions
+
+- New subscription names include the tab and page, such as **Pending - My Approvals**, so matching tab names are easy to distinguish.
+
+- **Email this view** sends a summary of up to 50 matching rows and a link from My Approvals, My To-Dos, Warrant Rosters, and Bestowals daily, every three days, or weekly. Subscriptions capture the current view, including unsaved filters, search, sorting, and columns. Empty scheduled results are skipped.
+- **Send me a sample** emails the current view immediately without creating a subscription or changing its schedule.
+- Manage or cancel subscriptions in a scrollable modal on your profile. Cancellation stays in the modal, and management links from emails open your own profile correctly.
+- Each delivery checks current account permissions and view access. Subscriptions stop gracefully when that access is lost.
+- Kingdoms can customize the subject and email bodies in **Email Templates → Grid Email Summary** and choose the template in **App Settings → Email.GridSubscriptionTemplate**. Samples and scheduled emails use the same template, and changes apply to subsequent sends without a workflow.
+
+### Waivers, Gatherings, and Navigation
+
+- **Config** menu entries appear alphabetically, including plugin settings.
+
+- Schedule activities with quarter-hour start times and a duration from 15 minutes to 4 hours, or choose **Other — see description** for an open-ended activity. Existing schedule times remain intact when editing.
+- Schedule duration labels show exact minutes, including 15- and 45-minute activities.
+- Gathering details open correctly when scheduled activities have end times, and schedule durations retain fractional hours.
+- Waiver Dashboard sections start collapsed so it is easier to find the section you need.
+- Gathering waiver summaries show Uploaded, Exempted, Declined, or Pending status, reasons, uploader, and upload date. Decline eligibility appears with the actions; retention details remain on the individual waiver page.
+- Long modal content scrolls within short desktop and mobile viewports, including forms and embedded content. Public gathering attendance dialogs also scroll correctly and support updating or confirming removal of an RSVP.
+- **Mark Your Attendance** in Gathering Details reliably opens RSVP, and successful saves close the dialog. Reopening the gathering shows the updated attendance, with improved keyboard focus handling.
+- App back arrows return to full pages instead of unstyled modal content. Modal requests and background activity no longer interfere with navigation history, and previously affected history clears automatically.
+
+### Upgrade Notes
+
+- Apply the core and platform migrations through the normal deployment workflow to install subscription storage, its recurring schedule, and the default email template and setting. Existing kingdom email customizations are preserved.
+
+---
 
 ## KMP 1.5.10 — September 15, 2026
 

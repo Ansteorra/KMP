@@ -25,6 +25,7 @@ use App\Services\MemberSearchService;
 use App\Services\QuickLoginDeviceService;
 use App\Services\Security\MemberSessionState;
 use App\Services\Security\OfflineIdentity;
+use App\Services\Security\PasskeyService;
 use App\Services\Security\RequestRateLimiter;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
@@ -107,6 +108,8 @@ class MembersController extends AppController
         $this->Authorization->authorizeModel('index', 'verifyQueue', 'gridData', 'verifyQueueGridData');
         $this->Authentication->allowUnauthenticated([
             'login',
+            'passkeyOptions',
+            'passkeyLogin',
             'logout', // Explicit local sign-out must also work after the server session expires.
             'approversList',
             'forgotPassword',
@@ -2178,6 +2181,44 @@ class MembersController extends AppController
         $quickLoginDisabled = $this->quickLoginDisabledForRequest;
         $quickLoginDisabledEmail = $this->quickLoginDisabledEmailForRequest;
         $this->set(compact('headerImage', 'allowRegistration', 'quickLoginDisabled', 'quickLoginDisabledEmail'));
+    }
+
+    /** Public, short-lived challenge; no account lookup or authentication happens here. */
+    public function passkeyOptions(): Response
+    {
+        $this->request->allowMethod(['get']);
+        $this->Authorization->skipAuthorization();
+        $options = (new PasskeyService())->authenticationOptions($this->request);
+
+        return $this->response->withType('application/json')->withHeader('Cache-Control', 'no-store')
+            ->withStringBody(json_encode($options, JSON_THROW_ON_ERROR));
+    }
+
+    /** Verify passkey proof before using the normal tenant-bound session and redirect. */
+    public function passkeyLogin(): Response
+    {
+        $this->request->allowMethod(['post']);
+        $this->Authorization->skipAuthorization();
+        $limiter = new RequestRateLimiter();
+        $limit = $limiter->attempt($limiter::BUCKET_PASSKEY, (string)$this->request->clientIp());
+        if (!$limit->allowed) {
+            return $this->response->withStatus(429)->withHeader('Cache-Control', 'no-store');
+        }
+        try {
+            $member = (new PasskeyService())->authenticate($this->request);
+        } catch (Throwable $error) {
+            return $this->response->withStatus(403)->withType('application/json')
+                ->withHeader('Cache-Control', 'no-store')
+                ->withStringBody(json_encode([
+                    'success' => false, 'message' => 'Passkey sign-in failed. Try again or sign in with your password.',
+                ], JSON_THROW_ON_ERROR));
+        }
+        $member->last_login = DateTime::now();
+        $member->setDirty('modified', true);
+        $this->Members->saveOrFail($member);
+        $this->Authentication->setIdentity($member);
+
+        return $this->redirectAfterSuccessfulLogin()->withHeader('Cache-Control', 'no-store');
     }
 
     /**

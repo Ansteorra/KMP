@@ -5,11 +5,14 @@ namespace App\Controller;
 
 use App\KMP\StaticHelpers;
 use App\Services\Security\OfflineIdentity;
+use App\Services\Security\PasskeyService;
 use App\Services\Security\RequestRateLimiter;
 use Authentication\PasswordHasher\DefaultPasswordHasher;
 use Cake\Event\EventInterface;
+use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
 use Cake\Http\Response;
+use Throwable;
 
 /** Public, nonpersonalized shell; private data is fetched only after authentication. */
 class OfflineController extends AppController
@@ -19,7 +22,9 @@ class OfflineController extends AppController
     {
         parent::beforeFilter($event);
         $this->Authentication->allowUnauthenticated(['index', 'assets']);
-        $this->Authorization->skipAuthorization();
+        if (!in_array($this->request->getParam('action'), ['registerPasskey', 'removePasskey'], true)) {
+            $this->Authorization->skipAuthorization();
+        }
     }
 
     /** Render a public shell containing no identity, CSRF token or private page markup. */
@@ -85,6 +90,7 @@ class OfflineController extends AppController
         $password = $this->request->getData('password');
         $ok = false;
         $email = null;
+        $passkey = null;
         $status = 403;
         if ($identity && $context && !$context['impersonating']) {
             $limiter = new RequestRateLimiter();
@@ -95,13 +101,55 @@ class OfflineController extends AppController
                 $member = $this->fetchTable('Members')->get($identity->getIdentifier());
                 $ok = (new DefaultPasswordHasher())->check($password, $member->password);
                 $email = $ok ? $member->email_address : null;
+                if ($ok) {
+                    try {
+                        $passkey = (new PasskeyService())->registrationOptions($this->request, $member);
+                    } catch (ForbiddenException) {
+                        // PIN setup remains available on origins where WebAuthn cannot be used.
+                    }
+                }
             }
         }
 
         return OfflineIdentity::bind($this->response, $this->request)
             ->withType('application/json')->withStatus($ok ? 200 : $status)
             ->withHeader('Cache-Control', 'no-store')
-            ->withStringBody(json_encode(['success' => $ok, 'email' => $email], JSON_THROW_ON_ERROR));
+            ->withStringBody(json_encode(
+                ['success' => $ok, 'email' => $email, 'passkey' => $passkey],
+                JSON_THROW_ON_ERROR,
+            ));
+    }
+
+    /** Current member registration is bound to the preceding password verification. */
+    public function registerPasskey(): Response
+    {
+        $this->request->allowMethod(['post']);
+        $member = $this->fetchTable('Members')->get($this->request->getAttribute('identity')->getIdentifier());
+        $this->Authorization->authorize($member, 'managePasskey');
+        try {
+            $credential = (new PasskeyService())->register($this->request);
+        } catch (Throwable $error) {
+            return $this->response->withType('application/json')->withStatus(403)
+                ->withHeader('Cache-Control', 'no-store')
+                ->withStringBody(json_encode([
+                    'success' => false,
+                    'message' => 'Passkey registration failed. Confirm your password and try again.',
+                ], JSON_THROW_ON_ERROR));
+        }
+
+        return OfflineIdentity::bind($this->response, $this->request)->withType('application/json')
+            ->withStringBody(json_encode(['success' => true, 'credential' => $credential], JSON_THROW_ON_ERROR));
+    }
+
+    /** Remove this browser's server-side passkey registration. */
+    public function removePasskey(): Response
+    {
+        $this->request->allowMethod(['post']);
+        $member = $this->fetchTable('Members')->get($this->request->getAttribute('identity')->getIdentifier());
+        $this->Authorization->authorize($member, 'managePasskey');
+        (new PasskeyService())->remove($this->request);
+
+        return $this->response->withStatus(204)->withHeader('Cache-Control', 'no-store');
     }
 
     /** Fresh same-origin session binding and CSRF for a foreground offline sync. */

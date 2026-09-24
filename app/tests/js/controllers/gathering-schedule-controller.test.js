@@ -10,6 +10,8 @@ window.bootstrap.Modal.getInstance = jest.fn(() => ({
     hide: jest.fn()
 }));
 
+window.bootstrap.Modal.getOrCreateInstance = jest.fn(() => ({ show: jest.fn() }));
+
 import '../../../assets/js/controllers/gathering-schedule-controller.js';
 
 const GatheringScheduleController = window.Controllers['gathering-schedule'];
@@ -18,80 +20,49 @@ describe('GatheringScheduleController', () => {
     let controller;
 
     beforeEach(() => {
+        const timing = prefix => `
+            <input type="date" data-gathering-schedule-target="${prefix}StartDate">
+            <select data-gathering-schedule-target="${prefix}StartTime">
+                ${Array.from({ length: 96 }, (_, index) => {
+                    const time = `${String(Math.floor(index / 4)).padStart(2, '0')}:${String(index % 4 * 15).padStart(2, '0')}`;
+                    return `<option value="${time}">${time}</option>`;
+                }).join('')}
+            </select>
+            <select data-gathering-schedule-target="${prefix}Duration">
+                ${Array.from({ length: 16 }, (_, index) => `<option value="${(index + 1) * 15}">${(index + 1) * 15}</option>`).join('')}
+                <option value="other">Other</option>
+            </select>
+            <input type="hidden" name="start_datetime" data-gathering-schedule-target="${prefix}StartDatetime">
+        `.replaceAll('="Start', '="start').replaceAll('="Duration', '="duration');
         document.body.innerHTML = `
-            <div data-controller="gathering-schedule"
-                 data-gathering-schedule-gathering-id-value="10"
-                 data-gathering-schedule-gathering-start-value="2025-06-01T09:00"
-                 data-gathering-schedule-gathering-end-value="2025-06-03T17:00"
-                 data-gathering-schedule-add-url-value="/gatherings/10/schedule/add"
-                 data-gathering-schedule-edit-url-value="/gatherings/schedule/edit/__ID__"
-                 data-gathering-schedule-delete-url-value="/gatherings/schedule/delete">
+            <div data-controller="gathering-schedule">
                 <div data-gathering-schedule-target="scheduleList"></div>
                 <div data-gathering-schedule-target="addModal"></div>
                 <div data-gathering-schedule-target="editModal"></div>
-                <select data-gathering-schedule-target="activitySelect">
-                    <option value="">Select</option>
-                    <option value="1">Archery</option>
-                </select>
-                <input type="checkbox" data-gathering-schedule-target="isOtherCheckbox">
                 <form data-gathering-schedule-target="addForm">
-                    <input type="text" name="display_title" value="">
+                    ${timing('')}
+                    <input name="display_title">
+                    <select data-gathering-schedule-target="activitySelect"><option value="">Select</option><option value="1">Archery</option></select>
+                    <input type="checkbox" data-gathering-schedule-target="isOtherCheckbox">
                 </form>
                 <form data-gathering-schedule-target="editForm" action="/gatherings/schedule/edit/1">
-                    <input type="hidden" name="gathering_activity_id" value="">
-                    <input type="text" name="display_title" value="">
-                    <input type="text" name="description" value="">
-                    <input type="datetime-local" name="start_datetime" value="">
-                    <input type="datetime-local" name="end_datetime" value="">
+                    ${timing('edit')}
+                    <input name="gathering_activity_id">
+                    <input name="display_title">
+                    <input name="description">
+                    <select data-gathering-schedule-target="editActivitySelect"><option value="">Select</option><option value="1">Archery</option></select>
+                    <input type="checkbox" id="edit-is-other" data-gathering-schedule-target="editIsOtherCheckbox">
+                    <input type="checkbox" id="edit-pre-register">
                 </form>
-                <select data-gathering-schedule-target="editActivitySelect">
-                    <option value="">Select</option>
-                    <option value="1">Archery</option>
-                </select>
-                <input type="checkbox" data-gathering-schedule-target="editIsOtherCheckbox">
-                <input type="datetime-local" data-gathering-schedule-target="startDatetime" value="">
-                <input type="datetime-local" data-gathering-schedule-target="endDatetime" value="">
-                <input type="datetime-local" data-gathering-schedule-target="editStartDatetime" value="">
-                <input type="datetime-local" data-gathering-schedule-target="editEndDatetime" value="">
-                <input type="checkbox" data-gathering-schedule-target="hasEndTimeCheckbox">
-                <input type="checkbox" data-gathering-schedule-target="editHasEndTimeCheckbox">
-                <div data-gathering-schedule-target="endTimeContainer" style="display: none;"></div>
-                <div data-gathering-schedule-target="editEndTimeContainer" style="display: none;"></div>
-                <input type="checkbox" id="edit-pre-register">
-                <input type="checkbox" id="edit-is-other">
-                <input type="checkbox" id="edit-has-end-time">
-            </div>
-        `;
-
+            </div>`;
         controller = new GatheringScheduleController();
         controller.element = document.querySelector('[data-controller="gathering-schedule"]');
+        for (const target of GatheringScheduleController.targets) {
+            controller[`${target}Target`] = document.querySelector(`[data-gathering-schedule-target="${target}"]`);
+        }
 
-        // Wire targets
-        controller.scheduleListTarget = document.querySelector('[data-gathering-schedule-target="scheduleList"]');
-        controller.addModalTarget = document.querySelector('[data-gathering-schedule-target="addModal"]');
-        controller.editModalTarget = document.querySelector('[data-gathering-schedule-target="editModal"]');
-        controller.activitySelectTarget = document.querySelector('[data-gathering-schedule-target="activitySelect"]');
-        controller.isOtherCheckboxTarget = document.querySelector('[data-gathering-schedule-target="isOtherCheckbox"]');
-        controller.addFormTarget = document.querySelector('[data-gathering-schedule-target="addForm"]');
-        controller.editFormTarget = document.querySelector('[data-gathering-schedule-target="editForm"]');
-        controller.editActivitySelectTarget = document.querySelector('[data-gathering-schedule-target="editActivitySelect"]');
-        controller.editIsOtherCheckboxTarget = document.querySelector('[data-gathering-schedule-target="editIsOtherCheckbox"]');
-        controller.startDatetimeTarget = document.querySelector('[data-gathering-schedule-target="startDatetime"]');
-        controller.endDatetimeTarget = document.querySelector('[data-gathering-schedule-target="endDatetime"]');
-        controller.editStartDatetimeTarget = document.querySelector('[data-gathering-schedule-target="editStartDatetime"]');
-        controller.editEndDatetimeTarget = document.querySelector('[data-gathering-schedule-target="editEndDatetime"]');
-        controller.hasEndTimeCheckboxTarget = document.querySelector('[data-gathering-schedule-target="hasEndTimeCheckbox"]');
-        controller.editHasEndTimeCheckboxTarget = document.querySelector('[data-gathering-schedule-target="editHasEndTimeCheckbox"]');
-        controller.endTimeContainerTarget = document.querySelector('[data-gathering-schedule-target="endTimeContainer"]');
-        controller.editEndTimeContainerTarget = document.querySelector('[data-gathering-schedule-target="editEndTimeContainer"]');
-
-        // Wire has* flags
-        controller.hasStartDatetimeTarget = true;
-        controller.hasEndDatetimeTarget = true;
-        controller.hasEditStartDatetimeTarget = true;
-        controller.hasEditEndDatetimeTarget = true;
-        controller.hasEndTimeContainerTarget = true;
-        controller.hasEditEndTimeContainerTarget = true;
+        controller.startDateTargets = [controller.startDateTarget];
+        controller.editStartDateTargets = [controller.editStartDateTarget];
 
         // Wire values
         controller.gatheringIdValue = 10;
@@ -116,7 +87,7 @@ describe('GatheringScheduleController', () => {
         expect(GatheringScheduleController.targets).toEqual(
             expect.arrayContaining([
                 'scheduleList', 'addModal', 'editModal', 'activitySelect',
-                'isOtherCheckbox', 'addForm', 'editForm', 'startDatetime', 'endDatetime'
+                'isOtherCheckbox', 'addForm', 'editForm', 'startDatetime', 'startDate', 'startTime', 'duration'
             ])
         );
     });
@@ -129,46 +100,51 @@ describe('GatheringScheduleController', () => {
         expect(GatheringScheduleController.values).toHaveProperty('deleteUrl', String);
     });
 
-    // setupDateTimeLimits tests
-    test('setupDateTimeLimits sets min/max on datetime inputs', () => {
+    test('date controls use gathering date bounds', () => {
         controller.setupDateTimeLimits();
-        expect(controller.startDatetimeTarget.min).toBe('2025-06-01T09:00');
-        expect(controller.startDatetimeTarget.max).toBe('2025-06-03T17:00');
-        expect(controller.endDatetimeTarget.min).toBe('2025-06-01T09:00');
-        expect(controller.endDatetimeTarget.max).toBe('2025-06-03T17:00');
+        expect(controller.startDateTarget.min).toBe('2025-06-01');
+        expect(controller.editStartDateTarget.max).toBe('2025-06-03');
     });
 
-    test('setupDateTimeLimits defaults start to gathering start when empty', () => {
-        controller.startDatetimeTarget.value = '';
-        controller.setupDateTimeLimits();
-        expect(controller.startDatetimeTarget.value).toBe('2025-06-01T09:00');
+    test('new activities round up to the next quarter-hour', () => {
+        controller.gatheringStartValue = '2025-06-01T09:06';
+        controller.resetAddForm();
+        expect(controller.startDatetimeTarget.value).toBe('2025-06-01T09:15');
+        expect(controller.durationTarget.value).toBe('60');
     });
 
-    test('setupDateTimeLimits skips with invalid date format', () => {
-        controller.gatheringStartValue = 'invalid';
-        controller.setupDateTimeLimits();
-        expect(controller.startDatetimeTarget.min).toBe('');
+    test('rounding handles midnight without browser timezone conversion', () => {
+        controller.gatheringStartValue = '2025-06-01T23:59';
+        controller.resetAddForm();
+        expect(controller.startDatetimeTarget.value).toBe('2025-06-02T00:00');
     });
 
-    test('setupDateTimeLimits also sets limits on edit fields', () => {
-        controller.setupDateTimeLimits();
-        expect(controller.editStartDatetimeTarget.min).toBe('2025-06-01T09:00');
-        expect(controller.editEndDatetimeTarget.max).toBe('2025-06-03T17:00');
+    test('visible time control rejects starts outside the gathering', () => {
+        controller.resetAddForm();
+        controller.startTimeTarget.value = '08:45';
+        controller.timingChanged({ target: controller.startTimeTarget });
+        expect(controller.startTimeTarget.checkValidity()).toBe(false);
+        controller.startTimeTarget.value = '09:00';
+        controller.timingChanged({ target: controller.startTimeTarget });
+        expect(controller.startTimeTarget.checkValidity()).toBe(true);
     });
 
-    // resetAddForm tests
-    test('resetAddForm calls setupDateTimeLimits and resets start', () => {
-        const spy = jest.spyOn(controller, 'setupDateTimeLimits');
-        controller.resetAddForm({});
-        expect(spy).toHaveBeenCalled();
-        expect(controller.startDatetimeTarget.value).toBe('2025-06-01T09:00');
-        expect(controller.endDatetimeTarget.value).toBe('');
+    test('editing a standard duration selects its elapsed minutes', () => {
+        controller.setEditTiming('2026-03-08T01:45', '2026-03-08T03:15', true, '30');
+        expect(controller.editDurationTarget.value).toBe('30');
+        expect(controller.editDurationTarget.querySelector('option[value="existing"]')).toBeNull();
     });
 
-    test('resetAddForm skips when invalid dates', () => {
-        controller.gatheringStartValue = '';
-        controller.resetAddForm({});
-        // Should not throw
+    test('editing preserves unusual start/end times without leaking choices to another entry', () => {
+        controller.setEditTiming('2025-06-01T18:06', '2025-06-01T20:36', true);
+        expect(controller.editStartDatetimeTarget.value).toBe('2025-06-01T18:06');
+        expect(controller.editDurationTarget.value).toBe('existing');
+        expect(controller.editDurationTarget.selectedOptions[0].text).toContain('20:36');
+        expect(controller.startTimeTarget.querySelector('option[value="18:06"]')).toBeNull();
+        controller.setEditTiming('2025-06-02T09:00', '', false);
+        expect(controller.editStartTimeTarget.querySelector('option[value="18:06"]')).toBeNull();
+        expect(controller.editDurationTarget.value).toBe('other');
+        expect(controller.editDurationTarget.querySelector('option[value="existing"]')).toBeNull();
     });
 
     // handleOtherChange tests
@@ -193,36 +169,6 @@ describe('GatheringScheduleController', () => {
         expect(controller.editActivitySelectTarget.required).toBe(false);
     });
 
-    // toggleEndTime tests
-    test('toggleEndTime shows container when checked', () => {
-        controller.toggleEndTime({ target: { checked: true } });
-        expect(controller.endTimeContainerTarget.style.display).toBe('block');
-    });
-
-    test('toggleEndTime hides container and clears value when unchecked', () => {
-        controller.endDatetimeTarget.value = '2025-06-01T10:00';
-        controller.toggleEndTime({ target: { checked: false } });
-        expect(controller.endTimeContainerTarget.style.display).toBe('none');
-        expect(controller.endDatetimeTarget.value).toBe('');
-    });
-
-    test('toggleEndTime sets default end to 1 hour after start when checked', () => {
-        controller.startDatetimeTarget.value = '2025-06-01T09:00';
-        controller.toggleEndTime({ target: { checked: true } });
-        expect(controller.endDatetimeTarget.value).toBe('2025-06-01T10:00');
-    });
-
-    // toggleEditEndTime tests
-    test('toggleEditEndTime shows/hides edit container', () => {
-        controller.toggleEditEndTime({ target: { checked: true } });
-        expect(controller.editEndTimeContainerTarget.style.display).toBe('block');
-
-        controller.editEndDatetimeTarget.value = '2025-06-01T10:00';
-        controller.toggleEditEndTime({ target: { checked: false } });
-        expect(controller.editEndTimeContainerTarget.style.display).toBe('none');
-        expect(controller.editEndDatetimeTarget.value).toBe('');
-    });
-
     // normalizeErrors tests
     test('normalizeErrors handles array errors', () => {
         expect(controller.normalizeErrors({ errors: ['Error 1', 'Error 2'] })).toBe('Error 1, Error 2');
@@ -245,15 +191,6 @@ describe('GatheringScheduleController', () => {
 
     test('normalizeErrors uses default when no errors or message', () => {
         expect(controller.normalizeErrors({})).toBe('An error occurred');
-    });
-
-    // formatDate
-    test('formatDate formats date correctly', () => {
-        const date = new Date('2025-06-15T14:30:00');
-        const formatted = controller.formatDate(date);
-        expect(formatted).toContain('Jun');
-        expect(formatted).toContain('15');
-        expect(formatted).toContain('2025');
     });
 
     // showFlashMessage
@@ -408,7 +345,7 @@ describe('GatheringScheduleController', () => {
         expect(controller.editFormTarget.action).toContain('/gatherings/schedule/edit/5');
         expect(controller.editFormTarget.querySelector('[name="gathering_activity_id"]').value).toBe('99');
         expect(controller.editFormTarget.querySelector('[name="display_title"]').value).toBe('Morning Archery');
-        expect(controller.editEndTimeContainerTarget.style.display).toBe('block');
+        expect(controller.editDurationTarget.value).toBe('existing');
     });
 
     test('openEditModal handles is_other checkbox correctly', () => {

@@ -119,6 +119,13 @@ $deleteScheduleUrl = $this->Url->build(['action' => 'deleteScheduledActivity', $
                         $preRegisterValue = $scheduledActivity->pre_register ? 'true' : 'false';
                         $isOtherValue = $scheduledActivity->is_other ? 'true' : 'false';
                         $hasEndTimeValue = $scheduledActivity->has_end_time ? 'true' : 'false';
+                        $scheduledDurationMinutes = (int)round($scheduledActivity->duration_hours * 60);
+                        $scheduledDurationLabel = __n(
+                            '{0} minute',
+                            '{0} minutes',
+                            $scheduledDurationMinutes,
+                            number_format($scheduledDurationMinutes),
+                        );
                         ?>
                         <tr>
                             <td class="text-nowrap">
@@ -128,8 +135,7 @@ $deleteScheduleUrl = $this->Url->build(['action' => 'deleteScheduledActivity', $
                                     - <?= h($scheduledEndTime) ?>
                                     <br>
                                     <small class="text-muted">
-                                        (<?= number_format($scheduledActivity->duration_hours, 1) ?>
-                                        <?= __n('hour', 'hours', $scheduledActivity->duration_hours) ?>)
+                                        (<?= h($scheduledDurationLabel) ?>)
                                     </small>
                                 <?php endif; ?>
                             </td>
@@ -167,6 +173,7 @@ $deleteScheduleUrl = $this->Url->build(['action' => 'deleteScheduledActivity', $
                                             data-gathering-activity-id="<?= h($gatheringActivityId) ?>"
                                             data-start-datetime="<?= h($scheduledStartInput) ?>"
                                             data-end-datetime="<?= h($scheduledEndInput) ?>"
+                                            data-duration-minutes="<?= h((string)($scheduledActivity->duration_hours * 60)) ?>"
                                             data-display-title="<?= h($scheduledActivity->display_title) ?>"
                                             data-description="<?= h($scheduledActivity->description) ?>"
                                             data-pre-register="<?= $preRegisterValue ?>"

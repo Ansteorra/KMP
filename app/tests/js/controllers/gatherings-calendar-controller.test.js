@@ -84,9 +84,11 @@ describe('GatheringsCalendarController', () => {
                 show: jest.fn()
             }))
         };
-        window.bootstrap.Modal.getInstance = jest.fn().mockReturnValue({
-            hide: jest.fn(),
-            dispose: jest.fn()
+        const instances = new Map();
+        window.bootstrap.Modal.getInstance = jest.fn(element => instances.get(element));
+        window.bootstrap.Modal.getOrCreateInstance = jest.fn(element => {
+            if (!instances.has(element)) instances.set(element, new window.bootstrap.Modal(element));
+            return instances.get(element);
         });
     });
 
@@ -140,6 +142,17 @@ describe('GatheringsCalendarController', () => {
 
         expect(window.bootstrap.Modal).toHaveBeenCalledWith(controller.modalElement);
         expect(controller.modalInstance).not.toBeNull();
+    });
+
+    test('calendar and quick-view controllers share one Bootstrap modal instance', () => {
+        setupController();
+        controller.connect();
+        const dialogController = new GatheringsCalendarController();
+        dialogController.element = controller.modalElement;
+        dialogController.connect();
+        expect(dialogController.modalInstance).toBe(controller.modalInstance);
+        expect(window.bootstrap.Modal).toHaveBeenCalledTimes(1);
+        dialogController.disconnect();
     });
 
     test('connect registers popstate and grid-view:navigated listeners', () => {
@@ -227,13 +240,13 @@ describe('GatheringsCalendarController', () => {
         expect(controller._pushStateHandler).toBeNull();
     });
 
-    test('disconnect disposes modal instance', () => {
+    test('frame disconnect preserves the shared page modal', () => {
         setupController();
         controller.connect();
         const disposeSpy = controller.modalInstance.dispose;
         controller.disconnect();
 
-        expect(disposeSpy).toHaveBeenCalled();
+        expect(disposeSpy).not.toHaveBeenCalled();
     });
 
     // ==================== getCalendarElement ====================
@@ -696,7 +709,7 @@ describe('GatheringsCalendarController', () => {
 
         await controller.showAttendanceModal({ currentTarget: button });
 
-        expect(global.fetch).toHaveBeenCalledWith('/gatherings/attendance-modal/42');
+        expect(global.fetch).toHaveBeenCalledWith('/gatherings/attendance-modal/42', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
         const content = document.getElementById('attendanceModalContent');
         expect(content.innerHTML).toContain('Form');
     });
@@ -741,7 +754,7 @@ describe('GatheringsCalendarController', () => {
 
         await controller.showAttendanceModal({ currentTarget: button });
 
-        expect(global.fetch).toHaveBeenCalledWith('/gatherings/attendance-modal/42?attendance_id=7');
+        expect(global.fetch).toHaveBeenCalledWith('/gatherings/attendance-modal/42?attendance_id=7', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     });
 
     test('attendance modal restores focus to its list button after closing', async () => {

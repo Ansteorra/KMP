@@ -18,6 +18,7 @@ Own web and API request orchestration for core app features, including authoriza
 - Apply authorization scopes before returning lists, grids, or exports.
 - Keep business logic in services and persistence concerns in tables.
 - Turbo Frame requests must return frame-safe markup and preserve expected frame IDs.
+- App back-arrow history records successful full HTML document renders in `AppController::beforeRender`, never redirects, fragments, downloads, background fetches, or writes. Keep modal fetches marked as AJAX; see `app/docs/navigation-history.md`.
 - Grid actions should use existing grid services and CSV export patterns.
 
 ## Work Guidance

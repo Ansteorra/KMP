@@ -60,6 +60,21 @@ class RequestRateLimiterTest extends TestCase
         $this->assertTrue($searchResult->allowed);
     }
 
+    public function testGridSamplesAreBoundedPerMemberAndResetWithTheWindow(): void
+    {
+        $now = 900;
+        $limiter = new RequestRateLimiter($this->connection, static function () use (&$now): int {
+            return $now;
+        });
+        for ($i = 0; $i < 5; $i++) {
+            $this->assertTrue($limiter->attempt(RequestRateLimiter::BUCKET_GRID_EMAIL_SAMPLE, 'member-a')->allowed);
+        }
+        $this->assertFalse($limiter->attempt(RequestRateLimiter::BUCKET_GRID_EMAIL_SAMPLE, 'member-a')->allowed);
+        $this->assertTrue($limiter->attempt(RequestRateLimiter::BUCKET_GRID_EMAIL_SAMPLE, 'member-b')->allowed);
+        $now += 300;
+        $this->assertTrue($limiter->attempt(RequestRateLimiter::BUCKET_GRID_EMAIL_SAMPLE, 'member-a')->allowed);
+    }
+
     public function testUnknownBucketThrows(): void
     {
         $limiter = new RequestRateLimiter($this->connection);

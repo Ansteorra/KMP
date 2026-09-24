@@ -1,5 +1,8 @@
 import { Controller } from '@hotwired/stimulus';
 import vault from '../services/offline-vault-service.js';
+import { currentOfflineContext } from '../services/offline-data-service.js';
+import { removePasskey } from '../services/passkey-auth-service.js';
+import { rememberDevicePromptChoice } from '../services/device-prompt-preference-service.js';
 import { trustThisDevice, updateTrustedDevice, offlineStatus } from '../services/offline-runtime-service.js';
 
 /** Device recovery only. Normal mobile templates and controllers own all application rendering. */
@@ -75,8 +78,21 @@ class OfflineVaultController extends Controller {
     lock() { vault.signOut(); }
     async forget() {
         if (!await window.KMP_accessibility.confirm('Remove saved information and any unsent RSVPs from this device?')) return;
-        await this.run(() => vault.clear());
-        this.enrollTarget.querySelector('a')?.focus();
+        await this.run(async () => {
+            const record = await vault.metadata();
+            if (record?.wrapper.authentication) {
+                if (!navigator.onLine) throw new Error('Connect and sign in to remove this device’s passkey in Security.');
+                try {
+                    await removePasskey(record.wrapper.authentication, await currentOfflineContext());
+                } catch (error) {
+                    throw new Error('Unable to remove this device’s passkey. Connect and sign in, then try again.', { cause: error });
+                }
+            }
+            await vault.clear();
+            rememberDevicePromptChoice(true, record?.owner);
+            await this.render();
+            this.enrollTarget.querySelector('a')?.focus();
+        });
     }
 }
 window.Controllers ||= {};

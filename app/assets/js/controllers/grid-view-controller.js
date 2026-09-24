@@ -102,6 +102,8 @@ class GridViewController extends Controller {
      * Cleanup when controller disconnects
      */
     disconnect() {
+        this.subscriptionRequest?.abort()
+        this.subscriptionRequest = null
         if (this.searchDebounceTimer) {
             clearTimeout(this.searchDebounceTimer)
             this.searchDebounceTimer = null
@@ -1361,6 +1363,76 @@ class GridViewController extends Controller {
         url.searchParams.set('view_id', viewId)
 
         this.navigate(url.pathname + url.search) // Table frame nav
+    }
+
+    /** Default new subscription names to the selected tab and registered page label. */
+    prepareSubscription(event) {
+        const form = event.currentTarget.closest("details").querySelector("form")
+        const name = form.elements.namedItem("subscriptionName")
+        if (name.value) return
+        const viewName = this.state?.view?.currentName || "My view"
+        const pageName = form.dataset.subscriptionPageName
+        const suffix = pageName ? ` - ${pageName}` : ""
+        name.value = viewName.slice(0, Math.max(0, 150 - suffix.length)) + suffix
+    }
+
+    /** Save recurring delivery settings without changing the selected grid view. */
+    async subscribeToView(event) {
+        event.preventDefault()
+        const form = event.currentTarget
+        if (!form.reportValidity() || this.subscriptionRequest) return
+        const button = event.submitter || form.querySelector('button[type="submit"]')
+        if (button.disabled) return
+        const restoreFocus = document.activeElement === button
+        const sample = button.hasAttribute("data-subscription-sample")
+        const endpoint = sample ? button.getAttribute("formaction") : form.action
+        const buttons = Array.from(form.querySelectorAll('button[type="submit"]'))
+        const disabledStates = buttons.map(item => item.disabled)
+        const request = new AbortController()
+        this.subscriptionRequest = request
+        const status = form.querySelector("[data-subscription-status]")
+        buttons.forEach(item => { item.disabled = true })
+        form.setAttribute("aria-busy", "true")
+        status.textContent = sample ? "Sending sample…" : "Saving subscription…"
+        try {
+            const url = new URL(this.buildUrl({
+                view_id: this.state.view.currentId || "all", page: null
+            }), window.location.origin)
+            const response = await fetch(endpoint, {
+                signal: request.signal,
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json", "Accept": "application/json",
+                    "X-CSRF-Token": this.getCsrfToken(), "X-Requested-With": "XMLHttpRequest"
+                },
+                credentials: "same-origin",
+                body: JSON.stringify({
+                    gridKey: this.state.config.gridKey,
+                    name: form.elements.namedItem("subscriptionName").value.trim(),
+                    intervalDays: Number(form.elements.namedItem("intervalDays").value),
+                    query: url.search.slice(1)
+                })
+            })
+            const data = await response.json().catch(() => ({}))
+            if (!response.ok || !data.success) {
+                throw new Error(typeof data.error === "string" ? data.error : (
+                    sample ? "Unable to send a sample. Check your access and try again." :
+                        "Unable to subscribe to this view. Check your access and try again."
+                ))
+            }
+            status.textContent = sample ?
+                "Sample sent to your account email. No subscription was created or changed." :
+                "Subscribed. Manage or cancel this subscription from your profile."
+        } catch (error) {
+            if (error.name !== "AbortError") {
+                status.textContent = error.message || "Unable to complete the request. Please try again."
+            }
+        } finally {
+            buttons.forEach((item, index) => { item.disabled = disabledStates[index] })
+            form.setAttribute("aria-busy", "false")
+            if (restoreFocus && button.isConnected && document.activeElement === document.body) button.focus()
+            if (this.subscriptionRequest === request) this.subscriptionRequest = null
+        }
     }
 
     /**

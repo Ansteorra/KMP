@@ -56,7 +56,7 @@ if ($historyCount < 2) {
 }
 
 // Build the link
-$linkContent = '<i class="' . h($class) . '"></i>';
+$linkContent = '<i class="' . h($class) . '" aria-hidden="true"></i>';
 if ($text) {
     $linkContent .= ' ' . h($text);
 }
@@ -64,6 +64,9 @@ if ($text) {
 $linkOptions = [
     'escape' => false,
     'title' => $title,
+    'aria-label' => $title,
+    'data-turbo-frame' => '_top',
+    'data-turbo' => 'false',
 ];
 
 if ($historyBack) {

@@ -66,7 +66,7 @@ class GatheringsCalendarController extends Controller {
         console.log('Turbo frame:', this.turboFrame)
 
         if (this.modalElement) {
-            this.modalInstance = new bootstrap.Modal(this.modalElement)
+            this.modalInstance = bootstrap.Modal.getOrCreateInstance(this.modalElement)
             console.log('Modal instance created')
         } else {
             console.error('Modal element not found!')
@@ -74,6 +74,13 @@ class GatheringsCalendarController extends Controller {
 
         if (!this.turboFrame) {
             console.error('Turbo frame element not found!')
+        }
+
+        if (this.element === this.modalElement) {
+            this._quickViewShownHandler = event => { this.quickViewTrigger = event.relatedTarget }
+            this._quickViewHiddenHandler = () => { this.quickViewTrigger?.focus() }
+            this.modalElement.addEventListener('show.bs.modal', this._quickViewShownHandler)
+            this.modalElement.addEventListener('hidden.bs.modal', this._quickViewHiddenHandler)
         }
 
         this.updateCalendarHeader()
@@ -108,7 +115,7 @@ class GatheringsCalendarController extends Controller {
             return
         }
 
-        this.modalInstance.show()
+        this.modalInstance.show(event.currentTarget)
 
         if (!this.turboFrame) {
             console.error('Turbo frame not found')
@@ -120,7 +127,11 @@ class GatheringsCalendarController extends Controller {
             this.attachQuickViewCloseHandler()
         }
         this.turboFrame.addEventListener('turbo:frame-load', onFrameLoad)
-        this.turboFrame.src = url
+        if (this.turboFrame.src === new URL(url, window.location.href).href) {
+            this.turboFrame.reload()
+        } else {
+            this.turboFrame.src = url
+        }
     }
 
     /**
@@ -489,7 +500,8 @@ class GatheringsCalendarController extends Controller {
         const action = button.dataset.attendanceAction || 'add'
         const gatheringId = button.dataset.gatheringId
         const attendanceId = button.dataset.attendanceId || ''
-        this.attendanceModalTrigger = button
+        this.attendanceModalTrigger = this.modalElement?.contains(button)
+            ? this.quickViewTrigger : button
 
         // Get the attendance modal
         const attendanceModal = document.getElementById('attendanceModal')
@@ -508,7 +520,7 @@ class GatheringsCalendarController extends Controller {
             // Show loading state
             modalContent.innerHTML = `
                 <div class="modal-header">
-                    <h5 class="modal-title">Loading...</h5>
+                    <h5 class="modal-title" id="attendanceModalLabel">Loading...</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body text-center py-5">
@@ -526,7 +538,7 @@ class GatheringsCalendarController extends Controller {
                     )
                 }
                 this.attendanceModalElement = attendanceModal
-                this.attendanceModalInstance = new bootstrap.Modal(attendanceModal)
+                this.attendanceModalInstance = bootstrap.Modal.getOrCreateInstance(attendanceModal)
                 this._attendanceHiddenHandler = () => {
                     if (this.attendanceModalTrigger?.isConnected) {
                         this.attendanceModalTrigger.focus()
@@ -555,7 +567,7 @@ class GatheringsCalendarController extends Controller {
                 url = `/gatherings/attendance-modal/${gatheringId}`
             }
 
-            const response = await fetch(url)
+            const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`)
             }
@@ -583,7 +595,7 @@ class GatheringsCalendarController extends Controller {
             console.error('Error loading attendance modal:', error)
             modalContent.innerHTML = `
                 <div class="modal-header">
-                    <h5 class="modal-title text-danger">Error</h5>
+                    <h5 class="modal-title text-danger" id="attendanceModalLabel">Error</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -867,11 +879,19 @@ class GatheringsCalendarController extends Controller {
                 this._attendanceHiddenHandler = null
             }
 
-            if (this.modalInstance) {
-                this.modalInstance.dispose()
+            if (this._quickViewShownHandler) {
+                this.modalElement?.removeEventListener('show.bs.modal', this._quickViewShownHandler)
+                this.modalElement?.removeEventListener('hidden.bs.modal', this._quickViewHiddenHandler)
+            }
+            // Calendar frames share page-owned dialogs; a frame refresh must not dispose them.
+            if (!this.modalElement?.isConnected && bootstrap.Modal.getInstance(this.modalElement) === this.modalInstance) {
+                this.modalInstance?.dispose()
             }
             if (this.attendanceModalInstance) {
-                this.attendanceModalInstance.dispose()
+                if (!this.attendanceModalElement?.isConnected
+                    && bootstrap.Modal.getInstance(this.attendanceModalElement) === this.attendanceModalInstance) {
+                    this.attendanceModalInstance.dispose()
+                }
                 this.attendanceModalInstance = null
                 this.attendanceModalElement = null
                 this.attendanceModalTrigger = null

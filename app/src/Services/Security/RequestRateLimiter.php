@@ -17,22 +17,26 @@ class RequestRateLimiter
 {
     public const BUCKET_EMAIL_TAKEN = 'members.email_taken';
     public const BUCKET_SEARCH_MEMBERS = 'members.search_members';
+    public const BUCKET_GRID_EMAIL_SAMPLE = 'grids.email_sample';
     public const BUCKET_GITHUB_ISSUE = 'github.issue_submit';
     public const BUCKET_RESET_IP = 'members.reset_ip';
     public const BUCKET_RESET_ACCOUNT = 'members.reset_account';
     public const BUCKET_RESET_COOLDOWN = 'members.reset_cooldown';
+    public const BUCKET_PASSKEY = 'members.passkey';
     public const BUCKET_PIN = 'members.pin';
     public const BUCKET_PLATFORM_LOGIN_IP = 'platform.login_ip';
     public const BUCKET_PLATFORM_LOGIN_ACCOUNT = 'platform.login_account';
     public const BUCKET_PLATFORM_STEP_UP = 'platform.step_up';
 
     private const LIMITS = [
+        self::BUCKET_GRID_EMAIL_SAMPLE => ['max' => 5, 'window' => 300],
         self::BUCKET_EMAIL_TAKEN => ['max' => 10, 'window' => 900],
         self::BUCKET_SEARCH_MEMBERS => ['max' => 15, 'window' => 900],
         self::BUCKET_GITHUB_ISSUE => ['max' => 5, 'window' => 3600],
         self::BUCKET_RESET_IP => ['max' => 10, 'window' => 900],
         self::BUCKET_RESET_ACCOUNT => ['max' => 3, 'window' => 3600],
         self::BUCKET_RESET_COOLDOWN => ['max' => 1, 'window' => 300],
+        self::BUCKET_PASSKEY => ['max' => 20, 'window' => 300],
         self::BUCKET_PIN => ['max' => 5, 'window' => 300],
         self::BUCKET_PLATFORM_LOGIN_IP => ['max' => 20, 'window' => 900],
         self::BUCKET_PLATFORM_LOGIN_ACCOUNT => ['max' => 5, 'window' => 900],

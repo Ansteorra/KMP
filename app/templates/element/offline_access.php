@@ -18,8 +18,10 @@ $shortSiteTitle = $this->KMP->getAppSetting('KMP.ShortSiteTitle');
                 Trust this personal device
             </button>
             <button type="button" class="btn btn-outline-secondary py-2" data-action="offline-access#decline">
-                Not now
+                Use online only
             </button>
+            <p class="small text-muted mt-2 mb-0">Your choice is remembered for this account in this browser.
+                You can change it later in Security.</p>
         </div>
         <div data-offline-access-target="wizard" hidden>
             <p class="small fw-semibold mb-2" data-offline-access-target="stepLabel"></p>
@@ -30,7 +32,7 @@ $shortSiteTitle = $this->KMP->getAppSetting('KMP.ShortSiteTitle');
                     <p>Keep your card, RSVPs, and events with you, even without internet.</p>
                     <ul class="small ps-3">
                         <li>Use your own phone, tablet, or computer. Avoid shared or public devices.</li>
-                        <li>Your PIN or passkey will unlock <?= h($shortSiteTitle) ?> online and offline.</li>
+                        <li>We’ll check whether your passkey needs a separate PIN for offline access.</li>
                         <li>Logging out locks your saved information. It stays here for your next visit.</li>
                     </ul>
                     <label class="form-label" for="<?= h($deviceFormId) ?>-password">
@@ -88,6 +90,9 @@ $shortSiteTitle = $this->KMP->getAppSetting('KMP.ShortSiteTitle');
                         data-trust-control>Continue</button>
                     <button class="btn btn-primary" type="button" data-offline-access-target="continue"
                         data-action="offline-access#continueSetup" data-trust-control hidden>Set up passkey</button>
+                    <button class="btn btn-outline-secondary" type="button" data-offline-access-target="onlineOnly"
+                        data-action="offline-access#finishOnlineOnly" data-trust-control hidden>
+                        Continue online only — add PIN later</button>
                     <button class="btn btn-outline-secondary" type="button" data-offline-access-target="back"
                         data-action="offline-access#back" data-trust-control hidden>Back</button>
                     <button class="btn btn-link" type="button" data-action="offline-access#cancelSetup"
@@ -101,8 +106,7 @@ $shortSiteTitle = $this->KMP->getAppSetting('KMP.ShortSiteTitle');
                 <i class="bi bi-check-circle me-1" aria-hidden="true"></i> You’re all set!
             </h3>
             <p class="fw-semibold" data-offline-access-target="successMethod"></p>
-            <p>This device is now trusted. Next time, unlock <?= h($shortSiteTitle) ?> the same way,
-                online or offline.</p>
+            <p>This device is now trusted. Your offline readiness is shown below.</p>
             <p class="rounded border p-3" role="status" data-offline-access-target="readiness"></p>
             <p class="small">Logging out locks <?= h($shortSiteTitle) ?>. Your saved information stays on this device.
                 You can remove it any time in Security.</p>
@@ -124,6 +128,8 @@ $shortSiteTitle = $this->KMP->getAppSetting('KMP.ShortSiteTitle');
                 Use email and password
             </button>
         </form>
+        <button type="button" class="btn btn-primary py-2" data-offline-access-target="addPin"
+            data-action="offline-access#addOfflinePin" hidden>Add offline PIN</button>
         <a class="btn btn-outline-primary py-2" href="/offline" data-turbo="false"
             data-offline-access-target="link" hidden>View saved information</a>
         <button type="button" class="btn btn-outline-secondary py-2" data-offline-access-target="forget"
