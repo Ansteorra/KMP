@@ -11,6 +11,7 @@ theme: jekyll-theme-cayman
 plugins:
   - jekyll-relative-links
   - jekyll-feed
+  - jekyll-github-metadata
   - jekyll-seo-tag
 
 include:

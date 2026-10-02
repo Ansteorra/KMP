@@ -1,5 +1,12 @@
 source 'https://rubygems.org'
 
-gem "github-pages", "= 232", group: :jekyll_plugins
+# Keep the theme and plugins explicit; github-pages also installs unused remote
+# theme support, which pins a vulnerable rubyzip dependency.
+gem "jekyll", "= 3.10.0"
+gem "kramdown-parser-gfm", "= 1.1.0"
+gem "jekyll-theme-cayman", "= 0.2.0"
+gem "jekyll-relative-links", "= 0.6.1"
+gem "jekyll-feed", "= 0.17.0"
+gem "jekyll-github-metadata", "= 2.16.1"
+gem "jekyll-seo-tag", "= 2.8.0"
 gem "webrick"
-
