@@ -13,6 +13,10 @@ plugins:
   - jekyll-feed
   - jekyll-github-metadata
   - jekyll-seo-tag
+  - jekyll-titles-from-headings
+
+sass:
+  style: compressed
 
 include:
   - index.md
