@@ -17,7 +17,7 @@ Own container image definitions, entrypoints, Apache configuration, local app co
 - Keep entrypoints explicit about side effects such as migrations, seeds, cache clears, scheduler loops, and health behavior.
 - Keep reset/seed scripts idempotent when possible because local and test workflows may call them repeatedly.
 - Changes to base dependencies must be compatible with PHP 8.4, CakePHP, Vite builds, and Playwright/test workflows.
-- Shared and production runtime builds use the same digest-pinned PHP 8.4 Apache image on Debian Trixie and `install-runtime.sh`. Refresh inherited Debian packages before compiling extensions, preserve the PostgreSQL signing-key checksum, and select its repository using the image's release codename.
+- Shared and production runtime builds use the same digest-pinned PHP 8.5 Apache image on Debian Trixie and `install-runtime.sh`. Refresh inherited Debian packages before compiling extensions, preserve the PostgreSQL signing-key checksum, and select its repository using the image's release codename.
 - Remove discovered build tools and development headers after compilation while retaining shared runtime dependencies, including the GCC base support package. Verify PHP extensions, GD formats, PostgreSQL clients, and PDF processing in the finished image after native upgrades.
 - Keep `app/resources/security/document-blob-condition.txt` in the production image; dependency-stage validation must fail if the storage authorization policy is missing. Production dependencies must come from clean build stages, with no local vendor or runtime-data overlays.
 

@@ -23,6 +23,10 @@ Own the published documentation site and long-lived project documentation for ar
 - Update docs when public commands, installation/deployment behavior, plugin contracts, user-facing workflows, or developer workflows change.
 - Do not document secrets, private environment values, or temporary task notes.
 - Preserve Jekyll site structure, front matter, and existing navigation conventions.
+- Keep documentation gems explicit in `docs/Gemfile`, with a committed lockfile.
+  Include only the theme and plugins used by the site; the `github-pages` umbrella
+  adds unrelated plugins and transitive dependency constraints. Preserve GitHub
+  metadata support for layouts that use `site.github`.
 
 ## Work Guidance
 
