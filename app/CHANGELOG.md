@@ -3,8 +3,15 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: 52d7c7a2347a8a54f265534b87c0ba2b56c9e6dd -->
-<!-- LAST_SYNCED_DATE: 2026-09-22 -->
+<!-- LAST_SYNCED_COMMIT: 50ed3ad3f9a7f5724415269b22761503b3a6015a -->
+<!-- LAST_SYNCED_DATE: 2026-10-05 -->
+
+## KMP 1.5.12 — October 5, 2026
+
+- Authorization request and renewal forms, including mobile, now display recipients as **Member Name, Group** (for example, **Martin Malone, Bjornsborg**), without group type prefixes such as “Barony of.”
+- Updated dependencies with security fixes and maintenance improvements.
+
+---
 
 ## KMP 1.5.11 — September 25, 2026
 
