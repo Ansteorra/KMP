@@ -10,7 +10,7 @@ Feature: User Requests an Authorization and it is Denied
         And I navigate to my profile page
         And I click on the "Request Authorization" button
         And I select the activity "Armored"
-        And I select the approver "Out of Kingdom: Alys atte Brook"
+        And I select the approver "Alys atte Brook, Out of Kingdom"
         And I submit the authorization request
         Then I should see the flash message "The Authorization has been requested."
         Then I should have 1 pending authorization request
