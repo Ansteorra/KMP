@@ -335,8 +335,8 @@ class ActivitiesController extends AppController
      * AJAX endpoint for discovering approvers for an activity and member.
      *
      * Permission-based discovery using Activity's getApproversQuery(). Returns JSON array of
-     * approvers with id and sca_name (including branch name). See docs/5.6.2-activities-controller-reference.md#approvers-list
-     * for detailed documentation.
+     * approvers with id and sca_name formatted as "Member Name, Group" without the group type.
+     * See docs/5.6.2-activities-controller-reference.md#approvers-list for detailed documentation.
      *
      * @param string|null $activityId Activity ID for permission-based approver discovery
      * @param string|null $memberId Member ID for organizational context and self-exclusion
@@ -369,9 +369,14 @@ class ActivitiesController extends AppController
             ->toArray();
         $responseData = [];
         foreach ($result as $member) {
+            $groupName = preg_replace(
+                '/^(?:Kingdom|Principality|Barony|Shire|Canton|Province|Stronghold|College|Hamlet|Port|Region) of\s+/i',
+                '',
+                $member->branch->name,
+            );
             $responseData[] = [
                 "id" => $member->id,
-                "sca_name" => $member->branch->name . ": " . $member->sca_name,
+                'sca_name' => $member->sca_name . ', ' . $groupName,
             ];
         }
         $this->response = $this->response
