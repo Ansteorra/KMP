@@ -82,6 +82,7 @@ jobs:
     needs: prepare
     uses: ./.github/workflows/security.yml
     with:
+      checkout_ref: ${{ needs.prepare.outputs.source_sha || github.sha }}
       image: ${{ needs.prepare.outputs.source_image }}
 
   deploy:
@@ -96,7 +97,7 @@ jobs:
       environment_name: poc
       source_image: ${{ needs.prepare.outputs.source_image }}
       target_tag: ${{ needs.prepare.outputs.target_tag }}
-      checkout_ref: main
+      checkout_ref: ${{ needs.prepare.outputs.source_sha || github.sha }}
 
   record-poc-evidence:
     name: Record POC-validated digest

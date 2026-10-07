@@ -110,6 +110,67 @@ print(os.environ['WORKFLOW_RESPONSE'])
         self.assertRegex(security, r'(?m)^          no-cache-filters: runtime-base$')
         self.assertIn('cache-from: type=gha,scope=kmp-security', security)
 
+    def poc_image_command(self):
+        workflow = (ROOT / '.github/workflows/nightly-deploy-azure.yml').read_text()
+        step = workflow.split('      - name: Resolve immutable source and target tags\n', 1)[1]
+        step = step.split('\n  candidate-security:', 1)[0]
+        return textwrap.dedent(step.split('        run: |\n', 1)[1])
+
+    def resolve_poc_image(self, event, digest='sha256:' + 'b' * 64):
+        docker = self.bin / 'docker'
+        docker.write_text('''#!/usr/bin/env python3
+import os, sys
+assert sys.argv[1:5] == ['buildx', 'imagetools', 'inspect',
+                        'ghcr.io/ansteorra/kmp:dev-aaaaaaa'], sys.argv
+assert sys.argv[5:] == ['--format', '{{.Manifest.Digest}}'], sys.argv
+print(os.environ['TEST_IMAGE_DIGEST'])
+''')
+        docker.chmod(0o755)
+        env = self.environment('main' if event == 'workflow_run' else 'dev', [])
+        env.update({
+            'EVENT_NAME': event,
+            'IMAGE_TAG': 'dev-aaaaaaa',
+            'WORKFLOW_RUN_HEAD_SHA': SHA if event == 'workflow_run' else '',
+            # workflow_run's checkout context belongs to main, not the dev image.
+            'GITHUB_SHA': 'c' * 40 if event == 'workflow_run' else SHA,
+            'GITHUB_RUN_ID': '123',
+            'TEST_IMAGE_DIGEST': digest,
+        })
+        result = subprocess.run(['bash', '-c', self.poc_image_command()], cwd=ROOT,
+                                env=env, capture_output=True, text=True, timeout=5)
+        output = Path(env['GITHUB_OUTPUT'])
+        values = dict(line.split('=', 1) for line in output.read_text().splitlines()) \
+            if output.exists() else {}
+        return result, values
+
+    def test_automatic_poc_uses_image_source_sha_and_digest_instead_of_main_context(self):
+        result, outputs = self.resolve_poc_image('workflow_run')
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(SHA, outputs['source_sha'])
+        self.assertEqual('poc-validated-' + SHA[:12], outputs['evidence_tag'])
+        self.assertEqual('ghcr.io/ansteorra/kmp@sha256:' + 'b' * 64, outputs['source_image'])
+        poc = (ROOT / '.github/workflows/nightly-deploy-azure.yml').read_text()
+        ref = '      checkout_ref: ${{ needs.prepare.outputs.source_sha || github.sha }}'
+        self.assertEqual(2, poc.count(ref), 'Security and deployment must use the same source commit')
+        self.assertIn("github.event.workflow_run.conclusion == 'success'", poc)
+        self.assertIn('    needs: [prepare, candidate-security]', poc)
+        security = (ROOT / '.github/workflows/security.yml').read_text()
+        self.assertRegex(security, r'workflow_call:\n    inputs:\n      checkout_ref:')
+        self.assertRegex(security, r'(?m)^          ref: \$\{\{ inputs.checkout_ref \|\| github.sha \}\}$')
+
+    def test_manual_poc_dispatch_keeps_context_checkout_without_promotion_evidence(self):
+        result, outputs = self.resolve_poc_image('workflow_dispatch')
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual('', outputs['source_sha'])
+        self.assertEqual('', outputs['evidence_tag'])
+        self.assertEqual('poc-dev-aaaaaaa-123', outputs['target_tag'])
+
+    def test_poc_cannot_resolve_a_mutable_or_invalid_digest(self):
+        result, outputs = self.resolve_poc_image('workflow_run', 'dev')
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn('Unable to resolve an immutable digest', result.stderr)
+        self.assertEqual({}, outputs)
+
     def test_image_build_still_depends_on_evidence_and_production_requires_main(self):
         nightly = (ROOT / '.github/workflows/nightly.yml').read_text()
         self.assertRegex(nightly, r'  build-and-push:\n    needs: \[quality-gate-evidence\]')

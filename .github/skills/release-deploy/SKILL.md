@@ -28,7 +28,20 @@ Release-note preparation may be committed directly on `dev`, with a `dev` →
    nightly builds), then builds and smoke-tests one immutable candidate image.
 6. Watch `POC / Deploy to Azure`. It imports the tested image, verifies its
    digest, runs the worker canary and migrations, cuts over web traffic, and
-   aligns retained jobs. Success records the POC-validated digest for that SHA.
+   aligns retained jobs. Automatic success records the POC-validated digest for
+   that SHA. Its security and deployment jobs check out the triggering image
+   workflow's source SHA, because `workflow_run` otherwise uses the default
+   branch's commit.
+   If the corrected workflow exists only on `dev`, its automatic trigger still
+   uses the workflow definition on the default branch. After exact `dev` push
+   quality and image-build success, a POC-only dispatch can select the `dev`
+   definition with `gh workflow run nightly-deploy-azure.yml --repo Ansteorra/KMP
+   --ref dev -f image_tag=dev-<candidate-short-sha>`. Confirm the official `dev`
+   tip still equals the tested candidate before dispatch and confirm the run's
+   head SHA afterward. The POC environment must permit the official `dev`
+   branch. This route keeps the mandatory source/image security scan, canary,
+   migrations, and digest checks; record its SHA/digest in the PR because manual
+   dispatch does not create stable-promotion evidence.
 7. Verify POC readiness, tenant and platform hosts, login, queue/worker
    processing, and the changed user journeys. Record the SHA/digest in the PR.
 8. Do not merge the PR before the team's review/sign-off. POC success does not
