@@ -362,7 +362,7 @@ class ActivitiesController extends AppController
         $result = $query
             ->contain(["Branches"])
             ->where(["Members.id !=" => $memberId])
-            ->orderBy(["Branches.name", "Members.sca_name"])
+            ->orderBy(["Members.sca_name", "Branches.name"])
             ->select(["Members.id", "Members.sca_name", "Branches.name"])
             ->distinct()
             ->all()
