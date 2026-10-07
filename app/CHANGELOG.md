@@ -3,12 +3,14 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: 50ed3ad3f9a7f5724415269b22761503b3a6015a -->
-<!-- LAST_SYNCED_DATE: 2026-10-05 -->
+<!-- LAST_SYNCED_COMMIT: 60a321f87c07896636e7cbd1df9704d36c2beb59 -->
+<!-- LAST_SYNCED_DATE: 2026-10-07 -->
 
-## KMP 1.5.12 — October 5, 2026
+## KMP 1.5.12 — October 7, 2026
 
 - Authorization request and renewal forms, including mobile, now display recipients as **Member Name, Group** (for example, **Martin Malone, Bjornsborg**), without group type prefixes such as “Barony of.”
+- Grid edits and bulk updates preserve the current page, search, filters, and sorting, including Bestowals and Recommendations. Returning from a record keeps your place; if updates remove the last page, the grid moves to the last available page.
+- Grids offer a **Rows per page** control. Your selection stays with the current grid state and is included when saving or updating a view.
 - Updated dependencies with security fixes and maintenance improvements.
 
 ---
