@@ -107,6 +107,7 @@ class PageContextController extends Controller {
         }
         const tab = url.searchParams.get('tab');
         url.search = source.search;
+        url.searchParams.delete('tab');
         ['frame_id', 'member_id', 'branch_id', 'gathering_id'].forEach(key => url.searchParams.delete(key));
         if (tab) {
             url.searchParams.set('tab', tab);

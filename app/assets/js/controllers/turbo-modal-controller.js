@@ -193,6 +193,7 @@ class TurboModal extends Controller {
             if (gridUrl.origin === window.location.origin) {
                 const tab = url.searchParams.get('tab');
                 url.search = gridUrl.search;
+                url.searchParams.delete('tab');
                 ['frame_id', 'member_id', 'branch_id', 'gathering_id'].forEach(key => url.searchParams.delete(key));
                 if (tab) {
                     url.searchParams.set('tab', tab);

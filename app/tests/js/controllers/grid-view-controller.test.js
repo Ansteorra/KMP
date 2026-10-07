@@ -232,7 +232,9 @@ describe('GridViewController', () => {
         expect(controller.syncsBrowserUrl).toBe(false);
         expect(window.location.search).toBe('?tab=officers');
         const params = new URL(controller.buildUrl({ sort: 'name' }), window.location.origin).searchParams;
-        expect(params.get('member_id')).toBe('7');
+        expect(params.has('member_id')).toBe(false);
+        expect(params.get('tab')).toBe('officers');
+        expect(params.get('grid_context')).toBe('members');
         expect(params.get('page')).toBe('3');
     });
 
@@ -247,9 +249,107 @@ describe('GridViewController', () => {
         const url = new URL(controller.buildUrl({ limit: 50, page: null }), window.location.origin);
         expect(url.searchParams.get('filter[role_id][]')).toBe('4');
         expect(url.searchParams.get('limit')).toBe('50');
-        expect(url.searchParams.has('tab')).toBe(false);
+        expect(url.searchParams.get('tab')).toBe('roles');
+        expect(url.searchParams.get('grid_context')).toBe('members');
         controller.handlePopState();
         expect(new URL(controller.currentFrameUrl(frame), window.location.origin).searchParams.get('page')).toBe('2');
+    });
+
+    function embeddedSavedView() {
+        window.history.replaceState({}, '', '/members/view/7?tab=roles&search=Sibling&view_id=foreign#member-details');
+        controller.syncUrlValue = false;
+        const frame = controller.element.querySelector('turbo-frame');
+        frame.id = 'member-roles-grid-table';
+        frame.src = '/members/roles-grid-data/7?page=99&limit=25';
+        frame.dataset.gridCurrentSrc = '/members/roles-grid-data/7?member_id=7&branch_id=2&gathering_id=11&frame_id=member-roles-grid&page=3&limit=50&search=Knight&view_id=own-view&filter[role_id][]=4&sort=name&direction=desc';
+        controller.state = {
+            view: { currentId: 'own-view' },
+            config: { gridKey: 'Members.roles', pageSize: 50 },
+            filters: { active: { role_id: ['4'] } },
+            sort: { field: 'name', direction: 'desc' },
+            columns: { visible: ['name'] }, search: 'Knight'
+        };
+        global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { view: { id: 'new-view' } } }) });
+        return frame;
+    }
+
+    function expectOwnSavedQuery(url) {
+        expect(url.searchParams.get('page')).toBe('3');
+        expect(url.searchParams.get('limit')).toBe('50');
+        expect(url.searchParams.get('search')).toBe('Knight');
+        expect(url.searchParams.getAll('filter[role_id][]')).toEqual(['4']);
+        expect(url.searchParams.get('sort')).toBe('name');
+        expect(url.searchParams.get('direction')).toBe('desc');
+    }
+
+    test.each(['saveView', 'deleteView'])('%s navigates the host with its own marked grid state and detail tab', async method => {
+        embeddedSavedView();
+        window.KMP_accessibility.prompt.mockResolvedValue('Knight roles');
+        const navigate = jest.spyOn(controller, 'navigate');
+        const replaceState = jest.spyOn(window.history, 'replaceState');
+
+        await controller[method]();
+
+        expect(navigate).toHaveBeenCalledTimes(1);
+        expect(navigate.mock.calls[0][1]).toBe(true);
+        const url = new URL(navigate.mock.calls[0][0], window.location.origin);
+        expect(url.pathname).toBe('/members/view/7');
+        expect(url.hash).toBe('#member-details');
+        expect(url.searchParams.get('tab')).toBe('roles');
+        expect(url.searchParams.get('grid_context')).toBe('member-roles-grid');
+        expect(url.searchParams.get('view_id')).toBe(method === 'saveView' ? 'new-view' : null);
+        expectOwnSavedQuery(url);
+        ['frame_id', 'member_id', 'branch_id', 'gathering_id'].forEach(key => expect(url.searchParams.has(key)).toBe(false));
+        if (method === 'saveView') expect(JSON.parse(fetch.mock.calls[0][1].body).config.pageSize).toBe(50);
+        expect(replaceState).toHaveBeenCalledTimes(1);
+        const previous = new URL(replaceState.mock.calls[0][2], window.location.origin);
+        expectOwnSavedQuery(previous);
+        expect(previous.searchParams.get('view_id')).toBe('own-view');
+        expect(previous.searchParams.get('grid_context')).toBe('member-roles-grid');
+        expect(previous.searchParams.get('tab')).toBe('roles');
+        expect(previous.hash).toBe('#member-details');
+    });
+
+    test.each(['setDefault', 'clearDefault'])('%s refreshes its own embedded frame while preserving endpoint identities', async method => {
+        const frame = embeddedSavedView();
+        const hostUrl = window.location.href;
+
+        await controller[method]();
+
+        const url = new URL(frame.src, window.location.origin);
+        expectOwnSavedQuery(url);
+        expect(url.pathname).toBe('/members/roles-grid-data/7');
+        expect(url.searchParams.get('view_id')).toBe('own-view');
+        expect(url.searchParams.get('member_id')).toBe('7');
+        expect(url.searchParams.get('branch_id')).toBe('2');
+        expect(url.searchParams.get('gathering_id')).toBe('11');
+        expect(url.searchParams.get('frame_id')).toBe('member-roles-grid');
+        expect(url.searchParams.has('grid_context')).toBe(false);
+        expect(window.location.href).toBe(hostUrl);
+    });
+
+    test('primary grid URL builders retain their existing unmarked navigation shape', () => {
+        window.history.replaceState({}, '', '/members?search=Knight#details');
+        expect(controller.buildUrl({ view_id: 'new-view' })).toBe('/members?search=Knight&view_id=new-view');
+    });
+
+    test('external embedded frame URLs cannot replace the host query', () => {
+        const frame = embeddedSavedView();
+        frame.dataset.gridCurrentSrc = 'https://example.test/grid?page=3&limit=50';
+
+        expect(controller.currentGridUrl().href).toBe(window.location.href);
+    });
+
+    test('the current default detail tab clears a stale tab from the embedded frame query', () => {
+        const frame = embeddedSavedView();
+        frame.dataset.gridCurrentSrc += '&tab=previous-tab';
+        window.history.replaceState({}, '', '/members/view/7#member-details');
+
+        const url = new URL(controller.buildUrl({ view_id: 'new-view' }), window.location.origin);
+        expect(url.searchParams.has('tab')).toBe(false);
+        expect(url.searchParams.get('grid_context')).toBe('member-roles-grid');
+        expect(url.hash).toBe('#member-details');
+        expectOwnSavedQuery(url);
     });
 
     test('pagination records browser history and Back reloads the former page', () => {

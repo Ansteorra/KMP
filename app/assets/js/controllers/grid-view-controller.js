@@ -379,9 +379,17 @@ class GridViewController extends Controller {
     /** Build from this grid's query rather than another embedded grid's browser query. */
     currentGridUrl() {
         const url = new URL(window.location.href)
-        const frameUrl = this.currentFrameUrl()
+        const frame = this.element.querySelector('turbo-frame[id$="-table"]')
+        const frameUrl = this.currentFrameUrl(frame)
         if (!this.syncsBrowserUrl && frameUrl) {
-            url.search = new URL(frameUrl, window.location.origin).search
+            const source = new URL(frameUrl, window.location.origin)
+            if (source.origin !== window.location.origin) return url
+            const tab = url.searchParams.get('tab')
+            url.search = source.search
+            for (const key of ['frame_id', 'member_id', 'branch_id', 'gathering_id']) url.searchParams.delete(key)
+            url.searchParams.delete('tab')
+            if (tab) url.searchParams.set('tab', tab)
+            url.searchParams.set('grid_context', frame.id.replace(/-table$/, ''))
         }
         return url
     }
@@ -1606,7 +1614,7 @@ class GridViewController extends Controller {
                 window.KMP_accessibility.announce("View saved successfully")
                 // Navigate to the new view
                 const url = this.buildUrl({ view_id: data.data.view.id })
-                window.location.assign(url)
+                this.navigate(url, true)
             } else {
                 throw new Error(data.error || "Failed to save view")
             }
@@ -1691,7 +1699,7 @@ class GridViewController extends Controller {
             if (response.ok && data.success) {
                 window.KMP_accessibility.announce("View deleted successfully")
                 const url = this.buildUrl({ view_id: null })
-                window.location.assign(url)
+                this.navigate(url, true)
             } else {
                 throw new Error(data.error || "Failed to delete view")
             }
@@ -1727,7 +1735,7 @@ class GridViewController extends Controller {
 
             if (response.ok && data.success) {
                 window.KMP_accessibility.announce("Default view set successfully")
-                this.navigate(window.location.pathname + window.location.search, false)
+                this.navigate(this.buildUrl({}), false)
             } else {
                 throw new Error(data.error || "Failed to set default")
             }
@@ -1758,7 +1766,7 @@ class GridViewController extends Controller {
 
             if (response.ok && data.success) {
                 window.KMP_accessibility.announce("Default view cleared successfully")
-                this.navigate(window.location.pathname + window.location.search, false)
+                this.navigate(this.buildUrl({}), false)
             } else {
                 throw new Error(data.error || "Failed to clear default")
             }
@@ -2308,7 +2316,8 @@ class GridViewController extends Controller {
      * Build URL with updated parameters
      */
     buildUrl(updates) {
-        const params = this.currentGridUrl().searchParams
+        const url = this.currentGridUrl()
+        const params = url.searchParams
         this.normalizeGridQueryParams(params)
 
         // Apply updates
@@ -2335,7 +2344,8 @@ class GridViewController extends Controller {
         }
 
         const queryString = params.toString()
-        return queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname
+        const path = queryString ? `${url.pathname}?${queryString}` : url.pathname
+        return path + (this.syncsBrowserUrl ? '' : url.hash)
     }
 
     /**
@@ -2393,7 +2403,8 @@ class GridViewController extends Controller {
         this.normalizeGridQueryParams(params)
 
         const queryString = params.toString()
-        return queryString ? `${url.pathname}?${queryString}` : url.pathname
+        const path = queryString ? `${url.pathname}?${queryString}` : url.pathname
+        return path + (this.syncsBrowserUrl ? '' : url.hash)
     }
 
     /**
@@ -2404,6 +2415,10 @@ class GridViewController extends Controller {
         console.log('Navigating to:', url, 'fullPage:', fullPage)
 
         if (fullPage) {
+            if (!this.syncsBrowserUrl) {
+                const currentUrl = this.currentGridUrl()
+                window.history.replaceState(window.history.state, '', currentUrl.pathname + currentUrl.search + currentUrl.hash)
+            }
             window.location.assign(url)
         } else {
             // Frame navigation - find the table frame and update its src
@@ -2423,7 +2438,7 @@ class GridViewController extends Controller {
 
                 // Context parameters that must be preserved (e.g., member_id, branch_id)
                 // These identify which entity's data we're viewing
-                const contextParams = ['member_id', 'branch_id', 'gathering_id']
+                const contextParams = ['frame_id', 'member_id', 'branch_id', 'gathering_id']
 
                 // Parse the navigation URL to get new query params
                 const urlObj = new URL(url, window.location.origin)
@@ -2437,6 +2452,7 @@ class GridViewController extends Controller {
                 urlObj.searchParams.forEach((value, key) => {
                     finalUrl.searchParams.append(key, value)
                 })
+                finalUrl.searchParams.delete('grid_context')
                 this.normalizeGridQueryParams(finalUrl.searchParams)
 
                 // Ensure sticky parameters are carried over for frame requests

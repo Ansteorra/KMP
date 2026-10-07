@@ -33,6 +33,8 @@ The host query carries `grid_context` with the originating grid frame ID. On
 reload, only that grid receives the query; sibling grids retain their own endpoint
 context and default state. The marker is omitted from data endpoint requests and
 from primary grid pages. Unmarked detail URLs keep their existing query behavior.
+Embedded saved-view page URLs preserve the matching `grid_context`, current tab,
+and hash; frame refreshes retain their endpoint identities and omit the host marker.
 Same-frame pagination, modal links, external links, and new-tab links do not
 change the host entry. Native confirmation paths notify `page-context:before-submit`
 before calling `form.submit()`, which does not emit the normal submit event.

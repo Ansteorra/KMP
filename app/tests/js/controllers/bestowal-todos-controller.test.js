@@ -156,4 +156,22 @@ describe('AwardsBestowalTodos', () => {
         expect(context.searchParams.has('grid_context')).toBe(false);
     });
 
+    test('signed checklist return keeps the default host tab instead of the frame initial tab', () => {
+        window.history.replaceState({}, '', '/gatherings/view/public-id');
+        document.body.insertAdjacentHTML('beforeend', `
+            <div data-controller="grid-view" data-grid-view-sync-url-value="false">
+                <turbo-frame id="gathering-bestowals-grid-1-table" data-grid-current-src="/awards/bestowals/gathering-bestowals-grid-data/1?page=3&amp;limit=50&amp;tab=children">
+                    <button id="todos-trigger">To-Dos</button>
+                </turbo-frame>
+            </div>
+        `);
+        controller.loadTodos(13, document.getElementById('todos-trigger'));
+        const requestUrl = new URL(frame.src, window.location.origin);
+        const context = new URL(requestUrl.searchParams.get('page_context_url'), window.location.origin);
+        expect(context.searchParams.has('tab')).toBe(false);
+        expect(context.searchParams.get('grid_context')).toBe('gathering-bestowals-grid-1');
+        expect(context.searchParams.get('page')).toBe('3');
+        expect(context.searchParams.get('limit')).toBe('50');
+    });
+
 });

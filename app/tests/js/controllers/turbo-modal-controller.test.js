@@ -571,6 +571,20 @@ describe('TurboModalController', () => {
             .toBe('/members/view/1?tab=member-submitted-recs&page=3&limit=50');
     });
 
+    test('modal context keeps the default host tab instead of the frame initial tab', () => {
+        const frame = addGrid();
+        frame.parentElement.dataset.gridViewSyncUrlValue = 'false';
+        frame.dataset.gridCurrentSrc += '&tab=children';
+        controller.modalTrigger = document.querySelector('.edit-btn');
+        window.history.replaceState({}, '', '/members/view/1');
+        controller.syncPageContext();
+        const context = new URL(controller.element.querySelector('[name="page_context_url"]').value, window.location.origin);
+        expect(context.searchParams.has('tab')).toBe(false);
+        expect(context.searchParams.get('grid_context')).toBe('recommendations-grid');
+        expect(context.searchParams.get('page')).toBe('3');
+        expect(context.searchParams.get('limit')).toBe('50');
+    });
+
     test('grid refresh waits for table load before focus and removes its listeners', async () => {
         const frame = addGrid();
         const plan = controller.createStreamFocusPlan('<turbo-stream action="remove" target="recommendations-grid-row-42"></turbo-stream>');

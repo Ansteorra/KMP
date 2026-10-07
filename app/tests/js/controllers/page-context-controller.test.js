@@ -178,6 +178,19 @@ describe('PageContextController', () => {
         expect(options.referrer).toBe(window.location.href);
     });
 
+    test('embedded context retains the default host tab when the frame still has an earlier tab', () => {
+        const link = embeddedGrid();
+        const frame = document.getElementById('member-auth-grid-table');
+        frame.dataset.gridCurrentSrc += '&tab=children';
+        window.history.replaceState({}, '', '/members/view/member-id');
+        link.click();
+        const context = new URL(window.location.href);
+        expect(context.searchParams.has('tab')).toBe(false);
+        expect(context.searchParams.get('grid_context')).toBe('member-auth-grid');
+        expect(context.searchParams.get('page')).toBe('3');
+        expect(context.searchParams.get('limit')).toBe('50');
+    });
+
     test.each([
         ['new tab', link => { link.target = '_blank'; }, {}],
         ['modifier click', () => {}, { ctrlKey: true }],

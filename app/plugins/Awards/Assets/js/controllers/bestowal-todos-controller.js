@@ -141,6 +141,7 @@ class AwardsBestowalTodos extends Controller {
             if (gridUrl.origin === window.location.origin) {
                 const tab = pageUrl.searchParams.get('tab');
                 pageUrl.search = gridUrl.search;
+                pageUrl.searchParams.delete('tab');
                 ['frame_id', 'member_id', 'branch_id', 'gathering_id'].forEach(key => pageUrl.searchParams.delete(key));
                 if (tab) {
                     pageUrl.searchParams.set('tab', tab);
