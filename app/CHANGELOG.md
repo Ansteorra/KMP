@@ -9,7 +9,7 @@ Stay up to date with the latest features, improvements, and announcements for th
 ## KMP 1.5.12 — October 7, 2026
 
 - Authorization request and renewal forms, including mobile, now display recipients as **Member Name, Group** (for example, **Martin Malone, Bjornsborg**), without group type prefixes such as “Barony of.”
-- Grid edits and bulk updates preserve the current page, search, filters, and sorting, including Bestowals and Recommendations. Returning from a record keeps your place; if updates remove the last page, the grid moves to the last available page.
+- Grid edits and bulk updates preserve the current page, search, filters, and sorting, including Bestowals and Recommendations. Returning from a record keeps your place; if updates remove the last page, the grid moves to the last available page. Branches search now loads results correctly.
 - Grids offer a **Rows per page** control. Your selection stays with the current grid state and is included when saving or updating a view.
 - Updated dependencies with security fixes and maintenance improvements.
 

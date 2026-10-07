@@ -30,6 +30,39 @@ class BranchesControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('Branches');
     }
 
+    public function testGridDataSearchRestoresPrimaryAndEmbeddedFrameState(): void
+    {
+        $branch = $this->getTableLocator()->get('Branches')->get(self::TEST_BRANCH_STARGATE_ID);
+        foreach ([null, self::KINGDOM_BRANCH_ID] as $parentId) {
+            $frameId = $parentId === null ? 'branches-grid' : 'branch-children-grid';
+            $query = [
+                'frame_id' => $frameId,
+                'search' => $branch->name,
+                'page' => 3,
+                'limit' => 10,
+                'ignore_default' => 1,
+            ];
+            if ($parentId !== null) {
+                $query['parent_id'] = $parentId;
+            }
+            $this->configRequest(['headers' => ['Turbo-Frame' => $frameId . '-table']]);
+            $this->get('/branches/grid-data?' . http_build_query($query));
+
+            $this->assertResponseOk();
+            $this->assertResponseContains($branch->name);
+            $matched = preg_match(
+                '/<script[^>]+id="' . preg_quote($frameId, '/') . '-table-state"[^>]*>(.*?)<\/script>/s',
+                (string)$this->_response->getBody(),
+                $matches,
+            );
+            $this->assertSame(1, $matched);
+            $state = json_decode($matches[1], true, 512, JSON_THROW_ON_ERROR);
+            $this->assertSame($branch->name, $state['search']);
+            $this->assertSame(10, $state['config']['pageSize']);
+            $this->assertSame(1, $state['pagination']['currentPage']);
+        }
+    }
+
     public function testViewBranchCreatedForTest(): void
     {
         // Use deterministic seed branch to avoid flakiness from unordered queries.
