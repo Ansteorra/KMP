@@ -370,7 +370,8 @@ class ActivitiesController extends AppController
         $responseData = [];
         foreach ($result as $member) {
             $groupName = preg_replace(
-                '/^(?:Kingdom|Principality|Barony|Shire|Canton|Province|Stronghold|College|Hamlet|Port|Region) of\s+/i',
+                '/^(?:Kingdom|Principality|Barony|Shire|Canton|Riding|Province|Stronghold|College'
+                . '|Hamlet|Port|Region) of\s+/i',
                 '',
                 $member->branch->name,
             );

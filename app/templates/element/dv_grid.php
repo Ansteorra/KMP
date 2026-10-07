@@ -25,6 +25,9 @@ if (array_key_exists('grid_context', $queryParams)) {
     $queryParams = $restoresGridContext ? $queryParams : [];
     unset($queryParams['grid_context']);
 }
+// Endpoint parameters define the grid's context and take precedence over restored state.
+parse_str((string)parse_url($dataUrl, PHP_URL_QUERY), $endpointParams);
+$queryParams = array_diff_key($queryParams, $endpointParams);
 $dataUrlWithParams = $dataUrl;
 if (!empty($queryParams)) {
     $separator = strpos($dataUrl, '?') === false ? '?' : '&';

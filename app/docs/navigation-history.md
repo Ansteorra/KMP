@@ -29,6 +29,8 @@ a same-origin record link leaves the page, or a native form submits from that gr
 tab. This lets browser Back and redirect Referers restore the displayed grid.
 Frame endpoint identities (`frame_id`, `member_id`, `branch_id`, `gathering_id`)
 stay on their own data URLs so reloading the host cannot override sibling grids.
+Parameters already present in a grid's data URL take precedence over restored host
+parameters, including on unmarked URLs; the remaining page, filters, and sort restore normally.
 The host query carries `grid_context` with the originating grid frame ID. On
 reload, only that grid receives the query; sibling grids retain their own endpoint
 context and default state. The marker is omitted from data endpoint requests and

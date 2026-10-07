@@ -32,6 +32,36 @@ class DataverseGridContextTest extends BaseTestCase
         $this->assertSame($dataUrl, $this->renderGridUrl('branch-children-grid', $context, $dataUrl));
     }
 
+    public function testRestoredQueryCannotOverrideFixedEndpointParameters(): void
+    {
+        $fixed = [
+            'branch_id' => (string)self::KINGDOM_BRANCH_ID,
+            'member_id' => (string)self::ADMIN_MEMBER_ID,
+            'gathering_id' => 'fixed-gathering',
+            'parent_id' => (string)self::KINGDOM_BRANCH_ID,
+            'frame_id' => 'branch-officers-grid',
+        ];
+        $dataUrl = '/officers/officers/grid-data?' . http_build_query($fixed);
+        foreach ([null, 'branch-officers-grid'] as $marker) {
+            foreach ([false, true] as $arrayValues) {
+                $context = $this->gridQuery();
+                foreach ($fixed as $key => $value) {
+                    $context[$key] = $arrayValues ? ['other-context'] : 'other-context';
+                }
+                if ($marker !== null) {
+                    $context['grid_context'] = $marker;
+                }
+                $src = $this->renderGridUrl('branch-officers-grid', $context, $dataUrl);
+                parse_str((string)parse_url($src, PHP_URL_QUERY), $query);
+
+                $this->assertSame($fixed + $this->gridQuery(), $query);
+                foreach (array_keys($fixed) as $key) {
+                    $this->assertSame(1, preg_match_all('/(?:\?|&)' . $key . '=/', $src));
+                }
+            }
+        }
+    }
+
     public function testUnmarkedHostQueryKeepsLegacyRestoration(): void
     {
         $src = $this->renderGridUrl('branch-officers-grid', $this->gridQuery(), '/officers/officers/grid-data');
