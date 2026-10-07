@@ -125,7 +125,10 @@ $submitAction = implode(' ', [
                         ]) ?>
                     </script>
 
-                    <?= $this->Form->hidden('current_page', ['value' => $this->request->getRequestTarget()]) ?>
+                    <?= $this->Form->hidden('page_context_url', [
+                        'value' => $this->request->getRequestTarget(),
+                        'secure' => false,
+                    ]) ?>
                     <?= $this->Form->hidden('source', ['value' => Bestowal::SOURCE_AD_HOC]) ?>
                     <?= $this->Form->hidden('stack_rank', ['value' => $bestowal->stack_rank ?? 0]) ?>
 

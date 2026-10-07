@@ -481,4 +481,128 @@ describe('TurboModalController', () => {
 
         expect(document.getElementById('stream-target').textContent).toBe('After');
     });
+    function addGrid() {
+        global.IntersectionObserver = jest.fn().mockImplementation(() => ({
+            disconnect: jest.fn(), observe: jest.fn(), unobserve: jest.fn(),
+        }));
+        document.body.insertAdjacentHTML('afterbegin', `
+            <div data-controller="grid-view">
+                <turbo-frame id="recommendations-grid-table"
+                    data-grid-current-src="/awards/recommendations/grid-data?page=3&amp;limit=50&amp;search=needle&amp;sort=member_sca_name&amp;direction=asc&amp;filter%5Bstatus%5D%5B%5D=open&amp;filter%5Bstatus%5D%5B%5D=draft">
+                    <table><tbody>
+                        <tr id="recommendations-grid-row-42"><td><button class="edit-btn">Edit</button></td></tr>
+                        <tr id="recommendations-grid-row-43"><td><button class="edit-btn">Next edit</button></td></tr>
+                    </tbody></table>
+                </turbo-frame>
+            </div>
+        `);
+        return document.getElementById('recommendations-grid-table');
+    }
+
+    test('row changes refresh their grid once with the full live query and keep flash feedback', () => {
+        addGrid();
+        const refresh = controller.prepareGridRefreshStreams(`
+            <turbo-stream action="update" target="flash-messages"><template>Saved</template></turbo-stream>
+            <turbo-stream action="replace" target="recommendations-grid-row-42"><template>Updated row</template></turbo-stream>
+            <turbo-stream action="remove" target="recommendations-grid-row-43"></turbo-stream>
+        `);
+        const fragment = document.createElement('template');
+        fragment.innerHTML = refresh.html;
+        const streams = fragment.content.querySelectorAll('turbo-stream');
+        expect(refresh.frameIds).toEqual(['recommendations-grid-table']);
+        expect(streams).toHaveLength(2);
+        expect(streams[0].getAttribute('target')).toBe('flash-messages');
+        const replacement = streams[1].querySelector('template').content.querySelector('turbo-frame');
+        const url = new URL(replacement.getAttribute('src'), window.location.origin);
+        expect(url.searchParams.get('page')).toBe('3');
+        expect(url.searchParams.get('limit')).toBe('50');
+        expect(url.searchParams.get('search')).toBe('needle');
+        expect(url.searchParams.get('sort')).toBe('member_sca_name');
+        expect(url.searchParams.get('direction')).toBe('asc');
+        expect(url.searchParams.getAll('filter[status][]')).toEqual(['open', 'draft']);
+        expect(replacement.querySelector('[role="status"]').textContent).toBe('Loading grid...');
+    });
+
+    test('bulk table refresh uses the live grid query instead of a stale server URL', () => {
+        addGrid();
+        const refresh = controller.prepareGridRefreshStreams(`
+            <turbo-stream action="replace" target="recommendations-grid-table">
+                <template><turbo-frame id="recommendations-grid-table" src="/awards/recommendations/grid-data"></turbo-frame></template>
+            </turbo-stream>
+        `);
+        expect(refresh.html).toContain('page=3');
+        expect(refresh.html).toContain('limit=50');
+    });
+
+    test('modal context retains embedded frame query and owning detail tab', () => {
+        addGrid();
+        controller.modalTrigger = document.querySelector('.edit-btn');
+        window.history.replaceState({}, '', '/members/view/1?tab=member-submitted-recs&search=old');
+        controller.syncPageContext();
+        const context = new URL(controller.element.querySelector('[name="page_context_url"]').value, window.location.origin);
+        expect(context.pathname).toBe('/members/view/1');
+        expect(context.searchParams.get('tab')).toBe('member-submitted-recs');
+        expect(context.searchParams.get('page')).toBe('3');
+        expect(context.searchParams.get('limit')).toBe('50');
+        expect(context.searchParams.get('search')).toBe('needle');
+    });
+
+    test('grid refresh waits for table load before focus and removes its listeners', async () => {
+        const frame = addGrid();
+        const plan = controller.createStreamFocusPlan('<turbo-stream action="remove" target="recommendations-grid-row-42"></turbo-stream>');
+        const waiting = controller.waitForGridRefresh([frame.id]);
+        let settled = false;
+        waiting.then(() => { settled = true; });
+        await Promise.resolve();
+        expect(settled).toBe(false);
+        frame.innerHTML = '<table><tbody><tr id="recommendations-grid-row-43"><td><button class="edit-btn">Fresh next row</button></td></tr></tbody></table>';
+        frame.dispatchEvent(new Event('turbo:frame-load', { bubbles: true }));
+        await waiting;
+        await controller.restoreFocusAfterStream(plan);
+        expect(document.activeElement).toHaveTextContent('Fresh next row');
+        expect(controller.gridRefreshCleanup).toBeNull();
+    });
+
+    test('a modal save refreshes page 3 and restores focus after the new table has loaded', async () => {
+        const frame = addGrid();
+        controller.modalTrigger = frame.querySelector('.edit-btn');
+        controller.closeModalAndWait = jest.fn().mockResolvedValue();
+        controller.renderTurboStream = jest.fn((html) => {
+            expect(html).toContain('target="recommendations-grid-table"');
+            expect(html).toContain('page=3');
+            window.requestAnimationFrame(() => {
+                frame.innerHTML = '<table><tbody><tr id="recommendations-grid-row-42"><td><button class="edit-btn">Updated edit</button></td></tr></tbody></table>';
+                frame.dispatchEvent(new Event('turbo:frame-load', { bubbles: true }));
+            });
+        });
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            redirected: false,
+            headers: { get: jest.fn(() => 'text/vnd.turbo-stream.html') },
+            text: jest.fn().mockResolvedValue('<turbo-stream action="replace" target="recommendations-grid-row-42"><template>Changed row</template></turbo-stream>'),
+        });
+
+        await controller.submitAsTurboStream({ preventDefault: jest.fn(), stopImmediatePropagation: jest.fn() });
+
+        expect(controller.renderTurboStream).toHaveBeenCalledTimes(1);
+        expect(document.activeElement).toHaveTextContent('Updated edit');
+        const postedContext = new URL(global.fetch.mock.calls[0][1].body.get('page_context_url'), window.location.origin);
+        expect(postedContext.searchParams.get('page')).toBe('3');
+        expect(postedContext.searchParams.get('limit')).toBe('50');
+        expect(controller.gridRefreshCleanup).toBeNull();
+    });
+
+    test('disconnect releases pending grid refresh focus waits', async () => {
+        const waiting = controller.waitForGridRefresh(['recommendations-grid-table']);
+        controller.disconnect();
+        await waiting;
+        expect(controller.gridRefreshCleanup).toBeNull();
+    });
+
+    test('non-grid row streams retain their original behavior', () => {
+        document.body.insertAdjacentHTML('beforeend', '<table><tbody><tr id="plain-row"></tr></tbody></table>');
+        const html = '<turbo-stream action="remove" target="plain-row"></turbo-stream>';
+        expect(controller.prepareGridRefreshStreams(html)).toEqual({ html, frameIds: [] });
+    });
+
 });

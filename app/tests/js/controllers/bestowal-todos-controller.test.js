@@ -116,4 +116,24 @@ describe('AwardsBestowalTodos', () => {
         expect(hiddenText.value).toBe('');
         expect(clearBtn.disabled).toBe(true);
     });
+    test('checklist requests retain the live embedded grid page, filters, and rows per page', () => {
+        window.history.replaceState({}, '', '/gatherings/view/public-id?tab=gathering-bestowals');
+        document.body.insertAdjacentHTML('beforeend', `
+            <div data-controller="grid-view">
+                <turbo-frame id="gathering-bestowals-grid-1-table"
+                    data-grid-current-src="/awards/bestowals/gathering-bestowals-grid-data/1?page=3&amp;limit=50&amp;filter%5Bstatus%5D%5B%5D=open">
+                    <button id="todos-trigger">To-Dos</button>
+                </turbo-frame>
+            </div>
+        `);
+        controller.loadTodos(13, document.getElementById('todos-trigger'));
+        const requestUrl = new URL(frame.src, window.location.origin);
+        const context = new URL(requestUrl.searchParams.get('page_context_url'), window.location.origin);
+        expect(context.pathname).toBe('/gatherings/view/public-id');
+        expect(context.searchParams.get('tab')).toBe('gathering-bestowals');
+        expect(context.searchParams.get('page')).toBe('3');
+        expect(context.searchParams.get('limit')).toBe('50');
+        expect(context.searchParams.getAll('filter[status][]')).toEqual(['open']);
+    });
+
 });

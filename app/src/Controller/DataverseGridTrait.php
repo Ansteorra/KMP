@@ -12,6 +12,8 @@ use App\Model\Entity\Member;
 use App\Services\Cache\TenantAwareCache;
 use App\Services\GridViewService;
 use Cake\Cache\Cache;
+use Cake\Datasource\Paging\Exception\PageOutOfBoundsException;
+use Cake\Http\Exception\NotFoundException;
 use Cake\Http\Response;
 use Cake\Log\Log;
 use Cake\ORM\Query\SelectQuery;
@@ -722,13 +724,21 @@ trait DataverseGridTrait
             }
         }
 
-        // Get page size from view config or default
+        // A live row-count choice overrides the saved view, which overrides the grid default.
         if ($currentView) {
-            $config = new GridViewConfig();
             $viewConfig = $currentView->getConfigArray();
-            $pageSize = $config->extractPageSize($viewConfig);
+            $pageSize = GridViewConfig::extractPageSize($viewConfig);
         } else {
             $pageSize = $defaultPageSize;
+        }
+        $requestedPageSize = $this->request->getQuery('limit');
+        if (is_scalar($requestedPageSize) && is_numeric($requestedPageSize)) {
+            $pageSize = GridViewConfig::extractPageSize(['pageSize' => $requestedPageSize]);
+        }
+        if ($requestedPageSize !== null) {
+            $queryParams = $this->request->getQueryParams();
+            $queryParams['limit'] = $pageSize;
+            $this->setRequest($this->request->withQueryParams($queryParams));
         }
 
         // Apply sort from URL parameters or view config
@@ -811,8 +821,27 @@ trait DataverseGridTrait
         if ($disablePagination) {
             $data = $baseQuery->all();
         } else {
-            $this->paginate = ['limit' => $pageSize];
-            $data = $this->paginate($baseQuery);
+            $this->paginate = [
+                'limit' => $pageSize,
+                'maxLimit' => GridViewConfig::MAX_PAGE_SIZE,
+            ];
+            try {
+                $data = $this->paginate($baseQuery);
+            } catch (NotFoundException $exception) {
+                $boundsException = $exception->getPrevious();
+                if (!$boundsException instanceof PageOutOfBoundsException) {
+                    throw $exception;
+                }
+                // Edits can remove the final page; keep filters and retry the nearest existing page.
+                $pagingParams = $boundsException->getAttributes()['pagingParams'];
+                $queryParams = $this->request->getQueryParams();
+                $queryParams['page'] = max(1, (int)$pagingParams['currentPage']);
+                $uri = $this->request->getUri()->withQuery(http_build_query($queryParams));
+                $this->setRequest($this->request->withQueryParams($queryParams)
+                    ->withUri($uri)
+                    ->withRequestTarget($uri->getPath() . '?' . $uri->getQuery()));
+                $data = $this->paginate($baseQuery);
+            }
         }
 
         // Check if there are any searchable columns (for search functionality)
@@ -918,6 +947,8 @@ trait DataverseGridTrait
             includeViewMetadata: $loadViewMetadata,
             includeAllColumns: $metadataMode === 'full',
         );
+        $gridState['config']['disablePagination'] = $disablePagination;
+        $gridState['pagination'] = $disablePagination ? null : $data->pagingParams();
 
         // Return all results
         return [

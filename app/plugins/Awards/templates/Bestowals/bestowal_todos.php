@@ -5,7 +5,7 @@
  *
  * Rendered into the grid To-Dos modal turbo-frame. Reuses the shared bestowal
  * checklist element so Complete / Reopen behave exactly like the bestowal view
- * "To-Dos" tab, returning to the bestowals index after a full-navigation post.
+ * "To-Dos" tab, returning to the originating page after a full-navigation post.
  *
  * @var \App\View\AppView $this
  * @var \Awards\Model\Entity\Bestowal $bestowal
@@ -22,7 +22,7 @@ use Awards\Model\Entity\Bestowal;
 
 $memberName = $bestowal->member->sca_name ?? $bestowal->member_sca_name ?? '';
 $lifecycleStatus = (string)($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN);
-$currentPageUrl = $this->Url->build([
+$currentPageUrl = $currentPageUrl ?? $this->Url->build([
     'plugin' => 'Awards',
     'controller' => 'Bestowals',
     'action' => 'index',

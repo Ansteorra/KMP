@@ -1,6 +1,10 @@
 <?php
 $formUrl = $this->URL->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'edit']);
-$turboFrameUrl = $this->URL->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'TurboEditForm']);
+$turboFrameUrl = $this->URL->build([
+    'plugin' => 'Awards',
+    'controller' => 'Recommendations',
+    'action' => 'TurboEditForm',
+]);
 $modalId = $modalId ?? 'editModal';
 ?>
 <div id="recommendation_edit_root"
@@ -11,7 +15,11 @@ $modalId = $modalId ?? 'editModal';
         'plugin' => null,
     ])) ?>"
     data-awards-rec-edit-outlet-btn-outlet=".edit-rec"
-    data-awards-rec-edit-award-list-url-value="<?= h($this->URL->build(['controller' => 'Awards', 'action' => 'awardsByDomain', 'plugin' => 'Awards'])) ?>"
+    data-awards-rec-edit-award-list-url-value="<?= h($this->URL->build([
+        'controller' => 'Awards',
+        'action' => 'awardsByDomain',
+        'plugin' => 'Awards',
+    ])) ?>"
     data-awards-rec-edit-form-url-value="<?= h($formUrl) ?>"
     data-awards-rec-edit-turbo-frame-url-value="<?= h($turboFrameUrl) ?>">
 <?php
@@ -23,12 +31,11 @@ echo $this->Form->create(null, [
     ],
     'data-controller' => 'turbo-modal',
     'data-turbo' => 'true',
-    'data-action' => 'submit->awards-rec-edit#submit submit->turbo-modal#submitAsTurboStream turbo:submit-end->turbo-modal#submitEnd',
-]);
-echo $this->Form->control('current_page', [
-    'type' => 'hidden',
-    'id' => 'recommendation__current_page',
-    'value' => $this->request->getRequestTarget(),
+    'data-action' => implode(' ', [
+        'submit->awards-rec-edit#submit',
+        'submit->turbo-modal#submitAsTurboStream',
+        'turbo:submit-end->turbo-modal#submitEnd',
+    ]),
 ]);
 echo $this->Form->hidden('page_context_url', [
     'value' => '',

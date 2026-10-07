@@ -12,8 +12,6 @@
  * @var string $modalId
  */
 
-use Cake\Routing\Router;
-
 $modalId = $modalId ?? 'bestowalBulkTodoModal';
 $formUrl = $this->Url->build([
     'plugin' => 'Awards',
@@ -25,7 +23,7 @@ $lookupUrl = $this->Url->build([
     'controller' => 'Bestowals',
     'action' => 'gatheringsForBestowalAutoComplete',
 ]);
-$currentPage = Router::url(null, true);
+$currentPage = $this->request->getRequestTarget();
 ?>
 <div class="modal fade" id="<?= h($modalId) ?>" tabindex="-1"
     aria-labelledby="<?= h($modalId) ?>Label" aria-hidden="true"
@@ -47,7 +45,7 @@ $currentPage = Router::url(null, true);
                     <?= __('Select bestowals in the grid to complete a check across them.') ?>
                 </p>
                 <input type="hidden" name="bestowal_ids" data-awards-bestowal-bulk-todo-target="ids">
-                <input type="hidden" name="current_page" value="<?= h($currentPage) ?>">
+                <input type="hidden" name="page_context_url" value="<?= h($currentPage) ?>">
                 <div class="mb-2">
                     <label for="bulkCheckKey" class="form-label"><?= __('Check to complete') ?></label>
                     <select id="bulkCheckKey" name="check_key" class="form-select" required

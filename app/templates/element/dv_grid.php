@@ -25,10 +25,12 @@ if (!empty($queryParams)) {
     $separator = strpos($dataUrl, '?') === false ? '?' : '&';
     $dataUrlWithParams .= $separator . http_build_query($queryParams);
 }
+$syncUrl = $syncUrl ?? ($this->getRequest()->getParam('action') !== 'view');
 ?>
 
 <!-- Grid View Container with Stimulus Controller -->
-<div data-controller="grid-view page-context">
+<div data-controller="grid-view page-context"
+    data-grid-view-sync-url-value="<?= $syncUrl ? 'true' : 'false' ?>">
 
     <!-- Lazy-Loading Turbo Frame -->
     <!-- The frame loads the complete grid (toolbar + table) from the server -->

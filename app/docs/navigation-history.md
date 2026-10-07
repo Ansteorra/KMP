@@ -17,6 +17,12 @@ to an earlier entry truncates the later entries; full `index` pages reset the li
 eligible page. The back button navigates the top-level page and has an accessible
 name. With fewer than two app entries, it uses browser history.
 
+When a successful document navigation leaves a grid, the same-origin Referer
+can update the last history entry's query if its path matches that entry.
+This retains the browser's current page, filters, search, sort, and row count
+after frame navigation, so the app back arrow returns to the displayed grid.
+References from another origin or an unrelated path cannot replace the entry.
+
 Calendar controllers share Bootstrap dialog instances. Refreshing a calendar
 frame must not dispose page-owned dialogs. Quick view closes before RSVP opens;
 closing RSVP returns focus to the visible calendar trigger, not a hidden button
