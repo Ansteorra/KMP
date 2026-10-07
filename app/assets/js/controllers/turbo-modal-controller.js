@@ -177,17 +177,29 @@ class TurboModal extends Controller {
 
     /** Sync hidden page context to the visible browser URL before posting. */
     syncPageContext() {
-        const source = this.modalTrigger?.closest('[data-controller~="grid-view"]')
-            ?? this.element.closest('[data-controller~="grid-view"]');
+        const gridSelector = '[data-controller~="grid-view"]';
+        const sourceFrame = this.modalTrigger?.closest('turbo-frame') ?? this.element.closest('turbo-frame');
+        const frameGrids = sourceFrame?.querySelectorAll(gridSelector);
+        const source = this.modalTrigger?.closest(gridSelector)
+            ?? this.modalTrigger?.closest('[role="tabpanel"]')?.querySelector(gridSelector)
+            ?? this.element.closest(gridSelector)
+            ?? this.element.closest('[role="tabpanel"]')?.querySelector(gridSelector)
+            ?? (frameGrids?.length === 1 ? frameGrids[0] : null);
         const frame = source?.querySelector('turbo-frame[id$="-table"]');
         const src = this.gridFrameSource(frame);
         const url = new URL(window.location.href);
         if (src) {
             const gridUrl = new URL(src, window.location.origin);
-            const tab = url.searchParams.get('tab');
-            url.search = gridUrl.search;
-            if (tab && !url.searchParams.has('tab')) {
-                url.searchParams.set('tab', tab);
+            if (gridUrl.origin === window.location.origin) {
+                const tab = url.searchParams.get('tab');
+                url.search = gridUrl.search;
+                ['frame_id', 'member_id', 'branch_id', 'gathering_id'].forEach(key => url.searchParams.delete(key));
+                if (tab) {
+                    url.searchParams.set('tab', tab);
+                }
+                if (source.dataset.gridViewSyncUrlValue === 'false' || source.closest('[role="tabpanel"]')) {
+                    url.searchParams.set('grid_context', frame.id.slice(0, -'-table'.length));
+                }
             }
         }
         this.element.querySelectorAll(

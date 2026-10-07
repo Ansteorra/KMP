@@ -205,6 +205,7 @@ const findCakePostLinkForm = (trigger) => {
 const submitConfirmedTrigger = (trigger) => {
     const form = findCakePostLinkForm(trigger) || trigger.closest('form')
     if (form instanceof HTMLFormElement) {
+        document.dispatchEvent(new CustomEvent('page-context:before-submit', { detail: { form } }))
         HTMLFormElement.prototype.submit.call(form)
         return
     }

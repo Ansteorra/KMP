@@ -127,6 +127,142 @@ describe('PageContextController', () => {
         expect(context.searchParams.get('page')).toBe('3');
         expect(context.searchParams.get('limit')).toBe('50');
         expect(context.searchParams.getAll('filter[status][]')).toEqual(['open']);
+        expect(context.searchParams.get('grid_context')).toBe('gathering-bestowals-grid-1');
+        expect(window.location.search).toBe(context.search);
     });
 
+    function embeddedGrid() {
+        window.history.replaceState({ retained: true }, '', '/members/view/member-id?tab=authorizations#member-details');
+        document.body.insertAdjacentHTML('beforeend', `
+            <section role="tabpanel" id="embedded-tab">
+                <div id="embedded-grid" data-controller="grid-view" data-grid-view-sync-url-value="false">
+                    <turbo-frame id="member-auth-grid-table"
+                        src="/activities/authorizations/member-authorizations-grid-data?page=1"
+                        data-grid-current-src="/activities/authorizations/member-authorizations-grid-data?member_id=7&amp;branch_id=9&amp;gathering_id=11&amp;frame_id=member-auth-grid&amp;page=3&amp;limit=50&amp;search=armored&amp;sort=activity&amp;direction=desc&amp;system_view=current&amp;filter%5Bstatus%5D%5B%5D=open&amp;filter%5Bstatus%5D%5B%5D=pending">
+                        <a id="record-link" href="/activities/authorizations/view/authorization-id" data-turbo-frame="_top">Record</a>
+                        <form id="embedded-form" action="/activities/authorizations/retract/authorization-id" data-turbo-frame="_top"><button type="submit">Retract</button></form>
+                    </turbo-frame>
+                </div>
+            </section>
+        `);
+        // Prevent jsdom navigation after the controller has prepared the origin.
+        document.getElementById('record-link').addEventListener('click', event => event.preventDefault());
+        return document.getElementById('record-link');
+    }
+
+    function expectEmbeddedOrigin() {
+        const origin = new URL(window.location.href);
+        expect(origin.pathname).toBe('/members/view/member-id');
+        expect(origin.hash).toBe('#member-details');
+        expect(origin.searchParams.get('tab')).toBe('authorizations');
+        expect(origin.searchParams.get('page')).toBe('3');
+        expect(origin.searchParams.get('limit')).toBe('50');
+        expect(origin.searchParams.get('search')).toBe('armored');
+        expect(origin.searchParams.get('sort')).toBe('activity');
+        expect(origin.searchParams.get('direction')).toBe('desc');
+        expect(origin.searchParams.get('system_view')).toBe('current');
+        expect(origin.searchParams.getAll('filter[status][]')).toEqual(['open', 'pending']);
+        expect(origin.searchParams.get('grid_context')).toBe('member-auth-grid');
+        ['frame_id', 'member_id', 'branch_id', 'gathering_id'].forEach(key => expect(origin.searchParams.has(key)).toBe(false));
+        expect(window.history.state).toEqual({ retained: true });
+    }
+
+    test('a same-window embedded record link promotes the rendered query before its Turbo request', () => {
+        const link = embeddedGrid();
+        link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, detail: 0 }));
+        expectEmbeddedOrigin();
+        const options = {};
+        document.dispatchEvent(new CustomEvent('turbo:before-fetch-request', {
+            detail: { url: new URL(link.href), fetchOptions: options },
+        }));
+        expect(options.referrer).toBe(window.location.href);
+    });
+
+    test.each([
+        ['new tab', link => { link.target = '_blank'; }, {}],
+        ['modifier click', () => {}, { ctrlKey: true }],
+        ['external origin', link => { link.href = 'https://example.test/view/record'; }, {}],
+        ['download', link => { link.setAttribute('download', ''); }, {}],
+        ['pagination', link => { link.parentElement.classList.add('paginator'); }, {}],
+        ['modal link', link => { link.dataset.bsToggle = 'modal'; }, {}],
+        ['same frame', link => { link.dataset.turboFrame = 'member-auth-grid-table'; }, {}],
+        ['primary grid', () => {
+            document.getElementById('embedded-grid').dataset.gridViewSyncUrlValue = 'true';
+            document.getElementById('embedded-tab').removeAttribute('role');
+        }, {}],
+    ])('%s keeps the browser origin unchanged', (_name, change, clickOptions) => {
+        const link = embeddedGrid();
+        const original = window.location.href;
+        change(link);
+        link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, ...clickOptions }));
+        expect(window.location.href).toBe(original);
+    });
+
+    test.each(['submit', 'page-context:before-submit'])('%s prepares native embedded forms without requiring a hidden context field', type => {
+        embeddedGrid();
+        const form = document.getElementById('embedded-form');
+        if (type === 'submit') {
+            form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        } else {
+            document.dispatchEvent(new CustomEvent(type, { detail: { form } }));
+        }
+        expectEmbeddedOrigin();
+    });
+
+    test.each(['external', 'new-tab', 'turbo-modal'])('%s form submissions retain the current host URL', mode => {
+        embeddedGrid();
+        const form = document.getElementById('embedded-form');
+        const original = window.location.href;
+        if (mode === 'external') form.action = 'https://example.test/submit';
+        if (mode === 'new-tab') form.target = '_blank';
+        if (mode === 'turbo-modal') form.dataset.controller = 'turbo-modal';
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        expect(window.location.href).toBe(original);
+    });
+
+    test('disconnect removes embedded departure listeners', () => {
+        const link = embeddedGrid();
+        const original = window.location.href;
+        controller.disconnect();
+        link.click();
+        document.dispatchEvent(new CustomEvent('page-context:before-submit', {
+            detail: { form: document.getElementById('embedded-form') },
+        }));
+        expect(window.location.href).toBe(original);
+    });
+
+    test('automatic Turbo modal requests use the unique originating frame grid without changing browser history', () => {
+        window.history.replaceState({}, '', '/gathering-activities/view/activity-id?tab=awards');
+        document.body.insertAdjacentHTML('beforeend', `
+            <turbo-frame id="activity-awards-activity-id">
+                <button id="add-activity-award">Add Award</button>
+                <div data-controller="grid-view" data-grid-view-sync-url-value="false">
+                    <turbo-frame id="activity-awards-grid-table" data-grid-current-src="/awards/awards/activity-awards-grid-data/activity-id?page=3&amp;limit=50&amp;search=service&amp;frame_id=activity-awards-grid"></turbo-frame>
+                </div>
+            </turbo-frame>
+            <form id="activity-award-form" data-controller="turbo-modal" data-turbo="true">
+                <div class="modal" id="activity-award-modal"></div>
+            </form>
+        `);
+        const original = window.location.href;
+        const shown = new Event('show.bs.modal', { bubbles: true });
+        shown.relatedTarget = document.getElementById('add-activity-award');
+        document.getElementById('activity-award-modal').dispatchEvent(shown);
+        const form = document.getElementById('activity-award-form');
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        const options = {};
+        form.dispatchEvent(new CustomEvent('turbo:before-fetch-request', {
+            bubbles: true,
+            detail: { url: new URL('/awards/awards/add-activity-to-gathering-activity/activity-id', window.location.origin), fetchOptions: options },
+        }));
+        const referrer = new URL(options.referrer);
+        expect(referrer.pathname).toBe('/gathering-activities/view/activity-id');
+        expect(referrer.searchParams.get('tab')).toBe('awards');
+        expect(referrer.searchParams.get('page')).toBe('3');
+        expect(referrer.searchParams.get('limit')).toBe('50');
+        expect(referrer.searchParams.get('search')).toBe('service');
+        expect(referrer.searchParams.get('grid_context')).toBe('activity-awards-grid');
+        expect(referrer.searchParams.has('frame_id')).toBe(false);
+        expect(window.location.href).toBe(original);
+    });
 });

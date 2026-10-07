@@ -131,16 +131,23 @@ class AwardsBestowalTodos extends Controller {
 
         const requestUrl = new URL(`${this.turboFrameUrlValue}/${bestowalId}`, window.location.origin);
         const pageUrl = new URL(window.location.href);
-        const tableFrame = trigger?.closest('[data-controller~="grid-view"]')
-            ?.querySelector('turbo-frame[id$="-table"]');
+        const grid = trigger?.closest('[data-controller~="grid-view"]');
+        const tableFrame = grid?.querySelector('turbo-frame[id$="-table"]');
         const gridSrc = tableFrame?.dataset.gridCurrentSrc
             || tableFrame?.getAttribute('src')
             || tableFrame?.dataset.gridSrc;
         if (gridSrc) {
-            const tab = pageUrl.searchParams.get('tab');
-            pageUrl.search = new URL(gridSrc, window.location.origin).search;
-            if (tab && !pageUrl.searchParams.has('tab')) {
-                pageUrl.searchParams.set('tab', tab);
+            const gridUrl = new URL(gridSrc, window.location.origin);
+            if (gridUrl.origin === window.location.origin) {
+                const tab = pageUrl.searchParams.get('tab');
+                pageUrl.search = gridUrl.search;
+                ['frame_id', 'member_id', 'branch_id', 'gathering_id'].forEach(key => pageUrl.searchParams.delete(key));
+                if (tab) {
+                    pageUrl.searchParams.set('tab', tab);
+                }
+                if (grid.dataset.gridViewSyncUrlValue === 'false' || grid.closest('[role="tabpanel"]')) {
+                    pageUrl.searchParams.set('grid_context', tableFrame.id.slice(0, -'-table'.length));
+                }
             }
         }
         requestUrl.searchParams.set('page_context_url', pageUrl.pathname + pageUrl.search);

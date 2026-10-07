@@ -602,6 +602,8 @@ class AwardsController extends AppController
         $isTurboRequest = $this->request->getHeaderLine('Accept') !== '' &&
             strpos($this->request->getHeaderLine('Accept'), 'text/vnd.turbo-stream.html') !== false ||
             $this->request->is('ajax');
+        $pageContext = $this->resolveActivityAwardsPageContextUrl();
+        $returnContext = $this->matchesActivityAwardsContext($pageContext, (int)$activityId) ? $pageContext : null;
 
         $awardGatheringActivitiesTable = $this->fetchTable('Awards.AwardGatheringActivities');
         $awardGatheringActivity = $awardGatheringActivitiesTable->find()
@@ -623,16 +625,14 @@ class AwardsController extends AppController
 
         // If this is a Turbo request from GatheringActivity view, render the cell
         if ($isTurboRequest) {
-            // Create a view instance to render the cell
-            $view = $this->createView();
-            $cell = $view->cell('Awards.ActivityAwards', [$activityId]);
+            $cellContent = $this->renderActivityAwardsCell((int)$activityId, $pageContext);
 
             // Get flash messages
             $flashMessages = $this->request->getSession()->read('Flash');
             $this->request->getSession()->delete('Flash');
 
             // Build Turbo Stream response
-            $turboStream = $this->_buildTurboStreamResponse($cell->render(), $flashMessages);
+            $turboStream = $this->_buildTurboStreamResponse($cellContent, $flashMessages);
             $this->response = $this->response
                 ->withType('text/vnd.turbo-stream.html')
                 ->withStringBody($turboStream);
@@ -640,7 +640,7 @@ class AwardsController extends AppController
             return $this->response;
         }
 
-        return $this->redirect(['action' => 'view', $awardId]);
+        return $this->redirect($returnContext ?? ['action' => 'view', $awardId]);
     }
 
     /**
@@ -667,6 +667,8 @@ class AwardsController extends AppController
         $isTurboRequest = $this->request->getHeaderLine('Accept') !== '' &&
             strpos($this->request->getHeaderLine('Accept'), 'text/vnd.turbo-stream.html') !== false ||
             $this->request->is('ajax');
+        $pageContext = $this->resolveActivityAwardsPageContextUrl();
+        $returnContext = $this->matchesActivityAwardsContext($pageContext, (int)$activityId) ? $pageContext : null;
 
         if ($this->request->is('post')) {
             $data = $this->request->getData();
@@ -675,16 +677,14 @@ class AwardsController extends AppController
             if (!$awardId) {
                 $this->Flash->error(__('Please select an award.'));
                 if ($isTurboRequest) {
-                    // Return Turbo Stream with frame update and flash messages
-                    $view = $this->createView();
-                    $cell = $view->cell('Awards.ActivityAwards', [$gatheringActivity->id]);
+                    $cellContent = $this->renderActivityAwardsCell((int)$gatheringActivity->id, $pageContext);
 
                     // Get flash messages
                     $flashMessages = $this->request->getSession()->read('Flash');
                     $this->request->getSession()->delete('Flash');
 
                     // Build Turbo Stream response
-                    $turboStream = $this->_buildTurboStreamResponse($cell->render(), $flashMessages);
+                    $turboStream = $this->_buildTurboStreamResponse($cellContent, $flashMessages);
                     $this->response = $this->response
                         ->withType('text/vnd.turbo-stream.html')
                         ->withStringBody($turboStream);
@@ -692,7 +692,7 @@ class AwardsController extends AppController
                     return $this->response;
                 }
 
-                return $this->redirect([
+                return $this->redirect($returnContext ?? [
                     'plugin' => null,
                     'controller' => 'GatheringActivities',
                     'action' => 'view',
@@ -730,16 +730,14 @@ class AwardsController extends AppController
 
         // If this is a Turbo request, render the cell instead of redirecting
         if ($isTurboRequest) {
-            // Create a view instance to render the cell
-            $view = $this->createView();
-            $cell = $view->cell('Awards.ActivityAwards', [$gatheringActivity->id]);
+            $cellContent = $this->renderActivityAwardsCell((int)$gatheringActivity->id, $pageContext);
 
             // Get flash messages
             $flashMessages = $this->request->getSession()->read('Flash');
             $this->request->getSession()->delete('Flash');
 
             // Build Turbo Stream response
-            $turboStream = $this->_buildTurboStreamResponse($cell->render(), $flashMessages);
+            $turboStream = $this->_buildTurboStreamResponse($cellContent, $flashMessages);
             $this->response = $this->response
                 ->withType('text/vnd.turbo-stream.html')
                 ->withStringBody($turboStream);
@@ -747,12 +745,63 @@ class AwardsController extends AppController
             return $this->response;
         }
 
-        return $this->redirect([
+        return $this->redirect($returnContext ?? [
             'plugin' => null,
             'controller' => 'GatheringActivities',
             'action' => 'view',
             $activityId,
         ]);
+    }
+
+    /** Preserve the embedded grid query when rebuilding its cell after an edit. */
+    private function renderActivityAwardsCell(int $activityId, ?string $pageContext): string
+    {
+        return $this->withPageContextQuery($pageContext, function () use ($activityId): string {
+            return $this->createView()->cell('Awards.ActivityAwards', [$activityId])->render();
+        });
+    }
+
+    /** Only return native submissions to the gathering activity that was edited. */
+    private function matchesActivityAwardsContext(?string $pageContext, int $activityId): bool
+    {
+        $activityUrl = Router::url([
+            'plugin' => null,
+            'controller' => 'GatheringActivities',
+            'action' => 'view',
+            $activityId,
+        ]);
+
+        return $pageContext !== null && parse_url($pageContext, PHP_URL_PATH) === $activityUrl;
+    }
+
+    /** Read native grid context from a validated form value or a same-origin Referer. */
+    private function resolveActivityAwardsPageContextUrl(): ?string
+    {
+        $pageContext = $this->getPageContextUrl();
+        if ($pageContext !== null) {
+            return $pageContext;
+        }
+
+        $referer = parse_url($this->request->getHeaderLine('Referer'));
+        $uri = $this->request->getUri();
+        $defaultPort = $uri->getScheme() === 'https' ? 443 : 80;
+        if (
+            !is_array($referer)
+            || ($referer['scheme'] ?? '') !== $uri->getScheme()
+            || strcasecmp($referer['host'] ?? '', $uri->getHost()) !== 0
+            || ($referer['port'] ?? $defaultPort) !== ($uri->getPort() ?? $defaultPort)
+            || empty($referer['path'])
+        ) {
+            return null;
+        }
+
+        try {
+            return $this->assertSafeContextUrl(
+                $referer['path'] . (isset($referer['query']) ? '?' . $referer['query'] : ''),
+            );
+        } catch (BadRequestException) {
+            return null;
+        }
     }
 
     /**

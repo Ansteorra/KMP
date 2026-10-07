@@ -119,9 +119,9 @@ describe('AwardsBestowalTodos', () => {
     test('checklist requests retain the live embedded grid page, filters, and rows per page', () => {
         window.history.replaceState({}, '', '/gatherings/view/public-id?tab=gathering-bestowals');
         document.body.insertAdjacentHTML('beforeend', `
-            <div data-controller="grid-view">
+            <div data-controller="grid-view" data-grid-view-sync-url-value="false">
                 <turbo-frame id="gathering-bestowals-grid-1-table"
-                    data-grid-current-src="/awards/bestowals/gathering-bestowals-grid-data/1?page=3&amp;limit=50&amp;filter%5Bstatus%5D%5B%5D=open">
+                    data-grid-current-src="/awards/bestowals/gathering-bestowals-grid-data/1?page=3&amp;limit=50&amp;filter%5Bstatus%5D%5B%5D=open&amp;frame_id=gathering-bestowals-grid-1&amp;gathering_id=1">
                     <button id="todos-trigger">To-Dos</button>
                 </turbo-frame>
             </div>
@@ -134,6 +134,26 @@ describe('AwardsBestowalTodos', () => {
         expect(context.searchParams.get('page')).toBe('3');
         expect(context.searchParams.get('limit')).toBe('50');
         expect(context.searchParams.getAll('filter[status][]')).toEqual(['open']);
+        expect(context.searchParams.get('grid_context')).toBe('gathering-bestowals-grid-1');
+        expect(context.searchParams.has('frame_id')).toBe(false);
+        expect(context.searchParams.has('gathering_id')).toBe(false);
+    });
+
+    test('primary grid checklist returns do not get an embedded ownership marker', () => {
+        window.history.replaceState({}, '', '/awards/bestowals?page=3&limit=50');
+        document.body.insertAdjacentHTML('beforeend', `
+            <div data-controller="grid-view" data-grid-view-sync-url-value="true">
+                <turbo-frame id="bestowals-grid-table" data-grid-current-src="/awards/bestowals/grid-data?page=3&amp;limit=50">
+                    <button id="todos-trigger">To-Dos</button>
+                </turbo-frame>
+            </div>
+        `);
+        controller.loadTodos(13, document.getElementById('todos-trigger'));
+        const requestUrl = new URL(frame.src, window.location.origin);
+        const context = new URL(requestUrl.searchParams.get('page_context_url'), window.location.origin);
+        expect(context.searchParams.get('page')).toBe('3');
+        expect(context.searchParams.get('limit')).toBe('50');
+        expect(context.searchParams.has('grid_context')).toBe(false);
     });
 
 });

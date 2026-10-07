@@ -2,30 +2,35 @@
 
 /**
  * Dataverse Grid Element
- * 
+ *
  * Unified grid component with lazy-loading architecture.
- * 
+ *
  * Usage:
  * <?= $this->element('dv_grid', [
  *     'gridKey' => 'Members.index.main',
  *     'frameId' => 'members-grid',
  *     'dataUrl' => $this->Url->build(['action' => 'gridData']),
  * ]) ?>
- * 
+ *
  * @var \App\View\AppView $this
  * @var string $gridKey Unique identifier for this grid (e.g., 'Members.index.main')
  * @var string $frameId Turbo frame ID (e.g., 'members-grid')
  * @var string $dataUrl URL to load grid data from
  */
 
-// Preserve query string parameters for the data URL
+// Restore marked grid state only to its originating frame; keep sibling contexts independent.
 $queryParams = $this->getRequest()->getQueryParams();
+$restoresGridContext = ($queryParams['grid_context'] ?? null) === $frameId;
+if (array_key_exists('grid_context', $queryParams)) {
+    $queryParams = $restoresGridContext ? $queryParams : [];
+    unset($queryParams['grid_context']);
+}
 $dataUrlWithParams = $dataUrl;
 if (!empty($queryParams)) {
     $separator = strpos($dataUrl, '?') === false ? '?' : '&';
     $dataUrlWithParams .= $separator . http_build_query($queryParams);
 }
-$syncUrl = $syncUrl ?? ($this->getRequest()->getParam('action') !== 'view');
+$syncUrl = $syncUrl ?? (!$restoresGridContext && $this->getRequest()->getParam('action') !== 'view');
 ?>
 
 <!-- Grid View Container with Stimulus Controller -->

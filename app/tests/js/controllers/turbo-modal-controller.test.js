@@ -535,7 +535,9 @@ describe('TurboModalController', () => {
     });
 
     test('modal context retains embedded frame query and owning detail tab', () => {
-        addGrid();
+        const frame = addGrid();
+        frame.parentElement.dataset.gridViewSyncUrlValue = 'false';
+        frame.dataset.gridCurrentSrc += '&frame_id=embedded-grid&member_id=7&branch_id=9&gathering_id=11&tab=stale-frame-tab';
         controller.modalTrigger = document.querySelector('.edit-btn');
         window.history.replaceState({}, '', '/members/view/1?tab=member-submitted-recs&search=old');
         controller.syncPageContext();
@@ -545,6 +547,28 @@ describe('TurboModalController', () => {
         expect(context.searchParams.get('page')).toBe('3');
         expect(context.searchParams.get('limit')).toBe('50');
         expect(context.searchParams.get('search')).toBe('needle');
+        expect(context.searchParams.get('grid_context')).toBe('recommendations-grid');
+        ['frame_id', 'member_id', 'branch_id', 'gathering_id'].forEach(key => expect(context.searchParams.has(key)).toBe(false));
+        const refresh = controller.prepareGridRefreshStreams('<turbo-stream action="remove" target="recommendations-grid-row-42"></turbo-stream>');
+        const fragment = document.createElement('template');
+        fragment.innerHTML = refresh.html;
+        const refreshedFrame = fragment.content.querySelector('template').content.querySelector('turbo-frame');
+        const refreshUrl = new URL(refreshedFrame.getAttribute('src'), window.location.origin);
+        expect(refreshUrl.searchParams.get('frame_id')).toBe('embedded-grid');
+        expect(refreshUrl.searchParams.get('member_id')).toBe('7');
+        expect(refreshUrl.searchParams.get('branch_id')).toBe('9');
+        expect(refreshUrl.searchParams.get('gathering_id')).toBe('11');
+        expect(refreshUrl.searchParams.has('grid_context')).toBe(false);
+    });
+
+    test('modal host context ignores external grid URLs', () => {
+        const frame = addGrid();
+        frame.dataset.gridCurrentSrc = 'https://example.test/grid?page=99&limit=100';
+        controller.modalTrigger = document.querySelector('.edit-btn');
+        window.history.replaceState({}, '', '/members/view/1?tab=member-submitted-recs&page=3&limit=50');
+        controller.syncPageContext();
+        expect(controller.element.querySelector('[name="page_context_url"]').value)
+            .toBe('/members/view/1?tab=member-submitted-recs&page=3&limit=50');
     });
 
     test('grid refresh waits for table load before focus and removes its listeners', async () => {
