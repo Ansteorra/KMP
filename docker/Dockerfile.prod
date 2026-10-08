@@ -42,7 +42,7 @@ RUN npm run build
 # --ignore-platform-reqs: skips PHP extension checks at install time (extensions
 # are present at runtime in the base image).
 # =============================================================================
-FROM --platform=$BUILDPLATFORM composer:2@sha256:a5f59b9fd2faf31218632be4809dc6491761085e8064c31dc3b84378c48c248b AS php-deps
+FROM --platform=$BUILDPLATFORM composer:2@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac AS php-deps
 
 WORKDIR /app
 
