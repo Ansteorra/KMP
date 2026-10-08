@@ -3,7 +3,7 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: b1e89936ddbbcdbc83ebbfefc4adf5d07a47ff5c -->
+<!-- LAST_SYNCED_COMMIT: 7346b98298646c68d15a929c2b829238c1e578c8 -->
 <!-- LAST_SYNCED_DATE: 2026-10-07 -->
 
 ## KMP 1.5.12 — October 7, 2026
@@ -11,6 +11,9 @@ Stay up to date with the latest features, improvements, and announcements for th
 - Authorization request and renewal forms, including mobile, now display recipients as **Member Name, Group** (for example, **Martin Malone, Bjornsborg**), sorted by member SCA name and without group type prefixes such as “Barony of.”
 - Grid edits and bulk updates preserve the current page, search, filters, and sorting, including Bestowals and Recommendations. Returning from a record keeps your place; if updates remove the last page, the grid moves to the last available page. Branches search now loads results correctly.
 - Grids offer a **Rows per page** control. Your selection stays with the current grid state and is included when saving or updating a view.
+- The Waiver Dashboard separates **Future Waivers** (gatherings ending in the next 30 days), **Waivers Due** (ended within the last 30 days), and **Past Due Waivers** (day 31 onward). Past-due lists include older and partially submitted gatherings, with missing waiver details.
+- Branch compliance counts now match past-due waiver requirements and gatherings. A short explanation clarifies the counts, and selecting a branch opens its actionable past-due list.
+- Mobile waiver submission lists authorized open gatherings by oldest end date first, including older outstanding gatherings.
 - Updated dependencies with security fixes and maintenance improvements.
 
 ---
