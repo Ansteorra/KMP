@@ -2,7 +2,7 @@ source 'https://rubygems.org'
 
 # Keep the theme and plugins explicit; github-pages also installs unused remote
 # theme support, which pins a vulnerable rubyzip dependency.
-gem "jekyll", "= 3.10.0"
+gem "jekyll", "4.4.1"
 gem "kramdown-parser-gfm", "= 1.1.0"
 gem "jekyll-theme-cayman", "= 0.2.0"
 gem "jekyll-relative-links", "= 0.6.1"
