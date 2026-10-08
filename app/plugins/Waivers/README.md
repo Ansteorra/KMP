@@ -183,7 +183,7 @@ through the existing providers rather than core templates.
 | Key | Current use |
 | --- | --- |
 | `Plugin.Waivers.Active` | Enables navigation/view-cell providers through `StaticHelpers::pluginEnabled('Waivers')`. Default: `yes`. |
-| `Waivers.ComplianceDays` | Number of days after a gathering before dashboard compliance is considered late. Default: `2`. |
+| `Waivers.ComplianceDays` | Legacy setting retained for compatibility. Dashboard waivers are due from gathering end through day 30 and past due on day 31. |
 | `Waivers.configVersion` | Internal settings-initialization version. |
 
 `Plugin.Waivers.ShowInNavigation` and

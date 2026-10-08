@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * @var \App\View\AppView $this
@@ -13,7 +14,7 @@
  * @var array $waiverTypesSummary
  * @var array|null $searchResults
  * @var string|null $searchTerm
- * @var int $complianceDays
+ * @var array $gatheringsDueWaivers
  */
 
 $gatheringsReadyToClose = $gatheringsReadyToClose ?? [];
@@ -533,212 +534,50 @@ $this->KMP->endBlock();
         </div>
     <?php endif; ?>
 
-    <!-- Gatherings Needing Waivers (Past Due) -->
-    <?php if (!empty($gatheringsMissingWaivers)): ?>
-        <div class="row mb-4">
-            <div class="col-md-12">
-                <div class="card border-danger">
-                    <h5 class="mb-0">
-                    <button type="button" class="card-header bg-danger text-white collapsed w-100 text-start"
-                        data-bs-toggle="collapse" data-bs-target="#collapse-needing-waivers" aria-expanded="false" aria-controls="collapse-needing-waivers">
-                        <span class="mb-0 d-flex justify-content-between align-items-center w-100">
-                            <span>
-                                <i class="bi bi-x-circle-fill"></i>
-                                <?= __('Gatherings Needing Waivers') ?>
-                                <span class="badge bg-light text-dark"><?= count($gatheringsMissingWaivers) ?></span>
-                            </span>
-                            <i class="bi bi-chevron-down"></i>
-                        </span>
-                    </button>
-                </h5>
-                    <div id="collapse-needing-waivers" class="collapse">
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-hover table-danger">
-                                    <thead>
-                                        <tr>
-                                            <th><?= __('Gathering') ?></th>
-                                            <th><?= __('Branch') ?></th>
-                                            <th><?= __('Event Dates') ?></th>
-                                            <th><?= __('Needed Waivers') ?></th>
-                                            <th><?= __('Uploaded Waivers') ?></th>
-                                            <th class="actions"><?= __('Actions') ?></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($gatheringsMissingWaivers as $gathering): ?>
-                                            <?php
-                                            $today = \Cake\I18n\Date::now();
-                                            $endDate = $gathering->end_date ? \Cake\I18n\Date::parse($gathering->end_date) : \Cake\I18n\Date::parse($gathering->start_date);
-                                            $daysSinceEnd = abs($today->diffInDays($endDate, false));
-                                            ?>
-                                            <tr>
-                                                <td>
-                                                    <?= $this->Html->link(
-                                                        '<strong>' . h($gathering->name) . '</strong>',
-                                                        ['plugin' => null, 'controller' => 'Gatherings', 'action' => 'view', $gathering->public_id],
-                                                        ['escape' => false]
-                                                    ) ?>
-                                                    <?php if ($daysSinceEnd > 60): ?>
-                                                        <span class="badge bg-dark ms-2">
-                                                            <i class="bi bi-exclamation-octagon"></i> <?= __('Delinquent') ?>
-                                                        </span>
-                                                    <?php elseif ($daysSinceEnd >= 30): ?>
-                                                        <span class="badge bg-danger ms-2">
-                                                            <i class="bi bi-x-circle"></i> <?= __('Past Due') ?>
-                                                        </span>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td><?= h($gathering->branch->name) ?></td>
-                                                <td>
-                                                    <?php
-                                                    $startFormatted = $this->Timezone->format($gathering->start_date, $gathering, 'M d, Y');
-                                                    $endFormatted = $gathering->end_date ? $this->Timezone->format($gathering->end_date, $gathering, 'M d, Y') : $startFormatted;
-                                                    ?>
-                                                    <?= h($startFormatted) ?>
-                                                    <?php if ($startFormatted !== $endFormatted): ?>
-                                                        <br><small class="text-muted">to <?= h($endFormatted) ?></small>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td>
-                                                    <span class="badge bg-danger"><?= $gathering->missing_waiver_count ?></span>
-                                                    <ul class="mb-0 mt-1">
-                                                        <?php foreach ($gathering->missing_waiver_names as $waiverName): ?>
-                                                            <li><?= h($waiverName) ?></li>
-                                                        <?php endforeach; ?>
-                                                    </ul>
-                                                </td>
-                                                <td>
-                                                    <span class="badge bg-info text-dark"><?= $gathering->uploaded_waiver_count ?? 0 ?></span>
-                                                    <?php if (!empty($gathering->uploaded_waiver_names ?? [])): ?>
-                                                        <ul class="mb-0 mt-1">
-                                                            <?php foreach ($gathering->uploaded_waiver_names as $waiverName): ?>
-                                                                <li><?= h($waiverName) ?></li>
-                                                            <?php endforeach; ?>
-                                                        </ul>
-                                                    <?php else: ?>
-                                                        <div class="small text-muted mt-1"><?= __('None') ?></div>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td class="actions">
-                                                    <?= $this->Html->link(
-                                                        __('View Waivers'),
-                                                        ['action' => 'index', '?' => ['gathering_id' => $gathering->id]],
-                                                        ['class' => 'btn btn-sm btn-danger']
-                                                    ) ?>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    <?php endif; ?>
-
-    <!-- Upcoming/Ongoing Events Needing Waivers -->
-    <?php if (!empty($gatheringsNeedingWaivers)): ?>
+    <?php
+    $waiverSections = [
+        ['id' => 'needing-waivers', 'title' => __('Past Due Waivers'), 'gatherings' => $gatheringsMissingWaivers,
+            'description' => __('Missing required waiver types for gatherings that ended more than 30 days ago.'),
+            'future' => false, 'headerClass' => 'bg-danger text-white'],
+        ['id' => 'due-waivers', 'title' => __('Waivers Due'), 'gatherings' => $gatheringsDueWaivers,
+            'description' => __('Missing required waiver types are due when a gathering ends and remain due through day 30. On day 31 they become past due.'),
+            'future' => false, 'headerClass' => 'bg-warning text-dark'],
+        ['id' => 'upcoming', 'title' => __('Future Waivers'), 'gatherings' => $gatheringsNeedingWaivers,
+            'description' => __('Missing required waiver types for gatherings ending within the next 30 days.'),
+            'future' => true, 'headerClass' => ''],
+    ];
+    ?>
+    <?php foreach ($waiverSections as $section): ?>
+        <?php if (empty($section['gatherings'])) { continue; } ?>
         <div class="row mb-4">
             <div class="col-md-12">
                 <div class="card">
                     <h5 class="mb-0">
-                    <button type="button" class="card-header collapsed w-100 text-start"
-                        data-bs-toggle="collapse" data-bs-target="#collapse-upcoming" aria-expanded="false" aria-controls="collapse-upcoming">
-                        <span class="mb-0 d-flex justify-content-between align-items-center w-100">
-                            <span>
-                                <i class="bi bi-exclamation-triangle-fill"></i>
-                                <?= __('Waivers Due (Next 30 Days)') ?>
-                                <span class="badge bg-dark"><?= count($gatheringsNeedingWaivers) ?></span>
+                        <button type="button" class="card-header <?= h($section['headerClass']) ?> collapsed w-100 text-start"
+                            data-bs-toggle="collapse" data-bs-target="#collapse-<?= h($section['id']) ?>"
+                            aria-expanded="false" aria-controls="collapse-<?= h($section['id']) ?>">
+                            <span class="d-flex justify-content-between align-items-center w-100">
+                                <span>
+                                    <?= h($section['title']) ?>
+                                    <span class="badge bg-light text-dark"><?= count($section['gatherings']) ?></span>
+                                </span>
+                                <i class="bi bi-chevron-down" aria-hidden="true"></i>
                             </span>
-                            <i class="bi bi-chevron-down"></i>
-                        </span>
-                    </button>
-                </h5>
-                    <div id="collapse-upcoming" class="collapse">
+                        </button>
+                    </h5>
+                    <div id="collapse-<?= h($section['id']) ?>" class="collapse">
                         <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th><?= __('Gathering') ?></th>
-                                            <th><?= __('Branch') ?></th>
-                                            <th><?= __('Event Dates') ?></th>
-                                            <th><?= __('Days Until Start') ?></th>
-                                            <th><?= __('Needed Waivers') ?></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($gatheringsNeedingWaivers as $gathering): ?>
-                                            <?php
-                                            $today = \Cake\I18n\Date::now();
-                                            $startDate = \Cake\I18n\Date::parse($gathering->start_date);
-                                            $daysUntilStart = $today->diffInDays($startDate, false);
-                                            $hasStarted = $today >= $startDate;
-                                            $hasEnded = $today > \Cake\I18n\Date::parse($gathering->end_date);
-                                            ?>
-                                            <tr
-                                                class="<?= ($hasStarted && !$hasEnded) ? 'table-info' : '' ?><?= ($hasEnded) ? 'table-warning' : '' ?>">
-                                                <td>
-                                                    <?= $this->Html->link(
-                                                        h($gathering->name),
-                                                        ['plugin' => null, 'controller' => 'Gatherings', 'action' => 'view', $gathering->public_id],
-                                                        ['escape' => false]
-                                                    ) ?>
-                                                    <?php if ($hasStarted && !$hasEnded): ?>
-                                                        <span class="badge bg-info text-dark ms-2">
-                                                            <i class="bi bi-play-circle"></i> <?= __('In Progress') ?>
-                                                        </span>
-                                                    <?php endif; ?>
-                                                    <?php if ($hasEnded): ?>
-                                                        <span class="badge bg-warning ms-2">
-                                                            <i class="bi bi-stop-circle"></i> <?= __('Ended') ?>
-                                                        </span>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td><?= h($gathering->branch->name) ?></td>
-                                                <td>
-                                                    <?php
-                                                    $startFormatted = $this->Timezone->format($gathering->start_date, $gathering, 'M d, Y');
-                                                    $endFormatted = $gathering->end_date ? $this->Timezone->format($gathering->end_date, $gathering, 'M d, Y') : $startFormatted;
-                                                    ?>
-                                                    <?= h($startFormatted) ?>
-                                                    <?php if ($startFormatted !== $endFormatted): ?>
-                                                        <br><small class="text-muted">to <?= h($endFormatted) ?></small>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td class="text-center">
-                                                    <?php if ($hasStarted && !$hasEnded): ?>
-                                                        <span class="text-info fw-bold"><?= __('Started') ?></span>
-                                                    <?php endif; ?>
-                                                    <?php if ($hasEnded): ?>
-                                                        <span class="text-warning fw-bold"><?= __('Ended') ?></span>
-                                                    <?php endif; ?>
-                                                    <?php if (!$hasStarted && !$hasEnded): ?>
-                                                        <?= $daysUntilStart ?> <?= __n('day', 'days', abs($daysUntilStart)) ?>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td>
-                                                    <span class="badge bg-info text-dark"><?= $gathering->missing_waiver_count ?></span>
-                                                    <ul class="mb-0 mt-1">
-                                                        <?php foreach ($gathering->missing_waiver_names as $waiverName): ?>
-                                                            <li><?= h($waiverName) ?></li>
-                                                        <?php endforeach; ?>
-                                                    </ul>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
+                            <p><?= h($section['description']) ?></p>
+                            <?= $this->element('Waivers.dashboard_waiver_gatherings', [
+                                'gatherings' => $section['gatherings'],
+                                'showDaysUntilStart' => $section['future'],
+                            ]) ?>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    <?php endif; ?>
+    <?php endforeach; ?>
 
     <!-- Branches with Compliance Issues -->
     <?php if (!empty($branchesWithIssues)): ?>
@@ -758,23 +597,26 @@ $this->KMP->endBlock();
                 </h5>
                     <div id="collapse-branches" class="collapse">
                         <div class="card-body">
+                            <p id="branch-compliance-help"><?= __('Gatherings counts events that ended more than 30 days ago with missing required waiver types. Past Due Waivers counts those missing types once per gathering; accepted uploads or exemptions satisfy a type, while declined or deleted records do not. Select a branch for details.') ?></p>
                             <div class="table-responsive">
-                                <table class="table table-hover">
+                                <table class="table table-hover" aria-describedby="branch-compliance-help">
                                     <thead>
                                         <tr>
-                                            <th><?= __('Branch') ?></th>
-                                            <th class="text-center"><?= __('Gatherings Missing Waivers') ?></th>
-                                            <th class="text-center"><?= __('Total Missing Waivers') ?></th>
+                                            <th scope="col"><?= __('Branch') ?></th>
+                                            <th scope="col" class="text-center"><?= __('Gatherings with Past Due Waivers') ?></th>
+                                            <th scope="col" class="text-center"><?= __('Past Due Waivers') ?></th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <?php foreach ($branchesWithIssues as $branchIssue): ?>
                                             <tr>
                                                 <td>
-                                                    <?= $this->Html->link(
-                                                        h($branchIssue['branch']->name),
-                                                        ['controller' => 'Branches', 'action' => 'view', $branchIssue['branch']->public_id, 'plugin' => null]
-                                                    ) ?>
+                                                    <button type="button" class="btn btn-link text-start"
+                                                        data-bs-toggle="modal" data-bs-target="#branch-past-due-<?= (int)$branchIssue['branch']->id ?>"
+                                                        aria-haspopup="dialog">
+                                                        <?= h($branchIssue['branch']->name) ?>
+                                                        <span class="visually-hidden"><?= __(': view past due waivers') ?></span>
+                                                    </button>
                                                 </td>
                                                 <td class="text-center">
                                                     <span class="badge bg-danger"><?= $branchIssue['gathering_count'] ?></span>
@@ -793,6 +635,30 @@ $this->KMP->endBlock();
                 </div>
             </div>
         </div>
+        <?php foreach ($branchesWithIssues as $branchIssue): ?>
+            <div class="modal fade" id="branch-past-due-<?= (int)$branchIssue['branch']->id ?>" tabindex="-1"
+                aria-labelledby="branch-past-due-title-<?= (int)$branchIssue['branch']->id ?>" aria-hidden="true">
+                <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="branch-past-due-title-<?= (int)$branchIssue['branch']->id ?>">
+                                <?= h(__('Past Due Waivers: {0}', $branchIssue['branch']->name)) ?>
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?= __('Close') ?>"></button>
+                        </div>
+                        <div class="modal-body">
+                            <?= $this->element('Waivers.dashboard_waiver_gatherings', [
+                                'gatherings' => $branchIssue['gatherings'],
+                                'showDaysUntilStart' => false,
+                            ]) ?>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= __('Close') ?></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php endforeach; ?>
     <?php endif; ?>
 
     <!-- Recent Waiver Activity and Waiver Types Summary -->

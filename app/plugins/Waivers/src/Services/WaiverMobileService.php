@@ -35,9 +35,6 @@ class WaiverMobileService
             return [];
         }
 
-        $startDate = new DateTime('+7 days');
-        $endDate = new DateTime('-30 days');
-
         $GatheringActivityWaivers = TableRegistry::getTableLocator()->get('Waivers.GatheringActivityWaivers');
         $GatheringWaivers = TableRegistry::getTableLocator()->get('Waivers.GatheringWaivers');
         $GatheringWaiverClosures = TableRegistry::getTableLocator()->get('Waivers.GatheringWaiverClosures');
@@ -49,10 +46,6 @@ class WaiverMobileService
                 'GatheringActivities.deleted IS' => null,
                 'Gatherings.deleted IS' => null,
                 'Gatherings.cancelled_at IS' => null,
-                'OR' => [
-                    'Gatherings.start_date <=' => $startDate,
-                    'Gatherings.end_date >=' => $endDate,
-                ],
             ])
             ->select(['gathering_id' => 'Gatherings.id'])
             ->distinct(['Gatherings.id']);
@@ -87,7 +80,7 @@ class WaiverMobileService
         $allGatherings = $Gatherings->find()
             ->where(['Gatherings.id IN' => $gatheringIds])
             ->contain(['Branches', 'GatheringTypes', 'GatheringActivities'])
-            ->orderBy(['Gatherings.start_date' => 'DESC'])
+            ->orderBy(['Gatherings.end_date' => 'ASC', 'Gatherings.id' => 'ASC'])
             ->all()
             ->toArray();
 

@@ -1,11 +1,13 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Waivers\Test\TestCase\Controller;
 
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Cake\Core\Configure;
+use Cake\Datasource\ConnectionManager;
+use DateTimeImmutable;
+use DateTimeZone;
 
 /**
  * Waivers\Controller\GatheringWaiversController Test Case
@@ -238,7 +240,7 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
         // Create a temporary file at the expected storage path
         $basePath = (string)Configure::read(
             'Documents.storage.local.path',
-            WWW_ROOT . '..' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'uploaded'
+            WWW_ROOT . '..' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'uploaded',
         );
         $basePath = rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
         $filePath = $basePath . str_replace('/', DIRECTORY_SEPARATOR, $waiver->document->file_path);
@@ -279,7 +281,7 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
         // Create a temporary file at the expected storage path
         $basePath = (string)Configure::read(
             'Documents.storage.local.path',
-            WWW_ROOT . '..' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'uploaded'
+            WWW_ROOT . '..' . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'uploaded',
         );
         $basePath = rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
         $filePath = $basePath . str_replace('/', DIRECTORY_SEPARATOR, $waiver->document->file_path);
@@ -334,11 +336,11 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
         $this->assertArrayHasKey('gatheringsNeedingCount', $statistics);
 
         $this->assertNotNull($this->viewVariable('waiverTypesSummary'), 'Dashboard should set waiverTypesSummary');
-        $this->assertNotNull($this->viewVariable('complianceDays'), 'Dashboard should set complianceDays');
+        $this->assertNotNull($this->viewVariable('gatheringsDueWaivers'), 'Dashboard should set due waivers');
     }
 
     /**
-     * Test dashboard includes gatherings that start exactly 30 days out.
+     * Test dashboard includes gatherings that end exactly 30 days out.
      *
      * @return void
      * @uses \Waivers\Controller\GatheringWaiversController::dashboard()
@@ -361,8 +363,8 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
             $this->markTestSkipped('Seed data missing required gathering/activity records');
         }
 
-        $boundaryStart = (new \DateTimeImmutable('now'))->modify('+30 days')->setTime(12, 0, 0);
-        $boundaryEnd = $boundaryStart->modify('+1 day');
+        $boundaryStart = (new DateTimeImmutable('now'))->modify('+30 days')->setTime(12, 0, 0);
+        $boundaryEnd = $boundaryStart->modify('+2 hours');
 
         $testGathering = $Gatherings->newEntity([
             'branch_id' => (int)$existingGathering->branch_id,
@@ -387,7 +389,7 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
         $gatheringsNeedingWaivers = $this->viewVariable('gatheringsNeedingWaivers');
         $boundaryGathering = array_filter(
             $gatheringsNeedingWaivers,
-            fn($gathering) => (int)$gathering->id === (int)$savedGathering->id
+            fn($gathering) => (int)$gathering->id === (int)$savedGathering->id,
         );
 
         $this->assertNotEmpty($boundaryGathering, 'Expected day-30 boundary gathering to appear in upcoming waivers.');
@@ -417,8 +419,8 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
             $this->markTestSkipped('Seed data missing required gathering/activity records');
         }
 
-        $startOne = (new \DateTimeImmutable('now'))->modify('+7 days')->setTime(10, 0, 0);
-        $startTwo = (new \DateTimeImmutable('now'))->modify('+8 days')->setTime(10, 0, 0);
+        $startOne = (new DateTimeImmutable('now'))->modify('+7 days')->setTime(10, 0, 0);
+        $startTwo = (new DateTimeImmutable('now'))->modify('+8 days')->setTime(10, 0, 0);
 
         $firstGathering = $Gatherings->saveOrFail($Gatherings->newEntity([
             'branch_id' => (int)$existingGathering->branch_id,
@@ -458,7 +460,7 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
         $gatheringsNeedingWaivers = $this->viewVariable('gatheringsNeedingWaivers');
         $upcomingGatheringIds = array_map(
             static fn($gathering) => (int)$gathering->id,
-            $gatheringsNeedingWaivers
+            $gatheringsNeedingWaivers,
         );
 
         $this->assertContains((int)$firstGathering->id, $upcomingGatheringIds);
@@ -489,7 +491,7 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
             $this->markTestSkipped('Seed data missing required gathering/activity records');
         }
 
-        $utcStart = new \DateTimeImmutable('2026-03-15 01:30:00', new \DateTimeZone('UTC'));
+        $utcStart = new DateTimeImmutable('2026-03-15 01:30:00', new DateTimeZone('UTC'));
         $utcEnd = $utcStart->modify('+2 hours');
 
         $testGathering = $Gatherings->saveOrFail($Gatherings->newEntity([
@@ -519,7 +521,7 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
 
         $matchingEvents = array_values(array_filter(
             $response['events'],
-            static fn(array $event): bool => (int)($event['id'] ?? 0) === (int)$testGathering->id
+            static fn(array $event): bool => (int)($event['id'] ?? 0) === (int)$testGathering->id,
         ));
 
         $this->assertNotEmpty($matchingEvents, 'Expected timezone test gathering in calendar payload.');
@@ -581,7 +583,7 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
 
         // Insert an expired waiver directly (bypassing validation since 'expired'
         // is not in the validator's inList but is a valid DB/controller state)
-        $connection = \Cake\Datasource\ConnectionManager::get('test');
+        $connection = ConnectionManager::get('test');
         $connection->execute(
             'INSERT INTO waivers_gathering_waivers (gathering_id, waiver_type_id, document_id, is_exemption, exemption_reason, status, retention_date, created, created_by) VALUES (?, ?, NULL, TRUE, ?, ?, ?, NOW(), ?)',
             [
@@ -591,7 +593,7 @@ class GatheringWaiversControllerTest extends HttpIntegrationTestCase
                 'expired',
                 '2020-01-01',
                 self::ADMIN_MEMBER_ID,
-            ]
+            ],
         );
         $expiredWaiver = $GatheringWaivers->find()
             ->where(['status' => 'expired'])

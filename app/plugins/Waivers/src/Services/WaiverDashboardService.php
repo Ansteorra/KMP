@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace Waivers\Services;
 
 use App\KMP\CaseInsensitiveQuery;
-use App\KMP\StaticHelpers;
 use App\KMP\TimezoneHelper;
 use Cake\I18n\Date;
 use Cake\I18n\DateTime;
@@ -24,9 +23,10 @@ class WaiverDashboardService
      * Get dashboard statistics.
      *
      * @param array $branchIds Branches to include in statistics
+     * @param array|null $waiverGatherings Preloaded incomplete waiver buckets
      * @return array Statistics data
      */
-    public function getDashboardStatistics(array $branchIds): array
+    public function getDashboardStatistics(array $branchIds, ?array $waiverGatherings = null): array
     {
         $GatheringWaivers = TableRegistry::getTableLocator()->get('Waivers.GatheringWaivers');
         $Gatherings = TableRegistry::getTableLocator()->get('Gatherings');
@@ -68,11 +68,8 @@ class WaiverDashboardService
             ])
             ->count();
 
-        $waiverGatherings = $this->getGatheringsWithIncompleteWaivers($branchIds, 30);
-        $gatheringsMissingCount = count(array_filter(
-            $waiverGatherings['missing'],
-            fn($gathering) => ($gathering->uploaded_waiver_count ?? 0) === 0,
-        ));
+        $waiverGatherings ??= $this->getGatheringsWithIncompleteWaivers($branchIds, 30);
+        $gatheringsMissingCount = count($waiverGatherings['missing']);
         $gatheringsNeedingCount = count($waiverGatherings['upcoming']);
 
         $branchesWithGatherings = $Gatherings->find()
@@ -100,7 +97,7 @@ class WaiverDashboardService
      *
      * @param array $branchIds Branches to check
      * @param int $daysAhead How many days ahead to look for upcoming events
-     * @return array Array with 'missing' and 'upcoming' keys
+     * @return array Buckets: missing (past due), due (ended within 30 days), upcoming (ends within daysAhead)
      */
     public function getGatheringsWithIncompleteWaivers(array $branchIds, int $daysAhead): array
     {
@@ -109,23 +106,18 @@ class WaiverDashboardService
         $GatheringWaiverClosures = TableRegistry::getTableLocator()->get('Waivers.GatheringWaiverClosures');
         $GatheringWaivers = TableRegistry::getTableLocator()->get('Waivers.GatheringWaivers');
         $WaiverTypes = TableRegistry::getTableLocator()->get('Waivers.WaiverTypes');
-        $today = Date::now();
-        $todayString = $today->toDateString();
-        $futureDate = DateTime::now()->addDays($daysAhead)->endOfDay()->format('Y-m-d H:i:s');
-        $pastCutoff = Date::now()->subDays(90)->toDateString();
+        if (empty($branchIds)) {
+            return ['missing' => [], 'due' => [], 'upcoming' => []];
+        }
 
-        $complianceDays = (int)StaticHelpers::getAppSetting('Waivers.ComplianceDays', '2', 'int', false);
+        $now = DateTime::now('UTC');
+        $today = Date::parse($now->format('Y-m-d'));
+        $pastDueCutoff = $now->subDays(30)->startOfDay();
+        $futureDate = $now->addDays($daysAhead)->endOfDay();
 
         $query = $Gatherings->find()
             ->where([
-                'OR' => [
-                    'AND' => [
-                        'Gatherings.end_date IS' => null,
-                        'Gatherings.start_date >=' => $todayString,
-                    ],
-                    'Gatherings.end_date >=' => $pastCutoff,
-                ],
-                'Gatherings.start_date <=' => $futureDate,
+                'Gatherings.end_date <=' => $futureDate,
                 'Gatherings.branch_id IN' => $branchIds,
                 'Gatherings.deleted IS' => null,
                 'Gatherings.cancelled_at IS' => null,
@@ -136,7 +128,7 @@ class WaiverDashboardService
                     return $q->select(['id', 'name']);
                 },
             ])
-            ->orderBy(['Gatherings.start_date' => 'ASC']);
+            ->orderBy(['Gatherings.end_date' => 'ASC', 'Gatherings.id' => 'ASC']);
 
         $closedGatheringIds = $GatheringWaiverClosures->getClosedGatheringIds();
         if (!empty($closedGatheringIds)) {
@@ -147,11 +139,13 @@ class WaiverDashboardService
         if (empty($allGatherings)) {
             return [
                 'missing' => [],
+                'due' => [],
                 'upcoming' => [],
             ];
         }
 
         $gatheringsMissing = [];
+        $gatheringsDue = [];
         $gatheringsUpcoming = [];
 
         $gatheringIds = [];
@@ -280,11 +274,13 @@ class WaiverDashboardService
             $gathering->uploaded_waiver_count = count($statsByGathering[$gatheringId]['uploaded_type_ids']);
             $gathering->uploaded_waiver_names = $uploadedWaiverNames;
 
-            $endDate = $gathering->end_date ? Date::parse($gathering->end_date) : Date::parse($gathering->start_date);
-            $daysAfterEnd = $today->diffInDays($endDate, false);
+            $gathering->days_until_start = (int)$today->diffInDays(Date::parse($gathering->start_date), false);
+            $gathering->has_started = $gathering->start_date <= $now;
 
-            if ($daysAfterEnd < -$complianceDays) {
+            if ($gathering->end_date < $pastDueCutoff) {
                 $gatheringsMissing[] = $gathering;
+            } elseif ($gathering->end_date < $now) {
+                $gatheringsDue[] = $gathering;
             } else {
                 $gatheringsUpcoming[] = $gathering;
             }
@@ -292,6 +288,7 @@ class WaiverDashboardService
 
         return [
             'missing' => $gatheringsMissing,
+            'due' => $gatheringsDue,
             'upcoming' => $gatheringsUpcoming,
         ];
     }
@@ -354,23 +351,25 @@ class WaiverDashboardService
      * Get branches with compliance issues.
      *
      * @param array $branchIds Branches to check
-     * @return array Branches with issue counts
+     * @param array|null $pastDueGatherings Preloaded past-due gatherings
+     * @return array Branches with issue counts and actionable gathering details
      */
-    public function getBranchesWithIssues(array $branchIds): array
+    public function getBranchesWithIssues(array $branchIds, ?array $pastDueGatherings = null): array
     {
-        $waiverGatherings = $this->getGatheringsWithIncompleteWaivers($branchIds, 60);
-        $allGatheringsWithIssues = $waiverGatherings['missing'];
+        $pastDueGatherings ??= $this->getGatheringsWithIncompleteWaivers($branchIds, 30)['missing'];
 
         $branchIssues = [];
-        foreach ($allGatheringsWithIssues as $gathering) {
+        foreach ($pastDueGatherings as $gathering) {
             $branchId = $gathering->branch_id;
             if (!isset($branchIssues[$branchId])) {
                 $branchIssues[$branchId] = [
                     'branch' => $gathering->branch,
                     'gathering_count' => 0,
                     'total_missing_waivers' => 0,
+                    'gatherings' => [],
                 ];
             }
+            $branchIssues[$branchId]['gatherings'][] = $gathering;
             $branchIssues[$branchId]['gathering_count']++;
             $branchIssues[$branchId]['total_missing_waivers'] += $gathering->missing_waiver_count;
         }
@@ -379,7 +378,7 @@ class WaiverDashboardService
             return $b['gathering_count'] <=> $a['gathering_count'];
         });
 
-        return array_slice($branchIssues, 0, 10);
+        return $branchIssues;
     }
 
     /**
