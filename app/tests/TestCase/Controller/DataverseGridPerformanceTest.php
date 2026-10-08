@@ -37,6 +37,83 @@ class DataverseGridPerformanceTest extends HttpIntegrationTestCase
         $this->assertStringContainsString('Value', $body, 'Table frame must still render data column headers');
     }
 
+    public function testLivePageSizeMatchesPaginatorAndKeepsGridDefault(): void
+    {
+        $this->get('/app-settings/gridData');
+        $this->assertResponseOk();
+        $state = $this->extractGridStateFromResponse((string)$this->_response->getBody(), 'app-settings-grid-table-state');
+        $this->assertSame(50, $state['config']['pageSize']);
+        $this->assertSame(50, $state['pagination']['perPage']);
+
+        $this->get('/app-settings/gridData?limit=10&page=2');
+        $this->assertResponseOk();
+        $state = $this->extractGridStateFromResponse((string)$this->_response->getBody(), 'app-settings-grid-table-state');
+        $this->assertSame(10, $state['config']['pageSize']);
+        $this->assertSame(10, $state['pagination']['perPage']);
+        $this->assertSame(2, $state['pagination']['currentPage']);
+    }
+
+    public function testMissingPageFallsBackToLastFilteredPage(): void
+    {
+        $this->get('/app-settings/gridData?limit=10&page=999999&search=KMP');
+        $this->assertResponseOk();
+        $body = (string)$this->_response->getBody();
+        $state = $this->extractGridStateFromResponse($body, 'app-settings-grid-table-state');
+        $this->assertSame('KMP', $state['search']);
+        $this->assertSame(10, $state['config']['pageSize']);
+        $this->assertSame($state['pagination']['pageCount'], $state['pagination']['currentPage']);
+        $this->assertGreaterThan(0, $state['pagination']['count']);
+        $this->assertStringNotContainsString('page=999999', $body);
+    }
+
+    public function testEmptyFilteredPageReturnsPageOne(): void
+    {
+        $this->get('/app-settings/gridData?limit=100&page=3&search=nonexistent-grid-setting-xyz');
+        $this->assertResponseOk();
+        $state = $this->extractGridStateFromResponse((string)$this->_response->getBody(), 'app-settings-grid-table-state');
+        $this->assertSame('nonexistent-grid-setting-xyz', $state['search']);
+        $this->assertSame(1, $state['pagination']['currentPage']);
+        $this->assertSame(0, $state['pagination']['totalCount']);
+        $this->assertSame(100, $state['config']['pageSize']);
+    }
+
+    public function testSavedPageSizeCanBeOverriddenWithoutChangingSavedView(): void
+    {
+        $views = $this->getTableLocator()->get('GridViews');
+        $view = $views->newEntity([
+            'grid_key' => 'AppSettings.index.main',
+            'name' => 'Remember row count',
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'config' => json_encode(['pageSize' => 100]),
+        ]);
+        $views->saveOrFail($view);
+
+        $this->get('/app-settings/gridData?view_id=' . $view->id);
+        $this->assertResponseOk();
+        $state = $this->extractGridStateFromResponse((string)$this->_response->getBody(), 'app-settings-grid-table-state');
+        $this->assertSame(100, $state['config']['pageSize']);
+
+        $this->get('/app-settings/gridData?view_id=' . $view->id . '&limit=10');
+        $this->assertResponseOk();
+        $state = $this->extractGridStateFromResponse((string)$this->_response->getBody(), 'app-settings-grid-table-state');
+        $this->assertSame(10, $state['config']['pageSize']);
+        $this->assertSame(100, $views->get($view->id)->getConfigArray()['pageSize']);
+    }
+
+    public function testLivePageSizeIsBounded(): void
+    {
+        foreach ([1 => 10, 1000 => 100] as $requested => $effective) {
+            $this->get('/app-settings/gridData?limit=' . $requested);
+            $this->assertResponseOk();
+            $state = $this->extractGridStateFromResponse(
+                (string)$this->_response->getBody(),
+                'app-settings-grid-table-state',
+            );
+            $this->assertSame($effective, $state['config']['pageSize']);
+            $this->assertSame($effective, $state['pagination']['perPage']);
+        }
+    }
+
     public function testGridDataSizeTableFrameIsSmallerThanOuterFrame(): void
     {
         $this->get('/app-settings/gridData');

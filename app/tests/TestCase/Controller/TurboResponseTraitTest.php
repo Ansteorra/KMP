@@ -104,6 +104,12 @@ class TurboResponseTraitTest extends HttpIntegrationTestCase
         $this->traitController()->exposeAssert('https://evil.example/path');
     }
 
+    public function testAssertSafeContextUrlRejectsBrowserNormalizedExternalPaths(): void
+    {
+        $this->expectException(BadRequestException::class);
+        $this->traitController()->exposeAssert('/\\example.test/away');
+    }
+
     public function testBuildGridDataUrlPreservesQueryFromPageContext(): void
     {
         $url = $this->traitController()->exposeBuild('/app-settings?search=foo&filter[state][]=Draft');

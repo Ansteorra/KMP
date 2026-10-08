@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Mobile Gathering Selection Template
@@ -19,7 +20,7 @@
         <!-- No Gatherings Available -->
         <div class="alert alert-warning" role="alert">
             <i class="bi bi-exclamation-triangle me-2"></i>
-            <?= __('No gatherings found that you have permission to upload waivers for in the current date range (starting within 7 days or ended within last 30 days).') ?>
+            <?= __('No open gatherings requiring waivers were found that you have permission to upload waivers for.') ?>
         </div>
 
         <div class="d-grid gap-2">
@@ -129,7 +130,7 @@
         <!-- Info Message -->
         <div class="alert alert-light small" role="alert">
             <i class="bi bi-calendar-range me-2"></i>
-            <?= __('Showing gatherings starting within the next 7 days or ending within the last 30 days.') ?>
+            <?= __('Showing open gatherings requiring waivers, ordered by end date, oldest first.') ?>
         </div>
     <?php endif; ?>
 </div>

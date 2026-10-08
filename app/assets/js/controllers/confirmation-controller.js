@@ -23,6 +23,7 @@ class ConfirmationController extends Controller {
 
         const targetForm = this.resolveForm(trigger)
         if (targetForm) {
+            document.dispatchEvent(new CustomEvent('page-context:before-submit', { detail: { form: targetForm } }))
             HTMLFormElement.prototype.submit.call(targetForm)
             return true
         }

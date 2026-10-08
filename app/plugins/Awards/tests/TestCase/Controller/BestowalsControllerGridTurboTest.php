@@ -123,6 +123,40 @@ class BestowalsControllerGridTurboTest extends HttpIntegrationTestCase
         $this->assertResponseContains('<turbo-stream action="replace" target="bestowals-grid-table"');
     }
 
+    public function testQuickTodosPreservesSignedGridReturnQuery(): void
+    {
+        $bestowal = $this->createExistingBestowal();
+        $this->createOpenBestowalTodo((int)$bestowal->id);
+        $contextUrl = '/awards/bestowals?page=3&limit=50&search=needle&filter[status][]=open';
+        $this->get('/awards/bestowals/bestowal-todos/' . $bestowal->id . '?' . http_build_query([
+            'page_context_url' => $contextUrl,
+        ]));
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('name="current_page"');
+        $this->assertResponseContains(htmlspecialchars($contextUrl, ENT_QUOTES));
+    }
+
+    public function testQuickTodosRejectsExternalReturnUrl(): void
+    {
+        $bestowal = $this->createExistingBestowal();
+        $this->get('/awards/bestowals/bestowal-todos/' . $bestowal->id . '?' . http_build_query([
+            'page_context_url' => 'https://example.test/away',
+        ]));
+
+        $this->assertResponseCode(400);
+    }
+
+    public function testQuickTodosRejectsBrowserNormalizedExternalReturnPath(): void
+    {
+        $bestowal = $this->createExistingBestowal();
+        $this->get('/awards/bestowals/bestowal-todos/' . $bestowal->id . '?' . http_build_query([
+            'page_context_url' => '/\\example.test/away',
+        ]));
+
+        $this->assertResponseCode(400);
+    }
+
     public function testActiveSystemViewExcludesClosedBestowals(): void
     {
         $activeMemberName = 'bestowal-active-filter-active-' . uniqid();

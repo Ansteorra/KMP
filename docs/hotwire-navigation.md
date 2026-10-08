@@ -49,11 +49,16 @@ Links rendered inside a frame that should open a complete record page must use
 `grid-view-controller` writes grid state to the address bar and updates the
 inner frame's `src`. It also restores the frame on `popstate`, so Back and
 Forward navigate grid state without enabling Turbo Drive.
+Native paginator links synchronize the displayed page back to that state.
+Returning from a record page therefore restores pagination together with
+search, filters, sorting, and rows per page. A refresh that loses its requested
+page uses the last available page and synchronizes the effective page.
 
 Modal forms opened from a grid include a hidden `page_context_url`. The
 `page-context` controller keeps it synchronized with
 `window.location.pathname + window.location.search`. On POST, the server uses
-that value to preserve the current filters and sort in a refresh URL.
+that value to preserve the current page, filters, search, sort, and row count in
+a refresh URL.
 
 `TurboResponseTrait` accepts only a relative path and query. Absolute,
 protocol-relative, and newline-containing values are rejected. Treat page
@@ -98,7 +103,7 @@ The stream elements live in `app/templates/element/`, including
 `turbo_sync_grid_row.php`, `turbo_close_modal.php`, and
 `turbo_reload_frame.php`.
 
-## Prefer targeted row synchronization
+## Row synchronization and modal refreshes
 
 For a single-record save, resolve the record through the same query, scopes,
 filters, computed fields, and enrichment used by `gridData()`:
@@ -113,6 +118,14 @@ filters, computed fields, and enrichment used by `gridData()`:
 Row synchronization is an optimization after authorization and persistence. It
 must not introduce a less-scoped query than the normal grid endpoint.
 
+For successful grid modal saves, `turbo-modal` turns row replacement/removal
+streams into one reload of the owning table frame. It also carries the live
+frame query into table replacement streams. This refreshes ordering, counts,
+filter membership, and pagination together while retaining the user's place.
+Focus restoration waits for the refreshed frame and uses a surviving control
+when the edited row is no longer visible. Server row helpers remain available
+for other stream consumers.
+
 ## Full-page and Back navigation
 
 KMP has two distinct history mechanisms:
@@ -122,6 +135,12 @@ KMP has two distinct history mechanisms:
 
 Do not use `pageStack` as grid state, and do not enable Turbo Drive to repair a
 Back-button problem. Diagnose the appropriate history owner.
+When a full document navigation leaves the grid, the server updates the last
+matching `pageStack` entry from the same-origin Referer. This carries the
+browser's current grid query into the app back arrow as well as browser Back.
+The `page-context` controller supplies the live browser URL as the referrer for
+same-origin Turbo requests, since Turbo's internal location can predate direct
+grid history updates when Drive is disabled.
 
 ## Multi-tenant and security boundary
 

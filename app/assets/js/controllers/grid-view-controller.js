@@ -17,6 +17,7 @@ class GridViewController extends Controller {
         "gridState",
         "searchInput",
         "searchStatusIndicator",
+        "pageSize",
         "rowCheckbox",
         "selectAllCheckbox",
         "bulkActionBtn",
@@ -24,7 +25,8 @@ class GridViewController extends Controller {
     ]
     static values = {
         stickyQuery: String,
-        stickyDefault: Object
+        stickyDefault: Object,
+        syncUrl: { type: Boolean, default: true }
     }
 
     /**
@@ -43,6 +45,7 @@ class GridViewController extends Controller {
         this.selectedIds = []
         this.searchDebounceTimer = null
         this.searchDebounceMs = 900
+        this.paginationFocusPending = null
 
         // Initialize sticky query parameter support
         this.stickyParams = {}
@@ -56,9 +59,14 @@ class GridViewController extends Controller {
 
         // Listen for Turbo Frame updates
         document.addEventListener('turbo:frame-load', this.boundHandleFrameLoad)
+        this.boundFrameError = this.handleFrameError.bind(this)
+        document.addEventListener('turbo:fetch-request-error', this.boundFrameError)
+        document.addEventListener('turbo:frame-missing', this.boundFrameError)
 
         this.boundPopState = this.handlePopState.bind(this)
         window.addEventListener('popstate', this.boundPopState)
+        this.boundPaginationClick = this.handlePaginationClick.bind(this)
+        this.element.addEventListener('click', this.boundPaginationClick)
 
         // Check if state is already present (inline rendered content)
         this.loadInlineState()
@@ -93,6 +101,7 @@ class GridViewController extends Controller {
 
             // Capture sticky parameters for inline-rendered frame content
             this.captureStickyParamsFromFrame(tableFrame)
+            this.syncFrameLocation(tableFrame)
         } catch (e) {
             console.error('Failed to parse inline grid state:', e)
         }
@@ -102,6 +111,7 @@ class GridViewController extends Controller {
      * Cleanup when controller disconnects
      */
     disconnect() {
+        this.paginationFocusPending = null
         this.subscriptionRequest?.abort()
         this.subscriptionRequest = null
         if (this.searchDebounceTimer) {
@@ -109,6 +119,9 @@ class GridViewController extends Controller {
             this.searchDebounceTimer = null
         }
         document.removeEventListener('turbo:frame-load', this.boundHandleFrameLoad)
+        document.removeEventListener('turbo:fetch-request-error', this.boundFrameError)
+        document.removeEventListener('turbo:frame-missing', this.boundFrameError)
+        this.element.removeEventListener('click', this.boundPaginationClick)
         if (this.boundPopState) {
             window.removeEventListener('popstate', this.boundPopState)
             this.boundPopState = null
@@ -119,9 +132,52 @@ class GridViewController extends Controller {
      * Browser back/forward: sync table frame to URL without pushing history again.
      */
     handlePopState() {
+        if (!this.syncsBrowserUrl) return
         const url = window.location.pathname + window.location.search
         this.navigate(url, false, { updateHistory: false })
         window.dispatchEvent(new CustomEvent('page-context:sync'))
+    }
+
+    /** Route pagination through the same browser history and frame navigation as filters. */
+    handlePaginationClick(event) {
+        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+        const link = event.target.closest('.paginator a[href]')
+        if (!link || !this.element.contains(link) || link.target === '_blank') return
+
+        const url = new URL(link.href, window.location.origin)
+        if (url.origin !== window.location.origin) return
+        event.preventDefault()
+        this.paginationFocusPending = document.activeElement === link
+            ? { frameId: link.closest('turbo-frame')?.id, source: link }
+            : null
+        this.navigate(window.location.pathname + url.search)
+    }
+
+    /** Keep keyboard users at pagination after the focused page link is replaced. */
+    restorePaginationFocus(frame) {
+        const pending = this.paginationFocusPending
+        if (!pending || pending.frameId !== frame.id) return
+        this.paginationFocusPending = null
+        // A user who moved to another control while loading keeps that focus.
+        if (document.activeElement !== document.body && document.activeElement !== pending.source) return
+
+        const target = frame.querySelector(
+            '.paginator [aria-current="page"], .paginator .active a, .paginator .active .page-link, .paginator .active span',
+        ) || frame.querySelector('.paginator a[href]') || frame.querySelector('.paginator')
+        if (!target) return
+        if (!target.matches('a[href], button, input, select, textarea, [tabindex]')) {
+            target.setAttribute('tabindex', '-1')
+        }
+        target.classList.add('focus-ring')
+        target.focus()
+    }
+
+    /** Restore the loading state when a frame request fails or returns no matching frame. */
+    handleFrameError(event) {
+        if (!this.element.contains(event.target)) return
+        if (this.paginationFocusPending?.frameId === event.target.id) this.paginationFocusPending = null
+        event.target.removeAttribute('aria-busy')
+        this.setSearchBusy(false)
     }
 
     /**
@@ -142,6 +198,9 @@ class GridViewController extends Controller {
 
             if (!stateScript) {
                 console.warn('No state script found in table frame')
+                this.paginationFocusPending = null
+                tableFrame.removeAttribute('aria-busy')
+                this.setSearchBusy(false)
                 return
             }
 
@@ -159,9 +218,18 @@ class GridViewController extends Controller {
 
                 // Capture sticky parameters based on the loaded frame
                 this.captureStickyParamsFromFrame(tableFrame)
+                this.syncFrameLocation(tableFrame)
+                this.restorePaginationFocus(tableFrame)
+                if (this.state.pagination) {
+                    const { currentPage, pageCount, count } = this.state.pagination
+                    window.KMP_accessibility?.announce(`Page ${currentPage} of ${pageCount} loaded, showing ${count} records.`)
+                }
             } catch (e) {
                 console.error('Failed to parse grid state from table frame:', e)
+                this.paginationFocusPending = null
                 this.setSearchBusy(false)
+            } finally {
+                tableFrame.removeAttribute('aria-busy')
             }
         } else {
             // Outer grid frame loaded - check if it contains an inline table frame with state
@@ -250,6 +318,80 @@ class GridViewController extends Controller {
         this.updateFilterPanels()
         this.updateClearFiltersFooter()
         this.updateColumnPicker()
+        this.updatePageSize()
+    }
+
+    /** Keep the persistent toolbar control aligned with the effective saved or live row count. */
+    updatePageSize() {
+        if (!this.hasPageSizeTarget || !this.state?.config?.pageSize) return
+
+        const value = String(this.state.config.pageSize)
+        if (!Array.from(this.pageSizeTarget.options).some(option => option.value === value)) {
+            this.pageSizeTarget.add(new Option(value, value))
+        }
+        this.pageSizeTarget.value = value
+    }
+
+    /** Change the row count while retaining the current filters, sort and view. */
+    changePageSize(event) {
+        const pageSize = Number(event.currentTarget.value)
+        if (!Number.isInteger(pageSize) || pageSize < 10 || pageSize > 100) return
+
+        this.navigate(this.buildUrl({ limit: pageSize, page: null }))
+    }
+
+    /** Remember the actual page returned by a native frame navigation or an edit refresh. */
+    syncFrameLocation(frame) {
+        const src = frame.getAttribute('src') || frame.dataset.gridSrc
+        if (!src) return
+
+        const frameUrl = new URL(src, window.location.origin)
+        const currentPage = this.state?.pagination?.currentPage
+        if (currentPage) {
+            if (currentPage > 1 || frameUrl.searchParams.has('page')) {
+                frameUrl.searchParams.set('page', currentPage)
+            }
+            frameUrl.searchParams.set('limit', this.state.config.pageSize)
+        }
+        frame.dataset.gridCurrentSrc = frameUrl.pathname + frameUrl.search
+        if (!this.syncsBrowserUrl) return
+
+        const browserUrl = new URL(window.location.href)
+        browserUrl.search = frameUrl.search
+        const nextUrl = browserUrl.pathname + browserUrl.search + browserUrl.hash
+        if (nextUrl !== window.location.pathname + window.location.search + window.location.hash) {
+            window.history.replaceState(window.history.state, '', nextUrl)
+            window.dispatchEvent(new CustomEvent('grid-view:navigated'))
+            window.dispatchEvent(new CustomEvent('page-context:sync'))
+        }
+    }
+
+    /** The last rendered frame URL includes any server pagination correction. */
+    currentFrameUrl(frame = this.element.querySelector('turbo-frame[id$="-table"]')) {
+        return frame?.dataset.gridCurrentSrc || frame?.getAttribute('src') || frame?.dataset.gridSrc || ''
+    }
+
+    /** Detail tab grids own independent query state within the host page. */
+    get syncsBrowserUrl() {
+        return this.syncUrlValue !== false && !this.element.closest('[role="tabpanel"]')
+    }
+
+    /** Build from this grid's query rather than another embedded grid's browser query. */
+    currentGridUrl() {
+        const url = new URL(window.location.href)
+        const frame = this.element.querySelector('turbo-frame[id$="-table"]')
+        const frameUrl = this.currentFrameUrl(frame)
+        if (!this.syncsBrowserUrl && frameUrl) {
+            const source = new URL(frameUrl, window.location.origin)
+            if (source.origin !== window.location.origin) return url
+            const tab = url.searchParams.get('tab')
+            url.search = source.search
+            for (const key of ['frame_id', 'member_id', 'branch_id', 'gathering_id']) url.searchParams.delete(key)
+            url.searchParams.delete('tab')
+            if (tab) url.searchParams.set('tab', tab)
+            url.searchParams.set('grid_context', frame.id.replace(/-table$/, ''))
+        }
+        return url
     }
 
     /**
@@ -1472,7 +1614,7 @@ class GridViewController extends Controller {
                 window.KMP_accessibility.announce("View saved successfully")
                 // Navigate to the new view
                 const url = this.buildUrl({ view_id: data.data.view.id })
-                window.location.assign(url)
+                this.navigate(url, true)
             } else {
                 throw new Error(data.error || "Failed to save view")
             }
@@ -1557,7 +1699,7 @@ class GridViewController extends Controller {
             if (response.ok && data.success) {
                 window.KMP_accessibility.announce("View deleted successfully")
                 const url = this.buildUrl({ view_id: null })
-                window.location.assign(url)
+                this.navigate(url, true)
             } else {
                 throw new Error(data.error || "Failed to delete view")
             }
@@ -1593,7 +1735,7 @@ class GridViewController extends Controller {
 
             if (response.ok && data.success) {
                 window.KMP_accessibility.announce("Default view set successfully")
-                this.navigate(window.location.pathname + window.location.search, false)
+                this.navigate(this.buildUrl({}), false)
             } else {
                 throw new Error(data.error || "Failed to set default")
             }
@@ -1624,7 +1766,7 @@ class GridViewController extends Controller {
 
             if (response.ok && data.success) {
                 window.KMP_accessibility.announce("Default view cleared successfully")
-                this.navigate(window.location.pathname + window.location.search, false)
+                this.navigate(this.buildUrl({}), false)
             } else {
                 throw new Error(data.error || "Failed to clear default")
             }
@@ -2104,6 +2246,7 @@ class GridViewController extends Controller {
     }
 
     updateBrowserUrlWithStickyParams() {
+        if (!this.syncsBrowserUrl) return
         const stickyKeys = this.getStickyKeys()
         if (!stickyKeys.length) {
             return
@@ -2173,7 +2316,8 @@ class GridViewController extends Controller {
      * Build URL with updated parameters
      */
     buildUrl(updates) {
-        const params = new URLSearchParams(window.location.search)
+        const url = this.currentGridUrl()
+        const params = url.searchParams
         this.normalizeGridQueryParams(params)
 
         // Apply updates
@@ -2200,14 +2344,15 @@ class GridViewController extends Controller {
         }
 
         const queryString = params.toString()
-        return queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname
+        const path = queryString ? `${url.pathname}?${queryString}` : url.pathname
+        return path + (this.syncsBrowserUrl ? '' : url.hash)
     }
 
     /**
      * Build URL with filter parameters
      */
     buildUrlWithFilters(filterParams) {
-        const url = new URL(window.location)
+        const url = this.currentGridUrl()
         const params = url.searchParams
         this.normalizeGridQueryParams(params)
 
@@ -2258,7 +2403,8 @@ class GridViewController extends Controller {
         this.normalizeGridQueryParams(params)
 
         const queryString = params.toString()
-        return queryString ? `${url.pathname}?${queryString}` : url.pathname
+        const path = queryString ? `${url.pathname}?${queryString}` : url.pathname
+        return path + (this.syncsBrowserUrl ? '' : url.hash)
     }
 
     /**
@@ -2269,6 +2415,10 @@ class GridViewController extends Controller {
         console.log('Navigating to:', url, 'fullPage:', fullPage)
 
         if (fullPage) {
+            if (!this.syncsBrowserUrl) {
+                const currentUrl = this.currentGridUrl()
+                window.history.replaceState(window.history.state, '', currentUrl.pathname + currentUrl.search + currentUrl.hash)
+            }
             window.location.assign(url)
         } else {
             // Frame navigation - find the table frame and update its src
@@ -2276,7 +2426,7 @@ class GridViewController extends Controller {
             if (tableFrame) {
                 // Get the base grid-data URL from the frame's current src
                 // This handles embedded grids with custom endpoints like /members/roles-grid-data/1
-                const currentSrc = tableFrame.getAttribute('src') || tableFrame.dataset.gridSrc || tableFrame.src
+                const currentSrc = this.currentFrameUrl(tableFrame)
                 if (!currentSrc) {
                     console.warn('Table frame has no src attribute')
                     return
@@ -2288,7 +2438,7 @@ class GridViewController extends Controller {
 
                 // Context parameters that must be preserved (e.g., member_id, branch_id)
                 // These identify which entity's data we're viewing
-                const contextParams = ['member_id', 'branch_id', 'gathering_id']
+                const contextParams = ['frame_id', 'member_id', 'branch_id', 'gathering_id']
 
                 // Parse the navigation URL to get new query params
                 const urlObj = new URL(url, window.location.origin)
@@ -2302,6 +2452,7 @@ class GridViewController extends Controller {
                 urlObj.searchParams.forEach((value, key) => {
                     finalUrl.searchParams.append(key, value)
                 })
+                finalUrl.searchParams.delete('grid_context')
                 this.normalizeGridQueryParams(finalUrl.searchParams)
 
                 // Ensure sticky parameters are carried over for frame requests
@@ -2317,7 +2468,7 @@ class GridViewController extends Controller {
 
                 const gridDataUrl = finalUrl.pathname + finalUrl.search
 
-                if (updateHistory) {
+                if (updateHistory && this.syncsBrowserUrl) {
                     window.history.pushState({}, '', url)
                     window.dispatchEvent(new CustomEvent('grid-view:navigated'))
                     window.dispatchEvent(new CustomEvent('page-context:sync'))
@@ -2327,6 +2478,8 @@ class GridViewController extends Controller {
                 this.captureStickyParamsFromUrl(finalUrl.toString())
 
                 // Navigate the frame by setting src to gridData URL
+                tableFrame.dataset.gridCurrentSrc = gridDataUrl
+                tableFrame.setAttribute('aria-busy', 'true')
                 tableFrame.src = gridDataUrl
             } else {
                 console.warn('Table frame not found, falling back to full page navigation')
@@ -2761,7 +2914,7 @@ class GridViewController extends Controller {
         }
 
         // Get the base grid-data URL from the frame's src
-        const currentSrc = tableFrame.getAttribute('src') || tableFrame.dataset.gridSrc || tableFrame.src
+        const currentSrc = this.currentFrameUrl(tableFrame)
         if (!currentSrc) {
             console.warn('Table frame has no src attribute')
             return

@@ -75,7 +75,7 @@ class AwardsBestowalTodos extends Controller {
 
         const bestowalId = event.detail?.id ?? this.extractBestowalIdFromTrigger(trigger);
         if (bestowalId) {
-            this.loadTodos(bestowalId);
+            this.loadTodos(bestowalId, trigger);
         }
     }
 
@@ -83,7 +83,7 @@ class AwardsBestowalTodos extends Controller {
     handleModalShow(event) {
         const bestowalId = this.extractBestowalIdFromTrigger(event.relatedTarget);
         if (bestowalId) {
-            this.loadTodos(bestowalId);
+            this.loadTodos(bestowalId, event.relatedTarget);
         }
     }
 
@@ -118,8 +118,8 @@ class AwardsBestowalTodos extends Controller {
         return this.element.querySelector("#bestowalTodosQuick");
     }
 
-    /** @param {string|number} bestowalId */
-    loadTodos(bestowalId) {
+    /** Load a checklist with a signed return to the originating grid or detail page. */
+    loadTodos(bestowalId, trigger = null) {
         if (!bestowalId || !this.turboFrameUrlValue) {
             return;
         }
@@ -129,7 +129,30 @@ class AwardsBestowalTodos extends Controller {
             return;
         }
 
-        const url = `${this.turboFrameUrlValue}/${bestowalId}`;
+        const requestUrl = new URL(`${this.turboFrameUrlValue}/${bestowalId}`, window.location.origin);
+        const pageUrl = new URL(window.location.href);
+        const grid = trigger?.closest('[data-controller~="grid-view"]');
+        const tableFrame = grid?.querySelector('turbo-frame[id$="-table"]');
+        const gridSrc = tableFrame?.dataset.gridCurrentSrc
+            || tableFrame?.getAttribute('src')
+            || tableFrame?.dataset.gridSrc;
+        if (gridSrc) {
+            const gridUrl = new URL(gridSrc, window.location.origin);
+            if (gridUrl.origin === window.location.origin) {
+                const tab = pageUrl.searchParams.get('tab');
+                pageUrl.search = gridUrl.search;
+                pageUrl.searchParams.delete('tab');
+                ['frame_id', 'member_id', 'branch_id', 'gathering_id'].forEach(key => pageUrl.searchParams.delete(key));
+                if (tab) {
+                    pageUrl.searchParams.set('tab', tab);
+                }
+                if (grid.dataset.gridViewSyncUrlValue === 'false' || grid.closest('[role="tabpanel"]')) {
+                    pageUrl.searchParams.set('grid_context', tableFrame.id.slice(0, -'-table'.length));
+                }
+            }
+        }
+        requestUrl.searchParams.set('page_context_url', pageUrl.pathname + pageUrl.search);
+        const url = requestUrl.pathname + requestUrl.search;
         const loadingId = String(bestowalId);
         const currentFrameUrl = frame.getAttribute("src") || frame.src;
         if (frame.dataset.bestowalTodosLoadingId === loadingId && currentFrameUrl === url) {

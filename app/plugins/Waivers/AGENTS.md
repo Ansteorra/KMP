@@ -17,6 +17,7 @@ Own gathering waiver tracking: waiver types, gathering waivers, file upload hand
 - Waiver state changes belong in `WaiverStateService`.
 - File handling belongs in `WaiverFileService`; do not duplicate upload/storage validation in controllers.
 - Dashboard and mobile-specific behavior belongs in `WaiverDashboardService` and `WaiverMobileService`.
+- Dashboard compliance is based on gathering end date: due through day 30, past due on day 31. Include all older incomplete gatherings, including partial submissions; branch counts and detail modals must use the same past-due records. Mobile selection orders authorized open gatherings by oldest end date first.
 - Settings use `Waivers.*` and `Plugin.Waivers.*` keys through `StaticHelpers`.
 - Plugin CSS entries are wired in `app/vite.config.js` for `waivers` and `waiver-upload`.
 

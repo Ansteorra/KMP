@@ -33,6 +33,7 @@ class TurboModal extends Controller {
         this.modalTrigger = null;
         this.captureModalTriggerListener = this.captureModalTrigger.bind(this);
         this.modalHideCleanup = null;
+        this.gridRefreshCleanup = null;
     }
 
     /**
@@ -53,6 +54,8 @@ class TurboModal extends Controller {
         );
         this.modalHideCleanup?.();
         this.modalHideCleanup = null;
+        this.gridRefreshCleanup?.();
+        this.gridRefreshCleanup = null;
     }
 
     /** Remember the control that opened the modal for focus restoration. */
@@ -115,23 +118,29 @@ class TurboModal extends Controller {
             if (contentType.includes('text/vnd.turbo-stream.html') || body.includes('<turbo-stream')) {
                 const focusPlan = response.ok ? this.createStreamFocusPlan(body) : null;
                 const streamIncludesLiveFeedback = this.streamIncludesLiveFeedback(body);
+                const refresh = response.ok
+                    ? this.prepareGridRefreshStreams(body)
+                    : { html: body, frameIds: [] };
                 let streamRendered = true;
                 if (response.ok) {
                     await this.closeModalAndWait();
                 }
+                const refreshed = this.waitForGridRefresh(refresh.frameIds);
                 try {
-                    this.renderTurboStream(body);
+                    this.renderTurboStream(refresh.html);
                 } catch (renderError) {
                     if (!response.ok) {
                         throw renderError;
                     }
                     console.error('Unable to render successful modal response:', renderError);
                     streamRendered = false;
+                    this.gridRefreshCleanup?.();
                     if (!this.showFallbackSuccess()) {
                         this.announceSuccess();
                     }
                 }
                 if (response.ok) {
+                    await refreshed;
                     await this.restoreFocusAfterStream(focusPlan);
                     if (streamRendered && !streamIncludesLiveFeedback) {
                         this.announceSuccess();
@@ -168,10 +177,128 @@ class TurboModal extends Controller {
 
     /** Sync hidden page context to the visible browser URL before posting. */
     syncPageContext() {
-        const input = this.element.querySelector('input[name="page_context_url"]');
-        if (input && input.dataset.pageContextStatic !== 'true') {
-            input.value = window.location.pathname + window.location.search;
+        const gridSelector = '[data-controller~="grid-view"]';
+        const sourceFrame = this.modalTrigger?.closest('turbo-frame') ?? this.element.closest('turbo-frame');
+        const frameGrids = sourceFrame?.querySelectorAll(gridSelector);
+        const source = this.modalTrigger?.closest(gridSelector)
+            ?? this.modalTrigger?.closest('[role="tabpanel"]')?.querySelector(gridSelector)
+            ?? this.element.closest(gridSelector)
+            ?? this.element.closest('[role="tabpanel"]')?.querySelector(gridSelector)
+            ?? (frameGrids?.length === 1 ? frameGrids[0] : null);
+        const frame = source?.querySelector('turbo-frame[id$="-table"]');
+        const src = this.gridFrameSource(frame);
+        const url = new URL(window.location.href);
+        if (src) {
+            const gridUrl = new URL(src, window.location.origin);
+            if (gridUrl.origin === window.location.origin) {
+                const tab = url.searchParams.get('tab');
+                url.search = gridUrl.search;
+                url.searchParams.delete('tab');
+                ['frame_id', 'member_id', 'branch_id', 'gathering_id'].forEach(key => url.searchParams.delete(key));
+                if (tab) {
+                    url.searchParams.set('tab', tab);
+                }
+                if (source.dataset.gridViewSyncUrlValue === 'false' || source.closest('[role="tabpanel"]')) {
+                    url.searchParams.set('grid_context', frame.id.slice(0, -'-table'.length));
+                }
+            }
         }
+        this.element.querySelectorAll(
+            'input[name="page_context_url"]',
+        ).forEach((input) => {
+            if (input.dataset.pageContextStatic !== 'true') {
+                input.value = url.pathname + url.search;
+            }
+        });
+    }
+
+    /** Return the most recently loaded grid URL, including a clamped page. */
+    gridFrameSource(frame) {
+        return frame?.dataset.gridCurrentSrc
+            || frame?.getAttribute('src')
+            || frame?.dataset.gridSrc
+            || null;
+    }
+
+    /** Refresh affected grid pages once so row order, membership, and counts stay current. */
+    prepareGridRefreshStreams(streamHtml) {
+        const fragment = document.createElement('template');
+        fragment.innerHTML = streamHtml;
+        const frameIds = new Set();
+
+        fragment.content.querySelectorAll('turbo-stream[target]').forEach((stream) => {
+            const action = stream.getAttribute('action');
+            if (action !== 'replace' && action !== 'remove' && action !== 'update') {
+                return;
+            }
+            const target = document.getElementById(stream.getAttribute('target'));
+            const frame = target?.matches('turbo-frame[id$="-table"]')
+                ? target
+                : target?.matches('tr') ? target.closest('turbo-frame[id$="-table"]') : null;
+            if (!frame?.closest('[data-controller~="grid-view"]')) {
+                return;
+            }
+            const src = this.gridFrameSource(frame);
+            if (!src) {
+                return;
+            }
+            const url = new URL(src, window.location.origin);
+            if (url.origin !== window.location.origin) {
+                return;
+            }
+            if (frameIds.has(frame.id)) {
+                stream.remove();
+                return;
+            }
+            frameIds.add(frame.id);
+            stream.setAttribute('action', 'replace');
+            stream.setAttribute('target', frame.id);
+            const template = document.createElement('template');
+            const replacement = document.createElement('turbo-frame');
+            replacement.id = frame.id;
+            replacement.setAttribute('src', url.pathname + url.search);
+            const loading = document.createElement('div');
+            loading.className = 'text-center p-3';
+            loading.setAttribute('role', 'status');
+            loading.textContent = 'Loading grid...';
+            replacement.append(loading);
+            template.content.append(replacement);
+            stream.replaceChildren(template);
+        });
+
+        return { html: frameIds.size ? fragment.innerHTML : streamHtml, frameIds: [...frameIds] };
+    }
+
+    /** Wait for refreshed tables before restoring focus; errors and disconnects release the wait. */
+    waitForGridRefresh(frameIds) {
+        if (!frameIds.length) {
+            return Promise.resolve();
+        }
+        this.gridRefreshCleanup?.();
+        return new Promise((resolve) => {
+            const pending = new Set(frameIds);
+            const cleanup = () => {
+                document.removeEventListener('turbo:frame-load', loaded);
+                document.removeEventListener('turbo:frame-missing', loaded);
+                document.removeEventListener('turbo:fetch-request-error', loaded);
+                window.clearTimeout(timeoutId);
+                if (this.gridRefreshCleanup === cleanup) {
+                    this.gridRefreshCleanup = null;
+                }
+                resolve();
+            };
+            const loaded = (event) => {
+                pending.delete(event.target.id);
+                if (!pending.size) {
+                    cleanup();
+                }
+            };
+            document.addEventListener('turbo:frame-load', loaded);
+            document.addEventListener('turbo:frame-missing', loaded);
+            document.addEventListener('turbo:fetch-request-error', loaded);
+            const timeoutId = window.setTimeout(cleanup, 5000);
+            this.gridRefreshCleanup = cleanup;
+        });
     }
 
     /**
@@ -300,6 +427,11 @@ class TurboModal extends Controller {
         const currentTarget = document.getElementById(targetId);
         return {
             targetId,
+            nextTargetId: currentTarget?.nextElementSibling?.id,
+            previousTargetId: currentTarget?.previousElementSibling?.id,
+            containerId: currentTarget?.closest(
+                'turbo-frame, [data-controller~="grid-view"], table',
+            )?.id,
             nextTarget: this.findFocusable(currentTarget?.nextElementSibling)
                 ?? currentTarget?.nextElementSibling,
             previousTarget: this.findFocusable(currentTarget?.previousElementSibling)
@@ -343,9 +475,12 @@ class TurboModal extends Controller {
             : null;
         const target = this.findFocusable(replacement)
             ?? replacement
+            ?? document.getElementById(focusPlan.nextTargetId)
+            ?? document.getElementById(focusPlan.previousTargetId)
             ?? this.connectedElement(focusPlan.nextTarget)
             ?? this.connectedElement(focusPlan.previousTarget)
             ?? this.connectedElement(focusPlan.trigger)
+            ?? document.getElementById(focusPlan.containerId)
             ?? this.connectedElement(focusPlan.container);
 
         if (!(target instanceof HTMLElement)) {

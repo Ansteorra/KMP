@@ -94,6 +94,34 @@ class NavigationHistoryTest extends HttpIntegrationTestCase
         $this->assertSame($this->history, $this->recordedHistory);
     }
 
+    public function testRecordNavigationPreservesTheLiveGridReturnUrl(): void
+    {
+        $this->session(['pageStack' => ['/members'], 'pageStackVersion' => 2]);
+        $returnUrl = '/members?page=3&limit=10&search=Iris&filter%5Bstatus%5D%5B%5D=active';
+        $this->configRequest(['headers' => ['Referer' => 'http://localhost' . $returnUrl]]);
+        $this->get('/members/view/' . self::ADMIN_MEMBER_ID);
+        $this->assertResponseOk();
+        $this->assertSame([$returnUrl, '/members/view/' . self::ADMIN_MEMBER_ID], $this->recordedHistory);
+    }
+
+    public function testAnotherOriginCannotReplaceTheGridReturnUrl(): void
+    {
+        $this->session(['pageStack' => ['/members'], 'pageStackVersion' => 2]);
+        $this->configRequest(['headers' => ['Referer' => 'http://another-tenant.example/members?page=3']]);
+        $this->get('/members/view/' . self::ADMIN_MEMBER_ID);
+        $this->assertResponseOk();
+        $this->assertSame(['/members', '/members/view/' . self::ADMIN_MEMBER_ID], $this->recordedHistory);
+    }
+
+    public function testUnrelatedReferrerDoesNotReplaceThePriorDocument(): void
+    {
+        $this->session(['pageStack' => ['/members'], 'pageStackVersion' => 2]);
+        $this->configRequest(['headers' => ['Referer' => 'http://localhost/awards/recommendations?page=3']]);
+        $this->get('/members/view/' . self::ADMIN_MEMBER_ID);
+        $this->assertResponseOk();
+        $this->assertSame(['/members', '/members/view/' . self::ADMIN_MEMBER_ID], $this->recordedHistory);
+    }
+
     public function testCalendarDownloadDoesNotEnterHistory(): void
     {
         $gathering = $this->getTableLocator()->get('Gatherings')->find()->firstOrFail();

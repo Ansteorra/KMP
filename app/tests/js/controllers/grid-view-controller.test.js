@@ -33,6 +33,8 @@ describe('GridViewController', () => {
         controller.hasStickyDefaultValue = false;
         controller.stickyDefaultValue = null;
         controller.stickyQueryValue = '';
+        controller.syncUrlValue = true;
+        controller.hasPageSizeTarget = false;
     });
 
     afterEach(() => {
@@ -154,6 +156,265 @@ describe('GridViewController', () => {
     test('has correct static values', () => {
         expect(GridViewController.values).toHaveProperty('stickyQuery', String);
         expect(GridViewController.values).toHaveProperty('stickyDefault', Object);
+        expect(GridViewController.values.syncUrl.default).toBe(true);
+    });
+
+    test('row count changes keep the selected view and filters while resetting pagination', () => {
+        window.history.replaceState({}, '', '/members?view_id=4&page=3&filter[status][]=verified&sort=sca_name&direction=asc');
+        controller.navigate = jest.fn();
+        controller.changePageSize({ currentTarget: { value: '50' } });
+        const url = new URL(controller.navigate.mock.calls[0][0], window.location.origin);
+        expect(url.searchParams.get('limit')).toBe('50');
+        expect(url.searchParams.has('page')).toBe(false);
+        expect(url.searchParams.get('view_id')).toBe('4');
+        expect(url.searchParams.get('filter[status][]')).toBe('verified');
+        expect(url.searchParams.get('sort')).toBe('sca_name');
+    });
+
+    test('saved row count updates the selector and retains focus in the persistent toolbar', () => {
+        controller.element.insertAdjacentHTML('afterbegin', '<label for="page-size">Rows per page</label><select id="page-size"><option>25</option><option>50</option></select>');
+        controller.hasPageSizeTarget = true;
+        controller.pageSizeTarget = controller.element.querySelector('select');
+        controller.pageSizeTarget.focus();
+        controller.state = {
+            filters: { active: {} }, sort: {}, columns: { visible: ['name'] },
+            config: { pageSize: 15 }, search: ''
+        };
+        controller.updatePageSize();
+        expect(controller.pageSizeTarget.value).toBe('15');
+        expect(document.activeElement).toBe(controller.pageSizeTarget);
+        expect(controller.getCurrentConfig().pageSize).toBe(15);
+        controller.state.config.pageSize = 50;
+        controller.updatePageSize();
+        expect(controller.pageSizeTarget.value).toBe('50');
+        expect(controller.getCurrentConfig().pageSize).toBe(50);
+    });
+
+    test('frame refresh records the effective clamped page and selected row count', () => {
+        window.history.replaceState({}, '', '/members?view_id=4&page=3&filter[status][]=verified');
+        const frame = controller.element.querySelector('turbo-frame');
+        frame.setAttribute('src', '/members/grid-data?view_id=4&page=3&filter[status][]=verified');
+        controller.state = { config: { pageSize: 50 }, pagination: { currentPage: 2 } };
+        const syncSpy = jest.fn();
+        window.addEventListener('page-context:sync', syncSpy);
+        controller.syncFrameLocation(frame);
+        expect(window.location.pathname).toBe('/members');
+        expect(new URLSearchParams(window.location.search).get('page')).toBe('2');
+        expect(new URLSearchParams(window.location.search).get('limit')).toBe('50');
+        expect(new URLSearchParams(window.location.search).get('filter[status][]')).toBe('verified');
+        expect(new URL(controller.currentFrameUrl(frame), window.location.origin).searchParams.get('page')).toBe('2');
+        expect(syncSpy).toHaveBeenCalledTimes(1);
+        window.removeEventListener('page-context:sync', syncSpy);
+    });
+
+    test('calendar frame refresh synchronizes sticky context without adding pagination', () => {
+        window.history.replaceState({}, '', '/gatherings/calendar?year=2026&month=9');
+        const frame = controller.element.querySelector('turbo-frame');
+        frame.dataset.gridSrc = '/gatherings/calendar-data?year=2026&month=10&filter[branch_id][]=2';
+        controller.state = { config: { disablePagination: true }, pagination: null };
+        controller.syncFrameLocation(frame);
+        const params = new URLSearchParams(window.location.search);
+        expect(params.get('month')).toBe('10');
+        expect(params.get('filter[branch_id][]')).toBe('2');
+        expect(params.has('limit')).toBe(false);
+    });
+
+    test('detail tab frame updates leave the host URL alone even when the controller default syncs URLs', () => {
+        window.history.replaceState({}, '', '/members/view/7?tab=officers');
+        const panel = document.createElement('div');
+        panel.setAttribute('role', 'tabpanel');
+        controller.element.before(panel);
+        panel.append(controller.element);
+        const frame = controller.element.querySelector('turbo-frame');
+        frame.setAttribute('src', '/officers/officers/grid-data?member_id=7&page=3&limit=50');
+        controller.state = { config: { pageSize: 50 }, pagination: { currentPage: 3 } };
+        controller.syncFrameLocation(frame);
+        expect(controller.syncsBrowserUrl).toBe(false);
+        expect(window.location.search).toBe('?tab=officers');
+        const params = new URL(controller.buildUrl({ sort: 'name' }), window.location.origin).searchParams;
+        expect(params.has('member_id')).toBe(false);
+        expect(params.get('tab')).toBe('officers');
+        expect(params.get('grid_context')).toBe('members');
+        expect(params.get('page')).toBe('3');
+    });
+
+    test('embedded grids retain independent page and filters without changing the host URL', () => {
+        window.history.replaceState({}, '', '/members/view/7?tab=roles');
+        controller.syncUrlValue = false;
+        const frame = controller.element.querySelector('turbo-frame');
+        frame.setAttribute('src', '/members/roles-grid-data/7?page=3&limit=10&filter[role_id][]=4');
+        controller.state = { config: { pageSize: 10 }, pagination: { currentPage: 2 } };
+        controller.syncFrameLocation(frame);
+        expect(window.location.href).toContain('/members/view/7?tab=roles');
+        const url = new URL(controller.buildUrl({ limit: 50, page: null }), window.location.origin);
+        expect(url.searchParams.get('filter[role_id][]')).toBe('4');
+        expect(url.searchParams.get('limit')).toBe('50');
+        expect(url.searchParams.get('tab')).toBe('roles');
+        expect(url.searchParams.get('grid_context')).toBe('members');
+        controller.handlePopState();
+        expect(new URL(controller.currentFrameUrl(frame), window.location.origin).searchParams.get('page')).toBe('2');
+    });
+
+    function embeddedSavedView() {
+        window.history.replaceState({}, '', '/members/view/7?tab=roles&search=Sibling&view_id=foreign#member-details');
+        controller.syncUrlValue = false;
+        const frame = controller.element.querySelector('turbo-frame');
+        frame.id = 'member-roles-grid-table';
+        frame.src = '/members/roles-grid-data/7?page=99&limit=25';
+        frame.dataset.gridCurrentSrc = '/members/roles-grid-data/7?member_id=7&branch_id=2&gathering_id=11&frame_id=member-roles-grid&page=3&limit=50&search=Knight&view_id=own-view&filter[role_id][]=4&sort=name&direction=desc';
+        controller.state = {
+            view: { currentId: 'own-view' },
+            config: { gridKey: 'Members.roles', pageSize: 50 },
+            filters: { active: { role_id: ['4'] } },
+            sort: { field: 'name', direction: 'desc' },
+            columns: { visible: ['name'] }, search: 'Knight'
+        };
+        global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { view: { id: 'new-view' } } }) });
+        return frame;
+    }
+
+    function expectOwnSavedQuery(url) {
+        expect(url.searchParams.get('page')).toBe('3');
+        expect(url.searchParams.get('limit')).toBe('50');
+        expect(url.searchParams.get('search')).toBe('Knight');
+        expect(url.searchParams.getAll('filter[role_id][]')).toEqual(['4']);
+        expect(url.searchParams.get('sort')).toBe('name');
+        expect(url.searchParams.get('direction')).toBe('desc');
+    }
+
+    test.each(['saveView', 'deleteView'])('%s navigates the host with its own marked grid state and detail tab', async method => {
+        embeddedSavedView();
+        window.KMP_accessibility.prompt.mockResolvedValue('Knight roles');
+        const navigate = jest.spyOn(controller, 'navigate');
+        const replaceState = jest.spyOn(window.history, 'replaceState');
+
+        await controller[method]();
+
+        expect(navigate).toHaveBeenCalledTimes(1);
+        expect(navigate.mock.calls[0][1]).toBe(true);
+        const url = new URL(navigate.mock.calls[0][0], window.location.origin);
+        expect(url.pathname).toBe('/members/view/7');
+        expect(url.hash).toBe('#member-details');
+        expect(url.searchParams.get('tab')).toBe('roles');
+        expect(url.searchParams.get('grid_context')).toBe('member-roles-grid');
+        expect(url.searchParams.get('view_id')).toBe(method === 'saveView' ? 'new-view' : null);
+        expectOwnSavedQuery(url);
+        ['frame_id', 'member_id', 'branch_id', 'gathering_id'].forEach(key => expect(url.searchParams.has(key)).toBe(false));
+        if (method === 'saveView') expect(JSON.parse(fetch.mock.calls[0][1].body).config.pageSize).toBe(50);
+        expect(replaceState).toHaveBeenCalledTimes(1);
+        const previous = new URL(replaceState.mock.calls[0][2], window.location.origin);
+        expectOwnSavedQuery(previous);
+        expect(previous.searchParams.get('view_id')).toBe('own-view');
+        expect(previous.searchParams.get('grid_context')).toBe('member-roles-grid');
+        expect(previous.searchParams.get('tab')).toBe('roles');
+        expect(previous.hash).toBe('#member-details');
+    });
+
+    test.each(['setDefault', 'clearDefault'])('%s refreshes its own embedded frame while preserving endpoint identities', async method => {
+        const frame = embeddedSavedView();
+        const hostUrl = window.location.href;
+
+        await controller[method]();
+
+        const url = new URL(frame.src, window.location.origin);
+        expectOwnSavedQuery(url);
+        expect(url.pathname).toBe('/members/roles-grid-data/7');
+        expect(url.searchParams.get('view_id')).toBe('own-view');
+        expect(url.searchParams.get('member_id')).toBe('7');
+        expect(url.searchParams.get('branch_id')).toBe('2');
+        expect(url.searchParams.get('gathering_id')).toBe('11');
+        expect(url.searchParams.get('frame_id')).toBe('member-roles-grid');
+        expect(url.searchParams.has('grid_context')).toBe(false);
+        expect(window.location.href).toBe(hostUrl);
+    });
+
+    test('primary grid URL builders retain their existing unmarked navigation shape', () => {
+        window.history.replaceState({}, '', '/members?search=Knight#details');
+        expect(controller.buildUrl({ view_id: 'new-view' })).toBe('/members?search=Knight&view_id=new-view');
+    });
+
+    test('external embedded frame URLs cannot replace the host query', () => {
+        const frame = embeddedSavedView();
+        frame.dataset.gridCurrentSrc = 'https://example.test/grid?page=3&limit=50';
+
+        expect(controller.currentGridUrl().href).toBe(window.location.href);
+    });
+
+    test('the current default detail tab clears a stale tab from the embedded frame query', () => {
+        const frame = embeddedSavedView();
+        frame.dataset.gridCurrentSrc += '&tab=previous-tab';
+        window.history.replaceState({}, '', '/members/view/7#member-details');
+
+        const url = new URL(controller.buildUrl({ view_id: 'new-view' }), window.location.origin);
+        expect(url.searchParams.has('tab')).toBe(false);
+        expect(url.searchParams.get('grid_context')).toBe('member-roles-grid');
+        expect(url.hash).toBe('#member-details');
+        expectOwnSavedQuery(url);
+    });
+
+    test('pagination records browser history and Back reloads the former page', () => {
+        window.history.replaceState({}, '', '/members?limit=10&page=2&filter[status][]=verified');
+        const frame = controller.element.querySelector('turbo-frame');
+        frame.dataset.gridSrc = '/members/grid-data?limit=10&page=2&filter[status][]=verified';
+        frame.insertAdjacentHTML('beforeend', '<div class="paginator"><a href="/members/grid-data?limit=10&page=3&filter[status][]=verified">3</a></div>');
+        const pushSpy = jest.spyOn(window.history, 'pushState');
+        const event = { target: frame.querySelector('a'), button: 0, preventDefault: jest.fn() };
+        controller.handlePaginationClick(event);
+        expect(event.preventDefault).toHaveBeenCalled();
+        expect(pushSpy).toHaveBeenCalledTimes(1);
+        expect(new URLSearchParams(window.location.search).get('page')).toBe('3');
+        window.history.replaceState({}, '', '/members?limit=10&page=2&filter[status][]=verified');
+        controller.handlePopState();
+        expect(new URL(frame.src, window.location.origin).searchParams.get('page')).toBe('2');
+        expect(new URL(frame.src, window.location.origin).searchParams.get('filter[status][]')).toBe('verified');
+        expect(pushSpy).toHaveBeenCalledTimes(1);
+    });
+
+    test('keyboard pagination restores visible focus to the current page after table replacement', () => {
+        const frame = controller.element.querySelector('turbo-frame');
+        frame.dataset.gridSrc = '/members/grid-data?page=2';
+        frame.insertAdjacentHTML('beforeend', '<div class="paginator"><a href="/members/grid-data?page=3">3</a></div>');
+        const link = frame.querySelector('a');
+        link.focus();
+        controller.handlePaginationClick({ target: link, button: 0, preventDefault() {} });
+        frame.innerHTML = '<div class="paginator"><ul class="pagination"><li class="active"><span class="page-link" aria-current="page">3</span></li><li><a href="?page=4">4</a></li></ul></div>';
+        controller.restorePaginationFocus(frame);
+        expect(document.activeElement).toHaveTextContent('3');
+        expect(document.activeElement).toHaveAttribute('tabindex', '-1');
+        expect(document.activeElement).toHaveClass('focus-ring');
+        expect(controller.paginationFocusPending).toBeNull();
+    });
+
+    test('pagination refresh retains focus when the user moved to another toolbar control', () => {
+        const frame = controller.element.querySelector('turbo-frame');
+        frame.dataset.gridSrc = '/members/grid-data?page=2';
+        frame.insertAdjacentHTML('beforeend', '<div class="paginator"><a href="/members/grid-data?page=3">3</a></div>');
+        const link = frame.querySelector('a');
+        link.focus();
+        controller.handlePaginationClick({ target: link, button: 0, preventDefault() {} });
+        controller.searchInputTarget.focus();
+        frame.innerHTML = '<div class="paginator"><a aria-current="page" href="?page=3">3</a></div>';
+        controller.restorePaginationFocus(frame);
+        expect(document.activeElement).toBe(controller.searchInputTarget);
+        expect(controller.paginationFocusPending).toBeNull();
+    });
+
+    test('disconnect cleans up the delegated pagination listener', () => {
+        controller.connect();
+        const removeSpy = jest.spyOn(controller.element, 'removeEventListener');
+        controller.disconnect();
+        expect(removeSpy).toHaveBeenCalledWith('click', controller.boundPaginationClick);
+    });
+
+    test('failed frame requests clear the busy state without moving focus', () => {
+        const frame = controller.element.querySelector('turbo-frame');
+        frame.setAttribute('aria-busy', 'true');
+        controller.searchInputTarget.focus();
+        controller.setSearchBusy(true);
+        controller.handleFrameError({ target: frame });
+        expect(frame).not.toHaveAttribute('aria-busy');
+        expect(controller.searchInputTarget).toHaveAttribute('aria-busy', 'false');
+        expect(document.activeElement).toBe(controller.searchInputTarget);
     });
 
     test('updateViewTabs renders views when the save action is outside the tablist', () => {

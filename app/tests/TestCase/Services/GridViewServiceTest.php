@@ -99,6 +99,24 @@ class GridViewServiceTest extends BaseTestCase
         $this->assertFalse($result->is_system_default);
     }
 
+    public function testPageSizePersistsWhenSavingAndUpdatingViews(): void
+    {
+        $member = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);
+        $created = $this->service->createView([
+            'grid_key' => 'Members.index',
+            'name' => 'Rows per page ' . uniqid(),
+            'config' => json_encode(['pageSize' => 50]),
+        ], $member);
+        $this->assertNotFalse($created);
+        $this->assertSame(50, $created->getConfigArray()['pageSize']);
+
+        $updated = $this->service->updateView($created->id, [
+            'config' => json_encode(['pageSize' => 100]),
+        ], $member);
+        $this->assertNotFalse($updated);
+        $this->assertSame(100, $this->service->getView($created->id, $member)->getConfigArray()['pageSize']);
+    }
+
     public function testGetViewReturnsOwnedView(): void
     {
         $member = $this->Members->get(self::TEST_MEMBER_BRYCE_ID);

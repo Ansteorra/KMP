@@ -428,6 +428,23 @@ class AppController extends Controller
             static fn($url) => is_string($url) && str_starts_with($url, '/') && !str_starts_with($url, '//'),
         ));
         $url = $this->request->getRequestTarget();
+        // Frame navigation updates the browser URL without another document GET.
+        // Keep the prior document's live query when navigating away from that page.
+        $referer = parse_url($this->request->getHeaderLine('Referer'));
+        $uri = $this->request->getUri();
+        $lastIndex = array_key_last($stack);
+        if (
+            $lastIndex !== null && is_array($referer)
+            && ($referer['scheme'] ?? '') === $uri->getScheme()
+            && strcasecmp($referer['host'] ?? '', $uri->getHost()) === 0
+            && ($referer['port'] ?? null) === $uri->getPort()
+            && ($referer['path'] ?? '') === parse_url($stack[$lastIndex], PHP_URL_PATH)
+            && !str_contains($this->request->getHeaderLine('Referer'), "\n")
+            && !str_contains($this->request->getHeaderLine('Referer'), "\r")
+        ) {
+            $stack[$lastIndex] = $referer['path']
+                . (isset($referer['query']) ? '?' . $referer['query'] : '');
+        }
         if ($this->request->getParam('action') === 'index') {
             $stack = [];
         }

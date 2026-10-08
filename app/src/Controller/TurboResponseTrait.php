@@ -48,7 +48,7 @@ trait TurboResponseTrait
     protected function assertSafeContextUrl(string $url): string
     {
         $url = trim($url);
-        if ($url === '' || str_contains($url, '://') || str_starts_with($url, '//')) {
+        if ($url === '' || str_contains($url, '://') || str_starts_with($url, '//') || str_contains($url, '\\')) {
             throw new BadRequestException('Invalid page context URL.');
         }
 

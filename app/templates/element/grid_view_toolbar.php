@@ -1,5 +1,7 @@
 <?php
 
+use App\KMP\GridViewConfig;
+
 /**
  * Grid View Toolbar Element - Dumb Container Version
  * 
@@ -33,6 +35,10 @@ $enableColumnPicker = $gridState['config']['enableColumnPicker'] ?? true;
 $dateRangeFilterColumns = $gridState['dateRangeFilterColumns'] ?? [];
 $enableBulkSelection = $gridState['config']['enableBulkSelection'] ?? false;
 $bulkActions = $gridState['config']['bulkActions'] ?? [];
+$disablePagination = $gridState['config']['disablePagination'] ?? false;
+$pageSize = $gridState['config']['pageSize'] ?? GridViewConfig::DEFAULT_PAGE_SIZE;
+$pageSizes = array_unique([...GridViewConfig::PAGE_SIZE_OPTIONS, $pageSize]);
+sort($pageSizes);
 
 // Build searchable columns description from column metadata
 $allColumns = $gridState['columns']['all'] ?? [];
@@ -101,8 +107,20 @@ $searchDescription = !empty($searchableLabels)
         </div>
 
         <!-- Right: Filter Dropdown Button and Export -->
-        <?php if ($canFilter || $canExportCsv || ($enableBulkSelection && !empty($bulkActions))): ?>
-            <div class="d-flex gap-2 align-items-center flex-shrink-0">
+        <?php if (!$disablePagination || $canFilter || $canExportCsv || ($enableBulkSelection && !empty($bulkActions))): ?>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <?php if (!$disablePagination): ?>
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="text-nowrap" for="<?= $gridKeyEscaped ?>-page-size"><?= __('Rows per page') ?></label>
+                        <select id="<?= $gridKeyEscaped ?>-page-size" class="form-select w-auto"
+                            data-<?= h($controllerName) ?>-target="pageSize"
+                            data-action="change-><?= h($controllerName) ?>#changePageSize">
+                            <?php foreach ($pageSizes as $size): ?>
+                                <option value="<?= h($size) ?>" <?= $size === $pageSize ? 'selected' : '' ?>><?= h($size) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                <?php endif; ?>
                 <!-- Bulk Action Buttons (enabled via JS when rows are selected) -->
                 <?php if ($enableBulkSelection && !empty($bulkActions)): ?>
                     <?php foreach ($bulkActions as $action): ?>

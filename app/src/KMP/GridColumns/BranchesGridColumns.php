@@ -59,6 +59,7 @@ class BranchesGridColumns extends BaseGridColumns
                 'sortable' => false,
                 'filterable' => false,
                 'searchable' => true,
+                'queryField' => 'Branches.name',
                 'defaultVisible' => true,
                 'required' => true,
                 'width' => '300px',

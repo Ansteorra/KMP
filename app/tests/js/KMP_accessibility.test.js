@@ -1,4 +1,5 @@
 import KMPAccessibility from '../../assets/js/KMP_accessibility.js';
+import '../../assets/js/controllers/page-context-controller.js';
 
 describe('KMP_accessibility dialogs', () => {
     class ModalMock {
@@ -63,5 +64,37 @@ describe('KMP_accessibility dialogs', () => {
         modal.querySelector('[data-dialog-cancel]').click();
         await expect(result).resolves.toBe(false);
         expect(document.activeElement).toBe(trigger);
+    });
+
+    test('confirmed Cake postLinks prepare the embedded grid URL before native submission', async () => {
+        window.history.replaceState({}, '', '/members/view/member-id?tab=officers');
+        document.body.innerHTML = `
+            <div data-controller="grid-view" data-grid-view-sync-url-value="false">
+                <turbo-frame id="member-officers-grid-table" data-grid-current-src="/officers/officers/grid-data?page=3&amp;limit=50&amp;frame_id=member-officers-grid">
+                    <form name="gridPostForm" action="/officers/officers/request-warrant/officer-id"></form>
+                    <a id="post-link" href="/officers/officers/request-warrant/officer-id" data-confirm-message="Request warrant?" onclick="document.gridPostForm.requestSubmit(); return false;">Request Warrant</a>
+                </turbo-frame>
+            </div>
+        `;
+        const controller = new window.Controllers['page-context']();
+        controller.connect();
+        const submit = jest.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(function () {
+            const origin = new URL(window.location.href);
+            expect(this).toBe(document.forms.gridPostForm);
+            expect(origin.searchParams.get('page')).toBe('3');
+            expect(origin.searchParams.get('limit')).toBe('50');
+            expect(origin.searchParams.get('tab')).toBe('officers');
+            expect(origin.searchParams.has('frame_id')).toBe(false);
+        });
+        try {
+            KMPAccessibility.installCakeConfirmAdapter();
+            document.getElementById('post-link').click();
+            document.querySelector('[data-dialog-confirm]').click();
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(submit).toHaveBeenCalledTimes(1);
+        } finally {
+            controller.disconnect();
+            submit.mockRestore();
+        }
     });
 });

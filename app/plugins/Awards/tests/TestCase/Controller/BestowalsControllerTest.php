@@ -366,6 +366,48 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
         $this->assertRedirectContains('/awards/bestowals/view/123');
     }
 
+    public function testAdHocPreservesValidatedGridReturnQuery(): void
+    {
+        $this->ensureActiveWorkflow('awards-bestowal-ad-hoc');
+        $this->mockServiceClean(TriggerDispatcher::class, function () {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->exactly(2))->method('dispatch')->willReturnCallback(
+                function (string $event): array {
+                    if ($event === 'Awards.AdHocBestowalRequested') {
+                        return [$this->successfulWorkflowDispatchResult([
+                            'bestowalId' => self::ADMIN_MEMBER_ID,
+                        ])];
+                    }
+
+                    return [];
+                },
+            );
+
+            return $mock;
+        });
+        $context = '/awards/bestowals?page=3&limit=50&filter[status][]=open';
+        $this->post('/awards/bestowals/ad-hoc', [
+            'page_context_url' => $context,
+        ]);
+
+        $this->assertRedirect($context);
+    }
+
+    public function testAdHocRejectsExternalGridReturnBeforeMutation(): void
+    {
+        $this->mockServiceClean(TriggerDispatcher::class, function () {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->never())->method('dispatch');
+
+            return $mock;
+        });
+        $this->post('/awards/bestowals/ad-hoc', [
+            'page_context_url' => 'https://example.test/away',
+        ]);
+
+        $this->assertResponseCode(400);
+    }
+
     public function testIndexRendersSharedAdHocGeneralNoteField(): void
     {
         $this->get('/awards/bestowals');

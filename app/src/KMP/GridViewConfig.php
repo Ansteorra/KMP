@@ -56,6 +56,9 @@ class GridViewConfig
      */
     public const MAX_PAGE_SIZE = 100;
 
+    /** Row counts offered by the shared grid toolbar, alongside a grid's current default. */
+    public const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
     /**
      * Normalize a config array to ensure consistent structure
      *

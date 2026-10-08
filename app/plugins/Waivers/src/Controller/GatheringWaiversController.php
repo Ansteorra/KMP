@@ -5,7 +5,6 @@ namespace Waivers\Controller;
 
 use App\Controller\DataverseGridTrait;
 use App\Controller\WorkflowDispatchTrait;
-use App\KMP\StaticHelpers;
 use App\Services\CsvExportService;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use Cake\Datasource\EntityInterface;
@@ -1284,16 +1283,15 @@ class GatheringWaiversController extends AppController
             $searchResults = $dashboardService->searchWaivers($searchTerm, $branchIds);
         }
 
-        // Get key statistics
-        $statistics = $dashboardService->getDashboardStatistics($branchIds);
-
         // Get gatherings with incomplete waivers (separated by status)
         $waiverGatherings = $dashboardService->getGatheringsWithIncompleteWaivers($branchIds, 30);
         $gatheringsMissingWaivers = $waiverGatherings['missing'];
         $gatheringsNeedingWaivers = $waiverGatherings['upcoming'];
+        $gatheringsDueWaivers = $waiverGatherings['due'];
+        $statistics = $dashboardService->getDashboardStatistics($branchIds, $waiverGatherings);
 
         // Get branches with compliance issues
-        $branchesWithIssues = $dashboardService->getBranchesWithIssues($branchIds);
+        $branchesWithIssues = $dashboardService->getBranchesWithIssues($branchIds, $gatheringsMissingWaivers);
 
         // Get recent waiver activity (last 30 days)
         $recentActivity = $dashboardService->getRecentWaiverActivity($branchIds, 30);
@@ -1301,21 +1299,11 @@ class GatheringWaiversController extends AppController
         // Get waiver types summary
         $waiverTypesSummary = $dashboardService->getWaiverTypesSummary($branchIds);
 
-        // Get compliance days setting
-        $complianceDays = (int)StaticHelpers::getAppSetting('Waivers.ComplianceDays', '2', 'int', false);
-
         // Get gatherings marked ready to close
         $gatheringsReadyToClose = $dashboardService->getGatheringsReadyToClose($branchIds);
 
         // Get gatherings in progress (waivers uploaded/exempted, not ready/closed)
         $gatheringsNeedingClosed = $dashboardService->getGatheringsNeedingClosed($branchIds);
-
-        // Keep past-due "Gatherings Needing Waivers" focused on events with no waiver progress.
-        // Any event with uploaded/exempted waivers belongs in "In Progress Waivers".
-        $gatheringsMissingWaivers = array_values(array_filter(
-            $gatheringsMissingWaivers,
-            fn($gathering) => ($gathering->uploaded_waiver_count ?? 0) === 0,
-        ));
 
         // Get recently closed gatherings
         $closedGatherings = $dashboardService->getClosedGatherings($branchIds);
@@ -1324,6 +1312,7 @@ class GatheringWaiversController extends AppController
             'statistics',
             'gatheringsMissingWaivers',
             'gatheringsNeedingWaivers',
+            'gatheringsDueWaivers',
             'gatheringsReadyToClose',
             'gatheringsNeedingClosed',
             'closedGatherings',
@@ -1332,7 +1321,6 @@ class GatheringWaiversController extends AppController
             'waiverTypesSummary',
             'searchResults',
             'searchTerm',
-            'complianceDays',
         ));
     }
 

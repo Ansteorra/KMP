@@ -340,6 +340,15 @@ class BestowalsController extends AppController
             $user->isSuperUser(),
         );
 
+        $pageContext = $this->request->getQuery('page_context_url');
+        if ($pageContext !== null && !is_string($pageContext)) {
+            throw new BadRequestException('Invalid page context URL.');
+        }
+        $currentPageUrl = $pageContext !== null
+            ? $this->assertSafeContextUrl($pageContext)
+            : Router::url(['plugin' => 'Awards', 'controller' => 'Bestowals', 'action' => 'index']);
+        $this->set(compact('currentPageUrl'));
+
         $this->set(compact('bestowal'));
         $this->set($todoContext);
         $this->viewBuilder()->disableAutoLayout();
@@ -1448,6 +1457,13 @@ class BestowalsController extends AppController
         $user = $this->request->getAttribute('identity');
         $emptyBestowal = $this->Bestowals->newEmptyEntity();
         $this->Authorization->authorize($emptyBestowal, 'adHoc');
+        $pageContext = $this->getPageContextUrl();
+        if ($pageContext === null) {
+            $legacyReturn = $this->request->getData('current_page');
+            if (is_string($legacyReturn) && $legacyReturn !== '') {
+                $pageContext = $this->assertSafeContextUrl($legacyReturn);
+            }
+        }
 
         $data = $this->request->getData();
         $awardId = $data['awardId'] ?? $data['award_id'] ?? null;
@@ -1486,9 +1502,8 @@ class BestowalsController extends AppController
             $this->Flash->error($result['error'] ?? __('The ad-hoc bestowal could not be recorded.'));
         }
 
-        $redirect = $this->request->getData('current_page');
-        if ($redirect) {
-            return $this->redirect($redirect);
+        if ($pageContext !== null) {
+            return $this->redirect($pageContext);
         }
 
         $bestowalId = $result['data']['bestowalId'] ?? null;

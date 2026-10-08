@@ -135,6 +135,10 @@ const FIXTURE_SETS = {
     'detail edit': [
         { name: 'detail', awardName: 'Award of Arms' },
     ],
+    'grid pagination': Array.from({ length: 31 }, (_, index) => ({
+        name: `pagination-${index + 1}`,
+        processName: APPROVAL_PROCESS_NAMES.singleCrown,
+    })),
     'grid edit': [
         { name: 'quick', awardName: 'Award of Amicitia of Ansteorra' },
     ],
@@ -2934,6 +2938,239 @@ When('I submit the open recommendation edit with a turbo stream response', async
         state: 'visible',
         timeout: 30000,
     });
+});
+
+const paginationTable = (page, grid = 'recommendations') => page.locator(`#${grid}-grid-table`);
+
+const paginationToken = (page) => page.__awardRecommendationFixtures?.token
+    || page.__awardBestowalPaginationFixtures?.token;
+
+When('I set the grid rows per page to {int}', async ({ page }, count) => {
+    const rows = page.getByLabel('Rows per page', { exact: true });
+    await expect(rows).toBeVisible();
+    await rows.focus();
+    await rows.selectOption(String(count));
+    await expect(rows).toHaveValue(String(count));
+    await expect.poll(() => paginationTable(page,
+        page.url().includes('/bestowals') ? 'bestowals' : 'recommendations')
+        .locator('script[type="application/json"]')
+        .evaluate(element => JSON.parse(element.textContent).config.pageSize))
+        .toBe(count);
+});
+
+When('I open grid page {int}', async ({ page }, number) => {
+    const grid = page.url().includes('/bestowals') ? 'bestowals' : 'recommendations';
+    const link = paginationTable(page, grid).locator('.pagination').getByRole('link', {
+        name: String(number), exact: true,
+    });
+    await expect(link).toBeVisible();
+    await link.press('Enter');
+    await expect(paginationTable(page, grid).locator('.paginator')).toContainText(`Page ${number} of`);
+    await expect.poll(() => page.evaluate(() => document.activeElement?.textContent.trim()))
+        .toBe(String(number));
+});
+
+When('I open the first visible recommendation edit modal', async ({ page }) => {
+    const row = paginationTable(page).locator('tr[data-id]').first();
+    page.__paginationEditedRecommendationId = await row.getAttribute('data-id');
+    await row.locator('button.edit-rec').press('Enter');
+    await expect(page.locator('#editRecommendationModal')).toBeVisible();
+    await expect(page.locator('#editRecommendationModal textarea[name="note"]')).toBeVisible();
+});
+
+Then('the {string} grid should retain page {int} with {int} rows per page and fixture search',
+    async ({ page }, grid, number, count) => {
+        const token = paginationToken(page);
+        expect(token).toBeTruthy();
+        await expect(paginationTable(page, grid).locator('.paginator')).toContainText(`Page ${number} of`);
+        await expect(page.getByLabel('Rows per page', { exact: true })).toHaveValue(String(count));
+        const state = await waitForGridStateJson(page, `${grid}-grid-table`);
+        await expect.poll(() => {
+            const url = new URL(page.url());
+            return {
+                page: Number(url.searchParams.get('page') || 1),
+                limit: Number(url.searchParams.get('limit')),
+                search: url.searchParams.has('search') ? url.searchParams.get('search') : state.search,
+            };
+        }).toEqual({ page: number, limit: count, search: token });
+        expect(state.config.pageSize).toBe(count);
+        expect(state.search).toBe(token);
+    });
+
+Then('the recommendations grid should show the updated pagination note', async ({ page }) => {
+    const row = paginationTable(page).locator(`tr[data-id="${page.__paginationEditedRecommendationId}"]`);
+    const notes = row.locator('button[data-bs-content*="Preserved page three update"]');
+    await expect(notes).toHaveText('1');
+    await notes.press('Enter');
+    await expect(page.locator('.notes-popover')).toContainText('Preserved page three update');
+    await notes.press('Enter');
+});
+
+When('I leave and return to the recommendations grid', async ({ page }) => {
+    const visitDetail = async () => {
+        await paginationTable(page).locator('tr[data-id]').first()
+            .locator('a[href*="/awards/recommendations/view/"]').click();
+        await expect(page).toHaveURL(/\/awards\/recommendations\/view\//);
+    };
+    await visitDetail();
+    await page.getByRole('link', { name: 'Go back', exact: true }).click();
+    await expect(paginationTable(page).locator('.paginator')).toContainText('Page 3 of');
+    await expect.poll(() => new URL(page.url()).searchParams.get('search'))
+        .toBe(ensureFixtureSet(page).token);
+    await visitDetail();
+    await page.goBack({ waitUntil: 'domcontentloaded' });
+});
+
+When('I log in as the pagination fixture approval recipient', async ({ page }) => {
+    const fixture = getFixture(page, 'pagination-1');
+    await loginAs(page, getFixtureApprover(fixture, 0).email);
+});
+
+When('I reject all visible pagination recommendations through the bulk modal', async ({ page }) => {
+    const checkboxes = paginationTable(page).locator('[data-grid-view-target="rowCheckbox"]:enabled');
+    const ids = await checkboxes.evaluateAll(elements => elements.map(element => Number(element.value)));
+    expect(ids.length).toBeGreaterThan(0);
+    expect(ids.every(id => ensureFixtureSet(page).ids.includes(id))).toBe(true);
+    for (const checkbox of await checkboxes.all()) await checkbox.check();
+    await page.locator('button[data-bulk-action-key="workflow-decision"]').press('Enter');
+    const modal = page.locator('#recommendationWorkflowDecisionModal');
+    await expect(modal).toBeVisible();
+    await expect(modal.locator('input[name="approval_ids[]"]')).toHaveCount(ids.length);
+    await modal.getByLabel('Reject', { exact: true }).check();
+    await modal.locator('textarea[name="comment"]').fill('Synthetic pagination rejection');
+    await waitForTurboStreamResponse(page, () => modal.getByRole('button', {
+        name: 'Submit Response', exact: true,
+    }).click());
+    await expect(modal).toBeHidden();
+    await expect.poll(async () => {
+        const visible = await paginationTable(page).locator('tr[data-id]')
+            .evaluateAll(rows => rows.map(row => Number(row.dataset.id)));
+        return visible.length > 0 && !visible.some(id => ids.includes(id));
+    }, { timeout: 30000 }).toBe(true);
+});
+
+Then('the recommendations grid should show {int} pagination fixture row(s)', async ({ page }, count) => {
+    await expect(paginationTable(page).locator('tr[data-id]')).toHaveCount(count);
+    await expect(paginationTable(page)).toContainText(ensureFixtureSet(page).token);
+});
+
+Then('the recommendations grid should have no third page', async ({ page }) => {
+    await expect(paginationTable(page).locator('.paginator')).toContainText('Page 2 of 2');
+    await expect(paginationTable(page).locator('.pagination').getByRole('link', {
+        name: '3', exact: true,
+    })).toHaveCount(0);
+});
+
+When('I save the pagination grid view', async ({ page }) => {
+    const name = `Pagination ${ensureFixtureSet(page).token}`;
+    await page.getByRole('button', { name: 'Save current settings as a new view', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Save view', exact: true });
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel('View name', { exact: true }).fill(name);
+    page.__paginationSavedView = { name };
+    await dialog.getByRole('button', { name: 'Save view', exact: true }).click();
+    const savedTab = page.getByRole('tab', { name: new RegExp(name) });
+    await expect(savedTab).toHaveAttribute('aria-selected', 'true');
+    page.__paginationSavedView.id = await savedTab.getAttribute('data-view-id');
+    expect(page.__paginationSavedView.id).toBeTruthy();
+});
+
+When('I switch away from and back to the pagination grid view', async ({ page }) => {
+    const saved = page.__paginationSavedView;
+    await page.locator('[role="tab"][data-view-id="sys-recs-in-approval"]').click();
+    await expect(page.getByRole('tab', { name: 'Pending Review', exact: true }))
+        .toHaveAttribute('aria-selected', 'true');
+    await page.locator(`[role="tab"][data-view-id="${saved.id}"]`).click();
+    await expect(page.locator(`[role="tab"][data-view-id="${saved.id}"]`))
+        .toHaveAttribute('aria-selected', 'true');
+});
+
+Given('I create paginated bestowal check fixtures', async ({ page }) => {
+    const token = `E2E-BESTOWAL-GRID-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const data = runPhpJson(String.raw`
+require 'vendor/autoload.php'; require 'config/bootstrap.php';
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
+$locator = \Cake\ORM\TableRegistry::getTableLocator();
+$member = $locator->get('Members')->find()->where(['email_address' => 'admin@amp.ansteorra.org'])->firstOrFail();
+$award = $locator->get('Awards.Awards')->find()->where(['is_active' => true])->firstOrFail();
+$bestowals = $locator->get('Awards.Bestowals'); $items = $locator->get('ActionItems'); $ids = [];
+for ($index = 0; $index < 31; $index++) {
+    $bestowal = $bestowals->saveOrFail($bestowals->newEntity([
+        'member_id' => $member->id, 'member_sca_name' => $member->sca_name, 'award_id' => $award->id,
+        'lifecycle_status' => 'open', 'source' => 'ad_hoc', 'stack_rank' => 0, 'herald_notes' => $input['token'],
+    ]));
+    $items->saveOrFail($items->newEntity([
+        'entity_type' => 'Awards.Bestowals', 'entity_id' => $bestowal->id, 'title' => 'Synthetic pagination check',
+        'source_ref' => 'synthetic_pagination', 'assignee_type' => 'member',
+        'assignee_config' => ['member_id' => $member->id], 'assignee_lookup_type' => 'member',
+        'assignee_lookup_id' => $member->id, 'branch_id' => $award->branch_id, 'status' => 'open',
+        'is_gating' => false, 'is_terminal' => false, 'sort_order' => 0,
+    ]));
+    $ids[] = (int)$bestowal->id;
+}
+echo json_encode(['ids' => $ids], JSON_THROW_ON_ERROR);
+`, { token });
+    page.__awardBestowalPaginationFixtures = { token, ids: data.ids };
+});
+
+When('I search the bestowals grid for the pagination fixture token', async ({ page }) => {
+    await searchBestowalsGrid(page, page.__awardBestowalPaginationFixtures.token);
+});
+
+When('I complete the pagination bestowal check on two visible rows', async ({ page }) => {
+    const checkboxes = paginationTable(page, 'bestowals').locator('[data-grid-view-target="rowCheckbox"]:enabled');
+    page.__paginationSelectedBestowalIds = await checkboxes.evaluateAll(elements =>
+        elements.slice(0, 2).map(element => Number(element.value)));
+    expect(page.__paginationSelectedBestowalIds).toHaveLength(2);
+    await checkboxes.nth(0).check();
+    await checkboxes.nth(1).check();
+    await page.locator('[data-bulk-action-key="bestowal-todo-complete"]').click();
+    const modal = page.locator('#bestowalBulkTodoModal');
+    await expect(modal).toBeVisible();
+    await modal.getByLabel('Check to complete', { exact: true }).selectOption('synthetic_pagination');
+    await modal.getByRole('button', { name: 'Complete Check', exact: true }).click();
+    await expect(modal).toBeHidden();
+    await expect(paginationTable(page, 'bestowals').locator('tr[data-id]').first()).toBeVisible();
+});
+
+Then('the selected pagination bestowal checks should be completed', async ({ page }) => {
+    const result = runPhpJson(String.raw`
+require 'vendor/autoload.php'; require 'config/bootstrap.php';
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
+$items = \Cake\ORM\TableRegistry::getTableLocator()->get('ActionItems');
+echo json_encode(['count' => $items->find()->where([
+    'entity_type' => 'Awards.Bestowals', 'entity_id IN' => $input['ids'],
+    'source_ref' => 'synthetic_pagination', 'status' => 'completed',
+])->count()], JSON_THROW_ON_ERROR);
+`, { ids: page.__paginationSelectedBestowalIds });
+    expect(result.count).toBe(2);
+});
+
+After(async ({ page }) => {
+    if (page.__paginationSavedView) {
+        runPhpJson(String.raw`
+require 'vendor/autoload.php'; require 'config/bootstrap.php';
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
+$views = \Cake\ORM\TableRegistry::getTableLocator()->get('GridViews');
+$view = $views->find()->where(['name' => $input['name']])->first();
+if ($view !== null) $views->deleteOrFail($view);
+echo json_encode(['deleted' => true], JSON_THROW_ON_ERROR);
+`, page.__paginationSavedView);
+    }
+    if (page.__awardBestowalPaginationFixtures) {
+        runPhpJson(String.raw`
+require 'vendor/autoload.php'; require 'config/bootstrap.php';
+$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
+$locator = \Cake\ORM\TableRegistry::getTableLocator();
+$bestowals = $locator->get('Awards.Bestowals'); $items = $locator->get('ActionItems');
+foreach ($input['ids'] as $id) {
+    $bestowal = $bestowals->find()->where(['id' => $id, 'herald_notes' => $input['token']])->firstOrFail();
+    $items->deleteAll(['entity_type' => 'Awards.Bestowals', 'entity_id' => $id]);
+    $bestowals->deleteOrFail($bestowal);
+}
+echo json_encode(['deleted' => true], JSON_THROW_ON_ERROR);
+`, page.__awardBestowalPaginationFixtures);
+    }
 });
 
 Then('the recommendations URL should include the current fixture token', async ({ page }) => {

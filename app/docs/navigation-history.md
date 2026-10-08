@@ -17,6 +17,33 @@ to an earlier entry truncates the later entries; full `index` pages reset the li
 eligible page. The back button navigates the top-level page and has an accessible
 name. With fewer than two app entries, it uses browser history.
 
+When a successful document navigation leaves a grid, the same-origin Referer
+can update the last history entry's query if its path matches that entry.
+This retains the browser's current page, filters, search, sort, and row count
+after frame navigation, so the app back arrow returns to the displayed grid.
+References from another origin or an unrelated path cannot replace the entry.
+
+Detail-tab grids keep their query in the table frame while the user works. Before
+a same-origin record link leaves the page, or a native form submits from that grid,
+`page-context` replaces the host history entry with the live grid query and current
+tab. This lets browser Back and redirect Referers restore the displayed grid.
+Frame endpoint identities (`frame_id`, `member_id`, `branch_id`, `gathering_id`)
+stay on their own data URLs so reloading the host cannot override sibling grids.
+Parameters already present in a grid's data URL take precedence over restored host
+parameters, including on unmarked URLs; the remaining page, filters, and sort restore normally.
+The host query carries `grid_context` with the originating grid frame ID. On
+reload, only that grid receives the query; sibling grids retain their own endpoint
+context and default state. The marker is omitted from data endpoint requests and
+from primary grid pages. Unmarked detail URLs keep their existing query behavior.
+Embedded saved-view page URLs preserve the matching `grid_context`, current tab,
+and hash; frame refreshes retain their endpoint identities and omit the host marker.
+Same-frame pagination, modal links, external links, and new-tab links do not
+change the host entry. Native confirmation paths notify `page-context:before-submit`
+before calling `form.submit()`, which does not emit the normal submit event.
+Automatic Turbo modal requests use the originating grid query as their same-origin
+fetch Referer while leaving browser history unchanged. A modal trigger outside a
+grid can resolve its origin from a tab panel or a containing frame with one grid.
+
 Calendar controllers share Bootstrap dialog instances. Refreshing a calendar
 frame must not dispose page-owned dialogs. Quick view closes before RSVP opens;
 closing RSVP returns focus to the visible calendar trigger, not a hidden button
