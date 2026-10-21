@@ -121,6 +121,14 @@ jobs:
       - name: Install Node dependencies
         run: cd app && npm ci --no-audit --no-fund
 
+      - name: Prepare CI runtime
+        run: chmod 0755 app/tmp
+
+      - name: Create default database (Postgres)
+        run: >-
+          PGPASSWORD=root psql -h 127.0.0.1 -U root -d kmp_test -v ON_ERROR_STOP=1
+          -c "CREATE DATABASE kmp;"
+
       - name: Run verification bundle
         run: |
           set -o pipefail
