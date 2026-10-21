@@ -17,6 +17,7 @@ Own application test coverage across PHPUnit, Jest/jsdom, and Playwright BDD lan
 - Use project base test classes and seeded constants instead of raw magic IDs.
 - Use `reseedDatabase()` only for destructive tests that need a full reset.
 - PostgreSQL test database setup copies both schema and app/plugin migration histories before loading its data seed.
+- Hosted full verification uses PostgreSQL 16 for PHP suites and the Docker/PostgreSQL tenant environment for UAT, matching the primary quality gates. Keep the opt-in destructive platform lane separate from standard UAT.
 - Jest uses jsdom with setup in `tests/js/setup.js`; mock globals consistently.
 - Playwright reports, generated Playwright files, coverage output, and UI results are generated artifacts and should not be hand-edited.
 
