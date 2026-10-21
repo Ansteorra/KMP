@@ -121,6 +121,9 @@ jobs:
       - name: Install Node dependencies
         run: cd app && npm ci --no-audit --no-fund
 
+      - name: Build frontend assets
+        run: cd app && npm run dev
+
       - name: Prepare CI runtime
         run: chmod 0755 app/tmp
 
