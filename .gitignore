@@ -47,6 +47,7 @@ app/config/secrets.local.json
 
 # Vite build output (source assets live under app/assets and app/plugins/*/assets)
 app/webroot/.vite/
+app/webroot/assets/*-[A-Za-z0-9_-]*.js
 app/webroot/js/*-[A-Za-z0-9_-]*.js
 app/webroot/js/*.LICENSE.txt
 app/webroot/js/pdf.worker.min.mjs

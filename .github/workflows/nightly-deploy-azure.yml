@@ -73,10 +73,12 @@ jobs:
             exit 1
           fi
 
-          echo "evidence_tag=$EVIDENCE_TAG" >> "$GITHUB_OUTPUT"
-          echo "source_image=ghcr.io/ansteorra/kmp@${DIGEST}" >> "$GITHUB_OUTPUT"
-          echo "source_sha=$SHA" >> "$GITHUB_OUTPUT"
-          echo "target_tag=$TARGET_TAG" >> "$GITHUB_OUTPUT"
+          {
+            echo "evidence_tag=$EVIDENCE_TAG"
+            echo "source_image=ghcr.io/ansteorra/kmp@${DIGEST}"
+            echo "source_sha=$SHA"
+            echo "target_tag=$TARGET_TAG"
+          } >> "$GITHUB_OUTPUT"
 
   candidate-security:
     needs: prepare

@@ -1,6 +1,10 @@
 #!/bin/sh
 set -u
 
+if [ "$(id -u)" -eq 0 ]; then
+    exec runuser -u www-data -- sh "$0" "$@"
+fi
+
 cd /var/www/html
 
 poll_interval="${KMP_SCHEDULER_POLL_INTERVAL:-10}"

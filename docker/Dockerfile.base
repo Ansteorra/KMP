@@ -1,8 +1,11 @@
 # Reviewed, reproducible PHP/native runtime. Dependency pins are updated through PRs.
-FROM php:8.5.11-apache-trixie@sha256:70d80539dcacae817d9a1320518b95c86bb9568835ef3a7a024d57a4898c90e4 AS runtime-base
+FROM php:8.5.12-apache-trixie@sha256:4d1f268dd3b670bd003861c5385cb2f8ba7196dbc88ee84dcae47270c116f242 AS runtime-base
+COPY docker/verify-php-version.php /usr/local/bin/verify-kmp-php-version.php
+RUN php /usr/local/bin/verify-kmp-php-version.php
 COPY --from=mlocati/php-extension-installer:latest@sha256:b6d3fa381b9ba5cf051117c1c601d6a523b590e534bf3d56eb4fbe352949c138 /usr/bin/install-php-extensions /usr/local/bin/
 COPY docker/install-runtime.sh /usr/local/bin/install-kmp-runtime
-RUN sh /usr/local/bin/install-kmp-runtime
+ARG PHP_BUILD_JOBS=4
+RUN IPE_PROCESSOR_COUNT="${PHP_BUILD_JOBS}" sh /usr/local/bin/install-kmp-runtime
 
 LABEL org.opencontainers.image.source="https://github.com/Ansteorra/KMP"
 EXPOSE 80

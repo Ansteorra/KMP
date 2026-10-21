@@ -113,12 +113,14 @@ jobs:
           FULL_TAGS=""
           IFS=',' read -ra PARTS <<< "$TAGS"
           for t in "${PARTS[@]}"; do
-            FULL_TAGS="${FULL_TAGS}${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${t}\n"
+            FULL_TAGS="${FULL_TAGS}${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${t}"$'\n'
           done
 
-          echo "primary=${PRIMARY}" >> "$GITHUB_OUTPUT"
-          echo "channel=${CHANNEL}" >> "$GITHUB_OUTPUT"
-          printf "tags<<EOF\n${FULL_TAGS}EOF\n" >> "$GITHUB_OUTPUT"
+          {
+            echo "primary=${PRIMARY}"
+            echo "channel=${CHANNEL}"
+            printf 'tags<<EOF\n%sEOF\n' "$FULL_TAGS"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Build and push
         id: build

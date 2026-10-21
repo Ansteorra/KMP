@@ -1,52 +1,27 @@
 @mode:serial
-Feature: Quick Login Setup and PIN Authentication
+Feature: Trusted device PIN setup and authentication
     As a user of the KMP system
-    I want to set up quick login with a PIN
-    So that I can log in quickly on trusted devices
+    I want to protect my personal device with a PIN
+    So that I can sign in and use my saved information safely
 
-    Scenario: Enable quick login and complete PIN setup
-        Given I am on the login page
-        When I check the quick login checkbox
-        And I enter valid credentials for quick login setup
+    Background:
+        Given I start PIN setup on a personal device
             | email    | admin@amp.ansteorra.org |
             | password | TestPassword            |
-        And I submit the login form
-        Then I should be redirected to the PIN setup page
-        And the page should contain "Set quick login PIN"
-        When I enter PIN "1234" and confirmation "1234"
-        And I click the save PIN button
-        Then I should see the flash message "Quick login on this device is now enabled"
-        And I should be redirected away from PIN setup
 
-    Scenario: PIN setup rejects mismatched PINs
-        Given I am on the login page
-        When I check the quick login checkbox
-        And I enter valid credentials for quick login setup
-            | email    | admin@amp.ansteorra.org |
-            | password | TestPassword            |
-        And I submit the login form
-        Then I should be redirected to the PIN setup page
-        When I enter PIN "1234" and confirmation "5678"
-        And I click the save PIN button
-        Then I should still be on the PIN setup page
+    Scenario: Complete personal device PIN setup
+        When I save device PIN "582694" with confirmation "582694"
+        Then my personal device should be ready offline
 
-    Scenario: Quick login with PIN succeeds after setup and logout works
-        Given I am on the login page
-        When I check the quick login checkbox
-        And I enter valid credentials for quick login setup
-            | email    | admin@amp.ansteorra.org |
-            | password | TestPassword            |
-        And I submit the login form
-        Then I should be redirected to the PIN setup page
-        When I enter PIN "1234" and confirmation "1234"
-        And I click the save PIN button
-        Then I should be redirected away from PIN setup
-        When I logout from the session
-        And I navigate to the login page
-        Then I should see the quick login tab
-        And the quick login tab should be active
-        When I enter PIN "1234" in the quick login form
-        And I submit the quick login form
-        Then I should be successfully logged in with quick login
-        When I logout from the session
-        Then I should be on the login page
+    Scenario: Device setup rejects mismatched PINs
+        When I save device PIN "582694" with confirmation "582695"
+        Then the device PIN mismatch should be announced
+
+    Scenario: Device PIN signs in after logout
+        When I save device PIN "582694" with confirmation "582694"
+        Then my personal device should be ready offline
+        When I finish device setup and log out
+        And I unlock the personal device with PIN "582694"
+        Then I should be signed in through device unlock
+        When I sign out after device unlock
+        Then the personal device should be locked on the login page

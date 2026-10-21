@@ -147,6 +147,9 @@ const getPlatformPostgresConfig = () => {
  */
 const getAppContainerName = () => getEnvValue('PLAYWRIGHT_APP_CONTAINER') || 'kmp-app';
 
+/** Name of the dedicated administrative CLI container. */
+const getAdminWorkerContainerName = () => getEnvValue('PLAYWRIGHT_ADMIN_WORKER_CONTAINER') || 'kmp-admin-worker';
+
 /**
  * Name of the running Docker container hosting Postgres (for `docker exec` psql cleanup).
  */
@@ -262,6 +265,7 @@ module.exports = {
     REPO_ROOT,
     CONFIG_ENV_PATH,
     getAppContainerName,
+    getAdminWorkerContainerName,
     getDbContainerName,
     getMailpitApiUrl,
     getPlatformPostgresConfig,

@@ -9,6 +9,7 @@ on:
     paths:
       - 'docker/Dockerfile.base'
       - 'docker/install-runtime.sh'
+      - 'docker/verify-php-version.php'
   workflow_dispatch:
   schedule:
     - cron: '7 4 * * 1'

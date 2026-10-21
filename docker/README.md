@@ -9,7 +9,7 @@ stack is documented separately as unsupported.
 
 | Path | Role |
 | --- | --- |
-| `Dockerfile.base` | PHP 8.4/Apache base with application extensions and database clients |
+| `Dockerfile.base` | Pinned PHP 8.5/Apache base with application extensions and database clients |
 | `Dockerfile.prod` | Immutable application image with compiled frontend assets, production dependencies, health check, and POC seed |
 | `entrypoint.prod.sh` | Production configuration, database wait, compatibility migrations/cron, and command launch |
 | `Dockerfile.app` | Local-development application image |
@@ -19,6 +19,81 @@ stack is documented separately as unsupported.
 | `Dockerfile.ci` | Test image |
 | `app_local.php` | Docker-oriented local configuration |
 | `apache-vhost.conf` | Apache development vhost |
+| `verify-php-version.php` | Branch-specific minimum security versions for container builds and final-image audits |
+
+## PHP security updates
+
+The October 21, 2026 PHP releases fix
+[CVE-2026-109618](https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w)
+and [CVE-2026-109619](https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp).
+KMP container builds require at least PHP 8.3.36, 8.4.27, or 8.5.12 within the
+corresponding supported branch. Older PHP 8.5 releases fail even though their
+version number is higher than PHP 8.4.27. Prereleases and unreviewed minor
+branches fail. See the [PHP advisory](https://www.php.net/archive/2026.php#2026-10-21-5).
+
+Update the matching PHP tag and registry-verified manifest digest in both
+`Dockerfile.base` and `Dockerfile.prod`. Rebuilding a digest-pinned image or
+upgrading Debian packages does not update PHP compiled into the official image.
+The local-development image also checks the actual interpreter before installing
+dependencies. The devcontainer package build requires PHP 8.4.27 or later in 8.4.
+CI and production builds check prebuilt base overrides as well as the default base.
+
+The production/base pins select the official PHP 8.5.12 Apache/Trixie manifest
+`sha256:4d1f268dd3b670bd003861c5385cb2f8ba7196dbc88ee84dcae47270c116f242`,
+verified to include Linux AMD64 and ARM64 images. Replace both pins together
+when refreshing this runtime; never substitute an unverified digest or bypass
+the version check. The local Bookworm tag may remain affected until its publisher
+refreshes it.
+
+For local development, `Dockerfile.app` accepts a `PHP_IMAGE` build argument.
+Use it with a verified patched Apache/Bookworm image when rebuilding before the
+floating upstream tag is refreshed. The version check still applies. A locally
+built upstream recipe is local test evidence, not a replacement production pin.
+The development image includes `jq` and Python for the complete repository
+verification suite, and uses PHP's built-in OPcache when available.
+Native extension builds use four jobs by default; `PHP_BUILD_JOBS` adjusts this
+for development and production runtime builds.
+
+Development images and the production frontend build stage pin npm separately
+through `NPM_VERSION`. Node distributions can bundle older vulnerable npm
+dependencies even when application locks are current. Review the published npm
+archive, rebuild, and scan the finished image when refreshing this pin. The
+frontend builder does not copy Node or npm into the production runtime.
+Generated frontend files are excluded from the Docker context so local or
+previously committed hashed bundles cannot accompany the newly built assets.
+
+```bash
+docker compose --env-file app/config/.env build \
+  --build-arg PHP_IMAGE=your-verified-local-php-image app
+docker compose --env-file app/config/.env up -d --no-deps --no-build \
+  --force-recreate app scheduler admin-worker
+```
+
+Recreating these application services preserves the database volume. Browser
+test lanes can reset local databases; snapshot any local data needed beforehand.
+Local scheduler and admin loops run as `www-data` after root startup setup.
+The entrypoint assigns local backup storage to that user with a private parent
+directory, so encrypted archives written by workers remain readable by guarded
+web download actions without making the directory public.
+Use `PLAYWRIGHT_BASE_URL=http://kmp.localhost:8080` for host browser tests and
+resolve the tenant/platform hostnames locally. Chromium rejects navigation with
+a mismatched manually supplied `Host` header on a loopback URL.
+
+Build and scan a new application image, run the quality gates, validate the exact
+image digest in POC, and promote that same digest through the existing release
+approval process. Recreate all web and worker processes with the patched image.
+Configuration workarounds do not establish safety, and multipart forms can remain
+functional after patching. This change does not alter upload or session settings.
+
+Run the security regression tests from the repository root:
+
+```bash
+python3 -m unittest discover -s security -p 'test_*.py'
+```
+
+The PHP boundary tests use the local `php` command, or an existing local PHP image
+when `KMP_TEST_PHP_IMAGE` is set. The test container has no network and mounts only
+the version checker read-only. This does not restart the development stack.
 
 ## Managed Azure process model
 

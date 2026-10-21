@@ -55,6 +55,17 @@ def ruby_packages(lock):
     return sorted(packages)
 
 
+def verify_image_php(image):
+    """Check PHP itself; OS package scanners can miss PHP compiled from source."""
+    subprocess.run([
+        'docker', 'run', '--rm', '--network', 'none', '--read-only',
+        '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
+        '--mount', 'type=bind,src=' + str(ROOT / 'docker/verify-php-version.php')
+        + ',dst=/verify-kmp-php-version.php,readonly',
+        '--entrypoint', 'php', image, '/verify-kmp-php-version.php',
+    ], check=True, timeout=180)
+
+
 def audit_ruby_locks(reports):
     manifests = [ROOT / 'docs' / 'Gemfile']
     if (ROOT / 'Gemfile').exists():
@@ -103,6 +114,7 @@ def main():
         errors.append(str(error))
     if args.image:
         try:
+            verify_image_php(args.image)
             if shutil.which('trivy') is None:
                 raise RuntimeError('Required final-image scanner is missing: trivy')
             image_report = reports / 'image.json'

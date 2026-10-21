@@ -25,6 +25,7 @@ Feature: Platform Admin tenant provisioning
         When I suspend tenant "kmp2" through the Platform Admin portal
         And I queue the latest backup to restore tenant "kmp2"
         Then tenant "kmp2" should have a queued restore job without secret leakage
+        And another tenant remains available while tenant "kmp2" restore is queued
         When the platform job runner drains queued jobs
         Then tenant "kmp2" should have a completed restore job
         And runtime tenant migrations should not write schema lock files
@@ -32,8 +33,7 @@ Feature: Platform Admin tenant provisioning
         Then tenant "kmp2" should be active for host "kmp2.localhost"
         And the tenant "kmp2" host should show the sign in page
         And the tenant super user "superuser@kmp2.localhost" can request a password reset on tenant "kmp2"
-        When I restore the downloaded managed backup through tenant "kmp2"
-        Then another tenant remains available while tenant "kmp2" restore is queued
-        And the tenant frontend restore for "kmp2" completes with the recovery key
+        When I inspect managed backups as tenant "kmp2"
+        Then tenant restores should remain restricted to Platform Admin
         When I delete the latest managed backup for tenant "kmp2"
         Then tenant "kmp2" should retain audited metadata for the deleted backup

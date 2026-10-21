@@ -85,10 +85,12 @@ jobs:
             CHANNEL_VERSION="${CHANNEL}-${TAG_VERSION}"
           fi
 
-          echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
-          echo "channel_version=$CHANNEL_VERSION" >> "$GITHUB_OUTPUT"
-          echo "short_sha=${SOURCE_SHA:0:7}" >> "$GITHUB_OUTPUT"
-          echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+          {
+            echo "channel=$CHANNEL"
+            echo "channel_version=$CHANNEL_VERSION"
+            echo "short_sha=${SOURCE_SHA:0:7}"
+            echo "source_sha=$SOURCE_SHA"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Require successful main quality gates
         env:
