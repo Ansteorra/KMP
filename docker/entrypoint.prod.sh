@@ -133,9 +133,18 @@ attempt=0
 
 check_postgres() {
     if [ -n "${DATABASE_URL:-}" ]; then
-        local database_url="$DATABASE_URL"
-        database_url="${database_url/#pgsql:/postgres:}"
-        pg_isready -d "$database_url" -q 2>/dev/null
+        # CakePHP URL options (such as ssl/ssl_mode) are not libpq options.
+        # Probe the server address only; CakePHP retains authentication and TLS settings.
+        local target db_host db_port
+        target=$(php -r '
+            $url = parse_url(getenv("DATABASE_URL"));
+            if (!is_array($url) || empty($url["host"])) {
+                exit(1);
+            }
+            echo trim($url["host"], "[]"), "\t", $url["port"] ?? 5432;
+        ') || return 1
+        IFS=$'\t' read -r db_host db_port <<< "$target"
+        pg_isready -h "$db_host" -p "$db_port" -q 2>/dev/null
     else
         pg_isready -h "${DB_HOST:-${PGHOST:-db}}" -p "${DB_PORT:-${PGPORT:-5432}}" -q 2>/dev/null
     fi

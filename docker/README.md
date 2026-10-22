@@ -170,6 +170,11 @@ datasource and is not a tenant-fleet worker.
 5. optionally installs in-container cron; and
 6. executes the requested process, normally `apache2-foreground`.
 
+The PostgreSQL readiness probe extracts only the host and port from
+`DATABASE_URL`. The probe must not pass CakePHP-specific options such as `ssl`
+and `ssl_mode` to `pg_isready`. The application retains the complete URL and its
+authentication/TLS settings; the readiness probe only checks server availability.
+
 The entrypoint's compatibility migration path deliberately tolerates several
 migration failures and does not include the full platform/tenant sequence.
 Therefore it is not a deployment gate. Managed web revisions disable it, and
