@@ -9,7 +9,7 @@ ARG BASE_IMAGE=runtime-base
 ARG APP_VERSION=dev
 
 
-FROM php:8.5.12-apache-trixie@sha256:4d1f268dd3b670bd003861c5385cb2f8ba7196dbc88ee84dcae47270c116f242 AS runtime-base
+FROM php:8.6.0RC2-apache-trixie@sha256:aa7d5b43deb4a1af6b9695f35f4395b6fb4314ee8d2ed437c9ab5f552f2de770 AS runtime-base
 COPY docker/verify-php-version.php /usr/local/bin/verify-kmp-php-version.php
 RUN php /usr/local/bin/verify-kmp-php-version.php
 COPY --from=mlocati/php-extension-installer:latest@sha256:b6d3fa381b9ba5cf051117c1c601d6a523b590e534bf3d56eb4fbe352949c138 /usr/bin/install-php-extensions /usr/local/bin/
