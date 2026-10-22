@@ -15,9 +15,14 @@ Own container image definitions, entrypoints, Apache configuration, local app co
 
 - Do not bake secrets or environment-specific credentials into images.
 - Keep entrypoints explicit about side effects such as migrations, seeds, cache clears, scheduler loops, and health behavior.
+- Local startup prepares backup-directory ownership before dropping scheduler/admin loops to `www-data`. Keep backup directories private and use the same OS user for web and worker file access.
 - Keep reset/seed scripts idempotent when possible because local and test workflows may call them repeatedly.
 - Changes to base dependencies must be compatible with PHP 8.4, CakePHP, Vite builds, and Playwright/test workflows.
 - Shared and production runtime builds use the same digest-pinned PHP 8.5 Apache image on Debian Trixie and `install-runtime.sh`. Refresh inherited Debian packages before compiling extensions, preserve the PostgreSQL signing-key checksum, and select its repository using the image's release codename.
+- Every image build must run `verify-php-version.php`, including CI and production builds using a prebuilt `BASE_IMAGE`. Supported PHP branches require 8.3.36, 8.4.27, or 8.5.12 or later within that branch; new minor branches require review. Final-image security audits run the current policy independently of the image's bundled checker.
+- Local development may select a verified Apache/Bookworm parent through `PHP_IMAGE`; keep the security check enabled and record source-build provenance when published patched tags are unavailable. Preserve `jq` and Python for full repository verification, and use built-in OPcache when the selected PHP includes it.
+- Pin npm independently through `NPM_VERSION` in development images and the production frontend builder. Verify the npm archive's bundled dependency versions and scan the rebuilt image; application lock audits do not cover global npm tooling.
+- Keep `.dockerignore` and `docker/.dockerignore.prod` identical. Exclude generated frontend bundles, source maps, and manifests from build inputs, and rebuild from locked dependencies so stale local bundles cannot enter the production image.
 - Remove discovered build tools and development headers after compilation while retaining shared runtime dependencies, including the GCC base support package. Verify PHP extensions, GD formats, PostgreSQL clients, and PDF processing in the finished image after native upgrades.
 - Keep `app/resources/security/document-blob-condition.txt` in the production image; dependency-stage validation must fail if the storage authorization policy is missing. Production dependencies must come from clean build stages, with no local vendor or runtime-data overlays.
 

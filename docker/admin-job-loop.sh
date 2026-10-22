@@ -1,5 +1,8 @@
 #!/bin/sh
 set -u
+if [ "$(id -u)" -eq 0 ]; then
+    exec runuser -u www-data -- sh "$0" "$@"
+fi
 cd /var/www/html || exit 1
 while true; do
     if ! bin/cake platform jobs run --limit 1; then

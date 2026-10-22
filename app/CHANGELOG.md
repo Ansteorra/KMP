@@ -3,8 +3,18 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: 7346b98298646c68d15a929c2b829238c1e578c8 -->
-<!-- LAST_SYNCED_DATE: 2026-10-07 -->
+<!-- LAST_SYNCED_COMMIT: e511adcc8a9f23ab4fff7c7957d8be3717b88a61 -->
+<!-- LAST_SYNCED_DATE: 2026-10-21 -->
+
+## KMP 1.5.13 — October 21, 2026
+
+KMP 1.5.13 is a security release addressing the October 21 critical PHP vulnerabilities and updating dependencies with security fixes.
+
+- Update the container runtime to PHP 8.5.12, which fixes critical vulnerabilities CVE-2026-109618 and CVE-2026-109619.
+- Require patched PHP versions when building application containers, including images that use a prebuilt runtime.
+- Update application dependencies and bundled tooling with security fixes, including denial-of-service fixes in YAML and Markdown parsing.
+
+---
 
 ## KMP 1.5.12 — October 7, 2026
 

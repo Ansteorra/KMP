@@ -28,6 +28,9 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive && \
     xz-utils gnupg && \
     rm -rf /var/lib/apt/lists/*
 
+# Fail closed if the package repository has not shipped the critical PHP fixes.
+RUN php -r 'exit(preg_match("/^8[.]4[.][0-9]+$/D", PHP_VERSION) && version_compare(PHP_VERSION, "8.4.27", ">=") ? 0 : 1);'
+
 # Install PostgreSQL 16 from the PGDG repository to match Azure Database for
 # PostgreSQL Flexible Server (deploy/azure/main.bicep pins version '16'). Both
 # the server and client are installed so the devcontainer can run PG-backed
@@ -61,6 +64,11 @@ RUN ARCH=$(dpkg --print-architecture) && \
     rm "node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" && \
     node --version && \
     npm --version
+
+# Update npm's bundled tooling independently of the Node.js distribution.
+ARG NPM_VERSION=11.21.1
+RUN npm install --global "npm@${NPM_VERSION}" --ignore-scripts --no-audit --no-fund \
+    && npm --version
 
 # Configure Java
 RUN export JAVA_HOME=$(readlink -f /usr/bin/java | sed "s:/bin/java::") && \

@@ -8,6 +8,7 @@ const { join } = require('node:path');
 const { createTenantContext } = require('../../support/tenant-context.cjs');
 const {
     APP_ROOT,
+    getAdminWorkerContainerName,
     getAppContainerName,
     getUiTestEnvironment,
     shouldUseDockerPhp,
@@ -51,7 +52,6 @@ const stateFor = (page) => {
             tenantBackupRecoveryKeyPath: null,
             tenantBackupRecoveryPackage: null,
             tenantFrontendPage: null,
-            tenantFrontendRestoreId: null,
         };
     }
 
@@ -79,16 +79,18 @@ const platformContextOptions = () => {
     };
 };
 
-const runCake = (args, { timeoutMs = 180000 } = {}) => {
+const runCake = (args, { timeoutMs = 180000, administrative = false } = {}) => {
     const useDocker = shouldUseDockerPhp();
     const file = useDocker ? 'docker' : 'bin/cake';
     const containerTimeoutSeconds = Math.max(1, Math.floor((timeoutMs - 5000) / 1000));
     const commandArgs = useDocker
         ? [
             'exec',
+            '--user',
+            'www-data',
             '-w',
             '/var/www/html',
-            getAppContainerName(),
+            administrative ? getAdminWorkerContainerName() : getAppContainerName(),
             'timeout',
             '--signal=TERM',
             '--kill-after=10s',
@@ -524,11 +526,40 @@ use App\\Services\\Platform\\PlatformTotpVerifier;
 use App\\Services\\Secrets\\SecretStoreFactory;
 
 $input = json_decode(stream_get_contents(STDIN), true) ?: [];
-$totp = new PlatformTotpVerifier(SecretStoreFactory::fromConfig());
-echo json_encode(['totp' => $totp->codeForTimestamp((string)$input['secret'], time())]);
+$config = (array)\\Cake\\Core\\Configure::read('Platform.adminMfa');
+$period = (int)($config['period'] ?? 30);
+$totp = new PlatformTotpVerifier(
+    SecretStoreFactory::fromConfig(),
+    (int)($config['window'] ?? 1),
+    $period,
+    (int)($config['digits'] ?? 6),
+    (string)($config['algorithm'] ?? 'sha1'),
+);
+$admin = \\Cake\\Datasource\\ConnectionManager::get('platform')->execute(
+    'SELECT last_accepted_totp_counter FROM platform_users WHERE email = :email',
+    ['email' => $input['email']],
+)->fetch('assoc');
+if (!is_array($admin)) {
+    throw new RuntimeException('The seeded platform administrator was not found.');
+}
+$lastCounter = $admin['last_accepted_totp_counter'];
+$now = time();
+echo json_encode([
+    'totp' => $totp->codeForTimestamp((string)$input['secret'], $now),
+    'counter' => intdiv($now, $period),
+    'lastCounter' => $lastCounter === false || $lastCounter === null ? null : (int)$lastCounter,
+]);
 `;
 
-const freshTotp = () => runPhpJson(currentTotpScript, { secret: ADMIN_TOTP_SECRET }).totp;
+const freshTotp = async () => {
+    let candidate;
+    // Preserve replay protection: wait for a new counter instead of resetting server state.
+    await expect.poll(() => {
+        candidate = runPhpJson(currentTotpScript, { secret: ADMIN_TOTP_SECRET, email: ADMIN_EMAIL });
+        return candidate.lastCounter === null || candidate.counter > candidate.lastCounter;
+    }, { message: 'Wait for an unused platform MFA counter', timeout: 65000, intervals: [1000, 2000, 5000] }).toBe(true);
+    return candidate.totp;
+};
 
 const fillGuardedBackupModal = async (
     platformPage,
@@ -540,7 +571,7 @@ const fillGuardedBackupModal = async (
     await expect(dialog).toBeVisible();
     await dialog.getByLabel(`Type "${confirmation}" to confirm`).fill(confirmation);
     await dialog.getByLabel('Operator reason').fill(reason);
-    await dialog.getByLabel('MFA code').fill(freshTotp());
+    await dialog.getByLabel('MFA code').fill(await freshTotp());
 
     return dialog.getByRole('button', { name: submitLabel, exact: true });
 };
@@ -561,8 +592,8 @@ Given('I am logged into the Platform Admin portal', async ({ page, browser }) =>
     await state.platformPage.goto('/platform-admin/login', { waitUntil: 'domcontentloaded' });
     await waitForPageBody(state.platformPage);
     await state.platformPage.getByLabel('Email').fill(ADMIN_EMAIL);
-    await state.platformPage.getByLabel('Password').fill(ADMIN_PASSWORD);
-    await state.platformPage.getByLabel('MFA code').fill(state.totp);
+    await state.platformPage.getByLabel('Password', { exact: true }).fill(ADMIN_PASSWORD);
+    await state.platformPage.getByLabel('MFA code').fill(await freshTotp());
     await Promise.all([
         state.platformPage.waitForURL(/\/platform-admin\/?$/, { timeout: 30000 }),
         state.platformPage.getByRole('button', { name: 'Sign in' }).click(),
@@ -584,7 +615,6 @@ When(
         await platformPage.getByLabel('Database server').fill('db');
         await platformPage.getByLabel('Database name').fill(`${slug}_dev`);
         await platformPage.getByLabel('Database role').fill(`kmp_tenant_${slug}_role`);
-        await platformPage.getByLabel('Queue limit').fill('5');
         await platformPage.getByLabel('Azure blob container').fill(`tenant-${slug}`);
         await platformPage.getByLabel('Email mode').selectOption('default');
 
@@ -604,9 +634,11 @@ Then('tenant {string} should have a queued provisioning job without secret leaka
     expect(status.job_status).toMatch(/^(queued|running|completed)$/);
     expect(status.tenant_status).toBe(status.job_status === 'completed' ? 'active' : 'provisioning');
     expect(status.host).toBe(`${slug}.localhost`);
-    expect(status.parameters).toContain('"create_database":true');
-    expect(status.parameters).toContain('"run_migrations":true');
-    expect(status.parameters).toContain(`"initial_super_user_email":"${INITIAL_SUPER_USER_EMAIL}"`);
+    expect(JSON.parse(status.parameters)).toMatchObject({
+        create_database: true,
+        run_migrations: true,
+        initial_super_user_email: INITIAL_SUPER_USER_EMAIL,
+    });
     expect(status.parameters).not.toContain(ADMIN_PASSWORD);
     expect(status.parameters).not.toContain(ADMIN_TOTP_SECRET);
     expect(status.parameters).not.toMatch(/password\\s*[:=]/i);
@@ -617,6 +649,7 @@ When('the platform job runner drains queued jobs', async ({ page }) => {
     const state = stateFor(page);
     state.lastRunnerOutput = runCake(['platform', 'jobs', 'run', '--limit', '5'], {
         timeoutMs: 1200000,
+        administrative: true,
     });
     expect(state.lastRunnerOutput).toContain('Platform jobs runner claimed');
 
@@ -688,8 +721,7 @@ Then('tenant {string} should have a queued backup job without secret leakage', a
     stateFor(page).lastBackupJob = status.job;
 
     expect(status.job.status).toMatch(/^(queued|running|completed)$/);
-    expect(status.job.parameters).toContain(`"tenant_slug":"${slug}"`);
-    expect(status.job.parameters).toContain('"retention_days":7');
+    expect(JSON.parse(status.job.parameters)).toMatchObject({ tenant_slug: slug, retention_days: 7 });
     expect(status.job.parameters).not.toContain(ADMIN_PASSWORD);
     expect(status.job.parameters).not.toContain(ADMIN_TOTP_SECRET);
     expect(status.job.parameters).not.toMatch(/password\\s*[:=]/i);
@@ -834,7 +866,7 @@ When('I suspend tenant {string} through the Platform Admin portal', async ({ pag
     await waitForPageBody(platformPage);
     await platformPage.getByLabel(`Type SUSPEND ${slug}`).fill(`SUSPEND ${slug}`);
     await platformPage.getByLabel('Operator reason').fill('Exercise the guarded restore recovery path.');
-    await platformPage.getByLabel('MFA code').fill(freshTotp());
+    await platformPage.getByLabel('MFA code').fill(await freshTotp());
     await Promise.all([
         platformPage.waitForURL(new RegExp(`/platform-admin/tenants/${slug}$`), { timeout: 30000 }),
         platformPage.getByRole('button', { name: 'Suspend tenant' }).click(),
@@ -900,8 +932,10 @@ Then('tenant {string} should have a queued restore job without secret leakage', 
     stateFor(page).lastRestoreJob = status.job;
 
     expect(status.job.status).toMatch(/^(queued|running|completed)$/);
-    expect(status.job.parameters).toContain(`"tenant_slug":"${slug}"`);
-    expect(status.job.parameters).toContain(`"backup_id":"`);
+    expect(JSON.parse(status.job.parameters)).toMatchObject({
+        tenant_slug: slug,
+        backup_id: expect.any(String),
+    });
     expect(status.job.parameters).not.toContain(ADMIN_PASSWORD);
     expect(status.job.parameters).not.toContain(ADMIN_TOTP_SECRET);
     expect(status.job.parameters).not.toMatch(/password\\s*[:=]/i);
@@ -922,7 +956,7 @@ When('I reactivate tenant {string} through the Platform Admin portal', async ({ 
     await waitForPageBody(platformPage);
     await platformPage.getByLabel(`Type REACTIVATE ${slug}`).fill(`REACTIVATE ${slug}`);
     await platformPage.getByLabel('Reactivation reason').fill('Restore completed and tenant checks passed.');
-    await platformPage.getByLabel('Reactivation MFA code').fill(freshTotp());
+    await platformPage.getByLabel('Reactivation MFA code').fill(await freshTotp());
     await Promise.all([
         platformPage.waitForURL(new RegExp(`/platform-admin/tenants/${slug}$`), { timeout: 30000 }),
         platformPage.getByRole('button', { name: 'Reactivate tenant' }).click(),
@@ -940,7 +974,7 @@ Then('the tenant {string} host should show the sign in page', async ({ page, bro
 
     expect(response.status()).toBeLessThan(500);
     await expect(tenantPage.getByLabel('Email Address')).toBeVisible();
-    await expect(tenantPage.getByLabel('Password')).toBeVisible();
+    await expect(tenantPage.getByLabel('Password', { exact: true })).toBeVisible();
 });
 
 Then(
@@ -985,7 +1019,7 @@ Then(
 );
 
 When(
-    'I restore the downloaded managed backup through tenant {string}',
+    'I inspect managed backups as tenant {string}',
     async ({ page, browser }, slug) => {
         const state = stateFor(page);
         const member = runPhpJson(
@@ -1007,39 +1041,7 @@ When(
         await loginAs(tenantPage, INITIAL_SUPER_USER_EMAIL, ADMIN_PASSWORD);
         await tenantPage.goto('/backups', { waitUntil: 'domcontentloaded' });
         await waitForPageBody(tenantPage);
-        await tenantPage.locator('#backup-file-input').setInputFiles(state.tenantBackupArchivePath);
-        await tenantPage.locator('#backup-recovery-key-input').setInputFiles(
-            state.tenantBackupRecoveryKeyPath,
-        );
 
-        await tenantPage.getByRole('button', { name: 'Import and Restore', exact: true }).click();
-        const confirmDialog = tenantPage.getByRole('dialog', { name: 'Restore backup' });
-        await expect(confirmDialog).toBeVisible({ timeout: 10000 });
-        const restoreResponsePromise = tenantPage.waitForResponse((response) => {
-            const request = response.request();
-
-            return request.method() === 'POST'
-                && new URL(response.url()).pathname === '/backups/restore';
-        }, { timeout: 120000 });
-        await confirmDialog.getByRole('button', { name: 'Restore backup', exact: true }).click();
-        const restoreResponse = await restoreResponsePromise;
-
-        expect(restoreResponse.status()).toBe(202);
-        expect(restoreResponse.headers()['content-type']).toContain('application/json');
-        const payload = await restoreResponse.json();
-        expect(payload.success).toBe(true);
-        expect(payload.status).toMatchObject({
-            status: 'running',
-            phase: 'queued',
-            recovery_key_import: true,
-            source: state.tenantBackupArchiveFilename,
-        });
-        expect(payload.status.restore_id).toMatch(/^[0-9a-f]{32}$/);
-        expect(payload.status).not.toHaveProperty('restore_key');
-        state.tenantFrontendRestoreId = payload.status.restore_id;
-        await expect(
-            tenantPage.getByRole('dialog', { name: 'Backup encryption key' }),
-        ).toHaveCount(0);
     },
 );
 
@@ -1047,7 +1049,7 @@ Then(
     'another tenant remains available while tenant {string} restore is queued',
     async ({ page, browser }, slug) => {
         const state = stateFor(page);
-        expect(state.tenantFrontendRestoreId).toBeTruthy();
+        expect(state.lastRestoreJob).toBeTruthy();
 
         const unaffectedSlug = slug === 'kmp' ? 'kmp2' : 'kmp';
         const unaffectedTenant = await createTenantContext(browser, { tenant: unaffectedSlug });
@@ -1058,65 +1060,25 @@ Then(
 
         expect(response.status()).toBe(200);
         await expect(unaffectedPage.getByLabel('Email Address')).toBeVisible();
-        await expect(unaffectedPage.getByLabel('Password')).toBeVisible();
+        await expect(unaffectedPage.getByLabel('Password', { exact: true })).toBeVisible();
     },
 );
 
-Then(
-    'the tenant frontend restore for {string} completes with the recovery key',
-    async ({ page }, slug) => {
-        const state = stateFor(page);
-        try {
-            runCake(
-                ['platform', 'schedule', 'run', 'tenant-queue-drain', '-q'],
-                { timeoutMs: 600000 },
-            );
-        } catch (error) {
-            const output = [error?.message, error?.stdout, error?.stderr]
-                .filter(Boolean)
-                .join('\n');
-            if (!/Too many workers (running|already)/.test(output)) {
-                throw error;
-            }
-        }
-
-        let status = null;
-        await expect.poll(
-            async () => {
-                const response = await state.tenantFrontendPage.request.get('/backups/status', {
-                    headers: { Accept: 'application/json' },
-                });
-                if (!response.ok() || !response.headers()['content-type']?.includes('application/json')) {
-                    return `http:${response.status()}`;
-                }
-
-                status = await response.json();
-                if (status.status === 'failed') {
-                    throw new Error(`Tenant restore failed: ${status.message || 'unknown error'}`);
-                }
-
-                return status.status;
-            },
-            {
-                message: `Expected the ${slug} restore to complete`,
-                timeout: 600000,
-                intervals: [1000, 2000, 5000],
-            },
-        ).toBe('completed');
-
-        expect(status).toMatchObject({
-            locked: false,
-            status: 'completed',
-            phase: 'completed',
-            recovery_key_import: true,
-            restore_id: state.tenantFrontendRestoreId,
-            source: state.tenantBackupArchiveFilename,
-        });
-        expect(Number(status.table_count)).toBeGreaterThan(0);
-        expect(Number(status.rows_processed)).toBeGreaterThan(0);
-        expect(status.message).toMatch(/Restore\/import completed:/);
-    },
-);
+Then('tenant restores should remain restricted to Platform Admin', async ({ page }) => {
+    const tenantPage = stateFor(page).tenantFrontendPage;
+    await expect(tenantPage.getByText('Restores are performed by platform administrators.', { exact: false })).toBeVisible();
+    await expect(tenantPage.locator('#backup-file-input, #backup-recovery-key-input')).toHaveCount(0);
+    await expect(tenantPage.getByRole('button', { name: 'Import and Restore', exact: true })).toHaveCount(0);
+    const csrfToken = await tenantPage.evaluate(() =>
+        document.querySelector('meta[name="csrfToken"]')?.content
+        || document.querySelector('input[name="_csrfToken"]')?.value);
+    expect(csrfToken).toBeTruthy();
+    const response = await tenantPage.request.post('/backups/restore', {
+        headers: { 'X-CSRF-Token': csrfToken, Accept: 'application/json' },
+        data: {},
+    });
+    expect(response.status()).toBe(404);
+});
 
 After(async ({ page }) => {
     const state = page[STATE_KEY];

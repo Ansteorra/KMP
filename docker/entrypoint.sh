@@ -103,6 +103,11 @@ mkdir -p /var/www/html/logs \
 chown -R www-data:www-data /var/www/html/logs /var/www/html/tmp /var/www/html/images 2>/dev/null || true
 chmod -R 775 /var/www/html/logs /var/www/html/tmp /var/www/html/images 2>/dev/null || true
 
+# Web and CLI workers share private local backup storage through the app mount.
+mkdir -p /var/www/html/backups
+chown -R www-data:www-data /var/www/html/backups
+chmod 750 /var/www/html/backups
+
 # Run migrations if database is empty (first-time setup)
 if [ "$DB_ENGINE" = "postgres" ]; then
     TABLES=$(PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -Atc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE';" 2>/dev/null || echo 0)

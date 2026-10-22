@@ -1,6 +1,8 @@
 #!/bin/sh
 set -eu
 
+php /usr/local/bin/verify-kmp-php-version.php
+
 # Refresh all inherited native libraries before compiling extensions against them.
 # Preserve Docker's existing Apache configuration when a security update changes conffiles.
 export DEBIAN_FRONTEND=noninteractive
@@ -26,8 +28,9 @@ install-php-extensions \
         redis-6.3.0 \
         zip \
         apcu-5.1.28 \
-        yaml-2.3.0 \
-    && apt-get update && apt-get install -y --no-install-recommends \
+        yaml-2.3.0
+
+apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
         default-mysql-client \
@@ -96,4 +99,5 @@ dpkg-query -W -f='${db:Status-Abbrev} ${binary:Package}\n' \
     | sort -u \
     | xargs -r apt-get purge -y --auto-remove
 rm -rf /var/lib/apt/lists/*
-php -r 'if (version_compare(PHP_VERSION, "8.4.24", "<") || !extension_loaded("gd")) { exit(1); }'
+php /usr/local/bin/verify-kmp-php-version.php
+php -r 'if (!extension_loaded("gd")) { exit(1); }'

@@ -1,4 +1,4 @@
-# KMP Application Container - PHP 8.4 + Apache
+# KMP Application Container - PHP 8.5 + Apache
 # Slimmed version of .devcontainer/Dockerfile for multi-container setup
 #
 # This container expects:
@@ -6,9 +6,14 @@
 #   - Code mounted at /var/www/html
 #   - Environment variables for configuration
 
-FROM php:8.5-apache-bookworm
+ARG PHP_IMAGE=php:8.5-apache-bookworm
+FROM ${PHP_IMAGE}
+
+COPY docker/verify-php-version.php /usr/local/bin/verify-kmp-php-version.php
+RUN php /usr/local/bin/verify-kmp-php-version.php
 
 ARG NODE_VERSION=24.15.0
+ARG PHP_BUILD_JOBS=4
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -35,6 +40,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Tools
     curl \
     git \
+    jq \
+    python3 \
     unzip \
     xz-utils \
     default-mysql-client \
@@ -59,7 +66,7 @@ RUN ARCH="$(dpkg --print-architecture)" && \
 
 # Install PHP extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
-    && docker-php-ext-install -j$(nproc) \
+    && docker-php-ext-install -j"${PHP_BUILD_JOBS}" \
         bcmath \
         bz2 \
         intl \
@@ -69,11 +76,18 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
         pdo_mysql \
         pdo_pgsql \
         zip \
-        opcache
+    && if ! php -r 'exit(extension_loaded("Zend OPcache") ? 0 : 1);'; then \
+        docker-php-ext-install opcache; \
+    fi
 
 # Install PECL extensions
-RUN pecl install apcu grpc-1.82.0 protobuf yaml xdebug \
+RUN MAKEFLAGS="-j${PHP_BUILD_JOBS}" pecl install apcu grpc-1.82.0 protobuf yaml xdebug \
     && docker-php-ext-enable apcu grpc protobuf yaml xdebug
+
+# Update npm's bundled tooling independently of the Node.js distribution.
+ARG NPM_VERSION=11.21.1
+RUN npm install --global "npm@${NPM_VERSION}" --ignore-scripts --no-audit --no-fund \
+    && npm --version
 
 # Configure PHP
 RUN mv "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini" \
@@ -96,7 +110,7 @@ RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 COPY docker/apache-vhost.conf /etc/apache2/sites-available/000-default.conf
 
 # Install Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2@sha256:af98f42dfff7c68ba8d53c2164fd9fde1087b7d449514baa38c418b1f6bc4bac /usr/bin/composer /usr/bin/composer
 
 # Install PHPUnit
 RUN curl -sSL https://phar.phpunit.de/phpunit-10.phar -o /usr/local/bin/phpunit \

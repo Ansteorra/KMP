@@ -14,6 +14,9 @@ Own browser-driven Playwright and playwright-bdd coverage for authentication, te
 ## Local Contracts
 
 - Run only one Playwright lane at a time because lanes share the local Docker app, database, worker, scheduler, and Mailpit.
+- Run UAT and the opt-in platform lane with separate fixture resets. Platform provisioning replaces the seeded second tenant required by tenancy scenarios.
+- Platform operational jobs run through the dedicated admin worker (`PLAYWRIGHT_ADMIN_WORKER_CONTAINER`, default `kmp-admin-worker`), never by injecting administrative credentials into the web container.
+- Platform MFA helpers wait for unused TOTP counters. Preserve replay protection instead of resetting consumed counters between sensitive actions.
 - Use `runPhpJson()` for fixture setup and pass JSON through STDIN.
 - Use `flushWorkflowsAndQueue()` and `waitForQueueSettled()` before asserting email or queued side effects.
 - Tenant scenarios must use host-bound contexts and assert tenant isolation.

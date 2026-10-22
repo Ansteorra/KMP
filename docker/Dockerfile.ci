@@ -7,6 +7,9 @@
 ARG BASE_IMAGE=ghcr.io/ansteorra/kmp-base:php84
 FROM ${BASE_IMAGE}
 
+COPY docker/verify-php-version.php /usr/local/bin/verify-kmp-php-version.php
+RUN php /usr/local/bin/verify-kmp-php-version.php
+
 WORKDIR /var/www/html
 
 RUN mkdir -p /opt/docker
