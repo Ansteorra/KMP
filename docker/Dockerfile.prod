@@ -97,9 +97,13 @@ LABEL org.opencontainers.image.description="Kingdom Management Portal"
 WORKDIR /var/www/html
 
 COPY docker/verify-php-version.php /usr/local/bin/verify-kmp-php-version.php
+# Container volumes are mounted by the platform, never by an application user.
 RUN php /usr/local/bin/verify-kmp-php-version.php \
     && php -r 'if (!extension_loaded("gd")) { exit(1); }' \
-    && (a2dismod mpm_event mpm_worker || true) && a2enmod mpm_prefork
+    && (a2dismod mpm_event mpm_worker || true) && a2enmod mpm_prefork \
+    && chmod a-s /usr/bin/mount /usr/bin/umount \
+    && test ! -u /usr/bin/mount && test ! -g /usr/bin/mount \
+    && test ! -u /usr/bin/umount && test ! -g /usr/bin/umount
 
 # Copy PHP application (source + vendor/, no node_modules)
 COPY --from=php-deps /app/ ./

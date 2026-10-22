@@ -8,6 +8,15 @@ Composer advisories/abandoned packages and npm High/Critical issues block. The i
 blocks fixable High/Critical findings; every remaining native finding still needs reachability
 triage. Custom PHP and PECL components require explicit build-version checks beyond OS scans.
 
+The [KMP 1.5.13 native reachability review](reviews/1.5.13-native.md) records the
+October 22, 2026 release artifact provenance, all 32 High/Critical advisory
+assessments, upstream fixes, runtime evidence limits and pending acceptance
+decisions. Its companion JSON retains every affected binary package/version.
+The complete scan also contains lower-severity findings; the 129 High/Critical
+rows are not the full scan. Keep raw evidence in restricted storage before its
+GitHub expiration; local ignored report copies are not durable shared retention.
+Source review and a passed fixable-finding gate do not grant risk acceptance.
+
 Final-image audits execute `docker/verify-php-version.php` using the image's PHP
 interpreter before the Trivy scan, independently of the image's bundled checker.
 The container entrypoint is bypassed; networking is disabled and the filesystem

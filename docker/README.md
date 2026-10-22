@@ -97,6 +97,16 @@ the version checker read-only. This does not restart the development stack.
 
 ## Managed Azure process model
 
+Production final images remove SUID/SGID from `/usr/bin/mount` and
+`/usr/bin/umount`, with build-time assertions for both files. Azure mounts
+volumes outside the application; web users do not need elevated mount helpers.
+The ordinary commands remain executable. This reduces a local escalation
+precondition, but does not patch libmount or restrict callers already running as
+root/with capabilities. Do not use privileged `nsenter --join-cgroup` against
+untrusted targets until the affected tooling is patched. See the
+[1.5.13 native review](../security/reviews/1.5.13-native.md) for residual risks
+and verification limits.
+
 All managed roles use the same production image digest but different commands:
 
 | Role | Contract |
