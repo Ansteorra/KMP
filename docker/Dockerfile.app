@@ -44,7 +44,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     unzip \
     xz-utils \
-    default-mysql-client \
     libpq-dev \
     postgresql-client-16 \
     cron \
@@ -71,9 +70,7 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
         bz2 \
         intl \
         gd \
-        mysqli \
         pcntl \
-        pdo_mysql \
         pdo_pgsql \
         zip \
     && if ! php -r 'exit(extension_loaded("Zend OPcache") ? 0 : 1);'; then \

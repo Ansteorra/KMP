@@ -4,6 +4,8 @@ This file is the quick-start runbook for coding agents working in this repositor
 
 ## Mission
 
+KMP is a PostgreSQL-only SaaS platform for kingdoms. Do not add MySQL/MariaDB drivers, clients, configuration paths, or test lanes. Preserve applied migrations and legacy logical-backup import into PostgreSQL.
+
 Deliver small, correct, verified changes that match the existing CakePHP 5, Stimulus, Bootstrap, Turbo Frame, and plugin patterns. Keep user-facing UI WCAG 2.2 Level AA compliant and prefer proven project abstractions over new one-off code.
 
 ## Start every task

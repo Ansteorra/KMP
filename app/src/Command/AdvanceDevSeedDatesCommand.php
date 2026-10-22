@@ -9,7 +9,6 @@ use Cake\Console\ConsoleIo;
 use Cake\Console\ConsoleOptionParser;
 use Cake\Core\Configure;
 use Cake\Database\Connection;
-use Cake\Database\Driver\Mysql;
 use Cake\Database\Driver\Postgres;
 use Cake\Datasource\ConnectionManager;
 use DateTimeImmutable;
@@ -152,8 +151,8 @@ class AdvanceDevSeedDatesCommand extends Command
     private function shiftDates(Connection $connection, int $shiftDays): int
     {
         $driver = $connection->getDriver();
-        if (!$driver instanceof Postgres && !$driver instanceof Mysql) {
-            throw new RuntimeException('Only PostgreSQL and MySQL/MariaDB development snapshots are supported.');
+        if (!$driver instanceof Postgres) {
+            throw new RuntimeException('Development snapshots require PostgreSQL.');
         }
 
         $availableTables = array_fill_keys($connection->getSchemaCollection()->listTables(), true);
@@ -171,9 +170,7 @@ class AdvanceDevSeedDatesCommand extends Command
                 $assignments[] = sprintf(
                     '%1$s = %2$s',
                     $quotedColumn,
-                    $driver instanceof Postgres
-                        ? sprintf('%s + (%d * INTERVAL \'1 day\')', $quotedColumn, $shiftDays)
-                        : sprintf('DATE_ADD(%s, INTERVAL %d DAY)', $quotedColumn, $shiftDays),
+                    sprintf('%s + (%d * INTERVAL \'1 day\')', $quotedColumn, $shiftDays),
                 );
                 $conditions[] = sprintf('%s IS NOT NULL', $quotedColumn);
             }

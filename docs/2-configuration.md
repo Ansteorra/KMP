@@ -45,9 +45,12 @@ Important local controls include:
 
 Use URL-style datasource variables where the deployment platform supplies them;
 otherwise the individual host, port, username, password, and database variables
-are supported. PostgreSQL is the current local and hosted database. MySQL
-compatibility branches remain in configuration for legacy environments and are
-not the managed-platform baseline.
+are supported. **PostgreSQL is the only supported database** for development,
+tests, the platform registry and every hosted kingdom. MySQL/MariaDB selectors,
+URLs and environment aliases are rejected or removed; existing installations
+need a separately planned data migration before upgrading. Startup validates
+merged datasource drivers, including DSN and administrative overrides, before
+opening connections.
 
 ## Datasource boundaries
 

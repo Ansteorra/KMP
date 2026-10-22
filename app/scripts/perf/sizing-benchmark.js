@@ -37,15 +37,8 @@ const config = {
     memoryTargetUtilizationPct: Math.min(95, Math.max(10, Number.parseFloat(process.env.KMP_MEMORY_TARGET_UTIL_PCT || '80'))),
     telemetrySampleMs: Math.max(200, Number.parseInt(process.env.KMP_TELEMETRY_SAMPLE_MS || '500', 10)),
     outputDir: process.env.KMP_PERF_OUTPUT_DIR || '/workspaces/KMP/test-results/perf',
-    enableDbProfile: (process.env.KMP_ENABLE_DB_PROFILE || '1') === '1',
-    dbHost: process.env.KMP_DB_HOST || '127.0.0.1',
-    dbUser: process.env.KMP_DB_USER || 'KMPSQLDEV',
-    dbPass: process.env.KMP_DB_PASS || 'P@ssw0rd',
-    dbName: process.env.KMP_DB_NAME || 'KMP_DEV',
 };
 
-let dbAvailable = false;
-let originalDbSettings = null;
 
 function parseConcurrencyLevels(value) {
     const levels = value
@@ -411,40 +404,6 @@ function estimateCapacity(totalUnits, observedPct, targetPct) {
     return Math.max(1, Math.ceil((totalUnits * observedPct) / targetPct));
 }
 
-function mysqlExec(sql) {
-    const args = [
-        '-h',
-        config.dbHost,
-        `-u${config.dbUser}`,
-        `-p${config.dbPass}`,
-        '-N',
-        '-e',
-        sql,
-    ];
-
-    if (config.dbName) {
-        args.push(config.dbName);
-    }
-
-    const result = spawnSync('mysql', args, {
-        encoding: 'utf8',
-    });
-
-    if (result.status !== 0) {
-        throw new Error((result.stderr || result.stdout || 'mysql command failed').trim());
-    }
-
-    return result.stdout.trim();
-}
-
-function mysqlExecOptional(sql) {
-    try {
-        return mysqlExec(sql);
-    } catch (error) {
-        return null;
-    }
-}
-
 function parseSingleRow(raw, expectedColumns) {
     if (!raw) {
         return [];
@@ -536,54 +495,11 @@ async function profileRoutesSequential(page, routes, runs) {
     };
 }
 
-async function profileDbByRoute(page, routes) {
-    if (!dbAvailable) {
-        return {
-            enabled: false,
-            reason: 'MySQL profiling unavailable or disabled',
-            summary: [],
-        };
-    }
-
-    const results = [];
-
-    for (const route of routes) {
-        mysqlExec('TRUNCATE TABLE mysql.slow_log; SET GLOBAL log_output=\'TABLE\'; SET GLOBAL long_query_time=0; SET GLOBAL slow_query_log=ON;');
-        const started = Date.now();
-        const response = await page.goto(`${config.baseUrl}${route}`, { waitUntil: 'networkidle' });
-        const elapsedMs = Date.now() - started;
-        mysqlExec('SET GLOBAL slow_query_log=OFF;');
-
-        const summaryRaw = mysqlExec(
-            'SELECT COUNT(*), COALESCE(ROUND(SUM(TIME_TO_SEC(query_time))*1000,3),0), COALESCE(ROUND(MAX(TIME_TO_SEC(query_time))*1000,3),0), COALESCE(SUM(rows_examined),0) FROM mysql.slow_log;'
-        );
-        const [queryCountRaw, totalQueryMsRaw, maxQueryMsRaw, rowsExaminedRaw] = parseSingleRow(summaryRaw, 4);
-
-        const topRaw = mysqlExecOptional(
-            "SELECT ROUND(TIME_TO_SEC(query_time)*1000,3), rows_examined, rows_sent, LEFT(REPLACE(REPLACE(sql_text, '\\n', ' '), '\\t', ' '), 180) FROM mysql.slow_log ORDER BY rows_examined DESC, query_time DESC LIMIT 1;"
-        );
-        const [topQueryMsRaw, topRowsExaminedRaw, topRowsSentRaw, topSql] = parseSingleRow(topRaw || '', 4);
-
-        results.push({
-            route,
-            status: response ? response.status() : 0,
-            pageElapsedMs: elapsedMs,
-            queryCount: Number.parseInt(queryCountRaw || '0', 10),
-            totalQueryMs: Number.parseFloat(totalQueryMsRaw || '0'),
-            maxQueryMs: Number.parseFloat(maxQueryMsRaw || '0'),
-            rowsExamined: Number.parseInt(rowsExaminedRaw || '0', 10),
-            topQuery: topSql ? {
-                queryMs: Number.parseFloat(topQueryMsRaw || '0'),
-                rowsExamined: Number.parseInt(topRowsExaminedRaw || '0', 10),
-                rowsSent: Number.parseInt(topRowsSentRaw || '0', 10),
-                sqlSnippet: topSql,
-            } : null,
-        });
-    }
-
+async function profileDbByRoute() {
     return {
-        enabled: true,
-        summary: results,
+        enabled: false,
+        reason: 'Use PostgreSQL pg_stat_statements for database-level profiling; browser timings remain available.',
+        summary: [],
     };
 }
 
@@ -824,27 +740,6 @@ async function main() {
     fs.mkdirSync(config.outputDir, { recursive: true });
     const environment = detectBenchmarkEnvironment();
 
-    if (config.enableDbProfile) {
-        try {
-            mysqlExec('SELECT 1;');
-            const current = parseSingleRow(
-                mysqlExec('SELECT @@GLOBAL.slow_query_log, @@GLOBAL.long_query_time, @@GLOBAL.log_output;'),
-                3
-            );
-            if (current.length === 3) {
-                originalDbSettings = {
-                    slowQueryLog: current[0],
-                    longQueryTime: current[1],
-                    logOutput: current[2],
-                };
-                dbAvailable = true;
-            }
-        } catch (error) {
-            dbAvailable = false;
-            console.warn(`DB profiling disabled: ${error.message}`);
-        }
-    }
-
     const browser = await chromium.launch({ headless: true });
     let routeProfile;
     let dbProfile = {
@@ -887,7 +782,6 @@ async function main() {
             generatedAt: new Date().toISOString(),
             config: {
                 ...config,
-                dbPass: config.dbPass ? '***' : '',
             },
             environment,
             routeProfile,
@@ -905,13 +799,7 @@ async function main() {
     } finally {
         await browser.close();
 
-        if (dbAvailable && originalDbSettings) {
-            mysqlExec(
-                `SET GLOBAL slow_query_log=${originalDbSettings.slowQueryLog}; ` +
-                `SET GLOBAL long_query_time=${originalDbSettings.longQueryTime}; ` +
-                `SET GLOBAL log_output='${originalDbSettings.logOutput}';`
-            );
-        }
+
     }
 }
 

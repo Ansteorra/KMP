@@ -11,7 +11,7 @@ use InvalidArgumentException;
 /**
  * JsonField Behavior
  *
- * Enables querying JSON fields using database-specific JSON extraction syntax.
+ * Enables querying JSON fields using PostgreSQL JSON extraction.
  * Provides addJsonWhere() for $.path-based JSON field filtering.
  *
  * @see https://github.com/Ansteorra/KMP/blob/main/docs/3.2-model-behaviors.md#jsonfield-behavior
@@ -37,7 +37,7 @@ class JsonFieldBehavior extends Behavior
     }
 
     /**
-     * Build driver-specific JSON extraction expression.
+     * Build a PostgreSQL JSON extraction expression.
      *
      * @param \Cake\ORM\Query\SelectQuery $query Query being modified
      * @param string $field Field name (optionally table-qualified)
@@ -46,41 +46,23 @@ class JsonFieldBehavior extends Behavior
      */
     protected function buildJsonExtractExpression(SelectQuery $query, string $field, string $path): mixed
     {
-        if ($this->getDriverName($query) === 'Postgres') {
-            $segments = $this->extractJsonPathSegments($path);
-            $quotedField = $this->quoteIdentifierPath($query, $field);
+        $segments = $this->extractJsonPathSegments($path);
+        $quotedField = $this->quoteIdentifierPath($query, $field);
 
-            if ($segments === []) {
-                return $query->newExpr(sprintf('CAST(%s AS jsonb)', $quotedField));
-            }
-
-            $quotedSegments = array_map(
-                static fn(string $segment): string => "'" . str_replace("'", "''", $segment) . "'",
-                $segments,
-            );
-
-            return $query->newExpr(sprintf(
-                'jsonb_extract_path_text(CAST(%s AS jsonb), %s)',
-                $quotedField,
-                implode(', ', $quotedSegments),
-            ));
+        if ($segments === []) {
+            return $query->newExpr(sprintf('CAST(%s AS jsonb)', $quotedField));
         }
 
-        return $query->func()->json_extract([$field => 'identifier', $path]);
-    }
+        $quotedSegments = array_map(
+            static fn(string $segment): string => "'" . str_replace("'", "''", $segment) . "'",
+            $segments,
+        );
 
-    /**
-     * Resolve current database driver short name.
-     *
-     * @param \Cake\ORM\Query\SelectQuery $query Query being modified
-     * @return string Driver short class name (e.g., Mysql, Postgres, Sqlite)
-     */
-    protected function getDriverName(SelectQuery $query): string
-    {
-        $driverClass = get_class($query->getConnection()->getDriver());
-        $lastSeparator = strrpos($driverClass, '\\');
-
-        return $lastSeparator === false ? $driverClass : substr($driverClass, $lastSeparator + 1);
+        return $query->newExpr(sprintf(
+            'jsonb_extract_path_text(CAST(%s AS jsonb), %s)',
+            $quotedField,
+            implode(', ', $quotedSegments),
+        ));
     }
 
     /**

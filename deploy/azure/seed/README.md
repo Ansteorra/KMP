@@ -24,9 +24,9 @@ for the managed formats.
 ## Why the seed is a logical backup
 
 The legacy `BackupService` serializes application records, compresses them, and
-encrypts the result with AES-256-GCM. Restore uses CakePHP's ORM, so an archive
-created from a supported local MySQL/MariaDB or PostgreSQL database can seed the
-POC PostgreSQL database. It is functionally aligned with the curated local seed;
+encrypts the result with AES-256-GCM. Restore targets PostgreSQL. Existing logical archives, including archives
+created before database support was narrowed, can still seed the POC PostgreSQL
+database. New archives must be produced from PostgreSQL. It is functionally aligned with the curated local seed;
 it is not byte-for-byte database state.
 
 The archive includes a migration fingerprint. A schema mismatch is a signal to

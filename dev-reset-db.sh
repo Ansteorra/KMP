@@ -10,7 +10,6 @@
 #
 # With --seed:
 #   1. Drops and recreates the database
-#   2. MySQL/MariaDB: loads dev_seed_clean.sql, then runs remaining migrations
 #   3. PostgreSQL: migrates to the baseline, loads the converted baseline seed
 #   4. Runs remaining migrations/update tasks
 #   5. Reconciles seeded Awards recommendations into workflow/bestowal ownership
@@ -188,6 +187,16 @@ fi
 DB_DRIVER="$(env_or_file KMP_DB_DRIVER postgres)"
 DB_DRIVER="$(printf '%s' "$DB_DRIVER" | tr '[:upper:]' '[:lower:]')"
 
+case "$DB_DRIVER" in
+    postgres|pgsql) ;;
+    *) echo 'ERROR: KMP supports PostgreSQL only.' >&2; exit 1 ;;
+esac
+DATABASE_URL_FROM_SETTINGS="$(env_or_file DATABASE_URL '')"
+case "$DATABASE_URL_FROM_SETTINGS" in
+    ''|postgres://*|postgresql://*|pgsql://*) ;;
+    *) echo 'ERROR: DATABASE_URL must use PostgreSQL.' >&2; exit 1 ;;
+esac
+
 echo "[pre] Pausing app service during database drop/recreate"
 "${COMPOSE[@]}" stop app >/dev/null
 APP_SERVICE_STOPPED=true
@@ -272,22 +281,7 @@ DROP DATABASE IF EXISTS :"tenant2testdb";
 DROP DATABASE IF EXISTS :"legacytenant2db";
 DROP DATABASE IF EXISTS :"legacytenant2testdb";
 SQL
-elif [ "$DB_DRIVER" = "mysql" ] || [ "$DB_DRIVER" = "mariadb" ] || [ -z "$DB_DRIVER" ]; then
-    echo "[1/5] Dropping and recreating database..."
-    DB_NAME="$(env_or_file MYSQL_DB_NAME KMP_DEV)"
-    DB_USER="$(env_or_file MYSQL_USERNAME KMPSQLDEV)"
-    DB_PASS="$(env_or_file MYSQL_PASSWORD 'P@ssw0rd')"
-    DB_ROOT_PASS="$(env_or_file MYSQL_ROOT_PASSWORD rootpassword)"
 
-    "${COMPOSE[@]}" exec -T db mariadb -uroot -p"${DB_ROOT_PASS}" <<EOF
-DROP DATABASE IF EXISTS ${DB_NAME};
-CREATE DATABASE ${DB_NAME} COLLATE utf8_unicode_ci;
-DROP DATABASE IF EXISTS ${DB_NAME}_test;
-CREATE DATABASE ${DB_NAME}_test COLLATE utf8_unicode_ci;
-GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'%';
-GRANT ALL PRIVILEGES ON ${DB_NAME}_test.* TO '${DB_USER}'@'%';
-FLUSH PRIVILEGES;
-EOF
 else
     echo "❌ Error: Unsupported KMP_DB_DRIVER value: ${DB_DRIVER}"
     exit 1
@@ -298,16 +292,7 @@ echo "[pre] Restarting app service for migrations and seed tasks"
 APP_SERVICE_STOPPED=false
 wait_for_app_startup
 
-if [ "$LOAD_SEED" = true ] && [ "$DB_DRIVER" != "postgres" ] && [ "$DB_DRIVER" != "pgsql" ] && [ -f "dev_seed_clean.sql" ]; then
-    echo "[2/5] Loading seed data snapshot from dev_seed_clean.sql..."
-    "${COMPOSE[@]}" exec -T db mariadb -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" < dev_seed_clean.sql
-
-    echo "      Clearing app caches after seed import..."
-    clear_cakephp_caches
-    
-    echo "[3/5] Running migrations to bring schema up to current..."
-    "${COMPOSE[@]}" exec -T app bin/cake migrations migrate
-elif [ "$LOAD_SEED" = true ] && { [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER" = "pgsql" ]; }; then
+if [ "$LOAD_SEED" = true ]; then
     PG_SEED_FILE="app/tests/pg_seed_baseline.sql"
     if [ ! -f "$PG_SEED_FILE" ]; then
         echo "❌ Error: Missing PostgreSQL seed file: $PG_SEED_FILE"

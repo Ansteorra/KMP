@@ -140,7 +140,6 @@ if (file_exists(CONFIG . "secrets.php")) {
     Configure::load("secrets", "default");
 }
 
-
 // Administrative credentials are injected only into dedicated CLI jobs. Resolve them
 // after app_local overrides, never from a request or a database-backed secret store.
 $administrativeJob = PHP_SAPI === 'cli' && filter_var(env('KMP_ADMIN_JOB', false), FILTER_VALIDATE_BOOLEAN);
@@ -238,7 +237,15 @@ if ($fullBaseUrl) {
 unset($fullBaseUrl);
 
 Cache::setConfig(Configure::consume("Cache"));
-ConnectionManager::setConfig(Configure::consume("Datasources"));
+$datasources = Configure::consume("Datasources");
+\App\KMP\DatabasePlatform::assertSupported($datasources);
+foreach ($datasources as &$datasource) {
+    if (is_array($datasource) && !empty($datasource['url'])) {
+        $datasource['url'] = preg_replace('/^(postgresql|pgsql):/i', 'postgres:', $datasource['url']);
+    }
+}
+unset($datasource);
+ConnectionManager::setConfig($datasources);
 TransportFactory::setConfig(Configure::consume("EmailTransport"));
 Mailer::setConfig(Configure::consume("Email"));
 Log::setConfig(Configure::consume("Log"));

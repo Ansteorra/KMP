@@ -11,22 +11,10 @@ sudo rm -f /etc/apache2/sites-available/000-default.conf
 sed "s|{{REPO_PATH}}|$REPO_PATH|g" /opt/templates/apache-vhost.template > /tmp/000-default.conf
 sudo mv /tmp/000-default.conf /etc/apache2/sites-available/000-default.conf
 
-# Start MariaDB
-echo "Starting MariaDB..."
-sudo service mariadb start
-
-# Setup MySQL databases and user
-echo "Setting up MySQL databases..."
-sudo mysql <<EOFMYSQL
-    CREATE USER '$(echo $MYSQL_DEV_USERNAME)'@'localhost' IDENTIFIED BY '$(echo $MYSQL_DEV_PASSWORD)'; 
-    GRANT ALL PRIVILEGES ON *.* TO '$(echo $MYSQL_DEV_USERNAME)'@'localhost' WITH GRANT OPTION;
-    CREATE DATABASE IF NOT EXISTS $(echo $MYSQL_DEV_DB_NAME) collate utf8_unicode_ci ;
-    CREATE DATABASE IF NOT EXISTS $(echo $MYSQL_DEV_DB_NAME)_test collate utf8_unicode_ci ;
-    flush privileges;
-EOFMYSQL
-
-# Start PostgreSQL 16 (matches Azure Database for PostgreSQL Flex) so the
-# devcontainer can validate the Postgres code path before pushing to Azure.
+# Start PostgreSQL 16 (matches Azure Database for PostgreSQL Flex) for local development.
+POSTGRES_USER="${POSTGRES_USER:-kmpdev}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-kmpdevpass}"
+POSTGRES_DB="${POSTGRES_DB:-KMP_DEV}"
 echo "Starting PostgreSQL 16..."
 sudo pg_ctlcluster 16 main start || sudo service postgresql start
 
@@ -37,43 +25,40 @@ for i in 1 2 3 4 5 6 7 8 9 10; do
 done
 
 echo "Setting up PostgreSQL role and databases..."
-# Idempotent provisioning: role + dev/test databases mirroring the MySQL pair.
+# Idempotent provisioning: role + PostgreSQL development/test databases.
 sudo -u postgres psql -v ON_ERROR_STOP=1 <<EOFPG
 DO \$\$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${MYSQL_DEV_USERNAME}') THEN
-        CREATE ROLE "${MYSQL_DEV_USERNAME}" LOGIN PASSWORD '${MYSQL_DEV_PASSWORD}' CREATEDB;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${POSTGRES_USER}') THEN
+        CREATE ROLE "${POSTGRES_USER}" LOGIN PASSWORD '${POSTGRES_PASSWORD}' CREATEDB;
     ELSE
-        ALTER ROLE "${MYSQL_DEV_USERNAME}" LOGIN PASSWORD '${MYSQL_DEV_PASSWORD}' CREATEDB;
+        ALTER ROLE "${POSTGRES_USER}" LOGIN PASSWORD '${POSTGRES_PASSWORD}' CREATEDB;
     END IF;
 END
 \$\$;
 EOFPG
-sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '${MYSQL_DEV_DB_NAME}'" | grep -q 1 || \
-    sudo -u postgres createdb -O "${MYSQL_DEV_USERNAME}" "${MYSQL_DEV_DB_NAME}"
-sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '${MYSQL_DEV_DB_NAME}_test'" | grep -q 1 || \
-    sudo -u postgres createdb -O "${MYSQL_DEV_USERNAME}" "${MYSQL_DEV_DB_NAME}_test"
+sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '${POSTGRES_DB}'" | grep -q 1 || \
+    sudo -u postgres createdb -O "${POSTGRES_USER}" "${POSTGRES_DB}"
+sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '${POSTGRES_DB}_test'" | grep -q 1 || \
+    sudo -u postgres createdb -O "${POSTGRES_USER}" "${POSTGRES_DB}_test"
 
 # Create environment configuration
 echo "Creating environment configuration..."
 sudo rm -f $(echo $REPO_PATH)/app/config/.env
 cat > /tmp/.env <<EOF
-export MYSQL_USERNAME='$MYSQL_DEV_USERNAME'
-export MYSQL_PASSWORD='$MYSQL_DEV_PASSWORD'
-export MYSQL_DB_NAME='$MYSQL_DEV_DB_NAME'
+export DB_USERNAME='$POSTGRES_USER'
+export DB_PASSWORD='$POSTGRES_PASSWORD'
+export DB_DATABASE='$POSTGRES_DB'
+export KMP_DB_DRIVER='postgres'
+export DB_HOST='localhost'
+export DB_PORT='5432'
 export EMAIL_SMTP_HOST='$EMAIL_DEV_SMTP_HOST'
 export EMAIL_SMTP_PORT='$EMAIL_DEV_SMTP_PORT'
 export EMAIL_SMTP_USERNAME='$EMAIL_DEV_SMTP_USERNAME'
 export EMAIL_SMTP_PASSWORD='$EMAIL_DEV_SMTP_PASSWORD'
 export PATH_WKHTML='/usr/bin/wkhtmltopdf'
 export AZURE_STORAGE_CONNECTION_STRING='GO GET THIS FROM AZURE PORTAL'
-# -----------------------------------------------------------------------------
-# Engine switching: uncomment DATABASE_URL to run against PostgreSQL 16 (the
-# same major version used by Azure Database for PostgreSQL Flex in deploy/).
-# reset_dev_database.sh and app/config/app_local.php both honour DATABASE_URL.
-# -----------------------------------------------------------------------------
-# export DATABASE_URL='postgres://$MYSQL_DEV_USERNAME:$MYSQL_DEV_PASSWORD@127.0.0.1:5432/$MYSQL_DEV_DB_NAME'
-# export DATABASE_TEST_URL='postgres://$MYSQL_DEV_USERNAME:$MYSQL_DEV_PASSWORD@127.0.0.1:5432/${MYSQL_DEV_DB_NAME}_test'
+
 EOF
 sudo mv /tmp/.env $(echo $REPO_PATH)/app/config/.env
 
@@ -94,7 +79,7 @@ cat > ~/.mermerd <<EOF
 showAllConstraints: true
 encloseWithMermaidBackticks: true
 connectionStringSuggestions:
-  - mysql://$MYSQL_DEV_USERNAME:$MYSQL_DEV_PASSWORD@tcp(127.0.0.1:3306)/$MYSQL_DEV_DB_NAME
+  - postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@127.0.0.1:5432/$POSTGRES_DB
 EOF
 
 # Copy application configuration

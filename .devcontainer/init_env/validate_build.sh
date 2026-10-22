@@ -69,12 +69,6 @@ else
     echo "⚠️  Apache service status unknown (normal in build)"
 fi
 
-if systemctl is-active --quiet mariadb 2>/dev/null || service mariadb status >/dev/null 2>&1; then
-    echo "✅ MariaDB service is available"
-else
-    echo "⚠️  MariaDB service status unknown (normal in build)"
-fi
-
 if systemctl is-active --quiet postgresql 2>/dev/null || service postgresql status >/dev/null 2>&1 || pg_isready -q 2>/dev/null; then
     echo "✅ PostgreSQL service is available"
 else
@@ -83,7 +77,7 @@ fi
 
 echo ""
 echo "--- PHP Extensions ---"
-php -m | grep -E "(xdebug|apcu|mysql|pgsql)" | while read ext; do
+php -m | grep -E "(xdebug|apcu|pgsql)" | while read ext; do
     echo "✅ PHP extension: $ext"
 done
 

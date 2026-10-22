@@ -21,6 +21,18 @@ stack is documented separately as unsupported.
 | `apache-vhost.conf` | Apache development vhost |
 | `verify-php-version.php` | Branch-specific minimum security versions for container builds and final-image audits |
 
+## PostgreSQL-only database support
+
+All supported runtimes use PostgreSQL. Container builds omit MySQL/MariaDB
+clients and PHP database extensions. The application validates merged datasource
+settings, including DSN driver overrides and administrative connections, before
+registering them. Use `KMP_DB_DRIVER=postgres` (or `pgsql`) and `DB_*`/`POSTGRES_*`
+settings; `MYSQL_*` aliases and retired-engine URLs are unsupported. Existing
+logical backup archives can still be imported into PostgreSQL; no live database
+conversion is performed by this change. The nightly image smoke test uses
+PostgreSQL 16. Production builds reject prebuilt runtime overrides with enabled
+MySQL extensions or without `pdo_pgsql`; rebuild old bases before using them.
+
 ## PHP security updates
 
 The October 21, 2026 PHP releases fix
@@ -152,7 +164,7 @@ datasource and is not a tenant-fleet worker.
 `entrypoint.prod.sh`:
 
 1. writes `config/app_local.php` from runtime environment values;
-2. detects MySQL or PostgreSQL and waits for the default database;
+2. validates PostgreSQL configuration and waits for the default database;
 3. prepares writable runtime directories;
 4. optionally runs a historical application migration pass;
 5. optionally installs in-container cron; and

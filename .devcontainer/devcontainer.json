@@ -10,9 +10,9 @@
 		"EMAIL_DEV_SMTP_PASSWORD": {}
 	},
 	"containerEnv": {
-		"MYSQL_DEV_DB_NAME": "KMP_DEV",
-		"MYSQL_DEV_USERNAME": "KMPSQLDEV",
-		"MYSQL_DEV_PASSWORD": "P@ssw0rd",
+		"POSTGRES_DB": "KMP_DEV",
+		"POSTGRES_USER": "KMPSQLDEV",
+		"POSTGRES_PASSWORD": "P@ssw0rd",
 		"EMAIL_DEV_SMTP_HOST": "localhost",
 		"EMAIL_DEV_SMTP_PORT": "1025",
 		"EMAIL_DEV_SMTP_USERNAME": "testuser",
@@ -27,7 +27,6 @@
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"cweijan.vscode-mysql-client2",
 				"xdebug.php-debug",
 				"bmewburn.vscode-intelephense-client",
 				"rifi2k.format-html-in-php",
@@ -46,7 +45,6 @@
 	],
 	"forwardPorts": [
 		8080, // Port for the application server
-		3306, // Port for MySQL server
 		5432, // Port for PostgreSQL server (matches Azure Flex target)
 		8025, // Port for Mailpit SMTP server
 		9324 // Port for Playwright test report

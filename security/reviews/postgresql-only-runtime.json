@@ -1,0 +1,46 @@
+{
+  "review_date": "2026-10-22",
+  "image_id": "sha256:0470f9e0a8c5afe5bb69a1bc01016107d5ecc653331fd2b67bece6a83873e79f",
+  "architecture": "arm64",
+  "purpose": "Local development verification only; not a published or deployed release image.",
+  "scanner": {
+    "Version": "0.74.0"
+  },
+  "scan_created_at": "2026-10-22T11:56:44.838712555Z",
+  "native_rows": 552,
+  "native_high_critical_rows": 63,
+  "native_high_critical_advisories": 19,
+  "fixable_high_critical_findings": 0,
+  "native_high_critical_severities": {
+    "HIGH": 62,
+    "CRITICAL": 1
+  },
+  "absent_since_1_5_13_high_critical_ids": [
+    "CVE-2026-107815",
+    "CVE-2026-107818",
+    "CVE-2026-107823",
+    "CVE-2026-44168",
+    "CVE-2026-44171",
+    "CVE-2026-44172",
+    "CVE-2026-48163",
+    "CVE-2026-48165",
+    "CVE-2026-49261",
+    "CVE-2026-85746",
+    "CVE-2026-86047",
+    "CVE-2026-92262",
+    "CVE-2026-97380"
+  ],
+  "new_high_critical_ids": [],
+  "raw_files": {
+    "image.json": {
+      "bytes": 2379236,
+      "sha256": "ee3028045b6e66a16d7676d0063f97d2aa111a8ebf7b8a3620314c776c5c16ac"
+    },
+    "image.cdx.json": {
+      "bytes": 1224730,
+      "sha256": "801dd2c01a3825e6be3bf6b7a59d2a0ffc10cc4020f051a5a4879f08ed6ad28f"
+    }
+  },
+  "comparison_limit": "1.5.13 baseline is AMD64; the rebuilt candidate is ARM64. This is not an architecture-controlled vulnerability regression result.",
+  "risk_acceptance": "No residual-risk acceptance or scanner exception is granted."
+}

@@ -12,6 +12,7 @@ Own cloud deployment templates, environment examples, bootstrap scripts, CI/CD d
 
 ## Local Contracts
 
+- KMP is a PostgreSQL-only SaaS platform for kingdoms. Do not add MySQL/MariaDB drivers, clients, configuration paths, or test lanes. Preserve applied migrations and legacy logical-backup import into PostgreSQL.
 - Never commit secrets, credentials, private endpoints, or production environment values.
 - Keep deployment templates parameterized and compatible with app configuration expectations.
 - Deployment scripts must be safe to run repeatedly or clearly document non-idempotent behavior.

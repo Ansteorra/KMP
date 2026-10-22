@@ -107,7 +107,7 @@ Rationale: source-backed tests and documentation prevent architectural drift.
 
 - PHP 8.4 and CakePHP 5
 - PostgreSQL 16 for local Docker Compose and deployed runtime
-- MariaDB/MySQL tooling only for explicitly supported compatibility validation
+- PostgreSQL is the only supported platform database; MySQL/MariaDB compatibility is retired
 - CakePHP Authentication and Authorization
 - Bootstrap, Stimulus, Turbo Frames/Streams with Turbo Drive disabled
 - Vite for assets

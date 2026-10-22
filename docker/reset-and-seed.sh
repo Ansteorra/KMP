@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# KMP — In-container reset-and-seed (engine-agnostic, backup-based)
+# KMP — In-container reset-and-seed (PostgreSQL, backup-based)
 #
 # Runs inside the production Docker image (as an Azure Container Apps Job or
 # `docker run`). Restores the bundled encrypted backup to produce a
@@ -12,7 +12,7 @@
 #   4. Reset every member password          — set to TestPassword via ORM
 #   5. Clear CakePHP caches
 #
-# Seeding works on MySQL/MariaDB AND Postgres because restore is ORM-based.
+# Seeding restores existing logical archives into PostgreSQL.
 # The image ships the encrypted backup at /opt/kmp/seed/nightly-seed.kmpbackup
 # (see deploy/azure/seed/ for how it's produced).
 #

@@ -4,6 +4,7 @@ KMP is a PHP 8.4 and CakePHP 5.4 application with a Vite frontend, Stimulus cont
 
 ## First principles
 
+- KMP is a PostgreSQL-only SaaS platform for kingdoms. Do not add MySQL/MariaDB drivers, clients, configuration paths, or test lanes. Preserve applied migrations and legacy logical-backup import into PostgreSQL.
 - Work primarily in `app/` for application code. The repository root contains deployment, installer, docs, and agent configuration.
 - Preserve existing behavior unless the user explicitly asks for a behavior change.
 - Keep all user-facing UI WCAG 2.2 Level AA compliant; treat accessibility regressions as bugs.

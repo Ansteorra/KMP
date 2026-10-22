@@ -602,11 +602,7 @@ class BackupServiceTest extends TestCase
 
     public function testImportLogicalArchiveRunsPayloadUpgradeAfterDecode(): void
     {
-        ConnectionManager::setConfig('backup_wiring_test', [
-            'className' => 'Cake\Database\Connection',
-            'driver' => 'Cake\Database\Driver\Sqlite',
-            'database' => ':memory:',
-        ]);
+        ConnectionManager::setConfig('backup_wiring_test', ConnectionManager::getConfig('test'));
         $service = new BackupService('backup_wiring_test');
         $json = json_encode([
             'meta' => ['version' => 2],
@@ -625,8 +621,9 @@ class BackupServiceTest extends TestCase
                 $phases[] = (string)($progress['phase'] ?? '');
             });
             $this->fail('Expected unsupported schema manifest rejection.');
-        } catch (InvalidArgumentException $exception) {
-            $this->assertSame('Backup schema manifest is missing or unsupported.', $exception->getMessage());
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Restore failed: Backup schema manifest is missing or unsupported.', $exception->getMessage());
+            $this->assertInstanceOf(InvalidArgumentException::class, $exception->getPrevious());
         }
 
         $this->assertContains('upgrading_backup_payload', $phases);
@@ -725,7 +722,7 @@ class BackupServiceTest extends TestCase
             'CourtAvailability' => str_repeat('Available for any regional court. ', 12),
         ];
 
-        $row = $method->invoke($service, ['additional_info' => $value], ['additional_info'], $schema, true);
+        $row = $method->invoke($service, ['additional_info' => $value], ['additional_info'], $schema);
 
         $this->assertIsString($row['additional_info']);
         $this->assertGreaterThan(255, strlen($row['additional_info']));
@@ -744,8 +741,8 @@ class BackupServiceTest extends TestCase
             'null' => false,
             'default' => '{}',
         ]);
-        $row = $method->invoke($service, ['additional_info' => null], ['additional_info'], $schema, true);
-        $row = $method->invoke($service, ['additional_info' => null], ['additional_info'], $schema, true);
+        $row = $method->invoke($service, ['additional_info' => null], ['additional_info'], $schema);
+        $row = $method->invoke($service, ['additional_info' => null], ['additional_info'], $schema);
         $this->assertSame('{}', $row['additional_info']);
         $this->assertSame('{}', $row['additional_info']);
     }
@@ -763,8 +760,8 @@ class BackupServiceTest extends TestCase
             'default' => null,
         ]);
 
-        $emptyRow = $method->invoke($service, ['abbreviation' => ''], ['abbreviation'], $schema, true);
-        $nullRow = $method->invoke($service, ['abbreviation' => null], ['abbreviation'], $schema, true);
+        $emptyRow = $method->invoke($service, ['abbreviation' => ''], ['abbreviation'], $schema);
+        $nullRow = $method->invoke($service, ['abbreviation' => null], ['abbreviation'], $schema);
 
         $this->assertSame('', $emptyRow['abbreviation']);
         $this->assertSame('', $nullRow['abbreviation']);

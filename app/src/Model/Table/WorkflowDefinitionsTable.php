@@ -53,7 +53,7 @@ class WorkflowDefinitionsTable extends BaseTable
         $this->addBehavior('Timestamp');
         $this->addBehavior('Muffin/Footprint.Footprint');
 
-        // MariaDB stores JSON as longtext; explicitly map JSON columns
+        // Explicitly map JSON columns
         $this->setJsonColumnTypesIfPresent(['trigger_config']);
     }
 

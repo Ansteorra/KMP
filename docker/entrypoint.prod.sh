@@ -1,6 +1,18 @@
 #!/bin/bash
 set -e
 
+case "${KMP_DB_DRIVER:-postgres}" in
+    postgres|pgsql) ;;
+    *) echo 'ERROR: KMP supports PostgreSQL only.' >&2; exit 1 ;;
+esac
+for database_variable in DATABASE_URL DATABASE_TEST_URL DATABASE_ADMIN_URL PLATFORM_DATABASE_URL PLATFORM_DATABASE_ADMIN_URL PLATFORM_DATABASE_TEST_URL; do
+    database_url="${!database_variable:-}"
+    case "$database_url" in
+        ''|postgres://*|postgresql://*|pgsql://*) ;;
+        *) echo "ERROR: $database_variable must use PostgreSQL." >&2; exit 1 ;;
+    esac
+done
+
 echo "=== KMP Production Container Starting ==="
 
 # ---------------------------------------------------------------------------
@@ -35,13 +47,12 @@ return [
     ],
     'Datasources' => [
         'default' => [
-            'url' => (env('MYSQL_HOST') && env('MYSQL_USERNAME')) ? null : env('DATABASE_URL'),
+            'url' => env('DATABASE_URL'),
             // Flags and SSL are configured at container startup by entrypoint.prod.sh
-            'flags' => (strpos(env('DATABASE_URL', ''), 'postgres') !== false) ? [\PDO::ATTR_EMULATE_PREPARES => true] : [],
-            //__MYSQL_SSL_PLACEHOLDER__
+            'flags' => [\PDO::ATTR_EMULATE_PREPARES => true],
         ],
         'test' => [
-            'url' => (env('MYSQL_HOST') && env('MYSQL_USERNAME')) ? null : env('DATABASE_TEST_URL', env('DATABASE_URL') . '_test'),
+            'url' => env('DATABASE_TEST_URL'),
         ],
     ],
     'EmailTransport' => [
@@ -114,91 +125,19 @@ elif [ ! -f /var/www/html/config/app_local.php ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 2. Detect database type from environment
-# ---------------------------------------------------------------------------
-DB_TYPE="mysql"
-if [ -n "$DATABASE_URL" ]; then
-    case "$DATABASE_URL" in
-        postgres://*|postgresql://*)
-            DB_TYPE="postgres"
-            ;;
-        mysql://*)
-            DB_TYPE="mysql"
-            ;;
-    esac
-elif [ -z "$MYSQL_HOST" ]; then
-    # If neither DATABASE_URL nor MYSQL_HOST is set, check for PG vars
-    if [ -n "$PGHOST" ]; then
-        DB_TYPE="postgres"
-    fi
-fi
-echo "Detected database type: $DB_TYPE"
-
-# ---------------------------------------------------------------------------
-# 2b. Auto-detect MySQL SSL requirement (probe once, bake into app_local.php)
-# ---------------------------------------------------------------------------
-if [ "$DB_TYPE" = "mysql" ]; then
-    if [ -n "$MYSQL_HOST" ] && [ -n "$MYSQL_USERNAME" ]; then
-        db_host="$MYSQL_HOST"
-        db_port="${MYSQL_PORT:-3306}"
-        db_user="$MYSQL_USERNAME"
-        db_pass="$MYSQL_PASSWORD"
-    elif [ -n "$DATABASE_URL" ]; then
-        db_host=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]*@([^:/]+).*|\1|')
-        db_port=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]*@[^:]+:([0-9]+)/.*|\1|')
-        db_user=$(echo "$DATABASE_URL" | sed -E 's|mysql://([^:]+):.*|\1|')
-        db_pass=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^:]+:([^@]+)@.*|\1|')
-        [ -z "$db_port" ] && db_port=3306
-    fi
-
-    # Try plain connection; if error 3159 (secure transport required), enable SSL
-    ssl_err=$(MYSQL_PWD="$db_pass" mysql -h"$db_host" -P"$db_port" -u"$db_user" -e "SELECT 1" 2>&1) || true
-    if echo "$ssl_err" | grep -q "3159\|insecure transport"; then
-        echo "MySQL requires SSL — enabling ssl_ca in app_local.php"
-        sed -i "s|//__MYSQL_SSL_PLACEHOLDER__|'ssl_ca' => '/etc/ssl/certs/ca-certificates.crt',|" /var/www/html/config/app_local.php
-    else
-        # Remove the placeholder comment
-        sed -i '/__MYSQL_SSL_PLACEHOLDER__/d' /var/www/html/config/app_local.php
-    fi
-else
-    # Not MySQL — remove the placeholder
-    sed -i '/__MYSQL_SSL_PLACEHOLDER__/d' /var/www/html/config/app_local.php
-fi
-
-# ---------------------------------------------------------------------------
 # 3. Wait for database readiness
 # ---------------------------------------------------------------------------
 echo "Waiting for database connection..."
 max_attempts=60
 attempt=0
 
-check_mysql() {
-    if [ -n "$MYSQL_HOST" ] && [ -n "$MYSQL_USERNAME" ]; then
-        MYSQL_PWD="${MYSQL_PASSWORD}" mysql -h"${MYSQL_HOST}" -P"${MYSQL_PORT:-3306}" -u"${MYSQL_USERNAME}" -e "SELECT 1" &>/dev/null
-    elif [ -n "$DATABASE_URL" ]; then
-        # Parse host/port/user/pass from DATABASE_URL
-        # Format: mysql://user:pass@host:port/dbname
-        local db_host db_port db_user db_pass
-        db_host=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]*@([^:/]+).*|\1|')
-        db_port=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]*@[^:]+:([0-9]+)/.*|\1|')
-        db_user=$(echo "$DATABASE_URL" | sed -E 's|mysql://([^:]+):.*|\1|')
-        db_pass=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^:]+:([^@]+)@.*|\1|')
-        [ -z "$db_port" ] && db_port=3306
-        MYSQL_PWD="$db_pass" mysql -h"$db_host" -P"$db_port" -u"$db_user" -e "SELECT 1" &>/dev/null
-    else
-        MYSQL_PWD="$MYSQL_PASSWORD" mysql -h"${MYSQL_HOST:-db}" -P"${MYSQL_PORT:-3306}" -u"$MYSQL_USERNAME" -e "SELECT 1" &>/dev/null
-    fi
-}
-
 check_postgres() {
-    if [ -n "$DATABASE_URL" ]; then
-        local db_host db_port
-        db_host=$(echo "$DATABASE_URL" | sed -E 's|postgres(ql)?://[^@]*@([^:/]+).*|\2|')
-        db_port=$(echo "$DATABASE_URL" | sed -E 's|postgres(ql)?://[^@]*@[^:]+:([0-9]+)/.*|\2|')
-        [ -z "$db_port" ] && db_port=5432
-        pg_isready -h "$db_host" -p "$db_port" -q 2>/dev/null
+    if [ -n "${DATABASE_URL:-}" ]; then
+        local database_url="$DATABASE_URL"
+        database_url="${database_url/#pgsql:/postgres:}"
+        pg_isready -d "$database_url" -q 2>/dev/null
     else
-        pg_isready -h "${PGHOST:-db}" -p "${PGPORT:-5432}" -q 2>/dev/null
+        pg_isready -h "${DB_HOST:-${PGHOST:-db}}" -p "${DB_PORT:-${PGPORT:-5432}}" -q 2>/dev/null
     fi
 }
 
@@ -209,11 +148,7 @@ while true; do
         exit 1
     fi
 
-    if [ "$DB_TYPE" = "postgres" ]; then
-        check_postgres && break
-    else
-        check_mysql && break
-    fi
+    check_postgres && break
 
     echo "Waiting for database... (attempt $attempt/$max_attempts)"
     sleep 2
@@ -247,27 +182,12 @@ run_migrations() {
 
     # Detect whether database has existing tables
     local table_count=0
-    if [ "$DB_TYPE" = "postgres" ]; then
-        if [ -n "$DATABASE_URL" ]; then
-            table_count=$(psql "$DATABASE_URL" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ' || echo "0")
-        else
-            table_count=$(PGPASSWORD="$PGPASSWORD" psql -h "${PGHOST:-db}" -U "$PGUSER" -d "$PGDATABASE" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ' || echo "0")
-        fi
+    if [ -n "${DATABASE_URL:-}" ]; then
+        local database_url="$DATABASE_URL"
+        database_url="${database_url/#pgsql:/postgres:}"
+        table_count=$(psql "$database_url" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ' || echo "0")
     else
-        if [ -n "$MYSQL_HOST" ] && [ -n "$MYSQL_USERNAME" ] && [ -n "$MYSQL_DB_NAME" ]; then
-            table_count=$(MYSQL_PWD="${MYSQL_PASSWORD}" mysql -h"${MYSQL_HOST}" -P"${MYSQL_PORT:-3306}" -u"${MYSQL_USERNAME}" "${MYSQL_DB_NAME}" -N -e "SHOW TABLES;" 2>/dev/null | wc -l)
-        elif [ -n "$DATABASE_URL" ]; then
-            local db_host db_port db_user db_pass db_name
-            db_host=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]*@([^:/]+).*|\1|')
-            db_port=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^@]*@[^:]+:([0-9]+)/.*|\1|')
-            db_user=$(echo "$DATABASE_URL" | sed -E 's|mysql://([^:]+):.*|\1|')
-            db_pass=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^:]+:([^@]+)@.*|\1|')
-            db_name=$(echo "$DATABASE_URL" | sed -E 's|mysql://[^/]+/([^?]+).*|\1|')
-            [ -z "$db_port" ] && db_port=3306
-            table_count=$(MYSQL_PWD="$db_pass" mysql -h"$db_host" -P"$db_port" -u"$db_user" "$db_name" -N -e "SHOW TABLES;" 2>/dev/null | wc -l)
-        else
-            table_count=$(MYSQL_PWD="$MYSQL_PASSWORD" mysql -h"${MYSQL_HOST:-db}" -P"${MYSQL_PORT:-3306}" -u"$MYSQL_USERNAME" "$MYSQL_DB_NAME" -N -e "SHOW TABLES;" 2>/dev/null | wc -l)
-        fi
+        table_count=$(PGPASSWORD="${DB_PASSWORD:-${PGPASSWORD:-}}" psql -h "${DB_HOST:-${PGHOST:-db}}" -p "${DB_PORT:-${PGPORT:-5432}}" -U "${DB_USERNAME:-${PGUSER:-postgres}}" -d "${DB_DATABASE:-${PGDATABASE:-kmp}}" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ' || echo "0")
     fi
 
     if [ "$table_count" -eq 0 ] 2>/dev/null; then

@@ -3,7 +3,8 @@
 KMP is a CakePHP 5 membership and operations platform for SCA kingdoms. The
 hosted architecture is database-per-tenant: a platform PostgreSQL database owns
 tenant routing and operations metadata, while each kingdom has an isolated
-application database.
+application PostgreSQL database. PostgreSQL is the only supported database;
+KMP focuses on a managed SaaS offering for kingdoms.
 
 ## Developer quick start
 

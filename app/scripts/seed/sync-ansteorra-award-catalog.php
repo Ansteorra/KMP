@@ -29,7 +29,6 @@ $applicationRoot = dirname(__DIR__, 2);
 $repositoryRoot = dirname($applicationRoot);
 $catalogPath = __DIR__ . '/data/ansteorra-award-catalog.json';
 $seedPaths = [
-    $repositoryRoot . '/dev_seed_clean.sql' => 'mysql',
     $applicationRoot . '/tests/pg_seed_baseline.sql' => 'postgres',
     $applicationRoot . '/tests/pg_seed.sql' => 'postgres',
 ];
@@ -159,7 +158,7 @@ function catalogSummary(string $action, array $catalog): string
  */
 function managedCatalogSql(array $catalog, string $dialect): string
 {
-    $quote = $dialect === 'mysql' ? '`' : '"';
+    $quote = '"';
     $domainRows = [];
     foreach ($catalog['domains'] as $domain) {
         $domainRows[] = sprintf(
@@ -251,14 +250,6 @@ function managedUpsertSql(
         implode(',', $quotedColumns),
         implode(",\n", $rows),
     );
-    if ($dialect === 'mysql') {
-        $updates = array_map(
-            static fn(string $column): string => sprintf('%1$s%2$s%1$s=VALUES(%1$s%2$s%1$s)', $quote, $column),
-            $updateColumns,
-        );
-
-        return $sql . 'ON DUPLICATE KEY UPDATE ' . implode(',', $updates) . ';';
-    }
 
     $updates = array_map(
         static fn(string $column): string => sprintf('%1$s%2$s%1$s=EXCLUDED.%1$s%2$s%1$s', $quote, $column),
@@ -284,21 +275,7 @@ function sqlLiteral(mixed $value, string $dialect): string
     }
 
     $value = (string)$value;
-    if ($dialect === 'mysql') {
-        $value = strtr(
-            $value,
-            [
-            '\\' => '\\\\',
-            "\0" => '\\0',
-            "\n" => '\\n',
-            "\r" => '\\r',
-            "\x1a" => '\\Z',
-            "'" => "\\'",
-            ],
-        );
 
-        return "'{$value}'";
-    }
     if (str_contains($value, "\r") || str_contains($value, "\n")) {
         $value = strtr($value, ['\\' => '\\\\', "\r" => '\\r', "\n" => '\\n', "'" => "''"]);
 
@@ -435,7 +412,7 @@ function localDatabaseConnection(): Connection
             $host = $urlHost;
         }
     }
-    if (!in_array(strtolower($host), ['127.0.0.1', 'db', 'localhost', 'mariadb', 'mysql', 'postgres'], true)) {
+    if (!in_array(strtolower($host), ['127.0.0.1', 'db', 'localhost', 'postgres'], true)) {
         throw new RuntimeException("Refusing to access non-local database host '{$host}'.");
     }
 

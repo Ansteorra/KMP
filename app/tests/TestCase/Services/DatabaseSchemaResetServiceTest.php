@@ -6,8 +6,8 @@ namespace App\Test\TestCase\Services;
 use App\Services\BackupSchemaManifestService;
 use App\Services\DatabaseSchemaResetService;
 use App\Test\TestCase\BaseTestCase;
-use Cake\Database\Driver\Mysql;
 use Cake\Database\Driver\Postgres;
+use Cake\Database\Driver\Sqlite;
 use ReflectionMethod;
 use RuntimeException;
 
@@ -43,8 +43,8 @@ class DatabaseSchemaResetServiceTest extends BaseTestCase
     {
         $plan = new ReflectionMethod(DatabaseSchemaResetService::class, 'buildResetPlan');
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Cannot restore PostgreSQL partial indexes to MySQL');
-        $plan->invoke(new DatabaseSchemaResetService(), new Mysql([]), [
+        $this->expectExceptionMessage('Backup schema reset requires PostgreSQL');
+        $plan->invoke(new DatabaseSchemaResetService(), new Sqlite([]), [
             'items' => [
                 'columns' => ['id' => ['type' => 'integer']],
                 'indexes' => ['active_items' => ['columns' => ['id'], 'where' => 'id > 0']],
@@ -86,7 +86,7 @@ class DatabaseSchemaResetServiceTest extends BaseTestCase
         );
     }
 
-    public function testColumnTypeSqlPreservesCitextAcrossDatabaseEngines(): void
+    public function testColumnTypeSqlPreservesPostgresCitext(): void
     {
         $service = new DatabaseSchemaResetService();
         $method = new ReflectionMethod(DatabaseSchemaResetService::class, 'columnTypeSql');
@@ -95,14 +95,6 @@ class DatabaseSchemaResetServiceTest extends BaseTestCase
         $this->assertSame(
             'CITEXT',
             $method->invoke($service, new Postgres([]), 'citext', [], false),
-        );
-        $this->assertSame(
-            'TEXT',
-            $method->invoke($service, new Mysql([]), 'citext', [], false),
-        );
-        $this->assertSame(
-            'VARCHAR(255)',
-            $method->invoke($service, new Mysql([]), 'citext', [], false, true),
         );
     }
 
@@ -128,7 +120,7 @@ class DatabaseSchemaResetServiceTest extends BaseTestCase
         $this->assertSame('TRUE', $method->invoke($service, $driver, 1, 'boolean'));
     }
 
-    public function testDefaultSqlNormalizesMysqlCharsetJsonDefaultForPostgres(): void
+    public function testDefaultSqlNormalizesLegacyCharsetJsonDefaultForPostgres(): void
     {
         $service = new DatabaseSchemaResetService();
         $method = new ReflectionMethod(DatabaseSchemaResetService::class, 'defaultSql');

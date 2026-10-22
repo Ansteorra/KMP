@@ -17,6 +17,12 @@ rows are not the full scan. Keep raw evidence in restricted storage before its
 GitHub expiration; local ignored report copies are not durable shared retention.
 Source review and a passed fixable-finding gate do not grant risk acceptance.
 
+The [PostgreSQL-only runtime verification](reviews/postgresql-only-runtime.md)
+records removal of MySQL/MariaDB platform support, fresh PostgreSQL migration and
+startup checks, and the rebuilt local image's native scan. Its architecture and
+release-status limits remain explicit; the 1.5.13 evidence is historical and is
+not overwritten by the newer candidate.
+
 Final-image audits execute `docker/verify-php-version.php` using the image's PHP
 interpreter before the Trivy scan, independently of the image's bundled checker.
 The container entrypoint is bypassed; networking is disabled and the filesystem

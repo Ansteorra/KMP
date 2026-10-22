@@ -6,7 +6,6 @@ namespace App\Test\TestCase\Support;
 use Cake\Database\Connection;
 use Cake\Database\Driver\Postgres;
 use Cake\Datasource\ConnectionManager;
-use Cake\TestSuite\Fixture\SchemaLoader;
 use Exception;
 use InitWorkflowDefinitionsSeed;
 use RuntimeException;
@@ -20,12 +19,7 @@ use RuntimeException;
 final class SeedManager
 {
     /**
-     * Absolute path to the shared SQL seed file.
-     */
-    private const SEED_FILENAME = 'dev_seed_clean.sql';
-
-    /**
-     * PostgreSQL-compatible data-only seed generated from dev_seed_clean.sql.
+     * PostgreSQL data-only test seed.
      */
     private const POSTGRES_SEED_FILENAME = 'pg_seed.sql';
 
@@ -46,11 +40,7 @@ final class SeedManager
             return;
         }
 
-        if (self::isPostgres($connection)) {
-            self::loadPostgresSeed($connection);
-        } else {
-            self::loadSeed($connection);
-        }
+        self::loadPostgresSeed($connection);
         self::$seedLoaded = true;
     }
 
@@ -62,13 +52,7 @@ final class SeedManager
      */
     public static function reset(string $connection = 'test'): void
     {
-        if (self::isPostgres($connection)) {
-            self::loadPostgresSeed($connection);
-
-            return;
-        }
-
-        self::loadSeed($connection);
+        self::loadPostgresSeed($connection);
     }
 
     /**
@@ -86,36 +70,6 @@ final class SeedManager
         } catch (Exception $e) {
             return false;
         }
-    }
-
-    /**
-     * Resolve the absolute path to the dev seed file.
-     *
-     * @return string
-     */
-    private static function seedPath(): string
-    {
-        $seedPath = dirname(__DIR__, 4) . DIRECTORY_SEPARATOR . self::SEED_FILENAME;
-
-        if (!is_file($seedPath)) {
-            throw new RuntimeException(sprintf('Unable to locate seed file at %s', $seedPath));
-        }
-
-        return $seedPath;
-    }
-
-    /**
-     * Execute the SQL seed file against the desired connection.
-     *
-     * @param string $connection Connection name.
-     * @return void
-     */
-    private static function loadSeed(string $connection): void
-    {
-        $seedPath = self::seedPath();
-
-        $loader = new SchemaLoader();
-        $loader->loadSqlFiles([$seedPath], $connection);
     }
 
     /**

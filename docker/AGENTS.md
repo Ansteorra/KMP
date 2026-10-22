@@ -13,6 +13,8 @@ Own container image definitions, entrypoints, Apache configuration, local app co
 
 ## Local Contracts
 
+- KMP is a PostgreSQL-only SaaS platform for kingdoms. Do not add MySQL/MariaDB drivers, clients, configuration paths, or test lanes. Preserve applied migrations and legacy logical-backup import into PostgreSQL.
+- Production final stages must reject prebuilt runtime overrides without `pdo_pgsql` or with enabled `mysqli`/`pdo_mysql`. Rebuild the shared base when changing its dependency contract; do not revive retired engines to use a stale base.
 - Do not bake secrets or environment-specific credentials into images.
 - Keep entrypoints explicit about side effects such as migrations, seeds, cache clears, scheduler loops, and health behavior.
 - Local startup prepares backup-directory ownership before dropping scheduler/admin loops to `www-data`. Keep backup directories private and use the same OS user for web and worker file access.

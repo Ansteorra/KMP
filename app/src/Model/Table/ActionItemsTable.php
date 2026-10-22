@@ -62,7 +62,7 @@ class ActionItemsTable extends BaseTable
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior('Muffin/Trash.Trash');
 
-        // MariaDB stores JSON as longtext; explicitly map JSON columns.
+        // Explicitly map JSON columns.
         $this->setJsonColumnTypesIfPresent(['assignee_config', 'completion_config']);
     }
 

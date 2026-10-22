@@ -57,9 +57,8 @@ worker memory; size workers and prove restore behavior for large tenants.
 
 PostgreSQL schema manifests preserve partial-index predicates, including the
 one-terminal-task-per-bestowal-template constraint. Restore recreates the
-condition instead of applying uniqueness to every row. Restoring such an archive
-to MySQL is rejected before schema reset because MySQL cannot represent a
-PostgreSQL partial index directly. Older archives that already omitted the
+condition instead of applying uniqueness to every row. Restore targets must be PostgreSQL; unsupported engines are rejected before
+schema reset. Legacy logical archives remain importable into PostgreSQL. Older archives that already omitted the
 predicate must be rebaked from the intact source schema.
 
 ## Key readiness

@@ -151,17 +151,16 @@ jobs:
     if: needs.build-and-push.result == 'success' && needs.candidate-security.result == 'success'
     runs-on: ubuntu-latest
     services:
-      mariadb:
-        image: mariadb:11
+      postgres:
+        image: postgres:16
         env:
-          MARIADB_ROOT_PASSWORD: testpass
-          MARIADB_DATABASE: kmp_test
-          MARIADB_USER: kmpuser
-          MARIADB_PASSWORD: kmppass
+          POSTGRES_DB: kmp_test
+          POSTGRES_USER: kmpuser
+          POSTGRES_PASSWORD: kmppass
         ports:
-          - 3306:3306
+          - 5432:5432
         options: >-
-          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-cmd="pg_isready -U kmpuser -d kmp_test"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -182,16 +181,13 @@ jobs:
 
           docker run -d --name kmp-smoke \
             --network host \
-            -e KMP_DB_DRIVER=mysql \
+            -e KMP_DB_DRIVER=postgres \
             -e KMP_SKIP_MIGRATIONS=true \
             -e KMP_SKIP_CRON=true \
             -e CACHE_ENGINE=apcu \
             -e KMP_SESSION_DEFAULTS=php \
             -e DEBUG=false \
-            -e MYSQL_HOST=127.0.0.1 \
-            -e MYSQL_USERNAME=kmpuser \
-            -e MYSQL_PASSWORD=kmppass \
-            -e MYSQL_DB_NAME=kmp_test \
+            -e DATABASE_URL=postgres://kmpuser:kmppass@127.0.0.1:5432/kmp_test \
             -e SECURITY_SALT=ci-nightly-smoke-test-salt \
             "$IMAGE"
 

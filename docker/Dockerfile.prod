@@ -100,6 +100,7 @@ COPY docker/verify-php-version.php /usr/local/bin/verify-kmp-php-version.php
 # Container volumes are mounted by the platform, never by an application user.
 RUN php /usr/local/bin/verify-kmp-php-version.php \
     && php -r 'if (!extension_loaded("gd")) { exit(1); }' \
+    && php -r 'if (!extension_loaded("pdo_pgsql") || extension_loaded("mysqli") || extension_loaded("pdo_mysql")) { fwrite(STDERR, "KMP requires a PostgreSQL-only runtime base.\n"); exit(1); }' \
     && (a2dismod mpm_event mpm_worker || true) && a2enmod mpm_prefork \
     && chmod a-s /usr/bin/mount /usr/bin/umount \
     && test ! -u /usr/bin/mount && test ! -g /usr/bin/mount \

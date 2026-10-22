@@ -16,6 +16,7 @@ Own the CakePHP application runtime: PHP source, configuration, templates, front
 
 ## Local Contracts
 
+- KMP is a PostgreSQL-only SaaS platform for kingdoms. Do not add MySQL/MariaDB drivers, clients, configuration paths, or test lanes. Preserve applied migrations and legacy logical-backup import into PostgreSQL.
 - Run application commands from `app/` unless a child guide says otherwise.
 - Keep CakePHP behavior in the proper layer: controllers orchestrate, services hold workflows, tables/entities hold persistence behavior, policies hold authorization, and templates render.
 - Store date/time values in UTC and convert or pre-format for display through project timezone helpers.

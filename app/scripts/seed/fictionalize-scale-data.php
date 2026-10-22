@@ -38,7 +38,6 @@ const MAX_FICTIONAL_MEMBER_COUNT = 1500;
 $applicationRoot = dirname(__DIR__, 2);
 $repositoryRoot = dirname($applicationRoot);
 $seedPaths = [
-    $repositoryRoot . '/dev_seed_clean.sql',
     $applicationRoot . '/tests/pg_seed_baseline.sql',
     $applicationRoot . '/tests/pg_seed.sql',
 ];
@@ -477,7 +476,7 @@ function applyLocalDatabase(): array
             $host = $urlHost;
         }
     }
-    $localHosts = ['127.0.0.1', 'db', 'localhost', 'mariadb', 'mysql', 'postgres'];
+    $localHosts = ['127.0.0.1', 'db', 'localhost', 'postgres'];
     if (!in_array(strtolower($host), $localHosts, true)) {
         throw new RuntimeException(
             "Refusing to update database host '{$host}'; --apply-local-database only permits local Docker hosts.",

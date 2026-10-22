@@ -17,7 +17,7 @@ Use the [managed Azure runbook](https://github.com/Ansteorra/KMP/blob/main/deplo
 environment. Legacy management executables and updater distribution have been removed.
 
 For an existing legacy installation, follow the [legacy retirement instructions](https://github.com/Ansteorra/KMP/blob/main/installer/README.md) before changing it.
-The retained Compose example has no updater or Docker socket mount. Installed older
+The former Compose and database templates have been removed. Installed older
 copies must be disabled separately. Removed backup scripts created plaintext dumps of one
 MariaDB database; inventory and secure those archives and verify off-host recovery.
 

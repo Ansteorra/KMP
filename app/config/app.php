@@ -26,7 +26,6 @@ use Cake\Cache\Engine\ArrayEngine;
 use Cake\Cache\Engine\FileEngine;
 use Cake\Cache\Engine\RedisEngine;
 use Cake\Database\Connection;
-use Cake\Database\Driver\Mysql;
 use Cake\Database\Driver\Postgres;
 use Cake\Http\Session\CacheSession;
 use Cake\Log\Engine\FileLog;
@@ -92,19 +91,17 @@ if ($cacheEngine === ApcuEngine::class && !extension_loaded('apcu')) {
 foreach ($redisFallbackWarnings as $redisFallbackWarning) {
     error_log('[KMP config] ' . $redisFallbackWarning);
 }
-$databaseDriverName = strtolower((string)env('KMP_DB_DRIVER', 'mysql'));
+$databaseDriverName = strtolower((string)env('KMP_DB_DRIVER', 'postgres'));
 $databaseDriver = match ($databaseDriverName) {
     'postgres', 'pgsql' => Postgres::class,
-    'mysql', 'mariadb', '' => Mysql::class,
     default => throw new RuntimeException(
         sprintf(
-            'Unsupported KMP_DB_DRIVER value "%s"; supported values are mysql, mariadb, postgres, pgsql.',
+            'Unsupported KMP_DB_DRIVER value "%s"; KMP supports PostgreSQL only (postgres or pgsql).',
             $databaseDriverName,
         ),
     ),
 };
-$isPostgres = $databaseDriver === Postgres::class;
-$defaultDatabaseName = env("DB_DATABASE", $isPostgres ? env("POSTGRES_DB", "kmp") : env("MYSQL_DB_NAME", "kmp"));
+$defaultDatabaseName = env("DB_DATABASE", env("POSTGRES_DB", "kmp"));
 $platformDatabaseName = env("PLATFORM_DB_DATABASE", $defaultDatabaseName . "_platform");
 $platformAdminAllowedStatuses = array_values(array_filter(array_map(
     static fn(string $value): string => trim($value),
@@ -523,19 +520,19 @@ return [
             "driver" => $databaseDriver,
 
             /** @var string Database hostname */
-            "host" => env("DB_HOST", env("MYSQL_HOST", "localhost")),
+            "host" => env("DB_HOST", env("PGHOST", "localhost")),
 
             /** @var int Database port */
-            "port" => env("DB_PORT", $isPostgres ? env("POSTGRES_PORT", 5432) : env("MYSQL_PORT", 3306)),
+            "port" => env("DB_PORT", env("POSTGRES_PORT", 5432)),
 
             /** @var string Database username */
-            "username" => env("DB_USERNAME", $isPostgres ? env("POSTGRES_USER", "root") : env("MYSQL_USERNAME", "root")),
+            "username" => env("DB_USERNAME", env("POSTGRES_USER", "postgres")),
 
             /** @var string Database password */
-            "password" => env("DB_PASSWORD", $isPostgres ? env("POSTGRES_PASSWORD", "") : env("MYSQL_PASSWORD", "")),
+            "password" => env("DB_PASSWORD", env("POSTGRES_PASSWORD", "")),
 
             /** @var string Database name */
-            "database" => env("DB_DATABASE", $isPostgres ? env("POSTGRES_DB", "kmp") : env("MYSQL_DB_NAME", "kmp")),
+            "database" => env("DB_DATABASE", env("POSTGRES_DB", "kmp")),
 
             /** @var string|null Complete database DSN URL */
             "url" => env("DATABASE_URL", null),
@@ -546,11 +543,11 @@ return [
             /** @var string Database timezone (UTC for consistency) */
             "timezone" => "UTC",
 
-            /** @var string Character encoding - utf8mb4 for full UTF-8 support */
-            //'encoding' => 'utf8mb4',
+            /** @var string Character encoding */
+            //'encoding' => 'utf8',
 
-            /** @var array PDO connection flags for MySQL-specific options */
-            "flags" => [],
+            /** @var array PDO connection flags */
+            "flags" => [PDO::ATTR_EMULATE_PREPARES => true],
 
             /** @var bool Cache database metadata for performance */
             "cacheMetadata" => true,
@@ -562,7 +559,6 @@ return [
             "quoteIdentifiers" => false,
 
             /** @var array Database initialization commands */
-            //'init' => ['SET GLOBAL innodb_stats_on_metadata = 0'],
         ],
 
         /**
@@ -580,19 +576,19 @@ return [
             "driver" => $databaseDriver,
 
             /** @var string Test database hostname */
-            "host" => env("DB_HOST", env("MYSQL_HOST", "localhost")),
+            "host" => env("DB_HOST", env("PGHOST", "localhost")),
 
             /** @var int Test database port */
-            "port" => env("DB_PORT", $isPostgres ? env("POSTGRES_PORT", 5432) : env("MYSQL_PORT", 3306)),
+            "port" => env("DB_PORT", env("POSTGRES_PORT", 5432)),
 
             /** @var string Test database username */
-            "username" => env("DB_USERNAME", $isPostgres ? env("POSTGRES_USER", "root") : env("MYSQL_USERNAME", "root")),
+            "username" => env("DB_USERNAME", env("POSTGRES_USER", "postgres")),
 
             /** @var string Test database password */
-            "password" => env("DB_PASSWORD", $isPostgres ? env("POSTGRES_PASSWORD", "") : env("MYSQL_PASSWORD", "")),
+            "password" => env("DB_PASSWORD", env("POSTGRES_PASSWORD", "")),
 
             /** @var string Test database name */
-            "database" => env("DB_DATABASE", $isPostgres ? env("POSTGRES_DB", "kmp") : env("MYSQL_DB_NAME", "kmp")) . "_test",
+            "database" => env("DB_DATABASE", env("POSTGRES_DB", "kmp")) . "_test",
 
             /** @var string|null Complete test database DSN URL */
             "url" => env("DATABASE_TEST_URL", env("DATABASE_URL", null)),
@@ -604,10 +600,10 @@ return [
             "timezone" => "UTC",
 
             /** @var string Character encoding */
-            //'encoding' => 'utf8mb4',
+            //'encoding' => 'utf8',
 
             /** @var array PDO connection flags */
-            "flags" => [],
+            "flags" => [PDO::ATTR_EMULATE_PREPARES => true],
 
             /** @var bool Cache database metadata */
             "cacheMetadata" => true,
@@ -619,7 +615,6 @@ return [
             "log" => $dbQueryLogEnabled,
 
             /** @var array Database initialization commands */
-            //'init' => ['SET GLOBAL innodb_stats_on_metadata = 0'],
         ],
 
         /**
@@ -632,15 +627,15 @@ return [
         "platform" => [
             "className" => Connection::class,
             "driver" => $databaseDriver,
-            "host" => env("PLATFORM_DB_HOST", env("DB_HOST", env("MYSQL_HOST", "localhost"))),
-            "port" => env("PLATFORM_DB_PORT", env("DB_PORT", $isPostgres ? env("POSTGRES_PORT", 5432) : env("MYSQL_PORT", 3306))),
-            "username" => env("PLATFORM_DB_USERNAME", env("DB_USERNAME", $isPostgres ? env("POSTGRES_USER", "root") : env("MYSQL_USERNAME", "root"))),
-            "password" => env("PLATFORM_DB_PASSWORD", env("DB_PASSWORD", $isPostgres ? env("POSTGRES_PASSWORD", "") : env("MYSQL_PASSWORD", ""))),
+            "host" => env("PLATFORM_DB_HOST", env("DB_HOST", env("PGHOST", "localhost"))),
+            "port" => env("PLATFORM_DB_PORT", env("DB_PORT", env("POSTGRES_PORT", 5432))),
+            "username" => env("PLATFORM_DB_USERNAME", env("DB_USERNAME", env("POSTGRES_USER", "postgres"))),
+            "password" => env("PLATFORM_DB_PASSWORD", env("DB_PASSWORD", env("POSTGRES_PASSWORD", ""))),
             "database" => $platformDatabaseName,
             "url" => env("PLATFORM_DATABASE_URL", null),
             "persistent" => false,
             "timezone" => "UTC",
-            "flags" => [],
+            "flags" => [PDO::ATTR_EMULATE_PREPARES => true],
             "cacheMetadata" => true,
             "quoteIdentifiers" => false,
             "log" => $dbQueryLogEnabled,
@@ -652,15 +647,15 @@ return [
         "test_platform" => [
             "className" => Connection::class,
             "driver" => $databaseDriver,
-            "host" => env("PLATFORM_DB_HOST", env("DB_HOST", env("MYSQL_HOST", "localhost"))),
-            "port" => env("PLATFORM_DB_PORT", env("DB_PORT", $isPostgres ? env("POSTGRES_PORT", 5432) : env("MYSQL_PORT", 3306))),
-            "username" => env("PLATFORM_DB_USERNAME", env("DB_USERNAME", $isPostgres ? env("POSTGRES_USER", "root") : env("MYSQL_USERNAME", "root"))),
-            "password" => env("PLATFORM_DB_PASSWORD", env("DB_PASSWORD", $isPostgres ? env("POSTGRES_PASSWORD", "") : env("MYSQL_PASSWORD", ""))),
+            "host" => env("PLATFORM_DB_HOST", env("DB_HOST", env("PGHOST", "localhost"))),
+            "port" => env("PLATFORM_DB_PORT", env("DB_PORT", env("POSTGRES_PORT", 5432))),
+            "username" => env("PLATFORM_DB_USERNAME", env("DB_USERNAME", env("POSTGRES_USER", "postgres"))),
+            "password" => env("PLATFORM_DB_PASSWORD", env("DB_PASSWORD", env("POSTGRES_PASSWORD", ""))),
             "database" => env("PLATFORM_DB_TEST_DATABASE", $platformDatabaseName . "_test"),
             "url" => env("PLATFORM_DATABASE_TEST_URL", null),
             "persistent" => false,
             "timezone" => "UTC",
-            "flags" => [],
+            "flags" => [PDO::ATTR_EMULATE_PREPARES => true],
             "cacheMetadata" => true,
             "quoteIdentifiers" => false,
             "log" => $dbQueryLogEnabled,
