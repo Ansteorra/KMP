@@ -1,14 +1,62 @@
 """PostgreSQL startup validates configuration and isolates CakePHP URL options."""
+import json
 import os
 from pathlib import Path
 import re
 import subprocess
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class PostgresStartupTest(unittest.TestCase):
+    def run_table_count(self, url, output='7', status='0'):
+        source = (ROOT / 'docker/entrypoint.prod.sh').read_text()
+        probe = re.search(r'^count_postgres_tables\(\) \{\n.*?^\}', source,
+                          re.MULTILINE | re.DOTALL)
+        self.assertIsNotNone(probe)
+        with tempfile.TemporaryDirectory() as directory:
+            capture = Path(directory) / 'probe.json'
+            environment = dict(os.environ, DATABASE_URL=url, TEST_PROBE_CAPTURE=str(capture),
+                               TEST_PROBE_OUTPUT=output, TEST_PROBE_STATUS=status)
+            script = probe[0] + '''
+psql() {
+    python3 -c 'import json, os, sys; json.dump({"args": sys.argv[1:], "password": os.getenv("PGPASSWORD"), "sslmode": os.getenv("PGSSLMODE")}, open(os.environ["TEST_PROBE_CAPTURE"], "w"))' "$@"
+    printf '%s' "$TEST_PROBE_OUTPUT"
+    return "$TEST_PROBE_STATUS"
+}
+count_postgres_tables
+'''
+            result = subprocess.run(['bash', '-c', script], env=environment,
+                                    capture_output=True, text=True, timeout=5)
+            return result, json.loads(capture.read_text()) if capture.exists() else None
+
+    def test_migration_probe_maps_cake_tls_and_keeps_passwords_out_of_arguments(self):
+        for scheme in ('postgres', 'postgresql', 'pgsql'):
+            for query, mode in (('ssl=true&ssl_mode=verify-full', 'verify-full'),
+                                ('ssl=true', 'require'), ('ssl=false', 'disable'),
+                                ('sslmode=require', 'require'), ('', 'prefer')):
+                with self.subTest(scheme=scheme, query=query):
+                    result, probe = self.run_table_count(
+                        scheme + '://test%20user:p%27ass%7Cword%09@[::1]:6432/test%20db?' + query)
+                    self.assertEqual(0, result.returncode, result.stderr)
+                    self.assertEqual('7\n', result.stdout)
+                    self.assertEqual("p'ass|word\t", probe['password'])
+                    self.assertEqual(mode, probe['sslmode'])
+                    self.assertEqual(['-h', '::1', '-p', '6432', '-U', 'test user',
+                                      '-d', 'test db', '-Atc'], probe['args'][:-1])
+
+    def test_migration_probe_defaults_failed_or_empty_counts_to_zero(self):
+        for output, status in (('', '0'), ('', '1'), ('17', '1'), ('invalid', '0')):
+            with self.subTest(output=output, status=status):
+                result, _ = self.run_table_count('postgres://user:secret@db/kmp', output, status)
+                self.assertEqual('0\n', result.stdout)
+        result, probe = self.run_table_count('postgres://user:sensitive-password@db:invalid/kmp')
+        self.assertEqual('0\n', result.stdout)
+        self.assertIsNone(probe)
+        self.assertNotIn('sensitive-password', result.stderr)
+
     def run_production_probe(self, configuration):
         source = (ROOT / 'docker/entrypoint.prod.sh').read_text()
         probe = re.search(r'^check_postgres\(\) \{\n.*?^\}', source, re.MULTILINE | re.DOTALL)

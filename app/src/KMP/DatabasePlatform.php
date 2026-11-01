@@ -25,6 +25,10 @@ final class DatabasePlatform
             }
             if (!empty($config['url'])) {
                 try {
+                    $scheme = strtolower((string)parse_url((string)$config['url'], PHP_URL_SCHEME));
+                    if (!in_array($scheme, ['postgres', 'postgresql', 'pgsql'], true)) {
+                        throw new RuntimeException('Unsupported datasource URL scheme.');
+                    }
                     $url = preg_replace('/^(postgresql|pgsql):/i', 'postgres:', (string)$config['url']);
                     $config = ConnectionManager::parseDsn($url) + $config;
                 } catch (Throwable) {

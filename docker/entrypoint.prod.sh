@@ -186,18 +186,58 @@ chmod -R 775 /var/www/html/logs /var/www/html/tmp /var/www/html/images 2>/dev/nu
 LOCK_FILE="/tmp/kmp-migration.lock"
 LOCK_TIMEOUT=600  # 10 minutes
 
+count_postgres_tables() {
+    local table_count
+    if [ -n "${DATABASE_URL:-}" ]; then
+        local -a connection
+        # NUL-delimited fields preserve quoted, escaped, and whitespace credentials.
+        mapfile -d '' -t connection < <(php -r '
+            try {
+                $url = parse_url(getenv("DATABASE_URL"));
+                if (!is_array($url) || empty($url["host"])) {
+                    exit(1);
+                }
+                parse_str($url["query"] ?? "", $query);
+                $ssl = strtolower((string)($query["ssl"] ?? ""));
+                $mode = $query["ssl_mode"] ?? $query["sslmode"] ?? (
+                    in_array($ssl, ["true", "1"], true) ? "require" : (
+                        in_array($ssl, ["false", "0"], true) ? "disable" : "prefer"
+                    )
+                );
+                echo implode("\0", [
+                    trim($url["host"], "[]"), $url["port"] ?? 5432,
+                    rawurldecode($url["user"] ?? ""),
+                    rawurldecode(ltrim($url["path"] ?? "", "/")),
+                    rawurldecode($url["pass"] ?? ""), $mode,
+                ]), "\0";
+            } catch (Throwable) {
+                exit(1);
+            }
+        ')
+        if [ "${#connection[@]}" -ne 6 ]; then
+            echo 0
+            return
+        fi
+        table_count=$(PGPASSWORD="${connection[4]}" PGSSLMODE="${connection[5]}" \
+            psql -h "${connection[0]}" -p "${connection[1]}" \
+            -U "${connection[2]}" -d "${connection[3]}" -Atc \
+            "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" \
+            2>/dev/null) || table_count=0
+    else
+        table_count=$(PGPASSWORD="${DB_PASSWORD:-${PGPASSWORD:-}}" psql -h "${DB_HOST:-${PGHOST:-db}}" -p "${DB_PORT:-${PGPORT:-5432}}" -U "${DB_USERNAME:-${PGUSER:-postgres}}" -d "${DB_DATABASE:-${PGDATABASE:-kmp}}" -Atc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null) || table_count=0
+    fi
+    case "$table_count" in
+        ''|*[!0-9]*) echo 0 ;;
+        *) echo "$table_count" ;;
+    esac
+}
+
 run_migrations() {
     cd /var/www/html
 
-    # Detect whether database has existing tables
-    local table_count=0
-    if [ -n "${DATABASE_URL:-}" ]; then
-        local database_url="$DATABASE_URL"
-        database_url="${database_url/#pgsql:/postgres:}"
-        table_count=$(psql "$database_url" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ' || echo "0")
-    else
-        table_count=$(PGPASSWORD="${DB_PASSWORD:-${PGPASSWORD:-}}" psql -h "${DB_HOST:-${PGHOST:-db}}" -p "${DB_PORT:-${PGPORT:-5432}}" -U "${DB_USERNAME:-${PGUSER:-postgres}}" -d "${DB_DATABASE:-${PGDATABASE:-kmp}}" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ' || echo "0")
-    fi
+    # Detect whether database has existing tables.
+    local table_count
+    table_count=$(count_postgres_tables)
 
     if [ "$table_count" -eq 0 ] 2>/dev/null; then
         echo "Empty database detected — running full setup..."

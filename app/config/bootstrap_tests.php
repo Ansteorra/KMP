@@ -32,6 +32,7 @@ require __DIR__ . DIRECTORY_SEPARATOR . "paths.php";
  */
 require CORE_PATH . "config" . DS . "bootstrap.php";
 
+use App\KMP\DatabasePlatform;
 use Cake\Cache\Cache;
 use Cake\Core\Configure;
 use Cake\Core\Configure\Engine\PhpConfig;
@@ -192,7 +193,9 @@ if ($fullBaseUrl) {
 unset($fullBaseUrl);
 
 Cache::setConfig(Configure::consume("Cache"));
-ConnectionManager::setConfig(Configure::consume("Datasources"));
+$datasources = Configure::consume("Datasources");
+DatabasePlatform::assertSupported($datasources);
+ConnectionManager::setConfig($datasources);
 TransportFactory::setConfig(Configure::consume("EmailTransport"));
 Mailer::setConfig(Configure::consume("Email"));
 Log::setConfig(Configure::consume("Log"));

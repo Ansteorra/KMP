@@ -25,6 +25,7 @@ class DatabasePlatformTest extends BaseTestCase
         $overrides = [
             ['driver' => 'Cake\\Database\\Driver\\Mysql'],
             ['url' => 'mysql://user:sensitive-password@localhost/kmp'],
+            ['url' => 'mysql://user:sensitive-password@localhost/kmp?driver=Cake%5CDatabase%5CDriver%5CPostgres'],
             ['url' => 'postgres://user:sensitive-password@localhost/kmp?driver=Mysql'],
             ['url' => 'sqlite:///:memory:'],
         ];

@@ -26,21 +26,20 @@ done
 
 echo "Setting up PostgreSQL role and databases..."
 # Idempotent provisioning: role + PostgreSQL development/test databases.
+# Escape SQL literals; PostgreSQL format() quotes the generated identifiers.
+postgres_user_sql=${POSTGRES_USER//\'/\'\'}
+postgres_password_sql=${POSTGRES_PASSWORD//\'/\'\'}
+postgres_db_sql=${POSTGRES_DB//\'/\'\'}
 sudo -u postgres psql -v ON_ERROR_STOP=1 <<EOFPG
-DO \$\$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${POSTGRES_USER}') THEN
-        CREATE ROLE "${POSTGRES_USER}" LOGIN PASSWORD '${POSTGRES_PASSWORD}' CREATEDB;
-    ELSE
-        ALTER ROLE "${POSTGRES_USER}" LOGIN PASSWORD '${POSTGRES_PASSWORD}' CREATEDB;
-    END IF;
-END
-\$\$;
+SET standard_conforming_strings = on;
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L CREATEDB', '${postgres_user_sql}', '${postgres_password_sql}')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${postgres_user_sql}') \gexec
+SELECT format('ALTER ROLE %I LOGIN PASSWORD %L CREATEDB', '${postgres_user_sql}', '${postgres_password_sql}') \gexec
+SELECT format('CREATE DATABASE %I OWNER %I', '${postgres_db_sql}', '${postgres_user_sql}')
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '${postgres_db_sql}') \gexec
+SELECT format('CREATE DATABASE %I OWNER %I', '${postgres_db_sql}_test', '${postgres_user_sql}')
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '${postgres_db_sql}_test') \gexec
 EOFPG
-sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '${POSTGRES_DB}'" | grep -q 1 || \
-    sudo -u postgres createdb -O "${POSTGRES_USER}" "${POSTGRES_DB}"
-sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = '${POSTGRES_DB}_test'" | grep -q 1 || \
-    sudo -u postgres createdb -O "${POSTGRES_USER}" "${POSTGRES_DB}_test"
 
 # Create environment configuration
 echo "Creating environment configuration..."
