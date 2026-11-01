@@ -193,7 +193,7 @@ if ($fullBaseUrl) {
 unset($fullBaseUrl);
 
 Cache::setConfig(Configure::consume("Cache"));
-$datasources = Configure::consume("Datasources");
+$datasources = Configure::consume('Datasources');
 DatabasePlatform::assertSupported($datasources);
 ConnectionManager::setConfig($datasources);
 TransportFactory::setConfig(Configure::consume("EmailTransport"));

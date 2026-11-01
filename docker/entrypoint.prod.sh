@@ -201,7 +201,7 @@ count_postgres_tables() {
                 $ssl = strtolower((string)($query["ssl"] ?? ""));
                 $mode = $query["ssl_mode"] ?? $query["sslmode"] ?? (
                     in_array($ssl, ["true", "1"], true) ? "require" : (
-                        in_array($ssl, ["false", "0"], true) ? "disable" : "prefer"
+                        in_array($ssl, ["false", "0"], true) ? "disable" : (getenv("PGSSLMODE") ?: "prefer")
                     )
                 );
                 echo implode("\0", [
