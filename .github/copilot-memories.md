@@ -6,7 +6,7 @@ Use this file as a compact orientation, not as a substitute for the applicable `
 
 - Application code is under `app/`. Run Composer, PHPUnit, npm, Vite, PHPStan, PHPCS, and Playwright commands from that directory unless a command explicitly says otherwise.
 - The supported application runtime is PHP 8.4 with CakePHP 5.
-- Local Docker Compose uses PostgreSQL 16. The dev container also installs PostgreSQL 16 and retains MariaDB tooling for compatibility work; new documentation and verification must not assume MySQL-only behavior.
+- PostgreSQL 16 is the only supported platform database across Docker Compose, the devcontainer, CI and managed hosting. Do not restore MySQL/MariaDB compatibility paths.
 - The root `dev-up.sh` and database-reset scripts can recreate or reseed databases. Read their help/source and obtain authorization before using state-changing options.
 - Never expose `.env` values, tenant secrets, credentials, backup keys, or production data.
 

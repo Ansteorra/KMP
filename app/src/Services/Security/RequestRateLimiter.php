@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace App\Services\Security;
 
 use Cake\Database\Connection;
-use Cake\Database\Driver\Mysql;
 use Cake\Datasource\ConnectionManager;
 use Cake\Http\Exception\ServiceUnavailableException;
 use Cake\Utility\Security;
@@ -68,11 +67,7 @@ class RequestRateLimiter
 
             return $connection->transactional(function (Connection $connection) use ($key, $expires, $limits, $now) {
                 $sql = 'INSERT INTO security_rate_limits (bucket_key, attempts, expires_at) VALUES (:key, 0, :expires)';
-                if ($connection->getDriver() instanceof Mysql) {
-                    $sql .= ' ON DUPLICATE KEY UPDATE bucket_key = bucket_key';
-                } else {
-                    $sql .= ' ON CONFLICT (bucket_key) DO NOTHING';
-                }
+                $sql .= ' ON CONFLICT (bucket_key) DO NOTHING';
                 $connection->execute($sql, ['key' => $key, 'expires' => $expires]);
                 $changed = $connection->execute(
                     'UPDATE security_rate_limits SET attempts = attempts + 1 ' .

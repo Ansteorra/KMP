@@ -21,6 +21,18 @@ stack is documented separately as unsupported.
 | `apache-vhost.conf` | Apache development vhost |
 | `verify-php-version.php` | Branch-specific minimum security versions for container builds and final-image audits |
 
+## PostgreSQL-only database support
+
+All supported runtimes use PostgreSQL. Container builds omit MySQL/MariaDB
+clients and PHP database extensions. The application validates merged datasource
+settings, including DSN driver overrides and administrative connections, before
+registering them. Use `KMP_DB_DRIVER=postgres` (or `pgsql`) and `DB_*`/`POSTGRES_*`
+settings; `MYSQL_*` aliases and retired-engine URLs are unsupported. Existing
+logical backup archives can still be imported into PostgreSQL; no live database
+conversion is performed by this change. The nightly image smoke test uses
+PostgreSQL 16. Production builds reject prebuilt runtime overrides with enabled
+MySQL extensions or without `pdo_pgsql`; rebuild old bases before using them.
+
 ## PHP security updates
 
 The October 21, 2026 PHP releases fix
@@ -97,6 +109,16 @@ the version checker read-only. This does not restart the development stack.
 
 ## Managed Azure process model
 
+Production final images remove SUID/SGID from `/usr/bin/mount` and
+`/usr/bin/umount`, with build-time assertions for both files. Azure mounts
+volumes outside the application; web users do not need elevated mount helpers.
+The ordinary commands remain executable. This reduces a local escalation
+precondition, but does not patch libmount or restrict callers already running as
+root/with capabilities. Do not use privileged `nsenter --join-cgroup` against
+untrusted targets until the affected tooling is patched. See the
+[1.5.13 native review](../security/reviews/1.5.13-native.md) for residual risks
+and verification limits.
+
 All managed roles use the same production image digest but different commands:
 
 | Role | Contract |
@@ -142,11 +164,16 @@ datasource and is not a tenant-fleet worker.
 `entrypoint.prod.sh`:
 
 1. writes `config/app_local.php` from runtime environment values;
-2. detects MySQL or PostgreSQL and waits for the default database;
+2. validates PostgreSQL configuration and waits for the default database;
 3. prepares writable runtime directories;
 4. optionally runs a historical application migration pass;
 5. optionally installs in-container cron; and
 6. executes the requested process, normally `apache2-foreground`.
+
+The PostgreSQL readiness probe extracts only the host and port from
+`DATABASE_URL`. The probe must not pass CakePHP-specific options such as `ssl`
+and `ssl_mode` to `pg_isready`. The application retains the complete URL and its
+authentication/TLS settings; the readiness probe only checks server availability.
 
 The entrypoint's compatibility migration path deliberately tolerates several
 migration failures and does not include the full platform/tenant sequence.

@@ -1,0 +1,64 @@
+{
+  "release": "1.5.13",
+  "source_commit": "2dff86f4d58365f76bb2107f7e39e997800518cb",
+  "image": "ghcr.io/ansteorra/kmp@sha256:6a3356aba3bf30dbcd104c2e96872bb5f90008db438bd87bc8cb2ef5fd012b77",
+  "image_architecture": "amd64",
+  "scanner": {
+    "Version": "0.74.0"
+  },
+  "scan_created_at": "2026-10-22T01:08:39.458878529Z",
+  "artifact": {
+    "id": 12394133255,
+    "name": "security-evidence-amd64",
+    "run_id": 39699667521,
+    "created_at": "2026-10-22T01:08:41Z",
+    "expires_at": "2026-11-21T01:08:39Z",
+    "zip_sha256": "8a0bd746ae3567b5f49cc3ce8bb06cef9ba44a3e9fc54866acdef8bcab4a92fb",
+    "url": "https://github.com/Ansteorra/KMP/actions/runs/39699667521/artifacts/12394133255"
+  },
+  "files": {
+    "composer-app.json": {
+      "bytes": 64,
+      "sha256": "3d68c4566587606c21e4bcd82b55d322ddb79158f657d9fb90bf0d24ab5bccdf"
+    },
+    "image.cdx.json": {
+      "bytes": 1433622,
+      "sha256": "48120e56866773631741c340f0cf89fc94767d872385b7a58a921345c6edf079"
+    },
+    "image.json": {
+      "bytes": 3072684,
+      "sha256": "6810aeaa7f230fef899eac4767c08db6d6061ef7b6f3bcfa1e6e693ccd6530c8"
+    },
+    "npm-KMP.json": {
+      "bytes": 358,
+      "sha256": "6d31e957dc14f2847573c528dd4fdfd3b80883e8f4d401404880b25afa9bf1b6"
+    },
+    "npm-app.json": {
+      "bytes": 366,
+      "sha256": "d279f339e032d5d7ba6a5aa6e64b88ae76b74a6f9c7ff6763c14d278c3c858b1"
+    },
+    "ruby-docs.json": {
+      "bytes": 201,
+      "sha256": "941818bcb85562f47e8fe7e17509e60dc7eca660e72de8ce35cbd1e521a86cf5"
+    }
+  },
+  "scope": {
+    "all_os_package_rows": 691,
+    "all_os_advisory_ids": 265,
+    "all_os_severity_rows": {
+      "LOW": 354,
+      "HIGH": 108,
+      "MEDIUM": 204,
+      "CRITICAL": 21,
+      "UNKNOWN": 4
+    },
+    "reviewed_high_critical_package_rows": 129,
+    "reviewed_advisory_ids": 32,
+    "reviewed_unique_packages": 33,
+    "reviewed_advisory_severities": {
+      "HIGH": 27,
+      "CRITICAL": 5
+    },
+    "other_severity_findings": "Retained in raw evidence; not individually reachability-triaged or accepted by this review."
+  }
+}

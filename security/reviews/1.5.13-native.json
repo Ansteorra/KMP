@@ -1,0 +1,1793 @@
+{
+  "release": "1.5.13",
+  "evidence": "1.5.13-evidence.json",
+  "review_date": "2026-10-22",
+  "deduplication": "OS-package results only; group by advisory ID, retain distinct package-name/installed-version/target tuples. Separate CVE IDs remain separate even when fixes overlap.",
+  "acceptance": "No risk acceptance or scanner exception is granted by this analysis.",
+  "findings": [
+    {
+      "id": "CVE-2025-69720",
+      "severity": "HIGH",
+      "severity_source": "nvd",
+      "package_rows": 5,
+      "packages": [
+        {
+          "name": "libncurses6",
+          "installed_version": "6.5+20250216-2",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libncurses6@6.5%2B20250216-2?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "libncursesw6",
+          "installed_version": "6.5+20250216-2",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libncursesw6@6.5%2B20250216-2?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "libtinfo6",
+          "installed_version": "6.5+20250216-2",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libtinfo6@6.5%2B20250216-2?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "ncurses-base",
+          "installed_version": "6.5+20250216-2",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/ncurses-base@6.5%2B20250216-2?arch=all&distro=debian-13.7"
+        },
+        {
+          "name": "ncurses-bin",
+          "installed_version": "6.5+20250216-2",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/ncurses-bin@6.5%2B20250216-2?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "infocmp analyzes crafted terminfo data.",
+        "assessment": "ncurses-bin is installed, but KMP has no infocmp/terminfo ingestion path. Do not analyze untrusted terminfo during incident response.",
+        "upstream_remedy": "ncurses upstream patch level 6.5-20251213; no fixed Trixie package recorded.",
+        "disposition": "preconditions-not-found",
+        "priority": "P3",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   6.5+20250216-2    vulnerable"
+      ],
+      "debian_snapshot_sha256": "3542be519daaef8f60a0fd662f4a6129a238f59ef9b86155869d49cfd2b3af78",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2025-69720",
+        "https://github.com/Cao-Wuhui/CVE-2025-69720",
+        "https://github.com/advisories/GHSA-9952-mrqj-h4jh"
+      ]
+    },
+    {
+      "id": "CVE-2026-107815",
+      "severity": "HIGH",
+      "severity_source": null,
+      "package_rows": 5,
+      "packages": [
+        {
+          "name": "libmariadb3",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libmariadb3@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-compat",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-compat@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-core",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-core@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-common",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-common@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "Authenticated use of the server CONNECT DOS table engine.",
+        "assessment": "Affected server/backup component absent from the 200-package release inventory; Dockerfile installs clients only. No application-container exploit path established. This does not assess any external database server.",
+        "upstream_remedy": "MariaDB Server 11.8.9 (other maintained branches also patched).",
+        "disposition": "component-absent",
+        "priority": "P3",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   1:11.8.6-0+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "bab472a34d6fab43c29762ed7d0b030a9174e72cfd5c550881f88610bd93d0b8",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-107815",
+        "https://github.com/MariaDB/server/commit/b369925f6855d3e1f0ebcf453492724b99fda6f8",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-10.11.19",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-10.6.28",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-11.4.13",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-11.8.9",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-12.3.3",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-13.0.2",
+        "https://github.com/MariaDB/server/security/advisories/GHSA-4wgx-ffg9-jrwq"
+      ]
+    },
+    {
+      "id": "CVE-2026-107818",
+      "severity": "HIGH",
+      "severity_source": null,
+      "package_rows": 5,
+      "packages": [
+        {
+          "name": "libmariadb3",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libmariadb3@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-compat",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-compat@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-core",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-core@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-common",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-common@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "Database FILE privilege, writes to /run/mysqld and a MariaDB service restart.",
+        "assessment": "Affected server/backup component absent from the 200-package release inventory; Dockerfile installs clients only. No application-container exploit path established. This does not assess any external database server.",
+        "upstream_remedy": "MariaDB Server 11.8.9.",
+        "disposition": "component-absent",
+        "priority": "P3",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   1:11.8.6-0+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "df2bbf160c6dcd8fc6e3c78211453dc0f8dfac188634cebaf6d0a2f9ad305eb4",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-107818",
+        "https://github.com/MariaDB/server/commit/e3d62d4e78fd4941cef3f5053e6a50d0b32d740e",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-10.11.19",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-10.6.28",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-11.4.13",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-11.8.9",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-12.3.3",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-13.0.2",
+        "https://github.com/MariaDB/server/security/advisories/GHSA-mhvc-vqcq-7vq5"
+      ]
+    },
+    {
+      "id": "CVE-2026-107823",
+      "severity": "HIGH",
+      "severity_source": null,
+      "package_rows": 5,
+      "packages": [
+        {
+          "name": "libmariadb3",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libmariadb3@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-compat",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-compat@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-core",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-core@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-common",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-common@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "Server CREATE USER and CREATE VIEW WITH GRANT OPTION with crafted metadata.",
+        "assessment": "Affected server/backup component absent from the 200-package release inventory; Dockerfile installs clients only. No application-container exploit path established. This does not assess any external database server.",
+        "upstream_remedy": "MariaDB Server 11.8.9.",
+        "disposition": "component-absent",
+        "priority": "P3",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   1:11.8.6-0+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "3660c42b8185081ff03c8cc03820225147fbc33e5ca430b5b977b46a747131b8",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-107823",
+        "https://github.com/MariaDB/server/commit/8a642bc8103aadc6b2087d781ba8e1595616a2c4",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-10.11.19",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-10.6.28",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-11.4.13",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-11.8.9",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-12.3.3",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-13.0.2",
+        "https://github.com/MariaDB/server/security/advisories/GHSA-g2q2-3936-cp37"
+      ]
+    },
+    {
+      "id": "CVE-2026-12064",
+      "severity": "HIGH",
+      "severity_source": null,
+      "package_rows": 2,
+      "packages": [
+        {
+          "name": "curl",
+          "installed_version": "8.14.1-2+deb13u7",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/curl@8.14.1-2%2Bdeb13u7?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "libcurl4t64",
+          "installed_version": "8.14.1-2+deb13u7",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libcurl4t64@8.14.1-2%2Bdeb13u7?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "curl CLI combines a schemeless URL with --proto-default sftp/scp.",
+        "assessment": "Health check uses explicit http://localhost/livez; build key download and GitHub issue submission use explicit HTTPS. No matching CLI options found. A libcurl package match alone does not establish the CLI vulnerability in PHP.",
+        "upstream_remedy": "curl 8.21.0 or backport ab3bb8cd8be8f9d4acb97da0418abc279182041e.",
+        "disposition": "preconditions-not-found",
+        "priority": "P2",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   8.14.1-2+deb13u5    vulnerable",
+        "trixie (security)   8.14.1-2+deb13u7    vulnerable"
+      ],
+      "debian_snapshot_sha256": "bb81c0494a4491a58cbf71aa2455e650ee9d23195861d9c9c65a38275aeecf3a",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-12064",
+        "https://curl.se/docs/CVE-2026-12064.html",
+        "https://curl.se/docs/CVE-2026-12064.json",
+        "https://github.com/advisories/GHSA-jm94-9f7h-36pr"
+      ]
+    },
+    {
+      "id": "CVE-2026-16742",
+      "severity": "HIGH",
+      "severity_source": null,
+      "package_rows": 4,
+      "packages": [
+        {
+          "name": "libsystemd-shared",
+          "installed_version": "257.13-1~deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libsystemd-shared@257.13-1~deb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "libsystemd0",
+          "installed_version": "257.13-1~deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libsystemd0@257.13-1~deb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "libudev1",
+          "installed_version": "257.13-1~deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libudev1@257.13-1~deb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "systemd",
+          "installed_version": "257.13-1~deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/systemd@257.13-1~deb13u1?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "A logged-in systemd-homed user submits a manipulated home record to the daemon.",
+        "assessment": "systemd-homed package is absent; Apache/CLI entrypoints do not start systemd as PID 1. Other systemd binary packages inherit the source advisory.",
+        "upstream_remedy": "systemd 258.10/261.2 or vendor backport.",
+        "disposition": "component-absent",
+        "priority": "P3",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   257.13-1~deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "9def8c0e8dc245c97190f018412a2f08fe7e72ec90ccf943c132ff756b7ef7b0",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-16742",
+        "https://github.com/systemd/systemd/security/advisories/GHSA-jm29-p7hh-vjhv"
+      ]
+    },
+    {
+      "id": "CVE-2026-44168",
+      "severity": "HIGH",
+      "severity_source": null,
+      "package_rows": 5,
+      "packages": [
+        {
+          "name": "libmariadb3",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libmariadb3@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-compat",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-compat@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-core",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-core@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-common",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-common@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "Galera donor uses mariabackup SST with attacker-controlled joiner parameters.",
+        "assessment": "Affected server/backup component absent from the 200-package release inventory; Dockerfile installs clients only. No application-container exploit path established. This does not assess any external database server.",
+        "upstream_remedy": "MariaDB Server 11.8.7.",
+        "disposition": "component-absent",
+        "priority": "P3",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   1:11.8.6-0+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "e2dc598fbdc233f28ff9e65fa0c10812aec34ff6458edf59e79ffff44e6e2c88",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-44168",
+        "https://github.com/MariaDB/server/security/advisories/GHSA-vwf7-w26c-9w5h"
+      ]
+    },
+    {
+      "id": "CVE-2026-44171",
+      "severity": "HIGH",
+      "severity_source": "nvd",
+      "package_rows": 5,
+      "packages": [
+        {
+          "name": "libmariadb3",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libmariadb3@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-compat",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-compat@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-core",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-core@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-common",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-common@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "mbstream extracts a crafted backup archive with traversal paths.",
+        "assessment": "Affected server/backup component absent from the 200-package release inventory; Dockerfile installs clients only. No application-container exploit path established. This does not assess any external database server.",
+        "upstream_remedy": "MariaDB backup tools 11.8.7.",
+        "disposition": "component-absent",
+        "priority": "P3",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   1:11.8.6-0+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "f411996ba89fa90aebd2972f7a5f24a0e5650dd9f0619bbf26fed849f1a45aba",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-44171",
+        "https://github.com/MariaDB/server/security/advisories/GHSA-9pjh-5hhw-65v9"
+      ]
+    },
+    {
+      "id": "CVE-2026-44172",
+      "severity": "CRITICAL",
+      "severity_source": "nvd",
+      "package_rows": 5,
+      "packages": [
+        {
+          "name": "libmariadb3",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libmariadb3@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-compat",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-compat@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-core",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-core@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-common",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-common@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "Connector/C mysql_real_escape_string, big5 character encoding and text-protocol SQL.",
+        "assessment": "libmariadb is installed for CLI tools. Official PHP build uses mysqlnd; KMP uses Cake database drivers and no big5/C-client escaping path was found. mysqlnd linkage checked only on the local comparison image.",
+        "upstream_remedy": "MariaDB Connector/C 3.3.19 or 3.4.9; not a PHP version fix.",
+        "disposition": "preconditions-not-found",
+        "priority": "P2",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   1:11.8.6-0+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "184fbce14e5c95398dc33590e96841a7fa7a85e229cfc45b160437838348c747",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-44172",
+        "https://github.com/MariaDB/server/security/advisories/GHSA-pv9p-5w55-55jm"
+      ]
+    },
+    {
+      "id": "CVE-2026-48163",
+      "severity": "HIGH",
+      "severity_source": "nvd",
+      "package_rows": 5,
+      "packages": [
+        {
+          "name": "libmariadb3",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libmariadb3@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-compat",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-compat@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-core",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-core@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-common",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-common@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "Galera donor uses rsync SST with attacker-controlled joiner parameters.",
+        "assessment": "Affected server/backup component absent from the 200-package release inventory; Dockerfile installs clients only. No application-container exploit path established. This does not assess any external database server.",
+        "upstream_remedy": "MariaDB Server 11.8.8.",
+        "disposition": "component-absent",
+        "priority": "P3",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   1:11.8.6-0+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "47b9fbd86f7113fb713aa6fbb60834a324834131af86a002474a2af3b23c5555",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-48163",
+        "https://github.com/MariaDB/server/security/advisories/GHSA-rpgv-q6gv-684r"
+      ]
+    },
+    {
+      "id": "CVE-2026-48165",
+      "severity": "HIGH",
+      "severity_source": "nvd",
+      "package_rows": 5,
+      "packages": [
+        {
+          "name": "libmariadb3",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libmariadb3@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-compat",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-compat@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-core",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-core@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-common",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-common@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "Privileged server user changes wsrep SST global variables.",
+        "assessment": "Affected server/backup component absent from the 200-package release inventory; Dockerfile installs clients only. No application-container exploit path established. This does not assess any external database server.",
+        "upstream_remedy": "MariaDB Server 11.8.8.",
+        "disposition": "component-absent",
+        "priority": "P3",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   1:11.8.6-0+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "3045e3172d246e2c83cb597a18a1a563739fd7ca6edf4215061ea7975e81a941",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-48165",
+        "https://github.com/MariaDB/server/security/advisories/GHSA-7v3p-h23x-8hwv"
+      ]
+    },
+    {
+      "id": "CVE-2026-49261",
+      "severity": "CRITICAL",
+      "severity_source": "nvd",
+      "package_rows": 5,
+      "packages": [
+        {
+          "name": "libmariadb3",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libmariadb3@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-compat",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-compat@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-core",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-core@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-common",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-common@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "Galera server has wsrep_notify_cmd enabled and accepts a malicious joiner name.",
+        "assessment": "Affected server/backup component absent from the 200-package release inventory; Dockerfile installs clients only. No application-container exploit path established. This does not assess any external database server.",
+        "upstream_remedy": "MariaDB Server 11.8.8; disable wsrep_notify_cmd on affected database servers.",
+        "disposition": "component-absent",
+        "priority": "P3",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   1:11.8.6-0+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "817d79737efe1f8727aa9f933ead2145f5d8ba718b271fe8ba1f0271eed96da9",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-49261",
+        "https://github.com/MariaDB/server/security/advisories/GHSA-3p3m-4x7c-p4pw"
+      ]
+    },
+    {
+      "id": "CVE-2026-54369",
+      "severity": "HIGH",
+      "severity_source": null,
+      "package_rows": 1,
+      "packages": [
+        {
+          "name": "libacl1",
+          "installed_version": "2.3.2-2+b1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libacl1@2.3.2-2%2Bb1?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "Privileged libacl pathname-based operations process attacker-replaceable path components.",
+        "assessment": "No KMP ACL API/setfacl path found; filesystem chown/mkdir are not automatically the affected ACL functions. Privileged worker/startup code still exists, so rootless/capability isolation must not be assumed.",
+        "upstream_remedy": "acl 2.4.0; new *_at ABI requires callers and dependencies to be reviewed.",
+        "disposition": "preconditions-not-found",
+        "priority": "P2",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   2.3.2-2    vulnerable"
+      ],
+      "debian_snapshot_sha256": "4677cdb2b848eca7bc76f57dd54e5d01e309f438bba58d892550db432fbde5ca",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-54369"
+      ]
+    },
+    {
+      "id": "CVE-2026-6653",
+      "severity": "CRITICAL",
+      "severity_source": "nvd",
+      "package_rows": 1,
+      "packages": [
+        {
+          "name": "libxml2",
+          "installed_version": "2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libxml2@2.12.7%2Bdfsg%2Breally2.9.14-2.1%2Bdeb13u3?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "Untrusted XML with an internal DTD reaches xmlParseInternalSubset.",
+        "assessment": "libxml2 2.9.14 remains affected and PHP loads XML APIs. HTTP BodyParser leaves XML disabled, but Bootstrap Matching uses XMLReader on generated markup; report summaries parse HTML. No demonstrated attacker-controlled DTD path. NONET/default external-entity restrictions do not repair this memory bug.",
+        "upstream_remedy": "Upstream fix 463bbeeca1805b5c4828f50d0fefc4eebaf620df (2.11.0); Debian fixed unstable from 2.14.5+dfsg-0.1. No fixed Trixie package.",
+        "disposition": "residual-review-required",
+        "priority": "P1",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   2.12.7+dfsg+really2.9.14-2.1+deb13u3    vulnerable",
+        "trixie (security)   2.12.7+dfsg+really2.9.14-2.1+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "e2c617f15c21210bf4b14e3dfba7349a56e335e2cc0cec5a9e5365de711389e7",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-6653",
+        "https://gitlab.gnome.org/GNOME/libxml2/-/work_items/1058"
+      ]
+    },
+    {
+      "id": "CVE-2026-74860",
+      "severity": "HIGH",
+      "severity_source": null,
+      "package_rows": 1,
+      "packages": [
+        {
+          "name": "libxml2",
+          "installed_version": "2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libxml2@2.12.7%2Bdfsg%2Breally2.9.14-2.1%2Bdeb13u3?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "Python libxml2 SAX attributeDecl callback handles a DTD with enumerated attributes.",
+        "assessment": "python3-libxml2 and Python runtime packages are absent from the release inventory; no Python step in the runtime recipe. This Python binding flaw is not demonstrated through PHP DOM/XMLReader.",
+        "upstream_remedy": "Upstream libxml2 2.15.3 fix f41e1865781f74d1cadfe2fbdfeefed946026f12.",
+        "disposition": "component-absent",
+        "priority": "P3",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   2.12.7+dfsg+really2.9.14-2.1+deb13u3    vulnerable",
+        "trixie (security)   2.12.7+dfsg+really2.9.14-2.1+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "a80a16c47eb20f15cc86ac053379cd571ad9c36e7497e42497100eaa3e71250f",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-74860"
+      ]
+    },
+    {
+      "id": "CVE-2026-76642",
+      "severity": "HIGH",
+      "severity_source": null,
+      "package_rows": 9,
+      "packages": [
+        {
+          "name": "bsdutils",
+          "installed_version": "1:2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/bsdutils@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "libblkid1",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libblkid1@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "liblastlog2-2",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/liblastlog2-2@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "libmount1",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libmount1@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "libsmartcols1",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libsmartcols1@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "libuuid1",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libuuid1@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "login",
+          "installed_version": "1:4.16.0-2+really2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/login@4.16.0-2%2Breally2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mount",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mount@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "util-linux",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/util-linux@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "fstab-authorized external helper fails, then privileged X-mount post-hooks run.",
+        "assessment": "No application mount invocation or configured fstab entries found in source/comparison image. Release filesystem not directly inspected. Proposed production chmod removes SUID/SGID from mount and umount, reducing the non-root escalation path. Root/capability-bearing callers remain privileged.",
+        "upstream_remedy": "Upstream util-linux security fixes; advisory lists patched 2.41.6/2.42.3. Wait for a supported Trixie backport and verify actual code.",
+        "disposition": "mitigation-implemented-not-deployed",
+        "priority": "P2",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie (security), trixie   2.41.5-0+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "243d0dcce2b7e8a9446611151a404ced874c0c45f912bca021c03061334d197b",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-76642",
+        "https://github.com/util-linux/util-linux",
+        "https://github.com/util-linux/util-linux/blob/v2.42.2/libmount/src/context_mount.c#L476",
+        "https://github.com/util-linux/util-linux/blob/v2.42.2/libmount/src/context_mount.c#L892",
+        "https://github.com/util-linux/util-linux/commit/1d14676ea70003e9f5b2a6a76af0cadb1190411a",
+        "https://github.com/util-linux/util-linux/commit/a15c00a9e545aa8b9cf6ec0f888ff6c7b3eaeedc",
+        "https://github.com/util-linux/util-linux/commit/f57cea130839c0af8dc0525274267ae4cfd66bbf",
+        "https://github.com/util-linux/util-linux/security/advisories/GHSA-m25x-3hj9-m26f"
+      ]
+    },
+    {
+      "id": "CVE-2026-78408",
+      "severity": "HIGH",
+      "severity_source": null,
+      "package_rows": 9,
+      "packages": [
+        {
+          "name": "bsdutils",
+          "installed_version": "1:2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/bsdutils@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "libblkid1",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libblkid1@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "liblastlog2-2",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/liblastlog2-2@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "libmount1",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libmount1@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "libsmartcols1",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libsmartcols1@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "libuuid1",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libuuid1@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "login",
+          "installed_version": "1:4.16.0-2+really2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/login@4.16.0-2%2Breally2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mount",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mount@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "util-linux",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/util-linux@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "A root/CAP_SYS_ADMIN operator uses nsenter --join-cgroup against an attacker-controlled target.",
+        "assessment": "2.41.5 includes the vulnerable option. It is not SUID and KMP does not invoke it, but a privileged operator can trigger the issue. Removing mount SUID does not mitigate this separate path.",
+        "upstream_remedy": "Upstream advisory lists 2.41.6/2.42.3; Debian additionally references fix commit 286dd3ff41526b582ef48830de239dffbaa61f90 in 2.42.4. Require verified vendor backport.",
+        "disposition": "conditional-operator-risk",
+        "priority": "P2",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie (security), trixie   2.41.5-0+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "176ee66ad84e9fdad225f5e0a60fe5cd7bf8a5aa54bd0fd63d07beb795aba5d3",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-78408",
+        "https://github.com/util-linux/util-linux/security/advisories/GHSA-55fx-f4gg-cfhj"
+      ]
+    },
+    {
+      "id": "CVE-2026-78409",
+      "severity": "HIGH",
+      "severity_source": null,
+      "package_rows": 9,
+      "packages": [
+        {
+          "name": "bsdutils",
+          "installed_version": "1:2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/bsdutils@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "libblkid1",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libblkid1@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "liblastlog2-2",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/liblastlog2-2@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "libmount1",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libmount1@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "libsmartcols1",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libsmartcols1@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "libuuid1",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libuuid1@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "login",
+          "installed_version": "1:4.16.0-2+really2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/login@4.16.0-2%2Breally2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mount",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mount@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "util-linux",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/util-linux@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "Linux >=6.15, X-mount.subdir, and a detached-tree fast path introduced in util-linux 2.42.",
+        "assessment": "Installed 2.41.5 predates the upstream affected fast path. Debian still marks its source package affected. Treat this as a probable version exclusion until downstream source/backports are checked; no host-kernel version assumption. Proposed mount chmod adds defense in depth.",
+        "upstream_remedy": "Upstream util-linux advisory/fix; confirm affected code rather than trusting the source-package match.",
+        "disposition": "probable-version-exclusion",
+        "priority": "P3",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie (security), trixie   2.41.5-0+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "55bb3527e79127500681d1309f174a4e010dd14b8de0e8c20dac634deb59f67b",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-78409",
+        "https://github.com/util-linux/util-linux/security/advisories/GHSA-8f2p-47x3-43mv"
+      ]
+    },
+    {
+      "id": "CVE-2026-78410",
+      "severity": "HIGH",
+      "severity_source": null,
+      "package_rows": 9,
+      "packages": [
+        {
+          "name": "bsdutils",
+          "installed_version": "1:2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/bsdutils@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "libblkid1",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libblkid1@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "liblastlog2-2",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/liblastlog2-2@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "libmount1",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libmount1@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "libsmartcols1",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libsmartcols1@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "libuuid1",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libuuid1@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "login",
+          "installed_version": "1:4.16.0-2+really2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/login@4.16.0-2%2Breally2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mount",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mount@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "util-linux",
+          "installed_version": "2.41.5-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/util-linux@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "An attacker replaces an fstab-authorized bind source; SUID mount applies owner/group/mode hooks to the wrong inode.",
+        "assessment": "No application mount invocation or configured fstab entries found in source/comparison image. Release filesystem not directly inspected. Proposed production chmod removes SUID/SGID from mount and umount, reducing the non-root escalation path. Root/capability-bearing callers remain privileged.",
+        "upstream_remedy": "Upstream util-linux security fixes; advisory lists patched 2.41.6/2.42.3. Wait for a supported Trixie backport and verify actual code.",
+        "disposition": "mitigation-implemented-not-deployed",
+        "priority": "P2",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie (security), trixie   2.41.5-0+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "370b52136365d440004d915421bd2b2529393511c802bdc04f3e3a873241621b",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-78410",
+        "https://github.com/util-linux/util-linux/security/advisories/GHSA-rh77-686x-2f2m"
+      ]
+    },
+    {
+      "id": "CVE-2026-8458",
+      "severity": "HIGH",
+      "severity_source": null,
+      "package_rows": 2,
+      "packages": [
+        {
+          "name": "curl",
+          "installed_version": "8.14.1-2+deb13u7",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/curl@8.14.1-2%2Bdeb13u7?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "libcurl4t64",
+          "installed_version": "8.14.1-2+deb13u7",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libcurl4t64@8.14.1-2%2Bdeb13u7?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "libcurl reuses Negotiate-authenticated connections across different service names.",
+        "assessment": "No Negotiate/service-name options found in application clients; issue submitter uses a fresh HTTPS handle with explicit headers. Ordinary HTTPS use is not sufficient for this flaw.",
+        "upstream_remedy": "curl 8.21.0 or backport 5e99b73cf441d9c369768b9cd48b5389b9a2503d.",
+        "disposition": "preconditions-not-found",
+        "priority": "P2",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   8.14.1-2+deb13u5    vulnerable",
+        "trixie (security)   8.14.1-2+deb13u7    vulnerable"
+      ],
+      "debian_snapshot_sha256": "36db3af5adc4d84700b2ee9ee3f6577890d96350437c9a3ef87c7cea5835d6a0",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-8458",
+        "https://curl.se/docs/CVE-2026-8458.html",
+        "https://curl.se/docs/CVE-2026-8458.json",
+        "https://github.com/advisories/GHSA-88c6-6jfq-mm4q"
+      ]
+    },
+    {
+      "id": "CVE-2026-85746",
+      "severity": "CRITICAL",
+      "severity_source": null,
+      "package_rows": 5,
+      "packages": [
+        {
+          "name": "libmariadb3",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libmariadb3@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-compat",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-compat@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-core",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-core@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-common",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-common@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "Server ST_AsText serializes a crafted deeply nested GeometryCollection.",
+        "assessment": "Affected server/backup component absent from the 200-package release inventory; Dockerfile installs clients only. No application-container exploit path established. This does not assess any external database server.",
+        "upstream_remedy": "MariaDB Server 11.8.9.",
+        "disposition": "component-absent",
+        "priority": "P3",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   1:11.8.6-0+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "9fcf7aea8611d05e04eaff41bd942dbc474aec13076ac5f40a1af3edbab1cfde",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-85746",
+        "https://github.com/MariaDB/server/commit/5c04ca5524385356ff7cf84974a7d491974c1f85",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-10.11.19",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-10.6.28",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-11.4.13",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-11.8.9",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-12.3.3",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-13.0.2",
+        "https://github.com/MariaDB/server/security/advisories/GHSA-8fvj-c57c-pggx"
+      ]
+    },
+    {
+      "id": "CVE-2026-86047",
+      "severity": "HIGH",
+      "severity_source": null,
+      "package_rows": 5,
+      "packages": [
+        {
+          "name": "libmariadb3",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libmariadb3@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-compat",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-compat@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-core",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-core@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-common",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-common@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "mariadb-dump or SHOW CREATE serializes malicious identifiers; a consumer subsequently executes the generated SQL.",
+        "assessment": "The dump client IS installed; this is not a server-only false positive. KMP tenant backups use PHP JSON/gzip, platform backups use pg_dump/pg_restore. No application use of mariadb-dump/mysqldump found. Manual SQL dump/restore remains an operator risk.",
+        "upstream_remedy": "MariaDB client/server 11.8.9. Do not replay SQL generated by an affected dump client from an untrusted database.",
+        "disposition": "conditional-operator-risk",
+        "priority": "P2",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   1:11.8.6-0+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "a6fb1a0988e5947f38df2c7836392a36d8fdb6dd94240acaad33d934dc8bcfac",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-86047",
+        "https://github.com/MariaDB/server/commit/2b28d1c424104429eeed43115ee6d8a803671d52",
+        "https://github.com/MariaDB/server/commit/3646569225758c8225e7342783d775ef7c7570e5",
+        "https://github.com/MariaDB/server/commit/5acb43522863c9bd6b91f354104ea247bf513e9a",
+        "https://github.com/MariaDB/server/commit/9d4ffe23b25808f7858b2dc48106fbd60cf0e513",
+        "https://github.com/MariaDB/server/commit/d5d741a3076f911b468518d6b06a917593498c5b",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-10.11.19",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-10.6.28",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-11.4.13",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-11.8.9",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-12.3.3",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-13.0.2",
+        "https://github.com/MariaDB/server/security/advisories/GHSA-wxr3-wm3p-7w6p"
+      ]
+    },
+    {
+      "id": "CVE-2026-86138",
+      "severity": "HIGH",
+      "severity_source": "nvd",
+      "package_rows": 1,
+      "packages": [
+        {
+          "name": "libxml2",
+          "installed_version": "2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libxml2@2.12.7%2Bdfsg%2Breally2.9.14-2.1%2Bdeb13u3?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "Qualified-name dictionary sizing overflows while processing extremely large prefix/name data.",
+        "assessment": "PHP DOM/XMLReader load this library. Generated markup and disabled raw XML requests reduce exposure; upstream patch adds allocation-size overflow checks. No triggering KMP input demonstrated. PHP memory/upload limits reduce opportunity but are not a bound on every native allocation.",
+        "upstream_remedy": "libxml2 2.15.4 or reviewed backport a4cba4b5b5a8c42e155ed42d2d2a44955465a2e4.",
+        "disposition": "residual-review-required",
+        "priority": "P1",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   2.12.7+dfsg+really2.9.14-2.1+deb13u3    vulnerable",
+        "trixie (security)   2.12.7+dfsg+really2.9.14-2.1+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "c86d07e496ea97c2804988c4eae5bf897b2b34992ea4f9dbef3f3ade063d4d6e",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-86138",
+        "https://github.com/GNOME/libxml2/commit/a4cba4b5b5a8c42e155ed42d2d2a44955465a2e4",
+        "https://github.com/GNOME/libxml2/compare/v2.15.3...v2.15.4"
+      ]
+    },
+    {
+      "id": "CVE-2026-86139",
+      "severity": "HIGH",
+      "severity_source": "nvd",
+      "package_rows": 1,
+      "packages": [
+        {
+          "name": "libxml2",
+          "installed_version": "2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libxml2@2.12.7%2Bdfsg%2Breally2.9.14-2.1%2Bdeb13u3?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "xmlURIEscapeStr processes an input beyond its integer-length range.",
+        "assessment": "Upstream patch addresses xmlStrlen behavior for strings beyond INT_MAX; Debian says code was introduced in 2.13.0 yet marks really2.9.14 Trixie vulnerable. No such KMP input found. Possible version mismatch needs downstream source review, not an automatic false-positive closure.",
+        "upstream_remedy": "libxml2 2.15.4 or reviewed backport 8edbbdb09f24d26a2f900141fddc2b9d014f53b0.",
+        "disposition": "residual-review-required",
+        "priority": "P2",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   2.12.7+dfsg+really2.9.14-2.1+deb13u3    vulnerable",
+        "trixie (security)   2.12.7+dfsg+really2.9.14-2.1+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "96aef4e01c0fb97663ff4ec0d62b0b8d424dfea21f46d9b0e2fa39ec7f2578f9",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-86139",
+        "https://github.com/GNOME/libxml2/commit/8edbbdb09f24d26a2f900141fddc2b9d014f53b0",
+        "https://github.com/GNOME/libxml2/compare/v2.15.3...v2.15.4"
+      ]
+    },
+    {
+      "id": "CVE-2026-86140",
+      "severity": "HIGH",
+      "severity_source": "nvd",
+      "package_rows": 1,
+      "packages": [
+        {
+          "name": "libxml2",
+          "installed_version": "2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libxml2@2.12.7%2Bdfsg%2Breally2.9.14-2.1%2Bdeb13u3?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "DTD validation error reporting reaches xmlSnprintfElements with an overflowing content model.",
+        "assessment": "No application DTD validation call found; Bootstrap XMLReader uses default validation settings. The affected library remains loaded, so absence of an obvious validate() call is a reachability inference.",
+        "upstream_remedy": "libxml2 2.15.4 or reviewed backport d1686f91dbda141a752200419d35639fd6b38340.",
+        "disposition": "residual-review-required",
+        "priority": "P1",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   2.12.7+dfsg+really2.9.14-2.1+deb13u3    vulnerable",
+        "trixie (security)   2.12.7+dfsg+really2.9.14-2.1+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "8759571590f26cf4204a2aaa4431f8fda4280a59299ba951a909af51e8bd7834",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-86140",
+        "https://github.com/GNOME/libxml2/commit/d1686f91dbda141a752200419d35639fd6b38340",
+        "https://github.com/GNOME/libxml2/compare/v2.15.3...v2.15.4"
+      ]
+    },
+    {
+      "id": "CVE-2026-86142",
+      "severity": "HIGH",
+      "severity_source": "nvd",
+      "package_rows": 1,
+      "packages": [
+        {
+          "name": "libxml2",
+          "installed_version": "2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libxml2@2.12.7%2Bdfsg%2Breally2.9.14-2.1%2Bdeb13u3?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "An oversized XPointer expression reaches xmlXPtrEvalXPtrPart.",
+        "assessment": "No XPointer/XInclude evaluation found in core, utility plugins or shipped Composer call sites. DOMXPath for fixed report selectors is not the XPointer API.",
+        "upstream_remedy": "libxml2 2.15.4 or reviewed backport 6b3a736c0edc74ceec3d82f5252499d7911b3a58.",
+        "disposition": "preconditions-not-found",
+        "priority": "P2",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   2.12.7+dfsg+really2.9.14-2.1+deb13u3    vulnerable",
+        "trixie (security)   2.12.7+dfsg+really2.9.14-2.1+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "2b9554ece094dd3e1b5a81b15d4d304b184a26977cff1ad7c55f71a8c685bbf3",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-86142",
+        "https://github.com/GNOME/libxml2/commit/6b3a736c0edc74ceec3d82f5252499d7911b3a58",
+        "https://github.com/GNOME/libxml2/compare/v2.15.3...v2.15.4",
+        "https://gitlab.gnome.org/GNOME/libxml2/-/work_items/1113"
+      ]
+    },
+    {
+      "id": "CVE-2026-86143",
+      "severity": "HIGH",
+      "severity_source": "nvd",
+      "package_rows": 1,
+      "packages": [
+        {
+          "name": "libxml2",
+          "installed_version": "2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libxml2@2.12.7%2Bdfsg%2Breally2.9.14-2.1%2Bdeb13u3?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "Very large XML output causes a negative length to reach a write callback.",
+        "assessment": "Grid summaries parse HTML and Bootstrap readInnerXML serializes generated fragments. No multi-gigabyte output or custom write callback found. Post-parse summary truncation does not constrain initial parsing/native allocations. Retain residual review.",
+        "upstream_remedy": "libxml2 2.15.4 or reviewed backport 90f293ba74d28b1d570920382e707586f68ebf35.",
+        "disposition": "residual-review-required",
+        "priority": "P2",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   2.12.7+dfsg+really2.9.14-2.1+deb13u3    vulnerable",
+        "trixie (security)   2.12.7+dfsg+really2.9.14-2.1+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "3493d4fc46e33bd9917872a2fd2b09bb788333f293077d3807b33cc125bde710",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-86143",
+        "https://github.com/GNOME/libxml2/commit/90f293ba74d28b1d570920382e707586f68ebf35",
+        "https://github.com/GNOME/libxml2/compare/v2.15.3...v2.15.4",
+        "https://gitlab.gnome.org/GNOME/libxml2/-/work_items/1111"
+      ]
+    },
+    {
+      "id": "CVE-2026-86144",
+      "severity": "HIGH",
+      "severity_source": "nvd",
+      "package_rows": 1,
+      "packages": [
+        {
+          "name": "libxml2",
+          "installed_version": "2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libxml2@2.12.7%2Bdfsg%2Breally2.9.14-2.1%2Bdeb13u3?arch=amd64&distro=debian-13.7"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "XInclude processing drops parser flags and a resource loader fetches an attacker-supplied include.",
+        "assessment": "No XInclude calls or custom resource-loader registration found. The report loadHTML(..., LIBXML_NONET) call does not perform XInclude processing. NONET alone would not mitigate the advisory if XInclude were added.",
+        "upstream_remedy": "libxml2 2.15.4 or reviewed backport b63cd517afecb76582dd9488c55e54ceaf50de61.",
+        "disposition": "preconditions-not-found",
+        "priority": "P2",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   2.12.7+dfsg+really2.9.14-2.1+deb13u3    vulnerable",
+        "trixie (security)   2.12.7+dfsg+really2.9.14-2.1+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "cf9c6bfedbc6d70d05a2e4a4fe9fe5f13caf7852176d072a578b62f6352bf548",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-86144",
+        "https://github.com/GNOME/libxml2/commit/b63cd517afecb76582dd9488c55e54ceaf50de61",
+        "https://github.com/GNOME/libxml2/compare/v2.15.3...v2.15.4"
+      ]
+    },
+    {
+      "id": "CVE-2026-88806",
+      "severity": "HIGH",
+      "severity_source": null,
+      "package_rows": 2,
+      "packages": [
+        {
+          "name": "libx11-6",
+          "installed_version": "2:1.8.12-1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libx11-6@1.8.12-1?arch=amd64&distro=debian-13.7&epoch=2"
+        },
+        {
+          "name": "libx11-data",
+          "installed_version": "2:1.8.12-1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libx11-data@1.8.12-1?arch=all&distro=debian-13.7&epoch=2"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "An X11 client uses XkbGetMap against a malicious X server.",
+        "assessment": "libX11 is installed, but production is headless: no DISPLAY configuration, X11 socket mount, Xkb client call, ImageMagick or Ghostscript found in the runtime recipe/inventory. PDFs use bounded pure-PHP parsing and GD placeholders. Library presence is not proof of an X-server connection.",
+        "upstream_remedy": "libX11 upstream fix 6d4432b13c0b3b6a644c13de9c793a14db48d545; advisory names 1.8.14, Debian has no fixed package yet.",
+        "disposition": "preconditions-not-found",
+        "priority": "P3",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   2:1.8.12-1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "258537163fa385cdef5f8e4e18dc2412f829c2985de1b1c21b5d237a735cd7e9",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-88806",
+        "https://gitlab.freedesktop.org/xorg/lib/libx11/-/merge_requests/309"
+      ]
+    },
+    {
+      "id": "CVE-2026-92262",
+      "severity": "CRITICAL",
+      "severity_source": null,
+      "package_rows": 5,
+      "packages": [
+        {
+          "name": "libmariadb3",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libmariadb3@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-compat",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-compat@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-core",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-core@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-common",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-common@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "Server processes legacy #mysql50# table names.",
+        "assessment": "Affected server/backup component absent from the 200-package release inventory; Dockerfile installs clients only. No application-container exploit path established. This does not assess any external database server.",
+        "upstream_remedy": "MariaDB Server 11.8.9.",
+        "disposition": "component-absent",
+        "priority": "P3",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   1:11.8.6-0+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "32a2573d676bdb0f6170bdc02ff12071e8d10e766e278239edf261ed6538751f",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-92262",
+        "https://github.com/MariaDB/server/commit/574ba66b2d6c5d71db83d416677876e9b592858e",
+        "https://github.com/MariaDB/server/commit/f277eefa424850a8cba5c2371406047f6395e8bb",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-10.11.19",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-10.6.28",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-11.4.13",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-11.8.9",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-12.3.3",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-13.0.2",
+        "https://github.com/MariaDB/server/security/advisories/GHSA-65jj-h265-3m7h"
+      ]
+    },
+    {
+      "id": "CVE-2026-9538",
+      "severity": "HIGH",
+      "severity_source": "nvd",
+      "package_rows": 4,
+      "packages": [
+        {
+          "name": "libperl5.40",
+          "installed_version": "5.40.1-6+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "fix_deferred",
+          "purl": "pkg:deb/debian/libperl5.40@5.40.1-6%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "perl",
+          "installed_version": "5.40.1-6+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "fix_deferred",
+          "purl": "pkg:deb/debian/perl@5.40.1-6%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "perl-base",
+          "installed_version": "5.40.1-6+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "fix_deferred",
+          "purl": "pkg:deb/debian/perl-base@5.40.1-6%2Bdeb13u1?arch=amd64&distro=debian-13.7"
+        },
+        {
+          "name": "perl-modules-5.40",
+          "installed_version": "5.40.1-6+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "fix_deferred",
+          "purl": "pkg:deb/debian/perl-modules-5.40@5.40.1-6%2Bdeb13u1?arch=all&distro=debian-13.7"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "Perl Archive::Tar reads an unbounded attacker-controlled tar-entry size.",
+        "assessment": "Perl is installed, but application backups use PHP JSON/gzip and ZIP, not Perl Archive::Tar. No Perl archive extraction invocation found. PHP gzip functions do not call this module.",
+        "upstream_remedy": "Archive::Tar 3.10; Debian defers pending upstream regression fixes.",
+        "disposition": "preconditions-not-found",
+        "priority": "P3",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   5.40.1-6+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "7ef5d867262210dcfd0f600ea409fd1aa470b38d8d2464d6ba885ab275a7fd57",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-9538",
+        "https://github.com/jib/archive-tar-new/commit/f9af01426038e29d9578825a0cd3626946ab08c7.patch"
+      ]
+    },
+    {
+      "id": "CVE-2026-97380",
+      "severity": "HIGH",
+      "severity_source": null,
+      "package_rows": 5,
+      "packages": [
+        {
+          "name": "libmariadb3",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/libmariadb3@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-compat",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-compat@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-client-core",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-client-core@11.8.6-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1"
+        },
+        {
+          "name": "mariadb-common",
+          "installed_version": "1:11.8.6-0+deb13u1",
+          "scanner_fixed_version": null,
+          "scanner_status": "affected",
+          "purl": "pkg:deb/debian/mariadb-common@11.8.6-0%2Bdeb13u1?arch=all&distro=debian-13.7&epoch=1"
+        }
+      ],
+      "assessment": {
+        "exploit_condition": "Server processes GRANT PROXY with an empty-password IDENTIFIED clause.",
+        "assessment": "Affected server/backup component absent from the 200-package release inventory; Dockerfile installs clients only. No application-container exploit path established. This does not assess any external database server.",
+        "upstream_remedy": "MariaDB Server 11.8.9.",
+        "disposition": "component-absent",
+        "priority": "P3",
+        "confidence": "source-and-package-inventory",
+        "risk_acceptance": "not granted"
+      },
+      "debian_trixie_status_checked_2026_10_22": [
+        "trixie   1:11.8.6-0+deb13u1    vulnerable"
+      ],
+      "debian_snapshot_sha256": "51f216c146b80b7c72f52066cfe37cf0677cfa9e0bad2963a0cb3886d708e6e6",
+      "sources": [
+        "https://security-tracker.debian.org/tracker/CVE-2026-97380",
+        "https://github.com/MariaDB/server/commit/dbd60d0ad8daa2d01050346aa50b7b102490e456",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-10.11.19",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-10.6.28",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-11.4.13",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-11.8.9",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-12.3.3",
+        "https://github.com/MariaDB/server/releases/tag/mariadb-13.0.2",
+        "https://github.com/MariaDB/server/security/advisories/GHSA-625w-4hgq-qwmr"
+      ]
+    }
+  ]
+}

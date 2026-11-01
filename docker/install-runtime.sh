@@ -20,9 +20,7 @@ install-php-extensions \
         gd \
         grpc-1.82.0 \
         intl \
-        mysqli \
         opcache \
-        pdo_mysql \
         pdo_pgsql \
         protobuf-5.36.1 \
         redis-6.3.0 \
@@ -33,7 +31,6 @@ install-php-extensions \
 apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
-        default-mysql-client \
         cron \
     && install -d /usr/share/postgresql-common/pgdg \
     && curl --fail --silent --show-error \

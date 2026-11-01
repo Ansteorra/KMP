@@ -68,37 +68,6 @@ const getEnvValue = (...keys) => {
 
 const trimTrailingSlash = (value) => value ? value.replace(/\/+$/, '') : value;
 
-const parseMysqlUrl = (databaseUrl) => {
-    if (!databaseUrl) {
-        return null;
-    }
-
-    try {
-        const parsed = new URL(databaseUrl);
-        if (!parsed.protocol.startsWith('mysql')) {
-            return null;
-        }
-
-        return {
-            host: parsed.hostname || '127.0.0.1',
-            port: parsed.port || '3306',
-            user: decodeURIComponent(parsed.username || ''),
-            password: decodeURIComponent(parsed.password || ''),
-            database: decodeURIComponent(parsed.pathname.replace(/^\//, '')),
-        };
-    } catch {
-        return null;
-    }
-};
-
-const getMysqlConfig = () => parseMysqlUrl(getEnvValue('DATABASE_URL')) ?? {
-    host: getEnvValue('DB_HOST', 'MYSQL_HOST') || '127.0.0.1',
-    port: getEnvValue('DB_PORT', 'MYSQL_PORT') || '3306',
-    user: getEnvValue('DB_USERNAME', 'MYSQL_USERNAME') || 'root',
-    password: getEnvValue('DB_PASSWORD', 'MYSQL_PASSWORD') || '',
-    database: getEnvValue('DB_DATABASE', 'MYSQL_DB_NAME') || 'kmp',
-};
-
 const parsePostgresUrl = (databaseUrl) => {
     if (!databaseUrl) {
         return null;
@@ -209,7 +178,6 @@ const getUiTestEnvironment = () => {
     webServerCommand: getEnvValue('PLAYWRIGHT_WEB_SERVER_COMMAND') || 'bash ../dev-up.sh',
     cleanupMemberEmail: getEnvValue('PLAYWRIGHT_ACTIVITY_CLEANUP_EMAIL') || 'iris@ampdemo.com',
     cleanupActivityName: getEnvValue('PLAYWRIGHT_ACTIVITY_CLEANUP_NAME') || 'Armored',
-    mysql: getMysqlConfig(),
     };
 };
 

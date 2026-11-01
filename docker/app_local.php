@@ -9,28 +9,8 @@
  */
 $databaseUrl = env('DATABASE_URL', null);
 $databaseTestUrl = env('DATABASE_TEST_URL', null);
-$databaseDriverName = strtolower((string)env('KMP_DB_DRIVER', 'postgres'));
-$databaseDriver = match ($databaseDriverName) {
-    'postgres', 'pgsql' => \Cake\Database\Driver\Postgres::class,
-    'mysql', 'mariadb', '' => \Cake\Database\Driver\Mysql::class,
-    default => throw new RuntimeException(sprintf('Unsupported KMP_DB_DRIVER value "%s".', $databaseDriverName)),
-};
-$isPostgres = in_array($databaseDriverName, ['postgres', 'pgsql'], true)
-    || str_starts_with(strtolower((string)$databaseUrl), 'postgres');
-$mysqlSsl = filter_var(env('MYSQL_SSL', false), FILTER_VALIDATE_BOOLEAN);
 $dbQueryLogEnabled = filter_var(env('PERF_DB_QUERY_LOG_ENABLED', false), FILTER_VALIDATE_BOOLEAN);
-
-// Build PDO connection flags based on driver and SSL requirements
-$pdoFlags = [];
-if ($isPostgres) {
-    $pdoFlags[\PDO::ATTR_EMULATE_PREPARES] = true;
-} elseif ($mysqlSsl) {
-    $pdoFlags[\PDO::MYSQL_ATTR_SSL_CA] = env('MYSQL_SSL_CA', '');
-    $pdoFlags[\PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = filter_var(
-        env('MYSQL_SSL_VERIFY', false),
-        FILTER_VALIDATE_BOOLEAN
-    );
-}
+$pdoFlags = [\PDO::ATTR_EMULATE_PREPARES => true];
 
 return [
     'debug' => filter_var(env('DEBUG', true), FILTER_VALIDATE_BOOLEAN),
@@ -47,24 +27,22 @@ return [
     'Datasources' => [
         'default' => [
             'className' => \Cake\Database\Connection::class,
-            'driver' => $databaseDriver,
-            'host' => env('DB_HOST', env('MYSQL_HOST', 'db')),
-            'port' => env('DB_PORT', $isPostgres ? 5432 : env('MYSQL_PORT', 3306)),
-            'username' => env('DB_USERNAME', env('MYSQL_USERNAME')),
-            'password' => env('DB_PASSWORD', env('MYSQL_PASSWORD')),
-            'database' => env('DB_DATABASE', env('MYSQL_DB_NAME')),
+            'host' => env('DB_HOST', 'db'),
+            'port' => env('DB_PORT', 5432),
+            'username' => env('DB_USERNAME', env('POSTGRES_USER')),
+            'password' => env('DB_PASSWORD', env('POSTGRES_PASSWORD')),
+            'database' => env('DB_DATABASE', env('POSTGRES_DB', 'kmp')),
             'url' => $databaseUrl,
             'flags' => $pdoFlags,
             'log' => $dbQueryLogEnabled,
         ],
         'test' => [
             'className' => \Cake\Database\Connection::class,
-            'driver' => $databaseDriver,
-            'host' => env('DB_HOST', env('MYSQL_HOST', 'db')),
-            'port' => env('DB_PORT', $isPostgres ? 5432 : env('MYSQL_PORT', 3306)),
-            'username' => env('DB_USERNAME', env('MYSQL_USERNAME')),
-            'password' => env('DB_PASSWORD', env('MYSQL_PASSWORD')),
-            'database' => env('DB_DATABASE', env('MYSQL_DB_NAME')) . '_test',
+            'host' => env('DB_HOST', 'db'),
+            'port' => env('DB_PORT', 5432),
+            'username' => env('DB_USERNAME', env('POSTGRES_USER')),
+            'password' => env('DB_PASSWORD', env('POSTGRES_PASSWORD')),
+            'database' => env('DB_DATABASE', env('POSTGRES_DB', 'kmp')) . '_test',
             'url' => $databaseTestUrl,
             'flags' => $pdoFlags,
             'log' => $dbQueryLogEnabled,

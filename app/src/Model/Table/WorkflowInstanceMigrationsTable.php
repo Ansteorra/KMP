@@ -47,7 +47,7 @@ class WorkflowInstanceMigrationsTable extends BaseTable
 
         $this->addBehavior('Timestamp');
 
-        // MariaDB stores JSON as longtext; explicitly map JSON columns
+        // Explicitly map JSON columns
         $this->setJsonColumnTypesIfPresent(['node_mapping']);
     }
 

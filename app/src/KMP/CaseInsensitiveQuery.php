@@ -9,11 +9,10 @@ use Cake\Database\ExpressionInterface;
 use Cake\Datasource\ConnectionManager;
 
 /**
- * Builds portable case-insensitive conditions for trusted database fields.
+ * Builds case-insensitive conditions for trusted database fields.
  *
  * SCA-name fields also ignore diacritics. PostgreSQL uses its unaccent
- * dictionary while MySQL relies on the configured accent-insensitive
- * collation.
+ * dictionary for accent-insensitive comparisons.
  */
 final class CaseInsensitiveQuery
 {
