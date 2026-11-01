@@ -13,7 +13,10 @@ Own container image definitions, entrypoints, Apache configuration, local app co
 
 ## Local Contracts
 
+- KMP is a PostgreSQL-only SaaS platform for kingdoms. Do not add MySQL/MariaDB drivers, clients, configuration paths, or test lanes. Preserve applied migrations and legacy logical-backup import into PostgreSQL.
+- Production final stages must reject prebuilt runtime overrides without `pdo_pgsql` or with enabled `mysqli`/`pdo_mysql`. Rebuild the shared base when changing its dependency contract; do not revive retired engines to use a stale base.
 - Do not bake secrets or environment-specific credentials into images.
+- Treat `DATABASE_URL` as a CakePHP URL: readiness probes extract only host/port, because CakePHP SSL query options are not libpq options. Preserve the full URL and TLS settings for application connections, and keep credentials out of probe arguments and logs.
 - Keep entrypoints explicit about side effects such as migrations, seeds, cache clears, scheduler loops, and health behavior.
 - Local startup prepares backup-directory ownership before dropping scheduler/admin loops to `www-data`. Keep backup directories private and use the same OS user for web and worker file access.
 - Keep reset/seed scripts idempotent when possible because local and test workflows may call them repeatedly.
@@ -24,6 +27,7 @@ Own container image definitions, entrypoints, Apache configuration, local app co
 - Pin npm independently through `NPM_VERSION` in development images and the production frontend builder. Verify the npm archive's bundled dependency versions and scan the rebuilt image; application lock audits do not cover global npm tooling.
 - Keep `.dockerignore` and `docker/.dockerignore.prod` identical. Exclude generated frontend bundles, source maps, and manifests from build inputs, and rebuild from locked dependencies so stale local bundles cannot enter the production image.
 - Remove discovered build tools and development headers after compilation while retaining shared runtime dependencies, including the GCC base support package. Verify PHP extensions, GD formats, PostgreSQL clients, and PDF processing in the finished image after native upgrades.
+- Production images remove SUID/SGID from `mount` and `umount`, including when using a prebuilt base override. Azure mounts volumes outside the application; preserve ordinary utility execution without granting application users elevated mount privileges. This does not patch libmount or protect privileged `nsenter --join-cgroup` use.
 - Keep `app/resources/security/document-blob-condition.txt` in the production image; dependency-stage validation must fail if the storage authorization policy is missing. Production dependencies must come from clean build stages, with no local vendor or runtime-data overlays.
 
 ## Work Guidance

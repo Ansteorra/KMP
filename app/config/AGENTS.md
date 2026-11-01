@@ -14,6 +14,7 @@ Own CakePHP app configuration that changes runtime wiring: routes, plugin activa
 
 ## Local Contracts
 
+- KMP is a PostgreSQL-only SaaS platform for kingdoms. Do not add MySQL/MariaDB drivers, clients, configuration paths, or test lanes. Preserve applied migrations and legacy logical-backup import into PostgreSQL.
 - Enabled first-party domain plugins currently load in this order: `Activities` 1, `Officers` 2, `Awards` 3, `Waivers` 4.
 - Keep `Template` disabled unless the task is specifically about the skeleton plugin.
 - Never hard-code secrets or deployment-only values; use environment configuration and existing app settings patterns.

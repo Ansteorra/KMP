@@ -33,7 +33,6 @@ x-app-base: &app-base
     - "host.docker.internal:host-gateway"
   volumes:
     - ./app:/var/www/html:cached
-    - ./dev_seed_clean.sql:/var/www/dev_seed_clean.sql:ro
     - composer-cache:/root/.composer/cache
     - node-modules:/var/www/html/node_modules
   environment: &app-environment
@@ -158,7 +157,6 @@ services:
     command: ["sh", "/usr/local/bin/kmp-scheduler-loop-dev"]
     volumes:
       - ./app:/var/www/html:cached
-      - ./dev_seed_clean.sql:/var/www/dev_seed_clean.sql:ro
       - composer-cache:/root/.composer/cache
       - node-modules:/var/www/html/node_modules
       - ./docker/scheduler-loop.sh:/usr/local/bin/kmp-scheduler-loop-dev:ro

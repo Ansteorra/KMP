@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use Cake\Database\Driver\Mysql;
+use Cake\Database\Driver;
 use Cake\Database\Driver\Postgres;
 use Cake\Datasource\ConnectionManager;
 use InvalidArgumentException;
@@ -27,8 +27,8 @@ class DatabaseSchemaResetService
 
         $connection = ConnectionManager::get('default');
         $driver = $connection->getDriver();
-        if (!$driver instanceof Mysql && !$driver instanceof Postgres) {
-            throw new RuntimeException('Backup schema reset currently supports MySQL and PostgreSQL connections.');
+        if (!$driver instanceof Postgres) {
+            throw new RuntimeException('Backup schema reset requires PostgreSQL.');
         }
 
         $tables = $manifest['tables'];
@@ -65,8 +65,11 @@ class DatabaseSchemaResetService
      * @param array<string, mixed> $tables
      * @return array<string, array<int, mixed>>
      */
-    private function buildResetPlan(Mysql|Postgres $driver, array $tables): array
+    private function buildResetPlan(Driver $driver, array $tables): array
     {
+        if (!$driver instanceof Postgres) {
+            throw new RuntimeException('Backup schema reset requires PostgreSQL.');
+        }
         $tableSql = [];
         foreach ($tables as $tableName => $tableSpec) {
             if (!is_string($tableName) || !is_array($tableSpec)) {
@@ -90,26 +93,8 @@ class DatabaseSchemaResetService
      *
      * @param mixed $connection Database connection
      */
-    private function dropExistingTables($connection, Mysql|Postgres $driver): void
+    private function dropExistingTables($connection, Postgres $driver): void
     {
-        if ($driver instanceof Mysql) {
-            $database = $connection->config()['database'] ?? null;
-            $rows = $connection->execute(
-                'SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = ?',
-                [$database, 'BASE TABLE'],
-            )->fetchAll(PDO::FETCH_COLUMN) ?: [];
-            $connection->execute('SET FOREIGN_KEY_CHECKS = 0');
-            try {
-                foreach ($rows as $table) {
-                    $connection->execute('DROP TABLE IF EXISTS ' . $driver->quoteIdentifier((string)$table));
-                }
-            } finally {
-                $connection->execute('SET FOREIGN_KEY_CHECKS = 1');
-            }
-
-            return;
-        }
-
         $rows = $connection->execute(
             'SELECT tablename FROM pg_tables WHERE schemaname = ANY(current_schemas(false))',
         )->fetchAll(PDO::FETCH_COLUMN) ?: [];
@@ -121,7 +106,7 @@ class DatabaseSchemaResetService
     /**
      * @param array<string, mixed> $tableSpec
      */
-    private function createTableSql(Mysql|Postgres $driver, string $tableName, array $tableSpec): string
+    private function createTableSql(Postgres $driver, string $tableName, array $tableSpec): string
     {
         $columns = $tableSpec['columns'] ?? [];
         if (!is_array($columns) || $columns === []) {
@@ -129,7 +114,6 @@ class DatabaseSchemaResetService
         }
 
         $definitions = [];
-        $indexedColumns = $this->indexedColumns($tableSpec);
         foreach ($columns as $columnName => $definition) {
             if (!is_string($columnName) || !is_array($definition)) {
                 continue;
@@ -138,7 +122,6 @@ class DatabaseSchemaResetService
                 $driver,
                 $columnName,
                 $definition,
-                in_array($columnName, $indexedColumns, true),
             );
         }
 
@@ -163,20 +146,15 @@ class DatabaseSchemaResetService
      * @param array<string, mixed> $definition
      */
     private function columnSql(
-        Mysql|Postgres $driver,
+        Postgres $driver,
         string $columnName,
         array $definition,
-        bool $indexed,
     ): string {
         $type = (string)($definition['type'] ?? 'string');
         $autoIncrement = (bool)($definition['autoIncrement'] ?? $definition['auto_increment'] ?? false);
         $sql = $driver->quoteIdentifier($columnName)
             . ' '
-            . $this->columnTypeSql($driver, $type, $definition, $autoIncrement, $indexed);
-
-        if ($autoIncrement && $driver instanceof Mysql) {
-            $sql .= ' AUTO_INCREMENT';
-        }
+            . $this->columnTypeSql($driver, $type, $definition, $autoIncrement);
 
         if (!($definition['null'] ?? true)) {
             $sql .= ' NOT NULL';
@@ -193,13 +171,12 @@ class DatabaseSchemaResetService
      * @param array<string, mixed> $definition
      */
     private function columnTypeSql(
-        Mysql|Postgres $driver,
+        Postgres $driver,
         string $type,
         array $definition,
         bool $autoIncrement,
-        bool $indexed = false,
     ): string {
-        if ($autoIncrement && $driver instanceof Postgres) {
+        if ($autoIncrement) {
             return $type === 'biginteger' ? 'BIGSERIAL' : 'SERIAL';
         }
 
@@ -210,54 +187,22 @@ class DatabaseSchemaResetService
         return match ($type) {
             'biginteger' => 'BIGINT',
             'smallinteger' => 'SMALLINT',
-            'tinyinteger' => $driver instanceof Mysql ? 'TINYINT' : 'SMALLINT',
-            'integer' => $limit !== null && $limit > 0 && $driver instanceof Mysql ? "INT({$limit})" : 'INTEGER',
-            'boolean' => $driver instanceof Mysql ? 'TINYINT(1)' : 'BOOLEAN',
+            'tinyinteger' => 'SMALLINT',
+            'integer' => 'INTEGER',
+            'boolean' => 'BOOLEAN',
             'string' => 'VARCHAR(' . max(1, $limit ?? 255) . ')',
-            'citext' => $driver instanceof Postgres ? 'CITEXT' : ($indexed ? 'VARCHAR(255)' : 'TEXT'),
+            'citext' => 'CITEXT',
             'text' => 'TEXT',
             'date' => 'DATE',
             'time' => 'TIME',
-            'datetime', 'timestamp' => $driver instanceof Mysql ? 'DATETIME' : 'TIMESTAMP',
-            'datetimefractional', 'timestampfractional' => $driver instanceof Mysql
-                ? 'DATETIME(6)'
-                : 'TIMESTAMP(6)',
+            'datetime', 'timestamp' => 'TIMESTAMP',
+            'datetimefractional', 'timestampfractional' => 'TIMESTAMP(6)',
             'timefractional' => 'TIME(6)',
-            'float' => $driver instanceof Mysql ? 'DOUBLE' : 'DOUBLE PRECISION',
+            'float' => 'DOUBLE PRECISION',
             'decimal' => $this->decimalTypeSql($definition),
-            'json' => $driver instanceof Mysql ? 'JSON' : 'JSONB',
+            'json' => 'JSONB',
             default => throw new RuntimeException("Unsupported backup schema column type: {$type}"),
         };
-    }
-
-    /**
-     * Return columns that need an index-compatible MySQL representation.
-     *
-     * PostgreSQL's unbounded CITEXT type does not retain the source varchar
-     * limit in Cake's schema manifest. Indexed CITEXT columns therefore use a
-     * conservative VARCHAR(255) during cross-engine MySQL restores, while
-     * unindexed values remain unbounded TEXT.
-     *
-     * @param array<string, mixed> $tableSpec
-     * @return array<int, string>
-     */
-    private function indexedColumns(array $tableSpec): array
-    {
-        $columns = [];
-        foreach (($tableSpec['constraints'] ?? []) as $constraint) {
-            if (!is_array($constraint) || !in_array(($constraint['type'] ?? null), ['primary', 'unique'], true)) {
-                continue;
-            }
-            $columns = array_merge($columns, array_filter((array)($constraint['columns'] ?? []), 'is_string'));
-        }
-        foreach (($tableSpec['indexes'] ?? []) as $index) {
-            if (!is_array($index)) {
-                continue;
-            }
-            $columns = array_merge($columns, array_filter((array)($index['columns'] ?? []), 'is_string'));
-        }
-
-        return array_values(array_unique($columns));
     }
 
     /**
@@ -274,12 +219,12 @@ class DatabaseSchemaResetService
     /**
      * Format a column default expression for the target database.
      */
-    private function defaultSql(Mysql|Postgres $driver, mixed $default, string $type): string
+    private function defaultSql(Postgres $driver, mixed $default, string $type): string
     {
         if (is_bool($default)) {
-            return $driver instanceof Mysql ? ($default ? '1' : '0') : ($default ? 'TRUE' : 'FALSE');
+            return $default ? 'TRUE' : 'FALSE';
         }
-        if ($type === 'boolean' && $driver instanceof Postgres) {
+        if ($type === 'boolean') {
             return in_array($default, [1, '1', 'true', 'TRUE'], true) ? 'TRUE' : 'FALSE';
         }
         if (is_int($default) || is_float($default)) {
@@ -289,9 +234,9 @@ class DatabaseSchemaResetService
             return 'CURRENT_TIMESTAMP';
         }
         if (is_string($default)) {
-            $default = $this->normalizeMysqlStringLiteralDefault($default);
+            $default = $this->normalizeLegacyStringLiteralDefault($default);
         }
-        if ($type === 'json' && $driver instanceof Postgres) {
+        if ($type === 'json') {
             $jsonDefault = (string)$default;
             json_decode($jsonDefault);
             if (json_last_error() !== JSON_ERROR_NONE) {
@@ -308,9 +253,9 @@ class DatabaseSchemaResetService
     }
 
     /**
-     * Strip MySQL character-set introducers captured by schema manifests.
+     * Strip legacy character-set introducers from existing backup manifests.
      */
-    private function normalizeMysqlStringLiteralDefault(string $default): string
+    private function normalizeLegacyStringLiteralDefault(string $default): string
     {
         $value = trim($default);
         if (!preg_match('/^_[A-Za-z0-9]+/', $value, $matches)) {
@@ -332,7 +277,7 @@ class DatabaseSchemaResetService
      * @param array<string, mixed> $tables
      * @return array<int, string>
      */
-    private function indexSql(Mysql|Postgres $driver, array $tables): array
+    private function indexSql(Postgres $driver, array $tables): array
     {
         $sql = [];
         foreach ($tables as $tableName => $tableSpec) {
@@ -385,14 +330,11 @@ class DatabaseSchemaResetService
     /**
      * @param array<string, mixed> $index
      */
-    private function indexPredicateSql(Mysql|Postgres $driver, array $index): string
+    private function indexPredicateSql(Postgres $driver, array $index): string
     {
         $predicate = trim((string)($index['where'] ?? ''));
         if ($predicate === '') {
             return '';
-        }
-        if (!$driver instanceof Postgres) {
-            throw new RuntimeException('Cannot restore PostgreSQL partial indexes to MySQL.');
         }
 
         return ' WHERE ' . $predicate;
@@ -401,12 +343,8 @@ class DatabaseSchemaResetService
     /**
      * Return an engine-safe index identifier unique to the table.
      */
-    private function indexIdentifier(Mysql|Postgres $driver, string $tableName, string $indexName): string
+    private function indexIdentifier(Postgres $driver, string $tableName, string $indexName): string
     {
-        if (!$driver instanceof Postgres) {
-            return $indexName;
-        }
-
         $identifier = $tableName . '_' . $indexName;
         if (strlen($identifier) <= 63) {
             return $identifier;
@@ -419,7 +357,7 @@ class DatabaseSchemaResetService
      * @param array<string, mixed> $tables
      * @return array<int, string>
      */
-    private function foreignKeySql(Mysql|Postgres $driver, array $tables): array
+    private function foreignKeySql(Postgres $driver, array $tables): array
     {
         $sql = [];
         foreach ($tables as $tableName => $tableSpec) {
@@ -487,7 +425,7 @@ class DatabaseSchemaResetService
     /**
      * @param array<int, string> $columns
      */
-    private function columnsSql(Mysql|Postgres $driver, array $columns): string
+    private function columnsSql(Postgres $driver, array $columns): string
     {
         return implode(', ', array_map(
             fn(string $column): string => $driver->quoteIdentifier($column),

@@ -36,10 +36,10 @@ systems, but they are not supported for new deployments.
 
 | Page | Historical scope |
 | --- | --- |
-| [Docker/VPC quick start](quickstart-vpc.md) | Single MariaDB database with Caddy and Docker Compose |
+| [Docker/VPC quick start](quickstart-vpc.md) | Retired single-database VPC architecture |
 | [Fly.io quick start](quickstart-fly.md) | Retired single-database provider example |
 | [Railway quick start](quickstart-railway.md) | Retired single-database provider example |
-| [VPC template reference](https://github.com/Ansteorra/KMP/blob/main/deploy/vpc/README.md) | Legacy Compose scripts, one MariaDB backup |
+| [VPC template reference](https://github.com/Ansteorra/KMP/blob/main/deploy/vpc/README.md) | Removed VPC templates and migration boundary |
 | [Installer archive](https://github.com/Ansteorra/KMP/blob/main/installer/README.md) | Retired CLI and incomplete provider stubs |
 | [Legacy configuration appendix](configuration.md) | Archived variables and management-tool file format |
 

@@ -3,34 +3,23 @@ set -e
 
 echo "=== KMP Application Container Starting ==="
 
-DB_DRIVER="$(printf '%s' "${KMP_DB_DRIVER:-mysql}" | tr '[:upper:]' '[:lower:]')"
-if [ "$DB_DRIVER" = "postgres" ] || [ "$DB_DRIVER" = "pgsql" ]; then
-    DB_ENGINE="postgres"
-    DB_HOST="${DB_HOST:-${MYSQL_HOST:-db}}"
-    DB_PORT="${DB_PORT:-5432}"
-    DB_USER="${DB_USERNAME:-${POSTGRES_USER:-${MYSQL_USERNAME:-}}}"
-    DB_PASS="${DB_PASSWORD:-${POSTGRES_PASSWORD:-${MYSQL_PASSWORD:-}}}"
-    DB_NAME="${DB_DATABASE:-${POSTGRES_DB:-${MYSQL_DB_NAME:-}}}"
-    PLATFORM_DB_NAME="${PLATFORM_DB_DATABASE:-${DB_NAME}_platform}"
-else
-    DB_ENGINE="mysql"
-    DB_HOST="${DB_HOST:-${MYSQL_HOST:-db}}"
-    DB_PORT="${DB_PORT:-${MYSQL_PORT:-3306}}"
-    DB_USER="${DB_USERNAME:-${MYSQL_USERNAME:-}}"
-    DB_PASS="${DB_PASSWORD:-${MYSQL_PASSWORD:-}}"
-    DB_NAME="${DB_DATABASE:-${MYSQL_DB_NAME:-}}"
-fi
+case "${KMP_DB_DRIVER:-postgres}" in
+    postgres|pgsql) ;;
+    *) echo 'ERROR: KMP supports PostgreSQL only.' >&2; exit 1 ;;
+esac
+DB_HOST="${DB_HOST:-${PGHOST:-db}}"
+DB_PORT="${DB_PORT:-5432}"
+DB_USER="${DB_USERNAME:-${POSTGRES_USER:-postgres}}"
+DB_PASS="${DB_PASSWORD:-${POSTGRES_PASSWORD:-}}"
+DB_NAME="${DB_DATABASE:-${POSTGRES_DB:-kmp}}"
+PLATFORM_DB_NAME="${PLATFORM_DB_DATABASE:-${DB_NAME}_platform}"
 
 # Wait for database to be ready (belt and suspenders - compose healthcheck should handle this)
 echo "Checking database connection..."
 max_attempts=30
 attempt=0
 database_ready() {
-    if [ "$DB_ENGINE" = "postgres" ]; then
-        PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1" >/dev/null 2>&1
-    else
-        mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" -e "SELECT 1" >/dev/null 2>&1
-    fi
+    PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1" >/dev/null 2>&1
 }
 
 until database_ready; do
@@ -46,15 +35,10 @@ echo "Database connection established!"
 
 # Create test database if it doesn't exist
 echo "Ensuring test database exists..."
-if [ "$DB_ENGINE" = "postgres" ]; then
-    if [ "${KMP_AUTO_CREATE_DATABASES:-false}" = "true" ]; then
-        PGPASSWORD="$DB_PASS" createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" "${DB_NAME}_test" 2>/dev/null || true
-        PGPASSWORD="$DB_PASS" createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" "$PLATFORM_DB_NAME" 2>/dev/null || true
-        PGPASSWORD="$DB_PASS" createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" "${PLATFORM_DB_NAME}_test" 2>/dev/null || true
-    fi
-else
-    mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" \
-        -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME}_test COLLATE utf8_unicode_ci;" 2>/dev/null || true
+if [ "${KMP_AUTO_CREATE_DATABASES:-false}" = "true" ]; then
+    PGPASSWORD="$DB_PASS" createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" "${DB_NAME}_test" 2>/dev/null || true
+    PGPASSWORD="$DB_PASS" createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" "$PLATFORM_DB_NAME" 2>/dev/null || true
+    PGPASSWORD="$DB_PASS" createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" "${PLATFORM_DB_NAME}_test" 2>/dev/null || true
 fi
 
 # Skip .env file generation; local Docker mounts app/config/.env and CakePHP
@@ -109,11 +93,7 @@ chown -R www-data:www-data /var/www/html/backups
 chmod 750 /var/www/html/backups
 
 # Run migrations if database is empty (first-time setup)
-if [ "$DB_ENGINE" = "postgres" ]; then
-    TABLES=$(PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -Atc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE';" 2>/dev/null || echo 0)
-else
-    TABLES=$(mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" -N -e "SHOW TABLES;" 2>/dev/null | wc -l)
-fi
+TABLES=$(PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -Atc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE';" 2>/dev/null || echo 0)
 if [ -f /var/www/html/config/.skip-initial-db-setup ]; then
     echo "Skipping initial database setup because config/.skip-initial-db-setup exists."
 elif [ "${KMP_SKIP_INITIAL_DB_SETUP:-false}" = "true" ]; then
@@ -163,11 +143,7 @@ fi
 echo "=== KMP Application Ready ==="
 echo "  App:     http://localhost:${KMP_APP_PORT:-8080}"
 echo "  Mailpit: http://localhost:${KMP_MAILPIT_WEB_PORT:-8025}"
-if [ "$DB_ENGINE" = "postgres" ]; then
-    echo "  PostgreSQL: localhost:${KMP_DB_HOST_PORT:-5432}"
-else
-    echo "  MySQL:   localhost:${KMP_DB_HOST_PORT:-3306}"
-fi
+echo "  PostgreSQL: localhost:${KMP_DB_HOST_PORT:-5432}"
 if [ "${KMP_SKIP_CRON:-false}" != "true" ]; then
     echo "  Cron log: /var/log/cron.log"
 fi

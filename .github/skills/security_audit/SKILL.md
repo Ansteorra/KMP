@@ -21,7 +21,7 @@ Do not run dynamic probes, brute-force loops, destructive payloads, dependency u
 ## Architecture context
 
 - KMP is CakePHP 5 on PHP 8.4 with Stimulus, Bootstrap, Vite, and targeted Turbo Frames; Turbo Drive is disabled.
-- Local Docker Compose and deployment use PostgreSQL. The dev container retains MariaDB compatibility tooling, so review database-specific code rather than assuming a single engine.
+- PostgreSQL is the only supported database across Docker Compose, the devcontainer, CI and managed hosting. Review legacy logical-backup import paths without treating retired engine support as available.
 - Tenant resolution is hostname-based. Audit `TenantResolutionMiddleware`, `TenantConnectionManager`, `TenantAwareCache`, tenant document storage, queues, backups, and platform jobs for isolation.
 - Platform registry and fleet operations use a separate platform connection. Verify tenant requests cannot fall back to or influence platform scope.
 - Local examples are `kmp.localhost:8080`, `kmp2.localhost:8080`, and `platform.kmp.localhost:8080/platform-admin`. Recheck current seeds before using accounts; the shared test password is disposable local/POC data only.

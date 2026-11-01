@@ -211,9 +211,8 @@ continuity, verify the external storage/retention control rather than treating
 
 ## Historical self-hosted diagnostics
 
-The archived VPC stack uses services named by
-`deploy/vpc/docker-compose.yml` (including `app` and `db`), one MariaDB
-database and Caddy. Older installed copies may still have a privileged updater sidecar;
+The former VPC stack used `app` and `db` services, one legacy database and
+Caddy. Its Compose/database templates have been removed. Older installed copies may still have a privileged updater sidecar;
 disable it using the [legacy retirement instructions](https://github.com/Ansteorra/KMP/blob/main/installer/README.md). This stack is unsupported for new deployments.
 
 For an existing instance:

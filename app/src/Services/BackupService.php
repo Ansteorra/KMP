@@ -11,13 +11,12 @@ use Cake\Database\Schema\TableSchemaInterface;
 use Cake\Datasource\ConnectionManager;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
-use DateTimeImmutable;
 use Exception;
 use RuntimeException;
 use Throwable;
 
 /**
- * Database-agnostic backup and restore service.
+ * PostgreSQL logical backup and restore service.
  *
  * Exports all application tables via direct database reads as JSON, compresses with gzip,
  * and encrypts with AES-256-GCM. Restore reverses the process.
@@ -77,7 +76,7 @@ class BackupService
      *
      * Returns a map of phinxlog-table-name → array of {version, migration_name}
      * rows sorted by version. The structure stays stable across engines so the
-     * fingerprint can be compared between the bake environment (e.g. MySQL)
+     * fingerprint can be compared between the backup environment
      * and the restore environment (e.g. Postgres).
      *
      * @return array<string, array<int, array{version: string, migration_name: string}>>
@@ -513,31 +512,22 @@ class BackupService
 
         $connection = $this->connection();
         $driver = $connection->getDriver();
-        $isPostgres = $driver instanceof Postgres;
+        if (!$driver instanceof Postgres) {
+            throw new RuntimeException('Backup restore requires PostgreSQL.');
+        }
         $tableCount = count($tablesToRestore);
         $totalRows = 0;
         $processedTables = 0;
         $notValidatedConstraintCount = 0;
 
-        if (!$isPostgres) {
+        $connection->begin();
+        try {
             $this->reportProgress(
                 $progressReporter,
                 'resetting_schema',
                 'Resetting database schema to backup structure.',
             );
             (new DatabaseSchemaResetService())->reset($payload['schema'], $progressReporter);
-        }
-
-        $connection->begin();
-        try {
-            if ($isPostgres) {
-                $this->reportProgress(
-                    $progressReporter,
-                    'resetting_schema',
-                    'Resetting database schema to backup structure.',
-                );
-                (new DatabaseSchemaResetService())->reset($payload['schema'], $progressReporter);
-            }
 
             $schemaCollection = $connection->getSchemaCollection();
             $tablesToRestore = $this->buildRestoreTableMap($tablesToRestore, $schemaCollection->listTables());
@@ -555,233 +545,145 @@ class BackupService
                 'legacy_tables_available' => count($legacyPayloadTables),
             ]);
 
-            if ($isPostgres) {
-                // Managed Postgres blocks session_replication_role and DISABLE TRIGGER ALL.
-                // Drop FK constraints transactionally, restore data, then re-add constraints.
-                $this->reportProgress(
-                    $progressReporter,
-                    'preparing_constraints',
-                    'Dropping foreign key constraints for restore.',
-                    [
-                        'table_count' => $tableCount,
-                        'tables_processed' => $processedTables,
-                        'rows_processed' => $totalRows,
-                    ],
-                );
-                $droppedForeignKeys = $this->dropPostgresForeignKeys(
-                    $connection,
-                    $driver,
-                    array_keys($tablesToRestore),
-                );
-                $this->reportProgress(
-                    $progressReporter,
-                    'preparing_constraints',
-                    sprintf('Dropped %d foreign key constraints. Starting table restore.', count($droppedForeignKeys)),
-                    [
-                        'table_count' => $tableCount,
-                        'tables_processed' => $processedTables,
-                        'rows_processed' => $totalRows,
-                    ],
-                );
+            // Managed Postgres blocks session_replication_role and DISABLE TRIGGER ALL.
+            // Drop FK constraints transactionally, restore data, then re-add constraints.
+            $this->reportProgress(
+                $progressReporter,
+                'preparing_constraints',
+                'Dropping foreign key constraints for restore.',
+                [
+                    'table_count' => $tableCount,
+                    'tables_processed' => $processedTables,
+                    'rows_processed' => $totalRows,
+                ],
+            );
+            $droppedForeignKeys = $this->dropPostgresForeignKeys(
+                $connection,
+                $driver,
+                array_keys($tablesToRestore),
+            );
+            $this->reportProgress(
+                $progressReporter,
+                'preparing_constraints',
+                sprintf('Dropped %d foreign key constraints. Starting table restore.', count($droppedForeignKeys)),
+                [
+                    'table_count' => $tableCount,
+                    'tables_processed' => $processedTables,
+                    'rows_processed' => $totalRows,
+                ],
+            );
 
-                foreach ($tablesToRestore as $tableName => $rows) {
-                    $this->reportProgress($progressReporter, 'restoring_table', sprintf(
-                        'Restoring table %s (%d/%d).',
-                        $tableName,
-                        $processedTables + 1,
-                        $tableCount,
-                    ), [
-                        'current_table' => $tableName,
-                        'table_count' => $tableCount,
-                        'tables_processed' => $processedTables,
-                        'rows_processed' => $totalRows,
-                    ]);
+            foreach ($tablesToRestore as $tableName => $rows) {
+                $this->reportProgress($progressReporter, 'restoring_table', sprintf(
+                    'Restoring table %s (%d/%d).',
+                    $tableName,
+                    $processedTables + 1,
+                    $tableCount,
+                ), [
+                    'current_table' => $tableName,
+                    'table_count' => $tableCount,
+                    'tables_processed' => $processedTables,
+                    'rows_processed' => $totalRows,
+                ]);
 
-                    $tableSchema = $schemaCollection->describe($tableName, ['forceRefresh' => true]);
-                    $quotedTable = $driver->quoteIdentifier($tableName);
-                    // Use transactional TRUNCATE on Postgres to avoid long-running DELETEs on large tables.
-                    // CASCADE is required because FK constraints may reference this table.
-                    $connection->execute("TRUNCATE TABLE {$quotedTable} RESTART IDENTITY CASCADE");
+                $tableSchema = $schemaCollection->describe($tableName, ['forceRefresh' => true]);
+                $quotedTable = $driver->quoteIdentifier($tableName);
+                // Use transactional TRUNCATE on Postgres to avoid long-running DELETEs on large tables.
+                // CASCADE is required because FK constraints may reference this table.
+                $connection->execute("TRUNCATE TABLE {$quotedTable} RESTART IDENTITY CASCADE");
 
-                    $rows = $this->filterRowsToCurrentColumns($rows, $tableSchema);
-                    if (!empty($rows)) {
-                        $columns = array_keys($rows[0]);
-                        if ($columns === []) {
-                            $rows = [];
-                        } else {
-                            $tableRowCount = count($rows);
-                            $tableRowsProcessed = 0;
-                            $nextProgressAt = 100;
-                            $insertBatchSize = $this->getInsertBatchSize(count($columns), $isPostgres);
-                            foreach (array_chunk($rows, $insertBatchSize) as $batch) {
-                                $this->insertBatchRows(
-                                    $connection,
-                                    $driver,
-                                    $quotedTable,
-                                    $columns,
-                                    $batch,
-                                    $tableSchema,
-                                    $isPostgres,
-                                );
+                $rows = $this->filterRowsToCurrentColumns($rows, $tableSchema);
+                if (!empty($rows)) {
+                    $columns = array_keys($rows[0]);
+                    if ($columns === []) {
+                        $rows = [];
+                    } else {
+                        $tableRowCount = count($rows);
+                        $tableRowsProcessed = 0;
+                        $nextProgressAt = 100;
+                        $insertBatchSize = $this->getInsertBatchSize(count($columns));
+                        foreach (array_chunk($rows, $insertBatchSize) as $batch) {
+                            $this->insertBatchRows(
+                                $connection,
+                                $driver,
+                                $quotedTable,
+                                $columns,
+                                $batch,
+                                $tableSchema,
+                            );
 
-                                $insertedRows = count($batch);
-                                $totalRows += $insertedRows;
-                                $tableRowsProcessed += $insertedRows;
+                            $insertedRows = count($batch);
+                            $totalRows += $insertedRows;
+                            $tableRowsProcessed += $insertedRows;
 
-                                if ($tableRowsProcessed >= $nextProgressAt || $tableRowsProcessed >= $tableRowCount) {
-                                    $this->reportProgress($progressReporter, 'restoring_table', sprintf(
-                                        'Restoring table %s (%d/%d): %d/%d rows.',
-                                        $tableName,
-                                        $processedTables + 1,
-                                        $tableCount,
-                                        $tableRowsProcessed,
-                                        $tableRowCount,
-                                    ), [
-                                        'current_table' => $tableName,
-                                        'current_table_rows_processed' => $tableRowsProcessed,
-                                        'current_table_row_count' => $tableRowCount,
-                                        'table_count' => $tableCount,
-                                        'tables_processed' => $processedTables,
-                                        'rows_processed' => $totalRows,
-                                    ]);
-                                    $nextProgressAt += 100;
-                                }
+                            if ($tableRowsProcessed >= $nextProgressAt || $tableRowsProcessed >= $tableRowCount) {
+                                $this->reportProgress($progressReporter, 'restoring_table', sprintf(
+                                    'Restoring table %s (%d/%d): %d/%d rows.',
+                                    $tableName,
+                                    $processedTables + 1,
+                                    $tableCount,
+                                    $tableRowsProcessed,
+                                    $tableRowCount,
+                                ), [
+                                    'current_table' => $tableName,
+                                    'current_table_rows_processed' => $tableRowsProcessed,
+                                    'current_table_row_count' => $tableRowCount,
+                                    'table_count' => $tableCount,
+                                    'tables_processed' => $processedTables,
+                                    'rows_processed' => $totalRows,
+                                ]);
+                                $nextProgressAt += 100;
                             }
                         }
                     }
-
-                    $processedTables++;
-                    $this->reportProgress($progressReporter, 'table_restored', sprintf(
-                        'Restored table %s (%d/%d).',
-                        $tableName,
-                        $processedTables,
-                        $tableCount,
-                    ), [
-                        'current_table' => $tableName,
-                        'table_count' => $tableCount,
-                        'tables_processed' => $processedTables,
-                        'rows_processed' => $totalRows,
-                    ]);
                 }
 
+                $processedTables++;
+                $this->reportProgress($progressReporter, 'table_restored', sprintf(
+                    'Restored table %s (%d/%d).',
+                    $tableName,
+                    $processedTables,
+                    $tableCount,
+                ), [
+                    'current_table' => $tableName,
+                    'table_count' => $tableCount,
+                    'tables_processed' => $processedTables,
+                    'rows_processed' => $totalRows,
+                ]);
+            }
+
+            $this->reportProgress(
+                $progressReporter,
+                'finalizing_constraints',
+                sprintf('Recreating %d foreign key constraints.', count($droppedForeignKeys)),
+                [
+                    'table_count' => $tableCount,
+                    'tables_processed' => $processedTables,
+                    'rows_processed' => $totalRows,
+                ],
+            );
+            $notValidatedConstraintCount = $this->restorePostgresForeignKeys(
+                $connection,
+                $driver,
+                $droppedForeignKeys,
+            );
+            if ($notValidatedConstraintCount > 0) {
                 $this->reportProgress(
                     $progressReporter,
                     'finalizing_constraints',
-                    sprintf('Recreating %d foreign key constraints.', count($droppedForeignKeys)),
+                    sprintf(
+                        'Restore completed with warnings: %d foreign '
+                        . 'key constraints were left NOT VALID due '
+                        . 'existing orphaned data.',
+                        $notValidatedConstraintCount,
+                    ),
                     [
                         'table_count' => $tableCount,
                         'tables_processed' => $processedTables,
                         'rows_processed' => $totalRows,
+                        'constraints_not_valid' => $notValidatedConstraintCount,
                     ],
                 );
-                $notValidatedConstraintCount = $this->restorePostgresForeignKeys(
-                    $connection,
-                    $driver,
-                    $droppedForeignKeys,
-                );
-                if ($notValidatedConstraintCount > 0) {
-                    $this->reportProgress(
-                        $progressReporter,
-                        'finalizing_constraints',
-                        sprintf(
-                            'Restore completed with warnings: %d foreign '
-                            . 'key constraints were left NOT VALID due '
-                            . 'existing orphaned data.',
-                            $notValidatedConstraintCount,
-                        ),
-                        [
-                            'table_count' => $tableCount,
-                            'tables_processed' => $processedTables,
-                            'rows_processed' => $totalRows,
-                            'constraints_not_valid' => $notValidatedConstraintCount,
-                        ],
-                    );
-                }
-            } else {
-                // MySQL: disable FK and CHECK constraints for the duration of the import.
-                $connection->execute('SET FOREIGN_KEY_CHECKS = 0');
-                $connection->execute('SET check_constraint_checks = 0');
-
-                foreach ($tablesToRestore as $tableName => $rows) {
-                    $this->reportProgress($progressReporter, 'restoring_table', sprintf(
-                        'Restoring table %s (%d/%d).',
-                        $tableName,
-                        $processedTables + 1,
-                        $tableCount,
-                    ), [
-                        'current_table' => $tableName,
-                        'table_count' => $tableCount,
-                        'tables_processed' => $processedTables,
-                        'rows_processed' => $totalRows,
-                    ]);
-
-                    $tableSchema = $schemaCollection->describe($tableName, ['forceRefresh' => true]);
-                    $quotedTable = $driver->quoteIdentifier($tableName);
-                    $connection->execute("DELETE FROM {$quotedTable}");
-
-                    $rows = $this->filterRowsToCurrentColumns($rows, $tableSchema);
-                    if (!empty($rows)) {
-                        $columns = array_keys($rows[0]);
-                        if ($columns === []) {
-                            $rows = [];
-                        } else {
-                            $tableRowCount = count($rows);
-                            $tableRowsProcessed = 0;
-                            $nextProgressAt = 100;
-                            $insertBatchSize = $this->getInsertBatchSize(count($columns), $isPostgres);
-                            foreach (array_chunk($rows, $insertBatchSize) as $batch) {
-                                $this->insertBatchRows(
-                                    $connection,
-                                    $driver,
-                                    $quotedTable,
-                                    $columns,
-                                    $batch,
-                                    $tableSchema,
-                                    $isPostgres,
-                                );
-
-                                $insertedRows = count($batch);
-                                $totalRows += $insertedRows;
-                                $tableRowsProcessed += $insertedRows;
-
-                                if ($tableRowsProcessed >= $nextProgressAt || $tableRowsProcessed >= $tableRowCount) {
-                                    $this->reportProgress($progressReporter, 'restoring_table', sprintf(
-                                        'Restoring table %s (%d/%d): %d/%d rows.',
-                                        $tableName,
-                                        $processedTables + 1,
-                                        $tableCount,
-                                        $tableRowsProcessed,
-                                        $tableRowCount,
-                                    ), [
-                                        'current_table' => $tableName,
-                                        'current_table_rows_processed' => $tableRowsProcessed,
-                                        'current_table_row_count' => $tableRowCount,
-                                        'table_count' => $tableCount,
-                                        'tables_processed' => $processedTables,
-                                        'rows_processed' => $totalRows,
-                                    ]);
-                                    $nextProgressAt += 100;
-                                }
-                            }
-                        }
-                    }
-
-                    $processedTables++;
-                    $this->reportProgress($progressReporter, 'table_restored', sprintf(
-                        'Restored table %s (%d/%d).',
-                        $tableName,
-                        $processedTables,
-                        $tableCount,
-                    ), [
-                        'current_table' => $tableName,
-                        'table_count' => $tableCount,
-                        'tables_processed' => $processedTables,
-                        'rows_processed' => $totalRows,
-                    ]);
-                }
-
-                $connection->execute('SET FOREIGN_KEY_CHECKS = 1');
-                $connection->execute('SET check_constraint_checks = 1');
             }
 
             $this->reportProgress($progressReporter, 'finalizing', 'Finalizing restore.', [
@@ -790,9 +692,7 @@ class BackupService
                 'rows_processed' => $totalRows,
             ]);
 
-            if ($isPostgres) {
-                $this->resetPostgresSequences($connection, $schemaCollection, $driver, array_keys($tablesToRestore));
-            }
+            $this->resetPostgresSequences($connection, $schemaCollection, $driver, array_keys($tablesToRestore));
 
             $connection->commit();
             $this->reportProgress($progressReporter, 'data_imported', 'Backup data import committed.', [
@@ -803,13 +703,6 @@ class BackupService
             ]);
         } catch (Throwable $e) {
             $connection->rollback();
-            try {
-                if (!$isPostgres) {
-                    $connection->execute('SET FOREIGN_KEY_CHECKS = 1');
-                    $connection->execute('SET check_constraint_checks = 1');
-                }
-            } catch (Exception $ignored) {
-            }
             throw new RuntimeException('Restore failed: ' . $e->getMessage(), 0, $e);
         }
 
@@ -1038,15 +931,10 @@ SQL;
      * Get insert batch size.
      *
      * @param int $columnCount
-     * @param bool $isPostgres
      * @return int
      */
-    private function getInsertBatchSize(int $columnCount, bool $isPostgres): int
+    private function getInsertBatchSize(int $columnCount): int
     {
-        if (!$isPostgres) {
-            return 200;
-        }
-
         // Keep a safety buffer under Postgres' 65535 parameter limit.
         $maxRowsByParams = intdiv(60000, max(1, $columnCount));
 
@@ -1092,7 +980,6 @@ SQL;
         array $columns,
         array $batch,
         TableSchemaInterface $tableSchema,
-        bool $isPostgres,
     ): void {
         if ($batch === []) {
             return;
@@ -1103,7 +990,7 @@ SQL;
         $params = [];
 
         foreach ($batch as $row) {
-            $normalizedRow = $this->normalizeRowForInsert($row, $columns, $tableSchema, $isPostgres);
+            $normalizedRow = $this->normalizeRowForInsert($row, $columns, $tableSchema);
             $valueSql[] = $rowPlaceholder;
             foreach ($columns as $column) {
                 $params[] = $normalizedRow[$column] ?? null;
@@ -1204,7 +1091,7 @@ SQL;
     }
 
     /**
-     * Normalize row values for MySQL inserts, coercing temporal values from
+     * Normalize row values for PostgreSQL restores, coercing temporal values from
      * ISO-8601 JSON forms to DB-friendly SQL literal formats.
      *
      * @param array<string, mixed> $row
@@ -1215,65 +1102,10 @@ SQL;
         array $row,
         array $columns,
         TableSchemaInterface $tableSchema,
-        bool $isPostgres,
     ): array {
-        if ($isPostgres) {
-            // Postgres rejects empty strings for non-text types.
-            // Reuse MySQL empty-string coercion rules so non-nullable boolean/numeric columns
-            // get a valid fallback (for example required => 0) instead of ''.
-            foreach ($columns as $column) {
-                if (!array_key_exists($column, $row)) {
-                    continue;
-                }
-
-                $columnType = $tableSchema->getColumnType($column);
-                if ($columnType === null) {
-                    continue;
-                }
-
-                if ($row[$column] === null) {
-                    $normalizedNull = $this->normalizeNullForMysql($tableSchema, $column, $columnType);
-                    if ($normalizedNull['converted']) {
-                        $row[$column] = $normalizedNull['value'];
-                    }
-
-                    continue;
-                }
-
-                $normalizedComplex = $this->normalizeComplexValueForMysql($row[$column], $columnType);
-                if ($normalizedComplex['converted']) {
-                    $row[$column] = $normalizedComplex['value'];
-
-                    continue;
-                }
-
-                if ($columnType === 'boolean') {
-                    $row[$column] = $this->normalizeBooleanForPostgres($tableSchema, $column, $row[$column]);
-
-                    continue;
-                }
-
-                if (!is_string($row[$column]) || trim($row[$column]) !== '') {
-                    continue;
-                }
-
-                if (in_array($columnType, ['string', 'text', 'citext', 'char', 'uuid'], true)) {
-                    continue;
-                }
-
-                $normalizedEmpty = $this->normalizeEmptyStringForMysql($tableSchema, $column, $columnType);
-                if ($normalizedEmpty['converted']) {
-                    $row[$column] = $normalizedEmpty['value'];
-
-                    continue;
-                }
-
-                $row[$column] = null;
-            }
-
-            return $row;
-        }
-
+        // Postgres rejects empty strings for non-text types.
+        // Coerce legacy empty-string values so non-nullable boolean/numeric columns
+        // get a valid fallback (for example required => 0) instead of ''.
         foreach ($columns as $column) {
             if (!array_key_exists($column, $row)) {
                 continue;
@@ -1285,41 +1117,43 @@ SQL;
             }
 
             if ($row[$column] === null) {
-                $normalizedNull = $this->normalizeNullForMysql($tableSchema, $column, $columnType);
+                $normalizedNull = $this->normalizeNullForRestore($tableSchema, $column, $columnType);
                 if ($normalizedNull['converted']) {
                     $row[$column] = $normalizedNull['value'];
                 }
+
                 continue;
             }
 
-            $normalizedComplex = $this->normalizeComplexValueForMysql($row[$column], $columnType);
+            $normalizedComplex = $this->normalizeComplexValueForRestore($row[$column], $columnType);
             if ($normalizedComplex['converted']) {
                 $row[$column] = $normalizedComplex['value'];
+
                 continue;
             }
 
-            $normalizedScalar = $this->normalizeColumnScalarForMysql($row[$column], $columnType);
-            if ($normalizedScalar !== $row[$column]) {
-                $row[$column] = $normalizedScalar;
+            if ($columnType === 'boolean') {
+                $row[$column] = $this->normalizeBooleanForPostgres($tableSchema, $column, $row[$column]);
+
                 continue;
             }
 
-            if (is_string($row[$column]) && $row[$column] === '') {
-                $normalizedEmpty = $this->normalizeEmptyStringForMysql($tableSchema, $column, $columnType);
-                if ($normalizedEmpty['converted']) {
-                    $row[$column] = $normalizedEmpty['value'];
-                }
+            if (!is_string($row[$column]) || trim($row[$column]) !== '') {
                 continue;
             }
 
-            if (!is_string($row[$column])) {
+            if (in_array($columnType, ['string', 'text', 'citext', 'char', 'uuid'], true)) {
                 continue;
             }
 
-            $normalizedTemporal = $this->normalizeTemporalValueForMysql($row[$column], $columnType);
-            if ($normalizedTemporal !== null) {
-                $row[$column] = $normalizedTemporal;
+            $normalizedEmpty = $this->normalizeEmptyStringForRestore($tableSchema, $column, $columnType);
+            if ($normalizedEmpty['converted']) {
+                $row[$column] = $normalizedEmpty['value'];
+
+                continue;
             }
+
+            $row[$column] = null;
         }
 
         return $row;
@@ -1341,7 +1175,7 @@ SQL;
         if (is_string($value)) {
             $normalized = strtolower(trim($value));
             if ($normalized === '') {
-                $fallback = $this->normalizeEmptyStringForMysql($tableSchema, $column, 'boolean');
+                $fallback = $this->normalizeEmptyStringForRestore($tableSchema, $column, 'boolean');
 
                 return $fallback['converted'] ? $fallback['value'] : null;
             }
@@ -1354,7 +1188,7 @@ SQL;
         }
 
         if ($value === null) {
-            $fallback = $this->normalizeNullForMysql($tableSchema, $column, 'boolean');
+            $fallback = $this->normalizeNullForRestore($tableSchema, $column, 'boolean');
             if ($fallback['converted']) {
                 return $fallback['value'];
             }
@@ -1364,44 +1198,11 @@ SQL;
     }
 
     /**
-     * Convert ISO-8601 temporal strings to MySQL-compatible temporal formats.
-     */
-    private function normalizeTemporalValueForMysql(string $value, string $columnType): ?string
-    {
-        $formatMap = [
-            'datetime' => 'Y-m-d H:i:s',
-            'datetimefractional' => 'Y-m-d H:i:s.u',
-            'timestamp' => 'Y-m-d H:i:s',
-            'timestampfractional' => 'Y-m-d H:i:s.u',
-            'date' => 'Y-m-d',
-            'time' => 'H:i:s',
-            'timefractional' => 'H:i:s.u',
-        ];
-
-        if (!isset($formatMap[$columnType])) {
-            return null;
-        }
-
-        try {
-            $parsed = new DateTimeImmutable($value);
-        } catch (Exception) {
-            return null;
-        }
-
-        $normalized = $parsed->format($formatMap[$columnType]);
-        if (str_ends_with($formatMap[$columnType], '.u')) {
-            return rtrim(rtrim($normalized, '0'), '.');
-        }
-
-        return $normalized;
-    }
-
-    /**
-     * Coerce empty-string values for MySQL numeric/boolean/temporal columns.
+     * Coerce empty-string values for numeric/boolean/temporal restore columns.
      *
      * @return array{converted: bool, value: mixed}
      */
-    private function normalizeEmptyStringForMysql(
+    private function normalizeEmptyStringForRestore(
         TableSchemaInterface $tableSchema,
         string $column,
         string $columnType,
@@ -1410,7 +1211,7 @@ SQL;
         if (array_key_exists('default', $columnDefinition) && $columnDefinition['default'] !== null) {
             return [
                 'converted' => true,
-                'value' => $this->normalizeColumnScalarForMysql($columnDefinition['default'], $columnType),
+                'value' => $this->normalizeColumnScalarForRestore($columnDefinition['default'], $columnType),
             ];
         }
 
@@ -1426,11 +1227,11 @@ SQL;
     }
 
     /**
-     * Coerce nulls for non-nullable MySQL columns.
+     * Coerce nulls for non-nullable restore columns.
      *
      * @return array{converted: bool, value: mixed}
      */
-    private function normalizeNullForMysql(
+    private function normalizeNullForRestore(
         TableSchemaInterface $tableSchema,
         string $column,
         string $columnType,
@@ -1443,7 +1244,7 @@ SQL;
         if (array_key_exists('default', $columnDefinition) && $columnDefinition['default'] !== null) {
             return [
                 'converted' => true,
-                'value' => $this->normalizeColumnScalarForMysql($columnDefinition['default'], $columnType),
+                'value' => $this->normalizeColumnScalarForRestore($columnDefinition['default'], $columnType),
             ];
         }
 
@@ -1461,9 +1262,9 @@ SQL;
     }
 
     /**
-     * Coerce scalar values into DB-safe representations for MySQL inserts.
+     * Coerce scalar values into DB-safe representations for PostgreSQL restores.
      */
-    private function normalizeColumnScalarForMysql(mixed $value, string $columnType): mixed
+    private function normalizeColumnScalarForRestore(mixed $value, string $columnType): mixed
     {
         if (is_bool($value) && $this->isNumericColumnType($columnType)) {
             return $value ? 1 : 0;
@@ -1491,11 +1292,11 @@ SQL;
     }
 
     /**
-     * Coerce array/object values for MySQL inserts.
+     * Coerce array/object values for PostgreSQL restores.
      *
      * @return array{converted: bool, value: mixed}
      */
-    private function normalizeComplexValueForMysql(mixed $value, string $columnType): array
+    private function normalizeComplexValueForRestore(mixed $value, string $columnType): array
     {
         if (!is_array($value) && !is_object($value)) {
             return ['converted' => false, 'value' => $value];

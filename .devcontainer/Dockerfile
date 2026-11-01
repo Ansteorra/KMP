@@ -20,9 +20,9 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive && \
     apt-get -y install --no-install-recommends \
     cron supervisor \
     php8.4 php8.4-bcmath php8.4-bz2 php8.4-intl php8.4-gd php8.4-mbstring \
-    php8.4-mysql php8.4-pgsql php8.4-zip php8.4-dom php8.4-yaml php8.4-curl php8.4-sqlite \
+    php8.4-pgsql php8.4-zip php8.4-dom php8.4-yaml php8.4-curl php8.4-sqlite \
     php8.4-apcu php8.4-xdebug \
-    mariadb-server apache2 \
+    apache2 \
     patch python3-pip ruby-full build-essential zlib1g-dev \
     default-jdk libnet-ssleay-perl perl-modules libwhisker2-perl git \
     xz-utils gnupg && \
@@ -34,7 +34,7 @@ RUN php -r 'exit(preg_match("/^8[.]4[.][0-9]+$/D", PHP_VERSION) && version_compa
 # Install PostgreSQL 16 from the PGDG repository to match Azure Database for
 # PostgreSQL Flexible Server (deploy/azure/main.bicep pins version '16'). Both
 # the server and client are installed so the devcontainer can run PG-backed
-# tests side-by-side with MariaDB; callers switch engines via DATABASE_URL.
+# PostgreSQL tests locally.
 RUN install -d /usr/share/postgresql-common/pgdg && \
     curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
         https://www.postgresql.org/media/keys/ACCC4CF8.asc && \
@@ -46,7 +46,7 @@ RUN install -d /usr/share/postgresql-common/pgdg && \
     rm -rf /var/lib/apt/lists/*
 
 # Allow the vscode user to manage PostgreSQL peer-auth operations without a
-# password (mirrors the pattern used for MariaDB + Apache elsewhere in this
+# password (matching the Apache service setup in this
 # environment). Needed by .devcontainer/init_env/config_space.sh to run
 # `sudo -u postgres psql` during post-start provisioning.
 RUN echo 'vscode ALL=(postgres) NOPASSWD: ALL' > /etc/sudoers.d/vscode-postgres && \

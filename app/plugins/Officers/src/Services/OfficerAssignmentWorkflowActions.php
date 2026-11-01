@@ -317,7 +317,7 @@ class OfficerAssignmentWorkflowActions
      * Check and create an extension while holding the officer assignment lock.
      *
      * SQLite serializes writes at the database level and does not support FOR UPDATE;
-     * MySQL and PostgreSQL use the explicit row lock below.
+     * PostgreSQL uses the explicit row lock below.
      *
      * @param int $officerId Officer assignment id.
      * @param int $actorId Trusted requesting member id.
@@ -570,8 +570,7 @@ class OfficerAssignmentWorkflowActions
     /**
      * Load and lock an assignment before evaluating mutable source state.
      *
-     * SQLite serializes writes and does not support FOR UPDATE. MySQL and
-     * PostgreSQL use an explicit row lock to prevent concurrent lost updates.
+     * SQLite serializes writes and does not support FOR UPDATE. PostgreSQL uses an explicit row lock to prevent concurrent lost updates.
      *
      * @param int $officerId Officer assignment id.
      * @return \Officers\Model\Entity\Officer
@@ -585,7 +584,7 @@ class OfficerAssignmentWorkflowActions
         $driverClass = get_class($officers->getConnection()->getDriver());
         $lastSeparator = strrpos($driverClass, '\\');
         $driverName = $lastSeparator === false ? $driverClass : substr($driverClass, $lastSeparator + 1);
-        if (in_array($driverName, ['Mysql', 'Postgres'], true)) {
+        if ($driverName === 'Postgres') {
             $query->epilog('FOR UPDATE');
         }
 
@@ -675,7 +674,7 @@ class OfficerAssignmentWorkflowActions
         $driverClass = get_class($warrants->getConnection()->getDriver());
         $lastSeparator = strrpos($driverClass, '\\');
         $driverName = $lastSeparator === false ? $driverClass : substr($driverClass, $lastSeparator + 1);
-        if (in_array($driverName, ['Mysql', 'Postgres'], true)) {
+        if ($driverName === 'Postgres') {
             $query->epilog('FOR UPDATE');
         }
 
