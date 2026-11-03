@@ -6,7 +6,9 @@ namespace App\Test\TestCase\Policy;
 use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\Permission;
 use App\Policy\GatheringPolicy;
+use App\Services\AuthorizationService;
 use App\Test\TestCase\BaseTestCase;
+use Authorization\Policy\OrmResolver;
 
 class GatheringPolicyTest extends BaseTestCase
 {
@@ -25,6 +27,7 @@ class GatheringPolicyTest extends BaseTestCase
     {
         $member = $this->Members->get($id);
         $member->getPermissions();
+        $member->setAuthorization(new AuthorizationService(new OrmResolver()));
 
         return $member;
     }
