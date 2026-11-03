@@ -529,7 +529,8 @@ class ActionItemsController extends AppController
                 ->contain([
                     'Members',
                     'Awards',
-                    'Gatherings' => ['Branches'],
+                    // The host branch must be optional when no gathering is assigned.
+                    'Gatherings' => ['Branches' => ['joinType' => 'LEFT']],
                     'GatheringScheduledActivities',
                 ])
                 ->all();
@@ -537,8 +538,7 @@ class ActionItemsController extends AppController
             $courtSlotService = new BestowalCourtSlotService();
             $descriptors = [];
             foreach ($bestowals as $bestowal) {
-                $recipient = $bestowal->get('member_sca_name')
-                    ?: ($bestowal->member->sca_name ?? __('Recipient'));
+                $recipient = $bestowal->getRecipientName();
                 $award = $bestowal->award->name ?? __('Award');
                 $gathering = $bestowal->gathering ?? null;
                 $courtAssignment = $courtSlotService->formatCourtSlotDisplay($bestowal);

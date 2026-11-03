@@ -15,6 +15,7 @@ use Awards\Model\Entity\BestowalTodoTemplateItem;
 use Awards\Services\BestowalTodoCompletionFormProvider;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * ActionItemsController integration tests - the "My To-Dos" surface.
@@ -517,6 +518,56 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
             '/gatherings/view/' . $schedule['gathering']->public_id . '?tab=gathering-bestowals',
             $gatheringDetail['url'] ?? null,
         );
+    }
+
+    #[DataProvider('unscheduledRecipientProvider')]
+    public function testMyTasksShowsBestowalDetailsWithoutAGathering(bool $hasMember): void
+    {
+        $this->authenticateAsMember(self::ADMIN_MEMBER_ID);
+        $bestowal = $this->makeBestowal([
+            'member_id' => $hasMember ? self::ADMIN_MEMBER_ID : null,
+            'member_sca_name' => 'Unscheduled Recipient <Oak> & Reed',
+            'specialty' => 'Scribal Arts <Illumination>',
+        ]);
+        $this->makeMemberItem(self::ADMIN_MEMBER_ID, ['entity_id' => (int)$bestowal->id]);
+        $recipient = $hasMember
+            ? TableRegistry::getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID)->sca_name
+            : $bestowal->member_sca_name;
+        $award = TableRegistry::getTableLocator()->get('Awards.Awards')->get($bestowal->award_id);
+        $label = $recipient . ' — ' . $award->name;
+
+        $this->get('/action-items/my-tasks-data');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains(h($label));
+        $this->assertResponseContains(h($bestowal->specialty));
+        $this->assertResponseNotContains($bestowal->specialty);
+        $this->assertResponseContains('/awards/bestowals/view/' . $bestowal->id);
+        foreach (['Specializations', 'Gathering', 'Gathering Date', 'Hosting Group', 'Court Assigned'] as $field) {
+            $this->assertResponseContains($field);
+        }
+        $this->assertResponseContains('Not assigned');
+
+        $this->get('/action-items/mobile-data');
+
+        $this->assertResponseOk();
+        $payload = json_decode((string)$this->_response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        $group = collection($payload['groups'])->firstMatch(['entityId' => (int)$bestowal->id]);
+        $this->assertNotNull($group);
+        $this->assertSame($label, $group['label']);
+        $this->assertSame('/awards/bestowals/view/' . $bestowal->id, $group['url']);
+        $details = array_column($group['details'], 'value', 'label');
+        $this->assertSame($bestowal->specialty, $details['Specializations']);
+        foreach (['Gathering', 'Gathering Date', 'Hosting Group', 'Court Assigned'] as $field) {
+            $this->assertSame('Not assigned', $details[$field]);
+        }
+        $gathering = collection($group['details'])->firstMatch(['label' => 'Gathering']);
+        $this->assertNull($gathering['url']);
+    }
+
+    public static function unscheduledRecipientProvider(): array
+    {
+        return ['linked member' => [true], 'recipient without an account' => [false]];
     }
 
     public function testCompleteButtonsDoNotRenderCheckmarkIcons(): void

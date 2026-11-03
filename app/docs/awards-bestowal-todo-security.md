@@ -102,6 +102,10 @@ falls back to the stored name for recipients without accounts. Recommendation gr
 searched by the current or submitted name and sort by the displayed name. Reading a screen
 or exporting data never rewrites the stored submitted name, identity links, or OP metadata.
 
+My To-Dos shows the recipient, award, and specialization even before a gathering is
+assigned, on desktop and mobile. Missing gathering, date, host, and court details show
+`Not assigned`; they do not replace the bestowal details with a generic record label.
+
 For account holders, update the existing member account through the authorized member edit
 workflow; verify its OP linkage rather than creating a replacement account. For recipients
 without accounts, use the authorized recommendation edit workflow before approval, or the
