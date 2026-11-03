@@ -19,7 +19,7 @@ echo $this->KMP->startBlock('title');
 echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': My To-Dos';
 $this->KMP->endBlock(); ?>
 
-<h3><i class="bi bi-check2-all me-2" aria-hidden="true"></i><?= __('My To-Dos') ?></h3>
+<h3><kmp-icon name="checks" class="me-2" aria-hidden="true"></kmp-icon><?= __('My To-Dos') ?></h3>
 <p class="text-muted">
     <?= __(
         'Checks assigned to you across the kingdom. Review the effects shown before completing or reopening a check.',
@@ -38,7 +38,7 @@ $this->KMP->endBlock(); ?>
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="todoCompleteModalLabel" data-todo-target="modalTitle">
-                    <i class="bi bi-check2-square me-2" aria-hidden="true"></i><?= __('Complete To-Do') ?>
+                    <kmp-icon name="checkbox" class="me-2" aria-hidden="true"></kmp-icon><?= __('Complete To-Do') ?>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"
                     aria-label="<?= __('Close') ?>"></button>
@@ -92,7 +92,7 @@ $this->KMP->endBlock(); ?>
                         <?= __('Choose the gathering where this bestowal will be presented.') ?>
                     </div>
                     <div class="text-danger small" data-todo-target="bestowalGatheringError" hidden>
-                        <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>
+                        <kmp-icon name="alert-circle" class="me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Select the gathering where the bestowal will be presented.') ?>
                     </div>
                     <div class="mt-3" data-todo-target="courtSlotGroup" hidden>
@@ -107,7 +107,7 @@ $this->KMP->endBlock(); ?>
                             <?= __('Choose Roaming Court or an eligible scheduled court activity.') ?>
                         </div>
                         <div class="text-danger small" data-todo-target="courtSlotError" hidden>
-                            <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>
+                            <kmp-icon name="alert-circle" class="me-1" aria-hidden="true"></kmp-icon>
                             <?= __('Select Roaming Court or a scheduled court activity.') ?>
                         </div>
                     </div>

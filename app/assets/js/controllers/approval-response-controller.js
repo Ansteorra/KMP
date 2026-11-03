@@ -223,7 +223,7 @@ class ApprovalResponseController extends Controller {
                         data-approval-response-target="decision"
                         data-action="change->approval-response#onDecisionChange">
                     <label class="form-check-label text-success fw-semibold" for="decisionApprove">
-                        <i class="bi bi-check-circle me-1"></i>${this._escHtml(this._approveLabel)}
+                        <kmp-icon name="circle-check" class="me-1" aria-hidden="true"></kmp-icon>${this._escHtml(this._approveLabel)}
                     </label>
                 </div>
                 <div class="form-check"${rejectHidden}>
@@ -231,7 +231,7 @@ class ApprovalResponseController extends Controller {
                         data-approval-response-target="decision"
                         data-action="change->approval-response#onDecisionChange">
                     <label class="form-check-label text-danger fw-semibold" for="decisionReject">
-                        <i class="bi bi-x-circle me-1"></i>Reject
+                        <kmp-icon name="circle-x" class="me-1" aria-hidden="true"></kmp-icon>Reject
                     </label>
                 </div>`
             return

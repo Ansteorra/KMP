@@ -82,6 +82,7 @@
  * @see \App\View\Helper\KmpHelper For application settings access
  */
 
+use App\Services\IconCatalog;
 use Cake\Core\Configure;
 
 $this->assign('main_content_wrapped', '1');
@@ -111,7 +112,7 @@ $url = $fullBaseUrl . '/keepalive';
                 data-action="click->sidebar-toggle#toggle"
                 title="Toggle sidebar"
                 aria-label="Toggle sidebar">
-                <i class="bi bi-chevron-bar-left" data-sidebar-toggle-target="icon"></i>
+                <kmp-icon name="chevron-left-pipe"  data-sidebar-toggle-target="icon" aria-hidden="true"></kmp-icon>
             </button>
             <?= $this->Html->image($this->KMP->assetUrl($this->KMP->getAppSetting('KMP.BannerLogo')), [
                 'alt' => 'Logo',
@@ -124,6 +125,7 @@ $url = $fullBaseUrl . '/keepalive';
             <?php foreach ($headerLinks as $key => $value) :
                 $key = str_replace('KMP.HeaderLink.', '', $key);
                 $keys = explode('.', $key);
+                $linkName = $keys[0];
                 $key = $keys[0];
                 if (count($keys) > 1) {
                     $key = $keys[1] == 'no-label' ? '' : $keys[0];
@@ -136,12 +138,12 @@ $url = $fullBaseUrl . '/keepalive';
                 }
                 ?>
                 <li class="nav-item text-nowrap mx-1">
-                    <a class="btn btn-outline-secondary <?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
+                    <?= $this->Html->link($key, $url, IconCatalog::controlOptions('btn btn-outline-secondary ' . $css, $parts[2] ?? null) + ['aria-label' => $linkName]) ?>
                 </li>
             <?php endforeach; ?>
             <li class="nav-item text-nowrap mx-1">
                 <?= $this->Html->link(
-                    '<i class="bi bi-phone"></i> ' . __('Mobile'),
+                    '<kmp-icon name="device-mobile"  aria-hidden="true"></kmp-icon> ' . __('Mobile'),
                     ['controller' => 'App', 'action' => 'switchView', 'plugin' => null, '?' => ['mode' => 'mobile']],
                     ['class' => 'btn btn-outline-secondary', 'escape' => false, 'title' => __('Switch to mobile view')],
                 ) ?>

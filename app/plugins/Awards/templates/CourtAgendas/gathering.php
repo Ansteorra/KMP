@@ -9,6 +9,8 @@
  * @var int $totalMinutes
  * @var string|null $totalWarning
  * @var bool $canManage
+ * @var bool $canViewGathering
+ * @var array<int, string> $unscheduledAwardActivities
  */
 
 $this->extend('/layout/TwitterBootstrap/dashboard');
@@ -165,15 +167,56 @@ if ($selectedSegmentId !== null) {
     <?php if ($canManage) : ?>
         <div class="alert alert-info mb-3" role="status">
             <?= __(
-                'Court activities come from the gathering schedule. Add or edit courts on the gathering, '
-                . 'then refresh scheduled bestowals here.',
+                'Each scheduled award-giving activity has its own agenda section. '
+                . 'Adding an activity under Activities does not schedule it. '
+                . 'Add an occurrence under Schedule, then return here; its section appears automatically. '
+                . 'Roaming court is available when placing a bestowal without a scheduled session.',
             ) ?>
-            <?= $this->Html->link(__('Open gathering schedule'), $gatheringViewUrl, ['class' => 'alert-link']) ?>.
+            <?php if ($canViewGathering) : ?>
+                <?= $this->Html->link(
+                    __('Open gathering schedule'),
+                    $gatheringViewUrl + ['?' => ['tab' => 'schedule']],
+                    ['class' => 'alert-link'],
+                ) ?>.
+            <?php else : ?>
+                <?= __('Ask the gathering organizer to add or update scheduled activities.') ?>
+            <?php endif; ?>
         </div>
     <?php endif; ?>
 
+    <?php if ($unscheduledAwardActivities !== []) : ?>
+        <section class="alert alert-warning" aria-labelledby="unscheduled-award-activities-heading">
+            <h2 class="h5" id="unscheduled-award-activities-heading">
+                <?= __('Award-giving activities need scheduling') ?>
+            </h2>
+            <p><?= __('These activities are included in the gathering but have no scheduled occurrence yet:') ?></p>
+            <ul>
+                <?php foreach ($unscheduledAwardActivities as $activityName) : ?>
+                    <li><?= h($activityName) ?></li>
+                <?php endforeach; ?>
+            </ul>
+            <p class="mb-0"><?= __('Schedule an occurrence to create its agenda section.') ?></p>
+        </section>
+    <?php endif; ?>
+
     <?php if ($selectedSegment === null) : ?>
-        <div class="alert alert-info" role="status"><?= __('No court activities are available yet.') ?></div>
+        <div class="alert alert-info" role="status">
+            <?= __('No court activities are available yet.') ?>
+            <?php if ($unscheduledAwardActivities === []) : ?>
+                <?= __(
+                    'Add an award-giving activity under Activities and schedule an occurrence. '
+                    . 'If the intended activity is already scheduled, ask an awards administrator '
+                    . 'to check its award eligibility in the awards catalog.',
+                ) ?>
+            <?php endif; ?>
+            <?php if ($canViewGathering) : ?>
+                <?= $this->Html->link(
+                    __('Open gathering activities'),
+                    $gatheringViewUrl + ['?' => ['tab' => 'activities']],
+                    ['class' => 'alert-link'],
+                ) ?>.
+            <?php endif; ?>
+        </div>
     <?php else : ?>
         <div class="row g-3 align-items-start">
             <div class="col-12 col-xl-8">
@@ -277,6 +320,12 @@ if ($selectedSegmentId !== null) {
 
                                     <?php if ($bestowal !== null) : ?>
                                         <dl class="row small mb-2">
+                                            <?php if ($itemData['specialties'] !== []) : ?>
+                                                <dt class="col-sm-3"><?= __('Specialties') ?></dt>
+                                                <dd class="col-sm-9">
+                                                    <?= h(implode(', ', $itemData['specialties'])) ?>
+                                                </dd>
+                                            <?php endif; ?>
                                             <dt class="col-sm-3"><?= __('Timing hint') ?></dt>
                                             <dd class="col-sm-9"><?= h($itemData['durationHint']) ?></dd>
                                             <?php if (!empty($bestowal->person_to_notify)) : ?>

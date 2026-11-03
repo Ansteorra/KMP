@@ -3,6 +3,12 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use App\Model\Entity\GatheringActivity;
+use App\Services\GatheringActivityPresentationService;
+use App\Services\IconCatalog;
+use ArrayObject;
+use Cake\Datasource\EntityInterface;
+use Cake\Event\EventInterface;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
@@ -45,6 +51,14 @@ class GatheringActivitiesTable extends Table
         $this->addBehavior('Muffin/Footprint.Footprint');
         $this->addBehavior('Muffin/Trash.Trash');
 
+        $this->belongsToMany('AssignmentPermissions', [
+            'className' => 'Permissions',
+            'foreignKey' => 'gathering_activity_id',
+            'targetForeignKey' => 'permission_id',
+            'joinTable' => 'gathering_activity_assignment_permissions',
+            'through' => 'GatheringActivityAssignmentPermissions',
+        ]);
+
         // Many-to-many relationship with Gatherings through join table
         $this->belongsToMany('Gatherings', [
             'foreignKey' => 'gathering_activity_id',
@@ -85,7 +99,65 @@ class GatheringActivitiesTable extends Table
             ->boolean('is_circle')
             ->allowEmptyString('is_circle');
 
+        $validator->inList('icon_source', ['catalog', 'bootstrap', 'upload']);
+        $validator->add('icon_name', 'knownIcon', [
+            'rule' => static function ($value, array $context): bool {
+                if (is_string($value) && IconCatalog::canonical($value) !== null) {
+                    return true;
+                }
+                // Preserve an existing unmapped identifier on unrelated edits; never accept a new unknown choice.
+                $existing = $context['entity'] ?? null;
+
+                return !$context['newRecord'] && $existing instanceof GatheringActivity
+                    && $existing->icon_name === $value;
+            },
+            'message' => __('Choose an icon from the KMP catalog.'),
+        ]);
+        foreach (['foreground_color', 'background_color'] as $field) {
+            $validator->add($field, 'hexColor', [
+                'rule' => ['custom', '/^#[0-9a-fA-F]{6}$/'],
+                'message' => __('Choose a six-digit hexadecimal color.'),
+            ]);
+        }
+        $validator->add('background_color', 'contrast', [
+            'rule' => static function ($value, array $context): bool {
+                if (!$context['newRecord'] && !array_key_exists('foreground_color', $context['data'])) {
+                    return true;
+                }
+                $foreground = $context['data']['foreground_color'] ?? '#212529';
+
+                return GatheringActivityPresentationService::contrastRatio($foreground, $value) >= 4.5;
+            },
+            'message' => __('Choose colors with at least 4.5:1 contrast so activity labels remain readable.'),
+        ]);
+
         return $validator;
+    }
+
+    /**
+     * Canonicalize explicit choices and new defaults for every ORM writer; preserve untouched legacy/unknown values.
+     *
+     * @param \Cake\Event\EventInterface $event Save event
+     * @param \Cake\Datasource\EntityInterface $entity Activity
+     * @param \ArrayObject $options Save options
+     * @return void
+     */
+    public function beforeSave(EventInterface $event, EntityInterface $entity, ArrayObject $options): void
+    {
+        if ($entity->isNew() || $entity->isDirty('icon_name')) {
+            $canonical = IconCatalog::canonical($entity->get('icon_name'));
+            if ($canonical !== null) {
+                $entity->set('icon_name', $canonical);
+            } elseif ($entity->isNew() && !$entity->get('icon_name')) {
+                $entity->set('icon_name', 'activity');
+            }
+        }
+        if (
+            ($entity->isNew() || $entity->isDirty('icon_source'))
+            && in_array($entity->get('icon_source'), [null, 'bootstrap'], true)
+        ) {
+            $entity->set('icon_source', 'catalog');
+        }
     }
 
     /**
@@ -97,7 +169,13 @@ class GatheringActivitiesTable extends Table
      */
     public function buildRules(RulesChecker $rules): RulesChecker
     {
-        // No foreign key rules needed here - handled by the join table
+        $rules->add(static fn($activity): bool => GatheringActivityPresentationService::contrastRatio(
+            $activity->foreground_color ?? '#212529',
+            $activity->background_color ?? '#e9ecef',
+        ) >= 4.5, 'readableAppearance', [
+            'errorField' => 'background_color',
+            'message' => __('Choose colors with at least 4.5:1 contrast so activity labels remain readable.'),
+        ]);
 
         return $rules;
     }

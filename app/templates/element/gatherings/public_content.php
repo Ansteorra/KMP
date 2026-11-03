@@ -60,7 +60,7 @@ if (!isset($scheduleByDate)) {
 <!-- Cancelled Banner -->
 <div class="alert alert-danger text-center py-4 mb-0" role="alert" style="border-radius: 0; border: none; background: linear-gradient(135deg, #dc3545 0%, #8B0000 100%); color: white;">
     <h2 class="mb-2">
-        <i class="bi bi-exclamation-triangle-fill"></i>
+        <kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon>
         <?= __('THIS EVENT HAS BEEN CANCELLED') ?>
     </h2>
     <?php if (!empty($gathering->cancellation_reason)): ?>
@@ -83,7 +83,7 @@ if (!isset($scheduleByDate)) {
 
         <div class="event-quick-meta">
             <span class="meta-item">
-                <i class="bi bi-calendar3"></i>
+                <kmp-icon name="calendar-month"  aria-hidden="true"></kmp-icon>
                 <?php if ($gathering->is_multi_day): ?>
                     <?= $this->Timezone->format($gathering->start_date, 'M d, Y g:i A', false, null, $gathering) ?>
                     - <?= $this->Timezone->format($gathering->end_date, 'M d, Y g:i A', false, null, $gathering) ?>
@@ -98,7 +98,7 @@ if (!isset($scheduleByDate)) {
 
             <?php if (!empty($gathering->timezone)): ?>
                 <span class="meta-item">
-                    <i class="bi bi-clock"></i>
+                    <kmp-icon name="clock"  aria-hidden="true"></kmp-icon>
                     <?= h($gathering->timezone) ?>
                     (<?= $this->Timezone->getAbbreviation($gathering->start_date, $gathering->timezone) ?>)
                 </span>
@@ -106,13 +106,13 @@ if (!isset($scheduleByDate)) {
 
             <?php if ($gathering->location): ?>
                 <span class="meta-item">
-                    <i class="bi bi-geo-alt"></i>
+                    <kmp-icon name="map-pin"  aria-hidden="true"></kmp-icon>
                     <?= h($gathering->location) ?>
                 </span>
             <?php endif; ?>
 
             <span class="meta-item">
-                <i class="bi bi-building"></i>
+                <kmp-icon name="building"  aria-hidden="true"></kmp-icon>
                 <?= h($gathering->branch->name) ?>
             </span>
 
@@ -121,7 +121,7 @@ if (!isset($scheduleByDate)) {
                   // (i.e. the authenticated view_public context) ?>
             <?php if (!$gathering->public_page_enabled && !empty($gathering->website_url)): ?>
                 <span class="meta-item">
-                    <i class="bi bi-link-45deg"></i>
+                    <kmp-icon name="link"  aria-hidden="true"></kmp-icon>
                     <a href="<?= h($gathering->website_url) ?>" target="_blank" rel="noopener" class="event-website-link">
                         <?= __('Event Website') ?>
                     </a>
@@ -149,11 +149,11 @@ if (!isset($scheduleByDate)) {
                     <a href="<?= h($gathering->preregister_url) ?>" target="_blank" rel="noopener"
                         class="btn btn-warning btn-lg fw-bold"
                         title="<?= h(__('Pre-register and pay for this event (external site)')) ?>">
-                        <i class="bi bi-ticket-perforated"></i> <?= __('Pre-Register') ?>
+                        <kmp-icon name="ticket"  aria-hidden="true"></kmp-icon> <?= __('Pre-Register') ?>
                     </a>
                 <?php endif; ?>
                 <?= $this->Html->link(
-                    '<i class="bi bi-calendar-plus"></i> ' . __('Add to Calendar'),
+                    '<kmp-icon name="calendar-plus"  aria-hidden="true"></kmp-icon> ' . __('Add to Calendar'),
                     ['controller' => 'Gatherings', 'action' => 'downloadCalendar', $gathering->public_id],
                     [
                         'class' => 'btn btn-outline-light btn-lg',
@@ -164,7 +164,7 @@ if (!isset($scheduleByDate)) {
             </div>
             <?php if ($gathering->is_preregistration_open && $gathering->preregister_closes_on !== null): ?>
                 <p class="mt-2 mb-0 small text-white-50">
-                    <i class="bi bi-clock-history"></i>
+                    <kmp-icon name="history"  aria-hidden="true"></kmp-icon>
                     <?= __('Pre-registration open until {0}', h($gathering->preregister_closes_on->format('F j, Y'))) ?>
                 </p>
             <?php endif; ?>
@@ -210,7 +210,7 @@ if (!isset($scheduleByDate)) {
         ?>
             <div class="info-card-medieval">
                 <div class="card-header-medieval">
-                    <i class="bi bi-person-badge-fill"></i>
+                    <kmp-icon name="id-badge"  aria-hidden="true"></kmp-icon>
                     <span><?= count($stewards) > 1 ? __('Event Stewards') : __('Event Steward') ?></span>
                 </div>
                 <div class="card-body-medieval">
@@ -219,14 +219,14 @@ if (!isset($scheduleByDate)) {
                             <strong><?= h($steward->display_name) ?></strong>
                             <?php if (!empty($steward->email)): ?>
                                 <div class="contact-detail">
-                                    <i class="bi bi-envelope"></i>
+                                    <kmp-icon name="mail"  aria-hidden="true"></kmp-icon>
                                     <a href="#" class="email-link"
                                         data-email="<?= base64_encode($steward->email) ?>"><?= __('Email') ?></a>
                                 </div>
                             <?php endif; ?>
                             <?php if (!empty($steward->phone)): ?>
                                 <div class="contact-detail">
-                                    <i class="bi bi-telephone"></i>
+                                    <kmp-icon name="phone"  aria-hidden="true"></kmp-icon>
                                     <a href="tel:<?= h($steward->phone) ?>"><?= h($steward->phone) ?></a>
                                 </div>
                             <?php endif; ?>
@@ -245,7 +245,7 @@ if (!isset($scheduleByDate)) {
         ?>
             <div class="info-card-medieval">
                 <div class="card-header-medieval">
-                    <i class="bi bi-people-fill"></i>
+                    <kmp-icon name="users"  aria-hidden="true"></kmp-icon>
                     <span><?= __('Event Staff') ?></span>
                 </div>
                 <div class="card-body-medieval">
@@ -255,13 +255,15 @@ if (!isset($scheduleByDate)) {
                             <?php if (!empty($staff->email) || !empty($staff->phone)): ?>
                                 <div class="staff-contacts">
                                     <?php if (!empty($staff->email)): ?>
-                                        <a href="#" class="email-link" data-email="<?= base64_encode($staff->email) ?>">
-                                            <i class="bi bi-envelope"></i>
+                                        <a href="#" class="email-link" data-email="<?= base64_encode($staff->email) ?>"
+                                            aria-label="<?= h(__('Email {0}', $staff->display_name)) ?>">
+                                            <kmp-icon name="mail"  aria-hidden="true"></kmp-icon>
                                         </a>
                                     <?php endif; ?>
                                     <?php if (!empty($staff->phone)): ?>
-                                        <a href="tel:<?= h($staff->phone) ?>">
-                                            <i class="bi bi-telephone"></i>
+                                        <a href="tel:<?= h($staff->phone) ?>"
+                                            aria-label="<?= h(__('Call {0}', $staff->display_name)) ?>">
+                                            <kmp-icon name="phone"  aria-hidden="true"></kmp-icon>
                                         </a>
                                     <?php endif; ?>
                                 </div>
@@ -281,7 +283,7 @@ if (!isset($scheduleByDate)) {
         ?>
             <div class="info-card-medieval">
                 <div class="card-header-medieval">
-                    <i class="bi bi-person-badge-fill"></i>
+                    <kmp-icon name="id-badge"  aria-hidden="true"></kmp-icon>
                     <span><?= __('Gathering Creator') ?></span>
                 </div>
                 <div class="card-body-medieval">
@@ -294,7 +296,7 @@ if (!isset($scheduleByDate)) {
         <?php if ($isOngoing): ?>
             <div class="info-card-medieval status-happening">
                 <div class="card-header-medieval">
-                    <i class="bi bi-broadcast"></i>
+                    <kmp-icon name="broadcast"  aria-hidden="true"></kmp-icon>
                     <span><?= __('Event Status') ?></span>
                 </div>
                 <div class="card-body-medieval">
@@ -304,7 +306,7 @@ if (!isset($scheduleByDate)) {
         <?php elseif ($isPast): ?>
             <div class="info-card-medieval status-past">
                 <div class="card-header-medieval">
-                    <i class="bi bi-check-circle-fill"></i>
+                    <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon>
                     <span><?= __('Event Status') ?></span>
                 </div>
                 <div class="card-body-medieval">
@@ -322,7 +324,7 @@ if (!isset($scheduleByDate)) {
             ?>
                 <div class="info-card-medieval status-upcoming">
                     <div class="card-header-medieval">
-                        <i class="bi bi-hourglass-split"></i>
+                        <kmp-icon name="hourglass"  aria-hidden="true"></kmp-icon>
                         <span><?= __('Starts In') ?></span>
                     </div>
                     <div class="card-body-medieval">
@@ -389,7 +391,7 @@ if (!isset($scheduleByDate)) {
                         <?php foreach ($activities as $activity): ?>
                             <div class="schedule-event-item">
                                 <div class="schedule-time-badge">
-                                    <i class="bi bi-clock"></i>
+                                    <kmp-icon name="clock"  aria-hidden="true"></kmp-icon>
                                     <?= $this->Timezone->format($activity->start_datetime, 'g:i A', false, null, $gathering) ?>
                                     <?php if ($activity->end_datetime): ?>
                                         - <?= $this->Timezone->format($activity->end_datetime, 'g:i A', false, null, $gathering) ?>
@@ -404,7 +406,7 @@ if (!isset($scheduleByDate)) {
                                     <?php endif; ?>
                                     <?php if ($activity->gathering_activity): ?>
                                         <span class="activity-tag">
-                                            <i class="bi bi-tag-fill"></i> <?= h($activity->gathering_activity->name) ?>
+                                            <?= $this->GatheringActivity->badge($activity->gathering_activity) ?>
                                         </span>
                                     <?php endif; ?>
                                 </div>
@@ -428,9 +430,9 @@ if (!isset($scheduleByDate)) {
             <div class="activities-compact">
                 <?php foreach ($gathering->gathering_activities as $i => $activity): ?>
                     <div class="activity-item-compact">
-                        <i class="bi bi-shield-check activity-icon-compact"></i>
+                        <kmp-icon name="shield-check" class="activity-icon-compact" aria-hidden="true"></kmp-icon>
                         <div class="activity-details-compact">
-                            <h4><?= h($activity->name) ?></h4>
+                            <h4><?= $this->GatheringActivity->badge($activity) ?></h4>
                             <?php
                             // Show custom description if available, otherwise show default description
                             $displayDescription = !empty($activity->_joinData->custom_description)
@@ -460,7 +462,7 @@ if (!isset($scheduleByDate)) {
 
             <div class="location-display">
                 <div class="location-icon">
-                    <i class="bi bi-geo-alt-fill"></i>
+                    <kmp-icon name="map-pin"  aria-hidden="true"></kmp-icon>
                 </div>
                 <p class="location-address"><?= nl2br(h($gathering->location)) ?></p>
             </div>
@@ -477,33 +479,33 @@ if (!isset($scheduleByDate)) {
                 <div class="location-actions">
                     <a href="https://www.google.com/maps/dir/?api=1&destination=<?= $mapQuery ?>" target="_blank"
                         class="btn-medieval btn-medieval-primary">
-                        <i class="bi bi-signpost-2-fill"></i>
+                        <kmp-icon name="sign-right"  aria-hidden="true"></kmp-icon>
                         <?= __('Get Directions') ?>
                     </a>
 
                     <div class="dropdown">
                         <button type="button" class="btn-medieval btn-medieval-secondary" data-bs-toggle="dropdown"
                             aria-expanded="false">
-                            <i class="bi bi-box-arrow-up-right"></i> <?= __('Open In...') ?>
+                            <kmp-icon name="external-link"  aria-hidden="true"></kmp-icon> <?= __('Open In...') ?>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-medieval">
                             <li>
                                 <a class="dropdown-item" href="https://www.google.com/maps/search/?api=1&query=<?= $mapQuery ?>"
                                     target="_blank">
-                                    <i class="bi bi-google"></i> Google Maps
+                                    <kmp-icon name="brand-google"  aria-hidden="true"></kmp-icon> Google Maps
                                 </a>
                             </li>
                             <li>
                                 <a class="dropdown-item"
                                     href="https://maps.apple.com/?ll=<?= $mapQuery ?>&q=<?= $locationEncoded ?>"
                                     target="_blank">
-                                    <i class="bi bi-apple"></i> Apple Maps
+                                    <kmp-icon name="brand-apple"  aria-hidden="true"></kmp-icon> Apple Maps
                                 </a>
                             </li>
                             <li>
                                 <a class="dropdown-item" href="https://www.waze.com/ul?ll=<?= $mapQuery ?>&navigate=yes"
                                     target="_blank">
-                                    <i class="bi bi-geo-alt-fill"></i> Waze
+                                    <kmp-icon name="map-pin"  aria-hidden="true"></kmp-icon> Waze
                                 </a>
                             </li>
                         </ul>
@@ -522,7 +524,7 @@ if (!isset($scheduleByDate)) {
                 <div class="location-actions">
                     <a href="https://www.google.com/maps/search/?api=1&query=<?= urlencode($gathering->location) ?>"
                         target="_blank" class="btn-medieval btn-medieval-primary">
-                        <i class="bi bi-map"></i>
+                        <kmp-icon name="map"  aria-hidden="true"></kmp-icon>
                         <?= __('Search in Google Maps') ?>
                     </a>
                 </div>
@@ -576,14 +578,14 @@ if (!isset($scheduleByDate)) {
                     <!-- Authenticated user - show Attend/Update button -->
                     <button type="button" class="btn-medieval btn-medieval-cta" data-bs-toggle="modal"
                         data-bs-target="#attendGatheringModal">
-                        <i class="bi bi-calendar-check"></i>
+                        <kmp-icon name="calendar-check"  aria-hidden="true"></kmp-icon>
                         <?= $userAttendance ? __('Update Attendance') : __('Attend This Gathering') ?>
                     </button>
                 <?php elseif (!$isAuthenticated): ?>
                     <!-- Non-authenticated user - show login link -->
                     <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id]) ?>"
                         class="btn-medieval btn-medieval-cta">
-                        <i class="bi bi-box-arrow-in-right"></i>
+                        <kmp-icon name="login"  aria-hidden="true"></kmp-icon>
                         <?= __('Login to AMP to RSVP') ?>
                     </a>
                 <?php endif; ?>
@@ -591,13 +593,13 @@ if (!isset($scheduleByDate)) {
                 <?php if ($gathering->latitude !== null && $gathering->longitude !== null): ?>
                     <a href="https://www.google.com/maps/dir/?api=1&destination=<?= $gathering->latitude ?>,<?= $gathering->longitude ?>"
                         target="_blank" class="btn-medieval btn-medieval-outline">
-                        <i class="bi bi-signpost-2-fill"></i>
+                        <kmp-icon name="sign-right"  aria-hidden="true"></kmp-icon>
                         <?= __('Get Directions') ?>
                     </a>
                 <?php elseif ($gathering->location): ?>
                     <a href="https://www.google.com/maps/search/?api=1&query=<?= urlencode($gathering->location) ?>"
                         target="_blank" class="btn-medieval btn-medieval-outline">
-                        <i class="bi bi-map"></i>
+                        <kmp-icon name="map"  aria-hidden="true"></kmp-icon>
                         <?= __('Find Location') ?>
                     </a>
                 <?php endif; ?>

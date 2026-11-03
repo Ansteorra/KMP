@@ -9,6 +9,7 @@ use App\KMP\GridRowDomId;
 use App\Model\Entity\ActionItem;
 use App\Services\ActionItems\ActionItemService;
 use App\Services\CsvExportService;
+use App\Services\IconCatalog;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use Awards\KMP\GridColumns\BestowalsGridColumns;
@@ -295,7 +296,7 @@ class BestowalsController extends AppController
             'GatheringScheduledActivities',
             'Awards' => ['Domains', 'Levels'],
             'PrimaryRecommendation' => ['Awards', 'Awards.Levels'],
-            'Recommendations' => ['Awards', 'Awards.Levels', 'Requesters'],
+            'Recommendations' => ['Awards', 'Awards.Levels', 'Requesters', 'Members'],
         ]);
         $this->Authorization->authorize($bestowal, 'view');
 
@@ -1552,10 +1553,13 @@ class BestowalsController extends AppController
                 $bestowal->bulk_todo_options = $bulkTodoOptions;
             }
             if ($this->shouldLoadBestowalDisplayColumn('member_sca_name', $visibleColumns)) {
-                $bestowal->member_sca_name = $bestowal->member->sca_name ?? $bestowal->member_sca_name ?? '';
+                $bestowal->member_sca_name = $bestowal->getRecipientName();
             }
             if ($this->shouldLoadBestowalDisplayColumn('awards', $visibleColumns)) {
-                $bestowal->awards = $this->buildAwardsHtml($bestowal);
+                $awardLabel = $this->buildAwardsHtml($bestowal);
+                $bestowal->awards = $forExport
+                    ? html_entity_decode(strip_tags($awardLabel), ENT_QUOTES | ENT_HTML5, 'UTF-8')
+                    : $awardLabel;
             }
             if ($loadTodoSummary) {
                 $bestowal->todos_summary = $this->buildBestowalTodoSummaryHtml(
@@ -1852,17 +1856,19 @@ class BestowalsController extends AppController
             }
 
             if ($completed) {
-                $icon = 'bi-check-square-fill text-success';
+                $icon = 'checkbox';
+                $iconClass = 'text-success';
                 $statusLabel = __('Completed task:');
             } else {
-                $icon = 'bi-hourglass-split text-secondary';
+                $icon = 'hourglass';
+                $iconClass = 'text-secondary';
                 $statusLabel = __('Open task:');
             }
             $required = $isGating
                 ? ' <span class="text-danger" aria-hidden="true">*</span>'
                 : '';
             $rows[] = '<li class="d-flex align-items-start gap-2 mb-1">'
-                . '<i class="bi ' . $icon . '" aria-hidden="true"></i>'
+                . IconCatalog::render($icon, ['class' => $iconClass])
                 . '<span class="visually-hidden">' . h($statusLabel) . '</span>'
                 . '<span>' . h($item->title) . $required . '</span>'
                 . '</li>';
@@ -1897,7 +1903,7 @@ class BestowalsController extends AppController
             . 'data-bs-content="' . h($content) . '" '
             . 'aria-label="' . h($ariaLabel) . '">'
             . '<span class="badge ' . $badgeClass . '">'
-            . '<i class="bi bi-check2-square me-1" aria-hidden="true"></i>' . h($progressLabel)
+            . '<kmp-icon name="checkbox" class="me-1" aria-hidden="true"></kmp-icon>' . h($progressLabel)
             . '</span>'
             . '</button>';
     }
@@ -1920,6 +1926,9 @@ class BestowalsController extends AppController
             $label = h($bestowal->award->abbreviation ?? $bestowal->award->name ?? '');
             if ($bestowal->award->hasValue('level') && !empty($bestowal->award->level->name)) {
                 $label .= ' (' . h($bestowal->award->level->name) . ')';
+            }
+            if (trim((string)$bestowal->specialty) !== '') {
+                $label .= ' — ' . h($bestowal->specialty);
             }
 
             return $label;

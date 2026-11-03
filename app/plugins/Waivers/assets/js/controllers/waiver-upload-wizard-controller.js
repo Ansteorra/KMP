@@ -48,13 +48,16 @@ class WaiverUploadWizardController extends Controller {
         "reviewAttestNotes",
         "reviewAttestNotesSection",
         "modeToggle",
-        "step3Lead"
+        "step3Lead", "attestOption", "lostSection", "lostNotes", "lostNotesError",
+        "reviewLostSection", "reviewLostNotes"
     ]
 
     static values = {
         currentStep: { type: Number, default: 1 },
         totalSteps: { type: Number, default: 3 },
         gatheringId: Number,
+        canRecordLost: { type: Boolean, default: false },
+        recordLostUrl: String,
         gatheringPublicId: String,
         maxFileSize: Number,           // Maximum single file size in bytes
         totalMaxSize: Number,          // Maximum total upload size in bytes
@@ -71,6 +74,8 @@ class WaiverUploadWizardController extends Controller {
         this.selectedWaiverType = null
         this.notes = ""
         this.isAttestMode = false
+        this.isLostMode = false
+        this.lossRequest = null
         this.attestReason = null
         this.attestNotes = ""
 
@@ -101,6 +106,7 @@ class WaiverUploadWizardController extends Controller {
 
     disconnect() {
         this.isDisconnected = true
+        this.lossRequest?.abort()
         if (this.uploadRequest && this.uploadRequest.readyState !== XMLHttpRequest.DONE) {
             this.uploadRequest.abort()
         }
@@ -196,9 +202,9 @@ class WaiverUploadWizardController extends Controller {
 
                 // Update button text based on step
                 if (stepNumber === 3) {
-                    this.nextButtonTarget.innerHTML = '<i class="bi bi-arrow-right"></i> Review'
+                    this.nextButtonTarget.innerHTML = '<kmp-icon name="arrow-right"  aria-hidden="true"></kmp-icon> Review'
                 } else {
-                    this.nextButtonTarget.innerHTML = '<i class="bi bi-arrow-right"></i> Next'
+                    this.nextButtonTarget.innerHTML = '<kmp-icon name="arrow-right"  aria-hidden="true"></kmp-icon> Next'
                 }
             }
         }
@@ -210,7 +216,7 @@ class WaiverUploadWizardController extends Controller {
                 this.submitButtonTarget.setAttribute('aria-hidden', 'false')
                 // Update submit button text based on mode
                 if (this.hasSubmitButtonTextTarget) {
-                    this.submitButtonTextTarget.textContent = this.isAttestMode ? 'Submit Attestation' : 'Submit Waivers'
+                    this.submitButtonTextTarget.textContent = this.isLostMode ? 'Record Waivers Lost' : (this.isAttestMode ? 'Submit Attestation' : 'Submit Waivers')
                 }
             } else {
                 this.submitButtonTarget.classList.add('d-none')
@@ -259,15 +265,27 @@ class WaiverUploadWizardController extends Controller {
             }
         }
 
-        // Show/hide mode toggle and update lead text based on exemption reasons availability
-        if (exemptionReasons.length > 0) {
+        if (this.hasAttestOptionTarget) {
+            this.attestOptionTarget.hidden = exemptionReasons.length === 0
+            this.attestOptionTarget.classList.toggle('d-none', exemptionReasons.length === 0)
+            this.attestOptionTarget.querySelectorAll('input').forEach(input => {
+                input.disabled = exemptionReasons.length === 0
+            })
+        }
+        if (exemptionReasons.length === 0 && this.isAttestMode) {
+            this.setModeUpload()
+        }
+        // Lost reports remain available even when this type has no exemption reasons.
+        if (exemptionReasons.length > 0 || this.canRecordLostValue) {
             // Has exemption reasons - show toggle
             if (this.hasModeToggleTarget) {
                 this.modeToggleTarget.classList.remove('d-none')
                 this.modeToggleTarget.setAttribute('aria-hidden', 'false')
             }
             if (this.hasStep3LeadTarget) {
-                this.step3LeadTarget.textContent = 'Add one or more pages to your waiver document, or attest that a waiver is not needed'
+                this.step3LeadTarget.textContent = this.canRecordLostValue
+                    ? 'Submit waiver pages, attest not needed, or record waivers lost'
+                    : 'Add one or more pages to your waiver document, or attest that a waiver is not needed'
             }
         } else {
             // No exemption reasons - hide toggle, force upload mode
@@ -300,6 +318,8 @@ class WaiverUploadWizardController extends Controller {
 
     // Step 3: Mode Toggle (Upload vs Attest)
     setModeUpload(event) {
+        this.isLostMode = false
+        this.toggleLossSection(false)
         this.isAttestMode = false
         if (this.hasUploadSectionTarget && this.hasAttestSectionTarget) {
             this.uploadSectionTarget.classList.remove('d-none')
@@ -336,6 +356,8 @@ class WaiverUploadWizardController extends Controller {
             return
         }
 
+        this.isLostMode = false
+        this.toggleLossSection(false)
         this.isAttestMode = true
         if (this.hasUploadSectionTarget && this.hasAttestSectionTarget) {
             this.uploadSectionTarget.classList.add('d-none')
@@ -344,6 +366,35 @@ class WaiverUploadWizardController extends Controller {
             this.attestSectionTarget.setAttribute('aria-hidden', 'false')
         }
         this.populateAttestationReasons()
+    }
+
+    setModeLost() {
+        if (!this.canRecordLostValue || !this.hasLostSectionTarget || !this.selectedWaiverType) return
+        this.isLostMode = true
+        this.isAttestMode = false
+        this.toggleLossSection(true)
+        for (const target of [this.uploadSectionTarget, this.attestSectionTarget]) {
+            target.classList.add('d-none')
+            target.setAttribute('aria-hidden', 'true')
+        }
+        this.lostNotesTarget.focus()
+    }
+
+    toggleLossSection(visible) {
+        if (!this.hasLostSectionTarget) return
+        this.lostSectionTarget.classList.toggle('d-none', !visible)
+        this.lostSectionTarget.hidden = !visible
+        this.lostSectionTarget.setAttribute('aria-hidden', String(!visible))
+        this.lostNotesTarget.disabled = !visible
+        this.clearLostNotesError()
+    }
+
+    clearLostNotesError() {
+        if (this.hasLostNotesTarget) this.lostNotesTarget.removeAttribute('aria-invalid')
+        if (this.hasLostNotesErrorTarget) {
+            this.lostNotesErrorTarget.textContent = ''
+            this.lostNotesErrorTarget.classList.add('d-none')
+        }
     }
 
     populateAttestationReasons() {
@@ -366,7 +417,7 @@ class WaiverUploadWizardController extends Controller {
         if (exemptionReasons.length === 0) {
             this.attestReasonListTarget.innerHTML = `
                 <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle"></i>
+                    <kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon>
                     No exemption reasons have been configured for this waiver type.
                 </div>
             `
@@ -763,7 +814,7 @@ class WaiverUploadWizardController extends Controller {
         if (this.uploadedPages.length === 0) {
             this.pagesPreviewTarget.innerHTML = `
                 <div class="text-center text-muted py-5">
-                    <i class="bi bi-file-earmark-image" style="font-size: 3rem;"></i>
+                    <kmp-icon name="file-image"  style="font-size: 3rem;" aria-hidden="true"></kmp-icon>
                     <p class="mt-3">No pages added yet</p>
                     <p class="small">Click "Add Page" to select images or PDFs</p>
                 </div>
@@ -792,7 +843,7 @@ class WaiverUploadWizardController extends Controller {
                     previewHtml = `<div class="d-flex align-items-center justify-content-center bg-light border rounded" 
                             style="width: 100px; height: 130px;">
                          <div class="text-center">
-                           <i class="bi bi-file-earmark-pdf text-danger" style="font-size: 2.5rem;"></i>
+                           <kmp-icon name="file-type-pdf" class="text-danger" style="font-size: 2.5rem;" aria-hidden="true"></kmp-icon>
                            <div class="small text-muted mt-1">PDF</div>
                          </div>
                        </div>`
@@ -828,7 +879,7 @@ class WaiverUploadWizardController extends Controller {
                                             class="btn btn-sm btn-outline-danger"
                                             data-index="${index}"
                                             data-action="click->waiver-upload-wizard#removePage">
-                                        <i class="bi bi-trash"></i>
+                                        <kmp-icon name="trash"  aria-hidden="true"></kmp-icon>
                                     </button>
                                 </div>
                             </div>
@@ -852,6 +903,20 @@ class WaiverUploadWizardController extends Controller {
         // Waiver Type
         if (this.hasReviewWaiverTypeTarget && this.selectedWaiverType) {
             this.reviewWaiverTypeTarget.textContent = this.selectedWaiverType.name
+        }
+
+        if (this.hasReviewLostSectionTarget) {
+            this.reviewLostSectionTarget.hidden = !this.isLostMode
+            this.reviewLostSectionTarget.classList.toggle('d-none', !this.isLostMode)
+            this.reviewLostSectionTarget.setAttribute('aria-hidden', String(!this.isLostMode))
+        }
+        if (this.isLostMode) {
+            for (const target of [this.reviewUploadSectionTarget, this.reviewAttestSectionTarget]) {
+                target.classList.add('d-none')
+                target.setAttribute('aria-hidden', 'true')
+            }
+            this.reviewLostNotesTarget.textContent = this.lostNotesTarget.value.trim()
+            return
         }
 
         // Show/hide sections based on mode
@@ -929,7 +994,7 @@ class WaiverUploadWizardController extends Controller {
                     const pdfFallback = page.isPdf && !page.thumbnailUrl
                         ? `<div class="d-flex align-items-center justify-content-center" style="height: 200px; background: #f8f9fa;">
                              <div class="text-center">
-                               <i class="bi bi-file-earmark-pdf text-danger" style="font-size: 4rem;"></i>
+                               <kmp-icon name="file-type-pdf" class="text-danger" style="font-size: 4rem;" aria-hidden="true"></kmp-icon>
                                <div class="text-muted">PDF Document</div>
                                ${page.pdfPageCount > 1 ? `<div class="text-info">${page.pdfPageCount} pages</div>` : ''}
                              </div>
@@ -970,6 +1035,23 @@ class WaiverUploadWizardController extends Controller {
     }
 
     validateUploadOrAttest() {
+        if (this.isLostMode) {
+            if (!this.canRecordLostValue || !this.hasLostNotesTarget) return false
+            if (!this.lostNotesTarget.value.trim() || this.lostNotesTarget.value.length > 10000) {
+                const message = 'Enter notes (up to 10,000 characters) identifying who reported the loss and when.'
+                this.lostNotesTarget.setAttribute('aria-invalid', 'true')
+                this.lostNotesErrorTarget.textContent = message
+                this.lostNotesErrorTarget.classList.remove('d-none')
+                if (this.currentStepValue === this.totalStepsValue) {
+                    this.currentStepValue = 2
+                    this.showStep(2)
+                }
+                this.lostNotesTarget.focus()
+                return false
+            }
+            this.clearLostNotesError()
+            return true
+        }
         if (this.isAttestMode) {
             if (!this.attestReason) {
                 this.showError("Please select a reason for the exemption")
@@ -1008,7 +1090,9 @@ class WaiverUploadWizardController extends Controller {
         const startTime = Date.now()
 
         try {
-            if (this.isAttestMode) {
+            if (this.isLostMode) {
+                await this.submitLostReport()
+            } else if (this.isAttestMode) {
                 // Submit attestation
                 await this.submitAttestation(startTime)
             } else {
@@ -1024,11 +1108,34 @@ class WaiverUploadWizardController extends Controller {
                 this.submitButtonTarget.disabled = false
             }
             if (this.hasSubmitButtonTextTarget) {
-                this.submitButtonTextTarget.textContent = this.isAttestMode ? 'Submit Attestation' : 'Submit Waivers'
+                this.submitButtonTextTarget.textContent = this.isLostMode ? 'Record Waivers Lost' : (this.isAttestMode ? 'Submit Attestation' : 'Submit Waivers')
             }
             this.restoreWizardAfterProcessing()
             this.showError(error.message || 'An error occurred during submission. Please try again.')
         }
+    }
+
+    async submitLostReport() {
+        this.lossRequest = new AbortController()
+        const response = await fetch(this.recordLostUrlValue, {
+            method: 'POST',
+            signal: this.lossRequest.signal,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-Token': this.getCsrfToken()
+            },
+            body: JSON.stringify({
+                gathering_id: this.gatheringIdValue,
+                waiver_type_id: this.selectedWaiverType.id,
+                notes: this.lostNotesTarget.value.trim()
+            })
+        })
+        const data = await response.json()
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'The loss report could not be saved. Please try again.')
+        }
+        if (!this.isDisconnected) window.location.href = data.redirectUrl
     }
 
     async submitAttestation(startTime) {
@@ -1254,7 +1361,13 @@ class WaiverUploadWizardController extends Controller {
     showProcessingStep() {
         // Show processing message based on mode
         let processingHtml
-        if (this.isAttestMode) {
+        if (this.isLostMode) {
+            processingHtml = `
+                <div class="text-center py-5" data-waiver-processing tabindex="-1">
+                    <h2>Recording Waivers Lost</h2>
+                    <p role="status">Please wait while we save the loss report. Collection will remain open.</p>
+                </div>`
+        } else if (this.isAttestMode) {
             processingHtml = `
                 <div class="text-center py-5" data-waiver-processing tabindex="-1">
                     <div class="mb-4">
@@ -1267,7 +1380,7 @@ class WaiverUploadWizardController extends Controller {
                         Please wait while we record your attestation...
                     </p>
                     <div class="alert alert-info d-inline-block">
-                        <i class="bi bi-shield-check"></i>
+                        <kmp-icon name="shield-check"  aria-hidden="true"></kmp-icon>
                         Attesting that a waiver is not needed for this gathering
                     </div>
                 </div>
@@ -1420,7 +1533,7 @@ class WaiverUploadWizardController extends Controller {
             <div class="toast align-items-center text-white bg-danger border-0" role="alert">
                 <div class="d-flex">
                     <div class="toast-body">
-                        <i class="bi bi-exclamation-triangle me-2"></i>${escapedMessage}
+                        <kmp-icon name="alert-triangle" class="me-2" aria-hidden="true"></kmp-icon>${escapedMessage}
                     </div>
                     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
                 </div>

@@ -1,4 +1,12 @@
 <IfModule mod_headers.c>
+    # Pinned, content-addressed application icons are anonymous static files, never PHP responses.
+    Header set Cache-Control "public, max-age=31536000, immutable" "expr=%{REQUEST_URI} =~ m#^/(?:webroot/)?kmp-icons/[a-f0-9]{16}/# && %{REQUEST_STATUS} == 200"
+    Header always set Access-Control-Allow-Origin "*" "expr=%{REQUEST_URI} =~ m#^/(?:webroot/)?kmp-icons/#"
+    Header always set X-Content-Type-Options "nosniff" "expr=%{REQUEST_URI} =~ m#^/(?:webroot/)?kmp-icons/#"
+    # Content-addressed public artwork is served directly by Apache, including cross-origin masks.
+    Header set Cache-Control "public, max-age=31536000, immutable" "expr=%{REQUEST_URI} =~ m#/public-assets/images/[a-f0-9]{32}/[a-f0-9]{64}\.png$# && %{REQUEST_STATUS} == 200"
+    Header always set Access-Control-Allow-Origin "*" "expr=%{REQUEST_URI} =~ m#/public-assets/images/#"
+    Header always set X-Content-Type-Options "nosniff" "expr=%{REQUEST_URI} =~ m#/public-assets/images/#"
     # Keep authenticated pages and machine-consumed public endpoints out of search indexes.
     Header always set X-Robots-Tag "noindex, nofollow, noarchive"
     Header always unset X-Robots-Tag "expr=%{THE_REQUEST} =~ m#\s/+events(?:[/?\s])# || %{THE_REQUEST} =~ m#\s/+gatherings/public-landing/#"

@@ -163,7 +163,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
     <div class="d-flex justify-content-between align-items-center mb-3">
         <?php if ($user->checkCan('edit', $award)) : ?>
         <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addActivityModal">
-            <i class="bi bi-plus-circle"></i> <?= __('Add Activity') ?>
+            <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon> <?= __('Add Activity') ?>
         </button>
         <?php endif; ?>
     </div>
@@ -190,7 +190,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
                     <td class="actions text-end text-nowrap">
                         <?php if ($user->checkCan('edit', $award)) : ?>
                             <?= $this->Form->postLink(
-                                '<i class="bi bi-x-circle-fill"></i>',
+                                '<kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon>',
                                 ['action' => 'remove-activity', $award->id, $activity->id],
                                 [
                                             'confirm' => __('Remove "{0}" from this award?', $activity->name),
@@ -208,7 +208,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
     </div>
     <?php else : ?>
     <div class="alert alert-secondary">
-        <i class="bi bi-info-circle"></i>
+        <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
         <?= __('No activities have been added to this award yet.') ?>
         <?php if ($user->checkCan('edit', $award)) : ?>
             <?= __('Click "Add Activity" above to get started.') ?>
@@ -249,7 +249,7 @@ echo $this->Form->hidden('specialties', [
     <div class="col-12">
         <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
             <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                <i class="bi bi-award text-primary me-1" aria-hidden="true"></i>
+                <kmp-icon name="award" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                 <?= __('Award Identity') ?>
             </legend>
             <div class="row g-3">
@@ -271,7 +271,7 @@ echo $this->Form->hidden('specialties', [
     <div class="col-12 col-xl-6">
         <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
             <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                <i class="bi bi-palette text-success me-1" aria-hidden="true"></i>
+                <kmp-icon name="palette" class="text-success me-1" aria-hidden="true"></kmp-icon>
                 <?= __('Insignia & Specialties') ?>
             </legend>
             <?php
@@ -292,7 +292,7 @@ echo $this->Form->hidden('specialties', [
     <div class="col-12 col-xl-6">
         <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
             <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                <i class="bi bi-diagram-3 text-info me-1" aria-hidden="true"></i>
+                <kmp-icon name="sitemap" class="text-info me-1" aria-hidden="true"></kmp-icon>
                 <?= __('Placement & Approval') ?>
             </legend>
             <?php

@@ -48,8 +48,10 @@ use Throwable;
  * the transaction commits at that point. A later resumeWorkflow() call starts a
  * fresh transaction.
  */
-class DefaultWorkflowEngine implements WorkflowEngineInterface
+class DefaultWorkflowEngine implements WorkflowEngineInterface, WorkflowDeferredWorkInterface
 {
+    use WorkflowDeferredWorkTrait;
+
     /**
      * Maximum node execution depth to prevent infinite recursion.
      */
@@ -297,6 +299,12 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
                     || $waitingLog === null
                 ) {
                     return new ServiceResult(false, "Instance {$instanceId} is not in waiting state at node '{$nodeId}'.");
+                }
+                if (
+                    $waitingLog->node_type === 'action'
+                    && (isset($waitingLog->output_data['_deferred']) || !empty($waitingLog->output_data['queued']))
+                ) {
+                    return new ServiceResult(false, 'Queued actions must execute before their workflow can continue.');
                 }
 
             // Merge additional data into context
@@ -579,7 +587,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
         }
 
         // Ephemeral workflows cannot use async node types
-        if ($this->ephemeral && WorkflowNodeTypes::requiresWaiting($node)) {
+        if ($this->ephemeral && WorkflowNodeTypes::requiresWaiting($node, false)) {
             throw new RuntimeException(
                 "Ephemeral workflow cannot execute async node type '{$nodeType}' at node '{$nodeId}'. "
                 . "Change the workflow's execution_mode to 'durable' to use {$nodeType} nodes.",
@@ -587,14 +595,9 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
         }
 
         // Retry logic: determine max attempts from node config
-        $maxRetries = (int)($nodeConfig['maxRetries'] ?? $nodeConfig['retryCount'] ?? 0);
-        if (!$this->ephemeral && $maxRetries > 0) {
-            Log::warning(
-                "WorkflowEngine: Node '{$nodeId}' requested {$maxRetries} inline retries; "
-                . 'durable workflows do not retry inside the open transaction.',
-            );
-            $maxRetries = 0;
-        }
+        $maxRetries = $this->ephemeral
+            ? (int)($nodeConfig['maxRetries'] ?? $nodeConfig['retryCount'] ?? 0)
+            : 0;
         $maxAttempts = $maxRetries + 1;
         $lastException = null;
 
@@ -721,59 +724,16 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
             throw new RuntimeException("Action '{$actionName}' not found in registry.");
         }
 
-        // Async execution: queue the action instead of running inline
+        // Retriable durable actions also run in the queue so attempts commit separately.
         $isAsync = !empty($node['config']['isAsync']) || !empty($actionConfig['isAsync']);
-        if ($isAsync) {
-            if ($log) {
-                $log->status = WorkflowExecutionLog::STATUS_WAITING;
-                $log->output_data = ['queued' => true, 'action' => $actionName];
-                $this->saveLog($log);
-            }
-
-            $instance->status = WorkflowInstance::STATUS_WAITING;
-            $this->updateInstance($instance, []);
-
-            $queuedJobsTable = TableRegistry::getTableLocator()->get('Queue.QueuedJobs');
-            $queuedJobsTable->createJob('WorkflowResume', [
-                'instanceId' => $instance->id,
-                'nodeId' => $nodeId,
-                'outputPort' => 'default',
-                'additionalData' => [
-                    'asyncAction' => $actionName,
-                    'nodeConfig' => $node['config'] ?? [],
-                ],
-            ]);
-
-            Log::info("WorkflowEngine: Async action '{$actionName}' queued for node '{$nodeId}' instance #{$instance->id}.");
+        if (!$this->ephemeral && ($isAsync || $this->actionRetryCount($node) > 0)) {
+            $this->deferWorkflowWork($instance, $log, 'action', DateTime::now());
 
             return;
         }
 
-        $serviceClass = $actionConfig['serviceClass'];
-        $serviceMethod = $actionConfig['serviceMethod'];
-
-        if (!$this->container->has($serviceClass)) {
-            throw new RuntimeException(
-                "Workflow action service '{$serviceClass}' is not registered in the DI container. "
-                . "Register it in Application::services() or your plugin's services() method.",
-            );
-        }
-        $service = $this->container->get($serviceClass);
         $context = $instance->context ?? [];
-        $context['instanceId'] = $instance->id;
-
-        // Resolve and merge config.params into top-level config so actions can read params directly
-        $nodeConfig = $node['config'] ?? [];
-        if (!empty($nodeConfig['params']) && is_array($nodeConfig['params'])) {
-            $resolvedParams = [];
-            foreach ($nodeConfig['params'] as $key => $paramValue) {
-                $resolvedParams[$key] = $this->resolveParamValue($paramValue, $context);
-            }
-            $nodeConfig = array_merge($nodeConfig, $resolvedParams);
-        }
-
-        $rawResult = $this->executeActionService($service, $serviceMethod, $context, $nodeConfig);
-        $result = $this->normalizeActionResult($this->applyActionContextUpdates($context, $rawResult));
+        $result = $this->invokeWorkflowAction($instance, $node, $context);
 
         // Store result in context
         $context['nodes'][$nodeId] = ['result' => $result];
@@ -808,6 +768,48 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
 
         $this->removeFromActiveNodes($instance, $nodeId);
         $this->advanceToOutputs($instance, $nodeId, 'default', $definition);
+    }
+
+    /**
+     * Invoke an action using the pinned definition and the current tenant registry.
+     *
+     * @param \App\Model\Entity\WorkflowInstance $instance Workflow instance
+     * @param array $node Action node
+     * @param array $context Context updated by the action
+     * @return array Normalized action result
+     */
+    private function invokeWorkflowAction(WorkflowInstance $instance, array $node, array &$context): array
+    {
+        $actionName = $node['config']['action'] ?? '';
+        $actionConfig = WorkflowActionRegistry::getAction($actionName);
+        if ($actionConfig === null) {
+            throw new RuntimeException("Action '{$actionName}' not found in registry.");
+        }
+        $serviceClass = $actionConfig['serviceClass'];
+        $serviceMethod = $actionConfig['serviceMethod'];
+
+        if (!$this->container->has($serviceClass)) {
+            throw new RuntimeException(
+                "Workflow action service '{$serviceClass}' is not registered in the DI container. "
+                . "Register it in Application::services() or your plugin's services() method.",
+            );
+        }
+        $service = $this->container->get($serviceClass);
+        $context['instanceId'] = $instance->id;
+
+        // Resolve and merge config.params into top-level config so actions can read params directly
+        $nodeConfig = $node['config'] ?? [];
+        if (!empty($nodeConfig['params']) && is_array($nodeConfig['params'])) {
+            $resolvedParams = [];
+            foreach ($nodeConfig['params'] as $key => $paramValue) {
+                $resolvedParams[$key] = $this->resolveParamValue($paramValue, $context);
+            }
+            $nodeConfig = array_merge($nodeConfig, $resolvedParams);
+        }
+
+        $rawResult = $this->executeActionService($service, $serviceMethod, $context, $nodeConfig);
+
+        return $this->normalizeActionResult($this->applyActionContextUpdates($context, $rawResult));
     }
 
     /**
@@ -1480,7 +1482,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
         foreach ($iterateDescendants as $descendantId => $_) {
             $descendantNode = (array)($definition['nodes'][$descendantId] ?? []);
             $descendantType = (string)($descendantNode['type'] ?? '');
-            if (WorkflowNodeTypes::requiresWaiting($descendantNode)) {
+            if (WorkflowNodeTypes::requiresWaiting($descendantNode, !$this->ephemeral)) {
                 throw new RuntimeException(
                     "ForEach node '{$nodeId}' cannot execute waiting node "
                     . "'{$descendantId}' of type '{$descendantType}'.",
@@ -1643,8 +1645,15 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
             $this->saveLog($log);
         }
 
-        $instance->status = WorkflowInstance::STATUS_WAITING;
-        $this->updateInstance($instance, []);
+        $duration = $node['config']['duration'] ?? null;
+        if ($duration !== null && $duration !== '') {
+            $seconds = $this->delaySeconds($this->resolveParamValue($duration, $instance->context ?? []));
+            $this->deferWorkflowWork($instance, $log, 'delay', DateTime::now()->modify("+{$seconds} seconds"));
+        } else {
+            // Duration-less waits remain available for explicit application callbacks.
+            $instance->status = WorkflowInstance::STATUS_WAITING;
+            $this->updateInstance($instance, []);
+        }
     }
 
     /**
@@ -2217,7 +2226,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
         }
 
         $instancesTable = TableRegistry::getTableLocator()->get('WorkflowInstances');
-        $instancesTable->save($instance);
+        $instancesTable->saveOrFail($instance);
     }
 
     /**
@@ -2346,7 +2355,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
             $data['completed_at'] = DateTime::now();
         }
         $log = $logsTable->newEntity($data);
-        $logsTable->save($log);
+        $logsTable->saveOrFail($log);
 
         return $log;
     }
@@ -2360,7 +2369,7 @@ class DefaultWorkflowEngine implements WorkflowEngineInterface
             return;
         }
         $logsTable = TableRegistry::getTableLocator()->get('WorkflowExecutionLogs');
-        $logsTable->save($log);
+        $logsTable->saveOrFail($log);
     }
 
     /**

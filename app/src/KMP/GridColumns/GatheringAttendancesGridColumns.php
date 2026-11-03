@@ -27,7 +27,7 @@ class GatheringAttendancesGridColumns extends BaseGridColumns
                 'key' => 'view',
                 'type' => 'link',
                 'label' => '',
-                'icon' => 'bi-binoculars',
+                'icon' => 'binoculars',
                 'class' => 'btn btn-sm btn-secondary',
                 'permission' => 'view',
                 'url' => [
@@ -40,7 +40,7 @@ class GatheringAttendancesGridColumns extends BaseGridColumns
                 'key' => 'edit',
                 'type' => 'modal',
                 'label' => '',
-                'icon' => 'bi-pencil-fill',
+                'icon' => 'pencil',
                 'class' => 'btn btn-sm btn-primary',
                 'modalTarget' => '#editGatheringAttendanceModal',
                 'dataAttributes' => [

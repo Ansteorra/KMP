@@ -21,6 +21,8 @@ namespace App\Model\Entity;
  * @property int|null $progress_office_id
  * @property string|null $progress_office_name
  * @property string|null $progress_branch_name
+ * @property string|null $progress_title
+ * @property string $progress_filter_value
  * @property int|null $created_by
  * @property int|null $modified_by
  * @property \Cake\I18n\DateTime $created
@@ -120,6 +122,19 @@ class GatheringAttendance extends BaseEntity
         }
 
         return $this->progress_office_name;
+    }
+
+    /**
+     * Identify the office/branch snapshot independently of the current office holder.
+     *
+     * @return string
+     */
+    protected function _getProgressFilterValue(): string
+    {
+        return base64_encode(json_encode(
+            [$this->progress_office_name, $this->progress_branch_name],
+            JSON_THROW_ON_ERROR,
+        ));
     }
 
     /**

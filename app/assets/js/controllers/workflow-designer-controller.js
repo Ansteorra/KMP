@@ -1,3 +1,4 @@
+import { iconHtml } from '../services/icon-service.js';
 import { Controller } from "@hotwired/stimulus"
 import WorkflowValidationService from './workflow-validation-service.js'
 import WorkflowVariablePicker from './workflow-variable-picker.js'
@@ -93,13 +94,13 @@ class WorkflowDesignerController extends Controller {
         if (this.hasValidationResultsTarget) {
             let html = ''
             if (valid && warnings.length === 0) {
-                html = '<div class="alert alert-success mb-0"><i class="bi bi-check-circle me-1"></i> Workflow is valid.</div>'
+                html = '<div class="alert alert-success mb-0"><kmp-icon name="circle-check" class="me-1" aria-hidden="true"></kmp-icon> Workflow is valid.</div>'
             }
             errors.forEach(e => {
-                html += `<div class="alert alert-danger mb-1"><i class="bi bi-x-circle me-1"></i> ${e}</div>`
+                html += `<div class="alert alert-danger mb-1"><kmp-icon name="circle-x" class="me-1" aria-hidden="true"></kmp-icon> ${e}</div>`
             })
             warnings.forEach(w => {
-                html += `<div class="alert alert-warning mb-1"><i class="bi bi-exclamation-triangle me-1"></i> ${w}</div>`
+                html += `<div class="alert alert-warning mb-1"><kmp-icon name="alert-triangle" class="me-1" aria-hidden="true"></kmp-icon> ${w}</div>`
             })
             this.validationResultsTarget.innerHTML = html
             this.validationResultsTarget.style.display = 'block'
@@ -263,8 +264,8 @@ class WorkflowDesignerController extends Controller {
         </div>
         <p class="text-muted small mb-2" data-palette-empty-message hidden>No matching nodes found.</p>`
 
-        const makeIcon = (faClass) =>
-            `<span class="palette-node-icon"><i class="fa-solid ${faClass}"></i></span>`
+        const makeIcon = (iconId) =>
+            `<span class="palette-node-icon">${iconHtml(iconId)}</span>`
         const makeNode = ({ type, label, icon, data = {}, searchText = '' }) => {
             const dataAttrs = Object.entries(data)
                 .map(([key, value]) => ` ${key}="${this._escapeAttr(value)}"`)
@@ -289,13 +290,13 @@ class WorkflowDesignerController extends Controller {
 
         html += '<div class="palette-category" data-palette-category><h6 class="palette-category-title">Flow Control</h6>'
         const flowNodes = [
-            { type: 'condition', label: 'Condition', icon: 'fa-diamond' },
-            { type: 'fork', label: 'Parallel Fork', icon: 'fa-code-branch' },
-            { type: 'join', label: 'Parallel Join', icon: 'fa-code-merge' },
-            { type: 'loop', label: 'Loop', icon: 'fa-rotate' },
-            { type: 'forEach', label: 'For Each', icon: 'fa-list-ol' },
-            { type: 'delay', label: 'Delay / Wait', icon: 'fa-clock' },
-            { type: 'end', label: 'End', icon: 'fa-stop' },
+            { type: 'condition', label: 'Condition', icon: 'diamond' },
+            { type: 'fork', label: 'Parallel Fork', icon: 'git-fork' },
+            { type: 'join', label: 'Parallel Join', icon: 'git-merge' },
+            { type: 'loop', label: 'Loop', icon: 'repeat' },
+            { type: 'forEach', label: 'For Each', icon: 'list-numbers' },
+            { type: 'delay', label: 'Delay / Wait', icon: 'clock' },
+            { type: 'end', label: 'End', icon: 'player-stop' },
         ]
         flowNodes.forEach(node => {
             html += makeNode(node)
@@ -303,18 +304,18 @@ class WorkflowDesignerController extends Controller {
         html += '</div>'
 
         html += '<div class="palette-category" data-palette-category><h6 class="palette-category-title">Approvals</h6>'
-        html += makeNode({ type: 'approval', label: 'Approval Gate', icon: 'fa-check-double' })
+        html += makeNode({ type: 'approval', label: 'Approval Gate', icon: 'checks' })
         html += '</div>'
 
         if (this.registryData.triggers && this.registryData.triggers.length > 0) {
             const groups = groupBySource(this.registryData.triggers)
             for (const [source, triggers] of Object.entries(groups)) {
-                html += `<div class="palette-category" data-palette-category><h6 class="palette-category-title"><i class="fa-solid fa-bolt fa-xs me-1"></i>Triggers — ${this._escapeHtml(source)}</h6>`
+                html += `<div class="palette-category" data-palette-category><h6 class="palette-category-title"><kmp-icon name="bolt" class="kmp-icon-xs me-1" aria-hidden="true"></kmp-icon>Triggers — ${this._escapeHtml(source)}</h6>`
                 triggers.forEach(trigger => {
                     html += makeNode({
                         type: 'trigger',
                         label: trigger.label,
-                        icon: 'fa-bolt',
+                        icon: 'bolt',
                         data: { 'data-node-event': trigger.event },
                         searchText: `${trigger.event} ${source} trigger`,
                     })
@@ -326,12 +327,12 @@ class WorkflowDesignerController extends Controller {
         if (this.registryData.actions && this.registryData.actions.length > 0) {
             const groups = groupBySource(this.registryData.actions)
             for (const [source, actions] of Object.entries(groups)) {
-                html += `<div class="palette-category" data-palette-category><h6 class="palette-category-title"><i class="fa-solid fa-gear fa-xs me-1"></i>Actions — ${this._escapeHtml(source)}</h6>`
+                html += `<div class="palette-category" data-palette-category><h6 class="palette-category-title"><kmp-icon name="settings" class="kmp-icon-xs me-1" aria-hidden="true"></kmp-icon>Actions — ${this._escapeHtml(source)}</h6>`
                 actions.forEach(action => {
                     html += makeNode({
                         type: 'action',
                         label: action.label,
-                        icon: 'fa-gear',
+                        icon: 'settings',
                         data: { 'data-node-action': action.action },
                         searchText: `${action.action} ${source} action`,
                     })
@@ -343,12 +344,12 @@ class WorkflowDesignerController extends Controller {
         if (this.registryData.conditions && this.registryData.conditions.length > 0) {
             const groups = groupBySource(this.registryData.conditions)
             for (const [source, conditions] of Object.entries(groups)) {
-                html += `<div class="palette-category" data-palette-category><h6 class="palette-category-title"><i class="fa-solid fa-diamond fa-xs me-1"></i>Conditions — ${this._escapeHtml(source)}</h6>`
+                html += `<div class="palette-category" data-palette-category><h6 class="palette-category-title"><kmp-icon name="diamond" class="kmp-icon-xs me-1" aria-hidden="true"></kmp-icon>Conditions — ${this._escapeHtml(source)}</h6>`
                 conditions.forEach(cond => {
                     html += makeNode({
                         type: 'condition',
                         label: cond.label,
-                        icon: 'fa-diamond',
+                        icon: 'diamond',
                         data: { 'data-node-condition': cond.condition },
                         searchText: `${cond.condition} ${source} condition`,
                     })

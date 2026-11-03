@@ -10,7 +10,7 @@
  * Features:
  * - Smart navigation using pageStack history tracking
  * - Fallback to browser history when pageStack unavailable
- * - Bootstrap icon integration
+ * - Shared KMP icon integration
  * - Customizable text and CSS classes
  * - Accessible markup with proper titles
  *
@@ -31,13 +31,13 @@
  *
  * @var \App\View\AppView $this
  * @var string|null $text Optional text to display after the icon (default: none)
- * @var string|null $class Optional CSS classes (default: 'bi bi-arrow-left-circle')
+ * @var string|null $class Optional icon styling classes
  * @var string|null $title Optional title attribute (default: 'Go back')
  */
 
 // Set defaults
 $text = $text ?? null;
-$class = $class ?? 'bi bi-arrow-left-circle';
+$class = $class ?? '';
 $title = $title ?? __('Go back');
 
 // Get pageStack from session if available
@@ -56,7 +56,7 @@ if ($historyCount < 2) {
 }
 
 // Build the link
-$linkContent = '<i class="' . h($class) . '" aria-hidden="true"></i>';
+$linkContent = $this->Icon->render($icon ?? 'circle-arrow-left', ['class' => $class]);
 if ($text) {
     $linkContent .= ' ' . h($text);
 }

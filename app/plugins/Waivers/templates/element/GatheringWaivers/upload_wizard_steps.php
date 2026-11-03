@@ -23,7 +23,7 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
     aria-current="step"
     aria-hidden="false">
     <h3 id="waiver-upload-step-1-heading" class="mb-4">
-        <i class="bi bi-file-earmark-text text-primary" aria-hidden="true"></i>
+        <kmp-icon name="file-text" class="text-primary" aria-hidden="true"></kmp-icon>
         <span class="visually-hidden"><?= __('Step 1 of 3: Select Waiver Type') ?></span>
         <span aria-hidden="true"><?= __('Step 1: Select Waiver Type') ?></span>
     </h3>
@@ -34,7 +34,7 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
         <div class="card mb-4 border-0 shadow-sm">
             <div class="card-header bg-light">
                 <h5 class="mb-0">
-                    <i class="bi bi-clipboard-check text-success"></i>
+                    <kmp-icon name="clipboard-check" class="text-success" aria-hidden="true"></kmp-icon>
                     <?= __('Waiver Status for This Gathering') ?>
                 </h5>
             </div>
@@ -43,8 +43,13 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
                     <?php
                     $hasUploaded = $summary['uploaded_count'] > 0;
                     $hasAttestation = !empty($summary['attestation_reasons']);
+                    $hasLoss = !empty($summary['loss_recorded']);
                     $statusLabel = $hasUploaded || $hasAttestation ? __('On File') : __('Outstanding');
                     $statusClass = $hasUploaded || $hasAttestation ? 'bg-success' : 'bg-warning text-dark';
+                    if ($hasLoss) {
+                        $statusLabel = __('Waivers Lost');
+                        $statusClass = 'bg-warning text-dark';
+                    }
                     ?>
                     <li class="list-group-item d-flex justify-content-between align-items-start">
                         <div class="me-3">
@@ -100,7 +105,7 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
                                 <?php if ($isAttested) : ?>
                                     <br>
                                     <small class="text-muted">
-                                        <i class="bi bi-shield-check"></i>
+                                        <kmp-icon name="shield-check"  aria-hidden="true"></kmp-icon>
                                         <?= __('Attested not needed') ?>
                                         <?php if (!empty($attestationReasons)) : ?>
                                             <span class="ms-1">(<?= h(implode(', ', $attestationReasons)) ?>)</span>
@@ -115,7 +120,7 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
         </div>
     <?php else : ?>
         <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i>
+            <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
             <?= __('No waiver types have been configured for this gathering.') ?>
         </div>
     <?php endif; ?>
@@ -130,7 +135,7 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
     aria-labelledby="waiver-upload-step-2-heading"
     aria-hidden="true">
     <h3 id="waiver-upload-step-2-heading" class="mb-4">
-        <i class="bi bi-file-earmark-image text-primary" aria-hidden="true"></i>
+        <kmp-icon name="file-image" class="text-primary" aria-hidden="true"></kmp-icon>
         <span class="visually-hidden"><?= __('Step 2 of 3: Add Waiver Pages') ?></span>
         <span aria-hidden="true"><?= __('Step 2: Add Waiver Pages') ?></span>
     </h3>
@@ -144,14 +149,23 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
         <input type="radio" class="btn-check" name="upload-mode" id="mode-upload" autocomplete="off" checked
             data-action="change->waiver-upload-wizard#setModeUpload">
         <label class="btn btn-outline-primary" for="mode-upload">
-            <i class="bi bi-cloud-upload"></i> <?= __('Submit Waivers') ?>
+            <kmp-icon name="cloud-upload"  aria-hidden="true"></kmp-icon> <?= __('Submit Waivers') ?>
         </label>
 
-        <input type="radio" class="btn-check" name="upload-mode" id="mode-attest" autocomplete="off"
-            data-action="change->waiver-upload-wizard#setModeAttest">
-        <label class="btn btn-outline-primary" for="mode-attest">
-            <i class="bi bi-shield-check"></i> <?= __('Attest Not Needed') ?>
+        <span class="d-flex" data-waiver-upload-wizard-target="attestOption">
+            <input type="radio" class="btn-check" name="upload-mode" id="mode-attest" autocomplete="off"
+                data-action="change->waiver-upload-wizard#setModeAttest">
+            <label class="btn btn-outline-primary w-100" for="mode-attest">
+                <kmp-icon name="shield-check"  aria-hidden="true"></kmp-icon> <?= __('Attest Not Needed') ?>
+            </label>
+        </span>
+        <?php if (!empty($canRecordLost)) : ?>
+        <input type="radio" class="btn-check" name="upload-mode" id="mode-lost" autocomplete="off"
+            data-action="change->waiver-upload-wizard#setModeLost">
+        <label class="btn btn-outline-danger" for="mode-lost">
+            <kmp-icon name="file-x"  aria-hidden="true"></kmp-icon> <?= __('Waivers Lost') ?>
         </label>
+        <?php endif; ?>
     </div>
 
     <!-- Upload Mode Section -->
@@ -169,7 +183,7 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
                 <button type="button" class="btn btn-lg btn-primary"
                     aria-describedby="waiver-upload-file-tips"
                     data-action="click->waiver-upload-wizard#triggerFileInput">
-                    <i class="bi bi-plus-circle"></i>
+                    <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon>
                     <?= __('Add Page') ?>
                 </button>
 
@@ -186,7 +200,7 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
             </div>
 
             <div id="waiver-upload-file-tips" class="alert alert-info">
-                <i class="bi bi-info-circle"></i>
+                <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                 <strong><?= __('Tips:') ?></strong>
                 <ul class="mb-0 mt-2">
                     <li><?= __('Upload images or PDF files') ?></li>
@@ -207,7 +221,7 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
     <!-- Attestation Mode Section -->
     <div data-waiver-upload-wizard-target="attestSection" class="d-none" aria-hidden="true">
         <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i>
+            <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
             <?= __('You are attesting that a waiver is not needed for this gathering. Please provide a reason.') ?>
         </div>
 
@@ -226,6 +240,10 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
                 placeholder="<?= __('Any additional context or explanation...') ?>"></textarea>
         </div>
     </div>
+
+    <?= $this->element('Waivers.GatheringWaivers/loss_wizard', [
+        'mobile' => false, 'isReview' => false,
+    ]) ?>
 </div>
 
 <!-- Step 3: Review -->
@@ -237,7 +255,7 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
     aria-labelledby="waiver-upload-step-3-heading"
     aria-hidden="true">
     <h3 id="waiver-upload-step-3-heading" class="mb-4">
-        <i class="bi bi-check-circle text-success" aria-hidden="true"></i>
+        <kmp-icon name="circle-check" class="text-success" aria-hidden="true"></kmp-icon>
         <span class="visually-hidden"><?= __('Step 3 of 3: Review & Submit') ?></span>
         <span aria-hidden="true"><?= __('Step 3: Review & Submit') ?></span>
     </h3>
@@ -253,6 +271,9 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
         </div>
     </div>
 
+    <?= $this->element('Waivers.GatheringWaivers/loss_wizard', [
+        'mobile' => false, 'isReview' => true,
+    ]) ?>
     <!-- Upload Mode Review -->
     <div data-waiver-upload-wizard-target="reviewUploadSection" aria-hidden="false">
         <div class="card mb-3">
@@ -287,7 +308,7 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
         <div class="card mb-3">
             <div class="card-header bg-info text-white">
                 <h5 class="mb-0">
-                    <i class="bi bi-shield-check"></i> <?= __('Attestation: Waiver Not Needed') ?>
+                    <kmp-icon name="shield-check"  aria-hidden="true"></kmp-icon> <?= __('Attestation: Waiver Not Needed') ?>
                 </h5>
             </div>
             <div class="card-body">
@@ -309,7 +330,7 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
     <div>
         <button type="button" class="btn btn-outline-secondary" data-waiver-upload-wizard-target="prevButton"
             data-action="click->waiver-upload-wizard#prevStep">
-            <i class="bi bi-arrow-left"></i> <?= __('Previous') ?>
+            <kmp-icon name="arrow-left"  aria-hidden="true"></kmp-icon> <?= __('Previous') ?>
         </button>
     </div>
     <div>
@@ -320,12 +341,12 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
         ) ?>
         <button type="button" class="btn btn-primary" data-waiver-upload-wizard-target="nextButton"
             data-action="click->waiver-upload-wizard#nextStep">
-            <?= __('Next') ?> <i class="bi bi-arrow-right"></i>
+            <?= __('Next') ?> <kmp-icon name="arrow-right"  aria-hidden="true"></kmp-icon>
         </button>
         <button type="button" class="btn btn-success d-none"
             data-waiver-upload-wizard-target="submitButton"
             data-action="click->waiver-upload-wizard#submitForm">
-            <i class="bi bi-check-circle"></i>
+            <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon>
             <span data-waiver-upload-wizard-target="submitButtonText"><?= __('Submit Waivers') ?></span>
         </button>
     </div>

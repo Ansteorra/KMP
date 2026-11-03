@@ -40,7 +40,7 @@
 }
 
 /* Icon-only button improvements */
-.waiverTypes.index .actions .btn.bi {
+.waiverTypes.index .actions .btn:has(kmp-icon) {
     padding: 0.25rem 0.5rem;
     min-width: 2rem;
 }

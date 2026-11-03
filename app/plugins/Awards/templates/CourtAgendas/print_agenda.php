@@ -109,6 +109,7 @@ $title = __('Court Agenda') . ': ' . ($agenda->gathering->name ?? $agenda->name)
                     <?= h($segment->name) ?>
                     <span>(<?= h((string)$segmentData['minutes']) ?> <?= h(__('min')) ?>)</span>
                 </h2>
+                <p><?= h($segmentData['scheduledActivityLabel']) ?></p>
                 <?php if (!empty($segment->notes)) : ?>
                     <p><?= h($segment->notes) ?></p>
                 <?php endif; ?>

@@ -552,7 +552,7 @@ describe('GridViewController', () => {
 
         const pill = controller.createFilterPill('branch_id', '1', false);
         const removeButton = pill.querySelector('button[data-action="click->grid-view#removeFilter"]');
-        const icon = removeButton.querySelector('i');
+        const icon = removeButton.querySelector('kmp-icon');
 
         expect(removeButton).not.toBeNull();
         expect(pill.classList).toContain('grid-view-filter-badge');
@@ -582,7 +582,7 @@ describe('GridViewController', () => {
         expect(pill.querySelector('button')).toBeNull();
         expect(lockIndicator).not.toBeNull();
         expect(lockIndicator.getAttribute('aria-hidden')).toBe('true');
-        expect(lockIndicator.querySelector('.bi-lock-fill')).not.toBeNull();
+        expect(lockIndicator.querySelector('kmp-icon[name="lock"]')).not.toBeNull();
         expect(pill.textContent).toContain('Locked filter; cannot be removed.');
     });
 
@@ -626,7 +626,7 @@ describe('GridViewController', () => {
         expect(pill.getAttribute('data-filter-locked')).toBe('true');
         expect(pill.textContent).toContain('Status: Pending');
         expect(pill.querySelector('button')).toBeNull();
-        expect(pill.querySelector('.bi-lock-fill')).not.toBeNull();
+        expect(pill.querySelector('kmp-icon[name="lock"]')).not.toBeNull();
 
         const navigation = controller.element.querySelector('[data-filter-nav-container]');
         const panels = controller.element.querySelector('[data-filter-panels-container]');
@@ -686,7 +686,7 @@ describe('GridViewController', () => {
     test('createSearchBadge generates remove button with accessible target size and decorative icon', () => {
         const badge = controller.createSearchBadge('smith');
         const removeButton = badge.querySelector('button[data-action="click->grid-view#clearSearch"]');
-        const icon = removeButton.querySelector('i');
+        const icon = removeButton.querySelector('kmp-icon');
 
         expect(badge.classList).toContain('grid-view-filter-badge');
         expect(removeButton.classList).toContain('grid-view-filter-badge-control');
@@ -1063,7 +1063,7 @@ describe('GridViewController', () => {
                         <button type="button" data-action="click->grid-view#toggleSubRow"
                             data-row-id="99" data-subrow-type="details" data-subrow-url="/details/:id"
                             aria-expanded="false" aria-controls="subrow-99-details">
-                            <i class="toggle-icon bi bi-chevron-right"></i><span>Details</span>
+                            <kmp-icon name="chevron-right" class="toggle-icon" aria-hidden="true"></kmp-icon><span>Details</span>
                         </button>
                     </td>
                 </tr>

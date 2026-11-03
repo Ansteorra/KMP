@@ -593,6 +593,7 @@ class WaiverFileService
                 'name' => $waiverType->name,
                 'uploaded_count' => 0,
                 'attestation_reasons' => [],
+                'loss_recorded' => false,
             ];
         }
 
@@ -621,6 +622,14 @@ class WaiverFileService
                 $summary[$waiver->waiver_type_id]['attestation_reasons'][] = $reason;
             } else {
                 $summary[$waiver->waiver_type_id]['uploaded_count']++;
+            }
+        }
+
+        $losses = TableRegistry::getTableLocator()->get('Waivers.GatheringWaiverLosses')->find()
+            ->select(['waiver_type_id'])->where(['gathering_id' => $gatheringId]);
+        foreach ($losses as $loss) {
+            if (isset($summary[$loss->waiver_type_id])) {
+                $summary[$loss->waiver_type_id]['loss_recorded'] = true;
             }
         }
 

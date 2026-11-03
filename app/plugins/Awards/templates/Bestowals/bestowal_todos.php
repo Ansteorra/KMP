@@ -20,7 +20,7 @@
 
 use Awards\Model\Entity\Bestowal;
 
-$memberName = $bestowal->member->sca_name ?? $bestowal->member_sca_name ?? '';
+$memberName = $bestowal->getRecipientName();
 $lifecycleStatus = (string)($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN);
 $currentPageUrl = $currentPageUrl ?? $this->Url->build([
     'plugin' => 'Awards',
@@ -45,7 +45,7 @@ $viewUrl = $this->Url->build([
             <?php endif; ?>
         </div>
         <a href="<?= h($viewUrl) ?>" class="btn btn-sm btn-outline-secondary" data-turbo="false">
-            <i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i><?= __('Open') ?>
+            <kmp-icon name="external-link" class="me-1" aria-hidden="true"></kmp-icon><?= __('Open') ?>
         </a>
     </div>
     <?= $this->element('bestowal_todo_checklist', [

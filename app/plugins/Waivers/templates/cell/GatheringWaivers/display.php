@@ -32,7 +32,7 @@ $isCancelled = $gathering->cancelled_at !== null;
         <h5><?= __('Waivers') ?></h5>
     </div>
     <div class="alert alert-warning">
-        <i class="bi bi-exclamation-triangle-fill"></i>
+        <kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon>
         <strong><?= __('Gathering Cancelled') ?></strong>
         <p class="mb-0 mt-2">
             <?= __('This gathering has been cancelled. Waivers are not required for cancelled gatherings.') ?>
@@ -44,7 +44,7 @@ $isCancelled = $gathering->cancelled_at !== null;
     </div>
     <?php if ($totalWaiverCount > 0): ?>
     <div class="alert alert-secondary">
-        <i class="bi bi-info-circle"></i>
+        <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
         <?= __('There are {0} waiver(s) on file from before this gathering was cancelled.', $totalWaiverCount) ?>
         <?= $this->Html->link(
             __('View Waivers'),
@@ -73,7 +73,7 @@ $isCancelled = $gathering->cancelled_at !== null;
             <?php if ($canCloseWaivers): ?>
             <?php if ($waiverCollectionClosed): ?>
             <?= $this->Form->postLink(
-                    '<i class="bi bi-unlock"></i> ' . __('Reopen Waivers'),
+                    '<kmp-icon name="lock-open"  aria-hidden="true"></kmp-icon> ' . __('Reopen Waivers'),
                     [
                         'plugin' => 'Waivers',
                         'controller' => 'GatheringWaivers',
@@ -88,7 +88,7 @@ $isCancelled = $gathering->cancelled_at !== null;
                 ) ?>
             <?php else: ?>
             <?= $this->Form->postLink(
-                    '<i class="bi bi-lock-fill"></i> ' . __('Close Waivers'),
+                    '<kmp-icon name="lock"  aria-hidden="true"></kmp-icon> ' . __('Close Waivers'),
                     [
                         'plugin' => 'Waivers',
                         'controller' => 'GatheringWaivers',
@@ -106,7 +106,7 @@ $isCancelled = $gathering->cancelled_at !== null;
             <?php // Show Ready to Close buttons for editors/stewards ?>
             <?php if ($isReadyToClose): ?>
             <?= $this->Form->postLink(
-                    '<i class="bi bi-x-circle"></i> ' . __('Unmark Ready'),
+                    '<kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> ' . __('Unmark Ready'),
                     [
                         'plugin' => 'Waivers',
                         'controller' => 'GatheringWaivers',
@@ -121,7 +121,7 @@ $isCancelled = $gathering->cancelled_at !== null;
                 ) ?>
             <?php else: ?>
             <?= $this->Form->postLink(
-                    '<i class="bi bi-check2-square"></i> ' . __('Mark Ready to Close'),
+                    '<kmp-icon name="checkbox"  aria-hidden="true"></kmp-icon> ' . __('Mark Ready to Close'),
                     [
                         'plugin' => 'Waivers',
                         'controller' => 'GatheringWaivers',
@@ -138,7 +138,7 @@ $isCancelled = $gathering->cancelled_at !== null;
             <?php endif; ?>
             <?php if ($totalWaiverCount > 0): ?>
             <?= $this->Html->link(
-                    '<i class="bi bi-list-ul"></i> ' . __('View All Waivers') . ' <span class="badge bg-light text-dark ms-1">' . $totalWaiverCount . '</span>',
+                    '<kmp-icon name="list"  aria-hidden="true"></kmp-icon> ' . __('View All Waivers') . ' <span class="badge bg-light text-dark ms-1">' . $totalWaiverCount . '</span>',
                     [
                         'plugin' => 'Waivers',
                         'controller' => 'GatheringWaivers',
@@ -153,7 +153,7 @@ $isCancelled = $gathering->cancelled_at !== null;
             <?php endif; ?>
             <?php if ($user && $user->checkCan('edit', $gathering) && !$isEmpty && !$waiverCollectionClosed): ?>
             <?= $this->Html->link(
-                    '<i class="bi bi-cloud-upload"></i> ' . __('Submit Waivers'),
+                    '<kmp-icon name="cloud-upload"  aria-hidden="true"></kmp-icon> ' . __('Submit Waivers'),
                     [
                         'plugin' => 'Waivers',
                         'controller' => 'GatheringWaivers',
@@ -171,7 +171,7 @@ $isCancelled = $gathering->cancelled_at !== null;
 
     <?php if ($waiverCollectionClosed): ?>
     <div class="alert alert-dark">
-        <i class="bi bi-lock-fill"></i>
+        <kmp-icon name="lock"  aria-hidden="true"></kmp-icon>
         <?= __('Waiver collection is closed for this gathering.') ?>
         <?php if ($waiverClosure): ?>
         <div class="small text-muted mt-1">
@@ -181,7 +181,7 @@ $isCancelled = $gathering->cancelled_at !== null;
     </div>
     <?php elseif ($isReadyToClose): ?>
     <div class="alert alert-info">
-        <i class="bi bi-check2-square"></i>
+        <kmp-icon name="checkbox"  aria-hidden="true"></kmp-icon>
         <?= __('This gathering is marked as ready for waiver secretary review.') ?>
         <?php if ($waiverClosure): ?>
         <div class="small text-muted mt-1">
@@ -194,7 +194,7 @@ $isCancelled = $gathering->cancelled_at !== null;
     <?php if ($isEmpty): ?>
     <!-- No Requirements Configured -->
     <div class="alert alert-secondary">
-        <i class="bi bi-info-circle"></i>
+        <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
         <?= __('No waiver requirements have been configured for this gathering yet.') ?>
     </div>
     <?php else: ?>
@@ -203,8 +203,7 @@ $isCancelled = $gathering->cancelled_at !== null;
         class="alert alert-<?= ($overallStats['complete'] + $overallStats['exempted']) === $overallStats['total'] ? 'success' : ($overallStats['pending'] > 0 ? 'warning' : 'info') ?> mb-3">
         <div class="d-flex justify-content-between align-items-center">
             <div>
-                <i
-                    class="bi bi-<?= ($overallStats['complete'] + $overallStats['exempted']) === $overallStats['total'] ? 'check-circle' : 'info-circle' ?>"></i>
+                <?= $this->Icon->render(($overallStats['complete'] + $overallStats['exempted']) === $overallStats['total'] ? 'circle-check' : 'info-circle') ?>
                 <?= __(
                         '{0} waiver type requirements for this gathering.',
                         count($waiverRows)
@@ -232,7 +231,7 @@ $isCancelled = $gathering->cancelled_at !== null;
         <?php if ($gathering->waivers_collected): ?>
         <hr>
         <small>
-            <i class="bi bi-lock-fill"></i>
+            <kmp-icon name="lock"  aria-hidden="true"></kmp-icon>
             <?= __('Waivers have been marked as collected for this gathering.') ?>
         </small>
         <?php endif; ?>
@@ -276,7 +275,7 @@ $isCancelled = $gathering->cancelled_at !== null;
                         <?php if ($exemption): ?>
                         <span class="badge bg-info" data-bs-toggle="tooltip"
                             title="<?= h($exemption->exemption_reason) ?>">
-                            <i class="bi bi-shield-check"></i> <?= __('Exempted') ?>
+                            <kmp-icon name="shield-check"  aria-hidden="true"></kmp-icon> <?= __('Exempted') ?>
                         </span>
                         <br>
                         <small class="text-muted">
@@ -284,13 +283,13 @@ $isCancelled = $gathering->cancelled_at !== null;
                         </small>
                         <?php elseif ($isComplete): ?>
                         <span class="badge bg-success">
-                            <i class="bi bi-check-circle-fill"></i> <?= __('Uploaded') ?>
+                            <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon> <?= __('Uploaded') ?>
                         </span>
                         <br>
                         <small class="text-muted"><?= __('({0} submitted)', $uploadedCount) ?></small>
                         <?php else: ?>
                         <span class="badge bg-warning text-dark">
-                            <i class="bi bi-exclamation-circle-fill"></i> <?= __('Pending') ?>
+                            <kmp-icon name="alert-circle"  aria-hidden="true"></kmp-icon> <?= __('Pending') ?>
                         </span>
                         <?php endif; ?>
                     </td>
@@ -302,7 +301,7 @@ $isCancelled = $gathering->cancelled_at !== null;
                                         $label = __('Submit');
                                     } ?>
                         <?= $this->Html->link(
-                                        '<i class="bi bi-cloud-upload"></i> ' . $label,
+                                        '<kmp-icon name="cloud-upload"  aria-hidden="true"></kmp-icon> ' . $label,
                                         [
                                             'plugin' => 'Waivers',
                                             'controller' => 'GatheringWaivers',
@@ -323,7 +322,7 @@ $isCancelled = $gathering->cancelled_at !== null;
                             data-gathering-id="<?= $gatheringId ?>"
                             data-reasons="<?= h(json_encode($waiverType->exemption_reasons_parsed)) ?>"
                             data-action="click->waivers-waiver-attestation#showModal">
-                            <i class="bi bi-shield-check"></i> <?= __('Attest Not Needed') ?>
+                            <kmp-icon name="shield-check"  aria-hidden="true"></kmp-icon> <?= __('Attest Not Needed') ?>
                         </button>
                         <?php endif; ?>-->
                         <?php endif; ?>
@@ -336,13 +335,15 @@ $isCancelled = $gathering->cancelled_at !== null;
     <?php if ($user && $user->checkCan('edit', $gathering) && !$waiverCollectionClosed): ?>
     <!-- Important Notice -->
     <div class="alert alert-info">
-        <i class="bi bi-info-circle"></i>
+        <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
         <strong><?= __('Important:') ?></strong>
         <?= __('Adding activities can introduce new waiver requirements for this gathering.') ?>
     </div>
     <?php endif; ?>
 
     <?php endif; ?>
+
+    <?= $this->element('Waivers.GatheringWaivers/loss_reports') ?>
 
     <!-- Include Attestation Modal (must be inside controller scope) -->
     <?= $this->element('Waivers.waiver_attestation_modal') ?>

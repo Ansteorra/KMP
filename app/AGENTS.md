@@ -56,6 +56,7 @@ Own the CakePHP application runtime: PHP source, configuration, templates, front
 
 | Path | Purpose |
 | --- | --- |
+| `app/resources/icons/AGENTS.md` | Reviewed icon selection, compatibility, licensing, generation, and delivery contracts |
 | `app/config/AGENTS.md` | Routes, plugin activation, migrations configuration, and environment-facing app configuration |
 | `app/src/AGENTS.md` | Core CakePHP source boundaries and backend development contracts |
 | `app/templates/AGENTS.md` | CakePHP views, layouts, elements, Bootstrap, Turbo Frames, and accessibility |

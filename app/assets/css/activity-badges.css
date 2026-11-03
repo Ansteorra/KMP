@@ -1,0 +1,43 @@
+.gathering-activity-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .3em;
+    vertical-align: middle;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: start;
+}
+
+.gathering-activity-mask {
+    flex: none;
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    background-color: currentColor;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    mask-size: contain;
+    mask-mode: alpha;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    -webkit-mask-size: contain;
+}
+
+.gathering-activity-image {
+    flex: none;
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+}
+
+.activity-icon-picker {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+    gap: .4rem;
+    max-width: 40rem;
+}
+
+.activity-icon-picker button {
+    min-height: 44px;
+}

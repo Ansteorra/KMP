@@ -8,7 +8,8 @@ function worker() {
     const cache = name => {
         if (!stores.has(name)) stores.set(name, new Map());
         const map = stores.get(name);
-        return { put: jest.fn(async (key, value) => map.set(typeof key === 'string' ? key : key.url, value)),
+        return { keys: async () => [...map.keys()].map(key => ({url: new URL(key, 'https://kmp.test').href})),
+            delete: async request => map.delete(new URL(request.url).pathname), put: jest.fn(async (key, value) => map.set(typeof key === 'string' ? key : key.url, value)),
             match: jest.fn(async key => map.get(typeof key === 'string' ? key : key.url)) };
     };
     const context = { URL, AbortController, setTimeout, clearTimeout, Response: class { constructor(body) { this.body = body; } }, self: { location: { origin: 'https://kmp.test' }, addEventListener: (name, fn) => { handlers[name] = fn; },
@@ -119,12 +120,26 @@ test('failed refresh and worker activation preserve the previously ready public 
     expect(stores.has('kmp-mobile-v2.1.1')).toBe(false);
 });
 
+test('successful public refresh retires the Bootstrap font and caches only versioned icon paths', async () => {
+    const { handlers, stores, context } = worker();
+    const icon = '/kmp-icons/1234567890abcdef/search.0123456789abcdef.svg';
+    const rows = new Map([['/fonts/bootstrap-icons-OLD.woff2', 'OLD FONT']]);
+    stores.set('kmp-public-offline-v3.0.0', rows);
+    context.fetch.mockImplementation(async url => publicReply(url === '/offline/assets' ? {assets:[icon]} : 'PUBLIC'));
+    expect(await askWorker(handlers, 'PREPARE_OFFLINE')).toEqual({ready:true});
+    expect(rows.has('/fonts/bootstrap-icons-OLD.woff2')).toBe(false);
+    expect(rows.has(icon)).toBe(true);
+    const event = {request:{url:'https://kmp.test/kmp-icons/private/icon.svg',method:'GET',mode:'cors'},respondWith:jest.fn()};
+    handlers.fetch(event);
+    expect(event.respondWith).not.toHaveBeenCalled();
+});
+
 
 test('bundled font query strings use the same precached public asset offline', async () => {
     const { handlers, stores, context } = worker();
-    stores.set('kmp-public-offline-v3.0.0', new Map([['/fonts/bootstrap-icons-HASH.woff2', 'FONT']]));
+    stores.set('kmp-public-offline-v3.0.0', new Map([['/fonts/cinzel-HASH.woff2', 'FONT']]));
     let pending;
-    handlers.fetch({ request: { url: 'https://kmp.test/fonts/bootstrap-icons-HASH.woff2?package-hash', method: 'GET', mode: 'cors' }, respondWith: promise => { pending = promise; } });
+    handlers.fetch({ request: { url: 'https://kmp.test/fonts/cinzel-HASH.woff2?package-hash', method: 'GET', mode: 'cors' }, respondWith: promise => { pending = promise; } });
     expect(await pending).toBe('FONT');
     expect(context.fetch).not.toHaveBeenCalled();
 });

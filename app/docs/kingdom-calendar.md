@@ -4,6 +4,29 @@ The calendar is a tenant-host public surface backed by the tenant's gatherings. 
 unauthenticated, but it is not global: `TenantResolutionMiddleware` must resolve the request
 host before `GatheringsController` can query data.
 
+## Signed-in gathering reader
+
+The signed-in `/gatherings/view/<public_id>` page uses `Gatherings/reader.php`, a native
+application layout with an Overview first: when/where, the member's RSVP, description,
+schedule, activity badges, royal progress and shared contacts. It does not embed the
+public landing-page element, styles or fonts. Directions, registration, calendar and
+sharing links are next to the event summary. Overview anchors provide quick section access.
+
+`view.php` supplies authorized organization tools to that layout; `view_public.php`
+supplies the limited member view. Metadata lives under Record details. Plugin tabs and
+details still come from the view-cell registry, using the integer record ID. Keep
+existing tab IDs and modal/controller targets stable for deep links and delegated activity
+permissions. The overview includes only staff flagged for public sharing; private
+staffing remains in the authorized Staff tab. RSVP eligibility matches the attendance
+endpoints, including existing RSVPs on cancelled events and events ending today.
+The unauthenticated landing page remains a separate presentation.
+
+For local browser acceptance without a database reset, run
+`node tests/ui/support/gathering-reader-browser-check.cjs` from `app/`. Set
+`KMP_READER_EVIDENCE_DIR` to keep desktop/mobile screenshots outside Git. The check
+creates and cleans up synthetic members and a gathering, and exercises reader privacy,
+RSVP save/reopen, organization tools, keyboard tabs, cancellation and responsive layout.
+
 ## Publication and public links
 
 `GatheringsController::publish()` is the only normal write path for the guarded publication
@@ -30,6 +53,7 @@ reimplementing them in JavaScript.
 - selects `published = true` gatherings whose dates overlap today through two years ahead;
 - groups them by the event's timezone;
 - supports `activities[]=<id>` filtering and derives options from upcoming published events;
+- supports `royal_progress[]=<snapshot>` filtering by royal office and represented branch;
 - displays branch, location, activity/circle metadata, cancellation state, event and calendar
   links, and royal-progress snapshots;
 - renders the `public_event` layout with `templates/Gatherings/public_calendar.php` and
@@ -57,6 +81,32 @@ progress-enabled office, then records `progress_office_name` and `progress_branc
 snapshots and forces `share_with_kingdom = true`. Public displays use the snapshots so an old
 event does not change when office assignments change. Progress fields remain guarded from
 normal mass assignment.
+
+The member profile, event detail, public event, desktop calendar, and mobile calendar RSVP forms share the
+Royal Progress switch and office selector. Eligibility comes from current officer assignments
+whose office has `is_royal_progress` enabled, rather than a role name alone. The visible switch
+defaults to **On** when creating an eligible royal's RSVP; the office selector defaults to the
+first eligible assignment and lets members choose the represented office/branch when they hold
+several. Turning it **Off** records an ordinary RSVP. Editing preserves the saved On/Off state,
+including historical office/branch snapshots when an assignment ends or changes. Turning an
+existing progress RSVP Off clears its progress metadata.
+
+Gathering grids, desktop calendars, the mobile calendar, and `/events` offer a **Royal
+Progress** filter. Choices use the saved title (for example, “Crown of Ansteorra” or
+“Coronet of a Principality”), so the represented branch is independent of the event's
+hosting branch. **Any Royal Progress** matches any recorded royal RSVP. Selecting several
+office/branch choices matches any of them; activity and other filters still apply together.
+Multiple matching RSVPs never duplicate an event. Clearing or deleting a royal RSVP removes
+that match.
+
+Month, week, list, and mobile calendars show a small gold crown badge for royal progress,
+alongside the existing attendance/activity indicators. Its tooltip and accessible label list
+the attending offices and represented branches; ordinary RSVPs do not add the badge.
+
+Each snapshot filter value is a base64-encoded JSON pair `[office_name, branch_name]`; a branch may be
+`null`. Grid and feed URLs carry the choices as `filter[royal_progress][]`, with `any` for
+all royal RSVPs. The public calendar's subscription link retains its royal progress
+selection. Office renames and changes of office holder do not rewrite existing choices.
 
 ## Theme and embedding constraints
 

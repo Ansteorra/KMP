@@ -723,7 +723,7 @@ class GatheringsCalendarController extends Controller {
                     button.removeAttribute('data-attendance-id')
                     button.classList.remove('btn-success')
                     button.classList.add('btn-outline-success')
-                    button.innerHTML = '<i class="bi bi-calendar-check"></i> Attend'
+                    button.innerHTML = '<kmp-icon name="calendar-check"  aria-hidden="true"></kmp-icon> Attend'
 
                     // Show success message
                     this.showToast('Success!', 'Your attendance has been removed.', 'success')
@@ -735,7 +735,7 @@ class GatheringsCalendarController extends Controller {
                     }
                     button.classList.remove('btn-outline-success')
                     button.classList.add('btn-success')
-                    button.innerHTML = '<i class="bi bi-check-circle"></i> Attending'
+                    button.innerHTML = '<kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon> Attending'
 
                     // Show success message
                     this.showToast('Success!', 'Your attendance has been recorded.', 'success')

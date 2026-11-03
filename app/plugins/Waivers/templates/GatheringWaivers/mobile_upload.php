@@ -68,6 +68,10 @@
             data-waiver-upload-wizard-gathering-id-value="<?= $gathering->id ?>"
             data-waiver-upload-wizard-gathering-public-id-value="<?= h($gathering->public_id) ?>"
             data-waiver-upload-wizard-total-steps-value="3"
+        data-waiver-upload-wizard-can-record-lost-value="<?= !empty($canRecordLost) ? 'true' : 'false' ?>"
+        data-waiver-upload-wizard-record-lost-url-value="<?= $this->Url->build([
+            'plugin' => 'Waivers', 'controller' => 'GatheringWaivers', 'action' => 'recordLost',
+        ]) ?>"
             data-waiver-upload-wizard-max-file-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
             data-waiver-upload-wizard-total-max-size-value="<?= h($uploadLimits['postMaxSize']) ?>"
             data-waiver-upload-wizard-attest-url-value="<?= $this->Url->build(['plugin' => 'Waivers', 'controller' => 'GatheringWaivers', 'action' => 'attest']) ?>"
@@ -78,11 +82,11 @@
             <div class="card mb-4 waiver-gathering-info">
                 <div class="card-body p-3">
                     <h5 class="card-title mb-2">
-                        <i class="bi bi-calendar-event me-2"></i>
+                        <kmp-icon name="calendar-event" class="me-2" aria-hidden="true"></kmp-icon>
                         <?= h($gathering->name) ?>
                     </h5>
                     <p class="card-text small mb-1">
-                        <i class="bi bi-calendar3 me-1"></i>
+                        <kmp-icon name="calendar-month" class="me-1" aria-hidden="true"></kmp-icon>
                         <?= $this->Timezone->format($gathering->start_date, $gathering, 'M j, Y') ?>
                         <?php if ($this->Timezone->format($gathering->start_date, $gathering, 'Y-m-d') !== $this->Timezone->format($gathering->end_date, $gathering, 'Y-m-d')): ?>
                             - <?= $this->Timezone->format($gathering->end_date, $gathering, 'M j, Y') ?>
@@ -90,7 +94,7 @@
                     </p>
                     <?php if (!empty($gathering->location)): ?>
                         <p class="card-text text-muted small mb-0">
-                            <i class="bi bi-geo-alt me-1"></i><?= h($gathering->location) ?>
+                            <kmp-icon name="map-pin" class="me-1" aria-hidden="true"></kmp-icon><?= h($gathering->location) ?>
                         </p>
                     <?php endif; ?>
                 </div>
@@ -146,7 +150,7 @@
                     <button type="button" class="btn btn-outline-secondary"
                         data-waiver-upload-wizard-target="prevButton"
                         data-action="click->waiver-upload-wizard#prevStep">
-                        <i class="bi bi-arrow-left me-1"></i><?= __('Back') ?>
+                        <kmp-icon name="arrow-left" class="me-1" aria-hidden="true"></kmp-icon><?= __('Back') ?>
                     </button>
 
                     <?= $this->Html->link(
@@ -157,12 +161,12 @@
 
                     <button type="button" class="btn btn-primary" data-waiver-upload-wizard-target="nextButton"
                         data-action="click->waiver-upload-wizard#nextStep">
-                        <?= __('Next') ?><i class="bi bi-arrow-right ms-1"></i>
+                        <?= __('Next') ?><kmp-icon name="arrow-right" class="ms-1" aria-hidden="true"></kmp-icon>
                     </button>
 
                     <button type="button" class="btn btn-success d-none" data-waiver-upload-wizard-target="submitButton"
                         data-action="click->waiver-upload-wizard#submitForm">
-                        <i class="bi bi-upload me-1"></i><span data-waiver-upload-wizard-target="submitButtonText"><?= __('Upload') ?></span>
+                        <kmp-icon name="upload" class="me-1" aria-hidden="true"></kmp-icon><span data-waiver-upload-wizard-target="submitButtonText"><?= __('Upload') ?></span>
                     </button>
                 </div>
             </div>

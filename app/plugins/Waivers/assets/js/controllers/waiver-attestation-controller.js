@@ -94,7 +94,7 @@ class WaiverAttestationController extends Controller {
         if (reasons.length === 0) {
             this.reasonListTarget.innerHTML = `
                 <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle"></i>
+                    <kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon>
                     No exemption reasons have been configured for this waiver type.
                 </div>
             `
@@ -239,7 +239,7 @@ class WaiverAttestationController extends Controller {
     resetSubmitButton() {
         if (this.hasSubmitBtnTarget) {
             this.submitBtnTarget.disabled = false
-            this.submitBtnTarget.innerHTML = '<i class="bi bi-shield-check"></i> Submit Attestation'
+            this.submitBtnTarget.innerHTML = '<kmp-icon name="shield-check"  aria-hidden="true"></kmp-icon> Submit Attestation'
         }
     }
 

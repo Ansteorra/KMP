@@ -36,13 +36,13 @@ echo $this->KMP->startBlock("pageTitle") ?>
         <a href="<?= $this->Url->build(['controller' => 'Permissions', 'action' => 'exportPolicies', $permission->id]) ?>"
             class="btn btn-outline-secondary btn-sm"
             title="Export this permission's policies to JSON">
-            <i class="bi bi-download me-1"></i>Export Policies
+            <kmp-icon name="download" class="me-1" aria-hidden="true"></kmp-icon>Export Policies
         </a>
         <button type="button"
             class="btn btn-outline-secondary btn-sm"
             data-action="click->permission-import#triggerFileSelect"
             title="Import policies from JSON file">
-            <i class="bi bi-upload me-1"></i>Import Policies
+            <kmp-icon name="upload" class="me-1" aria-hidden="true"></kmp-icon>Import Policies
         </button>
         <input type="file"
             accept=".json"
@@ -147,7 +147,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                                 "Are you sure you want to remove {0}?",
                                                 $role->name,
                                             ),
-                                            "class" => "btn-sm btn btn-danger bi bi-trash3-fill",
+                                            "class" => "btn-sm btn btn-danger", 'icon' => 'trash',
                                             "data" => [
                                                 "permission_id" => $permission->id,
                                                 "role_id" => $role->id,
@@ -189,7 +189,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
         ?>
             <div class="mb-3">
                 <div class="d-flex align-items-center bg-light p-2 border rounded">
-                    <i class="bi bi-caret-right-fill collapse-icon me-2" data-namespace="<?= $namespaceId ?>"></i>
+                    <kmp-icon name="caret-right" aria-hidden="true" class=" collapse-icon me-2" data-namespace="<?= $namespaceId ?>"></kmp-icon>
                     <strong class="policy-toggle namespace-toggle" style="cursor: pointer;"
                         data-bs-toggle="collapse"
                         data-bs-target=".namespace_<?= $namespaceId ?>"
@@ -263,11 +263,9 @@ echo $this->KMP->startBlock("pageTitle") ?>
                     var isExpanded = targets[0] && targets[0].classList.contains('show');
 
                     if (isExpanded) {
-                        icon.classList.remove('bi-caret-down-fill');
-                        icon.classList.add('bi-caret-right-fill');
+                        icon.setAttribute('name', 'caret-right');
                     } else {
-                        icon.classList.remove('bi-caret-right-fill');
-                        icon.classList.add('bi-caret-down-fill');
+                        icon.setAttribute('name', 'caret-down');
                     }
                 }
             });
@@ -312,7 +310,7 @@ if ($user->isSuperUser()): ?>
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">
-                            <i class="bi bi-file-earmark-arrow-up me-2"></i>Import Policies to "<?= h($permission->name) ?>"
+                            <kmp-icon name="file-upload" class="me-2" aria-hidden="true"></kmp-icon>Import Policies to "<?= h($permission->name) ?>"
                         </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
@@ -337,7 +335,7 @@ if ($user->isSuperUser()): ?>
                             class="btn btn-primary"
                             data-permission-import-target="confirmBtn"
                             data-action="click->permission-import#confirmImport">
-                            <i class="bi bi-check-lg me-1"></i>Confirm Import
+                            <kmp-icon name="check" class="me-1" aria-hidden="true"></kmp-icon>Confirm Import
                         </button>
                     </div>
                 </div>
@@ -359,7 +357,7 @@ echo $this->Modal->create("Add Role to Permissions", [
 ]); ?>
 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-        <i class="bi bi-person-plus text-primary me-1" aria-hidden="true"></i>
+        <kmp-icon name="user-plus" class="text-primary me-1" aria-hidden="true"></kmp-icon>
         <?= __("Role Assignment") ?>
     </legend>
     <?php
@@ -415,7 +413,7 @@ echo $this->Modal->create("Edit Permissions", [
     <div class="col-12 col-lg-5">
         <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-        <i class="bi bi-shield-lock text-primary me-1" aria-hidden="true"></i>
+        <kmp-icon name="shield-lock" class="text-primary me-1" aria-hidden="true"></kmp-icon>
         <?= __("Permission Details") ?>
     </legend>
     <?php
@@ -434,7 +432,7 @@ echo $this->Modal->create("Edit Permissions", [
     <div class="col-12 col-lg-7">
         <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
             <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                <i class="bi bi-person-check text-success me-1" aria-hidden="true"></i>
+                <kmp-icon name="user-check" class="text-success me-1" aria-hidden="true"></kmp-icon>
                 <?= __("Eligibility Requirements") ?>
             </legend>
             <div class="row g-3">

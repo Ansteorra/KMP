@@ -27,7 +27,7 @@ use App\KMP\StaticHelpers;
  * Each navigation item is an array with:
  * - **label**: Display text for the menu item
  * - **url**: URL array or string for the link
- * - **icon**: Bootstrap icon class (optional)
+ * - **icon**: Canonical KMP icon ID (optional)
  * - **order**: Sort order in the menu
  * - **children**: Sub-menu items (optional)
  * - **badge**: Notification badge (optional)
@@ -58,7 +58,7 @@ class TemplateNavigationProvider
      * - label: Display text
      * - order: Sort order within the mergePath
      * - url: CakePHP URL array
-     * - icon: Bootstrap icon class
+     * - icon: Canonical KMP icon ID
      * - badgeValue: Optional dynamic badge configuration
      * - activePaths: Optional array of paths that highlight this nav item
      *
@@ -81,7 +81,7 @@ class TemplateNavigationProvider
         $items[] = [
             "type" => "parent",
             "label" => "Template",
-            "icon" => "bi-puzzle",
+            "icon" => "puzzle",
             "id" => "navheader_template",
             "order" => 900,
         ];
@@ -97,7 +97,7 @@ class TemplateNavigationProvider
                 "action" => "index",
                 "plugin" => "Template",
             ],
-            "icon" => "bi-globe",
+            "icon" => "world",
             "activePaths" => [
                 "template/HelloWorld/view/*",
                 "template/HelloWorld/edit/*",
@@ -116,7 +116,7 @@ class TemplateNavigationProvider
                     "action" => "add",
                     "plugin" => "Template",
                 ],
-                "icon" => "bi-plus-circle",
+                "icon" => "circle-plus",
             ];
         }
 
@@ -134,7 +134,7 @@ class TemplateNavigationProvider
                     "plugin" => "Template",
                     "?" => ["member_id" => $user->id ?? null]
                 ],
-                "icon" => "bi-person-lines-fill",
+                "icon" => "user-scan",
             ];
         }
 
@@ -151,7 +151,7 @@ class TemplateNavigationProvider
         //             "action" => "pending",
         //             "plugin" => "Template",
         //         ],
-        //         "icon" => "bi-exclamation-circle",
+        //         "icon" => "alert-circle",
         //         "badgeClass" => "bg-danger",
         //         "badgeValue" => [
         //             "class" => "Template\Model\Table\HelloWorldItemsTable",

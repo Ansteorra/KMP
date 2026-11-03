@@ -18,6 +18,7 @@ Own source JavaScript, CSS, Vite entrypoints, frontend dependencies, and build-t
 
 - Use Vite only; do not add Laravel Mix or Webpack configuration.
 - `npm run dev` builds development assets and `npm run build` builds production assets.
+- Vite runs the pinned icon importer before bundling; `resources/icons` owns reviewed selections, compatibility and generated catalog data. See `app/docs/icons.md`. Ship `webroot/kmp-icons` with matching bundles and PHP resolver; never import upstream icon APIs at runtime.
 - Vite outputs into `webroot` with hashed filenames and a manifest; templates should rely on the app asset helper rather than hard-coded built filenames.
 - The build copies FontAwesome webfonts to `webroot/fonts` and the PDF.js worker to `webroot/js/pdf.worker.min.mjs`.
 - Bootstrap, Stimulus, Turbo, and shared utilities are app-level dependencies, not template-level script tags.

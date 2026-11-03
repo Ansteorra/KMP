@@ -1,6 +1,8 @@
+@import './activity-badges.css';
+@import './gathering-reader.css';
 @import 'bootstrap.css';
 @import 'modal.css';
-@import 'bootstrap-icons/font/bootstrap-icons.css';
+@import './icons.css';
 @import '@fontsource/cinzel/latin-400.css';
 @import '@fontsource/cinzel/latin-500.css';
 @import '@fontsource/cinzel/latin-600.css';
@@ -9,7 +11,7 @@
 @import '@fontsource/crimson-pro/latin-500.css';
 @import '@fontsource/crimson-pro/latin-600.css';
 @import '@fontsource/crimson-pro/latin-400-italic.css';
-@import 'bootstrap-icon-sizes.css';
+
 @import 'dashboard.css';
 @import 'platform-admin.css';
 @import 'easymde/dist/easymde.min.css';
@@ -71,14 +73,13 @@
     line-height: 1;
 }
 
-.grid-view-filter-badge-control .bi-x {
+.grid-view-filter-badge-control kmp-icon[name="x"] {
     font-size: 0.9rem;
     font-weight: 700;
 }
 
-.grid-view-filter-badge-control .bi-lock-fill {
-    font-size: 0.65rem;
-    opacity: 0.65;
+.grid-view-filter-badge-control kmp-icon[name="lock"] {
+    font-size: 0.9rem;
 }
 
 button.grid-view-filter-badge-control:hover,
@@ -359,32 +360,18 @@ input:checked+.slider:before {
 
 
 .policy-class::before {
+    content: '';
     display: inline-block;
-    font-family: bootstrap-icons !important;
-    font-style: normal;
-    font-weight: normal !important;
-    font-variant: normal;
-    text-transform: none;
-    line-height: 1;
-    vertical-align: -.125em;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    content: "\F13A";
+    width: 1.25em;
+    height: 1.25em;
+    vertical-align: -.25em;
+    background-color: currentColor;
+    mask: var(--kmp-policy-collapsed) center / contain no-repeat;
+    -webkit-mask: var(--kmp-policy-collapsed) center / contain no-repeat;
 }
-
-/* add an down arrow icon using bootstrap icons to policy-class when aria-expanded is true */
 .policy-class[aria-expanded="true"]::before {
-    display: inline-block;
-    font-family: bootstrap-icons !important;
-    font-style: normal;
-    font-weight: normal !important;
-    font-variant: normal;
-    text-transform: none;
-    line-height: 1;
-    vertical-align: -.125em;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    content: "\F119";
+    mask-image: var(--kmp-policy-expanded);
+    -webkit-mask-image: var(--kmp-policy-expanded);
 }
 
 .namespace-cell {
@@ -665,7 +652,7 @@ tr.row-expanded {
     color: #6c757d;
 }
 
-tr.row-expanded .toggle-icon.bi-chevron-down {
+tr.row-expanded kmp-icon.toggle-icon[name="chevron-down"] {
     transform: rotate(0deg);
 }
 

@@ -1,3 +1,5 @@
+import { createIcon, setIcon } from '../services/icon-service.js';
+const linkIcon = type => type === 'link' ? 'link' : `brand-${type === 'twitter-x' ? 'x' : type}`;
 import { Controller } from "@hotwired/stimulus"
 
 /**
@@ -9,7 +11,7 @@ import { Controller } from "@hotwired/stimulus"
  * 
  * Features:
  * - Dynamic link addition with URL sanitization
- * - Link type selection with Bootstrap Icons
+ * - Link type selection with catalog icons
  * - Duplicate prevention and validation
  * - Real-time form value synchronization
  * - Bootstrap-styled UI components
@@ -23,7 +25,7 @@ import { Controller } from "@hotwired/stimulus"
  * Usage:
  * <div data-controller="branch-links">
  *   <input data-branch-links-target="new" type="url" placeholder="Enter URL">
- *   <div data-branch-links-target="linkType" data-value="link" class="bi bi-link"></div>
+ *   <button type="button" data-branch-links-target="linkType" data-value="link" aria-label="Link type: Link"><kmp-icon name="link" aria-hidden="true"></kmp-icon></button>
  *   <button data-action="click->branch-links#add">Add Link</button>
  *   <div data-branch-links-target="displayList"></div>
  *   <input data-branch-links-target="formValue" type="hidden" name="links">
@@ -48,11 +50,11 @@ class BrancheLinks extends Controller {
      */
     setLinkType(event) {
         event.preventDefault();
-        let linkType = event.target.getAttribute('data-value');
-        let previousLinkType = this.linkTypeTarget.dataset.value;
-        this.linkTypeTarget.classList.remove('bi-' + previousLinkType);
-        this.linkTypeTarget.classList.add('bi-' + linkType);
+        let linkType = event.currentTarget.getAttribute('data-value');
+        setIcon(this.linkTypeTarget.querySelector('kmp-icon'), linkIcon(linkType));
         this.linkTypeTarget.dataset.value = linkType;
+        const label = event.currentTarget.textContent?.trim() || linkType.replace(/^./, letter => letter.toUpperCase());
+        this.linkTypeTarget.setAttribute('aria-label', `Link type: ${label}`);
     }
 
     /**
@@ -82,8 +84,8 @@ class BrancheLinks extends Controller {
         this.formValueTarget.value = JSON.stringify(this.items);
         this.newTarget.value = '';
         this.linkTypeTarget.dataset.value = 'link';
-        this.linkTypeTarget.classList.remove('bi-' + type);
-        this.linkTypeTarget.classList.add('bi-link');
+        this.linkTypeTarget.setAttribute('aria-label', 'Link type: Link');
+        setIcon(this.linkTypeTarget.querySelector('kmp-icon'), 'link');
     }
 
     /**
@@ -134,7 +136,8 @@ class BrancheLinks extends Controller {
         let inputGroup = document.createElement('div');
         inputGroup.setAttribute('class', 'input-group mb-1');
         let iconSpan = document.createElement('span');
-        iconSpan.setAttribute('class', 'input-group-text bi bi-' + item.type);
+        iconSpan.className = 'input-group-text';
+        iconSpan.append(createIcon(linkIcon(item.type)));
         inputGroup.appendChild(iconSpan);
         let span = document.createElement('span');
         span.innerHTML = item.url

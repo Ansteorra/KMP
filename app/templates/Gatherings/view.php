@@ -7,118 +7,38 @@ declare(strict_types=1);
  */
 ?>
 <?php
-$this->extend('/layout/TwitterBootstrap/view_record');
+$this->extend('reader');
 
-echo $this->KMP->startBlock('title');
-echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': View Gathering - ' . $gathering->name;
-$this->KMP->endBlock();
-
-echo $this->KMP->startBlock('pageTitle') ?>
-<?= h($gathering->name) ?>
-<?php if ($gathering->is_cancelled): ?>
-<span class="badge bg-danger ms-2"><?= __('CANCELLED') ?></span>
-<?php endif; ?>
-<?php $this->KMP->endBlock() ?>
-
-<?= $this->KMP->startBlock('recordActions') ?>
-<?php
-
-use Cake\I18n\DateTime;
-
-// Compare against the start of today so a gathering ending any time today is still
-// attendable. Note: $gathering->end_date is a Cake\I18n\DateTime, and Cake\I18n\Date
-// (Chronos 3) is not a DateTimeInterface, so DateTime vs Date comparisons are unreliable.
-$today = DateTime::now()->startOfDay();
-$canAttend = $gathering->end_date >= $today; // Can only register if gathering hasn't ended
-$isPastEvent = $gathering->end_date < $today; // Event has ended
-// Build public landing URL using dashed route format
-$publicLandingUrl = $this->Url->build([
-    'controller' => 'Gatherings',
-    'action' => 'public-landing',
-    $gathering->public_id
-], ['fullBase' => true]);
+$publicLandingUrl = $this->Url->build(['action' => 'publicLanding', $gathering->public_id], ['fullBase' => true]);
+$hasManagementActions = $user->checkCan('edit', $gathering)
+    || $user->checkCan('publish', $gathering)
+    || $user->checkCan('delete', $gathering)
+    || ($gathering->gathering_type->clonable && $user->checkCan('add', $gathering));
 ?>
-<!-- Download Calendar Button (only for current/future events) -->
-<?php if (!$isPastEvent): ?>
-<?= $this->Html->link(
-        '<i class="bi bi-calendar-plus"></i> ' . __('Add to Calendar'),
-        ['action' => 'downloadCalendar', $gathering->public_id],
-        [
-            'class' => 'btn btn-outline-success btn-sm',
-            'escape' => false,
-            'title' => __('Download calendar file (.ics) for Outlook, Google Calendar, iOS, etc.')
-        ]
-    ) ?>
-<?php endif; ?>
-
-<!-- Share Public Landing Page -->
-<div class="btn-group" role="group">
-    <button type="button" class="btn btn-outline-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown"
-        aria-expanded="false">
-        <i class="bi bi-share"></i> Share Event
-    </button>
-    <?php if ($gathering->public_page_enabled): ?>
-    <ul class="dropdown-menu">
-        <li>
-            <a class="dropdown-item" href="<?= $publicLandingUrl ?>" target="_blank">
-                <i class="bi bi-box-arrow-up-right"></i> View Public Page
-            </a>
-        </li>
-        <li>
-            <a class="dropdown-item bi bi-clipboard" href="#" data-controller="clipboard" data-action="clipboard#copy"
-                data-clipboard-text-value="<?= h($publicLandingUrl) ?>"
-                data-clipboard-success-message-value="<?= h(__('Link copied to clipboard!')) ?>">
-                Copy Link
-            </a>
-        </li>
-        <li>
-            <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#qrCodeModal">
-                <i class="bi bi-qr-code"></i> Show QR Code
-            </a>
-        </li>
-        <li>
-            <hr class="dropdown-divider">
-        </li>
-        <li class="px-3 py-2">
-            <small class="text-muted">Share this link with potential attendees</small>
-        </li>
-    </ul>
-    <?php else: ?>
-    <ul class="dropdown-menu">
-        <li class="px-3 py-2">
-            <small class="text-muted">
-                <i class="bi bi-info-circle"></i> Public landing page is disabled for this gathering.
-                Enable it in the Edit form to share this event.
-            </small>
-        </li>
-    </ul>
-    <?php endif; ?>
-</div>
-
-<?php if ($canAttend && (!$gathering->is_cancelled || $userAttendance)): ?>
-<button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#attendGatheringModal">
-    <i class="bi bi-calendar-check"></i>
-    <?= $userAttendance ? __('Update Attendance') : __('Attend This Gathering') ?>
-</button>
-<?php endif; ?>
+<?= $this->KMP->startBlock('recordActions') ?>
 <?php if ($user->checkCan('edit', $gathering)) : ?>
 <?= $this->Html->link(__('Edit'), ['action' => 'edit', $gathering->id], ['class' => 'btn btn-primary btn-sm']) ?>
 <?php endif; ?>
 
+<?php if ($hasManagementActions) : ?>
+<div class="dropdown d-inline-block">
+    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown"
+        aria-expanded="false"><?= __('More actions') ?></button>
+    <div class="dropdown-menu dropdown-menu-end p-3 gathering-management-actions">
 <?php if ($user->checkCan('edit', $gathering)) : ?>
 <?php if (!$gathering->is_cancelled): ?>
 <!-- Cancel Gathering Button -->
 <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#cancelGatheringModal">
-    <i class="bi bi-x-circle"></i> <?= __('Cancel Gathering') ?>
+    <kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> <?= __('Cancel Gathering') ?>
 </button>
 <?php else: ?>
 <!-- Restore Cancelled Gathering -->
 <?= $this->Form->postLink(
-            '<i class="bi bi-arrow-counterclockwise"></i> ' . __('Restore Gathering'),
+            '<kmp-icon name="rotate"  aria-hidden="true"></kmp-icon> ' . __('Restore Gathering'),
             ['action' => 'uncancel', $gathering->id],
             [
                 'confirm' => __('Are you sure you want to restore "{0}"?', $gathering->name),
-                'class' => 'btn btn-success btn-sm',
+                'class' => 'btn btn-outline-success btn-sm',
                 'escape' => false,
             ]
         ) ?>
@@ -142,7 +62,7 @@ $publicLandingUrl = $this->Url->build([
             ['action' => 'publish', $gathering->id, '?' => ['publish' => true]],
             [
                 'confirm' => __('Are you sure you want to publish "{0}"? This will make the gathering available on the Kingdom Calendar.', $gathering->name),
-                'class' => 'btn btn-success btn-sm',
+                'class' => 'btn btn-outline-success btn-sm',
             ],
 
         ) ?>
@@ -152,7 +72,7 @@ $publicLandingUrl = $this->Url->build([
 <?php if ($gathering->gathering_type->clonable && $user->checkCan('add', $gathering)) : ?>
 
 <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#cloneGatheringModal">
-    <i class="bi bi-files"></i> <?= __('Clone') ?>
+    <kmp-icon name="files"  aria-hidden="true"></kmp-icon> <?= __('Clone') ?>
 </button>
 
 <?php endif; ?>
@@ -165,6 +85,9 @@ $publicLandingUrl = $this->Url->build([
             'class' => 'btn btn-danger btn-sm',
         ],
     ) ?>
+<?php endif; ?>
+    </div>
+</div>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 
@@ -220,7 +143,7 @@ $publicLandingUrl = $this->Url->build([
         </small>
         <br>
         <small class="text-muted">
-            <i class="bi bi-info-circle"></i>
+            <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
             All times for this event are shown in <?= h($gathering->timezone) ?>
         </small>
     </td>
@@ -286,12 +209,12 @@ $publicLandingUrl = $this->Url->build([
     <th class="col"><?= __('Public Landing Page') ?></th>
     <td class="col-10">
         <?php if ($gathering->public_page_enabled): ?>
-        <span class="badge bg-success"><i class="bi bi-check-circle"></i> Enabled</span>
+        <span class="badge bg-success"><kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon> Enabled</span>
         <a href="<?= $publicLandingUrl ?>" target="_blank" class="ms-2">
-            <i class="bi bi-box-arrow-up-right"></i> View Public Page
+            <kmp-icon name="external-link"  aria-hidden="true"></kmp-icon> View Public Page
         </a>
         <?php else: ?>
-        <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Disabled</span>
+        <span class="badge bg-secondary"><kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> Disabled</span>
         <small class="text-muted ms-2">Public cannot access this event page</small>
         <?php endif; ?>
     </td>
@@ -300,7 +223,7 @@ $publicLandingUrl = $this->Url->build([
 <tr scope="row" class="table-danger">
     <th class="col"><?= __('Status') ?></th>
     <td class="col-10">
-        <span class="badge bg-danger"><i class="bi bi-x-circle"></i> <?= __('CANCELLED') ?></span>
+        <span class="badge bg-danger"><kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> <?= __('CANCELLED') ?></span>
         <small class="text-muted ms-2">
             <?= __('Cancelled on {0}', $this->Timezone->format($gathering->cancelled_at, 'F j, Y g:i A', true)) ?>
         </small>
@@ -327,32 +250,16 @@ $publicLandingUrl = $this->Url->build([
 <?php $this->KMP->endBlock() ?>
 
 <?php $this->KMP->startBlock('tabButtons') ?>
-<!-- Gatherings view tabs with ordering:
-     Order 1: Description tab (first - markdown content)
-     Order 3: Staff tab (new - stewards and other staff)
-     Order 4: Schedule tab (new - before activities)
-     Order 5: Activities tab (primary)
-     Order 6: Location tab
-     Order 7: Attendance tab
-     Order 10: Waivers plugin tab
-     -->
-<?php if (!empty($gathering->description)) : ?>
-<button class="nav-link" id="nav-description-tab" data-bs-toggle="tab" data-bs-target="#nav-description" type="button"
-    role="tab" aria-controls="nav-description" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="1"
-    style="order: 1;">
-    <i class="bi bi-file-text"></i> <?= __('Description') ?>
-</button>
-<?php endif; ?>
 <button class="nav-link" id="nav-staff-tab" data-bs-toggle="tab" data-bs-target="#nav-staff" type="button" role="tab"
     aria-controls="nav-staff" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="3"
     style="order: 3;">
-    <i class="bi bi-person-badge"></i> <?= __('Staff') ?>
+    <kmp-icon name="id-badge"  aria-hidden="true"></kmp-icon> <?= __('Staff') ?>
     <span class="badge bg-secondary"><?= count($gathering->gathering_staff) ?></span>
 </button>
 <button class="nav-link" id="nav-schedule-tab" data-bs-toggle="tab" data-bs-target="#nav-schedule" type="button"
     role="tab" aria-controls="nav-schedule" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="4"
     style="order: 4;">
-    <i class="bi bi-calendar-event"></i> <?= __('Schedule') ?>
+    <kmp-icon name="calendar-event"  aria-hidden="true"></kmp-icon> <?= __('Schedule') ?>
     <span class="badge bg-secondary"><?= count($gathering->gathering_scheduled_activities) ?></span>
 </button>
 <button class="nav-link" id="nav-activities-tab" data-bs-toggle="tab" data-bs-target="#nav-activities" type="button"
@@ -365,14 +272,14 @@ $publicLandingUrl = $this->Url->build([
 <button class="nav-link" id="nav-location-tab" data-bs-toggle="tab" data-bs-target="#nav-location" type="button"
     role="tab" aria-controls="nav-location" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="6"
     style="order: 6;">
-    <i class="bi bi-geo-alt-fill"></i> <?= __('Location') ?>
+    <kmp-icon name="map-pin"  aria-hidden="true"></kmp-icon> <?= __('Location') ?>
 </button>
 <?php endif; ?>
 <?php if ($user->checkCan('viewAttendance', $gathering)) : ?>
 <button class="nav-link" id="nav-attendance-tab" data-bs-toggle="tab" data-bs-target="#nav-attendance" type="button"
     role="tab" aria-controls="nav-attendance" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="7"
     style="order: 7;">
-    <i class="bi bi-people-fill"></i> <?= __('Attendance') ?>
+    <kmp-icon name="users"  aria-hidden="true"></kmp-icon> <?= __('Attendance') ?>
     <span class="badge bg-secondary"><?= $totalAttendanceCount ?></span>
 </button>
 <?php endif; ?>
@@ -380,15 +287,6 @@ $publicLandingUrl = $this->Url->build([
 
 <?php $this->KMP->startBlock('tabContent') ?>
 <!-- Tab content panels with order matching tab buttons -->
-<?php if (!empty($gathering->description)) : ?>
-<div class="related tab-pane fade m-3" id="nav-description" role="tabpanel" aria-labelledby="nav-description-tab"
-    data-detail-tabs-target="tabContent" data-tab-order="1" style="order: 1;">
-    <div class="markdown-content">
-        <?= $this->Markdown->toHtml($gathering->description) ?>
-    </div>
-</div>
-<?php endif; ?>
-
 <!-- Staff Tab -->
 <?= $this->element('gatherings/staffTab', [
     'gathering' => $gathering,
@@ -399,17 +297,16 @@ $publicLandingUrl = $this->Url->build([
 <?= $this->element('gatherings/scheduleTab', [
     'gathering' => $gathering,
     'user' => $user,
-    'courtActivityIds' => $courtActivityIds,
 ]) ?>
 
 <div class="related tab-pane fade m-3" id="nav-activities" role="tabpanel" aria-labelledby="nav-activities-tab"
     data-detail-tabs-target="tabContent" data-tab-order="5" style="order: 5;">
 
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <?php if ($canEditGathering || $canAddCourtActivity) : ?>
+        <?php if ($canAddActivity) : ?>
         <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addActivityModal">
-            <i class="bi bi-plus-circle" aria-hidden="true"></i>
-            <?= $canEditGathering ? __('Add Activity') : __('Add Court Activity') ?>
+            <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon>
+            <?= __('Add Activity') ?>
         </button>
         <?php endif; ?>
     </div>
@@ -432,11 +329,11 @@ $publicLandingUrl = $this->Url->build([
                         ?>
                 <tr>
                     <td>
-                        <?= h($activity->name) ?>
+                        <?= $this->GatheringActivity->badge($activity) ?>
                         <?php if ($isNotRemovable): ?>
                         <span class="badge bg-warning text-dark ms-2"
                             title="<?= __('This activity is required by the gathering type and cannot be removed') ?>">
-                            <i class="bi bi-lock-fill"></i> <?= __('Required') ?>
+                            <kmp-icon name="lock"  aria-hidden="true"></kmp-icon> <?= __('Required') ?>
                         </span>
                         <?php endif; ?>
                     </td>
@@ -450,23 +347,23 @@ $publicLandingUrl = $this->Url->build([
                     <td class="actions text-end text-nowrap">
                         <?php if ($user->checkCan('view', $activity)) : ?>
                         <?= $this->Html->link(
-                                        '<i class="bi bi-eye-fill"></i>',
+                                        '<kmp-icon name="eye"  aria-hidden="true"></kmp-icon>',
                                         ['controller' => 'GatheringActivities', 'action' => 'view', $activity->id],
                                         ['escape' => false, 'title' => __('View'), 'class' => 'btn btn-sm btn-secondary'],
                                     ) ?>
                         <?php endif; ?>
-                        <?php if ($canEditGathering) : ?>
+                        <?php if ($user->checkCan('manageActivity', $gathering, $activity)) : ?>
                         <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal"
                             data-bs-target="#editActivityDescriptionModal" data-activity-id="<?= $activity->id ?>"
                             data-activity-name="<?= h($activity->name) ?>"
                             data-default-description="<?= h($activity->description) ?>"
                             data-custom-description="<?= h($activity->_joinData->custom_description ?? '') ?>"
                             title="<?= __('Edit Description') ?>">
-                            <i class="bi bi-pencil-fill"></i>
+                            <kmp-icon name="pencil"  aria-hidden="true"></kmp-icon>
                         </button>
                         <?php endif; ?>
                         <?php
-                                $canRemoveActivity = $canEditGathering && (
+                                $canRemoveActivity = $user->checkCan('manageActivity', $gathering, $activity) && (
                                     !$hasWaivers || (
                                         $waiverRemovalAuthorization !== null &&
                                         $user->checkCan('removeGatheringActivity', $waiverRemovalAuthorization, $activity->id)
@@ -477,11 +374,11 @@ $publicLandingUrl = $this->Url->build([
                         <?php if ($isNotRemovable): ?>
                         <button type="button" class="btn btn-sm btn-secondary" disabled
                             title="<?= __('This activity is required by the gathering type and cannot be removed') ?>">
-                            <i class="bi bi-lock-fill"></i>
+                            <kmp-icon name="lock"  aria-hidden="true"></kmp-icon>
                         </button>
                         <?php else: ?>
                         <?= $this->Form->postLink(
-                                            '<i class="bi bi-x-circle-fill"></i>',
+                                            '<kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon>',
                                             ['action' => 'remove-activity', $gathering->id, $activity->id],
                                             [
                                                 'confirm' => __('Remove "{0}" from this gathering?', $activity->name),
@@ -500,12 +397,10 @@ $publicLandingUrl = $this->Url->build([
     </div>
     <?php else : ?>
     <div class="alert alert-secondary">
-        <i class="bi bi-info-circle"></i>
+        <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
         <?= __('No activities have been added to this gathering yet.') ?>
-        <?php if ($canEditGathering || $canAddCourtActivity) : ?>
-        <?= $canEditGathering
-            ? __('Click "Add Activity" above to get started.')
-            : __('Click "Add Court Activity" above to prepare this gathering for Court.') ?>
+        <?php if ($canAddActivity) : ?>
+        <?= __('Click "Add Activity" above to get started.') ?>
         <?php endif; ?>
     </div>
     <?php endif; ?>
@@ -537,22 +432,17 @@ echo $this->KMP->startBlock('modals');
 // Schedule modals are now rendered inside scheduleTab.php for Stimulus scope
 
 // Add Activity Modal
-if ($canEditGathering || $canAddCourtActivity) {
+if ($canAddActivity) {
     echo $this->element('gatherings/addActivityModal', [
         'gathering' => $gathering,
         'availableActivities' => $availableActivities,
         'user' => $user,
-        'courtActivityOnly' => !$canEditGathering,
     ]);
-
-    // Edit Activity Description Modal
-    if ($canEditGathering) {
-        echo $this->element('gatherings/editActivityDescriptionModal', [
-            'gathering' => $gathering,
-            'user' => $user,
-        ]);
-    }
 }
+echo $this->element('gatherings/editActivityDescriptionModal', [
+    'gathering' => $gathering,
+    'user' => $user,
+]);
 
 // Clone Gathering Modal
 if ($gathering->gathering_type->clonable && $user->checkCan('add', $gathering)) {
@@ -569,64 +459,6 @@ if ($user->checkCan('edit', $gathering) && !$gathering->is_cancelled) {
         'user' => $user,
     ]);
 }
-
-// Attend Gathering Modal - only show if:
-// - Event is still open for attendance AND not cancelled, OR
-// - User already has an attendance record (can edit even if cancelled)
-if ($canAttend && (!$gathering->is_cancelled || $userAttendance)) {
-    echo $this->element('gatherings/attendGatheringModal', [
-        'gathering' => $gathering,
-        'userAttendance' => $userAttendance,
-        'user' => $user,
-        'progressOfficers' => $progressOfficers ?? [],
-    ]);
-}
-
-// QR Code Modal for Public Landing Page - only show if public page is enabled
-if ($gathering->public_page_enabled):
-?>
-<!-- QR Code Modal -->
-<div class="modal fade" id="qrCodeModal" tabindex="-1" aria-labelledby="qrCodeModalLabel" aria-hidden="true"
-    data-controller="qrcode" data-qrcode-url-value="<?= h($publicLandingUrl) ?>"
-    data-qrcode-modal-id-value="qrCodeModal">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="qrCodeModalLabel">
-                    <i class="bi bi-qr-code"></i> Share Event QR Code
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body text-center">
-                <p class="mb-3">Scan this QR code to view the event landing page</p>
-                <div data-qrcode-target="canvas" class="d-inline-block p-3 bg-white border rounded"></div>
-                <div class="mt-3">
-                    <label class="text-muted d-block mb-2" for="publicLandingUrlInput">
-                        <small>Or copy the link:</small>
-                    </label>
-                    <div class="input-group">
-                        <input type="text" class="form-control" value="<?= h($publicLandingUrl) ?>" readonly
-                            id="publicLandingUrlInput">
-                        <button class="btn btn-outline-secondary bi bi-clipboard" type="button"
-                            data-controller="clipboard" data-action="clipboard#copy"
-                            data-clipboard-text-value="<?= h($publicLandingUrl) ?>"
-                            data-clipboard-success-message-value="<?= h(__('Link copied to clipboard!')) ?>">
-                            Copy
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <a href="<?= $publicLandingUrl ?>" target="_blank" class="btn btn-primary">
-                    <i class="bi bi-box-arrow-up-right"></i> Open Public Page
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
-<?php
-endif;
 
 $this->KMP->endBlock();
 ?>

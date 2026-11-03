@@ -32,7 +32,7 @@ $lastSyncedDate = $lastSyncedDate ?? null;
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
-                        <i class="bi bi-journal-text me-2"></i>Application Changelog
+                        <kmp-icon name="notebook" class="me-2" aria-hidden="true"></kmp-icon>Application Changelog
                     </h5>
                     <?php if (!empty($lastSyncedDate) && $lastSyncedDate !== 'none'): ?>
                         <small class="text-muted">
@@ -45,7 +45,7 @@ $lastSyncedDate = $lastSyncedDate ?? null;
                         <?= $changelogContent ?>
                     <?php else: ?>
                         <div class="alert alert-info">
-                            <i class="bi bi-info-circle me-2"></i>
+                            <kmp-icon name="info-circle" class="me-2" aria-hidden="true"></kmp-icon>
                             No changelog entries available yet.
                         </div>
                     <?php endif; ?>

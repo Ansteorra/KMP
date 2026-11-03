@@ -20,6 +20,9 @@ class GatheringScheduleService
 {
     use LocatorAwareTrait;
 
+    private const INPUT_FIELDS = ['gathering_activity_id', 'start_datetime', 'end_datetime', 'duration_minutes',
+        'has_end_time', 'display_title', 'description', 'pre_register', 'is_other'];
+
     /**
      * Prepare request data for a scheduled activity: timezone conversion,
      * duration selection and activity flags.
@@ -47,6 +50,7 @@ class GatheringScheduleService
                 : null;
         }
 
+        $data['is_other'] = filter_var($data['is_other'] ?? false, FILTER_VALIDATE_BOOLEAN);
         // Handle "other" checkbox
         if (!empty($data['is_other'])) {
             $data['gathering_activity_id'] = null;
@@ -70,6 +74,7 @@ class GatheringScheduleService
      */
     public function add(array $data, Gathering $gathering, mixed $identity): array
     {
+        $data = array_intersect_key($data, array_flip(self::INPUT_FIELDS));
         if (!$this->validDuration($data)) {
             return ['success' => false, 'message' => __('Choose a duration from 15 minutes to 4 hours, or Other.')];
         }
@@ -127,7 +132,10 @@ class GatheringScheduleService
         if (!$this->validDuration($data, true)) {
             return ['success' => false, 'message' => __('Choose a duration from 15 minutes to 4 hours, or Other.')];
         }
+        $data = array_intersect_key($data, array_flip(self::INPUT_FIELDS));
+        $data['gathering_id'] = $gathering->id;
         $data['modified_by'] = $identity->id;
+        $data += ['is_other' => $entity->is_other, 'gathering_activity_id' => $entity->gathering_activity_id];
         $data = $this->prepareData($data, $gathering, $identity);
         if (($data['duration_minutes'] ?? null) === 'existing') {
             $data['end_datetime'] = $entity->end_datetime;

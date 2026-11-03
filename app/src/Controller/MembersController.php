@@ -925,6 +925,8 @@ class MembersController extends AppController
         }
 
         $availableGatherings = $query->toArray();
+        $memberProgressOfficers = $this->Members->GatheringAttendances
+            ->currentProgressOfficersForMember((int)$member->id);
 
         $children = $this->Members
             ->find()
@@ -957,6 +959,7 @@ class MembersController extends AppController
                 'statusList',
                 'publicInfo',
                 'availableGatherings',
+                'memberProgressOfficers',
                 'canViewPii',
                 'canViewAdditionalInformation',
                 'children',
@@ -1065,7 +1068,7 @@ class MembersController extends AppController
         // Set layout variables for mobile_app layout
         $this->set('mobileTitle', 'Auth Card');
         $this->set('mobileSection', 'auth-card');
-        $this->set('mobileIcon', 'bi-person-vcard');
+        $this->set('mobileIcon', 'address-book');
         $this->set('watermarkImage', $watermarkimg);
         $this->set('showRefreshBtn', true); // Mobile card needs refresh button
         $this->set('cardUrl', $cardUrl); // For member-mobile-card-profile controller

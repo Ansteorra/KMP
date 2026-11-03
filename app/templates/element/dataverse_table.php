@@ -150,12 +150,12 @@ $totalColumns = max(1, count($visibleColumns) + ($showActionsColumn ? 1 : 0) + (
                             <span class="sort-indicator ms-1">
                                 <?php if ($isSorted) : ?>
                                     <?php if ($sortDirection === 'asc') : ?>
-                                        <i class="bi bi-caret-up-fill"></i>
+                                        <kmp-icon name="caret-up"  aria-hidden="true"></kmp-icon>
                                     <?php else : ?>
-                                        <i class="bi bi-caret-down-fill"></i>
+                                        <kmp-icon name="caret-down"  aria-hidden="true"></kmp-icon>
                                     <?php endif; ?>
                                 <?php else : ?>
-                                    <i class="bi bi-caret-down text-muted"></i>
+                                    <kmp-icon name="caret-down" class="text-muted" aria-hidden="true"></kmp-icon>
                                 <?php endif; ?>
                             </span>
                         <?php endif; ?>
@@ -166,9 +166,10 @@ $totalColumns = max(1, count($visibleColumns) + ($showActionsColumn ? 1 : 0) + (
                         <?php if ($enableColumnPicker) : ?>
                             <button type="button"
                                 class="btn btn-sm btn-outline-secondary"
+                                aria-label="<?= h(__('Select columns')) ?>"
                                 data-bs-toggle="modal"
                                 data-bs-target="#columnPickerModal-<?= h($gridKey) ?>">
-                                <i class="bi bi-list-columns"></i>
+                                <kmp-icon name="columns"  aria-hidden="true"></kmp-icon>
                             </button>
                         <?php endif; ?>
                     </th>

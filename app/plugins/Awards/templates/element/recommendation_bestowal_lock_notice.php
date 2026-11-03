@@ -22,7 +22,7 @@ if ($bestowalId > 0) {
 }
 ?>
 <div class="alert alert-warning mb-3" role="status">
-    <i class="bi bi-lock-fill" aria-hidden="true"></i>
+    <kmp-icon name="lock"  aria-hidden="true"></kmp-icon>
     <?= __('This recommendation is linked to a bestowal and is read-only here. Update it from the bestowal record.') ?>
     <?php if ($canViewBestowal) : ?>
         <?= $this->Html->link(

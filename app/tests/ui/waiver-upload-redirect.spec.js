@@ -201,7 +201,7 @@ test.describe('Waiver Upload Redirect Flow', () => {
         
         // Should show success message or processing indicator
         // Look for success icon or message
-        const successIndicator = page.locator('.bi-check-circle-fill, text=/uploaded successfully/i');
+        const successIndicator = page.locator('kmp-icon[name="circle-check"], text=/uploaded successfully/i');
         
         // Wait up to 5 seconds for success indicator
         try {

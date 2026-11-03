@@ -1,3 +1,4 @@
+@import './activity-badges.css';
 @import 'modal.css';
 
 /* Shared styles for public gathering surfaces used by public_landing and view_public. */
@@ -167,7 +168,7 @@
     padding: var(--space-sm) var(--space-md);
 }
 
-.gathering-public-surface .meta-item i {
+.gathering-public-surface .meta-item :is(i, kmp-icon) {
     color: var(--medieval-gold);
     font-size: 1rem;
 }
@@ -213,7 +214,7 @@
     text-transform: uppercase;
 }
 
-.gathering-public-surface .card-header-medieval i {
+.gathering-public-surface .card-header-medieval :is(i, kmp-icon) {
     color: var(--medieval-gold);
     font-size: 1rem;
 }
@@ -244,7 +245,7 @@
     margin-top: var(--space-xs);
 }
 
-.gathering-public-surface .contact-detail i,
+.gathering-public-surface .contact-detail :is(i, kmp-icon),
 .gathering-public-surface .contact-detail a,
 .gathering-public-surface .staff-contacts a {
     color: var(--medieval-crimson);
@@ -395,7 +396,7 @@
     text-align: center;
 }
 
-.gathering-public-surface .schedule-time-badge i {
+.gathering-public-surface .schedule-time-badge :is(i, kmp-icon) {
     display: block;
     margin-bottom: 0.25rem;
 }
@@ -433,7 +434,7 @@
     padding: 0.25rem 0.625rem;
 }
 
-.gathering-public-surface .activity-tag i {
+.gathering-public-surface .activity-tag :is(i, kmp-icon) {
     font-size: 0.625rem;
 }
 
@@ -1271,11 +1272,11 @@ a.kc-event-name:focus-visible {
     color: var(--kc-ink);
 }
 
-.kc-meta-when i {
+.kc-meta-when :is(i, kmp-icon) {
     opacity: 1;
 }
 
-.kc-meta-item i {
+.kc-meta-item :is(i, kmp-icon) {
     color: var(--kc-accent);
     opacity: 0.75;
     font-size: 0.92em;
@@ -1322,7 +1323,7 @@ a.kc-event-name:focus-visible {
     color: var(--kc-accent);
 }
 
-.kc-action i {
+.kc-action :is(i, kmp-icon) {
     font-size: 0.92em;
 }
 
@@ -1437,7 +1438,7 @@ a.kc-event-name:focus-visible {
     border-radius: var(--kc-radius);
 }
 
-.kc-empty i {
+.kc-empty :is(i, kmp-icon) {
     font-size: 2.5rem;
     display: block;
     margin-bottom: 0.75rem;

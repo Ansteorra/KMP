@@ -158,10 +158,28 @@ describe('DetailTabsController', () => {
 
     test('tabBtnTargetDisconnected removes click listener', () => {
         const tab = document.getElementById('nav-info-tab');
+        controller.foundFirst = true;
+        controller.tabBtnTargetConnected(tab);
         const removeSpy = jest.spyOn(tab, 'removeEventListener');
 
         controller.tabBtnTargetDisconnected(tab);
 
         expect(removeSpy).toHaveBeenCalledWith('click', expect.any(Function));
+    });
+
+    test('clicking a nested icon or count keeps the tab button identity', () => {
+        const tab = document.getElementById('nav-history-tab');
+        tab.innerHTML = '<span class="badge">3</span>';
+        controller.tabBtnClicked({ target: tab.firstElementChild, currentTarget: tab });
+        expect(window.history.pushState).toHaveBeenCalledWith({}, '', '?tab=history');
+    });
+
+    test('disconnected buttons no longer change history', () => {
+        controller.foundFirst = true;
+        const tab = document.getElementById('nav-history-tab');
+        controller.tabBtnTargetConnected(tab);
+        controller.tabBtnTargetDisconnected(tab);
+        tab.click();
+        expect(window.history.pushState).not.toHaveBeenCalled();
     });
 });

@@ -103,7 +103,7 @@ $shortSiteTitle = $this->KMP->getAppSetting('KMP.ShortSiteTitle');
         <div data-offline-access-target="success" hidden>
             <p class="small fw-semibold mb-2">Step 3 of 3 · Complete</p>
             <h3 class="h4" tabindex="-1" data-offline-access-target="successHeading">
-                <i class="bi bi-check-circle me-1" aria-hidden="true"></i> You’re all set!
+                <kmp-icon name="circle-check" class="me-1" aria-hidden="true"></kmp-icon> You’re all set!
             </h3>
             <p class="fw-semibold" data-offline-access-target="successMethod"></p>
             <p>This device is now trusted. Your offline readiness is shown below.</p>

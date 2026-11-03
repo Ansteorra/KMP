@@ -135,23 +135,25 @@ $canAddGathering = $canAddGathering ?? false;
 
                             $gatheringContent = '';
                             if ($isCancelled) {
-                                $gatheringContent .= '<div class="badge bg-danger mb-1 w-100"><i class="bi bi-x-circle" aria-hidden="true"></i> CANCELLED</div>';
+                                $gatheringContent .= '<div class="badge bg-danger mb-1 w-100"><kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> CANCELLED</div>';
                             }
                             $gatheringContent .= '<div class="fw-bold' . ($isCancelled ? ' text-decoration-line-through' : '') . '">' . h($gathering->name) . '</div>';
                             $gatheringContent .= '<div class="text-muted small text-truncate">' . h($gathering->branch->name) . '</div>';
                             $gatheringContent .= '<div class="gathering-badges">';
+                            $gatheringContent .= $this->element('gatherings/calendar_royal_progress_badge', [
+                                'royalProgress' => $gathering->royal_progress ?? [],
+                            ]);
                             if ($isAttending) {
-                                $gatheringContent .= '<span class="badge bg-success" title="I\'m attending" aria-label="I\'m attending"><i class="bi bi-check-circle" aria-hidden="true"></i></span>';
+                                $gatheringContent .= '<span class="badge bg-success" title="I\'m attending" aria-label="I\'m attending"><kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon></span>';
                             }
                             if ($hasLocation) {
-                                $gatheringContent .= '<span class="badge bg-info text-dark" title="Has location" aria-label="Has location"><i class="bi bi-geo-alt" aria-hidden="true"></i></span>';
+                                $gatheringContent .= '<span class="badge bg-info text-dark" title="Has location" aria-label="Has location"><kmp-icon name="map-pin"  aria-hidden="true"></kmp-icon></span>';
                             }
                             if ($isMultiDay) {
-                                $gatheringContent .= '<span class="badge bg-warning text-dark" title="Multi-day event" aria-label="Multi-day event"><i class="bi bi-calendar-range" aria-hidden="true"></i></span>';
+                                $gatheringContent .= '<span class="badge bg-warning text-dark" title="Multi-day event" aria-label="Multi-day event"><kmp-icon name="calendar-week"  aria-hidden="true"></kmp-icon></span>';
                             }
-                            if (count($gathering->gathering_activities) > 0) {
-                                $activityCount = count($gathering->gathering_activities);
-                                $gatheringContent .= '<span class="badge bg-secondary" title="' . $activityCount . ' activities" aria-label="' . $activityCount . ' activities"><i class="bi bi-activity" aria-hidden="true"></i> ' . $activityCount . '</span>';
+                            foreach ($gathering->gathering_activities as $activity) {
+                                $gatheringContent .= $this->GatheringActivity->badge($activity, true);
                             }
                             $gatheringContent .= '</div>';
                             ?>
@@ -175,7 +177,7 @@ $canAddGathering = $canAddGathering ?? false;
                    class="calendar-day-add" title="<?= __('Add gathering on this date') ?>"
                    aria-label="<?= __('Add gathering on this date') ?>"
                    data-turbo-frame="_top">
-                    <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                    <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon>
                 </a>
                 <?php endif; ?>
             </div>

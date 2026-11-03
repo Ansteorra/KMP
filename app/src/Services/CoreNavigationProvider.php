@@ -26,7 +26,7 @@ class CoreNavigationProvider
             [
                 'type' => 'parent',
                 'label' => 'Action Items',
-                'icon' => 'bi-people',
+                'icon' => 'users',
                 'id' => 'navheader_actionitems',
                 'order' => 0,
             ],
@@ -46,7 +46,7 @@ class CoreNavigationProvider
                     'method' => 'getPendingRosterCount',
                     'argument' => 0,
                 ],
-                'icon' => 'bi-people',
+                'icon' => 'users',
             ],
             [
                 'type' => 'link',
@@ -58,7 +58,7 @@ class CoreNavigationProvider
                     'action' => 'verifyQueue',
                     '?' => ['src' => 'action_items'],
                 ],
-                'icon' => 'bi-fingerprint',
+                'icon' => 'fingerprint',
                 'badgeClass' => 'bg-danger',
                 'badgeValue' => [
                     'class' => "App\Model\Table\MembersTable",
@@ -69,35 +69,35 @@ class CoreNavigationProvider
             [
                 'type' => 'parent',
                 'label' => 'Members',
-                'icon' => 'bi-people',
+                'icon' => 'users',
                 'id' => 'navheader_members',
                 'order' => 10,
             ],
             [
                 'type' => 'parent',
                 'label' => 'Reports',
-                'icon' => 'bi-backpack4',
+                'icon' => 'backpack',
                 'id' => 'navheader_reports',
                 'order' => 20,
             ],
             [
                 'type' => 'parent',
                 'label' => 'Gatherings',
-                'icon' => 'bi-calendar-event',
+                'icon' => 'calendar-event',
                 'id' => 'navheader_gatherings',
                 'order' => 25,
             ],
             [
                 'type' => 'parent',
                 'label' => 'Config',
-                'icon' => 'bi-database-gear',
+                'icon' => 'database-cog',
                 'id' => 'navheader_config',
                 'order' => 30,
             ],
             [
                 'type' => 'parent',
                 'label' => 'Security',
-                'icon' => 'bi-house-lock',
+                'icon' => 'home-shield',
                 'id' => 'navheader_security',
                 'order' => 99999,
             ],
@@ -105,7 +105,7 @@ class CoreNavigationProvider
                 'type' => 'link',
                 'mergePath' => ['Members'],
                 'label' => "$user->sca_name",
-                'icon' => 'bi-person-fill',
+                'icon' => 'user',
                 'order' => 0,
                 'url' => [
                     'controller' => 'Members',
@@ -125,7 +125,7 @@ class CoreNavigationProvider
                         'nostack' => '1',
                     ],
                 ],
-                'icon' => 'bi-person-vcard',
+                'icon' => 'address-book',
                 'linkOptions' => [
                     'target' => '_blank',
                 ],
@@ -139,7 +139,7 @@ class CoreNavigationProvider
                     'controller' => 'Members',
                     'action' => 'index',
                 ],
-                'icon' => 'bi-people',
+                'icon' => 'users',
                 'activePaths' => [
                     'Members/view/*',
                 ],
@@ -153,7 +153,7 @@ class CoreNavigationProvider
                     'controller' => 'Branches',
                     'action' => 'index',
                 ],
-                'icon' => 'bi-diagram-3',
+                'icon' => 'sitemap',
                 'activePaths' => [
                     'Branches/view/*',
                 ],
@@ -167,7 +167,7 @@ class CoreNavigationProvider
                     'controller' => 'Members',
                     'action' => 'importExpirationDates',
                 ],
-                'icon' => 'bi-filetype-csv',
+                'icon' => 'file-type-csv',
             ],
             [
                 'type' => 'link',
@@ -178,7 +178,7 @@ class CoreNavigationProvider
                     'controller' => 'Reports',
                     'action' => 'PermissionsWarrantsRoster',
                 ],
-                'icon' => 'bi-person-check-fill',
+                'icon' => 'user-check',
             ],
             [
                 'type' => 'link',
@@ -189,7 +189,7 @@ class CoreNavigationProvider
                     'controller' => 'Reports',
                     'action' => 'rolesList',
                 ],
-                'icon' => 'bi-ui-checks',
+                'icon' => 'list-check',
             ],
             [
                 'type' => 'link',
@@ -200,7 +200,7 @@ class CoreNavigationProvider
                     'controller' => 'Gatherings',
                     'action' => 'calendar',
                 ],
-                'icon' => 'bi-calendar-event',
+                'icon' => 'calendar-event',
                 'activePaths' => [
                     'Gatherings/view/*',
                 ],
@@ -214,7 +214,7 @@ class CoreNavigationProvider
                     'controller' => 'Approvals',
                     'action' => 'allApprovals',
                 ],
-                'icon' => 'bi-clipboard-check',
+                'icon' => 'clipboard-check',
             ],
             [
                 'type' => 'link',
@@ -225,7 +225,7 @@ class CoreNavigationProvider
                     'controller' => 'AppSettings',
                     'action' => 'index',
                 ],
-                'icon' => 'bi-card-list',
+                'icon' => 'list-details',
             ],
             [
                 'type' => 'link',
@@ -236,7 +236,7 @@ class CoreNavigationProvider
                     'controller' => 'Backups',
                     'action' => 'index',
                 ],
-                'icon' => 'bi-archive',
+                'icon' => 'archive',
             ],
             [
                 'type' => 'link',
@@ -247,7 +247,7 @@ class CoreNavigationProvider
                     'controller' => 'TableAdmin',
                     'action' => 'index',
                 ],
-                'icon' => 'bi-table',
+                'icon' => 'table',
             ],
             [
                 'type' => 'link',
@@ -258,7 +258,7 @@ class CoreNavigationProvider
                     'controller' => 'WarrantPeriods',
                     'action' => 'index',
                 ],
-                'icon' => 'bi-calendar-range',
+                'icon' => 'calendar-week',
             ],
             [
                 'type' => 'link',
@@ -269,7 +269,7 @@ class CoreNavigationProvider
                     'controller' => 'GatheringTypes',
                     'action' => 'index',
                 ],
-                'icon' => 'bi-collection',
+                'icon' => 'layers-linked',
                 'activePaths' => [
                     'GatheringTypes/view/*',
                 ],
@@ -283,7 +283,7 @@ class CoreNavigationProvider
                     'controller' => 'GatheringActivities',
                     'action' => 'index',
                 ],
-                'icon' => 'bi-list-task',
+                'icon' => 'list-details',
                 'activePaths' => [
                     'GatheringActivities/view/*',
                 ],
@@ -297,7 +297,7 @@ class CoreNavigationProvider
                     'controller' => 'EmailTemplates',
                     'action' => 'index',
                 ],
-                'icon' => 'bi-envelope',
+                'icon' => 'mail',
                 'activePaths' => [
                     'EmailTemplates/view/*',
                     'EmailTemplates/add',
@@ -313,7 +313,7 @@ class CoreNavigationProvider
                     'controller' => 'Warrants',
                     'action' => 'index',
                 ],
-                'icon' => 'bi-person-badge',
+                'icon' => 'id-badge',
             ],
             [
                 'type' => 'link',
@@ -324,7 +324,7 @@ class CoreNavigationProvider
                     'controller' => 'WarrantRosters',
                     'action' => 'index',
                 ],
-                'icon' => 'bi-people',
+                'icon' => 'users',
             ],
             [
                 'type' => 'link',
@@ -335,7 +335,7 @@ class CoreNavigationProvider
                     'controller' => 'Roles',
                     'action' => 'index',
                 ],
-                'icon' => 'bi-universal-access-circle',
+                'icon' => 'accessible',
                 'activePaths' => [
                     'Roles/view/*',
                 ],
@@ -349,7 +349,7 @@ class CoreNavigationProvider
                     'controller' => 'Permissions',
                     'action' => 'index',
                 ],
-                'icon' => 'bi-clipboard-check',
+                'icon' => 'clipboard-check',
                 'activePaths' => [
                     'Permissions/view/*',
                 ],
@@ -363,7 +363,7 @@ class CoreNavigationProvider
                     'controller' => 'ServicePrincipals',
                     'action' => 'index',
                 ],
-                'icon' => 'bi-key',
+                'icon' => 'key',
                 'activePaths' => [
                     'ServicePrincipals/view/*',
                     'ServicePrincipals/add',
@@ -373,7 +373,7 @@ class CoreNavigationProvider
             [
                 'type' => 'parent',
                 'label' => 'Workflows',
-                'icon' => 'bi-diagram-3',
+                'icon' => 'sitemap',
                 'id' => 'navheader_workflows',
                 'order' => 28,
             ],
@@ -386,7 +386,7 @@ class CoreNavigationProvider
                     'controller' => 'WorkflowDefinitions',
                     'action' => 'index',
                 ],
-                'icon' => 'bi-list-task',
+                'icon' => 'list-details',
                 'activePaths' => [
                     'WorkflowDefinitions/designer/*',
                     'WorkflowDefinitions/versions/*',
@@ -402,7 +402,7 @@ class CoreNavigationProvider
                     'action' => 'approvals',
                 ],
                 'skipAuthorization' => true,
-                'icon' => 'bi-check2-square',
+                'icon' => 'checkbox',
                 'badgeClass' => 'bg-danger',
                 'badgeValue' => [
                     'class' => "App\Model\Table\WorkflowApprovalsTable",
@@ -420,7 +420,7 @@ class CoreNavigationProvider
                     'action' => 'myTasks',
                 ],
                 'skipAuthorization' => true,
-                'icon' => 'bi-check2-all',
+                'icon' => 'checks',
                 'badgeClass' => 'bg-danger',
                 'badgeValue' => [
                     'class' => "App\Model\Table\ActionItemsTable",
@@ -437,7 +437,7 @@ class CoreNavigationProvider
                     'controller' => 'WorkflowInstances',
                     'action' => 'instances',
                 ],
-                'icon' => 'bi-play-circle',
+                'icon' => 'player-play',
                 'activePaths' => [
                     'WorkflowInstances/viewInstance/*',
                 ],

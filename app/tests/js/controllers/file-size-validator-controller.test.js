@@ -351,13 +351,13 @@ describe('FileSizeValidatorController', () => {
 
     test('formatWarningMessage uses error icon for error type', () => {
         const result = controller.formatWarningMessage('Bad file', 'error');
-        expect(result).toContain('bi-exclamation-triangle-fill');
+        expect(result).toContain('alert-triangle');
         expect(result).toContain('Bad file');
     });
 
     test('formatWarningMessage uses warning icon for warning type', () => {
         const result = controller.formatWarningMessage('Watch out', 'warning');
-        expect(result).toContain('bi-exclamation-circle-fill');
+        expect(result).toContain('alert-circle');
     });
 
     test('formatWarningMessage preserves line breaks as <br>', () => {

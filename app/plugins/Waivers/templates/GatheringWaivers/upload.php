@@ -78,6 +78,10 @@ echo $this->KMP->startBlock('pageTitle');
         data-waiver-upload-wizard-gathering-id-value="<?= $gathering->id ?>"
         data-waiver-upload-wizard-gathering-public-id-value="<?= h($gathering->public_id) ?>"
         data-waiver-upload-wizard-total-steps-value="3"
+        data-waiver-upload-wizard-can-record-lost-value="<?= !empty($canRecordLost) ? 'true' : 'false' ?>"
+        data-waiver-upload-wizard-record-lost-url-value="<?= $this->Url->build([
+            'plugin' => 'Waivers', 'controller' => 'GatheringWaivers', 'action' => 'recordLost',
+        ]) ?>"
         data-waiver-upload-wizard-max-file-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
         data-waiver-upload-wizard-total-max-size-value="<?= h($uploadLimits['postMaxSize']) ?>"
         data-waiver-upload-wizard-attest-url-value="<?= $this->Url->build(['plugin' => 'Waivers', 'controller' => 'GatheringWaivers', 'action' => 'attest']) ?>"
@@ -106,7 +110,7 @@ echo $this->KMP->startBlock('pageTitle');
                         <span class="badge rounded-pill bg-primary">1</span>
                     </div>
                     <div class="step-label small">
-                        <i class="bi bi-file-earmark-text"></i><br>
+                        <kmp-icon name="file-text"  aria-hidden="true"></kmp-icon><br>
                         <?= __('Waiver Type') ?>
                     </div>
                 </div>
@@ -116,7 +120,7 @@ echo $this->KMP->startBlock('pageTitle');
                         <span class="badge rounded-pill bg-secondary">2</span>
                     </div>
                     <div class="step-label small">
-                        <i class="bi bi-file-earmark-image"></i><br>
+                        <kmp-icon name="file-image"  aria-hidden="true"></kmp-icon><br>
                         <?= __('Add Pages') ?>
                     </div>
                 </div>
@@ -126,7 +130,7 @@ echo $this->KMP->startBlock('pageTitle');
                         <span class="badge rounded-pill bg-secondary">3</span>
                     </div>
                     <div class="step-label small">
-                        <i class="bi bi-check-circle"></i><br>
+                        <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon><br>
                         <?= __('Review') ?>
                     </div>
                 </div>

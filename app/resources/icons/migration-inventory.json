@@ -1,0 +1,1362 @@
+{
+  "identifiers": {
+    "bi-1-circle": 1,
+    "bi-10x": 1,
+    "bi-1x": 1,
+    "bi-2-circle": 1,
+    "bi-2x": 1,
+    "bi-2xl": 1,
+    "bi-2xs": 1,
+    "bi-3-circle": 1,
+    "bi-3x": 1,
+    "bi-4x": 1,
+    "bi-5x": 1,
+    "bi-6x": 1,
+    "bi-7x": 1,
+    "bi-8x": 1,
+    "bi-9x": 1,
+    "bi-activity": 7,
+    "bi-alarm": 1,
+    "bi-alarm-fill": 1,
+    "bi-apple": 3,
+    "bi-archive": 4,
+    "bi-arrow-clockwise": 9,
+    "bi-arrow-counterclockwise": 4,
+    "bi-arrow-down": 1,
+    "bi-arrow-down-circle": 2,
+    "bi-arrow-left": 10,
+    "bi-arrow-left-circle": 2,
+    "bi-arrow-left-right": 1,
+    "bi-arrow-repeat": 8,
+    "bi-arrow-right": 6,
+    "bi-arrow-up": 1,
+    "bi-arrows-angle-expand": 1,
+    "bi-award": 9,
+    "bi-award-fill": 2,
+    "bi-backpack4": 1,
+    "bi-bar-chart": 1,
+    "bi-bar-chart-fill": 1,
+    "bi-binoculars": 2,
+    "bi-binoculars-fill": 16,
+    "bi-box-arrow-in-right": 3,
+    "bi-box-arrow-right": 2,
+    "bi-box-arrow-up-right": 15,
+    "bi-braces": 1,
+    "bi-briefcase": 2,
+    "bi-broadcast": 1,
+    "bi-building": 6,
+    "bi-building-fill-check": 1,
+    "bi-calendar": 3,
+    "bi-calendar-check": 14,
+    "bi-calendar-event": 23,
+    "bi-calendar-heart": 1,
+    "bi-calendar-plus": 6,
+    "bi-calendar-range": 6,
+    "bi-calendar-week": 1,
+    "bi-calendar-x": 5,
+    "bi-calendar3": 7,
+    "bi-camera": 4,
+    "bi-camera-fill": 4,
+    "bi-card-checklist": 2,
+    "bi-card-heading": 1,
+    "bi-card-image": 3,
+    "bi-card-list": 1,
+    "bi-card-text": 3,
+    "bi-caret-down": 1,
+    "bi-caret-down-fill": 3,
+    "bi-caret-right-fill": 3,
+    "bi-caret-up-fill": 1,
+    "bi-chat-left-text": 9,
+    "bi-chat-square-text": 1,
+    "bi-check": 1,
+    "bi-check-circle": 37,
+    "bi-check-circle-fill": 24,
+    "bi-check-lg": 3,
+    "bi-check-square-fill": 3,
+    "bi-check2": 4,
+    "bi-check2-all": 7,
+    "bi-check2-circle": 3,
+    "bi-check2-square": 22,
+    "bi-chevron-bar-left": 3,
+    "bi-chevron-bar-right": 1,
+    "bi-chevron-down": 21,
+    "bi-chevron-left": 3,
+    "bi-chevron-right": 10,
+    "bi-chevron-up": 3,
+    "bi-circle": 1,
+    "bi-clipboard": 8,
+    "bi-clipboard-check": 6,
+    "bi-clock": 16,
+    "bi-clock-history": 6,
+    "bi-cloud-arrow-up": 1,
+    "bi-cloud-upload": 5,
+    "bi-code-slash": 1,
+    "bi-collection": 8,
+    "bi-compass": 1,
+    "bi-copy": 1,
+    "bi-dash": 1,
+    "bi-dash-circle": 2,
+    "bi-dash-square": 1,
+    "bi-database": 2,
+    "bi-database-gear": 1,
+    "bi-diagram-3": 11,
+    "bi-discord": 4,
+    "bi-display": 1,
+    "bi-download": 11,
+    "bi-envelope": 8,
+    "bi-envelope-fill": 2,
+    "bi-exclamation-circle": 10,
+    "bi-exclamation-circle-fill": 3,
+    "bi-exclamation-octagon": 1,
+    "bi-exclamation-triangle": 27,
+    "bi-exclamation-triangle-fill": 14,
+    "bi-eye": 15,
+    "bi-eye-fill": 3,
+    "bi-facebook": 5,
+    "bi-file-earmark-arrow-up": 2,
+    "bi-file-earmark-check": 5,
+    "bi-file-earmark-image": 3,
+    "bi-file-earmark-pdf": 5,
+    "bi-file-earmark-ruled": 2,
+    "bi-file-earmark-text": 8,
+    "bi-file-earmark-x": 5,
+    "bi-file-image": 2,
+    "bi-file-text": 4,
+    "bi-files": 1,
+    "bi-filetype-csv": 1,
+    "bi-filetype-html": 1,
+    "bi-fingerprint": 1,
+    "bi-flag": 2,
+    "bi-flag-fill": 2,
+    "bi-funnel": 4,
+    "bi-gear": 4,
+    "bi-gem": 1,
+    "bi-geo-alt": 11,
+    "bi-geo-alt-fill": 5,
+    "bi-github": 3,
+    "bi-globe": 5,
+    "bi-google": 3,
+    "bi-grid-3x3-gap": 1,
+    "bi-grip-vertical": 1,
+    "bi-hand-index": 2,
+    "bi-hourglass-split": 11,
+    "bi-house-heart": 1,
+    "bi-house-lock": 1,
+    "bi-image": 1,
+    "bi-images": 2,
+    "bi-inbox": 2,
+    "bi-info-circle": 68,
+    "bi-info-circle-fill": 3,
+    "bi-instagram": 2,
+    "bi-journal-text": 7,
+    "bi-kanban": 1,
+    "bi-key": 6,
+    "bi-ladder": 1,
+    "bi-lg": 1,
+    "bi-lightbulb": 3,
+    "bi-lightning-charge": 2,
+    "bi-lightning-charge-fill": 1,
+    "bi-link": 10,
+    "bi-link-45deg": 4,
+    "bi-list": 2,
+    "bi-list-check": 10,
+    "bi-list-columns": 1,
+    "bi-list-ol": 1,
+    "bi-list-task": 2,
+    "bi-list-ul": 5,
+    "bi-lock": 3,
+    "bi-lock-fill": 21,
+    "bi-magic": 1,
+    "bi-map": 4,
+    "bi-megaphone": 1,
+    "bi-megaphone-fill": 4,
+    "bi-palette": 1,
+    "bi-patch-exclamation-fill": 1,
+    "bi-patch-question-fill": 2,
+    "bi-pencil": 9,
+    "bi-pencil-fill": 14,
+    "bi-pencil-square": 6,
+    "bi-people": 8,
+    "bi-people-fill": 3,
+    "bi-person": 3,
+    "bi-person-badge": 7,
+    "bi-person-badge-fill": 2,
+    "bi-person-check": 8,
+    "bi-person-check-fill": 1,
+    "bi-person-fill": 1,
+    "bi-person-gear": 4,
+    "bi-person-lines-fill": 3,
+    "bi-person-lock": 1,
+    "bi-person-plus": 5,
+    "bi-person-square": 3,
+    "bi-person-vcard": 8,
+    "bi-phone": 2,
+    "bi-pin-map-fill": 1,
+    "bi-play-circle": 4,
+    "bi-plus": 3,
+    "bi-plus-circle": 51,
+    "bi-plus-lg": 4,
+    "bi-puzzle": 1,
+    "bi-qr-code": 2,
+    "bi-question-circle": 8,
+    "bi-record-circle": 4,
+    "bi-reply-fill": 2,
+    "bi-rocket-takeoff": 1,
+    "bi-rss": 1,
+    "bi-save": 3,
+    "bi-search": 4,
+    "bi-send": 8,
+    "bi-share": 3,
+    "bi-shield": 6,
+    "bi-shield-check": 18,
+    "bi-shield-lock": 3,
+    "bi-shield-plus": 2,
+    "bi-signpost-2-fill": 5,
+    "bi-sliders": 5,
+    "bi-sm": 1,
+    "bi-speedometer2": 3,
+    "bi-stack": 1,
+    "bi-star": 8,
+    "bi-star-fill": 6,
+    "bi-sticky": 2,
+    "bi-table": 1,
+    "bi-telephone": 2,
+    "bi-threads": 2,
+    "bi-three-dots": 1,
+    "bi-ticket-perforated": 4,
+    "bi-tiktok": 2,
+    "bi-toggle-off": 1,
+    "bi-toggles": 1,
+    "bi-trash": 13,
+    "bi-trash-fill": 7,
+    "bi-trash3-fill": 3,
+    "bi-trophy": 2,
+    "bi-twitter": 1,
+    "bi-twitter-x": 2,
+    "bi-ui-checks": 1,
+    "bi-ui-checks-grid": 2,
+    "bi-universal-access-circle": 1,
+    "bi-unlock": 1,
+    "bi-unlock-fill": 2,
+    "bi-upload": 3,
+    "bi-wifi-off": 2,
+    "bi-x": 5,
+    "bi-x-circle": 20,
+    "bi-x-circle-fill": 13,
+    "bi-x-lg": 4,
+    "bi-xl": 1,
+    "bi-xs": 1,
+    "bi-youtube": 2
+  },
+  "surfaces": {
+    "src": [
+      {
+        "file": "app/src/Controller/MembersController.php",
+        "count": 1
+      },
+      {
+        "file": "app/src/Controller/OfflineController.php",
+        "count": 3
+      },
+      {
+        "file": "app/src/Controller/ApprovalsController.php",
+        "count": 5
+      },
+      {
+        "file": "app/src/Controller/ActionItemsController.php",
+        "count": 1
+      },
+      {
+        "file": "app/src/Services/CoreNavigationProvider.php",
+        "count": 34
+      },
+      {
+        "file": "app/src/Services/GatheringActivityPresentationService.php",
+        "count": 1
+      },
+      {
+        "file": "app/src/Services/CoreViewCellProvider.php",
+        "count": 4
+      },
+      {
+        "file": "app/src/Services/NavigationRegistry.php",
+        "count": 1
+      },
+      {
+        "file": "app/src/View/Helper/TimezoneHelper.php",
+        "count": 1
+      },
+      {
+        "file": "app/src/KMP/GridColumns/WorkflowInstancesGridColumns.php",
+        "count": 1
+      },
+      {
+        "file": "app/src/KMP/GridColumns/ActionItemsGridColumns.php",
+        "count": 1
+      },
+      {
+        "file": "app/src/KMP/GridColumns/MembersGridColumns.php",
+        "count": 3
+      },
+      {
+        "file": "app/src/KMP/GridColumns/VerifyQueueGridColumns.php",
+        "count": 1
+      },
+      {
+        "file": "app/src/KMP/GridColumns/AppSettingsGridColumns.php",
+        "count": 2
+      },
+      {
+        "file": "app/src/KMP/GridColumns/ApprovalsGridColumns.php",
+        "count": 4
+      },
+      {
+        "file": "app/src/KMP/GridColumns/GatheringAttendancesGridColumns.php",
+        "count": 2
+      },
+      {
+        "file": "app/src/KMP/GridColumns/GatheringsGridColumns.php",
+        "count": 2
+      },
+      {
+        "file": "app/src/Services/ApprovalContext/WarrantRosterApprovalContextRenderer.php",
+        "count": 1
+      },
+      {
+        "file": "app/src/Services/ApprovalContext/ApprovalContextRendererRegistry.php",
+        "count": 1
+      },
+      {
+        "file": "app/src/Services/ApprovalContext/ApprovalContext.php",
+        "count": 2
+      }
+    ],
+    "templates": [
+      {
+        "file": "app/templates/Approvals/approvals.php",
+        "count": 12
+      },
+      {
+        "file": "app/templates/Approvals/all_approvals.php",
+        "count": 14
+      },
+      {
+        "file": "app/templates/Approvals/mobile_approvals.php",
+        "count": 4
+      },
+      {
+        "file": "app/templates/Gatherings/public_landing.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/Gatherings/quick_view.php",
+        "count": 24
+      },
+      {
+        "file": "app/templates/Gatherings/public_calendar.php",
+        "count": 11
+      },
+      {
+        "file": "app/templates/Gatherings/mobile_calendar.php",
+        "count": 11
+      },
+      {
+        "file": "app/templates/Gatherings/view_public.php",
+        "count": 2
+      },
+      {
+        "file": "app/templates/Gatherings/view.php",
+        "count": 30
+      },
+      {
+        "file": "app/templates/Gatherings/index.php",
+        "count": 2
+      },
+      {
+        "file": "app/templates/Backups/index.php",
+        "count": 15
+      },
+      {
+        "file": "app/templates/Members/register.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/Members/index_old.php",
+        "count": 3
+      },
+      {
+        "file": "app/templates/Members/login.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/Members/view_mobile_card.php",
+        "count": 4
+      },
+      {
+        "file": "app/templates/Members/view.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/Members/index.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/GatheringActivities/index.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/element/dataverse_table_cell_action.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/element/copyrightFooter.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/element/timezone_examples.php",
+        "count": 2
+      },
+      {
+        "file": "app/templates/element/offline_access.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/element/grid_view_tabs.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/element/dataverse_table_row.php",
+        "count": 2
+      },
+      {
+        "file": "app/templates/element/backButton.php",
+        "count": 2
+      },
+      {
+        "file": "app/templates/element/dataverse_table.php",
+        "count": 4
+      },
+      {
+        "file": "app/templates/element/dv_custom_filter_controls.php",
+        "count": 2
+      },
+      {
+        "file": "app/templates/element/turboSubTable.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/element/grid_view_toolbar.php",
+        "count": 6
+      },
+      {
+        "file": "app/templates/WarrantRosters/all_rosters.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/AppSettings/edit.php",
+        "count": 8
+      },
+      {
+        "file": "app/templates/AppSettings/index.php",
+        "count": 2
+      },
+      {
+        "file": "app/templates/Permissions/view.php",
+        "count": 13
+      },
+      {
+        "file": "app/templates/Permissions/index.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/GatheringAttendances/my_rsvps.php",
+        "count": 4
+      },
+      {
+        "file": "app/templates/Warrants/view.php",
+        "count": 3
+      },
+      {
+        "file": "app/templates/ServicePrincipals/view.php",
+        "count": 6
+      },
+      {
+        "file": "app/templates/ServicePrincipals/add.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/ServicePrincipals/credentials.php",
+        "count": 3
+      },
+      {
+        "file": "app/templates/ServicePrincipals/index.php",
+        "count": 5
+      },
+      {
+        "file": "app/templates/Pages/changelog.php",
+        "count": 2
+      },
+      {
+        "file": "app/templates/GatheringTypes/view.php",
+        "count": 5
+      },
+      {
+        "file": "app/templates/GatheringTypes/index.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/WarrantPeriods/index.php",
+        "count": 2
+      },
+      {
+        "file": "app/templates/Branches/view.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/Branches/add.php",
+        "count": 9
+      },
+      {
+        "file": "app/templates/Branches/index.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/EmailTemplates/form.php",
+        "count": 11
+      },
+      {
+        "file": "app/templates/EmailTemplates/view.php",
+        "count": 2
+      },
+      {
+        "file": "app/templates/EmailTemplates/index.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/layout/mobile_app.php",
+        "count": 9
+      },
+      {
+        "file": "app/templates/WorkflowDefinitions/designer.php",
+        "count": 19
+      },
+      {
+        "file": "app/templates/WorkflowDefinitions/versions.php",
+        "count": 4
+      },
+      {
+        "file": "app/templates/WorkflowDefinitions/index.php",
+        "count": 6
+      },
+      {
+        "file": "app/templates/Roles/view.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/Roles/index.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/ActionItems/mobile_my_tasks.php",
+        "count": 4
+      },
+      {
+        "file": "app/templates/ActionItems/my_tasks.php",
+        "count": 4
+      },
+      {
+        "file": "app/templates/WorkflowInstances/view_instance.php",
+        "count": 2
+      },
+      {
+        "file": "app/templates/element/sub_rows/warrant_reasons.php",
+        "count": 2
+      },
+      {
+        "file": "app/templates/element/approvals/kanban_lane.php",
+        "count": 5
+      },
+      {
+        "file": "app/templates/element/approvals/kanban_board.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/element/gatherings/cloneModal.php",
+        "count": 3
+      },
+      {
+        "file": "app/templates/element/gatherings/waivers.php",
+        "count": 6
+      },
+      {
+        "file": "app/templates/element/gatherings/calendar_list.php",
+        "count": 11
+      },
+      {
+        "file": "app/templates/element/gatherings/scheduleTab.php",
+        "count": 6
+      },
+      {
+        "file": "app/templates/element/gatherings/attendanceTab.php",
+        "count": 2
+      },
+      {
+        "file": "app/templates/element/gatherings/calendar_renderer.php",
+        "count": 4
+      },
+      {
+        "file": "app/templates/element/gatherings/addScheduleModal.php",
+        "count": 6
+      },
+      {
+        "file": "app/templates/element/gatherings/editScheduleModal.php",
+        "count": 6
+      },
+      {
+        "file": "app/templates/element/gatherings/activity_appearance_form.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/element/gatherings/public_content.php",
+        "count": 32
+      },
+      {
+        "file": "app/templates/element/gatherings/mapTab.php",
+        "count": 8
+      },
+      {
+        "file": "app/templates/element/gatherings/editActivityDescriptionModal.php",
+        "count": 2
+      },
+      {
+        "file": "app/templates/element/gatherings/calendar_week.php",
+        "count": 4
+      },
+      {
+        "file": "app/templates/element/gatherings/calendar_toolbar.php",
+        "count": 13
+      },
+      {
+        "file": "app/templates/element/gatherings/royal_progress_control.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/element/gatherings/addActivityModal.php",
+        "count": 2
+      },
+      {
+        "file": "app/templates/element/gatherings/calendar_month.php",
+        "count": 5
+      },
+      {
+        "file": "app/templates/element/gatherings/staffTab.php",
+        "count": 26
+      },
+      {
+        "file": "app/templates/element/gatherings/cancelModal.php",
+        "count": 3
+      },
+      {
+        "file": "app/templates/element/gatherings/attendGatheringModal.php",
+        "count": 2
+      },
+      {
+        "file": "app/templates/element/members/submitMemberCard.php",
+        "count": 2
+      },
+      {
+        "file": "app/templates/element/members/changePasswordModal.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/element/members/gatheringAttendanceModals.php",
+        "count": 2
+      },
+      {
+        "file": "app/templates/element/members/profilePhotoModal.php",
+        "count": 2
+      },
+      {
+        "file": "app/templates/element/members/verifyMembershipModal.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/element/members/editModal.php",
+        "count": 3
+      },
+      {
+        "file": "app/templates/element/members/gatheringAttendances.php",
+        "count": 3
+      },
+      {
+        "file": "app/templates/element/branches/editModal.php",
+        "count": 12
+      },
+      {
+        "file": "app/templates/element/roles/addMemberModal.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/element/roles/editModal.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/element/roles/addPermissionModal.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/element/gatheringActivities/assignmentPermissions.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/element/gatheringActivities/addPermissionModal.php",
+        "count": 1
+      },
+      {
+        "file": "app/templates/layout/TwitterBootstrap/dashboard.php",
+        "count": 2
+      },
+      {
+        "file": "app/templates/layout/TwitterBootstrap/view_record.php",
+        "count": 2
+      }
+    ],
+    "plugins": [
+      {
+        "file": "app/plugins/Activities/src/Controller/AuthorizationsController.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Activities/src/Services/ActivitiesApprovalContextRenderer.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Activities/src/Services/ActivitiesNavigationProvider.php",
+        "count": 3
+      },
+      {
+        "file": "app/plugins/Activities/src/Services/ActivitiesViewCellProvider.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Activities/templates/Activities/view.php",
+        "count": 4
+      },
+      {
+        "file": "app/plugins/Activities/templates/Activities/index.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Activities/templates/element/requestAuthorizationModal.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Activities/templates/element/revokeAuthorizationModal.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Activities/templates/element/renewAuthorizationModal.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Activities/templates/Authorizations/mobile_request_authorization.php",
+        "count": 2
+      },
+      {
+        "file": "app/plugins/Activities/templates/ActivityGroups/view.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Activities/templates/ActivityGroups/index.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Officers/src/Services/OfficersNavigationProvider.php",
+        "count": 4
+      },
+      {
+        "file": "app/plugins/Officers/src/KMP/GridColumns/OfficersGridColumns.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Officers/src/Model/Entity/Officer.php",
+        "count": 2
+      },
+      {
+        "file": "app/plugins/Officers/templates/element/editModal.php",
+        "count": 2
+      },
+      {
+        "file": "app/plugins/Officers/templates/element/assignModal.php",
+        "count": 2
+      },
+      {
+        "file": "app/plugins/Officers/templates/element/releaseModal.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Officers/templates/Departments/view.php",
+        "count": 2
+      },
+      {
+        "file": "app/plugins/Officers/templates/Departments/index.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Officers/templates/Offices/view.php",
+        "count": 3
+      },
+      {
+        "file": "app/plugins/Officers/templates/Offices/index.php",
+        "count": 2
+      },
+      {
+        "file": "app/plugins/Officers/templates/cell/BranchOfficers/display.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Template/src/Services/TemplateNavigationProvider.php",
+        "count": 5
+      },
+      {
+        "file": "app/plugins/Template/templates/HelloWorld/edit.php",
+        "count": 4
+      },
+      {
+        "file": "app/plugins/Template/templates/HelloWorld/view.php",
+        "count": 4
+      },
+      {
+        "file": "app/plugins/Template/templates/HelloWorld/add.php",
+        "count": 3
+      },
+      {
+        "file": "app/plugins/Template/templates/HelloWorld/index.php",
+        "count": 6
+      },
+      {
+        "file": "app/plugins/Awards/src/Controller/RecommendationsController.php",
+        "count": 2
+      },
+      {
+        "file": "app/plugins/Awards/src/Controller/BestowalsController.php",
+        "count": 3
+      },
+      {
+        "file": "app/plugins/Awards/src/Services/RecommendationFeedbackContextRenderer.php",
+        "count": 2
+      },
+      {
+        "file": "app/plugins/Awards/src/Services/AwardsNavigationProvider.php",
+        "count": 9
+      },
+      {
+        "file": "app/plugins/Awards/src/Services/RecommendationApprovalContextRenderer.php",
+        "count": 2
+      },
+      {
+        "file": "app/plugins/Awards/src/Services/RecommendationQueryService.php",
+        "count": 3
+      },
+      {
+        "file": "app/plugins/Awards/src/KMP/GridColumns/BestowalsGridColumns.php",
+        "count": 3
+      },
+      {
+        "file": "app/plugins/Awards/src/KMP/GridColumns/RecommendationsGridColumns.php",
+        "count": 5
+      },
+      {
+        "file": "app/plugins/Awards/src/KMP/GridColumns/AwardsGridColumns.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Awards/tests/TestCase/Controller/BestowalTodoViewTest.php",
+        "count": 4
+      },
+      {
+        "file": "app/plugins/Awards/templates/Levels/view.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Awards/templates/Levels/index.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Awards/templates/element/ad_hoc_bestowal_modal.php",
+        "count": 5
+      },
+      {
+        "file": "app/plugins/Awards/templates/element/recommendationFeedbackModal.php",
+        "count": 2
+      },
+      {
+        "file": "app/plugins/Awards/templates/element/recommendation_bestowal_lock_notice.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Awards/templates/element/bestowal_todo_checklist.php",
+        "count": 12
+      },
+      {
+        "file": "app/plugins/Awards/templates/element/bestowalCancelModal.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Awards/templates/element/bestowalBulkTodoModal.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Awards/templates/element/recommendationWorkflowDecisionModals.php",
+        "count": 6
+      },
+      {
+        "file": "app/plugins/Awards/templates/Bestowals/turbo_edit_form.php",
+        "count": 5
+      },
+      {
+        "file": "app/plugins/Awards/templates/Bestowals/bestowal_todos.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Awards/templates/Bestowals/view.php",
+        "count": 3
+      },
+      {
+        "file": "app/plugins/Awards/templates/Bestowals/index.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Awards/templates/Recommendations/turbo_edit_form.php",
+        "count": 4
+      },
+      {
+        "file": "app/plugins/Awards/templates/Recommendations/group_children_subrow.php",
+        "count": 4
+      },
+      {
+        "file": "app/plugins/Awards/templates/Recommendations/view.php",
+        "count": 18
+      },
+      {
+        "file": "app/plugins/Awards/templates/Recommendations/table.php",
+        "count": 3
+      },
+      {
+        "file": "app/plugins/Awards/templates/Recommendations/index.php",
+        "count": 3
+      },
+      {
+        "file": "app/plugins/Awards/templates/Awards/view.php",
+        "count": 6
+      },
+      {
+        "file": "app/plugins/Awards/templates/Awards/index.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Awards/templates/ApprovalProcesses/view.php",
+        "count": 8
+      },
+      {
+        "file": "app/plugins/Awards/templates/ApprovalProcesses/index.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Awards/templates/Domains/view.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Awards/templates/Domains/index.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Awards/templates/BestowalTodoTemplates/view.php",
+        "count": 9
+      },
+      {
+        "file": "app/plugins/Awards/templates/BestowalTodoTemplates/index.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Awards/templates/cell/MemberSubmittedRecs/display.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Awards/templates/cell/ActivityAwards/display.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/GitHubIssueSubmitter/templates/cell/IssueSubmitter/display.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Waivers/src/Controller/GatheringWaiversController.php",
+        "count": 2
+      },
+      {
+        "file": "app/plugins/Waivers/src/Services/WaiversNavigationProvider.php",
+        "count": 6
+      },
+      {
+        "file": "app/plugins/Waivers/src/Services/WaiversViewCellProvider.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Waivers/src/KMP/GridColumns/WaiverTypesGridColumns.php",
+        "count": 3
+      },
+      {
+        "file": "app/plugins/Waivers/templates/element/waiver_attestation_modal.php",
+        "count": 3
+      },
+      {
+        "file": "app/plugins/Waivers/templates/element/addWaiverRequirementModal.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Waivers/templates/WaiverTypes/edit.php",
+        "count": 4
+      },
+      {
+        "file": "app/plugins/Waivers/templates/WaiverTypes/view.php",
+        "count": 2
+      },
+      {
+        "file": "app/plugins/Waivers/templates/WaiverTypes/add.php",
+        "count": 2
+      },
+      {
+        "file": "app/plugins/Waivers/templates/WaiverTypes/index.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Waivers/templates/GatheringWaivers/mobile_upload.php",
+        "count": 6
+      },
+      {
+        "file": "app/plugins/Waivers/templates/GatheringWaivers/needing_waivers.php",
+        "count": 11
+      },
+      {
+        "file": "app/plugins/Waivers/templates/GatheringWaivers/upload.php",
+        "count": 3
+      },
+      {
+        "file": "app/plugins/Waivers/templates/GatheringWaivers/index_gathering.php",
+        "count": 10
+      },
+      {
+        "file": "app/plugins/Waivers/templates/GatheringWaivers/mobile_select_gathering.php",
+        "count": 16
+      },
+      {
+        "file": "app/plugins/Waivers/templates/GatheringWaivers/dashboard.php",
+        "count": 35
+      },
+      {
+        "file": "app/plugins/Waivers/templates/GatheringWaivers/view.php",
+        "count": 29
+      },
+      {
+        "file": "app/plugins/Waivers/templates/GatheringWaivers/index.php",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Waivers/templates/cell/GatheringWaivers/display.php",
+        "count": 18
+      },
+      {
+        "file": "app/plugins/Waivers/templates/element/GatheringWaivers/upload_wizard_steps.php",
+        "count": 16
+      },
+      {
+        "file": "app/plugins/Waivers/templates/element/GatheringWaivers/changeTypeActivitiesModal.php",
+        "count": 5
+      },
+      {
+        "file": "app/plugins/Waivers/templates/element/GatheringWaivers/mobile_wizard_steps.php",
+        "count": 17
+      },
+      {
+        "file": "app/plugins/Waivers/assets/css/waiver-upload.css",
+        "count": 6
+      },
+      {
+        "file": "app/plugins/Waivers/assets/js/controllers/waiver-calendar-controller.js",
+        "count": 2
+      },
+      {
+        "file": "app/plugins/Waivers/assets/js/controllers/waiver-upload-controller.js",
+        "count": 3
+      },
+      {
+        "file": "app/plugins/Waivers/assets/js/controllers/camera-capture-controller.js",
+        "count": 1
+      },
+      {
+        "file": "app/plugins/Waivers/assets/js/controllers/waiver-upload-wizard-controller.js",
+        "count": 9
+      },
+      {
+        "file": "app/plugins/Waivers/assets/js/controllers/waiver-attestation-controller.js",
+        "count": 2
+      },
+      {
+        "file": "app/plugins/Queue/src/Services/QueueNavigationProvider.php",
+        "count": 1
+      }
+    ],
+    "assets": [
+      {
+        "file": "app/assets/css/bootstrap-icon-sizes.css",
+        "count": 16
+      },
+      {
+        "file": "app/assets/css/app.css",
+        "count": 3
+      },
+      {
+        "file": "app/assets/js/controllers/branch-links-controller.js",
+        "count": 2
+      },
+      {
+        "file": "app/assets/js/controllers/mobile-approvals-controller.js",
+        "count": 14
+      },
+      {
+        "file": "app/assets/js/controllers/approval-detail-controller.js",
+        "count": 12
+      },
+      {
+        "file": "app/assets/js/controllers/workflow-toolbar-controller.js",
+        "count": 2
+      },
+      {
+        "file": "app/assets/js/controllers/timezone-input-controller.js",
+        "count": 1
+      },
+      {
+        "file": "app/assets/js/controllers/mobile-calendar-controller.js",
+        "count": 13
+      },
+      {
+        "file": "app/assets/js/controllers/workflow-node-config-handler.js",
+        "count": 10
+      },
+      {
+        "file": "app/assets/js/controllers/approval-response-controller.js",
+        "count": 2
+      },
+      {
+        "file": "app/assets/js/controllers/sidebar-toggle-controller.js",
+        "count": 2
+      },
+      {
+        "file": "app/assets/js/controllers/gathering-map-controller.js",
+        "count": 1
+      },
+      {
+        "file": "app/assets/js/controllers/workflow-config-panel.js",
+        "count": 14
+      },
+      {
+        "file": "app/assets/js/controllers/mobile-action-items-controller.js",
+        "count": 6
+      },
+      {
+        "file": "app/assets/js/controllers/member-mobile-card-profile-controller.js",
+        "count": 1
+      },
+      {
+        "file": "app/assets/js/controllers/grid-view-controller.js",
+        "count": 22
+      },
+      {
+        "file": "app/assets/js/controllers/activity-appearance-controller.js",
+        "count": 1
+      },
+      {
+        "file": "app/assets/js/controllers/workflow-designer-controller.js",
+        "count": 3
+      },
+      {
+        "file": "app/assets/js/controllers/gatherings-calendar-controller.js",
+        "count": 2
+      },
+      {
+        "file": "app/assets/js/controllers/code-editor-controller.js",
+        "count": 1
+      },
+      {
+        "file": "app/assets/js/controllers/mobile-offline-overlay-controller.js",
+        "count": 2
+      },
+      {
+        "file": "app/assets/js/controllers/my-rsvps-controller.js",
+        "count": 11
+      },
+      {
+        "file": "app/assets/js/controllers/file-size-validator-controller.js",
+        "count": 2
+      },
+      {
+        "file": "app/assets/js/controllers/member-mobile-card-pwa-controller.js",
+        "count": 1
+      },
+      {
+        "file": "app/assets/js/controllers/permission-import-controller.js",
+        "count": 3
+      },
+      {
+        "file": "app/assets/js/controllers/approval-kanban-controller.js",
+        "count": 5
+      }
+    ],
+    "tests": [
+      {
+        "file": "app/tests/pg_seed_baseline.sql",
+        "count": 4
+      },
+      {
+        "file": "app/tests/pg_seed.sql",
+        "count": 4
+      },
+      {
+        "file": "app/tests/ui/waiver-upload-redirect.spec.js",
+        "count": 1
+      },
+      {
+        "file": "app/tests/js/controllers/waiver-upload-wizard-controller.test.js",
+        "count": 1
+      },
+      {
+        "file": "app/tests/js/controllers/mobile-approvals-controller.test.js",
+        "count": 2
+      },
+      {
+        "file": "app/tests/js/controllers/file-size-validator-controller.test.js",
+        "count": 2
+      },
+      {
+        "file": "app/tests/js/controllers/workflow-email-node.test.js",
+        "count": 6
+      },
+      {
+        "file": "app/tests/js/controllers/grid-view-controller.test.js",
+        "count": 3
+      },
+      {
+        "file": "app/tests/js/controllers/mobile-calendar-controller.test.js",
+        "count": 1
+      },
+      {
+        "file": "app/tests/js/controllers/my-rsvps-controller.test.js",
+        "count": 3
+      },
+      {
+        "file": "app/tests/js/controllers/timezone-input-controller.test.js",
+        "count": 1
+      },
+      {
+        "file": "app/tests/js/controllers/camera-capture-controller.test.js",
+        "count": 1
+      },
+      {
+        "file": "app/tests/js/controllers/activity-appearance-controller.test.js",
+        "count": 4
+      },
+      {
+        "file": "app/tests/js/controllers/member-mobile-card-menu-controller.test.js",
+        "count": 7
+      },
+      {
+        "file": "app/tests/js/controllers/branch-links-controller.test.js",
+        "count": 8
+      },
+      {
+        "file": "app/tests/js/controllers/gatherings-calendar-controller.test.js",
+        "count": 2
+      },
+      {
+        "file": "app/tests/js/controllers/public-gathering-controller.test.js",
+        "count": 1
+      },
+      {
+        "file": "app/tests/TestCase/Controller/ActionItemsControllerTest.php",
+        "count": 1
+      },
+      {
+        "file": "app/tests/TestCase/Controller/GatheringsControllerTest.php",
+        "count": 1
+      },
+      {
+        "file": "app/tests/TestCase/Services/GatheringActivityPresentationServiceTest.php",
+        "count": 1
+      },
+      {
+        "file": "app/tests/TestCase/Services/CoreViewCellProviderTest.php",
+        "count": 2
+      },
+      {
+        "file": "app/tests/TestCase/KMP/GridColumns/WorkflowInstancesGridColumnsTest.php",
+        "count": 1
+      },
+      {
+        "file": "app/tests/TestCase/Services/ApprovalContext/ApprovalContextRendererRegistryTest.php",
+        "count": 7
+      }
+    ]
+  },
+  "savedIdentifiers": [
+    {
+      "location": "app_settings.value",
+      "identifier": "bi-discord",
+      "canonical": "brand-discord",
+      "count": 1
+    },
+    {
+      "location": "app_settings.value",
+      "identifier": "bi-patch-question-fill",
+      "canonical": "help-hexagon",
+      "count": 1
+    },
+    {
+      "location": "app_settings.value",
+      "identifier": "bi-megaphone-fill",
+      "canonical": "speakerphone",
+      "count": 1
+    },
+    {
+      "location": "app_settings.value",
+      "identifier": "bi-github",
+      "canonical": "brand-github",
+      "count": 1
+    },
+    {
+      "location": "gathering_activities.icon_name",
+      "identifier": "bi-gem",
+      "canonical": "diamond",
+      "count": 1
+    },
+    {
+      "location": "gathering_activities.icon_name",
+      "identifier": "bi-shield",
+      "canonical": "shield",
+      "count": 6
+    },
+    {
+      "location": "gathering_activities.icon_name",
+      "identifier": "bi-bullseye",
+      "canonical": "target",
+      "count": 1
+    },
+    {
+      "location": "gathering_activities.icon_name",
+      "identifier": "bi-activity",
+      "canonical": "activity",
+      "count": 18
+    }
+  ],
+  "productionInspected": false
+}

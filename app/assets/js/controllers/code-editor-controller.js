@@ -351,7 +351,7 @@ class CodeEditorController extends Controller {
     }
 
     formatError(error) {
-        return `<i class="bi bi-exclamation-triangle me-1"></i><strong>Syntax Error:</strong><br><pre class="mb-0 mt-1" style="white-space: pre-wrap;">${this.escapeHtml(error)}</pre>`
+        return `<kmp-icon name="alert-triangle" class="me-1" aria-hidden="true"></kmp-icon><strong>Syntax Error:</strong><br><pre class="mb-0 mt-1" style="white-space: pre-wrap;">${this.escapeHtml(error)}</pre>`
     }
 
     escapeHtml(text) {

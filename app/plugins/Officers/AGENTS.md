@@ -18,6 +18,9 @@ Own officer assignment management, department and office hierarchy, roster APIs,
 - Warrant interactions should use `WarrantManagerInterface`; do not duplicate warrant state logic.
 - Navigation, view cells, and branch API data must stay registered through plugin providers.
 - Settings use `Officer.*` and `Plugin.Officers.*` keys through `StaticHelpers`.
+- Hiring lookup options must distinguish same-name accounts with textual membership verification,
+  group, and account ID labels. Escape names and labels, preserve the selected account ID, and
+  retain warrant eligibility restrictions; never infer that identical names mean duplicate accounts.
 
 ## Work Guidance
 

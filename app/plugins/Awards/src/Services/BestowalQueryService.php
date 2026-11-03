@@ -285,6 +285,9 @@ class BestowalQueryService
         if ($this->shouldLoadColumn('member_sca_name', $visibleColumns)) {
             $fields[] = 'Bestowals.member_sca_name';
         }
+        if ($this->shouldLoadColumn('awards', $visibleColumns)) {
+            $fields[] = 'Bestowals.specialty';
+        }
 
         if ($this->shouldLoadColumn('herald_notes_preview', $visibleColumns)) {
             $fields[] = 'Bestowals.herald_notes';

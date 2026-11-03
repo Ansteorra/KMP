@@ -87,6 +87,7 @@ RUN npm install --global "npm@${NPM_VERSION}" --ignore-scripts --no-audit --no-f
     && npm --version
 
 # Configure PHP
+COPY docker/php-development.ini /usr/local/etc/php/conf.d/zz-kmp-development.ini
 RUN mv "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini" \
     && echo "apc.enable_cli=1" >> "$PHP_INI_DIR/conf.d/apcu.ini" \
     && echo "upload_max_filesize = 5M" >> "$PHP_INI_DIR/conf.d/uploads.ini" \

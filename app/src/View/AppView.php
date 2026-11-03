@@ -18,7 +18,6 @@ namespace App\View;
 
 use BootstrapUI\View\UIViewTrait;
 use Cake\View\View;
-use Templating\View\Helper\IconHelper;
 
 /**
  * Application View
@@ -55,8 +54,7 @@ use Templating\View\Helper\IconHelper;
  * - ADmad/Glide.Glide: Image processing and optimization
  * - Tools.Format: Text formatting utilities
  * - Tools.Time: Time formatting utilities
- * - Templating.Icon: Icon rendering utilities
- * - Templating.IconSnippet: Icon snippet utilities
+ * - Icon: Unified KMP catalog renderer
  *
  * Configuration Notes:
  * - Glide is configured for image processing with secure URLs
@@ -109,10 +107,16 @@ class AppView extends View
         // This allows controllers to still choose their own layouts while
         // getting Bootstrap form helpers and components
         $this->initializeUI(['layout' => false]);
+        $this->helpers['Html'] = ['className' => 'KmpHtml'];
+        $this->helpers['Form'] = ['className' => 'KmpForm'];
+        $this->loadHelper('Html', $this->helpers['Html']);
+        $this->loadHelper('Form', $this->helpers['Form']);
+        $this->loadHelper('Icon');
 
         // Load asset management helper for versioned CSS/JS files
         // This integrates with Vite for development and production builds
         $this->loadHelper('Vite');
+        $this->loadHelper('GatheringActivity');
 
         // Load authentication helper for user context in templates
         // Provides $this->Identity->can() and user information access
@@ -153,13 +157,6 @@ class AppView extends View
             'Timezone', // Timezone conversion and formatting
             'SecurityDebug', // Security debugging helper (only active in debug mode)
         ];
-
-        // Templating helpers require cakephp-templating (require dependency).
-        // Guard with class_exists so a missing package degrades gracefully.
-        if (class_exists(IconHelper::class)) {
-            $helpers[] = 'Templating.Icon';
-            $helpers[] = 'Templating.IconSnippet';
-        }
 
         // Add all utility helpers to the view
         foreach ($helpers as $helper) {

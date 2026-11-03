@@ -5,6 +5,7 @@ namespace App\KMP\GridColumns;
 
 use App\KMP\TimezoneHelper;
 use Cake\ORM\Query\SelectQuery;
+use Cake\ORM\TableRegistry;
 use DateTime;
 use DateTimeZone;
 
@@ -69,7 +70,7 @@ class GatheringsGridColumns extends BaseGridColumns
                 'key' => 'view',
                 'type' => 'link',
                 'label' => '',
-                'icon' => 'bi-binoculars',
+                'icon' => 'binoculars',
                 'class' => 'btn btn-sm btn-secondary',
                 'permission' => 'view',
                 'url' => [
@@ -82,7 +83,7 @@ class GatheringsGridColumns extends BaseGridColumns
                 'key' => 'edit',
                 'type' => 'link',
                 'label' => '',
-                'icon' => 'bi-pencil-fill',
+                'icon' => 'pencil',
                 'class' => 'btn btn-sm btn-primary',
                 'permission' => 'edit',
                 'url' => [
@@ -265,6 +266,26 @@ class GatheringsGridColumns extends BaseGridColumns
                 'queryField' => 'GatheringActivities.id',
             ],
 
+            'royal_progress' => [
+                'key' => 'royal_progress',
+                'label' => 'Royal Progress',
+                'type' => 'string',
+                'sortable' => false,
+                'filterable' => true,
+                'filterType' => 'dropdown',
+                'filterOptionsSource' => [
+                    'class' => self::class,
+                    'method' => 'getRoyalProgressFilterOptions',
+                ],
+                'defaultVisible' => false,
+                'filterOnly' => true,
+                'exportable' => false,
+                'customFilterHandler' => [
+                    'class' => self::class,
+                    'method' => 'filterByRoyalProgress',
+                ],
+            ],
+
             'activity_count' => [
                 'key' => 'activity_count',
                 'label' => '# Activities',
@@ -324,6 +345,29 @@ class GatheringsGridColumns extends BaseGridColumns
                 ],
             ],
         ];
+    }
+
+    /**
+     * Get office/branch choices from recorded royal progress RSVPs.
+     *
+     * @return array<array{value: string, label: string}>
+     */
+    public static function getRoyalProgressFilterOptions(): array
+    {
+        return TableRegistry::getTableLocator()->get('GatheringAttendances')->royalProgressFilterOptions();
+    }
+
+    /**
+     * Apply the same snapshot filter to grids, calendars, and subscriptions.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $query Gathering query
+     * @param mixed $filterValue Selected office/branch snapshots
+     * @param array $context Grid context
+     * @return \Cake\ORM\Query\SelectQuery
+     */
+    public static function filterByRoyalProgress(SelectQuery $query, mixed $filterValue, array $context): SelectQuery
+    {
+        return $query->find('royalProgress', selections: (array)$filterValue);
     }
 
     /**

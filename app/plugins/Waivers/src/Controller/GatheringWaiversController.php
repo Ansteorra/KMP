@@ -33,6 +33,55 @@ class GatheringWaiversController extends AppController
     use DataverseGridTrait;
     use WorkflowDispatchTrait;
 
+    /** Record a Deputy's loss report; authorization stays outside JSON error handling. */
+    public function recordLost(WaiverStateService $stateService)
+    {
+        $this->request->allowMethod(['post']);
+        $gatheringId = (int)$this->request->getData('gathering_id');
+        $waiverTypeId = (int)$this->request->getData('waiver_type_id');
+        $notes = $this->request->getData('notes');
+        if ($gatheringId <= 0 || $waiverTypeId <= 0 || !is_string($notes)) {
+            throw new BadRequestException(__('Gathering, waiver type, and notes are required.'));
+        }
+        $gathering = $this->fetchTable('Gatherings')->get($gatheringId);
+        $context = $this->GatheringWaivers->newEmptyEntity();
+        $context->gathering = $gathering;
+        $this->Authorization->authorize($context, 'recordLost');
+
+        $result = $stateService->recordLost(
+            $gatheringId,
+            $waiverTypeId,
+            $notes,
+            (int)$this->Authentication->getIdentity()->getIdentifier(),
+        );
+        $this->viewBuilder()->setClassName('Json');
+        $this->set('success', $result->success);
+        $this->set('message', $result->reason);
+        $this->set('redirectUrl', Router::url([
+            'plugin' => false,
+            'controller' => 'Gatherings',
+            'action' => 'view',
+            $gathering->public_id,
+            '?' => ['tab' => 'gathering-waivers'],
+        ]));
+        $this->viewBuilder()->setOption('serialize', ['success', 'message', 'redirectUrl']);
+        if (!$result->success) {
+            $this->response = $this->response->withStatus(422);
+        }
+    }
+
+    /** Display the original loss report and its recording details. */
+    public function viewLoss(?string $id = null)
+    {
+        $loss = $this->fetchTable('Waivers.GatheringWaiverLosses')->get($id, contain: [
+            'Gatherings', 'WaiverTypes', 'CreatedByMembers',
+        ]);
+        $context = $this->GatheringWaivers->newEmptyEntity();
+        $context->gathering = $loss->gathering;
+        $this->Authorization->authorize($context, 'viewGatheringWaivers');
+        $this->set('loss', $loss);
+    }
+
     /**
      * Initialize method
      *
@@ -122,6 +171,9 @@ class GatheringWaiversController extends AppController
             $countsMap = $summary['countsMap'];
             $this->set('exemptionCounts', $summary['exemptionCounts']);
             $this->set('pendingWaiverTypes', $summary['pendingWaiverTypes']);
+            $this->set('waiverLosses', $this->fetchTable('Waivers.GatheringWaiverLosses')->find()
+                ->where(['gathering_id' => $gatheringId])
+                ->contain(['WaiverTypes', 'CreatedByMembers'])->all());
 
             // Check if user can close/reopen waivers for this gathering
             $tempWaiver = $this->GatheringWaivers->newEmptyEntity();
@@ -786,6 +838,9 @@ class GatheringWaiversController extends AppController
         $preSelectedWaiverTypeId = $this->request->getQuery('waiver_type_id');
 
         $waiverStatusSummary = $fileService->getWaiverStatusSummary((int)$gathering->id, $requiredWaiverTypes);
+        $lossContext = $this->GatheringWaivers->newEmptyEntity();
+        $lossContext->gathering = $gathering;
+        $this->set('canRecordLost', $this->Authentication->getIdentity()->checkCan('recordLost', $lossContext));
 
         $this->set(compact(
             'gathering',
@@ -1417,7 +1472,7 @@ class GatheringWaiversController extends AppController
         $this->viewBuilder()->setLayout('mobile_app');
         $this->set('mobileTitle', 'Submit Waiver');
         $this->set('mobileSection', 'waivers');
-        $this->set('mobileIcon', 'bi-file-earmark-text');
+        $this->set('mobileIcon', 'file-text');
         $this->set('mobileBackUrl', $this->request->referer());
         $this->set('showRefreshBtn', false);
     }
@@ -1639,6 +1694,9 @@ class GatheringWaiversController extends AppController
         $preSelectedWaiverTypeId = $this->request->getQuery('waiver_type_id');
 
         $waiverStatusSummary = $fileService->getWaiverStatusSummary((int)$gathering->id, $requiredWaiverTypes);
+        $lossContext = $this->GatheringWaivers->newEmptyEntity();
+        $lossContext->gathering = $gathering;
+        $this->set('canRecordLost', $this->Authentication->getIdentity()->checkCan('recordLost', $lossContext));
 
         $this->set(compact(
             'gathering',
@@ -1653,7 +1711,7 @@ class GatheringWaiversController extends AppController
         $this->viewBuilder()->setLayout('mobile_app');
         $this->set('mobileTitle', 'Upload Waiver');
         $this->set('mobileSection', 'waivers');
-        $this->set('mobileIcon', 'bi-cloud-upload');
+        $this->set('mobileIcon', 'cloud-upload');
         $this->set('mobileBackUrl', ['action' => 'mobileSelectGathering']);
         $this->set('showRefreshBtn', false);
     }

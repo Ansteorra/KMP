@@ -180,6 +180,61 @@ class GatheringAttendancesTable extends Table
     }
 
     /**
+     * List distinct royal office/branch snapshots, optionally limited to visible gatherings.
+     *
+     * @param \Cake\ORM\Query\SelectQuery|null $gatheringIds Eligible gathering IDs
+     * @return array<array{value: string, label: string}>
+     */
+    public function royalProgressFilterOptions(?SelectQuery $gatheringIds = null): array
+    {
+        $query = $this->find('royalProgress')
+            ->select(['progress_office_name', 'progress_branch_name', 'is_royal_progress'])
+            ->where(['progress_office_name IS NOT' => null, 'progress_office_name !=' => ''])
+            ->distinct()
+            ->orderBy(['progress_office_name' => 'ASC', 'progress_branch_name' => 'ASC']);
+        if ($gatheringIds !== null) {
+            $query->where(['gathering_id IN' => $gatheringIds]);
+        }
+
+        $options = [['value' => 'any', 'label' => __('Any Royal Progress')]];
+        foreach ($query as $attendance) {
+            $options[] = [
+                'value' => $attendance->progress_filter_value,
+                'label' => $attendance->progress_title,
+            ];
+        }
+
+        return $options;
+    }
+
+    /**
+     * Group public royal snapshots for calendar badges without exposing other RSVP data.
+     *
+     * @param array<int> $gatheringIds Visible gathering IDs
+     * @return array<int, array<array{value: string, label: string|null}>>
+     */
+    public function royalProgressForGatherings(array $gatheringIds): array
+    {
+        if ($gatheringIds === []) {
+            return [];
+        }
+
+        $attendances = $this->find('royalProgress')
+            ->select(['gathering_id', 'is_royal_progress', 'progress_office_name', 'progress_branch_name'])
+            ->where(['gathering_id IN' => $gatheringIds])
+            ->orderBy(['progress_office_name' => 'ASC', 'progress_branch_name' => 'ASC']);
+        $progressByGathering = [];
+        foreach ($attendances as $attendance) {
+            $progressByGathering[$attendance->gathering_id][$attendance->progress_filter_value] = [
+                'value' => $attendance->progress_filter_value,
+                'label' => $attendance->progress_title,
+            ];
+        }
+
+        return array_map('array_values', $progressByGathering);
+    }
+
+    /**
      * List a member's current officer assignments for progress-eligible offices.
      *
      * Used to offer the "attend as royal progress" option when the member

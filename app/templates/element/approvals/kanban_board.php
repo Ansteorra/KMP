@@ -29,7 +29,7 @@ $lanes = $lanes ?? [];
             </p>
         </div>
         <div class="approval-kanban-legend small text-muted" aria-label="<?= h(__('Triage lane order')) ?>">
-            <i class="bi bi-kanban me-1" aria-hidden="true"></i><?= __('New to Ready to Decide') ?>
+            <kmp-icon name="layout-kanban" class="me-1" aria-hidden="true"></kmp-icon><?= __('New to Ready to Decide') ?>
         </div>
     </div>
 

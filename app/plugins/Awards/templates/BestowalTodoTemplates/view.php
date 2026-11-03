@@ -129,7 +129,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
         </div>
         <?php if ($user->checkCan('edit', $template)) : ?>
         <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal">
-            <i class="bi bi-plus-circle" aria-hidden="true"></i> <?= __('Add Check') ?>
+            <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon> <?= __('Add Check') ?>
         </button>
         <?php endif; ?>
     </div>
@@ -213,9 +213,9 @@ echo $this->KMP->startBlock('pageTitle') ?>
                     </td>
                     <td class="actions text-end text-nowrap">
                         <?php if ($user->checkCan('edit', $template)) : ?>
-                        <button type="button" class="btn btn-sm btn-secondary bi bi-pencil-fill" data-bs-toggle="modal"
+                        <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal"
                             data-bs-target="#editItemModal-<?= $item->id ?>"
-                            aria-label="<?= __('Edit {0}', $item->label) ?>"></button>
+                            aria-label="<?= __('Edit {0}', $item->label) ?>"><kmp-icon name="pencil" aria-hidden="true"></kmp-icon> </button>
                             <?= $this->Form->postLink(
                                 '',
                                 ['action' => 'delete-item', $item->id],
@@ -223,7 +223,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
                                 'confirm' => __('Remove check "{0}"?', $item->label),
                                 'title' => __('Remove'),
                                 'aria-label' => __('Remove {0}', $item->label),
-                                'class' => 'btn-sm btn btn-outline-danger bi bi-trash-fill',
+                                'class' => 'btn-sm btn btn-outline-danger', 'icon' => 'trash',
                                 ],
                             ) ?>
                         <?php endif; ?>
@@ -307,7 +307,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
         echo '<div class="col-12 col-lg-6">';
         echo '<fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">';
         echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">' .
-        '<i class="bi bi-list-check text-primary me-1" aria-hidden="true"></i>' .
+        '<kmp-icon name="list-check" class="text-primary me-1" aria-hidden="true"></kmp-icon>' .
         __('Check Identity') . '</legend>';
         echo $this->Form->control('label', ['value' => $item?->label]);
         echo $this->Form->control('item_key', [
@@ -340,7 +340,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
         echo '<div class="col-12 col-lg-6">';
         echo '<fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">';
         echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">' .
-        '<i class="bi bi-person-check text-success me-1" aria-hidden="true"></i>' .
+        '<kmp-icon name="user-check" class="text-success me-1" aria-hidden="true"></kmp-icon>' .
         __('Assignee Source') . '</legend>';
         echo $this->Form->control('assignee_type', [
         'options' => $assigneeTypeOptions,
@@ -448,7 +448,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
         echo '<div class="col-12">';
         echo '<fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">';
         echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">' .
-        '<i class="bi bi-ui-checks-grid text-warning me-1" aria-hidden="true"></i>' .
+        '<kmp-icon name="list-check" class="text-warning me-1" aria-hidden="true"></kmp-icon>' .
         __('Completion Requirements') . '</legend>';
         echo $this->Form->control('required_field', [
         'options' => $requiredFieldOptions,
@@ -485,7 +485,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
         echo '<div class="col-12">';
         echo '<fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">';
         echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">' .
-        '<i class="bi bi-sliders text-info me-1" aria-hidden="true"></i>' .
+        '<kmp-icon name="adjustments" class="text-info me-1" aria-hidden="true"></kmp-icon>' .
         __('Branch Scope') . '</legend>';
         echo $this->Form->control('branch_mode', [
         'options' => $branchModeOptions,
@@ -512,7 +512,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
     <?= $this->Modal->create(__('Add Check'), ['id' => 'addItemModal', 'close' => true, 'form' => true]) ?>
 <fieldset class="border rounded-3 bg-white shadow-sm p-3" data-controller="awards-bestowal-todo-item-form">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-        <i class="bi bi-list-check text-primary me-1" aria-hidden="true"></i>
+        <kmp-icon name="list-check" class="text-primary me-1" aria-hidden="true"></kmp-icon>
         <?= __('To-Do Check') ?>
     </legend>
     <?php $renderItemFields(); ?>
@@ -534,7 +534,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
         ) ?>
 <fieldset class="border rounded-3 bg-white shadow-sm p-3" data-controller="awards-bestowal-todo-item-form">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-        <i class="bi bi-list-check text-primary me-1" aria-hidden="true"></i>
+        <kmp-icon name="list-check" class="text-primary me-1" aria-hidden="true"></kmp-icon>
         <?= __('To-Do Check') ?>
     </legend>
         <?php $renderItemFields($item); ?>

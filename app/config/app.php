@@ -31,7 +31,6 @@ use Cake\Http\Session\CacheSession;
 use Cake\Log\Engine\FileLog;
 use Cake\Mailer\Mailer;
 use Cake\Mailer\Transport\MailTransport;
-use Templating\View\Icon\BootstrapIcon;
 
 // Determine cache engine and Redis config from environment
 $runtimeEnvironment = strtolower((string)env('KMP_ENV', env('APP_ENV', '')));
@@ -879,19 +878,6 @@ return [
         ]),
     ], static fn(mixed $value): bool => $value !== null),
 
-    'Icon' => [
-        /** @see docs/9.2-bootstrap-icons.md */
-        'sets' => [
-            /** @var array Bootstrap Icons configuration */
-            'bs' => [
-                /** @var string Icon rendering class */
-                'class' => BootstrapIcon::class,
-
-                /** @var string Path to icon definitions JSON file */
-                'path' => WWW_ROOT . 'assets/bootstrap-icons/font/bootstrap-icons.json',
-            ],
-        ],
-    ],
     'Backups' => [
         // Archives have independent configuration and container permissions.
         'storage' => [
@@ -909,6 +895,13 @@ return [
                 'endpoint' => env('AWS_BACKUP_S3_ENDPOINT'),
             ],
         ],
+    ],
+    // Explicitly public artwork is served directly by the web server or object store/CDN.
+    'PublicAssets' => [
+        'adapter' => env('PUBLIC_ASSETS_ADAPTER', 'local'),
+        'baseUrl' => env('PUBLIC_ASSETS_BASE_URL', ''),
+        'azureContainer' => env('PUBLIC_ASSETS_AZURE_CONTAINER', 'public-assets'),
+        'localPath' => WWW_ROOT . 'public-assets',
     ],
     /**
      * Document Management Configuration

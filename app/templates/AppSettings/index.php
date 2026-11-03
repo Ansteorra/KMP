@@ -27,7 +27,7 @@ $this->assign('title', __('App Settings'));
         <div>
             <button type="button" class="btn btn-primary" data-bs-toggle="modal"
                 data-bs-target="#addModal">
-                <i class="bi bi-plus-circle me-1"></i><?= __('Add') ?>
+                <kmp-icon name="circle-plus" class="me-1" aria-hidden="true"></kmp-icon><?= __('Add') ?>
             </button>
             <?php
             $infoHelpUrl = $this->KMP->getAppSetting('KMP.AppSettings.HelpUrl');
@@ -69,7 +69,7 @@ echo $this->Modal->create('Add App Setting', [
 ?>
 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-        <i class="bi bi-gear text-primary me-1" aria-hidden="true"></i>
+        <kmp-icon name="settings" class="text-primary me-1" aria-hidden="true"></kmp-icon>
         <?= __('Setting Details') ?>
     </legend>
     <div class="row g-3">

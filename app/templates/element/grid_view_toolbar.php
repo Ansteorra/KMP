@@ -63,7 +63,7 @@ $searchDescription = !empty($searchableLabels)
     <?php if (\App\Services\GridSubscriptionRegistry::supports($gridKey)): ?>
     <details class="mb-3 grid-subscription">
         <summary class="btn btn-outline-secondary" data-action="click-><?= h($controllerName) ?>#prepareSubscription">
-            <i class="bi bi-envelope" aria-hidden="true"></i> <?= __('Email this view') ?>
+            <kmp-icon name="mail"  aria-hidden="true"></kmp-icon> <?= __('Email this view') ?>
         </summary>
         <form data-subscription-page-name="<?= h(\App\Services\GridSubscriptionRegistry::get($gridKey)['label']) ?>"
             class="border rounded p-3 mt-2" data-action="submit-><?= h($controllerName) ?>#subscribeToView"
@@ -137,7 +137,7 @@ $searchDescription = !empty($searchableLabels)
                             disabled
                             title="<?= h($action['label'] ?? 'Bulk Action') ?>">
                             <?php if (!empty($action['icon'])): ?>
-                                <i class="bi <?= h($action['icon']) ?>"></i>
+                                <?= $this->Icon->render($action['icon']) ?>
                             <?php endif; ?>
                             <span><?= h($action['label'] ?? 'Bulk Action') ?></span>
                             <span class="badge bg-light text-dark" data-<?= h($controllerName) ?>-target="selectionCount" style="display: none;">0</span>
@@ -150,7 +150,7 @@ $searchDescription = !empty($searchableLabels)
                     <button type="button" class="btn btn-outline-primary d-flex align-items-center gap-2"
                         data-action="click-><?= h($controllerName) ?>#exportCsv"
                         title="Export to CSV">
-                        <i class="bi bi-download"></i>
+                        <kmp-icon name="download"  aria-hidden="true"></kmp-icon>
                         <span>Export CSV</span>
                     </button>
                 <?php endif; ?>
@@ -160,7 +160,7 @@ $searchDescription = !empty($searchableLabels)
                         <button class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2" type="button"
                             id="filterDropdown" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
                             data-filter-button>
-                            <i class="bi bi-funnel" aria-hidden="true"></i>
+                            <kmp-icon name="filter"  aria-hidden="true"></kmp-icon>
                             <span>Filter</span>
                             <!-- JS will add badge here if needed -->
                         </button>
@@ -179,7 +179,7 @@ $searchDescription = !empty($searchableLabels)
                                     <div class="px-3 py-2">
                                         <div class="input-group input-group-sm">
                                             <label class="input-group-text bg-white" for="<?= h($gridKey) ?>-grid-search">
-                                                <i class="bi bi-search" aria-hidden="true"></i>
+                                                <kmp-icon name="search"  aria-hidden="true"></kmp-icon>
                                                 <span class="visually-hidden"><?= h(__('Search table records')) ?></span>
                                             </label>
                                             <input type="text" class="form-control" placeholder="Search..."
@@ -256,7 +256,7 @@ $searchDescription = !empty($searchableLabels)
                 </div>
                 <div class="modal-body">
                     <p class="text-muted">
-                        <i class="bi bi-info-circle"></i>
+                        <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                         Check columns to show/hide. Drag or use the Move up and Move down buttons to reorder.
                     </p>
 
@@ -273,7 +273,7 @@ $searchDescription = !empty($searchableLabels)
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-primary" data-bs-dismiss="modal"
                         data-action="click-><?= h($controllerName) ?>#applyColumnChanges">
-                        <i class="bi bi-check-lg"></i> Apply
+                        <kmp-icon name="check"  aria-hidden="true"></kmp-icon> Apply
                     </button>
                 </div>
             </div>

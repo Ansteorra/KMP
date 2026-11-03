@@ -20,7 +20,7 @@ echo $this->KMP->startBlock('title');
 echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': All Approvals';
 $this->KMP->endBlock(); ?>
 
-<h3><i class="bi bi-clipboard-check me-2"></i><?= __('All Approvals') ?></h3>
+<h3><kmp-icon name="clipboard-check" class="me-2" aria-hidden="true"></kmp-icon><?= __('All Approvals') ?></h3>
 
 <div data-controller="approval-detail"
      data-approval-detail-url-value="/approvals/detail/">
@@ -36,7 +36,7 @@ $this->KMP->endBlock(); ?>
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="approvalResponseModalLabel">
-                    <i class="bi bi-check2-square me-2"></i><?= __('Respond to Approval') ?>
+                    <kmp-icon name="checkbox" class="me-2" aria-hidden="true"></kmp-icon><?= __('Respond to Approval') ?>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -63,7 +63,7 @@ $this->KMP->endBlock(); ?>
                                 data-approval-response-target="decision"
                                 data-action="change->approval-response#onDecisionChange">
                             <label class="form-check-label text-success fw-semibold" for="decisionApprove">
-                                <i class="bi bi-check-circle me-1"></i><?= __('Approve') ?>
+                                <kmp-icon name="circle-check" class="me-1" aria-hidden="true"></kmp-icon><?= __('Approve') ?>
                             </label>
                         </div>
                         <div class="form-check">
@@ -71,7 +71,7 @@ $this->KMP->endBlock(); ?>
                                 data-approval-response-target="decision"
                                 data-action="change->approval-response#onDecisionChange">
                             <label class="form-check-label text-danger fw-semibold" for="decisionReject">
-                                <i class="bi bi-x-circle me-1"></i><?= __('Reject') ?>
+                                <kmp-icon name="circle-x" class="me-1" aria-hidden="true"></kmp-icon><?= __('Reject') ?>
                             </label>
                         </div>
                     </div>
@@ -86,7 +86,7 @@ $this->KMP->endBlock(); ?>
                         data-approval-response-target="comment"
                         placeholder="<?= __('Optional comment...') ?>"></textarea>
                     <div class="form-text text-muted small" data-approval-response-target="commentWarning" hidden>
-                        <i class="bi bi-eye me-1"></i><span data-approval-response-target="commentWarningText"></span>
+                        <kmp-icon name="eye" class="me-1" aria-hidden="true"></kmp-icon><span data-approval-response-target="commentWarningText"></span>
                     </div>
                 </div>
 
@@ -113,7 +113,7 @@ $this->KMP->endBlock(); ?>
                     </div>
                     <div class="text-danger small" id="allApprovalBestowalGatheringError"
                         data-approval-response-target="bestowalGatheringError" hidden>
-                        <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>
+                        <kmp-icon name="alert-circle" class="me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Select a valid gathering or leave this field blank.') ?>
                     </div>
                 </div>
@@ -158,7 +158,7 @@ $this->KMP->endBlock(); ?>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= __('Cancel') ?></button>
                 <button type="submit" class="btn btn-primary" data-approval-response-target="submitBtn" disabled>
-                    <i class="bi bi-send me-1"></i><?= __('Submit Response') ?>
+                    <kmp-icon name="send" class="me-1" aria-hidden="true"></kmp-icon><?= __('Submit Response') ?>
                 </button>
             </div>
             <?= $this->Form->end() ?>
@@ -172,7 +172,7 @@ $this->KMP->endBlock(); ?>
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="approvalReassignModalLabel">
-                    <i class="bi bi-person-gear me-2"></i><?= __('Reassign Approval') ?>
+                    <kmp-icon name="user-cog" class="me-2" aria-hidden="true"></kmp-icon><?= __('Reassign Approval') ?>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -185,7 +185,7 @@ $this->KMP->endBlock(); ?>
                 <input type="hidden" name="approvalId" data-approval-reassign-target="approvalId" value="">
 
                 <div class="alert alert-info border-start border-info border-4 py-2 small" role="alert">
-                    <i class="bi bi-info-circle me-1"></i>
+                    <kmp-icon name="info-circle" class="me-1" aria-hidden="true"></kmp-icon>
                     <?= __('Reassigning this approval will transfer it to a different eligible member. If the workflow has an on_reassigned action configured, the new approver will be notified.') ?>
                 </div>
 
@@ -235,7 +235,7 @@ $this->KMP->endBlock(); ?>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= __('Cancel') ?></button>
                 <button type="submit" class="btn btn-warning" data-approval-reassign-target="submitBtn" disabled>
-                    <i class="bi bi-person-gear me-1"></i><?= __('Reassign') ?>
+                    <kmp-icon name="user-cog" class="me-1" aria-hidden="true"></kmp-icon><?= __('Reassign') ?>
                 </button>
             </div>
             <?= $this->Form->end() ?>
@@ -284,12 +284,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const modalTitle = document.getElementById('approvalResponseModalLabel');
             if (modalTitle) {
                 modalTitle.innerHTML = feedbackResponse
-                    ? '<i class="bi bi-chat-left-text me-2"></i><?= __('Send Feedback') ?>'
-                    : '<i class="bi bi-check2-square me-2"></i><?= __('Respond to Approval') ?>';
+                    ? '<kmp-icon name="message" class="me-2" aria-hidden="true"></kmp-icon><?= __('Send Feedback') ?>'
+                    : '<kmp-icon name="checkbox" class="me-2" aria-hidden="true"></kmp-icon><?= __('Respond to Approval') ?>';
             }
             const approveLabelEl = document.querySelector('label[for="decisionApprove"]');
             if (approveLabelEl) {
-                approveLabelEl.innerHTML = '<i class="bi bi-check-circle me-1"></i>' + approveLabel;
+                approveLabelEl.innerHTML = '<kmp-icon name="circle-check" class="me-1" aria-hidden="true"></kmp-icon>' + approveLabel;
             }
             const rejectOption = document.getElementById('decisionReject')?.closest('.form-check');
             if (rejectOption) {
@@ -297,7 +297,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             const submitBtn = form?.querySelector('[data-approval-response-target="submitBtn"]');
             if (submitBtn) {
-                submitBtn.innerHTML = '<i class="bi bi-send me-1"></i>' + responseLabel;
+                submitBtn.innerHTML = '<kmp-icon name="send" class="me-1" aria-hidden="true"></kmp-icon>' + responseLabel;
             }
             const commentHint = form?.querySelector('[data-approval-response-target="commentRequiredHint"]');
             if (commentHint) {

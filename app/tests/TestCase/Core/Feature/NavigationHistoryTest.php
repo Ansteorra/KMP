@@ -5,6 +5,8 @@ namespace App\Test\TestCase\Core\Feature;
 
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Cake\Event\EventManager;
+use DOMDocument;
+use DOMXPath;
 
 class NavigationHistoryTest extends HttpIntegrationTestCase
 {
@@ -52,6 +54,44 @@ class NavigationHistoryTest extends HttpIntegrationTestCase
         $this->get('/gatherings/attendance-modal/' . $gathering->id);
         $this->assertResponseOk();
         $this->assertSame($this->history, $this->recordedHistory);
+    }
+
+    /** Both reader and organizer headers use the app stack, including the originating grid query. */
+    public function testGatheringReaderBackButtonPreservesOriginAndUsesTheSharedIcon(): void
+    {
+        $gathering = $this->getTableLocator()->get('Gatherings')->find()->firstOrFail();
+        $branch = $this->getTableLocator()->get('Branches')->get($gathering->branch_id);
+        $origins = [
+            '/gatherings/calendar?year=2026&month=11&search=Archery&branch_id=2',
+            '/branches/view/' . $branch->public_id . '?tab=gatherings&grid_context=branch-gatherings&page=3'
+                . '&search=Practice&sort=start_date&direction=asc',
+        ];
+        foreach ([true, false] as $organizer) {
+            if ($organizer) {
+                $this->authenticateAsSuperUser();
+            } else {
+                $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+            }
+            foreach ($origins as $origin) {
+                $this->session(['pageStack' => [$origin], 'pageStackVersion' => 2]);
+                $this->get('/gatherings/view/' . $gathering->public_id);
+                $this->assertResponseOk();
+                $document = new DOMDocument();
+                $previous = libxml_use_internal_errors(true);
+                try {
+                    $document->loadHTML((string)$this->_response->getBody());
+                } finally {
+                    libxml_clear_errors();
+                    libxml_use_internal_errors($previous);
+                }
+                $xpath = new DOMXPath($document);
+                $back = $xpath->query('//article[contains(@class, "gathering-reader")]//a[@aria-label="Go back"]');
+                $this->assertCount(1, $back);
+                $this->assertSame($origin, $back->item(0)->getAttribute('href'));
+                $this->assertSame('_top', $back->item(0)->getAttribute('data-turbo-frame'));
+                $this->assertCount(1, $xpath->query('.//kmp-icon[@name="circle-arrow-left"]', $back->item(0)));
+            }
+        }
     }
 
     public function testBackgroundDocumentFetchDoesNotEnterHistory(): void

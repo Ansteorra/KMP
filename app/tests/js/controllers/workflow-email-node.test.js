@@ -209,7 +209,7 @@ describe('WorkflowNodeConfigHandler._renderTemplateAnalysis — missing required
 
     test('shows x-circle icons for unmapped required vars', () => {
         handler._renderTemplateAnalysis(select, 'node-1')
-        expect(analysis.innerHTML).toContain('bi-x-circle-fill text-danger')
+        expect(analysis.innerHTML).toContain('name="circle-x" class="text-danger"')
     })
 })
 
@@ -237,7 +237,7 @@ describe('WorkflowNodeConfigHandler._renderTemplateAnalysis — mapped required 
 
     test('shows check icon when required var is mapped', () => {
         handler._renderTemplateAnalysis(select, 'node-2')
-        expect(analysis.innerHTML).toContain('bi-check-circle-fill text-success')
+        expect(analysis.innerHTML).toContain('name="circle-check" class="text-success"')
     })
 
     test('does not show danger alert when all required vars are mapped', () => {
@@ -247,7 +247,7 @@ describe('WorkflowNodeConfigHandler._renderTemplateAnalysis — mapped required 
 
     test('does not require the mapped value path to share the template variable name', () => {
         handler._renderTemplateAnalysis(select, 'node-2')
-        expect(analysis.innerHTML).toContain('bi-check-circle-fill text-success')
+        expect(analysis.innerHTML).toContain('name="circle-check" class="text-success"')
     })
 })
 
@@ -277,7 +277,7 @@ describe('WorkflowNodeConfigHandler._renderTemplateAnalysis — empty mapped var
     test('shows danger alert when a required mapping has no value', () => {
         handler._renderTemplateAnalysis(select, 'node-3')
         expect(analysis.innerHTML).toContain('alert-danger')
-        expect(analysis.innerHTML).toContain('bi-x-circle-fill text-danger')
+        expect(analysis.innerHTML).toContain('name="circle-x" class="text-danger"')
     })
 })
 
@@ -312,7 +312,7 @@ describe('WorkflowNodeConfigHandler._renderTemplateAnalysis — all configured e
         handler._renderTemplateAnalysis(select, 'node-4')
 
         expect(analysis.innerHTML).not.toContain('alert-danger')
-        expect(analysis.querySelectorAll('.bi-check-circle-fill.text-success')).toHaveLength(3)
+        expect(analysis.querySelectorAll('kmp-icon[name="circle-check"].text-success')).toHaveLength(3)
     })
 })
 
@@ -651,6 +651,6 @@ describe('WorkflowNodeConfigHandler key-value context mode', () => {
         handler._saveKvFieldsFromForm(form)
 
         expect(document.querySelector('.email-template-analysis').innerHTML).not.toContain('alert-danger')
-        expect(document.querySelector('.email-template-analysis').innerHTML).toContain('bi-check-circle-fill text-success')
+        expect(document.querySelector('.email-template-analysis').innerHTML).toContain('name="circle-check" class="text-success"')
     })
 })

@@ -1,17 +1,10 @@
 <?php
-/**
- * Overwrite this element snippet locally to customize if needed.
- *
- * @var \App\View\AppView $this
+declare(strict_types=1);
+
+/** @var \App\View\AppView $this
  * @var bool $value
  */
-?>
-<?php
-	if ($this->helpers()->has('IconSnippet')) {
-		echo $this->IconSnippet->yesNo($value);
-	} elseif ($this->helpers()->has('Format')) {
-		echo $this->Format->yesNo($value);
-	} else {
-		echo $value ? '<span class="yes-no yes-no-yes">Yes</span>' : '<span class="yes-no yes-no-no">No</span>';
-	}
-?>
+echo $this->Icon->render($value ? 'circle-check' : 'circle-x', [
+    'class' => $value ? 'text-success' : 'text-danger',
+    'label' => $value ? __('Yes') : __('No'),
+]);

@@ -23,7 +23,7 @@ $this->KMP->endBlock();
             <?= $this->Html->link(
                 ' Add Waiver Type',
                 ['action' => 'add'],
-                ['class' => 'btn btn-primary  bi bi-plus-circle', 'escape' => false]
+                ['class' => 'btn btn-primary', 'icon' => 'circle-plus', 'escape' => false]
             ) ?>
         <?php endif; ?>
     </div>

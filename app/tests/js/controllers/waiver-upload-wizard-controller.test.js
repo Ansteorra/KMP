@@ -48,7 +48,13 @@ describe('WaiverUploadWizardController', () => {
                     <div data-waiver-upload-wizard-target="step3Lead"></div>
                     <div data-waiver-upload-wizard-target="modeToggle" class="d-none">
                         <input type="radio" name="mode" id="mode-upload" value="upload" checked>
-                        <input type="radio" name="mode" id="mode-attest" value="attest">
+                        <span class="d-flex" data-waiver-upload-wizard-target="attestOption">
+                            <input type="radio" name="mode" id="mode-attest" value="attest">
+                        </span>
+                    </div>
+                    <div data-waiver-upload-wizard-target="lostSection" class="d-none" hidden aria-hidden="true">
+                        <textarea data-waiver-upload-wizard-target="lostNotes" disabled></textarea>
+                        <p data-waiver-upload-wizard-target="lostNotesError" role="alert" class="d-none"></p>
                     </div>
                     <div data-waiver-upload-wizard-target="uploadSection">
                         <input type="file" data-waiver-upload-wizard-target="fileInput" multiple>
@@ -62,6 +68,9 @@ describe('WaiverUploadWizardController', () => {
 
                 <div data-waiver-upload-wizard-target="step" data-step-number="3" class="d-none">
                     <span data-waiver-upload-wizard-target="reviewWaiverType"></span>
+                    <div data-waiver-upload-wizard-target="reviewLostSection" class="d-none" hidden aria-hidden="true">
+                        <p data-waiver-upload-wizard-target="reviewLostNotes"></p>
+                    </div>
                     <div data-waiver-upload-wizard-target="reviewUploadSection">
                         <span data-waiver-upload-wizard-target="reviewPageCount"></span>
                         <div data-waiver-upload-wizard-target="reviewPagesList"></div>
@@ -141,6 +150,13 @@ describe('WaiverUploadWizardController', () => {
         ctrl.hasModeToggleTarget = true;
         ctrl.step3LeadTarget = q('[data-waiver-upload-wizard-target="step3Lead"]');
         ctrl.hasStep3LeadTarget = true;
+
+        for (const name of ['lostSection', 'lostNotes', 'lostNotesError', 'reviewLostSection', 'reviewLostNotes', 'attestOption']) {
+            ctrl[`${name}Target`] = q(`[data-waiver-upload-wizard-target="${name}"]`);
+            ctrl[`has${name[0].toUpperCase() + name.slice(1)}Target`] = true;
+        }
+        ctrl.canRecordLostValue = false;
+        ctrl.recordLostUrlValue = '/waivers/gathering-waivers/record-lost';
 
         // Values
         ctrl.currentStepValue = 1;
@@ -716,7 +732,7 @@ describe('WaiverUploadWizardController', () => {
             { file: {}, number: 1, name: 'doc.pdf', size: 2048, isPdf: true, dataUrl: 'data:application/pdf;base64,abc', pdfPageCount: 3, thumbnailUrl: null }
         ];
         controller.renderPages();
-        expect(controller.pagesPreviewTarget.innerHTML).toContain('bi-file-earmark-pdf');
+        expect(controller.pagesPreviewTarget.innerHTML).toContain('file-type-pdf');
     });
 
     test('renderPages shows thumbnail for PDF with thumbnail', () => {
@@ -1045,4 +1061,104 @@ describe('WaiverUploadWizardController', () => {
         // Should not throw
         expect(() => controller.updateTotalSizeDisplay()).not.toThrow();
     });
+    describe('lost waiver reporting', () => {
+        function selectLost() {
+            controller.canRecordLostValue = true;
+            controller.selectedWaiverType = { id: 20, name: 'Adult Waiver' };
+            controller.currentStepValue = 2;
+            controller.showStep(2);
+            controller.setModeLost();
+        }
+
+        test('local officers cannot enter lost mode', () => {
+            controller.selectedWaiverType = { id: 20, name: 'Adult Waiver' };
+            controller.setModeLost();
+            expect(controller.isLostMode).toBe(false);
+            expect(controller.lostNotesTarget.disabled).toBe(true);
+        });
+
+        test('Deputy can report loss without configured exemption reasons', () => {
+            selectLost();
+            expect(controller.modeToggleTarget.classList.contains('d-none')).toBe(false);
+            expect(controller.attestOptionTarget.hidden).toBe(true);
+            expect(controller.attestOptionTarget.classList.contains('d-none')).toBe(true);
+            expect(document.getElementById('mode-attest').disabled).toBe(true);
+            expect(controller.lostSectionTarget.hidden).toBe(false);
+            expect(controller.lostSectionTarget.getAttribute('aria-hidden')).toBe('false');
+            expect(controller.lostNotesTarget.disabled).toBe(false);
+            expect(document.activeElement).toBe(controller.lostNotesTarget);
+            expect(controller.uploadSectionTarget.getAttribute('aria-hidden')).toBe('true');
+            expect(controller.attestSectionTarget.getAttribute('aria-hidden')).toBe('true');
+        });
+
+        test('loss notes are required with an error and focus', () => {
+            selectLost();
+            controller.lostNotesTarget.value = '   ';
+            expect(controller.validateUploadOrAttest()).toBe(false);
+            expect(controller.lostNotesTarget.getAttribute('aria-invalid')).toBe('true');
+            expect(controller.lostNotesErrorTarget.textContent).toContain('who reported');
+            expect(controller.lostNotesErrorTarget.classList.contains('d-none')).toBe(false);
+            expect(document.activeElement).toBe(controller.lostNotesTarget);
+            controller.lostNotesTarget.value = 'Officer reported the loss by email October 25';
+            expect(controller.validateUploadOrAttest()).toBe(true);
+            expect(controller.lostNotesTarget.hasAttribute('aria-invalid')).toBe(false);
+        });
+
+        test('review shows loss and plain-text notes without pages or exemption', () => {
+            selectLost();
+            controller.lostNotesTarget.value = '<script>local officer, October 25</script>';
+            controller.currentStepValue = 3;
+            controller.showStep(3);
+            expect(controller.reviewLostSectionTarget.hidden).toBe(false);
+            expect(controller.reviewLostNotesTarget.textContent).toBe(controller.lostNotesTarget.value);
+            expect(controller.reviewLostNotesTarget.querySelector('script')).toBeNull();
+            expect(controller.reviewUploadSectionTarget.getAttribute('aria-hidden')).toBe('true');
+            expect(controller.reviewAttestSectionTarget.getAttribute('aria-hidden')).toBe('true');
+            expect(controller.submitButtonTextTarget.textContent).toBe('Record Waivers Lost');
+            expect(controller.validateReview()).toBe(true);
+        });
+
+        test('switching back hides loss fields and preserves notes', () => {
+            selectLost();
+            controller.lostNotesTarget.value = 'Officer reported by email October 25';
+            controller.setModeUpload();
+            expect(controller.isLostMode).toBe(false);
+            expect(controller.lostSectionTarget.hidden).toBe(true);
+            expect(controller.lostNotesTarget.disabled).toBe(true);
+            expect(controller.uploadSectionTarget.getAttribute('aria-hidden')).toBe('false');
+            expect(controller.validateUploadOrAttest()).toBe(false);
+            controller.setModeLost();
+            expect(controller.lostNotesTarget.value).toContain('October 25');
+        });
+
+        test('server failure restores wizard, notes, and retry focus', async () => {
+            selectLost();
+            controller.lostNotesTarget.value = 'Officer reported by email October 25';
+            controller.currentStepValue = 3;
+            controller.showStep(3);
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: false, json: async () => ({ success: false, message: 'Already recorded' })
+            });
+            jest.spyOn(controller, 'showError').mockImplementation(() => {});
+            await controller.submitForm({ preventDefault: jest.fn() });
+            expect(global.fetch).toHaveBeenCalledWith(controller.recordLostUrlValue, expect.objectContaining({
+                method: 'POST', headers: expect.objectContaining({ 'X-CSRF-Token': 'test-csrf-token' })
+            }));
+            expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({
+                gathering_id: 42, waiver_type_id: 20, notes: controller.lostNotesTarget.value
+            });
+            expect(controller.showError).toHaveBeenCalledWith('Already recorded');
+            expect(controller.submitButtonTarget.disabled).toBe(false);
+            expect(controller.element.getAttribute('aria-busy')).toBe('false');
+            expect(document.activeElement).toBe(controller.submitButtonTarget);
+        });
+
+        test('disconnect cancels a pending loss request', () => {
+            controller.lossRequest = new AbortController();
+            const request = controller.lossRequest;
+            controller.disconnect();
+            expect(request.signal.aborted).toBe(true);
+        });
+    });
+
 });

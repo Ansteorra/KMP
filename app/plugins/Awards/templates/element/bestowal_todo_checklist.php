@@ -69,13 +69,13 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                     <div class="me-auto">
                         <div class="fw-semibold">
                             <?php if ($item->isCompleted()) : ?>
-                                <i class="bi bi-check-square-fill text-success me-1" aria-hidden="true"></i>
+                                <kmp-icon name="checkbox" class="text-success me-1" aria-hidden="true"></kmp-icon>
                                 <span class="visually-hidden"><?= __('Completed task:') ?></span>
                             <?php elseif ($item->status === ActionItem::STATUS_CANCELLED) : ?>
-                                <i class="bi bi-dash-square text-secondary me-1" aria-hidden="true"></i>
+                                <kmp-icon name="square-minus" class="text-secondary me-1" aria-hidden="true"></kmp-icon>
                                 <span class="visually-hidden"><?= __('Closed task:') ?></span>
                             <?php else : ?>
-                                <i class="bi bi-hourglass-split text-secondary me-1" aria-hidden="true"></i>
+                                <kmp-icon name="hourglass" class="text-secondary me-1" aria-hidden="true"></kmp-icon>
                                 <span class="visually-hidden"><?= __('Open task:') ?></span>
                             <?php endif; ?>
                             <?= h($item->title) ?>
@@ -96,31 +96,31 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                             <?php endif; ?>
                             <?php if ($item->is_gating) : ?>
                                 <span class="badge bg-warning text-dark">
-                                    <i class="bi bi-flag-fill me-1" aria-hidden="true"></i><?= __('Required') ?>
+                                    <kmp-icon name="flag-3" class="me-1" aria-hidden="true"></kmp-icon><?= __('Required') ?>
                                 </span>
                             <?php else : ?>
                                 <span class="badge bg-light text-dark border">
-                                    <i class="bi bi-flag me-1" aria-hidden="true"></i><?= __('Optional') ?>
+                                    <kmp-icon name="flag" class="me-1" aria-hidden="true"></kmp-icon><?= __('Optional') ?>
                                 </span>
                             <?php endif; ?>
                             <?php if ($requirement !== null) : ?>
                                 <?php if (!empty($requirement['satisfied'])) : ?>
                                     <span class="badge bg-info text-dark">
                                         <?php if ($requirementField === 'court_slot') : ?>
-                                            <i class="bi bi-list-check me-1" aria-hidden="true"></i>
+                                            <kmp-icon name="list-check" class="me-1" aria-hidden="true"></kmp-icon>
                                             <?= __('Court assigned') ?>
                                         <?php else : ?>
-                                            <i class="bi bi-calendar-check me-1" aria-hidden="true"></i>
+                                            <kmp-icon name="calendar-check" class="me-1" aria-hidden="true"></kmp-icon>
                                             <?= __('Gathering assigned') ?>
                                         <?php endif; ?>
                                     </span>
                                 <?php else : ?>
                                     <span class="badge bg-danger">
                                         <?php if ($requirementField === 'court_slot') : ?>
-                                            <i class="bi bi-list-check me-1" aria-hidden="true"></i>
+                                            <kmp-icon name="list-check" class="me-1" aria-hidden="true"></kmp-icon>
                                             <?= __('Court assignment required') ?>
                                         <?php else : ?>
-                                            <i class="bi bi-calendar-x me-1" aria-hidden="true"></i>
+                                            <kmp-icon name="calendar-x" class="me-1" aria-hidden="true"></kmp-icon>
                                             <?= __('Gathering required') ?>
                                         <?php endif; ?>
                                     </span>
@@ -128,14 +128,14 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                             <?php endif; ?>
                             <?php if ($blocked) : ?>
                                 <span class="badge bg-secondary">
-                                    <i class="bi bi-lock-fill me-1" aria-hidden="true"></i>
+                                    <kmp-icon name="lock" class="me-1" aria-hidden="true"></kmp-icon>
                                     <?= h((string)($blocker['label'] ?? __('Waiting on prerequisite'))) ?>
                                 </span>
                             <?php endif; ?>
                         </div>
                         <?php if ($blocked) : ?>
                             <div class="small text-muted mt-1">
-                                <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+                                <kmp-icon name="info-circle" class="me-1" aria-hidden="true"></kmp-icon>
                                 <?= h((string)($blocker['message'] ?? __('Complete prerequisite checks first.'))) ?>
                             </div>
                         <?php endif; ?>
@@ -261,7 +261,7 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                             ) ?>
                         <?php elseif ($eligible && $item->isCompleted()) : ?>
                             <?= $this->Form->postLink(
-                                '<i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>' . __('Reopen'),
+                                '<kmp-icon name="rotate" class="me-1" aria-hidden="true"></kmp-icon>' . __('Reopen'),
                                 ['plugin' => null, 'controller' => 'ActionItems', 'action' => 'reopen', $item->id],
                                 [
                                     'escapeTitle' => false,

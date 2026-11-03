@@ -29,7 +29,10 @@
         "test:mutate:all": "bash bin/run-stryker.sh all",
         "test:security": "bash ../security-checker.sh",
         "test:perf": "node scripts/perf/sizing-benchmark.js",
-        "validate:workflows": "node scripts/validate-workflow-definitions.mjs"
+        "validate:workflows": "node scripts/validate-workflow-definitions.mjs",
+        "icons:generate": "node scripts/icons/generate.mjs",
+        "icons:check": "node scripts/icons/verify.mjs",
+        "icons:guard": "node scripts/icons/guard.mjs"
     },
     "devDependencies": {
         "@babel/core": "^8.0.9",
@@ -59,9 +62,10 @@
         "@fortawesome/fontawesome-free": "^7.3.1",
         "@hotwired/stimulus": "^3.2.2",
         "@hotwired/turbo": "^8.0.23",
+        "@hugeicons/core-free-icons": "4.3.5",
+        "@tabler/icons": "3.50.0",
         "@techstark/opencv-js": "^5.0.0-release.1",
         "bootstrap": "^5.3.8",
-        "bootstrap-icons": "1.13.2",
         "drawflow": "^0.0.60",
         "easymde": "^2.21.0",
         "face-api.js": "^0.22.2",

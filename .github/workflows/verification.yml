@@ -223,6 +223,9 @@ jobs:
       - name: Build Docker test image
         run: docker build --file docker/Dockerfile.ci --tag kmp-app:dev .
 
+      - name: Verify live PHP source refresh
+        run: python3 docker/test-development-php-cache.py --image kmp-app:dev
+
       - name: Start Docker test services
         run: |
           echo "127.0.0.1 kmp.localhost kmp2.localhost" | sudo tee -a /etc/hosts

@@ -143,7 +143,7 @@ class WaiverCalendarController extends Controller {
         let badges = ''
 
         if (evt.status === 'closed') {
-            badges += '<span class="badge bg-primary"><i class="bi bi-lock-fill"></i> Closed</span>'
+            badges += '<span class="badge bg-primary"><kmp-icon name="lock"  aria-hidden="true"></kmp-icon> Closed</span>'
         } else {
             if (evt.uploaded > 0) {
                 badges += `<span class="badge bg-success">${evt.uploaded} Uploaded</span>`
@@ -155,7 +155,7 @@ class WaiverCalendarController extends Controller {
                 badges += `<span class="badge bg-warning text-dark">${evt.pending} Pending</span>`
             }
             if (evt.ready_to_close) {
-                badges += '<span class="badge bg-info text-dark"><i class="bi bi-check2-square"></i> Ready to Close</span>'
+                badges += '<span class="badge bg-info text-dark"><kmp-icon name="checkbox"  aria-hidden="true"></kmp-icon> Ready to Close</span>'
             }
             if (evt.uploaded === 0 && evt.exempted === 0 && evt.pending === 0) {
                 badges += '<span class="badge bg-danger">No Waivers</span>'

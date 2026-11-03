@@ -103,7 +103,7 @@ class CoreViewCellProviderTest extends BaseTestCase
 
         $calendar = array_values(array_filter($cells, fn($c) => $c['label'] === 'Calendar'))[0];
 
-        $this->assertEquals('bi-calendar-event', $calendar['icon']);
+        $this->assertEquals('calendar-event', $calendar['icon']);
         $this->assertEquals('Gatherings', $calendar['url']['controller']);
         $this->assertEquals('mobileCalendar', $calendar['url']['action']);
         $this->assertEquals('events', $calendar['color']);
@@ -117,7 +117,7 @@ class CoreViewCellProviderTest extends BaseTestCase
 
         $rsvps = array_values(array_filter($cells, fn($c) => $c['label'] === 'My RSVPs'))[0];
 
-        $this->assertEquals('bi-calendar-check', $rsvps['icon']);
+        $this->assertEquals('calendar-check', $rsvps['icon']);
         $this->assertEquals('GatheringAttendances', $rsvps['url']['controller']);
         $this->assertEquals('myRsvps', $rsvps['url']['action']);
         $this->assertEquals('rsvps', $rsvps['color']);

@@ -40,6 +40,12 @@ Active first-party plugins are `Activities`, `Officers`, `Awards`, and `Waivers`
 
 Run commands from `app/` unless noted.
 
+For OpenAI-hosted checkouts, follow `app/docs/codex-cloud.md`. Start the isolated
+test cluster with `bash tools/codex/environment.sh start` from the repository
+root, then run app commands with `bash tools/codex/environment.sh run COMMAND
+[ARGS...]`. This wrapper supplies cloud-only PostgreSQL configuration and skips
+local `.env` loading. Full Playwright journeys require the complete Docker stack.
+
 | Need | Command |
 | --- | --- |
 | Full local verification | `bash bin/verify.sh` |
@@ -302,3 +308,9 @@ Do not run `phpcbf` across the whole codebase. The PHPCS config intentionally ex
   image digest without rebuilding or rerunning quality gates. Never bypass the
   original quality gates, digest checks, or the GitHub production environment
   approval.
+
+
+Use canonical KMP icon IDs with `IconHelper::render()`, `IconCatalog`, or the JavaScript
+`icon-service.js` API. Keep application controls deduplicated and useful overlapping SCA
+subjects available. Do not add Bootstrap Icons rendering or font dependencies. See
+`app/docs/icons.md`; run `npm run icons:check && npm run icons:guard` after catalog changes.

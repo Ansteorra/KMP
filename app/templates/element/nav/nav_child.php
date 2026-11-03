@@ -1,8 +1,11 @@
 <?php
+declare(strict_types=1);
+
+use Cake\Routing\Exception\MissingRouteException;
 
 /**
  * Navigation Child Element
- * 
+ *
  * @var \Cake\View\View $this
  * @var array $child
  * @var \App\Model\Entity\Member $user
@@ -20,6 +23,7 @@ $otherClasses = $child['otherClasses'] ?? '';
 $activeClass = $child['active'] ? 'active' : '';
 
 $linkLabel = __(' ' . $child['label']);
+$badgeHtml = '';
 
 // Handle badge if present
 if (isset($child['badgeResult'])) {
@@ -27,24 +31,23 @@ if (isset($child['badgeResult'])) {
     $badgeValue = $child['badgeResult'];
 
     if ($badgeValue > 0) {
-        $linkLabel .= ' ' . $this->Html->badge(strval($badgeValue), [
-            'class' => $child['badgeClass'],
+        $badgeHtml = ' ' . $this->Html->badge(strval($badgeValue), [
+            'class' => $child['badgeClass'] . '',
         ]);
     }
 }
 
-$linkBody = $this->Html->tag('span', $linkLabel, [
-    'class' => 'fs-6',
-    'escape' => false,
-]);
+$linkBody = $this->Icon->render($child['icon'], ['class' => 'me-1'])
+    . $this->Html->tag('span', h($linkLabel), ['class' => 'fs-6', 'escape' => false])
+    . $badgeHtml;
 
 $linkOptions = [
-    'class' => "{$linkTypeClass} fs-6 bi {$child['icon']} mb-2 {$activeClass} {$otherClasses}",
-    'escape' => false
+    'class' => "{$linkTypeClass} fs-6 mb-2 {$activeClass} {$otherClasses}",
+    'escape' => false,
 ];
 
 try {
     echo $this->Html->link($linkBody, $url, $linkOptions);
-} catch (\Cake\Routing\Exception\MissingRouteException) {
+} catch (MissingRouteException) {
     return;
 }

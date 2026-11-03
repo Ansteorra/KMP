@@ -16,8 +16,10 @@ executable contract when this summary differs.
 - Baronial operational permissions use `Branch and Children`.
 - When `KMP.RequireActiveWarrantForSecurity` is enabled, the relevant role assignment must
   have active membership and a current warrant.
-- A Court Management or Court Reporter permission may access a gathering agenda only when it
-  contains a bestowal for an award inside that permission's branch scope.
+- Agenda permissions may cover the gathering's host branch or follow award ownership through
+  existing bestowals or scheduled award-giving activities inside their scope. An empty agenda
+  can be prepared through an eligible scheduled activity; merely attaching an activity does
+  not grant access. See [Gathering activities](gathering-activities.md).
 - Completing or reopening a To-Do is controlled by the Action Item assignee resolver.
   Bestowal administration does not bypass assignment eligibility.
 - All lookups execute on the already resolved tenant connection. Never accept a tenant or
@@ -59,6 +61,12 @@ The legacy `Can View Bestowals`, `Can Manage Bestowals`, `Can Prepare Scrolls`, 
 policy mappings. New tier roles must use the purpose-specific permissions. Import and seed
 logic must resolve permissions by name, never environment-specific numeric IDs.
 
+Gathering activity attachment and scheduled activity editing use the catalogue's
+**Can be assigned by** rules, described in [Gathering activities](gathering-activities.md).
+The court migration seeds existing court management permissions into those rules and removes
+their legacy core gathering-policy grants. Activity access is scoped to the gathering's host
+branch; bestowal and agenda content keeps the award-branch scope described above.
+
 ## Change and deployment checklist
 
 1. Change the owning Awards migration/policy/service and add a migration contract test.
@@ -74,6 +82,32 @@ logic must resolve permissions by name, never environment-specific numeric IDs.
 
 Development seed personas and demo warrants are local test data and must never be promoted or
 used as production authorization evidence.
+
+## Closeout troubleshooting
+
+Mark Given requires assignment to the final reporting To-Do when the bestowal has one.
+A denial identifies that task and directs staff to an awards administrator. Check the
+task's assignee configuration, the member's active role and branch scope, and any required
+membership or warrant. General bestowal administration does not replace task assignment.
+Do not remove assignment checks to resolve an account-specific access problem.
+
+## Award and recipient display
+
+Bestowal award columns show the actual award, level, and specialty, including when those
+differ from the recommendation. CSV exports use plain text with the existing spreadsheet
+formula protection. Agenda specialty details honor the item's inclusion setting.
+
+Recommendation and bestowal recipient display prefers the current linked member name and
+falls back to the stored name for recipients without accounts. Recommendation grids can be
+searched by the current or submitted name and sort by the displayed name. Reading a screen
+or exporting data never rewrites the stored submitted name, identity links, or OP metadata.
+
+For account holders, update the existing member account through the authorized member edit
+workflow; verify its OP linkage rather than creating a replacement account. For recipients
+without accounts, use the authorized recommendation edit workflow before approval, or the
+bestowal edit workflow once the recommendation is locked by a bestowal. Historical notes
+and previously generated herald scripts remain recorded text and should be reviewed by staff
+when a name or award decision changes.
 
 ## Source and test map
 

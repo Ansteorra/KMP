@@ -118,8 +118,8 @@ if ($rowDomIdPrefix !== null && $rowDomIdPrefix !== '' && $rowId !== null) {
                         }
                         break;
                     case 'boolean':
-                        echo $value ? '<i class="bi bi-check-circle-fill text-success"></i>' :
-                            '<i class="bi bi-x-circle-fill text-danger"></i>';
+                        echo $value ? '<kmp-icon name="circle-check" class="text-success" aria-hidden="true"></kmp-icon>' :
+                            '<kmp-icon name="circle-x" class="text-danger" aria-hidden="true"></kmp-icon>';
                         break;
                     case 'badge':
                         $badgeConfig = $column['badgeConfig'] ?? null;

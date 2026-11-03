@@ -1,3 +1,4 @@
+import './services/icon-service.js';
 import { Application } from "@hotwired/stimulus"
 import * as bootstrap from "bootstrap"
 import * as Turbo from "@hotwired/turbo"

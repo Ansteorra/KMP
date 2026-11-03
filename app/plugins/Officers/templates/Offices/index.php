@@ -23,7 +23,7 @@ $this->KMP->endBlock(); ?>
             <?= $this->Html->link(
                 ' Add Office',
                 ['action' => 'add'],
-                ['class' => 'btn btn-primary bi bi-plus-circle', 'data-turbo-frame' => '_top']
+                ['class' => 'btn btn-primary', 'icon' => 'circle-plus', 'data-turbo-frame' => '_top']
             ) ?>
         <?php endif; ?>
         <?php if ($user->checkCan("syncOfficers", "Officers.Offices")): ?>
@@ -31,7 +31,7 @@ $this->KMP->endBlock(); ?>
                 ' Sync Officers',
                 ['action' => 'syncOfficers'],
                 [
-                    'class' => 'btn btn-outline-warning bi bi-arrow-repeat ms-2',
+                    'class' => 'btn btn-outline-warning ms-2', 'icon' => 'repeat',
                     'confirm' => __('Recalculate officers for all offices? This may take a few minutes.'),
                     'data-turbo-frame' => '_top',
                 ]

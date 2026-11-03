@@ -37,7 +37,7 @@ $isMinor = $member && $member->age !== null && $member->age < 18;
 
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3">
                     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                        <i class="bi bi-calendar-event text-primary me-1" aria-hidden="true"></i>
+                        <kmp-icon name="calendar-event" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Gathering and Note') ?>
                     </legend>
                 <?= $this->Form->control('gathering_id', [
@@ -60,9 +60,15 @@ $isMinor = $member && $member->age !== null && $member->age < 18;
 
                 </fieldset>
 
+                <?= $this->element('gatherings/royal_progress_control', [
+                    'controlIdPrefix' => 'addGatheringAttendanceForm',
+                    'progressOfficers' => $memberProgressOfficers ?? [],
+                    'userAttendance' => null,
+                ]) ?>
+
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
                     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                        <i class="bi bi-share text-primary me-1" aria-hidden="true"></i>
+                        <kmp-icon name="share" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Sharing') ?>
                     </legend>
                 <div>

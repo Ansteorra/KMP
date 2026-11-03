@@ -214,7 +214,7 @@ class MobileActionItemsController extends MobileControllerBase {
         const count = Array.isArray(group.items) ? group.items.length : 0
         const meta = count === 1 ? "1 open to-do" : `${count} open to-dos`
         const sourceLink = group.url
-            ? `<a href="${this._escHtml(group.url)}" class="btn btn-sm btn-outline-primary mb-3" data-turbo-frame="_top"><i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>View Source</a>`
+            ? `<a href="${this._escHtml(group.url)}" class="btn btn-sm btn-outline-primary mb-3" data-turbo-frame="_top"><kmp-icon name="external-link" class="me-1" aria-hidden="true"></kmp-icon>View Source</a>`
             : ""
         const details = this._renderGroupDetails(group.details)
 
@@ -225,12 +225,12 @@ class MobileActionItemsController extends MobileControllerBase {
                     data-group-key="${this._escHtml(key)}"
                     aria-expanded="false"
                     aria-controls="${detailId}">
-                <span class="todo-owner-icon"><i class="bi bi-check2-all" aria-hidden="true"></i></span>
+                <span class="todo-owner-icon"><kmp-icon name="checks"  aria-hidden="true"></kmp-icon></span>
                 <span class="todo-owner-info">
                     <span class="todo-owner-title d-block" id="todo-owner-title-${this._escHtml(key)}">${this._escHtml(group.label)}</span>
                     <span class="todo-owner-meta d-block">${meta}</span>
                 </span>
-                <span class="todo-owner-chevron"><i class="bi bi-chevron-right" aria-hidden="true"></i></span>
+                <span class="todo-owner-chevron"><kmp-icon name="chevron-right"  aria-hidden="true"></kmp-icon></span>
             </button>
             <div class="todo-owner-detail" id="${detailId}" hidden>
                 ${details}
@@ -260,10 +260,10 @@ class MobileActionItemsController extends MobileControllerBase {
 
     _renderItem(item) {
         const badge = item.isGating
-            ? '<span class="badge bg-warning text-dark"><i class="bi bi-flag-fill me-1" aria-hidden="true"></i>Required</span>'
-            : '<span class="badge bg-light text-dark border"><i class="bi bi-flag me-1" aria-hidden="true"></i>Optional</span>'
+            ? '<span class="badge bg-warning text-dark"><kmp-icon name="flag-3" class="me-1" aria-hidden="true"></kmp-icon>Required</span>'
+            : '<span class="badge bg-light text-dark border"><kmp-icon name="flag" class="me-1" aria-hidden="true"></kmp-icon>Optional</span>'
         const branch = item.branchName
-            ? `<span class="badge bg-light text-dark border"><i class="bi bi-geo-alt me-1" aria-hidden="true"></i>${this._escHtml(item.branchName)}</span>`
+            ? `<span class="badge bg-light text-dark border"><kmp-icon name="map-pin" class="me-1" aria-hidden="true"></kmp-icon>${this._escHtml(item.branchName)}</span>`
             : ""
 
         return `<article class="todo-item" data-item-id="${item.id}">

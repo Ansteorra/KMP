@@ -106,13 +106,15 @@ class RecommendationQueryService
         }
         $baseQuery->contain($contain);
 
+        $baseQuery->leftJoinWith('Members');
+
         $systemViews = RecommendationsGridColumns::getSystemViews([]);
 
         $bulkActions = [
             [
                 'key' => 'workflow-decision',
                 'label' => 'Approval Decision',
-                'icon' => 'bi-check2-circle',
+                'icon' => 'circle-check',
                 'modalTarget' => '#recommendationWorkflowDecisionModal',
                 'requiresSelectionField' => 'canWorkflowDecide',
             ],
@@ -122,13 +124,13 @@ class RecommendationQueryService
                 [
                     'key' => 'group-recs',
                     'label' => 'Group',
-                    'icon' => 'bi-collection',
+                    'icon' => 'layers-linked',
                     'modalTarget' => '#groupRecommendationsModal',
                 ],
                 [
                     'key' => 'request-feedback',
                     'label' => 'Request Feedback',
-                    'icon' => 'bi-chat-left-text',
+                    'icon' => 'message',
                     'modalTarget' => '#requestRecommendationFeedbackModal',
                 ],
             ]);
@@ -220,6 +222,8 @@ class RecommendationQueryService
         }
         $baseQuery->contain($contain);
 
+        $baseQuery->leftJoinWith('Members');
+
         $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'memberSubmitted']);
 
         $gridOptions = [
@@ -302,6 +306,9 @@ class RecommendationQueryService
             $baseQuery->select($selectFields);
         }
         $baseQuery->contain($contain);
+
+        $baseQuery->contain(['Members' => fn($q) => $q->select(['id', 'sca_name'])]);
+        $baseQuery->leftJoinWith('Members');
 
         $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'recsForMember']);
 

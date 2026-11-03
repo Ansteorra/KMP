@@ -28,14 +28,14 @@ foreach ($gathering->gathering_staff as $staff) {
         <h4><?= __('Gathering Staff') ?></h4>
         <?php if ($user->checkCan('edit', $gathering)) : ?>
             <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addStaffModal">
-                <i class="bi bi-plus-circle"></i> <?= __('Add Staff Member') ?>
+                <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon> <?= __('Add Staff Member') ?>
             </button>
         <?php endif; ?>
     </div>
 
     <?php if (empty($stewards) && empty($otherStaff)) : ?>
         <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i>
+            <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
             <?= __('No staff members have been assigned yet. Click "Add Staff Member" to add stewards and other staff.') ?>
         </div>
     <?php else : ?>
@@ -44,7 +44,7 @@ foreach ($gathering->gathering_staff as $staff) {
         <?php if (!empty($stewards)) : ?>
             <div class="mb-4">
                 <h5 class="border-bottom pb-2">
-                    <i class="bi bi-star-fill text-warning"></i> <?= __('Stewards') ?>
+                    <kmp-icon name="star-circle" class="text-warning" aria-hidden="true"></kmp-icon> <?= __('Stewards') ?>
                 </h5>
                 <div class="table-responsive">
                     <table class="table table-striped">
@@ -67,7 +67,7 @@ foreach ($gathering->gathering_staff as $staff) {
                                         <?= h($staff->display_name) ?>
                                         <?php if ($staff->member_id) : ?>
                                             <small class="text-muted d-block">
-                                                <i class="bi bi-person-check"></i> AMP Member
+                                                <kmp-icon name="user-check"  aria-hidden="true"></kmp-icon> AMP Member
                                             </small>
                                         <?php endif; ?>
                                     </td>
@@ -99,11 +99,11 @@ foreach ($gathering->gathering_staff as $staff) {
                                     <td>
                                         <?php if ($staff->show_on_public_page) : ?>
                                             <span class="badge bg-success">
-                                                <i class="bi bi-globe"></i> <?= __('Visible') ?>
+                                                <kmp-icon name="world"  aria-hidden="true"></kmp-icon> <?= __('Visible') ?>
                                             </span>
                                         <?php else : ?>
                                             <span class="badge bg-secondary">
-                                                <i class="bi bi-lock"></i> <?= __('Private') ?>
+                                                <kmp-icon name="lock"  aria-hidden="true"></kmp-icon> <?= __('Private') ?>
                                             </span>
                                         <?php endif; ?>
                                     </td>
@@ -141,7 +141,7 @@ foreach ($gathering->gathering_staff as $staff) {
             </div>
         <?php else : ?>
             <div class="alert alert-warning mb-4">
-                <i class="bi bi-exclamation-triangle"></i>
+                <kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon>
                 <strong><?= __('No Stewards Assigned') ?></strong> - At least one steward should be assigned to this gathering.
             </div>
         <?php endif; ?>
@@ -150,7 +150,7 @@ foreach ($gathering->gathering_staff as $staff) {
         <?php if (!empty($otherStaff)) : ?>
             <div class="mb-4">
                 <h5 class="border-bottom pb-2">
-                    <i class="bi bi-people-fill"></i> <?= __('Other Staff') ?>
+                    <kmp-icon name="users"  aria-hidden="true"></kmp-icon> <?= __('Other Staff') ?>
                 </h5>
                 <div class="table-responsive">
                     <table class="table table-striped">
@@ -173,7 +173,7 @@ foreach ($gathering->gathering_staff as $staff) {
                                         <?= h($staff->display_name) ?>
                                         <?php if ($staff->member_id) : ?>
                                             <small class="text-muted d-block">
-                                                <i class="bi bi-person-check"></i> AMP Member
+                                                <kmp-icon name="user-check"  aria-hidden="true"></kmp-icon> AMP Member
                                             </small>
                                         <?php endif; ?>
                                     </td>
@@ -199,11 +199,11 @@ foreach ($gathering->gathering_staff as $staff) {
                                     <td>
                                         <?php if ($staff->show_on_public_page) : ?>
                                             <span class="badge bg-success">
-                                                <i class="bi bi-globe"></i> <?= __('Visible') ?>
+                                                <kmp-icon name="world"  aria-hidden="true"></kmp-icon> <?= __('Visible') ?>
                                             </span>
                                         <?php else : ?>
                                             <span class="badge bg-secondary">
-                                                <i class="bi bi-lock"></i> <?= __('Private') ?>
+                                                <kmp-icon name="lock"  aria-hidden="true"></kmp-icon> <?= __('Private') ?>
                                             </span>
                                         <?php endif; ?>
                                     </td>
@@ -244,7 +244,7 @@ foreach ($gathering->gathering_staff as $staff) {
 
     <?php if ($user->checkCan('edit', $gathering)) : ?>
         <div class="alert alert-info mt-4">
-            <h6><i class="bi bi-info-circle"></i> <?= __('Staff Management Tips') ?></h6>
+            <h6><kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon> <?= __('Staff Management Tips') ?></h6>
             <ul class="mb-0">
                 <li><?= __('Stewards must be AMP members and require contact information (email or phone)') ?></li>
                 <li><?= __('Other staff can be AMP members or non-members with optional contact information') ?></li>
@@ -266,7 +266,7 @@ foreach ($gathering->gathering_staff as $staff) {
             ]) ?>
                 <div class="modal-header">
                     <h5 class="modal-title" id="addStaffModalLabel">
-                        <i class="bi bi-person-plus"></i> <?= __('Add Staff Member') ?>
+                        <kmp-icon name="user-plus"  aria-hidden="true"></kmp-icon> <?= __('Add Staff Member') ?>
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -283,7 +283,7 @@ foreach ($gathering->gathering_staff as $staff) {
                         <div class="col-12 col-lg-5">
                             <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
                                 <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                                    <i class="bi bi-person-badge text-primary me-1" aria-hidden="true"></i>
+                                    <kmp-icon name="id-badge" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                                     <?= __('Role') ?>
                                 </legend>
                                 <?= $this->Form->control('is_steward', [
@@ -301,7 +301,7 @@ foreach ($gathering->gathering_staff as $staff) {
                         <div class="col-12 col-lg-7">
                             <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
                                 <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                                    <i class="bi bi-person text-primary me-1" aria-hidden="true"></i>
+                                    <kmp-icon name="user" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                                     <?= __('Staff Member') ?>
                                 </legend>
                                 <?php
@@ -329,7 +329,7 @@ foreach ($gathering->gathering_staff as $staff) {
                                 <small class="text-muted">
                                     <?= __('Start typing to search for an AMP member, or type any SCA name if they are not in the system.') ?>
                                     <br>
-                                    <i class="bi bi-info-circle"></i> <?= __('When you select an AMP member, their email and phone will be automatically copied below.') ?>
+                                    <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon> <?= __('When you select an AMP member, their email and phone will be automatically copied below.') ?>
                                 </small>
                             </fieldset>
                         </div>
@@ -337,14 +337,14 @@ foreach ($gathering->gathering_staff as $staff) {
 
                     <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3">
                         <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                            <i class="bi bi-envelope text-primary me-1" aria-hidden="true"></i>
+                            <kmp-icon name="mail" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                             <?= __('Contact Information') ?>
                         </legend>
                     <div class="alert alert-warning" id="add-steward-notice" style="display: none;">
                         <strong><?= __('Steward Requirement:') ?></strong> <?= __('At least one contact method (email or phone) is required for stewards.') ?>
                     </div>
                     <div class="alert alert-success" id="add-autofill-notice" style="display: none;">
-                        <i class="bi bi-check-circle"></i> <strong><?= __('Contact Info Auto-Filled') ?></strong>
+                        <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon> <strong><?= __('Contact Info Auto-Filled') ?></strong>
                         <br>
                         <?= __('Email and phone copied from AMP member account. You may edit these if needed (e.g., for privacy).') ?>
                     </div>
@@ -377,7 +377,7 @@ foreach ($gathering->gathering_staff as $staff) {
 
                     <fieldset class="border rounded-3 bg-white shadow-sm p-3">
                         <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                            <i class="bi bi-globe text-primary me-1" aria-hidden="true"></i>
+                            <kmp-icon name="world" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                             <?= __('Public Visibility') ?>
                         </legend>
                     <?= $this->Form->control('show_on_public_page', [
@@ -391,7 +391,7 @@ foreach ($gathering->gathering_staff as $staff) {
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= __('Cancel') ?></button>
                     <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-plus-circle"></i> <?= __('Add Staff Member') ?>
+                        <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon> <?= __('Add Staff Member') ?>
                     </button>
                 </div>
             <?= $this->Form->end() ?>
@@ -408,7 +408,7 @@ foreach ($gathering->gathering_staff as $staff) {
             ]) ?>
                 <div class="modal-header">
                     <h5 class="modal-title" id="editStaffModalLabel">
-                        <i class="bi bi-pencil"></i> <?= __('Edit Staff Member') ?>
+                        <kmp-icon name="pencil"  aria-hidden="true"></kmp-icon> <?= __('Edit Staff Member') ?>
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -421,7 +421,7 @@ foreach ($gathering->gathering_staff as $staff) {
                         <div class="col-12 col-lg-5">
                             <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
                                 <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                                    <i class="bi bi-person-badge text-primary me-1" aria-hidden="true"></i>
+                                    <kmp-icon name="id-badge" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                                     <?= __('Role') ?>
                                 </legend>
                                 <?= $this->Form->control('is_steward', [
@@ -439,7 +439,7 @@ foreach ($gathering->gathering_staff as $staff) {
                         <div class="col-12 col-lg-7">
                             <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
                                 <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                                    <i class="bi bi-person text-primary me-1" aria-hidden="true"></i>
+                                    <kmp-icon name="user" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                                     <?= __('Staff Member') ?>
                                 </legend>
                                 <div class="form-group">
@@ -453,7 +453,7 @@ foreach ($gathering->gathering_staff as $staff) {
 
                     <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3">
                         <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                            <i class="bi bi-envelope text-primary me-1" aria-hidden="true"></i>
+                            <kmp-icon name="mail" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                             <?= __('Contact Information') ?>
                         </legend>
                     <div class="alert alert-warning" id="edit-steward-notice" style="display: none;">
@@ -488,7 +488,7 @@ foreach ($gathering->gathering_staff as $staff) {
 
                     <fieldset class="border rounded-3 bg-white shadow-sm p-3">
                         <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                            <i class="bi bi-globe text-primary me-1" aria-hidden="true"></i>
+                            <kmp-icon name="world" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                             <?= __('Public Visibility') ?>
                         </legend>
                     <?= $this->Form->control('show_on_public_page', [
@@ -502,7 +502,7 @@ foreach ($gathering->gathering_staff as $staff) {
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= __('Cancel') ?></button>
                     <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-check-circle"></i> <?= __('Save Changes') ?>
+                        <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon> <?= __('Save Changes') ?>
                     </button>
                 </div>
             <?= $this->Form->end() ?>

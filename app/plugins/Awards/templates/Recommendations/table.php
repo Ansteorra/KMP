@@ -27,7 +27,7 @@ $currentUrl = $this->request->getRequestTarget();
                 <a href="<?= h($exportUrl) ?>" class="btn btn-outline-primary btn-sm" data-controller="csv-download"
                     data-csv-download-url-value="<?= h($exportUrl) ?>" data-csv-download-filename-value="recommendations.csv"
                     title="Download CSV">
-                    <i class="bi bi-download"></i> Download CSV
+                    <kmp-icon name="download"  aria-hidden="true"></kmp-icon> Download CSV
                 </a>
             <?php endif; ?>
         </div>
@@ -206,7 +206,7 @@ $currentUrl = $this->request->getRequestTarget();
                     <tr>
                         <?php if ($user->checkCan("edit", "Awards.Recommendations")): ?>
                             <?php
-                            $recipientName = $recommendation->member_sca_name ?: __('unknown recipient');
+                            $recipientName = $recommendation->getRecipientName();
                             $awardName = $recommendation->award?->abbreviation ?: __('unknown award');
                             ?>
                             <td><input type="checkbox" name="check_list[]" value=<?= h($recommendation->id) ?> form="bulkForm"
@@ -222,26 +222,28 @@ $currentUrl = $this->request->getRequestTarget();
                             <td><?php
                                 if ($recommendation->member_id && $user->checkCan('view', "Members")) {
                                     echo $this->Html->link(
-                                        h($recommendation->member_sca_name),
+                                        $recommendation->getRecipientName(),
                                         ["controller" => "Members", "plugin" => null, "action" => "view", $recommendation->member_id],
                                         ["title" => __("View"), "data-turbo-frame" => "_top"],
                                     );
                                 } else {
-                                    echo h($recommendation->member_sca_name);
+                                    echo h($recommendation->getRecipientName());
                                 }
                                 ?></td>
                         <?php endif; ?>
                         <?php if ($columns["For Herald"]): ?>
                             <td><?php
-                                $name = $recommendation->member ? $recommendation->member->name_for_herald : $recommendation->member_sca_name;
+                                $name = $recommendation->member
+                                    ? $recommendation->member->name_for_herald
+                                    : $recommendation->getRecipientName();
                                 if ($recommendation->member_id) {
                                     echo $this->Html->link(
-                                        h($name),
+                                        $name,
                                         ["controller" => "Members", "plugin" => null, "action" => "view", $recommendation->member_id],
                                         ["title" => __("View"), "data-turbo-frame" => "_top"],
                                     );
                                 } else {
-                                    echo h($recommendation->member_sca_name);
+                                    echo h($recommendation->getRecipientName());
                                 }
                                 ?></td>
                         <?php endif; ?>
@@ -400,16 +402,16 @@ $currentUrl = $this->request->getRequestTarget();
                         <?php endif; ?>
                         <td class="actions text-end text-nowrap">
                             <?php if ($user->checkCan("edit", $recommendation)) : ?>
-                                <button type="button" class="btn btn-primary btn-sm edit-rec bi-pencil-fill"
+                                <button type="button" class="btn btn-primary btn-sm edit-rec"
                                     data-bs-toggle="modal" data-bs-target="#tableEditModal" data-controller="outlet-btn"
                                     data-action="click->outlet-btn#fireNotice"
-                                    data-outlet-btn-btn-data-value='{ "id":<?= $recommendation->id ?>}'></button>
+                                    data-outlet-btn-btn-data-value='{ "id":<?= $recommendation->id ?>}'><kmp-icon name="pencil" aria-hidden="true"></kmp-icon> </button>
                             <?php endif; ?>
                             <?php if ($user->checkCan("view", $recommendation)) : ?>
                                 <?= $this->Html->link(
                                     __(""),
                                     ["action" => "view", $recommendation->id],
-                                    ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill", "data-turbo-frame" => "_top"],
+                                    ["title" => __("View"), "class" => "btn-sm btn btn-secondary", 'icon' => 'binoculars', "data-turbo-frame" => "_top"],
                                 ) ?>
                             <?php endif; ?>
                         </td>

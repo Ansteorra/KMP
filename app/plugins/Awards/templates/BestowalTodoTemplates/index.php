@@ -19,7 +19,7 @@ $this->KMP->endBlock();
             <?= $this->Html->link(
                 __('Add To-Do Template'),
                 ['action' => 'add'],
-                ['class' => 'btn btn-primary bi bi-plus-circle', 'data-turbo-frame' => '_top'],
+                ['class' => 'btn btn-primary', 'icon' => 'circle-plus', 'data-turbo-frame' => '_top'],
             ) ?>
         <?php endif; ?>
     </div>

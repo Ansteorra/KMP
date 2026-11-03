@@ -63,10 +63,27 @@ Own award domains, levels, recommendations, recommendation feedback approvals, b
 - Bulk synchronization reports may expose bounded record IDs and trusted domain skip reasons, but unexpected exception
   details belong in server logs; user-facing failures use fixed categories.
 - State/status rules and plugin settings are stored in `Awards.*`, `Member.AdditionalInfo.*`, and `Plugin.Awards.*` settings.
-- Scoped Crown, Principality, and Baronial Court Management permissions may attach only activity types that the award
-  catalog declares eligible for presentations, before any bestowal is assigned to that gathering. Planners may create
-  scheduled entries only from those attached Court activities and edit only scheduled Courts they created. They do not
-  gain general gathering editing, generic “Other” scheduling, removal, or deletion.
+- Recipients do not need member accounts. Bestowal creation copies `member_sca_name` from the approved recommendation.
+  Use `Bestowal::getRecipientName()` for display, reports/exports, agendas, print, and generated herald/notification text:
+  prefer a nonblank loaded member name, then the stored bestowal name. Only missing names use the unknown placeholder.
+- Recommendation display follows the same current-member/stored-name rule through
+  `Recommendation::getRecipientName()`. Keep submitted snapshots and identity/OP links unchanged;
+  eager-load members for current-name display, searching, and sorting. Bestowal grids and CSV
+  report the actual award and specialty rather than substituting recommendation values.
+- Gathering activity attachment, descriptions, removal, and scheduling use the core activity's **Can be assigned by**
+  configuration. Matching permissions are evaluated in the gathering's branch and grant access to that activity only,
+  including scheduled entries created by other members. Unconfigured activities require gathering-edit access.
+  The court migration seeds existing Crown, Principality, Baronial, and court-schedule permissions into those rules;
+  no separate court-only attachment or schedule authorization remains. Awards catalog eligibility still determines
+  whether an activity supports award presentations and agendas. Bestowal and agenda content retains Awards permissions.
+  See `app/docs/gathering-activities.md` for the shared contract.
+- Each scheduled award-giving activity occurrence has its own agenda section regardless of its name or court level.
+  Builder and print preparation discover eligible sessions without requiring bestowals first. New sections reject
+  ineligible activities and duplicate sessions; bestowal placement remains specific to the award/activity link.
+  Display current session details in the gathering's timezone and preserve existing script content and section names.
+  Authorize new agenda placeholders with their gathering attached. Scoped agenda permissions can follow award ownership
+  through existing bestowals or scheduled award-giving activities, including empty agendas hosted by another branch;
+  unscheduled activities and out-of-scope awards do not grant access.
 - The `awards migrate_award_recommendations` command is registered by the plugin.
 
 ## Work Guidance

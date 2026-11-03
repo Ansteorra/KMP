@@ -109,6 +109,7 @@ describe('MobileCalendarController', () => {
                     <select data-mobile-calendar-target="typeFilter"><option value="">All Types</option></select>
                     <select data-mobile-calendar-target="activityFilter"><option value="">All Activities</option></select>
                     <select data-mobile-calendar-target="branchFilter"><option value="">All Branches</option></select>
+                    <select data-mobile-calendar-target="royalProgressFilter"><option value="">All Gatherings</option></select>
                     <input type="checkbox" data-mobile-calendar-target="rsvpFilter">
                 </div>
 
@@ -128,7 +129,7 @@ describe('MobileCalendarController', () => {
                 <div data-mobile-calendar-target="pendingBanner" hidden>
                     <span data-mobile-calendar-target="pendingCount">0</span>
                     <button data-mobile-calendar-target="syncBtn">
-                        <i class="bi bi-arrow-repeat"></i> Sync
+                        <kmp-icon name="repeat"  aria-hidden="true"></kmp-icon> Sync
                     </button>
                 </div>
             </div>
@@ -166,6 +167,7 @@ describe('MobileCalendarController', () => {
         controller.typeFilterTarget = q('typeFilter');
         controller.activityFilterTarget = q('activityFilter');
         controller.branchFilterTarget = q('branchFilter');
+        controller.royalProgressFilterTarget = q('royalProgressFilter');
         controller.rsvpFilterTarget = q('rsvpFilter');
         controller.monthSelectTarget = q('monthSelect');
         controller.yearSelectTarget = q('yearSelect');
@@ -189,6 +191,7 @@ describe('MobileCalendarController', () => {
         controller.hasTypeFilterTarget = true;
         controller.hasActivityFilterTarget = true;
         controller.hasBranchFilterTarget = true;
+        controller.hasRoyalProgressFilterTarget = true;
         controller.hasRsvpFilterTarget = true;
         controller.hasMonthSelectTarget = true;
         controller.hasYearSelectTarget = true;
@@ -268,7 +271,7 @@ describe('MobileCalendarController', () => {
         expect(controller.filteredEvents).toEqual([]);
         expect(controller.searchDebounce).toBeNull();
         expect(controller.filters).toEqual({
-            search: '', type: '', activity: '', branch: '', rsvpOnly: false
+            search: '', type: '', activity: '', branch: '', royalProgress: '', rsvpOnly: false
         });
     });
 
@@ -578,6 +581,56 @@ describe('MobileCalendarController', () => {
         expect(controller.filterToggleTarget.classList.contains('filter-active')).toBe(true);
     });
 
+    test('royal progress choices distinguish represented branches and filter recorded royal RSVPs', () => {
+        setupController();
+        const crown = { value: JSON.stringify(['Crown', 'Kingdom']), label: 'Crown of Kingdom' };
+        const coronet = { value: JSON.stringify(['Coronet', 'Principality']), label: 'Coronet of Principality' };
+        const other = { value: JSON.stringify(['Coronet', 'Other Branch']), label: 'Coronet of Other Branch' };
+        controller.calendarData = { events: [
+            { id: 1, name: 'Both royals', royal_progress: [crown, coronet] },
+            { id: 2, name: 'Other branch', royal_progress: [other] },
+            { id: 3, name: 'Ordinary event' }
+        ] };
+        jest.spyOn(controller, 'showEventList').mockImplementation(() => {});
+        controller.populateFilters();
+        expect([...controller.royalProgressFilterTarget.options].map(option => option.text)).toEqual([
+            'All Gatherings', 'Any Royal Progress', 'Coronet of Other Branch',
+            'Coronet of Principality', 'Crown of Kingdom'
+        ]);
+
+        controller.royalProgressFilterTarget.value = coronet.value;
+        controller.applyFilters();
+        expect(controller.filteredEvents.map(event => event.id)).toEqual([1]);
+        expect(controller.filterToggleTarget).toHaveClass('filter-active');
+
+        controller.royalProgressFilterTarget.value = 'any';
+        controller.applyFilters();
+        expect(controller.filteredEvents.map(event => event.id)).toEqual([1, 2]);
+
+        controller.royalProgressFilterTarget.value = coronet.value;
+        controller.applyFilters();
+        controller.calendarData = { events: [{ id: 3, name: 'Month without royal RSVPs' }] };
+        controller.populateFilters();
+        controller.applyFilters();
+        expect(controller.royalProgressFilterTarget.value).toBe(coronet.value);
+        expect(controller.filteredEvents).toHaveLength(0);
+
+        controller.clearFilters();
+        expect(controller.royalProgressFilterTarget.value).toBe('');
+        expect(controller.filteredEvents).toHaveLength(1);
+        expect(controller.filterToggleTarget).not.toHaveClass('filter-active');
+    });
+
+    test('royal progress option labels remain text when snapshots contain markup', () => {
+        setupController();
+        controller.calendarData = { events: [{
+            royal_progress: [{ value: '["<Crown>",null]', label: '<Crown> of "Kingdom"' }]
+        }] };
+        controller.populateFilters();
+        expect(controller.royalProgressFilterTarget.options[2].text).toBe('<Crown> of "Kingdom"');
+        expect(controller.royalProgressFilterTarget.querySelector('crown')).toBeNull();
+    });
+
     // ==================== clearFilters ====================
 
     test('clearFilters resets all filter inputs and state', () => {
@@ -595,7 +648,7 @@ describe('MobileCalendarController', () => {
         expect(controller.typeFilterTarget.value).toBe('');
         expect(controller.rsvpFilterTarget.checked).toBe(false);
         expect(controller.filters).toEqual({
-            search: '', type: '', activity: '', branch: '', rsvpOnly: false
+            search: '', type: '', activity: '', branch: '', royalProgress: '', rsvpOnly: false
         });
     });
 
@@ -1165,6 +1218,25 @@ describe('MobileCalendarController', () => {
 
     // ==================== renderEventList ====================
 
+    test('royal progress badge identifies offices accessibly and escapes snapshot titles', () => {
+        setupController();
+        const label = 'Crown of "Kingdom" <img src=x onerror=alert(1)>';
+        const markup = controller.renderRoyalProgress([
+            { label }, { label }, { label: 'Coronet of Principality' }
+        ]);
+        const container = document.createElement('div');
+        container.innerHTML = markup;
+        const badge = container.querySelector('[data-royal-progress-badge]');
+        expect(badge).toHaveClass('badge', 'bg-warning', 'text-dark');
+        expect(badge).toHaveAttribute('role', 'img');
+        expect(badge).toHaveAttribute('aria-label', `Royal Progress: ${label}, Coronet of Principality`);
+        expect(badge).toHaveAttribute('title', badge.getAttribute('aria-label'));
+        expect(badge.querySelector('kmp-icon[name="crown"]')).toHaveAttribute('aria-hidden', 'true');
+        expect(badge.querySelector('img')).toBeNull();
+        expect(controller.renderRoyalProgress([])).toBe('');
+        expect(controller.renderRoyalProgress(undefined)).toBe('');
+    });
+
     test('renderEventList renders grouped events into eventListTarget', () => {
         setupController();
         controller.filteredEvents = [
@@ -1172,6 +1244,7 @@ describe('MobileCalendarController', () => {
                 id: 1, name: 'Event A', start_date: '2025-06-15',
                 type: { name: 'Practice', color: '#ff0000' },
                 branch: 'Shire A', user_attending: false,
+                royal_progress: [{ label: 'Crown of Kingdom' }],
                 is_cancelled: false, public_page_enabled: true,
                 public_id: 'abc123'
             }
@@ -1181,6 +1254,8 @@ describe('MobileCalendarController', () => {
 
         expect(controller.eventListTarget.innerHTML).toContain('Event A');
         expect(controller.eventListTarget.innerHTML).toContain('Shire A');
+        expect(controller.eventListTarget.querySelector('[data-royal-progress-badge]'))
+            .toHaveAttribute('aria-label', 'Royal Progress: Crown of Kingdom');
     });
 
     test('renderEventList does nothing when no events', () => {

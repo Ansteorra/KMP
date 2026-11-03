@@ -34,7 +34,7 @@ $currentPage = $this->request->getRequestTarget();
             <?= $this->Form->create(null, ['url' => $formUrl, 'id' => 'bestowal_bulk_todo_form']) ?>
             <div class="modal-header">
                 <h1 class="modal-title fs-5" id="<?= h($modalId) ?>Label">
-                    <i class="bi bi-check2-square me-2" aria-hidden="true"></i><?= __('Complete a Check') ?>
+                    <kmp-icon name="checkbox" class="me-2" aria-hidden="true"></kmp-icon><?= __('Complete a Check') ?>
                 </h1>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"
                     aria-label="<?= __('Close') ?>"></button>

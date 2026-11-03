@@ -12,7 +12,7 @@ use Awards\Services\BestowalCourtSlotService;
 
 $this->extend('/layout/TwitterBootstrap/view_record');
 
-$memberName = $bestowal->member->sca_name ?? $bestowal->member_sca_name ?? __('Unknown Member');
+$memberName = $bestowal->getRecipientName();
 $protectedFieldAccess ??= ['heraldNotes' => false, 'crownFields' => false];
 $canCancel = (string)$bestowal->lifecycle_status === Bestowal::LIFECYCLE_OPEN
     && $user->checkCan('cancel', $bestowal);
@@ -27,12 +27,11 @@ $this->KMP->endBlock();
 
 echo $this->KMP->startBlock('recordActions');
 if ($user->checkCan('edit', $bestowal)) {
-    echo $this->Html->tag(
-        'button',
+    echo $this->Form->button(
         __(' Edit'),
         [
             'type' => 'button',
-            'class' => 'btn btn-primary btn-sm edit-bestowal bi-pencil-fill',
+            'class' => 'btn btn-primary btn-sm edit-bestowal', 'icon' => 'pencil',
             'data-bs-toggle' => 'modal',
             'data-bs-target' => '#editBestowalModal',
             'data-controller' => 'outlet-btn',
@@ -166,7 +165,7 @@ if ($courtSlotLabel !== '') :
                     <?php
                     $recommendationLabel = ($recommendation->award->abbreviation
                         ?? $recommendation->award->name
-                        ?? __('Award')) . ' — ' . ($recommendation->member_sca_name ?? '');
+                        ?? __('Award')) . ' — ' . $recommendation->getRecipientName();
                     $recommendationReason = trim((string)($recommendation->reason ?? ''));
                     ?>
                     <li class="mb-3">
@@ -261,14 +260,14 @@ $gatingPercent = $todoGatingTotal > 0 ? (int)round($todoGatingDone / $todoGating
         <div class="border-top pt-3">
             <?php if ($alreadyGiven) : ?>
                 <p class="mb-0">
-                    <i class="bi bi-award-fill text-success me-1" aria-hidden="true"></i>
+                    <kmp-icon name="award" class="text-success me-1" aria-hidden="true"></kmp-icon>
                     <?= __('This bestowal has been marked given.') ?>
                 </p>
             <?php elseif (!$bestowal->allowsActionItemMutations()) : ?>
                 <p class="mb-0"><?= h($bestowal->actionItemReadOnlyReason()) ?></p>
             <?php elseif ($allGatingComplete || !empty($terminalTodo)) : ?>
                 <?= $this->Form->postLink(
-                    '<i class="bi bi-award me-1" aria-hidden="true"></i>' . __('Mark Given'),
+                    '<kmp-icon name="award" class="me-1" aria-hidden="true"></kmp-icon>' . __('Mark Given'),
                     ['plugin' => 'Awards', 'controller' => 'Bestowals', 'action' => 'markGiven'],
                     [
                         'escapeTitle' => false,

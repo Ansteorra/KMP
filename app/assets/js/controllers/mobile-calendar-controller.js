@@ -1,3 +1,4 @@
+import { createIcon, setIcon } from '../services/icon-service.js';
 import MobileControllerBase from "./mobile-controller-base.js";
 import rsvpCacheService from "../services/rsvp-cache-service.js";
 import vault from "../services/offline-vault-service.js";
@@ -20,7 +21,7 @@ class MobileCalendarController extends MobileControllerBase {
         "loading", "error", "errorMessage", 
         "eventList", "emptyState", "emptyMessage", "resultsCount",
         "searchInput", "filterPanel", "filterToggle",
-        "typeFilter", "activityFilter", "branchFilter", "rsvpFilter",
+        "typeFilter", "activityFilter", "branchFilter", "royalProgressFilter", "rsvpFilter",
         "monthSelect", "yearSelect",
         "rsvpSheet", "rsvpContent", "offlineRsvpForm",
         "pendingBanner", "pendingCount", "syncBtn"
@@ -45,6 +46,7 @@ class MobileCalendarController extends MobileControllerBase {
             type: '',
             activity: '',
             branch: '',
+            royalProgress: '',
             rsvpOnly: false
         };
     }
@@ -185,7 +187,7 @@ class MobileCalendarController extends MobileControllerBase {
         this.pullIndicator.className = 'pull-to-refresh-indicator';
         this.pullIndicator.innerHTML = `
             <div class="pull-spinner">
-                <i class="bi bi-arrow-down-circle"></i>
+                <kmp-icon name="circle-arrow-down"  aria-hidden="true"></kmp-icon>
             </div>
             <span class="pull-text">Pull to refresh</span>
         `;
@@ -317,7 +319,7 @@ class MobileCalendarController extends MobileControllerBase {
         } finally {
             if (this.hasSyncBtnTarget) {
                 this.syncBtnTarget.disabled = false;
-                this.syncBtnTarget.innerHTML = '<i class="bi bi-arrow-repeat"></i> Sync';
+                this.syncBtnTarget.innerHTML = '<kmp-icon name="repeat"  aria-hidden="true"></kmp-icon> Sync';
             }
             this.updatePendingBanner();
         }
@@ -409,8 +411,12 @@ class MobileCalendarController extends MobileControllerBase {
         const types = new Map();
         const activities = new Map();
         const branches = new Map();
+        const royalProgress = new Map();
         
         this.calendarData.events.forEach(event => {
+            (event.royal_progress || []).forEach(progress => {
+                if (progress.label) royalProgress.set(progress.value, progress.label);
+            });
             if (event.type?.name) {
                 types.set(event.type.name, event.type);
             }
@@ -427,6 +433,21 @@ class MobileCalendarController extends MobileControllerBase {
             }
         });
         
+        if (this.hasRoyalProgressFilterTarget) {
+            // Keep the followed royal selected in months without a matching RSVP.
+            const selected = [...this.royalProgressFilterTarget.options]
+                .find(option => option.value === this.filters.royalProgress);
+            if (selected && selected.value && selected.value !== 'any') {
+                royalProgress.set(selected.value, selected.text);
+            }
+            const options = [new Option('All Gatherings', ''), new Option('Any Royal Progress', 'any')];
+            [...royalProgress].sort((a, b) => a[1].localeCompare(b[1])).forEach(([value, label]) => {
+                options.push(new Option(label, value));
+            });
+            this.royalProgressFilterTarget.replaceChildren(...options);
+            this.royalProgressFilterTarget.value = this.filters.royalProgress || '';
+        }
+
         // Populate type filter
         if (this.hasTypeFilterTarget) {
             let html = '<option value="">All Types</option>';
@@ -469,7 +490,8 @@ class MobileCalendarController extends MobileControllerBase {
         
         // Update filter toggle button appearance
         if (this.hasFilterToggleTarget) {
-            const hasActiveFilters = this.filters.type || this.filters.branch || this.filters.rsvpOnly;
+            const hasActiveFilters = this.filters.type || this.filters.activity || this.filters.branch
+                || this.filters.royalProgress || this.filters.rsvpOnly;
             this.filterToggleTarget.classList.toggle('filter-active', hasActiveFilters);
         }
     }
@@ -484,6 +506,9 @@ class MobileCalendarController extends MobileControllerBase {
         }
         
         // Update filter values from inputs
+        if (this.hasRoyalProgressFilterTarget) {
+            this.filters.royalProgress = this.royalProgressFilterTarget.value;
+        }
         if (this.hasSearchInputTarget) {
             this.filters.search = this.searchInputTarget.value.toLowerCase().trim();
         }
@@ -502,6 +527,13 @@ class MobileCalendarController extends MobileControllerBase {
         
         // Filter events
         this.filteredEvents = this.calendarData.events.filter(event => {
+            if (this.filters.royalProgress) {
+                const progress = event.royal_progress || [];
+                if (this.filters.royalProgress === 'any' ? progress.length === 0
+                    : !progress.some(royal => royal.value === this.filters.royalProgress)) {
+                    return false;
+                }
+            }
             // Search filter
             if (this.filters.search) {
                 const searchText = `${event.name} ${event.location || ''} ${event.branch || ''}`.toLowerCase();
@@ -540,7 +572,8 @@ class MobileCalendarController extends MobileControllerBase {
         
         // Update filter indicator
         if (this.hasFilterToggleTarget) {
-            const hasActiveFilters = this.filters.type || this.filters.activity || this.filters.branch || this.filters.rsvpOnly;
+            const hasActiveFilters = this.filters.type || this.filters.activity || this.filters.branch
+                || this.filters.royalProgress || this.filters.rsvpOnly;
             this.filterToggleTarget.classList.toggle('filter-active', hasActiveFilters);
         }
         
@@ -571,7 +604,8 @@ class MobileCalendarController extends MobileControllerBase {
         if (this.hasBranchFilterTarget) this.branchFilterTarget.value = '';
         if (this.hasRsvpFilterTarget) this.rsvpFilterTarget.checked = false;
         
-        this.filters = { search: '', type: '', activity: '', branch: '', rsvpOnly: false };
+        if (this.hasRoyalProgressFilterTarget) this.royalProgressFilterTarget.value = '';
+        this.filters = { search: '', type: '', activity: '', branch: '', royalProgress: '', rsvpOnly: false };
         this.applyFilters();
     }
 
@@ -727,29 +761,30 @@ class MobileCalendarController extends MobileControllerBase {
                 <div class="${cardClasses.join(' ')}">
                     ${event.is_cancelled ? `
                         <div class="mobile-event-cancelled-banner">
-                            <i class="bi bi-x-circle-fill me-2"></i>CANCELLED
+                            <kmp-icon name="circle-x" class="me-2" aria-hidden="true"></kmp-icon>CANCELLED
                         </div>
                     ` : ''}
                     <div class="mobile-event-header">
                         <div class="mobile-event-info">
                             ${event.type ? `<span class="mobile-event-type-badge mb-1" style="${typeStyle}">${this.escapeHtml(event.type.name)}</span>` : ''}
+                            ${this.renderRoyalProgress(event.royal_progress)}
                             <a href="/gatherings/view/${event.public_id}" 
                                class="mobile-event-name ${event.is_cancelled ? 'cancelled' : ''} text-decoration-none">
                                 ${this.escapeHtml(event.name)}
                             </a>
                             <div class="mobile-event-meta">
-                                <span><i class="bi bi-calendar3"></i> ${dateStr}${isToday ? ' <strong>(Today)</strong>' : ''}</span>
-                                ${event.start_time ? `<span><i class="bi bi-clock"></i> ${this.formatTime(event.start_time)}</span>` : ''}
+                                <span><kmp-icon name="calendar-month"  aria-hidden="true"></kmp-icon> ${dateStr}${isToday ? ' <strong>(Today)</strong>' : ''}</span>
+                                ${event.start_time ? `<span><kmp-icon name="clock"  aria-hidden="true"></kmp-icon> ${this.formatTime(event.start_time)}</span>` : ''}
                             </div>
                             <div class="mobile-event-meta">
-                                ${event.branch ? `<span><i class="bi bi-building"></i> ${this.escapeHtml(event.branch)}</span>` : ''}
-                                ${event.location ? `<span><i class="bi bi-geo-alt"></i> ${this.escapeHtml(event.location)}</span>` : ''}
+                                ${event.branch ? `<span><kmp-icon name="building"  aria-hidden="true"></kmp-icon> ${this.escapeHtml(event.branch)}</span>` : ''}
+                                ${event.location ? `<span><kmp-icon name="map-pin"  aria-hidden="true"></kmp-icon> ${this.escapeHtml(event.location)}</span>` : ''}
                             </div>
                             ${activitiesHtml}
                             ${showViewDetails ? `
                                 <a href="/gatherings/public-landing/${event.public_id}?from=mobile&month=${this.monthValue}&year=${this.yearValue}" 
                                    class="btn btn-sm btn-outline-secondary mt-2">
-                                    <i class="bi bi-info-circle me-1"></i>View Details
+                                    <kmp-icon name="info-circle" class="me-1" aria-hidden="true"></kmp-icon>View Details
                                 </a>
                             ` : ''}
                         </div>
@@ -771,7 +806,7 @@ class MobileCalendarController extends MobileControllerBase {
                                     RSVP
                                 </button>
                             ` : ''}
-                            ${event.user_attending ? '<i class="bi bi-check-circle-fill text-success"></i>' : ''}
+                            ${event.user_attending ? '<kmp-icon name="circle-check" class="text-success" aria-hidden="true"></kmp-icon>' : ''}
                         </div>
                     </div>
                 </div>
@@ -779,20 +814,53 @@ class MobileCalendarController extends MobileControllerBase {
         }).join('');
     }
 
+    /** Render a royal progress badge with the public office/branch snapshot titles. */
+    renderRoyalProgress(progress) {
+        if (!progress?.length) return '';
+
+        const titles = [...new Set(progress.map(royal => royal.label).filter(Boolean))];
+        const label = titles.length ? `Royal Progress: ${titles.join(', ')}` : 'Royal Progress';
+        const badge = document.createElement('span');
+        badge.className = 'badge bg-warning text-dark ms-1';
+        badge.title = label;
+        badge.setAttribute('data-royal-progress-badge', '');
+        badge.setAttribute('role', 'img');
+        badge.setAttribute('aria-label', label);
+        badge.innerHTML = '<kmp-icon name="crown" aria-hidden="true"></kmp-icon>';
+
+        return badge.outerHTML;
+    }
+
     /**
      * Render activities list for an event
      */
     renderActivities(activities) {
         if (!activities || activities.length === 0) return '';
-        
-        const activityNames = activities.map(a => this.escapeHtml(a.name)).join(', ');
-        
-        return `
-            <div class="mobile-event-activities">
-                <i class="bi bi-list-check"></i>
-                <span>${activityNames}</span>
-            </div>
-        `;
+
+        const container = document.createElement('div');
+        container.className = 'mobile-event-activities d-flex flex-wrap gap-1';
+        for (const activity of activities) {
+            const badge = document.createElement('span');
+            badge.className = 'badge gathering-activity-badge';
+            badge.title = activity.name;
+            badge.style.color = /^#[0-9a-f]{6}$/i.test(activity.foreground_color) ? activity.foreground_color : '#212529';
+            badge.style.backgroundColor = /^#[0-9a-f]{6}$/i.test(activity.background_color) ? activity.background_color : '#e9ecef';
+            let icon = createIcon(activity.icon_name || 'activity', { size: 24 });
+            if (activity.icon_url) {
+                const url = new URL(activity.icon_url, window.location.origin);
+                if (['https:', 'http:'].includes(url.protocol)) {
+                    icon = document.createElement('span');
+                    icon.className = 'gathering-activity-mask';
+                    icon.style.maskImage = `url("${url.href}")`;
+                    icon.style.webkitMaskImage = `url("${url.href}")`;
+                }
+            }
+            icon.setAttribute('aria-hidden', 'true');
+            badge.append(icon, document.createTextNode(` ${activity.name}`));
+            container.append(badge);
+        }
+
+        return container.outerHTML;
     }
 
     /**
@@ -837,7 +905,9 @@ class MobileCalendarController extends MobileControllerBase {
             
             if (pullDistance >= this.pullThreshold) {
                 this.pullIndicator.querySelector('.pull-text').textContent = 'Refreshing...';
-                this.pullIndicator.querySelector('.pull-spinner i').className = 'bi bi-arrow-clockwise spin';
+                const icon = this.pullIndicator.querySelector('.pull-spinner kmp-icon');
+                setIcon(icon, 'refresh');
+                icon.classList.add('kmp-icon-spin');
                 this.loadCalendarData().then(() => this.resetPullIndicator());
             } else {
                 this.resetPullIndicator();
@@ -870,7 +940,9 @@ class MobileCalendarController extends MobileControllerBase {
         this.pullIndicator.style.opacity = '0';
         this.pullIndicator.classList.remove('ready');
         this.pullIndicator.querySelector('.pull-text').textContent = 'Pull to refresh';
-        this.pullIndicator.querySelector('.pull-spinner i').className = 'bi bi-arrow-down-circle';
+        const icon = this.pullIndicator.querySelector('.pull-spinner kmp-icon');
+        setIcon(icon, 'circle-arrow-down');
+        icon.classList.remove('kmp-icon-spin');
     }
 
     // ==================== RSVP Methods ====================
@@ -962,7 +1034,7 @@ class MobileCalendarController extends MobileControllerBase {
             eventData.user_attending = true;
             
             // Update button to show success
-            button.innerHTML = '<i class="bi bi-check"></i> Queued';
+            button.innerHTML = '<kmp-icon name="check"  aria-hidden="true"></kmp-icon> Queued';
             button.classList.remove('btn-success');
             button.classList.add('btn-outline-success');
             
@@ -1261,8 +1333,8 @@ class MobileCalendarController extends MobileControllerBase {
         toast.className = `alert alert-${type} position-fixed bottom-0 start-50 translate-middle-x mb-3`;
         toast.style.cssText = 'z-index: 9999; opacity: 0; transform: translateX(-50%) translateY(20px); transition: all 0.3s;';
         
-        const icon = type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-circle' : 'info-circle';
-        toast.innerHTML = `<i class="bi bi-${icon} me-2"></i>${message}`;
+        const icon = type === 'success' ? 'circle-check' : type === 'danger' ? 'alert-circle' : 'info-circle';
+        toast.append(createIcon(icon, { class: 'me-2' }), document.createTextNode(message));
         document.body.appendChild(toast);
         
         requestAnimationFrame(() => {

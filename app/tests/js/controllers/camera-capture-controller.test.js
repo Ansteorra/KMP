@@ -60,7 +60,7 @@ describe('CameraCaptureController', () => {
         controller.detectMobileDevice();
 
         expect(helpText.classList.contains('text-success')).toBe(true);
-        expect(helpText.innerHTML).toContain('bi-camera-fill');
+        expect(helpText.innerHTML).toContain('camera');
 
         Object.defineProperty(navigator, 'userAgent', {
             value: originalUA,

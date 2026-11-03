@@ -1,0 +1,53 @@
+@import './icons-generated.css';
+
+/* The SVG is an alpha mask: paint inherits text color, including themes/disabled/danger. */
+kmp-icon {
+    display: inline-block;
+    width: var(--kmp-icon-size, 1.25em);
+    height: var(--kmp-icon-size, 1.25em);
+    vertical-align: -.25em;
+    flex-shrink: 0;
+    line-height: 1;
+    color: inherit;
+}
+kmp-icon::before {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 100%;
+    background-color: currentColor;
+    mask: var(--kmp-icon) center / contain no-repeat;
+    -webkit-mask: var(--kmp-icon) center / contain no-repeat;
+}
+kmp-icon[hidden] { display: none; }
+.kmp-icon-16 { --kmp-icon-size: 16px; }
+.kmp-icon-20 { --kmp-icon-size: 20px; }
+.kmp-icon-24 { --kmp-icon-size: 24px; }
+.kmp-icon-spin { animation: kmp-icon-spin 1s linear infinite; }
+@keyframes kmp-icon-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+    .kmp-icon-spin { animation: none; }
+    .icon-link > kmp-icon { transition: none; }
+    .icon-link-hover:is(:hover, :focus-visible) > kmp-icon { transform: none; }
+}
+@media (forced-colors: active) { kmp-icon::before { forced-color-adjust: none; background-color: currentColor; } }
+
+.kmp-icon-2xs { --kmp-icon-size: .625rem; }
+.kmp-icon-xs { --kmp-icon-size: .75rem; }
+.kmp-icon-sm { --kmp-icon-size: .875rem; }
+.kmp-icon-lg { --kmp-icon-size: 1.25rem; }
+.kmp-icon-xl { --kmp-icon-size: 1.5rem; }
+.kmp-icon-2xl { --kmp-icon-size: 2rem; }
+.kmp-icon-1x { --kmp-icon-size: 1rem; }
+.kmp-icon-2x { --kmp-icon-size: 2rem; }
+.kmp-icon-3x { --kmp-icon-size: 3rem; }
+.kmp-icon-4x { --kmp-icon-size: 4rem; }
+.kmp-icon-5x { --kmp-icon-size: 5rem; }
+.kmp-icon-6x { --kmp-icon-size: 6rem; }
+.kmp-icon-7x { --kmp-icon-size: 7rem; }
+.kmp-icon-8x { --kmp-icon-size: 8rem; }
+.kmp-icon-9x { --kmp-icon-size: 9rem; }
+.kmp-icon-10x { --kmp-icon-size: 10rem; }
+
+.icon-link > kmp-icon { flex-shrink: 0; transition: transform .2s ease-in-out; }
+.icon-link-hover:is(:hover, :focus-visible) > kmp-icon { transform: translateX(.25em); }

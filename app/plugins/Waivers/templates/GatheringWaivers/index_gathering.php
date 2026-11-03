@@ -39,19 +39,19 @@ $this->KMP->endBlock();
     </div>
     <div class="col text-end">
         <?= $this->Html->link(
-            '<i class="bi bi-binoculars-fill"></i> ' . __('View Gathering'),
+            '<kmp-icon name="binoculars"  aria-hidden="true"></kmp-icon> ' . __('View Gathering'),
             ['plugin' => null, 'controller' => 'Gatherings', 'action' => 'view', $gathering->public_id],
             ['class' => 'btn btn-outline-secondary me-2', 'escape' => false]
         ) ?>
         <?php if (!$waiverCollectionClosed): ?>
             <?= $this->Html->link(
-                '<i class="bi bi-plus-circle"></i> ' . __('Upload Waiver'),
+                '<kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon> ' . __('Upload Waiver'),
                 ['action' => 'upload', '?' => ['gathering_id' => $gathering->id]],
                 ['class' => 'btn btn-primary me-2', 'escape' => false]
             ) ?>
             <?php if ($canCloseWaivers): ?>
                 <?= $this->Form->postLink(
-                    '<i class="bi bi-lock-fill"></i> ' . __('Close Waivers'),
+                    '<kmp-icon name="lock"  aria-hidden="true"></kmp-icon> ' . __('Close Waivers'),
                     ['action' => 'close', $gathering->id],
                     [
                         'class' => 'btn btn-warning',
@@ -63,7 +63,7 @@ $this->KMP->endBlock();
         <?php else: ?>
             <?php if ($canCloseWaivers): ?>
                 <?= $this->Form->postLink(
-                    '<i class="bi bi-unlock-fill"></i> ' . __('Reopen Waivers'),
+                    '<kmp-icon name="lock-open"  aria-hidden="true"></kmp-icon> ' . __('Reopen Waivers'),
                     ['action' => 'reopen', $gathering->id],
                     [
                         'class' => 'btn btn-outline-warning',
@@ -76,6 +76,8 @@ $this->KMP->endBlock();
     </div>
 </div>
 
+<?= $this->element('Waivers.GatheringWaivers/loss_reports') ?>
+
 <div class="row mb-3">
     <div class="col-md-12">
         <hr>
@@ -84,7 +86,7 @@ $this->KMP->endBlock();
 
 <?php if ($waiverCollectionClosed): ?>
     <div class="alert alert-dark" role="alert">
-        <i class="bi bi-lock-fill"></i>
+        <kmp-icon name="lock"  aria-hidden="true"></kmp-icon>
         <?= __('Waiver collection is closed for this gathering.') ?>
         <?php if ($waiverClosure): ?>
             <div class="small text-muted mt-1">
@@ -94,7 +96,7 @@ $this->KMP->endBlock();
     </div>
 <?php elseif ($waiverReadyToClose): ?>
     <div class="alert alert-info" role="alert">
-        <i class="bi bi-check-circle-fill"></i>
+        <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon>
         <?= __('This gathering has been marked as ready to close by event staff.') ?>
         <?php if ($waiverClosure): ?>
             <div class="small text-muted mt-1">
@@ -106,7 +108,7 @@ $this->KMP->endBlock();
 
 <?php if ($gatheringWaivers->isEmpty()): ?>
     <div class="alert alert-info" role="alert">
-        <i class="bi bi-info-circle"></i>
+        <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
         <?= __('No waivers have been uploaded for this gathering yet.') ?>
     </div>
 <?php endif; ?>
@@ -115,14 +117,14 @@ $this->KMP->endBlock();
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="bi bi-bar-chart"></i> <?= __('Waiver Upload Summary') ?></h5>
+                    <h5 class="mb-0"><kmp-icon name="chart-bar"  aria-hidden="true"></kmp-icon> <?= __('Waiver Upload Summary') ?></h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
                         <?php if (empty($requiredWaiverTypes)): ?>
                             <div class="col-12">
                                 <div class="alert alert-info">
-                                    <i class="bi bi-info-circle"></i>
+                                    <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                                     <?= __('No waiver requirements configured for this gathering\'s activities.') ?>
                                 </div>
                             </div>
@@ -192,7 +194,7 @@ $this->KMP->endBlock();
                                 <small class="d-block text-muted mb-1"><?= __('Can be declined') ?></small>
                             <?php endif; ?>
                             <?= $this->Html->link(
-                                '<i class="bi bi-binoculars-fill"></i>',
+                                '<kmp-icon name="binoculars"  aria-hidden="true"></kmp-icon>',
                                 ['action' => 'view', $waiver->id],
                                 ['class' => 'btn btn-sm btn-secondary', 'escape' => false, 'title' => __('View'), 'aria-label' => __('View waiver')]
                             ) ?>

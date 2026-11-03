@@ -16,7 +16,7 @@ $this->KMP->endBlock();
 ?>
 
 <div class="gatheringActivities form content">
-    <?= $this->Form->create($gatheringActivity) ?>
+    <?= $this->Form->create($gatheringActivity, ['type' => 'file']) ?>
     <fieldset>
         <legend><?= $this->element('backButton') ?> <?= __('Edit Gathering Activity') ?></legend>
         <?php
@@ -30,6 +30,7 @@ $this->KMP->endBlock();
         ]);
         ?>
     </fieldset>
+    <?= $this->element('gatherings/activity_appearance_form', compact('gatheringActivity')) ?>
     <div class="form-group">
         <?= $this->Form->button(__('Submit'), ['class' => 'btn btn-primary']) ?>
         <?= $this->Form->postLink(

@@ -7,6 +7,7 @@ Own reusable business workflows, side effects, integrations, registries, workflo
 ## Ownership
 
 - Domain services implement reusable workflows that should not live in controllers or templates.
+- `IconCatalog` resolves registered icon IDs and exact compatibility aliases from generated static data; templates and frontend consumers follow `app/docs/icons.md`. Keep selection keywords separate from identifier aliases.
 - Registry services own extension points for navigation, view cells, workflow actions, workflow triggers, and plugin-provided data.
 - Infrastructure services own backup, restore, cache, secrets, storage, security, and platform operations.
 
@@ -27,8 +28,13 @@ Own reusable business workflows, side effects, integrations, registries, workflo
 - Services assume authorization has already been enforced unless the service is specifically an authorization helper.
 - Logical backup manifests preserve PostgreSQL partial-index predicates; restore must not widen conditional uniqueness. Unsupported target engines must fail while planning, before dropping tables.
 - Tenant-aware data must use tenant-safe cache keys and context handling.
+- Deferred workflow jobs and state commit on the same tenant connection. Execute async
+  actions before advancing; bind delivery to the exact execution-log ID. Durable action
+  retries use persisted attempts and delayed queue jobs, with a savepoint around each
+  attempt. See `app/docs/workflow-api-endpoints.md` for execution and recovery contracts.
 - Grid email subscriptions use the server-owned `GridSubscriptionRegistry`. Every delivery reruns the registered read-only grid with a fresh recipient identity and current authorization; queue only subscription IDs/claim tokens, never report rows. See `app/docs/grid-email-subscriptions.md`.
 - Document reads and writes must not provision remote containers. Azure container lifecycle and restricted runtime grants belong to dedicated administrative provisioning; archives use independent `Backups.storage` configuration. Derived image variants use deterministic, versioned paths and bounded lazy generation after controller authorization.
+- Explicitly public artwork uses `PublicAssetService` with tenant-namespaced, immutable content keys and direct static/CDN URLs. Keep it separate from private Documents; runtime writes must not provision containers or change public access. See `app/docs/gathering-activities.md` for storage and caching requirements.
 
 ## Work Guidance
 

@@ -1,15 +1,18 @@
 <?php
+declare(strict_types=1);
+
+use App\KMP\StaticHelpers;
 
 /**
  * Navigation Parent Element
- * 
+ *
  * @var \Cake\View\View $this
  * @var array $parent
  * @var string $childHtml
  * @var array $navBarState
  */
 
-$randomId = \App\KMP\StaticHelpers::generateToken(10);
+$randomId = StaticHelpers::generateToken(10);
 
 // Check navbar state first (user's manual expand/collapse preference)
 $isExpanded = false;
@@ -28,15 +31,16 @@ $expandUrl = $this->Url->build([
     'controller' => 'NavBar',
     'action' => 'RecordExpand',
     $parent['id'],
-    'plugin' => null
+    'plugin' => null,
 ]);
 
 $collapseUrl = $this->Url->build([
     'controller' => 'NavBar',
     'action' => 'RecordCollapse',
     $parent['id'],
-    'plugin' => null
+    'plugin' => null,
 ]);
+
 ?>
 
 <button type="button"
@@ -47,9 +51,10 @@ $collapseUrl = $this->Url->build([
     data-collapse-url="<?= $collapseUrl ?>"
     data-expand-url="<?= $expandUrl ?>"
     aria-controls="<?= $randomId ?>"
-    class="navheader <?= $collapsed ?> text-start badge fs-5 mb-2 mx-1 text-bg-secondary bi <?= $parent['icon'] ?>"
+    class="navheader <?= $collapsed ?> text-start badge fs-5 mb-2 mx-1 text-bg-secondary"
     data-nav-bar-target="navHeader">
-    <?= $parent['label'] ?>
+    <?= $this->Icon->render($parent['icon'], ['class' => 'me-1']) ?>
+    <span><?= h($parent['label']) ?></span>
 </button>
 
 <nav id='<?= $randomId ?>' class='appnav collapse <?= $show ?> nav-item ms-2 nav-underline'>

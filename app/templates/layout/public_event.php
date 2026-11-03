@@ -25,8 +25,7 @@
     <!-- Bootstrap CSS for modals and components -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://unpkg.com/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <?= $this->Vite->css('icons') ?>
 
     <style>
         :root {
@@ -194,7 +193,7 @@
             border-radius: var(--radius-lg);
         }
 
-        .hero-meta-item i {
+        .hero-meta-item :is(i, kmp-icon) {
             font-size: 1.5rem;
         }
 
@@ -420,7 +419,7 @@
             text-align: center;
         }
 
-        .location-address i {
+        .location-address :is(i, kmp-icon) {
             font-size: 2rem;
             color: var(--color-primary);
             margin-bottom: var(--space-md);
@@ -583,7 +582,7 @@
             background-color: var(--color-gray-100);
         }
 
-        .dropdown-item i {
+        .dropdown-item :is(i, kmp-icon) {
             margin-right: 0.5rem;
             width: 1.25rem;
             text-align: center;

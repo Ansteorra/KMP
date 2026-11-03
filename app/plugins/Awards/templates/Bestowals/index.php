@@ -31,9 +31,9 @@ $this->KMP->endBlock();
     <div class="col text-end">
         <?php if ($user->checkCan('edit', 'Awards.Bestowals')) : ?>
             <button type="button"
-                class="btn btn-primary bi bi-plus-circle"
+                class="btn btn-primary"
                 data-bs-toggle="modal"
-                data-bs-target="#adHocBestowalModal">
+                data-bs-target="#adHocBestowalModal"><kmp-icon name="circle-plus" aria-hidden="true"></kmp-icon>
                 <?= __('Record Ad-Hoc Bestowal') ?>
             </button>
         <?php endif; ?>

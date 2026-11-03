@@ -172,76 +172,31 @@ class GatheringPolicyTest extends BaseTestCase
         $this->assertSame($editResult, $uncancelResult, 'canUncancel should delegate to canEdit');
     }
 
-    public function testEditActivityDescriptionDelegatesToEdit(): void
-    {
-        $gathering = $this->getGathering();
-        $user = $this->createSchedulePolicyUser(1234, 'canEdit', (int)$gathering->branch_id);
-
-        $this->assertTrue($this->policy->canEditActivityDescription($user, $gathering));
-    }
-
-    public function testNonPrivilegedUserCannotEditActivityDescription(): void
-    {
-        $agatha = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
-        $gathering = $this->getGathering();
-
-        $this->assertFalse($this->policy->canEditActivityDescription($agatha, $gathering));
-    }
-
-    public function testDedicatedPolicyCanCreateScheduledActivity(): void
+    public function testLegacyScheduleGrantCannotCreateScheduledActivity(): void
     {
         $gathering = $this->getGathering();
         $user = $this->createSchedulePolicyUser(1234, 'canCreateScheduledActivity', (int)$gathering->branch_id);
 
-        $this->assertTrue($this->policy->canCreateScheduledActivity($user, $gathering));
+        $this->assertFalse($this->policy->canCreateScheduledActivity($user, $gathering));
     }
 
-    public function testDedicatedPolicyCanAddCourtActivity(): void
-    {
-        $gathering = $this->getGathering();
-        $user = $this->createSchedulePolicyUser(1234, 'canAddCourtActivity', (int)$gathering->branch_id);
-
-        $this->assertTrue($this->policy->canAddCourtActivity($user, $gathering));
-        $this->assertTrue($this->policy->canView($user, $gathering));
-    }
-
-    public function testNonPrivilegedUserCannotAddCourtActivity(): void
-    {
-        $gathering = $this->getGathering();
-        $user = $this->loadMember(self::TEST_MEMBER_AGATHA_ID);
-
-        $this->assertFalse($this->policy->canAddCourtActivity($user, $gathering));
-    }
-
-    public function testCourtActivityPolicyDoesNotApplyOutsideAssignedBranch(): void
-    {
-        $gathering = $this->getGathering();
-        $user = $this->createSchedulePolicyUser(
-            1234,
-            'canAddCourtActivity',
-            (int)$gathering->branch_id + 1000,
-        );
-
-        $this->assertFalse($this->policy->canAddCourtActivity($user, $gathering));
-    }
-
-    public function testDedicatedCreatePolicyCanViewGathering(): void
+    public function testLegacyCreateGrantCannotViewGathering(): void
     {
         $gathering = $this->getGathering();
         $user = $this->createSchedulePolicyUser(1234, 'canCreateScheduledActivity', (int)$gathering->branch_id);
 
-        $this->assertTrue($this->policy->canView($user, $gathering));
+        $this->assertFalse($this->policy->canView($user, $gathering));
     }
 
-    public function testDedicatedEditSchedulePolicyCanViewGathering(): void
+    public function testLegacyEditGrantCannotViewGathering(): void
     {
         $gathering = $this->getGathering();
         $user = $this->createSchedulePolicyUser(1234, 'canEditScheduledActivity', (int)$gathering->branch_id);
 
-        $this->assertTrue($this->policy->canView($user, $gathering));
+        $this->assertFalse($this->policy->canView($user, $gathering));
     }
 
-    public function testDedicatedPolicyCanEditOwnScheduledActivity(): void
+    public function testLegacyEditGrantCannotEditOwnScheduledActivity(): void
     {
         $gathering = $this->getGathering();
         $user = $this->createSchedulePolicyUser(1234, 'canEditScheduledActivity', (int)$gathering->branch_id);
@@ -250,7 +205,7 @@ class GatheringPolicyTest extends BaseTestCase
             'created_by' => 1234,
         ]);
 
-        $this->assertTrue($this->policy->canEditScheduledActivity($user, $gathering, $scheduledActivity));
+        $this->assertFalse($this->policy->canEditScheduledActivity($user, $gathering, $scheduledActivity));
     }
 
     public function testDedicatedPolicyCannotEditOthersScheduledActivity(): void

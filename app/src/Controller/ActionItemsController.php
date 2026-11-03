@@ -173,7 +173,7 @@ class ActionItemsController extends AppController
 
         $this->set('mobileTitle', 'My To-Dos');
         $this->set('mobileSection', 'todos');
-        $this->set('mobileIcon', 'bi-check2-all');
+        $this->set('mobileIcon', 'checks');
         $this->set('mobileQueuePerPage', self::MOBILE_QUEUE_DEFAULT_PER_PAGE);
 
         $this->viewBuilder()->setLayout('mobile_app');

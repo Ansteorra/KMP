@@ -13,7 +13,7 @@
 // Set mobile layout variables
 $this->set('mobileTitle', 'My RSVPs');
 $this->set('mobileSection', 'rsvps');
-$this->set('mobileIcon', 'bi-calendar-check');
+$this->set('mobileIcon', 'calendar-check');
 $this->set('mobileBackUrl', $authCardUrl);
 
 ?>
@@ -26,14 +26,14 @@ $this->set('mobileBackUrl', $authCardUrl);
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming-pane"
                 type="button" role="tab" aria-controls="upcoming-pane" aria-selected="true">
-                <i class="bi bi-calendar-event me-1"></i>Upcoming
+                <kmp-icon name="calendar-event" class="me-1" aria-hidden="true"></kmp-icon>Upcoming
                 <span class="badge bg-primary ms-1" data-my-rsvps-target="upcomingCount" hidden>0</span>
             </button>
         </li>
         <li class="nav-item online-only" role="presentation">
             <button class="nav-link" id="past-tab" data-bs-toggle="tab" data-bs-target="#past-pane" type="button"
                 role="tab" aria-controls="past-pane" aria-selected="false">
-                <i class="bi bi-clock-history me-1"></i>Past
+                <kmp-icon name="history" class="me-1" aria-hidden="true"></kmp-icon>Past
             </button>
         </li>
     </ul>
@@ -58,7 +58,7 @@ $this->set('mobileBackUrl', $authCardUrl);
     <div class="text-center mt-4 mb-5">
         <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'mobileCalendar']) ?>"
             class="btn btn-outline-secondary">
-            <i class="bi bi-calendar me-2"></i>View Calendar
+            <kmp-icon name="calendar" class="me-2" aria-hidden="true"></kmp-icon>View Calendar
         </a>
     </div>
 
@@ -221,7 +221,7 @@ $this->set('mobileBackUrl', $authCardUrl);
     margin-bottom: 2px;
 }
 
-.my-rsvps-container .mobile-event-meta i {
+.my-rsvps-container .mobile-event-meta :is(i, kmp-icon) {
     width: 16px;
     color: var(--medieval-bronze, #8b6914);
 }

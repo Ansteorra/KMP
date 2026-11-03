@@ -16,6 +16,72 @@ use Cake\ORM\TableRegistry;
  */
 class WaiverStateService
 {
+    /** Record a loss without changing uploaded waivers or collection closure. */
+    public function recordLost(int $gatheringId, int $waiverTypeId, string $notes, int $recordedBy): ServiceResult
+    {
+        $notes = trim($notes);
+        if ($notes === '' || mb_strlen($notes) > 10000) {
+            return new ServiceResult(false, __(
+                'Enter notes (up to 10,000 characters) identifying who reported the loss and when.',
+            ));
+        }
+
+        $tables = TableRegistry::getTableLocator();
+        $losses = $tables->get('Waivers.GatheringWaiverLosses');
+
+        return $losses->getConnection()->transactional(function () use (
+            $tables,
+            $losses,
+            $gatheringId,
+            $waiverTypeId,
+            $notes,
+            $recordedBy,
+        ): ServiceResult {
+            // Serialize duplicate reports for the same gathering, including concurrent submissions.
+            $losses->getConnection()->execute(
+                'SELECT id FROM gatherings WHERE id = :id FOR UPDATE',
+                ['id' => $gatheringId],
+            );
+            if ($tables->get('Waivers.GatheringWaiverClosures')->isGatheringClosed($gatheringId)) {
+                return new ServiceResult(false, __('Waiver collection is closed for this gathering.'));
+            }
+
+            $required = $tables->get('Waivers.GatheringActivityWaivers')->find()
+                ->innerJoinWith('GatheringActivities.Gatherings')
+                ->where([
+                    'Gatherings.id' => $gatheringId,
+                    'GatheringActivityWaivers.waiver_type_id' => $waiverTypeId,
+                ])->count();
+            if (!$required) {
+                return new ServiceResult(false, __('This waiver type is not required for this gathering.'));
+            }
+            $conditions = ['gathering_id' => $gatheringId, 'waiver_type_id' => $waiverTypeId];
+            if ($losses->exists($conditions)) {
+                return new ServiceResult(false, __(
+                    'A loss has already been recorded for this gathering and waiver type.',
+                ));
+            }
+            if (
+                $tables->get('Waivers.GatheringWaivers')->exists($conditions + [
+                    'is_exemption' => true,
+                    'declined_at IS' => null,
+                ])
+            ) {
+                return new ServiceResult(false, __(
+                    'This waiver type has been attested as not needed for this gathering.',
+                ));
+            }
+
+            $loss = $losses->newEntity($conditions + ['notes' => $notes]);
+            $loss->created_by = $recordedBy;
+            $losses->saveOrFail($loss);
+
+            return new ServiceResult(true, __(
+                'Waivers Lost recorded. Close the gathering’s waivers as usual when ready.',
+            ), $loss);
+        });
+    }
+
     /**
      * Close waiver collection for a gathering.
      *

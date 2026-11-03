@@ -5,6 +5,8 @@ namespace App\Controller;
 
 use App\KMP\GridColumns\GatheringActivitiesGridColumns;
 use App\Services\CsvExportService;
+use App\Services\GatheringActivityPresentationService;
+use Psr\Http\Message\UploadedFileInterface;
 
 /**
  * GatheringActivities Controller
@@ -15,6 +17,67 @@ use App\Services\CsvExportService;
 class GatheringActivitiesController extends AppController
 {
     use DataverseGridTrait;
+
+    /**
+     * Add an existing permission to the activity's assignment rules.
+     *
+     * @param string|null $id Activity ID
+     * @return \Cake\Http\Response|null
+     */
+    public function addAssignmentPermission($id = null)
+    {
+        $this->request->allowMethod(['post']);
+        $activity = $this->GatheringActivities->get($id);
+        $this->Authorization->authorize($activity, 'edit');
+        $permission = $this->fetchTable('Permissions')->get((int)$this->request->getData('permission_id'));
+        $rules = $this->fetchTable('GatheringActivityAssignmentPermissions');
+        if ($rules->exists(['gathering_activity_id' => $activity->id, 'permission_id' => $permission->id])) {
+            $this->Flash->error(__('This permission is already assigned to the activity.'));
+        } elseif ($this->GatheringActivities->AssignmentPermissions->link($activity, [$permission])) {
+            $this->Flash->success(__('The permission has been added to the activity.'));
+        } else {
+            $this->Flash->error(__('The permission could not be added. Please try again.'));
+        }
+
+        return $this->redirect(['action' => 'view', $activity->id, '?' => ['tab' => 'assigned-by']]);
+    }
+
+    /**
+     * Remove one assignment rule without changing other rules or the permission definition.
+     *
+     * @param string|null $id Activity ID
+     * @return \Cake\Http\Response|null
+     */
+    public function deleteAssignmentPermission($id = null)
+    {
+        $this->request->allowMethod(['post']);
+        $activity = $this->GatheringActivities->get($id);
+        $this->Authorization->authorize($activity, 'edit');
+        $permission = $this->fetchTable('Permissions')->get((int)$this->request->getData('permission_id'));
+        if ($this->GatheringActivities->AssignmentPermissions->unlink($activity, [$permission])) {
+            $this->Flash->success(__('The permission has been removed from the activity.'));
+        } else {
+            $this->Flash->error(__('The permission could not be removed. Please try again.'));
+        }
+
+        return $this->redirect(['action' => 'view', $activity->id, '?' => ['tab' => 'assigned-by']]);
+    }
+
+    /**
+     * @param \App\Model\Entity\GatheringActivity $activity Validated activity
+     * @return bool
+     */
+    private function saveAppearance($activity): bool
+    {
+        $file = $this->request->getData('icon_file');
+        $result = (new GatheringActivityPresentationService())->save(
+            $activity,
+            $file instanceof UploadedFileInterface ? $file : null,
+            filter_var($this->request->getData('remove_icon', false), FILTER_VALIDATE_BOOLEAN),
+        );
+
+        return $result->success;
+    }
 
     /**
      * Initialize controller
@@ -114,11 +177,23 @@ class GatheringActivitiesController extends AppController
     {
         $gatheringActivity = $this->GatheringActivities->get($id, contain: [
             'Gatherings',
+            'AssignmentPermissions',
         ]);
 
         $this->Authorization->authorize($gatheringActivity);
 
         $this->set(compact('gatheringActivity'));
+        $assignedPermissionIds = array_column($gatheringActivity->assignment_permissions, 'id');
+        $permissionOptions = $this->fetchTable('Permissions')->find()
+            ->where(['Permissions.id NOT IN' => $assignedPermissionIds ?: [0]])
+            ->orderBy(['Permissions.name' => 'ASC'])->all()->combine(
+                'id',
+                static fn($permission): string => $permission->name . ' (' . $permission->scoping_rule . ')',
+            )->toArray();
+        $identity = $this->Authentication->getIdentity();
+        $canManageAssignmentPermissions = $identity->checkCan('edit', $gatheringActivity);
+        $canViewPermissions = $identity->checkCan('view', 'Permissions');
+        $this->set(compact('permissionOptions', 'canManageAssignmentPermissions', 'canViewPermissions'));
     }
 
     /**
@@ -134,7 +209,7 @@ class GatheringActivitiesController extends AppController
         if ($this->request->is('post')) {
             $gatheringActivity = $this->GatheringActivities->patchEntity($gatheringActivity, $this->request->getData());
 
-            if ($this->GatheringActivities->save($gatheringActivity)) {
+            if ($this->saveAppearance($gatheringActivity)) {
                 $this->Flash->success(__(
                     'The activity "{0}" has been created successfully.',
                     $gatheringActivity->name,
@@ -178,7 +253,7 @@ class GatheringActivitiesController extends AppController
         if ($this->request->is(['patch', 'post', 'put'])) {
             $gatheringActivity = $this->GatheringActivities->patchEntity($gatheringActivity, $this->request->getData());
 
-            if ($this->GatheringActivities->save($gatheringActivity)) {
+            if ($this->saveAppearance($gatheringActivity)) {
                 $this->Flash->success(__(
                     'The activity "{0}" has been updated successfully.',
                     $gatheringActivity->name,

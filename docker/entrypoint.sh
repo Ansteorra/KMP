@@ -87,6 +87,13 @@ mkdir -p /var/www/html/logs \
 chown -R www-data:www-data /var/www/html/logs /var/www/html/tmp /var/www/html/images 2>/dev/null || true
 chmod -R 775 /var/www/html/logs /var/www/html/tmp /var/www/html/images 2>/dev/null || true
 
+# Public artwork is written by the app and served directly by Apache.
+if [ "${PUBLIC_ASSETS_ADAPTER:-local}" = "local" ]; then
+    mkdir -p /var/www/html/webroot/public-assets
+    chown www-data:www-data /var/www/html/webroot/public-assets
+    chmod 755 /var/www/html/webroot/public-assets
+fi
+
 # Web and CLI workers share private local backup storage through the app mount.
 mkdir -p /var/www/html/backups
 chown -R www-data:www-data /var/www/html/backups

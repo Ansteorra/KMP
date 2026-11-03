@@ -1,3 +1,4 @@
+import { createIcon, setIcon } from '../services/icon-service.js';
 import { Controller } from "@hotwired/stimulus"
 
 /**
@@ -551,8 +552,7 @@ class GridViewController extends Controller {
             removeBtn.setAttribute('data-filter-column', column)
             removeBtn.setAttribute('data-filter-value', value)
 
-            const icon = document.createElement('i')
-            icon.className = 'bi bi-x'
+            const icon = createIcon('x', { class: '' })
             icon.setAttribute('aria-hidden', 'true')
             removeBtn.appendChild(icon)
 
@@ -568,8 +568,7 @@ class GridViewController extends Controller {
             lockIndicator.setAttribute('title', 'This filter cannot be removed')
             lockIndicator.setAttribute('aria-hidden', 'true')
 
-            const lockIcon = document.createElement('i')
-            lockIcon.className = 'bi bi-lock-fill'
+            const lockIcon = createIcon('lock', { class: '' })
             lockIcon.setAttribute('aria-hidden', 'true')
             lockIndicator.appendChild(lockIcon)
             badge.appendChild(lockIndicator)
@@ -674,8 +673,7 @@ class GridViewController extends Controller {
         removeBtn.setAttribute('aria-label', 'Remove search')
         removeBtn.setAttribute('data-action', 'click->grid-view#clearSearch')
 
-        const icon = document.createElement('i')
-        icon.className = 'bi bi-x'
+        const icon = createIcon('x', { class: '' })
         icon.setAttribute('aria-hidden', 'true')
         removeBtn.appendChild(icon)
 
@@ -690,7 +688,7 @@ class GridViewController extends Controller {
     updateFilterCount() {
         // Find the filter button (it has a Filter icon and text)
         const filterButton = Array.from(this.element.querySelectorAll('button'))
-            .find(btn => btn.textContent.includes('Filter') && btn.querySelector('.bi-funnel'))
+            .find(btn => btn.textContent.includes('Filter') && btn.querySelector('kmp-icon[name="filter"]'))
 
         if (!filterButton) return
 
@@ -841,8 +839,7 @@ class GridViewController extends Controller {
                 mainBtn.appendChild(badge)
             }
             if (isPreferred) {
-                const star = document.createElement('i')
-                star.className = 'bi bi-star-fill text-warning'
+                const star = createIcon('star-circle', { class: 'text-warning' })
                 star.style.fontSize = '0.75rem'
                 mainBtn.appendChild(document.createTextNode(' '))
                 mainBtn.appendChild(star)
@@ -864,7 +861,7 @@ class GridViewController extends Controller {
                 const updateItem = document.createElement('li')
                 updateItem.innerHTML = `
                     <button type="button" class="dropdown-item" data-action="click->grid-view#updateView">
-                        <i class="bi bi-arrow-repeat me-2"></i> Update View
+                        <kmp-icon name="repeat" class="me-2" aria-hidden="true"></kmp-icon> Update View
                     </button>
                 `
                 dropdownMenu.appendChild(updateItem)
@@ -875,13 +872,13 @@ class GridViewController extends Controller {
             if (isPreferred) {
                 defaultItem.innerHTML = `
                     <button type="button" class="dropdown-item" data-action="click->grid-view#clearDefault">
-                        <i class="bi bi-star-fill me-2"></i> Remove as Default
+                        <kmp-icon name="star-circle" class="me-2" aria-hidden="true"></kmp-icon> Remove as Default
                     </button>
                 `
             } else {
                 defaultItem.innerHTML = `
                     <button type="button" class="dropdown-item" data-action="click->grid-view#setDefault">
-                        <i class="bi bi-star me-2"></i> Set as Default
+                        <kmp-icon name="star" class="me-2" aria-hidden="true"></kmp-icon> Set as Default
                     </button>
                 `
             }
@@ -897,7 +894,7 @@ class GridViewController extends Controller {
                 const deleteItem = document.createElement('li')
                 deleteItem.innerHTML = `
                     <button type="button" class="dropdown-item text-danger" data-action="click->grid-view#deleteView">
-                        <i class="bi bi-trash me-2"></i> Delete View
+                        <kmp-icon name="trash" class="me-2" aria-hidden="true"></kmp-icon> Delete View
                     </button>
                 `
                 dropdownMenu.appendChild(deleteItem)
@@ -930,8 +927,7 @@ class GridViewController extends Controller {
             }
 
             if (isPreferred) {
-                const star = document.createElement('i')
-                star.className = 'bi bi-star-fill text-warning'
+                const star = createIcon('star-circle', { class: 'text-warning' })
                 star.style.fontSize = '0.75rem'
                 mainBtn.appendChild(document.createTextNode(' '))
                 mainBtn.appendChild(star)
@@ -952,13 +948,13 @@ class GridViewController extends Controller {
             if (isPreferred) {
                 defaultItem.innerHTML = `
                     <button type="button" class="dropdown-item" data-action="click->grid-view#clearDefault">
-                        <i class="bi bi-star-fill me-2"></i> Remove as Default
+                        <kmp-icon name="star-circle" class="me-2" aria-hidden="true"></kmp-icon> Remove as Default
                     </button>
                 `
             } else {
                 defaultItem.innerHTML = `
                     <button type="button" class="dropdown-item" data-action="click->grid-view#setDefault">
-                        <i class="bi bi-star me-2"></i> Set as Default
+                        <kmp-icon name="star" class="me-2" aria-hidden="true"></kmp-icon> Set as Default
                     </button>
                 `
             }
@@ -992,8 +988,7 @@ class GridViewController extends Controller {
                 btn.appendChild(badge)
             }
             if (isPreferred) {
-                const star = document.createElement('i')
-                star.className = 'bi bi-star-fill text-warning'
+                const star = createIcon('star-circle', { class: 'text-warning' })
                 star.style.fontSize = '0.75rem'
                 btn.appendChild(document.createTextNode(' '))
                 btn.appendChild(star)
@@ -1155,8 +1150,7 @@ class GridViewController extends Controller {
                 const title = document.createElement('strong')
                 title.textContent = item.label
                 if (isLocked) {
-                    const lockIcon = document.createElement('i')
-                    lockIcon.className = 'bi bi-lock-fill ms-2'
+                    const lockIcon = createIcon('lock', { class: 'ms-2' })
                     lockIcon.style.cssText = 'font-size: 0.75rem; opacity: 0.5;'
                     lockIcon.setAttribute('title', 'This filter is locked and cannot be changed')
                     title.appendChild(lockIcon)
@@ -1251,8 +1245,7 @@ class GridViewController extends Controller {
                 const title = document.createElement('strong')
                 title.textContent = item.label
                 if (isLocked) {
-                    const lockIcon = document.createElement('i')
-                    lockIcon.className = 'bi bi-lock-fill ms-2'
+                    const lockIcon = createIcon('lock', { class: 'ms-2' })
                     lockIcon.style.cssText = 'font-size: 0.75rem; opacity: 0.5;'
                     lockIcon.setAttribute('title', 'This filter is locked and cannot be changed')
                     title.appendChild(lockIcon)
@@ -1396,7 +1389,7 @@ class GridViewController extends Controller {
             dragHandle.className = 'drag-handle me-2'
             dragHandle.style.cursor = 'move'
             dragHandle.setAttribute('aria-hidden', 'true')
-            dragHandle.innerHTML = '<i class="bi bi-grip-vertical" aria-hidden="true"></i>'
+            dragHandle.innerHTML = '<kmp-icon name="grip-vertical"  aria-hidden="true"></kmp-icon>'
             item.appendChild(dragHandle)
 
             // Checkbox
@@ -1452,7 +1445,7 @@ class GridViewController extends Controller {
             moveUpButton.className = 'btn btn-outline-secondary'
             moveUpButton.setAttribute('data-action', 'click->sortable-list#moveUp')
             moveUpButton.setAttribute('aria-label', `Move ${columnLabel} column up`)
-            moveUpButton.innerHTML = '<i class="bi bi-arrow-up" aria-hidden="true"></i>'
+            moveUpButton.innerHTML = '<kmp-icon name="arrow-up"  aria-hidden="true"></kmp-icon>'
             moveControls.appendChild(moveUpButton)
 
             const moveDownButton = document.createElement('button')
@@ -1460,7 +1453,7 @@ class GridViewController extends Controller {
             moveDownButton.className = 'btn btn-outline-secondary'
             moveDownButton.setAttribute('data-action', 'click->sortable-list#moveDown')
             moveDownButton.setAttribute('aria-label', `Move ${columnLabel} column down`)
-            moveDownButton.innerHTML = '<i class="bi bi-arrow-down" aria-hidden="true"></i>'
+            moveDownButton.innerHTML = '<kmp-icon name="arrow-down"  aria-hidden="true"></kmp-icon>'
             moveControls.appendChild(moveDownButton)
 
             item.appendChild(moveControls)
@@ -2627,8 +2620,7 @@ class GridViewController extends Controller {
 
             const icon = toggle.querySelector('.toggle-icon')
             if (icon) {
-                icon.classList.remove('bi-chevron-down')
-                icon.classList.add('bi-chevron-right')
+                setIcon(icon, 'chevron-right')
             }
         } else {
             // Sub-row doesn't exist - expand it
@@ -2669,8 +2661,7 @@ class GridViewController extends Controller {
 
                     const icon = toggle.querySelector('.toggle-icon')
                     if (icon) {
-                        icon.classList.remove('bi-chevron-right')
-                        icon.classList.add('bi-chevron-down')
+                        setIcon(icon, 'chevron-down')
                     }
                 })
                 .catch(error => {

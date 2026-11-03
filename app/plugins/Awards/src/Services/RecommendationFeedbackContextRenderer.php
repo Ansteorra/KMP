@@ -36,7 +36,7 @@ class RecommendationFeedbackContextRenderer implements ApprovalContextRendererIn
             return new ApprovalContext(
                 title: __('Recommendation Feedback'),
                 description: __('Feedback requested for an award recommendation.'),
-                icon: 'bi-chat-left-text',
+                icon: 'message',
             );
         }
 
@@ -86,7 +86,7 @@ class RecommendationFeedbackContextRenderer implements ApprovalContextRendererIn
             ),
             fields: $fields,
             entityUrl: $this->recommendationUrl($primary),
-            icon: 'bi-chat-left-text',
+            icon: 'message',
             requester: $request->requester->sca_name ?? null,
             requesterMemberId: (int)$request->requester_id ?: null,
         );

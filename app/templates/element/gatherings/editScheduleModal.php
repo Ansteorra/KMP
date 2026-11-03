@@ -24,7 +24,7 @@ use function Cake\Collection\collection;
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="editScheduleModalLabel">
-                    <i class="bi bi-pencil-fill" aria-hidden="true"></i> <?= __('Edit Scheduled Activity') ?>
+                    <kmp-icon name="pencil"  aria-hidden="true"></kmp-icon> <?= __('Edit Scheduled Activity') ?>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"
                     aria-label="<?= __('Close') ?>"></button>
@@ -36,7 +36,7 @@ use function Cake\Collection\collection;
             ]) ?>
             <div class="modal-body bg-light-subtle">
                 <div class="alert alert-info border-start border-info border-4">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                     <?php
                     $timezone = TimezoneHelper::getGatheringTimezone($gathering, $this->getRequest()->getAttribute('identity'));
                     ?>
@@ -47,13 +47,13 @@ use function Cake\Collection\collection;
                     ) ?>
                     <br>
                     <small>
-                        <i class="bi bi-clock" aria-hidden="true"></i> <?= __('All times in {0}', $timezone) ?>
+                        <kmp-icon name="clock"  aria-hidden="true"></kmp-icon> <?= __('All times in {0}', $timezone) ?>
                     </small>
                 </div>
 
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3">
                     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                        <i class="bi bi-clock text-primary me-1" aria-hidden="true"></i>
+                        <kmp-icon name="clock" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Schedule Timing') ?>
                     </legend>
                     <?= $this->element('gatherings/scheduleTimingFields', ['mode' => 'edit']) ?>
@@ -61,7 +61,7 @@ use function Cake\Collection\collection;
 
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
                     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                        <i class="bi bi-card-text text-success me-1" aria-hidden="true"></i>
+                        <kmp-icon name="id" class="text-success me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Activity Details') ?>
                     </legend>
                     <div class="row g-3">
@@ -140,7 +140,7 @@ use function Cake\Collection\collection;
                     <?= __('Cancel') ?>
                 </button>
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-save" aria-hidden="true"></i> <?= __('Save Changes') ?>
+                    <kmp-icon name="device-floppy"  aria-hidden="true"></kmp-icon> <?= __('Save Changes') ?>
                 </button>
             </div>
             <?= $this->Form->end() ?>

@@ -6,6 +6,7 @@ namespace App\Policy;
 use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\BaseEntity;
 use App\Model\Entity\Gathering;
+use App\Model\Entity\GatheringActivity;
 use Cake\ORM\Table;
 use Cake\ORM\TableRegistry;
 
@@ -53,83 +54,72 @@ class GatheringPolicy extends BasePolicy
     }
 
     /**
-     * Check if user can create scheduled activities for a gathering.
-     *
-     * Users can create scheduled activities if they can edit the gathering, are
-     * a steward for the gathering, or have the dedicated schedule creation policy.
-     *
-     * @param \App\KMP\KmpIdentityInterface $user The user
-     * @param \App\Model\Entity\BaseEntity $entity The gathering entity
-     * @param mixed ...$optionalArgs Optional arguments
+     * @param \App\KMP\KmpIdentityInterface $user Identity
+     * @param \App\Model\Entity\BaseEntity $entity Gathering
+     * @param mixed ...$optionalArgs Activity entity
+     * @return bool
+     */
+    public function canManageActivity(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        $activity = $optionalArgs[0] ?? null;
+
+        return $activity instanceof GatheringActivity
+            && $user->checkCan('assign', $activity, $entity);
+    }
+
+    /**
+     * @param \App\KMP\KmpIdentityInterface $user Identity
+     * @param \App\Model\Entity\BaseEntity $entity Gathering
+     * @param mixed ...$optionalArgs Unused
      * @return bool
      */
     public function canCreateScheduledActivity(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
-        return $this->canEdit($user, $entity, ...$optionalArgs)
-            || $this->_hasPolicy($user, __FUNCTION__, $entity);
+        if ($this->canEdit($user, $entity)) {
+            return true;
+        }
+        $activities = $entity->gathering_activities ?? TableRegistry::getTableLocator()->get('GatheringActivities')
+            ->find()->innerJoinWith('Gatherings', fn($query) => $query->where(['Gatherings.id' => $entity->id]))
+            ->all()->toList();
+        foreach ($activities as $activity) {
+            if ($this->canManageActivity($user, $entity, $activity)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
-     * Check if user can attach a court-capable activity to a gathering.
-     *
-     * Full gathering editors retain the general activity-management flow. Court
-     * planners receive this narrower policy through their scoped Awards permission;
-     * the controller additionally verifies that the selected activity can present awards.
-     *
-     * @param \App\KMP\KmpIdentityInterface $user The user
-     * @param \App\Model\Entity\BaseEntity $entity The gathering entity
-     * @param mixed ...$optionalArgs Optional arguments
-     * @return bool
-     */
-    public function canAddCourtActivity(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
-    {
-        return $this->canEdit($user, $entity, ...$optionalArgs)
-            || $this->_hasPolicy($user, __FUNCTION__, $entity);
-    }
-
-    /**
-     * Check if user can edit a scheduled activity on a gathering.
-     *
-     * Full gathering editors and stewards can edit any schedule row. Dedicated
-     * court schedule managers can edit only rows they created.
-     *
-     * @param \App\KMP\KmpIdentityInterface $user The user
-     * @param \App\Model\Entity\BaseEntity $entity The gathering entity
-     * @param mixed ...$optionalArgs First argument should be a scheduled activity
+     * @param \App\KMP\KmpIdentityInterface $user Identity
+     * @param \App\Model\Entity\BaseEntity $entity Gathering
+     * @param mixed ...$optionalArgs Persisted scheduled activity
      * @return bool
      */
     public function canEditScheduledActivity(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
-        $scheduledActivity = $optionalArgs[0] ?? null;
-        if ($scheduledActivity === null || (int)($scheduledActivity->gathering_id ?? 0) !== (int)($entity->id ?? 0)) {
+        $scheduled = $optionalArgs[0] ?? null;
+        if (!$scheduled || (int)$scheduled->gathering_id !== (int)$entity->id) {
             return false;
         }
-
-        if ($this->canEdit($user, $entity)) {
-            return true;
+        if (!$scheduled->gathering_activity_id || $scheduled->is_other) {
+            return $this->canEdit($user, $entity);
         }
+        $activity = TableRegistry::getTableLocator()->get('GatheringActivities')
+            ->get((int)$scheduled->gathering_activity_id);
 
-        if (!$this->_hasPolicy($user, __FUNCTION__, $entity)) {
-            return false;
-        }
-
-        $createdBy = $scheduledActivity->created_by ?? null;
-        $userId = $user->getIdentifier();
-
-        return $createdBy !== null && $userId !== null && (int)$createdBy === (int)$userId;
+        return $this->canManageActivity($user, $entity, $activity);
     }
 
     /**
-     * Check if user can edit an activity description on a gathering.
-     *
-     * @param \App\KMP\KmpIdentityInterface $user The user
-     * @param \App\Model\Entity\BaseEntity $entity The gathering entity
-     * @param mixed ...$optionalArgs Optional arguments
+     * @param \App\KMP\KmpIdentityInterface $user Identity
+     * @param \App\Model\Entity\BaseEntity $entity Gathering
+     * @param mixed ...$optionalArgs Persisted scheduled activity
      * @return bool
      */
-    public function canEditActivityDescription(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    public function canDeleteScheduledActivity(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
-        return $this->canEdit($user, $entity, ...$optionalArgs);
+        return $this->canEditScheduledActivity($user, $entity, ...$optionalArgs);
     }
 
     /**
@@ -227,10 +217,14 @@ class GatheringPolicy extends BasePolicy
 
         // Check if user is a steward for this gathering
         if ($entity instanceof BaseEntity) {
-            return $this->_isGatheringSteward($user, $entity)
-                || $this->canAddCourtActivity($user, $entity)
-                || $this->canCreateScheduledActivity($user, $entity)
-                || $this->_hasPolicy($user, 'canEditScheduledActivity', $entity);
+            if ($this->canEdit($user, $entity)) {
+                return true;
+            }
+            foreach (TableRegistry::getTableLocator()->get('GatheringActivities')->find()->all() as $activity) {
+                if ($this->canManageActivity($user, $entity, $activity)) {
+                    return true;
+                }
+            }
         }
 
         return false;

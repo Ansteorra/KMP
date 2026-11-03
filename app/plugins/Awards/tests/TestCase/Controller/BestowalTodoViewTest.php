@@ -92,10 +92,10 @@ class BestowalTodoViewTest extends HttpIntegrationTestCase
         $this->assertResponseContains('Scroll finished');
         $this->assertResponseContains('Required');
         $this->assertResponseContains('Complete all required checks');
-        $this->assertResponseContains('bi-hourglass-split');
+        $this->assertResponseContains('hourglass');
         $this->assertResponseContains('Open task:');
-        $this->assertResponseNotContains('bi bi-circle me-1');
-        $this->assertResponseNotContains('bi bi-check-lg me-1');
+        $this->assertResponseNotContains('<kmp-icon name="circle" class="me-1"');
+        $this->assertResponseNotContains('<kmp-icon name="check" class="me-1"');
     }
 
     public function testViewRendersGatheringRequirementForUnbackfilledEventScheduledTodo(): void
@@ -235,7 +235,7 @@ class BestowalTodoViewTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
         $this->assertResponseContains('Mark Given');
         $this->assertResponseContains('All required checks are complete.');
-        $this->assertResponseContains('bi-check-square-fill');
+        $this->assertResponseContains('checkbox');
         $this->assertResponseContains('Completed task:');
     }
 

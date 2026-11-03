@@ -1,0 +1,39 @@
+.gathering-reader { max-width: 1440px; margin-inline: auto; overflow-wrap: anywhere; }
+.gathering-reader-header { padding: 1rem 0 1.25rem; }
+.gathering-reader-heading { flex: 1 1 20rem; min-width: 0; }
+.gathering-reader h1 { font-size: clamp(1.65rem, 3vw, 2.3rem); line-height: 1.25; margin-bottom: .5rem; }
+.gathering-back-link { text-decoration: none; }
+.gathering-reader-actions .btn { min-height: 38px; }
+.gathering-reader-facts { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 1.5rem; margin: 1.5rem 0 1rem; padding: 1.25rem; border: 1px solid var(--bs-border-color); border-radius: .5rem; background: var(--bs-tertiary-bg); }
+.gathering-reader-facts dt { font-size: .85rem; margin-bottom: .35rem; }
+.gathering-reader-facts dd { margin: 0; }
+.gathering-reader-overview { display: grid; grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr); gap: 1.5rem; padding-top: 1.5rem; }
+.gathering-reader-section { border: 1px solid var(--bs-border-color); border-radius: .5rem; padding: 1.25rem; margin-bottom: 1rem; background: var(--bs-body-bg); }
+.gathering-reader-section h2 { font-size: 1.2rem; margin-bottom: 1rem; }
+.gathering-reader [id^="reader-"] { scroll-margin-top: 8rem; }
+.gathering-reader-progress { border-left: 4px solid var(--bs-warning); background: var(--bs-warning-bg-subtle); padding: 1rem; margin-bottom: 1rem; }
+.gathering-reader-schedule { list-style: none; margin: 0; padding: 0; }
+.gathering-reader-schedule li { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: 1rem; padding-block: 1rem; border-top: 1px solid var(--bs-border-color); }
+.gathering-reader-schedule-time { font-size: .9rem; }
+.gathering-reader .markdown-content > :last-child { margin-bottom: 0; }
+.gathering-reader .markdown-content img { max-width: 100%; height: auto; }
+.gathering-reader .markdown-content pre { overflow: auto; }
+.gathering-reader .markdown-content h1 { font-size: 1.5rem; }
+.gathering-reader-tabs .nav-tabs { display: flex; flex-wrap: wrap; row-gap: .25rem; }
+.gathering-reader-tabs .nav-link { min-height: 44px; }
+.gathering-management-actions { min-width: 17rem; }
+.gathering-management-actions .btn { display: block; width: 100%; margin-bottom: .5rem; text-align: left; }
+@media (max-width: 767.98px) {
+    body.Gatherings.view .navbar { flex-wrap: wrap !important; }
+    body.Gatherings.view .navbar-brand { width: 100%; padding-block: .5rem; }
+    body.Gatherings.view .navbar-nav { max-width: 100%; overflow-x: auto; padding-block: .4rem; }
+    .gathering-reader-header { padding-inline: .5rem; }
+    .gathering-reader-facts, .gathering-reader-overview { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+    .gathering-reader-overview { padding: 1rem .5rem 0; }
+    .gathering-reader-facts { padding: 1rem; }
+    .gathering-reader-actions { width: 100%; }
+    .gathering-reader-schedule li { grid-template-columns: 5rem minmax(0, 1fr); gap: .75rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+    body.Gatherings.view #main-content, body.Gatherings.view .sidebar { transition: none; }
+}

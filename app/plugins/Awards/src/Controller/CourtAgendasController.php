@@ -31,17 +31,16 @@ class CourtAgendasController extends AppController
         $placeholder = $this->CourtAgendas->newEntity([
             'gathering_id' => $gatheringIdInt,
             'name' => (string)$gathering->name . ' Court Agenda',
-            'gathering' => $gathering,
         ]);
+        $placeholder->gathering = $gathering;
         $this->Authorization->authorize($placeholder, 'gathering');
 
         $user = $this->request->getAttribute('identity');
         $agenda = $agendaService->getOrCreateDefaultAgenda($gatheringIdInt, (int)$user->id);
         $canManage = $user->checkCan('edit', $agenda);
-        $agendaService->ensureEligibleCourtSegments((int)$agenda->id, (int)$user->id);
 
         $viewModel = (new BestowalFieldAccessService())->redactAgendaViewModel(
-            $agendaService->buildAgendaViewModel((int)$agenda->id),
+            $agendaService->buildAgendaViewModel((int)$agenda->id, (int)$user->id),
             $user,
         );
         $selectedSegmentId = $this->selectedSegmentId(
@@ -56,8 +55,10 @@ class CourtAgendasController extends AppController
             'totalWarning' => $viewModel['totalWarning'],
             'unscheduledBestowals' => $viewModel['unscheduledBestowals'],
             'scheduledActivityOptions' => $viewModel['scheduledActivityOptions'],
+            'unscheduledAwardActivities' => $viewModel['unscheduledAwardActivities'],
             'segmentOptions' => $viewModel['segmentOptions'],
             'canManage' => $canManage,
+            'canViewGathering' => $user->checkCan('view', $gathering),
         ]);
 
         return null;
@@ -77,7 +78,7 @@ class CourtAgendasController extends AppController
         $this->Authorization->authorize($agenda, 'printAgenda');
 
         $viewModel = (new BestowalFieldAccessService())->redactAgendaViewModel(
-            $agendaService->buildAgendaViewModel($agendaIdInt),
+            $agendaService->buildAgendaViewModel($agendaIdInt, (int)$this->request->getAttribute('identity')->id),
             $this->request->getAttribute('identity'),
         );
         $this->set([

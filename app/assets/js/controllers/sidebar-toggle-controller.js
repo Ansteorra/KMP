@@ -1,3 +1,4 @@
+import { setIcon } from '../services/icon-service.js';
 import { Controller } from "@hotwired/stimulus";
 
 /**
@@ -7,7 +8,7 @@ import { Controller } from "@hotwired/stimulus";
  * Persists state in localStorage so the preference survives page loads.
  *
  * Targets:
- * - icon: The <i> element whose class swaps between chevron directions
+ * - icon: The <kmp-icon> element whose name selects the chevron direction
  */
 class SidebarToggleController extends Controller {
     static targets = ["icon"]
@@ -35,8 +36,7 @@ class SidebarToggleController extends Controller {
     _updateIcon() {
         if (!this.hasIconTarget) return;
         const collapsed = document.body.classList.contains("sidebar-collapsed");
-        this.iconTarget.classList.toggle("bi-chevron-bar-left", !collapsed);
-        this.iconTarget.classList.toggle("bi-chevron-bar-right", collapsed);
+        setIcon(this.iconTarget, collapsed ? "chevron-right-pipe" : "chevron-left-pipe");
     }
 }
 

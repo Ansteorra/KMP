@@ -12,6 +12,82 @@ use App\Test\TestCase\Support\HttpIntegrationTestCase;
  */
 class GatheringActivitiesControllerTest extends HttpIntegrationTestCase
 {
+    public function testAssignmentPermissionsCanBeAddedAndRemovedIndividually(): void
+    {
+        $activities = $this->getTableLocator()->get('GatheringActivities');
+        $activity = $activities->saveOrFail($activities->newEntity(['name' => 'Configurable assignment']));
+        $permissions = $this->getTableLocator()->get('Permissions')->find()->limit(2)->all()->toList();
+        $addUrl = '/gathering-activities/add-assignment-permission/' . $activity->id;
+        $deleteUrl = '/gathering-activities/delete-assignment-permission/' . $activity->id;
+        foreach ([$permissions[0], $permissions[1], $permissions[0]] as $permission) {
+            $this->post($addUrl, ['permission_id' => (string)$permission->id]);
+            $this->assertRedirect(['action' => 'view', $activity->id, '?' => ['tab' => 'assigned-by']]);
+        }
+        $this->assertCount(2, $activities->get($activity->id, contain: ['AssignmentPermissions'])->assignment_permissions);
+        $this->post($deleteUrl, ['permission_id' => $permissions[0]->id]);
+        $remaining = $activities->get($activity->id, contain: ['AssignmentPermissions'])->assignment_permissions;
+        $this->assertCount(1, $remaining);
+        $this->assertSame($permissions[1]->id, $remaining[0]->id);
+        $this->post($deleteUrl, ['permission_id' => $permissions[1]->id]);
+        $this->assertCount(0, $activities->get($activity->id, contain: ['AssignmentPermissions'])->assignment_permissions);
+        $this->assertSame(2, $this->getTableLocator()->get('Permissions')->find()
+            ->where(['id IN' => array_column($permissions, 'id')])->count());
+    }
+
+    public function testInvalidRulesAreRejectedAndRegularMembersCannotChangeThem(): void
+    {
+        $activities = $this->getTableLocator()->get('GatheringActivities');
+        $activity = $activities->saveOrFail($activities->newEntity(['name' => 'Protected assignment']));
+        $url = '/gathering-activities/add-assignment-permission/' . $activity->id;
+        $this->post($url, ['permission_id' => -1]);
+        $this->assertResponseCode(404);
+        $this->assertCount(0, $activities->get($activity->id, contain: ['AssignmentPermissions'])->assignment_permissions);
+        $permission = $this->getTableLocator()->get('Permissions')->find()->firstOrFail();
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->post($url, ['permission_id' => $permission->id]);
+        $this->assertCount(0, $activities->get($activity->id, contain: ['AssignmentPermissions'])->assignment_permissions);
+        $this->authenticateAsSuperUser();
+        $this->post($url, ['permission_id' => $permission->id]);
+        $this->assertCount(1, $activities->get($activity->id, contain: ['AssignmentPermissions'])->assignment_permissions);
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->post('/gathering-activities/delete-assignment-permission/' . $activity->id, [
+            'permission_id' => $permission->id,
+        ]);
+        $this->assertCount(1, $activities->get($activity->id, contain: ['AssignmentPermissions'])->assignment_permissions);
+    }
+
+    public function testAssignmentTabUsesPermissionGridAndModalLookup(): void
+    {
+        $activities = $this->getTableLocator()->get('GatheringActivities');
+        $activity = $activities->saveOrFail($activities->newEntity(['name' => 'Assignment UI fixture']));
+        $permission = $this->getTableLocator()->get('Permissions')->find()->firstOrFail();
+        $this->post('/gathering-activities/add-assignment-permission/' . $activity->id, [
+            'permission_id' => $permission->id,
+        ]);
+        $this->get('/gathering-activities/view/' . $activity->id . '?tab=assigned-by');
+        $this->assertResponseOk();
+        $this->assertResponseContains('data-bs-target="#addPermissionModal"');
+        $this->assertResponseContains('data-assignment-permission-id="' . $permission->id . '"');
+        $this->assertResponseContains('Requirements');
+        $this->assertResponseContains('Membership');
+        $this->assertResponseContains('Background Check');
+        $this->assertResponseContains('Minimum Age');
+        $this->assertResponseContains('Warrant');
+        $this->assertResponseContains('role="combobox"');
+        $this->assertResponseContains('data-controller="role-add-permission"');
+        $this->assertResponseNotContains('name="permission_ids[]"');
+        $this->assertArrayNotHasKey($permission->id, $this->viewVariable('permissionOptions'));
+    }
+
+    public function testAssignmentMutationsRequirePost(): void
+    {
+        $activity = $this->getTableLocator()->get('GatheringActivities')->find()->firstOrFail();
+        foreach (['add-assignment-permission', 'delete-assignment-permission'] as $action) {
+            $this->get('/gathering-activities/' . $action . '/' . $activity->id);
+            $this->assertResponseCode(405);
+        }
+    }
+
     protected function setUp(): void
     {
         parent::setUp();

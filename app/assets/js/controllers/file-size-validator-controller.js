@@ -316,8 +316,8 @@ class FileSizeValidatorController extends Controller {
      */
     formatWarningMessage(message, type = 'warning') {
         const icon = type === 'error' 
-            ? '<i class="bi bi-exclamation-triangle-fill"></i>'
-            : '<i class="bi bi-exclamation-circle-fill"></i>'
+            ? '<kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon>'
+            : '<kmp-icon name="alert-circle"  aria-hidden="true"></kmp-icon>'
         
         // Preserve line breaks
         const formattedMessage = message.replace(/\n/g, '<br>')

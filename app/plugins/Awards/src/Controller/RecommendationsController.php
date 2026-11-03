@@ -254,7 +254,7 @@ class RecommendationsController extends AppController
         if ($externalLinks) {
             foreach ($externalLinks as $name => $link) {
                 $links[] = '<a href="' . h($link) . '" target="_blank" title="' . h($name) . '">' .
-                    '<i class="bi bi-box-arrow-up-right"></i></a>';
+                    '<kmp-icon name="external-link"  aria-hidden="true"></kmp-icon></a>';
             }
         }
 
@@ -387,7 +387,7 @@ class RecommendationsController extends AppController
             if ($item['isAttendance']) {
                 // Add crown icon for attendance-based gatherings
                 $displayName = '<span title="' . __('Member shared attendance') . '">'
-                    . '<i class="bi bi-person-check text-success me-1"></i>' . $displayName . '</span>';
+                    . '<kmp-icon name="user-check" class="text-success me-1" aria-hidden="true"></kmp-icon>' . $displayName . '</span>';
             }
             $names[] = $displayName;
         }
@@ -612,6 +612,7 @@ class RecommendationsController extends AppController
 
         // Process each recommendation to populate computed fields for export
         foreach ($recommendations as $recommendation) {
+            $recommendation->member_sca_name = $recommendation->getRecipientName();
             $attendanceGatherings = [];
             if ($includeAttendance && $recommendation->member_id) {
                 $attendanceGatherings = $memberAttendanceGatherings[$recommendation->member_id] ?? [];
@@ -676,7 +677,7 @@ class RecommendationsController extends AppController
             if (isset($childrenByHead[$rec->id])) {
                 foreach ($childrenByHead[$rec->id] as $child) {
                     // Prefix member name to visually indicate linked child in export
-                    $child->member_sca_name = '↳ ' . ($child->member_sca_name ?? '');
+                    $child->member_sca_name = '↳ ' . $child->getRecipientName();
                     $child->gatherings = '';
                     $result[] = $child;
                 }
@@ -993,7 +994,7 @@ class RecommendationsController extends AppController
                 'AssignedGathering',
                 'Bestowals',
                 'GroupHead' => ['Awards'],
-                'GroupChildren' => ['Awards', 'Requesters'],
+                'GroupChildren' => ['Awards', 'Requesters', 'Members'],
                 'FeedbackRequestItems' => [
                     'FeedbackRequests' => [
                         'Requesters',
@@ -2879,6 +2880,7 @@ class RecommendationsController extends AppController
         $identity = $this->request->getAttribute('identity');
 
         foreach ($recommendations as $recommendation) {
+            $recommendation->member_sca_name = $recommendation->getRecipientName();
             $recommendation->bestowal_linked = !empty($recommendation->bestowal_id);
             $recommendation->bestowal_viewable = $this->canViewLinkedBestowal($recommendation, $identity);
 

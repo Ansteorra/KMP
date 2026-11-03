@@ -178,7 +178,7 @@ $this->KMP->endBlock(); ?>
                     <button type="button"
                         class="btn btn-sm btn-outline-secondary mt-2"
                         data-action="click->exemption-reasons#addReason">
-                        <i class="bi bi-plus-circle"></i> Add Reason
+                        <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon> Add Reason
                     </button>
 
                     <!-- Hidden input for JSON data -->
@@ -199,7 +199,7 @@ $this->KMP->endBlock(); ?>
                                 class="btn btn-outline-danger"
                                 data-action="click->exemption-reasons#removeReason"
                                 title="Remove this reason">
-                                <i class="bi bi-x-lg"></i>
+                                <kmp-icon name="x"  aria-hidden="true"></kmp-icon>
                             </button>
                         </div>
                     </template>

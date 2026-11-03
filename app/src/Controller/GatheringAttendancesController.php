@@ -65,7 +65,7 @@ class GatheringAttendancesController extends AppController
     /**
      * Apply the royal progress selection from request data to an attendance.
      *
-     * Reads `progress_officer_id` (an officers_officers.id, empty for none)
+     * Reads the Royal Progress switch and `progress_officer_id` assignment
      * and delegates to the table, which verifies the assignment and snapshots
      * the office. Progress fields are guarded against mass assignment, so this
      * is the only write path.
@@ -76,11 +76,27 @@ class GatheringAttendancesController extends AppController
      */
     private function applyProgressFromRequest($gatheringAttendance, array $data): bool
     {
+        if (array_key_exists('royal_progress_enabled', $data)) {
+            if (!in_array($data['royal_progress_enabled'], [true, 1, '1'], true)) {
+                return $this->GatheringAttendances->applyRoyalProgress(
+                    $gatheringAttendance,
+                    null,
+                    (int)$gatheringAttendance->member_id,
+                );
+            }
+            if (empty($data['progress_officer_id'])) {
+                return false;
+            }
+        }
+
         if (!array_key_exists('progress_officer_id', $data)) {
             return true;
         }
 
         $progressOfficerId = $data['progress_officer_id'];
+        if ($progressOfficerId === 'preserve') {
+            return !$gatheringAttendance->isNew() && $gatheringAttendance->is_royal_progress;
+        }
         $progressOfficerId = $progressOfficerId === null || $progressOfficerId === ''
             ? null
             : (int)$progressOfficerId;

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Own gathering waiver tracking: waiver types, gathering waivers, file upload handling, mobile waiver flows, compliance settings, dashboard data, and waiver workflow actions/conditions.
+Own gathering waiver tracking: waiver types, gathering waivers, loss reports, file upload handling, mobile waiver flows, compliance settings, dashboard data, and waiver workflow actions/conditions.
 
 ## Ownership
 
@@ -15,6 +15,7 @@ Own gathering waiver tracking: waiver types, gathering waivers, file upload hand
 - Plugin path is `/waivers`.
 - Migration order is `4` in `app/config/plugins.php`; it loads after Officers.
 - Waiver state changes belong in `WaiverStateService`.
+- Loss reports are immutable audit records separate from uploads/exemptions. Require the `recordLost` policy and notes; leave role-to-permission assignments to administrators and never check role names; never count loss as an upload, exemption, completed requirement, or automatic closure. Preserve the normal close workflow and existing uploads.
 - File handling belongs in `WaiverFileService`; do not duplicate upload/storage validation in controllers.
 - Dashboard and mobile-specific behavior belongs in `WaiverDashboardService` and `WaiverMobileService`.
 - Dashboard compliance is based on gathering end date: due through day 30, past due on day 31. Include all older incomplete gatherings, including partial submissions; branch counts and detail modals must use the same past-due records. Mobile selection orders authorized open gatherings by oldest end date first.

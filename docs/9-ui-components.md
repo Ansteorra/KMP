@@ -53,9 +53,9 @@ same `data-tab-order` and CSS `order` when core and plugin tabs are interleaved.
 - `Timezone` handles UTC-to-display conversion and datetime input formatting.
 - `Markdown`, `ADmad/Glide.Glide`, `Tools.Format`, and `Tools.Time` cover their
   respective rendering concerns.
-- `Templating.Icon` and `Templating.IconSnippet` are loaded when the optional
-  templating package is available. Most application templates use Bootstrap
-  Icon CSS classes directly; see [Bootstrap Icons](9.2-bootstrap-icons.md).
+- `Icon` renders registered KMP catalog identifiers. The application HTML and Form
+  helpers also accept a canonical `icon` option for links/buttons; see
+  [KMP icons](9.2-bootstrap-icons.md).
 
 Use the Vite helper with a logical entry name, never a generated filename:
 
@@ -128,7 +128,7 @@ adds Auth Card and Switch to Desktop when appropriate, and passes JSON to
 [
     'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
     'label' => 'Submit Waiver',
-    'icon' => 'bi-file-earmark-arrow-up',
+    'icon' => 'file-upload',
     'url' => [
         'controller' => 'GatheringWaivers',
         'action' => 'mobileSelectGathering',
@@ -192,7 +192,7 @@ keyboard, modal, tab, grid, or Turbo Frame flows.
 ## Related pages
 
 - [Dataverse Grid System](9.1-dataverse-grid-system.md)
-- [Bootstrap Icons](9.2-bootstrap-icons.md)
+- [KMP icons](9.2-bootstrap-icons.md)
 - [JavaScript development](10-javascript-development.md)
 - [Asset management](10.4-asset-management.md)
 - [Hotwire navigation](hotwire-navigation.md)

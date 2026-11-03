@@ -36,6 +36,7 @@ class DetailTabsController extends Controller {
     static targets = ["tabBtn", "tabContent"]
     static values = { updateUrl: { type: Boolean, default: true } }
     foundFirst = false;
+    tabListeners = new Map();
 
     /**
      * Handle tab button connection to DOM
@@ -63,7 +64,9 @@ class DetailTabsController extends Controller {
                 window.scrollTo(0, 0);
             }
         }
-        event.addEventListener('click', this.tabBtnClicked.bind(this));
+        const listener = this.tabBtnClicked.bind(this);
+        this.tabListeners.set(event, listener);
+        event.addEventListener('click', listener);
     }
 
     /**
@@ -97,8 +100,10 @@ class DetailTabsController extends Controller {
         // Get first tab based on order, not DOM position
         const firstTab = this.getFirstTabByOrder();
         const firstTabId = firstTab?.id || this.tabBtnTargets[0]?.id;
-        var eventTabId = event.target.id;
-        var tab = event.target.id.replace('nav-', '').replace('-tab', '');
+        const button = event.currentTarget || event.target.closest('[data-detail-tabs-target="tabBtn"]');
+        if (!button) return;
+        var eventTabId = button.id;
+        var tab = button.id.replace('nav-', '').replace('-tab', '');
         if (this.updateUrlValue) {
             if (firstTabId != eventTabId) {
                 window.history.pushState({}, '', '?tab=' + tab);
@@ -129,7 +134,11 @@ class DetailTabsController extends Controller {
      * @param {HTMLElement} event - Disconnected tab button element
      */
     tabBtnTargetDisconnected(event) {
-        event.removeEventListener('click', this.tabBtnClicked.bind(this));
+        const listener = this.tabListeners.get(event);
+        if (listener) {
+            event.removeEventListener('click', listener);
+            this.tabListeners.delete(event);
+        }
     }
 }
 if (!window.Controllers) {

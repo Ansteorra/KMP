@@ -159,7 +159,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
     ]); ?>
     <fieldset class="border rounded-3 bg-white shadow-sm p-3">
         <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-            <i class="bi bi-person-plus text-primary me-1" aria-hidden="true"></i>
+            <kmp-icon name="user-plus" class="text-primary me-1" aria-hidden="true"></kmp-icon>
             <?= __("Role Assignment") ?>
         </legend>
         <?php
@@ -215,7 +215,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
         <div class="col-12 col-lg-5">
             <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
         <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-            <i class="bi bi-shield-lock text-primary me-1" aria-hidden="true"></i>
+            <kmp-icon name="shield-lock" class="text-primary me-1" aria-hidden="true"></kmp-icon>
             <?= __("Permission Details") ?>
         </legend>
         <?php
@@ -230,7 +230,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
         <div class="col-12 col-lg-7">
             <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
                 <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                    <i class="bi bi-person-check text-success me-1" aria-hidden="true"></i>
+                    <kmp-icon name="user-check" class="text-success me-1" aria-hidden="true"></kmp-icon>
                     <?= __("Eligibility Requirements") ?>
                 </legend>
                 <div class="row g-3">

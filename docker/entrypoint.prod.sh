@@ -180,6 +180,13 @@ mkdir -p /var/www/html/logs \
 chown -R www-data:www-data /var/www/html/logs /var/www/html/tmp /var/www/html/images 2>/dev/null || true
 chmod -R 775 /var/www/html/logs /var/www/html/tmp /var/www/html/images 2>/dev/null || true
 
+# Mount persistent storage here when using the local public asset adapter.
+if [ "${PUBLIC_ASSETS_ADAPTER:-local}" = "local" ]; then
+    mkdir -p /var/www/html/webroot/public-assets
+    chown www-data:www-data /var/www/html/webroot/public-assets
+    chmod 755 /var/www/html/webroot/public-assets
+fi
+
 # ---------------------------------------------------------------------------
 # 5. Migration lock & auto-migrate
 # ---------------------------------------------------------------------------

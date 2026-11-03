@@ -194,7 +194,12 @@ class BestowalFinalizationService
                             !$actor->isSuperUser()
                             && !$this->actionItemService->isMemberEligible($terminal, $actorId)
                         ) {
-                            return new ServiceResult(false, 'You are not assigned to the terminal to-do.');
+                            return new ServiceResult(false, __(
+                                'You are not assigned to the final reporting to-do "{0}". '
+                                . 'Ask your awards administrator to check its assignee and your active role, '
+                                . 'branch scope, and any membership or warrant requirements.',
+                                $terminal->title,
+                            ));
                         }
                         if (!$terminal->isCompleted()) {
                             $result = $this->actionItemService->complete(

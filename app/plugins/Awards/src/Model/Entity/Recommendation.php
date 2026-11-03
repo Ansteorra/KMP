@@ -50,7 +50,7 @@ use InvalidArgumentException;
  * @property int|null $modified_by
  * @property \Cake\I18n\DateTime|null $deleted
  *
- * @property \App\Model\Entity\Member $member
+ * @property \App\Model\Entity\Member|null $member
  * @property \App\Model\Entity\Member $requester
  * @property \Awards\Model\Entity\Award $award
  * @property \Awards\Model\Entity\Event $event
@@ -108,6 +108,19 @@ class Recommendation extends BaseEntity
         'person_to_notify' => true,
         'close_reason' => true,
     ];
+
+    /** Resolve the current recipient name while retaining the submitted name snapshot. */
+    public function getRecipientName(): string
+    {
+        $memberName = trim((string)($this->member->sca_name ?? ''));
+        if ($memberName !== '') {
+            return $memberName;
+        }
+
+        $recordedName = trim((string)($this->member_sca_name ?? ''));
+
+        return $recordedName !== '' ? $recordedName : __('Unknown recipient');
+    }
 
     /**
      * Handle date format conversion for given date.

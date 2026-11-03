@@ -31,7 +31,7 @@ $showViewTabs = $gridState['config']['showViewTabs'] ?? true;
                 data-action="click-><?= h($controllerName) ?>#saveView"
                 title="<?= h(__('Save current settings as a new view')) ?>"
                 aria-label="<?= h(__('Save current settings as a new view')) ?>">
-                <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                <kmp-icon name="plus" aria-hidden="true"></kmp-icon>
                 <span class="visually-hidden"><?= h(__('Save view')) ?></span>
             </button>
         <?php endif; ?>

@@ -16,7 +16,7 @@ class ApprovalContext
      * @param string $description Longer explanation of what is being approved
      * @param array<int, array{label: string, value: string}> $fields Key/value display pairs
      * @param string|null $entityUrl Link back to the entity under review
-     * @param string $icon Bootstrap icon class, e.g. 'bi-shield-check'
+     * @param string $icon Canonical KMP icon ID, e.g. 'shield-check'
      * @param string|null $requester Display name of the person who initiated the request
      * @param int|null $requesterMemberId Member ID snapshot for filtering and joins
      */
@@ -25,7 +25,7 @@ class ApprovalContext
         private readonly string $description,
         private readonly array $fields = [],
         private readonly ?string $entityUrl = null,
-        private readonly string $icon = 'bi-question-circle',
+        private readonly string $icon = 'help-circle',
         private readonly ?string $requester = null,
         private readonly ?int $requesterMemberId = null,
     ) {

@@ -528,7 +528,12 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
 
         $this->assertResponseOk();
         $this->assertResponseContains('>Complete</button>');
-        $this->assertResponseNotContains('bi-check2');
+        $body = str_replace('\\"', '"', (string)$this->_response->getBody());
+        preg_match_all('/<button[^>]*data-todo-mode="complete"[^>]*>(.*?)<\/button>/s', $body, $buttons);
+        $this->assertNotEmpty($buttons[1]);
+        foreach ($buttons[1] as $content) {
+            $this->assertSame('Complete', trim($content));
+        }
     }
 
     public function testMyTasksGridDataIncludesProviderCompletionFormMetadata(): void

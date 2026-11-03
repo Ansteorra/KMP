@@ -94,7 +94,7 @@ $canAddGathering = $canAddGathering ?? false;
                            class="ms-auto text-success" title="<?= __('Add gathering on this date') ?>"
                            aria-label="<?= __('Add gathering on this date') ?>"
                            data-turbo-frame="_top">
-                            <i class="bi bi-plus-circle"></i>
+                            <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon>
                         </a>
                     <?php endif; ?>
                 </h6>
@@ -121,22 +121,25 @@ $canAddGathering = $canAddGathering ?? false;
                                                 <span class="badge bg-danger ms-2"><?= __('CANCELLED') ?></span>
                                             <?php elseif ($isAttending): ?>
                                                 <span class="badge bg-success ms-2">
-                                                    <i class="bi bi-check-circle"></i>
+                                                    <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon>
                                                 </span>
                                             <?php endif; ?>
+                                            <?= $this->element('gatherings/calendar_royal_progress_badge', [
+                                                'royalProgress' => $gathering->royal_progress ?? [],
+                                            ]) ?>
                                         </h6>
                                         <p class="mb-1 small">
-                                            <i class="bi bi-geo-alt"></i> <?= h($gathering->branch->name) ?>
+                                            <kmp-icon name="map-pin"  aria-hidden="true"></kmp-icon> <?= h($gathering->branch->name) ?>
                                             <?php if ($hasLocation): ?>
                                                 - <?= h($gathering->location) ?>
                                             <?php endif; ?>
                                         </p>
                                         <?php if (!empty($gathering->gathering_activities)): ?>
                                             <p class="mb-0 small text-muted">
-                                                <i class="bi bi-activity"></i>
+                                                <kmp-icon name="activity"  aria-hidden="true"></kmp-icon>
                                                 <?php
                                                 $activityNames = array_map(
-                                                    fn($a) => h($a->name),
+                                                    fn($a) => $this->GatheringActivity->badge($a),
                                                     $gathering->gathering_activities
                                                 );
                                                 echo implode(', ', $activityNames);

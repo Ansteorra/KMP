@@ -15,7 +15,7 @@
 // Set mobile layout variables
 $this->set('mobileTitle', 'Events');
 $this->set('mobileSection', 'events');
-$this->set('mobileIcon', 'bi-calendar-event');
+$this->set('mobileIcon', 'calendar-event');
 $this->set('mobileBackUrl', $authCardUrl);
 
 $rsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'action' => 'mobileRsvp']);
@@ -37,7 +37,7 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
         <div class="d-flex align-items-center justify-content-between">
             <button type="button" class="btn btn-sm btn-outline-secondary"
                 data-action="click->mobile-calendar#previousMonth" aria-label="Previous month">
-                <i class="bi bi-chevron-left"></i>
+                <kmp-icon name="chevron-left"  aria-hidden="true"></kmp-icon>
             </button>
 
             <div class="d-flex align-items-center gap-2">
@@ -64,14 +64,14 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
 
             <button type="button" class="btn btn-sm btn-outline-secondary"
                 data-action="click->mobile-calendar#nextMonth" aria-label="Next month">
-                <i class="bi bi-chevron-right"></i>
+                <kmp-icon name="chevron-right"  aria-hidden="true"></kmp-icon>
             </button>
         </div>
 
         <div class="text-center mt-2">
             <button type="button" class="btn btn-link btn-sm text-decoration-none p-0"
                 data-action="click->mobile-calendar#goToToday">
-                <i class="bi bi-calendar-event me-1"></i>Jump to Today
+                <kmp-icon name="calendar-event" class="me-1" aria-hidden="true"></kmp-icon>Jump to Today
             </button>
         </div>
     </div>
@@ -80,13 +80,13 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
     <div class="mobile-events-search mx-3 mt-3 mb-2">
         <div class="input-group">
             <span class="input-group-text bg-white border-end-0">
-                <i class="bi bi-search text-muted"></i>
+                <kmp-icon name="search" class="text-muted" aria-hidden="true"></kmp-icon>
             </span>
             <input type="text" class="form-control border-start-0" placeholder="Search events..." aria-label="Search events"
                 data-mobile-calendar-target="searchInput" data-action="input->mobile-calendar#handleSearch">
             <button type="button" class="btn btn-outline-secondary" data-action="click->mobile-calendar#toggleFilters"
                 data-mobile-calendar-target="filterToggle" aria-label="Toggle filters" aria-controls="event-filters" aria-expanded="false">
-                <i class="bi bi-funnel"></i>
+                <kmp-icon name="filter"  aria-hidden="true"></kmp-icon>
             </button>
         </div>
     </div>
@@ -122,6 +122,16 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
                     </select>
                 </div>
 
+                <div class="mb-2">
+                    <label for="event-royalProgressFilter" class="form-label small mb-1"><?= __('Royal Progress') ?></label>
+                    <select class="form-select form-select-sm" id="event-royalProgressFilter"
+                        data-mobile-calendar-target="royalProgressFilter"
+                        data-action="change->mobile-calendar#applyFilters">
+                        <option value=""><?= __('All Gatherings') ?></option>
+                        <option value="any"><?= __('Any Royal Progress') ?></option>
+                    </select>
+                </div>
+
                 <!-- My RSVPs Only -->
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="myRsvpsOnly"
@@ -145,12 +155,12 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
     <div class="mobile-pending-rsvps mx-3 mb-2" data-mobile-calendar-target="pendingBanner" hidden>
         <div class="alert alert-info d-flex align-items-center justify-content-between py-2 mb-0">
             <div>
-                <i class="bi bi-cloud-arrow-up me-2"></i>
+                <kmp-icon name="cloud-upload" class="me-2" aria-hidden="true"></kmp-icon>
                 <span data-mobile-calendar-target="pendingCount">0</span> RSVP(s) pending sync
             </div>
             <button type="button" class="btn btn-sm btn-info" data-action="click->mobile-calendar#syncPendingRsvps"
                 data-mobile-calendar-target="syncBtn">
-                <i class="bi bi-arrow-repeat"></i> Sync
+                <kmp-icon name="repeat"  aria-hidden="true"></kmp-icon> Sync
             </button>
         </div>
     </div>
@@ -164,11 +174,11 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
     <!-- Error State -->
     <div class="mobile-events-error mx-3" data-mobile-calendar-target="error" hidden>
         <div class="alert alert-warning d-flex align-items-center">
-            <i class="bi bi-exclamation-triangle me-2"></i>
+            <kmp-icon name="alert-triangle" class="me-2" aria-hidden="true"></kmp-icon>
             <span data-mobile-calendar-target="errorMessage">Unable to load events</span>
         </div>
         <button type="button" class="btn btn-outline-warning w-100" data-action="click->mobile-calendar#reload">
-            <i class="bi bi-arrow-clockwise me-1"></i> Retry
+            <kmp-icon name="refresh" class="me-1" aria-hidden="true"></kmp-icon> Retry
         </button>
     </div>
 
@@ -180,7 +190,7 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
     <!-- No Events Message -->
     <div class="mobile-events-empty mx-3" data-mobile-calendar-target="emptyState" hidden>
         <div class="alert alert-light text-center">
-            <i class="bi bi-calendar-x text-muted d-block fs-1 mb-2"></i>
+            <kmp-icon name="calendar-x" class="text-muted d-block fs-1 mb-2" aria-hidden="true"></kmp-icon>
             <p class="mb-1">No events found</p>
             <small class="text-muted" data-mobile-calendar-target="emptyMessage">
                 Try adjusting your filters or selecting a different month.
@@ -189,7 +199,8 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
     </div>
 
     <!-- Results Count -->
-    <div class="mobile-events-count mx-3 mb-2" data-mobile-calendar-target="resultsCount" hidden>
+    <div class="mobile-events-count mx-3 mb-2" data-mobile-calendar-target="resultsCount"
+        role="status" aria-atomic="true" hidden>
         <small class="text-muted"></small>
     </div>
 </div>
@@ -292,7 +303,7 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
     border-color: rgba(0, 0, 0, 0.15);
 }
 
-.mobile-events-nav .btn-outline-secondary i {
+.mobile-events-nav .btn-outline-secondary :is(i, kmp-icon) {
     color: var(--medieval-parchment, #f4efe4) !important;
 }
 
@@ -388,7 +399,7 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
     font-family: var(--font-body, 'Crimson Pro', Georgia, serif);
 }
 
-.mobile-event-meta i {
+.mobile-event-meta :is(i, kmp-icon) {
     width: 16px;
     color: var(--medieval-bronze, #8b6914);
 }
@@ -403,7 +414,7 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
     flex-wrap: wrap;
 }
 
-.mobile-event-activities i {
+.mobile-event-activities :is(i, kmp-icon) {
     margin-top: 2px;
     flex-shrink: 0;
 }
@@ -636,7 +647,7 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
     font-size: 17px;
 }
 
-.mobile-events-empty .alert i {
+.mobile-events-empty .alert :is(i, kmp-icon) {
     font-size: 2.5rem;
 }
 </style>

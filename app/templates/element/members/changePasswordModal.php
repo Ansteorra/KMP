@@ -14,7 +14,7 @@
 ]); ?>
 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-        <i class="bi bi-key text-primary me-1" aria-hidden="true"></i>
+        <kmp-icon name="key" class="text-primary me-1" aria-hidden="true"></kmp-icon>
         <?= __("Change Password") ?>
     </legend>
     <?php

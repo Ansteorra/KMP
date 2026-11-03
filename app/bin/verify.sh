@@ -99,6 +99,8 @@ run_check "PHPUnit Tests" '
     XDEBUG_MODE=off vendor/bin/phpunit --colors=always --testsuite plugins
 '
 
+run_check "Icon Catalog Contracts" 'npm run icons:check && npm run icons:guard'
+
 # 2. Skipped-test budget
 run_check "Skipped-Test Budget" 'bash bin/enforce_skip_budget.sh'
 

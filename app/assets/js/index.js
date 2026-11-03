@@ -1,3 +1,4 @@
+import './services/icon-service.js';
 import { installOfflineFetchCapture } from './services/offline-fetch-service.js';
 import { reportOfflineSaveFailure } from './services/offline-runtime-service.js';
 import { startOfflineSessionObserver } from './services/offline-session-service.js';

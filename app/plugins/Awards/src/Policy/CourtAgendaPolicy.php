@@ -135,11 +135,11 @@ class CourtAgendaPolicy extends BasePolicy
     }
 
     /**
-     * Authorize an agenda by its host branch or by an in-scope award at the gathering.
+     * Authorize by host branch, assigned awards, or awards supported by scheduled sessions.
      *
      * Court agenda staff follow award ownership scope, while gatherings may be hosted
-     * by a different branch. A matching bestowal lets those staff manage the shared
-     * agenda without widening their permission to unrelated gatherings.
+     * by a different branch. Eligible scheduled sessions allow planning before any
+     * bestowals exist without widening permission to unrelated gatherings.
      *
      * @param \App\KMP\KmpIdentityInterface $user User.
      * @param string $policyMethod Policy method.
@@ -174,6 +174,20 @@ class CourtAgendaPolicy extends BasePolicy
         $query = $bestowals->find()->where(['Bestowals.gathering_id' => $gatheringId]);
         $query = $bestowals->addBranchScopeQuery($query, $branchIds);
 
-        return $query->first() !== null;
+        if ($query->first() !== null) {
+            return true;
+        }
+
+        $scheduledActivityTypes = TableRegistry::getTableLocator()->get('GatheringScheduledActivities')->find()
+            ->select(['GatheringScheduledActivities.gathering_activity_id'])
+            ->where(['GatheringScheduledActivities.gathering_id' => $gatheringId]);
+
+        return TableRegistry::getTableLocator()->get('Awards.AwardGatheringActivities')->find()
+            ->innerJoinWith('Awards')
+            ->where([
+                'AwardGatheringActivities.gathering_activity_id IN' => $scheduledActivityTypes,
+                'Awards.branch_id IN' => $branchIds,
+            ])
+            ->first() !== null;
     }
 }

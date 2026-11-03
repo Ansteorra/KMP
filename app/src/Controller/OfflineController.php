@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\KMP\StaticHelpers;
+use App\Services\IconCatalog;
 use App\Services\Security\OfflineIdentity;
 use App\Services\Security\PasskeyService;
 use App\Services\Security\RequestRateLimiter;
@@ -33,9 +34,9 @@ class OfflineController extends AppController
         $this->request->allowMethod(['get']);
         $page = $this->request->getQuery('page', 'card');
         $pages = [
-            'card' => ['Members/view_mobile_card', 'Auth Card', 'auth-card', 'bi-person-vcard'],
-            'rsvps' => ['GatheringAttendances/my_rsvps', 'My RSVPs', 'rsvps', 'bi-calendar-check'],
-            'calendar' => ['Gatherings/mobile_calendar', 'Events', 'events', 'bi-calendar-event'],
+            'card' => ['Members/view_mobile_card', 'Auth Card', 'auth-card', 'address-book'],
+            'rsvps' => ['GatheringAttendances/my_rsvps', 'My RSVPs', 'rsvps', 'calendar-check'],
+            'calendar' => ['Gatherings/mobile_calendar', 'Events', 'events', 'calendar-event'],
         ];
         if (!is_string($page) || !isset($pages[$page])) {
             throw new NotFoundException();
@@ -73,6 +74,11 @@ class OfflineController extends AppController
                     $paths[] = '/' . $file;
                 }
             }
+        }
+
+        $icons = json_decode((string)file_get_contents(ROOT . '/resources/icons/runtime.json'), true, 512, JSON_THROW_ON_ERROR);
+        foreach ($icons['entries'] as $id => $entry) {
+            $paths[] = IconCatalog::url($id);
         }
 
         return $this->response->withType('application/json')

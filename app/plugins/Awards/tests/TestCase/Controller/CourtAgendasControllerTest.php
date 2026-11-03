@@ -3,12 +3,14 @@ declare(strict_types=1);
 
 namespace Awards\Test\TestCase\Controller;
 
+use App\KMP\TimezoneHelper;
 use App\Model\Entity\GatheringScheduledActivity;
 use App\Model\Entity\Permission;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Bestowal;
 use Cake\Cache\Cache;
 use Cake\I18n\DateTime;
+use DateTimeZone;
 
 /**
  * CourtAgendasControllerTest
@@ -80,6 +82,53 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
         $this->assertResponseNotContains('No court activities are available yet.');
     }
 
+    public function testAgendaExplainsAttachedAwardActivityNeedsSchedulingAndClearsWarningAfterScheduling(): void
+    {
+        $gathering = $this->createGatheringWithoutActivities();
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()->firstOrFail();
+        $activities = $this->getTableLocator()->get('GatheringActivities');
+        $activity = $activities->saveOrFail($activities->newEntity(['name' => 'Unscheduled Presentation <Oak>']));
+        $links = $this->getTableLocator()->get('Awards.AwardGatheringActivities');
+        $links->saveOrFail($links->newEntity([
+            'award_id' => $award->id, 'gathering_activity_id' => $activity->id,
+        ]));
+        $attached = $this->getTableLocator()->get('GatheringsGatheringActivities');
+        $attached->saveOrFail($attached->newEntity([
+            'gathering_id' => $gathering->id, 'gathering_activity_id' => $activity->id,
+        ]));
+
+        $this->get('/awards/court-agendas/gathering/' . $gathering->id);
+        $this->assertResponseOk();
+        $this->assertSame([(int)$activity->id => $activity->name], $this->viewVariable('unscheduledAwardActivities'));
+        $this->assertResponseContains('Award-giving activities need scheduling');
+        $this->assertResponseContains(h($activity->name));
+        $this->assertResponseContains('Adding an activity under Activities does not schedule it.');
+        $this->assertResponseContains('/gatherings/view/' . $gathering->public_id . '?tab=schedule');
+        $this->assertResponseNotContains($activity->name);
+
+        $this->createScheduledActivityForAward(
+            (int)$gathering->id,
+            (int)$award->id,
+            $gathering->start_date,
+            (int)$activity->id,
+        );
+        $this->get('/awards/court-agendas/gathering/' . $gathering->id);
+        $this->assertResponseOk();
+        $this->assertSame([], $this->viewVariable('unscheduledAwardActivities'));
+        $this->assertResponseNotContains('Award-giving activities need scheduling');
+        $this->assertResponseContains('Court Session');
+    }
+
+    public function testAgendaWithoutEligibleActivityExplainsAwardCatalogAndLinksToActivities(): void
+    {
+        $gathering = $this->createGatheringWithoutActivities();
+        $this->get('/awards/court-agendas/gathering/' . $gathering->id);
+        $this->assertResponseOk();
+        $this->assertResponseContains('No court activities are available yet.');
+        $this->assertResponseContains('check its award eligibility in the awards catalog');
+        $this->assertResponseContains('/gatherings/view/' . $gathering->public_id . '?tab=activities');
+    }
+
     /**
      * @return void
      */
@@ -108,6 +157,74 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
         $this->assertResponseNotContains('Noble court secret.');
     }
 
+    /** @return void */
+    public function testScopedCourtManagerCanPrepareScheduledAgendaBeforeBestowalsExist(): void
+    {
+        $gatherings = $this->getTableLocator()->get('Gatherings');
+        $source = $gatherings->find()->where(['branch_id !=' => self::KINGDOM_BRANCH_ID])->firstOrFail();
+        $gathering = $gatherings->saveOrFail($gatherings->newEntity([
+            'name' => 'Empty award-giving agenda',
+            'created_by' => self::ADMIN_MEMBER_ID,
+            'branch_id' => $source->branch_id,
+            'gathering_type_id' => $source->gathering_type_id,
+            'start_date' => $source->start_date,
+            'end_date' => $source->end_date,
+            'location' => 'Test Hall',
+        ]));
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()
+            ->where(['branch_id' => self::KINGDOM_BRANCH_ID])->firstOrFail();
+        $activities = $this->getTableLocator()->get('GatheringActivities');
+        $activity = $activities->saveOrFail($activities->newEntity(['name' => 'Agenda Access Test Presentation']));
+        $links = $this->getTableLocator()->get('Awards.AwardGatheringActivities');
+        $links->saveOrFail($links->newEntity([
+            'award_id' => $award->id,
+            'gathering_activity_id' => $activity->id,
+        ]));
+        $this->getTableLocator()->get('MemberRoles')->deleteAll(['member_id' => self::TEST_MEMBER_AGATHA_ID]);
+        $this->grantCourtAgendaManagement(self::TEST_MEMBER_AGATHA_ID, self::KINGDOM_BRANCH_ID);
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+
+        $testUser = $this->getTableLocator()->get('Members')->get(self::TEST_MEMBER_AGATHA_ID);
+        $this->assertFalse($testUser->isSuperUser());
+        $testPolicy = $testUser->getPolicies()['Awards\\Policy\\CourtAgendaPolicy']['canGathering'];
+        $this->assertSame(Permission::SCOPE_BRANCH_ONLY, $testPolicy->scoping_rule);
+        $this->assertSame([self::KINGDOM_BRANCH_ID], $testPolicy->branch_ids);
+        $this->get('/awards/court-agendas/gathering/' . $gathering->id);
+        $this->assertAuthenticatedAs(self::TEST_MEMBER_AGATHA_ID);
+        $this->assertRedirectContains('/pages/unauthorized');
+        $this->assertFalse($this->getTableLocator()->get('Awards.CourtAgendas')->exists([
+            'gathering_id' => $gathering->id,
+        ]));
+
+        $this->createScheduledActivityForAward(
+            (int)$gathering->id,
+            (int)$award->id,
+            $gathering->start_date,
+            (int)$activity->id,
+        );
+        $this->get('/awards/court-agendas/gathering/' . $gathering->id);
+        $this->assertResponseOk();
+        $this->assertResponseContains('Refresh Scheduled Bestowals');
+        $this->assertResponseContains('Court Session');
+        $agenda = $this->getTableLocator()->get('Awards.CourtAgendas')->find()
+            ->where(['gathering_id' => $gathering->id])->firstOrFail();
+        $this->get('/awards/court-agendas/print-agenda/' . $agenda->id);
+        $this->assertResponseOk();
+
+        // Keeping a scheduled session must not grant access once it supports only out-of-scope awards.
+        $links->deleteAll(['gathering_activity_id' => $activity->id]);
+        $otherAward = $this->getTableLocator()->get('Awards.Awards')->find()
+            ->where(['branch_id !=' => self::KINGDOM_BRANCH_ID])->firstOrFail();
+        $links->saveOrFail($links->newEntity([
+            'award_id' => $otherAward->id,
+            'gathering_activity_id' => $activity->id,
+        ]));
+        $this->get('/awards/court-agendas/gathering/' . $gathering->id);
+        $this->assertRedirectContains('/pages/unauthorized');
+        $this->get('/awards/court-agendas/print-agenda/' . $agenda->id);
+        $this->assertRedirectContains('/pages/unauthorized');
+    }
+
     /**
      * @return void
      */
@@ -132,6 +249,39 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('Evening');
         $this->assertResponseContains('Notify:');
         $this->assertResponseContains('Agenda Contact');
+    }
+
+    /** @return void */
+    public function testPrintIncludesNewlyScheduledAwardGivingSessionsAndCurrentScheduleDetails(): void
+    {
+        $gathering = $this->getTableLocator()->get('Gatherings')->find()->firstOrFail();
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()->firstOrFail();
+        $this->createBestowalForGathering((int)$gathering->id, (int)$award->id);
+        $agenda = $this->importBestowalsForGathering((int)$gathering->id);
+        $session = $this->createScheduledActivityForAward(
+            (int)$gathering->id,
+            (int)$award->id,
+            $gathering->start_date,
+        );
+        $session->display_title = 'New Prize Presentation';
+        $this->getTableLocator()->get('GatheringScheduledActivities')->saveOrFail($session);
+
+        $this->get('/awards/court-agendas/print-agenda/' . $agenda->id);
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('New Prize Presentation');
+        $localStart = $session->start_datetime->setTimezone(new DateTimeZone(TimezoneHelper::getGatheringTimezone($gathering)));
+        $this->assertResponseContains('New Prize Presentation - ' . $localStart->format('D g:i A'));
+
+        $session->display_title = 'Updated Prize Presentation';
+        $session->start_datetime = $session->start_datetime->addMinutes(15);
+        $this->getTableLocator()->get('GatheringScheduledActivities')->saveOrFail($session);
+
+        $this->get('/awards/court-agendas/print-agenda/' . $agenda->id);
+
+        $this->assertResponseOk();
+        $localStart = $session->start_datetime->setTimezone(new DateTimeZone(TimezoneHelper::getGatheringTimezone($gathering)));
+        $this->assertResponseContains('Updated Prize Presentation - ' . $localStart->format('D g:i A'));
     }
 
     public function testCourtManagerPrintAgendaShowsHeraldNotesButHidesCrownFields(): void
@@ -190,6 +340,20 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
         $bestowal = $this->getTableLocator()->get('Awards.Bestowals')->get((int)$item->bestowal_id);
         $this->assertNull($bestowal->gathering_scheduled_activity_id);
         $this->assertFalse((bool)$bestowal->roaming_court);
+    }
+
+    private function createGatheringWithoutActivities(): object
+    {
+        $gatherings = $this->getTableLocator()->get('Gatherings');
+        $source = $gatherings->find()->firstOrFail();
+        $gathering = $gatherings->saveOrFail($gatherings->newEntity([
+            'name' => 'Agenda setup guidance fixture', 'created_by' => self::ADMIN_MEMBER_ID,
+            'branch_id' => $source->branch_id, 'gathering_type_id' => $source->gathering_type_id,
+            'start_date' => $source->start_date, 'end_date' => $source->end_date, 'location' => 'Test Hall',
+        ]));
+        $this->getTableLocator()->get('GatheringsGatheringActivities')->deleteAll(['gathering_id' => $gathering->id]);
+
+        return $gathering;
     }
 
     /**
@@ -320,15 +484,18 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
      * @param int $gatheringId Gathering ID.
      * @param int $awardId Award ID.
      * @param \Cake\I18n\DateTime $startDate Gathering start date.
+     * @param int|null $activityId Optional activity type.
      * @return \App\Model\Entity\GatheringScheduledActivity
      */
     private function createScheduledActivityForAward(
         int $gatheringId,
         int $awardId,
         DateTime $startDate,
+        ?int $activityId = null,
     ): GatheringScheduledActivity {
         $activity = $this->getTableLocator()->get('GatheringActivities')
             ->find()
+            ->where($activityId === null ? [] : ['id' => $activityId])
             ->firstOrFail();
         $awardActivities = $this->getTableLocator()->get('Awards.AwardGatheringActivities');
         if (!$awardActivities->exists(['award_id' => $awardId, 'gathering_activity_id' => $activity->id])) {

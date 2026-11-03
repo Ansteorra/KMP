@@ -157,6 +157,9 @@ class GatheringWaiversCell extends Cell
         $gatheringWaiversTable = TableRegistry::getTableLocator()->get('Waivers.GatheringWaivers');
         $gatheringWaiverClosuresTable = TableRegistry::getTableLocator()->get('Waivers.GatheringWaiverClosures');
         $waiverTypesTable = TableRegistry::getTableLocator()->get('Waivers.WaiverTypes');
+        $this->set('waiverLosses', TableRegistry::getTableLocator()->get('Waivers.GatheringWaiverLosses')->find()
+            ->where(['gathering_id' => $gatheringId])
+            ->contain(['WaiverTypes', 'CreatedByMembers'])->all());
 
         $activityIds = array_column($gathering->gathering_activities ?? [], 'id');
 

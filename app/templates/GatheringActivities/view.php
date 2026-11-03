@@ -35,7 +35,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->startBlock("recordDetails") ?>
 <tr scope="row">
     <th class="col"><?= __('Name') ?></th>
-    <td class="col-10"><?= h($gatheringActivity->name) ?></td>
+    <td class="col-10"><?= $this->GatheringActivity->badge($gatheringActivity) ?></td>
 </tr>
 <tr scope="row">
     <th class="col"><?= __('Description') ?></th>
@@ -56,7 +56,23 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <?php $this->KMP->endBlock() ?>
 
 <?php $this->KMP->startBlock("tabButtons") ?>
+<button class="nav-link" id="nav-assigned-by-tab" data-bs-toggle="tab" data-bs-target="#nav-assigned-by"
+    type="button" role="tab" aria-controls="nav-assigned-by" aria-selected="false"
+    data-detail-tabs-target="tabBtn" data-tab-order="10" style="order: 10;">
+    <?= __('Can be assigned by') ?>
+</button>
 <?php $this->KMP->endBlock() ?>
 
 <?php $this->KMP->startBlock("tabContent") ?>
+<div class="related tab-pane fade m-3" id="nav-assigned-by" role="tabpanel"
+    aria-labelledby="nav-assigned-by-tab" data-detail-tabs-target="tabContent" data-tab-order="10" style="order: 10;">
+    <p><?= __('With no rules, gathering editors and stewards may assign this activity. With rules, at least one selected permission must apply in the gathering’s branch; that grants access to this activity and its schedule only.') ?></p>
+    <?= $this->element('gatheringActivities/assignmentPermissions') ?>
+</div>
+<?php $this->KMP->endBlock() ?>
+
+<?php $this->KMP->startBlock('modals') ?>
+<?php if ($canManageAssignmentPermissions && $permissionOptions !== []) : ?>
+    <?= $this->element('gatheringActivities/addPermissionModal') ?>
+<?php endif; ?>
 <?php $this->KMP->endBlock() ?>

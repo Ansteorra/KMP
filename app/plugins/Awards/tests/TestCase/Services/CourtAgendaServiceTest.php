@@ -4,12 +4,14 @@ declare(strict_types=1);
 namespace Awards\Test\TestCase\Services;
 
 use App\Model\Entity\ActionItem;
+use App\Model\Entity\GatheringScheduledActivity;
 use App\Services\ActionItems\ActionItemCompletionFormRegistry;
 use App\Test\TestCase\BaseTestCase;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
 use Awards\Services\BestowalTodoCompletionFormProvider;
 use Awards\Services\CourtAgendaService;
+use DateTimeZone;
 use RuntimeException;
 
 /**
@@ -545,6 +547,197 @@ class CourtAgendaServiceTest extends BaseTestCase
         $this->assertSame(0, $createdAgain);
     }
 
+    /** @return void */
+    public function testAllAwardGivingActivityTypesHaveSeparateSessionsAndEligibleAwards(): void
+    {
+        $gatheringId = $this->createGathering('Award presentations', '+1 month');
+        $awards = $this->getTableLocator()->get('Awards.Awards')->find()->limit(2)->all()->toList();
+        $activities = $this->getTableLocator()->get('GatheringActivities');
+        $sessions = [];
+        foreach (['Kingdom Court', 'Baronial Court', 'Prize Presentation'] as $index => $name) {
+            $activity = $activities->saveOrFail($activities->newEntity(['name' => 'Agenda Test ' . $name]));
+            $sessions[] = $this->createScheduledActivityForAward(
+                $gatheringId,
+                (int)$awards[$index === 1 ? 1 : 0]->id,
+                (int)$activity->id,
+                $name,
+            );
+        }
+        // A second occurrence of the same activity needs its own script.
+        $sessions[] = $this->createScheduledActivityForAward(
+            $gatheringId,
+            (int)$awards[0]->id,
+            (int)$sessions[0]->gathering_activity_id,
+            'Evening Kingdom Court',
+        );
+        $otherGatheringId = $this->createGathering('Other award presentations', '+2 months');
+        $this->createScheduledActivityForAward(
+            $otherGatheringId,
+            (int)$awards[0]->id,
+            (int)$sessions[0]->gathering_activity_id,
+        );
+        $unscheduledActivity = $activities->saveOrFail($activities->newEntity(['name' => 'Unscheduled Presentation']));
+        $links = $this->getTableLocator()->get('Awards.AwardGatheringActivities');
+        $links->saveOrFail($links->newEntity([
+            'award_id' => $awards[0]->id,
+            'gathering_activity_id' => $unscheduledActivity->id,
+        ]));
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $bestowal = $bestowals->saveOrFail($bestowals->newEntity([
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'award_id' => $awards[0]->id,
+            'gathering_id' => $gatheringId,
+            'source' => Bestowal::SOURCE_AD_HOC,
+        ]));
+        $agenda = $this->service->getOrCreateDefaultAgenda($gatheringId, self::ADMIN_MEMBER_ID);
+        $viewModel = $this->service->buildAgendaViewModel((int)$agenda->id);
+
+        $this->assertCount(4, $viewModel['segments']);
+        $this->assertEqualsCanonicalizing(
+            array_map(static fn($session) => (int)$session->id, $sessions),
+            array_keys($viewModel['scheduledActivityOptions']),
+        );
+        foreach ($viewModel['segments'] as $segmentData) {
+            $sessionId = (int)$segmentData['entity']->gathering_scheduled_activity_id;
+            $this->assertSame(
+                $sessionId === (int)$sessions[1]->id ? [] : [(int)$bestowal->id],
+                array_map(static fn($row) => (int)$row->id, $segmentData['eligibleBestowals']),
+            );
+        }
+
+        $baronialSegment = $this->getTableLocator()->get('Awards.CourtAgendaSegments')->find()
+            ->where(['gathering_scheduled_activity_id' => $sessions[1]->id])->firstOrFail();
+        $baronialBestowal = $bestowals->saveOrFail($bestowals->newEntity([
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'award_id' => $awards[1]->id,
+            'gathering_id' => $gatheringId,
+            'source' => Bestowal::SOURCE_AD_HOC,
+        ]));
+        foreach ($viewModel['segments'] as $segmentData) {
+            $segment = $segmentData['entity'];
+            $eligibleBestowal = (int)$segment->id === (int)$baronialSegment->id ? $baronialBestowal : $bestowal;
+            $item = $this->service->addBestowalToSegment(
+                (int)$agenda->id,
+                (int)$eligibleBestowal->id,
+                (int)$segment->id,
+                self::ADMIN_MEMBER_ID,
+            );
+            $this->assertSame((int)$segment->id, (int)$item->court_agenda_segment_id);
+            $this->assertSame(
+                (int)$segment->gathering_scheduled_activity_id,
+                (int)$bestowals->get((int)$eligibleBestowal->id)->gathering_scheduled_activity_id,
+            );
+        }
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('This award cannot be given in that court session.');
+        $this->service->addBestowalToSegment((int)$agenda->id, (int)$bestowal->id, (int)$baronialSegment->id);
+    }
+
+    /** @return void */
+    public function testNonAwardActivitiesAreExcludedAndCannotBeAddedDirectly(): void
+    {
+        $gatheringId = $this->createGathering('No award presentations', '+1 month');
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()->firstOrFail();
+        $activities = $this->getTableLocator()->get('GatheringActivities');
+        $activity = $activities->saveOrFail($activities->newEntity(['name' => 'Court Dance']));
+        $session = $this->createScheduledActivityForAward($gatheringId, (int)$award->id, (int)$activity->id);
+        $this->getTableLocator()->get('Awards.AwardGatheringActivities')->deleteAll([
+            'gathering_activity_id' => $activity->id,
+        ]);
+        $agenda = $this->service->getOrCreateDefaultAgenda($gatheringId, self::ADMIN_MEMBER_ID);
+        $viewModel = $this->service->buildAgendaViewModel((int)$agenda->id);
+
+        $this->assertSame([], $viewModel['segments']);
+        $this->assertSame([], $viewModel['scheduledActivityOptions']);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Court activities must support award presentations.');
+        $this->service->addSegment([
+            'court_agenda_id' => $agenda->id,
+            'gathering_scheduled_activity_id' => $session->id,
+            'name' => 'Court Dance',
+        ]);
+    }
+
+    /** @return void */
+    public function testGenericOtherScheduleEntriesCannotBecomeCourtSections(): void
+    {
+        $gatheringId = $this->createGathering('Generic schedule entries', '+1 month');
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()->firstOrFail();
+        $session = $this->createScheduledActivityForAward($gatheringId, (int)$award->id);
+        $session->gathering_activity_id = null;
+        $session->is_other = true;
+        $this->getTableLocator()->get('GatheringScheduledActivities')->saveOrFail($session);
+        $agenda = $this->service->getOrCreateDefaultAgenda($gatheringId, self::ADMIN_MEMBER_ID);
+
+        $viewModel = $this->service->buildAgendaViewModel((int)$agenda->id);
+        $this->assertSame([], $viewModel['segments']);
+        $this->assertSame([], $viewModel['scheduledActivityOptions']);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Court activities must support award presentations.');
+        $this->service->addSegment([
+            'court_agenda_id' => $agenda->id,
+            'gathering_scheduled_activity_id' => $session->id,
+            'name' => 'Uncatalogued court',
+        ]);
+    }
+
+    /** @return void */
+    public function testAgendaRefreshesScheduleDetailsWithoutLosingScriptItems(): void
+    {
+        $gatheringId = $this->createGathering('Schedule changes', '+1 month');
+        $gatherings = $this->getTableLocator()->get('Gatherings');
+        $gathering = $gatherings->get($gatheringId);
+        $gathering->timezone = 'America/Chicago';
+        $gatherings->saveOrFail($gathering);
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()->firstOrFail();
+        $session = $this->createScheduledActivityForAward($gatheringId, (int)$award->id);
+        $agenda = $this->service->getOrCreateDefaultAgenda($gatheringId, self::ADMIN_MEMBER_ID);
+        $this->service->ensureEligibleCourtSegments((int)$agenda->id, self::ADMIN_MEMBER_ID);
+        $segment = $this->getTableLocator()->get('Awards.CourtAgendaSegments')->find()
+            ->where(['court_agenda_id' => $agenda->id])->firstOrFail();
+        $localStart = $session->start_datetime->setTimezone(new DateTimeZone('America/Chicago'));
+        $this->assertSame($localStart->format('D g:i A'), $segment->planned_start_time);
+        $block = $this->service->addBlock([
+            'court_agenda_segment_id' => $segment->id,
+            'title' => 'Opening announcements',
+            'estimated_minutes' => 5,
+        ], self::ADMIN_MEMBER_ID);
+        $session->display_title = 'Rescheduled Presentation';
+        $session->start_datetime = $gathering->start_date->addHours(3);
+        $session->end_datetime = $gathering->start_date->addHours(4);
+        $this->getTableLocator()->get('GatheringScheduledActivities')->saveOrFail($session);
+
+        $viewModel = $this->service->buildAgendaViewModel((int)$agenda->id, self::ADMIN_MEMBER_ID);
+        $this->assertCount(1, $viewModel['segments']);
+        $updated = $viewModel['segments'][0];
+        $this->assertSame((int)$segment->id, (int)$updated['entity']->id);
+        $localStart = $session->start_datetime->setTimezone(new DateTimeZone('America/Chicago'));
+        $localEnd = $session->end_datetime->setTimezone(new DateTimeZone('America/Chicago'));
+        $this->assertSame(
+            'Rescheduled Presentation - ' . $localStart->format('D g:i A') . ' - ' . $localEnd->format('g:i A'),
+            $updated['scheduledActivityLabel'],
+        );
+        $this->assertSame((int)$block->id, (int)$updated['items'][0]['entity']->id);
+    }
+
+    /** @return void */
+    public function testCannotCreateDuplicateSectionsForOneScheduledSession(): void
+    {
+        $gatheringId = $this->createGathering('One script per session', '+1 month');
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()->firstOrFail();
+        $session = $this->createScheduledActivityForAward($gatheringId, (int)$award->id);
+        $agenda = $this->service->getOrCreateDefaultAgenda($gatheringId, self::ADMIN_MEMBER_ID);
+        $this->service->ensureEligibleCourtSegments((int)$agenda->id);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('This scheduled activity already has a court agenda segment.');
+        $this->service->addSegment([
+            'court_agenda_id' => $agenda->id,
+            'gathering_scheduled_activity_id' => $session->id,
+            'name' => 'Duplicate script',
+        ]);
+    }
+
     /**
      * @return void
      */
@@ -638,13 +831,20 @@ class CourtAgendaServiceTest extends BaseTestCase
     /**
      * @param int $gatheringId Gathering ID.
      * @param int $awardId Award ID.
+     * @param int|null $activityId Optional activity type.
+     * @param string $title Scheduled session title.
      * @return \App\Model\Entity\GatheringScheduledActivity
      */
-    private function createScheduledActivityForAward(int $gatheringId, int $awardId)
-    {
+    private function createScheduledActivityForAward(
+        int $gatheringId,
+        int $awardId,
+        ?int $activityId = null,
+        string $title = 'Court Session',
+    ): GatheringScheduledActivity {
         $gathering = $this->getTableLocator()->get('Gatherings')->get($gatheringId);
         $activity = $this->getTableLocator()->get('GatheringActivities')
             ->find()
+            ->where($activityId === null ? [] : ['id' => $activityId])
             ->firstOrFail();
         $awardActivities = $this->getTableLocator()->get('Awards.AwardGatheringActivities');
         if (!$awardActivities->exists(['award_id' => $awardId, 'gathering_activity_id' => $activity->id])) {
@@ -661,7 +861,7 @@ class CourtAgendaServiceTest extends BaseTestCase
             'start_datetime' => (clone $gathering->start_date)->modify('+1 hour'),
             'end_datetime' => (clone $gathering->start_date)->modify('+2 hours'),
             'has_end_time' => true,
-            'display_title' => 'Court Session',
+            'display_title' => $title,
             'description' => 'Court Session description.',
             'pre_register' => false,
             'is_other' => false,

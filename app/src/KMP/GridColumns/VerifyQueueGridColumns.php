@@ -124,7 +124,7 @@ class VerifyQueueGridColumns extends BaseGridColumns
                 'cellRenderer' => function ($value, $row, $view) {
                     $cardPath = $row['membership_card_path'] ?? null;
                     if ($cardPath && strlen($cardPath) > 0) {
-                        return '<i class="bi bi-card-heading" title="Membership card uploaded"></i>';
+                        return '<kmp-icon name="id"  title="Membership card uploaded" aria-hidden="true"></kmp-icon>';
                     }
 
                     return '';

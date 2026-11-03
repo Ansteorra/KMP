@@ -80,7 +80,7 @@ if ($isEdit) {
 
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3">
                     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                        <i class="bi bi-chat-square-text text-primary me-1" aria-hidden="true"></i>
+                        <kmp-icon name="message-2" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Attendance Note') ?>
                     </legend>
                 <?= $this->Form->control('public_note', [
@@ -95,57 +95,15 @@ if ($isEdit) {
 
                 </fieldset>
 
-                <?php if (!empty($progressOfficers)): ?>
-                    <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3">
-                        <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                            <i class="bi bi-gem text-warning me-1" aria-hidden="true"></i>
-                            <?= __('Royal Progress') ?>
-                        </legend>
-                        <?php
-                        $progressOptions = [];
-                        foreach ($progressOfficers as $progressOfficer) {
-                            $label = $progressOfficer->office->name;
-                            if (!empty($progressOfficer->branch->name)) {
-                                $label .= ' of ' . $progressOfficer->branch->name;
-                            }
-                            $progressOptions[$progressOfficer->id] = $label;
-                        }
-                        // Pre-select the assignment matching the recorded progress office
-                        $selectedProgressOfficer = '';
-                        if ($isEdit && $userAttendance->is_royal_progress) {
-                            foreach ($progressOfficers as $progressOfficer) {
-                                if ($progressOfficer->office_id === $userAttendance->progress_office_id) {
-                                    $selectedProgressOfficer = $progressOfficer->id;
-                                    break;
-                                }
-                            }
-                        }
-                        ?>
-                        <?= $this->Form->control('progress_officer_id', [
-                            'type' => 'select',
-                            'label' => __('Attend as Royal Progress for'),
-                            'options' => $progressOptions,
-                            'empty' => __('-- Not on progress --'),
-                            'value' => $selectedProgressOfficer,
-                            'class' => 'form-select',
-                            'tooltip' => __('Marks this event as part of your official progress. Progress is shown publicly on the kingdom calendar with your office title.'),
-                        ]) ?>
-                        <small class="form-text text-muted">
-                            <?= __('Progress RSVPs are always visible on the public kingdom calendar.') ?>
-                        </small>
-                    </fieldset>
-                <?php elseif ($isEdit && $userAttendance->is_royal_progress): ?>
-                    <?php // Attendance was recorded as progress for an office no longer held; keep it unless cleared ?>
-                    <div class="alert alert-warning border-start border-warning border-4">
-                        <small>
-                            <?= __('This RSVP is recorded as royal progress for {0}.', h($userAttendance->progress_title)) ?>
-                        </small>
-                    </div>
-                <?php endif; ?>
+                <?= $this->element('gatherings/royal_progress_control', [
+                    'controlIdPrefix' => $formId,
+                    'progressOfficers' => $progressOfficers,
+                    'userAttendance' => $userAttendance ?? null,
+                ]) ?>
 
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
                     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                        <i class="bi bi-share text-primary me-1" aria-hidden="true"></i>
+                        <kmp-icon name="share" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Sharing') ?>
                     </legend>
                 <div>

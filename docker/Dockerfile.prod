@@ -37,7 +37,11 @@ RUN npm ci --no-audit --no-fund
 # Copy everything Vite needs
 COPY app/assets ./assets
 COPY app/plugins ./plugins
+COPY app/src ./src
+COPY app/templates ./templates
 COPY app/vite.config.js ./
+COPY app/scripts/icons ./scripts/icons
+COPY app/resources/icons ./resources/icons
 COPY app/webroot ./webroot
 
 RUN npm run build

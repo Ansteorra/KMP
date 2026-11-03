@@ -46,7 +46,7 @@ $bestowalGatheringLookupUrl = $this->Url->build([
             ]) ?>
             <div class="modal-header">
                 <h5 class="modal-title" id="recommendationWorkflowDecisionModalLabel">
-                    <i class="bi bi-check2-square me-2" aria-hidden="true"></i>
+                    <kmp-icon name="checkbox" class="me-2" aria-hidden="true"></kmp-icon>
                     <span id="recommendationWorkflowDecisionModalTitle">
                         <?= __('Respond to Recommendation Approval') ?>
                     </span>
@@ -69,7 +69,7 @@ $bestowalGatheringLookupUrl = $this->Url->build([
                                 data-approval-response-target="decision"
                                 data-action="change->approval-response#onDecisionChange">
                             <label class="form-check-label text-success fw-semibold" for="decisionApprove">
-                                <i class="bi bi-check-circle me-1" aria-hidden="true"></i><?= __('Approve') ?>
+                                <kmp-icon name="circle-check" class="me-1" aria-hidden="true"></kmp-icon><?= __('Approve') ?>
                             </label>
                         </div>
                         <div class="form-check">
@@ -77,7 +77,7 @@ $bestowalGatheringLookupUrl = $this->Url->build([
                                 data-approval-response-target="decision"
                                 data-action="change->approval-response#onDecisionChange">
                             <label class="form-check-label text-danger fw-semibold" for="decisionReject">
-                                <i class="bi bi-x-circle me-1" aria-hidden="true"></i><?= __('Reject') ?>
+                                <kmp-icon name="circle-x" class="me-1" aria-hidden="true"></kmp-icon><?= __('Reject') ?>
                             </label>
                         </div>
                     </div>
@@ -92,7 +92,7 @@ $bestowalGatheringLookupUrl = $this->Url->build([
                         data-approval-response-target="comment"
                         placeholder="<?= __('Optional comment...') ?>"></textarea>
                     <div class="form-text text-muted small" data-approval-response-target="commentWarning" hidden>
-                        <i class="bi bi-eye me-1" aria-hidden="true"></i><span data-approval-response-target="commentWarningText"></span>
+                        <kmp-icon name="eye" class="me-1" aria-hidden="true"></kmp-icon><span data-approval-response-target="commentWarningText"></span>
                     </div>
                 </div>
 
@@ -118,7 +118,7 @@ $bestowalGatheringLookupUrl = $this->Url->build([
                     </div>
                     <div class="text-danger small" id="recommendationApprovalBestowalGatheringError"
                         data-approval-response-target="bestowalGatheringError" hidden>
-                        <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>
+                        <kmp-icon name="alert-circle" class="me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Select a valid gathering or leave this field blank.') ?>
                     </div>
                 </div>
@@ -161,7 +161,7 @@ $bestowalGatheringLookupUrl = $this->Url->build([
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= __('Cancel') ?></button>
                 <button type="submit" class="btn btn-primary" data-approval-response-target="submitBtn" disabled>
-                    <i class="bi bi-send me-1" aria-hidden="true"></i><?= __('Submit Response') ?>
+                    <kmp-icon name="send" class="me-1" aria-hidden="true"></kmp-icon><?= __('Submit Response') ?>
                 </button>
             </div>
             <?= $this->Form->end() ?>

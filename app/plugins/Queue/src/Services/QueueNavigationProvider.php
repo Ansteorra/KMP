@@ -40,7 +40,7 @@ class QueueNavigationProvider
                     "action" => "index",
                     "model" => "Queue.QueuedJobs",
                 ],
-                "icon" => "bi-stack",
+                "icon" => "stack",
                 "activePaths" => [
                     "queue/*",
                 ]

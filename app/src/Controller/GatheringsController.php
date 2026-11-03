@@ -6,6 +6,7 @@ namespace App\Controller;
 use App\KMP\GridColumns\GatheringsGridColumns;
 use App\KMP\TimezoneHelper;
 use App\Services\CsvExportService;
+use App\Services\GatheringActivityPresentationService;
 use App\Services\GatheringActivityService;
 use App\Services\GatheringCloneService;
 use App\Services\GatheringScheduleService;
@@ -343,7 +344,7 @@ class GatheringsController extends AppController
             ->contain([
                 'Branches' => ['fields' => ['id', 'name', 'public_id']],
                 'GatheringTypes' => ['fields' => ['id', 'name', 'color']],
-                'GatheringActivities' => ['fields' => ['GatheringActivities.id', 'GatheringActivities.name']],
+                'GatheringActivities',
                 'GatheringAttendances' => [
                     'conditions' => ['GatheringAttendances.member_id' => $currentUser->id],
                     'fields' => ['id', 'gathering_id', 'member_id'],
@@ -389,7 +390,13 @@ class GatheringsController extends AppController
             return $this->handleCsvExport($result, $csvExportService, 'gatherings-calendar');
         }
 
+        $gatheringIds = [];
         foreach ($result['data'] as $gathering) {
+            $gatheringIds[] = $gathering->id;
+        }
+        $progressByGathering = $this->Gatherings->GatheringAttendances->royalProgressForGatherings($gatheringIds);
+        foreach ($result['data'] as $gathering) {
+            $gathering->royal_progress = $progressByGathering[$gathering->id] ?? [];
             if (isset($gathering->gathering_activities)) {
                 $gathering->activity_count = count($gathering->gathering_activities);
             }
@@ -595,7 +602,9 @@ class GatheringsController extends AppController
 
         // Render just the modal content (not full layout)
         $this->viewBuilder()->setLayout('ajax');
-        $this->set(compact('gathering', 'userAttendance', 'currentUser'));
+        $progressOfficers = $this->Gatherings->GatheringAttendances
+            ->currentProgressOfficersForMember((int)$currentUser->id);
+        $this->set(compact('gathering', 'userAttendance', 'currentUser', 'progressOfficers'));
     }
 
     /**
@@ -636,7 +645,7 @@ class GatheringsController extends AppController
             ->contain([
                 'Branches' => ['fields' => ['id', 'name']],
                 'GatheringTypes' => ['fields' => ['id', 'name']],
-                'GatheringActivities' => ['fields' => ['id', 'name']],
+                'GatheringActivities',
                 'Creators' => ['fields' => ['id', 'sca_name']],
             ]);
 
@@ -772,12 +781,11 @@ class GatheringsController extends AppController
      *
      * Displays gathering details including activities and required waivers.
      *
-     * @param \App\Services\GatheringActivityService $activityService Activity eligibility service.
      * @param string|null $id Gathering id.
      * @return \Cake\Http\Response|null|void Renders view
      * @throws \Cake\Datasource\Exception\RecordNotFoundException When record not found.
      */
-    public function view(GatheringActivityService $activityService, $publicId = null)
+    public function view($publicId = null)
     {
         $gathering = $this->Gatherings->find('byPublicId', [$publicId])
             ->contain([
@@ -813,8 +821,6 @@ class GatheringsController extends AppController
         $user = $this->Authentication->getIdentity();
         $canView = $user->can('view', $gathering);
         $canEditGathering = $user->can('edit', $gathering);
-        $canAddCourtActivity = $user->can('addCourtActivity', $gathering);
-        $courtActivityIds = $activityService->courtActivityIds();
 
         //TODO: find a way to do this with out breaking the plugin/core boundry.
         // Check if waivers exist (for activity locking)
@@ -838,14 +844,9 @@ class GatheringsController extends AppController
         $availableActivities = $this->Gatherings->GatheringActivities->find('all')
             ->where(['id NOT IN' => $existingActivityIds ?: [0]])
             ->orderBy(['name' => 'ASC']);
-        if (!$canEditGathering) {
-            $availableActivities->where([
-                'GatheringActivities.id IN' => $canAddCourtActivity && $courtActivityIds !== []
-                    ? $courtActivityIds
-                    : [0],
-            ]);
-        }
-        $availableActivities = $availableActivities->all();
+        $availableActivities = $availableActivities->all()
+            ->filter(fn($activity): bool => $user->checkCan('manageActivity', $gathering, $activity))->toList();
+        $canAddActivity = $availableActivities !== [];
 
         // Get total attendance count (all attendance records, including private)
         $totalAttendanceCount = $this->Gatherings->GatheringAttendances
@@ -927,14 +928,31 @@ class GatheringsController extends AppController
             ? $this->Gatherings->GatheringAttendances->currentProgressOfficersForMember((int)$currentUser->id)
             : [];
 
+        // The signed-in reader shows public contacts; private staffing stays in the authorized staff tab.
+        $readerStaff = array_values(array_filter(
+            $gathering->gathering_staff,
+            static fn($staff): bool => (bool)$staff->show_on_public_page,
+        ));
+        $readerTimezone = TimezoneHelper::getGatheringTimezone($gathering, $currentUser);
+        $now = CakeDateTime::now();
+        $readerStatus = $gathering->is_cancelled ? 'cancelled' : (
+            $gathering->end_date < $now ? 'past' : ($gathering->start_date <= $now ? 'ongoing' : 'upcoming')
+        );
+        // Match the attendance endpoints: events ending today remain eligible.
+        $readerCanRsvp = $gathering->end_date >= $now->startOfDay()
+            && (!$gathering->is_cancelled || $userAttendance !== null);
+        $mapQuery = $gathering->latitude !== null && $gathering->longitude !== null
+            ? $gathering->latitude . ',' . $gathering->longitude : $gathering->location;
+        $readerDirectionsUrl = $mapQuery
+            ? 'https://www.google.com/maps/dir/?api=1&destination=' . rawurlencode($mapQuery) : null;
+
         $this->set(compact(
             'gathering',
             'hasWaivers',
             'waiverRemovalAuthorization',
             'availableActivities',
             'canEditGathering',
-            'canAddCourtActivity',
-            'courtActivityIds',
+            'canAddActivity',
             'totalAttendanceCount',
             'userAttendance',
             'kingdomAttendances',
@@ -942,6 +960,11 @@ class GatheringsController extends AppController
             'progressOfficers',
             'scheduleByDate',
             'durationDays',
+            'readerStaff',
+            'readerTimezone',
+            'readerStatus',
+            'readerCanRsvp',
+            'readerDirectionsUrl',
         ));
 
         // Override recordId to use integer ID for plugin cells that expect it
@@ -1004,6 +1027,9 @@ class GatheringsController extends AppController
             }
 
             $gathering = $this->Gatherings->patchEntity($gathering, $data);
+            if (!$gathering->hasErrors()) {
+                $this->authorizeTemplateActivities($gathering);
+            }
 
             if ($this->Gatherings->save($gathering)) {
                 $this->Flash->success(__(
@@ -1101,6 +1127,12 @@ class GatheringsController extends AppController
             }
 
             $gathering = $this->Gatherings->patchEntity($gathering, $data);
+            if (
+                !$gathering->hasErrors()
+                && ($gathering->isDirty('gathering_type_id') || $gathering->isDirty('branch_id'))
+            ) {
+                $this->authorizeTemplateActivities($gathering);
+            }
 
             if ($this->Gatherings->save($gathering)) {
                 $this->Flash->success(__(
@@ -1381,24 +1413,8 @@ class GatheringsController extends AppController
     {
         $this->request->allowMethod(['post']);
         $gathering = $this->Gatherings->get($id, contain: ['GatheringActivities']);
-        $identity = $this->Authentication->getIdentity();
-        $canEditGathering = $identity->can('edit', $gathering);
-        $this->Authorization->authorize(
-            $gathering,
-            $canEditGathering ? 'edit' : 'addCourtActivity',
-        );
-
-        $activityId = $this->request->getData('activity_id');
-
-        if (empty($activityId)) {
-            $this->Flash->error(__('Please select an activity to add.'));
-
-            return $this->redirect(['action' => 'view', $gathering->public_id]);
-        }
-
-        if (!$canEditGathering && !$activityService->isCourtActivity((int)$activityId)) {
-            throw new ForbiddenException(__('You are not authorized to add this activity to the gathering.'));
-        }
+        $activityId = (int)$this->request->getData('activity_id');
+        $this->authorizeActivityChange($gathering, $activityId);
 
         $existingIds = array_column($gathering->gathering_activities, 'id');
         $customDescription = $this->request->getData('custom_description');
@@ -1429,7 +1445,7 @@ class GatheringsController extends AppController
     {
         $this->request->allowMethod(['post']);
         $gathering = $this->Gatherings->get($gatheringId);
-        $this->Authorization->authorize($gathering, 'edit');
+        $this->authorizeActivityChange($gathering, (int)$activityId);
 
         if (
             $activityService->hasUploadedWaivers((int)$gatheringId) &&
@@ -1470,14 +1486,8 @@ class GatheringsController extends AppController
     {
         $this->request->allowMethod(['post']);
         $gathering = $this->Gatherings->get($gatheringId);
-        $this->Authorization->authorize($gathering);
-
-        $activityId = $this->request->getData('activity_id');
-        if (empty($activityId)) {
-            $this->Flash->error(__('Activity ID is required.'));
-
-            return $this->redirect(['action' => 'view', $gathering->public_id]);
-        }
+        $activityId = (int)$this->request->getData('activity_id');
+        $this->authorizeActivityChange($gathering, $activityId);
 
         $customDescription = $this->request->getData('custom_description');
         $result = $activityService->editDescription(
@@ -1550,6 +1560,19 @@ class GatheringsController extends AppController
 
         $newGathering = $this->Gatherings->newEntity($data);
 
+        $copiedActivityIds = [];
+        if (!empty($data['clone_activities'])) {
+            $copiedActivityIds = array_column($originalGathering->gathering_activities, 'id');
+        }
+        if (!empty($data['clone_schedule'])) {
+            $copiedActivityIds = array_merge($copiedActivityIds, array_filter(
+                array_column($originalGathering->gathering_scheduled_activities, 'gathering_activity_id'),
+            ));
+        }
+        if (!$newGathering->hasErrors()) {
+            $this->authorizeTemplateActivities($newGathering, $copiedActivityIds, empty($data['clone_activities']));
+        }
+
         // Skip template activity sync — clone manages activities from the source gathering
         if ($this->Gatherings->save($newGathering, ['skipTemplateSync' => true])) {
             $clonedActivities = 0;
@@ -1610,22 +1633,14 @@ class GatheringsController extends AppController
      */
     public function addScheduledActivity(
         GatheringScheduleService $scheduleService,
-        GatheringActivityService $activityService,
         $publicId = null,
     ) {
         $this->request->allowMethod(['post']);
         $this->viewBuilder()->setClassName('Json');
 
         $gathering = $this->Gatherings->find('byPublicId', [$publicId])->firstOrFail();
-        $this->Authorization->authorize($gathering, 'createScheduledActivity');
         $identity = $this->Authentication->getIdentity();
-        if (!$identity->can('edit', $gathering)) {
-            $this->assertDelegatedCourtScheduleData(
-                $activityService,
-                (int)$gathering->id,
-                $this->request->getData(),
-            );
-        }
+        $this->authorizeScheduleActivity($gathering, $this->request->getData());
 
         $result = $scheduleService->add(
             $this->request->getData(),
@@ -1650,7 +1665,6 @@ class GatheringsController extends AppController
      */
     public function editScheduledActivity(
         GatheringScheduleService $scheduleService,
-        GatheringActivityService $activityService,
         $gatheringPublicId = null,
         $id = null,
     ) {
@@ -1671,13 +1685,10 @@ class GatheringsController extends AppController
         ) {
             throw new ForbiddenException(__('You are not authorized to edit this scheduled activity.'));
         }
-        if (!$identity->can('edit', $gathering)) {
-            $this->assertDelegatedCourtScheduleData(
-                $activityService,
-                (int)$gathering->id,
-                $this->request->getData(),
-            );
-        }
+        $this->authorizeScheduleActivity($gathering, $this->request->getData() + [
+            'gathering_activity_id' => $scheduledActivity->gathering_activity_id,
+            'is_other' => $scheduledActivity->is_other,
+        ]);
 
         $result = $scheduleService->edit(
             (int)$id,
@@ -1692,25 +1703,61 @@ class GatheringsController extends AppController
         return null;
     }
 
-    /**
-     * Ensure a delegated Court planner can submit only a linked Court activity.
-     *
-     * @param \App\Services\GatheringActivityService $activityService Activity eligibility service
-     * @param int $gatheringId Gathering ID
-     * @param array<string, mixed> $data Submitted schedule data
-     * @return void
-     */
-    private function assertDelegatedCourtScheduleData(
-        GatheringActivityService $activityService,
-        int $gatheringId,
-        array $data,
+    /** Authorize one activity through the shared branch-scoped policy. */
+    private function authorizeActivityChange($gathering, int $activityId): void
+    {
+        $activity = $this->fetchTable('GatheringActivities')->get($activityId);
+        $this->Authorization->skipAuthorization();
+        $authorization = $this->request->getAttribute('authorization');
+        $identity = $this->Authentication->getIdentity();
+        if (!$authorization || !$authorization->can($identity, 'manageActivity', $gathering, $activity)) {
+            throw new ForbiddenException(__('You are not authorized to manage this activity at this gathering.'));
+        }
+    }
+
+    /** Check automatic template assignments and copied activities through the same scoped policy. */
+    private function authorizeTemplateActivities(
+        $gathering,
+        array $additionalIds = [],
+        bool $includeTemplate = true,
     ): void {
+        $ids = $includeTemplate ? $this->fetchTable('GatheringTypeGatheringActivities')->find()
+            ->where(['gathering_type_id' => $gathering->gathering_type_id])
+            ->all()->extract('gathering_activity_id')->toList() : [];
+        if (!$gathering->isNew()) {
+            $ids = array_merge($ids, $this->fetchTable('GatheringsGatheringActivities')->find()
+                ->where(['gathering_id' => $gathering->id])->all()->extract('gathering_activity_id')->toList());
+        }
+        foreach (array_unique(array_merge($ids, $additionalIds)) as $activityId) {
+            $this->authorizeActivityChange($gathering, (int)$activityId);
+            if (!$gathering->isNew() && $gathering->isDirty('branch_id')) {
+                $original = clone $gathering;
+                $original->branch_id = $gathering->getOriginal('branch_id');
+                $this->authorizeActivityChange($original, (int)$activityId);
+            }
+        }
+    }
+
+    /** Authorize both the activity type and its attachment to the parent gathering. */
+    private function authorizeScheduleActivity($gathering, array $data): void
+    {
+        if (filter_var($data['is_other'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+            $this->Authorization->skipAuthorization();
+            $authorization = $this->request->getAttribute('authorization');
+            if (!$authorization || !$authorization->can($this->Authentication->getIdentity(), 'edit', $gathering)) {
+                throw new ForbiddenException(__('You are not authorized to schedule Other activities.'));
+            }
+
+            return;
+        }
         $activityId = (int)($data['gathering_activity_id'] ?? 0);
-        $isOther = filter_var($data['is_other'] ?? false, FILTER_VALIDATE_BOOLEAN);
-        if ($isOther || !$activityService->isLinkedCourtActivity($gatheringId, $activityId)) {
-            throw new ForbiddenException(__(
-                'Court planners may schedule only Court activities attached to this gathering.',
-            ));
+        $this->authorizeActivityChange($gathering, $activityId);
+        if (
+            !$this->fetchTable('GatheringsGatheringActivities')->exists([
+            'gathering_id' => $gathering->id, 'gathering_activity_id' => $activityId,
+            ])
+        ) {
+            throw new ForbiddenException(__('Only activities attached to this gathering may be scheduled.'));
         }
     }
 
@@ -1731,13 +1778,17 @@ class GatheringsController extends AppController
         $this->request->allowMethod(['post', 'delete']);
 
         $gathering = $this->Gatherings->find('byPublicId', [$gatheringPublicId])->firstOrFail();
-        // Deleting a scheduled activity requires full gathering edit rights. Delegated
-        // court schedule managers can add/edit their own rows but cannot delete, so a
-        // denial here returns a 403 rather than the silent redirect used for web forms.
+        $scheduled = $this->fetchTable('GatheringScheduledActivities')->get((int)$id);
         $this->Authorization->skipAuthorization();
-        $authorizationService = $this->request->getAttribute('authorization');
-        $identity = $this->Authentication->getIdentity();
-        if ($authorizationService === null || !$authorizationService->can($identity, 'edit', $gathering)) {
+        $authorization = $this->request->getAttribute('authorization');
+        if (
+            !$authorization || !$authorization->can(
+                $this->Authentication->getIdentity(),
+                'deleteScheduledActivity',
+                $gathering,
+                $scheduled,
+            )
+        ) {
             throw new ForbiddenException(__('You are not authorized to delete this scheduled activity.'));
         }
 
@@ -1924,12 +1975,16 @@ class GatheringsController extends AppController
             'intval',
             (array)$this->request->getQuery('activities', []),
         ))));
+        $selectedRoyalProgress = array_values(array_filter(
+            (array)$this->request->getQuery('royal_progress', []),
+            'is_string',
+        ));
 
         $query = $this->Gatherings->find()
             ->contain([
                 'Branches' => ['fields' => ['id', 'name']],
                 'GatheringTypes' => ['fields' => ['id', 'name', 'color']],
-                'GatheringActivities' => ['fields' => ['id', 'name', 'is_circle']],
+                'GatheringActivities',
                 'GatheringAttendances' => [
                     'Members' => ['fields' => ['id', 'sca_name']],
                     'conditions' => ['GatheringAttendances.is_royal_progress' => true],
@@ -1946,6 +2001,7 @@ class GatheringsController extends AppController
             $query->where(['Gatherings.id IN' => $activityGatheringIds]);
         }
 
+        $query->find('royalProgress', selections: $selectedRoyalProgress);
         $gatherings = $query->all();
 
         // Filter options: activities present on any upcoming published event,
@@ -1953,6 +2009,8 @@ class GatheringsController extends AppController
         $publishedGatheringIds = $this->Gatherings->find()
             ->select(['id'])
             ->where($publishedConditions);
+        $royalProgressOptions = $this->Gatherings->GatheringAttendances
+            ->royalProgressFilterOptions($publishedGatheringIds);
         $activityIdsOnCalendar = $this->fetchTable('GatheringsGatheringActivities')->find()
             ->select(['gathering_activity_id'])
             ->where(['gathering_id IN' => $publishedGatheringIds]);
@@ -1972,7 +2030,13 @@ class GatheringsController extends AppController
             $gatheringsByMonth[$monthKey][] = $gathering;
         }
 
-        $this->set(compact('gatheringsByMonth', 'activityOptions', 'selectedActivityIds'));
+        $this->set(compact(
+            'gatheringsByMonth',
+            'activityOptions',
+            'selectedActivityIds',
+            'royalProgressOptions',
+            'selectedRoyalProgress',
+        ));
     }
 
     /**
@@ -2025,6 +2089,14 @@ class GatheringsController extends AppController
 
             $columnMeta = $columnsMetadata[$columnKey] ?? null;
             if (!$columnMeta || empty($columnMeta['filterable'])) {
+                continue;
+            }
+
+            if ($columnKey === 'royal_progress') {
+                $values = array_values(array_filter((array)$filterValue, 'is_string'));
+                sort($values);
+                $normalizedFilters[$columnKey] = $values;
+                $query->find('royalProgress', selections: $values);
                 continue;
             }
 
@@ -2278,7 +2350,7 @@ class GatheringsController extends AppController
             ->contain([
                 'Branches' => ['fields' => ['id', 'name']],
                 'GatheringTypes' => ['fields' => ['id', 'name', 'color']],
-                'GatheringActivities' => ['fields' => ['id', 'name']],
+                'GatheringActivities',
                 'GatheringAttendances' => function ($q) use ($currentUser) {
                     return $q->where(['GatheringAttendances.member_id' => $currentUser->id]);
                 },
@@ -2303,6 +2375,8 @@ class GatheringsController extends AppController
             ->all();
 
         // Format for mobile display
+        $progressByGathering = $this->Gatherings->GatheringAttendances
+            ->royalProgressForGatherings($gatherings->extract('id')->toList());
         $events = [];
         foreach ($gatherings as $gathering) {
             // Convert dates to user timezone
@@ -2322,15 +2396,13 @@ class GatheringsController extends AppController
                 'is_multi_day' => $startLocal->format('Y-m-d') !== $endLocal->format('Y-m-d'),
                 'branch' => $gathering->branch ? $gathering->branch->name : null,
                 'public_page_enabled' => (bool)$gathering->public_page_enabled,
+                'royal_progress' => array_values($progressByGathering[$gathering->id] ?? []),
                 'type' => $gathering->gathering_type ? [
                     'name' => $gathering->gathering_type->name,
                     'color' => $gathering->gathering_type->color,
                 ] : null,
                 'activities' => array_map(function ($activity) {
-                    return [
-                        'id' => $activity->id,
-                        'name' => $activity->name,
-                    ];
+                    return GatheringActivityPresentationService::appearanceData($activity);
                 }, $gathering->gathering_activities ?? []),
                 'user_attending' => !empty($gathering->gathering_attendances),
                 'attendance_id' => !empty($gathering->gathering_attendances)

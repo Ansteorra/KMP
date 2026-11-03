@@ -487,7 +487,7 @@ class OfficersController extends AppController
     {
         //TODO: Audit for Privacy
         $memberTbl = $this->getTableLocator()->get('Members');
-        $q = $this->request->getQuery('q');
+        $q = (string)$this->request->getQuery('q', '');
         //detect th and replace with Þ
         $nq = $q;
         if (preg_match('/th/', $q)) {
@@ -512,7 +512,9 @@ class OfficersController extends AppController
                     CaseInsensitiveQuery::contains('sca_name', (string)$uq),
                 ],
             ])
-            ->select(['id', 'sca_name', 'warrantable', 'status'])
+            ->select(['Members.id', 'Members.sca_name', 'Members.warrantable', 'Members.status', 'Members.branch_id'])
+            ->contain(['Branches' => fn($query) => $query->select(['id', 'name'])])
+            ->orderBy(['Members.sca_name' => 'ASC', 'Members.id' => 'ASC'])
             ->limit(50);
         $this->set(compact('query', 'q', 'nq', 'uq', 'office'));
     }

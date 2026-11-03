@@ -143,7 +143,9 @@ class BestowalFinalizationServiceTest extends BaseTestCase
             };
             $result = $service->markGiven((int)$bestowal->id, self::TEST_MEMBER_AGATHA_ID);
             $this->assertFalse($result->success);
-            $this->assertSame('You are not assigned to the terminal to-do.', $result->reason);
+            $this->assertStringContainsString('You are not assigned to the final reporting to-do', $result->reason);
+            $this->assertStringContainsString((string)$replacement->title, $result->reason);
+            $this->assertStringContainsString('Ask your awards administrator', $result->reason);
             $this->assertSame(Bestowal::LIFECYCLE_OPEN, $this->bestowals->get($bestowal->id)->lifecycle_status);
             $this->assertSame($status, $items->get($old->id)->status);
             $this->assertSame($status, $items->get($replacement->id)->status);

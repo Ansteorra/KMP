@@ -44,7 +44,7 @@ use DateTime as NativeDateTime;
  * @property int|null $modified_by
  * @property \Cake\I18n\DateTime|null $deleted
  *
- * @property \App\Model\Entity\Member $member
+ * @property \App\Model\Entity\Member|null $member
  * @property \App\Model\Entity\Gathering|null $gathering
  * @property \App\Model\Entity\GatheringScheduledActivity|null $gathering_scheduled_activity
  * @property \Awards\Model\Entity\Recommendation|null $primary_recommendation
@@ -112,6 +112,19 @@ class Bestowal extends BaseEntity implements ActionItemOwnerInterface
         'recommendations' => true,
         'bestowal_recommendations' => true,
     ];
+
+    /** Resolve the recipient without requiring a linked or loaded member account. */
+    public function getRecipientName(): string
+    {
+        $memberName = trim((string)($this->member->sca_name ?? ''));
+        if ($memberName !== '') {
+            return $memberName;
+        }
+
+        $recordedName = trim((string)($this->member_sca_name ?? ''));
+
+        return $recordedName !== '' ? $recordedName : __('Unknown recipient');
+    }
 
     /**
      * Handle date format conversion for bestowed_at.

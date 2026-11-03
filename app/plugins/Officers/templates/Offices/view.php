@@ -158,7 +158,7 @@ echo $this->Modal->create("Edit Office", [
     <div class="col-12 col-xl-6">
         <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
             <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                <i class="bi bi-briefcase text-primary me-1" aria-hidden="true"></i>
+                <kmp-icon name="briefcase" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                 <?= __("Office Identity") ?>
             </legend>
             <?php
@@ -182,7 +182,7 @@ echo $this->Modal->create("Edit Office", [
     <div class="col-12 col-xl-6">
         <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
             <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                <i class="bi bi-toggles text-success me-1" aria-hidden="true"></i>
+                <kmp-icon name="toggle-right" class="text-success me-1" aria-hidden="true"></kmp-icon>
                 <?= __("Rules") ?>
             </legend>
             <?php
@@ -204,7 +204,7 @@ echo $this->Modal->create("Edit Office", [
     <div class="col-12">
         <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
             <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                <i class="bi bi-diagram-3 text-info me-1" aria-hidden="true"></i>
+                <kmp-icon name="sitemap" class="text-info me-1" aria-hidden="true"></kmp-icon>
                 <?= __("Hierarchy & Scope") ?>
             </legend>
             <?php

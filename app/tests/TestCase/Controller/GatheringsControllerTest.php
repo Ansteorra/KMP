@@ -14,10 +14,13 @@ use Awards\Model\Entity\BestowalTodoTemplateItem;
 use Awards\Model\Entity\CourtAgendaItem;
 use Awards\Model\Entity\CourtAgendaSegment;
 use Cake\Cache\Cache;
+use Cake\I18n\DateTime;
 use DateTimeImmutable;
 use DateTimeZone;
 use DOMDocument;
 use DOMXPath;
+use Officers\Model\Entity\Officer;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Waivers\Policy\GatheringWaiverPolicy;
 
 /**
@@ -271,6 +274,83 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->get('/gatherings/view/' . $gathering->public_id);
         $this->assertResponseOk();
         $this->assertResponseNotContains('Created By');
+    }
+
+    /** Members get the native reader and only contacts marked for sharing. */
+    public function testMemberReaderKeepsPrivateContactsAndManagementOut(): void
+    {
+        $gathering = $this->createCalendarGathering('Native reader gathering', false, [
+            'description' => 'A **readable** day of activities.',
+            'location' => 'Reader Park, Testville',
+            'public_page_enabled' => false,
+        ]);
+        $staff = $this->getTableLocator()->get('GatheringStaff');
+        foreach ([true => 'Shared contact', false => 'Private contact'] as $shared => $name) {
+            $staff->saveOrFail($staff->newEntity([
+                'gathering_id' => $gathering->id,
+                'sca_name' => $name,
+                'role' => 'Helper',
+                'show_on_public_page' => (bool)$shared,
+                'email' => $shared ? 'shared@example.test' : 'private@example.test',
+                'created_by' => self::ADMIN_MEMBER_ID,
+            ]));
+        }
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->get('/gatherings/view/' . $gathering->public_id);
+        $this->assertResponseOk();
+        $this->assertResponseContains('gathering-reader');
+        $this->assertResponseContains('id="nav-overview-tab"');
+        $this->assertResponseContains('<strong>readable</strong>');
+        $this->assertResponseContains('Shared contact');
+        $this->assertResponseNotContains('Private contact');
+        $this->assertResponseNotContains('private@example.test');
+        $this->assertResponseNotContains('gathering-public-surface');
+        $this->assertResponseNotContains('fonts.googleapis.com');
+        $this->assertResponseNotContains('id="nav-details-tab"');
+        $this->assertResponseNotContains('id="nav-staff-tab"');
+        $this->assertResponseNotContains('id="qrCodeModal"');
+        $this->assertSame(1, substr_count((string)$this->_response->getBody(), 'id="attendGatheringModal"'));
+    }
+
+    /** Metadata is a secondary panel, while authorized tools retain their original targets. */
+    public function testOrganizerReaderKeepsToolsAndOneRsvpModal(): void
+    {
+        $gathering = $this->createCalendarGathering('Organizer reader', false, ['public_page_enabled' => true]);
+        $this->get('/gatherings/view/' . $gathering->public_id);
+        $this->assertResponseOk();
+        foreach (['nav-overview', 'nav-details', 'nav-schedule', 'nav-activities', 'nav-attendance'] as $panel) {
+            $this->assertResponseContains('id="' . $panel . '"');
+        }
+        $body = (string)$this->_response->getBody();
+        $this->assertLessThan(strpos($body, 'Created By'), strpos($body, 'id="nav-tabButtons"'));
+        $this->assertSame(1, substr_count($body, 'id="attendGatheringModal"'));
+        $this->assertSame(1, substr_count($body, 'id="qrCodeModal"'));
+        $this->assertSame('upcoming', $this->viewVariable('readerStatus'));
+        $this->assertTrue($this->viewVariable('readerCanRsvp'));
+    }
+
+    /** Cancellation prevents new RSVPs; owners can still update an existing RSVP. */
+    public function testReaderCancellationAndExistingAttendance(): void
+    {
+        $gathering = $this->createCalendarGathering('Cancelled reader', false);
+        $gathering->set('cancelled_at', new DateTime());
+        $this->getTableLocator()->get('Gatherings')->saveOrFail($gathering);
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->get('/gatherings/view/' . $gathering->public_id);
+        $this->assertResponseOk();
+        $this->assertSame('cancelled', $this->viewVariable('readerStatus'));
+        $this->assertFalse($this->viewVariable('readerCanRsvp'));
+        $this->assertResponseNotContains('id="attendGatheringModal"');
+
+        $attendances = $this->getTableLocator()->get('GatheringAttendances');
+        $attendances->saveOrFail($attendances->newEntity([
+            'gathering_id' => $gathering->id,
+            'member_id' => self::TEST_MEMBER_AGATHA_ID,
+        ]));
+        $this->get('/gatherings/view/' . $gathering->public_id);
+        $this->assertResponseOk();
+        $this->assertTrue($this->viewVariable('readerCanRsvp'));
+        $this->assertResponseContains('Update Attendance');
     }
 
     /** The duration picker persists computed ends and can switch back to an open-ended entry. */
@@ -1177,6 +1257,58 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         ]));
     }
 
+    public function testStewardCannotBypassConfiguredActivityRules(): void
+    {
+        $gathering = $this->getScheduleTestGathering();
+        $activity = $this->createCourtActivity($gathering, true);
+        $this->grantCourtSchedulePermission(self::TEST_MEMBER_BRYCE_ID, (int)$gathering->branch_id);
+        $memberId = self::TEST_MEMBER_AGATHA_ID;
+        $staff = $this->getTableLocator()->get('GatheringStaff');
+        $staff->saveOrFail($staff->newEntity([
+            'gathering_id' => $gathering->id, 'member_id' => $memberId, 'role' => 'Steward',
+            'is_steward' => true, 'email' => 'synthetic@example.test',
+        ]));
+        $this->authenticateAsMember($memberId);
+        $this->post('/gatherings/edit-activity-description/' . $gathering->id, [
+            'activity_id' => $activity->id, 'custom_description' => 'Unauthorized restricted edit',
+        ]);
+        $this->assertResponseCode(403);
+        $this->post('/gatherings/add-scheduled-activity/' . $gathering->public_id, [
+            'gathering_activity_id' => $activity->id, 'is_other' => '0',
+            'start_datetime' => $this->localScheduleInput($gathering, 1),
+            'display_title' => 'Unauthorized restricted schedule', 'has_end_time' => '0',
+        ]);
+        $this->assertResponseCode(403);
+        $this->assertFalse($this->getTableLocator()->get('GatheringScheduledActivities')->exists([
+            'gathering_id' => $gathering->id, 'display_title' => 'Unauthorized restricted schedule',
+        ]));
+    }
+
+    public function testDelegateCannotSwitchToUnrelatedTypeOrForgeScheduleOwnership(): void
+    {
+        $gathering = $this->getScheduleTestGathering();
+        $activity = $this->createCourtActivity($gathering, true);
+        $other = $this->createNonCourtActivity();
+        $memberId = self::TEST_MEMBER_AGATHA_ID;
+        $scheduled = $this->createScheduledActivity($gathering, self::ADMIN_MEMBER_ID, 'Authorized activity', $activity->id);
+        $this->grantCourtSchedulePermission($memberId, (int)$gathering->branch_id);
+        $this->authenticateAsMember($memberId);
+        $url = '/gatherings/edit-scheduled-activity/' . $gathering->public_id . '/' . $scheduled->id;
+        $this->post($url, ['gathering_activity_id' => $other->id, 'is_other' => 'false']);
+        $this->assertResponseCode(403);
+        $this->post($url, [
+            'gathering_activity_id' => $activity->id, 'is_other' => '0',
+            'gathering_id' => -1, 'created_by' => $memberId, 'id' => -1,
+            'start_datetime' => $this->localScheduleInput($gathering, 2),
+            'has_end_time' => '0', 'display_title' => 'Valid delegated edit',
+        ]);
+        $this->assertResponseOk();
+        $persisted = $this->getTableLocator()->get('GatheringScheduledActivities')->get($scheduled->id);
+        $this->assertSame((int)$gathering->id, (int)$persisted->gathering_id);
+        $this->assertSame(self::ADMIN_MEMBER_ID, (int)$persisted->created_by);
+        $this->assertSame('Valid delegated edit', $persisted->display_title);
+    }
+
     public function testCourtScheduleManagerCanEditOwnScheduledActivity(): void
     {
         $gathering = $this->getScheduleTestGathering();
@@ -1210,7 +1342,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertSame($memberId, (int)$updated->created_by);
     }
 
-    public function testCourtScheduleManagerCannotEditOthersScheduledActivity(): void
+    public function testActivityDelegateCanEditAnotherCreatorsSameActivitySchedule(): void
     {
         $gathering = $this->getScheduleTestGathering();
         $memberId = self::TEST_MEMBER_AGATHA_ID;
@@ -1237,12 +1369,12 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
             ],
         );
 
-        $this->assertResponseCode(403);
+        $this->assertResponseOk();
         $unchanged = $this->getTableLocator()->get('GatheringScheduledActivities')->get($scheduledActivity->id);
-        $this->assertSame('Someone Else Court Session', $unchanged->display_title);
+        $this->assertSame('Unauthorized Edit Attempt', $unchanged->display_title);
     }
 
-    public function testCourtScheduleManagerCannotDeleteScheduledActivity(): void
+    public function testActivityDelegateCannotDeleteUnrelatedOtherSchedule(): void
     {
         $gathering = $this->getScheduleTestGathering();
         $memberId = self::TEST_MEMBER_AGATHA_ID;
@@ -1371,14 +1503,14 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
 
         $this->assertResponseOk();
         $this->assertResponseContains('id="nav-schedule-tab"');
-        $this->assertResponseContains('Add Court Activity');
+        $this->assertResponseContains('Add Activity');
         $this->assertResponseContains('Add Scheduled Activity');
         $this->assertResponseContains((string)$courtActivity->name);
         $this->assertResponseNotContains('This is an &quot;Other&quot; activity');
         $this->assertResponseContains('aria-label="Edit Own Delegated Court"');
-        $this->assertResponseNotContains('aria-label="Edit Other Court"');
-        $this->assertResponseNotContains('aria-label="Delete Own Delegated Court"');
-        $this->assertResponseNotContains('aria-label="Delete Other Court"');
+        $this->assertResponseContains('aria-label="Edit Other Court"');
+        $this->assertResponseContains('aria-label="Delete Own Delegated Court"');
+        $this->assertResponseContains('aria-label="Delete Other Court"');
         $this->assertResponseNotContains('href="/gatherings/edit/');
     }
 
@@ -1473,6 +1605,374 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     }
 
     /**
+     * Create a snapshot RSVP without relying on a current office assignment.
+     */
+    private function addRoyalProgress(
+        object $gathering,
+        string $office,
+        ?string $branch,
+        int $memberId = self::TEST_MEMBER_AGATHA_ID,
+        bool $royal = true,
+    ): object {
+        $attendances = $this->getTableLocator()->get('GatheringAttendances');
+        $attendance = $attendances->newEntity([
+            'gathering_id' => $gathering->id,
+            'member_id' => $memberId,
+            'created_by' => $memberId,
+            'public_note' => 'Private RSVP detail must not appear in mobile progress metadata',
+        ]);
+        $attendance->set('is_royal_progress', $royal);
+        $attendance->set('progress_office_name', $office);
+        $attendance->set('progress_branch_name', $branch);
+
+        return $attendances->saveOrFail($attendance);
+    }
+
+    public static function royalProgressSurfaces(): array
+    {
+        return [
+            'gatherings grid' => ['grid-data'],
+            'calendar grid' => ['calendar-grid-data'],
+            'public calendar' => ['publicCalendar'],
+            'subscription feed' => ['feed'],
+        ];
+    }
+
+    #[DataProvider('royalProgressSurfaces')]
+    public function testRoyalProgressFiltersByOfficeAndRepresentedBranch(string $surface): void
+    {
+        $matching = $this->createCalendarGathering('Royal Filter Matching Crown', true);
+        $otherBranch = $this->createCalendarGathering('Royal Filter Other Branch', true);
+        $otherOffice = $this->createCalendarGathering('Royal Filter Other Office', true);
+        $ordinary = $this->createCalendarGathering('Royal Filter Ordinary RSVP', true);
+        $unpublished = $this->createCalendarGathering('Royal Filter Unpublished', false);
+        $snapshot = $this->addRoyalProgress($matching, 'Crown', 'Snapshot Kingdom');
+        $this->addRoyalProgress($matching, 'Crown', 'Snapshot Kingdom', self::ADMIN_MEMBER_ID);
+        $this->addRoyalProgress($otherBranch, 'Crown', 'Other Kingdom');
+        $this->addRoyalProgress($otherOffice, 'Principality Coronet', 'Snapshot Kingdom');
+        $this->addRoyalProgress($ordinary, 'Crown', 'Snapshot Kingdom', royal: false);
+        $this->addRoyalProgress($unpublished, 'Crown', 'Snapshot Kingdom');
+
+        $params = ['filter' => ['royal_progress' => [$snapshot->progress_filter_value]]];
+        if ($surface === 'publicCalendar') {
+            $this->session(['Auth' => null]);
+            $params = ['royal_progress' => [$snapshot->progress_filter_value]];
+            $path = '/events';
+        } else {
+            $path = '/gatherings/' . $surface;
+            if ($surface === 'grid-data') {
+                // Use a personal view so this test has no month-specific system scope.
+                $member = $this->getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID);
+                $view = (new GridViewService())->createView([
+                    'grid_key' => 'Gatherings.index.main',
+                    'name' => 'Follow Crown',
+                    'config' => json_encode(['filters' => [[
+                        'field' => 'royal_progress',
+                        'operator' => 'in',
+                        'value' => [$snapshot->progress_filter_value],
+                    ]]]),
+                ], $member);
+                $this->assertInstanceOf(GridView::class, $view);
+                $params = ['view_id' => $view->id];
+            } elseif ($surface === 'calendar-grid-data') {
+                $params += [
+                    'year' => $matching->start_date->format('Y'),
+                    'month' => $matching->start_date->format('m'),
+                ];
+                $this->configRequest(['headers' => ['Turbo-Frame' => 'gatherings-calendar-grid-table']]);
+            } else {
+                $this->session(['Auth' => null]);
+            }
+        }
+        $this->get($path . '?' . http_build_query($params));
+
+        $this->assertResponseOk();
+        $this->assertResponseContains($matching->name);
+        $this->assertResponseNotContains($otherBranch->name);
+        $this->assertResponseNotContains($otherOffice->name);
+        $this->assertResponseNotContains($ordinary->name);
+        if (in_array($surface, ['publicCalendar', 'feed'], true)) {
+            $this->assertResponseNotContains($unpublished->name);
+        }
+        if ($surface === 'grid-data') {
+            $this->assertCount(2, $this->viewVariable('data'));
+        }
+        if ($surface === 'publicCalendar') {
+            $this->assertResponseContains('Crown of Other Kingdom');
+            $this->assertResponseContains('Principality Coronet of Snapshot Kingdom');
+            $document = new DOMDocument();
+            $previous = libxml_use_internal_errors(true);
+            $document->loadHTML((string)$this->_response->getBody());
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+            $xpath = new DOMXPath($document);
+            $subscribe = $xpath->query('//a[contains(@class, "kc-subscribe-link")]')->item(0);
+            parse_str(parse_url($subscribe->getAttribute('href'), PHP_URL_QUERY), $subscription);
+            $this->assertSame([$snapshot->progress_filter_value], $subscription['filter']['royal_progress']);
+        }
+    }
+
+    public function testRoyalProgressSelectionSupportsAnyMultipleAndDeletedRsvps(): void
+    {
+        $crown = $this->createCalendarGathering('Multiple Progress Crown', true);
+        $coronet = $this->createCalendarGathering('Multiple Progress Coronet', true);
+        $ordinary = $this->createCalendarGathering('Multiple Progress Ordinary', true);
+        $deleted = $this->createCalendarGathering('Multiple Progress Deleted', true);
+        $first = $this->addRoyalProgress($crown, 'Crown', 'Historic Kingdom');
+        $second = $this->addRoyalProgress($coronet, 'Coronet', null);
+        $removed = $this->addRoyalProgress($deleted, 'Crown', 'Historic Kingdom');
+        $this->getTableLocator()->get('GatheringAttendances')->deleteOrFail($removed);
+        $table = $this->getTableLocator()->get('Gatherings');
+        $ids = [$crown->id, $coronet->id, $ordinary->id, $deleted->id];
+        foreach ([['any'], [$first->progress_filter_value, $second->progress_filter_value]] as $selection) {
+            $matches = $table->find('royalProgress', selections: $selection)
+                ->where(['Gatherings.id IN' => $ids])->all()->extract('id')->toList();
+            $this->assertEqualsCanonicalizing([$crown->id, $coronet->id], $matches);
+        }
+        $this->assertSame(0, $table->find('royalProgress', selections: [
+            'invalid', base64_encode('[1,2]'), base64_encode('["Crown",{}]'),
+        ])->count());
+        $this->assertSame(4, $table->find('royalProgress', selections: [])->where(['Gatherings.id IN' => $ids])->count());
+    }
+
+    public static function calendarRoyalProgressBadgeViews(): array
+    {
+        return ['month' => ['month'], 'week' => ['week'], 'list' => ['list']];
+    }
+
+    #[DataProvider('calendarRoyalProgressBadgeViews')]
+    public function testCalendarShowsRoyalProgressBadgeWithoutMarkingViewerAttending(string $view): void
+    {
+        $royal = $this->createCalendarGathering('Badge Royal Gathering', true);
+        $ordinary = $this->createCalendarGathering('Badge Ordinary Gathering', true);
+        $this->addRoyalProgress($royal, 'Crown', 'Snapshot Kingdom');
+        $this->addRoyalProgress($royal, 'Crown', 'Snapshot Kingdom', self::TEST_MEMBER_BRYCE_ID);
+        $this->addRoyalProgress($royal, 'Coronet', 'Snapshot Principality', self::TEST_MEMBER_DEVON_ID);
+        $this->addRoyalProgress($ordinary, 'Crown', 'Snapshot Kingdom', royal: false);
+
+        $this->configRequest(['headers' => ['Turbo-Frame' => 'gatherings-calendar-grid-table']]);
+        $this->get('/gatherings/calendar-grid-data?' . http_build_query([
+            'year' => $royal->start_date->format('Y'),
+            'month' => $royal->start_date->format('m'),
+            'week_start' => $royal->start_date->format('Y-m-d'),
+            'view' => $view,
+            'search' => 'Badge',
+        ]));
+
+        $this->assertResponseOk();
+        $this->assertResponseContains($royal->name);
+        $this->assertResponseContains($ordinary->name);
+        $document = new DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+        try {
+            $document->loadHTML((string)$this->_response->getBody());
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
+        $xpath = new DOMXPath($document);
+        $badges = $xpath->query('//*[@data-royal-progress-badge]');
+        $this->assertGreaterThan(0, $badges->length);
+        foreach ($badges as $badge) {
+            $label = $badge->getAttribute('aria-label');
+            $this->assertSame('img', $badge->getAttribute('role'));
+            $this->assertSame($label, $badge->getAttribute('title'));
+            $this->assertSame(1, substr_count($label, 'Crown of Snapshot Kingdom'));
+            $this->assertStringContainsString('Coronet of Snapshot Principality', $label);
+        }
+        $this->assertCount(0, $xpath->query('//*[@aria-label="I\'m attending"]'));
+        foreach ($this->viewVariable('gatherings') as $gathering) {
+            $this->assertEmpty($gathering->gathering_attendances);
+            $this->assertCount($gathering->id === $royal->id ? 2 : 0, $gathering->royal_progress);
+        }
+    }
+
+    public function testMobileCalendarIncludesOnlyPublicProgressMetadata(): void
+    {
+        $gathering = $this->createCalendarGathering('Mobile Royal Filter', true);
+        $snapshot = $this->addRoyalProgress($gathering, 'Coronet', 'Snapshot Principality');
+        $this->get('/gatherings/mobile-calendar-data?' . http_build_query([
+            'year' => $gathering->start_date->format('Y'),
+            'month' => $gathering->start_date->format('m'),
+        ]));
+
+        $this->assertResponseOk();
+        $body = json_decode((string)$this->_response->getBody(), true);
+        $events = array_column($body['data']['events'], null, 'id');
+        $event = $events[$gathering->id];
+        $this->assertSame([[
+            'value' => $snapshot->progress_filter_value,
+            'label' => 'Coronet of Snapshot Principality',
+        ]], $event['royal_progress']);
+        $this->assertFalse($event['user_attending']);
+        $this->assertResponseNotContains('Private RSVP detail');
+    }
+
+    public function testPublicRoyalProgressCombinesWithActivityAndKeepsOptionsPublished(): void
+    {
+        $matching = $this->createCalendarGathering('Combined Royal Filter Match', true);
+        $withoutActivity = $this->createCalendarGathering('Combined Royal Filter No Activity', true);
+        $withoutRoyal = $this->createCalendarGathering('Combined Royal Filter No Royal', true);
+        $draft = $this->createCalendarGathering('Combined Royal Filter Draft', false);
+        $snapshot = $this->addRoyalProgress($matching, 'Crown', 'Historic Branch');
+        $this->addRoyalProgress($withoutActivity, 'Crown', 'Historic Branch');
+        $this->addRoyalProgress($draft, 'Private Draft Office', 'Private Draft Branch');
+        $activity = $this->linkActivity($matching, 'Combined Filter Circle', true);
+        $this->linkActivity($withoutRoyal, $activity->name, true);
+
+        $this->session(['Auth' => null]);
+        $this->get('/events?' . http_build_query([
+            'activities' => [$activity->id],
+            'royal_progress' => [$snapshot->progress_filter_value],
+        ]));
+
+        $this->assertResponseOk();
+        $this->assertResponseContains($matching->name);
+        $this->assertResponseNotContains($withoutActivity->name);
+        $this->assertResponseNotContains($withoutRoyal->name);
+        $this->assertResponseNotContains('Private Draft Office');
+        $this->assertResponseNotContains('Private Draft Branch');
+    }
+
+    public static function royalProgressSwitchStates(): array
+    {
+        return ['on' => [true], 'off' => [false]];
+    }
+
+    private function assertRoyalProgressSwitch(bool $enabled): void
+    {
+        $document = new DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+        try {
+            $document->loadHTML((string)$this->_response->getBody());
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
+        $switches = (new DOMXPath($document))->query(
+            '//input[@name="royal_progress_enabled" and @type="checkbox" and @role="switch"]',
+        );
+        $this->assertCount(1, $switches);
+        $this->assertSame($enabled, $switches->item(0)->hasAttribute('checked'));
+    }
+
+    #[DataProvider('royalProgressSwitchStates')]
+    public function testCalendarAttendanceFormOffersAndRecordsEligibleRoyalOffice(bool $enabled): void
+    {
+        $gathering = $this->createCalendarGathering('Calendar Royal RSVP Choice', true);
+        $offices = $this->getTableLocator()->get('Officers.Offices');
+        $office = $offices->saveOrFail($offices->newEntity([
+            'name' => 'Calendar Crown',
+            'requires_warrant' => false,
+            'required_office' => false,
+            'can_skip_report' => true,
+            'only_one_per_branch' => false,
+            'is_royal_progress' => true,
+            'term_length' => 12,
+        ]));
+        $officers = $this->getTableLocator()->get('Officers.Officers');
+        $officer = $officers->saveOrFail($officers->newEntity([
+            'member_id' => self::TEST_MEMBER_AGATHA_ID,
+            'office_id' => $office->id,
+            'branch_id' => self::KINGDOM_BRANCH_ID,
+            'status' => Officer::CURRENT_STATUS,
+            'start_on' => new DateTimeImmutable('-10 days'),
+            'expires_on' => new DateTimeImmutable('+6 months'),
+            'approver_id' => self::ADMIN_MEMBER_ID,
+            'approval_date' => new DateTimeImmutable(),
+            'email_address' => 'calendar-crown@example.test',
+        ]));
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->get('/gatherings/attendance-modal/' . $gathering->id);
+        $this->assertResponseOk();
+        $this->assertResponseContains('Attend as Royal Progress for');
+        $this->assertResponseContains('Calendar Crown of Ansteorra');
+        $this->assertRoyalProgressSwitch(true);
+
+        $this->get('/members/view/' . self::TEST_MEMBER_AGATHA_ID);
+        $this->assertResponseOk();
+        $this->assertRoyalProgressSwitch(true);
+
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+        $this->post('/gathering-attendances/add', [
+            'gathering_id' => $gathering->id,
+            'royal_progress_enabled' => $enabled ? '1' : '0',
+            'progress_officer_id' => $officer->id,
+            'share_with_kingdom' => false,
+        ]);
+        $this->assertResponseOk();
+        $attendance = $this->getTableLocator()->get('GatheringAttendances')->find()
+            ->where(['gathering_id' => $gathering->id, 'member_id' => self::TEST_MEMBER_AGATHA_ID])->firstOrFail();
+        $this->assertSame($enabled, $attendance->is_royal_progress);
+        $this->assertSame($enabled, $attendance->share_with_kingdom);
+        $this->assertSame($enabled ? 'Calendar Crown of Ansteorra' : null, $attendance->progress_title);
+
+        $this->get('/gatherings/attendance-modal/' . $gathering->id . '?attendance_id=' . $attendance->id);
+        $this->assertResponseOk();
+        $this->assertRoyalProgressSwitch($enabled);
+
+        if ($enabled) {
+            $office->name = 'Renamed Calendar Crown';
+            $offices->saveOrFail($office);
+            $this->get('/gatherings/attendance-modal/' . $gathering->id . '?attendance_id=' . $attendance->id);
+            $this->assertResponseOk();
+            $this->assertResponseContains('value="preserve"');
+            $this->post('/gathering-attendances/edit/' . $attendance->id, [
+                'royal_progress_enabled' => '1',
+                'progress_officer_id' => 'preserve',
+            ]);
+            $this->assertSame(
+                'Calendar Crown of Ansteorra',
+                $this->getTableLocator()->get('GatheringAttendances')->get($attendance->id)->progress_title,
+            );
+        }
+
+        $this->post('/gathering-attendances/edit/' . $attendance->id, [
+            'royal_progress_enabled' => '0',
+            'progress_officer_id' => $officer->id,
+        ]);
+        $updated = $this->getTableLocator()->get('GatheringAttendances')->get($attendance->id);
+        $this->assertFalse($updated->is_royal_progress);
+        $this->assertNull($updated->progress_office_id);
+        $this->assertNull($updated->progress_office_name);
+        $this->assertNull($updated->progress_branch_name);
+    }
+
+    public function testHistoricalRoyalProgressSwitchPreservesOrClearsSnapshot(): void
+    {
+        $gathering = $this->createCalendarGathering('Historical Royal Switch', true);
+        $attendance = $this->addRoyalProgress($gathering, 'Historic Crown', 'Historic Kingdom');
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->get('/gatherings/attendance-modal/' . $gathering->id . '?attendance_id=' . $attendance->id);
+        $this->assertResponseOk();
+        $this->assertRoyalProgressSwitch(true);
+        $this->assertResponseContains('Historic Crown of Historic Kingdom');
+
+        $this->post('/gathering-attendances/edit/' . $attendance->id, [
+            'royal_progress_enabled' => '1',
+            'progress_officer_id' => 'preserve',
+        ]);
+        $attendances = $this->getTableLocator()->get('GatheringAttendances');
+        $this->assertSame('Historic Crown of Historic Kingdom', $attendances->get($attendance->id)->progress_title);
+
+        $this->post('/gathering-attendances/edit/' . $attendance->id, [
+            'royal_progress_enabled' => '0',
+            'progress_officer_id' => 'preserve',
+        ]);
+        $this->assertFalse($attendances->get($attendance->id)->is_royal_progress);
+
+        $newGathering = $this->createCalendarGathering('Forged Royal Switch', true);
+        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
+        $this->post('/gathering-attendances/add', [
+            'gathering_id' => $newGathering->id,
+            'royal_progress_enabled' => '1',
+            'progress_officer_id' => 'preserve',
+        ]);
+        $this->assertResponseCode(400);
+        $this->assertFalse($attendances->exists(['gathering_id' => $newGathering->id]));
+    }
+
+    /**
      * Link an activity to a gathering through the join table.
      */
     private function linkActivity(object $gathering, string $activityName, bool $isCircle = false): object
@@ -1544,12 +2044,12 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $body = (string)$this->_response->getBody();
         $this->assertMatchesRegularExpression(
             '/<span class="kc-activity-chip kc-activity-chip-circle">\s*'
-            . '<i class="bi bi-record-circle" aria-hidden="true"><\/i>\s*'
-            . 'Order of the Laurel\s*<\/span>/',
+            . '<kmp-icon name="circle-dot"[^>]*><\/kmp-icon>\s*'
+            . '.*?Order of the Laurel.*?<\/span>/s',
             $body,
         );
         $this->assertMatchesRegularExpression(
-            '/<span class="kc-activity-chip">\s*Drum Circle\s*<\/span>/',
+            '/<span class="kc-activity-chip">\s*.*?Drum Circle.*?<\/span>/s',
             $body,
         );
     }
@@ -1886,7 +2386,6 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     private function grantCourtSchedulePermission(int $memberId, int $branchId): void
     {
         $permissions = $this->getTableLocator()->get('Permissions');
-        $permissionPolicies = $this->getTableLocator()->get('PermissionPolicies');
         $roles = $this->getTableLocator()->get('Roles');
         $connection = $roles->getConnection();
 
@@ -1905,26 +2404,13 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
             $permissions->saveOrFail($permission);
         }
 
-        foreach (
-            [
-            ['App\\Policy\\GatheringPolicy', 'canAddCourtActivity'],
-            ['App\\Policy\\GatheringPolicy', 'canCreateScheduledActivity'],
-            ['App\\Policy\\GatheringPolicy', 'canEditScheduledActivity'],
-            ] as [$policyClass, $policyMethod]
-        ) {
-            $exists = $permissionPolicies->find()
-                ->where([
-                    'permission_id' => $permission->id,
-                    'policy_class' => $policyClass,
-                    'policy_method' => $policyMethod,
-                ])
-                ->first();
-            if ($exists === null) {
-                $permissionPolicies->saveOrFail($permissionPolicies->newEntity([
-                    'permission_id' => $permission->id,
-                    'policy_class' => $policyClass,
-                    'policy_method' => $policyMethod,
-                ]));
+        $activityIds = $this->getTableLocator()->get('Awards.AwardGatheringActivities')->find()
+            ->all()->extract('gathering_activity_id')->toList();
+        $rules = $this->getTableLocator()->get('GatheringActivityAssignmentPermissions');
+        foreach (array_unique($activityIds) as $activityId) {
+            $conditions = ['gathering_activity_id' => $activityId, 'permission_id' => $permission->id];
+            if (!$rules->exists($conditions)) {
+                $rules->saveOrFail($rules->newEntity($conditions));
             }
         }
 

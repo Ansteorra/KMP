@@ -1,3 +1,4 @@
+import { createIcon, setIcon } from '../services/icon-service.js';
 import vault from '../services/offline-vault-service.js';
 import MobileControllerBase from "./mobile-controller-base";
 import rsvpCacheService from "../services/rsvp-cache-service.js";
@@ -113,7 +114,8 @@ class MyRsvpsController extends MobileControllerBase {
             edit.dataset.gatheringId = event.id; edit.dataset.attendanceId = row.attendance_id;
         }
         if (!event.is_cancelled && !row.pending_id) {
-            const mark = add(header, 'i', `bi ${past ? 'bi-check-circle text-muted' : 'bi-check-circle-fill text-success'}`, '');
+            const mark = createIcon(past ? 'history' : 'circle-check', { class: past ? 'text-muted' : 'text-success' });
+            header.append(mark);
             mark.setAttribute('aria-hidden', 'true');
         }
         return card;
@@ -177,13 +179,13 @@ class MyRsvpsController extends MobileControllerBase {
                 this.upcomingListTarget.innerHTML = `
                     <div class="card empty-state-card">
                         <div class="card-body text-center py-5">
-                            <i class="bi bi-calendar-check d-block fs-1 mb-3" style="color: var(--section-rsvps);"></i>
+                            <kmp-icon name="calendar-check" class="d-block fs-1 mb-3" style="color: var(--section-rsvps);" aria-hidden="true"></kmp-icon>
                             <h3 class="h5 mb-2">No Upcoming RSVPs</h3>
                             <p class="text-muted mb-4">
                                 You haven't RSVPed to any upcoming gatherings yet.
                             </p>
                             <a href="/gatherings/mobile-calendar" class="btn btn-primary online-only-btn">
-                                <i class="bi bi-calendar me-2"></i>Browse Calendar
+                                <kmp-icon name="calendar" class="me-2" aria-hidden="true"></kmp-icon>Browse Calendar
                             </a>
                         </div>
                     </div>
@@ -201,10 +203,11 @@ class MyRsvpsController extends MobileControllerBase {
         card.classList.add('past');
         
         // Change the success check icon to muted
-        const checkIcon = card.querySelector('.bi-check-circle-fill.text-success');
+        const checkIcon = card.querySelector('kmp-icon[name="circle-check"].text-success');
         if (checkIcon) {
-            checkIcon.classList.remove('bi-check-circle-fill', 'text-success');
-            checkIcon.classList.add('bi-check-circle', 'text-muted');
+            setIcon(checkIcon, 'history');
+            checkIcon.classList.remove('text-success');
+            checkIcon.classList.add('text-muted');
         }
         
         // Remove action buttons row
@@ -321,7 +324,7 @@ class MyRsvpsController extends MobileControllerBase {
             console.error('Error loading RSVP form:', error);
             this.modalBodyTarget.innerHTML = `
                 <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <kmp-icon name="alert-triangle" class="me-2" aria-hidden="true"></kmp-icon>
                     Failed to load RSVP form. Please try again.
                 </div>
             `;
@@ -393,13 +396,13 @@ class MyRsvpsController extends MobileControllerBase {
             // Re-enable submit button
             if (submitButton) {
                 submitButton.disabled = false;
-                submitButton.innerHTML = '<i class="bi bi-check-circle me-2"></i>Save Changes';
+                submitButton.innerHTML = '<kmp-icon name="circle-check" class="me-2" aria-hidden="true"></kmp-icon>Save Changes';
             }
             
             // Show error
             const alertDiv = document.createElement('div');
             alertDiv.className = 'alert alert-danger mt-3';
-            alertDiv.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>Failed to save. Please try again.';
+            alertDiv.innerHTML = '<kmp-icon name="alert-triangle" class="me-2" aria-hidden="true"></kmp-icon>Failed to save. Please try again.';
             form.appendChild(alertDiv);
         }
     }
@@ -455,7 +458,7 @@ class MyRsvpsController extends MobileControllerBase {
             // Re-enable submit button
             if (submitButton) {
                 submitButton.disabled = false;
-                submitButton.innerHTML = '<i class="bi bi-trash me-2"></i>Cancel RSVP';
+                submitButton.innerHTML = '<kmp-icon name="trash" class="me-2" aria-hidden="true"></kmp-icon>Cancel RSVP';
             }
             
             window.KMP_accessibility.announce('Failed to cancel RSVP. Please try again.', { assertive: true });

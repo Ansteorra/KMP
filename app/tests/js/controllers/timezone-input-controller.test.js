@@ -138,7 +138,7 @@ describe('TimezoneInputController', () => {
         const notice = controller.noticeTargets[0];
         expect(notice.textContent).toContain('America/Chicago');
         expect(notice.textContent).toContain('CDT');
-        expect(notice.querySelector('i.bi.bi-clock')).not.toBeNull();
+        expect(notice.querySelector('kmp-icon[name="clock"]')).not.toBeNull();
     });
 
     // handleSubmit tests

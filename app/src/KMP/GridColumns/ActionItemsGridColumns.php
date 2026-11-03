@@ -316,7 +316,7 @@ class ActionItemsGridColumns extends BaseGridColumns
                 'key' => 'reopen',
                 'type' => 'modal',
                 'label' => 'Reopen',
-                'icon' => 'bi-arrow-counterclockwise',
+                'icon' => 'rotate',
                 'class' => 'btn btn-sm btn-outline-secondary',
                 'modalTarget' => '#todoCompleteModal',
                 'statusFilter' => [ActionItem::STATUS_COMPLETED],

@@ -11,6 +11,8 @@
  * @var array<string, array<\App\Model\Entity\Gathering>> $gatheringsByMonth Keyed by "Y-m"
  * @var array<int, string> $activityOptions Activity id => name for the filter bar
  * @var array<int> $selectedActivityIds Currently applied activity filter
+ * @var array<array{value: string, label: string}> $royalProgressOptions
+ * @var array<string> $selectedRoyalProgress
  */
 
 use Cake\I18n\DateTime;
@@ -42,7 +44,11 @@ if (trim($customCalendarCss) !== '') {
 }
 
 $feedUrl = $this->Url->build(
-    ['controller' => 'Gatherings', 'action' => 'feed'],
+    [
+        'controller' => 'Gatherings',
+        'action' => 'feed',
+        '?' => ['filter' => ['royal_progress' => $selectedRoyalProgress]],
+    ],
     ['fullBase' => true],
 );
 $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
@@ -55,7 +61,7 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
         <p class="kc-subtitle"><?= __('Tourneys, courts, feasts, and gatherings across the realm') ?></p>
         <div class="kc-actions">
             <a href="<?= h($webcalUrl) ?>" class="kc-subscribe-link">
-                <i class="bi bi-calendar-plus"></i> <?= __('Subscribe to Calendar') ?>
+                <kmp-icon name="calendar-plus"  aria-hidden="true"></kmp-icon> <?= __('Subscribe to Calendar') ?>
             </a>
         </div>
         <div class="kc-legend">
@@ -64,14 +70,15 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                 <?= __('Royal Progress') ?>
             </span>
             <span class="kc-legend-item">
-                <i class="bi bi-record-circle kc-circle-icon" aria-hidden="true"></i>
+                <kmp-icon name="circle-dot" class="kc-circle-icon" aria-hidden="true"></kmp-icon>
                 <?= __('Order Circle') ?>
             </span>
         </div>
 
-        <?php if (!empty($activityOptions)): ?>
+        <?php if (!empty($activityOptions) || !empty($royalProgressOptions)): ?>
             <form method="get" action="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'publicCalendar']) ?>"
                 class="kc-filter-bar">
+                <?php if (!empty($activityOptions)): ?>
                 <fieldset class="kc-filter-fieldset">
                     <legend class="kc-filter-legend"><?= __('Filter by activity') ?></legend>
                     <div class="kc-filter-options">
@@ -83,9 +90,22 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                             </label>
                         <?php endforeach; ?>
                     </div>
+                </fieldset>
+                <?php endif; ?>
+                <fieldset class="kc-filter-fieldset">
+                    <legend class="kc-filter-legend"><?= __('Royal Progress') ?></legend>
+                    <div class="kc-filter-options">
+                        <?php foreach ($royalProgressOptions as $option): ?>
+                            <label class="kc-filter-chip">
+                                <input type="checkbox" name="royal_progress[]" value="<?= h($option['value']) ?>"
+                                    <?= in_array($option['value'], $selectedRoyalProgress, true) ? 'checked' : '' ?>>
+                                <span><?= h($option['label']) ?></span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
                     <div class="kc-filter-actions">
                         <button type="submit" class="kc-filter-apply"><?= __('Apply Filter') ?></button>
-                        <?php if (!empty($selectedActivityIds)): ?>
+                        <?php if (!empty($selectedActivityIds) || !empty($selectedRoyalProgress)): ?>
                             <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'publicCalendar']) ?>"
                                 class="kc-filter-clear"><?= __('Clear') ?></a>
                         <?php endif; ?>
@@ -98,8 +118,10 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
     <main class="kc-list">
         <?php if (empty($gatheringsByMonth)): ?>
             <div class="kc-empty">
-                <i class="bi bi-calendar-x"></i>
-                <p><?= __('No published events on the calendar yet. Check back soon!') ?></p>
+                <kmp-icon name="calendar-x"  aria-hidden="true"></kmp-icon>
+                <p><?= !empty($selectedActivityIds) || !empty($selectedRoyalProgress)
+                    ? __('No published events match the selected filters.')
+                    : __('No published events on the calendar yet. Check back soon!') ?></p>
             </div>
         <?php endif; ?>
 
@@ -192,15 +214,15 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                                 <?php endif; ?>
 
                                 <?php if ($hasCircle($gathering)): ?>
-                                    <i class="bi bi-record-circle kc-circle-icon"
+                                    <kmp-icon name="circle-dot" class=" kc-circle-icon"
                                         title="<?= h(__('Order Circle')) ?>"
-                                        aria-label="<?= h(__('Order Circle')) ?>"></i>
+                                        aria-label="<?= h(__('Order Circle')) ?>"></kmp-icon>
                                 <?php endif; ?>
                             </div>
 
                             <div class="kc-event-meta">
                                 <span class="kc-meta-item kc-meta-when">
-                                    <i class="bi bi-calendar3"></i>
+                                    <kmp-icon name="calendar-month"  aria-hidden="true"></kmp-icon>
                                     <?php if ($gathering->is_multi_day): ?>
                                         <?= $this->Timezone->format($gathering->start_date, 'M j', false, null, $gathering) ?>
                                         &ndash; <?= $this->Timezone->format($gathering->end_date, 'M j, Y', false, null, $gathering) ?>
@@ -214,13 +236,13 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                                 </span>
 
                                 <span class="kc-meta-item">
-                                    <i class="bi bi-building"></i>
+                                    <kmp-icon name="building"  aria-hidden="true"></kmp-icon>
                                     <?= h($gathering->branch->name) ?>
                                 </span>
 
                                 <?php if (!empty($gathering->location)): ?>
                                     <span class="kc-meta-item">
-                                        <i class="bi bi-geo-alt"></i>
+                                        <kmp-icon name="map-pin"  aria-hidden="true"></kmp-icon>
                                         <?= h($gathering->location) ?>
                                     </span>
                                 <?php endif; ?>
@@ -233,7 +255,7 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                                     <a class="kc-action kc-action-prereg" href="<?= h($gathering->preregister_url) ?>"
                                         target="_blank" rel="noopener"
                                         title="<?= h(__('Pre-register and pay for this event (external site)')) ?>">
-                                        <i class="bi bi-ticket-perforated"></i> <?= __('Pre-Register') ?>
+                                        <kmp-icon name="ticket"  aria-hidden="true"></kmp-icon> <?= __('Pre-Register') ?>
                                         <?php if ($gathering->preregister_closes_on !== null): ?>
                                             <small><?= __('until {0}', h($gathering->preregister_closes_on->format('M j'))) ?></small>
                                         <?php endif; ?>
@@ -260,7 +282,7 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                             <details class="kc-more">
                                 <summary class="kc-more-summary">
                                     <span><?= h($moreLabel) ?></span>
-                                    <i class="bi bi-chevron-down kc-more-chevron" aria-hidden="true"></i>
+                                    <kmp-icon name="chevron-down" class="kc-more-chevron" aria-hidden="true"></kmp-icon>
                                 </summary>
                                 <div class="kc-more-body">
                                     <?php if ($hasActivities): ?>
@@ -268,9 +290,9 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                                             <?php foreach ($gathering->gathering_activities as $activity): ?>
                                                 <span class="kc-activity-chip<?= $isCircleActivity($activity) ? ' kc-activity-chip-circle' : '' ?>">
                                                     <?php if ($isCircleActivity($activity)): ?>
-                                                        <i class="bi bi-record-circle" aria-hidden="true"></i>
+                                                        <kmp-icon name="circle-dot"  aria-hidden="true"></kmp-icon>
                                                     <?php endif; ?>
-                                                    <?= h($activity->name) ?>
+                                                    <?= $this->GatheringActivity->badge($activity) ?>
                                                 </span>
                                             <?php endforeach; ?>
                                         </div>
@@ -290,7 +312,7 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                                     <div class="kc-more-actions">
                                         <a class="kc-action" href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'downloadCalendar', $gathering->public_id]) ?>"
                                             title="<?= h(__('Download calendar file (.ics)')) ?>">
-                                            <i class="bi bi-download"></i> <?= __('Add to calendar (.ics)') ?>
+                                            <kmp-icon name="download"  aria-hidden="true"></kmp-icon> <?= __('Add to calendar (.ics)') ?>
                                         </a>
                                     </div>
                                 </div>

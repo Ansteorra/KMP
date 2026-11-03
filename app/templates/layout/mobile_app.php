@@ -39,7 +39,7 @@ $publicOfflineShell = $publicOfflineShell ?? false;
 $mobileTitle = $mobileTitle ?? 'Mobile App';
 $mobileSection = $mobileSection ?? null; // Section for color theming
 $mobileBackUrl = $mobileBackUrl ?? null;
-$mobileIcon = $mobileIcon ?? null; // Section icon (e.g., 'bi-calendar-event')
+$mobileIcon = $mobileIcon ?? null; // Section icon (e.g., 'calendar-event')
 $mobileHeaderColor = $mobileHeaderColor ?? '#ffc107'; // KMP yellow
 $showRefreshBtn = $showRefreshBtn ?? false; // Don't show refresh by default (only for card)
 $watermarkImage = $watermarkImage ?? null;
@@ -154,10 +154,10 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
 
             if ($publicOfflineShell) {
                 $mobileMenuItems = [
-                    ['label' => 'Auth Card', 'url' => '/members/view-mobile-card', 'icon' => 'bi-person-vcard', 'color' => 'auth-card', 'order' => -10],
-                    ['label' => 'My RSVPs', 'url' => '/gathering-attendances/my-rsvps', 'icon' => 'bi-calendar-check', 'color' => 'rsvps', 'order' => 10],
-                    ['label' => 'Events', 'url' => '/gatherings/mobile-calendar', 'icon' => 'bi-calendar-event', 'color' => 'events', 'order' => 20],
-                    ['label' => 'Sign in', 'url' => '/members/login', 'icon' => 'bi-box-arrow-in-right', 'color' => 'secondary', 'order' => 999],
+                    ['label' => 'Auth Card', 'url' => '/members/view-mobile-card', 'icon' => 'address-book', 'color' => 'auth-card', 'order' => -10],
+                    ['label' => 'My RSVPs', 'url' => '/gathering-attendances/my-rsvps', 'icon' => 'calendar-check', 'color' => 'rsvps', 'order' => 10],
+                    ['label' => 'Events', 'url' => '/gatherings/mobile-calendar', 'icon' => 'calendar-event', 'color' => 'events', 'order' => 20],
+                    ['label' => 'Sign in', 'url' => '/members/login', 'icon' => 'login', 'color' => 'secondary', 'order' => 999],
                 ];
             }
 
@@ -165,7 +165,7 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
             if (!$isAuthCard && !$publicOfflineShell) {
                 $mobileMenuItems[] = [
                     'label' => 'Auth Card',
-                    'icon' => 'bi-person-vcard',
+                    'icon' => 'address-book',
                     'url' => $this->Url->build($authCardUrl),
                     'order' => -10,  // Negative order to place it first
                     'color' => 'auth-card',  // Section-specific color
@@ -197,7 +197,7 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
             if (!$publicOfflineShell) {
             $mobileMenuItems[] = [
                 'label' => 'Switch to Desktop',
-                'icon' => 'bi-display',
+                'icon' => 'device-desktop',
                 'url' => $this->Url->build(['controller' => 'App', 'action' => 'switchView', 'plugin' => null, '?' => ['mode' => 'desktop']]),
                 'order' => 9999,  // High order to place it last
                 'color' => 'secondary',
@@ -212,7 +212,7 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
                 data-member-mobile-card-menu-menu-items-value='<?= h(json_encode($mobileMenuItems)) ?>'>
                 <button class="mobile-menu-pill" data-member-mobile-card-menu-target="fab"
                     data-action="click->member-mobile-card-menu#toggleMenu" aria-label="Open menu" type="button">
-                    <i class="bi bi-list" aria-hidden="true"></i>
+                    <kmp-icon name="menu-2"  aria-hidden="true"></kmp-icon>
                     <span>Menu</span>
                 </button>
                 <div class="mobile-menu-items" data-member-mobile-card-menu-target="menu" hidden>
@@ -223,7 +223,7 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
             <!-- Page Title -->
             <h1 class="mobile-page-title">
                 <?php if ($mobileIcon): ?>
-                    <i class="bi <?= h($mobileIcon) ?>" aria-hidden="true"></i>
+                    <?= $this->Icon->render($mobileIcon) ?>
                 <?php endif; ?>
                 <span><?= h($mobileTitle) ?></span>
             </h1>
@@ -241,7 +241,7 @@ $cardUrlForManifest = $currentUser ? $this->Url->build([
             <span scope="col" class="col text-center">
                 <span data-member-mobile-card-pwa-target="refreshBtn"
                     data-action="click->member-mobile-card-profile#loadCard"
-                    class="btn btn-small text-center btn-secondary bi bi-arrow-clockwise"></span>
+                    class="btn btn-small text-center btn-secondary"><kmp-icon name="refresh" aria-hidden="true"></kmp-icon></span>
             </span>
         </div>
         <?php endif; ?>
