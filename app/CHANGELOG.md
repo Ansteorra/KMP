@@ -14,6 +14,7 @@ Stay up to date with the latest features, improvements, and announcements for th
 - Add and edit gathering activities in a shared modal. The activity grid includes configured icons, activity types, display order, and direct View/Edit actions.
 - Add matching Order Circle icons and readable activity color palettes, with larger icons across activity displays.
 - Include current published example events hosted by a mix of local groups for development and POC review.
+- Update Symfony Filesystem and YAML to 7.4.23 for the November 4 path handling and parser denial-of-service security fixes.
 
 ---
 
