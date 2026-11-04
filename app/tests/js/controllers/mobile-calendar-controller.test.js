@@ -462,6 +462,22 @@ describe('MobileCalendarController', () => {
         expect(branchOptions.length).toBe(3); // "All Branches" + 2 unique
     });
 
+    test('activity choices prioritize royal progress and circles before display order and name', () => {
+        setupController();
+        controller.calendarData = { events: [{ activities: [
+            { name: 'Zulu court', activity_type: 'Court', display_order: 0 },
+            { name: 'Zulu royal', activity_type: 'Royal Progress', display_order: 999 },
+            { name: 'Circle late', activity_type: 'Order Circle', display_order: 999 },
+            { name: 'Circle early', activity_type: 'Order Circle', display_order: 0 },
+            { name: 'alpha royal', activity_type: 'Royal Progress', display_order: 999 },
+            { name: 'Arts', activity_type: 'Arts & Sciences', display_order: 0 },
+        ] }] };
+        controller.populateFilters();
+        expect(Array.from(controller.activityFilterTarget.options).map(option => option.textContent)).toEqual([
+            'All Activities', 'alpha royal', 'Zulu royal', 'Circle early', 'Circle late', 'Arts', 'Zulu court',
+        ]);
+    });
+
     test('populateFilters does nothing without calendar data', () => {
         setupController();
         controller.calendarData = null;

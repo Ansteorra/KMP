@@ -23,6 +23,17 @@ const activityExamples = [
     ['harpist', 'harp', 'Harp'],
     ['vocal singing', 'singing', 'Singing'],
     ['campfire storytelling', 'bardic-circle', 'Bardic circle'],
+    ['chain collar', 'chain-necklace', 'Chain necklace'],
+    ['order of defence', 'master-of-defense', 'Master of Defense'],
+    ['pelican vulning itself', 'pelican-vulning', 'Pelican vulning itself'],
+    ['Ansteorra', 'ansteorran-star', 'Ansteorran star'],
+    ['golden lance', 'lance', 'Lance'],
+    ['nesting weights', 'order-of-the-mark', 'Order of the Mark'],
+    ['iris of merit', 'rainbow', 'Rainbow'],
+    ['star of merit', 'ansteorran-star', 'Ansteorran star'],
+    ['blades of merit', 'single-rapier', 'Single rapier'],
+    ['centurion', 'phoenix', 'Rising phoenix'],
+    ['arc de or', 'archery', 'Archery'],
 ];
 
 const fixture = String.raw`

@@ -4,11 +4,13 @@ declare(strict_types=1);
 namespace App\Model\Table;
 
 use App\Model\Entity\GatheringActivity;
+use App\Services\GatheringActivityOrderingService;
 use App\Services\GatheringActivityPresentationService;
 use App\Services\IconCatalog;
 use ArrayObject;
 use Cake\Datasource\EntityInterface;
 use Cake\Event\EventInterface;
+use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
@@ -33,6 +35,15 @@ use Cake\Validation\Validator;
  */
 class GatheringActivitiesTable extends Table
 {
+    /**
+     * @param \Cake\ORM\Query\SelectQuery $query Activity query, including list finders
+     * @return \Cake\ORM\Query\SelectQuery
+     */
+    public function findForDisplay(SelectQuery $query): SelectQuery
+    {
+        return $query->orderBy(GatheringActivityOrderingService::queryOrder($this->getAlias()), true);
+    }
+
     /**
      * Initialize method
      *
@@ -96,8 +107,13 @@ class GatheringActivitiesTable extends Table
             ->allowEmptyString('description');
 
         $validator
-            ->boolean('is_circle')
-            ->allowEmptyString('is_circle');
+            ->scalar('activity_type')
+            ->inList('activity_type', GatheringActivity::ACTIVITY_TYPES, __('Choose a listed activity type.'))
+            ->notEmptyString('activity_type');
+
+        $validator->integer('display_order')
+            ->range('display_order', [0, 2147483647])
+            ->notEmptyString('display_order');
 
         $validator->inList('icon_source', ['catalog', 'bootstrap', 'upload']);
         $validator->add('icon_name', 'knownIcon', [

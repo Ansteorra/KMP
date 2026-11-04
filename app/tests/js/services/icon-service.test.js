@@ -68,12 +68,19 @@ test('one lazy catalog powers common, legacy, and SCA searches without alias dup
         ['town crier', 'herald-proclamation'],
         ['minstrel lute', 'lute'], ['harpist', 'harp'],
         ['vocal singing', 'singing'], ['campfire storytelling', 'bardic-circle'],
+        ['chain collar', 'chain-necklace'], ['order of defence', 'master-of-defense'],
+        ['pelican vulning itself', 'pelican-vulning'], ['Ansteorra', 'ansteorran-star'],
+        ['golden lance', 'lance'], ['nesting weights', 'order-of-the-mark'],
+        ['blades of merit', 'single-rapier'], ['centurion', 'phoenix'],
     ]) {
         expect(searchCatalog(entries, query).some(entry => entry.id === id)).toBe(true);
         expect(entries.find(entry => entry.id === id)).toMatchObject({ source: 'kmp', license: 'LicenseRef-KMP' });
         expect(resolveIcon(`kmp:${id}`).id).toBe(id);
     }
     expect(searchCatalog(entries, 'heralds').filter(entry => entry.source === 'kmp')).toHaveLength(5);
+    for (const [query, id] of [['iris of merit', 'rainbow'], ['star of merit', 'ansteorran-star'], ['arc de or', 'archery']]) {
+        expect(searchCatalog(entries, query).some(entry => entry.id === id)).toBe(true);
+    }
     expect(searchCatalog(entries, 'bardic').filter(entry => entry.source === 'kmp').map(entry => entry.id).sort())
         .toEqual(['bardic-circle', 'harp', 'lute', 'singing']);
 });

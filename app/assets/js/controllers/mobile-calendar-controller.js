@@ -461,8 +461,13 @@ class MobileCalendarController extends MobileControllerBase {
         // Populate activity filter
         if (this.hasActivityFilterTarget) {
             let html = '<option value="">All Activities</option>';
-            // Sort activities alphabetically
-            const sortedActivities = Array.from(activities.keys()).sort();
+            const priority = activity => activity.activity_type === 'Royal Progress' ? 0
+                : activity.activity_type === 'Order Circle' ? 1 : 2;
+            const sortedActivities = Array.from(activities.values()).sort((a, b) =>
+                priority(a) - priority(b)
+                || (a.display_order ?? 100) - (b.display_order ?? 100)
+                || a.name.toLocaleLowerCase().localeCompare(b.name.toLocaleLowerCase())
+                || (a.id ?? 0) - (b.id ?? 0)).map(activity => activity.name);
             sortedActivities.forEach(name => {
                 html += `<option value="${this.escapeHtml(name)}">${this.escapeHtml(name)}</option>`;
             });

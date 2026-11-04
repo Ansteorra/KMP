@@ -164,6 +164,7 @@ services:
       - ./docker/scheduler-loop.sh:/usr/local/bin/kmp-scheduler-loop-dev:ro
     environment:
       <<: *app-environment
+      KMP_PUBLIC_CALENDAR_DEMO: ${KMP_PUBLIC_CALENDAR_DEMO:-true}
       KMP_SKIP_CRON: "true"
       KMP_SKIP_INITIAL_DB_SETUP: "true"
     stop_grace_period: 30s

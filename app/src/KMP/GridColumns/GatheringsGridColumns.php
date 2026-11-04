@@ -260,7 +260,10 @@ class GatheringsGridColumns extends BaseGridColumns
                 'sortable' => false,
                 'filterable' => true,
                 'filterType' => 'dropdown',
-                'filterOptionsSource' => 'GatheringActivities',
+                'filterOptionsSource' => [
+                    'class' => self::class,
+                    'method' => 'getActivityFilterOptions',
+                ],
                 'defaultVisible' => false,
                 'alignment' => 'left',
                 'queryField' => 'GatheringActivities.id',
@@ -345,6 +348,16 @@ class GatheringsGridColumns extends BaseGridColumns
                 ],
             ],
         ];
+    }
+
+    /** @return array<array{value: string, label: string}> Activities in shared display order */
+    public static function getActivityFilterOptions(): array
+    {
+        $activities = TableRegistry::getTableLocator()->get('GatheringActivities')->find('forDisplay')->all();
+
+        return $activities->map(static fn($activity) => [
+            'value' => (string)$activity->id, 'label' => $activity->name,
+        ])->toList();
     }
 
     /**

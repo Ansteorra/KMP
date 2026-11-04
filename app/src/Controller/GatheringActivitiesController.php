@@ -4,8 +4,11 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\KMP\GridColumns\GatheringActivitiesGridColumns;
+use App\Model\Entity\GatheringActivity;
 use App\Services\CsvExportService;
+use App\Services\GatheringActivityOrderingService;
 use App\Services\GatheringActivityPresentationService;
+use Cake\Http\Response;
 use Psr\Http\Message\UploadedFileInterface;
 
 /**
@@ -115,9 +118,13 @@ class GatheringActivitiesController extends AppController
         $result = $this->processDataverseGrid([
             'gridKey' => 'GatheringActivities.index.main',
             'gridColumnsClass' => GatheringActivitiesGridColumns::class,
-            'baseQuery' => $this->GatheringActivities->find(),
+            'baseQuery' => $this->GatheringActivities->find()
+                ->orderBy([GatheringActivityOrderingService::queryPriority()]),
             'tableName' => 'GatheringActivities',
-            'defaultSort' => ['GatheringActivities.name' => 'asc'],
+            'defaultSort' => [
+                'GatheringActivities.display_order' => 'asc',
+                'GatheringActivities.name' => 'asc', 'GatheringActivities.id' => 'asc',
+            ],
             'defaultPageSize' => 25,
             'showAllTab' => false,
             'canAddViews' => false,
@@ -133,6 +140,7 @@ class GatheringActivitiesController extends AppController
         // Set view variables
         $this->set([
             'gatheringActivities' => $result['data'],
+            'rowActions' => GatheringActivitiesGridColumns::getRowActions(),
             'gridState' => $result['gridState'],
             'columns' => $result['columnsMetadata'],
             'visibleColumns' => $result['visibleColumns'],
@@ -205,6 +213,7 @@ class GatheringActivitiesController extends AppController
     {
         $gatheringActivity = $this->GatheringActivities->newEmptyEntity();
         $this->Authorization->authorize($gatheringActivity);
+        $pageContext = $this->wantsTurboStreamRequest() ? $this->getPageContextUrl() : null;
 
         if ($this->request->is('post')) {
             $gatheringActivity = $this->GatheringActivities->patchEntity($gatheringActivity, $this->request->getData());
@@ -215,7 +224,7 @@ class GatheringActivitiesController extends AppController
                     $gatheringActivity->name,
                 ));
 
-                return $this->redirect(['action' => 'index']);
+                return $this->activitySaved($gatheringActivity, $pageContext, true);
             }
 
             $errors = $gatheringActivity->getErrors();
@@ -235,7 +244,7 @@ class GatheringActivitiesController extends AppController
             }
         }
 
-        $this->set(compact('gatheringActivity'));
+        return $this->renderActivityEditor($gatheringActivity);
     }
 
     /**
@@ -249,6 +258,7 @@ class GatheringActivitiesController extends AppController
     {
         $gatheringActivity = $this->GatheringActivities->get($id);
         $this->Authorization->authorize($gatheringActivity);
+        $pageContext = $this->wantsTurboStreamRequest() ? $this->getPageContextUrl() : null;
 
         if ($this->request->is(['patch', 'post', 'put'])) {
             $gatheringActivity = $this->GatheringActivities->patchEntity($gatheringActivity, $this->request->getData());
@@ -259,7 +269,7 @@ class GatheringActivitiesController extends AppController
                     $gatheringActivity->name,
                 ));
 
-                return $this->redirect(['action' => 'view', $id]);
+                return $this->activitySaved($gatheringActivity, $pageContext, false);
             }
 
             $errors = $gatheringActivity->getErrors();
@@ -279,7 +289,52 @@ class GatheringActivitiesController extends AppController
             }
         }
 
+        return $this->renderActivityEditor($gatheringActivity);
+    }
+
+    /**
+     * @param \App\Model\Entity\GatheringActivity $activity Saved activity
+     * @param string|null $pageContext Validated originating page
+     * @param bool $created New activity
+     * @return \Cake\Http\Response
+     */
+    private function activitySaved(GatheringActivity $activity, ?string $pageContext, bool $created): Response
+    {
+        if ($this->wantsTurboStreamRequest()) {
+            if ($pageContext === null || $this->matchesGridIndexPath($pageContext, '#/gathering-activities/?$#')) {
+                return $this->renderTurboCloseModal(
+                    'gathering-activities-grid-table',
+                    ['controller' => 'GatheringActivities', 'action' => 'gridData'],
+                    $pageContext,
+                );
+            }
+            if ($this->matchesGridIndexPath($pageContext, '#/gathering-activities/view/' . $activity->id . '/?$#')) {
+                return $this->redirect($pageContext);
+            }
+        }
+
+        return $created ? $this->redirect(['action' => 'index'])
+            : $this->redirect(['action' => 'view', $activity->id]);
+    }
+
+    /**
+     * @param \App\Model\Entity\GatheringActivity $gatheringActivity Activity and validation errors
+     * @return \Cake\Http\Response|null
+     */
+    private function renderActivityEditor(GatheringActivity $gatheringActivity): ?Response
+    {
         $this->set(compact('gatheringActivity'));
+        if ($this->wantsTurboStreamRequest() && $this->request->is(['post', 'put', 'patch'])) {
+            $this->response = $this->response->withStatus(422)->withType('text/vnd.turbo-stream.html');
+            $this->viewBuilder()->disableAutoLayout()->setTemplate('form_errors');
+
+            return $this->render();
+        }
+        if ($this->request->getHeaderLine('Turbo-Frame') === 'gatheringActivityFormFrame') {
+            $this->viewBuilder()->setLayout('turbo_frame')->setTemplate('form');
+        }
+
+        return null;
     }
 
     /**

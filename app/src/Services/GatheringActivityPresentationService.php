@@ -38,6 +38,8 @@ class GatheringActivityPresentationService
         return [
             'id' => $activity->id,
             'name' => $activity->name,
+            'activity_type' => $activity->activity_type ?? 'General',
+            'display_order' => $activity->display_order ?? 100,
             'icon_name' => IconCatalog::canonical($activity->icon_name) ?? $activity->icon_name ?? 'activity',
             'icon_url' => $activity->icon_source === 'upload' && $activity->icon_asset_key
                 ? PublicAssetService::url($activity->icon_asset_key) : null,

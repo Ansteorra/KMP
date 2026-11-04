@@ -6,6 +6,7 @@ namespace App\Test\TestCase\Controller;
 use App\KMP\GridColumns\GatheringsGridColumns;
 use App\KMP\TimezoneHelper;
 use App\Model\Entity\ActionItem;
+use App\Model\Entity\GatheringActivity;
 use App\Model\Entity\GridView;
 use App\Services\GridViewService;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
@@ -1559,6 +1560,122 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
      * @return void
      * @uses \App\Controller\GatheringsController::publicCalendar()
      */
+    public function testPublicCalendarGroupsActivitiesAndPrioritizesActualRoyalProgressAndOrderCircles(): void
+    {
+        $published = $this->createCalendarGathering('Grouped filter published fixture', true);
+        $draft = $this->createCalendarGathering('Grouped filter draft fixture', false);
+        $circle = $this->linkActivity($published, 'Group filter Laurel', GatheringActivity::TYPE_ORDER_CIRCLE);
+        $this->linkActivity($published, 'Group filter Archery', 'Martial');
+        $this->linkActivity($published, 'Group filter Crown reception', 'Royal Progress');
+        $this->linkActivity($draft, 'Group filter private activity', 'Youth');
+        $royal = $this->addRoyalProgress($published, 'Grouped Crown', 'Grouped Kingdom');
+        $this->session(['Auth' => null]);
+        $this->get('/events?' . http_build_query([
+            'activities' => [$circle->id], 'circles' => '1', 'royal_progress' => [$royal->progress_filter_value],
+        ]));
+        $this->assertResponseOk();
+        $dom = new DOMDocument();
+        $previousErrors = libxml_use_internal_errors(true);
+        $dom->loadHTML((string)$this->_response->getBody());
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousErrors);
+        $xpath = new DOMXPath($dom);
+        $groups = $xpath->query('//details[@data-activity-type]');
+        $this->assertSame('Royal Progress', $groups->item(0)->getAttribute('data-activity-type'));
+        $this->assertSame('Order Circle', $groups->item(1)->getAttribute('data-activity-type'));
+        $this->assertTrue($groups->item(0)->hasAttribute('open'));
+        $this->assertTrue($groups->item(1)->hasAttribute('open'));
+        $this->assertFalse($groups->item(2)->hasAttribute('open'));
+        $this->assertSame(1, $xpath->query('//details[@data-activity-type="Royal Progress"]//input[@name="royal_progress[]"][@checked]')->length);
+        $this->assertSame(1, $xpath->query('//details[@data-activity-type="Royal Progress"]//input[@name="activities[]"]')->length);
+        $this->assertSame(1, $xpath->query('//details[@data-activity-type="Order Circle"]//input[@name="circles"][@checked]')->length);
+        $this->assertSame(1, $xpath->query('//details[@data-activity-type="Order Circle"]//input[@name="activities[]"][@checked]')->length);
+        $this->assertResponseContains('Grouped Crown of Grouped Kingdom');
+        $this->assertResponseNotContains('Group filter private activity');
+        $this->assertSame('(3)', trim($xpath->query('//*[@data-public-calendar-target="activityCount"]')->item(0)->textContent));
+        $selectedNames = $xpath->query('//*[@data-public-calendar-target="selectedLabels"]/li');
+        $this->assertSame(
+            ['Grouped Crown of Grouped Kingdom', 'Any order circle', 'Group filter Laurel'],
+            array_map(static fn($item) => $item->textContent, iterator_to_array($selectedNames)),
+        );
+        $this->assertSame(0, $xpath->query('//*[@data-public-calendar-target="selectedSummary"][@hidden]')->length);
+    }
+
+    public function testPublicCalendarFilterShowsConfiguredArtworkBesideNativeSelectionControls(): void
+    {
+        $gathering = $this->createCalendarGathering('Activity filter artwork fixture', true);
+        $table = $this->getTableLocator()->get('GatheringActivities');
+        $circle = $this->linkActivity($gathering, 'Filter artwork Laurel', 'Order Circle');
+        $circle->icon_name = 'laurel-wreath';
+        $circle->foreground_color = '#14532D';
+        $circle->background_color = '#E8F5E9';
+        $table->saveOrFail($circle);
+        $upload = $this->linkActivity($gathering, 'Filter uploaded artwork');
+        $upload->icon_source = 'upload';
+        $artworkHash = str_repeat('b', 64);
+        $upload->icon_asset_key = 'images/' . str_repeat('a', 32) . '/' . $artworkHash . '.png';
+        $table->saveOrFail($upload);
+        $this->session(['Auth' => null]);
+        $this->get('/events?' . http_build_query(['activities' => [$circle->id]]));
+        $this->assertResponseOk();
+        $dom = new DOMDocument();
+        $previousErrors = libxml_use_internal_errors(true);
+        $dom->loadHTML((string)$this->_response->getBody());
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousErrors);
+        $xpath = new DOMXPath($dom);
+        $choice = '//label[@class="kc-activity-choice"][input[@name="activities[]"][@value="' . $circle->id . '"]]';
+        $this->assertSame(1, $xpath->query($choice . '/input[@class="btn-check"][@checked]')->length);
+        $this->assertSame(1, $xpath->query($choice . '//span[@class="kc-choice-icon"][@aria-hidden="true"]//kmp-icon[@name="laurel-wreath"]')->length);
+        $this->assertSame(1, $xpath->query($choice . '//*[@data-activity-badge][contains(@style,"#14532D")][contains(@style,"#E8F5E9")]')->length);
+        $this->assertSame('Filter artwork Laurel', $xpath->query($choice . '//span[@class="kc-choice-name"]')->item(0)->textContent);
+        $this->assertSame(1, $xpath->query($choice . '//kmp-icon[@class="kc-choice-selected"][@aria-hidden="true"]')->length);
+        $uploadedChoice = '//label[@class="kc-activity-choice"][input[@name="activities[]"][@value="' . $upload->id . '"]]';
+        $this->assertSame(1, $xpath->query($uploadedChoice . '//span[@class="gathering-activity-mask"][contains(@style,"' . $artworkHash . '.png")]')->length);
+    }
+
+    public function testPublicCalendarActivityOverflowUsesConfiguredPriorityAndBoundedPicker(): void
+    {
+        $gathering = $this->createCalendarGathering('Ordered public activity fixture', true, [
+            'public_page_enabled' => true, 'location' => '123 Public Road, Testville, TX',
+        ]);
+        $table = $this->getTableLocator()->get('GatheringActivities');
+        $ids = [];
+        foreach (['Zulu', 'Alpha', 'Beta', 'Delta', 'Echo', 'First'] as $name) {
+            $activity = $this->linkActivity($gathering, 'Priority ' . $name);
+            $activity->set('display_order', $name === 'First' ? 0 : 1);
+            $table->saveOrFail($activity);
+            $ids[$name] = $activity->id;
+        }
+        $this->session(['Auth' => null]);
+        $this->get('/events');
+        $this->assertResponseOk();
+        $dom = new DOMDocument();
+        $previousErrors = libxml_use_internal_errors(true);
+        $dom->loadHTML((string)$this->_response->getBody());
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousErrors);
+        $xpath = new DOMXPath($dom);
+        $row = $xpath->query('//tr[@data-action="click->public-calendar#toggleRow"][.//a[contains(@href,"'
+            . $gathering->public_id . '")]]')->item(0);
+        $this->assertNotNull($row);
+        $badges = $xpath->query('.//*[@data-activity-badge]', $row);
+        $actual = [];
+        foreach ($badges as $badge) {
+            $actual[] = (int)$badge->getAttribute('data-activity-badge');
+        }
+        $this->assertSame([$ids['First'], $ids['Alpha'], $ids['Beta'], $ids['Delta']], $actual);
+        $this->assertSame(1, $xpath->query('.//button[contains(@class,"kc-overflow")]', $row)->length);
+        $this->assertStringContainsString('123 Public Road', $row->textContent);
+        $panelId = $xpath->query('.//details/summary', $row)->item(0)->getAttribute('aria-controls');
+        $this->assertGreaterThanOrEqual(6, $xpath->query('//tr[@id="' . $panelId . '"]//*[@data-activity-badge]')->length);
+        foreach ($ids as $id) {
+            $this->assertSame(1, $xpath->query('//tr[@id="' . $panelId . '"]//*[@data-activity-badge="' . $id . '"]')->length);
+        }
+        $this->assertResponseContains('data-public-calendar-target="activitySearch"');
+        $this->assertResponseContains('class="kc-empty-weekend"');
+    }
+
     public function testPublicCalendarListsOnlyPublishedEvents(): void
     {
         $published = $this->createCalendarGathering('Published Kingdom Event Alpha', true);
@@ -1817,8 +1934,8 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $snapshot = $this->addRoyalProgress($matching, 'Crown', 'Historic Branch');
         $this->addRoyalProgress($withoutActivity, 'Crown', 'Historic Branch');
         $this->addRoyalProgress($draft, 'Private Draft Office', 'Private Draft Branch');
-        $activity = $this->linkActivity($matching, 'Combined Filter Circle', true);
-        $this->linkActivity($withoutRoyal, $activity->name, true);
+        $activity = $this->linkActivity($matching, 'Combined Filter Circle', GatheringActivity::TYPE_ORDER_CIRCLE);
+        $this->linkActivity($withoutRoyal, $activity->name, GatheringActivity::TYPE_ORDER_CIRCLE);
 
         $this->session(['Auth' => null]);
         $this->get('/events?' . http_build_query([
@@ -1975,14 +2092,14 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     /**
      * Link an activity to a gathering through the join table.
      */
-    private function linkActivity(object $gathering, string $activityName, bool $isCircle = false): object
+    private function linkActivity(object $gathering, string $activityName, string $activityType = GatheringActivity::TYPE_GENERAL): object
     {
         $activities = $this->getTableLocator()->get('GatheringActivities');
         $activity = $activities->find()->where(['name' => $activityName])->first();
         if (!$activity) {
             $activity = $activities->saveOrFail($activities->newEntity([
                 'name' => $activityName,
-                'is_circle' => $isCircle,
+                'activity_type' => $activityType,
             ]));
         }
 
@@ -2019,39 +2136,104 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('Pelican Circle');
     }
 
-    /**
-     * The order-circle icon is driven by the activity's is_circle flag, not by
-     * its name: a flagged activity gets the icon even without "circle" in the
-     * name, and a "circle"-named activity that is not flagged does not.
-     *
-     * @return void
-     * @uses \App\Controller\GatheringsController::publicCalendar()
-     */
-    public function testPublicCalendarCircleIconUsesFlagNotName(): void
+    /** @return array<string, array{string, bool}> */
+    public static function publicBusinessVisibilityCases(): array
     {
-        $flagged = $this->createCalendarGathering('Flagged Circle Event Kappa', true);
-        // Deliberately not named "circle" - only the flag should matter
-        $this->linkActivity($flagged, 'Order of the Laurel', true);
+        $cases = [];
+        foreach (['planned', 'mixed schedule', 'business schedule', 'business only'] as $mode) {
+            foreach ([false, true] as $signedIn) {
+                $cases[$mode . ($signedIn ? ' signed in' : ' anonymous')] = [$mode, $signedIn];
+            }
+        }
 
-        $notFlagged = $this->createCalendarGathering('Drum Circle Event Kappa2', true);
-        // Named "circle" but not flagged - must not get the icon
-        $this->linkActivity($notFlagged, 'Drum Circle', false);
+        return $cases;
+    }
 
-        $this->session(['Auth' => null]);
-        $this->get('/events');
-
+    #[DataProvider('publicBusinessVisibilityCases')]
+    public function testPublicLandingHidesBusinessActivitiesAndSessions(string $mode, bool $signedIn): void
+    {
+        $gathering = $this->createCalendarGathering('Public visibility fixture', true, ['public_page_enabled' => true]);
+        $links = $this->getTableLocator()->get('GatheringsGatheringActivities');
+        $links->deleteAll(['gathering_id' => $gathering->id]);
+        $gate = $this->linkActivity($gathering, 'Administrative gate visibility fixture', 'Business');
+        if ($mode !== 'business only') {
+            $arts = $this->linkActivity($gathering, 'Public painting visibility fixture', 'Arts & Sciences');
+        }
+        if ($mode !== 'planned') {
+            $businessSession = $this->createScheduledActivity($gathering, self::ADMIN_MEMBER_ID, 'Gate staffing visibility fixture', $gate->id);
+        }
+        if ($mode === 'mixed schedule') {
+            $this->createScheduledActivity($gathering, self::ADMIN_MEMBER_ID, 'Public painting session fixture', $arts->id);
+            $this->createScheduledActivity($gathering, self::ADMIN_MEMBER_ID, 'Public welcome session fixture');
+        }
+        if (!$signedIn) {
+            $this->session(['Auth' => null]);
+        }
+        $this->get('/gatherings/public-landing/' . $gathering->public_id);
         $this->assertResponseOk();
-        $body = (string)$this->_response->getBody();
-        $this->assertMatchesRegularExpression(
-            '/<span class="kc-activity-chip kc-activity-chip-circle">\s*'
-            . '<kmp-icon name="circle-dot"[^>]*><\/kmp-icon>\s*'
-            . '.*?Order of the Laurel.*?<\/span>/s',
-            $body,
-        );
-        $this->assertMatchesRegularExpression(
-            '/<span class="kc-activity-chip">\s*.*?Drum Circle.*?<\/span>/s',
-            $body,
-        );
+        $this->assertResponseNotContains($gate->name);
+        $this->assertResponseNotContains('Gate staffing visibility fixture');
+        $this->assertResponseNotContains('data-activity-badge="' . $gate->id . '"');
+        if ($mode === 'mixed schedule') {
+            $this->assertResponseContains('Public painting session fixture');
+            $this->assertResponseContains('Public welcome session fixture');
+            $this->assertResponseContains('schedule-day-medieval');
+        } else {
+            $this->assertResponseNotContains('schedule-day-medieval');
+            if ($mode === 'business only') {
+                $this->assertResponseNotContains('activities-compact');
+            } else {
+                $this->assertResponseContains('Public painting visibility fixture');
+                $this->assertResponseContains('activities-compact');
+            }
+        }
+        $this->assertTrue($links->exists(['gathering_id' => $gathering->id, 'gathering_activity_id' => $gate->id]));
+        if (isset($businessSession)) {
+            $this->assertTrue($this->getTableLocator()->get('GatheringScheduledActivities')->exists(['id' => $businessSession->id]));
+        }
+
+        $this->authenticateAsSuperUser();
+        $this->get('/gatherings/view/' . $gathering->public_id);
+        $this->assertResponseOk();
+        $this->assertResponseContains($gate->name);
+        if (isset($businessSession)) {
+            $this->assertResponseContains('Gate staffing visibility fixture');
+        }
+    }
+
+    public function testPublicCalendarShowsActivityIconsOnceAndOmitsAdministrativeActivities(): void
+    {
+        $gathering = $this->createCalendarGathering('Public activity presentation fixture', true, ['public_page_enabled' => true]);
+        $gate = $this->linkActivity($gathering, 'Administrative gate fixture', 'Business');
+        $gate->display_order = 0;
+        $this->getTableLocator()->get('GatheringActivities')->saveOrFail($gate);
+        $publicActivities = [['Laurel circle fixture', 'Order Circle'], ['Royal visit fixture', 'Royal Progress'],
+            ['Arts class fixture', 'Arts & Sciences'], ['Sparring fixture', 'Martial']];
+        foreach ($publicActivities as [$name, $type]) {
+            $this->linkActivity($gathering, $name, $type);
+        }
+        $this->addRoyalProgress($gathering, 'Crown', 'Presentation Kingdom');
+        $this->session(['Auth' => null]);
+        $this->get('/events?q=' . urlencode($gathering->name));
+        $this->assertResponseOk();
+        $dom = new DOMDocument();
+        $previousErrors = libxml_use_internal_errors(true);
+        $dom->loadHTML((string)$this->_response->getBody());
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousErrors);
+        $xpath = new DOMXPath($dom);
+        $row = $xpath->query('//tr[@data-action="click->public-calendar#toggleRow"][.//a[contains(@href,"'
+            . $gathering->public_id . '")]]')->item(0);
+        $this->assertNotNull($row);
+        $this->assertSame(4, $xpath->query('.//*[@data-activity-badge]', $row)->length);
+        $this->assertSame(0, $xpath->query('.//*[contains(@class,"kc-progress-icon") or contains(@class,"kc-circle-icon")]', $row)->length);
+        $this->assertSame(0, $xpath->query('//details[@data-activity-type="Business"]')->length);
+        $this->assertResponseNotContains('Administrative gate fixture');
+        $this->assertResponseNotContains('kc-activity-chip-circle');
+        $this->assertResponseContains('Crown of Presentation Kingdom');
+        $this->assertTrue($this->getTableLocator()->get('GatheringsGatheringActivities')->exists([
+            'gathering_id' => $gathering->id, 'gathering_activity_id' => $gate->id,
+        ]));
     }
 
     /**
@@ -2072,7 +2254,9 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
 
         $this->assertResponseOk();
         // The expander wraps the activities; essentials remain outside it
-        $this->assertResponseContains('<details class="kc-more">');
+        $this->assertResponseContains('<details class="kc-more"');
+        $this->assertResponseContains('class="kc-detail-row"');
+        $this->assertResponseContains('data-action="click->public-calendar#toggleRow"');
         $this->assertResponseContains('Grand Feast');
         $this->assertResponseContains('Details Fold Event Sigma');
     }

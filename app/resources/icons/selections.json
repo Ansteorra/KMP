@@ -56919,5 +56919,45 @@
     "id": "bardic-circle",
     "preferred": "kmp:bardic-circle",
     "reason": "Original bardic performance and instrument imagery retained"
+  },
+  "kmp:chain-necklace": {
+    "id": "chain-necklace",
+    "preferred": "kmp:chain-necklace",
+    "reason": "Original KMP chain necklace motif adds distinct SCA imagery"
+  },
+  "kmp:master-of-defense": {
+    "id": "master-of-defense",
+    "preferred": "kmp:master-of-defense",
+    "reason": "Original KMP master of defense motif adds distinct SCA imagery"
+  },
+  "kmp:pelican-vulning": {
+    "id": "pelican-vulning",
+    "preferred": "kmp:pelican-vulning",
+    "reason": "Original KMP pelican vulning itself motif adds distinct SCA imagery"
+  },
+  "kmp:ansteorran-star": {
+    "id": "ansteorran-star",
+    "preferred": "kmp:ansteorran-star",
+    "reason": "Original KMP ansteorran star motif adds distinct SCA imagery"
+  },
+  "kmp:lance": {
+    "id": "lance",
+    "preferred": "kmp:lance",
+    "reason": "Original KMP lance motif adds distinct SCA imagery"
+  },
+  "kmp:order-of-the-mark": {
+    "id": "order-of-the-mark",
+    "preferred": "kmp:order-of-the-mark",
+    "reason": "Original KMP order of the mark motif adds distinct SCA imagery"
+  },
+  "kmp:single-rapier": {
+    "id": "single-rapier",
+    "preferred": "kmp:single-rapier",
+    "reason": "Original outline subject for normal Order Circle activities"
+  },
+  "kmp:phoenix": {
+    "id": "phoenix",
+    "preferred": "kmp:phoenix",
+    "reason": "Original outline subject for normal Order Circle activities"
   }
 }

@@ -5,6 +5,19 @@ from the Activities plugin's member authorization types. The catalogue owns appe
 waiver associations, and assignment permissions. Gathering links own descriptions and
 ordering; scheduled entries own times, titles, and registration details.
 
+## Catalogue editing
+
+The Gathering Activities grid has **View** and **Edit** actions. **Edit** and
+**Add Gathering Activity** open the same modal for the name, description, display order,
+activity type, colors, catalog icon, and uploaded artwork. Successful saves refresh
+the grid while preserving its current search, filters, sorting, and page. Validation
+errors keep the dialog open with entered values and focus the invalid setting.
+
+**View** opens the activity details for assignment permissions, waiver associations,
+and award configuration provided by plugins. The details page's **Edit** action uses
+the same modal and returns to the current details tab after saving. Direct add/edit
+URLs remain available as full-page forms.
+
 ## Assignment and scheduling
 
 The activity's **Can be assigned by** tab follows the Role **Permissions** pattern:
@@ -67,7 +80,45 @@ Staff with scoped agenda permissions may also prepare a gathering hosted elsewhe
 an assigned bestowal or a scheduled activity supports an award in their permission scope.
 An unscheduled activity or an award outside that scope does not grant this access.
 
+## Activity types
+
+**Activity Type** is a required dropdown in both add/edit forms and the shared modal,
+and a sortable, searchable, filterable column in the activity grid. Its fixed choices are
+**Order Circle**, **Royal Progress**, **Court**, **Business**, **Martial**,
+**Arts & Sciences**, **Youth**, **General**, and **Other**. New activities default to
+**General**. The model rejects unlisted or empty values.
+
+The activity-type migration converts existing order-circle flags to **Order Circle** and
+all other activities to **General** before removing the flag. The order-circles filter uses
+the selected type, independently of the activity name. Public calendar rows use the configured
+activity icon once, including for circles and royal progress. **Business** activities remain
+available internally and are omitted from public calendar activity lists and filter choices.
+Choosing **Royal Progress** classifies an activity; royal attendance and progress filters
+continue to use attendance records and officer snapshots.
+
+## Activity display order
+
+Each gathering activity has a **Display order** field on its add, edit and detail pages and in
+the activity grid. It is a nonnegative integer (default **100**). Activity lists show
+**Royal Progress**, then **Order Circle**, then all remaining activities. Within each of
+these groups, lower display orders appear first; ties sort alphabetically, then by ID.
+This applies to calendars, event and template details, award associations, selectors, and
+the default activity grid. Public calendar filters retain their Activity Type sections.
+
+`GatheringActivityOrderingService` owns the shared comparator and SQL order. The
+`forDisplay` finder orders catalog queries; `OrderedGatheringActivitiesTrait` orders loaded
+associations and serialized output. Partial activity selections must include `activity_type`
+and `display_order`. Persisted assignment order and chronological schedules remain intact.
+
+The public summary displays four activity icons before **…**; expanding the row shows all
+public activities. **Business** activities and their scheduled sessions are hidden from the public
+calendar and public event pages; administrative views retain them. See
+[Public kingdom calendar](kingdom-calendar.md) for filtering and continuation rows.
+
 ## Appearance
+
+The Gathering Activities table includes an **Icon** column showing the configured catalog
+icon or uploaded artwork using the shared compact renderer, colors and accessible name.
 
 Editors choose an icon from the unified KMP catalog or upload a PNG/WebP no larger than 128 × 128 pixels
 and 512 KB. The server checks decoded dimensions and format, then re-encodes PNG with
@@ -115,10 +166,50 @@ Immutable orphan files are intentionally retained; any future cleanup must accou
 cached pages and database/tenant restores. Storage failures reject the appearance save
 and show an upload error. Private document authorization and storage are unaffected.
 
+## Development catalogue seeding
+
+`DevLoadGatheringActivitiesSeed` and rolling calendar examples share
+`GatheringActivitySeedService`. Seed normal activity names and reuse their IDs; do not
+create separate demo/test activity catalogues. Fill missing types and create absent entries
+with catalogue defaults while preserving display order and uploaded artwork. Running the
+normal development seed explicitly reapplies catalogue icon and color defaults: Laurel Circle uses
+`laurel-wreath`, Pelican Circle uses `pelican-vulning`, and Chivalric Circle uses
+`chain-necklace`. Additional **Order Circle** entries and icons are:
+
+| Activity | Icon |
+| --- | --- |
+| Defense Circle | `master-of-defense` |
+| Order of the Mark Circle | `order-of-the-mark` |
+| Golden Lance Circle | `lance` |
+| Iris of Merit Circle | `rainbow` |
+| Star of Merit Circle | `ansteorran-star` |
+| Blades of Merit Circle | `single-rapier` |
+| Centurion Circle | `phoenix` |
+| Arc d'Or Circle | `archery` |
+
+Existing normal naming variants are reused, including Blade/Blades of Merit and Arc De Or.
+The rolling Crown Court & Feast example attaches these circles for public calendar checks.
+Courts, Bardic, Equestrian, Thrown Weapons, and other seeded activities
+use their corresponding catalogue subjects. Automatic calendar-date refreshes preserve
+subsequent icon and color edits. Use `bin/cake seed_public_calendar --refresh-activity-icons`
+for updated icons or `bin/cake seed_public_calendar --refresh-activity-colors` for updated colors
+in the local tenant. The flags are independent and preserve uploaded artwork and its colors.
+
+Seed palettes use dark foregrounds on pale backgrounds with at least 4.5:1 contrast. Royal
+Visit, Kingdom Court, Chivalric Circle, and Golden Lance use gold; Laurel and archery use green;
+Pelican and Centurion use crimson; Defense and Blades of Merit use blue; Iris uses purple;
+Star of Merit uses black on gold. Other activities use related gold, green, crimson, blue,
+purple, teal, amber, or slate palettes. These are editable presentation defaults. Icon shapes
+and activity names continue to identify activities independently of color.
+Known obsolete prefixed fixtures are consolidated with their references preserved. See
+[Rolling development demo events](kingdom-calendar.md#rolling-development-demo-events).
+
 ## Verification
 
 Run the gathering/activity controller tests, activity assignment policy test,
 presentation/public asset service tests, and appearance/mobile-calendar JavaScript
 tests. Browser checks should cover keyboard icon selection, contrast validation,
 upload/replace/remove, assignment rule changes, and anonymous direct asset access with
-cache/CORS headers. Build Vite assets after changing icon catalogue imports or styles.
+cache/CORS headers. Run `node tests/ui/support/gathering-activity-modal-browser-check.cjs`
+against the local Docker stack for modal add/edit, validation, grid state, and mobile/keyboard checks.
+Build Vite assets after changing icon catalogue imports or styles.

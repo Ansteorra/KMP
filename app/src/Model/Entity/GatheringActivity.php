@@ -13,7 +13,8 @@ namespace App\Model\Entity;
  * @property int $gathering_id
  * @property string $name
  * @property string|null $description
- * @property bool $is_circle
+ * @property int $display_order
+ * @property string $activity_type
  * @property string $icon_source
  * @property string $icon_name
  * @property string|null $icon_asset_key
@@ -29,6 +30,22 @@ namespace App\Model\Entity;
  */
 class GatheringActivity extends BaseEntity
 {
+    public const TYPE_ORDER_CIRCLE = 'Order Circle';
+
+    public const TYPE_GENERAL = 'General';
+
+    public const ACTIVITY_TYPES = [
+        self::TYPE_ORDER_CIRCLE,
+        'Royal Progress',
+        'Court',
+        'Business',
+        'Martial',
+        'Arts & Sciences',
+        'Youth',
+        self::TYPE_GENERAL,
+        'Other',
+    ];
+
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *
@@ -37,7 +54,8 @@ class GatheringActivity extends BaseEntity
     protected array $_accessible = [
         'name' => true,
         'description' => true,
-        'is_circle' => true,
+        'activity_type' => true,
+        'display_order' => true,
         'icon_source' => true,
         'icon_name' => true,
         'foreground_color' => true,

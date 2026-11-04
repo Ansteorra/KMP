@@ -9,8 +9,8 @@ selection rules, compatibility maps, build commands and deployment instructions.
 | --- | ---: |
 | Tabler Outline 3.50.0 drawings imported | 5,203 |
 | Hugeicons Free Stroke Rounded 4.3.5 drawings imported | 6,067 |
-| Original KMP Rounded Outline 1.2.1 drawings | 17 |
-| Selectable canonical icons | 10,288 |
+| Original KMP Rounded Outline 1.4.0 drawings | 25 |
+| Selectable canonical icons | 10,296 |
 | Suppressed redundant alternatives | 999 |
 | Exact Bootstrap compatibility aliases, including bare helper names | 2,196 |
 | Retired picker choices mapped | 2,064 of 2,078 |
@@ -27,7 +27,10 @@ pearled coronet with paired thrones), plus round-table meetings, classes, feasts
 group dance and encampments. Five heraldic announcement variants add straight and
 bannered trumpets, a curved sounding horn, a trumpeting herald and a herald with a
 proclamation scroll. Four bardic choices add a lute, harp, singer and a bardic circle
-around a campfire. It uses the project license separately from upstream MIT
+around a campfire. Six further subjects add a chain necklace, the three-sword
+Defense motif, a pelican vulning itself, the ten-point Ansteorran star, a lance,
+and the Order of the Mark motif from the supplied reference.
+It uses the project license separately from upstream MIT
 notices. See the developer guide for IDs and activity search terms.
 
 The unsupported legacy list is explicit in `resources/icons/bootstrap-unmapped.json`:
@@ -97,7 +100,7 @@ are no live first-party Bootstrap Icons rendering paths or font requests.
 | Icon guard | No direct Bootstrap Icons consumers; literal IDs registered |
 | Markdown integrity and JSDoc | Passed |
 | Browser acceptance | Canonical save/reopen, legacy reopening, unknown preservation while browsing, keyboard selection, grid filter, desktop/mobile alignment and static headers |
-| Original KMP collection acceptance | All seventeen activity searches, keyboard selection, save/reopen, three court results, nine group results, five herald results and four bardic results verified |
+| Original KMP collection acceptance | All 23 activity searches, keyboard selection, save/reopen, three court results, nine group results, five herald results and four bardic results verified |
 | Browser offline acceptance | Public shell/common icons, an uncommon icon's lookup/drawing and original court/herald/bardic SVGs survive offline reload |
 | Visual review | Mixed Hugeicons/Tabler/KMP at 16/20/24px; original icons on light/dark surfaces, danger/disabled states; picker, navigation, controls, grid statuses and mobile calendar |
 | Authoring skill | `kmp-icons` validated and installed locally from its repository source |

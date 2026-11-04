@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 export const sources = {
     tabler: { package: '@tabler/icons', version: '3.50.0', repository: 'https://github.com/tabler/tabler-icons', style: 'Outline', license: 'MIT', notice: 'licenses/tabler-MIT.txt' },
     hugeicons: { package: '@hugeicons/core-free-icons', version: '4.3.5', repository: 'https://github.com/hugeicons/hugeicons', style: 'Free Stroke Rounded', license: 'MIT', notice: 'licenses/hugeicons-MIT.txt' },
-    kmp: { version: '1.2.1', repository: 'local:resources/icons/custom.json', style: 'Original Rounded Outline', license: 'LicenseRef-KMP', notice: 'licenses/kmp.txt' },
+    kmp: { version: '1.4.0', repository: 'local:resources/icons/custom.json', style: 'Original Rounded Outline', license: 'LicenseRef-KMP', notice: 'licenses/kmp.txt' },
 };
 
 export const slug = name => name.replace(/Icon$/, '').replace(/([a-z\d])([A-Z])/g, '$1-$2')

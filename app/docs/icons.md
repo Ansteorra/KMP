@@ -1,7 +1,7 @@
 # KMP icons
 
 KMP combines **Tabler Outline 3.50.0**, **Hugeicons Free Stroke Rounded 4.3.5**,
-and an original **KMP Rounded Outline 1.2.1** activity collection.
+and an original **KMP Rounded Outline 1.4.0** activity collection.
 Both exact npm packages are MIT licensed and locked with archive integrity hashes in
 `package-lock.json`. Only `@tabler/icons/tabler-nodes-outline.json` and the drawing
 tuples from `@hugeicons/core-free-icons/dist/esm/*Icon.js` are imported. No paid styles,
@@ -99,7 +99,8 @@ swords are not labeled authentic rapiers. Detailed subjects benefit from 24px or
 The 1.2.1 collection incorporates the human-refined SVG artwork supplied in
 `kmp-custom-icons-1.2.0.zip`. Editor transforms are flattened into drawing coordinates;
 geometry and intentional fills are retained with the shared stroke and inherited color.
-All 17 stable IDs, discovery metadata and existing saved selections are preserved.
+Those 17 drawings and their stable IDs remain intact. Version 1.3.0 adds six
+necklace, peerage, kingdom and equestrian subjects, and version 1.4.0 adds a single rapier and rising phoenix, for 25 original KMP icons.
 
 The KMP collection supplies these original drawings through the same renderer,
 picker, public static assets and offline cache as the imported icons:
@@ -123,6 +124,14 @@ picker, public static assets and offline cache as the imported icons:
 | `harp` | Harp | Bardic arts, harpers, stringed instruments |
 | `singing` | Singing | Songs, vocal performance, choirs |
 | `bardic-circle` | Bardic circle | Campfire songs, storytelling, poetry, group activities |
+| `chain-necklace` | Chain necklace | Chain collars, chivalry, jewelry |
+| `master-of-defense` | Master of Defense | Order of Defense/Defence, three swords, rapier peerage |
+| `pelican-vulning` | Pelican vulning itself | Order of the Pelican, service peerage |
+| `ansteorran-star` | Ansteorran star | Ansteorra, black star, five greater and five lesser points |
+| `lance` | Lance | Jousting, mounted combat, Golden Lance |
+| `order-of-the-mark` | Order of the Mark | Ranged martial arts, nesting weights, mascle, fleur-de-lis |
+| `single-rapier` | Single rapier | Blade/Blades of Merit, rapier circles, dueling |
+| `phoenix` | Rising phoenix | Centurion circles, firebird, flames |
 
 Court imagery is generic, not an official regalia specification or a universal rank
 distinction. Labels describe the visuals; activity names are discovery keywords.
@@ -134,6 +143,29 @@ Search `bardic` to see the lute, harp, singer and bardic circle together. The lu
 has a pear-shaped body and bent pegbox; the harp has a curved neck and visible strings.
 Singing uses an open mouth and notes, while the bardic circle combines people,
 a campfire and a musical note. These are generic illustrative subjects.
+
+The normal activity seed includes Defense, the Mark, Golden Lance, Iris of Merit,
+Star of Merit, Blades of Merit, Centurion, and Arc d'Or circles. Iris uses the existing
+rainbow and Arc d'Or uses the existing archery subject. Star of Merit reuses the
+Ansteorran star described in the [award constitutions](https://heraldry.ansteorra.org/docs/award_constitutions.pdf).
+The phoenix is an illustrative bird rising above flames, as requested for the Centurion
+activity; it is not a claim to reproduce the order's official badge. Search the circle names
+in the existing picker to find their mapped subject icons.
+
+The Defense drawing has its hilts at the top, lower left and lower right, forming
+an upright triangle. All three inward-pointing blade tips meet and cross at one
+central junction, following the supplied rapier reference. The pelican raises its
+wings and bends its beak into its breast; it is a pelican vulning itself, without
+the chicks of a pelican in its piety.
+The Mark drawing adapts the supplied reference's nesting weights inside a diamond
+frame with a fleur-de-lis at its upper point. Names and motifs follow the
+[SCA heraldry glossary](https://heraldry.sca.org/coagloss.html). The Ansteorran star
+has a broad central body, five shorter tapered greater points, five smaller
+lesser points and angular notches following the supplied star reference. Its point count follows the
+[Ansteorran award constitutions](https://heraldry.ansteorra.org/docs/award_constitutions.pdf).
+These are simplified catalog illustrations; selecting an icon does not confer rank
+or change any saved activity assignment. Detailed peerage motifs work best at 24px
+or larger. The necklace uses separate oval links; the lance includes a flared hand guard.
 
 Use the [KMP SVG icons skill](../../.github/skills/kmp-icons/SKILL.md) to create more.
 It is discoverable locally as `$kmp-icons`; its versioned source lives in

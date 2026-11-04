@@ -5,12 +5,14 @@ namespace App\Controller;
 
 use App\KMP\GridColumns\GatheringsGridColumns;
 use App\KMP\TimezoneHelper;
+use App\Model\Entity\GatheringActivity;
 use App\Services\CsvExportService;
 use App\Services\GatheringActivityPresentationService;
 use App\Services\GatheringActivityService;
 use App\Services\GatheringCloneService;
 use App\Services\GatheringScheduleService;
 use App\Services\ICalendarService;
+use App\Services\PublicCalendarService;
 use App\Services\Security\OfflineIdentity;
 use Cake\Cache\Cache;
 use Cake\Event\EventInterface;
@@ -130,7 +132,10 @@ class GatheringsController extends AppController
         }
         if ($queryContext->loadsAny(['activity_count', 'activity_filter'])) {
             $contain['GatheringActivities'] = [
-                'fields' => ['GatheringActivities.id', 'GatheringActivities.name'],
+                'fields' => [
+                    'GatheringActivities.id', 'GatheringActivities.name',
+                    'GatheringActivities.activity_type', 'GatheringActivities.display_order',
+                ],
             ];
         }
 
@@ -841,9 +846,8 @@ class GatheringsController extends AppController
 
         // Get available activities (not already in this gathering)
         $existingActivityIds = array_column($gathering->gathering_activities, 'id');
-        $availableActivities = $this->Gatherings->GatheringActivities->find('all')
-            ->where(['id NOT IN' => $existingActivityIds ?: [0]])
-            ->orderBy(['name' => 'ASC']);
+        $availableActivities = $this->Gatherings->GatheringActivities->find('forDisplay')
+            ->where(['id NOT IN' => $existingActivityIds ?: [0]]);
         $availableActivities = $availableActivities->all()
             ->filter(fn($activity): bool => $user->checkCan('manageActivity', $gathering, $activity))->toList();
         $canAddActivity = $availableActivities !== [];
@@ -1849,6 +1853,12 @@ class GatheringsController extends AppController
             throw new NotFoundException(__('The public page for this gathering is not available.'));
         }
 
+        // Public projections exclude administrative work, even for signed-in staff.
+        $gathering->gathering_activities = PublicCalendarService::publicActivities($gathering->gathering_activities);
+        $gathering->gathering_scheduled_activities = PublicCalendarService::publicScheduledActivities(
+            $gathering->gathering_scheduled_activities,
+        );
+
         // Enrich scheduled activities with custom descriptions from junction table
         // Create a map of gathering_activity_id => custom_description
         $customDescriptions = [];
@@ -1961,12 +1971,12 @@ class GatheringsController extends AppController
         $this->Authorization->skipAuthorization();
         $this->viewBuilder()->setLayout('public_event');
 
-        $today = CakeDateTime::now()->startOfDay();
-        $horizon = new CakeDateTime('+2 years');
+        $today = CakeDateTime::now(TimezoneHelper::getUserTimezone())->startOfDay();
+        $horizon = $today->addYears(2)->endOfDay();
         $publishedConditions = [
             'Gatherings.published' => true,
-            'Gatherings.end_date >=' => $today,
-            'Gatherings.start_date <=' => $horizon,
+            'Gatherings.end_date >=' => $today->subDays(1),
+            'Gatherings.start_date <=' => $horizon->addDays(1),
         ];
 
         // Activity filter - circles are just activities (e.g. "Laurel Circle"),
@@ -1979,6 +1989,17 @@ class GatheringsController extends AppController
             (array)$this->request->getQuery('royal_progress', []),
             'is_string',
         ));
+
+        $search = $this->request->getQuery('q', '');
+        $search = is_string($search) ? mb_substr(trim($search), 0, 200) : '';
+        $selectedBranchId = (int)$this->request->getQuery('branch', 0);
+        $circlesOnly = $this->request->getQuery('circles') === '1';
+        $monthOptions = [];
+        for ($month = $today->startOfMonth(); $month <= $horizon; $month = $month->addMonths(1)) {
+            $monthOptions[$month->format('Y-m')] = $month->format('F Y');
+        }
+        $selectedMonth = $this->request->getQuery('month', '');
+        $selectedMonth = is_string($selectedMonth) && isset($monthOptions[$selectedMonth]) ? $selectedMonth : '';
 
         $query = $this->Gatherings->find()
             ->contain([
@@ -2001,6 +2022,28 @@ class GatheringsController extends AppController
             $query->where(['Gatherings.id IN' => $activityGatheringIds]);
         }
 
+        if ($circlesOnly) {
+            $circleGatheringIds = $this->fetchTable('GatheringsGatheringActivities')->find()
+                ->select(['gathering_id'])->innerJoinWith(
+                    'GatheringActivities',
+                    static fn($q) => $q->where([
+                        'GatheringActivities.activity_type' => GatheringActivity::TYPE_ORDER_CIRCLE,
+                    ]),
+                );
+            $query->where(['Gatherings.id IN' => $circleGatheringIds]);
+        }
+        if ($selectedBranchId > 0) {
+            $query->where(['Gatherings.branch_id' => $selectedBranchId]);
+        }
+        if ($search !== '') {
+            $pattern = '%' . addcslashes($search, '\\%_') . '%';
+            $query->innerJoinWith('Branches')->where(['OR' => [
+                'Gatherings.name ILIKE' => $pattern,
+                'Gatherings.location ILIKE' => $pattern,
+                'Branches.name ILIKE' => $pattern,
+            ]]);
+        }
+
         $query->find('royalProgress', selections: $selectedRoyalProgress);
         $gatherings = $query->all();
 
@@ -2014,28 +2057,63 @@ class GatheringsController extends AppController
         $activityIdsOnCalendar = $this->fetchTable('GatheringsGatheringActivities')->find()
             ->select(['gathering_activity_id'])
             ->where(['gathering_id IN' => $publishedGatheringIds]);
-        $activityOptions = $this->fetchTable('GatheringActivities')->find('list')
-            ->where(['GatheringActivities.id IN' => $activityIdsOnCalendar])
-            ->orderBy(['GatheringActivities.name' => 'ASC'])
-            ->toArray();
-
-        // Group by month (in each gathering's own timezone for display)
-        $gatheringsByMonth = [];
-        foreach ($gatherings as $gathering) {
-            $localStart = TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
-            $monthKey = $localStart->format('Y-m');
-            if (!isset($gatheringsByMonth[$monthKey])) {
-                $gatheringsByMonth[$monthKey] = [];
+        $availableActivities = $this->fetchTable('GatheringActivities')->find()
+            ->select([
+                'id', 'name', 'display_order', 'activity_type', 'icon_name', 'icon_source', 'icon_asset_key',
+                'foreground_color', 'background_color',
+            ])
+            ->where(['GatheringActivities.id IN' => $activityIdsOnCalendar])->all()->toList();
+        $activityGroups = PublicCalendarService::groupActivityOptions($availableActivities);
+        $activitiesById = array_column($availableActivities, null, 'id');
+        $selectedActivityLabels = [];
+        foreach ($royalProgressOptions as $option) {
+            if (in_array($option['value'], $selectedRoyalProgress, true)) {
+                $selectedActivityLabels[] = $option['label'];
             }
-            $gatheringsByMonth[$monthKey][] = $gathering;
+        }
+        if ($circlesOnly) {
+            $selectedActivityLabels[] = __('Any order circle');
+        }
+        foreach (PublicCalendarService::publicActivities($availableActivities) as $activity) {
+            if (in_array($activity->id, $selectedActivityIds, true)) {
+                $selectedActivityLabels[] = $activity->name;
+            }
         }
 
+        $branchOptions = $this->fetchTable('Branches')->find('list')
+            ->where(['Branches.id IN' => $this->Gatherings->find()->select(['branch_id'])->where($publishedConditions)])
+            ->orderBy(['Branches.name' => 'ASC'])->toArray();
+        $from = $selectedMonth !== '' ? new CakeDateTime($selectedMonth . '-01') : $today;
+        $until = $selectedMonth !== '' ? $from->endOfMonth() : $horizon;
+        $calendarMonths = (new PublicCalendarService())->build($gatherings, max($from, $today), min($until, $horizon));
+        $visibleIds = [];
+        foreach ($calendarMonths as $month) {
+            foreach ($month['rows'] as $row) {
+                if (!$row['empty']) {
+                    $visibleIds[$row['event']['gathering']->id] = true;
+                }
+            }
+        }
+        $eventCount = count($visibleIds);
+        $hasFilters = $search !== '' || $selectedBranchId > 0 || $circlesOnly
+            || $selectedActivityIds !== [] || $selectedRoyalProgress !== [];
+
         $this->set(compact(
-            'gatheringsByMonth',
-            'activityOptions',
+            'calendarMonths',
+            'eventCount',
+            'activityGroups',
+            'activitiesById',
             'selectedActivityIds',
+            'selectedActivityLabels',
             'royalProgressOptions',
             'selectedRoyalProgress',
+            'search',
+            'selectedBranchId',
+            'circlesOnly',
+            'monthOptions',
+            'selectedMonth',
+            'branchOptions',
+            'hasFilters',
         ));
     }
 

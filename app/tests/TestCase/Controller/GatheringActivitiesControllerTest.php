@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
+use App\Model\Entity\GatheringActivity;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 
 /**
@@ -12,6 +13,168 @@ use App\Test\TestCase\Support\HttpIntegrationTestCase;
  */
 class GatheringActivitiesControllerTest extends HttpIntegrationTestCase
 {
+    public function testActivityTypesAreFixedAndCanBeChangedThroughTheModal(): void
+    {
+        $table = $this->getTableLocator()->get('GatheringActivities');
+        $types = ['Order Circle', 'Royal Progress', 'Court', 'Business', 'Martial',
+            'Arts & Sciences', 'Youth', 'General', 'Other'];
+        $this->assertSame($types, GatheringActivity::ACTIVITY_TYPES);
+        foreach ($types as $type) {
+            $this->post('/gathering-activities/add', ['name' => 'Type fixture ' . $type, 'activity_type' => $type]);
+            $this->assertRedirect();
+            $activity = $table->find()->where(['name' => 'Type fixture ' . $type])->firstOrFail();
+            $this->assertSame($type, $activity->activity_type);
+        }
+        $this->configRequest(['headers' => ['Turbo-Frame' => 'gatheringActivityFormFrame']]);
+        $this->get('/gathering-activities/edit/' . $activity->id);
+        $this->assertResponseContains('name="activity_type"');
+        $this->assertResponseNotContains('name="is_circle"');
+        foreach ($types as $type) {
+            $this->assertResponseContains('value="' . h($type) . '"');
+        }
+        $this->configRequest(['headers' => ['Accept' => 'text/vnd.turbo-stream.html']]);
+        $this->post('/gathering-activities/edit/' . $activity->id, [
+            'activity_type' => 'Arts & Sciences', 'page_context_url' => '/gathering-activities',
+        ]);
+        $this->assertResponseOk();
+        $this->assertSame('Arts & Sciences', $table->get($activity->id)->activity_type);
+        foreach (['', 'Unlisted', ['Court']] as $invalid) {
+            $this->configRequest(['headers' => ['Accept' => 'text/vnd.turbo-stream.html']]);
+            $this->post('/gathering-activities/edit/' . $activity->id, ['activity_type' => $invalid]);
+            $this->assertResponseCode(422);
+            $this->assertSame('Arts & Sciences', $table->get($activity->id)->activity_type);
+        }
+        $default = $table->saveOrFail($table->newEntity(['name' => 'Default type fixture']));
+        $this->assertSame('General', $table->get($default->id)->activity_type);
+    }
+
+    public function testModalGetUsesTheSharedEditorWithoutThePageLayout(): void
+    {
+        $activity = $this->getTableLocator()->get('GatheringActivities')->find()->firstOrFail();
+        foreach (['/gathering-activities/add', '/gathering-activities/edit/' . $activity->id] as $url) {
+            $this->configRequest(['headers' => ['Turbo-Frame' => 'gatheringActivityFormFrame']]);
+            $this->get($url);
+            $this->assertResponseOk();
+            $this->assertResponseContains('<turbo-frame id="gatheringActivityFormFrame">');
+            $this->assertResponseContains('submit-&gt;turbo-modal#submitAsTurboStream');
+            $this->assertResponseContains('name="display_order"');
+            $this->assertResponseContains('name="icon_file"');
+            $this->assertResponseNotContains('<!DOCTYPE html>');
+        }
+    }
+
+    public function testActivityTypeGridFilterAndSortUseTheSelectedType(): void
+    {
+        $table = $this->getTableLocator()->get('GatheringActivities');
+        $table->saveOrFail($table->newEntity(['name' => 'Type grid court fixture', 'activity_type' => 'Court']));
+        $table->saveOrFail($table->newEntity(['name' => 'Type grid youth fixture', 'activity_type' => 'Youth']));
+        $query = '?search=Type%20grid&filter[activity_type][]=Court&sort=activity_type&direction=asc';
+        $this->get('/gathering-activities/grid-data' . $query);
+        $this->assertResponseOk();
+        $this->assertResponseContains('Type grid court fixture');
+        $this->assertResponseNotContains('Type grid youth fixture');
+        $this->get('/gathering-activities/grid-data?search=Type%20grid&sort=activity_type&direction=desc');
+        $this->assertResponseOk();
+        $types = [];
+        foreach ($this->viewVariable('gatheringActivities') as $activity) {
+            $types[] = $activity->activity_type;
+        }
+        $this->assertSame(['Youth', 'Court'], $types);
+    }
+
+    public function testModalSavesRefreshTheGridAndPreserveItsContext(): void
+    {
+        $headers = ['Accept' => 'text/vnd.turbo-stream.html', 'X-Requested-With' => 'XMLHttpRequest'];
+        $this->configRequest(['headers' => $headers]);
+        $this->post('/gathering-activities/add', [
+            'name' => 'Shared modal activity', 'display_order' => 7,
+            'page_context_url' => '/gathering-activities?page=2&sort=display_order&direction=desc',
+        ]);
+        $this->assertResponseOk();
+        $this->assertContentType('text/vnd.turbo-stream.html');
+        $this->assertResponseContains('target="gathering-activities-grid-table"');
+        $this->assertResponseContains('page=2');
+        $this->assertResponseContains('sort=display_order');
+        $table = $this->getTableLocator()->get('GatheringActivities');
+        $activity = $table->find()->where(['name' => 'Shared modal activity'])->firstOrFail();
+        $this->configRequest(['headers' => $headers]);
+        $this->post('/gathering-activities/edit/' . $activity->id, [
+            'name' => 'Updated shared modal activity', 'display_order' => 2,
+            'page_context_url' => '/gathering-activities?search=shared',
+        ]);
+        $this->assertResponseOk();
+        $this->assertResponseContains('search=shared');
+        $this->assertSame(2, $table->get($activity->id)->display_order);
+        $this->assertSame('Updated shared modal activity', $table->get($activity->id)->name);
+    }
+
+    public function testModalValidationRetainsTheFormAndDoesNotSave(): void
+    {
+        $table = $this->getTableLocator()->get('GatheringActivities');
+        $activity = $table->saveOrFail($table->newEntity(['name' => 'Modal validation fixture']));
+        $this->configRequest(['headers' => ['Accept' => 'text/vnd.turbo-stream.html']]);
+        $this->post('/gathering-activities/edit/' . $activity->id, [
+            'name' => 'Unsaved modal name', 'display_order' => -1,
+            'page_context_url' => '/gathering-activities',
+        ]);
+        $this->assertResponseCode(422);
+        $this->assertContentType('text/vnd.turbo-stream.html');
+        $this->assertResponseContains('action="update" target="gatheringActivityFormFrame"');
+        $this->assertResponseContains('value="Unsaved modal name"');
+        $this->assertResponseContains('role="alert"');
+        $this->assertSame('Modal validation fixture', $table->get($activity->id)->name);
+    }
+
+    public function testModalStillEnforcesAuthorizationAndValidatesContextBeforeSaving(): void
+    {
+        $table = $this->getTableLocator()->get('GatheringActivities');
+        $activity = $table->saveOrFail($table->newEntity(['name' => 'Protected modal fixture']));
+        $this->configRequest(['headers' => ['Accept' => 'text/vnd.turbo-stream.html']]);
+        $this->post('/gathering-activities/edit/' . $activity->id, [
+            'name' => 'Must not save', 'page_context_url' => 'https://example.test/elsewhere',
+        ]);
+        $this->assertResponseCode(400);
+        $this->assertSame('Protected modal fixture', $table->get($activity->id)->name);
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->configRequest(['headers' => ['Turbo-Frame' => 'gatheringActivityFormFrame']]);
+        $this->get('/gathering-activities/edit/' . $activity->id);
+        $this->assertRedirect();
+        $this->assertResponseNotContains('name="icon_file"');
+        $this->configRequest(['headers' => ['Accept' => 'text/vnd.turbo-stream.html']]);
+        $this->post('/gathering-activities/edit/' . $activity->id, ['name' => 'Unauthorized modal update']);
+        $this->assertRedirect();
+        $this->assertSame('Protected modal fixture', $table->get($activity->id)->name);
+    }
+
+    public function testActivityGridOffersViewAndModalEditActions(): void
+    {
+        $this->get('/gathering-activities/grid-data');
+        $this->assertResponseOk();
+        $this->assertResponseContains('data-bs-target="#gatheringActivityModal"');
+        $this->assertResponseContains('data-activity-id=');
+        $this->assertResponseContains('aria-label="View ');
+    }
+
+    public function testDisplayOrderCanBeConfiguredAndInvalidValuesAreRejected(): void
+    {
+        $this->get('/gathering-activities/add');
+        $this->assertResponseContains('name="display_order"');
+        $this->post('/gathering-activities/add', ['name' => 'Priority activity fixture', 'display_order' => 5]);
+        $this->assertRedirect();
+        $table = $this->getTableLocator()->get('GatheringActivities');
+        $activity = $table->find()->where(['name' => 'Priority activity fixture'])->firstOrFail();
+        $this->assertSame(5, $activity->display_order);
+        $this->get('/gathering-activities/edit/' . $activity->id);
+        $this->assertResponseContains('name="display_order"');
+        $this->post('/gathering-activities/edit/' . $activity->id, ['display_order' => 0]);
+        $this->assertRedirect();
+        $this->assertSame(0, $table->get($activity->id)->display_order);
+        foreach ([-1, 1.5, 2147483648, 'invalid', ''] as $value) {
+            $entity = $table->newEntity(['name' => 'Invalid priority fixture', 'display_order' => $value]);
+            $this->assertNotEmpty($entity->getError('display_order'));
+        }
+    }
+
     public function testAssignmentPermissionsCanBeAddedAndRemovedIndividually(): void
     {
         $activities = $this->getTableLocator()->get('GatheringActivities');

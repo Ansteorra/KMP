@@ -44,6 +44,8 @@ use Cake\I18n\Date;
  */
 class Gathering extends BaseEntity
 {
+    use OrderedGatheringActivitiesTrait;
+
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "1.2.1",
+  "version": "1.4.0",
   "icons": {
     "court-crown": {
       "description": "A pointed crown above two thrones; generic imagery for kingdom courts.",
@@ -696,6 +696,380 @@
             "cy": 5.802224,
             "r": 1.264767,
             "fill-rule": "evenodd"
+          }
+        ]
+      ]
+    },
+    "chain-necklace": {
+      "description": "A closed necklace of interlocking oval chain links.",
+      "nodes": [
+        [
+          "ellipse",
+          {
+            "cx": 12.0,
+            "cy": 3.4,
+            "rx": 2.55,
+            "ry": 1.45,
+            "transform": "rotate(0.0 12.0 3.4)"
+          }
+        ],
+        [
+          "ellipse",
+          {
+            "cx": 16.325,
+            "cy": 4.733,
+            "rx": 2.55,
+            "ry": 1.45,
+            "transform": "rotate(34.011 16.325 4.733)"
+          }
+        ],
+        [
+          "ellipse",
+          {
+            "cx": 19.277,
+            "cy": 8.311,
+            "rx": 2.55,
+            "ry": 1.45,
+            "transform": "rotate(66.494 19.277 8.311)"
+          }
+        ],
+        [
+          "ellipse",
+          {
+            "cx": 19.919,
+            "cy": 12.995,
+            "rx": 2.55,
+            "ry": 1.45,
+            "transform": "rotate(97.797 19.919 12.995)"
+          }
+        ],
+        [
+          "ellipse",
+          {
+            "cx": 18.046,
+            "cy": 17.301,
+            "rx": 2.55,
+            "ry": 1.45,
+            "transform": "rotate(129.531 18.046 17.301)"
+          }
+        ],
+        [
+          "ellipse",
+          {
+            "cx": 14.254,
+            "cy": 19.86,
+            "rx": 2.55,
+            "ry": 1.45,
+            "transform": "rotate(162.865 14.254 19.86)"
+          }
+        ],
+        [
+          "ellipse",
+          {
+            "cx": 9.746,
+            "cy": 19.86,
+            "rx": 2.55,
+            "ry": 1.45,
+            "transform": "rotate(-162.865 9.746 19.86)"
+          }
+        ],
+        [
+          "ellipse",
+          {
+            "cx": 5.954,
+            "cy": 17.301,
+            "rx": 2.55,
+            "ry": 1.45,
+            "transform": "rotate(-129.531 5.954 17.301)"
+          }
+        ],
+        [
+          "ellipse",
+          {
+            "cx": 4.081,
+            "cy": 12.995,
+            "rx": 2.55,
+            "ry": 1.45,
+            "transform": "rotate(-97.797 4.081 12.995)"
+          }
+        ],
+        [
+          "ellipse",
+          {
+            "cx": 4.723,
+            "cy": 8.311,
+            "rx": 2.55,
+            "ry": 1.45,
+            "transform": "rotate(-66.494 4.723 8.311)"
+          }
+        ],
+        [
+          "ellipse",
+          {
+            "cx": 7.675,
+            "cy": 4.733,
+            "rx": 2.55,
+            "ry": 1.45,
+            "transform": "rotate(-34.011 7.675 4.733)"
+          }
+        ]
+      ]
+    },
+    "master-of-defense": {
+      "description": "Three simple swords with hilts at the top, lower left and lower right, forming an upright triangle; their inward-pointing tips meet and cross at one central junction.",
+      "nodes": [
+        [
+          "path",
+          {
+            "d": "M11.25 5.3 12 15.2 12.75 5.3"
+          }
+        ],
+        [
+          "path",
+          {
+            "d": "M9.7 5.3q2.3-1.2 4.6 0M12 4.7V2.9"
+          }
+        ],
+        [
+          "circle",
+          {
+            "cx": 12,
+            "cy": 2.3,
+            "r": 0.45
+          }
+        ],
+        [
+          "path",
+          {
+            "d": "M11.25 5.3 12 15.2 12.75 5.3",
+            "transform": "rotate(120 12 13.8)"
+          }
+        ],
+        [
+          "path",
+          {
+            "d": "M9.7 5.3q2.3-1.2 4.6 0M12 4.7V2.9",
+            "transform": "rotate(120 12 13.8)"
+          }
+        ],
+        [
+          "circle",
+          {
+            "cx": 12,
+            "cy": 2.3,
+            "r": 0.45,
+            "transform": "rotate(120 12 13.8)"
+          }
+        ],
+        [
+          "path",
+          {
+            "d": "M11.25 5.3 12 15.2 12.75 5.3",
+            "transform": "rotate(240 12 13.8)"
+          }
+        ],
+        [
+          "path",
+          {
+            "d": "M9.7 5.3q2.3-1.2 4.6 0M12 4.7V2.9",
+            "transform": "rotate(240 12 13.8)"
+          }
+        ],
+        [
+          "circle",
+          {
+            "cx": 12,
+            "cy": 2.3,
+            "r": 0.45,
+            "transform": "rotate(240 12 13.8)"
+          }
+        ]
+      ]
+    },
+    "pelican-vulning": {
+      "description": "A heraldic pelican with raised wings bending its beak into its own breast, with a symbolic drop below the wound.",
+      "nodes": [
+        [
+          "path",
+          {
+            "d": "M8.8 11.7C7.1 7.5 5.1 5.3 2.3 4.7l.9 5.2 3.4 3.6-.8-3.3 2.1 2.3"
+          }
+        ],
+        [
+          "path",
+          {
+            "d": "M15.1 11.7c1.8-4.2 3.8-6.4 6.6-7l-.9 5.2-3.4 3.6.8-3.3-2.1 2.3"
+          }
+        ],
+        [
+          "path",
+          {
+            "d": "M8.8 12c-.3-2.5-.1-5.8 1.3-7.2 1.4-1.5 4.5-1.1 4.9 1v1.4l-3.3 5.3L12 8c-1.1.3-1.5 2-.6 3.5 1.1 1.7 3.6 3.2 3.8 5.3 0 2.7-4.6 3.7-6.9 1.5-1-1-1.1-2.6-.5-3.8"
+          }
+        ],
+        [
+          "circle",
+          {
+            "cx": 12.7,
+            "cy": 6.2,
+            "r": 0.25,
+            "fill": "currentColor",
+            "stroke": "none"
+          }
+        ],
+        [
+          "path",
+          {
+            "d": "M16.8 14.8s-.9 1.2-.9 1.8a.9.9 0 0 0 1.8 0c0-.6-.9-1.8-.9-1.8Z"
+          }
+        ],
+        [
+          "path",
+          {
+            "d": "m10.1 19.8-.8 1.7m3.6-1.7.8 1.7"
+          }
+        ]
+      ]
+    },
+    "ansteorran-star": {
+      "description": "An Ansteorran star with a broad central body, five short tapered greater points and five smaller lesser points, following the supplied star reference.",
+      "nodes": [
+        [
+          "polygon",
+          {
+            "points": "12,2.5 14,7.8 16.5,6.2 16.4,9.3 21.5,9.3 17.6,12.2 19,14.5 16.6,15.1 17.5,20.5 13.6,17.1 12,19.4 10.4,17.1 6.5,20.5 7.4,15.1 5,14.5 6.4,12.2 2.5,9.3 7.6,9.3 7.5,6.2 10,7.8",
+            "fill": "currentColor",
+            "stroke": "none"
+          }
+        ]
+      ]
+    },
+    "lance": {
+      "description": "A diagonal mounted-combat lance with a narrow pointed head, long shaft, and flared hand guard.",
+      "nodes": [
+        [
+          "path",
+          {
+            "d": "m21.5 2.5-3.8 5.8-2-2 5.8-3.8Z"
+          }
+        ],
+        [
+          "path",
+          {
+            "d": "m16.7 7.3-9.4 9.4m-2.8 2.8-2 2"
+          }
+        ],
+        [
+          "path",
+          {
+            "d": "m5 13.5 1.5 2 2 1.5-3 1.5-2-2 1.5-3Z"
+          }
+        ]
+      ]
+    },
+    "order-of-the-mark": {
+      "description": "Nesting circular scale weights with eight projecting tabs inside a diamond frame topped with a fleur-de-lis, based on the supplied Order of the Mark reference.",
+      "nodes": [
+        [
+          "path",
+          {
+            "d": "m12 5 9 8.5-9 8.5-9-8.5L12 5Z"
+          }
+        ],
+        [
+          "path",
+          {
+            "d": "M12 .8c-1.4 1.4-1.1 1.7-.6 2.3-.9-1.5-2.6-.3-1.9.7.5.6 1.5-.4 2 .4l-.1 1.2h1.2l-.1-1.2c.5-.8 1.5.2 2-.4.7-1-1-2.2-1.9-.7.5-.6.8-.9-.6-2.3Z",
+            "fill": "currentColor",
+            "stroke": "none"
+          }
+        ],
+        [
+          "circle",
+          {
+            "cx": 12,
+            "cy": 13.5,
+            "r": 3.6
+          }
+        ],
+        [
+          "circle",
+          {
+            "cx": 12,
+            "cy": 13.5,
+            "r": 1.7
+          }
+        ],
+        [
+          "path",
+          {
+            "d": "M12 9.9V8.6m0 9.8v-1.3m3.6-3.6h1.3m-9.8 0h1.3m6.15-2.55.95-.95m-6.95 6.95.95-.95m5.1 0 .95.95m-6.95-6.95.95.95"
+          }
+        ]
+      ]
+    },
+    "single-rapier": {
+      "description": "One narrow upright rapier with a pointed blade, curved cup guard, grip and small pommel.",
+      "nodes": [
+        [
+          "path",
+          {
+            "d": "M10.6 15.5 12 2.5l1.4 13"
+          }
+        ],
+        [
+          "path",
+          {
+            "d": "M7.5 16c2.5-1.1 6.5-1.1 9 0M8.5 16c0 2 1.5 3 3.5 3s3.5-1 3.5-3"
+          }
+        ],
+        [
+          "path",
+          {
+            "d": "M12 19v2"
+          }
+        ],
+        [
+          "circle",
+          {
+            "cx": 12,
+            "cy": 21.7,
+            "r": 0.5
+          }
+        ]
+      ]
+    },
+    "phoenix": {
+      "description": "A rising phoenix with swept outstretched wings, a hooked beak and flames below; illustrative imagery for a Centurion circle.",
+      "nodes": [
+        [
+          "path",
+          {
+            "d": "M10.5 8.8c-.8-1.4-.7-3.7.8-4.6l2.3.2L15 5.5l-2.2.7.7 2.6"
+          }
+        ],
+        [
+          "path",
+          {
+            "d": "M10.5 8.8C7.2 9.7 5.1 6.2 2.5 3.4c0 5.7 2.3 9.6 6.2 11l-2.1.3 3.9 2.3"
+          }
+        ],
+        [
+          "path",
+          {
+            "d": "M13.5 8.8c3.3.9 5.4-2.6 8-5.4 0 5.7-2.3 9.6-6.2 11l2.1.3-3.9 2.3"
+          }
+        ],
+        [
+          "path",
+          {
+            "d": "M10.5 8.8c-2.1 2.6-1 7 1.5 9.2 2.5-2.2 3.6-6.6 1.5-9.2M3.5 8.5 8 11.9m12.5-3.4L16 11.9"
+          }
+        ],
+        [
+          "path",
+          {
+            "d": "M5.5 21.5c-1.7-1.9 0-3.3 1-4.7-.3 2.6 2.4 3.3 3.5 4.7m4 0c1.1-1.4 3.8-2.1 3.5-4.7 1 1.4 2.7 2.8 1 4.7M10 21.5c-.6-1.4.8-2.8 2-4.1 1.2 1.3 2.6 2.7 2 4.1"
           }
         ]
       ]

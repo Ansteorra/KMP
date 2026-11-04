@@ -17,7 +17,15 @@
       "bow",
       "arrows",
       "target",
-      "marshal"
+      "marshal",
+      "arc de or",
+      "arc d or",
+      "arc d'or",
+      "arc d’or",
+      "arc dor",
+      "order circle",
+      "circle",
+      "circles"
     ],
     "category": "SCA activities"
   },
@@ -780,6 +788,173 @@
       "revel",
       "group activities",
       "arts and sciences"
+    ]
+  },
+  "chain-necklace": {
+    "label": "Chain necklace",
+    "keywords": [
+      "chain",
+      "chains",
+      "necklace",
+      "necklaces",
+      "chain collar",
+      "chivalry",
+      "knight",
+      "knighthood",
+      "jewelry",
+      "jewellery"
+    ],
+    "category": "SCA activities"
+  },
+  "master-of-defense": {
+    "label": "Master of Defense",
+    "keywords": [
+      "master of defense",
+      "masters of defense",
+      "mistress of defense",
+      "order of defense",
+      "master of defence",
+      "order of defence",
+      "MoD",
+      "peerage",
+      "rapier",
+      "rapiers",
+      "three swords",
+      "crossed tips",
+      "pall inverted",
+      "fencing",
+      "defense circle",
+      "defence circle",
+      "order circle",
+      "circles"
+    ],
+    "category": "SCA activities"
+  },
+  "pelican-vulning": {
+    "label": "Pelican vulning itself",
+    "keywords": [
+      "pelican",
+      "pelicans",
+      "pelican vulning itself",
+      "vulning",
+      "order of the pelican",
+      "service",
+      "peerage",
+      "medieval pelican",
+      "heraldic pelican",
+      "self sacrifice"
+    ],
+    "category": "SCA activities"
+  },
+  "ansteorran-star": {
+    "label": "Ansteorran star",
+    "keywords": [
+      "Ansteorra",
+      "Ansteorran",
+      "Ansteorran star",
+      "black star",
+      "sable star",
+      "ten pointed star",
+      "10 point star",
+      "five greater five lesser",
+      "kingdom",
+      "heraldry",
+      "star of merit",
+      "order circle",
+      "circle",
+      "circles"
+    ],
+    "category": "SCA activities"
+  },
+  "lance": {
+    "label": "Lance",
+    "keywords": [
+      "lance",
+      "lances",
+      "lancer",
+      "lancers",
+      "joust",
+      "jousting",
+      "equestrian",
+      "mounted combat",
+      "golden lance",
+      "spears",
+      "cavalry",
+      "golden lance circle",
+      "order circle",
+      "circles"
+    ],
+    "category": "SCA activities"
+  },
+  "order-of-the-mark": {
+    "label": "Order of the Mark",
+    "keywords": [
+      "order of the mark",
+      "master of the mark",
+      "mistress of the mark",
+      "peerage",
+      "ranged martial arts",
+      "ranged weapons",
+      "archery",
+      "thrown weapons",
+      "siege",
+      "nesting weights",
+      "scale weights",
+      "mascle",
+      "fleur de lis",
+      "diamond badge",
+      "mark circle",
+      "the mark",
+      "order circle",
+      "circles"
+    ],
+    "category": "SCA activities"
+  },
+  "single-rapier": {
+    "label": "Single rapier",
+    "category": "SCA activities",
+    "keywords": [
+      "rapier",
+      "single rapier",
+      "fencing",
+      "blade",
+      "blades",
+      "blade of merit",
+      "blades of merit",
+      "order circle",
+      "circle",
+      "circles",
+      "dueling",
+      "sword"
+    ]
+  },
+  "phoenix": {
+    "label": "Rising phoenix",
+    "category": "SCA activities",
+    "keywords": [
+      "phoenix",
+      "rising phoenix",
+      "firebird",
+      "fire bird",
+      "flames",
+      "centurion",
+      "centurions",
+      "centurions of the sable star",
+      "order circle",
+      "circle",
+      "circles"
+    ]
+  },
+  "rainbow": {
+    "label": "Rainbow",
+    "category": "SCA activities",
+    "keywords": [
+      "iris of merit",
+      "iris",
+      "rainbow",
+      "order circle",
+      "circle",
+      "circles"
     ]
   }
 }
