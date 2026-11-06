@@ -80,7 +80,7 @@ export function releaseGate(report, baseline) {
     return { passed: failures.length === 0, failures };
 }
 
-class Session {
+export class Session {
     cookies = new Map();
     constructor(spec, metrics) { this.spec = spec; this.metrics = metrics; this.origin = spec.origins[0]; }
     async request(path, options = {}) {
@@ -139,8 +139,9 @@ class Session {
     }
     async refresh(requestId) {
         const pending = this.metrics.pending.get(requestId);
-        if (!pending || pending.reading) return;
-        pending.reading = true;
+        if (!pending || !pending.remaining.has(this.spec.email) || pending.reading.has(this.spec.email)) return;
+        pending.reading.add(this.spec.email);
+        const at = performance.now();
         try {
             const response = await this.request('/ui/refresh', {
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': this.csrf },
@@ -149,18 +150,25 @@ class Session {
             const html = await response.text();
             if (response.status !== 200 || !html.includes(pending.subject)) throw Error('Committed note absent from authorized refresh.');
             this.metrics.live.push(performance.now() - pending.started);
-            this.metrics.pending.delete(requestId);
+            pending.remaining.delete(this.spec.email);
+            if (!pending.remaining.size) this.metrics.pending.delete(requestId);
         } catch (error) { this.metrics.errors.push(error.message); }
+        finally {
+            pending.reading.delete(this.spec.email);
+            this.metrics.request.push(performance.now() - at);
+        }
     }
     async live(signal, gatewayEndpoints) {
         const connection = maintainLiveConnection({ signal,
             authorize: async authorizationSignal => {
+                const at = performance.now();
                 const origin = this.origin;
                 const response = await this.request('/live/subscriptions', { method: 'POST', signal: authorizationSignal,
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': this.csrf },
                     body: JSON.stringify({ context_url: this.spec.detailPath }) });
                 if (response.status !== 200) throw Error('Live subscription denied.');
                 const ticket = await response.json();
+                if (this.metrics.run) this.metrics.request.push(performance.now() - at);
                 return { ...ticket, url: gatewayEndpoints[this.spec.replica % gatewayEndpoints.length], headers: { Origin: origin } };
             },
             onEvent: event => {
@@ -255,10 +263,10 @@ async function main() {
     };
     await sample(); const sampler = setInterval(sample, 5000);
     const writers = sessions.filter(session => session.spec.writer);
-    const measured = async (operation, ordinary = false) => {
+    const measured = async operation => {
         const at = performance.now();
         try { await operation(); } catch (error) { metrics.errors.push(error.message); }
-        if (ordinary) metrics.request.push(performance.now() - at);
+        metrics.request.push(performance.now() - at);
     };
     let ordinaryRequests = 0; let mutations = 0;
     try {
@@ -270,14 +278,17 @@ async function main() {
                 const paths = session.spec.ordinaryPaths?.length ? session.spec.ordinaryPaths : [session.spec.detailPath];
                 const response = await session.request(paths[Math.floor(index / sessions.length) % paths.length]);
                 await response.arrayBuffer(); if (response.status !== 200) throw Error(`Ordinary request returned ${response.status}.`);
-            }, true)),
+            })),
             offer(5, seconds, index => measured(async () => {
                 mutations++;
                 const session = writers[index % writers.length]; const id = randomUUID();
                 const subject = `Capacity ${id}`; const fields = new URLSearchParams(session.noteForm.fields);
                 fields.set('subject', subject); fields.set('body', 'Synthetic release capacity fixture');
                 if (fields.has('private')) fields.set('private', '0');
-                if (!baselineMode) metrics.pending.set(id, { subject, started: performance.now() });
+                if (!baselineMode) metrics.pending.set(id, { subject, started: performance.now(), reading: new Set(),
+                    remaining: new Set(sessions.filter(observer => observer.spec.tenant === session.spec.tenant
+                        && new URL(observer.spec.detailPath, observer.origin).pathname
+                            === new URL(session.spec.detailPath, session.origin).pathname).map(observer => observer.spec.email)) });
                 const response = await session.request(session.noteForm.action, { method: 'POST', body: fields,
                     headers: { Accept: 'text/vnd.turbo-stream.html', 'X-KMP-Mutation-ID': id, 'X-CSRF-Token': session.csrf } });
                 const html = await response.text();
@@ -311,7 +322,8 @@ async function main() {
         sessions: sessions.length, distinctSessions: new Set(sessions.map(session => session.cookieDigest)).size,
         tenants: new Set(sessions.map(session => session.spec.tenant)).size, replicas: manifest.replicas,
         ordinaryRequests, mutations, requestP95Ms: percentile(metrics.request), liveP95Ms: percentile(metrics.live),
-        missingUpdates: metrics.pending.size, errors: metrics.errors, reconnects: metrics.reconnects,
+        missingUpdates: [...metrics.pending.values()].reduce((count, update) => count + update.remaining.size, 0),
+        errors: metrics.errors, reconnects: metrics.reconnects,
         minimumConnected, telemetrySamples: telemetry.length,
         serverRequests: serverRequests.length, queryCount: serverRequests.reduce((sum, row) => sum + row.query_count, 0),
         observabilityComplete: serverRequests.length >= ordinaryRequests + mutations && telemetry.length > 0

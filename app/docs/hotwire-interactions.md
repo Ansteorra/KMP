@@ -326,6 +326,10 @@ modal validation/network recovery, draft retention, and dependent summaries.
 Accessibility requires keyboard/focus/mobile/reduced-motion checks and manual
 screen-reader spot checks.
 
+The capacity runner records every affected observer’s authorized content read,
+including duplicate suppression, and measures ordinary, mutation, subscription and
+refresh request latency. One successful observer cannot mask missed fanout to others.
+
 Capacity acceptance is 30 minutes with 500 distinct authenticated live sessions
 across five synthetic tenants, at least two web and two gateway replicas, 50
 ordinary requests/second and five mutations/second. Require zero unexpected

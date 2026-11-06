@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { releaseGate, validateManifest } from './live-capacity-benchmark.mjs';
+import { releaseGate, validateManifest, Session } from './live-capacity-benchmark.mjs';
 
 const replicas = Object.fromEntries(['web', 'gateway'].map(kind => [kind, [1, 2].map(index => ({
     container: `${kind}-${index}`, image: `registry.example/${kind}@sha256:${'a'.repeat(64)}`,
@@ -42,4 +42,24 @@ test('release evidence cannot pass with shortened duration, lower rates, missing
     assert.equal(releaseGate(report, { ...baseline, fixtureDigest: 'different fixture' }).passed, false);
     assert.equal(releaseGate(report, { ...baseline, environment: { differentHost: true } }).passed, false);
     assert.equal(releaseGate(report, null).passed, false);
+});
+
+test('every affected observer must read committed content; one refresh cannot hide missing fanout', async () => {
+    const pending = { subject: 'Saved subject', started: performance.now(), reading: new Set(),
+        remaining: new Set(['first@example.test', 'second@example.test']) };
+    const metrics = { pending: new Map([['event', pending]]), live: [], request: [], errors: [] };
+    const observers = ['first', 'second'].map(name => new Session({ email: `${name}@example.test`,
+        origins: ['https://tenant.example.test'], detailPath: '/members/view/7' }, metrics));
+    const reads = [];
+    observers.forEach(observer => { observer.request = async () => {
+        reads.push(observer.spec.email); return { status: 200, text: async () => 'Saved subject' };
+    }; });
+    await observers[0].refresh('event'); await observers[0].refresh('event');
+    assert.equal(metrics.pending.size, 1);
+    assert.deepEqual([...pending.remaining], ['second@example.test']);
+    await observers[1].refresh('event');
+    assert.equal(metrics.pending.size, 0);
+    assert.equal(metrics.live.length, 2);
+    assert.equal(metrics.request.length, 2);
+    assert.deepEqual(reads, ['first@example.test', 'second@example.test']);
 });
