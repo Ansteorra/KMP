@@ -40,3 +40,33 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
       - name: Build gateway runtime
         run: docker build -f docker/Dockerfile.live -t kmp-live-updates:verification .
+      - name: Install verified image scanner
+        env:
+          SCANNER_DIR: ${{ runner.temp }}/kmp-trivy
+        run: |
+          set -euo pipefail
+          mkdir -p "$SCANNER_DIR"
+          curl --fail --silent --show-error --location --proto '=https' \
+            https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-64bit.tar.gz \
+            --output "$SCANNER_DIR/trivy.tar.gz"
+          printf '%s  %s\n' '2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a' "$SCANNER_DIR/trivy.tar.gz" | sha256sum --check
+          tar -xzf "$SCANNER_DIR/trivy.tar.gz" -C "$SCANNER_DIR" trivy
+          echo "$SCANNER_DIR" >> "$GITHUB_PATH"
+      - name: Audit final gateway and retain all native findings
+        run: |
+          set -euo pipefail
+          mkdir -p '${{ runner.temp }}/gateway-security'
+          trivy image --scanners vuln --disable-telemetry --format json \
+            --output '${{ runner.temp }}/gateway-security/image.json' kmp-live-updates:verification
+          trivy convert --format cyclonedx \
+            --output '${{ runner.temp }}/gateway-security/sbom.cdx.json' \
+            '${{ runner.temp }}/gateway-security/image.json'
+          trivy image --scanners vuln --disable-telemetry --severity HIGH,CRITICAL \
+            --ignore-unfixed --exit-code 1 kmp-live-updates:verification
+      - name: Retain gateway security evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: live-gateway-security
+          path: ${{ runner.temp }}/gateway-security
+          retention-days: 30
