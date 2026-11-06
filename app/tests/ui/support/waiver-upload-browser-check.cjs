@@ -115,7 +115,7 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
         assert.deepEqual(errors, []);
         console.log(`PASS ${engine}: native image upload produced one PDF, authorized download works, originating tab/query retained, three wizard states pass accessibility checks.`);
     } finally {
-        await browser?.close();
-        runPhpJson(fixtureScript, fixture);
+        try { await browser?.close(); }
+        finally { runPhpJson(fixtureScript, fixture); }
     }
 })().catch(error => { console.error(error); process.exit(1); });
