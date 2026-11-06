@@ -14,6 +14,10 @@ two web and two gateway replicas, 50 ordinary requests and five mutations per se
 for 30 minutes. Compare the same candidate and fixture with an independent baseline.
 Shortened runs are diagnostics and must fail release acceptance. Missing telemetry,
 failed requests, lost updates or unmatched candidate evidence also fail acceptance.
+Include authorized screen reads after initial/reconnect/renewal replay gaps. Wait
+for initial reconciliation before measuring; count every measured reconciliation
+request and drain pending reads before reporting. Do not silently ignore the
+gateway's unnumbered reconciliation signals.
 
 Run `npm run test:perf:contracts` for workload/gate changes. Run the complete workload
 after runtime or infrastructure changes that affect the release candidate. Browser

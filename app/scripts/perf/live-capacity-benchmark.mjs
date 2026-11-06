@@ -71,6 +71,8 @@ export function releaseGate(report, baseline) {
     if (report.requestP95Ms === null || report.requestP95Ms > 1500) failures.push('request latency');
     if (report.liveP95Ms === null || report.liveP95Ms > 2000) failures.push('live latency');
     if (report.distinctSessions < 500 || report.minimumConnected < 500) failures.push('authenticated live connections');
+    if (!Number.isInteger(report.initialReconciliations) || report.initialReconciliations < report.sessions
+        || !Number.isInteger(report.screenReconciliations) || report.screenReconciliations < 1) failures.push('client reconciliation');
     if (!report.telemetrySamples || report.observabilityComplete !== true || report.runtimeVerified !== true) failures.push('observability');
     if (!baseline || baseline.mode !== 'baseline' || baseline.runtimeVerified !== true || baseline.observabilityComplete !== true
         || !report.environment || JSON.stringify(baseline.environment) !== JSON.stringify(report.environment)
@@ -86,6 +88,7 @@ export function releaseGate(report, baseline) {
 
 export class Session {
     cookies = new Map();
+    initialReconciled = false;
     constructor(spec, metrics) { this.spec = spec; this.metrics = metrics; this.origin = spec.origins[0]; }
     async request(path, options = {}) {
         const url = new URL(path, this.origin);
@@ -164,6 +167,26 @@ export class Session {
             this.metrics.request.push(performance.now() - at);
         }
     }
+    reconcileScreen() {
+        this.reconciling ??= (async () => {
+            const at = performance.now();
+            const measuring = Boolean(this.metrics.run);
+            try {
+                const response = await this.request(this.spec.detailPath, { cache: 'no-store', headers: {
+                    Accept: 'text/html', 'X-Requested-With': 'XMLHttpRequest', 'X-KMP-UI-Refresh': 'screen',
+                } });
+                const html = await response.text();
+                if (response.status !== 200 || !html.includes('id="main-content"')) throw Error('Authorized screen reconciliation unavailable.');
+                if (!this.initialReconciled) {
+                    this.initialReconciled = true;
+                    this.metrics.initialReconciliations = (this.metrics.initialReconciliations || 0) + 1;
+                }
+                if (measuring) this.metrics.screenReconciliations = (this.metrics.screenReconciliations || 0) + 1;
+            } catch (error) { this.metrics.errors.push(error.message); }
+            finally { if (measuring) this.metrics.request.push(performance.now() - at); }
+        })().finally(() => { this.reconciling = null; });
+        return this.reconciling;
+    }
     async live(signal, gatewayEndpoints) {
         const connection = maintainLiveConnection({ signal,
             authorize: async authorizationSignal => {
@@ -178,6 +201,7 @@ export class Session {
                 return { ...ticket, url: gatewayEndpoints[this.spec.replica % gatewayEndpoints.length], headers: { Origin: origin } };
             },
             onEvent: event => {
+                if (!event.id) { this.reconcileScreen(); return; }
                 const id = event.data.match(/request-id="([a-f0-9-]{36})"/)?.[1];
                 if (id) this.refresh(id);
             },
@@ -237,8 +261,9 @@ async function main() {
     const abort = new AbortController();
     const connections = baselineMode ? [] : sessions.map(session => session.live(abort.signal, manifest.gatewayEndpoints || []));
     const readyAt = performance.now();
-    while (!baselineMode && metrics.connected < sessions.length && performance.now() - readyAt < 60000) await delay(100);
-    if (!baselineMode && metrics.connected !== sessions.length) { abort.abort(); await Promise.all(connections); throw Error('Not all live sessions connected.'); }
+    const ready = () => metrics.connected === sessions.length && sessions.every(session => session.initialReconciled);
+    while (!baselineMode && !ready() && performance.now() - readyAt < 60000) await delay(100);
+    if (!baselineMode && !ready()) { abort.abort(); await Promise.all(connections); throw Error('Not all live sessions connected and reconciled.'); }
     const started = new Date().toISOString(); const monotonicStart = performance.now();
     metrics.run = digest(randomUUID()).slice(0, 16);
     let minimumConnected = metrics.connected; let telemetryBusy = false; const telemetry = [];
@@ -305,7 +330,10 @@ async function main() {
             })),
         ]);
         await delay(baselineMode ? 0 : 10000);
-    } finally { clearInterval(sampler); abort.abort(); await Promise.all(connections); }
+    } finally {
+        clearInterval(sampler); abort.abort(); await Promise.all(connections);
+        await Promise.all(sessions.map(session => session.reconciling).filter(Boolean));
+    }
     while (telemetryBusy) await delay(50);
     const finished = new Date().toISOString();
     const elapsedSeconds = (performance.now() - monotonicStart) / 1000;
@@ -330,6 +358,8 @@ async function main() {
         fixtureDigest: digest(JSON.stringify(manifest.sessions)), mode: baselineMode ? 'baseline' : 'live',
         started, finished, durationSeconds: seconds, elapsedSeconds,
         sessions: sessions.length, distinctSessions: new Set(sessions.map(session => session.cookieDigest)).size,
+        initialReconciliations: metrics.initialReconciliations || 0,
+        screenReconciliations: metrics.screenReconciliations || 0,
         tenants: new Set(sessions.map(session => session.spec.tenant)).size, replicas: manifest.replicas,
         ordinaryRequests, mutations, requestP95Ms: percentile(metrics.request), liveP95Ms: percentile(metrics.live),
         missingUpdates: [...metrics.pending.values()].reduce((count, update) => count + update.remaining.size, 0),

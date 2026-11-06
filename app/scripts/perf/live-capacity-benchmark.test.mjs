@@ -30,12 +30,14 @@ test('release evidence cannot pass with shortened duration, lower rates, missing
     const report = { commit: 'a'.repeat(40), fixtureDigest: 'fixture', replicas, durationSeconds: 1800, elapsedSeconds: 1810,
         sessions: 500, tenants: 5, ordinaryRequests: 90000, mutations: 9000, errors: [], missingUpdates: 0,
         requestP95Ms: 1090, liveP95Ms: 1900, distinctSessions: 500, minimumConnected: 500,
+        initialReconciliations: 500, screenReconciliations: 500,
         telemetrySamples: 360, observabilityComplete: true, runtimeVerified: true, environment: { testHost: true } };
     const baseline = { ...report, mode: 'baseline', requestP95Ms: 1000 };
     assert.equal(releaseGate(report, baseline).passed, true);
     for (const patch of [{ durationSeconds: 1799 }, { sessions: 499 }, { tenants: 4 }, { ordinaryRequests: 89999 },
         { mutations: 8999 }, { elapsedSeconds: undefined }, { elapsedSeconds: 1799 }, { elapsedSeconds: 1816 },
         { errors: ['unexpected'] }, { missingUpdates: 1 }, { requestP95Ms: 1101 },
+        { initialReconciliations: 499 }, { screenReconciliations: 0 },
         { liveP95Ms: 2001 }, { distinctSessions: 499 }, { minimumConnected: 499 }, { observabilityComplete: false }, { runtimeVerified: false }]) {
         assert.equal(releaseGate({ ...report, ...patch }, baseline).passed, false, JSON.stringify(patch));
     }
@@ -77,6 +79,45 @@ test('ordinary reads request the full document and mutations retain their stream
     assert.equal(calls[0].headers['X-Requested-With'], undefined);
     await session.request('/notes/add', { method: 'POST', headers: { Accept: 'text/vnd.turbo-stream.html' } });
     assert.equal(calls[1].headers.Accept, 'text/vnd.turbo-stream.html');
+});
+
+test('initial and renewed replay gaps perform the same authorized screen read as real clients', async () => {
+    const metrics = { run: 'measured', errors: [], request: [] };
+    const session = new Session({ origins: ['https://tenant.example.test'], detailPath: '/members/view/7?tab=notes' }, metrics);
+    const calls = [];
+    let finish;
+    session.request = async (path, options) => {
+        calls.push({ path, options });
+        await new Promise(resolve => { finish = resolve; });
+        return new Response('<main id="main-content">Authorized current details</main>');
+    };
+    const first = session.reconcileScreen();
+    assert.equal(session.reconcileScreen(), first, 'concurrent gap reads coalesce');
+    assert.equal(calls.length, 1);
+    finish(); await first;
+    assert.equal(session.initialReconciled, true);
+    assert.equal(metrics.initialReconciliations, 1);
+    assert.equal(metrics.screenReconciliations, 1);
+    const renewed = session.reconcileScreen(); finish(); await renewed;
+    assert.equal(metrics.initialReconciliations, 1);
+    assert.equal(metrics.screenReconciliations, 2);
+    assert.equal(metrics.request.length, 2);
+    assert.deepEqual(metrics.errors, []);
+    assert.equal(calls[0].path, '/members/view/7?tab=notes');
+    assert.equal(calls[0].options.cache, 'no-store');
+    assert.equal(calls[0].options.headers['X-KMP-UI-Refresh'], 'screen');
+    assert.equal(calls[0].options.headers['X-Requested-With'], 'XMLHttpRequest');
+});
+
+test('failed gap reads cannot mark an initial screen reconciled', async () => {
+    const metrics = { errors: [], request: [] };
+    const session = new Session({ origins: ['https://tenant.example.test'], detailPath: '/members/view/7' }, metrics);
+    session.request = async () => new Response('Forbidden', { status: 403 });
+    await session.reconcileScreen();
+    assert.equal(session.initialReconciled, false);
+    assert.equal(metrics.initialReconciliations, undefined);
+    assert.deepEqual(metrics.errors, ['Authorized screen reconciliation unavailable.']);
+    assert.equal(metrics.request.length, 0, 'startup reads are excluded from measured request timing');
 });
 
 test('HTTP login submits the password form rather than offline setup or quick unlock forms', async () => {
