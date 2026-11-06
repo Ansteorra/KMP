@@ -10,6 +10,8 @@ import { Controller } from "@hotwired/stimulus";
  */
 class AwardsBestowalBulkTodo extends Controller {
     static targets = [
+        "outcomeSection",
+        "outcomeSelect",
         "ids",
         "summary",
         "submit",
@@ -50,7 +52,9 @@ class AwardsBestowalBulkTodo extends Controller {
             .map(option => `Bestowal #${row.id}: ${option.confirmation}`));
         if (!messages.length) return;
         event.preventDefault();
-        if (await window.KMP_accessibility.confirm(messages.join("\n\n"))) {
+        const outcome = this.hasOutcomeSelectTarget ? this.outcomeSelectTarget.selectedOptions[0]?.textContent : "";
+        if (await window.KMP_accessibility.confirm([outcome ? `Completion outcome: ${outcome}` : "", ...messages]
+            .filter(Boolean).join("\n\n"))) {
             this.confirmedSubmission = true;
             event.target.requestSubmit(event.submitter);
         }
@@ -188,6 +192,7 @@ class AwardsBestowalBulkTodo extends Controller {
             this.summaryTarget.textContent = this.summaryText(unique.length, this.currentOptions.length);
         }
         this.populateCheckOptions();
+        this.populateOutcomeOptions(null);
         this.resetGathering();
         this.toggleGatheringSection(false);
         this.updateSubmitState();
@@ -219,10 +224,19 @@ class AwardsBestowalBulkTodo extends Controller {
                         label: option.label || option.key,
                         requiresGathering: option.requiresGathering === true,
                         gatheringHelp: option.gatheringHelp || "",
+                        isTerminal: option.isTerminal === true,
+                        terminalOutcomes: null,
                         applicableIds: new Set(),
                     });
                 }
                 const existing = options.get(option.key);
+                existing.isTerminal ||= option.isTerminal === true;
+                if (option.isTerminal) {
+                    const outcomes = option.terminalOutcomes || {};
+                    existing.terminalOutcomes = existing.terminalOutcomes === null ? { ...outcomes }
+                        : Object.fromEntries(Object.entries(existing.terminalOutcomes)
+                            .filter(([value]) => Object.hasOwn(outcomes, value)));
+                }
                 existing.applicableIds.add(row.id);
                 existing.requiresGathering = existing.requiresGathering || option.requiresGathering === true;
                 if (!existing.gatheringHelp && option.gatheringHelp) {
@@ -268,6 +282,7 @@ class AwardsBestowalBulkTodo extends Controller {
     handleCheckChange() {
         this.resetGathering();
         const option = this.selectedOption();
+        this.populateOutcomeOptions(option);
         this.toggleGatheringSection(option?.requiresGathering === true);
         if (option?.requiresGathering === true) {
             this.updateLookupUrl(option.applicableIds);
@@ -292,6 +307,18 @@ class AwardsBestowalBulkTodo extends Controller {
         }
 
         return this.currentOptions.find((option) => option.key === this.checkSelectTarget.value) || null;
+    }
+
+    populateOutcomeOptions(option) {
+        if (!this.hasOutcomeSelectTarget) return;
+        const show = option?.isTerminal === true;
+        if (this.hasOutcomeSectionTarget) this.outcomeSectionTarget.hidden = !show;
+        this.outcomeSelectTarget.disabled = !show;
+        this.outcomeSelectTarget.required = show;
+        this.outcomeSelectTarget.replaceChildren(new Option("Choose a completion outcome", ""));
+        Object.entries(option?.terminalOutcomes || {}).forEach(([value, label]) => {
+            this.outcomeSelectTarget.appendChild(new Option(label, value));
+        });
     }
 
     toggleGatheringSection(show) {
@@ -365,6 +392,7 @@ class AwardsBestowalBulkTodo extends Controller {
             : "";
         this.submitTarget.disabled = !hasIds
             || selectedOption === null
+            || (selectedOption?.isTerminal && this.hasOutcomeSelectTarget && !this.outcomeSelectTarget.value)
             || (selectedOption.requiresGathering === true && gatheringId === "");
     }
 }

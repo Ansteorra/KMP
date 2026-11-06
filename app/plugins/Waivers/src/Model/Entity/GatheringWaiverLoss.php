@@ -5,7 +5,7 @@ namespace Waivers\Model\Entity;
 
 use App\Model\Entity\BaseEntity;
 
-/** An immutable report of required waivers lost before upload. */
+/** Loss notes and recording details remain intact when the loss is reversed. */
 class GatheringWaiverLoss extends BaseEntity
 {
     protected array $_accessible = [

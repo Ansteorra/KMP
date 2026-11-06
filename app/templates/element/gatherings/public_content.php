@@ -21,7 +21,6 @@ use Cake\I18n\DateTime;
 // Check if user is authenticated
 $isAuthenticated = isset($user) && $user !== null;
 $kingdomAttendances = $kingdomAttendances ?? [];
-$progressAttendances = $progressAttendances ?? [];
 
 // Get current time in the gathering's timezone for accurate status
 $gatheringTimezone = \App\KMP\TimezoneHelper::getGatheringTimezone($gathering, $this->getRequest()->getAttribute('identity'));
@@ -128,19 +127,6 @@ if (!isset($scheduleByDate)) {
                 </span>
             <?php endif; ?>
         </div>
-
-        <?php if (!empty($progressAttendances)): ?>
-            <div class="royal-progress-banner" role="note" aria-label="<?= __('Royal Progress') ?>">
-                <span class="royal-progress-icon" aria-hidden="true">&#x1F451;</span>
-                <span class="royal-progress-text">
-                    <strong><?= __('Royal Progress:') ?></strong>
-                    <?= h(implode(', ', array_map(
-                        fn($attendance) => $attendance->progress_title . ' (' . ($attendance->member->sca_name ?? '') . ')',
-                        $progressAttendances,
-                    ))) ?>
-                </span>
-            </div>
-        <?php endif; ?>
 
         <!-- Pre-Registration / Calendar Download Buttons (only for current/future events) -->
         <?php if (!$isPast): ?>
@@ -619,7 +605,6 @@ if ($isAuthenticated && ($canCreateAttendance || $canEditAttendance)):
         'userAttendance' => $userAttendance ?? null,
         'user' => $user,
         'modalId' => 'attendGatheringModal',
-        'progressOfficers' => $progressOfficers ?? [],
     ]);
 endif;
 ?>

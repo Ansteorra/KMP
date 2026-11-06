@@ -5,7 +5,6 @@ declare(strict_types=1);
 $event = $row['event'];
 $gathering = $event['gathering'];
 $isCancelled = $gathering->is_cancelled;
-$progress = $gathering->gathering_attendances ?? [];
 $eventUrl = $gathering->public_page_enabled
     ? $this->Url->build(['controller' => 'Gatherings', 'action' => 'public-landing', $gathering->public_id])
     : $gathering->website_url;
@@ -88,15 +87,6 @@ $panelId = 'event-details-' . $row['key'];
                 ?><p><strong><?= __('Where:') ?></strong> <?= nl2br(h($gathering->location)) ?></p><?php
             endif; ?>
             <p><strong><?= __('Event type:') ?></strong> <?= h($gathering->gathering_type->name) ?></p>
-            <?php if ($progress) : ?>
-                <p><strong><?= __('Royal Progress:') ?></strong>
-                    <?= h(implode(', ', array_map(
-                        static fn($attendance) => $attendance->progress_title
-                        . (!empty($attendance->member->sca_name) ? ' (' . $attendance->member->sca_name . ')' : ''),
-                        $progress,
-                    ))) ?>
-                </p>
-            <?php endif; ?>
             <div class="kc-detail-actions">
                 <?php if (!$isCancelled && $gathering->is_preregistration_open) : ?>
                     <a href="<?= h($gathering->preregister_url) ?>" class="kc-button"><?= __('Pre-Register') ?></a>

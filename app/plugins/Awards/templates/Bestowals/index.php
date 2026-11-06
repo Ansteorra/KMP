@@ -29,7 +29,7 @@ $this->KMP->endBlock();
         </p>
     </div>
     <div class="col text-end">
-        <?php if ($user->checkCan('edit', 'Awards.Bestowals')) : ?>
+        <?php if ($canEditBestowalRecords) : ?>
             <button type="button"
                 class="btn btn-primary"
                 data-bs-toggle="modal"
@@ -52,8 +52,10 @@ $this->KMP->endBlock();
 
 <?php
 echo $this->KMP->startBlock('modals');
-if ($user->checkCan('edit', 'Awards.Bestowals')) {
+if ($canEditBestowalRecords) {
     echo $this->element('ad_hoc_bestowal_modal', ['modalId' => 'adHocBestowalModal']);
+}
+if ($canEditBestowalRecords) {
     echo $this->element('bestowalEditModal', ['modalId' => 'editBestowalModal']);
 }
 echo $this->element('bestowalTodosModal', ['modalId' => 'bestowalTodosModal']);

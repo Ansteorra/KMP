@@ -59,6 +59,17 @@ $currentPage = $this->request->getRequestTarget();
                         ) ?>
                     </div>
                 </div>
+                <div class="mt-3" data-awards-bestowal-bulk-todo-target="outcomeSection" hidden>
+                    <label for="<?= h($modalId) ?>Outcome" class="form-label"><?= __('Completion outcome') ?></label>
+                    <select id="<?= h($modalId) ?>Outcome" class="form-select" name="terminal_status" disabled
+                        data-awards-bestowal-bulk-todo-target="outcomeSelect"
+                        data-action="change->awards-bestowal-bulk-todo#updateSubmitState"
+                        aria-describedby="<?= h($modalId) ?>OutcomeHelp"></select>
+                    <p class="form-text" id="<?= h($modalId) ?>OutcomeHelp">
+                        <?= __('Choose an outcome supported by every matching selected bestowal. '
+                            . 'If none are shared, complete the bestowals individually.') ?>
+                    </p>
+                </div>
                 <div class="mt-3" data-awards-bestowal-bulk-todo-target="gatheringSection" hidden>
                     <div class="form-check form-switch mb-2">
                         <input class="form-check-input" type="checkbox" id="<?= h($modalId) ?>IncludePast"

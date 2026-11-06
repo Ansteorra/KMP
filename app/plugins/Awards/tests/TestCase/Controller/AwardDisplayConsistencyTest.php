@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Awards\Test\TestCase\Controller;
 
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\Recommendation;
 use Awards\Services\BestowalCreationService;
 use Awards\Services\CourtAgendaService;
@@ -47,6 +48,12 @@ class AwardDisplayConsistencyTest extends HttpIntegrationTestCase
             $this->assertResponseContains(h($bestowal->specialty));
             $this->assertResponseNotContains('Originally Recommended Specialty');
             $this->assertResponseNotContains($bestowal->specialty);
+            $this->assertResponseContains('Award differs from recommendation');
+            $this->assertResponseContains('name="alert-circle"');
+            $this->assertResponseContains('title="Award differs from recommendation"');
+            $this->assertResponseContains('class="visually-hidden">Award differs from recommendation</span>');
+            $this->assertResponseNotContains('Notes may reference the original award.');
+            $this->assertResponseNotContains('badge text-bg-warning');
 
             $this->get($url . http_build_query($query + ['export' => 'csv']));
             $this->assertResponseOk();
@@ -54,6 +61,8 @@ class AwardDisplayConsistencyTest extends HttpIntegrationTestCase
             $this->assertResponseContains($actualAward->abbreviation);
             $this->assertResponseContains($bestowal->specialty);
             $this->assertResponseNotContains('Originally Recommended Specialty');
+            $this->assertResponseContains('Award differs from recommendation');
+            $this->assertResponseNotContains('<span');
         }
 
         $service = new CourtAgendaService();
@@ -68,6 +77,86 @@ class AwardDisplayConsistencyTest extends HttpIntegrationTestCase
             $this->assertResponseOk();
             $this->assertResponseContains(h($actualAward->abbreviation));
             $this->assertResponseContains(h($bestowal->specialty));
+        }
+    }
+
+    public function testGatheringDefaultViewShowsActualSpecialtyAndSupportsSpecialtyOnlyColumn(): void
+    {
+        $gathering = $this->getTableLocator()->get('Gatherings')->find()->firstOrFail();
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()->firstOrFail();
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $bestowal = $bestowals->saveOrFail($bestowals->newEntity([
+            'member_sca_name' => 'Gathering Specialty Recipient',
+            'award_id' => $award->id,
+            'gathering_id' => $gathering->id,
+            'source' => Bestowal::SOURCE_AD_HOC,
+            'specialty' => 'Actual Specialty <Oak>',
+        ]));
+        $url = '/awards/bestowals/gathering-bestowals-grid-data/' . $gathering->id . '?';
+        $this->get($url . http_build_query(['search' => 'Gathering Specialty Recipient']));
+        $this->assertResponseOk();
+        $this->assertContains('specialty', $this->viewVariable('visibleColumns'));
+        $this->assertResponseContains('Actual Specialty &lt;Oak&gt;');
+        $this->assertResponseNotContains('Award differs from recommendation');
+        foreach ($this->viewVariable('bestowals') as $row) {
+            if ((int)$row->id === (int)$bestowal->id) {
+                $this->assertStringNotContainsString('Actual Specialty', $row->awards);
+            }
+        }
+
+        foreach ([[], ['export' => 'csv']] as $export) {
+            $this->get($url . http_build_query($export + [
+                'ignore_default' => 1, 'columns' => 'specialty',
+                'search' => 'Gathering Specialty Recipient',
+                'sort' => 'specialty', 'direction' => 'asc',
+            ]));
+            $this->assertResponseOk();
+            $this->assertResponseContains($export ? $bestowal->specialty : h($bestowal->specialty));
+        }
+
+        $this->get($url . http_build_query([
+            'ignore_default' => 1, 'columns' => 'member_sca_name,specialty', 'search' => $bestowal->specialty,
+        ]));
+        $this->assertResponseOk();
+        $this->assertResponseContains('Gathering Specialty Recipient');
+    }
+
+    public function testAwardDifferenceChecksEveryLinkedRecommendationAndClearsWhenAwardsMatch(): void
+    {
+        $primary = $this->createRecommendation('Mixed Award Recipient', null, 'King Approved');
+        $secondary = $this->createRecommendation('Mixed Award Recipient', null, 'King Approved');
+        $otherAward = $this->getTableLocator()->get('Awards.Awards')->find()
+            ->where(['id !=' => $primary->award_id])->firstOrFail();
+        $secondary->award_id = $otherAward->id;
+        $recommendations = $this->getTableLocator()->get('Awards.Recommendations');
+        $recommendations->saveOrFail($secondary);
+        $gathering = $this->getTableLocator()->get('Gatherings')->find()->firstOrFail();
+        $result = (new BestowalCreationService())->createFromRecommendation(
+            (int)$primary->id,
+            self::ADMIN_MEMBER_ID,
+            (int)$gathering->id,
+        );
+        $this->assertTrue($result['success'], $result['error'] ?? 'Unable to create bestowal.');
+        $links = $this->getTableLocator()->get('Awards.BestowalRecommendations');
+        $links->saveOrFail($links->newEntity([
+            'bestowal_id' => $result['data']['bestowalId'], 'recommendation_id' => $secondary->id,
+        ]));
+        $query = http_build_query([
+            'ignore_default' => 1, 'columns' => 'member_sca_name,awards', 'search' => 'Mixed Award Recipient',
+        ]);
+        foreach (['grid-data', 'gathering-bestowals-grid-data/' . $gathering->id] as $action) {
+            $this->get('/awards/bestowals/' . $action . '?' . $query);
+            $this->assertResponseOk();
+            $this->assertResponseContains('Award differs from recommendation');
+        }
+
+        $secondary->award_id = $primary->award_id;
+        $secondary->specialty = 'Different specialty alone';
+        $recommendations->saveOrFail($secondary);
+        foreach (['grid-data', 'gathering-bestowals-grid-data/' . $gathering->id] as $action) {
+            $this->get('/awards/bestowals/' . $action . '?' . $query);
+            $this->assertResponseOk();
+            $this->assertResponseNotContains('Award differs from recommendation');
         }
     }
 

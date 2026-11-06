@@ -186,7 +186,10 @@ echo $this->KMP->startBlock('pageTitle') ?>
                     <td>
                         <strong><?= h($item->label) ?></strong>
                         <?php if ($item->is_terminal) : ?>
-                            <span class="badge bg-primary"><?= __('Terminal — marks Given') ?></span>
+                        <span class="badge bg-primary"><?= h(__(
+                            $item->is_terminal_lead ? 'Lead To-Do — default {0}' : 'Outcome option — {0}',
+                            ucfirst((string)($item->terminal_status ?: 'given')),
+                        )) ?></span>
                         <?php endif; ?><br>
                         <small class="text-muted"><?= h($item->item_key) ?></small>
                     </td>
@@ -323,11 +326,27 @@ echo $this->KMP->startBlock('pageTitle') ?>
             'checked' => $item?->is_terminal ?? false,
             'data-awards-bestowal-todo-item-form-target' => 'terminal',
             'data-action' => 'change->awards-bestowal-todo-item-form#sync',
-            'label' => __('Terminal: completing this task marks the bestowal Given'),
-            'help' => __('One per template. Requires manual confirmation; unfinished '
-                . 'required and optional tasks close as not applicable. Sync '
-                . 'existing bestowals to apply changes.'),
+            'label' => __('Terminal outcome'),
+            'help' => __('Terminal definitions supply completion choices. Only the lead becomes a To-Do. '
+                . 'Its assignee and required fields control completion. Sync existing bestowals to apply changes.'),
         ]);
+        echo $this->Form->control('is_terminal_lead', [
+            'type' => 'checkbox',
+            'checked' => $item?->is_terminal_lead ?? false,
+            'label' => __('Use as the lead terminal To-Do'),
+            'help' => __('Completing this To-Do asks the user to choose any configured terminal outcome. '
+                . 'Selecting a new lead replaces the previous lead. The first terminal definition becomes the lead.'),
+        ]);
+        echo $this->Form->control('terminal_status', [
+            'id' => $fieldPrefix . '-terminal-status',
+            'value' => ucfirst((string)($item?->terminal_status ?: 'given')),
+            'label' => __('Completion status'),
+            'maxlength' => 100,
+            'aria-describedby' => $fieldPrefix . '-terminal-status-help',
+        ]);
+        echo '<p class="form-text" id="' . h($fieldPrefix . '-terminal-status-help') . '">' .
+            __('Used only for terminal tasks. Enter Given, Given Not Received, or another completion status. ' .
+                'This status appears in bestowal lists and reports. Open and Cancelled are reserved.') . '</p>';
         echo $this->Form->control('is_gating', [
         'type' => 'checkbox',
         'switch' => true,

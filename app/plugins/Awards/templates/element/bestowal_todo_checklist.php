@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Shared bestowal to-do checklist.
@@ -13,6 +14,7 @@
  *
  * @var \App\View\AppView $this
  * @var array<\App\Model\Entity\ActionItem> $todoItems
+ * @var array<int, string> $terminalStateByTodoId Current owner outcome for completed terminal tasks.
  * @var array<int, bool> $todoEligibility
  * @var array<int, array<string, mixed>> $todoRequirementStatus
  * @var array<int, array<string, mixed>> $todoBlockedStatus
@@ -22,8 +24,10 @@
  * @var string $currentPageUrl
  */
 use App\Model\Entity\ActionItem;
+use Awards\Model\Entity\BestowalTodoTemplateItem;
 
 $todoItems = $todoItems ?? [];
+$terminalStateByTodoId = $terminalStateByTodoId ?? [];
 $todoEligibility = $todoEligibility ?? [];
 $todoRequirementStatus = $todoRequirementStatus ?? [];
 $todoBlockedStatus = $todoBlockedStatus ?? [];
@@ -63,9 +67,10 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                 $blocked = $blocker !== null && !empty($blocker['blocked']);
                 $canAssignRequirement = $eligible && $item->isOpen() && $missingRequirement && !$blocked;
                 $canCompleteDirectly = $eligible && $item->isOpen() && !$missingRequirement && !$blocked;
+                $hasOutcomeChoices = $item->is_terminal && BestowalTodoTemplateItem::terminalOutcomesFor($item) !== [];
                 $requirementField = (string)($requirement['field'] ?? '');
                 ?>
-                <li class="list-group-item d-flex justify-content-between align-items-start gap-3">
+                <li class="list-group-item d-flex flex-wrap justify-content-between align-items-start gap-3">
                     <div class="me-auto">
                         <div class="fw-semibold">
                             <?php if ($item->isCompleted()) : ?>
@@ -80,11 +85,37 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                             <?php endif; ?>
                             <?= h($item->title) ?>
                             <?php if ($item->is_terminal) :
-                                ?><span class="badge bg-primary"><?= __('Terminal — marks Given') ?></span><?php
+                                ?><span class="badge bg-primary"><?= h(__(
+                                    isset($terminalStateByTodoId[(int)$item->id])
+                                        ? 'Terminal state: {0}' : 'Terminal — marks {0}',
+                                    ucfirst($terminalStateByTodoId[(int)$item->id]
+                                        ?? BestowalTodoTemplateItem::terminalStatusFor($item)),
+                                )) ?></span><?php
                             endif; ?>
                         </div>
                         <?php if (!empty($item->description)) : ?>
                             <div class="small text-muted"><?= h($item->description) ?></div>
+                        <?php endif; ?>
+                        <?php if (!empty($item->history_notes)) : ?>
+                            <div class="mt-3" data-bestowal-todo-notes>
+                                <p class="fw-semibold mb-1"><?= __('To-Do notes') ?></p>
+                                <ul class="list-unstyled mb-0" role="list"
+                                    aria-label="<?= h(__('Notes for {0}', $item->title)) ?>">
+                                    <?php foreach ($item->history_notes as $entry) : ?>
+                                        <li class="border-start ps-3 mb-2">
+                                            <div class="small text-muted">
+                                                <?= h($entry->transition_label) ?> · <?= h($entry->author_name) ?>
+                                                <?php if ($entry->created !== null) : ?>
+                                                    · <time datetime="<?= h($entry->created->format(DATE_ATOM)) ?>">
+                                                        <?= $this->Timezone->format($entry->created) ?>
+                                                    </time>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="text-break"><?= nl2br(h($entry->note)) ?></div>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
                         <?php endif; ?>
                         <div class="mt-1">
                             <?php if ($item->isCompleted()) : ?>
@@ -151,6 +182,7 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                     ],
                                 ]) ?>
                                 <?= $this->Form->hidden('id', ['value' => $item->id]) ?>
+                                <?= $this->element('bestowal_terminal_outcome_field', ['item' => $item]) ?>
                                 <?= $this->Form->hidden('current_page', ['value' => $currentPageUrl]) ?>
                                 <div class="form-check form-switch mb-2">
                                     <input class="form-check-input" type="checkbox"
@@ -207,6 +239,7 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                     ],
                                 ]) ?>
                                 <?= $this->Form->hidden('id', ['value' => $item->id]) ?>
+                                <?= $this->element('bestowal_terminal_outcome_field', ['item' => $item]) ?>
                                 <?= $this->Form->hidden('current_page', ['value' => $currentPageUrl]) ?>
                                 <?php
                                 $courtSlotId = 'todo-' . (int)$item->id . '-court-slot';
@@ -247,7 +280,18 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                         <?php endif; ?>
                     </div>
                     <div class="flex-shrink-0">
-                        <?php if ($canCompleteDirectly) : ?>
+                        <?php if ($canCompleteDirectly && $hasOutcomeChoices) : ?>
+                            <?= $this->Form->create(null, [
+                                'url' => ['plugin' => null, 'controller' => 'ActionItems', 'action' => 'complete', $item->id],
+                            ]) ?>
+                            <?= $this->Form->hidden('current_page', ['value' => $currentPageUrl]) ?>
+                            <?= $this->element('bestowal_terminal_outcome_field', ['item' => $item]) ?>
+                            <?= $this->Form->button(__('Complete {0}', $item->title), [
+                                'class' => 'btn btn-sm btn-success',
+                                'data-confirm-message' => $item->complete_confirmation,
+                            ]) ?>
+                            <?= $this->Form->end() ?>
+                        <?php elseif ($canCompleteDirectly) : ?>
                             <?= $this->Form->postLink(
                                 __('Complete'),
                                 ['plugin' => null, 'controller' => 'ActionItems', 'action' => 'complete', $item->id],

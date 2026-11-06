@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace Awards\Controller;
 
+use Awards\Model\Entity\BestowalDelegation;
 use Awards\Model\Entity\CourtAgenda;
 use Awards\Services\BestowalFieldAccessService;
+use Awards\Services\CourtAgendaPrintService;
 use Awards\Services\CourtAgendaService;
 use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Response;
@@ -58,6 +60,9 @@ class CourtAgendasController extends AppController
             'unscheduledAwardActivities' => $viewModel['unscheduledAwardActivities'],
             'segmentOptions' => $viewModel['segmentOptions'],
             'canManage' => $canManage,
+            'canViewDelegations' => $user->checkCan('gathering', new BestowalDelegation([
+                'gathering_id' => $gatheringIdInt,
+            ])),
             'canViewGathering' => $user->checkCan('view', $gathering),
         ]);
 
@@ -81,8 +86,11 @@ class CourtAgendasController extends AppController
             $agendaService->buildAgendaViewModel($agendaIdInt, (int)$this->request->getAttribute('identity')->id),
             $this->request->getAttribute('identity'),
         );
+        $viewModel = (new CourtAgendaPrintService())->prepare($viewModel);
         $this->set([
             'agenda' => $viewModel['agenda'],
+            'eventDates' => $viewModel['eventDates'],
+            'isHeraldsVersion' => $this->request->getQuery('version') === 'heralds',
             'segments' => $viewModel['segments'],
             'totalMinutes' => $viewModel['totalMinutes'],
             'totalWarning' => $viewModel['totalWarning'],
@@ -133,6 +141,8 @@ class CourtAgendasController extends AppController
         $agenda = $this->loadAgenda((string)$this->request->getData('court_agenda_id'));
         $this->Authorization->authorize($agenda, 'addBestowal');
         $bestowalId = $this->requirePositiveInt($this->request->getData('bestowal_id'), __('Bestowal ID is required.'));
+        $bestowal = TableRegistry::getTableLocator()->get('Awards.Bestowals')->get($bestowalId);
+        $this->Authorization->authorize($bestowal, 'placeOnAgenda');
         $segmentId = $this->requirePositiveInt(
             $this->request->getData('court_agenda_segment_id'),
             __('Agenda segment ID is required.'),
@@ -161,6 +171,10 @@ class CourtAgendasController extends AppController
         $this->Authorization->authorize($agenda, 'moveToRoaming');
         $itemId = $this->optionalPositiveInt($this->request->getData('item_id'));
         $bestowalId = $this->optionalPositiveInt($this->request->getData('bestowal_id'));
+        if ($itemId === null && $bestowalId !== null) {
+            $bestowal = TableRegistry::getTableLocator()->get('Awards.Bestowals')->get($bestowalId);
+            $this->Authorization->authorize($bestowal, 'placeOnAgenda');
+        }
         $agendaService->moveToRoamingCourt(
             (int)$agenda->id,
             $itemId,

@@ -22,10 +22,10 @@ declare(strict_types=1);
             $badgeHtml = '';
             if (isset($parent['badgeResult']) && $parent['badgeResult'] > 0) {
                 $badgeHtml = ' ' . $this->Html->badge(strval($parent['badgeResult']), [
-                    'class' => ($parent['badgeClass'] ?? 'bg-danger') . '',
+                    'class' => ($parent['badgeClass'] ?? 'bg-danger') . ' kmp-nav-count',
                 ]);
             }
-            $linkBody = $this->Icon->render($parent['icon'], ['class' => 'me-1'])
+            $linkBody = $this->Icon->render($parent['icon'], ['class' => 'me-1 kmp-nav-icon'])
                 . $this->Html->tag('span', h($parent['label']), ['class' => 'kmp-nav-label', 'escape' => false])
                 . $badgeHtml;
             ?>

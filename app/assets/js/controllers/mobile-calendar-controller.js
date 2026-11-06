@@ -21,7 +21,7 @@ class MobileCalendarController extends MobileControllerBase {
         "loading", "error", "errorMessage", 
         "eventList", "emptyState", "emptyMessage", "resultsCount",
         "searchInput", "filterPanel", "filterToggle",
-        "typeFilter", "activityFilter", "branchFilter", "royalProgressFilter", "rsvpFilter",
+        "typeFilter", "activityFilter", "branchFilter", "rsvpFilter",
         "monthSelect", "yearSelect",
         "rsvpSheet", "rsvpContent", "offlineRsvpForm",
         "pendingBanner", "pendingCount", "syncBtn"
@@ -46,7 +46,6 @@ class MobileCalendarController extends MobileControllerBase {
             type: '',
             activity: '',
             branch: '',
-            royalProgress: '',
             rsvpOnly: false
         };
     }
@@ -411,12 +410,8 @@ class MobileCalendarController extends MobileControllerBase {
         const types = new Map();
         const activities = new Map();
         const branches = new Map();
-        const royalProgress = new Map();
         
         this.calendarData.events.forEach(event => {
-            (event.royal_progress || []).forEach(progress => {
-                if (progress.label) royalProgress.set(progress.value, progress.label);
-            });
             if (event.type?.name) {
                 types.set(event.type.name, event.type);
             }
@@ -433,21 +428,6 @@ class MobileCalendarController extends MobileControllerBase {
             }
         });
         
-        if (this.hasRoyalProgressFilterTarget) {
-            // Keep the followed royal selected in months without a matching RSVP.
-            const selected = [...this.royalProgressFilterTarget.options]
-                .find(option => option.value === this.filters.royalProgress);
-            if (selected && selected.value && selected.value !== 'any') {
-                royalProgress.set(selected.value, selected.text);
-            }
-            const options = [new Option('All Gatherings', ''), new Option('Any Royal Progress', 'any')];
-            [...royalProgress].sort((a, b) => a[1].localeCompare(b[1])).forEach(([value, label]) => {
-                options.push(new Option(label, value));
-            });
-            this.royalProgressFilterTarget.replaceChildren(...options);
-            this.royalProgressFilterTarget.value = this.filters.royalProgress || '';
-        }
-
         // Populate type filter
         if (this.hasTypeFilterTarget) {
             let html = '<option value="">All Types</option>';
@@ -496,7 +476,7 @@ class MobileCalendarController extends MobileControllerBase {
         // Update filter toggle button appearance
         if (this.hasFilterToggleTarget) {
             const hasActiveFilters = this.filters.type || this.filters.activity || this.filters.branch
-                || this.filters.royalProgress || this.filters.rsvpOnly;
+                || this.filters.rsvpOnly;
             this.filterToggleTarget.classList.toggle('filter-active', hasActiveFilters);
         }
     }
@@ -511,9 +491,6 @@ class MobileCalendarController extends MobileControllerBase {
         }
         
         // Update filter values from inputs
-        if (this.hasRoyalProgressFilterTarget) {
-            this.filters.royalProgress = this.royalProgressFilterTarget.value;
-        }
         if (this.hasSearchInputTarget) {
             this.filters.search = this.searchInputTarget.value.toLowerCase().trim();
         }
@@ -532,13 +509,6 @@ class MobileCalendarController extends MobileControllerBase {
         
         // Filter events
         this.filteredEvents = this.calendarData.events.filter(event => {
-            if (this.filters.royalProgress) {
-                const progress = event.royal_progress || [];
-                if (this.filters.royalProgress === 'any' ? progress.length === 0
-                    : !progress.some(royal => royal.value === this.filters.royalProgress)) {
-                    return false;
-                }
-            }
             // Search filter
             if (this.filters.search) {
                 const searchText = `${event.name} ${event.location || ''} ${event.branch || ''}`.toLowerCase();
@@ -578,7 +548,7 @@ class MobileCalendarController extends MobileControllerBase {
         // Update filter indicator
         if (this.hasFilterToggleTarget) {
             const hasActiveFilters = this.filters.type || this.filters.activity || this.filters.branch
-                || this.filters.royalProgress || this.filters.rsvpOnly;
+                || this.filters.rsvpOnly;
             this.filterToggleTarget.classList.toggle('filter-active', hasActiveFilters);
         }
         
@@ -609,8 +579,7 @@ class MobileCalendarController extends MobileControllerBase {
         if (this.hasBranchFilterTarget) this.branchFilterTarget.value = '';
         if (this.hasRsvpFilterTarget) this.rsvpFilterTarget.checked = false;
         
-        if (this.hasRoyalProgressFilterTarget) this.royalProgressFilterTarget.value = '';
-        this.filters = { search: '', type: '', activity: '', branch: '', royalProgress: '', rsvpOnly: false };
+        this.filters = { search: '', type: '', activity: '', branch: '', rsvpOnly: false };
         this.applyFilters();
     }
 
@@ -772,7 +741,6 @@ class MobileCalendarController extends MobileControllerBase {
                     <div class="mobile-event-header">
                         <div class="mobile-event-info">
                             ${event.type ? `<span class="mobile-event-type-badge mb-1" style="${typeStyle}">${this.escapeHtml(event.type.name)}</span>` : ''}
-                            ${this.renderRoyalProgress(event.royal_progress)}
                             <a href="/gatherings/view/${event.public_id}" 
                                class="mobile-event-name ${event.is_cancelled ? 'cancelled' : ''} text-decoration-none">
                                 ${this.escapeHtml(event.name)}
@@ -817,23 +785,6 @@ class MobileCalendarController extends MobileControllerBase {
                 </div>
             `;
         }).join('');
-    }
-
-    /** Render a royal progress badge with the public office/branch snapshot titles. */
-    renderRoyalProgress(progress) {
-        if (!progress?.length) return '';
-
-        const titles = [...new Set(progress.map(royal => royal.label).filter(Boolean))];
-        const label = titles.length ? `Royal Progress: ${titles.join(', ')}` : 'Royal Progress';
-        const badge = document.createElement('span');
-        badge.className = 'badge bg-warning text-dark ms-1';
-        badge.title = label;
-        badge.setAttribute('data-royal-progress-badge', '');
-        badge.setAttribute('role', 'img');
-        badge.setAttribute('aria-label', label);
-        badge.innerHTML = '<kmp-icon name="crown" aria-hidden="true"></kmp-icon>';
-
-        return badge.outerHTML;
     }
 
     /**

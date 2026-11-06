@@ -187,6 +187,33 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
         $this->assertLessThan($laterPosition, $earlierPosition);
     }
 
+    public function testSubmittedGridOffersOnlyTextSearch(): void
+    {
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()->firstOrFail();
+        $reason = 'submitted-search-' . uniqid();
+        $matching = $this->createRecommendation((int)$award->id, $reason);
+        $other = $this->createRecommendation((int)$award->id, 'Unrelated submitted recommendation');
+
+        $this->get('/awards/recommendations/member-submitted-recs-grid-data/' . self::ADMIN_MEMBER_ID
+            . '?' . http_build_query(['search' => $reason]));
+
+        $this->assertResponseOk();
+        $this->assertResponseContains('data-id="' . $matching->id . '"');
+        $this->assertResponseNotContains('data-id="' . $other->id . '"');
+        $this->assertResponseContains('id="Awards.Recommendations.memberSubmitted-grid-search"');
+        $this->assertResponseContains('aria-labelledby="Awards.Recommendations.memberSubmitted-search-heading"');
+        $this->assertResponseNotContains('data-filter-nav-container');
+        $this->assertResponseNotContains('data-filter-panels-container');
+
+        $gridState = $this->viewVariable('gridState');
+        $this->assertTrue($gridState['config']['canFilter']);
+        $this->assertTrue($gridState['config']['hasSearch']);
+        $this->assertFalse($gridState['config']['hasDropdownFilters']);
+        $this->assertFalse($gridState['config']['hasDateRangeFilters']);
+        $this->assertSame([], $gridState['filters']['available']);
+        $this->assertSame([], $gridState['dateRangeFilterColumns']);
+    }
+
     public function testSubmittedGridAwardSortLoadsGatherings(): void
     {
         $award = $this->getTableLocator()->get('Awards.Awards')->find()->firstOrFail();

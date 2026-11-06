@@ -83,11 +83,6 @@ $pluginOptions = [
                 <dd>
                     <?php if ($userAttendance) : ?>
                         <strong><?= __('You’re planning to attend') ?></strong>
-                        <?php if ($userAttendance->is_royal_progress) : ?>
-                            <span class="d-block">
-                                <?= $this->Icon->render('crown') ?> <?= h($userAttendance->progress_title) ?>
-                            </span>
-                        <?php endif; ?>
                     <?php else : ?>
                         <?= $readerStatus === 'past' ? __('No attendance recorded') : __('You haven’t RSVP’d yet') ?>
                     <?php endif; ?>
@@ -215,7 +210,7 @@ $pluginOptions = [
 </article>
 <?php
 if ($readerCanRsvp) {
-    $modalData = compact('gathering', 'userAttendance', 'user', 'progressOfficers');
+    $modalData = compact('gathering', 'userAttendance', 'user');
     $this->append('modals', $this->element('gatherings/attendGatheringModal', $modalData));
 }
 if ($gathering->public_page_enabled) {

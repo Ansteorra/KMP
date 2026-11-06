@@ -29,13 +29,26 @@ gathering-editor/steward access. Each action changes only that one rule.
 Any one current grant covering the gathering's branch is sufficient. Existing role dates, membership,
 warrant requirements, and Global / Branch Only / Branch and Children scopes still apply.
 
+An event award delegation additionally permits eligible award-giving activities for the delegated
+awarding group at that one gathering. Its assignment rules are checked against the grantor's native
+permissions in the awarding group's branch, allowing a Kingdom Court at a local event. This access
+ends on revocation or loss of the grantor's authority and cannot be passed onward. It does not
+include unrelated activities, Other schedule entries, catalogue editing, or general gathering editing.
+Native award staff can prepare the same eligible activities when their group's bestowals,
+eligible scheduled business, or their own active delegation establishes context for that event.
+See [Event award delegation](awards-bestowal-todo-security.md#event-award-delegation).
+
 - With no configured permissions, gathering editors and stewards manage the activity.
 - With configured permissions, a matching grant is required, including for gathering editors.
 - A matching grant provides access to the gathering details needed to attach, describe,
   remove, and schedule that activity. It does not grant general gathering editing,
   unrelated activity access, generic **Other** scheduling, or permission to edit the catalogue.
+- Activity-only access shows Activities and Schedule. Private Staff and Record details
+  require independent native gathering view/edit or steward access; public contacts remain in Overview.
 - Schedule edits check both the persisted activity and the requested replacement activity.
   Typed schedule entries must reference an activity attached to that gathering.
+- Actor-driven activity and schedule services repeat authorization in the write transaction,
+  holding any active delegation grant until commit so revocation cannot race a stale form.
 - Template assignments, gathering type/branch changes, and cloning check the same rules.
   Remove scheduled entries before removing the activity. Existing non-removable template
   and waiver constraints continue to apply.
@@ -57,6 +70,56 @@ without a scheduled occurrence does not create a section. Both the builder and p
 view discover newly scheduled sessions; printed session details and builder labels use
 the current schedule and the gathering's timezone. Existing section names, notes, and
 script items are retained when the schedule changes.
+
+The builder keeps one court in focus with a compact court selector and numbered script
+rows. Choose a court, then **Show court** to load it. Use the adjacent arrow buttons
+or drag a row to reorder; saved moves retain keyboard focus and update the row numbers.
+**Details** reveals timing hints, metadata, court moves, and removal actions. **Edit**
+opens the notes and print-options dialog. Adding eligible bestowals and interjections
+uses the tools beside the script on desktop and the **Add to court** drawer on smaller
+screens. Court scheduling help is available as a disclosure above the script. These
+controls preserve the existing agenda and bestowal permissions; ordering never completes
+a bestowal.
+
+Both printer-ready agenda versions (including browser PDF exports) order court
+sections by their scheduled start time, earliest
+first across the entire event. Simultaneous sessions retain their existing order;
+unscheduled and roaming sections follow scheduled sessions in their existing order.
+This changes only export presentation, preserving saved section and script-item order.
+The printouts show the event date range, each scheduled court's local date as
+`MM/DD/YYYY`, and its current scheduled start
+and end times together in each court heading, with timezone abbreviations and no
+repeated schedule subtitle. Sessions spanning local dates show both dates;
+sessions without an end time show only the start. The Award /
+Action column shows the included bestowal specialty as **Class**. Generated recipient,
+award, specialty, and call summaries are removed from printed herald notes; authored
+instructions are retained without changing stored notes. The bestowal's current
+**Call into court** value appears once per row. Empty and `Not Set` notes are omitted,
+and reasons already present in Noble notes appear only once. Print formatting does
+not alter stored notes or field permissions. Individual minutes, timing hints,
+lifecycle state, and blank Hand notes areas are omitted. Each row has an **NP**
+(Not Present) checkbox for use during court; checks are local to the printed page
+or browser view and do not update bestowal attendance or status.
+
+The builder offers **Printer Ready — Full** first and **Printer Ready — Heralds**
+second. Full retains Court Notes and runtime estimates. Heralds includes Order,
+Recipient / Block, Award / Action (including Class), Notes, and NP columns. Its Notes
+column contains one **Call into court** field and the herald instructions labeled
+**Notes**. Projected runtime, runtime warnings, and minutes in court headings are
+omitted from Heralds. Both retain event dates and scheduled court time slots and
+use the same agenda and bestowal permissions. The existing print URL defaults to
+Full; `?version=heralds` selects the slimmer version. Herald notes use the same cleaned,
+escaped text and field permissions in both versions. Crown notes, recommendation
+reasons, counts, and original-award summaries remain exclusive to Full Court Notes.
+
+After existing notes and reasons, Full Court Notes show the linked recommendation
+count, including the group head and all children, when the viewer can access
+recommendation details. If any recommended
+award differs from the bestowal's current award, Court Notes also list each original
+award once under **Original recommendations were for** (singular for one submission).
+The Award / Action column continues to show the current bestowal award. These notes
+are omitted for ad-hoc bestowals with no recommendations, security-blocked items,
+and viewers without access to Crown fields. The Heralds layout omits Court Notes.
 
 The agenda identifies award-giving activities that are attached under **Activities** but
 have no scheduled occurrence. Staff who can view the gathering get a direct **Schedule**
@@ -93,8 +156,8 @@ all other activities to **General** before removing the flag. The order-circles 
 the selected type, independently of the activity name. Public calendar rows use the configured
 activity icon once, including for circles and royal progress. **Business** activities remain
 available internally and are omitted from public calendar activity lists and filter choices.
-Choosing **Royal Progress** classifies an activity; royal attendance and progress filters
-continue to use attendance records and officer snapshots.
+Manage Royal Progress by attaching activities of type **Royal Progress** to gatherings.
+RSVPs and office assignments do not determine Royal Progress.
 
 ## Activity display order
 
@@ -212,4 +275,7 @@ tests. Browser checks should cover keyboard icon selection, contrast validation,
 upload/replace/remove, assignment rule changes, and anonymous direct asset access with
 cache/CORS headers. Run `node tests/ui/support/gathering-activity-modal-browser-check.cjs`
 against the local Docker stack for modal add/edit, validation, grid state, and mobile/keyboard checks.
+For court builder layout changes, run
+`node tests/ui/support/court-agenda-browser-check.cjs` against the local Docker stack
+to check saved ordering, notes, court selection, mobile additions, and keyboard focus.
 Build Vite assets after changing icon catalogue imports or styles.

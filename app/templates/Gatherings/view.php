@@ -91,7 +91,8 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 
-<?php $this->KMP->startBlock('recordDetails') ?>
+<?php if ($canViewManagement) : ?>
+    <?php $this->KMP->startBlock('recordDetails') ?>
 <tr scope="row">
     <th class="col"><?= __('Name') ?></th>
     <td class="col-10"><?= h($gathering->name) ?></td>
@@ -247,15 +248,18 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
         <?= $this->Timezone->format($gathering->modified, 'F j, Y g:i A', true) ?>
     </td>
 </tr>
-<?php $this->KMP->endBlock() ?>
+    <?php $this->KMP->endBlock() ?>
+<?php endif; ?>
 
 <?php $this->KMP->startBlock('tabButtons') ?>
+<?php if ($canViewManagement) : ?>
 <button class="nav-link" id="nav-staff-tab" data-bs-toggle="tab" data-bs-target="#nav-staff" type="button" role="tab"
     aria-controls="nav-staff" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="3"
     style="order: 3;">
     <kmp-icon name="id-badge"  aria-hidden="true"></kmp-icon> <?= __('Staff') ?>
     <span class="badge bg-secondary"><?= count($gathering->gathering_staff) ?></span>
 </button>
+<?php endif; ?>
 <button class="nav-link" id="nav-schedule-tab" data-bs-toggle="tab" data-bs-target="#nav-schedule" type="button"
     role="tab" aria-controls="nav-schedule" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="4"
     style="order: 4;">
@@ -268,7 +272,7 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
     <?= __('Activities') ?>
     <span class="badge bg-secondary"><?= count($gathering->gathering_activities) ?></span>
 </button>
-<?php if (!empty($gathering->location)) : ?>
+<?php if ($canViewManagement && !empty($gathering->location)) : ?>
 <button class="nav-link" id="nav-location-tab" data-bs-toggle="tab" data-bs-target="#nav-location" type="button"
     role="tab" aria-controls="nav-location" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="6"
     style="order: 6;">
@@ -288,10 +292,12 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
 <?php $this->KMP->startBlock('tabContent') ?>
 <!-- Tab content panels with order matching tab buttons -->
 <!-- Staff Tab -->
-<?= $this->element('gatherings/staffTab', [
-    'gathering' => $gathering,
-    'user' => $user,
-]) ?>
+<?php if ($canViewManagement) : ?>
+    <?= $this->element('gatherings/staffTab', [
+        'gathering' => $gathering,
+        'user' => $user,
+    ]) ?>
+<?php endif; ?>
 
 <!-- Schedule Tab -->
 <?= $this->element('gatherings/scheduleTab', [
@@ -406,7 +412,7 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
     <?php endif; ?>
 </div>
 
-<?php if (!empty($gathering->location)) : ?>
+<?php if ($canViewManagement && !empty($gathering->location)) : ?>
 <?= $this->element('gatherings/mapTab', [
         'gathering' => $gathering,
         'user' => $user,

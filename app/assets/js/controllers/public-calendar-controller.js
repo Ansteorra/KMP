@@ -13,6 +13,7 @@ class PublicCalendarController extends Controller {
 
     revealFocus(event) {
         if (!this.hasFilterBarTarget || this.filterBarTarget.contains(event.target)) return;
+        if (!event.target.matches(':focus-visible')) return;
         const header = this.filterBarTarget.getBoundingClientRect();
         const focused = event.target.getBoundingClientRect();
         if (header.top <= 0 && focused.top < header.bottom) {

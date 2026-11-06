@@ -204,7 +204,6 @@ echo $this->element('gatherings/attendGatheringModal', [
     'user' => $this->request->getAttribute('identity'),
     'modalId' => 'attendanceModal',
     'fromCalendar' => true,
-    'progressOfficers' => $progressOfficers ?? [],
 ]);
 ?>
 <?php

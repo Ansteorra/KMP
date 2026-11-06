@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Quick To-Dos modal frame for a single bestowal.
@@ -40,8 +41,8 @@ $viewUrl = $this->Url->build([
             <h2 class="h6 mb-0"><?= h($memberName) ?></h2>
             <?php if ($lifecycleStatus === Bestowal::LIFECYCLE_CANCELLED) : ?>
                 <span class="badge bg-secondary"><?= __('Cancelled') ?></span>
-            <?php elseif ($lifecycleStatus === Bestowal::LIFECYCLE_GIVEN) : ?>
-                <span class="badge bg-success"><?= __('Given') ?></span>
+            <?php elseif ($bestowal->isCompleted()) : ?>
+                <span class="badge bg-success"><?= h(ucfirst($lifecycleStatus)) ?></span>
             <?php endif; ?>
         </div>
         <a href="<?= h($viewUrl) ?>" class="btn btn-sm btn-outline-secondary" data-turbo="false">
@@ -50,6 +51,7 @@ $viewUrl = $this->Url->build([
     </div>
     <?= $this->element('bestowal_todo_checklist', [
         'todoItems' => $todoItems,
+        'terminalStateByTodoId' => $terminalStateByTodoId ?? [],
         'todoEligibility' => $todoEligibility,
         'todoRequirementStatus' => $todoRequirementStatus ?? [],
         'todoBlockedStatus' => $todoBlockedStatus ?? [],

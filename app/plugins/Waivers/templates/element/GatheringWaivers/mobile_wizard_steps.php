@@ -184,13 +184,6 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
                         <kmp-icon name="file-x" class="me-1" aria-hidden="true"></kmp-icon><?= __('Attest Not Needed') ?>
                     </label>
                 </span>
-                <?php if (!empty($canRecordLost)) : ?>
-                <input type="radio" class="btn-check" name="upload-mode" id="mode-lost-mobile" autocomplete="off"
-                    data-action="change->waiver-upload-wizard#setModeLost">
-                <label class="btn btn-outline-danger" for="mode-lost-mobile">
-                    <kmp-icon name="file-x"  aria-hidden="true"></kmp-icon> <?= __('Waivers Lost') ?>
-                </label>
-                <?php endif; ?>
             </div>
 
             <!-- Upload Section -->
@@ -273,9 +266,6 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
                 </div>
             </div>
 
-            <?= $this->element('Waivers.GatheringWaivers/loss_wizard', [
-                'mobile' => true, 'isReview' => false,
-            ]) ?>
         </div>
     </div>
 </div>
@@ -313,9 +303,6 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
                 </p>
             </div>
 
-            <?= $this->element('Waivers.GatheringWaivers/loss_wizard', [
-                'mobile' => true, 'isReview' => true,
-            ]) ?>
             <!-- Upload Section - Pages and Notes -->
             <div data-waiver-upload-wizard-target="reviewUploadSection" aria-hidden="false">
                 <!-- Pages -->

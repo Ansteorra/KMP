@@ -7,7 +7,11 @@ use AddRecordLostWaiversPermission;
 use App\Model\Entity\Gathering;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Cake\Cache\Cache;
+use Cake\Core\Configure;
+use DOMDocument;
+use DOMXPath;
 use Migrations\Db\Adapter\PostgresAdapter;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Waivers\Services\WaiverDashboardService;
 use Waivers\Services\WaiverFileService;
 use Waivers\Services\WaiverStateService;
@@ -65,7 +69,7 @@ class LostWaiversTest extends HttpIntegrationTestCase
         ]);
     }
 
-    private function deputy(): void
+    private function deputy(bool $summaryAccess = false): void
     {
         $roles = $this->getTableLocator()->get('Roles');
         $role = $roles->saveOrFail($roles->newEntity(['name' => 'Test Loss Reporting']));
@@ -75,6 +79,14 @@ class LostWaiversTest extends HttpIntegrationTestCase
             'INSERT INTO roles_permissions (role_id, permission_id, created, created_by) VALUES (?, ?, NOW(), ?)',
             [$role->id, $permission->id, self::ADMIN_MEMBER_ID],
         );
+        if ($summaryAccess) {
+            $management = $this->getTableLocator()->get('Permissions')->find()
+                ->where(['name' => 'Waiver Management'])->firstOrFail();
+            $this->connection->execute(
+                'INSERT INTO roles_permissions (role_id, permission_id, created, created_by) VALUES (?, ?, NOW(), ?)',
+                [$role->id, $management->id, self::ADMIN_MEMBER_ID],
+            );
+        }
         $staff = $this->getTableLocator()->get('GatheringStaff');
         $staff->saveOrFail($staff->newEntity([
             'gathering_id' => $this->gathering->id, 'member_id' => self::TEST_MEMBER_AGATHA_ID,
@@ -152,6 +164,8 @@ class LostWaiversTest extends HttpIntegrationTestCase
     {
         $this->postLoss(['notes' => '   ']);
         $this->assertResponseCode(422);
+        $this->postLoss(['notes' => str_repeat('x', 10001)]);
+        $this->assertResponseCode(422);
         $this->postLoss();
         $this->assertResponseOk();
         $this->postLoss(['notes' => 'Replacement notes']);
@@ -161,12 +175,16 @@ class LostWaiversTest extends HttpIntegrationTestCase
         $this->assertStringContainsString('October 25', $losses->firstOrFail()->notes);
     }
 
-    public function testClosedCollectionRejectsLoss(): void
+    public function testClosedCollectionAllowsLossAndPreservesClosure(): void
     {
         (new WaiverStateService())->close((int)$this->gathering->id, self::ADMIN_MEMBER_ID);
+        $closures = $this->getTableLocator()->get('Waivers.GatheringWaiverClosures');
+        $original = $closures->getClosureForGathering((int)$this->gathering->id)->toArray();
+        $this->get('/waivers/gathering-waivers?gathering_id=' . $this->gathering->id);
+        $this->assertResponseContains('Report/Mark Lost');
         $this->postLoss();
-        $this->assertResponseCode(422);
-        $this->assertStringContainsString('closed', (string)$this->_response->getBody());
+        $this->assertResponseOk();
+        $this->assertEquals($original, $closures->getClosureForGathering((int)$this->gathering->id)->toArray());
     }
 
     public function testUnrelatedWaiverTypeIsRejected(): void
@@ -207,45 +225,129 @@ class LostWaiversTest extends HttpIntegrationTestCase
         (new WaiverStateService())->close((int)$this->gathering->id, self::ADMIN_MEMBER_ID);
         $this->get('/waivers/gathering-waivers?gathering_id=' . $this->gathering->id);
         $this->assertResponseOk();
-        $this->assertResponseContains('Waivers Lost');
+        $this->assertResponseNotContains('Loss Report History');
+        $this->assertResponseNotContains('id="waiver-loss-reports-heading"');
         $this->assertResponseContains('&lt;script&gt;');
         $this->assertResponseNotContains('<script>alert("lost")');
         $loss = $this->getTableLocator()->get('Waivers.GatheringWaiverLosses')->find()->firstOrFail();
         $this->get('/waivers/gathering-waivers/view-loss/' . $loss->id);
+        $this->assertRedirectContains('/waivers/gathering-waivers/view?');
+        $this->get('/waivers/gathering-waivers/view?gathering_id=' . $this->gathering->id
+            . '&waiver_type_id=' . $this->waiverTypeId);
         $this->assertResponseOk();
         $this->assertResponseContains('October 25');
         $this->assertResponseContains('Recorded');
     }
 
-    public function testRecordingLossPreservesExistingUploads(): void
+    public static function reportedStates(): array
+    {
+        return ['uploaded' => [false, false], 'declined' => [true, false], 'exempt' => [false, true]];
+    }
+
+    #[DataProvider('reportedStates')]
+    public function testRecordingLossPreservesExistingFilesAndRecords(bool $declined, bool $exempt): void
     {
         $waivers = $this->getTableLocator()->get('Waivers.GatheringWaivers');
         $upload = $waivers->saveOrFail($waivers->newEntity([
             'gathering_id' => $this->gathering->id, 'waiver_type_id' => $this->waiverTypeId,
-            'is_exemption' => false, 'status' => 'active', 'retention_date' => '2033-01-01',
+            'is_exemption' => $exempt, 'status' => 'active',
+            'exemption_reason' => $exempt ? 'No participants' : null,
+            'declined_at' => $declined ? '2026-01-02 10:00:00' : null,
+            'declined_by' => $declined ? self::ADMIN_MEMBER_ID : null,
+            'decline_reason' => $declined ? 'Illegible signature' : null,
+            'retention_date' => '2033-01-01',
         ]));
-        $original = $waivers->get($upload->id)->toArray();
-        $this->postLoss();
-        $this->assertResponseOk();
-        $this->assertEquals($original, $waivers->get($upload->id)->toArray());
+        $documents = $this->getTableLocator()->get('Documents');
+        $relativePath = 'loss-regression-' . uniqid() . '.pdf';
+        $content = '%PDF-1.4 loss regression paper trail';
+        $document = $documents->saveOrFail($documents->newEntity([
+            'entity_type' => 'Waivers.GatheringWaivers', 'entity_id' => $upload->id,
+            'original_filename' => 'waiver.pdf', 'stored_filename' => $relativePath,
+            'file_path' => $relativePath, 'mime_type' => 'application/pdf',
+            'file_size' => strlen($content), 'checksum' => hash('sha256', $content),
+            'storage_adapter' => 'local', 'uploaded_by' => self::ADMIN_MEMBER_ID,
+        ]));
+        $upload->document_id = $document->id;
+        $waivers->saveOrFail($upload);
+        $filePath = rtrim((string)Configure::read('Documents.storage.local.path', WWW_ROOT . '../images/uploaded'), '/')
+            . '/' . $relativePath;
+        if (!is_dir(dirname($filePath))) {
+            mkdir(dirname($filePath), 0755, true);
+        }
+        file_put_contents($filePath, $content);
+        try {
+            $original = $waivers->get($upload->id)->toArray();
+            $originalDocument = $documents->get($document->id)->toArray();
+            $this->postLoss();
+            $this->assertResponseOk();
+            $this->assertEquals($original, $waivers->get($upload->id)->toArray());
+            $this->assertEquals($originalDocument, $documents->get($document->id)->toArray());
+            $this->assertSame($content, file_get_contents($filePath));
+            $this->get('/waivers/gathering-waivers?gathering_id=' . $this->gathering->id);
+            $this->assertResponseOk();
+            $this->assertGridShowsLost();
+            $this->get('/waivers/gathering-waivers/view/' . $upload->id);
+            $this->assertResponseOk();
+            $this->assertResponseContains('Waiver Details — Lost');
+            $this->assertResponseContains('Existing uploaded files remain available for the paper trail.');
+            $this->assertResponseContains('/waivers/gathering-waivers/inline-pdf/' . $upload->id);
+            $this->assertResponseContains('/waivers/gathering-waivers/download/' . $upload->id);
+            $this->get('/waivers/gathering-waivers/download/' . $upload->id);
+            $this->assertResponseOk();
+            $this->assertContentType('application/pdf');
+            $this->assertSame($content, (string)$this->_response->getBody());
+            $losses = $this->getTableLocator()->get('Waivers.GatheringWaiverLosses');
+            $loss = $losses->find()->where(['gathering_id' => $this->gathering->id])->firstOrFail();
+            $this->post('/waivers/gathering-waivers/reverse-loss/' . $loss->id, [
+                'reversed_by' => self::TEST_MEMBER_AGATHA_ID,
+            ]);
+            $this->assertRedirectContains('/waivers/gathering-waivers/view?');
+            $this->assertSame(self::ADMIN_MEMBER_ID, $losses->get($loss->id)->reversed_by);
+            $this->assertEquals($original, $waivers->get($upload->id)->toArray());
+            $this->assertEquals($originalDocument, $documents->get($document->id)->toArray());
+            $this->get('/waivers/gathering-waivers/view/' . $upload->id);
+            $this->assertResponseOk();
+            $this->assertResponseNotContains('Waiver Details — Lost');
+            $this->assertResponseContains('Lost status reversed');
+            $this->assertResponseContains('/waivers/gathering-waivers/inline-pdf/' . $upload->id);
+            $this->assertResponseContains('/waivers/gathering-waivers/download/' . $upload->id);
+            $this->get('/waivers/gathering-waivers/download/' . $upload->id);
+            $this->assertResponseOk();
+            $this->assertSame($content, (string)$this->_response->getBody());
+            $this->get('/waivers/gathering-waivers?gathering_id=' . $this->gathering->id);
+            $this->assertResponseOk();
+            $this->assertSummaryUploadedCount($declined || $exempt ? 0 : 1);
+        } finally {
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+        }
     }
 
-    public function testAttestedRequirementCannotBeReportedLost(): void
+    public function testAttestedRequirementCanBeReportedLostWithoutChangingExemption(): void
     {
         $waivers = $this->getTableLocator()->get('Waivers.GatheringWaivers');
-        $waivers->saveOrFail($waivers->newEntity([
+        $exemption = $waivers->saveOrFail($waivers->newEntity([
             'gathering_id' => $this->gathering->id, 'waiver_type_id' => $this->waiverTypeId,
             'is_exemption' => true, 'status' => 'active', 'retention_date' => '2033-01-01',
             'exemption_reason' => 'No participants',
         ]));
+        $original = $waivers->get($exemption->id)->toArray();
         $this->postLoss();
-        $this->assertResponseCode(422);
-        $this->assertStringContainsString('not needed', (string)$this->_response->getBody());
+        $this->assertResponseOk();
+        $this->assertEquals($original, $waivers->get($exemption->id)->toArray());
     }
 
-    public function testDeputySeesLossOptionWithoutExemptionReasonsOnBothWizards(): void
+    public function testDeputySeesLossActionOnlyOnGatheringSummary(): void
     {
-        $this->deputy();
+        $this->deputy(true);
+        $this->get('/waivers/gathering-waivers?gathering_id=' . $this->gathering->id);
+        $this->assertResponseOk();
+        $this->assertResponseContains('Report/Mark Lost');
+        $this->assertResponseContains('aria-labelledby="report-lost-waiver-title"');
+        $this->assertResponseContains('Notes (Required)');
+        $this->assertResponseContains('Loss regression waiver');
+        $this->assertLossActionsAreInGrid();
         foreach (
             [
             '/waivers/gathering-waivers/upload?gathering_id=' . $this->gathering->id,
@@ -254,14 +356,232 @@ class LostWaiversTest extends HttpIntegrationTestCase
         ) {
             $this->get($url);
             $this->assertResponseOk();
-            $this->assertResponseContains('change->waiver-upload-wizard#setModeLost');
-            $this->assertResponseContains('Notes (Required)');
+            $this->assertResponseNotContains('change->waiver-upload-wizard#setModeLost');
+            $this->assertResponseNotContains('record-lost-url');
+            $this->assertResponseNotContains('Report/Mark Lost');
         }
+    }
+
+    private function assertLossActionsAreInGrid(): void
+    {
+        $document = new DOMDocument();
+        @$document->loadHTML((string)$this->_response->getBody());
+        $xpath = new DOMXPath($document);
+        $buttons = '//button[@data-bs-target="#report-lost-waiver-modal"]';
+        $gridButtons = '//td[contains(@class, "actions")]' . $buttons;
+        $this->assertGreaterThan(0, $xpath->query($buttons)->length);
+        $this->assertSame($xpath->query($buttons)->length, $xpath->query($gridButtons)->length);
+        $this->assertSame(0, $xpath->query('//*[@id="waiver-summary-actions"]')->length);
+        $this->assertGreaterThan(0, $xpath->query(
+            $gridButtons . '[@data-waiver-loss-type-id="' . $this->waiverTypeId . '"]',
+        )->length);
+    }
+
+    private function assertGridShowsLost(): void
+    {
+        $document = new DOMDocument();
+        @$document->loadHTML((string)$this->_response->getBody());
+        $xpath = new DOMXPath($document);
+        $this->assertSame(0, $xpath->query('//*[@id="waiver-loss-reports-heading"]')->length);
+        $card = $xpath->query('//div[h6[text()="Loss regression waiver"]]')->item(0);
+        $this->assertNotNull($card);
+        $this->assertSame('Lost', trim($xpath->query('p', $card)->item(0)->textContent));
+        $this->assertSame(0, $xpath->query('.//*[contains(@class, "display-4")]', $card)->length);
+        $this->assertStringNotContainsString('waivers uploaded', $card->textContent);
+        $rows = $xpath->query('//tbody/tr[td[1]/strong[text()="Loss regression waiver"]]');
+        $this->assertGreaterThan(0, $rows->length);
+        foreach ($rows as $row) {
+            $this->assertSame('Lost', trim($xpath->query('td[2]', $row)->item(0)->textContent));
+            $this->assertStringContainsString('October 25, 2026', $xpath->query('td[3]', $row)->item(0)->textContent);
+            $this->assertSame(0, $xpath->query('.//button[@data-bs-target="#report-lost-waiver-modal"]', $row)->length);
+        }
+    }
+
+    private function assertSummaryUploadedCount(int $expectedCount): void
+    {
+        $document = new DOMDocument();
+        @$document->loadHTML((string)$this->_response->getBody());
+        $xpath = new DOMXPath($document);
+        $card = $xpath->query('//div[h6[text()="Loss regression waiver"]]')->item(0);
+        $this->assertNotNull($card);
+        $this->assertSame((string)$expectedCount, trim($xpath->query('p', $card)->item(0)->textContent));
+        $this->assertStringContainsString('waivers uploaded', $card->textContent);
+        $this->assertStringNotContainsString('Lost', $card->textContent);
+    }
+
+    public function testPendingLossShowsLostAndLinksToItsDetail(): void
+    {
+        $this->postLoss();
+        $this->get('/waivers/gathering-waivers?gathering_id=' . $this->gathering->id);
+        $this->assertResponseOk();
+        $this->assertGridShowsLost();
+        $this->assertResponseContains('View waiver');
+        $loss = $this->getTableLocator()->get('Waivers.GatheringWaiverLosses')->find()
+            ->where(['gathering_id' => $this->gathering->id])->firstOrFail();
+        $this->get('/waivers/gathering-waivers/view-loss/' . $loss->id);
+        $this->assertRedirectContains('/waivers/gathering-waivers/view?');
+        $this->get('/waivers/gathering-waivers/view?gathering_id=' . $this->gathering->id
+            . '&waiver_type_id=' . $this->waiverTypeId);
+        $this->assertResponseOk();
+        $this->assertResponseContains('Lost Report');
+        $this->assertResponseContains('October 25, 2026');
+    }
+
+    public static function submittedGridStates(): array
+    {
+        return ['uploaded' => [false, false], 'declined' => [true, false], 'exempt' => [false, true]];
+    }
+
+    #[DataProvider('submittedGridStates')]
+    public function testSubmittedRowsHaveLossActionRegardlessOfState(bool $declined, bool $exempt): void
+    {
+        $waivers = $this->getTableLocator()->get('Waivers.GatheringWaivers');
+        $waiver = $waivers->saveOrFail($waivers->newEntity([
+            'gathering_id' => $this->gathering->id, 'waiver_type_id' => $this->waiverTypeId,
+            'status' => 'active', 'is_exemption' => $exempt, 'retention_date' => '2033-01-01',
+            'declined_at' => $declined ? '2026-01-02 10:00:00' : null,
+            'decline_reason' => $declined ? 'Illegible copy' : null,
+            'exemption_reason' => $exempt ? 'No participants' : null,
+        ]));
+        $this->get('/waivers/gathering-waivers?gathering_id=' . $this->gathering->id);
+        $this->assertResponseOk();
+        $this->assertLossActionsAreInGrid();
+        $this->postLoss();
+        $this->get('/waivers/gathering-waivers?gathering_id=' . $this->gathering->id);
+        $this->assertResponseOk();
+        $this->assertGridShowsLost();
+        $this->get('/waivers/gathering-waivers/view/' . $waiver->id);
+        $this->assertResponseOk();
+        $this->assertResponseContains('Waiver Details — Lost');
+        $this->assertResponseContains('id="waiver-loss-notice-heading"');
+        $this->assertResponseContains('October 25, 2026');
+        if ($declined) {
+            $this->assertResponseContains('Illegible copy');
+        }
+        if ($exempt) {
+            $this->assertResponseContains('No participants');
+        }
+    }
+
+    public function testSummaryFormReturnsToSummaryWithResult(): void
+    {
+        $this->deputy(true);
+        $this->post('/waivers/gathering-waivers/record-lost', [
+            'gathering_id' => $this->gathering->id, 'waiver_type_id' => $this->waiverTypeId,
+            'notes' => 'Local officer reported the loss on October 25.',
+        ]);
+        $this->assertRedirect('/waivers/gathering-waivers?gathering_id=' . $this->gathering->id);
+        $this->assertFlashMessage('Waivers Lost recorded. Existing files and collection status have been preserved.');
+    }
+
+    public function testPreviouslySubmittedTypeRemainsEligibleWithoutCurrentRequirement(): void
+    {
+        $waivers = $this->getTableLocator()->get('Waivers.GatheringWaivers');
+        $waivers->saveOrFail($waivers->newEntity([
+            'gathering_id' => $this->gathering->id, 'waiver_type_id' => $this->waiverTypeId,
+            'is_exemption' => true, 'status' => 'active', 'retention_date' => '2033-01-01',
+            'exemption_reason' => 'No participants',
+        ]));
+        $this->getTableLocator()->get('Waivers.GatheringActivityWaivers')
+            ->deleteAll(['waiver_type_id' => $this->waiverTypeId]);
+        $this->get('/waivers/gathering-waivers?gathering_id=' . $this->gathering->id);
+        $this->assertResponseOk();
+        $this->assertResponseContains('Report/Mark Lost');
+        $this->assertResponseContains('data-waiver-loss-type-id="' . $this->waiverTypeId . '"');
+        $this->postLoss();
+        $this->assertResponseOk();
+    }
+
+    public function testSummaryHidesLossActionWithoutPermission(): void
+    {
+        $this->deputy(true);
+        $permission = $this->getTableLocator()->get('Permissions')->find()
+            ->where(['name' => 'Can Record Lost Waivers'])->firstOrFail();
+        $this->getTableLocator()->get('RolesPermissions')->deleteAll(['permission_id' => $permission->id]);
+        Cache::clearGroup('security');
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->get('/waivers/gathering-waivers?gathering_id=' . $this->gathering->id);
+        $this->assertResponseOk();
+        $this->assertResponseNotContains('Report/Mark Lost');
+        $this->assertResponseNotContains('id="report-lost-waiver-modal"');
     }
 
     public function testGetCannotRecordLoss(): void
     {
         $this->get('/waivers/gathering-waivers/record-lost');
+        $this->assertResponseCode(405);
+    }
+
+    public function testReversalKeepsHistoryAndAllowsAnotherLossWithoutChangingClosure(): void
+    {
+        $this->postLoss();
+        $losses = $this->getTableLocator()->get('Waivers.GatheringWaiverLosses');
+        $original = $losses->find()->where(['gathering_id' => $this->gathering->id])->firstOrFail();
+        (new WaiverStateService())->close((int)$this->gathering->id, self::ADMIN_MEMBER_ID);
+        $closures = $this->getTableLocator()->get('Waivers.GatheringWaiverClosures');
+        $closure = $closures->getClosureForGathering((int)$this->gathering->id)->toArray();
+        $this->deputy(true);
+        $this->post('/waivers/gathering-waivers/reverse-loss/' . $original->id);
+        $this->assertRedirectContains('/waivers/gathering-waivers/view?');
+        $reversed = $losses->get($original->id);
+        $this->assertSame(self::TEST_MEMBER_AGATHA_ID, $reversed->reversed_by);
+        $this->assertNotNull($reversed->reversed_at);
+        $this->assertSame($original->notes, $reversed->notes);
+        $this->assertSame($original->created_by, $reversed->created_by);
+        $this->assertEquals($original->created, $reversed->created);
+        $this->assertEquals($closure, $closures->getClosureForGathering((int)$this->gathering->id)->toArray());
+        $type = $this->getTableLocator()->get('Waivers.WaiverTypes')->get($this->waiverTypeId);
+        $this->assertFalse((new WaiverFileService())->getWaiverStatusSummary(
+            (int)$this->gathering->id,
+            [$type],
+        )[0]['loss_recorded']);
+        $this->get('/waivers/gathering-waivers/view?gathering_id=' . $this->gathering->id
+            . '&waiver_type_id=' . $this->waiverTypeId);
+        $this->assertResponseOk();
+        $this->assertResponseNotContains('Waiver Details — Lost');
+        $this->assertResponseContains('Lost Report');
+        $this->assertResponseContains('Lost status reversed');
+        $this->assertResponseContains('October 25, 2026');
+        $this->assertResponseNotContains('Reverse Lost Status');
+        $this->postLoss(['notes' => 'A new loss reported on October 25, 2026.']);
+        $this->assertResponseOk();
+        $this->assertSame(2, $losses->find()->where(['gathering_id' => $this->gathering->id])->count());
+        $this->assertSame(1, $losses->find()->where([
+            'gathering_id' => $this->gathering->id, 'reversed_at IS' => null,
+        ])->count());
+        $this->post('/waivers/gathering-waivers/reverse-loss/' . $original->id);
+        $this->assertFlashMessage('This loss report has already been reversed.');
+        $this->assertEquals($reversed->reversed_at, $losses->get($original->id)->reversed_at);
+        $this->get('/waivers/gathering-waivers?gathering_id=' . $this->gathering->id);
+        $this->assertResponseOk();
+        $this->assertGridShowsLost();
+    }
+
+    public function testReversalRequiresLossPermissionAndBranchScope(): void
+    {
+        $this->postLoss();
+        $losses = $this->getTableLocator()->get('Waivers.GatheringWaiverLosses');
+        $loss = $losses->find()->where(['gathering_id' => $this->gathering->id])->firstOrFail();
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest']]);
+        $this->post('/waivers/gathering-waivers/reverse-loss/' . $loss->id);
+        $this->assertResponseCode(403);
+        $this->assertNull($losses->get($loss->id)->reversed_at);
+        $this->deputy();
+        $this->connection->execute('UPDATE gatherings SET branch_id = ? WHERE id = ?', [
+            self::TEST_BRANCH_STARGATE_ID, $this->gathering->id,
+        ]);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest']]);
+        $this->post('/waivers/gathering-waivers/reverse-loss/' . $loss->id);
+        $this->assertResponseCode(403);
+        $this->assertNull($losses->get($loss->id)->reversed_at);
+    }
+
+    public function testGetCannotReverseLoss(): void
+    {
+        $this->postLoss();
+        $loss = $this->getTableLocator()->get('Waivers.GatheringWaiverLosses')->find()->firstOrFail();
+        $this->get('/waivers/gathering-waivers/reverse-loss/' . $loss->id);
         $this->assertResponseCode(405);
     }
 }

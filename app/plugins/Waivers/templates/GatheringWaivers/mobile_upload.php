@@ -68,10 +68,6 @@
             data-waiver-upload-wizard-gathering-id-value="<?= $gathering->id ?>"
             data-waiver-upload-wizard-gathering-public-id-value="<?= h($gathering->public_id) ?>"
             data-waiver-upload-wizard-total-steps-value="3"
-        data-waiver-upload-wizard-can-record-lost-value="<?= !empty($canRecordLost) ? 'true' : 'false' ?>"
-        data-waiver-upload-wizard-record-lost-url-value="<?= $this->Url->build([
-            'plugin' => 'Waivers', 'controller' => 'GatheringWaivers', 'action' => 'recordLost',
-        ]) ?>"
             data-waiver-upload-wizard-max-file-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
             data-waiver-upload-wizard-total-max-size-value="<?= h($uploadLimits['postMaxSize']) ?>"
             data-waiver-upload-wizard-attest-url-value="<?= $this->Url->build(['plugin' => 'Waivers', 'controller' => 'GatheringWaivers', 'action' => 'attest']) ?>"

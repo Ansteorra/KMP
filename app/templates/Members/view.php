@@ -458,7 +458,6 @@ echo $this->element('members/gatheringAttendanceModals', [
     'user' => $user,
     'member' => $member,
     'availableGatherings' => $availableGatherings,
-    'memberProgressOfficers' => $memberProgressOfficers,
 ]);
 // End writing to modal block in layout
 $this->KMP->endBlock(); ?>

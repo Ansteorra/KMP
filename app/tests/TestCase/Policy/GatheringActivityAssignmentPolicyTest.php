@@ -6,6 +6,7 @@ namespace App\Test\TestCase\Policy;
 use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\Permission;
 use App\Policy\GatheringActivityPolicy;
+use App\Policy\GatheringPolicy;
 use App\Test\TestCase\BaseTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
 
@@ -80,7 +81,9 @@ class GatheringActivityAssignmentPolicyTest extends BaseTestCase
         $gathering = $this->getTableLocator()->get('Gatherings')->newEmptyEntity();
         $gathering->branch_id = self::KINGDOM_BRANCH_ID;
         $user = $this->createMock(KmpIdentityInterface::class);
-        $user->method('checkCan')->willReturn($canEdit);
+        $user->method('getPolicies')->willReturn($canEdit ? [GatheringPolicy::class => [
+            'canEdit' => (object)['scoping_rule' => Permission::SCOPE_GLOBAL],
+        ]] : []);
         $user->method('getPermissions')->willReturn($hasPermission ? [(object)[
             'id' => $permission->id, 'scoping_rule' => Permission::SCOPE_BRANCH_ONLY,
             'branch_ids' => [$wrongBranch ? self::TEST_BRANCH_LOCAL_ID : self::KINGDOM_BRANCH_ID],

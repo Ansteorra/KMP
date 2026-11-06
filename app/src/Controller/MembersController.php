@@ -925,8 +925,6 @@ class MembersController extends AppController
         }
 
         $availableGatherings = $query->toArray();
-        $memberProgressOfficers = $this->Members->GatheringAttendances
-            ->currentProgressOfficersForMember((int)$member->id);
 
         $children = $this->Members
             ->find()
@@ -959,7 +957,6 @@ class MembersController extends AppController
                 'statusList',
                 'publicInfo',
                 'availableGatherings',
-                'memberProgressOfficers',
                 'canViewPii',
                 'canViewAdditionalInformation',
                 'children',

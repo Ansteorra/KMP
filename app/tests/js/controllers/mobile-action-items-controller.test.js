@@ -169,6 +169,37 @@ describe('MobileActionItemsController', () => {
         expect(window.KMP_accessibility.announce).toHaveBeenCalledWith('To-do marked complete.');
     });
 
+    test('terminal completion requires an outcome, focuses an empty picker and submits the choice', async () => {
+        controller.refresh = jest.fn().mockResolvedValue(undefined);
+        controller._groups = JSON.parse(JSON.stringify(groups));
+        controller._groups[0].items[0].isTerminal = true;
+        controller._groups[0].items[0].confirmation = 'Close remaining tasks?';
+        controller._groups[0].items[0].completionForm = { fields: [{
+            purpose: 'completion_outcome', name: 'terminal_status', label: 'Completion outcome',
+            options: { given: 'Given', other: 'Given Not Received' },
+        }] };
+        controller._renderCards();
+        document.querySelector('.todo-owner-detail').hidden = false;
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true, status: 200, headers: { get: () => 'application/json' },
+            json: jest.fn().mockResolvedValue({ success: true }),
+        });
+        const button = document.querySelector('[data-item-id="41"] button');
+        const picker = document.querySelector('[data-completion-outcome]');
+        const event = { preventDefault: jest.fn(), currentTarget: button };
+        await controller.completeItem(event);
+        expect(global.fetch).not.toHaveBeenCalled();
+        expect(picker).toHaveFocus();
+        picker.value = 'other';
+        window.KMP_accessibility.confirm = jest.fn().mockResolvedValue(true);
+        await controller.completeItem(event);
+        expect(global.fetch.mock.calls[0][1].body.get('terminal_status')).toBe('other');
+        expect(controller.refresh).toHaveBeenCalled();
+        expect(window.KMP_accessibility.confirm).toHaveBeenCalledWith(
+            'Completion outcome: Given Not Received. Close remaining tasks?',
+        );
+    });
+
     test('completeItem announces a successful completion with a cascade warning', async () => {
         controller._groups = groups;
         controller._renderCards();

@@ -7,7 +7,9 @@ use App\KMP\KmpIdentityInterface;
 use App\KMP\TenantContext;
 use App\Model\Entity\BaseEntity;
 use App\Model\Entity\Gathering;
+use App\Model\Entity\GatheringActivity;
 use App\Model\Entity\Permission;
+use App\Services\GatheringActivityDelegationRegistry;
 use Cake\ORM\TableRegistry;
 
 /**
@@ -29,7 +31,7 @@ class GatheringActivityPolicy extends BasePolicy
     private ?string $assignmentTenantId = null;
 
     /**
-     * Activity-specific grants are evaluated in the gathering's branch, never globally by ID alone.
+     * Native activity grants use the host branch; delegated owner grants supply their own scoped context.
      *
      * @param \App\KMP\KmpIdentityInterface $user Identity
      * @param \App\Model\Entity\BaseEntity $entity Activity configuration
@@ -41,6 +43,22 @@ class GatheringActivityPolicy extends BasePolicy
         $gathering = $optionalArgs[0] ?? null;
         if (!$gathering instanceof Gathering || !$gathering->branch_id) {
             return false;
+        }
+
+        return $this->canAssignNatively($user, $entity, $gathering)
+            || ($entity instanceof GatheringActivity
+                && GatheringActivityDelegationRegistry::canAssign($user, $entity, $gathering));
+    }
+
+    /** Native catalogue rules; a branch override requires an already-validated owner grant. */
+    public function canAssignNatively(
+        KmpIdentityInterface $user,
+        BaseEntity $entity,
+        Gathering $gathering,
+        ?int $permissionBranchId = null,
+    ): bool {
+        if ($user->isSuperUser()) {
+            return true;
         }
         $tenantId = TenantContext::tryCurrent()?->id ?? 'standalone';
         if ($this->assignmentPermissionIds === null || $this->assignmentTenantId !== $tenantId) {
@@ -54,13 +72,17 @@ class GatheringActivityPolicy extends BasePolicy
         }
         $permissionIds = $this->assignmentPermissionIds[$entity->id] ?? [];
         if ($permissionIds === []) {
-            return $user->checkCan('edit', $gathering);
+            return (new GatheringPolicy())->canEdit($user, $gathering);
         }
         foreach ($user->getPermissions() as $permission) {
             if (
                 in_array((int)$permission->id, $permissionIds, true)
                 && ($permission->scoping_rule === Permission::SCOPE_GLOBAL
-                    || in_array((int)$gathering->branch_id, array_map('intval', $permission->branch_ids ?? []), true))
+                    || in_array(
+                        $permissionBranchId ?? (int)$gathering->branch_id,
+                        array_map('intval', $permission->branch_ids ?? []),
+                        true,
+                    ))
             ) {
                 return true;
             }

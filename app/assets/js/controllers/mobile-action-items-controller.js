@@ -144,9 +144,21 @@ class MobileActionItemsController extends MobileControllerBase {
         if (itemId <= 0) return
 
         const record = this._groups.flatMap(group => group.items || []).find(item => Number(item.id) === itemId)
-        if (record?.isTerminal && !await window.KMP_accessibility.confirm(record.confirmation)) return
+        const outcomeField = record?.completionForm?.fields?.find(field => field.purpose === "completion_outcome")
+        const outcomeSelect = button.closest(".todo-item")?.querySelector("[data-completion-outcome]")
+        if (outcomeField && !outcomeSelect?.value) {
+            outcomeSelect?.setAttribute("aria-invalid", "true")
+            outcomeSelect?.focus()
+            this._announce("Choose a completion outcome.")
+            return
+        }
+        outcomeSelect?.removeAttribute("aria-invalid")
+        const confirmation = outcomeField
+            ? `Completion outcome: ${outcomeSelect.selectedOptions[0].textContent}. ${record.confirmation}`
+            : record?.confirmation
+        if (record?.isTerminal && !await window.KMP_accessibility.confirm(confirmation)) return
         this._submitting = true
-        const item = button.closest("[data-item-id]")
+        const item = button.closest(".todo-item")
         if (item) {
             item.classList.add("todo-item-completing")
         }
@@ -157,6 +169,7 @@ class MobileActionItemsController extends MobileControllerBase {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || ""
             const body = new FormData()
             body.append("_csrfToken", csrfToken)
+            if (outcomeField) body.append(outcomeField.name, outcomeSelect.value)
 
             const response = await fetch(this._completeUrl(itemId), {
                 method: "POST",
@@ -183,6 +196,10 @@ class MobileActionItemsController extends MobileControllerBase {
                 : "To-do marked complete."
             this._showToast(message, warning ? "warning" : "success")
             this._announce(message)
+            if (record?.isTerminal) {
+                await this.refresh()
+                return
+            }
             if (this._openCount() === 0 && this._hasNextPage) {
                 await this.loadMore()
             } else if (this._openCount() === 0) {
@@ -259,6 +276,15 @@ class MobileActionItemsController extends MobileControllerBase {
     }
 
     _renderItem(item) {
+        const outcomeField = item.completionForm?.fields?.find(field => field.purpose === "completion_outcome")
+        const outcomeId = `todo-completion-outcome-${item.id}`
+        const outcomeControl = outcomeField ? `<div class="mb-2">
+            <label class="form-label" for="${outcomeId}">${this._escHtml(outcomeField.label)}</label>
+            <select class="form-select" id="${outcomeId}" data-completion-outcome required>
+                <option value="">Choose a completion outcome</option>
+                ${Object.entries(outcomeField.options || {}).map(([value, label]) =>
+                    `<option value="${this._escHtml(value)}">${this._escHtml(label)}</option>`).join("")}
+            </select></div>` : ""
         const badge = item.isGating
             ? '<span class="badge bg-warning text-dark"><kmp-icon name="flag-3" class="me-1" aria-hidden="true"></kmp-icon>Required</span>'
             : '<span class="badge bg-light text-dark border"><kmp-icon name="flag" class="me-1" aria-hidden="true"></kmp-icon>Optional</span>'
@@ -267,6 +293,7 @@ class MobileActionItemsController extends MobileControllerBase {
             : ""
 
         return `<article class="todo-item" data-item-id="${item.id}">
+            ${outcomeControl}
             <div class="d-flex justify-content-between align-items-start gap-3">
                 <div class="me-auto">
                     <h3 class="h6 mb-1">${this._escHtml(item.title)}</h3>

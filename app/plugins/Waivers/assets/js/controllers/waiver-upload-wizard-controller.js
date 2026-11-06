@@ -48,16 +48,13 @@ class WaiverUploadWizardController extends Controller {
         "reviewAttestNotes",
         "reviewAttestNotesSection",
         "modeToggle",
-        "step3Lead", "attestOption", "lostSection", "lostNotes", "lostNotesError",
-        "reviewLostSection", "reviewLostNotes"
+        "step3Lead", "attestOption"
     ]
 
     static values = {
         currentStep: { type: Number, default: 1 },
         totalSteps: { type: Number, default: 3 },
         gatheringId: Number,
-        canRecordLost: { type: Boolean, default: false },
-        recordLostUrl: String,
         gatheringPublicId: String,
         maxFileSize: Number,           // Maximum single file size in bytes
         totalMaxSize: Number,          // Maximum total upload size in bytes
@@ -74,8 +71,6 @@ class WaiverUploadWizardController extends Controller {
         this.selectedWaiverType = null
         this.notes = ""
         this.isAttestMode = false
-        this.isLostMode = false
-        this.lossRequest = null
         this.attestReason = null
         this.attestNotes = ""
 
@@ -106,7 +101,6 @@ class WaiverUploadWizardController extends Controller {
 
     disconnect() {
         this.isDisconnected = true
-        this.lossRequest?.abort()
         if (this.uploadRequest && this.uploadRequest.readyState !== XMLHttpRequest.DONE) {
             this.uploadRequest.abort()
         }
@@ -216,7 +210,7 @@ class WaiverUploadWizardController extends Controller {
                 this.submitButtonTarget.setAttribute('aria-hidden', 'false')
                 // Update submit button text based on mode
                 if (this.hasSubmitButtonTextTarget) {
-                    this.submitButtonTextTarget.textContent = this.isLostMode ? 'Record Waivers Lost' : (this.isAttestMode ? 'Submit Attestation' : 'Submit Waivers')
+                    this.submitButtonTextTarget.textContent = this.isAttestMode ? 'Submit Attestation' : 'Submit Waivers'
                 }
             } else {
                 this.submitButtonTarget.classList.add('d-none')
@@ -275,17 +269,14 @@ class WaiverUploadWizardController extends Controller {
         if (exemptionReasons.length === 0 && this.isAttestMode) {
             this.setModeUpload()
         }
-        // Lost reports remain available even when this type has no exemption reasons.
-        if (exemptionReasons.length > 0 || this.canRecordLostValue) {
+        if (exemptionReasons.length > 0) {
             // Has exemption reasons - show toggle
             if (this.hasModeToggleTarget) {
                 this.modeToggleTarget.classList.remove('d-none')
                 this.modeToggleTarget.setAttribute('aria-hidden', 'false')
             }
             if (this.hasStep3LeadTarget) {
-                this.step3LeadTarget.textContent = this.canRecordLostValue
-                    ? 'Submit waiver pages, attest not needed, or record waivers lost'
-                    : 'Add one or more pages to your waiver document, or attest that a waiver is not needed'
+                this.step3LeadTarget.textContent = 'Add one or more pages to your waiver document, or attest that a waiver is not needed'
             }
         } else {
             // No exemption reasons - hide toggle, force upload mode
@@ -318,8 +309,6 @@ class WaiverUploadWizardController extends Controller {
 
     // Step 3: Mode Toggle (Upload vs Attest)
     setModeUpload(event) {
-        this.isLostMode = false
-        this.toggleLossSection(false)
         this.isAttestMode = false
         if (this.hasUploadSectionTarget && this.hasAttestSectionTarget) {
             this.uploadSectionTarget.classList.remove('d-none')
@@ -356,8 +345,6 @@ class WaiverUploadWizardController extends Controller {
             return
         }
 
-        this.isLostMode = false
-        this.toggleLossSection(false)
         this.isAttestMode = true
         if (this.hasUploadSectionTarget && this.hasAttestSectionTarget) {
             this.uploadSectionTarget.classList.add('d-none')
@@ -366,35 +353,6 @@ class WaiverUploadWizardController extends Controller {
             this.attestSectionTarget.setAttribute('aria-hidden', 'false')
         }
         this.populateAttestationReasons()
-    }
-
-    setModeLost() {
-        if (!this.canRecordLostValue || !this.hasLostSectionTarget || !this.selectedWaiverType) return
-        this.isLostMode = true
-        this.isAttestMode = false
-        this.toggleLossSection(true)
-        for (const target of [this.uploadSectionTarget, this.attestSectionTarget]) {
-            target.classList.add('d-none')
-            target.setAttribute('aria-hidden', 'true')
-        }
-        this.lostNotesTarget.focus()
-    }
-
-    toggleLossSection(visible) {
-        if (!this.hasLostSectionTarget) return
-        this.lostSectionTarget.classList.toggle('d-none', !visible)
-        this.lostSectionTarget.hidden = !visible
-        this.lostSectionTarget.setAttribute('aria-hidden', String(!visible))
-        this.lostNotesTarget.disabled = !visible
-        this.clearLostNotesError()
-    }
-
-    clearLostNotesError() {
-        if (this.hasLostNotesTarget) this.lostNotesTarget.removeAttribute('aria-invalid')
-        if (this.hasLostNotesErrorTarget) {
-            this.lostNotesErrorTarget.textContent = ''
-            this.lostNotesErrorTarget.classList.add('d-none')
-        }
     }
 
     populateAttestationReasons() {
@@ -905,20 +863,6 @@ class WaiverUploadWizardController extends Controller {
             this.reviewWaiverTypeTarget.textContent = this.selectedWaiverType.name
         }
 
-        if (this.hasReviewLostSectionTarget) {
-            this.reviewLostSectionTarget.hidden = !this.isLostMode
-            this.reviewLostSectionTarget.classList.toggle('d-none', !this.isLostMode)
-            this.reviewLostSectionTarget.setAttribute('aria-hidden', String(!this.isLostMode))
-        }
-        if (this.isLostMode) {
-            for (const target of [this.reviewUploadSectionTarget, this.reviewAttestSectionTarget]) {
-                target.classList.add('d-none')
-                target.setAttribute('aria-hidden', 'true')
-            }
-            this.reviewLostNotesTarget.textContent = this.lostNotesTarget.value.trim()
-            return
-        }
-
         // Show/hide sections based on mode
         if (this.isAttestMode) {
             // Attestation Mode
@@ -1035,23 +979,6 @@ class WaiverUploadWizardController extends Controller {
     }
 
     validateUploadOrAttest() {
-        if (this.isLostMode) {
-            if (!this.canRecordLostValue || !this.hasLostNotesTarget) return false
-            if (!this.lostNotesTarget.value.trim() || this.lostNotesTarget.value.length > 10000) {
-                const message = 'Enter notes (up to 10,000 characters) identifying who reported the loss and when.'
-                this.lostNotesTarget.setAttribute('aria-invalid', 'true')
-                this.lostNotesErrorTarget.textContent = message
-                this.lostNotesErrorTarget.classList.remove('d-none')
-                if (this.currentStepValue === this.totalStepsValue) {
-                    this.currentStepValue = 2
-                    this.showStep(2)
-                }
-                this.lostNotesTarget.focus()
-                return false
-            }
-            this.clearLostNotesError()
-            return true
-        }
         if (this.isAttestMode) {
             if (!this.attestReason) {
                 this.showError("Please select a reason for the exemption")
@@ -1090,9 +1017,7 @@ class WaiverUploadWizardController extends Controller {
         const startTime = Date.now()
 
         try {
-            if (this.isLostMode) {
-                await this.submitLostReport()
-            } else if (this.isAttestMode) {
+            if (this.isAttestMode) {
                 // Submit attestation
                 await this.submitAttestation(startTime)
             } else {
@@ -1108,34 +1033,11 @@ class WaiverUploadWizardController extends Controller {
                 this.submitButtonTarget.disabled = false
             }
             if (this.hasSubmitButtonTextTarget) {
-                this.submitButtonTextTarget.textContent = this.isLostMode ? 'Record Waivers Lost' : (this.isAttestMode ? 'Submit Attestation' : 'Submit Waivers')
+                this.submitButtonTextTarget.textContent = this.isAttestMode ? 'Submit Attestation' : 'Submit Waivers'
             }
             this.restoreWizardAfterProcessing()
             this.showError(error.message || 'An error occurred during submission. Please try again.')
         }
-    }
-
-    async submitLostReport() {
-        this.lossRequest = new AbortController()
-        const response = await fetch(this.recordLostUrlValue, {
-            method: 'POST',
-            signal: this.lossRequest.signal,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-Token': this.getCsrfToken()
-            },
-            body: JSON.stringify({
-                gathering_id: this.gatheringIdValue,
-                waiver_type_id: this.selectedWaiverType.id,
-                notes: this.lostNotesTarget.value.trim()
-            })
-        })
-        const data = await response.json()
-        if (!response.ok || !data.success) {
-            throw new Error(data.message || 'The loss report could not be saved. Please try again.')
-        }
-        if (!this.isDisconnected) window.location.href = data.redirectUrl
     }
 
     async submitAttestation(startTime) {
@@ -1361,13 +1263,7 @@ class WaiverUploadWizardController extends Controller {
     showProcessingStep() {
         // Show processing message based on mode
         let processingHtml
-        if (this.isLostMode) {
-            processingHtml = `
-                <div class="text-center py-5" data-waiver-processing tabindex="-1">
-                    <h2>Recording Waivers Lost</h2>
-                    <p role="status">Please wait while we save the loss report. Collection will remain open.</p>
-                </div>`
-        } else if (this.isAttestMode) {
+        if (this.isAttestMode) {
             processingHtml = `
                 <div class="text-center py-5" data-waiver-processing tabindex="-1">
                     <div class="mb-4">

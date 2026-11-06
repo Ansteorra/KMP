@@ -243,46 +243,6 @@ class GatheringsTable extends Table
     }
 
     /**
-     * Match any selected royal office/branch snapshot without duplicating gatherings.
-     *
-     * @param \Cake\ORM\Query\SelectQuery $query Gathering query
-     * @param array $selections Encoded office/branch pairs, or "any"
-     * @return \Cake\ORM\Query\SelectQuery
-     */
-    public function findRoyalProgress(SelectQuery $query, array $selections): SelectQuery
-    {
-        if ($selections === []) {
-            return $query;
-        }
-
-        $attendances = $this->GatheringAttendances->find('royalProgress')->select(['gathering_id']);
-        if (!in_array('any', $selections, true)) {
-            $conditions = [];
-            foreach ($selections as $selection) {
-                $decoded = is_string($selection) ? base64_decode($selection, true) : false;
-                $pair = $decoded !== false ? json_decode($decoded, true) : null;
-                if (
-                    !is_array($pair) || !array_is_list($pair) || count($pair) !== 2
-                    || !is_string($pair[0]) || $pair[0] === ''
-                    || (!is_string($pair[1]) && $pair[1] !== null)
-                ) {
-                    continue;
-                }
-                $conditions[] = [
-                    'progress_office_name' => $pair[0],
-                    $pair[1] === null ? 'progress_branch_name IS' : 'progress_branch_name' => $pair[1],
-                ];
-            }
-            if ($conditions === []) {
-                return $query->where(['1 = 0']);
-            }
-            $attendances->where(['OR' => $conditions]);
-        }
-
-        return $query->where([$this->aliasField('id') . ' IN' => $attendances]);
-    }
-
-    /**
      * Find gatherings by date range
      *
      * @param \Cake\ORM\Query\SelectQuery $query Query object

@@ -19,6 +19,7 @@ use App\Services\GridViewService;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\DefaultWorkflowApprovalManager;
 use App\Services\WorkflowEngine\TriggerDispatcher;
+use Awards\KMP\GridColumns\MemberSubmittedRecommendationsGridColumns;
 use Awards\KMP\GridColumns\RecommendationsGridColumns;
 use Awards\Model\Entity\Recommendation;
 use Awards\Services\BestowalGatheringLookupService;
@@ -717,7 +718,7 @@ class RecommendationsController extends AppController
         $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'memberSubmitted']);
         $queryContext = $this->resolveDataverseGridQueryContext([
             'gridKey' => 'Awards.Recommendations.memberSubmitted',
-            'gridColumnsClass' => RecommendationsGridColumns::class,
+            'gridColumnsClass' => MemberSubmittedRecommendationsGridColumns::class,
             'systemViews' => $systemViews,
             'defaultSystemView' => 'sys-recs-submitted-by',
             'defaultSort' => ['Recommendations.created' => 'desc'],
@@ -733,7 +734,6 @@ class RecommendationsController extends AppController
 
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid($built['gridOptions']);
-        $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
 
         // Post-process data
         $recommendations = $result['data'];
@@ -3397,9 +3397,7 @@ class RecommendationsController extends AppController
             if ($contextKey === 'main') {
                 $canViewHidden = $canViewHidden ?? $user->checkCan('ViewHidden', $emptyRecommendation);
                 $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
-            } elseif ($contextKey === 'memberSubmitted') {
-                $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
-            } else {
+            } elseif ($contextKey !== 'memberSubmitted') {
                 $result = $this->applyStateFilterOptionsToGridResult($result, true);
             }
 

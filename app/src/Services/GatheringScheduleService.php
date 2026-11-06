@@ -74,6 +74,22 @@ class GatheringScheduleService
      */
     public function add(array $data, Gathering $gathering, mixed $identity): array
     {
+        return $this->withScheduleTransaction(
+            function () use ($data, $gathering, $identity): array {
+                $current = (new GatheringActivityAuthorizationService())->assertSchedule(
+                    (int)$gathering->id,
+                    $data,
+                    (int)$identity->getIdentifier(),
+                );
+
+                return $this->createScheduledActivity($data, $current, $identity);
+            },
+        );
+    }
+
+    /** Persist an event schedule entry inside its authorization transaction. */
+    private function createScheduledActivity(array $data, Gathering $gathering, mixed $identity): array
+    {
         $data = array_intersect_key($data, array_flip(self::INPUT_FIELDS));
         if (!$this->validDuration($data)) {
             return ['success' => false, 'message' => __('Choose a duration from 15 minutes to 4 hours, or Other.')];
@@ -112,6 +128,29 @@ class GatheringScheduleService
      * @return array{success: bool, message: string, data?: \App\Model\Entity\GatheringScheduledActivity, errors?: array, invalidOwner?: bool}
      */
     public function edit(
+        int $scheduledActivityId,
+        array $data,
+        Gathering $gathering,
+        mixed $identity,
+    ): array {
+        return $this->withScheduleTransaction(
+            function () use ($scheduledActivityId, $data, $gathering, $identity): array {
+                $authority = new GatheringActivityAuthorizationService();
+                $actorId = (int)$identity->getIdentifier();
+                $authority->assertScheduledOwner((int)$gathering->id, $scheduledActivityId, $actorId);
+                $scheduled = $this->fetchTable('GatheringScheduledActivities')->get($scheduledActivityId);
+                $current = $authority->assertSchedule((int)$gathering->id, $data + [
+                    'gathering_activity_id' => $scheduled->gathering_activity_id,
+                    'is_other' => $scheduled->is_other,
+                ], $actorId);
+
+                return $this->updateScheduledActivity($scheduledActivityId, $data, $current, $identity);
+            },
+        );
+    }
+
+    /** Persist an edit only after authorizing both the stored activity and replacement. */
+    private function updateScheduledActivity(
         int $scheduledActivityId,
         array $data,
         Gathering $gathering,
@@ -186,9 +225,28 @@ class GatheringScheduleService
      *
      * @param int $scheduledActivityId Scheduled activity id
      * @param \App\Model\Entity\Gathering $gathering The parent gathering
+     * @param mixed $identity Actual operator; null is reserved for trusted internal callers.
      * @return array{success: bool, message: string, invalidOwner?: bool}
      */
-    public function delete(int $scheduledActivityId, Gathering $gathering): array
+    public function delete(int $scheduledActivityId, Gathering $gathering, mixed $identity = null): array
+    {
+        return $this->withScheduleTransaction(
+            function () use ($scheduledActivityId, $gathering, $identity): array {
+                if ($identity !== null) {
+                    (new GatheringActivityAuthorizationService())->assertScheduledOwner(
+                        (int)$gathering->id,
+                        $scheduledActivityId,
+                        (int)$identity->getIdentifier(),
+                    );
+                }
+
+                return $this->deleteScheduledActivity($scheduledActivityId, $gathering);
+            },
+        );
+    }
+
+    /** Release court placement before removing an authorized schedule row. */
+    private function deleteScheduledActivity(int $scheduledActivityId, Gathering $gathering): array
     {
         $table = $this->fetchTable('GatheringScheduledActivities');
         $entity = $table->get($scheduledActivityId);
@@ -220,6 +278,21 @@ class GatheringScheduleService
             'success' => false,
             'message' => __('Could not delete scheduled activity. Please try again.'),
         ];
+    }
+
+    /** Validation failures must roll back the authorization transaction instead of attempting a commit. */
+    private function withScheduleTransaction(callable $operation): array
+    {
+        $result = [];
+        $this->fetchTable('GatheringScheduledActivities')->getConnection()->transactional(
+            function () use ($operation, &$result): bool {
+                $result = $operation();
+
+                return (bool)$result['success'];
+            },
+        );
+
+        return $result;
     }
 
     /**

@@ -124,9 +124,6 @@ $canAddGathering = $canAddGathering ?? false;
                                                     <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon>
                                                 </span>
                                             <?php endif; ?>
-                                            <?= $this->element('gatherings/calendar_royal_progress_badge', [
-                                                'royalProgress' => $gathering->royal_progress ?? [],
-                                            ]) ?>
                                         </h6>
                                         <p class="mb-1 small">
                                             <kmp-icon name="map-pin"  aria-hidden="true"></kmp-icon> <?= h($gathering->branch->name) ?>

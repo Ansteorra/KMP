@@ -66,7 +66,7 @@ $this->KMP->endBlock(); ?>
                     <h6 class="fw-semibold mb-2" data-todo-target="specialTitle">
                         <?= __('Additional Information') ?>
                     </h6>
-                    <p class="text-muted small mb-3" data-todo-target="specialDescription"></p>
+                    <p class="text-muted small mb-3" data-todo-target="specialDescription" role="status"></p>
                     <div class="form-check form-switch mb-2">
                         <input class="form-check-input" type="checkbox" id="todoIncludePastGatherings"
                             name="include_past" value="1" data-todo-target="includePastGatherings">
@@ -113,6 +113,15 @@ $this->KMP->endBlock(); ?>
                     </div>
                 </div>
 
+                <div class="mb-3" data-todo-target="completionOutcomeGroup" hidden>
+                    <label class="form-label" for="todoCompletionOutcome" data-todo-target="completionOutcomeLabel">
+                        <?= __('Completion outcome') ?>
+                    </label>
+                    <select class="form-select" id="todoCompletionOutcome"
+                        data-todo-target="completionOutcomeSelect" aria-describedby="todoCompletionOutcomeHelp" disabled>
+                    </select>
+                    <div class="form-text" id="todoCompletionOutcomeHelp" data-todo-target="completionOutcomeHelp"></div>
+                </div>
                 <div>
                     <label class="form-label" for="todoCompleteNote"><?= __('Note (optional)') ?></label>
                     <textarea class="form-control" id="todoCompleteNote" name="note" rows="3"
@@ -224,7 +233,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            if (!section || section.hidden || courtGroup && !courtGroup.hidden || !hidden || hidden.value !== '') {
+            if (!section || section.hidden || input?.disabled
+                || courtGroup && !courtGroup.hidden || !hidden || hidden.value !== '') {
                 if (input) {
                     input.removeAttribute('aria-invalid');
                 }
@@ -279,11 +289,40 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const field = Array.isArray(completionForm.fields) ? completionForm.fields[0] : null;
+        const fields = Array.isArray(completionForm.fields) ? completionForm.fields : [];
+        const outcome = fields.find(field => field.purpose === 'completion_outcome');
+        const outcomeGroup = modal.querySelector('[data-todo-target="completionOutcomeGroup"]');
+        const outcomeSelect = modal.querySelector('[data-todo-target="completionOutcomeSelect"]');
+        outcomeGroup.hidden = !outcome;
+        outcomeSelect.disabled = !outcome;
+        outcomeSelect.required = !!outcome;
+        outcomeSelect.replaceChildren(new Option('<?= __('Choose a completion outcome') ?>', ''));
+        if (outcome) {
+            outcomeSelect.name = outcome.name;
+            Object.entries(outcome.options || {}).forEach(([value, label]) => {
+                outcomeSelect.appendChild(new Option(String(label), String(value)));
+            });
+            modal.querySelector('[data-todo-target="completionOutcomeLabel"]').textContent = outcome.label;
+            modal.querySelector('[data-todo-target="completionOutcomeHelp"]').textContent = outcome.help || '';
+        }
+        const field = fields.find(field => field.purpose !== 'completion_outcome') || null;
         const hasAutocomplete = field && field.type === 'autocomplete';
         const hasSelect = field && field.type === 'select';
         const hasField = hasAutocomplete || hasSelect;
-        section.hidden = !hasField;
+        const blockedReason = completionForm.payload?.blockedReason || '';
+        const submit = modal.querySelector('[data-todo-target="submit"]');
+        if (submit) {
+            submit.disabled = !!blockedReason;
+        }
+        section.hidden = !hasField && !blockedReason;
+        const titleEl = modal.querySelector('[data-todo-target="specialTitle"]');
+        if (titleEl) {
+            titleEl.textContent = completionForm.title || '<?= __('Additional Information') ?>';
+        }
+        const descriptionEl = modal.querySelector('[data-todo-target="specialDescription"]');
+        if (descriptionEl) {
+            descriptionEl.textContent = blockedReason || completionForm.description || '';
+        }
         section.querySelectorAll('input, select, textarea, button').forEach((control) => {
             control.disabled = !hasField;
         });
@@ -305,14 +344,6 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const titleEl = modal.querySelector('[data-todo-target="specialTitle"]');
-        if (titleEl) {
-            titleEl.textContent = completionForm.title || '<?= __('Additional Information') ?>';
-        }
-        const descriptionEl = modal.querySelector('[data-todo-target="specialDescription"]');
-        if (descriptionEl) {
-            descriptionEl.textContent = completionForm.description || '';
-        }
         const helpEl = modal.querySelector('[data-todo-target="bestowalGatheringHelp"]');
         if (helpEl) {
             helpEl.textContent = field.help
@@ -425,24 +456,28 @@ document.addEventListener('DOMContentLoaded', function () {
         const hidden = control.querySelector('[data-ac-target="hidden"]');
         const hiddenText = control.querySelector('[data-ac-target="hiddenText"]');
         const clearBtn = control.querySelector('[data-ac-target="clearBtn"]');
+        const group = control.closest('.mb-3') || control;
+        const visible = !control.closest('[data-todo-target="specialForm"]')?.hidden && !group.hidden;
         const value = selection && selection.value ? String(selection.value) : '';
         const text = selection && selection.text ? String(selection.text) : '';
         if (input) {
             input.value = text;
-            input.disabled = value !== '';
-            input.required = !control.closest('[data-todo-target="specialForm"]')?.hidden;
+            input.disabled = !visible || value !== '';
+            input.required = visible;
             if (value !== '') {
                 input.removeAttribute('aria-invalid');
             }
         }
         if (hidden) {
+            hidden.disabled = !visible;
             hidden.value = value;
         }
         if (hiddenText) {
+            hiddenText.disabled = !visible;
             hiddenText.value = text;
         }
         if (clearBtn) {
-            clearBtn.disabled = value === '';
+            clearBtn.disabled = !visible || value === '';
         }
     }
 });

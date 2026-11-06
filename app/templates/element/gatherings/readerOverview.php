@@ -13,19 +13,6 @@ use Cake\I18n\Date;
 </nav>
 <div class="gathering-reader-overview">
     <div class="gathering-reader-main">
-        <?php if ($progressAttendances !== []) : ?>
-            <section class="gathering-reader-progress" aria-labelledby="reader-progress-heading">
-                <h2 class="h6" id="reader-progress-heading">
-                    <?= $this->Icon->render('crown') ?> <?= __('Royal Progress') ?>
-                </h2>
-                <ul class="list-unstyled mb-0">
-                    <?php foreach ($progressAttendances as $attendance) : ?>
-                        <li><strong><?= h($attendance->progress_title) ?></strong>
-                            <?= h($attendance->member->sca_name ?? '') ?></li>
-                    <?php endforeach; ?>
-                </ul>
-            </section>
-        <?php endif; ?>
         <section class="gathering-reader-section" aria-labelledby="reader-about-heading">
             <h2 id="reader-about-heading"><?= __('About this gathering') ?></h2>
             <?php if ($gathering->description) : ?>

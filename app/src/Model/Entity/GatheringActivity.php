@@ -32,11 +32,13 @@ class GatheringActivity extends BaseEntity
 {
     public const TYPE_ORDER_CIRCLE = 'Order Circle';
 
+    public const TYPE_ROYAL_PROGRESS = 'Royal Progress';
+
     public const TYPE_GENERAL = 'General';
 
     public const ACTIVITY_TYPES = [
         self::TYPE_ORDER_CIRCLE,
-        'Royal Progress',
+        self::TYPE_ROYAL_PROGRESS,
         'Court',
         'Business',
         'Martial',

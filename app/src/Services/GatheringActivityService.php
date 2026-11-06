@@ -39,6 +39,7 @@ class GatheringActivityService
      * @param int $activityId Activity id to add
      * @param array $existingIds Already-linked activity ids
      * @param string|null $customDescription Optional custom description
+     * @param int|null $actorId Actual operator; null is reserved for trusted internal callers.
      * @return array{success: bool, message: string, type: string}
      */
     public function addActivity(
@@ -46,6 +47,22 @@ class GatheringActivityService
         int $activityId,
         array $existingIds,
         ?string $customDescription = null,
+        ?int $actorId = null,
+    ): array {
+        return $this->withActivityAuthority(
+            $gatheringId,
+            $activityId,
+            $actorId,
+            fn(): array => $this->linkActivity($gatheringId, $activityId, $existingIds, $customDescription),
+        );
+    }
+
+    /** Persist the attachment while the caller holds current activity authority. */
+    private function linkActivity(
+        int $gatheringId,
+        int $activityId,
+        array $existingIds,
+        ?string $customDescription,
     ): array {
         // Check if activity is already linked
         if (in_array($activityId, $existingIds)) {
@@ -90,9 +107,21 @@ class GatheringActivityService
      *
      * @param int $gatheringId Gathering id
      * @param int $activityId Activity id to remove
+     * @param int|null $actorId Actual operator; null is reserved for trusted internal callers.
      * @return array{success: bool, message: string, type: string}
      */
-    public function removeActivity(int $gatheringId, int $activityId): array
+    public function removeActivity(int $gatheringId, int $activityId, ?int $actorId = null): array
+    {
+        return $this->withActivityAuthority(
+            $gatheringId,
+            $activityId,
+            $actorId,
+            fn(): array => $this->unlinkActivity($gatheringId, $activityId),
+        );
+    }
+
+    /** Remove an attachment only after its schedule dependencies are gone. */
+    private function unlinkActivity(int $gatheringId, int $activityId): array
     {
         if (
             $this->fetchTable('GatheringScheduledActivities')->exists([
@@ -139,13 +168,26 @@ class GatheringActivityService
      * @param int $gatheringId Gathering id
      * @param int $activityId Activity id
      * @param string|null $customDescription New description (null/empty to clear)
+     * @param int|null $actorId Actual operator; null is reserved for trusted internal callers.
      * @return array{success: bool, message: string, type: string}
      */
     public function editDescription(
         int $gatheringId,
         int $activityId,
         ?string $customDescription,
+        ?int $actorId = null,
     ): array {
+        return $this->withActivityAuthority(
+            $gatheringId,
+            $activityId,
+            $actorId,
+            fn(): array => $this->updateDescription($gatheringId, $activityId, $customDescription),
+        );
+    }
+
+    /** Update descriptive text while holding the current event grant. */
+    private function updateDescription(int $gatheringId, int $activityId, ?string $customDescription): array
+    {
         $table = $this->fetchTable('GatheringsGatheringActivities');
         $link = $table->find()
             ->where([
@@ -198,5 +240,24 @@ class GatheringActivityService
             'message' => __('Unable to update activity description. Please try again.'),
             'type' => 'error',
         ];
+    }
+
+    /** An actor's grant is held until the entire mutation commits. */
+    private function withActivityAuthority(int $gatheringId, int $activityId, ?int $actorId, callable $operation): array
+    {
+        $result = [];
+        $this->fetchTable('GatheringsGatheringActivities')->getConnection()->transactional(
+            function () use ($gatheringId, $activityId, $actorId, $operation, &$result): bool {
+                if ($actorId !== null) {
+                    (new GatheringActivityAuthorizationService())->assertActivity($gatheringId, $activityId, $actorId);
+                }
+
+                $result = $operation();
+
+                return (bool)$result['success'];
+            },
+        );
+
+        return $result;
     }
 }

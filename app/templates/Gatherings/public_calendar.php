@@ -14,7 +14,6 @@ if (trim($customCalendarCss) !== '') {
 $calendarUrl = $this->Url->build(['controller' => 'Gatherings', 'action' => 'publicCalendar']);
 $feedUrl = $this->Url->build([
     'controller' => 'Gatherings', 'action' => 'feed',
-    '?' => ['filter' => ['royal_progress' => $selectedRoyalProgress]],
 ], ['fullBase' => true]);
 $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
 ?>
@@ -66,16 +65,16 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                 </div>
                 <div class="kc-filter-tools">
                     <details class="kc-filter-picker">
-                        <summary><?= __('Activities & progress') ?>
+                        <summary><?= __('Activities') ?>
                             <span data-public-calendar-target="activityCount"><?php
                             $selectedOptionCount = count($selectedActivityIds)
-                                + count($selectedRoyalProgress) + (int)$circlesOnly;
+                                + (int)$circlesOnly + (int)$royalsOnly;
                             echo $selectedOptionCount ? '(' . $selectedOptionCount . ')' : '';
                             ?></span></summary>
                         <div class="kc-picker-body">
                             <label for="calendar-activity-search"><?= __('Find an activity') ?></label>
                             <input id="calendar-activity-search" type="search" autocomplete="off"
-                                placeholder="<?= h(__('Activity, type, or royal office')) ?>"
+                                placeholder="<?= h(__('Activity or type')) ?>"
 
                                     data-public-calendar-target="activitySearch"
                                     data-action="input->public-calendar#filterActivities">
@@ -102,18 +101,11 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                                         </summary>
                                         <fieldset>
                                             <legend class="visually-hidden"><?= h(__($type)) ?></legend>
-                                        <?php if ($type === 'Royal Progress') : ?>
-                                            <?php foreach ($royalProgressOptions as $option) : ?>
-                                                <?= $this->element('gatherings/public_calendar_activity_option', [
-                                                    'name' => 'royal_progress[]', 'value' => $option['value'],
-                                                    'label' => $option['label'], 'icon' => 'crown',
-                                                    'selected' => in_array(
-                                                        $option['value'],
-                                                        $selectedRoyalProgress,
-                                                        true,
-                                                    ),
-                                                ]) ?>
-                                            <?php endforeach; ?>
+                                        <?php if ($type === GatheringActivity::TYPE_ROYAL_PROGRESS) : ?>
+                                            <?= $this->element('gatherings/public_calendar_activity_option', [
+                                                'name' => 'royals', 'value' => 1, 'label' => __('Any Royal Progress'),
+                                                'icon' => 'crown', 'selected' => $royalsOnly,
+                                            ]) ?>
                                         <?php elseif ($type === GatheringActivity::TYPE_ORDER_CIRCLE) : ?>
                                             <?= $this->element('gatherings/public_calendar_activity_option', [
                                                 'name' => 'circles', 'value' => 1, 'label' => __('Any order circle'),

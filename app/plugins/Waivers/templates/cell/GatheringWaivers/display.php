@@ -272,7 +272,9 @@ $isCancelled = $gathering->cancelled_at !== null;
                         <?php endif; ?>
                     </td>
                     <td class="text-center align-middle">
-                        <?php if ($exemption): ?>
+                        <?php if ($row['is_lost']) : ?>
+                        <span class="badge bg-danger"><?= __('Lost') ?></span>
+                        <?php elseif ($exemption): ?>
                         <span class="badge bg-info" data-bs-toggle="tooltip"
                             title="<?= h($exemption->exemption_reason) ?>">
                             <kmp-icon name="shield-check"  aria-hidden="true"></kmp-icon> <?= __('Exempted') ?>
@@ -342,8 +344,6 @@ $isCancelled = $gathering->cancelled_at !== null;
     <?php endif; ?>
 
     <?php endif; ?>
-
-    <?= $this->element('Waivers.GatheringWaivers/loss_reports') ?>
 
     <!-- Include Attestation Modal (must be inside controller scope) -->
     <?= $this->element('Waivers.waiver_attestation_modal') ?>

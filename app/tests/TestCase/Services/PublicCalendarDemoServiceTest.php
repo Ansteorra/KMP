@@ -98,12 +98,6 @@ class PublicCalendarDemoServiceTest extends BaseTestCase
             ->where(['id IN' => array_values((new GatheringActivitySeedService($tables))->seed())])->all()->toList();
         $catalogueCount = $tables->get('GatheringActivities')->find()->count();
         $this->assertEqualsCanonicalizing(GatheringActivity::ACTIVITY_TYPES, array_unique(array_column($activities, 'activity_type')));
-        $royals = $tables->get('GatheringAttendances')->find()->where([
-            'gathering_id IN' => array_column($before, 'id'), 'is_royal_progress' => true,
-        ])->all();
-        $this->assertCount(2, $royals);
-        $branch = $tables->get('Branches')->find()->where(['type' => 'Kingdom'])->orderBy(['id' => 'ASC'])->firstOrFail();
-        $this->assertSame('Crown of ' . $branch->name, $royals->first()->progress_title);
         $this->assertGreaterThan(8 * 86400, $before[2]->end_date->getTimestamp() - $before[2]->start_date->getTimestamp());
         $this->assertGreaterThan(4, $tables->get('GatheringsGatheringActivities')->find()
             ->where(['gathering_id' => $before[0]->id])->count());
@@ -113,7 +107,7 @@ class PublicCalendarDemoServiceTest extends BaseTestCase
         $this->assertSame($catalogueCount, $tables->get('GatheringActivities')->find()->count());
         $this->assertSame(0, $tables->get('GatheringActivities')->find()
             ->where(['name LIKE' => PublicCalendarDemoService::LEGACY_PREFIX . '%'])->count());
-        $this->assertCount(2, $tables->get('GatheringAttendances')->find()
+        $this->assertCount(0, $tables->get('GatheringAttendances')->find()
             ->where(['gathering_id IN' => array_column($after, 'id')])->all());
         foreach ($after as $event) {
             $this->assertGreaterThan(new DateTime('2029-06-03'), $event->start_date);

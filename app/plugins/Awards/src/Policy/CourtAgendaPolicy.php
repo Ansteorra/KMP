@@ -6,6 +6,8 @@ namespace Awards\Policy;
 use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\BaseEntity;
 use App\Policy\BasePolicy;
+use Awards\Model\Entity\CourtAgenda;
+use Awards\Services\BestowalDelegationAccessService;
 use Cake\ORM\TableRegistry;
 
 /**
@@ -13,6 +15,16 @@ use Cake\ORM\TableRegistry;
  */
 class CourtAgendaPolicy extends BasePolicy
 {
+    /** Evaluate the grantor's own court permission in the delegated awarding branch. */
+    public function hasNativePermission(
+        KmpIdentityInterface $user,
+        string $method,
+        CourtAgenda $agenda,
+        int $branchId,
+    ): bool {
+        return parent::_hasPolicy($user, $method, $agenda, $branchId);
+    }
+
     /**
      * @param \App\KMP\KmpIdentityInterface $user User.
      * @param \App\Model\Entity\BaseEntity $entity Agenda entity.
@@ -154,6 +166,12 @@ class CourtAgendaPolicy extends BasePolicy
         ...$optionalArgs,
     ): bool {
         if ($this->_hasPolicy($user, $policyMethod, $entity, ...$optionalArgs)) {
+            return true;
+        }
+        if (
+            $entity instanceof CourtAgenda
+            && (new BestowalDelegationAccessService())->allowsAgenda($user, $policyMethod, $entity)
+        ) {
             return true;
         }
 

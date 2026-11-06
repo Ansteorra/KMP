@@ -1,5 +1,6 @@
 @import './activity-badges.css';
 @import './gathering-reader.css';
+@import '../../plugins/Awards/Assets/css/court-agenda.css';
 @import 'bootstrap.css';
 @import 'modal.css';
 @import './icons.css';
@@ -48,27 +49,81 @@
     }
 }
 
-/* Dataverse grid filter badges share one footprint, whether removable or locked. */
+/* Group logic stays with its choices; chip labels wrap independently of controls. */
+.grid-view-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--bs-border-color, #c9cccf);
+    border-radius: 0.5rem;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+}
+
+.grid-view-filter-group-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--bs-body-color, #202223);
+}
+
+.grid-view-filter-group-options {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+.grid-view-filter-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.grid-view-filter-or {
+    flex: 0 0 auto;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--bs-secondary-color, #596675);
+}
+
+/* Removable and locked filters retain the same label/control alignment. */
 .grid-view-filter-badge {
     min-height: 34px;
+    min-width: 0;
+    max-width: 100%;
     padding: 0.25rem 0.25rem 0.25rem 0.5rem;
-    border: 1px solid #c9cccf;
+    border: 1px solid var(--bs-border-color, #c9cccf);
     border-radius: 0.4rem;
-    background-color: #f6f6f7;
-    color: #202223;
-    font-size: 0.75rem;
+    background-color: var(--bs-body-bg, #fff);
+    color: var(--bs-body-color, #202223);
+    font-size: 0.8125rem;
     font-weight: 500;
+    white-space: normal;
+    text-align: left;
+}
+
+.grid-view-filter-badge-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
 }
 
 .grid-view-filter-badge-control {
+    box-sizing: border-box;
     width: 24px;
     height: 24px;
     min-width: 24px;
     min-height: 24px;
     flex: 0 0 24px;
-    border-radius: 50%;
-    background-color: rgba(0, 0, 0, 0.1);
-    color: #202223;
+    border: 1px solid var(--bs-border-color, #c9cccf);
+    border-radius: 0.3rem;
+    background-color: var(--bs-tertiary-bg, #f8f9fa);
+    color: inherit;
     font-size: 0.7rem;
     line-height: 1;
 }
@@ -84,8 +139,8 @@
 
 button.grid-view-filter-badge-control:hover,
 button.grid-view-filter-badge-control:focus {
-    background-color: rgba(0, 0, 0, 0.16);
-    color: #202223;
+    background-color: var(--bs-secondary-bg, #e9ecef);
+    color: inherit;
 }
 
 /* Drag and Drop Sortable Styles */

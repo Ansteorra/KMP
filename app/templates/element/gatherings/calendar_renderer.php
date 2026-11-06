@@ -84,10 +84,6 @@ if ($identity) {
                 </div>
                 <div class="card-body d-flex flex-wrap gap-3">
                     <div class="d-flex align-items-center gap-2">
-                        <span class="badge bg-warning text-dark"><kmp-icon name="crown" aria-hidden="true"></kmp-icon></span>
-                        <span><?= __('Royal Progress') ?></span>
-                    </div>
-                    <div class="d-flex align-items-center gap-2">
                         <span class="badge bg-success"><kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon></span>
                         <span><?= __('I\'m Attending') ?></span>
                     </div>

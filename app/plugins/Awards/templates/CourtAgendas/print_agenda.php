@@ -1,13 +1,18 @@
 <?php
+declare(strict_types=1);
+
 /**
  * @var \App\View\AppView $this
  * @var \Awards\Model\Entity\CourtAgenda $agenda
  * @var array<int, array<string, mixed>> $segments
+ * @var string $eventDates
+ * @var bool $isHeraldsVersion
  * @var int $totalMinutes
  * @var string|null $totalWarning
  */
 
-$title = __('Court Agenda') . ': ' . ($agenda->gathering->name ?? $agenda->name);
+$title = ($isHeraldsVersion ? __('Court Agenda (Heralds)') : __('Court Agenda'))
+    . ': ' . ($agenda->gathering->name ?? $agenda->name);
 ?>
 <!doctype html>
 <html lang="en">
@@ -61,11 +66,18 @@ $title = __('Court Agenda') . ': ' . ($agenda->gathering->name ?? $agenda->name)
             font-size: .9rem;
             margin-top: .25rem;
         }
-        .hand-notes {
-            border-top: 1px solid #555;
-            margin-top: .5rem;
-            min-height: .75in;
-            padding-top: .15rem;
+        .np-checkbox {
+            accent-color: #111;
+            height: 24px;
+            margin: 0;
+            width: 24px;
+        }
+        .np-checkbox:focus-visible {
+            outline: 2px solid #111;
+            outline-offset: 3px;
+        }
+        .court-note {
+            white-space: pre-line;
         }
         .screen-actions {
             margin-bottom: 1rem;
@@ -91,11 +103,16 @@ $title = __('Court Agenda') . ': ' . ($agenda->gathering->name ?? $agenda->name)
 
     <header>
         <h1><?= h($title) ?></h1>
-        <p class="summary">
-            <?= __('Projected court runtime: {0} minutes', $totalMinutes) ?>
-        </p>
-        <?php if ($totalWarning) : ?>
-            <p><strong><?= h($totalWarning) ?></strong></p>
+        <?php if ($eventDates !== '') : ?>
+            <p><?= h($eventDates) ?></p>
+        <?php endif; ?>
+        <?php if (!$isHeraldsVersion) : ?>
+            <p class="summary">
+                <?= __('Projected court runtime: {0} minutes', $totalMinutes) ?>
+            </p>
+            <?php if ($totalWarning) : ?>
+                <p><strong><?= h($totalWarning) ?></strong></p>
+            <?php endif; ?>
         <?php endif; ?>
     </header>
 
@@ -106,10 +123,11 @@ $title = __('Court Agenda') . ': ' . ($agenda->gathering->name ?? $agenda->name)
         <section class="segment" aria-labelledby="segment-<?= (int)$segment->id ?>-print-title">
             <div class="segment-heading">
                 <h2 id="segment-<?= (int)$segment->id ?>-print-title">
-                    <?= h($segment->name) ?>
-                    <span>(<?= h((string)$segmentData['minutes']) ?> <?= h(__('min')) ?>)</span>
+                    <?= h($segmentData['printHeading']) ?>
+                    <?php if (!$isHeraldsVersion) : ?>
+                        <span>(<?= h((string)$segmentData['minutes']) ?> <?= h(__('min')) ?>)</span>
+                    <?php endif; ?>
                 </h2>
-                <p><?= h($segmentData['scheduledActivityLabel']) ?></p>
                 <?php if (!empty($segment->notes)) : ?>
                     <p><?= h($segment->notes) ?></p>
                 <?php endif; ?>
@@ -118,10 +136,10 @@ $title = __('Court Agenda') . ': ' . ($agenda->gathering->name ?? $agenda->name)
                 <thead>
                     <tr>
                         <th scope="col"><?= __('Order') ?></th>
-                        <th scope="col"><?= __('Minutes') ?></th>
                         <th scope="col"><?= __('Recipient / Block') ?></th>
                         <th scope="col"><?= __('Award / Action') ?></th>
-                        <th scope="col"><?= __('Court Notes') ?></th>
+                        <th scope="col"><?= $isHeraldsVersion ? __('Notes') : __('Court Notes') ?></th>
+                        <th scope="col"><abbr title="<?= h(__('Not Present')) ?>"><?= __('NP') ?></abbr></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -131,7 +149,6 @@ $title = __('Court Agenda') . ': ' . ($agenda->gathering->name ?? $agenda->name)
                         ?>
                         <tr>
                             <td><?= h((string)($index + 1)) ?></td>
-                            <td><?= h((string)$itemData['minutes']) ?></td>
                             <td>
                                 <strong><?= h($itemData['label']) ?></strong>
                                 <?php if ($bestowal !== null && !empty($bestowal->member->pronunciation)) : ?>
@@ -143,67 +160,58 @@ $title = __('Court Agenda') . ': ' . ($agenda->gathering->name ?? $agenda->name)
                             </td>
                             <td>
                                 <?= h($itemData['awardLabel'] ?: ($item->planned_action ?? $item->title ?? '')) ?>
-                                <div class="notes"><?= h($itemData['durationHint']) ?></div>
-                                <?php if ($bestowal !== null) : ?>
-                                    <div class="notes"><?= __('State:') ?> <?= h($bestowal->lifecycle_status) ?></div>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <?php if (!empty($bestowal->call_into_court)) : ?>
-                                    <div>
-                                        <strong><?= __('Call in:') ?></strong>
-                                        <?= h($bestowal->call_into_court) ?>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($bestowal->court_availability)) : ?>
-                                    <div>
-                                        <strong><?= __('Court availability:') ?></strong>
-                                        <?= h($bestowal->court_availability) ?>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($bestowal->person_to_notify)) : ?>
-                                    <div>
-                                        <strong><?= __('Notify:') ?></strong>
-                                        <?= h($bestowal->person_to_notify) ?>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($item->presentation_notes)) : ?>
-                                    <div><strong><?= __('Agenda:') ?></strong> <?= h($item->presentation_notes) ?></div>
-                                <?php endif; ?>
-                                <?php if (!empty($item->print_notes)) : ?>
-                                    <div><strong><?= __('Print:') ?></strong> <?= h($item->print_notes) ?></div>
-                                <?php endif; ?>
-                                <?php if (!empty($bestowal->herald_notes)) : ?>
-                                    <div><strong><?= __('Herald:') ?></strong> <?= h($bestowal->herald_notes) ?></div>
-                                <?php endif; ?>
-                                <?php if (!empty($bestowal->noble_notes)) : ?>
-                                    <div><strong><?= __('Noble:') ?></strong> <?= h($bestowal->noble_notes) ?></div>
-                                <?php endif; ?>
-                                <?php if (!empty($itemData['specialties'])) : ?>
-                                    <div>
-                                        <strong><?= __('Specialties:') ?></strong>
+                                <?php if ($itemData['specialties'] !== []) : ?>
+                                    <div class="notes">
+                                        <strong><?= __('Class:') ?></strong>
                                         <?= h(implode(', ', $itemData['specialties'])) ?>
                                     </div>
                                 <?php endif; ?>
-                                <?php if (!empty($itemData['reasons'])) : ?>
-                                    <div class="reasons">
-                                        <strong><?= __('Reasons:') ?></strong>
-                                        <ol>
-                                            <?php foreach ($itemData['reasons'] as $reason) : ?>
-                                                <li><?= h($reason) ?></li>
-                                            <?php endforeach; ?>
-                                        </ol>
-                                    </div>
+                            </td>
+                            <td>
+                                <?php if ($isHeraldsVersion) : ?>
+                                    <?php if ($itemData['callIntoCourt'] !== '') : ?>
+                                        <div class="notes"><strong><?= __('Call into court:') ?></strong>
+                                            <?= h($itemData['callIntoCourt']) ?></div>
+                                    <?php endif; ?>
+                                    <?php if ($itemData['heraldNotes'] !== '') : ?>
+                                        <div class="notes court-note"><strong><?= __('Notes:') ?></strong> <?=
+                                            h($itemData['heraldNotes']) ?></div>
+                                    <?php endif; ?>
+                                <?php else : ?>
+                                    <?php foreach ($itemData['printNotes'] as $note) : ?>
+                                        <div class="notes court-note"><strong><?= h($note['label']) ?></strong> <?=
+                                            h($note['value']) ?></div>
+                                    <?php endforeach; ?>
+                                    <?php if (!empty($itemData['reasons'])) : ?>
+                                        <div class="reasons">
+                                            <strong><?= __('Reasons:') ?></strong>
+                                            <ol>
+                                                <?php foreach ($itemData['reasons'] as $reason) : ?>
+                                                    <li><?= h($reason) ?></li>
+                                                <?php endforeach; ?>
+                                            </ol>
+                                        </div>
+                                    <?php endif; ?>
+                                    <?php foreach ($itemData['recommendationNotes'] as $note) : ?>
+                                        <div class="notes court-note"><strong><?= h($note['label']) ?></strong> <?=
+                                            h($note['value']) ?></div>
+                                    <?php endforeach; ?>
                                 <?php endif; ?>
-                                <div class="hand-notes">
-                                    <strong><?= __('Hand notes:') ?></strong>
-                                </div>
+                            </td>
+                            <td>
+                                <input type="checkbox" class="np-checkbox"
+                                    aria-label="<?= h(__(
+                                        'Not Present: item {0} in {1}',
+                                        $index + 1,
+                                        $segment->name,
+                                    )) ?>">
                             </td>
                         </tr>
                     <?php endforeach; ?>
                     <?php if ($items === []) : ?>
                         <tr>
-                            <td colspan="5"><?= __('No agenda items in this segment.') ?></td>
+                            <td colspan="5"><?=
+                                __('No agenda items in this segment.') ?></td>
                         </tr>
                     <?php endif; ?>
                 </tbody>

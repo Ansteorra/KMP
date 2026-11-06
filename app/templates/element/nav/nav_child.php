@@ -32,17 +32,17 @@ if (isset($child['badgeResult'])) {
 
     if ($badgeValue > 0) {
         $badgeHtml = ' ' . $this->Html->badge(strval($badgeValue), [
-            'class' => $child['badgeClass'] . '',
+            'class' => $child['badgeClass'] . ' kmp-nav-count',
         ]);
     }
 }
 
-$linkBody = $this->Icon->render($child['icon'], ['class' => 'me-1'])
-    . $this->Html->tag('span', h($linkLabel), ['class' => 'fs-6', 'escape' => false])
+$linkBody = $this->Icon->render($child['icon'], ['class' => 'me-1 kmp-nav-icon'])
+    . $this->Html->tag('span', h($linkLabel), ['class' => 'fs-6 kmp-nav-label', 'escape' => false])
     . $badgeHtml;
 
 $linkOptions = [
-    'class' => "{$linkTypeClass} fs-6 mb-2 {$activeClass} {$otherClasses}",
+    'class' => "{$linkTypeClass} kmp-nav-item fs-6 mb-2 {$activeClass} {$otherClasses}",
     'escape' => false,
 ];
 

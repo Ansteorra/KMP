@@ -122,16 +122,6 @@ $updateRsvpUrl = $this->Url->build(['controller' => 'GatheringAttendances', 'act
                     </select>
                 </div>
 
-                <div class="mb-2">
-                    <label for="event-royalProgressFilter" class="form-label small mb-1"><?= __('Royal Progress') ?></label>
-                    <select class="form-select form-select-sm" id="event-royalProgressFilter"
-                        data-mobile-calendar-target="royalProgressFilter"
-                        data-action="change->mobile-calendar#applyFilters">
-                        <option value=""><?= __('All Gatherings') ?></option>
-                        <option value="any"><?= __('Any Royal Progress') ?></option>
-                    </select>
-                </div>
-
                 <!-- My RSVPs Only -->
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="myRsvpsOnly"

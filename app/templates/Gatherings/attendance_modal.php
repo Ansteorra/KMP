@@ -87,11 +87,6 @@ if ($isEdit) {
         'value' => $isEdit ? $userAttendance->public_note : ''
     ]) ?>
 
-    <?= $this->element('gatherings/royal_progress_control', [
-        'controlIdPrefix' => $formId,
-        'progressOfficers' => $progressOfficers ?? [],
-        'userAttendance' => $userAttendance,
-    ]) ?>
 
     <div class="mt-3">
         <label class="form-label">Share Information With:</label>

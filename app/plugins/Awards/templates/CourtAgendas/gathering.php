@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 /**
  * @var \App\View\AppView $this
  * @var \Awards\Model\Entity\CourtAgenda $agenda
@@ -38,6 +40,8 @@ $selectedItems = $selectedSegmentData['items'] ?? [];
 $selectedSegmentId = $selectedSegment !== null ? (int)$selectedSegment->id : null;
 $selectedSegmentAcceptsItems = $selectedSegment !== null
     && (!empty($selectedSegmentData['isRoaming']) || $selectedSegment->gathering_scheduled_activity_id !== null);
+$showTools = $canManage && $selectedSegmentAcceptsItems;
+$showMoveToRoaming = empty($selectedSegmentData['isRoaming']);
 $gatheringViewUrl = [
     'plugin' => null,
     'controller' => 'Gatherings',
@@ -67,30 +71,40 @@ if ($selectedSegmentId !== null) {
     data-court-agenda-board-csrf-token-value="<?= h($csrfToken) ?>">
     <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-start mb-3">
         <div>
-            <h1 class="h3 mb-1">
-                <?= __('Court Agenda') ?>:
+            <h1 class="h3 mb-1"><?= __('Court Agenda') ?></h1>
+            <p class="mb-1">
                 <?= $this->Html->link(
                     $agenda->gathering->name ?? $agenda->name,
                     $gatheringBestowalsUrl,
                 ) ?>
-            </h1>
+            </p>
             <p class="text-muted mb-0">
                 <?= __(
-                    'Build one court at a time. Choose a court activity, place eligible bestowals, '
-                    . 'add interjections, and prepare print notes.',
+                    'Build one court at a time. Arrange its script and keep working notes close at hand.',
                 ) ?>
             </p>
         </div>
         <div class="d-flex flex-wrap gap-2">
+            <?php if ($canViewDelegations) : ?>
+                <button type="button" class="btn btn-outline-secondary"
+                    data-bs-toggle="modal" data-bs-target="#eventAwardDelegationModal">
+                    <?= __('Event Award Delegation') ?>
+                </button>
+            <?php endif; ?>
             <?= $this->Html->link(
                 __('Back to Gathering'),
                 $gatheringBestowalsUrl,
                 ['class' => 'btn btn-outline-secondary'],
             ) ?>
             <?= $this->Html->link(
-                __('Printer Ready'),
+                __('Printer Ready — Full'),
                 ['action' => 'printAgenda', $agenda->id],
-                ['class' => 'btn btn-outline-secondary', 'target' => '_blank'],
+                ['class' => 'btn btn-outline-secondary', 'target' => '_blank', 'rel' => 'noopener'],
+            ) ?>
+            <?= $this->Html->link(
+                __('Printer Ready — Heralds'),
+                ['action' => 'printAgenda', $agenda->id, '?' => ['version' => 'heralds']],
+                ['class' => 'btn btn-outline-secondary', 'target' => '_blank', 'rel' => 'noopener'],
             ) ?>
             <?php if ($canManage) : ?>
                 <?= $this->Form->postLink(
@@ -102,86 +116,69 @@ if ($selectedSegmentId !== null) {
         </div>
     </div>
 
-    <div class="row g-3 mb-3">
-        <div class="col-12 col-lg-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h2 class="h5 card-title"><?= __('Projected Agenda Runtime') ?></h2>
-                    <p class="display-6 mb-1"><?= h((string)$totalMinutes) ?> <?= __('min') ?></p>
-                    <p class="text-muted mb-0">
-                        <?= __('Total across all courts and roaming court for this gathering.') ?>
-                    </p>
+    <div class="visually-hidden" role="status" data-court-agenda-board-target="status"></div>
+    <?php if ($totalWarning) : ?>
+        <div class="alert alert-warning" role="status"><?= h($totalWarning) ?></div>
+    <?php endif; ?>
+
+    <?php if ($segments !== []) : ?>
+        <div class="court-agenda-toolbar mb-3">
+            <?= $this->Form->create(null, [
+                'type' => 'get',
+                'url' => ['action' => 'gathering', $agenda->gathering_id],
+                'class' => 'court-agenda-selector',
+            ]) ?>
+                <div class="flex-grow-1">
+                    <label class="form-label" for="court-agenda-segment"><?= __('Court Activities') ?></label>
+                    <select class="form-select" name="segment_id" id="court-agenda-segment">
+                        <?php foreach ($segments as $segmentData) :
+                            $segment = $segmentData['entity'];
+                            ?>
+                            <option value="<?= (int)$segment->id ?>"
+                                <?= (int)$segment->id === $selectedSegmentId ? 'selected' : '' ?>>
+                                <?= h($segment->name . ' · ' . $segmentData['scheduledActivityLabel']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
-            </div>
-        </div>
-        <div class="col-12 col-lg-8">
-            <div class="alert <?= $totalWarning ? 'alert-warning' : 'alert-info' ?> mb-0" role="status">
-                <?= h($totalWarning ?? __(
-                    'Choose a court below to build its script. '
-                    . 'Long courts are easier to manage one activity at a time.',
-                )) ?>
-            </div>
-            <div class="visually-hidden" aria-live="polite" data-court-agenda-board-target="status"></div>
-        </div>
-    </div>
-
-    <section class="card mb-3" aria-labelledby="court-selector-heading">
-        <div class="card-header d-flex flex-column flex-md-row justify-content-between gap-2">
-            <div>
-                <h2 class="h5 mb-1" id="court-selector-heading"><?= __('Court Activities') ?></h2>
-                <p class="small text-muted mb-0"><?= __('Select the court activity you want to build.') ?></p>
-            </div>
-            <span class="badge text-bg-secondary align-self-md-start">
-                <?= __n('{0} court', '{0} courts', count($segments), count($segments)) ?>
-            </span>
-        </div>
-        <div class="list-group list-group-flush">
-            <?php foreach ($segments as $segmentData) :
-                $segment = $segmentData['entity'];
-                $isSelected = (int)$segment->id === (int)$selectedSegmentId;
-                ?>
-                <?= $this->Html->link(
-                    '<div class="d-flex w-100 justify-content-between gap-3">'
-                        . '<div><span class="fw-semibold">' . h($segment->name) . '</span>'
-                        . '<div class="small ' . ($isSelected ? 'text-white-50' : 'text-muted') . '">'
-                        . h($segmentData['scheduledActivityLabel']) . '</div></div>'
-                        . '<span class="badge '
-                        . ($isSelected ? 'text-bg-light' : 'text-bg-secondary')
-                        . ' align-self-start">'
-                        . h((string)$segmentData['minutes']) . ' ' . h(__('min')) . '</span></div>',
-                    [
-                        'action' => 'gathering',
-                        $agenda->gathering_id,
-                        '?' => ['segment_id' => (int)$segment->id],
-                    ],
-                    [
-                        'class' => 'list-group-item list-group-item-action' . ($isSelected ? ' active' : ''),
-                        'aria-current' => $isSelected ? 'true' : null,
-                        'escape' => false,
-                    ],
-                ) ?>
-            <?php endforeach; ?>
-        </div>
-    </section>
-
-    <?php if ($canManage) : ?>
-        <div class="alert alert-info mb-3" role="status">
-            <?= __(
-                'Each scheduled award-giving activity has its own agenda section. '
-                . 'Adding an activity under Activities does not schedule it. '
-                . 'Add an occurrence under Schedule, then return here; its section appears automatically. '
-                . 'Roaming court is available when placing a bestowal without a scheduled session.',
-            ) ?>
-            <?php if ($canViewGathering) : ?>
-                <?= $this->Html->link(
-                    __('Open gathering schedule'),
-                    $gatheringViewUrl + ['?' => ['tab' => 'schedule']],
-                    ['class' => 'alert-link'],
-                ) ?>.
-            <?php else : ?>
-                <?= __('Ask the gathering organizer to add or update scheduled activities.') ?>
+                <?= $this->Form->button(__('Show court'), ['class' => 'btn btn-outline-secondary']) ?>
+            <?= $this->Form->end() ?>
+            <p class="small text-muted mb-0">
+                <?= __('Projected Agenda Runtime') ?>:
+                <strong><?= h((string)$totalMinutes) ?> <?= __('min') ?></strong>
+                <span class="d-block"><?= __('Across all courts') ?></span>
+            </p>
+            <?php if ($showTools) : ?>
+                <button type="button" class="btn btn-primary d-lg-none"
+                    data-bs-toggle="offcanvas" data-bs-target="#court-agenda-tools"
+                    aria-controls="court-agenda-tools">
+                    <?= $this->Icon->render('plus') ?> <?= __('Add to court') ?>
+                </button>
             <?php endif; ?>
         </div>
+    <?php endif; ?>
+
+    <?php if ($canManage) : ?>
+        <details class="mb-3 court-agenda-help">
+            <summary><?= __('Court scheduling help') ?></summary>
+            <div class="small text-muted pt-2">
+                <?= __(
+                    'Each scheduled award-giving activity has its own agenda section. '
+                    . 'Adding an activity under Activities does not schedule it. '
+                    . 'Add an occurrence under Schedule, then return here; its section appears automatically. '
+                    . 'Roaming court is available when placing a bestowal without a scheduled session.',
+                ) ?>
+                <?php if ($canViewGathering) : ?>
+                    <?= $this->Html->link(
+                        __('Open gathering schedule'),
+                        $gatheringViewUrl + ['?' => ['tab' => 'schedule']],
+                        [],
+                    ) ?>.
+                <?php else : ?>
+                    <?= __('Ask the gathering organizer to add or update scheduled activities.') ?>
+                <?php endif; ?>
+            </div>
+        </details>
     <?php endif; ?>
 
     <?php if ($unscheduledAwardActivities !== []) : ?>
@@ -218,8 +215,8 @@ if ($selectedSegmentId !== null) {
             <?php endif; ?>
         </div>
     <?php else : ?>
-        <div class="row g-3 align-items-start">
-            <div class="col-12 col-xl-8">
+        <div class="court-agenda-workspace<?= $showTools ? ' court-agenda-with-tools' : '' ?>">
+            <div class="court-agenda-script">
                 <section class="card" aria-labelledby="selected-court-heading">
                     <div class="card-header">
                         <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
@@ -249,7 +246,12 @@ if ($selectedSegmentId !== null) {
                             </div>
                         <?php endif; ?>
                     </div>
-                    <div class="card-body"
+                    <p class="small text-muted px-3 pt-3 mb-0">
+                        <?= $canManage
+                            ? __('Use the arrows or drag to change the order. Open details for notes and court moves.')
+                            : __('You can read and print this agenda. Editing requires court agenda access.') ?>
+                    </p>
+                    <div class="card-body court-agenda-list"
                         role="list"
                         aria-label="<?= h(__('{0} script items', $selectedSegment->name)) ?>"
                         data-court-agenda-board-target="segment"
@@ -258,12 +260,15 @@ if ($selectedSegmentId !== null) {
                         <?php foreach ($selectedItems as $index => $itemData) :
                             $item = $itemData['entity'];
                             $bestowal = $item->bestowal ?? null;
+                            $detailsBlocked = !empty($itemData['detailsBlocked']);
                             $itemId = (int)$item->id;
                             $modalId = 'agenda-item-' . $itemId . '-edit-modal';
                             $modalTitleId = $modalId . '-title';
                             $minutesAriaLabel = h(__('Estimated minutes slider for {0}', $itemData['label']));
+                            $isLastItem = $index === count($selectedItems) - 1;
+                            $hasItemNotes = !empty($item->presentation_notes) || !empty($item->print_notes);
                             ?>
-                            <article class="card mb-3 court-agenda-item"
+                            <article class="court-agenda-item"
                                 role="listitem"
                                 tabindex="-1"
                                 draggable="<?= $canManage ? 'true' : 'false' ?>"
@@ -271,166 +276,182 @@ if ($selectedSegmentId !== null) {
                                 data-item-id="<?= $itemId ?>"
                                 data-sort-order="<?= (int)$item->sort_order ?>"
                                 data-action="<?= h($itemDragActions) ?>">
-                                <div class="card-body">
-                                    <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
-                                        <div>
-                                            <p class="small text-muted mb-1">
-                                                <?= __('Script item {0}', $index + 1) ?>
-                                            </p>
-                                            <h3 class="h5 mb-1"><?= h($itemData['label']) ?></h3>
-                                            <?php if ($itemData['awardLabel'] !== '') : ?>
-                                                <p class="fw-semibold mb-1"><?= h($itemData['awardLabel']) ?></p>
-                                            <?php elseif (!empty($item->planned_action)) : ?>
-                                                <p class="fw-semibold mb-1"><?= h($item->planned_action) ?></p>
-                                            <?php endif; ?>
-                                        </div>
-                                        <span class="badge text-bg-primary align-self-md-start">
+                                <div class="court-agenda-item-row">
+                                    <span class="court-agenda-position text-muted" aria-hidden="true"
+                                        data-court-agenda-board-target="position"><?= $index + 1 ?>.</span>
+                                    <div class="court-agenda-item-content">
+                                        <span class="visually-hidden"><?= __('Script item') ?></span>
+                                        <h3 class="h5 mb-1"><?= h($itemData['label']) ?></h3>
+                                        <?php if ($itemData['awardLabel'] !== '') : ?>
+                                            <p class="fw-semibold mb-1"><?= h($itemData['awardLabel']) ?></p>
+                                        <?php elseif (!empty($item->planned_action)) : ?>
+                                            <p class="fw-semibold mb-1"><?= h($item->planned_action) ?></p>
+                                        <?php endif; ?>
+                                        <p class="small text-muted mb-0">
                                             <?= h((string)$itemData['minutes']) ?> <?= __('min') ?>
-                                        </span>
+                                        </p>
                                     </div>
-
-                                    <div class="d-flex flex-wrap gap-1 my-2">
-                                        <?php if ($bestowal !== null) : ?>
-                                            <span class="badge text-bg-light border">
-                                                <?= h($bestowal->lifecycle_status) ?>
-                                            </span>
-                                            <?php if (!empty($bestowal->call_into_court)) : ?>
-                                                <span class="badge text-bg-light border">
-                                                    <?= h(__('Call: {0}', $bestowal->call_into_court)) ?>
-                                                </span>
-                                            <?php endif; ?>
-                                            <?php if (!empty($bestowal->court_availability)) : ?>
-                                                <span class="badge text-bg-light border">
-                                                    <?= h(__('Avail: {0}', $bestowal->court_availability)) ?>
-                                                </span>
-                                            <?php endif; ?>
-                                        <?php else : ?>
-                                            <span class="badge text-bg-light border"><?= h($item->role) ?></span>
-                                        <?php endif; ?>
-                                        <?php if (!empty($item->presentation_notes) || !empty($item->print_notes)) : ?>
-                                            <span class="badge text-bg-info"><?= __('Notes') ?></span>
-                                        <?php endif; ?>
-                                        <?php if (!empty($itemData['reasons'])) : ?>
-                                            <span class="badge text-bg-light border"><?= __('Reasons') ?></span>
-                                        <?php endif; ?>
-                                        <?php if (!empty($itemData['specialties'])) : ?>
-                                            <span class="badge text-bg-light border"><?= __('Specialties') ?></span>
-                                        <?php endif; ?>
-                                    </div>
-
-                                    <?php if ($bestowal !== null) : ?>
-                                        <dl class="row small mb-2">
-                                            <?php if ($itemData['specialties'] !== []) : ?>
-                                                <dt class="col-sm-3"><?= __('Specialties') ?></dt>
-                                                <dd class="col-sm-9">
-                                                    <?= h(implode(', ', $itemData['specialties'])) ?>
-                                                </dd>
-                                            <?php endif; ?>
-                                            <dt class="col-sm-3"><?= __('Timing hint') ?></dt>
-                                            <dd class="col-sm-9"><?= h($itemData['durationHint']) ?></dd>
-                                            <?php if (!empty($bestowal->person_to_notify)) : ?>
-                                                <dt class="col-sm-3"><?= __('Notify') ?></dt>
-                                                <dd class="col-sm-9"><?= h($bestowal->person_to_notify) ?></dd>
-                                            <?php endif; ?>
-                                        </dl>
-                                    <?php elseif (!empty($item->presentation_notes)) : ?>
-                                        <p class="small text-muted mb-2"><?= h($item->presentation_notes) ?></p>
-                                    <?php endif; ?>
-
                                     <?php if ($canManage) : ?>
-                                        <div class="d-flex flex-wrap gap-1 mb-2"
-                                            aria-label="<?= h(__('Move agenda item')) ?>">
-                                            <button type="button"
-                                                class="btn btn-outline-secondary btn-sm"
+                                        <div class="court-agenda-item-actions" role="group"
+                                            aria-label="<?= h(__('Arrange {0}', $itemData['label'])) ?>">
+                                            <button type="button" class="btn btn-outline-secondary"
                                                 aria-label="<?= h(__('Move {0} up', $itemData['label'])) ?>"
-                                                data-direction="up"
-                                                data-action="court-agenda-board#moveByButton">
-                                                <?= __('Up') ?>
+                                                aria-disabled="<?= $index === 0 ? 'true' : 'false' ?>"
+                                                data-direction="up" data-action="court-agenda-board#moveByButton">
+                                                <?= $this->Icon->render('arrow-up') ?>
                                             </button>
-                                            <button type="button"
-                                                class="btn btn-outline-secondary btn-sm"
+                                            <button type="button" class="btn btn-outline-secondary"
                                                 aria-label="<?= h(__('Move {0} down', $itemData['label'])) ?>"
-                                                data-direction="down"
-                                                data-action="court-agenda-board#moveByButton">
-                                                <?= __('Down') ?>
+                                                aria-disabled="<?= $isLastItem ? 'true' : 'false' ?>"
+                                                data-direction="down" data-action="court-agenda-board#moveByButton">
+                                                <?= $this->Icon->render('arrow-down') ?>
                                             </button>
-                                            <button type="button"
-                                                class="btn btn-primary btn-sm"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#<?= h($modalId) ?>">
-                                                <?= __('Edit') ?>
-                                            </button>
+                                            <?php if (!$detailsBlocked) : ?>
+                                                <button type="button" class="btn btn-outline-primary"
+                                                    aria-label="<?= h(__('Edit {0}', $itemData['label'])) ?>"
+                                                    data-bs-toggle="modal" data-bs-target="#<?= h($modalId) ?>">
+                                                    <?= __('Edit') ?>
+                                                </button>
+                                            <?php endif; ?>
                                         </div>
-
-                                        <?php if (!empty($itemData['moveSegmentOptions'])) : ?>
-                                            <?= $this->Form->create(null, [
-                                                'url' => ['action' => 'moveItem'],
-                                                'class' => 'row g-2 align-items-end mb-2',
-                                            ]) ?>
-                                                <?= $this->Form->hidden('item_id', ['value' => $itemId]) ?>
-                                                <div class="col-12 col-md">
-                                                    <?= $this->Form->control('court_agenda_segment_id', [
-                                                        'label' => __('Move to another court'),
-                                                        'options' => $itemData['moveSegmentOptions'],
-                                                        'value' => $selectedSegment->id,
-                                                        'id' => 'item-' . $itemId . '-move-segment',
-                                                    ]) ?>
-                                                </div>
-                                                <div class="col-12 col-md-auto">
-                                                    <?= $this->Form->button(
-                                                        __('Move'),
-                                                        ['class' => 'btn btn-outline-primary btn-sm'],
-                                                    ) ?>
-                                                </div>
-                                            <?= $this->Form->end() ?>
-                                        <?php endif; ?>
-
-                                        <?php if ($bestowal !== null && empty($selectedSegmentData['isRoaming'])) : ?>
-                                            <?= $this->Form->create(null, [
-                                                'url' => ['action' => 'moveToRoaming'],
-                                                'class' => 'd-inline',
-                                            ]) ?>
-                                                <?= $this->Form->hidden('court_agenda_id', ['value' => $agenda->id]) ?>
-                                                <?= $this->Form->hidden('item_id', ['value' => $itemId]) ?>
-                                                <?= $this->Form->hidden('return_segment_id', [
-                                                    'value' => $selectedSegmentId,
-                                                ]) ?>
-                                                <?= $this->Form->button(
-                                                    __('Move to Roaming'),
-                                                    ['class' => 'btn btn-outline-secondary btn-sm'],
-                                                ) ?>
-                                            <?= $this->Form->end() ?>
-                                        <?php endif; ?>
-                                        <?= $this->Form->create(null, [
-                                            'url' => ['action' => 'removeItem'],
-                                            'class' => 'd-inline',
-                                        ]) ?>
-                                            <?= $this->Form->hidden('item_id', ['value' => $itemId]) ?>
-                                            <?= $this->Form->hidden('return_segment_id', [
-                                                'value' => $selectedSegmentId,
-                                            ]) ?>
-                                            <?= $this->Form->button(
-                                                __('Remove from Agenda'),
-                                                [
-                                                    'class' => 'btn btn-outline-danger btn-sm',
-                                                    'data-confirm-message' => $bestowal !== null
-                                                        ? __(
-                                                            'Remove {0} from this court agenda? The bestowal will stay '
-                                                            . 'scheduled for the gathering but will no longer be '
-                                                            . 'assigned to a court.',
-                                                            $itemData['label'],
-                                                        )
-                                                        : __('Remove {0} from this court agenda?', $itemData['label']),
-                                                    'data-confirm-title' => __('Remove from agenda'),
-                                                    'data-confirm-label' => __('Remove'),
-                                                ],
-                                            ) ?>
-                                        <?= $this->Form->end() ?>
                                     <?php endif; ?>
                                 </div>
-                            </article>
 
-                            <?php if ($canManage) : ?>
+                                <?php if (!$detailsBlocked || $canManage) : ?>
+                                    <details class="court-agenda-item-details">
+                                        <summary><?= __('Details') ?>
+                                            <span class="visually-hidden"><?= h($itemData['label']) ?></span>
+                                        </summary>
+                                        <div class="pt-2">
+                                            <div class="d-flex flex-wrap gap-1 mb-2">
+                                                <?php if ($bestowal !== null) : ?>
+                                                    <span class="badge text-bg-light border">
+                                                        <?= h($bestowal->lifecycle_status) ?>
+                                                    </span>
+                                                    <?php if (!empty($bestowal->call_into_court)) : ?>
+                                                        <span class="badge text-bg-light border">
+                                                            <?= h(__('Call: {0}', $bestowal->call_into_court)) ?>
+                                                        </span>
+                                                    <?php endif; ?>
+                                                    <?php if (!empty($bestowal->court_availability)) : ?>
+                                                        <span class="badge text-bg-light border">
+                                                            <?= h(__('Avail: {0}', $bestowal->court_availability)) ?>
+                                                        </span>
+                                                    <?php endif; ?>
+                                                <?php elseif (!$detailsBlocked) : ?>
+                                                    <span class="badge text-bg-light border">
+                                                        <?= h($item->role) ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                                <?php if ($hasItemNotes) : ?>
+                                                    <span class="badge text-bg-info"><?= __('Notes') ?></span>
+                                                <?php endif; ?>
+                                                <?php if (!empty($itemData['reasons'])) : ?>
+                                                    <span class="badge text-bg-light border"><?= __('Reasons') ?></span>
+                                                <?php endif; ?>
+                                                <?php if (!empty($itemData['specialties'])) : ?>
+                                                    <span class="badge text-bg-light border">
+                                                        <?= __('Specialties') ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                            </div>
+
+                                            <?php if ($bestowal !== null) : ?>
+                                                <dl class="row small mb-2">
+                                                    <?php if ($itemData['specialties'] !== []) : ?>
+                                                        <dt class="col-sm-3"><?= __('Specialties') ?></dt>
+                                                        <dd class="col-sm-9">
+                                                            <?= h(implode(', ', $itemData['specialties'])) ?>
+                                                        </dd>
+                                                    <?php endif; ?>
+                                                    <dt class="col-sm-3"><?= __('Timing hint') ?></dt>
+                                                    <dd class="col-sm-9"><?= h($itemData['durationHint']) ?></dd>
+                                                    <?php if (!empty($bestowal->person_to_notify)) : ?>
+                                                        <dt class="col-sm-3"><?= __('Notify') ?></dt>
+                                                        <dd class="col-sm-9"><?= h($bestowal->person_to_notify) ?></dd>
+                                                    <?php endif; ?>
+                                                </dl>
+                                            <?php elseif (!empty($item->presentation_notes)) : ?>
+                                                <p class="small text-muted mb-2"><?= h($item->presentation_notes) ?></p>
+                                            <?php endif; ?>
+
+                                            <?php if ($canManage) : ?>
+                                                <?php if (!empty($itemData['moveSegmentOptions'])) : ?>
+                                                    <?= $this->Form->create(null, [
+                                                        'url' => ['action' => 'moveItem'],
+                                                        'class' => 'row g-2 align-items-end mb-2',
+                                                    ]) ?>
+                                                        <?= $this->Form->hidden('item_id', ['value' => $itemId]) ?>
+                                                        <div class="col-12 col-md">
+                                                            <?= $this->Form->control('court_agenda_segment_id', [
+                                                                'label' => __('Move to another court'),
+                                                                'options' => $itemData['moveSegmentOptions'],
+                                                                'value' => $selectedSegment->id,
+                                                                'id' => 'item-' . $itemId . '-move-segment',
+                                                            ]) ?>
+                                                        </div>
+                                                        <div class="col-12 col-md-auto">
+                                                            <?= $this->Form->button(
+                                                                __('Move'),
+                                                                ['class' => 'btn btn-outline-primary btn-sm'],
+                                                            ) ?>
+                                                        </div>
+                                                    <?= $this->Form->end() ?>
+                                                <?php endif; ?>
+
+                                                <?php if ($bestowal !== null && $showMoveToRoaming) : ?>
+                                                    <?= $this->Form->create(null, [
+                                                        'url' => ['action' => 'moveToRoaming'],
+                                                        'class' => 'd-inline',
+                                                    ]) ?>
+                                                        <?= $this->Form->hidden('court_agenda_id', [
+                                                            'value' => $agenda->id,
+                                                        ]) ?>
+                                                        <?= $this->Form->hidden('item_id', ['value' => $itemId]) ?>
+                                                        <?= $this->Form->hidden('return_segment_id', [
+                                                            'value' => $selectedSegmentId,
+                                                        ]) ?>
+                                                        <?= $this->Form->button(
+                                                            __('Move to Roaming'),
+                                                            ['class' => 'btn btn-outline-secondary btn-sm'],
+                                                        ) ?>
+                                                    <?= $this->Form->end() ?>
+                                                <?php endif; ?>
+                                                <?= $this->Form->create(null, [
+                                                    'url' => ['action' => 'removeItem'],
+                                                    'class' => 'd-inline',
+                                                ]) ?>
+                                                    <?= $this->Form->hidden('item_id', ['value' => $itemId]) ?>
+                                                    <?= $this->Form->hidden('return_segment_id', [
+                                                        'value' => $selectedSegmentId,
+                                                    ]) ?>
+                                                    <?= $this->Form->button(
+                                                        __('Remove from Agenda'),
+                                                        [
+                                                            'class' => 'btn btn-outline-danger btn-sm',
+                                                            'data-confirm-message' => $bestowal !== null
+                                                                ? __(
+                                                                    'Remove {0} from this court agenda? '
+                                                                    . 'The bestowal will stay scheduled for the '
+                                                                    . 'gathering but will no longer be '
+                                                                    . 'assigned to a court.',
+                                                                    $itemData['label'],
+                                                                )
+                                                                : __(
+                                                                    'Remove {0} from this court agenda?',
+                                                                    $itemData['label'],
+                                                                ),
+                                                            'data-confirm-title' => __('Remove from agenda'),
+                                                            'data-confirm-label' => __('Remove'),
+                                                        ],
+                                                    ) ?>
+                                                <?= $this->Form->end() ?>
+                                            <?php endif; ?>
+                                        </div>
+                                    </details>
+                                <?php endif; ?>
+
+                            <?php if ($canManage && !$detailsBlocked) : ?>
                                 <div class="modal fade"
                                     id="<?= h($modalId) ?>"
                                     tabindex="-1"
@@ -544,22 +565,35 @@ if ($selectedSegmentId !== null) {
                                     </div>
                                 </div>
                             <?php endif; ?>
+                            </article>
                         <?php endforeach; ?>
 
                         <?php if ($selectedItems === []) : ?>
                             <p class="text-muted mb-0">
                                 <?= __(
-                                    'No script items in this court yet. Add eligible bestowals or interjections '
-                                    . 'from the side panel.',
+                                    'No script items in this court yet.',
                                 ) ?>
                             </p>
                         <?php endif; ?>
                     </div>
+                    <div class="card-footer small text-muted">
+                        <?= __(
+                            'Agenda order does not mark awards as presented. '
+                            . 'Bestowal completion is a separate action.',
+                        ) ?>
+                    </div>
                 </section>
             </div>
 
-            <?php if ($canManage && $selectedSegmentAcceptsItems) : ?>
-                <aside class="col-12 col-xl-4">
+            <?php if ($showTools) : ?>
+                <aside class="offcanvas-lg offcanvas-end court-agenda-tools" tabindex="-1"
+                    id="court-agenda-tools" aria-labelledby="court-agenda-tools-title">
+                    <div class="offcanvas-header">
+                        <h2 class="offcanvas-title h5" id="court-agenda-tools-title"><?= __('Add to this court') ?></h2>
+                        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"
+                            data-bs-target="#court-agenda-tools" aria-label="<?= __('Close court tools') ?>"></button>
+                    </div>
+                    <div class="offcanvas-body">
                     <section class="card mb-3" aria-labelledby="selected-backlog-heading">
                         <div class="card-header">
                             <h2 class="h5 mb-1" id="selected-backlog-heading"><?= __('Add Eligible Bestowals') ?></h2>
@@ -577,7 +611,7 @@ if ($selectedSegmentId !== null) {
                                     $bestowal = $bestowalData['entity'];
                                     $bestowalId = (int)$bestowal->id;
                                     ?>
-                                    <article class="border rounded p-2 mb-2">
+                                    <article class="court-agenda-available-item">
                                         <h3 class="h6 mb-1"><?= h($bestowalData['label']) ?></h3>
                                         <?php if ($bestowalData['awardLabel'] !== '') : ?>
                                             <p class="small fw-semibold mb-1">
@@ -602,7 +636,10 @@ if ($selectedSegmentId !== null) {
                                             ]) ?>
                                             <?= $this->Form->button(
                                                 __('Add to this court'),
-                                                ['class' => 'btn btn-outline-primary btn-sm'],
+                                                [
+                                                    'class' => 'btn btn-outline-primary btn-sm',
+                                                    'aria-label' => __('Add {0} to this court', $bestowalData['label']),
+                                                ],
                                             ) ?>
                                         <?= $this->Form->end() ?>
                                     </article>
@@ -629,7 +666,7 @@ if ($selectedSegmentId !== null) {
                                         $bestowal = $bestowalData['entity'];
                                         $bestowalId = (int)$bestowal->id;
                                         ?>
-                                        <article class="border rounded p-2 mb-2">
+                                        <article class="court-agenda-available-item">
                                             <h3 class="h6 mb-1"><?= h($bestowalData['label']) ?></h3>
                                             <?php if ($bestowalData['awardLabel'] !== '') : ?>
                                                 <p class="small fw-semibold mb-1">
@@ -703,8 +740,12 @@ if ($selectedSegmentId !== null) {
                             <?= $this->Form->end() ?>
                         </div>
                     </section>
+                    </div>
                 </aside>
             <?php endif; ?>
         </div>
     <?php endif; ?>
 </div>
+<?php if ($canViewDelegations) : ?>
+    <?= $this->element('eventAwardDelegationModal', ['gatheringId' => $agenda->gathering_id]) ?>
+<?php endif; ?>

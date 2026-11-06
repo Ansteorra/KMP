@@ -626,7 +626,7 @@ class WaiverFileService
         }
 
         $losses = TableRegistry::getTableLocator()->get('Waivers.GatheringWaiverLosses')->find()
-            ->select(['waiver_type_id'])->where(['gathering_id' => $gatheringId]);
+            ->select(['waiver_type_id'])->where(['gathering_id' => $gatheringId, 'reversed_at IS' => null]);
         foreach ($losses as $loss) {
             if (isset($summary[$loss->waiver_type_id])) {
                 $summary[$loss->waiver_type_id]['loss_recorded'] = true;

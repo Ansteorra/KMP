@@ -64,9 +64,8 @@ class ActionItemsController extends AppController
     /**
      * Grid data endpoint for the My To-Dos Dataverse grid.
      *
-     * Open view lists the to-dos the member may act on (resolved via the same
-     * eligibility logic as the rich list); the Completed view lists to-dos the
-     * member has completed.
+     * Open and type views list eligible open items. Completed is always available
+     * and becomes the default when no eligible open items remain.
      *
      * @param \App\Services\ActionItems\ActionItemService $actionItemService To-do service
      * @return \Cake\Http\Response|null|void
@@ -77,13 +76,28 @@ class ActionItemsController extends AppController
         $memberId = (int)$user->getIdentifier();
 
         $actionItemsTable = $this->fetchTable('ActionItems');
-        $systemViews = ActionItemsGridColumns::getSystemViews();
+        $actionableIds = $actionItemService->getActionableItemIdsForMember($memberId);
+        $openQuery = $actionItemsTable->find()->where([
+            'ActionItems.status' => ActionItem::STATUS_OPEN,
+            'ActionItems.id IN' => $actionableIds !== [] ? $actionableIds : [-1],
+        ]);
+        $openTitles = (clone $openQuery)
+            ->select(['ActionItems.title'])
+            ->distinct(['ActionItems.title'])
+            ->orderBy(['ActionItems.title' => 'ASC'])
+            ->all()
+            ->extract('title')
+            ->toList();
+        $systemViews = ActionItemsGridColumns::getSystemViews([
+            'openTitles' => $openTitles,
+            // Email subscriptions retain their Open view even when there are no open tasks to send.
+            'includeOpenView' => $this->request->getAttribute('gridSubscriptionReport') === true
+                && $this->request->getQuery('view_id') === 'sys-todos-open',
+        ]);
         $baseQuery = $actionItemsTable->find()->contain(['Branches']);
-        $actionableIds = $actionItemsTable->find()->select(['ActionItems.id']);
-        $actionItemService->applyOpenCandidateScopeForMember($actionableIds, $memberId);
         $baseQuery->where([
             'OR' => [
-                ['ActionItems.id IN' => $actionableIds],
+                ['ActionItems.id IN' => $openQuery->select(['ActionItems.id'])],
                 [
                     'ActionItems.status' => ActionItem::STATUS_COMPLETED,
                     'ActionItems.completed_by' => $memberId,
@@ -100,7 +114,9 @@ class ActionItemsController extends AppController
             'defaultSort' => ['ActionItems.modified' => 'desc', 'ActionItems.id' => 'desc'],
             'defaultPageSize' => 25,
             'systemViews' => $systemViews,
-            'defaultSystemView' => 'sys-todos-open',
+            'defaultSystemView' => array_key_first($systemViews),
+            // Completion refreshes must replace the available type tabs as well as the rows.
+            'metadataMode' => 'full',
             'showAllTab' => false,
             'canAddViews' => true,
             'canFilter' => true,
@@ -109,6 +125,14 @@ class ActionItemsController extends AppController
             'showFilterPills' => true,
             'showSearchBox' => true,
         ]);
+
+        // Keep completion history last, including after personal saved views.
+        usort(
+            $result['gridState']['view']['available'],
+            static function (array $left, array $right): int {
+                return ($left['id'] === 'sys-todos-completed') <=> ($right['id'] === 'sys-todos-completed');
+            },
+        );
 
         $memberScope = $result['currentFilters']['member_scope'] ?? null;
         if ($memberScope !== null && $memberScope !== '') {
@@ -536,6 +560,7 @@ class ActionItemsController extends AppController
                 ->all();
 
             $courtSlotService = new BestowalCourtSlotService();
+            $user = $this->request->getAttribute('identity');
             $descriptors = [];
             foreach ($bestowals as $bestowal) {
                 $recipient = $bestowal->getRecipientName();
@@ -544,7 +569,9 @@ class ActionItemsController extends AppController
                 $courtAssignment = $courtSlotService->formatCourtSlotDisplay($bestowal);
                 $descriptors[(int)$bestowal->id] = [
                     'label' => sprintf('%s — %s', $recipient, $award),
-                    'url' => $this->ownerUrl('Awards.Bestowals', (int)$bestowal->id),
+                    'url' => $user->checkCan('view', $bestowal)
+                        ? $this->ownerUrl('Awards.Bestowals', (int)$bestowal->id)
+                        : null,
                     'details' => [
                         [
                             'label' => __('Specializations'),
@@ -594,12 +621,13 @@ class ActionItemsController extends AppController
     {
         return [
             'label' => str_replace('.', ' ', $entityType) . ' #' . $entityId,
-            'url' => $this->ownerUrl($entityType, $entityId),
+            // An unresolved owner has no verified view permission or destination.
+            'url' => null,
         ];
     }
 
     /**
-     * Render an owner descriptor as an escaped HTML link for the grid cell.
+     * Render an escaped owner label, linked only when its descriptor permits it.
      *
      * @param array<string, mixed> $descriptor Owner descriptor (label + url).
      * @return string

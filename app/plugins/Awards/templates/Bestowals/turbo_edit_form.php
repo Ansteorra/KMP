@@ -287,6 +287,8 @@ $submitAction = implode(' ', [
                     ]),
                 ],
             ) ?>
+            <div id="bestowalGatheringEligibilityWarning" class="alert alert-warning mt-2" role="alert" hidden
+                data-awards-bestowal-edit-target="gatheringEligibilityWarning"></div>
         </div>
         <?php
         $courtSlotsAvailable = $courtSlotsAvailable ?? false;
@@ -328,8 +330,11 @@ $submitAction = implode(' ', [
                     'empty' => __('Select a court session (optional)'),
                     'data-awards-bestowal-edit-target' => 'courtSlot',
                     'data-action' => 'change->awards-bestowal-edit#onCourtSlotChange',
+                    'aria-describedby' => 'bestowalCourtEligibilityWarning',
                 ]) ?>
             </div>
+            <div id="bestowalCourtEligibilityWarning" class="alert alert-warning mt-2" role="alert" hidden
+                data-awards-bestowal-edit-target="courtEligibilityWarning"></div>
         </div>
         <?php
         $bestowedValue = null;

@@ -8,6 +8,8 @@ use App\Services\ActionItems\ActionItemCompletionFormRegistry;
 use App\Services\ActionItems\ActionItemService;
 use App\Services\ServiceResult;
 use Awards\Model\Entity\Bestowal;
+use Awards\Model\Entity\BestowalTodoTemplateItem;
+use Awards\Policy\BestowalPolicy;
 use Cake\I18n\DateTime;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Cake\ORM\Table;
@@ -69,25 +71,51 @@ class BestowalFinalizationService
      * @param int $bestowalId Bestowal id.
      * @param int $actorId Member performing the action.
      * @param \DateTimeInterface|null $bestowedAt Optional bestowed timestamp (defaults to now).
+     * @param int|null $terminalItemId Chosen terminal snapshot; required when several exist.
      * @return \App\Services\ServiceResult Success carries the saved bestowal.
      */
-    public function markGiven(int $bestowalId, int $actorId, ?DateTimeInterface $bestowedAt = null): ServiceResult
-    {
+    public function markGiven(
+        int $bestowalId,
+        int $actorId,
+        ?DateTimeInterface $bestowedAt = null,
+        ?int $terminalItemId = null,
+        ?string $terminalStatus = null,
+    ): ServiceResult {
         if ($bestowalId <= 0) {
             return new ServiceResult(false, 'Bestowal ID is required.');
         }
 
-        return $this->finalizeWithLockedRecheck($bestowalId, $actorId, $bestowedAt, true, true, true);
+        return $this->finalizeWithLockedRecheck(
+            $bestowalId,
+            $actorId,
+            $bestowedAt,
+            true,
+            true,
+            true,
+            $terminalItemId,
+            $terminalStatus,
+        );
     }
 
-    /** Find the terminal snapshot, not the live template definition. */
-    public function terminalItem(int $bestowalId): ?ActionItem
+    /**
+     * Find terminal snapshots, not live template definitions.
+     *
+     * @param int $bestowalId Bestowal id.
+     * @return list<\App\Model\Entity\ActionItem>
+     */
+    public function terminalItems(int $bestowalId): array
     {
-        return $this->fetchTable('ActionItems')->find()->where([
+        $items = $this->fetchTable('ActionItems')->find()->where([
             'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
             'entity_id' => $bestowalId, 'is_terminal' => true,
             'status !=' => ActionItem::STATUS_CANCELLED,
-        ])->first();
+        ])->orderBy(['sort_order' => 'ASC', 'id' => 'ASC'])->all()->toList();
+        $leads = array_values(array_filter(
+            $items,
+            static fn(ActionItem $item): bool => BestowalTodoTemplateItem::terminalOutcomesFor($item) !== [],
+        ));
+
+        return $leads !== [] ? $leads : $items;
     }
 
     /** Called inside the owner-locked ActionItem transaction. */
@@ -147,6 +175,7 @@ class BestowalFinalizationService
         bool $terminalAction = false,
         bool $explicitAction = false,
         ?int $terminalItemId = null,
+        ?string $terminalStatus = null,
     ): ServiceResult {
         $connection = $this->bestowals->getConnection();
         $savePointsWereEnabled = $connection->isSavePointsEnabled();
@@ -163,6 +192,7 @@ class BestowalFinalizationService
                 $terminalAction,
                 $explicitAction,
                 $terminalItemId,
+                $terminalStatus,
             ): ServiceResult {
                 $bestowal = $this->loadBestowal($bestowalId, true);
                 if ($bestowal === null) {
@@ -171,8 +201,8 @@ class BestowalFinalizationService
                         $strict ? 'Bestowal not found.' : 'Bestowal not found; no change.',
                     );
                 }
-                if ($bestowal->lifecycle_status === Bestowal::LIFECYCLE_GIVEN) {
-                    return new ServiceResult(true, 'Bestowal already given.', $bestowal);
+                if ($bestowal->isCompleted()) {
+                    return new ServiceResult(true, 'Bestowal already completed.', $bestowal);
                 }
                 if ($bestowal->lifecycle_status === Bestowal::LIFECYCLE_CANCELLED) {
                     return new ServiceResult(
@@ -183,9 +213,25 @@ class BestowalFinalizationService
                         $strict ? null : $bestowal,
                     );
                 }
-                $terminal = $this->terminalItem($bestowalId);
-                if ($terminalItemId !== null && (int)($terminal?->id ?? 0) !== $terminalItemId) {
-                    return new ServiceResult(false, 'The terminal to-do changed; reload the bestowal and try again.');
+                $terminals = $this->terminalItems($bestowalId);
+                $terminal = null;
+                if ($terminalItemId !== null) {
+                    foreach ($terminals as $candidate) {
+                        if ((int)$candidate->id === $terminalItemId) {
+                            $terminal = $candidate;
+                            break;
+                        }
+                    }
+                    if ($terminal === null) {
+                        return new ServiceResult(
+                            false,
+                            'The terminal to-do changed; reload the bestowal and try again.',
+                        );
+                    }
+                } elseif (count($terminals) === 1) {
+                    $terminal = $terminals[0];
+                } elseif ($terminals !== []) {
+                    return new ServiceResult(!$strict, 'Choose a terminal to-do to mark this bestowal Given.');
                 }
                 if ($terminal !== null) {
                     if ($explicitAction) {
@@ -201,13 +247,17 @@ class BestowalFinalizationService
                                 $terminal->title,
                             ));
                         }
+                        $completionData = $bestowedAt === null ? [] : ['bestowed_at' => $bestowedAt];
+                        if ($terminalStatus !== null) {
+                            $completionData['terminal_status'] = $terminalStatus;
+                        }
                         if (!$terminal->isCompleted()) {
                             $result = $this->actionItemService->complete(
                                 (int)$terminal->id,
                                 $actorId,
                                 null,
                                 !$actor->isSuperUser(),
-                                $bestowedAt === null ? [] : ['bestowed_at' => $bestowedAt],
+                                $completionData,
                                 $actor,
                             );
                             if (!$result->success) {
@@ -216,11 +266,20 @@ class BestowalFinalizationService
                                 );
                             }
                             $saved = $this->loadBestowal($bestowalId);
-                            if ($saved?->lifecycle_status !== Bestowal::LIFECYCLE_GIVEN) {
+                            $completed = $this->fetchTable('ActionItems')->get($terminal->id);
+                            if ($saved?->lifecycle_status !== BestowalTodoTemplateItem::terminalStatusFor($completed)) {
                                 throw new RuntimeException('Terminal completion did not finalize the bestowal.');
                             }
 
                             return new ServiceResult(true, null, $saved);
+                        }
+                        if (BestowalTodoTemplateItem::terminalOutcomesFor($terminal) !== []) {
+                            $provider = ActionItemCompletionFormRegistry::providerFor($terminal);
+                            $submission = $provider?->applySubmission($terminal, $completionData, $actorId, $actor);
+                            if (!$submission?->success) {
+                                return $submission ?? new ServiceResult(false, 'Terminal completion provider is unavailable.');
+                            }
+                            $this->fetchTable('ActionItems')->saveOrFail($terminal);
                         }
                     }
                     if (!$terminalAction || !$terminal->isCompleted()) {
@@ -236,7 +295,13 @@ class BestowalFinalizationService
                         );
                     }
 
-                    return $this->applyGiven($bestowal, $actorId, $bestowedAt);
+                    return $this->applyGiven($bestowal, $actorId, $bestowedAt, $terminal);
+                }
+                if ($explicitAction) {
+                    $actor = $this->fetchTable('Members')->get($actorId);
+                    if (!(new BestowalPolicy())->canUpdateState($actor, $bestowal)) {
+                        return new ServiceResult(false, 'You are not authorized to finalize this bestowal.');
+                    }
                 }
                 $gatingComplete = $this->actionItemService->allGatingComplete(
                     Bestowal::ACTION_ITEM_ENTITY_TYPE,
@@ -272,10 +337,15 @@ class BestowalFinalizationService
      * @param \Awards\Model\Entity\Bestowal $bestowal Open bestowal to finalize.
      * @param int $actorId Member performing the action.
      * @param \DateTimeInterface|null $bestowedAt Optional bestowed timestamp.
+     * @param \App\Model\Entity\ActionItem|null $terminal Completed terminal snapshot.
      * @return \App\Services\ServiceResult
      */
-    protected function applyGiven(Bestowal $bestowal, int $actorId, ?DateTimeInterface $bestowedAt): ServiceResult
-    {
+    protected function applyGiven(
+        Bestowal $bestowal,
+        int $actorId,
+        ?DateTimeInterface $bestowedAt,
+        ?ActionItem $terminal = null,
+    ): ServiceResult {
         try {
             $connection = $this->bestowals->getConnection();
             $connection->enableSavePoints();
@@ -283,10 +353,21 @@ class BestowalFinalizationService
                 $bestowal,
                 $actorId,
                 $bestowedAt,
+                $terminal,
             ): Bestowal {
-                $this->closeRemainingTodos((int)$bestowal->id, $actorId);
+                $this->closeRemainingTodos((int)$bestowal->id, $actorId, $terminal);
 
-                $bestowal->lifecycle_status = Bestowal::LIFECYCLE_GIVEN;
+                $status = $terminal === null
+                    ? Bestowal::LIFECYCLE_GIVEN
+                    : BestowalTodoTemplateItem::terminalStatusFor($terminal);
+                if (in_array(mb_strtolower($status), ['open', 'cancelled'], true) || mb_strlen($status) > 100) {
+                    throw new RuntimeException('The terminal to-do has an invalid completion status.');
+                }
+                $outcomes = $terminal === null ? [] : BestowalTodoTemplateItem::terminalOutcomesFor($terminal);
+                if ($outcomes !== [] && !array_key_exists($status, $outcomes)) {
+                    throw new RuntimeException('Choose a valid completion outcome.');
+                }
+                $bestowal->lifecycle_status = $status;
                 $bestowal->bestowed_at = $bestowedAt ?? DateTime::now();
                 $bestowal->modified_by = $actorId;
 
@@ -320,9 +401,10 @@ class BestowalFinalizationService
      *
      * @param int $bestowalId Bestowal being finalized.
      * @param int $actorId Member performing or causing finalization.
+     * @param \App\Model\Entity\ActionItem|null $terminal Completed terminal snapshot.
      * @return void
      */
-    private function closeRemainingTodos(int $bestowalId, int $actorId): void
+    private function closeRemainingTodos(int $bestowalId, int $actorId, ?ActionItem $terminal): void
     {
         $items = $this->actionItemService->getItemsForEntity(
             Bestowal::ACTION_ITEM_ENTITY_TYPE,
@@ -336,7 +418,7 @@ class BestowalFinalizationService
             $result = $this->actionItemService->cancel(
                 (int)$item->id,
                 $actorId,
-                ($terminal = $this->terminalItem($bestowalId)) !== null
+                $terminal !== null
                     ? sprintf('Terminal to-do "%s" completed; remaining to-do is not applicable.', $terminal->title)
                     : self::FINALIZATION_SKIP_NOTE,
                 false,

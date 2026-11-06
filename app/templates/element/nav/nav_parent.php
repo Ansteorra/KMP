@@ -53,8 +53,8 @@ $collapseUrl = $this->Url->build([
     aria-controls="<?= $randomId ?>"
     class="navheader <?= $collapsed ?> text-start badge fs-5 mb-2 mx-1 text-bg-secondary"
     data-nav-bar-target="navHeader">
-    <?= $this->Icon->render($parent['icon'], ['class' => 'me-1']) ?>
-    <span><?= h($parent['label']) ?></span>
+    <?= $this->Icon->render($parent['icon'], ['class' => 'me-1 kmp-nav-icon']) ?>
+    <span class="kmp-nav-label"><?= h($parent['label']) ?></span>
 </button>
 
 <nav id='<?= $randomId ?>' class='appnav collapse <?= $show ?> nav-item ms-2 nav-underline'>

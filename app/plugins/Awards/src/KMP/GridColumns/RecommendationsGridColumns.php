@@ -1156,8 +1156,8 @@ class RecommendationsGridColumns extends BaseGridColumns
                 $field = $bestowals->aliasField('lifecycle_status');
 
                 return $isGiven
-                    ? $exp->eq($field, Bestowal::LIFECYCLE_GIVEN)
-                    : $exp->notEq($field, Bestowal::LIFECYCLE_GIVEN);
+                    ? $exp->notIn($field, [Bestowal::LIFECYCLE_OPEN, Bestowal::LIFECYCLE_CANCELLED])
+                    : $exp->in($field, [Bestowal::LIFECYCLE_OPEN, Bestowal::LIFECYCLE_CANCELLED]);
             });
 
         return $outerQuery->expr()->exists($subquery);

@@ -196,6 +196,19 @@ class BestowalsGridColumns extends BaseGridColumns
                 'filterQueryField' => 'Bestowals.award_id',
                 'description' => __('Award selected for this bestowal'),
             ],
+            'specialty' => [
+                'key' => 'specialty',
+                'label' => __('Specialty'),
+                'type' => 'string',
+                'sortable' => true,
+                'searchable' => true,
+                'filterable' => false,
+                'defaultVisible' => false,
+                'width' => '160px',
+                'alignment' => 'left',
+                'queryField' => 'Bestowals.specialty',
+                'description' => __('Specialty selected for this bestowal'),
+            ],
             'award_type' => [
                 'key' => 'award_type',
                 'label' => __('Award Type'),
@@ -248,7 +261,39 @@ class BestowalsGridColumns extends BaseGridColumns
                 'width' => '120px',
                 'alignment' => 'left',
                 'queryField' => 'Bestowals.lifecycle_status',
-                'description' => __('Open, given, or cancelled lifecycle of the bestowal'),
+                'description' => __('Open, cancelled, or the configured completion status of the bestowal'),
+            ],
+            'terminal_state' => [
+                'key' => 'terminal_state',
+                'label' => __('Terminal state'),
+                'type' => 'string',
+                'sortable' => true,
+                'searchable' => false,
+                'filterable' => true,
+                'filterType' => 'dropdown',
+                'filterOptionsSource' => [
+                    'method' => 'getTerminalStateFilterOptions',
+                    'class' => self::class,
+                ],
+                'defaultVisible' => false,
+                'width' => '180px',
+                'queryField' => 'Bestowals.lifecycle_status',
+                'renderField' => 'lifecycle_status',
+                'description' => __('The completion outcome recorded for this bestowal'),
+            ],
+            'close_date' => [
+                'key' => 'close_date',
+                'label' => __('Close date'),
+                'type' => 'date',
+                'sortable' => true,
+                'searchable' => false,
+                'filterable' => true,
+                'filterType' => 'date-range',
+                'defaultVisible' => false,
+                'width' => '120px',
+                'queryField' => 'Bestowals.bestowed_at',
+                'renderField' => 'bestowed_at',
+                'description' => __('The recorded bestowal completion date, including any entered backdate'),
             ],
             'todos_summary' => [
                 'key' => 'todos_summary',
@@ -445,6 +490,8 @@ class BestowalsGridColumns extends BaseGridColumns
         }
 
         if ($context === 'gatheringBestowals') {
+            array_splice($gatheringColumns, 2, 0, ['specialty']);
+
             return [
                 'sys-bestowals-gathering' => [
                     'id' => 'sys-bestowals-gathering',
@@ -463,7 +510,7 @@ class BestowalsGridColumns extends BaseGridColumns
             'sys-bestowals-active' => [
                 'id' => 'sys-bestowals-active',
                 'name' => __('Active Bestowals'),
-                'description' => __('Open bestowals that have not yet been given or cancelled'),
+                'description' => __('Open bestowals with active work remaining'),
                 'canManage' => false,
                 'config' => [
                     'filters' => [
@@ -485,13 +532,19 @@ class BestowalsGridColumns extends BaseGridColumns
             'sys-bestowals-completed' => [
                 'id' => 'sys-bestowals-completed',
                 'name' => __('Completed'),
-                'description' => __('Bestowals marked as given'),
+                'description' => __('Bestowals with any completed terminal outcome'),
                 'canManage' => false,
                 'config' => [
-                    'filters' => [
-                        ['field' => 'lifecycle_status', 'operator' => 'eq', 'value' => Bestowal::LIFECYCLE_GIVEN],
+                    'filters' => [],
+                    'expression' => [
+                        'field' => 'lifecycle_status',
+                        'operator' => 'notIn',
+                        'value' => [Bestowal::LIFECYCLE_OPEN, Bestowal::LIFECYCLE_CANCELLED],
                     ],
-                    'columns' => array_merge($gatheringColumns, ['gathering_name', 'created']),
+                    'columns' => array_merge(array_map(
+                        static fn(string $key): string => $key === 'lifecycle_status' ? 'terminal_state' : $key,
+                        $gatheringColumns,
+                    ), ['close_date', 'gathering_name', 'created']),
                 ],
             ],
             'sys-bestowals-cancelled' => [
@@ -509,6 +562,37 @@ class BestowalsGridColumns extends BaseGridColumns
         ];
 
         return $views;
+    }
+
+    /**
+     * Include configured outcomes and historical outcomes whose definitions were removed.
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    public static function getTerminalStateFilterOptions(): array
+    {
+        $locator = TableRegistry::getTableLocator();
+        $statuses = $locator->get('Awards.Bestowals')->find()
+            ->select(['lifecycle_status'])->distinct(['lifecycle_status'])
+            ->where(['lifecycle_status NOT IN' => [Bestowal::LIFECYCLE_OPEN, Bestowal::LIFECYCLE_CANCELLED]])
+            ->all()->extract('lifecycle_status')->toList();
+        $configured = $locator->get('Awards.BestowalTodoTemplateItems')->find()
+            ->select(['terminal_status'])->where(['is_terminal' => true])
+            ->all()->extract('terminal_status')->toList();
+        $labels = [Bestowal::LIFECYCLE_GIVEN => __('Given')];
+        foreach (array_merge($statuses, $configured) as $status) {
+            $status = trim((string)$status);
+            if ($status !== '' && !in_array(mb_strtolower($status), ['open', 'cancelled'], true)) {
+                $labels[$status] = ucfirst($status);
+            }
+        }
+        asort($labels, SORT_NATURAL | SORT_FLAG_CASE);
+        $options = [];
+        foreach ($labels as $value => $label) {
+            $options[] = ['value' => (string)$value, 'label' => $label];
+        }
+
+        return $options;
     }
 
     /**

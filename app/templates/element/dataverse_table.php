@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Dataverse Table Element
@@ -20,6 +21,7 @@
  * @var array $bulkSelection Bulk selection label configuration (optional)
  * @var string|null $bulkSelectionDisabledLabel Disabled row checkbox title (optional)
  * @var bool $bulkSelectionHideDisabledControl Hide disabled row checkboxes while preserving cells (optional)
+ * @var string|null $tableLabel Accessible name for the table and its scroll region (optional)
  */
 
 $controllerName = $controllerName ?? 'grid-view';
@@ -27,6 +29,7 @@ $primaryKey = $primaryKey ?? 'id';
 $currentSort = $currentSort ?? [];
 $gridKey = $gridKey ?? 'grid';
 $rowActions = $rowActions ?? [];
+$tableLabel = $tableLabel ?? __('Table results');
 $user = $user ?? $this->request->getAttribute('identity');
 $enableColumnPicker = $enableColumnPicker ?? true;
 $enableBulkSelection = $enableBulkSelection ?? false;
@@ -108,8 +111,10 @@ $showActionsColumn = $enableColumnPicker || !empty($rowActions);
 $totalColumns = max(1, count($visibleColumns) + ($showActionsColumn ? 1 : 0) + ($enableBulkSelection ? 1 : 0));
 ?>
 
-<div class="table-responsive">
+<div class="table-responsive" role="region" tabindex="0"
+    aria-label="<?= h(__('{0}. Scroll horizontally to compare columns.', $tableLabel)) ?>">
     <table class="table table-striped table-hover" data-<?= h($controllerName) ?>-target="gridTable">
+        <caption class="visually-hidden"><?= h($tableLabel) ?></caption>
         <thead class="table-light">
             <tr>
                 <?php if ($enableBulkSelection) : ?>
@@ -141,12 +146,16 @@ $totalColumns = max(1, count($visibleColumns) + ($showActionsColumn ? 1 : 0) + (
                         style="<?= !empty($column['width']) ? 'width: ' . h($column['width']) . ';' : '' ?> 
                                text-align: <?= h($column['alignment'] ?? 'left') ?>;"
                         <?php if ($sortable) : ?>
-                        data-action="click-><?= h($controllerName) ?>#applySort"
                         data-column-key="<?= h($columnKey) ?>"
-                        style="cursor: pointer;"
+                        aria-sort="<?= $isSorted ? ($sortDirection === 'asc' ? 'ascending' : 'descending') : 'none' ?>"
                         <?php endif; ?>>
-                        <?= h($column['label']) ?>
                         <?php if ($sortable) : ?>
+                            <button type="button"
+                                class="btn btn-link p-0 text-body text-decoration-none dataverse-sort-button"
+                                data-action="click-><?= h($controllerName) ?>#applySort"
+                                data-column-key="<?= h($columnKey) ?>"
+                                aria-label="<?= h(__('Sort by {0}', $column['label'])) ?>">
+                                <?= h($column['label']) ?>
                             <span class="sort-indicator ms-1">
                                 <?php if ($isSorted) : ?>
                                     <?php if ($sortDirection === 'asc') : ?>
@@ -158,6 +167,9 @@ $totalColumns = max(1, count($visibleColumns) + ($showActionsColumn ? 1 : 0) + (
                                     <kmp-icon name="caret-down" class="text-muted" aria-hidden="true"></kmp-icon>
                                 <?php endif; ?>
                             </span>
+                            </button>
+                        <?php else : ?>
+                            <?= h($column['label']) ?>
                         <?php endif; ?>
                     </th>
                 <?php endforeach; ?>
@@ -219,8 +231,13 @@ $totalColumns = max(1, count($visibleColumns) + ($showActionsColumn ? 1 : 0) + (
 
 <style>
     .sortable-header {
-        cursor: pointer;
         user-select: none;
+    }
+
+    .dataverse-sort-button {
+        font: inherit;
+        text-align: inherit;
+        white-space: normal;
     }
 
     .sortable-header:hover {

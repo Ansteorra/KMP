@@ -26,6 +26,14 @@ Own reusable business workflows, side effects, integrations, registries, workflo
   Terminal completions skip the ordinary post-commit cascade and cannot auto-complete from satisfied fields. Automatic definition-sync cancellation provenance is
   the exact persisted system note constant; changing that text requires migrating existing logs.
 - Services assume authorization has already been enforced unless the service is specifically an authorization helper.
+- Actor-driven gathering activity and schedule mutations reauthorize through
+  `GatheringActivityAuthorizationService` inside their transactions. Plugin-owned activity grants use
+  `GatheringActivityDelegationRegistry`; providers must resolve the active tenant lazily and evaluate
+  only native grantor permissions. Keep general gathering editing and Other scheduling independent.
+- Owner-specific ActionItem delegation uses `ActionItemDelegationRegistry`; core does not import plugin policies.
+  Candidate conditions only discover possible work; all lists, counts, transitions, and reverse assignment resolution
+  still use the live assignee resolver. Providers must check native eligibility to prevent delegation chains and resolve
+  the current tenant locator on every call rather than retaining tenant tables from registration or a prior tenant.
 - Logical backup manifests preserve PostgreSQL partial-index predicates; restore must not widen conditional uniqueness. Unsupported target engines must fail while planning, before dropping tables.
 - Tenant-aware data must use tenant-safe cache keys and context handling.
 - Deferred workflow jobs and state commit on the same tenant connection. Execute async

@@ -11,7 +11,6 @@
 .gathering-reader-section { border: 1px solid var(--bs-border-color); border-radius: .5rem; padding: 1.25rem; margin-bottom: 1rem; background: var(--bs-body-bg); }
 .gathering-reader-section h2 { font-size: 1.2rem; margin-bottom: 1rem; }
 .gathering-reader [id^="reader-"] { scroll-margin-top: 8rem; }
-.gathering-reader-progress { border-left: 4px solid var(--bs-warning); background: var(--bs-warning-bg-subtle); padding: 1rem; margin-bottom: 1rem; }
 .gathering-reader-schedule { list-style: none; margin: 0; padding: 0; }
 .gathering-reader-schedule li { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: 1rem; padding-block: 1rem; border-top: 1px solid var(--bs-border-color); }
 .gathering-reader-schedule-time { font-size: .9rem; }

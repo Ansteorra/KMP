@@ -46,8 +46,6 @@ class PublicCalendarDemoService
             $admin = $tables->get('Members')->find()
                 ->where(['email_address' => 'admin@amp.ansteorra.org'])->firstOrFail();
             $branch = $tables->get('Branches')->get($admin->branch_id);
-            $kingdom = $tables->get('Branches')->find()->where(['type' => 'Kingdom'])
-                ->orderBy(['id' => 'ASC'])->first() ?? $branch;
             $hostGroups = $tables->get('Branches')->find()->where(['type' => 'Local Group'])
                 ->orderBy(['name' => 'ASC', 'id' => 'ASC'])->all()->toList();
             $hostGroups = $hostGroups ?: [$branch];
@@ -62,30 +60,29 @@ class PublicCalendarDemoService
                 'crown-circles' => ['Crown & Order Circles', 0, 2, [
                     'Royal Visit', 'Laurel Circle', 'Pelican Circle', 'Chivalric Circle',
                     'Kingdom Court', 'Feast', 'Target Archery', 'Gate',
-                ], true],
+                ]],
                 'martial-muster' => ['Martial Muster', 7, 2, [
                     'Armored Combat', 'Steel Combat', 'Target Archery', 'Youth Armored Combat',
-                ], false],
+                ]],
                 'war-arts' => ['War & Arts Encampment', 21, 9, [
                     'Armored Combat', 'Target Archery', 'Arts & Sciences Class',
                     'Bardic', 'Feast', 'Youth Armored Combat',
-                ], false],
+                ]],
                 'guild-classes' => ['Guild Business & Classes', 35, 2, [
                     'Guild Meeting', 'Arts & Sciences Class', 'Bardic', 'Other Gathering', 'Gate',
-                ], false],
+                ]],
                 'youth-family' => ['Youth & Family Day', 49, 2, [
                     'Youth Armored Combat', 'Feast', 'Arts & Sciences Class',
-                ], false],
+                ]],
                 'crown-feast' => ['Crown Court & Feast', 63, 2, [
                     'Royal Visit', 'Kingdom Court', 'Laurel Circle', 'Feast', 'Defense Circle',
                     'Order of the Mark Circle', 'Golden Lance Circle', 'Iris of Merit Circle',
                     'Star of Merit Circle', 'Blades of Merit Circle', 'Centurion Circle', "Arc d'Or Circle",
-                ], true],
+                ]],
             ];
             $links = $tables->get('GatheringsGatheringActivities');
-            $attendances = $tables->get('GatheringAttendances');
             $index = 0;
-            foreach ($fixtures as $key => [$name, $offset, $days, $names, $royal]) {
+            foreach ($fixtures as $key => [$name, $offset, $days, $names]) {
                 $event = isset($publicIds[$key])
                     ? $events->find()->where(['public_id' => $publicIds[$key]])->first() : null;
                 $event ??= $events->find()->where(['name' => self::LEGACY_PREFIX . $name])->first()
@@ -117,16 +114,6 @@ class PublicCalendarDemoService
                     ];
                     $link = $links->find()->where($conditions)->first() ?? $links->newEmptyEntity();
                     $links->saveOrFail($links->patchEntity($link, $conditions + ['sort_order' => $order]));
-                }
-                if ($royal) {
-                    $conditions = ['gathering_id' => $event->id, 'member_id' => $admin->id];
-                    $attendance = $attendances->find()->where($conditions)->first()
-                        ?? $attendances->newEntity($conditions);
-                    $attendance->set('is_royal_progress', true);
-                    $attendance->set('progress_office_name', 'Crown');
-                    $attendance->set('progress_branch_name', $kingdom->name);
-                    $attendance->set('share_with_kingdom', true);
-                    $attendances->saveOrFail($attendance);
                 }
             }
             $state->value = json_encode($publicIds, JSON_THROW_ON_ERROR);

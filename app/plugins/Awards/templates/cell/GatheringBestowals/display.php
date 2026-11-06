@@ -11,6 +11,7 @@
 
 if (!isset($gatheringId)) {
     echo '<p class="text-muted">' . __('Unable to load award bestowals for this gathering.') . '</p>';
+
     return;
 }
 
@@ -18,6 +19,10 @@ $frameId = 'gathering-bestowals-grid-' . $gatheringId;
 ?>
 
 <div class="d-flex justify-content-end mb-3">
+    <button type="button" class="btn btn-outline-secondary btn-sm me-2"
+        data-bs-toggle="modal" data-bs-target="#eventAwardDelegationModal">
+        <?= __('Event Award Delegation') ?>
+    </button>
     <?= $this->Html->link(
         __('Open Court Agenda'),
         [
@@ -29,8 +34,9 @@ $frameId = 'gathering-bestowals-grid-' . $gatheringId;
         ['class' => 'btn btn-outline-primary btn-sm'],
     ) ?>
 </div>
+<?= $this->element('eventAwardDelegationModal', compact('gatheringId')) ?>
 
-<?php if (!$isEmpty): ?>
+<?php if (!$isEmpty) : ?>
     <?= $this->element('dv_grid', [
         'gridKey' => 'Awards.Bestowals.gathering',
         'frameId' => $frameId,
@@ -42,14 +48,18 @@ $frameId = 'gathering-bestowals-grid-' . $gatheringId;
         ]),
         'compactMode' => true,
     ]) ?>
-    <?php if ($canManage): ?>
+    <?php if ($canManage) : ?>
         <?= $this->element('ad_hoc_bestowal_modal', ['modalId' => 'adHocBestowalModal']) ?>
+    <?php endif; ?>
+    <?php if ($canEditBestowalRecords) : ?>
         <?= $this->element('bestowalEditModal', ['modalId' => 'editBestowalModal']) ?>
     <?php endif; ?>
-<?php else: ?>
+<?php else : ?>
     <p class="text-muted"><?= __('No Award Bestowals for this gathering') ?></p>
-    <?php if ($canManage): ?>
+    <?php if ($canManage) : ?>
         <?= $this->element('ad_hoc_bestowal_modal', ['modalId' => 'adHocBestowalModal']) ?>
+    <?php endif; ?>
+    <?php if ($canEditBestowalRecords) : ?>
         <?= $this->element('bestowalEditModal', ['modalId' => 'editBestowalModal']) ?>
     <?php endif; ?>
 <?php endif; ?>

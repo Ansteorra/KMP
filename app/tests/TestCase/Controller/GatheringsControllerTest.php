@@ -20,7 +20,6 @@ use DateTimeImmutable;
 use DateTimeZone;
 use DOMDocument;
 use DOMXPath;
-use Officers\Model\Entity\Officer;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Waivers\Policy\GatheringWaiverPolicy;
 
@@ -1560,7 +1559,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
      * @return void
      * @uses \App\Controller\GatheringsController::publicCalendar()
      */
-    public function testPublicCalendarGroupsActivitiesAndPrioritizesActualRoyalProgressAndOrderCircles(): void
+    public function testPublicCalendarGroupsActivitiesAndPrioritizesRoyalProgressActivitiesAndOrderCircles(): void
     {
         $published = $this->createCalendarGathering('Grouped filter published fixture', true);
         $draft = $this->createCalendarGathering('Grouped filter draft fixture', false);
@@ -1568,10 +1567,9 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->linkActivity($published, 'Group filter Archery', 'Martial');
         $this->linkActivity($published, 'Group filter Crown reception', 'Royal Progress');
         $this->linkActivity($draft, 'Group filter private activity', 'Youth');
-        $royal = $this->addRoyalProgress($published, 'Grouped Crown', 'Grouped Kingdom');
         $this->session(['Auth' => null]);
         $this->get('/events?' . http_build_query([
-            'activities' => [$circle->id], 'circles' => '1', 'royal_progress' => [$royal->progress_filter_value],
+            'activities' => [$circle->id], 'circles' => '1',
         ]));
         $this->assertResponseOk();
         $dom = new DOMDocument();
@@ -1586,19 +1584,85 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertTrue($groups->item(0)->hasAttribute('open'));
         $this->assertTrue($groups->item(1)->hasAttribute('open'));
         $this->assertFalse($groups->item(2)->hasAttribute('open'));
-        $this->assertSame(1, $xpath->query('//details[@data-activity-type="Royal Progress"]//input[@name="royal_progress[]"][@checked]')->length);
         $this->assertSame(1, $xpath->query('//details[@data-activity-type="Royal Progress"]//input[@name="activities[]"]')->length);
         $this->assertSame(1, $xpath->query('//details[@data-activity-type="Order Circle"]//input[@name="circles"][@checked]')->length);
         $this->assertSame(1, $xpath->query('//details[@data-activity-type="Order Circle"]//input[@name="activities[]"][@checked]')->length);
-        $this->assertResponseContains('Grouped Crown of Grouped Kingdom');
+        $this->assertResponseNotContains('name="royal_progress[]"');
+        $this->assertResponseContains('Any Royal Progress');
         $this->assertResponseNotContains('Group filter private activity');
-        $this->assertSame('(3)', trim($xpath->query('//*[@data-public-calendar-target="activityCount"]')->item(0)->textContent));
+        $this->assertSame('(2)', trim($xpath->query('//*[@data-public-calendar-target="activityCount"]')->item(0)->textContent));
         $selectedNames = $xpath->query('//*[@data-public-calendar-target="selectedLabels"]/li');
         $this->assertSame(
-            ['Grouped Crown of Grouped Kingdom', 'Any order circle', 'Group filter Laurel'],
+            ['Any order circle', 'Group filter Laurel'],
             array_map(static fn($item) => $item->textContent, iterator_to_array($selectedNames)),
         );
         $this->assertSame(0, $xpath->query('//*[@data-public-calendar-target="selectedSummary"][@hidden]')->length);
+    }
+
+    public function testAnyRoyalProgressMatchesEveryConfiguredRoyalActivityWithoutRsvps(): void
+    {
+        $events = [];
+        $activityNames = ['Crown Presence regression', 'Heir Presence regression', 'Coronet Presence regression'];
+        foreach ($activityNames as $index => $name) {
+            $events[] = $this->createCalendarGathering('Royal type filter event ' . $index, true);
+            $this->linkActivity($events[$index], $name, GatheringActivity::TYPE_ROYAL_PROGRESS);
+        }
+        $multiple = $this->createCalendarGathering('Several royal activities fixture', true);
+        foreach ($activityNames as $name) {
+            $this->linkActivity($multiple, $name, GatheringActivity::TYPE_ROYAL_PROGRESS);
+        }
+        $ordinary = $this->createCalendarGathering('Crown named event without Royal Progress fixture', true);
+        $this->linkActivity($ordinary, 'Crown named court activity fixture', 'Court');
+        $draft = $this->createCalendarGathering('Unpublished royal activity fixture', false);
+        $this->linkActivity($draft, $activityNames[1], GatheringActivity::TYPE_ROYAL_PROGRESS);
+        $this->session(['Auth' => null]);
+        $this->get('/events?royals=1');
+        $this->assertResponseOk();
+        foreach ($events as $event) {
+            $this->assertResponseContains($event->name);
+        }
+        $this->assertResponseContains($multiple->name);
+        $this->assertResponseNotContains($ordinary->name);
+        $this->assertResponseNotContains($draft->name);
+        $ids = [];
+        foreach ($this->viewVariable('calendarMonths') as $month) {
+            foreach ($month['rows'] as $row) {
+                if (!$row['empty']) {
+                    $ids[] = $row['event']['gathering']->id;
+                }
+            }
+        }
+        $this->assertSame(1, count(array_filter($ids, static fn($id) => $id === $multiple->id)));
+        $this->assertTrue($this->viewVariable('royalsOnly'));
+        $this->assertTrue($this->viewVariable('hasFilters'));
+        $this->assertSame(['Any Royal Progress'], $this->viewVariable('selectedActivityLabels'));
+        $this->assertResponseContains('name="royals"');
+        $this->assertResponseContains('Clear filters');
+        $this->assertResponseNotContains('name="royal_progress[]"');
+        $this->get('/events');
+        $this->assertResponseOk();
+        $this->assertResponseContains($ordinary->name);
+        $this->assertFalse($this->viewVariable('royalsOnly'));
+    }
+
+    public function testAnyRoyalProgressCombinesWithCircleAndIndividualActivityFilters(): void
+    {
+        $matching = $this->createCalendarGathering('Royal circle matching fixture', true);
+        $royalOnly = $this->createCalendarGathering('Royal activity without circle fixture', true);
+        $circleOnly = $this->createCalendarGathering('Circle without royal activity fixture', true);
+        $this->linkActivity($matching, 'Royal circle presence fixture', GatheringActivity::TYPE_ROYAL_PROGRESS);
+        $this->linkActivity($royalOnly, 'Royal circle presence fixture', GatheringActivity::TYPE_ROYAL_PROGRESS);
+        $circle = $this->linkActivity($matching, 'Royal circle Laurel fixture', GatheringActivity::TYPE_ORDER_CIRCLE);
+        $this->linkActivity($circleOnly, $circle->name, GatheringActivity::TYPE_ORDER_CIRCLE);
+        $this->session(['Auth' => null]);
+        $this->get('/events?' . http_build_query([
+            'royals' => '1', 'circles' => '1', 'activities' => [$circle->id],
+        ]));
+        $this->assertResponseOk();
+        $this->assertResponseContains($matching->name);
+        $this->assertResponseNotContains($royalOnly->name);
+        $this->assertResponseNotContains($circleOnly->name);
+        $this->assertSame(['Any Royal Progress', 'Any order circle', $circle->name], $this->viewVariable('selectedActivityLabels'));
     }
 
     public function testPublicCalendarFilterShowsConfiguredArtworkBesideNativeSelectionControls(): void
@@ -1690,403 +1754,25 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseNotContains($unpublished->name);
     }
 
-    /**
-     * Royal progress attendances render on the public calendar with the
-     * office snapshot title.
-     *
-     * @return void
-     * @uses \App\Controller\GatheringsController::publicCalendar()
-     */
-    public function testPublicCalendarShowsRoyalProgress(): void
+    public function testMobileCalendarAndRsvpFormUseActivitiesWithoutRoyalAttendanceMetadata(): void
     {
-        $published = $this->createCalendarGathering('Progress Kingdom Event Gamma', true);
-
-        $attendances = $this->getTableLocator()->get('GatheringAttendances');
-        $attendance = $attendances->newEntity([
-            'gathering_id' => $published->id,
-            'member_id' => self::TEST_MEMBER_AGATHA_ID,
-            'share_with_kingdom' => true,
-            'created_by' => self::TEST_MEMBER_AGATHA_ID,
-        ]);
-        // Progress fields are guarded; set them the way applyRoyalProgress does
-        $attendance->set('is_royal_progress', true);
-        $attendance->set('progress_office_name', 'Crown');
-        $attendance->set('progress_branch_name', 'Test Kingdom');
-        $attendances->saveOrFail($attendance);
-
-        $this->session(['Auth' => null]);
-        $this->get('/events');
-
-        $this->assertResponseOk();
-        $this->assertResponseContains('Crown of Test Kingdom');
-    }
-
-    /**
-     * Create a snapshot RSVP without relying on a current office assignment.
-     */
-    private function addRoyalProgress(
-        object $gathering,
-        string $office,
-        ?string $branch,
-        int $memberId = self::TEST_MEMBER_AGATHA_ID,
-        bool $royal = true,
-    ): object {
-        $attendances = $this->getTableLocator()->get('GatheringAttendances');
-        $attendance = $attendances->newEntity([
-            'gathering_id' => $gathering->id,
-            'member_id' => $memberId,
-            'created_by' => $memberId,
-            'public_note' => 'Private RSVP detail must not appear in mobile progress metadata',
-        ]);
-        $attendance->set('is_royal_progress', $royal);
-        $attendance->set('progress_office_name', $office);
-        $attendance->set('progress_branch_name', $branch);
-
-        return $attendances->saveOrFail($attendance);
-    }
-
-    public static function royalProgressSurfaces(): array
-    {
-        return [
-            'gatherings grid' => ['grid-data'],
-            'calendar grid' => ['calendar-grid-data'],
-            'public calendar' => ['publicCalendar'],
-            'subscription feed' => ['feed'],
-        ];
-    }
-
-    #[DataProvider('royalProgressSurfaces')]
-    public function testRoyalProgressFiltersByOfficeAndRepresentedBranch(string $surface): void
-    {
-        $matching = $this->createCalendarGathering('Royal Filter Matching Crown', true);
-        $otherBranch = $this->createCalendarGathering('Royal Filter Other Branch', true);
-        $otherOffice = $this->createCalendarGathering('Royal Filter Other Office', true);
-        $ordinary = $this->createCalendarGathering('Royal Filter Ordinary RSVP', true);
-        $unpublished = $this->createCalendarGathering('Royal Filter Unpublished', false);
-        $snapshot = $this->addRoyalProgress($matching, 'Crown', 'Snapshot Kingdom');
-        $this->addRoyalProgress($matching, 'Crown', 'Snapshot Kingdom', self::ADMIN_MEMBER_ID);
-        $this->addRoyalProgress($otherBranch, 'Crown', 'Other Kingdom');
-        $this->addRoyalProgress($otherOffice, 'Principality Coronet', 'Snapshot Kingdom');
-        $this->addRoyalProgress($ordinary, 'Crown', 'Snapshot Kingdom', royal: false);
-        $this->addRoyalProgress($unpublished, 'Crown', 'Snapshot Kingdom');
-
-        $params = ['filter' => ['royal_progress' => [$snapshot->progress_filter_value]]];
-        if ($surface === 'publicCalendar') {
-            $this->session(['Auth' => null]);
-            $params = ['royal_progress' => [$snapshot->progress_filter_value]];
-            $path = '/events';
-        } else {
-            $path = '/gatherings/' . $surface;
-            if ($surface === 'grid-data') {
-                // Use a personal view so this test has no month-specific system scope.
-                $member = $this->getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID);
-                $view = (new GridViewService())->createView([
-                    'grid_key' => 'Gatherings.index.main',
-                    'name' => 'Follow Crown',
-                    'config' => json_encode(['filters' => [[
-                        'field' => 'royal_progress',
-                        'operator' => 'in',
-                        'value' => [$snapshot->progress_filter_value],
-                    ]]]),
-                ], $member);
-                $this->assertInstanceOf(GridView::class, $view);
-                $params = ['view_id' => $view->id];
-            } elseif ($surface === 'calendar-grid-data') {
-                $params += [
-                    'year' => $matching->start_date->format('Y'),
-                    'month' => $matching->start_date->format('m'),
-                ];
-                $this->configRequest(['headers' => ['Turbo-Frame' => 'gatherings-calendar-grid-table']]);
-            } else {
-                $this->session(['Auth' => null]);
-            }
-        }
-        $this->get($path . '?' . http_build_query($params));
-
-        $this->assertResponseOk();
-        $this->assertResponseContains($matching->name);
-        $this->assertResponseNotContains($otherBranch->name);
-        $this->assertResponseNotContains($otherOffice->name);
-        $this->assertResponseNotContains($ordinary->name);
-        if (in_array($surface, ['publicCalendar', 'feed'], true)) {
-            $this->assertResponseNotContains($unpublished->name);
-        }
-        if ($surface === 'grid-data') {
-            $this->assertCount(2, $this->viewVariable('data'));
-        }
-        if ($surface === 'publicCalendar') {
-            $this->assertResponseContains('Crown of Other Kingdom');
-            $this->assertResponseContains('Principality Coronet of Snapshot Kingdom');
-            $document = new DOMDocument();
-            $previous = libxml_use_internal_errors(true);
-            $document->loadHTML((string)$this->_response->getBody());
-            libxml_clear_errors();
-            libxml_use_internal_errors($previous);
-            $xpath = new DOMXPath($document);
-            $subscribe = $xpath->query('//a[contains(@class, "kc-subscribe-link")]')->item(0);
-            parse_str(parse_url($subscribe->getAttribute('href'), PHP_URL_QUERY), $subscription);
-            $this->assertSame([$snapshot->progress_filter_value], $subscription['filter']['royal_progress']);
-        }
-    }
-
-    public function testRoyalProgressSelectionSupportsAnyMultipleAndDeletedRsvps(): void
-    {
-        $crown = $this->createCalendarGathering('Multiple Progress Crown', true);
-        $coronet = $this->createCalendarGathering('Multiple Progress Coronet', true);
-        $ordinary = $this->createCalendarGathering('Multiple Progress Ordinary', true);
-        $deleted = $this->createCalendarGathering('Multiple Progress Deleted', true);
-        $first = $this->addRoyalProgress($crown, 'Crown', 'Historic Kingdom');
-        $second = $this->addRoyalProgress($coronet, 'Coronet', null);
-        $removed = $this->addRoyalProgress($deleted, 'Crown', 'Historic Kingdom');
-        $this->getTableLocator()->get('GatheringAttendances')->deleteOrFail($removed);
-        $table = $this->getTableLocator()->get('Gatherings');
-        $ids = [$crown->id, $coronet->id, $ordinary->id, $deleted->id];
-        foreach ([['any'], [$first->progress_filter_value, $second->progress_filter_value]] as $selection) {
-            $matches = $table->find('royalProgress', selections: $selection)
-                ->where(['Gatherings.id IN' => $ids])->all()->extract('id')->toList();
-            $this->assertEqualsCanonicalizing([$crown->id, $coronet->id], $matches);
-        }
-        $this->assertSame(0, $table->find('royalProgress', selections: [
-            'invalid', base64_encode('[1,2]'), base64_encode('["Crown",{}]'),
-        ])->count());
-        $this->assertSame(4, $table->find('royalProgress', selections: [])->where(['Gatherings.id IN' => $ids])->count());
-    }
-
-    public static function calendarRoyalProgressBadgeViews(): array
-    {
-        return ['month' => ['month'], 'week' => ['week'], 'list' => ['list']];
-    }
-
-    #[DataProvider('calendarRoyalProgressBadgeViews')]
-    public function testCalendarShowsRoyalProgressBadgeWithoutMarkingViewerAttending(string $view): void
-    {
-        $royal = $this->createCalendarGathering('Badge Royal Gathering', true);
-        $ordinary = $this->createCalendarGathering('Badge Ordinary Gathering', true);
-        $this->addRoyalProgress($royal, 'Crown', 'Snapshot Kingdom');
-        $this->addRoyalProgress($royal, 'Crown', 'Snapshot Kingdom', self::TEST_MEMBER_BRYCE_ID);
-        $this->addRoyalProgress($royal, 'Coronet', 'Snapshot Principality', self::TEST_MEMBER_DEVON_ID);
-        $this->addRoyalProgress($ordinary, 'Crown', 'Snapshot Kingdom', royal: false);
-
-        $this->configRequest(['headers' => ['Turbo-Frame' => 'gatherings-calendar-grid-table']]);
-        $this->get('/gatherings/calendar-grid-data?' . http_build_query([
-            'year' => $royal->start_date->format('Y'),
-            'month' => $royal->start_date->format('m'),
-            'week_start' => $royal->start_date->format('Y-m-d'),
-            'view' => $view,
-            'search' => 'Badge',
-        ]));
-
-        $this->assertResponseOk();
-        $this->assertResponseContains($royal->name);
-        $this->assertResponseContains($ordinary->name);
-        $document = new DOMDocument();
-        $previous = libxml_use_internal_errors(true);
-        try {
-            $document->loadHTML((string)$this->_response->getBody());
-        } finally {
-            libxml_clear_errors();
-            libxml_use_internal_errors($previous);
-        }
-        $xpath = new DOMXPath($document);
-        $badges = $xpath->query('//*[@data-royal-progress-badge]');
-        $this->assertGreaterThan(0, $badges->length);
-        foreach ($badges as $badge) {
-            $label = $badge->getAttribute('aria-label');
-            $this->assertSame('img', $badge->getAttribute('role'));
-            $this->assertSame($label, $badge->getAttribute('title'));
-            $this->assertSame(1, substr_count($label, 'Crown of Snapshot Kingdom'));
-            $this->assertStringContainsString('Coronet of Snapshot Principality', $label);
-        }
-        $this->assertCount(0, $xpath->query('//*[@aria-label="I\'m attending"]'));
-        foreach ($this->viewVariable('gatherings') as $gathering) {
-            $this->assertEmpty($gathering->gathering_attendances);
-            $this->assertCount($gathering->id === $royal->id ? 2 : 0, $gathering->royal_progress);
-        }
-    }
-
-    public function testMobileCalendarIncludesOnlyPublicProgressMetadata(): void
-    {
-        $gathering = $this->createCalendarGathering('Mobile Royal Filter', true);
-        $snapshot = $this->addRoyalProgress($gathering, 'Coronet', 'Snapshot Principality');
+        $gathering = $this->createCalendarGathering('Activity-based Royal Progress fixture', true);
+        $activity = $this->linkActivity($gathering, 'Crown visit activity fixture', 'Royal Progress');
         $this->get('/gatherings/mobile-calendar-data?' . http_build_query([
-            'year' => $gathering->start_date->format('Y'),
-            'month' => $gathering->start_date->format('m'),
+            'year' => $gathering->start_date->format('Y'), 'month' => $gathering->start_date->format('m'),
         ]));
-
         $this->assertResponseOk();
         $body = json_decode((string)$this->_response->getBody(), true);
-        $events = array_column($body['data']['events'], null, 'id');
-        $event = $events[$gathering->id];
-        $this->assertSame([[
-            'value' => $snapshot->progress_filter_value,
-            'label' => 'Coronet of Snapshot Principality',
-        ]], $event['royal_progress']);
+        $event = array_column($body['data']['events'], null, 'id')[$gathering->id];
+        $this->assertContains($activity->name, array_column($event['activities'], 'name'));
+        $this->assertArrayNotHasKey('royal_progress', $event);
         $this->assertFalse($event['user_attending']);
-        $this->assertResponseNotContains('Private RSVP detail');
-    }
-
-    public function testPublicRoyalProgressCombinesWithActivityAndKeepsOptionsPublished(): void
-    {
-        $matching = $this->createCalendarGathering('Combined Royal Filter Match', true);
-        $withoutActivity = $this->createCalendarGathering('Combined Royal Filter No Activity', true);
-        $withoutRoyal = $this->createCalendarGathering('Combined Royal Filter No Royal', true);
-        $draft = $this->createCalendarGathering('Combined Royal Filter Draft', false);
-        $snapshot = $this->addRoyalProgress($matching, 'Crown', 'Historic Branch');
-        $this->addRoyalProgress($withoutActivity, 'Crown', 'Historic Branch');
-        $this->addRoyalProgress($draft, 'Private Draft Office', 'Private Draft Branch');
-        $activity = $this->linkActivity($matching, 'Combined Filter Circle', GatheringActivity::TYPE_ORDER_CIRCLE);
-        $this->linkActivity($withoutRoyal, $activity->name, GatheringActivity::TYPE_ORDER_CIRCLE);
-
-        $this->session(['Auth' => null]);
-        $this->get('/events?' . http_build_query([
-            'activities' => [$activity->id],
-            'royal_progress' => [$snapshot->progress_filter_value],
-        ]));
-
-        $this->assertResponseOk();
-        $this->assertResponseContains($matching->name);
-        $this->assertResponseNotContains($withoutActivity->name);
-        $this->assertResponseNotContains($withoutRoyal->name);
-        $this->assertResponseNotContains('Private Draft Office');
-        $this->assertResponseNotContains('Private Draft Branch');
-    }
-
-    public static function royalProgressSwitchStates(): array
-    {
-        return ['on' => [true], 'off' => [false]];
-    }
-
-    private function assertRoyalProgressSwitch(bool $enabled): void
-    {
-        $document = new DOMDocument();
-        $previous = libxml_use_internal_errors(true);
-        try {
-            $document->loadHTML((string)$this->_response->getBody());
-        } finally {
-            libxml_clear_errors();
-            libxml_use_internal_errors($previous);
-        }
-        $switches = (new DOMXPath($document))->query(
-            '//input[@name="royal_progress_enabled" and @type="checkbox" and @role="switch"]',
-        );
-        $this->assertCount(1, $switches);
-        $this->assertSame($enabled, $switches->item(0)->hasAttribute('checked'));
-    }
-
-    #[DataProvider('royalProgressSwitchStates')]
-    public function testCalendarAttendanceFormOffersAndRecordsEligibleRoyalOffice(bool $enabled): void
-    {
-        $gathering = $this->createCalendarGathering('Calendar Royal RSVP Choice', true);
-        $offices = $this->getTableLocator()->get('Officers.Offices');
-        $office = $offices->saveOrFail($offices->newEntity([
-            'name' => 'Calendar Crown',
-            'requires_warrant' => false,
-            'required_office' => false,
-            'can_skip_report' => true,
-            'only_one_per_branch' => false,
-            'is_royal_progress' => true,
-            'term_length' => 12,
-        ]));
-        $officers = $this->getTableLocator()->get('Officers.Officers');
-        $officer = $officers->saveOrFail($officers->newEntity([
-            'member_id' => self::TEST_MEMBER_AGATHA_ID,
-            'office_id' => $office->id,
-            'branch_id' => self::KINGDOM_BRANCH_ID,
-            'status' => Officer::CURRENT_STATUS,
-            'start_on' => new DateTimeImmutable('-10 days'),
-            'expires_on' => new DateTimeImmutable('+6 months'),
-            'approver_id' => self::ADMIN_MEMBER_ID,
-            'approval_date' => new DateTimeImmutable(),
-            'email_address' => 'calendar-crown@example.test',
-        ]));
-        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
         $this->get('/gatherings/attendance-modal/' . $gathering->id);
         $this->assertResponseOk();
-        $this->assertResponseContains('Attend as Royal Progress for');
-        $this->assertResponseContains('Calendar Crown of Ansteorra');
-        $this->assertRoyalProgressSwitch(true);
-
-        $this->get('/members/view/' . self::TEST_MEMBER_AGATHA_ID);
-        $this->assertResponseOk();
-        $this->assertRoyalProgressSwitch(true);
-
-        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
-        $this->post('/gathering-attendances/add', [
-            'gathering_id' => $gathering->id,
-            'royal_progress_enabled' => $enabled ? '1' : '0',
-            'progress_officer_id' => $officer->id,
-            'share_with_kingdom' => false,
-        ]);
-        $this->assertResponseOk();
-        $attendance = $this->getTableLocator()->get('GatheringAttendances')->find()
-            ->where(['gathering_id' => $gathering->id, 'member_id' => self::TEST_MEMBER_AGATHA_ID])->firstOrFail();
-        $this->assertSame($enabled, $attendance->is_royal_progress);
-        $this->assertSame($enabled, $attendance->share_with_kingdom);
-        $this->assertSame($enabled ? 'Calendar Crown of Ansteorra' : null, $attendance->progress_title);
-
-        $this->get('/gatherings/attendance-modal/' . $gathering->id . '?attendance_id=' . $attendance->id);
-        $this->assertResponseOk();
-        $this->assertRoyalProgressSwitch($enabled);
-
-        if ($enabled) {
-            $office->name = 'Renamed Calendar Crown';
-            $offices->saveOrFail($office);
-            $this->get('/gatherings/attendance-modal/' . $gathering->id . '?attendance_id=' . $attendance->id);
-            $this->assertResponseOk();
-            $this->assertResponseContains('value="preserve"');
-            $this->post('/gathering-attendances/edit/' . $attendance->id, [
-                'royal_progress_enabled' => '1',
-                'progress_officer_id' => 'preserve',
-            ]);
-            $this->assertSame(
-                'Calendar Crown of Ansteorra',
-                $this->getTableLocator()->get('GatheringAttendances')->get($attendance->id)->progress_title,
-            );
-        }
-
-        $this->post('/gathering-attendances/edit/' . $attendance->id, [
-            'royal_progress_enabled' => '0',
-            'progress_officer_id' => $officer->id,
-        ]);
-        $updated = $this->getTableLocator()->get('GatheringAttendances')->get($attendance->id);
-        $this->assertFalse($updated->is_royal_progress);
-        $this->assertNull($updated->progress_office_id);
-        $this->assertNull($updated->progress_office_name);
-        $this->assertNull($updated->progress_branch_name);
-    }
-
-    public function testHistoricalRoyalProgressSwitchPreservesOrClearsSnapshot(): void
-    {
-        $gathering = $this->createCalendarGathering('Historical Royal Switch', true);
-        $attendance = $this->addRoyalProgress($gathering, 'Historic Crown', 'Historic Kingdom');
-        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
-        $this->get('/gatherings/attendance-modal/' . $gathering->id . '?attendance_id=' . $attendance->id);
-        $this->assertResponseOk();
-        $this->assertRoyalProgressSwitch(true);
-        $this->assertResponseContains('Historic Crown of Historic Kingdom');
-
-        $this->post('/gathering-attendances/edit/' . $attendance->id, [
-            'royal_progress_enabled' => '1',
-            'progress_officer_id' => 'preserve',
-        ]);
-        $attendances = $this->getTableLocator()->get('GatheringAttendances');
-        $this->assertSame('Historic Crown of Historic Kingdom', $attendances->get($attendance->id)->progress_title);
-
-        $this->post('/gathering-attendances/edit/' . $attendance->id, [
-            'royal_progress_enabled' => '0',
-            'progress_officer_id' => 'preserve',
-        ]);
-        $this->assertFalse($attendances->get($attendance->id)->is_royal_progress);
-
-        $newGathering = $this->createCalendarGathering('Forged Royal Switch', true);
-        $this->configRequest(['headers' => ['Accept' => 'application/json']]);
-        $this->post('/gathering-attendances/add', [
-            'gathering_id' => $newGathering->id,
-            'royal_progress_enabled' => '1',
-            'progress_officer_id' => 'preserve',
-        ]);
-        $this->assertResponseCode(400);
-        $this->assertFalse($attendances->exists(['gathering_id' => $newGathering->id]));
+        $this->assertResponseContains('share_with_kingdom');
+        $this->assertResponseNotContains('royal_progress_enabled');
+        $this->assertResponseNotContains('progress_officer_id');
+        $this->assertResponseNotContains('Attend as Royal Progress');
     }
 
     /**
@@ -2212,7 +1898,6 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         foreach ($publicActivities as [$name, $type]) {
             $this->linkActivity($gathering, $name, $type);
         }
-        $this->addRoyalProgress($gathering, 'Crown', 'Presentation Kingdom');
         $this->session(['Auth' => null]);
         $this->get('/events?q=' . urlencode($gathering->name));
         $this->assertResponseOk();
@@ -2230,7 +1915,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertSame(0, $xpath->query('//details[@data-activity-type="Business"]')->length);
         $this->assertResponseNotContains('Administrative gate fixture');
         $this->assertResponseNotContains('kc-activity-chip-circle');
-        $this->assertResponseContains('Crown of Presentation Kingdom');
+        $this->assertResponseNotContains('data-royal-progress-badge');
         $this->assertTrue($this->getTableLocator()->get('GatheringsGatheringActivities')->exists([
             'gathering_id' => $gathering->id, 'gathering_activity_id' => $gate->id,
         ]));

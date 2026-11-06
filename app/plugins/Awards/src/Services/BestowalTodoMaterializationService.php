@@ -533,8 +533,27 @@ class BestowalTodoMaterializationService
 
         $definitions = [];
         $sourceRefs = [];
+        $outcomes = [];
+        $leadCount = 0;
         foreach ($template->bestowal_todo_template_items as $item) {
+            if ($item->is_terminal) {
+                $status = trim((string)($item->terminal_status ?: Bestowal::LIFECYCLE_GIVEN));
+                $status = strcasecmp($status, 'Given') === 0 ? Bestowal::LIFECYCLE_GIVEN : $status;
+                $outcomes[$status] = ucfirst($status);
+                $leadCount += (int)$item->is_terminal_lead;
+            }
+        }
+        if ($outcomes !== [] && $leadCount !== 1) {
+            return new ServiceResult(false, 'Choose exactly one lead terminal To-Do in this template.');
+        }
+        foreach ($template->bestowal_todo_template_items as $item) {
+            if ($item->is_terminal && !$item->is_terminal_lead) {
+                continue;
+            }
             $definition = $this->buildDefinition($item, $awardBranchId);
+            if ($item->is_terminal_lead) {
+                $definition['completion_config']['terminal_outcomes'] = $outcomes;
+            }
             $sourceRef = trim((string)$definition['source_ref']);
             if ($sourceRef === '') {
                 return new ServiceResult(false, sprintf(
@@ -679,6 +698,8 @@ class BestowalTodoMaterializationService
                 'branchType' => $item->branch_type,
                 'isGating' => (bool)$item->is_gating,
                 'isTerminal' => (bool)$item->is_terminal,
+                'isTerminalLead' => (bool)$item->is_terminal_lead,
+                'terminalStatus' => $item->is_terminal ? $item->terminal_status : null,
                 'requiredField' => $item->required_field,
                 'requiredFieldConfig' => $this->canonicalizeSignatureValue($item->required_field_config),
                 'sortOrder' => (int)$item->sort_order,

@@ -72,9 +72,14 @@ describe('Public calendar rows and activity picker', () => {
         const link = document.querySelector('#row a');
         link.getBoundingClientRect = () => ({ top: 80, bottom: 100 });
         const scroll = jest.spyOn(window, 'scrollBy').mockImplementation(() => {});
+        link.focus();
         controller.revealFocus({ target: link });
         expect(scroll).toHaveBeenCalledWith({ top: -92, behavior: 'instant' });
         scroll.mockClear();
+        const focusVisible = jest.spyOn(link, 'matches').mockReturnValue(false);
+        controller.revealFocus({ target: link });
+        expect(scroll).not.toHaveBeenCalled();
+        focusVisible.mockRestore();
         controller.revealFocus({ target: input });
         expect(scroll).not.toHaveBeenCalled();
         bar.getBoundingClientRect = () => ({ top: 200, bottom: 360 });
@@ -138,8 +143,8 @@ describe('Public calendar rows and activity picker', () => {
         expect(controller.activityGroupTargets.every(group => !group.open)).toBe(true);
     });
 
-    test('the compact summary counts royal, circle, and individual activity selections together', () => {
-        document.body.insertAdjacentHTML('beforeend', `<label id="royal"><input name="royal_progress[]" checked type="checkbox"><span class="kc-choice-name">Crown</span></label>
+    test('the compact summary counts Royal Progress activities, circles, and other selections together', () => {
+        document.body.insertAdjacentHTML('beforeend', `<label id="royal"><input name="activities[]" checked type="checkbox"><span class="kc-choice-name">Royal Visit</span></label>
             <label id="circle"><input name="circles" checked type="checkbox"><span class="kc-choice-name">Any order circle</span></label>`);
         controller.activityOptionTargets.push(document.getElementById('royal'), document.getElementById('circle'));
         controller.updateCount();

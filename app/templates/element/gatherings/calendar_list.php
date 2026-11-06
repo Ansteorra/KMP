@@ -105,9 +105,6 @@ $renderTodayMarker = function () use ($today): void {
                                                 <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon> Attending
                                             </span>
                                         <?php endif; ?>
-                                        <?= $this->element('gatherings/calendar_royal_progress_badge', [
-                                            'royalProgress' => $gathering->royal_progress ?? [],
-                                        ]) ?>
                                     </h5>
                                     <small class="text-muted">
                                         <?= h($gathering->gathering_type->name) ?>

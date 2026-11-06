@@ -140,9 +140,6 @@ $canAddGathering = $canAddGathering ?? false;
                             $gatheringContent .= '<div class="fw-bold' . ($isCancelled ? ' text-decoration-line-through' : '') . '">' . h($gathering->name) . '</div>';
                             $gatheringContent .= '<div class="text-muted small text-truncate">' . h($gathering->branch->name) . '</div>';
                             $gatheringContent .= '<div class="gathering-badges">';
-                            $gatheringContent .= $this->element('gatherings/calendar_royal_progress_badge', [
-                                'royalProgress' => $gathering->royal_progress ?? [],
-                            ]);
                             if ($isAttending) {
                                 $gatheringContent .= '<span class="badge bg-success" title="I\'m attending" aria-label="I\'m attending"><kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon></span>';
                             }

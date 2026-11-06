@@ -13,6 +13,8 @@ class AwardsBestowalEditForm extends Controller {
         "planToGiveBlock",
         "planToGiveGathering",
         "includePastGatherings",
+        "gatheringEligibilityWarning",
+        "courtEligibilityWarning",
         "courtSlotBlock",
         "courtSlot",
         "courtSlotHelp",
@@ -46,6 +48,7 @@ class AwardsBestowalEditForm extends Controller {
         turboFrameUrl: String,
         courtSlotsUrl: String,
         gatheringsLookupUrl: String,
+        gatheringEligibilityUrl: String,
         linkedRecommendationCount: Number,
         awardListUrl: String,
         modalId: { type: String, default: "editBestowalModal" },
@@ -76,6 +79,8 @@ class AwardsBestowalEditForm extends Controller {
 
     /** Clean up modal listeners when the form disconnects. */
     disconnect() {
+        this.eligibilityRequest?.abort();
+        this.eligibilityKey = null;
         document.removeEventListener("click", this.boundHandleEditTriggerClick, true);
         document.removeEventListener("outlet-btn:outlet-button-clicked", this.boundHandleOutletClick);
         this.element.removeEventListener("autocomplete.change", this.boundHandleAutocompleteChange);
@@ -656,6 +661,7 @@ class AwardsBestowalEditForm extends Controller {
 
     /** Re-default bestowed date when gathering changes in Given state. */
     onGatheringChange() {
+        this.checkGatheringEligibility();
         if (!this.isGivenState()) {
             return;
         }
@@ -665,6 +671,7 @@ class AwardsBestowalEditForm extends Controller {
 
     /** Re-default bestowed date when court session selection changes. */
     onCourtSlotChange() {
+        this.checkGatheringEligibility();
         if (!this.isGivenState()) {
             return;
         }
@@ -1312,7 +1319,7 @@ class AwardsBestowalEditForm extends Controller {
         });
     }
 
-    /** Update backend lookup URL for gathering autocomplete. */
+    /** Refresh eligible gathering choices without changing the current assignment. */
     updateGatherings() {
         if (!this.hasPlanToGiveGatheringTarget || !this.hasGatheringsLookupUrlValue) {
             return;
@@ -1321,18 +1328,6 @@ class AwardsBestowalEditForm extends Controller {
         const bestowalId = this.hasBestowalIdTarget ? this.bestowalIdTarget.value : "";
         const bestowalKey = String(bestowalId);
         const awardId = this.getAwardId();
-        const awardKey = String(awardId || "");
-        if (
-            this.planToGiveGatheringTarget.dataset.lookupAwardId !== undefined &&
-            this.planToGiveGatheringTarget.dataset.lookupAwardId !== awardKey
-        ) {
-            const gatheringHidden = this.planToGiveGatheringTarget.querySelector("[data-ac-target='hidden']");
-            if (gatheringHidden) {
-                gatheringHidden.value = "";
-            }
-            this.planToGiveGatheringTarget.dataset.initialValue = "";
-        }
-        this.planToGiveGatheringTarget.dataset.lookupAwardId = awardKey;
 
         if (
             this.planToGiveGatheringTarget.dataset.lookupBestowalId &&
@@ -1376,6 +1371,83 @@ class AwardsBestowalEditForm extends Controller {
             lookupUrl += `?${params.toString()}`;
         }
         this.planToGiveGatheringTarget.setAttribute("data-ac-url-value", lookupUrl);
+        this.checkGatheringEligibility();
+    }
+
+    /** Warn without changing the assignment or treating a retained lookup option as eligible. */
+    async checkGatheringEligibility() {
+        if (!this.hasGatheringEligibilityWarningTarget || !this.hasGatheringEligibilityUrlValue) return;
+        const warning = this.gatheringEligibilityWarningTarget;
+        const courtWarning = this.hasCourtEligibilityWarningTarget ? this.courtEligibilityWarningTarget : null;
+        const bestowalId = this.hasBestowalIdTarget ? this.bestowalIdTarget.value : "";
+        const awardId = this.getAwardId();
+        const gatheringId = this.getGatheringId();
+        const courtSelection = this.hasCourtSlotTarget ? this.courtSlotTarget.value : "";
+        const includePast = this.hasIncludePastGatheringsTarget && this.includePastGatheringsTarget.checked;
+        const key = `${bestowalId}:${awardId}:${gatheringId}:${includePast}:${courtSelection}`;
+        if (this.eligibilityKey === key && this.eligibilityWarning === warning
+            && this.eligibilityCourtWarning === courtWarning) return;
+        this.eligibilityKey = key;
+        this.eligibilityWarning = warning;
+        this.eligibilityCourtWarning = courtWarning;
+        this.eligibilityRequest?.abort();
+        warning.hidden = true;
+        if (courtWarning) courtWarning.hidden = true;
+        if (!bestowalId || !awardId || !gatheringId) return;
+
+        const input = this.planToGiveGatheringTarget.querySelector("[data-ac-target='input']");
+        if (input && warning.id) {
+            const descriptions = new Set((input.getAttribute("aria-describedby") || "").split(/\s+/).filter(Boolean));
+            descriptions.add(warning.id);
+            input.setAttribute("aria-describedby", [...descriptions].join(" "));
+        }
+        const request = new AbortController();
+        this.eligibilityRequest = request;
+        const params = new URLSearchParams({ award_id: awardId, gathering_id: gatheringId,
+            include_past: includePast ? "1" : "0", court_session: courtSelection });
+        try {
+            const response = await fetch(`${this.gatheringEligibilityUrlValue}/${bestowalId}?${params}`, {
+                signal: request.signal,
+                headers: { "X-Requested-With": "XMLHttpRequest", Accept: "application/json" },
+            });
+            if (!response.ok) throw new Error("Eligibility check failed");
+            const result = await response.json();
+            if (request.signal.aborted || this.eligibilityRequest !== request) return;
+            if (result.eligible !== true && result.eligible !== false) throw new Error("Invalid eligibility response");
+            if (courtSelection && result.courtEligible !== true && result.courtEligible !== false) {
+                throw new Error("Invalid court eligibility response");
+            }
+            warning.textContent = result.eligible ? "" : "This gathering is no longer eligible for the selected award "
+                + "under the current gathering filters. Your assignment has been kept. Review the award or choose an eligible gathering before saving.";
+            warning.hidden = result.eligible;
+            if (courtWarning) {
+                courtWarning.textContent = result.courtEligible === false
+                    ? "This court session cannot present the selected award. Your gathering assignment has been kept. "
+                        + "Choose an eligible court session, Roaming Court, or clear the court session before saving."
+                    : "";
+                courtWarning.hidden = result.courtEligible !== false;
+            }
+        } catch (error) {
+            if (request.signal.aborted || this.eligibilityRequest !== request) return;
+            warning.textContent = "We couldn’t check this gathering’s eligibility. Your assignment has been kept. "
+                + "Refresh the page to check again.";
+            warning.hidden = false;
+            if (courtWarning && courtSelection) {
+                courtWarning.textContent = "We couldn’t check this court session’s eligibility. Your gathering assignment "
+                    + "has been kept. Refresh the page to check again.";
+                courtWarning.hidden = false;
+            }
+        }
+    }
+
+    /** New Turbo form content needs its own live eligibility result. */
+    gatheringEligibilityWarningTargetConnected() {
+        this.checkGatheringEligibility();
+    }
+
+    /** Court controls can connect after the gathering controls in a Turbo replacement. */
+    courtEligibilityWarningTargetConnected() {
+        this.checkGatheringEligibility();
     }
 
     /** Include or exclude past gatherings in the gathering picker. */
@@ -1423,6 +1495,10 @@ class AwardsBestowalEditForm extends Controller {
         if (hiddenInput && hiddenInput.value) {
             this.planToGiveGatheringTarget.dataset.initialValue = hiddenInput.value;
         }
+        this.bindAutocompleteClear(this.planToGiveGatheringTarget, () => {
+            this.planToGiveGatheringTarget.dataset.initialValue = "";
+            this.updateGatherings();
+        });
         this.updateGatherings();
     }
 
@@ -1505,6 +1581,7 @@ class AwardsBestowalEditForm extends Controller {
                 this.applyDefaultGivenDate();
             }
             this.updateSubmitState();
+            this.checkGatheringEligibility();
             return;
         }
 
@@ -1551,6 +1628,7 @@ class AwardsBestowalEditForm extends Controller {
                     this.applyDefaultGivenDate();
                 }
                 this.updateSubmitState();
+                this.checkGatheringEligibility();
             });
     }
 

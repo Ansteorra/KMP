@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Awards\Services;
 
+use Awards\KMP\GridColumns\MemberSubmittedRecommendationsGridColumns;
 use Awards\KMP\GridColumns\RecommendationsGridColumns;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\Table;
@@ -228,7 +229,7 @@ class RecommendationQueryService
 
         $gridOptions = [
             'gridKey' => 'Awards.Recommendations.memberSubmitted',
-            'gridColumnsClass' => RecommendationsGridColumns::class,
+            'gridColumnsClass' => MemberSubmittedRecommendationsGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'Recommendations',
             'defaultSort' => ['Recommendations.created' => 'desc'],

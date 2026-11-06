@@ -356,6 +356,181 @@ describe('AwardsBestowalEditForm', () => {
         expect(controller.submitButtonTarget.disabled).toBe(true);
     });
 
+    test('changing the award preserves the displayed gathering and its submitted ID', () => {
+        const gathering = document.createElement('div');
+        gathering.innerHTML = '<input data-ac-target="input" value="Assigned event" disabled>'
+            + '<input type="hidden" name="gathering_id" data-ac-target="hidden" value="123">'
+            + '<input type="hidden" data-ac-target="hiddenText" value="Assigned event">';
+        gathering.dataset.initialValue = '123';
+        controller.element.querySelector('form').appendChild(gathering);
+        controller.planToGiveGatheringTarget = gathering;
+        controller.hasPlanToGiveGatheringTarget = true;
+
+        controller.updateGatherings();
+        controller.awardTarget.querySelector('[data-ac-target="hidden"]').value = '3';
+        controller.onAwardChange();
+
+        expect(gathering.querySelector('[data-ac-target="input"]').value).toBe('Assigned event');
+        expect(new FormData(controller.element.querySelector('form')).get('gathering_id')).toBe('123');
+        expect(gathering.getAttribute('data-ac-url-value')).toContain('award_id=3&selected_id=123');
+    });
+
+    test('changing the award type and selecting a replacement preserves the gathering', () => {
+        const gathering = document.createElement('div');
+        gathering.innerHTML = '<input data-ac-target="input" value="Assigned event" disabled>'
+            + '<input type="hidden" name="gathering_id" data-ac-target="hidden" value="123">';
+        gathering.dataset.initialValue = '123';
+        controller.element.querySelector('form').appendChild(gathering);
+        controller.planToGiveGatheringTarget = gathering;
+        controller.hasPlanToGiveGatheringTarget = true;
+        controller.updateGatherings();
+
+        controller.domainTarget.querySelector('[data-ac-target="hidden"]').value = '';
+        controller.onDomainChange();
+        controller.domainTarget.querySelector('[data-ac-target="hidden"]').value = '4';
+        controller.awardTarget.querySelector('[data-ac-target="hidden"]').value = '5';
+        controller.onAwardChange();
+
+        expect(new FormData(controller.element.querySelector('form')).get('gathering_id')).toBe('123');
+        expect(gathering.getAttribute('data-ac-url-value')).toContain('award_id=5&selected_id=123');
+    });
+
+    describe('gathering eligibility warnings', () => {
+        let originalFetch;
+
+        beforeEach(() => {
+            originalFetch = global.fetch;
+            const gathering = document.createElement('div');
+            gathering.innerHTML = '<input data-ac-target="input" value="Assigned event" disabled>'
+                + '<input type="hidden" name="gathering_id" data-ac-target="hidden" value="123">';
+            const warning = document.createElement('div');
+            warning.id = 'gathering-warning';
+            warning.setAttribute('role', 'alert');
+            warning.hidden = true;
+            const id = document.createElement('input');
+            id.value = '42';
+            controller.element.querySelector('form').append(gathering, warning, id);
+            Object.assign(controller, {
+                planToGiveGatheringTarget: gathering, hasPlanToGiveGatheringTarget: true,
+                gatheringEligibilityWarningTarget: warning, hasGatheringEligibilityWarningTarget: true,
+                bestowalIdTarget: id, hasBestowalIdTarget: true,
+                gatheringEligibilityUrlValue: '/awards/bestowals/gathering-eligibility',
+                hasGatheringEligibilityUrlValue: true,
+            });
+        });
+
+        afterEach(() => {
+            controller.eligibilityRequest?.abort();
+            global.fetch = originalFetch;
+        });
+
+        test('warns about a retained but ineligible selection without changing form data or focus', async () => {
+            global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ eligible: false }) });
+            controller.submitButtonTarget.disabled = false;
+            controller.submitButtonTarget.focus();
+            await controller.checkGatheringEligibility();
+
+            expect(controller.gatheringEligibilityWarningTarget.hidden).toBe(false);
+            expect(controller.gatheringEligibilityWarningTarget.textContent).toContain('no longer eligible');
+            expect(controller.gatheringEligibilityWarningTarget.textContent).toContain('assignment has been kept');
+            expect(new FormData(controller.element.querySelector('form')).get('gathering_id')).toBe('123');
+            expect(document.activeElement).toBe(controller.submitButtonTarget);
+            expect(controller.submitButtonTarget.disabled).toBe(false);
+            expect(controller.planToGiveGatheringTarget.querySelector('[data-ac-target="input"]')
+                .getAttribute('aria-describedby')).toBe('gathering-warning');
+        });
+
+        test('removes the warning after changing to an eligible award and avoids repeated checks', async () => {
+            global.fetch = jest.fn()
+                .mockResolvedValueOnce({ ok: true, json: async () => ({ eligible: false }) })
+                .mockResolvedValueOnce({ ok: true, json: async () => ({ eligible: true }) });
+            await controller.checkGatheringEligibility();
+            controller.awardTarget.querySelector('[data-ac-target="hidden"]').value = '3';
+            await controller.checkGatheringEligibility();
+            await controller.checkGatheringEligibility();
+            expect(controller.gatheringEligibilityWarningTarget.hidden).toBe(true);
+            expect(global.fetch).toHaveBeenCalledTimes(2);
+        });
+
+        test('an older response cannot overwrite the result for a newer award', async () => {
+            let resolveOld;
+            global.fetch = jest.fn()
+                .mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve; }))
+                .mockResolvedValueOnce({ ok: true, json: async () => ({ eligible: true }) });
+            const oldCheck = controller.checkGatheringEligibility();
+            const oldRequest = controller.eligibilityRequest;
+            controller.awardTarget.querySelector('[data-ac-target="hidden"]').value = '3';
+            await controller.checkGatheringEligibility();
+            resolveOld({ ok: true, json: async () => ({ eligible: false }) });
+            await oldCheck;
+            expect(oldRequest.signal.aborted).toBe(true);
+            expect(controller.gatheringEligibilityWarningTarget.hidden).toBe(true);
+        });
+
+        test('clearing a gathering removes its warning without requesting an empty selection', async () => {
+            global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ eligible: false }) });
+            await controller.checkGatheringEligibility();
+            controller.planToGiveGatheringTarget.querySelector('[data-ac-target="hidden"]').value = '';
+            await controller.checkGatheringEligibility();
+            expect(controller.gatheringEligibilityWarningTarget.hidden).toBe(true);
+            expect(global.fetch).toHaveBeenCalledTimes(1);
+        });
+
+        test('a failed check reports uncertainty rather than claiming eligibility', async () => {
+            global.fetch = jest.fn().mockResolvedValue({ ok: false });
+            await controller.checkGatheringEligibility();
+            expect(controller.gatheringEligibilityWarningTarget.hidden).toBe(false);
+            expect(controller.gatheringEligibilityWarningTarget.textContent).toContain('couldn’t check');
+            expect(controller.getGatheringId()).toBe('123');
+        });
+
+        function addCourtControls() {
+            const court = document.createElement('select');
+            court.name = 'gathering_scheduled_activity_id';
+            court.innerHTML = '<option value="77">Assigned court</option><option value="88">Other court</option>'
+                + '<option value="roaming">Roaming Court</option><option value="">No court</option>';
+            const warning = document.createElement('div');
+            warning.hidden = true;
+            controller.element.querySelector('form').append(court, warning);
+            Object.assign(controller, {
+                courtSlotTarget: court, hasCourtSlotTarget: true,
+                courtEligibilityWarningTarget: warning, hasCourtEligibilityWarningTarget: true,
+            });
+        }
+
+        test('warns about an incompatible court even when the gathering remains eligible', async () => {
+            addCourtControls();
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: true, json: async () => ({ eligible: true, courtEligible: false }),
+            });
+            await controller.checkGatheringEligibility();
+            expect(controller.gatheringEligibilityWarningTarget.hidden).toBe(true);
+            expect(controller.courtEligibilityWarningTarget.hidden).toBe(false);
+            expect(controller.courtEligibilityWarningTarget.textContent).toContain('cannot present the selected award');
+            expect(controller.getGatheringId()).toBe('123');
+            expect(new FormData(controller.element.querySelector('form')).get('gathering_scheduled_activity_id')).toBe('77');
+            expect(global.fetch.mock.calls[0][0]).toContain('court_session=77');
+        });
+
+        test.each(['roaming', ''])('clears the court warning after choosing %s without clearing the gathering', async (value) => {
+            addCourtControls();
+            global.fetch = jest.fn()
+                .mockResolvedValueOnce({ ok: true, json: async () => ({ eligible: true, courtEligible: false }) })
+                .mockResolvedValueOnce({ ok: true, json: async () => ({ eligible: true, courtEligible: value ? true : null }) });
+            await controller.checkGatheringEligibility();
+            controller.courtSlotTarget.value = value;
+            await controller.checkGatheringEligibility();
+            expect(controller.courtEligibilityWarningTarget.hidden).toBe(true);
+            expect(controller.getGatheringId()).toBe('123');
+        });
+
+        test('court selection changes trigger a new check even outside the Given state', () => {
+            const check = jest.spyOn(controller, 'checkGatheringEligibility').mockResolvedValue();
+            controller.onCourtSlotChange();
+            expect(check).toHaveBeenCalledTimes(1);
+        });
+    });
+
     test('updateGatherings builds add-form lookup without bestowal id', () => {
         const gathering = document.createElement('div');
         gathering.setAttribute('data-awards-bestowal-edit-target', 'planToGiveGathering');

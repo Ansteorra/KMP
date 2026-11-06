@@ -63,8 +63,8 @@ class GatheringPolicy extends BasePolicy
     {
         $activity = $optionalArgs[0] ?? null;
 
-        return $activity instanceof GatheringActivity
-            && $user->checkCan('assign', $activity, $entity);
+        return $entity instanceof Gathering && $activity instanceof GatheringActivity
+            && (new GatheringActivityPolicy())->canAssign($user, $activity, $entity);
     }
 
     /**
@@ -210,16 +210,11 @@ class GatheringPolicy extends BasePolicy
      */
     public function canView(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
     {
-        // Check standard permission first
-        if ($this->_hasPolicy($user, __FUNCTION__, $entity)) {
+        if ($this->canViewManagement($user, $entity)) {
             return true;
         }
 
-        // Check if user is a steward for this gathering
         if ($entity instanceof BaseEntity) {
-            if ($this->canEdit($user, $entity)) {
-                return true;
-            }
             foreach (TableRegistry::getTableLocator()->get('GatheringActivities')->find()->all() as $activity) {
                 if ($this->canManageActivity($user, $entity, $activity)) {
                     return true;
@@ -228,6 +223,13 @@ class GatheringPolicy extends BasePolicy
         }
 
         return false;
+    }
+
+    /** Activity access exposes preparation tools, not private staff or general record details. */
+    public function canViewManagement(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        return $this->_hasPolicy($user, 'canView', $entity)
+            || ($entity instanceof BaseEntity && $this->canEdit($user, $entity));
     }
 
     /**

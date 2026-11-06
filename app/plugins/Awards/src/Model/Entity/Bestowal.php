@@ -12,7 +12,7 @@ use DateTime as NativeDateTime;
 /**
  * Bestowal Entity - Award presentation workflow.
  *
- * Carries a minimal `lifecycle_status` (open|given|cancelled). Operational
+ * Carries `lifecycle_status`: open, cancelled, or a configured completion status. Operational
  * progress (scroll prep, court scheduling, confirmation) is tracked separately
  * by the parallel to-do checklist subsystem.
  *
@@ -126,6 +126,26 @@ class Bestowal extends BaseEntity implements ActionItemOwnerInterface
         return $recordedName !== '' ? $recordedName : __('Unknown recipient');
     }
 
+    /** Compare the current award with loaded linked recommendations, including the primary. */
+    public function hasDifferentRecommendationAward(): bool
+    {
+        if ($this->award_id === null) {
+            return false;
+        }
+
+        $recommendations = $this->recommendations ?? [];
+        if ($this->primary_recommendation !== null) {
+            $recommendations[] = $this->primary_recommendation;
+        }
+        foreach ($recommendations as $recommendation) {
+            if ($recommendation->award_id !== null && (int)$recommendation->award_id !== (int)$this->award_id) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Handle date format conversion for bestowed_at.
      *
@@ -152,6 +172,12 @@ class Bestowal extends BaseEntity implements ActionItemOwnerInterface
     public function isActiveBestowal(): bool
     {
         return ($this->lifecycle_status ?? self::LIFECYCLE_OPEN) === self::LIFECYCLE_OPEN;
+    }
+
+    /** All completion outcomes retire active work; cancellation has its own reversal workflow. */
+    public function isCompleted(): bool
+    {
+        return !$this->isActiveBestowal() && $this->lifecycle_status !== self::LIFECYCLE_CANCELLED;
     }
 
     /**

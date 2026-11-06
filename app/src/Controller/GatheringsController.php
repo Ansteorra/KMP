@@ -243,12 +243,7 @@ class GatheringsController extends AppController
         $defaultMonth = (int)$today->format('m');
         $defaultView = $this->request->getQuery('view', 'month');
 
-        // Progress-eligible offices held by the current user (for the RSVP modal)
-        $progressOfficers = $currentUser
-            ? $this->Gatherings->GatheringAttendances->currentProgressOfficersForMember((int)$currentUser->id)
-            : [];
-
-        $this->set(compact('defaultYear', 'defaultMonth', 'defaultView', 'progressOfficers'));
+        $this->set(compact('defaultYear', 'defaultMonth', 'defaultView'));
     }
 
     /**
@@ -395,13 +390,7 @@ class GatheringsController extends AppController
             return $this->handleCsvExport($result, $csvExportService, 'gatherings-calendar');
         }
 
-        $gatheringIds = [];
         foreach ($result['data'] as $gathering) {
-            $gatheringIds[] = $gathering->id;
-        }
-        $progressByGathering = $this->Gatherings->GatheringAttendances->royalProgressForGatherings($gatheringIds);
-        foreach ($result['data'] as $gathering) {
-            $gathering->royal_progress = $progressByGathering[$gathering->id] ?? [];
             if (isset($gathering->gathering_activities)) {
                 $gathering->activity_count = count($gathering->gathering_activities);
             }
@@ -607,9 +596,7 @@ class GatheringsController extends AppController
 
         // Render just the modal content (not full layout)
         $this->viewBuilder()->setLayout('ajax');
-        $progressOfficers = $this->Gatherings->GatheringAttendances
-            ->currentProgressOfficersForMember((int)$currentUser->id);
-        $this->set(compact('gathering', 'userAttendance', 'currentUser', 'progressOfficers'));
+        $this->set(compact('gathering', 'userAttendance', 'currentUser'));
     }
 
     /**
@@ -825,6 +812,7 @@ class GatheringsController extends AppController
 
         $user = $this->Authentication->getIdentity();
         $canView = $user->can('view', $gathering);
+        $canViewManagement = $user->can('viewManagement', $gathering);
         $canEditGathering = $user->can('edit', $gathering);
 
         //TODO: find a way to do this with out breaking the plugin/core boundry.
@@ -919,19 +907,6 @@ class GatheringsController extends AppController
         // Calculate event duration
         $durationDays = $gathering->start_date->diffInDays($gathering->end_date) + 1;
 
-        // Royal progress attendances (public info) and the current user's
-        // progress-eligible offices for the RSVP modal
-        $progressAttendances = $this->Gatherings->GatheringAttendances
-            ->find('royalProgress')
-            ->contain(['Members' => ['fields' => ['id', 'sca_name']]])
-            ->where(['gathering_id' => $gathering->id])
-            ->orderBy(['progress_office_name' => 'ASC'])
-            ->all()
-            ->toArray();
-        $progressOfficers = $currentUser
-            ? $this->Gatherings->GatheringAttendances->currentProgressOfficersForMember((int)$currentUser->id)
-            : [];
-
         // The signed-in reader shows public contacts; private staffing stays in the authorized staff tab.
         $readerStaff = array_values(array_filter(
             $gathering->gathering_staff,
@@ -956,12 +931,11 @@ class GatheringsController extends AppController
             'waiverRemovalAuthorization',
             'availableActivities',
             'canEditGathering',
+            'canViewManagement',
             'canAddActivity',
             'totalAttendanceCount',
             'userAttendance',
             'kingdomAttendances',
-            'progressAttendances',
-            'progressOfficers',
             'scheduleByDate',
             'durationDays',
             'readerStaff',
@@ -1428,6 +1402,7 @@ class GatheringsController extends AppController
             (int)$activityId,
             $existingIds,
             $customDescription,
+            (int)$this->Authentication->getIdentity()->getIdentifier(),
         );
 
         $this->Flash->{$result['type']}($result['message']);
@@ -1471,7 +1446,11 @@ class GatheringsController extends AppController
             }
         }
 
-        $result = $activityService->removeActivity((int)$gatheringId, (int)$activityId);
+        $result = $activityService->removeActivity(
+            (int)$gatheringId,
+            (int)$activityId,
+            (int)$this->Authentication->getIdentity()->getIdentifier(),
+        );
         $this->Flash->{$result['type']}($result['message']);
 
         return $this->redirect(['action' => 'view', $gathering->public_id]);
@@ -1498,6 +1477,7 @@ class GatheringsController extends AppController
             (int)$gatheringId,
             (int)$activityId,
             $customDescription,
+            (int)$this->Authentication->getIdentity()->getIdentifier(),
         );
 
         $this->Flash->{$result['type']}($result['message']);
@@ -1796,7 +1776,7 @@ class GatheringsController extends AppController
             throw new ForbiddenException(__('You are not authorized to delete this scheduled activity.'));
         }
 
-        $result = $scheduleService->delete((int)$id, $gathering);
+        $result = $scheduleService->delete((int)$id, $gathering, $this->Authentication->getIdentity());
 
         if (!empty($result['invalidOwner'])) {
             $this->Flash->error($result['message']);
@@ -1930,20 +1910,6 @@ class GatheringsController extends AppController
                 ->toArray();
         }
 
-        // Royal progress is public information - shown to everyone
-        $progressAttendances = $this->fetchTable('GatheringAttendances')
-            ->find('royalProgress')
-            ->contain(['Members' => ['fields' => ['id', 'sca_name']]])
-            ->where(['gathering_id' => $gathering->id])
-            ->orderBy(['progress_office_name' => 'ASC'])
-            ->all()
-            ->toArray();
-
-        // Progress-eligible offices held by the current user (for the RSVP modal)
-        $progressOfficers = $identity
-            ? $this->fetchTable('GatheringAttendances')->currentProgressOfficersForMember((int)$identity->id)
-            : [];
-
         $this->set(compact(
             'gathering',
             'scheduleByDate',
@@ -1951,8 +1917,6 @@ class GatheringsController extends AppController
             'user',
             'userAttendance',
             'kingdomAttendances',
-            'progressAttendances',
-            'progressOfficers',
         ));
     }
 
@@ -1962,7 +1926,7 @@ class GatheringsController extends AppController
      * The public replacement for the legacy kingdom events page. Requires no
      * authentication and only lists gatherings explicitly published to the
      * kingdom calendar (issues #58/#60). Events are grouped by month and show
-     * royal progress and web links inline (issues #59/#61/#63).
+     * activity icons and web links inline.
      *
      * @return \Cake\Http\Response|null|void Renders view
      */
@@ -1985,15 +1949,12 @@ class GatheringsController extends AppController
             'intval',
             (array)$this->request->getQuery('activities', []),
         ))));
-        $selectedRoyalProgress = array_values(array_filter(
-            (array)$this->request->getQuery('royal_progress', []),
-            'is_string',
-        ));
 
         $search = $this->request->getQuery('q', '');
         $search = is_string($search) ? mb_substr(trim($search), 0, 200) : '';
         $selectedBranchId = (int)$this->request->getQuery('branch', 0);
         $circlesOnly = $this->request->getQuery('circles') === '1';
+        $royalsOnly = $this->request->getQuery('royals') === '1';
         $monthOptions = [];
         for ($month = $today->startOfMonth(); $month <= $horizon; $month = $month->addMonths(1)) {
             $monthOptions[$month->format('Y-m')] = $month->format('F Y');
@@ -2006,11 +1967,6 @@ class GatheringsController extends AppController
                 'Branches' => ['fields' => ['id', 'name']],
                 'GatheringTypes' => ['fields' => ['id', 'name', 'color']],
                 'GatheringActivities',
-                'GatheringAttendances' => [
-                    'Members' => ['fields' => ['id', 'sca_name']],
-                    'conditions' => ['GatheringAttendances.is_royal_progress' => true],
-                    'sort' => ['GatheringAttendances.progress_office_name' => 'ASC'],
-                ],
             ])
             ->where($publishedConditions)
             ->orderBy(['Gatherings.start_date' => 'ASC']);
@@ -2032,6 +1988,16 @@ class GatheringsController extends AppController
                 );
             $query->where(['Gatherings.id IN' => $circleGatheringIds]);
         }
+        if ($royalsOnly) {
+            $royalGatheringIds = $this->fetchTable('GatheringsGatheringActivities')->find()
+                ->select(['gathering_id'])->innerJoinWith(
+                    'GatheringActivities',
+                    static fn($q) => $q->where([
+                        'GatheringActivities.activity_type' => GatheringActivity::TYPE_ROYAL_PROGRESS,
+                    ]),
+                );
+            $query->where(['Gatherings.id IN' => $royalGatheringIds]);
+        }
         if ($selectedBranchId > 0) {
             $query->where(['Gatherings.branch_id' => $selectedBranchId]);
         }
@@ -2044,7 +2010,6 @@ class GatheringsController extends AppController
             ]]);
         }
 
-        $query->find('royalProgress', selections: $selectedRoyalProgress);
         $gatherings = $query->all();
 
         // Filter options: activities present on any upcoming published event,
@@ -2052,8 +2017,6 @@ class GatheringsController extends AppController
         $publishedGatheringIds = $this->Gatherings->find()
             ->select(['id'])
             ->where($publishedConditions);
-        $royalProgressOptions = $this->Gatherings->GatheringAttendances
-            ->royalProgressFilterOptions($publishedGatheringIds);
         $activityIdsOnCalendar = $this->fetchTable('GatheringsGatheringActivities')->find()
             ->select(['gathering_activity_id'])
             ->where(['gathering_id IN' => $publishedGatheringIds]);
@@ -2066,10 +2029,8 @@ class GatheringsController extends AppController
         $activityGroups = PublicCalendarService::groupActivityOptions($availableActivities);
         $activitiesById = array_column($availableActivities, null, 'id');
         $selectedActivityLabels = [];
-        foreach ($royalProgressOptions as $option) {
-            if (in_array($option['value'], $selectedRoyalProgress, true)) {
-                $selectedActivityLabels[] = $option['label'];
-            }
+        if ($royalsOnly) {
+            $selectedActivityLabels[] = __('Any Royal Progress');
         }
         if ($circlesOnly) {
             $selectedActivityLabels[] = __('Any order circle');
@@ -2095,8 +2056,8 @@ class GatheringsController extends AppController
             }
         }
         $eventCount = count($visibleIds);
-        $hasFilters = $search !== '' || $selectedBranchId > 0 || $circlesOnly
-            || $selectedActivityIds !== [] || $selectedRoyalProgress !== [];
+        $hasFilters = $search !== '' || $selectedBranchId > 0 || $circlesOnly || $royalsOnly
+            || $selectedActivityIds !== [];
 
         $this->set(compact(
             'calendarMonths',
@@ -2105,11 +2066,10 @@ class GatheringsController extends AppController
             'activitiesById',
             'selectedActivityIds',
             'selectedActivityLabels',
-            'royalProgressOptions',
-            'selectedRoyalProgress',
             'search',
             'selectedBranchId',
             'circlesOnly',
+            'royalsOnly',
             'monthOptions',
             'selectedMonth',
             'branchOptions',
@@ -2167,14 +2127,6 @@ class GatheringsController extends AppController
 
             $columnMeta = $columnsMetadata[$columnKey] ?? null;
             if (!$columnMeta || empty($columnMeta['filterable'])) {
-                continue;
-            }
-
-            if ($columnKey === 'royal_progress') {
-                $values = array_values(array_filter((array)$filterValue, 'is_string'));
-                sort($values);
-                $normalizedFilters[$columnKey] = $values;
-                $query->find('royalProgress', selections: $values);
                 continue;
             }
 
@@ -2453,8 +2405,6 @@ class GatheringsController extends AppController
             ->all();
 
         // Format for mobile display
-        $progressByGathering = $this->Gatherings->GatheringAttendances
-            ->royalProgressForGatherings($gatherings->extract('id')->toList());
         $events = [];
         foreach ($gatherings as $gathering) {
             // Convert dates to user timezone
@@ -2474,7 +2424,6 @@ class GatheringsController extends AppController
                 'is_multi_day' => $startLocal->format('Y-m-d') !== $endLocal->format('Y-m-d'),
                 'branch' => $gathering->branch ? $gathering->branch->name : null,
                 'public_page_enabled' => (bool)$gathering->public_page_enabled,
-                'royal_progress' => array_values($progressByGathering[$gathering->id] ?? []),
                 'type' => $gathering->gathering_type ? [
                     'name' => $gathering->gathering_type->name,
                     'color' => $gathering->gathering_type->color,

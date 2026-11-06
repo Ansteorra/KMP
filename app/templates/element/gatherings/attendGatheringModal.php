@@ -14,7 +14,6 @@ $formId = $modalId . 'Form';
 $fromCalendar = $fromCalendar ?? false;
 $isMinor = $user && $user->age !== null && $user->age < 18;
 // Current progress-eligible officer assignments (Crown/Coronet etc.) for this user
-$progressOfficers = $progressOfficers ?? [];
 
 // Debug: Check if we're in edit mode
 if ($isEdit) {
@@ -95,11 +94,6 @@ if ($isEdit) {
 
                 </fieldset>
 
-                <?= $this->element('gatherings/royal_progress_control', [
-                    'controlIdPrefix' => $formId,
-                    'progressOfficers' => $progressOfficers,
-                    'userAttendance' => $userAttendance ?? null,
-                ]) ?>
 
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
                     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
