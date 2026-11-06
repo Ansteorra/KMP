@@ -116,14 +116,16 @@ print(os.environ['WORKFLOW_RESPONSE'])
         step = step.split('\n  candidate-security:', 1)[0]
         return textwrap.dedent(step.split('        run: |\n', 1)[1])
 
-    def resolve_poc_image(self, event, digest='sha256:' + 'b' * 64):
+    def resolve_poc_image(self, event, digest='sha256:' + 'b' * 64, live_digest='sha256:' + 'd' * 64):
         docker = self.bin / 'docker'
         docker.write_text('''#!/usr/bin/env python3
 import os, sys
-assert sys.argv[1:5] == ['buildx', 'imagetools', 'inspect',
-                        'ghcr.io/ansteorra/kmp:dev-aaaaaaa'], sys.argv
+assert sys.argv[1:4] == ['buildx', 'imagetools', 'inspect'], sys.argv
+images = {'ghcr.io/ansteorra/kmp:dev-aaaaaaa': 'TEST_IMAGE_DIGEST',
+          'ghcr.io/ansteorra/kmp-live:dev-aaaaaaa': 'TEST_LIVE_DIGEST'}
+assert sys.argv[4] in images, sys.argv
 assert sys.argv[5:] == ['--format', '{{.Manifest.Digest}}'], sys.argv
-print(os.environ['TEST_IMAGE_DIGEST'])
+print(os.environ[images[sys.argv[4]]])
 ''')
         docker.chmod(0o755)
         env = self.environment('main' if event == 'workflow_run' else 'dev', [])
@@ -135,6 +137,7 @@ print(os.environ['TEST_IMAGE_DIGEST'])
             'GITHUB_SHA': 'c' * 40 if event == 'workflow_run' else SHA,
             'GITHUB_RUN_ID': '123',
             'TEST_IMAGE_DIGEST': digest,
+            'TEST_LIVE_DIGEST': live_digest,
         })
         result = subprocess.run(['bash', '-c', self.poc_image_command()], cwd=ROOT,
                                 env=env, capture_output=True, text=True, timeout=5)
@@ -149,6 +152,7 @@ print(os.environ['TEST_IMAGE_DIGEST'])
         self.assertEqual(SHA, outputs['source_sha'])
         self.assertEqual('poc-validated-' + SHA[:12], outputs['evidence_tag'])
         self.assertEqual('ghcr.io/ansteorra/kmp@sha256:' + 'b' * 64, outputs['source_image'])
+        self.assertEqual('ghcr.io/ansteorra/kmp-live@sha256:' + 'd' * 64, outputs['source_live_image'])
         poc = (ROOT / '.github/workflows/nightly-deploy-azure.yml').read_text()
         ref = '      checkout_ref: ${{ needs.prepare.outputs.source_sha || github.sha }}'
         self.assertEqual(2, poc.count(ref), 'Security and deployment must use the same source commit')
@@ -164,11 +168,18 @@ print(os.environ['TEST_IMAGE_DIGEST'])
         self.assertEqual('', outputs['source_sha'])
         self.assertEqual('', outputs['evidence_tag'])
         self.assertEqual('poc-dev-aaaaaaa-123', outputs['target_tag'])
+        self.assertEqual('ghcr.io/ansteorra/kmp-live@sha256:' + 'd' * 64, outputs['source_live_image'])
 
     def test_poc_cannot_resolve_a_mutable_or_invalid_digest(self):
         result, outputs = self.resolve_poc_image('workflow_run', 'dev')
         self.assertNotEqual(0, result.returncode)
         self.assertIn('Unable to resolve an immutable digest', result.stderr)
+        self.assertEqual({}, outputs)
+
+    def test_poc_cannot_resolve_a_mutable_or_invalid_gateway_digest(self):
+        result, outputs = self.resolve_poc_image('workflow_run', live_digest='dev')
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn('Matching gateway image is missing', result.stderr)
         self.assertEqual({}, outputs)
 
     def test_image_build_still_depends_on_evidence_and_production_requires_main(self):
