@@ -134,11 +134,20 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
         await page.locator('#nav-gathering-bestowals-tab').click();
         const awards = page.locator(`#gathering-bestowals-grid-${fixture.id}-table`);
         await expect(awards.locator('table')).toBeVisible();
-        await awards.evaluate((frame, name) => {
-            const url = new URL(frame.dataset.gridCurrentSrc || frame.dataset.gridSrc, location.origin);
-            url.searchParams.set('search', name); url.searchParams.set('limit', '10');
-            frame.dataset.gridCurrentSrc = url.pathname + url.search;
-        }, fixture.name);
+        const awardsGrid = page.locator('[data-controller~="grid-view"]').filter({ has: awards });
+        await awardsGrid.locator('[data-filter-button]').click();
+        const search = awardsGrid.locator('[data-grid-view-target="searchInput"]');
+        await search.fill(fixture.name);
+        await search.press('Enter');
+        await expect.poll(() => awards.evaluate(frame =>
+            new URL(frame.dataset.gridCurrentSrc || frame.dataset.gridSrc, location.origin).searchParams.get('search'))).toBe(fixture.name);
+        await expect(awards).not.toHaveAttribute('aria-busy', 'true');
+        await page.keyboard.press('Escape');
+        const rowCount = awardsGrid.getByLabel('Rows per page', { exact: true });
+        await rowCount.selectOption('10');
+        await expect.poll(() => awards.evaluate(frame =>
+            new URL(frame.dataset.gridCurrentSrc || frame.dataset.gridSrc, location.origin).searchParams.get('limit'))).toBe('10');
+        await expect(awards).not.toHaveAttribute('aria-busy', 'true');
         await page.locator('#nav-schedule-tab').click();
         const awardsPath = await awards.evaluate(frame => new URL(frame.dataset.gridCurrentSrc || frame.dataset.gridSrc, location.origin).pathname);
         const refreshedAwards = page.waitForResponse(response => response.request().method() === 'GET'
@@ -190,6 +199,12 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
         await unchanged();
         assert.deepEqual(errors, []);
         console.log('PASS: Notes, RSVP detail/list updates, schedules, dependent counts/overview, focus, and document/tab/query preservation');
+    } catch (error) {
+        console.error('Partial update state:', await page.evaluate(() => [...document.querySelectorAll('turbo-frame[id$="-table"]')]
+            .map(frame => ({ id: frame.id, src: frame.getAttribute('src'), current: frame.dataset.gridCurrentSrc,
+                complete: frame.hasAttribute('complete'), busy: frame.getAttribute('aria-busy') }))));
+        console.error('Browser errors:', errors);
+        throw error;
     } finally {
         await browser.close();
         runPhpJson(fixtureScript, { ...fixture, cleanup: true });
