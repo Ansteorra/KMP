@@ -241,6 +241,15 @@ param webMinReplicas int = 1
 @description('Maximum web replicas.')
 param webMaxReplicas int = 3
 
+@allowed(['0.5', '1.0', '2.0', '4.0'])
+@description('CPU cores per web replica. Memory follows the supported Consumption CPU/memory ratio.')
+param webCpu string = '0.5'
+
+@minValue(4)
+@maxValue(128)
+@description('Maximum concurrent PHP requests per web replica; budget platform and tenant connections across the fleet.')
+param apacheMaxRequestWorkers int = 16
+
 @description('Whether to provision Azure Front Door in front of the Container App.')
 param deployFrontDoor bool = false
 
@@ -323,6 +332,7 @@ var appInsightsName = '${namePrefix}-appi'
 var kvName = take('${namePrefix}-kv-${take(suffix, 6)}', 24)
 var pgName = '${namePrefix}-pg-${take(suffix, 6)}'
 var managedRedisName = take('${namePrefix}-redis-${toLower(managedRedisClusteringPolicy)}-${take(suffix, 6)}', 60)
+var webMemory = { '0.5': '1Gi', '1.0': '2Gi', '2.0': '4Gi', '4.0': '8Gi' }[webCpu]
 var managedOpenTelemetryEnabled = enableApplicationInsights && applicationInsightsTransport == 'otlp'
 var uamiName = '${namePrefix}-runtime-v2-id'
 var adminUamiName = '${namePrefix}-admin-v2-id'
@@ -903,6 +913,7 @@ var applicationInsightsEnv = enableApplicationInsights ? concat([
 
 var commonEnv = concat([
   { name: 'KMP_TURBO_ENABLED', value: string(enableTurbo) }
+  { name: 'APACHE_MAX_REQUEST_WORKERS', value: string(apacheMaxRequestWorkers) }
   { name: 'KMP_LIVE_UPDATES_ENABLED', value: string(enableLiveUpdates) }
   // entrypoint.prod.sh parses DATABASE_URL to auto-detect engine + compose
   // config/app_local.php. postgres:// prefix triggers Postgres behaviour
@@ -1079,7 +1090,7 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = if (enableApplicationRun
         {
           name: 'web'
           image: fullImage
-          resources: { cpu: json('0.5'), memory: '1Gi' }
+          resources: { cpu: json(webCpu), memory: webMemory }
           env: webEnv
           probes: [
             {

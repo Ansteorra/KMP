@@ -19,6 +19,7 @@ Own user-facing JavaScript behavior implemented as Stimulus controllers, includi
 - Initialize page and dialog behavior in Stimulus `connect()`, never a template `DOMContentLoaded` listener. Use `createControllerScope()` when a connection owns several listeners, finite reads, or timers; dispose it on disconnect. Cancel superseded reads and discard results after their owning record or selection changes.
 - Detail tabs synchronize Bootstrap activation and browser history without reloading loaded frames. Nested groups must not overwrite the host detail tab or discard its query/hash context.
 - Use `page-refresh-service.js` for explicit post-save dependencies (`data-refresh-on` and `data-refresh-frame-on`). Keep dialogs and unrelated drafts outside refreshed regions; retry failed reads without repeating a committed mutation. See `app/docs/hotwire-interactions.md`.
+- Manual JSON form saves must call `markFormClean(form)` from `form-state-service.js` or explicitly reset the form after confirmed success. Failed saves retain their draft markers; a committed save must not trigger an unsaved-work warning on the next visit.
 - Update ARIA state such as `aria-expanded`, `aria-selected`, `aria-busy`, and `aria-hidden` when UI state changes.
 - Use `KMP_accessibility` for accessible alert, confirm, prompt, and announce flows.
 - Use `KMP_utils` for URL and sanitization helpers.

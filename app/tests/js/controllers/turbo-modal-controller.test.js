@@ -83,6 +83,41 @@ describe('TurboModalController', () => {
         expect(controller.element.querySelector('[name="field"]')).toHaveValue('test');
     });
 
+    test('Turbo network failures show retry feedback without discarding the form', () => {
+        controller.connect();
+        controller.submitting = true;
+        controller.element.dispatchEvent(new CustomEvent('turbo:submit-end', {
+            detail: { success: false, error: new TypeError('Private transport details') },
+        }));
+        expect(controller.submitting).toBe(false);
+        expect(controller.element.querySelector('[name="field"]')).toHaveValue('test');
+        expect(controller.element.querySelector('[role="alert"]')).toHaveTextContent('Unable to save. Please try again.');
+        expect(controller.element).not.toHaveTextContent('Private transport details');
+        controller.disconnect();
+    });
+
+    test('Turbo server errors retain frame-contained input instead of rendering an error document', async () => {
+        global.IntersectionObserver = jest.fn().mockImplementation(() => ({
+            disconnect: jest.fn(), observe: jest.fn(), unobserve: jest.fn(),
+        }));
+        const meta = document.createElement('meta'); meta.name = 'kmp-turbo-enabled'; meta.content = 'true';
+        document.head.append(meta);
+        const form = controller.element;
+        const frame = document.createElement('turbo-frame'); frame.id = 'retry-frame';
+        form.before(frame); frame.append(form);
+        const response = { ok: false, status: 500, redirected: false,
+            headers: { get: () => 'text/html' }, text: async () => '<html>Private server details</html>',
+            clone() { return this; } };
+        const event = { target: form, detail: { fetchResponse: { response } },
+            preventDefault: jest.fn(), stopImmediatePropagation: jest.fn() };
+        await controller.handleTurboResponse(event);
+        expect(event.preventDefault).toHaveBeenCalledTimes(1);
+        expect(form.isConnected).toBe(true);
+        expect(form.querySelector('[name="field"]')).toHaveValue('test');
+        expect(form.querySelector('[role="alert"]')).toBeVisible();
+        expect(frame).not.toHaveTextContent('Private server details');
+    });
+
     test('closeModalBeforeSubmit handles no modal instance', () => {
         window.bootstrap.Modal = {
             getInstance: jest.fn(() => null)
@@ -451,7 +486,7 @@ describe('TurboModalController', () => {
             .toContain('replacement-form');
     });
 
-    test('failed non-stream response replaces the frame and announces failure', async () => {
+    test('HTML validation responses replace the frame with the server field errors', async () => {
         global.IntersectionObserver = jest.fn().mockImplementation(() => ({
             disconnect: jest.fn(),
             observe: jest.fn(),
@@ -469,6 +504,7 @@ describe('TurboModalController', () => {
         controller.element = document.querySelector('[data-controller="turbo-modal"]');
         global.fetch = jest.fn().mockResolvedValue({
             ok: false,
+            status: 422,
             redirected: false,
             headers: { get: jest.fn(() => 'text/html; charset=UTF-8') },
             text: jest.fn().mockResolvedValue('<form id="replacement-form"></form>'),

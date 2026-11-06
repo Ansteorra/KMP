@@ -16,6 +16,7 @@ Own container image definitions, entrypoints, Apache configuration, local app co
 - KMP is a PostgreSQL-only SaaS platform for kingdoms. Do not add MySQL/MariaDB drivers, clients, configuration paths, or test lanes. Preserve applied migrations and legacy logical-backup import into PostgreSQL.
 - Production final stages must reject prebuilt runtime overrides without `pdo_pgsql` or with enabled `mysqli`/`pdo_mysql`. Rebuild the shared base when changing its dependency contract; do not revive retired engines to use a stale base.
 - Do not bake secrets or environment-specific credentials into images.
+- Production prefork concurrency is bounded by `APACHE_MAX_REQUEST_WORKERS` (default 16, range 4–128). Budget platform and tenant database connections across all web/worker replicas before raising it. Keep live SSE connections on the separate gateway. Verify the final image with `test-apache-capacity.py`.
 - Treat `DATABASE_URL` as a CakePHP URL: readiness probes extract only host/port, because CakePHP SSL query options are not libpq options. Preserve the full URL and TLS settings for application connections, and keep credentials out of probe arguments and logs.
 - Keep entrypoints explicit about side effects such as migrations, seeds, cache clears, scheduler loops, and health behavior.
 - Local startup prepares backup-directory ownership before dropping scheduler/admin loops to `www-data`. Keep backup directories private and use the same OS user for web and worker file access.

@@ -50,7 +50,10 @@ class TurboModal extends Controller {
     connect() {
         this.boundTurboResponse = this.handleTurboResponse.bind(this);
         this.boundNativeStart = () => { this.submitting = true; };
-        this.boundNativeEnd = () => { if (!this.handlingNativeResponse) this.submitting = false; };
+        this.boundNativeEnd = event => {
+            if (!this.handlingNativeResponse) this.submitting = false;
+            if (event.detail?.error && !this.showFallbackFailure()) this.announceFailure();
+        };
         this.boundBeforeRequest = event => {
             if (event.target !== this.element) return;
             const headers = event.detail.fetchOptions.headers;
@@ -173,7 +176,8 @@ class TurboModal extends Controller {
     async handleTurboResponse(event) {
         if (!driveEnabled() || event.target !== this.element) return;
         const response = event.detail.fetchResponse.response;
-        if (!(response.headers.get('Content-Type') || '').includes('text/vnd.turbo-stream.html')) return;
+        const stream = (response.headers.get('Content-Type') || '').includes('text/vnd.turbo-stream.html');
+        if (!stream && (response.ok || response.status === 422)) return;
         event.preventDefault();
         // The document StreamObserver must not render the same response before
         // Bootstrap has closed the dialog and grid reconciliation is prepared.
@@ -247,7 +251,7 @@ class TurboModal extends Controller {
         }
 
         const frame = this.element.closest('turbo-frame');
-        if (frame && body !== '') {
+        if (frame && body !== '' && (response.ok || response.status === 422)) {
             frame.innerHTML = body;
         }
         if (!response.ok) {

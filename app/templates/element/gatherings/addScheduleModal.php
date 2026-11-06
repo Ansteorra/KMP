@@ -16,9 +16,13 @@ use function Cake\Collection\collection;
  * @var array<\App\Model\Entity\GatheringActivity> $scheduleActivities
  * @var bool $allowOtherActivities
  */
+$activitySelectionHelp = $allowOtherActivities
+    ? __('Select an activity from the gathering\'s activity list, or check "Other" above.')
+    : __('Select a Court activity attached to this gathering.');
 ?>
 <div class="modal fade" id="addScheduleModal" tabindex="-1" aria-labelledby="addScheduleModalLabel" aria-hidden="true"
-    data-gathering-schedule-target="addModal" data-action="shown.bs.modal->gathering-schedule#resetAddForm">
+    data-gathering-schedule-target="addModal"
+    data-action="shown.bs.modal->gathering-schedule#resetAddForm hidden.bs.modal->gathering-schedule#discardAddDraft">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <div class="modal-header">
@@ -37,7 +41,10 @@ use function Cake\Collection\collection;
                 <div class="alert alert-info border-start border-info border-4">
                     <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                     <?php
-                    $timezone = TimezoneHelper::getGatheringTimezone($gathering, $this->getRequest()->getAttribute('identity'));
+                    $timezone = TimezoneHelper::getGatheringTimezone(
+                        $gathering,
+                        $this->getRequest()->getAttribute('identity'),
+                    );
                     ?>
                     <?= __(
                         'This gathering runs from {0} to {1}. Scheduled activities must fall within these dates.',
@@ -75,7 +82,9 @@ use function Cake\Collection\collection;
                                         'data-action' => 'change->gathering-schedule#handleOtherChange',
                                     ]) ?>
                                     <label class="form-check-label" for="add-is-other">
-                                        <?= __('This is an "Other" activity (not from the gathering\'s activity list)') ?>
+                                        <?= __(
+                                            'This is an "Other" activity (not from the gathering\'s activity list)',
+                                        ) ?>
                                     </label>
                                 </div>
                             </div>
@@ -98,9 +107,7 @@ use function Cake\Collection\collection;
                                 'data-gathering-schedule-target' => 'activitySelect',
                             ]) ?>
                             <small class="form-text text-muted">
-                                <?= $allowOtherActivities
-                                    ? __('Select an activity from the gathering\'s activity list, or check "Other" above.')
-                                    : __('Select a Court activity attached to this gathering.') ?>
+                                <?= h($activitySelectionHelp) ?>
                             </small>
                         </div>
                         <div class="col-12 col-lg-7">

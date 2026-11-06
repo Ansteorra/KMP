@@ -130,6 +130,11 @@ async function validateContext(expected, version) {
     }
 }
 
+/** A tenant-wide access signal only invalidates this user's changed authorization. */
+export function revalidateUiSession() {
+    return validateContext(meta('kmp-navigation-context'), renderVersion);
+}
+
 /** Revalidate through the normal document boundary before retaining identity-dependent content. */
 export function invalidateUiSession() {
     document.documentElement.setAttribute('data-kmp-cache-pending', '');

@@ -26,6 +26,15 @@ export function dirtyWithin(region) {
     return forms.some(isDirty);
 }
 
+/** A confirmed save or explicit reset establishes the next draft baseline. */
+export function markFormClean(form) {
+    if (!(form instanceof HTMLFormElement)) return;
+    initialValues.set(form, fingerprint(form));
+    touchedForms.delete(form);
+    delete form.dataset.kmpPreservedDraft;
+    window.dispatchEvent(new Event('kmp:draft-settled'));
+}
+
 let installed = false;
 export function installFormState() {
     if (installed) return;
@@ -54,19 +63,13 @@ export function installFormState() {
     });
     document.addEventListener('turbo:submit-end', event => {
         submitting = false;
-        if (event.detail.success) {
-            initialValues.set(event.target, fingerprint(event.target)); touchedForms.delete(event.target);
-            delete event.target.dataset.kmpPreservedDraft;
-        }
+        if (event.detail.success) markFormClean(event.target);
     });
     document.addEventListener('reset', event => {
         if (!(event.target instanceof HTMLFormElement)) return;
         queueMicrotask(() => {
             if (event.defaultPrevented) return;
-            touchedForms.delete(event.target);
-            delete event.target.dataset.kmpPreservedDraft;
-            initialValues.set(event.target, fingerprint(event.target));
-            window.dispatchEvent(new Event('kmp:draft-settled'));
+            markFormClean(event.target);
         });
     });
     document.addEventListener('turbo:before-morph-element', event => {
@@ -84,11 +87,7 @@ export function installFormState() {
         if (owner && !touchedForms.has(owner)) initialValues.set(owner, fingerprint(owner));
     });
     document.addEventListener('turbo-modal:saved', event => {
-        if (event.target instanceof HTMLFormElement) {
-            initialValues.set(event.target, fingerprint(event.target)); touchedForms.delete(event.target);
-            delete event.target.dataset.kmpPreservedDraft;
-            window.dispatchEvent(new Event('kmp:draft-settled'));
-        }
+        markFormClean(event.target);
     });
     document.addEventListener('turbo:before-visit', async event => {
         if (submitting || event.detail.url === confirmedDestination || ![...document.forms].some(isDirty)) return;

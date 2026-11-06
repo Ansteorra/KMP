@@ -102,6 +102,32 @@ class BestowalsControllerGridTurboTest extends HttpIntegrationTestCase
         $this->assertResponseNotContains('target="bestowals-grid-table"');
     }
 
+    public function testFailedGridSaveReturnsFeedbackWithoutReloadingTheSubmittedForm(): void
+    {
+        $this->ensureActiveWorkflow('awards-bestowal-update');
+        $bestowal = $this->createExistingBestowal();
+        $originalNote = $bestowal->note;
+        $this->mockServiceClean(TriggerDispatcher::class, function () {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->once())->method('dispatch')
+                ->willReturn([new ServiceResult(false, 'The submitted note needs more detail.')]);
+
+            return $mock;
+        });
+        $this->configRequest(['headers' => [
+            'Accept' => 'text/vnd.turbo-stream.html', 'X-KMP-Grid-Reconcile' => 'table',
+        ]]);
+        $this->post('/awards/bestowals/edit/' . $bestowal->id, [
+            'page_context_url' => '/awards/bestowals?search=preserved', 'note' => 'Unsubmitted draft',
+        ]);
+        $this->assertResponseCode(422);
+        $this->assertResponseContains('The submitted note needs more detail.');
+        $this->assertResponseContains('target="flash-messages"');
+        $this->assertResponseNotContains('target="editBestowalQuick"');
+        $this->assertResponseNotContains('turbo-edit-form');
+        $this->assertSame($originalNote, $this->getTableLocator()->get('Awards.Bestowals')->get($bestowal->id)->note);
+    }
+
     public function testEditFromGridFallsBackToTableRefreshOutsideMainIndex(): void
     {
         $this->ensureActiveWorkflow('awards-bestowal-update');

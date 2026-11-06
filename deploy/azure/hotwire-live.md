@@ -38,6 +38,27 @@ public key, and allowed-origin parameters. Adding a tenant host requires updatin
 the gateway's exact-origin allowlist before enabling subscriptions for that host.
 All replica clocks must be synchronized.
 
+Production Apache limits short HTTP work with `APACHE_MAX_REQUEST_WORKERS`
+(default 16; 4–128). Size its connection budget across every web replica and
+tenant worker: a web request can hold both a platform and a tenant connection.
+Leave room for migrations, monitoring and administrative jobs. Raising PostgreSQL
+connection limits alone does not increase CPU or query throughput. Keep live
+connections on the independent gateway. Azure ingress or the local Caddy proxy
+retains browser connections; Apache backend keepalive is disabled so idle sockets
+cannot occupy all prefork workers while other requests queue. See
+[Apache prefork guidance](https://httpd.apache.org/docs/2.4/mod/prefork.html).
+The immutable-image acceptance test
+`python3 docker/test-apache-capacity.py --image IMAGE` proves that concurrent
+requests queue within the configured PHP limit and invalid limits fail startup.
+
+`main.bicep` exposes `webCpu` with matching Consumption memory and
+`apacheMaxRequestWorkers`; existing deployments retain the 0.5-core default until
+explicitly resized. The healthy 500-session diagnostic used two 4-core web
+replicas, 16 PHP workers each, and a 4-core PostgreSQL server. Use that CPU budget
+as the starting point for the release workload; set at least two web replicas.
+Record actual resource limits in the final baseline/live reports. A short local
+diagnostic is not the full capacity gate or evidence of Azure performance.
+
 The gateway has its own managed identity, with ACR pull and Key Vault access scoped
 only to the Redis secret. It receives no signing private key, tenant database
 credentials, document-storage grants, or administrative secrets. Web and ordinary

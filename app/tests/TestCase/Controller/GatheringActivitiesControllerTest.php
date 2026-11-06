@@ -195,11 +195,11 @@ class GatheringActivitiesControllerTest extends HttpIntegrationTestCase
         $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
         $this->configRequest(['headers' => ['Turbo-Frame' => 'gatheringActivityFormFrame']]);
         $this->get('/gathering-activities/edit/' . $activity->id);
-        $this->assertRedirect();
-        $this->assertResponseNotContains('name="icon_file"');
+        $this->assertResponseCode(403);
+        $this->assertResponseNotContains('<turbo-frame id="gatheringActivityFormFrame">');
         $this->configRequest(['headers' => ['Accept' => 'text/vnd.turbo-stream.html']]);
         $this->post('/gathering-activities/edit/' . $activity->id, ['name' => 'Unauthorized modal update']);
-        $this->assertRedirect();
+        $this->assertResponseCode(403);
         $this->assertSame('Protected modal fixture', $table->get($activity->id)->name);
     }
 

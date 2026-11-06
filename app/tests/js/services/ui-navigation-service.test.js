@@ -1,4 +1,4 @@
-import { installUiNavigation, updateUiHistory, goBack, usesNativeNavigation, visitDocument } from '../../../assets/js/services/ui-navigation-service.js';
+import { installUiNavigation, updateUiHistory, goBack, usesNativeNavigation, visitDocument, revalidateUiSession } from '../../../assets/js/services/ui-navigation-service.js';
 
 describe('shared Turbo navigation ownership', () => {
     let runtime;
@@ -30,6 +30,16 @@ describe('shared Turbo navigation ownership', () => {
         runtime.cache.clear.mockClear();
         window.dispatchEvent(new Event('kmp:mutation-committed'));
         expect(runtime.cache.clear).toHaveBeenCalledTimes(1);
+    });
+
+    test('unchanged effective access retains the current document and draft', async () => {
+        document.body.innerHTML = '<form><input value="unfinished work"></form>';
+        const form = document.forms[0];
+        global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ context: 'current' }) });
+        expect(await revalidateUiSession()).toBe(true);
+        expect(document.forms[0]).toBe(form);
+        expect(document.querySelector('input')).toHaveValue('unfinished work');
+        expect(runtime.cache.clear).not.toHaveBeenCalled();
     });
 
     test('compatible programmatic visits use Drive while identity, editor and file boundaries stay native', () => {

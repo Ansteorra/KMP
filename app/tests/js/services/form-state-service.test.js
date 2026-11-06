@@ -1,4 +1,4 @@
-import { installFormState, rememberForms, isDirty, dirtyWithin } from '../../../assets/js/services/form-state-service.js';
+import { installFormState, rememberForms, isDirty, dirtyWithin, markFormClean } from '../../../assets/js/services/form-state-service.js';
 
 describe('draft preservation', () => {
     beforeAll(() => installFormState());
@@ -31,6 +31,23 @@ describe('draft preservation', () => {
         form.elements.note.value = 'User draft';
         form.elements.note.dispatchEvent(new Event('input', { bubbles: true }));
         expect(isDirty(form)).toBe(true);
+    });
+
+    test('confirmed JSON saves clear only their draft and protect subsequent edits', () => {
+        const form = document.forms[0];
+        form.elements.note.value = 'Saved edit';
+        form.elements.note.dispatchEvent(new Event('input', { bubbles: true }));
+        form.dataset.kmpPreservedDraft = 'true';
+        expect(isDirty(form)).toBe(true);
+        const settled = jest.fn(); window.addEventListener('kmp:draft-settled', settled);
+        markFormClean(form);
+        expect(isDirty(form)).toBe(false);
+        expect(form).not.toHaveAttribute('data-kmp-preserved-draft');
+        expect(settled).toHaveBeenCalledTimes(1);
+        form.elements.note.value = 'Another unsaved edit';
+        form.elements.note.dispatchEvent(new Event('input', { bubbles: true }));
+        expect(isDirty(form)).toBe(true);
+        window.removeEventListener('kmp:draft-settled', settled);
     });
 
     test('morphing preserves a dirty form and reset makes it eligible for reconciliation', async () => {

@@ -93,6 +93,11 @@ labels, keyboard dismissal, visible focus, live feedback, and listener cleanup.
 
 ## Notes, attendance, and schedule dependencies
 
+Manual JSON editors call `markFormClean(form)` after confirmed success, or reset
+their creation form. This releases deferred reads and prevents a saved edit from
+triggering the next navigation's draft warning. Validation/network failures retain
+the dirty form and submitted values.
+
 Notes append only the newly saved note through `Notes/saved.php` and the shared
 note element. The existing list, private-note visibility, expanded notes, and
 form stay in place. The Notes controller resets the draft only after a successful
@@ -147,17 +152,17 @@ because a follow-up read failed.
 
 ## Application surface review
 
-The implementation review covered the shared runtime and these core/plugin
-interaction families. These distinctions identify migration opportunities; they
-are not a claim that every action has browser coverage.
+The compatibility review covers the shared runtime and these core/plugin
+interaction families. The contracts below guide each interaction; release
+evidence records the actual automated and manual coverage separately.
 
 | Surface | Current behavior and experience opportunity |
 | --- | --- |
 | Core Dataverse grids, settings, approvals, ActionItems | Shared frame navigation and stream helpers exist. Keep all save callers aligned with live-query reconciliation. |
 | Offices catalogue | One `dv_grid` owns its frame ID. Do not wrap it in another frame with the same ID or promote grid-data navigation to a document visit. |
 | Member/branch officer grids | Table invalidations reconcile the live query; validation stays in the modal. Compatible HTML grants/releases use Drive redirects; permission-changing outcomes trigger fresh authorization. |
-| Awards recommendations and bestowals | Index and embedded contexts have row-sync helpers and shared stream modals. Quick-edit failure helpers can reload forms through GET; retaining submitted drafts and associating field errors is a useful next improvement. |
-| Activity catalogue and gathering activity editor | Frame editor loading, loading/error templates, and focus handling are established patterns to reuse. Review remaining forms that only close on `turbo:submit-start` before adopting the full shared submit lifecycle. |
+| Awards recommendations and bestowals | Coordinated clients invalidate the current main/member/gathering table directly. Validation returns 422 feedback without reloading the open edit form. Legacy clients retain existing row/reload contracts. |
+| Activity catalogue and gathering activity editor | Frame editor loading, loading/error templates, and focus handling use the shared lifecycle. The compatibility `closeModalBeforeSubmit` action synchronizes context; dialogs close only after successful acknowledgement. |
 | Notes on members, warrant rosters, recommendations, and bestowals | The shared Notes cell appends a saved note and resets only the successful draft. Existing creation policies and host private-note visibility remain authoritative. |
 | Roles and permission membership changes | Compatible forms use Drive redirects; security invalidation clears older snapshots and refreshes identity-dependent controls. Identity switches remain native. |
 | Gathering schedules | JSON mutations refresh explicit schedule/count/overview regions and the plugin-owned award grid. Deletes retain the existing court/agenda cleanup workflow. |
@@ -176,12 +181,16 @@ screen. The remaining inline default-layout script only sets the app URL root;
 grid/bestowal/autocomplete scripts are inert JSON data. A Jest compatibility guard
 rejects new `DOMContentLoaded` initialization in active core/plugin templates.
 
-Shared modal requests advertise `X-KMP-Grid-Reconcile: table`. Officer and bestowal
+Shared modal requests advertise `X-KMP-Grid-Reconcile: table`. Officer, recommendation and bestowal
 saves return an explicit table invalidation for these clients, avoiding the
 intermediate row query/render that the client would discard. The shared coordinator
 refreshes that table once using its live query, retaining ordering, counts and
 empty-page correction. Older clients retain the row-response contract. Reserve
 true row-only updates for mutations whose dependency set is known.
+
+Award quick-edit failures return a 422 feedback stream for coordinated clients.
+The existing form, values, labels and focus remain available for correction. A
+legacy client can still receive its original GET-based edit-frame reload.
 
 Heavy frontend controllers/services are eagerly imported through
 `controllers-entry.js`. Dynamic loading of expensive editor, PDF, and recognition
@@ -215,10 +224,19 @@ main-document request, and no stale dependent detail content.
 
 Hashed Vite scripts/styles carry `data-turbo-track=reload`. A cached authenticated
 snapshot remains hidden until `GET /navigation/context` validates an opaque HMAC
-of tenant, host, session, identity/auth version, impersonation, permission
-generation, immutable release revision (or the development asset manifest), release tag, and runtime switches. Failed, redirected, timed-out, or
+of tenant, host, session, identity/auth version, impersonation, current scoped
+permissions and roles, immutable release revision (or the development asset manifest), release tag, and runtime switches. Grant ordering is canonical across
+replicas. Security cache invalidation reloads effective grants; unrelated users'
+role changes do not discard the current user's drafts. Cache eviction cannot
+restore a revoked user's old context. Failed, redirected, timed-out, or
 changed context clears snapshots and subscriptions and reloads through normal
 authentication. Browser BFCache restores repeat the check before revealing content.
+Authorization failures on frame and stream requests return HTTP 403, allowing
+the shared coordinator to retain drafts and present accessible feedback instead
+of rendering a redirected document inside a partial region.
+Tenant-wide permission signals first validate this user's context. Changed
+access clears the session UI immediately; unchanged access reconciles the screen
+through the normal draft-preserving refresh path.
 
 `form-state-service.js` tracks user edits, protects dirty forms during morphs,
 warns before leaving unsaved work, and resets the baseline only after successful

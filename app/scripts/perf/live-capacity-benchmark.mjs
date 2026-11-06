@@ -214,6 +214,9 @@ async function main() {
     let runtimeVerified = true;
     const host = await run('docker', ['info', '--format', '{{.NCPU}} {{.MemTotal}} {{.ServerVersion}}']);
     const environment = { dockerHost: host.stdout.trim(), replicas: [] };
+    const databaseResources = await run('docker', ['inspect', '--format',
+        '{"image":{{json .Image}},"cpu":{{json .HostConfig.NanoCpus}},"memory":{{json .HostConfig.Memory}},"swap":{{json .HostConfig.MemorySwap}}}', manifest.database.container]);
+    environment.database = { container: manifest.database.container, ...JSON.parse(databaseResources.stdout) };
     for (const replica of [...manifest.replicas.web, ...manifest.replicas.gateway]) {
         const [container, image] = await Promise.all([
             run('docker', ['inspect', '--format', '{"image":{{json .Image}},"cpu":{{json .HostConfig.NanoCpus}},"quota":{{json .HostConfig.CpuQuota}},"period":{{json .HostConfig.CpuPeriod}},"memory":{{json .HostConfig.Memory}},"cpuset":{{json .HostConfig.CpusetCpus}}}', replica.container]),
@@ -305,6 +308,7 @@ async function main() {
     } finally { clearInterval(sampler); abort.abort(); await Promise.all(connections); }
     while (telemetryBusy) await delay(50);
     const finished = new Date().toISOString();
+    const elapsedSeconds = (performance.now() - monotonicStart) / 1000;
     const serverRequests = [];
     for (const replica of manifest.replicas.web) {
         try {
@@ -324,7 +328,7 @@ async function main() {
     const report = {
         schema: 1, run: metrics.run, commit: manifest.commit, runtimeVerified, environment,
         fixtureDigest: digest(JSON.stringify(manifest.sessions)), mode: baselineMode ? 'baseline' : 'live',
-        started, finished, durationSeconds: seconds, elapsedSeconds: (performance.now() - monotonicStart) / 1000,
+        started, finished, durationSeconds: seconds, elapsedSeconds,
         sessions: sessions.length, distinctSessions: new Set(sessions.map(session => session.cookieDigest)).size,
         tenants: new Set(sessions.map(session => session.spec.tenant)).size, replicas: manifest.replicas,
         ordinaryRequests, mutations, requestP95Ms: percentile(metrics.request), liveP95Ms: percentile(metrics.live),

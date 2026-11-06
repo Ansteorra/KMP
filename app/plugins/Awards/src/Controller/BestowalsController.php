@@ -2712,6 +2712,9 @@ class BestowalsController extends AppController
         }
 
         if ($reloadEditId !== null) {
+            if ($this->wantsGridReconciliation()) {
+                return $this->renderTurboFlashOnly()->withStatus(422);
+            }
             $frameSrc = Router::url([
                 'plugin' => 'Awards',
                 'controller' => 'Bestowals',

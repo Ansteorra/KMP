@@ -202,6 +202,8 @@ jobs:
           --health-timeout=5s
           --health-retries=5
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
       - name: Log in to ghcr.io
         uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4
         with:
@@ -209,12 +211,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull and verify /health
+      - name: Pull and verify bounded PHP capacity and /health
         env:
           IMAGE: ${{ needs.build-and-push.outputs.image }}
         run: |
           echo "Pulling $IMAGE"
           docker pull "$IMAGE"
+          python3 docker/test-apache-capacity.py --image "$IMAGE"
 
           docker run -d --name kmp-smoke \
             --network host \

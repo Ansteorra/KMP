@@ -1,5 +1,5 @@
 import { maintainLiveConnection } from './live-connection-service.js';
-import { driveEnabled, invalidateUiSession } from './ui-navigation-service.js';
+import { driveEnabled, invalidateUiSession, revalidateUiSession } from './ui-navigation-service.js';
 import { dirtyWithin } from './form-state-service.js';
 import { refreshAfterChanges, refreshScreen } from './page-refresh-service.js';
 
@@ -38,7 +38,13 @@ export function installLiveUpdates(Turbo) {
 
     function schedule(changes = ['record']) {
         if (changes.includes('permissions')) {
-            invalidateUiSession(); return;
+            const originPath = path;
+            revalidateUiSession().then(valid => {
+                if (valid && originPath === window.location.pathname) {
+                    schedule([...changes.filter(change => change !== 'permissions'), 'record']);
+                }
+            });
+            return;
         }
         changes.forEach(change => pending.add(change));
         clearTimeout(refreshTimer);

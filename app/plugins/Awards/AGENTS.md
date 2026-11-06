@@ -15,6 +15,7 @@ Own award domains, levels, recommendations, recommendation feedback approvals, b
 - Plugin path is `/awards` and supports `json`, `pdf`, and `csv` extensions.
 - Migration order is `3` in `app/config/plugins.php`; it loads after Officers.
 - Recommendation and bestowal state transitions belong in the dedicated transition/update/state-log services.
+- Coordinated quick-edit clients (`X-KMP-Grid-Reconcile: table`) receive direct current-table invalidations on success and 422 feedback without replacing their submitted form on failure. Keep legacy row/reload contracts for older clients. See `app/docs/hotwire-interactions.md`.
 - Recommendation feedback approval context uses the registered `AwardsFeedback` renderer.
 - Recommendation approval synchronization is scoped to one approval process from its detail page. Candidate discovery and restarts run in bounded tenant queue jobs; the browser only enqueues and reads progress.
   Durable runs/items record per-recommendation results, duplicate requests reuse an active run, and worker retries

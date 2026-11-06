@@ -2949,6 +2949,48 @@ When('I submit the open recommendation edit with a turbo stream response', async
     });
 });
 
+When('the next recommendation save fails with {string}', async ({ page }, failure) => {
+    expect(['validation', 'network', 'server']).toContain(failure);
+    const modal = await getOpenRecommendationEditModal(page);
+    const form = page.locator('form#recommendation_form');
+    const action = await form.evaluate(element => element.action);
+    page.__failedRecommendationWrites = 0;
+    page.__recommendationFailureMode = failure;
+    page.__recommendationPageErrors = [];
+    page.on('pageerror', error => page.__recommendationPageErrors.push(error.message));
+    await page.route(action, async route => {
+        expect(route.request().method()).toBe('POST');
+        page.__failedRecommendationWrites++;
+        if (failure === 'network') await route.abort('failed');
+        else if (failure === 'server') await route.fulfill({ status: 500, contentType: 'text/html',
+            body: '<html><body><h1>Temporary service failure</h1></body></html>' });
+        else await route.fulfill({ status: 422, contentType: 'text/vnd.turbo-stream.html',
+            body: '<turbo-stream action="replace" target="flash-messages"><template>'
+                + '<div role="alert" class="alert alert-danger">This note needs more detail.</div>'
+                + '</template></turbo-stream>' });
+    }, { times: 1 });
+    const completed = failure === 'network'
+        ? page.waitForEvent('requestfailed', { predicate: request => request.url() === action })
+        : page.waitForResponse(response => response.url() === action && response.status() === (failure === 'server' ? 500 : 422));
+    await modal.locator('button#recommendation_submit').click();
+    await completed;
+});
+
+Then('the recommendation edit should retain note {string} after the failed save', async ({ page }, note) => {
+    const modal = await getOpenRecommendationEditModal(page);
+    await expect(modal).toBeVisible();
+    await expect(modal.locator('textarea[name="note"]')).toHaveValue(note);
+    await expect(modal.locator('[data-turbo-modal-feedback] [role="alert"]')).toBeVisible();
+    await expect(modal.locator('button#recommendation_submit')).toBeEnabled();
+    expect(page.__failedRecommendationWrites).toBe(1);
+});
+
+Then('the recommendation retry should have no unexpected browser errors', async ({ page }) => {
+    const unexpected = page.__recommendationPageErrors.filter(message =>
+        page.__recommendationFailureMode !== 'network' || !/Failed to fetch|Load failed|NetworkError.*fetch/i.test(message));
+    expect(unexpected).toEqual([]);
+});
+
 const paginationTable = (page, grid = 'recommendations') => page.locator(`#${grid}-grid-table`);
 
 const paginationToken = (page) => page.__awardRecommendationFixtures?.token

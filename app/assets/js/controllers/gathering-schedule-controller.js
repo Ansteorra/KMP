@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 import { refreshAfterChange, showRefreshFailure, hideModalAndWait } from '../services/page-refresh-service.js';
+import { markFormClean } from '../services/form-state-service.js';
 
 /**
  * Gathering Schedule Controller
@@ -51,6 +52,7 @@ class GatheringScheduleController extends Controller {
     /** Default new activities to the first quarter-hour within the gathering. */
     resetAddForm() {
         this.setupDateTimeLimits();
+        if (this.hasIsOtherCheckboxTarget) this.handleOtherChange({ target: this.isOtherCheckboxTarget });
         const start = new Date(`${this.gatheringStartValue}Z`);
         if (Number.isNaN(start.getTime())) return;
         start.setUTCMinutes(Math.ceil(start.getUTCMinutes() / 15) * 15, 0, 0);
@@ -193,8 +195,14 @@ class GatheringScheduleController extends Controller {
 
     /** Return keyboard focus to the schedule entry after closing its editor. */
     restoreEditFocus() {
+        if (!this.saving) this.editFormTarget.reset();
         if (this.editTrigger?.isConnected) this.editTrigger.focus();
         this.editTrigger = null;
+    }
+
+    /** Explicitly closing a creation dialog discards its unsubmitted draft. */
+    discardAddDraft() {
+        if (!this.saving) this.addFormTarget.reset();
     }
 
     /**
@@ -266,6 +274,7 @@ class GatheringScheduleController extends Controller {
             }
             await hideModalAndWait(modal);
             if (modal === this.addModalTarget) form.reset();
+            else markFormClean(form);
             await this.refreshSchedule(result.data?.id);
             this.showFlashMessage('success', result.message);
         } catch (error) {

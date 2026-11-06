@@ -62,6 +62,16 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
     const markDocument = () => page.evaluate(() => { window.__partialDocument = document.documentElement; });
     const unchanged = async () => assert.equal(await page.evaluate(() => window.__partialDocument === document.documentElement), true);
     const detail = '/gatherings/view/' + fixture.publicId + '?tab=schedule&search=retained#place';
+    const leaveAndReturn = async () => {
+        await page.evaluate(() => {
+            const link = document.createElement('a'); link.href = '/gatherings'; link.id = 'partial-save-navigation';
+            link.textContent = 'Return to gatherings'; document.querySelector('#main-content').prepend(link);
+        });
+        await page.locator('#partial-save-navigation').click();
+        await expect(page).toHaveURL(/\/gatherings(?:\?|$)/);
+        await page.goto(detail);
+        await markDocument();
+    };
     try {
         await loginAs(page, process.env.PLAYWRIGHT_ADMIN_EMAIL || 'admin@amp.ansteorra.org');
         await page.goto('/members/view/' + fixture.memberId + '?tab=notes');
@@ -124,10 +134,17 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
         await unchanged();
         await page.locator('[id^="schedule-edit-"]').click();
         const edit = page.locator('#editScheduleModal');
+        await edit.getByLabel('Display Title', { exact: true }).fill('Cancelled edit');
+        await edit.getByRole('button', { name: 'Cancel', exact: true }).click();
+        await expect(edit).not.toBeVisible();
+        await leaveAndReturn();
+        await page.locator('[id^="schedule-edit-"]').click();
+        await expect(edit.getByLabel('Display Title', { exact: true })).toHaveValue('Partial schedule entry');
         await edit.getByLabel('Display Title', { exact: true }).fill('Revised schedule entry');
         await edit.getByRole('button', { name: /Save/ }).click();
         await expect(page.locator('#gathering-overview-content')).toContainText('Revised schedule entry');
         const activityId = await page.locator('[id^="schedule-edit-"]').getAttribute('data-activity-id');
+        await leaveAndReturn();
         const award = runPhpJson(fixtureScript, { ...fixture, attachAward: true, activityId });
         await page.reload();
         await markDocument();

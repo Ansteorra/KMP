@@ -3481,6 +3481,16 @@ class RecommendationsController extends AppController
         if ($success) {
             $this->Flash->success(__('The recommendation has been saved.'));
 
+            if ($this->wantsGridReconciliation() && $syncContext !== null) {
+                if ($syncContext['contextKey'] !== 'main') {
+                    $gridRoute['action'] = $syncContext['contextKey'] === 'memberSubmitted'
+                        ? 'memberSubmittedRecsGridData' : 'recsForMemberGridData';
+                    $gridRoute[] = $syncContext['memberId'];
+                }
+
+                return $this->renderTurboCloseModal($syncContext['tableFrameId'], $gridRoute, $pageContext);
+            }
+
             if ($updatedRecommendationId !== null) {
                 $queryService ??= new RecommendationQueryService();
                 $sync = $this->resolveRecommendationGridRowSync(
@@ -3504,6 +3514,9 @@ class RecommendationsController extends AppController
         }
 
         if ($reloadQuickEditId !== null) {
+            if ($this->wantsGridReconciliation()) {
+                return $this->renderTurboFlashOnly()->withStatus(422);
+            }
             $frameSrc = Router::url([
                 'plugin' => 'Awards',
                 'controller' => 'Recommendations',

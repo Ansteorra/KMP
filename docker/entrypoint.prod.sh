@@ -1,6 +1,14 @@
 #!/bin/bash
 set -e
 
+# Bound short HTTP work independently from the separate live gateway connections.
+export APACHE_MAX_REQUEST_WORKERS="${APACHE_MAX_REQUEST_WORKERS:-16}"
+if ! [[ "$APACHE_MAX_REQUEST_WORKERS" =~ ^[1-9][0-9]{0,2}$ ]] \
+    || [ "$APACHE_MAX_REQUEST_WORKERS" -lt 4 ] || [ "$APACHE_MAX_REQUEST_WORKERS" -gt 128 ]; then
+    echo 'ERROR: APACHE_MAX_REQUEST_WORKERS must be an integer between 4 and 128.' >&2
+    exit 64
+fi
+
 case "${KMP_DB_DRIVER:-postgres}" in
     postgres|pgsql) ;;
     *) echo 'ERROR: KMP supports PostgreSQL only.' >&2; exit 1 ;;

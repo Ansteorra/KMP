@@ -1,5 +1,7 @@
 jest.mock('eventsource-parser', () => ({ createParser: jest.fn() }));
-jest.mock('../../../assets/js/services/ui-navigation-service.js', () => ({ driveEnabled: () => true, invalidateUiSession: jest.fn() }));
+jest.mock('../../../assets/js/services/ui-navigation-service.js', () => ({
+    driveEnabled: () => true, invalidateUiSession: jest.fn(), revalidateUiSession: jest.fn().mockResolvedValue(true),
+}));
 jest.mock('../../../assets/js/services/form-state-service.js', () => ({ dirtyWithin: jest.fn(() => false) }));
 jest.mock('../../../assets/js/services/page-refresh-service.js', () => ({
     refreshAfterChanges: jest.fn().mockResolvedValue(), refreshScreen: jest.fn().mockResolvedValue(true),
@@ -7,7 +9,7 @@ jest.mock('../../../assets/js/services/page-refresh-service.js', () => ({
 import { installLiveUpdates } from '../../../assets/js/services/live-update-service.js';
 import { dirtyWithin } from '../../../assets/js/services/form-state-service.js';
 import { refreshAfterChanges, refreshScreen } from '../../../assets/js/services/page-refresh-service.js';
-import { invalidateUiSession } from '../../../assets/js/services/ui-navigation-service.js';
+import { invalidateUiSession, revalidateUiSession } from '../../../assets/js/services/ui-navigation-service.js';
 
 describe('live invalidation coordination', () => {
     const Turbo = { StreamActions: {}, cache: { clear: jest.fn() }, visit: jest.fn() };
@@ -15,6 +17,7 @@ describe('live invalidation coordination', () => {
     beforeEach(() => {
         jest.useFakeTimers(); jest.clearAllMocks();
         dirtyWithin.mockReturnValue(false);
+        revalidateUiSession.mockResolvedValue(true);
         document.head.innerHTML = '<meta name="kmp-live-subscriptions-url" content="/live/subscriptions">';
         document.body.innerHTML = '<main><section id="notes" data-refresh-on="notes">Current notes</section></main>';
         history.replaceState({}, '', '/members/view/1?tab=notes#place');
@@ -78,5 +81,28 @@ describe('live invalidation coordination', () => {
         await jest.advanceTimersByTimeAsync(1);
         expect(invalidateUiSession).toHaveBeenCalledTimes(1);
         expect(refreshScreen).not.toHaveBeenCalled();
+    });
+
+    test('an unrelated access change validates this user and defers refresh around their draft', async () => {
+        dirtyWithin.mockReturnValue(true);
+        invalidate(['permissions']);
+        await jest.advanceTimersByTimeAsync(151);
+        expect(revalidateUiSession).toHaveBeenCalledTimes(1);
+        expect(invalidateUiSession).not.toHaveBeenCalled();
+        expect(refreshScreen).not.toHaveBeenCalled();
+        expect(document.getElementById('kmp-live-status')).toHaveTextContent('Finish or cancel');
+        dirtyWithin.mockReturnValue(false);
+        window.dispatchEvent(new Event('kmp:draft-settled'));
+        await jest.advanceTimersByTimeAsync(151);
+        expect(refreshScreen).toHaveBeenCalledTimes(1);
+    });
+
+    test('a changed authorization context cannot reconcile the old screen', async () => {
+        revalidateUiSession.mockResolvedValue(false);
+        invalidate(['permissions', 'notes']);
+        await jest.advanceTimersByTimeAsync(151);
+        expect(revalidateUiSession).toHaveBeenCalledTimes(1);
+        expect(refreshScreen).not.toHaveBeenCalled();
+        expect(refreshAfterChanges).not.toHaveBeenCalled();
     });
 });

@@ -30,6 +30,26 @@ Feature: Hotwire turbo-stream grid saves (Awards)
         When I leave and return to the recommendations grid
         Then the "recommendations" grid should retain page 3 with 10 rows per page and fixture search
 
+    Scenario Outline: Recover a recommendation save after <failure>
+        Given I am logged in as "admin@amp.ansteorra.org"
+        And I create recommendation fixtures for "grid edit"
+        When I navigate to "/awards/recommendations"
+        And I search the recommendations grid for the current fixture token
+        And I open the "quick" recommendation edit modal from the grid
+        And I fill in the open recommendation note with "Retained after failed save"
+        When the next recommendation save fails with "<failure>"
+        Then the recommendation edit should retain note "Retained after failed save" after the failed save
+        When I submit the open recommendation edit with a turbo stream response
+        Then the recommendations URL should include the current fixture token
+        And the recommendations grid shell should remain connected
+        And the recommendation retry should have no unexpected browser errors
+
+        Examples:
+            | failure    |
+            | validation |
+            | network    |
+            | server     |
+
     Scenario: Bulk workflow decisions preserve page three and fall back to the last remaining page
         Given I am logged in as "admin@amp.ansteorra.org"
         And I create recommendation fixtures for "grid pagination"
