@@ -1,0 +1,42 @@
+name: Live update gateway
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  gateway:
+    name: Gateway and shared Redis contracts
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:8-alpine@sha256:71885d8cc6e42f2bc0aa2eb853bfc4be200b5108a46ac50e117ae1df0531fb80
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: services/live-updates/package-lock.json
+      - name: Install locked gateway dependencies
+        working-directory: services/live-updates
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify authorization, replay, and independent replica fanout
+        working-directory: services/live-updates
+        env:
+          KMP_TEST_REDIS_URL: redis://127.0.0.1:6379
+        run: npm test && npm run test:redis
+      - name: Audit locked gateway runtime dependencies
+        working-directory: services/live-updates
+        run: npm audit --omit=dev --audit-level=high
+      - name: Build gateway runtime
+        run: docker build -f docker/Dockerfile.live -t kmp-live-updates:verification .

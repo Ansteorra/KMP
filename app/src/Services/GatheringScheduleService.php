@@ -305,13 +305,18 @@ class GatheringScheduleService
     {
         $bestowals = $this->fetchTable('Awards.Bestowals');
         $affectedRows = $bestowals->find()
-            ->select(['id'])
+            ->select(['id', 'gathering_id', 'member_id'])
             ->where(['gathering_scheduled_activity_id' => $scheduledActivityId])
             ->enableHydration(false)
             ->all();
         $affectedBestowalIds = [];
+        $invalidations = [];
         foreach ($affectedRows as $row) {
             $affectedBestowalIds[] = (int)$row['id'];
+            if (TurboConfig::liveEnabled()) {
+                $previous = $bestowals->newEmptyEntity()->patch($row, ['guard' => false]);
+                $invalidations += UiUpdateRegistry::changes($bestowals, $previous);
+            }
         }
 
         $bestowals->updateAll(
@@ -321,6 +326,8 @@ class GatheringScheduleService
             ],
             ['gathering_scheduled_activity_id' => $scheduledActivityId],
         );
+        // updateAll bypasses ORM behavior callbacks; record on this same transaction.
+        (new UiUpdateOutbox())->record($bestowals->getConnection(), $invalidations);
         $actionItemService = new ActionItemService();
         foreach ($affectedBestowalIds as $bestowalId) {
             $syncResult = $actionItemService->syncRequiredFieldCompletionStates(

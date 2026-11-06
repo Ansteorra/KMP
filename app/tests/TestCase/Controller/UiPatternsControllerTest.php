@@ -121,7 +121,7 @@ class UiPatternsControllerTest extends HttpIntegrationTestCase
         $this->assertSame(['Barony of Oakmere'], array_values(array_unique(array_column($rows, 1))));
     }
 
-    public function testReaderBackPreservesTheLiveCollectionAndEmbeddedGridOrigins(): void
+    public function testReaderBackUsesSharedClientHistoryWithoutTrustingReferer(): void
     {
         $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
         $origins = [
@@ -134,12 +134,12 @@ class UiPatternsControllerTest extends HttpIntegrationTestCase
         foreach ($origins as $origin) {
             $this->get('/ui-patterns');
             $this->assertResponseOk();
-            $this->session(['pageStack' => $this->viewVariable('pageStack'), 'pageStackVersion' => 2]);
+            $this->session(['pageStack' => [$origin], 'pageStackVersion' => 2]);
             $this->configRequest(['headers' => ['Referer' => 'http://localhost' . $origin]]);
             $this->get('/ui-patterns/reader');
             $this->assertResponseOk();
             $this->assertSame('reader', $this->viewVariable('pattern'));
-            $this->assertSame([$origin, '/ui-patterns/reader'], $this->viewVariable('pageStack'));
+            $this->assertNull($this->viewVariable('pageStack'));
             $document = new DOMDocument();
             $previous = libxml_use_internal_errors(true);
             try {
@@ -150,7 +150,8 @@ class UiPatternsControllerTest extends HttpIntegrationTestCase
             }
             $back = (new DOMXPath($document))->query('//header[contains(@class, "ui-page-header")]//a[@aria-label="Go back"]');
             $this->assertCount(1, $back);
-            $this->assertSame($origin, $back->item(0)->getAttribute('href'));
+            $this->assertSame('/', $back->item(0)->getAttribute('href'));
+            $this->assertSame('true', $back->item(0)->getAttribute('data-kmp-back'));
             $this->assertSame('_top', $back->item(0)->getAttribute('data-turbo-frame'));
         }
     }

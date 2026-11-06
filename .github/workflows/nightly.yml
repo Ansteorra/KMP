@@ -46,6 +46,7 @@ jobs:
       digest: ${{ steps.build.outputs.digest }}
       image-tag: ${{ steps.tags.outputs.primary }}
       image: ghcr.io/ansteorra/kmp@${{ steps.build.outputs.digest }}
+      live-image: ghcr.io/ansteorra/kmp-live@${{ steps.live-build.outputs.digest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -137,8 +138,35 @@ jobs:
           build-args: |
             APP_VERSION=${{ steps.app-version.outputs.app_version }}
             RELEASE_CHANNEL=${{ steps.tags.outputs.channel }}
+            APP_REVISION=${{ github.sha }}
           cache-from: type=gha,scope=kmp-app
           cache-to: type=gha,mode=max,scope=kmp-app
+
+      - name: Match gateway tags to the web candidate
+        id: live-tags
+        env:
+          WEB_TAGS: ${{ steps.tags.outputs.tags }}
+        run: |
+          {
+            echo 'tags<<EOF'
+            while IFS= read -r tag; do
+              [[ -z "$tag" ]] || echo "ghcr.io/ansteorra/kmp-live:${tag##*:}"
+            done <<< "$WEB_TAGS"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and push the matching live gateway
+        id: live-build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          file: docker/Dockerfile.live
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.live-tags.outputs.tags }}
+          build-args: APP_REVISION=${{ github.sha }}
+          cache-from: type=gha,scope=kmp-live
+          cache-to: type=gha,mode=max,scope=kmp-live
 
   candidate-security:
     needs: build-and-push
@@ -151,6 +179,15 @@ jobs:
     if: needs.build-and-push.result == 'success' && needs.candidate-security.result == 'success'
     runs-on: ubuntu-latest
     services:
+      redis:
+        image: redis:8-alpine@sha256:71885d8cc6e42f2bc0aa2eb853bfc4be200b5108a46ac50e117ae1df0531fb80
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
       postgres:
         image: postgres:16
         env:
@@ -209,6 +246,25 @@ jobs:
             sleep 5
           done
 
+      - name: Smoke test the matching gateway image
+        env:
+          LIVE_IMAGE: ${{ needs.build-and-push.outputs.live-image }}
+        run: |
+          set -euo pipefail
+          umask 077
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$RUNNER_TEMP/live-test-key.pem" 2>/dev/null
+          export KMP_LIVE_PUBLIC_KEY="$(openssl pkey -in "$RUNNER_TEMP/live-test-key.pem" -pubout 2>/dev/null)"
+          docker run -d --name kmp-live-smoke --network host \
+            -e PORT=9080 -e REDIS_URL=redis://127.0.0.1:6379 \
+            -e KMP_LIVE_ALLOWED_ORIGINS=https://tenant.example.test \
+            -e KMP_LIVE_PUBLIC_KEY "$LIVE_IMAGE"
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:9080/health; then exit 0; fi
+            sleep 2
+          done
+          echo 'Gateway failed readiness.' >&2
+          exit 1
+
       - name: Cleanup
         if: always()
-        run: docker rm -f kmp-smoke 2>/dev/null || true
+        run: docker rm -f kmp-smoke kmp-live-smoke 2>/dev/null || true

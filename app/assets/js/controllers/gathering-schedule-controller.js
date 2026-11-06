@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import { refreshAfterChange, showRefreshFailure, hideModalAndWait } from '../services/page-refresh-service.js';
 
 /**
  * Gathering Schedule Controller
@@ -31,7 +32,7 @@ class GatheringScheduleController extends Controller {
     ]
 
     static values = {
-        gatheringId: Number,
+        gatheringId: String,
         gatheringStart: String,  // YYYY-MM-DD format
         gatheringEnd: String,    // YYYY-MM-DD format
         addUrl: String,
@@ -235,88 +236,85 @@ class GatheringScheduleController extends Controller {
         return result.message || 'An error occurred';
     }
 
-    /**
-     * Submit add form via AJAX
-     */
     async submitAddForm(event) {
         event.preventDefault();
-        
-        const form = event.target;
         this.updateTiming(false);
-        if (!form.reportValidity()) return;
-        const formData = new FormData(form);
-        
+        if (event.target.reportValidity()) await this.submitSchedule(event.target, this.addUrlValue, this.addModalTarget);
+    }
+
+    async submitEditForm(event) {
+        event.preventDefault();
+        this.updateTiming(true);
+        if (event.target.reportValidity()) await this.submitSchedule(event.target, event.target.action, this.editModalTarget);
+    }
+
+    /** Commit once, then refresh explicit schedule/overview/plugin dependencies. */
+    async submitSchedule(form, url, modal) {
+        if (this.saving) return;
+        this.saving = true;
+        const controls = [...form.querySelectorAll('[type="submit"]')];
+        controls.forEach(button => { button.disabled = true; });
         try {
-            const response = await fetch(this.addUrlValue, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
+            const response = await fetch(url, {
+                method: 'POST', body: new FormData(form),
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
             });
-            
             const result = await response.json();
-            
-            if (result.success) {
-                // Close modal
-                const modal = bootstrap.Modal.getInstance(this.addModalTarget);
-                modal.hide();
-                
-                // Reset form
-                form.reset();
-                
-                // Show success message and reload page
-                this.showFlashMessage('success', result.message);
-                window.location.reload();
-            } else {
-                // Show error message
-                const errorMsg = this.normalizeErrors(result);
-                this.showFlashMessage('error', errorMsg);
+            if (!response.ok || !result.success) {
+                this.showFlashMessage('error', this.normalizeErrors(result));
+                return;
             }
+            await hideModalAndWait(modal);
+            if (modal === this.addModalTarget) form.reset();
+            await this.refreshSchedule(result.data?.id);
+            this.showFlashMessage('success', result.message);
         } catch (error) {
-            console.error('Error submitting form:', error);
-            this.showFlashMessage('error', 'An error occurred while adding the scheduled activity.');
+            console.error('Unable to save scheduled activity:', error);
+            this.showFlashMessage('error', 'Unable to save the scheduled activity. Please try again.');
+        } finally {
+            this.saving = false;
+            controls.forEach(button => { button.disabled = false; });
         }
     }
 
-    /**
-     * Submit edit form via AJAX
-     */
-    async submitEditForm(event) {
-        event.preventDefault();
-        
-        const form = event.target;
-        this.updateTiming(true);
-        if (!form.reportValidity()) return;
-        const formData = new FormData(form);
-        
+    async refreshSchedule(activityId = null) {
+        const refresh = () => refreshAfterChange('schedule');
+        try { await refresh(); }
+        catch { showRefreshFailure(refresh); }
+        const target = document.getElementById(`schedule-edit-${activityId}`)
+            || document.getElementById('schedule-add-trigger') || document.getElementById('nav-schedule-tab');
+        if (!this.element.closest('.tab-pane:not(.active)')) target?.focus({ preventScroll: true });
+    }
+
+    async deleteActivity(event) {
+        if (this.saving) return;
+        const button = event.currentTarget;
+        const confirmed = await window.KMP_accessibility.confirm('Delete this scheduled activity?', {
+            title: 'Delete scheduled activity', confirmLabel: 'Delete',
+        });
+        if (!confirmed || this.saving) return;
+        this.saving = true;
+        button.disabled = true;
         try {
-            const response = await fetch(form.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
+            const token = document.querySelector('meta[name="csrf-token"]')?.content;
+            const response = await fetch(this.deleteUrlValue.replace('__ID__', button.dataset.activityId), {
+                method: 'POST', headers: {
+                    Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-Token': token || '',
+                },
             });
-            
             const result = await response.json();
-            
-            if (result.success) {
-                // Close modal
-                const modal = bootstrap.Modal.getInstance(this.editModalTarget);
-                modal.hide();
-                
-                // Show success message and reload page
-                this.showFlashMessage('success', result.message);
-                window.location.reload();
-            } else {
-                // Show error message
-                const errorMsg = this.normalizeErrors(result);
-                this.showFlashMessage('error', errorMsg);
+            if (!response.ok || !result.success) {
+                this.showFlashMessage('error', this.normalizeErrors(result));
+                return;
             }
+            await this.refreshSchedule();
+            this.showFlashMessage('success', result.message);
         } catch (error) {
-            console.error('Error submitting form:', error);
-            this.showFlashMessage('error', 'An error occurred while updating the scheduled activity.');
+            console.error('Unable to delete scheduled activity:', error);
+            this.showFlashMessage('error', 'Unable to delete the scheduled activity. Please try again.');
+        } finally {
+            this.saving = false;
+            button.disabled = false;
         }
     }
 
@@ -348,10 +346,6 @@ class GatheringScheduleController extends Controller {
         flashContainer.prepend(flashDiv);
         flashDiv.scrollIntoView?.({ block: 'nearest' });
         
-        // Auto-dismiss after 5 seconds
-        setTimeout(() => {
-            flashDiv.remove();
-        }, 5000);
     }
 
     /**

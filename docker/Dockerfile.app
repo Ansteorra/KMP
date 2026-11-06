@@ -78,8 +78,8 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     fi
 
 # Install PECL extensions
-RUN MAKEFLAGS="-j${PHP_BUILD_JOBS}" pecl install apcu grpc-1.82.0 protobuf yaml xdebug \
-    && docker-php-ext-enable apcu grpc protobuf yaml xdebug
+RUN MAKEFLAGS="-j${PHP_BUILD_JOBS}" pecl install apcu grpc-1.82.0 protobuf yaml xdebug redis-6.3.0 \
+    && docker-php-ext-enable apcu grpc protobuf yaml xdebug redis
 
 # Update npm's bundled tooling independently of the Node.js distribution.
 ARG NPM_VERSION=11.21.1

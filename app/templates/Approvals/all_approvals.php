@@ -31,12 +31,33 @@ $this->KMP->endBlock(); ?>
 </div>
 
 <!-- Approval Response Modal (same as My Approvals) -->
-<div class="modal fade" id="approvalResponseModal" tabindex="-1" aria-labelledby="approvalResponseModalLabel" aria-hidden="true">
+
+<?php
+$dialogBindings = [
+    'sendFeedback' => __('Send Feedback'),
+    'submitResponse' => __('Submit Response'),
+    'decision' => __('Decision'),
+    'respondToApproval' => __('Respond to Approval'),
+    'required' => __('(required)'),
+    'requiredForRejections' => __('(required for rejections)'),
+    'feedback' => __('Feedback'),
+    'comment' => __('Comment'),
+];
+?>
+<div class="modal fade" id="approvalResponseModal"
+    data-controller="all-approvals-dialog"
+    data-all-approvals-dialog-bindings-value="<?= h(json_encode($dialogBindings)) ?>"
+    tabindex="-1" aria-labelledby="approvalResponseModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="approvalResponseModalLabel">
-                    <kmp-icon name="checkbox" class="me-2" aria-hidden="true"></kmp-icon><?= __('Respond to Approval') ?>
+                    <kmp-icon
+                        name="checkbox"
+                        class="me-2"
+                        aria-hidden="true">
+                    </kmp-icon>
+                    <?= __('Respond to Approval') ?>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -55,19 +76,40 @@ $this->KMP->endBlock(); ?>
                 <input type="hidden" name="approvalId" id="approvalResponseApprovalId" value="">
 
                 <!-- Decision -->
-                <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3" data-approval-response-target="decisionSection">
-                    <legend class="float-none w-auto px-2 fw-semibold fs-6 mb-3" data-approval-response-target="decisionLegend"><?= __('Decision') ?></legend>
+                <fieldset
+                    class="border rounded-3 bg-white shadow-sm p-3 mb-3"
+                    data-approval-response-target="decisionSection">
+                    <legend
+                        class="float-none w-auto px-2 fw-semibold fs-6 mb-3"
+                        data-approval-response-target="decisionLegend">
+                    <?= __('Decision') ?>
+                    </legend>
                     <div class="d-flex gap-3 flex-wrap" data-approval-response-target="decisionOptions">
                         <div class="form-check">
-                            <input class="form-check-input" type="radio" name="decision" id="decisionApprove" value="approve"
+                        <input
+                            class="form-check-input"
+                            type="radio"
+                            name="decision"
+                            id="decisionApprove"
+                            value="approve"
                                 data-approval-response-target="decision"
                                 data-action="change->approval-response#onDecisionChange">
                             <label class="form-check-label text-success fw-semibold" for="decisionApprove">
-                                <kmp-icon name="circle-check" class="me-1" aria-hidden="true"></kmp-icon><?= __('Approve') ?>
+                        <kmp-icon
+                            name="circle-check"
+                            class="me-1"
+                            aria-hidden="true">
+                        </kmp-icon>
+                        <?= __('Approve') ?>
                             </label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input" type="radio" name="decision" id="decisionReject" value="reject"
+                        <input
+                            class="form-check-input"
+                            type="radio"
+                            name="decision"
+                            id="decisionReject"
+                            value="reject"
                                 data-approval-response-target="decision"
                                 data-action="change->approval-response#onDecisionChange">
                             <label class="form-check-label text-danger fw-semibold" for="decisionReject">
@@ -80,13 +122,25 @@ $this->KMP->endBlock(); ?>
                 <!-- Comment -->
                 <div class="border rounded-3 bg-white shadow-sm p-3 mb-3">
                     <label class="form-label" for="approvalComment"><?= __('Comment') ?>
-                        <span class="text-danger" data-approval-response-target="commentRequiredHint" hidden><?= __('(required for rejections)') ?></span>
+                        <span
+                            class="text-danger"
+                            data-approval-response-target="commentRequiredHint"
+                            hidden>
+                        <?= __('(required for rejections)') ?>
+                        </span>
                     </label>
                     <textarea class="form-control" id="approvalComment" name="comment" rows="3"
                         data-approval-response-target="comment"
                         placeholder="<?= __('Optional comment...') ?>"></textarea>
                     <div class="form-text text-muted small" data-approval-response-target="commentWarning" hidden>
-                        <kmp-icon name="eye" class="me-1" aria-hidden="true"></kmp-icon><span data-approval-response-target="commentWarningText"></span>
+                        <kmp-icon
+                            name="eye"
+                            class="me-1"
+                            aria-hidden="true">
+                        </kmp-icon>
+                        <span
+                            data-approval-response-target="commentWarningText">
+                        </span>
                     </div>
                 </div>
 
@@ -109,7 +163,10 @@ $this->KMP->endBlock(); ?>
                         ],
                     ) ?>
                     <div class="form-text" id="allApprovalBestowalGatheringHelp">
-                        <?= __('Optional: choose a future event or court if you already know where the bestowal should be scheduled.') ?>
+                        <?=
+                            __('Optional: choose a future event or court if you already know where '
+                            . 'the bestowal should be scheduled.')
+                            ?>
                     </div>
                     <div class="text-danger small" id="allApprovalBestowalGatheringError"
                         data-approval-response-target="bestowalGatheringError" hidden>
@@ -119,10 +176,16 @@ $this->KMP->endBlock(); ?>
                 </div>
 
                 <!-- Next Approver (conditional) -->
-                <div class="border rounded-3 bg-white shadow-sm p-3" data-approval-response-target="nextApproverSection" hidden>
+                <div
+                    class="border rounded-3 bg-white shadow-sm p-3"
+                    data-approval-response-target="nextApproverSection"
+                    hidden>
                     <div class="alert alert-info py-2 small" role="alert" data-approval-response-target="infoText">
                     </div>
-                    <label class="form-label fw-semibold" for="all-approval-next-approver-disp"><?= __('Select Next Approver') ?></label>
+                    <label
+                        class="form-label fw-semibold" for="all-approval-next-approver-disp">
+                    <?= __('Select Next Approver') ?>
+                    </label>
                     <div data-controller="ac"
                          data-ac-url-value="/workflows/eligible-approvers/0"
                          data-ac-min-length-value="0"
@@ -143,14 +206,26 @@ $this->KMP->endBlock(); ?>
                                    aria-describedby="all-approval-next-approver-status"
                                    data-ac-target="input"
                                    placeholder="<?= __('Click to see all or type to filter...') ?>">
-                            <button type="button" class="btn btn-outline-secondary" data-ac-target="clearBtn" data-action="ac#clear" disabled><?= __('Clear') ?></button>
+                        <button
+                            type="button"
+                            class="btn btn-outline-secondary"
+                            data-ac-target="clearBtn"
+                            data-action="ac#clear"
+                            disabled>
+                        <?= __('Clear') ?>
+                        </button>
                         </div>
                         <ul data-ac-target="results"
                             id="all-approval-next-approver-results"
                             role="listbox"
                             class="list-group z-3 col-12 position-absolute auto-complete-list"
                             hidden="hidden"></ul>
-                        <div id="all-approval-next-approver-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"
+                        <div
+                            id="all-approval-next-approver-status"
+                            class="visually-hidden"
+                            role="status"
+                            aria-live="polite"
+                            aria-atomic="true"
                             data-ac-target="status"></div>
                     </div>
                 </div>
@@ -167,7 +242,12 @@ $this->KMP->endBlock(); ?>
 </div>
 
 <!-- Approval Reassign Modal -->
-<div class="modal fade" id="approvalReassignModal" tabindex="-1" aria-labelledby="approvalReassignModalLabel" aria-hidden="true">
+<div
+    class="modal fade"
+    id="approvalReassignModal"
+    tabindex="-1"
+    aria-labelledby="approvalReassignModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <div class="modal-header">
@@ -186,12 +266,19 @@ $this->KMP->endBlock(); ?>
 
                 <div class="alert alert-info border-start border-info border-4 py-2 small" role="alert">
                     <kmp-icon name="info-circle" class="me-1" aria-hidden="true"></kmp-icon>
-                    <?= __('Reassigning this approval will transfer it to a different eligible member. If the workflow has an on_reassigned action configured, the new approver will be notified.') ?>
+                    <?=
+                        __('Reassigning this approval will transfer it to a different eligible '
+                        . 'member. If the workflow has an on_reassigned action configured, '
+                        . 'the new approver will be notified.')
+                        ?>
                 </div>
 
                 <!-- New Approver Picker -->
                 <div class="border rounded-3 bg-white shadow-sm p-3">
-                    <label class="form-label fw-semibold" for="approval-reassign-new-approver-disp"><?= __('New Approver') ?></label>
+                    <label
+                        class="form-label fw-semibold" for="approval-reassign-new-approver-disp">
+                    <?= __('New Approver') ?>
+                    </label>
                     <div data-controller="ac"
                          data-ac-url-value="/approvals/eligible-approvers/0"
                          data-ac-min-length-value="0"
@@ -212,14 +299,26 @@ $this->KMP->endBlock(); ?>
                                    aria-describedby="approval-reassign-new-approver-status"
                                    data-ac-target="input"
                                    placeholder="<?= __('Click to see all or type to filter...') ?>">
-                            <button type="button" class="btn btn-outline-secondary" data-ac-target="clearBtn" data-action="ac#clear" disabled><?= __('Clear') ?></button>
+                        <button
+                            type="button"
+                            class="btn btn-outline-secondary"
+                            data-ac-target="clearBtn"
+                            data-action="ac#clear"
+                            disabled>
+                        <?= __('Clear') ?>
+                        </button>
                         </div>
                         <ul data-ac-target="results"
                             id="approval-reassign-new-approver-results"
                             role="listbox"
                             class="list-group z-3 col-12 position-absolute auto-complete-list"
                             hidden="hidden"></ul>
-                        <div id="approval-reassign-new-approver-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"
+                        <div
+                            id="approval-reassign-new-approver-status"
+                            class="visually-hidden"
+                            role="status"
+                            aria-live="polite"
+                            aria-atomic="true"
                             data-ac-target="status"></div>
                     </div>
                 </div>
@@ -242,132 +341,3 @@ $this->KMP->endBlock(); ?>
         </div>
     </div>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Response modal handler
-    const responseModal = document.getElementById('approvalResponseModal');
-    if (responseModal) {
-        responseModal.addEventListener('show.bs.modal', function(event) {
-            const btn = event.relatedTarget;
-            if (!btn) return;
-
-            let btnData = {};
-            try {
-                btnData = JSON.parse(btn.getAttribute('data-outlet-btn-btn-data-value') || '{}');
-            } catch (e) {
-                return;
-            }
-
-            const approvalId = btnData.id || 0;
-            const approverConfig = btnData.approver_config || {};
-            const requiredCount = btnData.required_count || 1;
-            const approvedCount = btnData.approved_count || 0;
-            const serialPickNext = approverConfig.serial_pick_next || false;
-            const commentWarning = approverConfig.comment_warning || '';
-            const feedbackResponse = approverConfig.feedback_response || false;
-            const responseLabel = approverConfig.response_label
-                || (feedbackResponse ? '<?= __('Send Feedback') ?>' : '<?= __('Submit Response') ?>');
-            const approveLabel = approverConfig.approve_label || 'Approve';
-            const hideReject = feedbackResponse || approverConfig.hide_reject || false;
-            const requiresComment = approverConfig.requires_comment || false;
-            const decisionPromptLabel = approverConfig.decision_prompt_label
-                || approverConfig.decisionPromptLabel
-                || '<?= __('Decision') ?>';
-            const decisionOptions = Array.isArray(approverConfig.decision_options)
-                ? approverConfig.decision_options
-                : (Array.isArray(approverConfig.decisionOptions) ? approverConfig.decisionOptions : []);
-
-            document.getElementById('approvalResponseApprovalId').value = approvalId;
-
-            const form = document.getElementById('approvalResponseForm');
-            const modalTitle = document.getElementById('approvalResponseModalLabel');
-            if (modalTitle) {
-                modalTitle.innerHTML = feedbackResponse
-                    ? '<kmp-icon name="message" class="me-2" aria-hidden="true"></kmp-icon><?= __('Send Feedback') ?>'
-                    : '<kmp-icon name="checkbox" class="me-2" aria-hidden="true"></kmp-icon><?= __('Respond to Approval') ?>';
-            }
-            const approveLabelEl = document.querySelector('label[for="decisionApprove"]');
-            if (approveLabelEl) {
-                approveLabelEl.innerHTML = '<kmp-icon name="circle-check" class="me-1" aria-hidden="true"></kmp-icon>' + approveLabel;
-            }
-            const rejectOption = document.getElementById('decisionReject')?.closest('.form-check');
-            if (rejectOption) {
-                rejectOption.hidden = !!hideReject;
-            }
-            const submitBtn = form?.querySelector('[data-approval-response-target="submitBtn"]');
-            if (submitBtn) {
-                submitBtn.innerHTML = '<kmp-icon name="send" class="me-1" aria-hidden="true"></kmp-icon>' + responseLabel;
-            }
-            const commentHint = form?.querySelector('[data-approval-response-target="commentRequiredHint"]');
-            if (commentHint) {
-                commentHint.textContent = feedbackResponse
-                    ? '<?= __('(required)') ?>'
-                    : '<?= __('(required for rejections)') ?>';
-            }
-            const commentLabel = form?.querySelector('label[for="approvalComment"]');
-            if (commentLabel) {
-                const hintHtml = commentHint ? commentHint.outerHTML : '';
-                const labelText = feedbackResponse ? '<?= __('Feedback') ?>' : '<?= __('Comment') ?>';
-                commentLabel.innerHTML = labelText + ' ' + hintHtml;
-            }
-            const controller = window.Stimulus?.getControllerForElementAndIdentifier(form, 'approval-response');
-            if (controller) {
-                controller.configure({
-                    id: approvalId,
-                    serialPickNext: serialPickNext,
-                    requiredCount: requiredCount,
-                    approvedCount: approvedCount,
-                    eligibleUrl: '/approvals/eligible-approvers/' + approvalId,
-                    commentWarning: commentWarning,
-                    requiresComment: requiresComment,
-                    feedbackResponse: feedbackResponse,
-                    decisionOptions: decisionOptions,
-                    decisionPromptLabel: decisionPromptLabel,
-                    approveLabel: approveLabel,
-                    hideReject: hideReject,
-                    defaultDecision: feedbackResponse && decisionOptions.length === 0 ? 'approve' : null,
-                    requiresBestowalGathering: approverConfig.requires_bestowal_gathering
-                        || approverConfig.requiresBestowalGathering
-                        || false,
-                    bestowalGatheringOptions: Array.isArray(approverConfig.bestowal_gathering_options)
-                        ? approverConfig.bestowal_gathering_options
-                        : (Array.isArray(approverConfig.bestowalGatheringOptions)
-                            ? approverConfig.bestowalGatheringOptions
-                            : []),
-                    bestowalGatheringUrl: approverConfig.bestowal_gathering_url
-                        || approverConfig.bestowalGatheringUrl
-                        || '',
-                });
-            }
-        });
-    }
-
-    // Reassign modal handler
-    const reassignModal = document.getElementById('approvalReassignModal');
-    if (reassignModal) {
-        reassignModal.addEventListener('show.bs.modal', function(event) {
-            const btn = event.relatedTarget;
-            if (!btn) return;
-
-            let btnData = {};
-            try {
-                btnData = JSON.parse(btn.getAttribute('data-outlet-btn-btn-data-value') || '{}');
-            } catch (e) {
-                return;
-            }
-
-            const approvalId = btnData.id || 0;
-
-            const form = document.getElementById('approvalReassignForm');
-            const controller = window.Stimulus?.getControllerForElementAndIdentifier(form, 'approval-reassign');
-            if (controller) {
-                controller.configure({
-                    id: approvalId,
-                    eligibleUrl: '/approvals/eligible-approvers/' + approvalId + '?context=reassign',
-                });
-            }
-        });
-    }
-});
-</script>

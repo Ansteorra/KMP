@@ -85,22 +85,7 @@ class GatheringAttendancesController extends AppController
                 }
                 $this->Flash->error(__('Gathering not found.'));
 
-                return $this->redirect($this->referer());
-            }
-
-            $today = CakeDateTime::now()->startOfDay();
-
-            // Check if gathering has already ended
-            if ($gathering->end_date < $today) {
-                if ($this->wantsJson()) {
-                    return $this->jsonResponse(
-                        ['success' => false, 'error' => 'Cannot register for a gathering that has already ended'],
-                        400,
-                    );
-                }
-                $this->Flash->error(__('Cannot register for a gathering that has already ended.'));
-
-                return $this->redirect($this->referer());
+                return $this->attendanceRedirectOrFailure();
             }
 
             // Set created_by from current user
@@ -116,6 +101,21 @@ class GatheringAttendancesController extends AppController
 
             // Authorize after patching data so policy can check member_id
             $this->Authorization->authorize($gatheringAttendance);
+
+            $today = CakeDateTime::now()->startOfDay();
+
+            // Check if gathering has already ended
+            if ($gathering->end_date < $today) {
+                if ($this->wantsJson()) {
+                    return $this->jsonResponse(
+                        ['success' => false, 'error' => 'Cannot register for a gathering that has already ended'],
+                        400,
+                    );
+                }
+                $this->Flash->error(__('Cannot register for a gathering that has already ended.'));
+
+                return $this->attendanceRedirectOrFailure();
+            }
 
             if ($this->GatheringAttendances->save($gatheringAttendance)) {
                 if ($this->wantsJson()) {
@@ -161,7 +161,7 @@ class GatheringAttendancesController extends AppController
             }
         }
 
-        return $this->redirect($this->referer());
+        return $this->attendanceRedirectOrFailure();
     }
 
     /**
@@ -186,9 +186,15 @@ class GatheringAttendancesController extends AppController
             // Validate that the gathering hasn't ended
             $today = CakeDateTime::now()->startOfDay();
             if ($gatheringAttendance->gathering->end_date < $today) {
+                if ($this->wantsJson()) {
+                    return $this->jsonResponse([
+                        'success' => false,
+                        'error' => 'Cannot update attendance for a gathering that has already ended.',
+                    ], 422);
+                }
                 $this->Flash->error(__('Cannot update attendance for a gathering that has already ended.'));
 
-                return $this->redirect($this->referer());
+                return $this->attendanceRedirectOrFailure();
             }
 
             // Set modified_by from current user
@@ -198,6 +204,9 @@ class GatheringAttendancesController extends AppController
             $gatheringAttendance = $this->GatheringAttendances->patchEntity($gatheringAttendance, $data);
 
             if ($this->GatheringAttendances->save($gatheringAttendance)) {
+                if ($this->wantsJson()) {
+                    return $this->jsonResponse(['success' => true, 'message' => 'Your attendance has been updated.']);
+                }
                 $this->Flash->success(__('Your attendance has been updated.'));
                 $stream = $this->tryGatheringAttendanceGridTurboResponse(
                     $this->getPageContextUrl(),
@@ -219,14 +228,18 @@ class GatheringAttendancesController extends AppController
                             $errorMessages[] = "$field: $error";
                         }
                     }
-                    $this->Flash->error(__('Validation errors: {0}', implode(', ', $errorMessages)));
+                    $errorMessage = __('Validation errors: {0}', implode(', ', $errorMessages));
                 } else {
-                    $this->Flash->error(__('Unable to update your attendance. Please try again.'));
+                    $errorMessage = __('Unable to update your attendance. Please try again.');
                 }
+                if ($this->wantsJson()) {
+                    return $this->jsonResponse(['success' => false, 'error' => $errorMessage], 422);
+                }
+                $this->Flash->error($errorMessage);
             }
         }
 
-        return $this->redirect($this->referer());
+        return $this->attendanceRedirectOrFailure();
     }
 
     /**
@@ -248,7 +261,7 @@ class GatheringAttendancesController extends AppController
             }
             $this->Flash->error(__('Attendance record not found.'));
 
-            return $this->redirect($this->referer());
+            return $this->attendanceRedirectOrFailure();
         }
 
         $this->Authorization->authorize($gatheringAttendance);
@@ -293,6 +306,16 @@ class GatheringAttendancesController extends AppController
                 return $this->jsonResponse(['success' => false, 'error' => $errorMessage], 400);
             }
             $this->Flash->error(__($errorMessage));
+        }
+
+        return $this->attendanceRedirectOrFailure();
+    }
+
+    /** Native pages redirect; stream validation failures retain the user's draft. */
+    private function attendanceRedirectOrFailure(): Response
+    {
+        if ($this->wantsTurboStreamRequest()) {
+            return $this->renderTurboFlashOnly()->withStatus(422);
         }
 
         return $this->redirect($this->referer());

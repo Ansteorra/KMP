@@ -22,6 +22,7 @@ Own source JavaScript, CSS, Vite entrypoints, frontend dependencies, and build-t
 - Vite outputs into `webroot` with hashed filenames and a manifest; templates should rely on the app asset helper rather than hard-coded built filenames.
 - The build copies FontAwesome webfonts to `webroot/fonts` and the PDF.js worker to `webroot/js/pdf.worker.min.mjs`.
 - Bootstrap, Stimulus, Turbo, and shared utilities are app-level dependencies, not template-level script tags.
+- Use `ui-navigation-service.js` for document and local UI history. Drive is gated by `KMP_TURBO_ENABLED`; fallback stops Turbo’s document-history observer. Preserve Turbo state, draft protection, and fresh snapshot context checks. Run the real Back and detail-tab browser checks after Turbo upgrades. See `app/docs/hotwire-interactions.md`.
 
 ## Work Guidance
 

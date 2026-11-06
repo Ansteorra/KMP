@@ -201,14 +201,14 @@ class OfficersController extends AppController
         if (!in_array($officer->status, [Officer::CURRENT_STATUS, Officer::UPCOMING_STATUS], true)) {
             $this->Flash->error(__('Only current or upcoming officer assignments can be updated.'));
 
-            return $this->redirect($this->referer());
+            return $this->officerEditFailureResponse();
         }
 
         $startOn = $this->normalizeOfficerTermDate($this->request->getData('start_on'));
         if ($startOn === null) {
             $this->Flash->error(__('Enter a valid start date.'));
 
-            return $this->redirect($this->referer());
+            return $this->officerEditFailureResponse();
         }
 
         $expiresOnInput = $this->request->getData('expires_on');
@@ -216,12 +216,12 @@ class OfficersController extends AppController
         if ($expiresOn === null && $expiresOnInput !== null && trim((string)$expiresOnInput) !== '') {
             $this->Flash->error(__('Enter a valid end date.'));
 
-            return $this->redirect($this->referer());
+            return $this->officerEditFailureResponse();
         }
         if ($expiresOn !== null && $expiresOn < $startOn) {
             $this->Flash->error(__('The officer term end date cannot be before the start date.'));
 
-            return $this->redirect($this->referer());
+            return $this->officerEditFailureResponse();
         }
 
         $emailAddress = trim((string)$this->request->getData('email_address', ''));
@@ -229,7 +229,7 @@ class OfficersController extends AppController
         if ($emailAddress !== null && filter_var($emailAddress, FILTER_VALIDATE_EMAIL) === false) {
             $this->Flash->error(__('Enter a valid email address.'));
 
-            return $this->redirect($this->referer());
+            return $this->officerEditFailureResponse();
         }
 
         $termNote = trim((string)$this->request->getData('term_note', ''));
@@ -239,7 +239,7 @@ class OfficersController extends AppController
         if ($termChanged && $termNote === '') {
             $this->Flash->error(__('A note is required when changing the officer term dates.'));
 
-            return $this->redirect($this->referer());
+            return $this->officerEditFailureResponse();
         }
 
         $identity = $this->Authentication->getIdentity();
@@ -272,7 +272,7 @@ class OfficersController extends AppController
             if ($workflowError !== null) {
                 $this->Flash->error(__($workflowError));
 
-                return $this->redirect($this->referer());
+                return $this->officerEditFailureResponse();
             }
 
             $workflowWarning = $this->extractWorkflowDispatchWarning($result);
@@ -295,6 +295,18 @@ class OfficersController extends AppController
         } catch (Throwable $e) {
             Log::error('Officer assignment update workflow dispatch failed: ' . $e->getMessage());
             $this->Flash->error(__('The officer assignment update workflow is not currently available.'));
+
+            return $this->officerEditFailureResponse();
+        }
+
+        return $this->redirect($this->referer());
+    }
+
+    /** Keep stream validation failures in the open dialog with the submitted values. */
+    private function officerEditFailureResponse(): Response
+    {
+        if ($this->wantsTurboStreamRequest()) {
+            return $this->renderTurboFlashOnly()->withStatus(422);
         }
 
         return $this->redirect($this->referer());
@@ -1202,6 +1214,20 @@ class OfficersController extends AppController
         $syncContext = $this->resolveOfficersGridSyncContext($pageContext);
         if ($syncContext === null) {
             return null;
+        }
+
+        if ($this->wantsGridReconciliation()) {
+            $query = [];
+            if (isset($syncContext['memberId'])) {
+                $query['member_id'] = $syncContext['memberId'];
+            }
+            if (isset($syncContext['branchId'])) {
+                $query['branch_id'] = $syncContext['branchId'];
+            }
+
+            return $this->renderTurboCloseModal($syncContext['tableFrameId'], [
+                'plugin' => 'Officers', 'controller' => 'Officers', 'action' => 'gridData', '?' => $query,
+            ], $pageContext);
         }
 
         $sync = $this->resolveOfficerGridRowSync($officerId, $pageContext);

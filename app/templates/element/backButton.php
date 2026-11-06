@@ -1,59 +1,21 @@
 <?php
 
 /**
- * Back Button Element
- *
- * Reusable back button component that intelligently handles navigation.
- * Uses the pageStack session variable when available for accurate back navigation,
- * falls back to browser history when pageStack is unavailable.
- *
- * Features:
- * - Smart navigation using pageStack history tracking
- * - Fallback to browser history when pageStack unavailable
- * - Shared KMP icon integration
- * - Customizable text and CSS classes
- * - Accessible markup with proper titles
- *
- * Usage:
- * ```php
- * // Basic usage (icon only)
- * <?= $this->element('backButton') ?>
- *
- * // With custom text
- * <?= $this->element('backButton', ['text' => 'Back to List']) ?>
- *
- * // With custom CSS classes
- * <?= $this->element('backButton', ['class' => 'btn btn-secondary']) ?>
- *
- * // Icon only with custom class
- * <?= $this->element('backButton', ['class' => 'text-primary fs-4']) ?>
- * ```
+ * Browser/Turbo Back with an authorized list link for directly opened records.
  *
  * @var \App\View\AppView $this
- * @var string|null $text Optional text to display after the icon (default: none)
- * @var string|null $class Optional icon styling classes
- * @var string|null $title Optional title attribute (default: 'Go back')
+ * @var string|null $text
+ * @var string|null $class
+ * @var string|null $title
  */
+use App\Services\NavigationParentService;
 
 // Set defaults
 $text = $text ?? null;
 $class = $class ?? '';
 $title = $title ?? __('Go back');
 
-// Get pageStack from session if available
-$pageStack = $this->request->getSession()->read('pageStack') ?? [];
-$historyCount = count($pageStack);
-
-// Determine the URL to navigate to
-if ($historyCount < 2) {
-    // No pageStack or insufficient history - use browser back
-    $url = '#';
-    $historyBack = true;
-} else {
-    // Use pageStack for accurate navigation
-    $url = $pageStack[$historyCount - 2];
-    $historyBack = false;
-}
+$url = (new NavigationParentService())->url($this->getRequest());
 
 // Build the link
 $linkContent = $this->Icon->render($icon ?? 'circle-arrow-left', ['class' => $class]);
@@ -67,11 +29,10 @@ $linkOptions = [
     'aria-label' => $title,
     'data-turbo-frame' => '_top',
     'data-turbo' => 'false',
+    'data-kmp-back' => 'true',
 ];
 
-if ($historyBack) {
-    $linkOptions['data-controller'] = 'history-back';
-    $linkOptions['data-action'] = 'history-back#go';
-}
+$linkOptions['data-controller'] = 'history-back';
+$linkOptions['data-action'] = 'history-back#go';
 
 echo $this->Html->link($linkContent, $url, $linkOptions);

@@ -64,3 +64,4 @@ Own the CakePHP application runtime: PHP source, configuration, templates, front
 | `app/plugins/AGENTS.md` | Plugin structure, registration, migration order, tests, and active plugin child guides |
 | `app/tests/AGENTS.md` | PHPUnit, Jest, Playwright, fixtures, generated test output, and verification workflows |
 | `app/docs/AGENTS.md` | App-local implementation notes and developer documentation |
+| `app/scripts/perf/AGENTS.md` | Isolated performance workloads and release capacity acceptance |

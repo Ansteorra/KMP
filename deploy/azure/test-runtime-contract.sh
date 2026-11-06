@@ -70,6 +70,15 @@ assert_contains "$workflow" '--extension UNACCENT'
 assert_contains "$poc_workflow" 'uses: ./.github/workflows/azure-deploy.yml'
 assert_contains "$release_workflow" 'needs: [verify-promotion-source, prepare-production-deploy]'
 assert_contains "$release_workflow" 'checkout_ref: ${{ needs.verify-promotion-source.outputs.source_sha }}'
+assert_contains "$workflow" 'source_live_image:'
+assert_contains "$workflow" 'cutover-live-gateway.sh'
+assert_contains "$poc_workflow" 'poc-image-pair-${{ needs.prepare.outputs.source_sha }}'
+assert_contains "$release_workflow" 'require-poc-image-pair.sh'
+assert_contains "$release_workflow" 'Promote matching gateway tags without rebuilding'
+assert_contains "$here/live-updates.bicep" 'scope: redisSecret'
+assert_contains "$here/live-updates.bicep" 'minReplicas: 2'
+assert_contains "$bicep" 'sharedRedisEnabled: enableManagedRedis'
+assert_contains "$bicep" 'driveEnabled: enableTurbo'
 if grep -Fq 'checkout_ref: ${{ github.event.release.tag_name }}' "$release_workflow"; then
     echo 'Production deployment tooling must use the verified release commit SHA.' >&2
     exit 1
@@ -309,4 +318,5 @@ if [[ "$extension_output" != *'PGCRYPTO,uuid-ossp,CITEXT'* ]]; then
     exit 1
 fi
 
+python3 "$here/test-live-update-contract.py"
 echo 'Azure runtime contract checks passed.'

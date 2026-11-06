@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Gathering Bestowals Cell Display Template
@@ -37,6 +38,7 @@ $frameId = 'gathering-bestowals-grid-' . $gatheringId;
 <?= $this->element('eventAwardDelegationModal', compact('gatheringId')) ?>
 
 <?php if (!$isEmpty) : ?>
+    <div data-refresh-frame-on="schedule">
     <?= $this->element('dv_grid', [
         'gridKey' => 'Awards.Bestowals.gathering',
         'frameId' => $frameId,
@@ -48,6 +50,7 @@ $frameId = 'gathering-bestowals-grid-' . $gatheringId;
         ]),
         'compactMode' => true,
     ]) ?>
+    </div>
     <?php if ($canManage) : ?>
         <?= $this->element('ad_hoc_bestowal_modal', ['modalId' => 'adHocBestowalModal']) ?>
     <?php endif; ?>

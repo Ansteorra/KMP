@@ -128,12 +128,11 @@ describe('RevokeFormController', () => {
 
     test('outletBtnOutletDisconnected removes listener from outlet', () => {
         const mockOutlet = {
-            removeListener: jest.fn(),
+            addListener: jest.fn(), removeListener: jest.fn(),
         };
-
+        controller.outletBtnOutletConnected(mockOutlet);
         controller.outletBtnOutletDisconnected(mockOutlet);
-
-        expect(mockOutlet.removeListener).toHaveBeenCalledWith(expect.any(Function));
+        expect(mockOutlet.removeListener).toHaveBeenCalledWith(mockOutlet.addListener.mock.calls[0][0]);
     });
 
     // --- Integration-style: full workflow ---

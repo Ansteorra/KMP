@@ -211,6 +211,10 @@ return function (RouteBuilder $routes): void {
          */
         $builder->setExtensions(["json", "pdf", "csv"]);
 
+        $builder->connect('/navigation/context', ['controller' => 'Navigation', 'action' => 'context']);
+        $builder->connect('/live/subscriptions', ['controller' => 'UiUpdates', 'action' => 'subscriptions']);
+        $builder->connect('/ui/refresh', ['controller' => 'UiUpdates', 'action' => 'refresh']);
+
         // Health check endpoint (no auth required, used by Docker/load balancers)
         $builder->connect("/health", [
             "controller" => "Health",

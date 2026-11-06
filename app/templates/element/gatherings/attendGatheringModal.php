@@ -1,4 +1,7 @@
 <?php
+declare(strict_types=1);
+
+use Cake\Log\Log;
 
 /**
  * @var \App\View\AppView $this
@@ -8,44 +11,58 @@
  * @var bool $fromCalendar Whether this modal is being used from the calendar view
  */
 
-$isEdit = !empty($userAttendance);
 $modalId = $modalId ?? 'attendGatheringModal';
 $formId = $modalId . 'Form';
+$streamAttendance = $streamAttendance ?? false;
+$streamOptions = $streamAttendance ? [
+    'data-controller' => 'turbo-modal', 'data-turbo' => 'true',
+    'data-action' => 'submit->turbo-modal#submitAsTurboStream',
+    'data-turbo-modal-changed-value' => 'attendance',
+    'data-turbo-modal-modal-id-value' => $modalId,
+] : [];
+$removeAttendanceMessage = __('Are you sure you want to remove your attendance registration?');
+$isEdit = !empty($userAttendance);
 $fromCalendar = $fromCalendar ?? false;
 $isMinor = $user && $user->age !== null && $user->age < 18;
 // Current progress-eligible officer assignments (Crown/Coronet etc.) for this user
 
 // Debug: Check if we're in edit mode
 if ($isEdit) {
-    \Cake\Log\Log::debug('Modal in EDIT mode. Attendance ID: ' . $userAttendance->id);
+    Log::debug('Modal in EDIT mode. Attendance ID: ' . $userAttendance->id);
 } else {
-    \Cake\Log\Log::debug('Modal in ADD mode');
+    Log::debug('Modal in ADD mode');
 }
 ?>
 
 <!-- Attend/Edit Gathering Attendance Modal -->
+<?php if ($streamAttendance) : ?>
+<div id="gathering-attendance-controls" data-refresh-on="attendance">
+<?php endif; ?>
 <div class="modal fade"
     id="<?= $modalId ?>"
     tabindex="-1"
     aria-labelledby="<?= $modalId ?>Label"
     aria-hidden="true"
-    <?php if ($fromCalendar): ?>
+    <?php if ($fromCalendar) : ?>
     data-calendar-modal="true"
     <?php endif; ?>>
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content" id="<?= $modalId ?>Content">
-            <?php if ($isEdit): ?>
+            <?php if ($isEdit) : ?>
                 <?= $this->Form->create(null, [
                     'type' => 'post',
                     'url' => ['controller' => 'GatheringAttendances', 'action' => 'edit', $userAttendance->id],
-                    'id' => $formId
-                ]) ?>
-            <?php else: ?>
+                    'id' => $formId,
+                ] + $streamOptions) ?>
+            <?php else : ?>
                 <?= $this->Form->create(null, [
                     'type' => 'post',
                     'url' => ['controller' => 'GatheringAttendances', 'action' => 'add'],
-                    'id' => $formId
-                ]) ?>
+                    'id' => $formId,
+                ] + $streamOptions) ?>
+            <?php endif; ?>
+            <?php if ($streamAttendance) : ?>
+                <?= $this->Form->hidden('page_context_url', ['value' => '']) ?>
             <?php endif; ?>
 
             <div class="modal-header">
@@ -60,10 +77,10 @@ if ($isEdit) {
                     <small>Share with the crown, your friends, or the gathering hosts that you plan to attend this
                         gathering (not a replacement for paypal prereg).</small>
                 </div>
-                <?php if (!$isEdit): ?>
+                <?php if (!$isEdit) : ?>
                     <?= $this->Form->hidden('member_id', ['value' => $user->id]) ?>
                     <?= $this->Form->hidden('gathering_id', ['value' => $gathering->id]) ?>
-                <?php else: ?>
+                <?php else : ?>
                     <?= $this->Form->hidden('id', ['value' => $userAttendance->id]) ?>
                 <?php endif; ?>
 
@@ -71,7 +88,7 @@ if ($isEdit) {
                     <strong><?= h($gathering->name) ?></strong><br>
                     <small>
                         <?= $this->Timezone->format($gathering->start_date, $gathering, 'F j, Y') ?>
-                        <?php if (!$gathering->start_date->equals($gathering->end_date)): ?>
+                        <?php if (!$gathering->start_date->equals($gathering->end_date)) : ?>
                             - <?= $this->Timezone->format($gathering->end_date, $gathering, 'F j, Y') ?>
                         <?php endif; ?>
                     </small>
@@ -89,7 +106,7 @@ if ($isEdit) {
                     'rows' => 3,
                     'class' => 'form-control',
                     'tooltip' => 'Optional note to viewable by those that you select below.',
-                    'value' => $isEdit ? $userAttendance->public_note : ''
+                    'value' => $isEdit ? $userAttendance->public_note : '',
                 ]) ?>
 
                 </fieldset>
@@ -107,17 +124,18 @@ if ($isEdit) {
                         SCA name and note.
                     </small>
 
-                    <?php if (!$isMinor): ?>
-                    <?= $this->Form->control('share_with_kingdom', [
+                    <?php if (!$isMinor) : ?>
+                        <?= $this->Form->control('share_with_kingdom', [
                         'type' => 'checkbox',
                         'label' => 'Share with Kingdom',
                         'class' => 'form-check-input',
                         'switch' => true,
                         'checked' => $isEdit ? $userAttendance->share_with_kingdom : false,
-                        'tooltip' => 'Signed-in members can see your name and note on the public gathering page, and the host group and crown can view it in AMP.'
+                        'tooltip' => 'Signed-in members can see your name and note on the public gathering page, '
+                            . 'and the host group and crown can view it in AMP.',
                     ]) ?>
-                    <?php else: ?>
-                    <?= $this->Form->hidden('share_with_kingdom', ['value' => '0']) ?>
+                    <?php else : ?>
+                        <?= $this->Form->hidden('share_with_kingdom', ['value' => '0']) ?>
                     <?php endif; ?>
 
                     <?= $this->Form->control('share_with_hosting_group', [
@@ -126,7 +144,8 @@ if ($isEdit) {
                         'class' => 'form-check-input',
                         'switch' => true,
                         'checked' => $isEdit ? $userAttendance->share_with_hosting_group : false,
-                        'tooltip' => 'Hosts of the event will be able to see your name and public note on the gathering page.'
+                        'tooltip' => 'Hosts of the event will be able to see your name and public note '
+                            . 'on the gathering page.',
                     ]) ?>
 
                     <?= $this->Form->control('share_with_crown', [
@@ -135,7 +154,8 @@ if ($isEdit) {
                         'class' => 'form-check-input',
                         'switch' => true,
                         'checked' => $isEdit ? $userAttendance->share_with_crown : false,
-                        'tooltip' => 'The nobility and crown will be able to see your attendance information in regards to managing award recommendations.'
+                        'tooltip' => 'The nobility and crown will be able to see your attendance information '
+                            . 'in regards to managing award recommendations.',
                     ]) ?>
 
                 </div>
@@ -145,11 +165,11 @@ if ($isEdit) {
             <?= $this->Form->end() ?>
 
             <div class="modal-footer">
-                <?php if ($isEdit): ?>
+                <?php if ($isEdit) : ?>
                     <button type="button" class="btn btn-outline-danger btn-sm me-auto"
                         data-controller="confirmation"
                         data-action="confirmation#confirm"
-                        data-confirmation-message-value="<?= h(__('Are you sure you want to remove your attendance registration?')) ?>"
+                        data-confirmation-message-value="<?= h($removeAttendanceMessage) ?>"
                         data-confirmation-title-value="<?= h(__('Remove attendance registration')) ?>"
                         data-confirmation-confirm-label-value="<?= h(__('Remove')) ?>"
                         data-confirmation-submit-selector-value="#deleteAttendanceForm_<?= $userAttendance->id ?>">
@@ -165,13 +185,17 @@ if ($isEdit) {
     </div>
 </div>
 
-<?php if ($isEdit): ?>
+<?php if ($isEdit) : ?>
     <!-- Separate hidden delete form outside modal -->
     <?= $this->Form->create(null, [
         'type' => 'post',
         'url' => ['controller' => 'GatheringAttendances', 'action' => 'delete', $userAttendance->id],
         'id' => 'deleteAttendanceForm_' . $userAttendance->id,
-        'style' => 'display: none;'
-    ]) ?>
+        'style' => 'display: none;',
+    ] + $streamOptions) ?>
     <?= $this->Form->end() ?>
+<?php endif; ?>
+
+<?php if ($streamAttendance) : ?>
+</div>
 <?php endif; ?>

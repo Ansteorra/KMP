@@ -23,7 +23,7 @@ environment**. During the setup conversation, request these prerequisites:
   `postgres` OS user, normally created by the PostgreSQL server package.
 
 Let the environment setup install these system tools using its package manager.
-The repository helper deliberately installs only the application dependencies;
+The repository helper installs the locked application and live-gateway dependencies;
 it does not replace system runtimes or add package repositories.
 
 Enable internet access for dependency installation. The **Package managers**

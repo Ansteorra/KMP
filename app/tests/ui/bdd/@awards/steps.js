@@ -3010,24 +3010,48 @@ Then('the recommendations grid should show the updated pagination note', async (
     const row = paginationTable(page).locator(`tr[data-id="${page.__paginationEditedRecommendationId}"]`);
     const notes = row.locator('button[data-bs-content*="Preserved page three update"]');
     await expect(notes).toHaveText('1');
+    if (process.env.PLAYWRIGHT_DIAGNOSTICS === '1') {
+        console.log('Notes popover before key', await notes.evaluate(element => ({
+            instance: Boolean(window.bootstrap?.Popover.getInstance(element)),
+            customClass: window.bootstrap?.Popover.getInstance(element)?._config.customClass,
+            connected: element.isConnected, disabled: element.disabled,
+        })));
+    }
     await notes.press('Enter');
+    if (process.env.PLAYWRIGHT_DIAGNOSTICS === '1') {
+        console.log('Notes popover after key', await notes.evaluate(element => ({
+            focused: document.activeElement === element, describedBy: element.getAttribute('aria-describedby'),
+            popovers: [...document.querySelectorAll('.popover')].map(popover => popover.className),
+            instance: Boolean(window.bootstrap?.Popover.getInstance(element)),
+        })));
+    }
     await expect(page.locator('.notes-popover')).toContainText('Preserved page three update');
     await notes.press('Enter');
 });
 
 When('I leave and return to the recommendations grid', async ({ page }) => {
+    const diagnose = async label => {
+        if (process.env.PLAYWRIGHT_DIAGNOSTICS !== '1') return;
+        console.log(label, await page.evaluate(() => ({ url: location.href, state: history.state,
+            tabs: [...document.querySelectorAll('[data-controller~="detail-tabs"]')].map(group => ({
+                id: group.id, active: group.querySelector('[aria-selected="true"]')?.id,
+            })) })));
+    };
     const visitDetail = async () => {
         await paginationTable(page).locator('tr[data-id]').first()
             .locator('a[href*="/awards/recommendations/view/"]').click();
         await expect(page).toHaveURL(/\/awards\/recommendations\/view\//);
+        await diagnose('detail');
     };
     await visitDetail();
     await page.getByRole('link', { name: 'Go back', exact: true }).click();
     await expect(paginationTable(page).locator('.paginator')).toContainText('Page 3 of');
     await expect.poll(() => new URL(page.url()).searchParams.get('search'))
         .toBe(ensureFixtureSet(page).token);
+    await diagnose('app-back');
     await visitDetail();
     await page.goBack({ waitUntil: 'domcontentloaded' });
+    await diagnose('browser-back');
 });
 
 When('I log in as the pagination fixture approval recipient', async ({ page }) => {

@@ -1,4 +1,5 @@
 import { createIcon, setIcon } from '../services/icon-service.js';
+import { updateUiHistory, visitDocument } from '../services/ui-navigation-service.js';
 import { Controller } from "@hotwired/stimulus"
 
 /**
@@ -67,6 +68,7 @@ class GridViewController extends Controller {
 
         this.boundPopState = this.handlePopState.bind(this)
         window.addEventListener('popstate', this.boundPopState)
+        window.addEventListener('kmp:ui-history-restored', this.boundPopState)
         this.boundPaginationClick = this.handlePaginationClick.bind(this)
         this.element.addEventListener('click', this.boundPaginationClick)
         this.boundViewTabKeydown = this.handleViewTabKeydown.bind(this)
@@ -130,6 +132,7 @@ class GridViewController extends Controller {
         this.element.removeEventListener('keydown', this.boundViewTabKeydown)
         if (this.boundPopState) {
             window.removeEventListener('popstate', this.boundPopState)
+            window.removeEventListener('kmp:ui-history-restored', this.boundPopState)
             this.boundPopState = null
         }
     }
@@ -412,7 +415,7 @@ class GridViewController extends Controller {
         browserUrl.search = frameUrl.search
         const nextUrl = browserUrl.pathname + browserUrl.search + browserUrl.hash
         if (nextUrl !== window.location.pathname + window.location.search + window.location.hash) {
-            window.history.replaceState(window.history.state, '', nextUrl)
+            updateUiHistory(nextUrl, { replace: true })
             window.dispatchEvent(new CustomEvent('grid-view:navigated'))
             window.dispatchEvent(new CustomEvent('page-context:sync'))
         }
@@ -2252,17 +2255,11 @@ class GridViewController extends Controller {
 
         const currentSort = this.state.sort
 
-        // Cycle through: none -> asc -> desc -> none
-        let direction = null
-        if (!currentSort || currentSort.field !== field) {
-            direction = 'asc'
-        } else if (currentSort.direction === 'asc') {
-            direction = 'desc'
-        }
-        // else direction stays null (clear sort)
+        // Reverse the active direction, including the grid's initial default sort.
+        const direction = currentSort?.field === field && currentSort.direction === 'asc' ? 'desc' : 'asc'
 
         const updates = {
-            sort: direction ? field : null,
+            sort: field,
             direction: direction
         }
 
@@ -2420,7 +2417,7 @@ class GridViewController extends Controller {
 
         const queryString = params.toString()
         const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname
-        window.history.replaceState({}, '', newUrl)
+        updateUiHistory(newUrl, { replace: true })
     }
 
     applyStickyParamsToParams(params, updates = null) {
@@ -2565,9 +2562,9 @@ class GridViewController extends Controller {
         if (fullPage) {
             if (!this.syncsBrowserUrl) {
                 const currentUrl = this.currentGridUrl()
-                window.history.replaceState(window.history.state, '', currentUrl.pathname + currentUrl.search + currentUrl.hash)
+                updateUiHistory(currentUrl.pathname + currentUrl.search + currentUrl.hash, { replace: true })
             }
-            window.location.assign(url)
+            visitDocument(url)
         } else {
             // Frame navigation - find the table frame and update its src
             const tableFrame = this.element.querySelector('turbo-frame[id$="-table"]')
@@ -2617,7 +2614,7 @@ class GridViewController extends Controller {
                 const gridDataUrl = finalUrl.pathname + finalUrl.search
 
                 if (updateHistory && this.syncsBrowserUrl) {
-                    window.history.pushState({}, '', url)
+                    updateUiHistory(url)
                     window.dispatchEvent(new CustomEvent('grid-view:navigated'))
                     window.dispatchEvent(new CustomEvent('page-context:sync'))
                 }
@@ -2631,7 +2628,7 @@ class GridViewController extends Controller {
                 tableFrame.src = gridDataUrl
             } else {
                 console.warn('Table frame not found, falling back to full page navigation')
-                window.location.assign(url)
+                visitDocument(url)
             }
         }
     }

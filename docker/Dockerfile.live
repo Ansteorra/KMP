@@ -1,0 +1,13 @@
+FROM node:24-bookworm-slim@sha256:01d566e8d94d8c619591d78652babfccd3c6992a3dffa9ed5ab39e11cf6c70e9
+ARG APP_REVISION=unknown
+LABEL org.opencontainers.image.source="https://github.com/Ansteorra/KMP"
+LABEL org.opencontainers.image.revision="${APP_REVISION}"
+WORKDIR /srv/live
+ENV NODE_ENV=production
+COPY services/live-updates/package*.json ./
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+COPY --chown=node:node services/live-updates/src ./src
+USER node
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=3s CMD node -e "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "src/main.js"]

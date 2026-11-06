@@ -16,6 +16,9 @@ use function Cake\Collection\collection;
  * @var array<\App\Model\Entity\GatheringActivity> $scheduleActivities
  * @var bool $allowOtherActivities
  */
+$activitySelectionHelp = $allowOtherActivities
+    ? __('Select an activity from the gathering\'s activity list, or check "Other" above.')
+    : __('Select a Court activity attached to this gathering.');
 ?>
 <div class="modal fade" id="editScheduleModal" tabindex="-1" aria-labelledby="editScheduleModalLabel" aria-hidden="true"
     data-gathering-schedule-target="editModal"
@@ -38,7 +41,10 @@ use function Cake\Collection\collection;
                 <div class="alert alert-info border-start border-info border-4">
                     <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                     <?php
-                    $timezone = TimezoneHelper::getGatheringTimezone($gathering, $this->getRequest()->getAttribute('identity'));
+                    $timezone = TimezoneHelper::getGatheringTimezone(
+                        $gathering,
+                        $this->getRequest()->getAttribute('identity'),
+                    );
                     ?>
                     <?= __(
                         'This gathering runs from {0} to {1}. Scheduled activities must fall within these dates.',
@@ -76,7 +82,9 @@ use function Cake\Collection\collection;
                                         'data-action' => 'change->gathering-schedule#handleEditOtherChange',
                                     ]) ?>
                                     <label class="form-check-label" for="edit-is-other">
-                                        <?= __('This is an "Other" activity (not from the gathering\'s activity list)') ?>
+                                        <?= __(
+                                            'This is an "Other" activity (not from the gathering\'s activity list)',
+                                        ) ?>
                                     </label>
                                 </div>
                             </div>
@@ -88,6 +96,7 @@ use function Cake\Collection\collection;
                                 ]) ?>
                             <?php endif; ?>
                             <?= $this->Form->control('gathering_activity_id', [
+                                'id' => 'edit-schedule-activity',
                                 'type' => 'select',
                                 'options' => $scheduleActivities ?
                                     collection($scheduleActivities)->combine('id', 'name')->toArray() :
@@ -99,13 +108,12 @@ use function Cake\Collection\collection;
                                 'data-gathering-schedule-target' => 'editActivitySelect',
                             ]) ?>
                             <small class="form-text text-muted">
-                                <?= $allowOtherActivities
-                                    ? __('Select an activity from the gathering\'s activity list, or check "Other" above.')
-                                    : __('Select a Court activity attached to this gathering.') ?>
+                                <?= $activitySelectionHelp ?>
                             </small>
                         </div>
                         <div class="col-12 col-lg-7">
                             <?= $this->Form->control('display_title', [
+                                'id' => 'edit-schedule-title',
                                 'type' => 'text',
                                 'label' => __('Display Title'),
                                 'required' => true,
@@ -116,6 +124,7 @@ use function Cake\Collection\collection;
                                 <?= __('The custom title that will be displayed in the schedule.') ?>
                             </small>
                             <?= $this->Form->control('description', [
+                                'id' => 'edit-schedule-description',
                                 'type' => 'textarea',
                                 'label' => __('Description'),
                                 'class' => 'form-control',

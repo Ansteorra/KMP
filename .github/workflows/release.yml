@@ -23,6 +23,8 @@ jobs:
       digest: ${{ steps.image.outputs.digest }}
       short_sha: ${{ steps.source.outputs.short_sha }}
       source_image: ${{ steps.image.outputs.source_image }}
+      source_live_image: ${{ steps.image.outputs.source_live_image }}
+      live_digest: ${{ steps.image.outputs.live_digest }}
       source_sha: ${{ steps.source.outputs.source_sha }}
     steps:
       - name: Check out the release tag
@@ -126,6 +128,18 @@ jobs:
           fi
           echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
           echo "source_image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${DIGEST}" >> "$GITHUB_OUTPUT"
+          LIVE_DIGEST="$(docker buildx imagetools inspect "ghcr.io/ansteorra/kmp-live:poc-validated-${SOURCE_SHA:0:12}" --format '{{.Manifest.Digest}}')"
+          [[ "$LIVE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo 'POC gateway digest is missing.' >&2; exit 1; }
+          echo "live_digest=$LIVE_DIGEST" >> "$GITHUB_OUTPUT"
+          echo "source_live_image=ghcr.io/ansteorra/kmp-live@${LIVE_DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Require evidence for this exact deployed image pair
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
+          SOURCE_IMAGE: ${{ steps.image.outputs.source_image }}
+          SOURCE_LIVE_IMAGE: ${{ steps.image.outputs.source_live_image }}
+        run: .github/scripts/require-poc-image-pair.sh "$SOURCE_SHA" "$SOURCE_IMAGE" "$SOURCE_LIVE_IMAGE"
 
   promote-image:
     name: Promote POC-validated image
@@ -191,6 +205,28 @@ jobs:
             fi
           done <<< "$RELEASE_TAGS"
 
+      - name: Promote matching gateway tags without rebuilding
+        env:
+          RELEASE_TAGS: ${{ steps.meta.outputs.tags }}
+          SOURCE_LIVE_IMAGE: ${{ needs.verify-promotion-source.outputs.source_live_image }}
+          EXPECTED_LIVE_DIGEST: ${{ needs.verify-promotion-source.outputs.live_digest }}
+        run: |
+          set -euo pipefail
+          tag_args=()
+          live_tags=()
+          while IFS= read -r tag; do
+            [[ -n "$tag" ]] || continue
+            live_tag="ghcr.io/ansteorra/kmp-live:${tag##*:}"
+            tag_args+=(--tag "$live_tag")
+            live_tags+=("$live_tag")
+          done <<< "$RELEASE_TAGS"
+          [[ "${#live_tags[@]}" -gt 0 ]] || { echo 'Gateway release tags are missing.' >&2; exit 1; }
+          docker buildx imagetools create "${tag_args[@]}" "$SOURCE_LIVE_IMAGE"
+          for tag in "${live_tags[@]}"; do
+            actual="$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}')"
+            [[ "$actual" == "$EXPECTED_LIVE_DIGEST" ]] || { echo 'Promoted gateway digest differs.' >&2; exit 1; }
+          done
+
   attach-digest:
     name: Attach promoted image digest
     needs: [verify-promotion-source, promote-image]
@@ -199,14 +235,20 @@ jobs:
       - name: Create digest file
         env:
           IMAGE_DIGEST: ${{ needs.verify-promotion-source.outputs.digest }}
+          LIVE_DIGEST: ${{ needs.verify-promotion-source.outputs.live_digest }}
+          SOURCE_SHA: ${{ needs.verify-promotion-source.outputs.source_sha }}
         run: |
           echo "$IMAGE_DIGEST" > kmp-image-digest.txt
           echo "Image digest: $IMAGE_DIGEST"
+          jq -n --arg commit "$SOURCE_SHA" --arg web "$IMAGE_DIGEST" --arg live "$LIVE_DIGEST" \
+            '{commit: $commit, web: $web, live: $live}' > kmp-image-pair.json
 
       - name: Upload digest to release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
-          files: kmp-image-digest.txt
+          files: |
+            kmp-image-digest.txt
+            kmp-image-pair.json
 
   notify-discord:
     name: Announce stable release on Discord
@@ -260,6 +302,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       source_image: ${{ steps.image.outputs.source_image }}
+      source_live_image: ${{ needs.verify-promotion-source.outputs.source_live_image }}
       target_tag: ${{ steps.image.outputs.target_tag }}
     steps:
       - name: Select the promoted digest
@@ -284,5 +327,6 @@ jobs:
     with:
       environment_name: production
       source_image: ${{ needs.prepare-production-deploy.outputs.source_image }}
+      source_live_image: ${{ needs.prepare-production-deploy.outputs.source_live_image }}
       target_tag: ${{ needs.prepare-production-deploy.outputs.target_tag }}
       checkout_ref: ${{ needs.verify-promotion-source.outputs.source_sha }}

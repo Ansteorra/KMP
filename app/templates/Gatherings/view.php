@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+use App\KMP\TimezoneHelper;
+use Cake\I18n\Date;
+
 /**
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Gathering $gathering
@@ -17,7 +20,7 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
 ?>
 <?= $this->KMP->startBlock('recordActions') ?>
 <?php if ($user->checkCan('edit', $gathering)) : ?>
-<?= $this->Html->link(__('Edit'), ['action' => 'edit', $gathering->id], ['class' => 'btn btn-primary btn-sm']) ?>
+    <?= $this->Html->link(__('Edit'), ['action' => 'edit', $gathering->id], ['class' => 'btn btn-primary btn-sm']) ?>
 <?php endif; ?>
 
 <?php if ($hasManagementActions) : ?>
@@ -25,67 +28,72 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
     <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown"
         aria-expanded="false"><?= __('More actions') ?></button>
     <div class="dropdown-menu dropdown-menu-end p-3 gathering-management-actions">
-<?php if ($user->checkCan('edit', $gathering)) : ?>
-<?php if (!$gathering->is_cancelled): ?>
+    <?php if ($user->checkCan('edit', $gathering)) : ?>
+        <?php if (!$gathering->is_cancelled) : ?>
 <!-- Cancel Gathering Button -->
 <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#cancelGatheringModal">
     <kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> <?= __('Cancel Gathering') ?>
 </button>
-<?php else: ?>
+        <?php else : ?>
 <!-- Restore Cancelled Gathering -->
-<?= $this->Form->postLink(
-            '<kmp-icon name="rotate"  aria-hidden="true"></kmp-icon> ' . __('Restore Gathering'),
-            ['action' => 'uncancel', $gathering->id],
-            [
+            <?= $this->Form->postLink(
+                '<kmp-icon name="rotate"  aria-hidden="true"></kmp-icon> ' . __('Restore Gathering'),
+                ['action' => 'uncancel', $gathering->id],
+                [
                 'confirm' => __('Are you sure you want to restore "{0}"?', $gathering->name),
                 'class' => 'btn btn-outline-success btn-sm',
                 'escape' => false,
-            ]
-        ) ?>
-<?php endif; ?>
-<?php endif; ?>
+                ],
+            ) ?>
+        <?php endif; ?>
+    <?php endif; ?>
 
-<?php if ($user->checkCan('publish', $gathering)) : ?>
-<?php if ($gathering->published): ?>
-<?= $this->Form->postLink(
-            __('Unpublish'),
-            ['action' => 'publish', $gathering->id, '?' => ['publish' => false]],
-            [
-                'confirm' => __('Are you sure you want to unpublish "{0}"? This will remove the gathering from the Kingdom Calendar.', $gathering->name),
+    <?php if ($user->checkCan('publish', $gathering)) : ?>
+        <?php if ($gathering->published) : ?>
+            <?= $this->Form->postLink(
+                __('Unpublish'),
+                ['action' => 'publish', $gathering->id, '?' => ['publish' => false]],
+                [
+                'confirm' => __(
+                    'Are you sure you want to unpublish "{0}"? '
+                        . 'This will remove the gathering from the Kingdom Calendar.',
+                    $gathering->name,
+                ),
                 'class' => 'btn btn-secondary btn-sm',
-            ],
-
-        ) ?>
-<?php else: ?>
-<?= $this->Form->postLink(
-            __('Publish'),
-            ['action' => 'publish', $gathering->id, '?' => ['publish' => true]],
-            [
-                'confirm' => __('Are you sure you want to publish "{0}"? This will make the gathering available on the Kingdom Calendar.', $gathering->name),
+                ],
+            ) ?>
+        <?php else : ?>
+            <?= $this->Form->postLink(
+                __('Publish'),
+                ['action' => 'publish', $gathering->id, '?' => ['publish' => true]],
+                [
+                'confirm' => __(
+                    'Are you sure you want to publish "{0}"? '
+                        . 'This will make the gathering available on the Kingdom Calendar.',
+                    $gathering->name,
+                ),
                 'class' => 'btn btn-outline-success btn-sm',
-            ],
+                ],
+            ) ?>
+        <?php endif; ?>
+    <?php endif; ?>
 
-        ) ?>
-<?php endif; ?>
-<?php endif; ?>
-
-<?php if ($gathering->gathering_type->clonable && $user->checkCan('add', $gathering)) : ?>
-
+    <?php if ($gathering->gathering_type->clonable && $user->checkCan('add', $gathering)) : ?>
 <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#cloneGatheringModal">
     <kmp-icon name="files"  aria-hidden="true"></kmp-icon> <?= __('Clone') ?>
 </button>
 
-<?php endif; ?>
-<?php if ($user->checkCan('delete', $gathering)) : ?>
-<?= $this->Form->postLink(
-        __('Delete'),
-        ['action' => 'delete', $gathering->id],
-        [
+    <?php endif; ?>
+    <?php if ($user->checkCan('delete', $gathering)) : ?>
+        <?= $this->Form->postLink(
+            __('Delete'),
+            ['action' => 'delete', $gathering->id],
+            [
             'confirm' => __('Are you sure you want to delete "{0}"?', $gathering->name),
             'class' => 'btn btn-danger btn-sm',
-        ],
-    ) ?>
-<?php endif; ?>
+            ],
+        ) ?>
+    <?php endif; ?>
     </div>
 </div>
 <?php endif; ?>
@@ -101,14 +109,14 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
     <th class="col"><?= __('Branch') ?></th>
     <td class="col-10">
         <?php if ($gathering->has('branch')) : ?>
-        <?php if ($user->can('view', $gathering->branch)) : ?>
-        <?= $this->Html->link(
+            <?php if ($user->can('view', $gathering->branch)) : ?>
+                <?= $this->Html->link(
                     $gathering->branch->name,
                     ['controller' => 'Branches', 'action' => 'view', $gathering->branch->public_id],
                 ) ?>
-        <?php else : ?>
-        <?= h($gathering->branch->name) ?>
-        <?php endif; ?>
+            <?php else : ?>
+                <?= h($gathering->branch->name) ?>
+            <?php endif; ?>
 
         <?php endif; ?>
     </td>
@@ -134,11 +142,11 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
     <th scope="row" class="col"><?= __('Created By') ?></th>
     <td class="col-10"><?= $gathering->has('creator') ? h($gathering->creator->sca_name) : '' ?></td>
 </tr>
-<?php if (!empty($gathering->timezone)) : ?>
+    <?php if (!empty($gathering->timezone)) : ?>
 <tr scope="row">
     <th class="col"><?= __('Event Timezone') ?></th>
     <td class="col-10">
-        <?= h($gathering->timezone) ?>
+            <?= h($gathering->timezone) ?>
         <small class="text-muted">
             (<?= $this->Timezone->getAbbreviation($gathering->start_date, $gathering->timezone) ?>)
         </small>
@@ -149,45 +157,45 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
         </small>
     </td>
 </tr>
-<?php endif; ?>
-<?php if ($gathering->start_date != $gathering->end_date) : ?>
+    <?php endif; ?>
+    <?php if ($gathering->start_date != $gathering->end_date) : ?>
 <tr scope="row">
     <th class="col"><?= __('Duration') ?></th>
     <td class="col-10">
-        <?php
+            <?php
             // Convert to gathering's timezone before calculating duration
-            $timezoneString = !empty($gathering->timezone) ? $gathering->timezone : \App\KMP\TimezoneHelper::getAppTimezone();
-            $gatheringTz = new \DateTimeZone($timezoneString);
+            $timezoneString = !empty($gathering->timezone) ? $gathering->timezone : TimezoneHelper::getAppTimezone();
+            $gatheringTz = new DateTimeZone($timezoneString);
             $startInGatheringTz = (clone $gathering->start_date)->setTimezone($gatheringTz);
             $endInGatheringTz = (clone $gathering->end_date)->setTimezone($gatheringTz);
 
-            $startDate = \Cake\I18n\Date::parse($startInGatheringTz->format('Y-m-d'));
-            $endDate = \Cake\I18n\Date::parse($endInGatheringTz->format('Y-m-d'));
+            $startDate = Date::parse($startInGatheringTz->format('Y-m-d'));
+            $endDate = Date::parse($endInGatheringTz->format('Y-m-d'));
             ?>
-        <?= $startDate->diffInDays($endDate) + 1 ?> days
+            <?= $startDate->diffInDays($endDate) + 1 ?> days
     </td>
 </tr>
-<?php endif; ?>
-<?php if (!empty($gathering->location)) : ?>
+    <?php endif; ?>
+    <?php if (!empty($gathering->location)) : ?>
 <tr scope="row">
     <th class="col"><?= __('Location') ?></th>
     <td class="col-10"><?= h($gathering->location) ?></td>
 </tr>
-<?php endif; ?>
-<?php if (!empty($gathering->website_url)) : ?>
+    <?php endif; ?>
+    <?php if (!empty($gathering->website_url)) : ?>
 <tr scope="row">
     <th class="col"><?= __('Website') ?></th>
     <td class="col-10">
         <a href="<?= h($gathering->website_url) ?>" target="_blank" rel="noopener"><?= h($gathering->website_url) ?></a>
-        <?php if ($gathering->public_page_enabled): ?>
+            <?php if ($gathering->public_page_enabled) : ?>
         <small class="text-muted ms-2">
-            <?= __('(not shown publicly - the public landing page is used as the event link)') ?>
+                <?= __('(not shown publicly - the public landing page is used as the event link)') ?>
         </small>
-        <?php endif; ?>
+            <?php endif; ?>
     </td>
 </tr>
-<?php endif; ?>
-<?php if (!empty($gathering->preregister_url)) : ?>
+    <?php endif; ?>
+    <?php if (!empty($gathering->preregister_url)) : ?>
 <tr scope="row">
     <th class="col"><?= __('Pre-Registration') ?></th>
     <td class="col-10">
@@ -195,47 +203,48 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
             rel="noopener"><?= h($gathering->preregister_url) ?></a>
     </td>
 </tr>
-<?php endif; ?>
+    <?php endif; ?>
 <tr scope="row">
     <th class="col"><?= __('Published') ?></th>
     <td>
-        <?php if ($gathering->published): ?>
-        <span class="badge bg-success"><?= ('Yes') ?></span>
-        <?php else: ?>
-        <span class="badge bg-secondary"><?= ('No') ?></span>
+        <?php if ($gathering->published) : ?>
+        <span class="badge bg-success"><?= 'Yes' ?></span>
+        <?php else : ?>
+        <span class="badge bg-secondary"><?= 'No' ?></span>
         <?php endif; ?>
     </td>
 </tr>
 <tr scope="row">
     <th class="col"><?= __('Public Landing Page') ?></th>
     <td class="col-10">
-        <?php if ($gathering->public_page_enabled): ?>
+        <?php if ($gathering->public_page_enabled) : ?>
         <span class="badge bg-success"><kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon> Enabled</span>
         <a href="<?= $publicLandingUrl ?>" target="_blank" class="ms-2">
             <kmp-icon name="external-link"  aria-hidden="true"></kmp-icon> View Public Page
         </a>
-        <?php else: ?>
+        <?php else : ?>
         <span class="badge bg-secondary"><kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> Disabled</span>
         <small class="text-muted ms-2">Public cannot access this event page</small>
         <?php endif; ?>
     </td>
 </tr>
-<?php if ($gathering->is_cancelled): ?>
+    <?php if ($gathering->is_cancelled) : ?>
 <tr scope="row" class="table-danger">
     <th class="col"><?= __('Status') ?></th>
     <td class="col-10">
-        <span class="badge bg-danger"><kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> <?= __('CANCELLED') ?></span>
+        <span class="badge bg-danger"><kmp-icon name="circle-x" aria-hidden="true"></kmp-icon>
+                            <?= __('CANCELLED') ?></span>
         <small class="text-muted ms-2">
             <?= __('Cancelled on {0}', $this->Timezone->format($gathering->cancelled_at, 'F j, Y g:i A', true)) ?>
         </small>
-        <?php if (!empty($gathering->cancellation_reason)): ?>
+            <?php if (!empty($gathering->cancellation_reason)) : ?>
         <div class="mt-1">
             <strong><?= __('Reason:') ?></strong> <?= h($gathering->cancellation_reason) ?>
         </div>
-        <?php endif; ?>
+            <?php endif; ?>
     </td>
 </tr>
-<?php endif; ?>
+    <?php endif; ?>
 <tr scope="row">
     <th class="col"><?= __('Created') ?></th>
     <td class="col-10">
@@ -264,7 +273,8 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
     role="tab" aria-controls="nav-schedule" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="4"
     style="order: 4;">
     <kmp-icon name="calendar-event"  aria-hidden="true"></kmp-icon> <?= __('Schedule') ?>
-    <span class="badge bg-secondary"><?= count($gathering->gathering_scheduled_activities) ?></span>
+    <span id="gathering-schedule-count" data-refresh-on="schedule"
+        class="badge bg-secondary"><?= count($gathering->gathering_scheduled_activities) ?></span>
 </button>
 <button class="nav-link" id="nav-activities-tab" data-bs-toggle="tab" data-bs-target="#nav-activities" type="button"
     role="tab" aria-controls="nav-activities" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="5"
@@ -284,7 +294,8 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
     role="tab" aria-controls="nav-attendance" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="7"
     style="order: 7;">
     <kmp-icon name="users"  aria-hidden="true"></kmp-icon> <?= __('Attendance') ?>
-    <span class="badge bg-secondary"><?= $totalAttendanceCount ?></span>
+    <span id="gathering-attendance-count" data-refresh-on="attendance"
+        class="badge bg-secondary"><?= $totalAttendanceCount ?></span>
 </button>
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
@@ -329,14 +340,14 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
             </thead>
             <tbody>
                 <?php foreach ($gathering->gathering_activities as $activity) : ?>
-                <?php
+                    <?php
                         // Check if this activity is not removable based on gathering type template
                         $isNotRemovable = $activity->_joinData && $activity->_joinData->not_removable;
-                        ?>
+                    ?>
                 <tr>
                     <td>
                         <?= $this->GatheringActivity->badge($activity) ?>
-                        <?php if ($isNotRemovable): ?>
+                        <?php if ($isNotRemovable) : ?>
                         <span class="badge bg-warning text-dark ms-2"
                             title="<?= __('This activity is required by the gathering type and cannot be removed') ?>">
                             <kmp-icon name="lock"  aria-hidden="true"></kmp-icon> <?= __('Required') ?>
@@ -348,15 +359,15 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
                                 // Use custom description if set, otherwise fall back to default activity description
                                 $description = $activity->_joinData->custom_description ?? $activity->description;
                                 echo h($description);
-                                ?>
+                        ?>
                     </td>
                     <td class="actions text-end text-nowrap">
                         <?php if ($user->checkCan('view', $activity)) : ?>
-                        <?= $this->Html->link(
-                                        '<kmp-icon name="eye"  aria-hidden="true"></kmp-icon>',
-                                        ['controller' => 'GatheringActivities', 'action' => 'view', $activity->id],
-                                        ['escape' => false, 'title' => __('View'), 'class' => 'btn btn-sm btn-secondary'],
-                                    ) ?>
+                            <?= $this->Html->link(
+                                '<kmp-icon name="eye"  aria-hidden="true"></kmp-icon>',
+                                ['controller' => 'GatheringActivities', 'action' => 'view', $activity->id],
+                                ['escape' => false, 'title' => __('View'), 'class' => 'btn btn-sm btn-secondary'],
+                            ) ?>
                         <?php endif; ?>
                         <?php if ($user->checkCan('manageActivity', $gathering, $activity)) : ?>
                         <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal"
@@ -372,28 +383,32 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
                                 $canRemoveActivity = $user->checkCan('manageActivity', $gathering, $activity) && (
                                     !$hasWaivers || (
                                         $waiverRemovalAuthorization !== null &&
-                                        $user->checkCan('removeGatheringActivity', $waiverRemovalAuthorization, $activity->id)
+                                        $user->checkCan(
+                                            'removeGatheringActivity',
+                                            $waiverRemovalAuthorization,
+                                            $activity->id,
+                                        )
                                     )
                                 );
-                                ?>
+                        ?>
                         <?php if ($canRemoveActivity) : ?>
-                        <?php if ($isNotRemovable): ?>
+                            <?php if ($isNotRemovable) : ?>
                         <button type="button" class="btn btn-sm btn-secondary" disabled
                             title="<?= __('This activity is required by the gathering type and cannot be removed') ?>">
                             <kmp-icon name="lock"  aria-hidden="true"></kmp-icon>
                         </button>
-                        <?php else: ?>
-                        <?= $this->Form->postLink(
-                                            '<kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon>',
-                                            ['action' => 'remove-activity', $gathering->id, $activity->id],
-                                            [
+                            <?php else : ?>
+                                <?= $this->Form->postLink(
+                                    '<kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon>',
+                                    ['action' => 'remove-activity', $gathering->id, $activity->id],
+                                    [
                                                 'confirm' => __('Remove "{0}" from this gathering?', $activity->name),
                                                 'escape' => false,
                                                 'title' => __('Remove'),
                                                 'class' => 'btn btn-sm btn-danger',
                                             ],
-                                        ) ?>
-                        <?php endif; ?>
+                                ) ?>
+                            <?php endif; ?>
                         <?php endif; ?>
                     </td>
                 </tr>
@@ -406,14 +421,14 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
         <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
         <?= __('No activities have been added to this gathering yet.') ?>
         <?php if ($canAddActivity) : ?>
-        <?= __('Click "Add Activity" above to get started.') ?>
+            <?= __('Click "Add Activity" above to get started.') ?>
         <?php endif; ?>
     </div>
     <?php endif; ?>
 </div>
 
 <?php if ($canViewManagement && !empty($gathering->location)) : ?>
-<?= $this->element('gatherings/mapTab', [
+    <?= $this->element('gatherings/mapTab', [
         'gathering' => $gathering,
         'user' => $user,
     ]) ?>
@@ -422,11 +437,13 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
 <?php if ($user->checkCan('viewAttendance', $gathering)) : ?>
 <div class="related tab-pane fade m-3" id="nav-attendance" role="tabpanel" aria-labelledby="nav-attendance-tab"
     data-detail-tabs-target="tabContent" data-tab-order="7" style="order: 7;">
+    <div id="gathering-attendance-content" data-refresh-on="attendance">
     <?= $this->element('gatherings/attendanceTab', [
             'gathering' => $gathering,
             'totalAttendanceCount' => $totalAttendanceCount,
             'user' => $user,
         ]) ?>
+    </div>
 </div>
 <?php endif; ?>
 

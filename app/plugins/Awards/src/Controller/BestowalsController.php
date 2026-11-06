@@ -475,7 +475,10 @@ class BestowalsController extends AppController
                 'NoteAuthors.id = ActionItemLogs.created_by', 'NoteAuthors.deleted IS' => null,
             ])
             ->where([
-                'ActionItemLogs.action_item_id IN' => array_map(static fn(ActionItem $item): int => (int)$item->id, $items),
+                'ActionItemLogs.action_item_id IN' => array_map(
+                    static fn(ActionItem $item): int => (int)$item->id,
+                    $items,
+                ),
                 'ActionItemLogs.note IS NOT' => null,
                 'ActionItemLogs.note !=' => '',
             ])
@@ -810,7 +813,10 @@ class BestowalsController extends AppController
         }
 
         return $this->response->withType('application/json')->withHeader('Cache-Control', 'no-store')
-            ->withStringBody(json_encode(['eligible' => $eligible, 'courtEligible' => $courtEligible], JSON_THROW_ON_ERROR));
+            ->withStringBody(json_encode(
+                ['eligible' => $eligible, 'courtEligible' => $courtEligible],
+                JSON_THROW_ON_ERROR,
+            ));
     }
 
     /**
@@ -2673,6 +2679,15 @@ class BestowalsController extends AppController
 
         if ($success) {
             $this->Flash->success(__('The bestowal has been saved.'));
+
+            if ($this->wantsGridReconciliation() && $syncContext !== null) {
+                if ($syncContext['contextKey'] === 'gathering') {
+                    $gridRoute['action'] = 'gatheringBestowalsGridData';
+                    $gridRoute[] = $syncContext['gatheringId'];
+                }
+
+                return $this->renderTurboCloseModal($syncContext['tableFrameId'], $gridRoute, $pageContext);
+            }
 
             if ($updatedBestowalId !== null) {
                 $queryService ??= new BestowalQueryService();

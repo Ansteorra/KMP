@@ -18,7 +18,8 @@
  * @var string $defaultView
  */
 
-use Cake\I18n\DateTime;
+use App\Model\Entity\Gathering;
+use Cake\I18n\FrozenDate;
 
 $this->extend('/layout/TwitterBootstrap/dashboard');
 
@@ -35,7 +36,7 @@ $stickyDefaults = json_encode([
     'week_start' => $this->request->getQuery('week_start'),
 ]);
 ?>
-<div data-controller="gatherings-calendar grid-view"
+<div data-controller="gatherings-calendar grid-view" data-refresh-frame-on="attendance"
     data-grid-view-sticky-query-value="year,month,view,week_start"
     data-grid-view-sticky-default-value='<?= h($stickyDefaults) ?>'>
     <?= $this->element('dv_custom', [
@@ -163,7 +164,7 @@ $stickyDefaults = json_encode([
 
 <?php
 // Add modal block to layout
-$this->KMP->startBlock("modals");
+$this->KMP->startBlock('modals');
 ?>
 <!-- Quick View Modal -->
 <div class="modal fade" id="gatheringQuickViewModal" tabindex="-1" aria-labelledby="gatheringQuickViewModalLabel"
@@ -191,11 +192,11 @@ $this->KMP->startBlock("modals");
 <!-- Attendance Modal - Reusing attendGatheringModal element -->
 <?php
 // Create a temporary gathering object for the modal (will be populated via JS)
-$tempGathering = new \App\Model\Entity\Gathering([
+$tempGathering = new Gathering([
     'id' => 0,
     'name' => '',
-    'start_date' => new \Cake\I18n\FrozenDate(),
-    'end_date' => new \Cake\I18n\FrozenDate(),
+    'start_date' => new FrozenDate(),
+    'end_date' => new FrozenDate(),
 ]);
 
 echo $this->element('gatherings/attendGatheringModal', [

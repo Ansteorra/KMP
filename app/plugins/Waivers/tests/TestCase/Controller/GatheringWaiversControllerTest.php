@@ -3,9 +3,11 @@ declare(strict_types=1);
 
 namespace Waivers\Test\TestCase\Controller;
 
+use App\Services\UiUpdateRegistry;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Cake\Core\Configure;
 use Cake\Datasource\ConnectionManager;
+use Cake\Routing\Router;
 use DateTimeImmutable;
 use DateTimeZone;
 
@@ -16,6 +18,39 @@ use DateTimeZone;
  */
 class GatheringWaiversControllerTest extends HttpIntegrationTestCase
 {
+    public function testLiveRefreshResolvesPersistedAndPendingWaiverQueriesToTheirGathering(): void
+    {
+        $waivers = $this->getTableLocator()->get('Waivers.GatheringWaivers');
+        $row = $waivers->find()->firstOrFail();
+        Configure::write('Turbo.enabled', true);
+        Configure::write('Turbo.liveEnabled', true);
+        Configure::write('Turbo.gatewayUrl', 'https://live.example.test/events');
+        try {
+            $url = '/waivers/gathering-waivers/view?gathering_id=' . $row->gathering_id
+                . '&waiver_type_id=' . $row->waiver_type_id;
+            $this->post('/ui/refresh', ['context_url' => $url]);
+            $this->assertResponseOk();
+            $context = UiUpdateRegistry::resolve(Router::getRequest(), $url);
+            $this->assertSame('Gatherings:' . $row->gathering_id, $context['topic']);
+            $this->assertSame('view', $context['action']);
+
+            $required = $this->getTableLocator()->get('Waivers.GatheringActivityWaivers')->find()
+                ->select(['gathering_id' => 'Gatherings.id', 'waiver_type_id' => 'GatheringActivityWaivers.waiver_type_id'])
+                ->innerJoinWith('GatheringActivities.Gatherings')->firstOrFail();
+            $waivers->deleteAll(['gathering_id' => $required->gathering_id, 'waiver_type_id' => $required->waiver_type_id]);
+            $url = '/waivers/gathering-waivers/view?gathering_id=' . $required->gathering_id
+                . '&waiver_type_id=' . $required->waiver_type_id;
+            $this->post('/ui/refresh', ['context_url' => $url]);
+            $this->assertResponseOk();
+            $context = UiUpdateRegistry::resolve(Router::getRequest(), $url);
+            $this->assertSame('Gatherings:' . $required->gathering_id, $context['topic']);
+            $this->assertSame('viewGatheringWaivers', $context['action']);
+            $this->assertTrue($context['resource']->isNew());
+        } finally {
+            Configure::delete('Turbo');
+        }
+    }
+
     protected function setUp(): void
     {
         parent::setUp();

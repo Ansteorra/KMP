@@ -1,14 +1,9 @@
-const fs = require('node:fs');
-const path = require('node:path');
-
-// Exercise the inline modal behavior shipped by the view, replacing only PHP translations.
-const template = fs.readFileSync(path.join(__dirname, '../../../templates/ActionItems/my_tasks.php'), 'utf8');
-const script = template.match(/<script>([\s\S]*?)<\/script>/)[1]
-    .replace(/<\?=[\s\S]*?\?>/g, '"Label"');
+import TodoCompletionModalController from '../../../assets/js/controllers/todo-completion-modal-controller.js';
 
 describe('My To-Dos completion modal', () => {
     let modal;
     let form;
+    let controller;
     const target = name => modal.querySelector(`[data-todo-target="${name}"]`);
     const gatheringInput = () => target('bestowalGatheringControl').querySelector('[data-ac-target="input"]');
     const eventForm = {
@@ -61,10 +56,13 @@ describe('My To-Dos completion modal', () => {
         </div>`;
         modal = document.getElementById('todoCompleteModal');
         form = document.getElementById('todoCompleteForm');
-        const ready = jest.spyOn(document, 'addEventListener').mockImplementationOnce((name, callback) => callback());
-        new Function(script)();
-        ready.mockRestore();
+        controller = new TodoCompletionModalController();
+        controller.element = modal;
+        controller.bindingsValue = new Proxy({}, { get: () => 'Label' });
+        controller.connect();
     });
+
+    afterEach(() => controller.disconnect());
 
     test('Add to Agenda validates the visible court picker and excludes hidden gathering controls', () => {
         open(agendaForm);

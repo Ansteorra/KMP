@@ -31,9 +31,17 @@ class PopoverController extends Controller {
         this.initializePopover();
         this.setupCloseButtonHandler();
         this.setupEscapeHandler();
+        this.boundMorph = event => {
+            if (event.target !== this.element || this.contentSignature === this.signature()) return;
+            const shown = Boolean(this.element.getAttribute('aria-describedby'));
+            this.destroyPopover(); this.initializePopover();
+            if (shown) this.popover.show();
+        };
+        this.element.addEventListener('turbo:morph-element', this.boundMorph);
     }
 
     disconnect() {
+        this.element.removeEventListener('turbo:morph-element', this.boundMorph);
         this.removeEscapeHandler();
         this.removeCloseButtonHandler();
         this.destroyPopover();
@@ -58,11 +66,19 @@ class PopoverController extends Controller {
 
         // Initialize Bootstrap popover
         this.popover = new bootstrap.Popover(this.element, options);
+        this.contentSignature = this.signature();
+    }
+
+    signature() {
+        return JSON.stringify(['data-bs-content', 'data-bs-title', 'title', 'data-bs-custom-class', 'data-bs-placement']
+            .map(name => this.element.getAttribute(name)));
     }
 
     destroyPopover() {
         if (this.popover) {
-            this.popover.dispose();
+            // Turbo's shared lifecycle may already have released the instance.
+            if (typeof bootstrap.Popover.getInstance !== 'function'
+                || bootstrap.Popover.getInstance(this.element) === this.popover) this.popover.dispose();
             this.popover = null;
         }
     }

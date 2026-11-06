@@ -6,6 +6,7 @@ namespace Awards\Services;
 use App\Model\Entity\ActionItem;
 use App\Services\ActionItems\ActionItemService;
 use App\Services\ServiceResult;
+use App\Services\UiBulkMutation;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalTodoTemplate;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
@@ -747,7 +748,8 @@ class BestowalTodoMaterializationService
      */
     private function markTemplateSignatureCurrent(int $bestowalId, string $templateSignature): void
     {
-        $this->fetchTable('Awards.Bestowals')->updateAll(
+        UiBulkMutation::update(
+            $this->fetchTable('Awards.Bestowals'),
             ['todo_template_signature' => $templateSignature],
             ['id' => $bestowalId],
         );

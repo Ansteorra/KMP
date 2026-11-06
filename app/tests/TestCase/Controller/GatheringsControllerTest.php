@@ -1390,7 +1390,8 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertTrue($exists);
     }
 
-    public function testDeleteScheduledActivityClearsBestowalCourtAssignments(): void
+    #[DataProvider('scheduleDeleteFormats')]
+    public function testDeleteScheduledActivityClearsBestowalCourtAssignments(bool $json): void
     {
         $gathering = $this->getScheduleTestGathering();
         $scheduledActivity = $this->createScheduledActivity(
@@ -1465,9 +1466,18 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
             ],
         ]));
 
+        if ($json) {
+            $this->configRequest(['headers' => ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest']]);
+        }
         $this->post('/gatherings/delete-scheduled-activity/' . $gathering->public_id . '/' . $scheduledActivity->id);
 
-        $this->assertRedirect(['action' => 'view', $gathering->public_id]);
+        if ($json) {
+            $this->assertResponseOk();
+            $this->assertContentType('application/json');
+            $this->assertTrue(json_decode((string)$this->_response->getBody(), true)['success']);
+        } else {
+            $this->assertRedirect(['action' => 'view', $gathering->public_id]);
+        }
         $updatedBestowal = $bestowals->get((int)$bestowal->id);
         $this->assertNull($updatedBestowal->gathering_scheduled_activity_id);
         $this->assertFalse((bool)$updatedBestowal->roaming_court);
@@ -1477,6 +1487,11 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertFalse(
             $this->getTableLocator()->get('GatheringScheduledActivities')->exists(['id' => $scheduledActivity->id]),
         );
+    }
+
+    public static function scheduleDeleteFormats(): array
+    {
+        return [[false], [true]];
     }
 
     public function testCourtScheduleManagerSeesOnlyDelegatedScheduleControls(): void
@@ -1706,13 +1721,18 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $table = $this->getTableLocator()->get('GatheringActivities');
         $ids = [];
         foreach (['Zulu', 'Alpha', 'Beta', 'Delta', 'Echo', 'First'] as $name) {
-            $activity = $this->linkActivity($gathering, 'Priority ' . $name);
-            $activity->set('display_order', $name === 'First' ? 0 : 1);
+            $type = match ($name) {
+                'Zulu' => GatheringActivity::TYPE_ROYAL_PROGRESS,
+                'Echo' => GatheringActivity::TYPE_ORDER_CIRCLE,
+                default => GatheringActivity::TYPE_GENERAL,
+            };
+            $activity = $this->linkActivity($gathering, 'Priority ' . $name, $type);
+            $activity->set('display_order', in_array($name, ['Zulu', 'Echo'], true) ? 999 : ($name === 'First' ? 0 : 1));
             $table->saveOrFail($activity);
             $ids[$name] = $activity->id;
         }
         $this->session(['Auth' => null]);
-        $this->get('/events');
+        $this->get('/events?sort=name&direction=asc');
         $this->assertResponseOk();
         $dom = new DOMDocument();
         $previousErrors = libxml_use_internal_errors(true);
@@ -1728,11 +1748,17 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         foreach ($badges as $badge) {
             $actual[] = (int)$badge->getAttribute('data-activity-badge');
         }
-        $this->assertSame([$ids['First'], $ids['Alpha'], $ids['Beta'], $ids['Delta']], $actual);
+        $this->assertSame([$ids['Zulu'], $ids['Echo'], $ids['First'], $ids['Alpha']], $actual);
         $this->assertSame(1, $xpath->query('.//button[contains(@class,"kc-overflow")]', $row)->length);
         $this->assertStringContainsString('123 Public Road', $row->textContent);
         $panelId = $xpath->query('.//details/summary', $row)->item(0)->getAttribute('aria-controls');
         $this->assertGreaterThanOrEqual(6, $xpath->query('//tr[@id="' . $panelId . '"]//*[@data-activity-badge]')->length);
+        $detailBadges = $xpath->query('//tr[@id="' . $panelId . '"]//*[@data-activity-badge]');
+        $detailIds = array_map(static fn($badge) => (int)$badge->getAttribute('data-activity-badge'), iterator_to_array($detailBadges));
+        $this->assertSame(
+            [$ids['Zulu'], $ids['Echo'], $ids['First'], $ids['Alpha'], $ids['Beta'], $ids['Delta']],
+            array_slice($detailIds, 0, count($ids)),
+        );
         foreach ($ids as $id) {
             $this->assertSame(1, $xpath->query('//tr[@id="' . $panelId . '"]//*[@data-activity-badge="' . $id . '"]')->length);
         }

@@ -5,6 +5,7 @@ namespace Awards\Services;
 
 use App\Model\Entity\WorkflowApproval;
 use App\Services\ServiceResult;
+use App\Services\UiBulkMutation;
 use Awards\Model\Entity\ApprovalProcessStep;
 use Awards\Model\Entity\Recommendation;
 use Awards\Model\Entity\RecommendationApprovalRun;
@@ -489,7 +490,8 @@ class RecommendationApprovalProcessService
             && !empty($approval->id)
             && $approval->status === WorkflowApproval::STATUS_PENDING
         ) {
-            $this->fetchTable('WorkflowApprovals')->updateAll(
+            UiBulkMutation::update(
+                $this->fetchTable('WorkflowApprovals'),
                 ['required_count' => $requiredCount],
                 ['id' => (int)$approval->id, 'status' => WorkflowApproval::STATUS_PENDING],
             );

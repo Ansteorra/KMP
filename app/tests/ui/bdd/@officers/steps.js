@@ -1,3 +1,4 @@
+const { getUiTestEnvironment } = require('../../support/test-environment.cjs');
 const { createBdd } = require('playwright-bdd');
 const { expect } = require('@playwright/test');
 const { execFileSync } = require('node:child_process');
@@ -917,7 +918,7 @@ const resetDevDatabase = () => {
 };
 
 const assertEmailMessage = async (page, subject, recipient, snippets) => {
-    await page.goto('http://localhost:8025', { waitUntil: 'networkidle' });
+    await page.goto(getUiTestEnvironment().mailpitUrl, { waitUntil: 'networkidle' });
     const emailRow = page.locator(`.subject b:has-text("${subject}")`).first();
     await expect(emailRow).toBeVisible({ timeout: 15000 });
     await emailRow.click();

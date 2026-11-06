@@ -101,6 +101,7 @@ use App\Services\Security\RequestRateLimiter;
 use App\Services\Security\TenantCsrfTokenScope;
 use App\Services\TenantConnectionManager;
 use App\Services\TenantDefaultSettingsInitializer;
+use App\Services\TurboConfig;
 use App\Services\ViewCellRegistry;
 use App\Services\WarrantManager\DefaultWarrantManager;
 use App\Services\WarrantManager\WarrantManagerInterface;
@@ -484,6 +485,11 @@ class Application extends BaseApplication implements
                     'php_sapi' => PHP_SAPI,
                     'php_os' => PHP_OS_FAMILY,
                     'app_version' => $this->appVersion(),
+                    'performance_run' => preg_match(
+                        '/^[a-f0-9]{16}$/',
+                        $request->getHeaderLine('X-KMP-Performance-Run'),
+                    )
+                        ? $request->getHeaderLine('X-KMP-Performance-Run') : 'none',
                 ];
 
                 Log::write(
@@ -491,7 +497,7 @@ class Application extends BaseApplication implements
                     sprintf(
                         '[request_timing] method=%s host=%s path=%s route=%s status=%d'
                         . ' request_id=%s duration_ms=%.2f memory_peak_mb=%.2f cpu_user_ms=%.2f cpu_sys_ms=%.2f'
-                        . ' query_count=%d db_total_ms=%.2f response_bytes=%d kingdom=%s',
+                        . ' query_count=%d db_total_ms=%.2f response_bytes=%d kingdom=%s performance_run=%s',
                         $context['method'],
                         $context['host'],
                         $context['path'],
@@ -506,6 +512,7 @@ class Application extends BaseApplication implements
                         $context['db_total_ms'],
                         $context['response_bytes'],
                         $context['kingdom'],
+                        $context['performance_run'],
                     ),
                     $context,
                 );
@@ -537,6 +544,8 @@ class Application extends BaseApplication implements
                         ->withHeader('Strict-Transport-Security', 'max-age=86400; includeSubDomains');
                 }
 
+                $liveOrigin = TurboConfig::liveEnabled()
+                    ? TurboConfig::gatewayOrigin() . ' ' : '';
                 // Build CSP policy
                 $csp = "default-src 'self'; "
                     // Allow CDN scripts, Leaflet (unpkg), and Google Maps
@@ -554,6 +563,7 @@ class Application extends BaseApplication implements
                     . "img-src 'self' data: https:; "
                     // AJAX/fetch restrictions
                     . "connect-src 'self' https://api.github.com "
+                    . $liveOrigin
                     . 'https://maps.googleapis.com '
                     . 'https://places.googleapis.com '
                     . 'https://tile.openstreetmap.org '

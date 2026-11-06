@@ -1,3 +1,4 @@
+import { updateUiHistory } from '../services/ui-navigation-service.js';
 import { Controller } from '@hotwired/stimulus';
 
 /** Showcase presentation around the real Dataverse controller; no duplicate query or view store. */
@@ -86,7 +87,7 @@ class UiPatternGridController extends Controller {
         if (!['cards', 'table'].includes(choice)) return;
         const url = new URL(window.location.href);
         url.searchParams.set('layout', choice);
-        window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+        updateUiHistory(url.pathname + url.search + url.hash, { replace: true });
         this.grid?.captureStickyParamsFromUrl(url.toString());
         window.dispatchEvent(new CustomEvent('page-context:sync'));
         this.updateLayout();

@@ -1,11 +1,12 @@
 <?php
+declare(strict_types=1);
 
 /**
  * My RSVPs Mobile View Template
- * 
+ *
  * Shows the current user's RSVPs in a mobile-optimized tabbed interface.
  * Upcoming events can be edited; past events are read-only and require online access.
- * 
+ *
  * @var \App\View\AppView $this
  * @var string $authCardUrl
  */
@@ -18,7 +19,7 @@ $this->set('mobileBackUrl', $authCardUrl);
 
 ?>
 
-<div class="my-rsvps-container mx-3 mt-3" data-controller="my-rsvps"
+<div class="my-rsvps-container mx-3 mt-3" data-controller="my-rsvps" data-change-context
     data-my-rsvps-data-url-value="/gathering-attendances/my-rsvps" data-section="rsvps">
     <p role="status" aria-live="polite" data-my-rsvps-target="status">Loading your RSVPs…</p>
     <!-- Tabs Navigation -->
@@ -125,7 +126,10 @@ $this->set('mobileBackUrl', $authCardUrl);
 }
 
 .rsvp-tabs .nav-link.active {
-    background: linear-gradient(180deg, var(--section-rsvps, #1e4976), color-mix(in srgb, var(--section-rsvps, #1e4976) 70%, black));
+    background: linear-gradient(
+        180deg, var(--section-rsvps, #1e4976),
+        color-mix(in srgb, var(--section-rsvps, #1e4976) 70%, black)
+    );
     color: var(--medieval-parchment, #f4efe4);
 }
 

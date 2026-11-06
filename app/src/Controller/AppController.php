@@ -18,12 +18,15 @@ use App\KMP\StaticHelpers;
 use App\Model\Entity\Member;
 use App\Services\ImpersonationService;
 use App\Services\RestoreStatusService;
+use App\Services\TurboConfig;
 use App\Services\ViewCellRegistry;
 use Cake\Controller\Controller;
+use Cake\Datasource\EntityInterface;
 use Cake\Event\Event;
 use Cake\Event\EventInterface;
 use Cake\Event\EventManager;
 use Cake\Http\Response;
+use Psr\Http\Message\UriInterface;
 
 class AppController extends Controller
 {
@@ -159,39 +162,22 @@ class AppController extends Controller
         $currentUrl = $this->request->getRequestTarget();
         $this->set('currentUrl', $currentUrl);
 
-        // Navigation history management
+        // Identity changes require a fresh session.
         $session = $this->getRequest()->getSession();
-        $isNoStack = false;
 
         // Exclude login/logout from history
         if ($params['controller'] == 'Members') {
             if ($params['action'] == 'logout') {
-                $isNoStack = true;
                 $session->destroy();
             }
             if ($params['action'] == 'login') {
-                $isNoStack = true;
                 $config = $this->getRequest()->getFlash()->getConfig();
                 $flash = $session->read('Flash.' . $config['key']);
                 $session->destroy();
                 $session->write('Flash.' . $config['key'], $flash);
             }
         }
-        if ($params['controller'] == 'NavBar') {
-            $isNoStack = true;
-        }
-        if ($params['controller'] == 'AppSettings' && $params['action'] == 'asset') {
-            $isNoStack = true;
-        }
-        // The public kingdom calendar is meant to be embedded (iframed) into
-        // external pages, so it must not pollute the back-navigation stack.
-        if ($params['controller'] == 'Gatherings' && $params['action'] == 'publicCalendar') {
-            $isNoStack = true;
-        }
-
         $isFragmentRequest = $this->isFragmentRequest();
-        $this->set('pageStack', (array)$session->read('pageStack', []));
-        $this->set('skipPageHistory', $isNoStack || $this->request->getQuery('nostack') !== null);
 
         $impersonationService = new ImpersonationService();
         $impersonationState = $impersonationService->getState($session);
@@ -374,7 +360,20 @@ class AppController extends Controller
     public function beforeRender(EventInterface $event)
     {
         parent::beforeRender($event);
-        $this->recordPageHistory();
+
+        if (
+            TurboConfig::enabled() && !TurboConfig::boundary($this->request)
+            && $this->request->is(['post', 'put', 'patch', 'delete'])
+            && $this->response->getStatusCode() === 200
+            && $this->response->getType() === 'text/html'
+        ) {
+            foreach ($this->viewBuilder()->getVars() as $value) {
+                if ($value instanceof EntityInterface && $value->hasErrors()) {
+                    $this->response = $this->response->withStatus(422);
+                    break;
+                }
+            }
+        }
 
         if ($this->viewBuilder()->hasVar('pluginViewCells')) {
             return;
@@ -400,64 +399,17 @@ class AppController extends Controller
         $this->set('pluginViewCells', $this->pluginViewCells);
     }
 
-    /** Record only successful document renders, after actions have selected their response/layout. */
-    private function recordPageHistory(): void
+    /** Successful HTML mutations follow with GET while preserving native boundary contracts. */
+    public function redirect(UriInterface|array|string $url, int $status = 302): ?Response
     {
-        $status = $this->response->getStatusCode();
-        $layout = $this->viewBuilder()->getLayout();
-        $destination = $this->request->getHeaderLine('Sec-Fetch-Dest');
-        $acceptsDocument = str_contains($this->request->getHeaderLine('Accept'), 'text/html');
         if (
-            !$this->request->is('get') || $this->isFragmentRequest()
-            || $this->viewBuilder()->getVar('skipPageHistory')
-            || !$this->viewBuilder()->isAutoLayoutEnabled()
-            || in_array($layout, ['ajax', 'turbo_frame'], true)
-            || ($destination !== '' && $destination !== 'document' && !($destination === 'empty' && $acceptsDocument))
-            || $status < 200 || $status >= 300
-            || !str_starts_with($this->response->getType(), 'text/html')
-            || $this->response->hasHeader('Content-Disposition')
+            $status === 302 && TurboConfig::enabled() && !TurboConfig::boundary($this->request)
+            && $this->request->is(['post', 'put', 'patch', 'delete'])
         ) {
-            return;
+            $status = 303;
         }
 
-        $session = $this->request->getSession();
-        // Discard entries recorded before fragment/redirect responses were excluded.
-        $stack = $session->read('pageStackVersion') === 2 ? (array)$session->read('pageStack', []) : [];
-        $stack = array_values(array_filter(
-            $stack,
-            static fn($url) => is_string($url) && str_starts_with($url, '/') && !str_starts_with($url, '//'),
-        ));
-        $url = $this->request->getRequestTarget();
-        // Frame navigation updates the browser URL without another document GET.
-        // Keep the prior document's live query when navigating away from that page.
-        $referer = parse_url($this->request->getHeaderLine('Referer'));
-        $uri = $this->request->getUri();
-        $lastIndex = array_key_last($stack);
-        if (
-            $lastIndex !== null && is_array($referer)
-            && ($referer['scheme'] ?? '') === $uri->getScheme()
-            && strcasecmp($referer['host'] ?? '', $uri->getHost()) === 0
-            && ($referer['port'] ?? null) === $uri->getPort()
-            && ($referer['path'] ?? '') === parse_url($stack[$lastIndex], PHP_URL_PATH)
-            && !str_contains($this->request->getHeaderLine('Referer'), "\n")
-            && !str_contains($this->request->getHeaderLine('Referer'), "\r")
-        ) {
-            $stack[$lastIndex] = $referer['path']
-                . (isset($referer['query']) ? '?' . $referer['query'] : '');
-        }
-        if ($this->request->getParam('action') === 'index') {
-            $stack = [];
-        }
-        $previous = array_search($url, $stack, true);
-        if ($previous !== false) {
-            $stack = array_slice($stack, 0, $previous + 1);
-        } else {
-            $stack[] = $url;
-        }
-        $stack = array_slice($stack, -50);
-        $session->write('pageStack', $stack);
-        $session->write('pageStackVersion', 2);
-        $this->set('pageStack', $stack);
+        return parent::redirect($url, $status);
     }
 
     /**
@@ -530,11 +482,17 @@ class AppController extends Controller
      */
     private function isFragmentRequest(): bool
     {
-        $isAjax = $this->request
-            ->is('ajax') || $this->request->is('json') || $this->request->is('xml') || $this->request->is('csv');
+        $screenRefresh = $this->request->is('get')
+            && $this->request->getHeaderLine('X-KMP-UI-Refresh') === 'screen'
+            && str_contains($this->request->getHeaderLine('Accept'), 'text/html');
+        $isAjax = (!$screenRefresh && $this->request->is('ajax'))
+            || $this->request->is('json') || $this->request->is('xml') || $this->request->is('csv');
         $turboRequest = $this->request->getHeader('Turbo-Frame') != null;
         $acceptHeader = $this->request->getHeaderLine('Accept');
-        $turboStreamRequest = str_contains($acceptHeader, 'text/vnd.turbo-stream.html');
+        // Turbo retains stream preference on the GET following a form redirect.
+        // Its HTML destination is a document and still needs plugin tabs/chrome.
+        $turboStreamRequest = str_contains($acceptHeader, 'text/vnd.turbo-stream.html')
+            && (!$this->request->is('get') || !str_contains($acceptHeader, 'text/html'));
         $controllerName = (string)$this->request->getParam('controller');
         $actionName = (string)$this->request->getParam('action');
         $gridDataRequest = str_ends_with($actionName, 'GridData') || str_ends_with($actionName, 'gridData');

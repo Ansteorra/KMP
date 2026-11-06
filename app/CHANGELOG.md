@@ -8,6 +8,8 @@ Stay up to date with the latest features, improvements, and announcements for th
 
 ## Unreleased
 
+- Preserve detail tabs, grid queries, drafts, focus, and return navigation across partial saves. Replace the app Back stack with shared browser history and prepare optional Turbo Drive and authorized live updates behind fallback switches.
+
 - Delegate award preparation for a specific gathering and branch, with scoped access to bestowals, court agendas, and assigned To-Dos and an auditable revoke action.
 - Configure a lead terminal To-Do with multiple bestowal outcomes, including Given Not Received. Authorized editors can correct a completed outcome while retaining its original completion history. Regalia permissions support renamed fields.
 - Improve court agenda preparation, ordering, editing, and printouts, including scheduled-session dates/times and the appropriate recipient, herald, and recommendation notes.

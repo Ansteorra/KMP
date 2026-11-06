@@ -4,9 +4,12 @@ declare(strict_types=1);
 namespace App\Services\Platform;
 
 use App\KMP\TenantContext;
+use App\Services\TurboConfig;
+use App\Services\UiUpdateOutbox;
 use Cake\Console\CommandInterface;
 use Cake\Console\ConsoleIo;
 use Cake\Core\ContainerInterface;
+use Cake\Datasource\ConnectionManager;
 use Closure;
 use InvalidArgumentException;
 use Psr\Log\NullLogger;
@@ -77,6 +80,10 @@ class QueueDrainService
                 'Queue max runtime must be between 1 and %d seconds.',
                 self::MAX_RUNTIME_SECONDS,
             ));
+        }
+
+        if (TurboConfig::liveEnabled() && TenantContext::tryCurrent() !== null) {
+            (new UiUpdateOutbox())->dispatch(ConnectionManager::get('default'));
         }
 
         $consoleIo = new ConsoleIo();

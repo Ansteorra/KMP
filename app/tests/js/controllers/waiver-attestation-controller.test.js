@@ -1,4 +1,10 @@
 // Controller registers on window.Controllers (no default export)
+jest.mock('../../../assets/js/services/ui-navigation-service.js', () => ({ driveEnabled: jest.fn(() => false) }));
+jest.mock('../../../assets/js/services/page-refresh-service.js', () => ({
+    refreshScreen: jest.fn().mockResolvedValue(true), hideModalAndWait: jest.fn().mockResolvedValue(), showRefreshFailure: jest.fn(),
+}));
+import { driveEnabled } from '../../../assets/js/services/ui-navigation-service.js';
+import { refreshScreen, showRefreshFailure } from '../../../assets/js/services/page-refresh-service.js';
 import '../../../plugins/Waivers/assets/js/controllers/waiver-attestation-controller.js';
 const WaiverAttestationController = window.Controllers['waivers-waiver-attestation'];
 
@@ -6,6 +12,7 @@ describe('WaiverAttestationController', () => {
     let controller;
 
     beforeEach(() => {
+        jest.useFakeTimers();
         document.body.innerHTML = `
             <meta name="csrf-token" content="test-csrf-token">
             <div data-controller="waivers-waiver-attestation">
@@ -45,9 +52,23 @@ describe('WaiverAttestationController', () => {
     });
 
     afterEach(() => {
+        controller.disconnect();
+        jest.clearAllTimers(); jest.useRealTimers();
         document.body.innerHTML = '';
         jest.restoreAllMocks();
         delete global.fetch;
+    });
+
+    test('Drive attestation reconciles the current screen, with a read-only retry when another draft blocks it', async () => {
+        driveEnabled.mockReturnValueOnce(true);
+        controller.reasonsValue = ['Test Reason']; controller.populateReasons();
+        controller.reasonListTarget.querySelector('input[type="radio"]').checked = true;
+        refreshScreen.mockResolvedValueOnce(false);
+        global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, message: 'Recorded' }) });
+        await controller.submitAttestation({ preventDefault: jest.fn() });
+        expect(refreshScreen).toHaveBeenCalled();
+        expect(showRefreshFailure).toHaveBeenCalledWith(expect.any(Function));
+        expect(controller.reloadTimeout).toBeUndefined();
     });
 
     // --- Static properties ---
@@ -257,10 +278,6 @@ describe('WaiverAttestationController', () => {
         controller.waiverTypeIdValue = 20;
         controller.gatheringIdValue = 30;
 
-        // Mock window.location.reload
-        delete window.location;
-        window.location = { reload: jest.fn() };
-
         global.fetch = jest.fn(() => Promise.resolve({
             ok: true,
             json: () => Promise.resolve({ success: true, message: 'Recorded' })
@@ -274,6 +291,7 @@ describe('WaiverAttestationController', () => {
             body: expect.any(String)
         }));
         expect(controller.successTarget.textContent).toBe('Recorded');
+        expect(jest.getTimerCount()).toBe(1);
     });
 
     test('submitAttestation handles fetch error', async () => {
@@ -315,10 +333,6 @@ describe('WaiverAttestationController', () => {
             ok: true,
             json: () => Promise.resolve({ success: true })
         }));
-
-        // Mock reload
-        delete window.location;
-        window.location = { reload: jest.fn() };
 
         const event = { preventDefault: jest.fn() };
         await controller.submitAttestation(event);

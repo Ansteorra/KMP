@@ -1,3 +1,4 @@
+import { updateUiHistory } from '../services/ui-navigation-service.js';
 import { createIcon, setIcon } from '../services/icon-service.js';
 import MobileControllerBase from "./mobile-controller-base.js";
 import rsvpCacheService from "../services/rsvp-cache-service.js";
@@ -119,7 +120,7 @@ class MobileCalendarController extends MobileControllerBase {
                 
                 // Clean up URL without reloading
                 const newUrl = window.location.pathname;
-                window.history.replaceState({}, '', newUrl);
+                updateUiHistory(newUrl, { replace: true });
             }
         }
     }
@@ -1096,8 +1097,8 @@ class MobileCalendarController extends MobileControllerBase {
             
             modalContent.innerHTML = html;
             
-            // Handle form submission via AJAX instead of regular submit
-            this.setupModalFormHandlers(modalContent);
+            // The shared stream controller owns online form saves and validation.
+            modalEl.setAttribute('aria-labelledby', 'attendanceModalLabel');
             
         } catch (error) {
             console.error('Failed to load attendance modal:', error);
@@ -1115,104 +1116,6 @@ class MobileCalendarController extends MobileControllerBase {
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             `;
-        }
-    }
-
-    /**
-     * Setup form handlers for the attendance modal
-     */
-    setupModalFormHandlers(modalContent) {
-        const mainForm = modalContent.querySelector('#attendanceModalForm');
-        const deleteForm = modalContent.querySelector('[id^="deleteAttendanceForm_"]');
-        
-        if (mainForm) {
-            mainForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await this.handleAttendanceFormSubmit(mainForm);
-            });
-        }
-        
-        if (deleteForm) {
-            deleteForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await this.handleDeleteAttendance(deleteForm);
-            });
-        }
-    }
-
-    /**
-     * Handle attendance form submission
-     */
-    async handleAttendanceFormSubmit(form) {
-        const submitBtn = form.closest('.modal-content').querySelector('button[type="submit"][form]');
-        if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
-        }
-        
-        const formData = new FormData(form);
-        
-        try {
-            const response = await fetch(form.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-            
-            if (response.ok || response.redirected) {
-                // Update RSVP cache with new data
-                if (this.currentRsvpEvent) {
-                    rsvpCacheService.updateCachedRsvp(this.currentRsvpEvent.id, {
-                        share_with_kingdom: formData.get('share_with_kingdom') === '1',
-                        share_with_hosting_group: formData.get('share_with_hosting_group') === '1',
-                        share_with_crown: formData.get('share_with_crown') === '1',
-                        public_note: formData.get('public_note') || ''
-                    }).catch(err => console.warn('[Calendar] Failed to update RSVP cache:', err));
-                }
-                
-                this.showToast('Attendance saved!', 'success');
-                bootstrap.Modal.getInstance(document.getElementById('mobileRsvpModal'))?.hide();
-            } else {
-                throw new Error('Form submission failed');
-            }
-        } catch (error) {
-            this.showToast('Failed to save attendance', 'danger');
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Register';
-            }
-        }
-    }
-
-    /**
-     * Handle delete attendance
-     */
-    async handleDeleteAttendance(form) {
-        try {
-            const response = await fetch(form.action, {
-                method: 'POST',
-                body: new FormData(form),
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-            
-            if (response.ok || response.redirected) {
-                // Remove from RSVP cache
-                if (this.currentRsvpEvent) {
-                    rsvpCacheService.removeCachedRsvp(this.currentRsvpEvent.id)
-                        .catch(err => console.warn('[Calendar] Failed to remove from RSVP cache:', err));
-                }
-                
-                this.showToast('Attendance removed!', 'success');
-                bootstrap.Modal.getInstance(document.getElementById('mobileRsvpModal'))?.hide();
-            } else {
-                throw new Error('Delete failed');
-            }
-        } catch (error) {
-            this.showToast('Failed to remove attendance', 'danger');
         }
     }
 

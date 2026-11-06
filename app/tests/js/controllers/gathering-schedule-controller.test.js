@@ -1,3 +1,9 @@
+jest.mock('../../../assets/js/services/page-refresh-service.js', () => ({
+    refreshAfterChange: jest.fn().mockResolvedValue(),
+    hideModalAndWait: jest.fn().mockResolvedValue(),
+    showRefreshFailure: jest.fn(),
+}));
+import { refreshAfterChange } from '../../../assets/js/services/page-refresh-service.js';
 // Mock bootstrap.Modal
 window.bootstrap = {
     ...window.bootstrap,
@@ -93,7 +99,7 @@ describe('GatheringScheduleController', () => {
     });
 
     test('has correct static values', () => {
-        expect(GatheringScheduleController.values).toHaveProperty('gatheringId', Number);
+        expect(GatheringScheduleController.values).toHaveProperty('gatheringId', String);
         expect(GatheringScheduleController.values).toHaveProperty('gatheringStart', String);
         expect(GatheringScheduleController.values).toHaveProperty('addUrl', String);
         expect(GatheringScheduleController.values).toHaveProperty('editUrl', String);
@@ -207,12 +213,12 @@ describe('GatheringScheduleController', () => {
         expect(alert).not.toBeNull();
     });
 
-    test('showFlashMessage auto-dismisses after 5 seconds', () => {
+    test('feedback remains available until dismissed', () => {
         jest.useFakeTimers();
         controller.showFlashMessage('success', 'Temp message');
         expect(document.querySelector('.alert')).not.toBeNull();
         jest.advanceTimersByTime(5000);
-        expect(document.querySelector('.alert')).toBeNull();
+        expect(document.querySelector('.alert')).not.toBeNull();
         jest.useRealTimers();
     });
 
@@ -278,7 +284,7 @@ describe('GatheringScheduleController', () => {
 
         await controller.submitAddForm(event);
 
-        expect(spy).toHaveBeenCalledWith('error', expect.stringContaining('error occurred'));
+        expect(spy).toHaveBeenCalledWith('error', expect.stringContaining('Unable to save'));
     });
 
     // submitEditForm tests
@@ -372,4 +378,13 @@ describe('GatheringScheduleController', () => {
         expect(controller.editActivitySelectTarget.required).toBe(false);
         expect(document.getElementById('edit-is-other').checked).toBe(true);
     });
+    test('a committed save refreshes schedule dependencies once without leaving the page', async () => {
+        global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, message: 'Saved', data: { id: 44 } }) });
+        const focus = document.createElement('button'); focus.id = 'schedule-edit-44'; document.body.append(focus);
+        await controller.submitSchedule(controller.addFormTarget, controller.addUrlValue, controller.addModalTarget);
+        expect(refreshAfterChange).toHaveBeenCalledWith('schedule');
+        expect(document.activeElement).toBe(focus);
+        expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
 });

@@ -1639,7 +1639,7 @@ class MembersController extends AppController
     /**
      * Profile method
      *
-     * Shows the current user's profile without changing the URL
+     * Redirects to the current user's record, retaining tab and grid context.
      *
      * @return \Cake\Http\Response|null|void Renders view
      */
@@ -1651,7 +1651,7 @@ class MembersController extends AppController
             throw new NotFoundException(__('User not authenticated.'));
         }
 
-        return $this->redirect(['action' => 'view', $user->id]);
+        return $this->redirect(['action' => 'view', $user->id, '?' => $this->request->getQueryParams()]);
     }
 
     /**

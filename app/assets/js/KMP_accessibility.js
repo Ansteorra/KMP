@@ -1,4 +1,5 @@
 import { Modal } from 'bootstrap'
+import { driveEnabled, visitDocument } from './services/ui-navigation-service.js'
 
 const getBootstrapModal = () => window.bootstrap?.Modal || globalThis.bootstrap?.Modal || Modal
 
@@ -206,12 +207,13 @@ const submitConfirmedTrigger = (trigger) => {
     const form = findCakePostLinkForm(trigger) || trigger.closest('form')
     if (form instanceof HTMLFormElement) {
         document.dispatchEvent(new CustomEvent('page-context:before-submit', { detail: { form } }))
-        HTMLFormElement.prototype.submit.call(form)
+        if (driveEnabled() && form.dataset.turbo !== 'false') form.requestSubmit()
+        else HTMLFormElement.prototype.submit.call(form)
         return
     }
 
     if (trigger instanceof HTMLAnchorElement && trigger.href && trigger.getAttribute('href') !== '#') {
-        window.location.assign(trigger.href)
+        visitDocument(trigger.href)
     }
 }
 

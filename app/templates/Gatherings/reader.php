@@ -35,13 +35,15 @@ $pluginOptions = [
                 <p class="text-muted mb-0"><?= __('Hosted by {0}', $gathering->branch->name) ?></p>
             </div>
             <div class="gathering-reader-actions d-flex flex-wrap gap-2 align-items-start">
+                <span id="gathering-rsvp-action" data-refresh-on="attendance">
                 <?php if ($readerCanRsvp) : ?>
-                    <button type="button" class="btn btn-success"
+                    <button id="gathering-rsvp-trigger" type="button" class="btn btn-success"
                         data-bs-toggle="modal" data-bs-target="#attendGatheringModal">
                         <?= $this->Icon->render('calendar-check') ?>
                         <?= $userAttendance ? __('Update Attendance') : __('Attend This Gathering') ?>
                     </button>
                 <?php endif; ?>
+                </span>
                 <?= $this->fetch('recordActions') ?>
             </div>
         </div>
@@ -78,7 +80,7 @@ $pluginOptions = [
                 <dt><?= $this->Icon->render('map-pin') ?> <?= __('Where') ?></dt>
                 <dd><?= $gathering->location ? nl2br(h($gathering->location)) : __('Location to be announced') ?></dd>
             </div>
-            <div>
+            <div id="gathering-rsvp-summary" data-refresh-on="attendance">
                 <dt><?= $this->Icon->render('calendar-check') ?> <?= __('Your RSVP') ?></dt>
                 <dd>
                     <?php if ($userAttendance) : ?>
@@ -191,7 +193,9 @@ $pluginOptions = [
         <div class="tab-content" id="nav-tabContent">
             <div class="tab-pane fade show active" id="nav-overview" role="tabpanel" aria-labelledby="nav-overview-tab"
                 data-detail-tabs-target="tabContent" data-tab-order="0" style="order: 0;" tabindex="0">
+                <div id="gathering-overview-content" data-refresh-on="schedule attendance">
                 <?= $this->element('gatherings/readerOverview') ?>
+                </div>
             </div>
             <?= $this->fetch('tabContent') ?>
             <?= $this->element('pluginTabBodies', $pluginOptions) ?>
@@ -210,7 +214,7 @@ $pluginOptions = [
 </article>
 <?php
 if ($readerCanRsvp) {
-    $modalData = compact('gathering', 'userAttendance', 'user');
+    $modalData = compact('gathering', 'userAttendance', 'user') + ['streamAttendance' => true];
     $this->append('modals', $this->element('gatherings/attendGatheringModal', $modalData));
 }
 if ($gathering->public_page_enabled) {

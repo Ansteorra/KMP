@@ -1,3 +1,4 @@
+import { updateUiHistory } from '../services/ui-navigation-service.js';
 import { Controller } from '@hotwired/stimulus';
 
 /** Local interactions for the review showcase; never submits or uploads example data. */
@@ -86,7 +87,7 @@ class UiPatternsController extends Controller {
         this.revealSectionTab(event);
         const url = new URL(window.location.href);
         url.searchParams.set('section', tab.id);
-        window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+        updateUiHistory(`${url.pathname}${url.search}${url.hash}`, { replace: true });
     }
 
     /** Reveal a section tab horizontally without moving the page or its surrounding panels. */
@@ -332,7 +333,7 @@ class UiPatternsController extends Controller {
             const url = new URL(window.location.href);
             if (scope === 'all') url.searchParams.delete('branch');
             else url.searchParams.set('branch', scope);
-            window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+            updateUiHistory(`${url.pathname}${url.search}${url.hash}`, { replace: true });
             this.report('Dashboard scope updated.');
         }
     }

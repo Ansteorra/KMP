@@ -16,6 +16,10 @@ permissions:
   packages: read
 
 jobs:
+  live-updates:
+    name: Live updates
+    uses: ./.github/workflows/live-updates.yml
+
   security:
     name: Security gates
     uses: ./.github/workflows/security.yml
@@ -184,6 +188,9 @@ jobs:
 
       - name: Validate workflow definition JSON
         run: cd app && npm run validate:workflows
+
+      - name: Validate live capacity acceptance contracts
+        run: cd app && npm run test:perf:contracts
 
       - name: Validate developer documentation
         run: |

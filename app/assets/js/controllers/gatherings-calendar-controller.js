@@ -1,3 +1,5 @@
+import { refreshAfterChange, showRefreshFailure } from '../services/page-refresh-service.js';
+import { visitDocument } from '../services/ui-navigation-service.js';
 import { Controller } from "@hotwired/stimulus"
 
 /**
@@ -574,6 +576,16 @@ class GatheringsCalendarController extends Controller {
 
             const html = await response.text()
             modalContent.innerHTML = html
+            // Remote forms connect after the modal's show event has already fired.
+            modalContent.querySelectorAll('[data-controller~="turbo-modal"]').forEach(form => {
+                if (this.attendanceModalTrigger?.id) {
+                    form.dataset.turboModalReturnFocusIdValue = this.attendanceModalTrigger.id
+                }
+                const href = this.attendanceModalTrigger?.getAttribute('href')
+                if (href) form.dataset.turboModalReturnFocusHrefValue = href
+                const frameId = this.attendanceModalTrigger?.closest('turbo-frame')?.id
+                if (frameId) form.dataset.turboModalReturnFocusFrameValue = frameId
+            })
 
             // Manually attach click handler to close button since Bootstrap's event delegation
             // doesn't work on dynamically inserted content. Remove previous listener first.
@@ -741,10 +753,10 @@ class GatheringsCalendarController extends Controller {
                     this.showToast('Success!', 'Your attendance has been recorded.', 'success')
                 }
 
-                // Reload page to update calendar display
-                setTimeout(() => {
-                    window.location.reload()
-                }, 1500)
+                const refresh = () => refreshAfterChange('attendance', { source: button });
+                try { await refresh(); }
+                catch { showRefreshFailure(refresh); }
+                document.querySelector(`[data-gathering-id="${gatheringId}"]`)?.focus({ preventScroll: true });
             } else {
                 throw new Error(data.message || 'Failed to update attendance')
             }
@@ -773,7 +785,7 @@ class GatheringsCalendarController extends Controller {
         }
 
         // Navigate to gathering view with location tab active
-        window.location.href = `/gatherings/view/${gatheringId}#nav-location-tab`
+        visitDocument(`/gatherings/view/${gatheringId}?tab=location#nav-location-tab`)
     }
 
     /**

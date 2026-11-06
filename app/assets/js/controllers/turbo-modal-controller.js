@@ -1,5 +1,8 @@
+import '../services/turbo-fetch-bootstrap-service.js';
 import { Controller } from "@hotwired/stimulus";
 import * as Turbo from "@hotwired/turbo";
+import { driveEnabled } from '../services/ui-navigation-service.js';
+import { refreshAfterChange, showRefreshFailure } from '../services/page-refresh-service.js';
 
 /**
  * TurboModal Stimulus Controller
@@ -27,6 +30,11 @@ class TurboModal extends Controller {
     static values = {
         successMessage: String,
         errorMessage: String,
+        changed: String,
+        modalId: String,
+        returnFocusId: String,
+        returnFocusHref: String,
+        returnFocusFrame: String,
     }
 
     initialize() {
@@ -40,7 +48,19 @@ class TurboModal extends Controller {
      * Initialize - log when controller connects
      */
     connect() {
-        console.log('TurboModal controller connected');
+        this.boundTurboResponse = this.handleTurboResponse.bind(this);
+        this.boundNativeStart = () => { this.submitting = true; };
+        this.boundNativeEnd = () => { if (!this.handlingNativeResponse) this.submitting = false; };
+        this.boundBeforeRequest = event => {
+            if (event.target !== this.element) return;
+            const headers = event.detail.fetchOptions.headers;
+            if (headers instanceof Headers) headers.set('X-KMP-Grid-Reconcile', 'table');
+            else headers['X-KMP-Grid-Reconcile'] = 'table';
+        };
+        this.element.addEventListener('turbo:before-fetch-request', this.boundBeforeRequest);
+        this.element.addEventListener('turbo:before-fetch-response', this.boundTurboResponse);
+        this.element.addEventListener('turbo:submit-start', this.boundNativeStart);
+        this.element.addEventListener('turbo:submit-end', this.boundNativeEnd);
         this.findModalElement()?.addEventListener(
             'show.bs.modal',
             this.captureModalTriggerListener,
@@ -48,6 +68,10 @@ class TurboModal extends Controller {
     }
 
     disconnect() {
+        this.element.removeEventListener('turbo:before-fetch-request', this.boundBeforeRequest);
+        this.element.removeEventListener('turbo:before-fetch-response', this.boundTurboResponse);
+        this.element.removeEventListener('turbo:submit-start', this.boundNativeStart);
+        this.element.removeEventListener('turbo:submit-end', this.boundNativeEnd);
         this.findModalElement()?.removeEventListener(
             'show.bs.modal',
             this.captureModalTriggerListener,
@@ -71,16 +95,15 @@ class TurboModal extends Controller {
      * @param {Event} event - The turbo:submit-start event
      */
     closeModalBeforeSubmit(event) {
-        console.log('turbo:submit-start - closing modal before submission');
-
-        this.closeModal();
+        // Keep the dialog and draft visible until the server confirms success.
+        this.syncPageContext();
     }
 
     /**
      * Submit a modal form as a Turbo Stream request.
      *
-     * Turbo Drive is disabled globally, so modal forms that should update the
-     * current grid need an explicit stream fetch instead of browser navigation.
+     * Turbo owns compatible submissions in Drive mode; fallback uses one explicit
+     * stream request while retaining the same response/focus coordination.
      *
      * @param {SubmitEvent} event - The submit event
      */
@@ -89,11 +112,32 @@ class TurboModal extends Controller {
             return;
         }
 
+        if (driveEnabled()) {
+            if (this.submitting) { event.preventDefault(); event.stopImmediatePropagation(); return; }
+            // Legacy templates opted out to use this controller's manual fetch.
+            // In Drive mode the same controller hands the submission to Turbo.
+            this.element.dataset.turbo = 'true';
+            this.syncPageContext();
+            this.clearFailure();
+            return;
+        }
+
         event.preventDefault();
         event.stopImmediatePropagation();
+        if (this.submitting) {
+            return;
+        }
+        this.submitting = true;
         this.syncPageContext();
         this.clearFailure();
+        // Capture the clicked action before disabling submit controls.
+        const formData = new FormData(this.element);
+        const submitter = event.submitter;
+        if (submitter?.name && !submitter.disabled) {
+            formData.append(submitter.name, submitter.value);
+        }
         this.setSubmitting(true);
+        const changeContext = this.element.closest('[data-change-context]');
 
         try {
             const csrfToken = this.element.querySelector('input[name="_csrfToken"]')?.value
@@ -101,6 +145,7 @@ class TurboModal extends Controller {
             const headers = {
                 'Accept': 'text/vnd.turbo-stream.html',
                 'X-Requested-With': 'XMLHttpRequest',
+                'X-KMP-Grid-Reconcile': 'table',
             };
             if (csrfToken) {
                 headers['X-CSRF-Token'] = csrfToken;
@@ -108,70 +153,107 @@ class TurboModal extends Controller {
 
             const response = await fetch(this.element.action, {
                 method: (this.element.method || 'POST').toUpperCase(),
-                body: new FormData(this.element),
+                body: formData,
                 headers,
                 credentials: 'same-origin',
             });
-            const body = await response.text();
-            const contentType = response.headers.get('Content-Type') || '';
-
-            if (contentType.includes('text/vnd.turbo-stream.html') || body.includes('<turbo-stream')) {
-                const focusPlan = response.ok ? this.createStreamFocusPlan(body) : null;
-                const streamIncludesLiveFeedback = this.streamIncludesLiveFeedback(body);
-                const refresh = response.ok
-                    ? this.prepareGridRefreshStreams(body)
-                    : { html: body, frameIds: [] };
-                let streamRendered = true;
-                if (response.ok) {
-                    await this.closeModalAndWait();
-                }
-                const refreshed = this.waitForGridRefresh(refresh.frameIds);
-                try {
-                    this.renderTurboStream(refresh.html);
-                } catch (renderError) {
-                    if (!response.ok) {
-                        throw renderError;
-                    }
-                    console.error('Unable to render successful modal response:', renderError);
-                    streamRendered = false;
-                    this.gridRefreshCleanup?.();
-                    if (!this.showFallbackSuccess()) {
-                        this.announceSuccess();
-                    }
-                }
-                if (response.ok) {
-                    await refreshed;
-                    await this.restoreFocusAfterStream(focusPlan);
-                    if (streamRendered && !streamIncludesLiveFeedback) {
-                        this.announceSuccess();
-                    }
-                } else if (!streamIncludesLiveFeedback && !this.showFallbackFailure()) {
-                    this.announceFailure();
-                }
-                return;
-            }
-
-            if (response.redirected) {
-                window.location.assign(response.url);
-                return;
-            }
-
-            const frame = this.element.closest('turbo-frame');
-            if (frame && body !== '') {
-                frame.innerHTML = body;
-            }
-            if (!response.ok) {
-                if (!this.showFallbackFailure()) {
-                    this.announceFailure();
-                }
-            }
+            await this.processResponse(response, changeContext);
         } catch (error) {
             console.error('Unable to submit modal form:', error);
             if (!this.showFallbackFailure()) {
                 this.announceFailure();
             }
         } finally {
+            this.submitting = false;
             this.setSubmitting(false);
+        }
+    }
+
+    /** Turbo owns submission; this coordinator owns dialog and response ordering. */
+    async handleTurboResponse(event) {
+        if (!driveEnabled() || event.target !== this.element) return;
+        const response = event.detail.fetchResponse.response;
+        if (!(response.headers.get('Content-Type') || '').includes('text/vnd.turbo-stream.html')) return;
+        event.preventDefault();
+        // The document StreamObserver must not render the same response before
+        // Bootstrap has closed the dialog and grid reconciliation is prepared.
+        event.stopImmediatePropagation();
+        this.handlingNativeResponse = true;
+        try {
+            await this.processResponse(response.clone(), this.element.closest('[data-change-context]'));
+        } catch {
+            if (!this.showFallbackFailure()) this.announceFailure();
+        } finally {
+            this.handlingNativeResponse = false;
+            this.submitting = false;
+        }
+    }
+
+    async processResponse(response, changeContext) {
+        const body = await response.text();
+        const contentType = response.headers.get('Content-Type') || '';
+
+        if (contentType.includes('text/vnd.turbo-stream.html') || body.includes('<turbo-stream')) {
+            const focusPlan = response.ok ? this.createStreamFocusPlan(body) : null;
+            const streamIncludesLiveFeedback = this.streamIncludesLiveFeedback(body);
+            const refresh = response.ok
+                ? this.prepareGridRefreshStreams(body)
+                : { html: body, frameIds: [] };
+            let streamRendered = true;
+            if (response.ok) {
+                await this.closeModalAndWait();
+            }
+            const refreshed = this.waitForGridRefresh(refresh.frameIds);
+            try {
+                this.renderTurboStream(refresh.html);
+            } catch (renderError) {
+                if (!response.ok) {
+                    throw renderError;
+                }
+                console.error('Unable to render successful modal response:', renderError);
+                streamRendered = false;
+                this.gridRefreshCleanup?.();
+                if (!this.showFallbackSuccess()) {
+                    this.announceSuccess();
+                }
+            }
+            if (response.ok) {
+                await refreshed;
+                if (this.changedValue) {
+                    const refreshDetails = () => refreshAfterChange(this.changedValue, {
+                        source: this.element, context: changeContext,
+                    });
+                    try { await refreshDetails(); }
+                    catch { showRefreshFailure(refreshDetails); }
+                }
+                await this.restoreFocusAfterStream(focusPlan);
+                this.dispatch('saved');
+                if (streamRendered && !streamIncludesLiveFeedback) {
+                    this.announceSuccess();
+                }
+            } else {
+                // Page-level flash alerts can sit behind the still-open dialog.
+                const message = this.streamFailureMessage(body);
+                if ((message || !streamIncludesLiveFeedback) && !this.showFallbackFailure(message)) {
+                    this.announceFailure();
+                }
+            }
+            return;
+        }
+
+        if (response.redirected && response.ok) {
+            window.location.assign(response.url);
+            return;
+        }
+
+        const frame = this.element.closest('turbo-frame');
+        if (frame && body !== '') {
+            frame.innerHTML = body;
+        }
+        if (!response.ok) {
+            if (!this.showFallbackFailure()) {
+                this.announceFailure();
+            }
         }
     }
 
@@ -322,6 +404,17 @@ class TurboModal extends Controller {
         );
     }
 
+    /** Read server validation feedback as plain text for the open dialog. */
+    streamFailureMessage(streamHtml) {
+        const fragment = document.createElement('template');
+        fragment.innerHTML = streamHtml;
+        const flash = Array.from(fragment.content.querySelectorAll('turbo-stream'))
+            .find(stream => stream.getAttribute('target') === 'flash-messages');
+        const content = flash?.querySelector('template')?.content;
+        return Array.from(content?.querySelectorAll('.alert-danger, .alert-warning') ?? [])
+            .map(alert => alert.textContent.trim()).filter(Boolean).join(' ');
+    }
+
     /**
      * Resolve the Bootstrap modal for this form.
      *
@@ -329,6 +422,9 @@ class TurboModal extends Controller {
      * form inside the modal. Support both DOM shapes.
      */
     findModalElement() {
+        if (this.modalIdValue) {
+            return document.getElementById(this.modalIdValue);
+        }
         if (!(this.element instanceof HTMLFormElement)) {
             return null;
         }
@@ -421,7 +517,13 @@ class TurboModal extends Controller {
             .find((candidate) => candidate.getAttribute('target') !== 'flash-messages');
         const targetId = stream?.getAttribute('target');
         if (!targetId) {
-            return this.modalTrigger ? { trigger: this.modalTrigger } : null;
+            return this.modalTrigger || this.returnFocusIdValue || this.returnFocusHrefValue || this.returnFocusFrameValue ? {
+                trigger: this.modalTrigger,
+                triggerId: this.modalTrigger?.id || this.returnFocusIdValue,
+                triggerHref: this.modalTrigger?.getAttribute('href') || this.returnFocusHrefValue,
+                gatheringId: this.modalTrigger?.dataset.gatheringId,
+                containerId: this.returnFocusFrameValue,
+            } : null;
         }
 
         const currentTarget = document.getElementById(targetId);
@@ -480,6 +582,11 @@ class TurboModal extends Controller {
             ?? this.connectedElement(focusPlan.nextTarget)
             ?? this.connectedElement(focusPlan.previousTarget)
             ?? this.connectedElement(focusPlan.trigger)
+            ?? document.getElementById(focusPlan.triggerId)
+            ?? (focusPlan.triggerHref ? [...document.querySelectorAll('a[href]')]
+                .find(element => element.getAttribute('href') === focusPlan.triggerHref && !element.closest('.modal')) : null)
+            ?? (focusPlan.gatheringId ? [...document.querySelectorAll('[data-gathering-id]')]
+                .find(element => element.dataset.gatheringId === focusPlan.gatheringId && !element.closest('.modal')) : null)
             ?? document.getElementById(focusPlan.containerId)
             ?? this.connectedElement(focusPlan.container);
 
@@ -490,7 +597,7 @@ class TurboModal extends Controller {
         if (focusTarget === target && !target.hasAttribute('tabindex')) {
             target.setAttribute('tabindex', '-1');
         }
-        focusTarget.focus();
+        focusTarget.focus({ preventScroll: true });
     }
 
     /** Wait one bounded rendering step for Turbo custom elements to update the DOM. */
@@ -606,7 +713,7 @@ class TurboModal extends Controller {
     }
 
     /** Show a visible retryable error while keeping the modal and entered values open. */
-    showFallbackFailure() {
+    showFallbackFailure(message = null) {
         if (!this.element.isConnected) {
             return false;
         }
@@ -614,7 +721,7 @@ class TurboModal extends Controller {
         const alert = document.createElement('div');
         alert.className = 'alert alert-danger alert-dismissible fade show mb-0';
         alert.setAttribute('role', 'alert');
-        alert.append(document.createTextNode(this.failureMessage()));
+        alert.append(document.createTextNode(message || this.failureMessage()));
 
         const closeButton = document.createElement('button');
         closeButton.type = 'button';

@@ -13,6 +13,12 @@ class MyRsvpsController extends MobileControllerBase {
     static values = { dataUrl: String };
 
     onConnect() {
+        this.onAttendanceChanged = event => {
+            if (event.detail.topic === 'attendance' && event.detail.context === this.element) {
+                event.detail.waitUntil(this.refreshAttendance(event.detail.source));
+            }
+        };
+        window.addEventListener('kmp:changed', this.onAttendanceChanged);
         this.onSavedOpen = () => this.loadRsvps();
         window.addEventListener('kmp:offline-unlocked', this.onSavedOpen);
         this.onSavedClear = () => { this.upcomingListTarget.replaceChildren(); this.pastListTarget.replaceChildren(); };
@@ -40,7 +46,14 @@ class MyRsvpsController extends MobileControllerBase {
     }
 
     async loadRsvps() {
-        if (!this.hasDataUrlValue || this.loadingRsvps) return;
+        if (!this.hasDataUrlValue) return false;
+        if (this.rsvpLoadPromise) return this.rsvpLoadPromise;
+        this.rsvpLoadPromise = this.fetchRsvps();
+        try { return await this.rsvpLoadPromise; }
+        finally { this.rsvpLoadPromise = null; }
+    }
+
+    async fetchRsvps() {
         this.loadingRsvps = true;
         const generation = vault.generation;
         try {
@@ -64,9 +77,11 @@ class MyRsvpsController extends MobileControllerBase {
             }
             this.updateBadgeCounts();
             this.updateOnlineButtons();
-            this.statusTarget.textContent = response.headers?.get('X-KMP-Offline-Saved') ? 'Showing your last saved update.' : '';
+            if (this.hasStatusTarget) this.statusTarget.textContent = response.headers?.get('X-KMP-Offline-Saved') ? 'Showing your last saved update.' : '';
+            return true;
         } catch (error) {
             if (this.hasStatusTarget) this.statusTarget.textContent = 'Connect and sign in to load your RSVPs.';
+            return false;
         } finally { this.loadingRsvps = false; }
     }
 
@@ -285,6 +300,7 @@ class MyRsvpsController extends MobileControllerBase {
         const attendanceId = button.dataset.attendanceId;
         
         this.currentGatheringId = gatheringId;
+        this.editTrigger = button;
         
         // Show modal with loading state
         this.modalBodyTarget.innerHTML = `
@@ -317,8 +333,7 @@ class MyRsvpsController extends MobileControllerBase {
             const html = await response.text();
             this.modalBodyTarget.innerHTML = html;
             
-            // Set up form handlers
-            this.setupFormHandlers();
+            // The shared turbo-modal controller owns submission and validation.
             
         } catch (error) {
             console.error('Error loading RSVP form:', error);
@@ -331,138 +346,32 @@ class MyRsvpsController extends MobileControllerBase {
         }
     }
 
-    /**
-     * Set up form submission handlers
-     */
-    setupFormHandlers() {
-        // Main attendance form
-        const form = this.modalBodyTarget.querySelector('#attendanceModalForm');
-        if (form) {
-            form.addEventListener('submit', (e) => this.handleFormSubmit(e));
-        }
-        
-        // Delete form
-        const deleteForm = this.modalBodyTarget.querySelector('form[id^="deleteAttendanceForm_"]');
-        if (deleteForm) {
-            deleteForm.addEventListener('submit', (e) => this.handleDeleteSubmit(e));
-        }
-    }
-
-    /**
-     * Handle main form submission
-     */
-    async handleFormSubmit(event) {
-        event.preventDefault();
-        
-        const form = event.target;
-        const formData = new FormData(form);
-        const submitButton = form.querySelector('button[type="submit"]');
-        
-        // Disable submit button
-        if (submitButton) {
-            submitButton.disabled = true;
-            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
-        }
-        
-        try {
-            const response = await fetch(form.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-            
-            if (response.ok || response.redirected) {
-                // Update RSVP cache
-                if (this.currentGatheringId) {
-                    rsvpCacheService.updateCachedRsvp(this.currentGatheringId, {
-                        share_with_kingdom: formData.get('share_with_kingdom') === '1',
-                        share_with_hosting_group: formData.get('share_with_hosting_group') === '1',
-                        share_with_crown: formData.get('share_with_crown') === '1',
-                        public_note: formData.get('public_note') || ''
-                    }).catch(err => console.warn('[MyRsvps] Failed to update RSVP cache:', err));
-                }
-                
-                // Success - close modal and reload page
-                this.modal.hide();
-                window.location.reload();
-            } else {
-                throw new Error(`Request failed: ${response.status}`);
+    /** Refresh live lists/counts and the offline projection after a committed change. */
+    async refreshAttendance(form) {
+        const data = new FormData(form);
+        const gatheringId = data.get('gathering_id');
+        const consent = name => data.getAll(name).at(-1) === '1';
+        const deleted = new URL(form.action).pathname.includes('/delete/');
+        if (gatheringId) {
+            try {
+                if (deleted) await rsvpCacheService.removeCachedRsvp(gatheringId);
+                else await rsvpCacheService.updateCachedRsvp(gatheringId, {
+                    share_with_kingdom: consent('share_with_kingdom'),
+                    share_with_hosting_group: consent('share_with_hosting_group'),
+                    share_with_crown: consent('share_with_crown'),
+                    public_note: data.get('public_note') || '',
+                });
+            } catch (error) {
+                console.warn('Unable to update the saved RSVP projection:', error);
             }
-        } catch (error) {
-            console.error('Error submitting form:', error);
-            
-            // Re-enable submit button
-            if (submitButton) {
-                submitButton.disabled = false;
-                submitButton.innerHTML = '<kmp-icon name="circle-check" class="me-2" aria-hidden="true"></kmp-icon>Save Changes';
-            }
-            
-            // Show error
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'alert alert-danger mt-3';
-            alertDiv.innerHTML = '<kmp-icon name="alert-triangle" class="me-2" aria-hidden="true"></kmp-icon>Failed to save. Please try again.';
-            form.appendChild(alertDiv);
         }
-    }
-
-    /**
-     * Handle delete form submission
-     */
-    async handleDeleteSubmit(event) {
-        event.preventDefault();
-        
-        if (!await window.KMP_accessibility.confirm('Are you sure you want to cancel your RSVP?', {
-            title: 'Cancel RSVP',
-            confirmLabel: 'Cancel RSVP',
-        })) {
-            return;
-        }
-        
-        const form = event.target;
-        const formData = new FormData(form);
-        const submitButton = form.querySelector('button[type="submit"]');
-        
-        // Disable submit button
-        if (submitButton) {
-            submitButton.disabled = true;
-            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Cancelling...';
-        }
-        
-        try {
-            const response = await fetch(form.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            });
-            
-            if (response.ok || response.redirected) {
-                // Remove from cache
-                if (this.currentGatheringId) {
-                    rsvpCacheService.removeCachedRsvp(this.currentGatheringId)
-                        .catch(err => console.warn('[MyRsvps] Failed to remove from RSVP cache:', err));
-                }
-                
-                // Success - close modal and reload page
-                this.modal.hide();
-                window.location.reload();
-            } else {
-                throw new Error(`Request failed: ${response.status}`);
-            }
-        } catch (error) {
-            console.error('Error deleting attendance:', error);
-            
-            // Re-enable submit button
-            if (submitButton) {
-                submitButton.disabled = false;
-                submitButton.innerHTML = '<kmp-icon name="trash" class="me-2" aria-hidden="true"></kmp-icon>Cancel RSVP';
-            }
-            
-            window.KMP_accessibility.announce('Failed to cancel RSVP. Please try again.', { assertive: true });
-        }
+        // A read started before the write cannot serve as its refresh.
+        if (this.rsvpLoadPromise) await this.rsvpLoadPromise;
+        if (!await this.loadRsvps()) throw new Error('Unable to refresh your RSVPs.');
+        const target = [...this.element.querySelectorAll('[data-attendance-id]')]
+            .find(button => button.dataset.gatheringId === String(gatheringId))
+            || this.upcomingListTarget.querySelector('button, a') || document.getElementById('upcoming-pane');
+        target?.focus({ preventScroll: true });
     }
 
     /**
@@ -483,6 +392,7 @@ class MyRsvpsController extends MobileControllerBase {
     }
 
     onDisconnect() {
+        window.removeEventListener('kmp:changed', this.onAttendanceChanged);
         window.removeEventListener('kmp:offline-unlocked', this.onSavedOpen);
         if (this.hasModalTarget && this.onHidden) this.modalTarget.removeEventListener('hidden.bs.modal', this.onHidden);
         window.removeEventListener('kmp:offline-revoked', this.onSavedClear);

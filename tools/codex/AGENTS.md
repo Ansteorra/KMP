@@ -7,7 +7,7 @@ Use this guide with the repository root `AGENTS.md`.
 - Own the portable install, startup, command wrapper, and shutdown for isolated
   Codex cloud development. Usage belongs in `app/docs/codex-cloud.md`.
 - Require the project's PHP, Node, and PostgreSQL versions; install application
-  dependencies from lockfiles. Runtime/package provisioning belongs to the cloud
+  and live-gateway dependencies from lockfiles. Runtime/package provisioning belongs to the cloud
   environment configuration.
 - Keep database files under ignored `.codex-runtime/`, bind PostgreSQL to
   loopback, and verify cluster identity before provisioning databases.

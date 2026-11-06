@@ -788,7 +788,10 @@ class GatheringsController extends AppController
                     'GatheringActivities',
                     'Creators' => ['fields' => ['id', 'sca_name']],
                     'Modifiers' => ['fields' => ['id', 'sca_name']],
-                    'sort' => ['GatheringScheduledActivities.start_datetime' => 'ASC'],
+                    'sort' => [
+                        'GatheringScheduledActivities.start_datetime' => 'ASC',
+                        'GatheringScheduledActivities.id' => 'ASC',
+                    ],
                 ],
                 'GatheringStaff' => [
                     'Members' => ['fields' => ['id', 'sca_name']],
@@ -1778,6 +1781,12 @@ class GatheringsController extends AppController
 
         $result = $scheduleService->delete((int)$id, $gathering, $this->Authentication->getIdentity());
 
+        if ($this->request->is('ajax') || $this->request->accepts('application/json')) {
+            return $this->response->withType('application/json')
+                ->withStatus($result['success'] ? 200 : 422)
+                ->withStringBody(json_encode($result));
+        }
+
         if (!empty($result['invalidOwner'])) {
             $this->Flash->error($result['message']);
         } elseif ($result['success']) {
@@ -1823,7 +1832,10 @@ class GatheringsController extends AppController
                 ],
                 'GatheringScheduledActivities' => [
                     'GatheringActivities',
-                    'sort' => ['GatheringScheduledActivities.start_datetime' => 'ASC'],
+                    'sort' => [
+                        'GatheringScheduledActivities.start_datetime' => 'ASC',
+                        'GatheringScheduledActivities.id' => 'ASC',
+                    ],
                 ],
             ])
             ->firstOrFail();

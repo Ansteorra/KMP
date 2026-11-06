@@ -146,6 +146,7 @@ case "$action" in
         composer install --no-interaction --prefer-dist --no-scripts
         composer check-platform-reqs
         npm ci --no-audit --no-fund
+        npm ci --prefix "$REPO_DIR/services/live-updates" --ignore-scripts --no-audit --no-fund
         npm run dev
         ;;
     start)

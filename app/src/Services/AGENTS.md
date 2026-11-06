@@ -26,6 +26,10 @@ Own reusable business workflows, side effects, integrations, registries, workflo
   Terminal completions skip the ordinary post-commit cascade and cannot auto-complete from satisfied fields. Automatic definition-sync cancellation provenance is
   the exact persisted system note constant; changing that text requires migrating existing logs.
 - Services assume authorization has already been enforced unless the service is specifically an authorization helper.
+- Registered live resources use ORM saves/deletes or `UiBulkMutation` for bulk writes. The latter locks the matched
+  records in ID order, mutates that fixed set, and records old/new owners in the same tenant transaction. Keep
+  optimistic predicates in its selection conditions. Direct `updateAll`/`deleteAll` bypass live callbacks and require
+  a documented native/admin exception or explicit same-transaction invalidation. See `app/docs/hotwire-interactions.md`.
 - Actor-driven gathering activity and schedule mutations reauthorize through
   `GatheringActivityAuthorizationService` inside their transactions. Plugin-owned activity grants use
   `GatheringActivityDelegationRegistry`; providers must resolve the active tenant lazily and evaluate

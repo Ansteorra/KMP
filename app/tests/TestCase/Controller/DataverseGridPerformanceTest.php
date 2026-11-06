@@ -7,9 +7,41 @@ use App\Services\ViewCellRegistry;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Services\BestowalQueryService;
 use Cake\Datasource\FactoryLocator;
+use DOMDocument;
+use DOMXPath;
 
 class DataverseGridPerformanceTest extends HttpIntegrationTestCase
 {
+    public function testDefaultSortIsReportedAndShownOnFirstLoad(): void
+    {
+        $cases = [
+            ['/app-settings/grid-data?ignore_default=1', 'name', 'asc'],
+            ['/app-settings/grid-data?ignore_default=1&sort=unknown&direction=desc', 'name', 'asc'],
+            ['/gatherings/grid-data?ignore_default=1', 'start_date', 'desc'],
+            ['/gathering-activities/grid-data?ignore_default=1', 'display_order', 'asc'],
+            ['/gathering-activities/grid-data?sort=name&direction=DESC', 'name', 'desc'],
+        ];
+        foreach ($cases as [$url, $field, $direction]) {
+            $this->get($url);
+            $this->assertResponseOk();
+            $this->assertSame(['field' => $field, 'direction' => $direction], $this->viewVariable('gridState')['sort']);
+            $document = new DOMDocument();
+            $previous = libxml_use_internal_errors(true);
+            try {
+                $document->loadHTML((string)$this->_response->getBody());
+            } finally {
+                libxml_clear_errors();
+                libxml_use_internal_errors($previous);
+            }
+            $xpath = new DOMXPath($document);
+            $header = '//th[@data-column-key="' . $field . '"][@aria-sort="'
+                . ($direction === 'asc' ? 'ascending' : 'descending') . '"]';
+            $icon = $direction === 'asc' ? 'caret-up' : 'caret-down';
+            $this->assertSame(1, $xpath->query($header . '//kmp-icon[@name="' . $icon . '"]')->length, $url);
+            $this->assertSame(1, $xpath->query('//th[@aria-sort="ascending" or @aria-sort="descending"]')->length);
+        }
+    }
+
     protected function setUp(): void
     {
         parent::setUp();

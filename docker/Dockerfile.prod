@@ -94,9 +94,11 @@ FROM ${BASE_IMAGE} AS runtime
 # Re-declare so the value is available in this stage
 ARG APP_VERSION=dev
 ARG RELEASE_CHANNEL=release
+ARG APP_REVISION=unknown
 
 LABEL org.opencontainers.image.source="https://github.com/jhandel/KMP"
 LABEL org.opencontainers.image.description="Kingdom Management Portal"
+LABEL org.opencontainers.image.revision="${APP_REVISION}"
 
 WORKDIR /var/www/html
 
@@ -115,7 +117,8 @@ COPY --from=php-deps /app/ ./
 
 # Stamp version and channel from build-args
 RUN echo "${APP_VERSION}" > config/version.txt \
-    && echo "${RELEASE_CHANNEL}" > config/channel.txt
+    && echo "${RELEASE_CHANNEL}" > config/channel.txt \
+    && echo "${APP_REVISION}" > config/revision.txt
 
 # Overwrite webroot with compiled frontend assets (JS, CSS, fonts, manifest)
 COPY --from=node-builder /build/webroot/ ./webroot/

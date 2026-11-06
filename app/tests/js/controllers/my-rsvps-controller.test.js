@@ -8,6 +8,7 @@ jest.mock('../../../assets/js/services/rsvp-cache-service.js', () => ({
     }
 }));
 
+import rsvpCacheService from '../../../assets/js/services/rsvp-cache-service.js';
 import MobileControllerBase from '../../../assets/js/controllers/mobile-controller-base.js';
 import '../../../assets/js/controllers/my-rsvps-controller.js';
 const MyRsvpsController = window.Controllers['my-rsvps'];
@@ -236,4 +237,24 @@ describe('MyRsvpsController', () => {
         expect(mockModal.dispose).toHaveBeenCalled();
         expect(controller.modal).toBeNull();
     });
+    test('refreshes saved sharing consent from the checked values and restores the edited card focus', async () => {
+        const form = document.createElement('form');
+        form.action = '/gathering-attendances/edit/42';
+        form.innerHTML = `<input name="gathering_id" value="7">
+            <input type="hidden" name="share_with_kingdom" value="0">
+            <input type="checkbox" name="share_with_kingdom" value="1" checked>
+            <input type="hidden" name="share_with_hosting_group" value="0">
+            <input type="checkbox" name="share_with_hosting_group" value="1" checked>
+            <input name="public_note" value="Updated consent">`;
+        controller.loadRsvps = jest.fn().mockResolvedValue(true);
+        controller.upcomingListTarget.innerHTML = '<button data-attendance-id="42" data-gathering-id="7">Edit RSVP</button>';
+        await controller.refreshAttendance(form);
+        expect(rsvpCacheService.updateCachedRsvp).toHaveBeenCalledWith('7', {
+            share_with_kingdom: true, share_with_hosting_group: true, share_with_crown: false,
+            public_note: 'Updated consent',
+        });
+        expect(controller.loadRsvps).toHaveBeenCalledTimes(1);
+        expect(document.activeElement).toHaveTextContent('Edit RSVP');
+    });
+
 });

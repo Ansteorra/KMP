@@ -1,143 +1,126 @@
 import { Controller } from "@hotwired/stimulus";
+import { updateUiHistory } from '../services/ui-navigation-service.js';
 
-/**
- * DetailTabs Stimulus Controller
- * 
- * Manages tabbed interfaces with URL state management and browser history integration.
- * Automatically handles tab activation, URL updates, and Turbo frame reloading for
- * dynamic content management.
- * 
- * Features:
- * - URL-based tab selection and state persistence
- * - Browser history integration with pushState
- * - Automatic first tab activation
- * - Turbo frame reloading on tab change
- * - Configurable URL update behavior
- * - Scroll management for better UX
- * 
- * Values:
- * - updateUrl: Boolean (default: true) - Whether to update URL on tab change
- * 
- * Targets:
- * - tabBtn: Tab button elements for navigation
- * - tabContent: Tab content panels (optional)
- * 
- * Usage:
- * <div data-controller="detail-tabs" data-detail-tabs-update-url-value="true">
- *   <nav>
- *     <button data-detail-tabs-target="tabBtn" id="nav-info-tab">Info</button>
- *     <button data-detail-tabs-target="tabBtn" id="nav-history-tab">History</button>
- *   </nav>
- *   <turbo-frame id="info-frame">...</turbo-frame>
- *   <turbo-frame id="history-frame">...</turbo-frame>
- * </div>
- */
+/** Keeps detail tabs, browser history, and nested tab groups in sync. */
 class DetailTabsController extends Controller {
     static targets = ["tabBtn", "tabContent"]
     static values = { updateUrl: { type: Boolean, default: true } }
     foundFirst = false;
     tabListeners = new Map();
 
-    /**
-     * Handle tab button connection to DOM
-     * Sets up tab activation based on URL parameters or defaults to first tab
-     * 
-     * @param {HTMLElement} event - Connected tab button element
-     */
-    tabBtnTargetConnected(event) {
-        var tab = event.id.replace('nav-', '').replace('-tab', '');
-        var urlTab = KMP_utils.urlParam('tab');
-        if (urlTab) {
-            if (tab == urlTab) {
-                event.click();
-                this.foundFirst = true;
-                window.scrollTo(0, 0);
-            }
-        } else {
-            if (!this.foundFirst) {
-                // Get the first tab based on CSS order, not DOM order
-                const firstTab = this.getFirstTabByOrder();
-                if (firstTab) {
-                    firstTab.click();
-                    this.foundFirst = true;
-                }
-                window.scrollTo(0, 0);
-            }
-        }
-        const listener = this.tabBtnClicked.bind(this);
-        this.tabListeners.set(event, listener);
-        event.addEventListener('click', listener);
+    connect() {
+        this.boundRestoreTab = this.restoreTab.bind(this);
+        window.addEventListener('popstate', this.boundRestoreTab);
+        window.addEventListener('kmp:ui-history-restored', this.boundRestoreTab);
+        window.addEventListener('kmp:screen-refreshed', this.boundRestoreTab);
+        document.addEventListener('turbo:morph', this.boundRestoreTab);
+        this.restoreTab();
     }
 
-    /**
-     * Get the first tab button based on CSS order attribute
-     * Respects the data-tab-order attribute for mixed plugin/template tabs
-     * 
-     * @returns {HTMLElement|null} First tab button by order, or null if none found
-     */
+    disconnect() {
+        window.removeEventListener('popstate', this.boundRestoreTab);
+        window.removeEventListener('kmp:ui-history-restored', this.boundRestoreTab);
+        window.removeEventListener('kmp:screen-refreshed', this.boundRestoreTab);
+        document.removeEventListener('turbo:morph', this.boundRestoreTab);
+        for (const button of this.tabListeners.keys()) {
+            this.tabBtnTargetDisconnected(button);
+        }
+        this.foundFirst = false;
+    }
+
+    /** Nested tabs keep local state without replacing the host detail tab in the URL. */
+    get ownsUrl() {
+        return this.updateUrlValue
+            && !this.element.parentElement?.closest('[data-controller~="detail-tabs"]');
+    }
+
+    tabId(button) {
+        return button.id.replace(/^nav-/, '').replace(/-tab$/, '');
+    }
+
+    get historyKey() {
+        return this.element.id || this.getFirstTabByOrder()?.id;
+    }
+
+    /** Bind Bootstrap's activation event so keyboard selection also updates context. */
+    tabBtnTargetConnected(button) {
+        if (!this.tabListeners.has(button)) {
+            const listener = this.tabBtnClicked.bind(this);
+            this.tabListeners.set(button, listener);
+            button.addEventListener('shown.bs.tab', listener);
+        }
+        if (!this.foundFirst) {
+            this.restoreTab();
+        }
+    }
+
+    /** Select the first tab by the shared core/plugin ordering convention. */
     getFirstTabByOrder() {
-        if (this.tabBtnTargets.length === 0) {
-            return null;
-        }
-
-        // Sort tabs by their order attribute (lower number = first)
-        const sortedTabs = [...this.tabBtnTargets].sort((a, b) => {
-            const orderA = parseInt(a.dataset.tabOrder || '999', 10);
-            const orderB = parseInt(b.dataset.tabOrder || '999', 10);
-            return orderA - orderB;
-        });
-
-        return sortedTabs[0];
+        return [...this.tabBtnTargets].sort((a, b) =>
+            parseInt(a.dataset.tabOrder || '999', 10) - parseInt(b.dataset.tabOrder || '999', 10),
+        )[0] ?? null;
     }
 
-    /**
-     * Handle tab button clicks
-     * Updates URL history and triggers frame reloading for dynamic content
-     * 
-     * @param {Event} event - Click event from tab button
-     */
-    tabBtnClicked(event) {
-        // Get first tab based on order, not DOM position
-        const firstTab = this.getFirstTabByOrder();
-        const firstTabId = firstTab?.id || this.tabBtnTargets[0]?.id;
-        const button = event.currentTarget || event.target.closest('[data-detail-tabs-target="tabBtn"]');
+    /** Restore history without creating entries, scrolling, or reloading loaded frames. */
+    restoreTab() {
+        const requested = this.ownsUrl ? new URL(window.location.href).searchParams.get('tab')
+            : window.history.state?.kmp?.nestedTabs?.[this.historyKey];
+        const button = this.tabBtnTargets.find(tab => this.tabId(tab) === requested)
+            ?? (this.ownsUrl ? null : this.tabBtnTargets.find(tab => tab.classList.contains('active')))
+            ?? this.getFirstTabByOrder();
         if (!button) return;
-        var eventTabId = button.id;
-        var tab = button.id.replace('nav-', '').replace('-tab', '');
-        if (this.updateUrlValue) {
-            if (firstTabId != eventTabId) {
-                window.history.pushState({}, '', '?tab=' + tab);
-                window.dispatchEvent(new CustomEvent('page-context:sync'));
+
+        this.restoringTab = true;
+        this.foundFirst = true;
+        try {
+            // Bootstrap manages panel visibility, roving tabindex, and ARIA state.
+            const Tab = window.bootstrap?.Tab;
+            if (Tab?.getOrCreateInstance) {
+                Tab.getOrCreateInstance(button).show();
             } else {
-                //only push state if there is a tab in the querystring
-                var urlTab = KMP_utils.urlParam('tab');
-                if (urlTab) {
-                    window.history.pushState({}, '', window.location.pathname);
-                    window.dispatchEvent(new CustomEvent('page-context:sync'));
-                }
+                button.click();
             }
-        }
-        var frame = document.getElementById(tab + '-frame');
-        if (frame) {
-            // Check if frame has been loaded before - if it has a src and is complete, reload it
-            // Otherwise, let the lazy loading handle the initial load
-            if (frame.loaded || (frame.complete && !frame.hasAttribute('loading'))) {
-                frame.reload();
-            }
+        } finally {
+            this.restoringTab = false;
+            this.selectedTabId = this.tabId(button);
         }
     }
 
-    /**
-     * Handle tab button disconnection from DOM
-     * Cleans up event listeners to prevent memory leaks
-     * 
-     * @param {HTMLElement} event - Disconnected tab button element
-     */
-    tabBtnTargetDisconnected(event) {
-        const listener = this.tabListeners.get(event);
+    /** Preserve host queries and hashes; Turbo's lazy frames load when made visible. */
+    tabBtnClicked(event) {
+        if (!this.updateUrlValue || this.restoringTab) return;
+        const button = event.currentTarget || event.target.closest('[data-detail-tabs-target="tabBtn"]');
+        if (!this.tabBtnTargets.includes(button)) return;
+
+        if (!this.ownsUrl) {
+            const selected = this.tabId(button);
+            if (!window.history.state?.kmp?.nestedTabs?.[this.historyKey]) {
+                const initial = this.selectedTabId || this.tabId(this.getFirstTabByOrder());
+                updateUiHistory(window.location.href, { replace: true, nestedTabs: { [this.historyKey]: initial } });
+            }
+            if (window.history.state?.kmp?.nestedTabs?.[this.historyKey] !== selected) {
+                updateUiHistory(window.location.href, { nestedTabs: { [this.historyKey]: selected } });
+            }
+            this.selectedTabId = selected;
+            return;
+        }
+
+        const url = new URL(window.location.href);
+        if (button === this.getFirstTabByOrder()) {
+            url.searchParams.delete('tab');
+        } else {
+            url.searchParams.set('tab', this.tabId(button));
+        }
+        if (url.href === window.location.href) return;
+        updateUiHistory(url.pathname + url.search + url.hash);
+        window.dispatchEvent(new CustomEvent('page-context:sync'));
+    }
+
+    tabBtnTargetDisconnected(button) {
+        const listener = this.tabListeners.get(button);
         if (listener) {
-            event.removeEventListener('click', listener);
-            this.tabListeners.delete(event);
+            button.removeEventListener('shown.bs.tab', listener);
+            this.tabListeners.delete(button);
         }
     }
 }

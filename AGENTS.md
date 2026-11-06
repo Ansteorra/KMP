@@ -54,7 +54,7 @@ Deliver small, correct, verified changes that match the existing CakePHP 5, Stim
 - JavaScript bundled with Vite.
 - Stimulus controllers registered through `window.Controllers`.
 - Bootstrap 5 UI components.
-- Turbo Drive disabled; Turbo Frames used for dynamic content.
+- Turbo Drive is gated by `KMP_TURBO_ENABLED`; Frames/Streams remain the fallback. Live SSE delivery has an independent switch. Keep both off until release gates pass.
 - PHPUnit, Jest/jsdom, and Playwright BDD tests.
 
 ## Core coding patterns
@@ -189,3 +189,4 @@ Durable development boundaries with their own local contracts:
 | `docker/AGENTS.md` | Container images, entrypoints, local runtime scripts, and Docker support files |
 | `installer/AGENTS.md` | Retirement notice for removed installer and updater tooling |
 | `tools/codex/AGENTS.md` | Isolated OpenAI-hosted development lifecycle and verification |
+| `services/AGENTS.md` | Independent runtime services, including authorized live-update delivery |

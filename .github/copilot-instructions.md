@@ -233,7 +233,7 @@ Do not run `phpcbf` across the whole codebase. The PHPCS config intentionally ex
 - Define `static targets`, `static values`, `static classes`, and `static outlets` instead of querying arbitrary DOM where possible.
 - Clean up event listeners, timers, observers, and pending async work in `disconnect()`.
 - Use namespaced custom events for cross-component communication, such as `offline-queue:*` or controller-specific prefixes.
-- Turbo Drive is disabled in `assets/js/index.js`; Turbo Frames remain in use. Do not re-enable Drive without a focused compatibility review.
+- Turbo Drive is gated by `KMP_TURBO_ENABLED`; the Frame/Stream fallback remains available. Use the shared navigation adapter, preserve Turbo history and drafts, and validate cached authenticated snapshots through `/navigation/context`. Live updates require their separate switch and the release gates in `app/docs/hotwire-interactions.md`.
 - Use `KMP_utils` for URL and sanitization helpers and `KMP_accessibility` for accessible alert/confirm/prompt/announce flows.
 - Bootstrap is imported by the frontend entrypoint and bundled by Vite. Use Bootstrap classes and components consistently with existing templates.
 - Keep controllers accessibility-aware: preserve focus, update ARIA state (`aria-expanded`, `aria-selected`, `aria-busy`, etc.), avoid inaccessible hidden content, and announce async results when needed.

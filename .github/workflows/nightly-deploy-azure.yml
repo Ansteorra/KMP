@@ -28,6 +28,7 @@ jobs:
     outputs:
       evidence_tag: ${{ steps.image.outputs.evidence_tag }}
       source_image: ${{ steps.image.outputs.source_image }}
+      source_live_image: ${{ steps.image.outputs.source_live_image }}
       source_sha: ${{ steps.image.outputs.source_sha }}
       target_tag: ${{ steps.image.outputs.target_tag }}
     steps:
@@ -72,10 +73,13 @@ jobs:
             echo "Unable to resolve an immutable digest for $SOURCE_TAGGED_IMAGE" >&2
             exit 1
           fi
+          LIVE_DIGEST="$(docker buildx imagetools inspect "ghcr.io/ansteorra/kmp-live:${SOURCE_TAG}" --format '{{.Manifest.Digest}}')"
+          [[ "$LIVE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo 'Matching gateway image is missing.' >&2; exit 1; }
 
           {
             echo "evidence_tag=$EVIDENCE_TAG"
             echo "source_image=ghcr.io/ansteorra/kmp@${DIGEST}"
+            echo "source_live_image=ghcr.io/ansteorra/kmp-live@${LIVE_DIGEST}"
             echo "source_sha=$SHA"
             echo "target_tag=$TARGET_TAG"
           } >> "$GITHUB_OUTPUT"
@@ -98,6 +102,7 @@ jobs:
     with:
       environment_name: poc
       source_image: ${{ needs.prepare.outputs.source_image }}
+      source_live_image: ${{ needs.prepare.outputs.source_live_image }}
       target_tag: ${{ needs.prepare.outputs.target_tag }}
       checkout_ref: ${{ needs.prepare.outputs.source_sha || github.sha }}
 
@@ -124,6 +129,8 @@ jobs:
         env:
           EVIDENCE_TAG: ${{ needs.prepare.outputs.evidence_tag }}
           SOURCE_IMAGE: ${{ needs.prepare.outputs.source_image }}
+          SOURCE_LIVE_IMAGE: ${{ needs.prepare.outputs.source_live_image }}
+          SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
         run: |
           set -euo pipefail
           EVIDENCE_IMAGE="ghcr.io/ansteorra/kmp:${EVIDENCE_TAG}"
@@ -140,3 +147,17 @@ jobs:
             exit 1
           fi
           echo "Recorded $EVIDENCE_IMAGE at $ACTUAL_DIGEST"
+          LIVE_EVIDENCE_IMAGE="ghcr.io/ansteorra/kmp-live:${EVIDENCE_TAG}"
+          docker buildx imagetools create --tag "$LIVE_EVIDENCE_IMAGE" "$SOURCE_LIVE_IMAGE"
+          LIVE_ACTUAL="$(docker buildx imagetools inspect "$LIVE_EVIDENCE_IMAGE" --format '{{.Manifest.Digest}}')"
+          [[ "$LIVE_ACTUAL" == "${SOURCE_LIVE_IMAGE##*@}" ]] || { echo 'Gateway evidence digest differs.' >&2; exit 1; }
+          jq -n --arg commit "$SOURCE_SHA" --arg web "$SOURCE_IMAGE" --arg live "$SOURCE_LIVE_IMAGE" \
+            '{commit: $commit, web: $web, live: $live}' > poc-image-pair.json
+
+      - name: Preserve the exact deployed image pair
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: poc-image-pair-${{ needs.prepare.outputs.source_sha }}
+          path: poc-image-pair.json
+          if-no-files-found: error
+          retention-days: 90

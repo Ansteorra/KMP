@@ -11,6 +11,7 @@ local setup, deployment, and the complete documentation map.
 | [`icons.md`](icons.md) | Unified SVG catalog, picker, compatibility, delivery, and updates |
 | [`icon-migration.md`](icon-migration.md) | Icon audit, migration coverage, verification, exceptions, and deployment report |
 | [`ui-pattern-showcase.md`](ui-pattern-showcase.md) | Isolated six-family design review and full-app mobile interaction contracts |
+| [`hotwire-interactions.md`](hotwire-interactions.md) | Turbo update boundaries, detail-tab context, modal saves, and interaction review |
 | [`codex-cloud.md`](codex-cloud.md) | OpenAI-hosted development prerequisites, lifecycle commands, and verification scope |
 | [`workflow-api-endpoints.md`](workflow-api-endpoints.md) | Workflow definition, instance, and approval route ownership |
 | [`date-range-filtering-implementation.md`](date-range-filtering-implementation.md) | Dataverse grid date-range metadata, URL, timezone, and view contract |
