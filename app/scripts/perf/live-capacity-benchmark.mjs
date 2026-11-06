@@ -65,6 +65,8 @@ export function releaseGate(report, baseline) {
     const failures = [];
     if (report.durationSeconds < 1800 || report.sessions < 500 || report.tenants < 5) failures.push('workload size');
     if (report.ordinaryRequests < report.durationSeconds * 50 || report.mutations < report.durationSeconds * 5) failures.push('request rates');
+    if (!Number.isFinite(report.elapsedSeconds) || report.elapsedSeconds < report.durationSeconds
+        || report.elapsedSeconds > report.durationSeconds + 15) failures.push('workload timing');
     if (report.errors.length || report.missingUpdates) failures.push('unexpected errors or missing updates');
     if (report.requestP95Ms === null || report.requestP95Ms > 1500) failures.push('request latency');
     if (report.liveP95Ms === null || report.liveP95Ms > 2000) failures.push('live latency');
@@ -75,6 +77,8 @@ export function releaseGate(report, baseline) {
         || baseline.commit !== report.commit || baseline.fixtureDigest !== report.fixtureDigest
         || JSON.stringify(baseline.replicas) !== JSON.stringify(report.replicas)
         || baseline.durationSeconds < 300 || baseline.errors.length || baseline.requestP95Ms === null
+        || !Number.isFinite(baseline.elapsedSeconds) || baseline.elapsedSeconds < baseline.durationSeconds
+        || baseline.elapsedSeconds > baseline.durationSeconds + 15
         || baseline.ordinaryRequests < baseline.durationSeconds * 50 || baseline.mutations < baseline.durationSeconds * 5
         || report.requestP95Ms > baseline.requestP95Ms * 1.1) failures.push('comparable baseline');
     return { passed: failures.length === 0, failures };

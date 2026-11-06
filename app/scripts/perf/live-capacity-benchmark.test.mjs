@@ -27,20 +27,22 @@ test('manifest requires distinct accounts, five tenants and immutable replica pa
 });
 
 test('release evidence cannot pass with shortened duration, lower rates, missing telemetry or a different baseline', () => {
-    const report = { commit: 'a'.repeat(40), fixtureDigest: 'fixture', replicas, durationSeconds: 1800,
+    const report = { commit: 'a'.repeat(40), fixtureDigest: 'fixture', replicas, durationSeconds: 1800, elapsedSeconds: 1810,
         sessions: 500, tenants: 5, ordinaryRequests: 90000, mutations: 9000, errors: [], missingUpdates: 0,
         requestP95Ms: 1090, liveP95Ms: 1900, distinctSessions: 500, minimumConnected: 500,
         telemetrySamples: 360, observabilityComplete: true, runtimeVerified: true, environment: { testHost: true } };
     const baseline = { ...report, mode: 'baseline', requestP95Ms: 1000 };
     assert.equal(releaseGate(report, baseline).passed, true);
     for (const patch of [{ durationSeconds: 1799 }, { sessions: 499 }, { tenants: 4 }, { ordinaryRequests: 89999 },
-        { mutations: 8999 }, { errors: ['unexpected'] }, { missingUpdates: 1 }, { requestP95Ms: 1101 },
+        { mutations: 8999 }, { elapsedSeconds: undefined }, { elapsedSeconds: 1799 }, { elapsedSeconds: 1816 },
+        { errors: ['unexpected'] }, { missingUpdates: 1 }, { requestP95Ms: 1101 },
         { liveP95Ms: 2001 }, { distinctSessions: 499 }, { minimumConnected: 499 }, { observabilityComplete: false }, { runtimeVerified: false }]) {
         assert.equal(releaseGate({ ...report, ...patch }, baseline).passed, false, JSON.stringify(patch));
     }
     assert.equal(releaseGate(report, { ...baseline, commit: 'b'.repeat(40) }).passed, false);
     assert.equal(releaseGate(report, { ...baseline, fixtureDigest: 'different fixture' }).passed, false);
     assert.equal(releaseGate(report, { ...baseline, environment: { differentHost: true } }).passed, false);
+    assert.equal(releaseGate(report, { ...baseline, elapsedSeconds: 1816 }).passed, false);
     assert.equal(releaseGate(report, null).passed, false);
 });
 
