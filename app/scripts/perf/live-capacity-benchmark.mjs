@@ -89,7 +89,7 @@ export class Session {
         const response = await fetch(url, { ...options, redirect: 'manual', signal: options.signal || AbortSignal.timeout(30000), headers: {
             Cookie: [...this.cookies].map(([key, value]) => `${key}=${value}`).join('; '),
             ...(this.metrics.run ? { 'X-KMP-Performance-Run': this.metrics.run } : {}),
-            'X-Requested-With': 'XMLHttpRequest', ...options.headers,
+            Accept: 'text/html,application/xhtml+xml', ...options.headers,
         } });
         for (const cookie of response.headers.getSetCookie()) {
             const first = cookie.split(';', 1)[0]; const equals = first.indexOf('=');

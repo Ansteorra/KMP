@@ -63,3 +63,16 @@ test('every affected observer must read committed content; one refresh cannot hi
     assert.equal(metrics.request.length, 2);
     assert.deepEqual(reads, ['first@example.test', 'second@example.test']);
 });
+
+test('ordinary reads request the full document and mutations retain their stream negotiation', async t => {
+    const calls = [];
+    t.mock.method(globalThis, 'fetch', async (url, options) => {
+        calls.push(options); return new Response('authorized content');
+    });
+    const session = new Session({ origins: ['https://tenant.example.test'] }, {});
+    await session.request('/members/view/7');
+    assert.equal(calls[0].headers.Accept, 'text/html,application/xhtml+xml');
+    assert.equal(calls[0].headers['X-Requested-With'], undefined);
+    await session.request('/notes/add', { method: 'POST', headers: { Accept: 'text/vnd.turbo-stream.html' } });
+    assert.equal(calls[1].headers.Accept, 'text/vnd.turbo-stream.html');
+});
