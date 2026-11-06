@@ -56,6 +56,7 @@ class WaiverUploadWizardController extends Controller {
         totalSteps: { type: Number, default: 3 },
         gatheringId: Number,
         gatheringPublicId: String,
+        returnUrl: String,
         maxFileSize: Number,           // Maximum single file size in bytes
         totalMaxSize: Number,          // Maximum total upload size in bytes
         preSelectedWaiverTypeId: Number, // Pre-selected waiver type ID from URL
@@ -751,6 +752,7 @@ class WaiverUploadWizardController extends Controller {
 
     removePage(event) {
         const index = parseInt(event.currentTarget.dataset.index)
+        const restoreFocus = event.currentTarget === document.activeElement
         this.uploadedPages.splice(index, 1)
 
         // Renumber pages
@@ -759,6 +761,12 @@ class WaiverUploadWizardController extends Controller {
         })
 
         this.renderPages()
+        if (restoreFocus) {
+            const nextIndex = Math.min(index, this.uploadedPages.length - 1)
+            const next = this.pagesPreviewTarget.querySelector(`button[data-index="${nextIndex}"]`)
+                || this.element.querySelector('[data-action~="click->waiver-upload-wizard#triggerFileInput"]')
+            next?.focus()
+        }
 
         // Update total size display after removal
         if (this.uploadedPages.length > 0) {
@@ -835,6 +843,7 @@ class WaiverUploadWizardController extends Controller {
                                     </div>
                                     <button type="button" 
                                             class="btn btn-sm btn-outline-danger"
+                                            aria-label="Remove page ${page.number}"
                                             data-index="${index}"
                                             data-action="click->waiver-upload-wizard#removePage">
                                         <kmp-icon name="trash"  aria-hidden="true"></kmp-icon>
@@ -1105,6 +1114,7 @@ class WaiverUploadWizardController extends Controller {
 
     async submitWaiverUpload(startTime) {
         const formData = new FormData()
+        if (this.hasReturnUrlValue && this.returnUrlValue) formData.append('page_context_url', this.returnUrlValue)
         const preparedPages = await this.prepareUploadPages()
         if (this.isDisconnected) {
             return

@@ -198,7 +198,7 @@ class PdfProcessingService
 
         // Save as PNG
         $result = imagepng($image, $outputPath);
-        imagedestroy($image);
+        unset($image);
 
         if (!$result) {
             return new ServiceResult(false, 'Failed to save thumbnail');

@@ -192,6 +192,17 @@ Award quick-edit failures return a 422 feedback stream for coordinated clients.
 The existing form, values, labels and focus remain available for correction. A
 legacy client can still receive its original GET-based edit-frame reload.
 
+Native waiver uploads carry an explicit same-origin return context from their
+originating screen through the wizard and file submission. Validate it before
+processing files. Successful uploads return to that tab/query, with the gathering's
+waiver tab as the direct-open fallback; legacy PHP session history is never read.
+The native upload regression creates an image, converts/saves one PDF, verifies an
+authorized download and return context, and scans all three wizard states.
+Progress indicators and remove-page controls have accessible names; removing a
+page keeps keyboard focus on a surviving action. GD cleanup uses object lifetime
+instead of the [obsolete image-destroy call](https://www.php.net/manual/en/function.imagedestroy.php),
+whose PHP 8.5 warnings can corrupt development upload responses.
+
 Heavy frontend controllers/services are eagerly imported through
 `controllers-entry.js`. Dynamic loading of expensive editor, PDF, and recognition
 features is a separate bundle-performance opportunity and needs a focused review

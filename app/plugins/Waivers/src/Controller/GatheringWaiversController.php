@@ -649,7 +649,9 @@ class GatheringWaiversController extends AppController
             ->where([
                 'gathering_id' => $gatheringWaiver->gathering_id,
                 'waiver_type_id' => $gatheringWaiver->waiver_type_id,
-            ])->contain(['CreatedByMembers', 'ReversedByMembers'])->orderBy(['GatheringWaiverLosses.id' => 'DESC'])->all();
+            ])
+            ->contain(['CreatedByMembers', 'ReversedByMembers'])
+            ->orderBy(['GatheringWaiverLosses.id' => 'DESC'])->all();
         $waiverLoss = $lossReports->filter(static fn($loss) => $loss->reversed_at === null)->first();
         $this->set('waiverLoss', $waiverLoss);
         $this->set('lossReports', $lossReports);
@@ -693,14 +695,21 @@ class GatheringWaiversController extends AppController
             throw new BadRequestException(__('Gathering ID is required'));
         }
 
+        $pageContextUrl = $this->getPageContextUrl();
+        if ($this->request->is('get')) {
+            $context = $this->request->getQuery('page_context_url') ?? $this->request->referer();
+            if (
+                is_string($context) && $context !== ''
+                && parse_url($context, PHP_URL_PATH) !== $this->request->getUri()->getPath()
+            ) {
+                $pageContextUrl = $this->assertSafeContextUrl($context);
+            }
+        }
+
         // Get gathering with activities
         $Gatherings = $this->fetchTable('Gatherings');
-        $gathering = $Gatherings->get($gatheringId, [
-            'contain' => [
-                'GatheringTypes',
-                'Branches',
-                'GatheringActivities',
-            ],
+        $gathering = $Gatherings->get($gatheringId, contain: [
+            'GatheringTypes', 'Branches', 'GatheringActivities',
         ]);
 
         // need an empty gathering waiver to check authorization
@@ -813,31 +822,10 @@ class GatheringWaiversController extends AppController
                 );
 
                 if ($result->success) {
-                    // Determine redirect URL based on referer or default to index
-                    $referer = $this->request->referer();
-                    $redirectUrl = null;
-
-                    // If coming from mobile card view, redirect back there
-                    if ($referer && strpos($referer, 'view-mobile-card') !== false) {
-                        $redirectUrl = $referer;
-                    } elseif ($referer && strpos($referer, 'viewMobileCard') !== false) {
-                        $redirectUrl = $referer;
-                    } else {
-                        // default back to the last page the user was on based on our managed back stack
-                        $pageStack = $this->request->getSession()->read('pageStack') ?? [];
-                        $historyCount = count($pageStack);
-                        if ($historyCount >= 2) {
-                            $redirectUrl = $pageStack[$historyCount - 2];
-                        } else {
-                            // Default to waiver index for this gathering
-                            $redirectUrl = Router::url([
-                                'plugin' => 'Waivers',
-                                'controller' => 'GatheringWaivers',
-                                'action' => 'index',
-                                '?' => ['gathering_id' => $gatheringId],
-                            ], true); // true = full base URL
-                        }
-                    }
+                    $redirectUrl = $pageContextUrl ?? Router::url([
+                        'plugin' => false, 'controller' => 'Gatherings', 'action' => 'view',
+                        $gathering->public_id, '?' => ['tab' => 'gathering-waivers'],
+                    ]);
 
                     // Get result data for messaging
                     $resultData = $result->getData();
@@ -866,7 +854,7 @@ class GatheringWaiversController extends AppController
                     }
 
                     // For non-AJAX, redirect
-                    return $this->redirect($redirectUrl);
+                    return $this->redirect($redirectUrl, 303);
                 } else {
                     // Handle error case
                     if ($this->request->is('ajax')) {
@@ -932,6 +920,7 @@ class GatheringWaiversController extends AppController
             'uploadLimits',
             'preSelectedWaiverTypeId',
             'waiverStatusSummary',
+            'pageContextUrl',
         ));
     }
 

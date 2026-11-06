@@ -13,7 +13,7 @@ const {
 const { Given, When, Then } = createBdd();
 
 Then('the real browser check {string} should pass', async ({ $testInfo }, check) => {
-    const allowed = new Set(['turbo-navigation', 'detail-tabs', 'partial-updates']);
+    const allowed = new Set(['turbo-navigation', 'detail-tabs', 'partial-updates', 'waiver-upload', 'public-gathering-attendance']);
     expect(allowed.has(check)).toBe(true);
     const script = path.resolve(__dirname, `../../support/${check}-browser-check.cjs`);
     try {

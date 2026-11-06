@@ -599,6 +599,26 @@ describe('WaiverUploadWizardController', () => {
         expect(uploadSpy).not.toHaveBeenCalled();
     });
 
+    test('native uploads carry the original detail tab and query with their files', async () => {
+        controller.hasReturnUrlValue = true;
+        controller.returnUrlValue = '/gatherings/view/fixture?tab=gathering-waivers&search=kept#place';
+        controller.selectedWaiverType = { id: 10, name: 'Fixture waiver' };
+        jest.spyOn(controller, 'prepareUploadPages').mockResolvedValue([
+            { uploadFile: new File(['fixture'], 'waiver.png', { type: 'image/png' }) },
+        ]);
+        jest.spyOn(controller, 'uploadFormData').mockImplementation(async form => {
+            expect(form.get('page_context_url')).toBe(controller.returnUrlValue);
+            expect(form.getAll('waiver_images[]')).toHaveLength(1);
+            return { ok: true, data: {} };
+        });
+        jest.spyOn(controller, 'updateProcessingStatus').mockImplementation(() => {});
+        const timer = jest.spyOn(global, 'setTimeout').mockImplementation(() => 1);
+        try {
+            await controller.submitWaiverUpload(Date.now());
+            expect(controller.uploadFormData).toHaveBeenCalledTimes(1);
+        } finally { timer.mockRestore(); }
+    });
+
     test('optimizeImage resizes and converts a larger image to grayscale JPEG', async () => {
         const image = { width: 4000, height: 3000, close: jest.fn() };
         const imageData = { data: new Uint8ClampedArray([255, 0, 0, 255]) };
@@ -693,12 +713,28 @@ describe('WaiverUploadWizardController', () => {
             { file: {}, number: 3, name: 'c.jpg', size: 300, pdfPageCount: 0 }
         ];
 
-        controller.removePage({ currentTarget: { dataset: { index: '1' } } });
+        controller.renderPages();
+        const remove = controller.pagesPreviewTarget.querySelector('button[data-index="1"]');
+        remove.focus();
+        controller.removePage({ currentTarget: remove });
 
         expect(controller.uploadedPages).toHaveLength(2);
         expect(controller.uploadedPages[0].number).toBe(1);
         expect(controller.uploadedPages[1].number).toBe(2);
         expect(controller.uploadedPages[1].name).toBe('c.jpg');
+        expect(controller.pagesPreviewTarget.querySelector('button[data-index="1"]')).toHaveFocus();
+    });
+
+    test('removing the last page returns focus to Add Page', () => {
+        const add = document.createElement('button');
+        add.dataset.action = 'click->waiver-upload-wizard#triggerFileInput';
+        controller.element.append(add);
+        controller.uploadedPages = [{ file: {}, number: 1, name: 'a.jpg', size: 100, pdfPageCount: 0 }];
+        controller.renderPages();
+        const remove = controller.pagesPreviewTarget.querySelector('button[data-index="0"]');
+        remove.focus();
+        controller.removePage({ currentTarget: remove });
+        expect(add).toHaveFocus();
     });
 
     // --- renderPages ---
@@ -716,6 +752,7 @@ describe('WaiverUploadWizardController', () => {
         controller.renderPages();
         expect(controller.pagesPreviewTarget.innerHTML).toContain('Page 1');
         expect(controller.pagesPreviewTarget.innerHTML).toContain('page1.jpg');
+        expect(controller.pagesPreviewTarget.querySelector('button')).toHaveAttribute('aria-label', 'Remove page 1');
     });
 
     test('renderPages shows PDF icon for PDF pages without thumbnail', () => {

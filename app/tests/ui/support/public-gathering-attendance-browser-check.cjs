@@ -1,9 +1,9 @@
 /** Local synthetic acceptance for public RSVP scrolling, native forms, and confirmation. */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const { chromium } = require('playwright');
-const { expect } = require('@playwright/test');
+const { chromium, firefox, webkit, expect } = require('@playwright/test');
 const { loginAs, runPhpJson } = require('./ui-helpers.cjs');
+const { getUiTestEnvironment } = require('./test-environment.cjs');
 
 const source = fs.readFileSync(require.resolve('./offline-app-browser-check.cjs'), 'utf8');
 const fixtureMatch = source.match(/const tenantFixture = String.raw`([\s\S]*?)`;/);
@@ -20,8 +20,9 @@ fixturePhp = patch(fixturePhp, "return ['id' => $gathering->id", "return ['publi
     const fixture = runPhpJson(fixturePhp);
     let browser;
     try {
-        browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
-        const context = await browser.newContext({ baseURL: 'http://kmp.localhost:8080' });
+        const engine = process.env.PLAYWRIGHT_BROWSER || 'chromium';
+        browser = await ({ chromium, firefox, webkit })[engine].launch({ headless: true });
+        const context = await browser.newContext({ baseURL: getUiTestEnvironment().baseUrl, reducedMotion: 'reduce' });
         const page = await context.newPage();
         const errors = [];
         page.on('pageerror', error => errors.push(error.message));
@@ -36,7 +37,8 @@ fixturePhp = patch(fixturePhp, "return ['id' => $gathering->id", "return ['publi
                     && new URL(response.url()).pathname.startsWith('/gathering-attendances/' + action)),
                 trigger(),
             ]);
-            expect(response.status()).toBe(302);
+            expect(response.status()).toBe(303);
+            expect(response.request().isNavigationRequest()).toBe(true);
             await page.waitForURL(url => url.pathname === path);
             await expect(page.locator('#attendGatheringModal')).not.toBeVisible();
         };

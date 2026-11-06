@@ -14,3 +14,9 @@ Feature: Dialog setup follows document navigation
 
     Scenario: Notes, RSVPs and schedule saves reconcile dependent details
         Then the real browser check "partial-updates" should pass
+
+    Scenario: Native waiver uploads retain their originating detail tab
+        Then the real browser check "waiver-upload" should pass
+
+    Scenario: Public RSVP forms retain native consent and accessible dialog behavior
+        Then the real browser check "public-gathering-attendance" should pass
