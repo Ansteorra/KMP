@@ -314,9 +314,12 @@ class Application extends BaseApplication implements
             }
 
             $inner = method_exists($driver, 'getLogger') ? $driver->getLogger() : null;
-            $counter = new RequestQueryCounter($inner);
+            $counter = $inner instanceof RequestQueryCounter ? $inner : new RequestQueryCounter($inner);
             RequestQueryCounter::setInstance($counter);
             $driver->setLogger($counter);
+            if (in_array('platform', ConnectionManager::configured(), true)) {
+                ConnectionManager::get('platform')->getDriver()->setLogger($counter);
+            }
         } catch (Throwable) {
             // Telemetry bootstrap must not break the app; ignore.
         }

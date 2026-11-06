@@ -583,7 +583,9 @@ describe('GridViewController', () => {
         expect(active).toHaveTextContent('Royal visits (Default view)');
         expect(active).toHaveAttribute('aria-controls', 'members-table');
         expect(active.tabIndex).toBe(0);
-        expect(container.querySelector('[data-bs-toggle="dropdown"]')).toHaveAccessibleName('View options: Royal visits');
+        expect(container.querySelector('[data-bs-toggle="dropdown"]')).toBeNull();
+        expect(controller.element.querySelector('[data-view-actions-container] [data-bs-toggle="dropdown"]'))
+            .toHaveAccessibleName('View options: Royal visits');
         expect(controller.element.querySelector('turbo-frame')).toHaveAttribute('aria-labelledby', active.id);
         controller.state.view.currentId = null;
         controller.updateViewTabs();

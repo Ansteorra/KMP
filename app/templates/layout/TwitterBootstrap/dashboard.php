@@ -115,11 +115,11 @@ $url = $fullBaseUrl . '/keepalive';
                 <kmp-icon name="chevron-left-pipe"  data-sidebar-toggle-target="icon" aria-hidden="true"></kmp-icon>
             </button>
             <?= $this->Html->image($this->KMP->assetUrl($this->KMP->getAppSetting('KMP.BannerLogo')), [
-                'alt' => 'Logo',
+                'alt' => $this->KMP->getAppSetting('KMP.ShortSiteTitle'),
                 'height' => '24',
                 'class' => 'd-inline-block mb-1',
             ]) ?>
-            <span class="fs-5"><?= h($this->KMP->getAppSetting('KMP.ShortSiteTitle')) ?></span>
+            <span class="fs-5 d-none d-md-inline"><?= h($this->KMP->getAppSetting('KMP.ShortSiteTitle')) ?></span>
         </div>
         <ul class="navbar-nav flex-row px-3">
             <?php foreach ($headerLinks as $key => $value) :
@@ -138,21 +138,34 @@ $url = $fullBaseUrl . '/keepalive';
                 }
                 ?>
                 <li class="nav-item text-nowrap mx-1">
-                    <?= $this->Html->link($key, $url, IconCatalog::controlOptions('btn btn-outline-secondary ' . $css, $parts[2] ?? null) + ['aria-label' => $linkName]) ?>
+                    <?= $this->Html->link(
+                        '<span class="d-none d-lg-inline">' . h($key) . '</span>',
+                        $url,
+                        IconCatalog::controlOptions('btn btn-outline-secondary ' . $css, $parts[2] ?? null)
+                            + ['icon' => 'link', 'aria-label' => $linkName, 'escape' => false],
+                    ) ?>
                 </li>
             <?php endforeach; ?>
             <li class="nav-item text-nowrap mx-1">
                 <?= $this->Html->link(
-                    '<kmp-icon name="device-mobile"  aria-hidden="true"></kmp-icon> ' . __('Mobile'),
+                    '<kmp-icon name="device-mobile" aria-hidden="true"></kmp-icon> '
+                    . '<span class="d-none d-lg-inline">' . h(__('Mobile')) . '</span>',
                     ['controller' => 'App', 'action' => 'switchView', 'plugin' => null, '?' => ['mode' => 'mobile']],
-                    ['class' => 'btn btn-outline-secondary', 'escape' => false, 'title' => __('Switch to mobile view')],
+                    [
+                        'class' => 'btn btn-outline-secondary', 'escape' => false,
+                        'aria-label' => __('Mobile'), 'title' => __('Switch to mobile view'),
+                    ],
                 ) ?>
             </li>
             <li class="nav-item text-nowrap mx-1">
                 <?= $this->Html->link(
-                    __('Sign out'),
+                    '<kmp-icon name="logout" aria-hidden="true"></kmp-icon> '
+                    . '<span class="d-none d-lg-inline">' . h(__('Sign out')) . '</span>',
                     ['controller' => 'Members', 'action' => 'logout', 'plugin' => null],
-                    ['class' => 'btn btn-outline-secondary'],
+                    [
+                        'class' => 'btn btn-outline-secondary', 'escape' => false,
+                        'aria-label' => __('Sign out'), 'title' => __('Sign out'),
+                    ],
                 ) ?>
             </li>
             <li class="nav-item text-nowrap mx-1">

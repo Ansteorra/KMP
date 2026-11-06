@@ -99,6 +99,10 @@ form stay in place. The Notes controller resets the draft only after a successfu
 stream and focuses the new note. Validation returns 422 without replacing the
 form. No host-page fetch is needed for a note save.
 
+Notes disclosure and field IDs are scoped to their owning record so multiple
+cells have independent labels and collapse controls. Select creation forms with
+`form[data-notes-new-form]`; the list ID remains stable for targeted streams.
+
 `page-refresh-service.js` coordinates committed attendance and schedule changes.
 Templates opt regions into a topic with a stable `id` and
 `data-refresh-on="attendance"` or `data-refresh-on="schedule"`; multiple topics
@@ -133,6 +137,10 @@ when modal markup is removed after closing.
 Close dialogs through Bootstrap before refreshing their dependent markup, then
 restore focus to the replacement control or a surviving list/tab action without
 forcing scroll. Do not replace tab panes or grid shells to refresh their contents.
+Accessible confirmations resolve only after Bootstrap's hidden event, including
+confirm/cancel during the opening animation. Their dialogs and global announcement
+regions are temporary snapshot content. Submission must wait for that promise so
+an opening dialog cannot survive the resulting document morph.
 A refresh failure after a committed write displays **Saved** feedback and a
 **Refresh details** retry that repeats reads only. Never invite another mutation
 because a follow-up read failed.
@@ -372,6 +380,8 @@ container CPU/memory and tenant outbox lag/PostgreSQL connections. Enable
 performance log retention on the isolated web replicas. A bounded opaque
 `X-KMP-Performance-Run` value correlates only the measured requests with server query,
 database-time, response-byte and CPU metrics. Missing metrics fail acceptance.
+The request counter follows platform and tenant connection switches; all active
+drivers contribute to the same request total without enabling verbose SQL logs.
 
 Reports record the candidate, image pair, workload, latencies, lost updates,
 reconnects, errors, and failed gates. Keep the fixture and replica manifest stable

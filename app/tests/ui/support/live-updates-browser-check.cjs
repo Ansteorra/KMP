@@ -36,7 +36,7 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
     const fixture = runPhpJson(fixtureScript, { host: 'kmp.localhost' });
     const otherFixture = runPhpJson(fixtureScript, { host: 'kmp2.localhost' });
     const contexts = await Promise.all([baseURL, baseURL, tenantTwo.origin].map(url => browser.newContext({
-        baseURL: url, reducedMotion: 'reduce',
+        baseURL: url, reducedMotion: 'reduce', ignoreHTTPSErrors: true,
     })));
     for (const [index, context] of contexts.entries()) {
         const origin = index === 2 ? tenantTwo.origin : new URL(baseURL).origin;
@@ -71,13 +71,13 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
             await expect(page.locator('[data-notes-target="list"]')).toBeVisible();
         }
         await observer.getByRole('button', { name: 'Add a Note', exact: true }).click();
-        const draft = observer.locator('#note_new form');
+        const draft = observer.locator('form[data-notes-new-form]');
         await draft.getByLabel('Subject', { exact: true }).fill('Keep my unfinished note');
         await draft.getByLabel('Note', { exact: true }).fill('Unsubmitted local work');
         const observerUrl = observer.url();
         await observer.evaluate(() => { window.__liveDocument = document.documentElement; });
         await writer.getByRole('button', { name: 'Add a Note', exact: true }).click();
-        const form = writer.locator('#note_new form');
+        const form = writer.locator('form[data-notes-new-form]');
         await form.getByLabel('Subject', { exact: true }).fill(subject);
         await form.getByLabel('Note', { exact: true }).fill('Published only through an authorized read');
         const started = Date.now();

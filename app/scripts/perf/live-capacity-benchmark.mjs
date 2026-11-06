@@ -107,12 +107,14 @@ export class Session {
             form.querySelectorAll('input[name]').forEach(input => {
                 if (!['submit', 'file', 'checkbox', 'radio'].includes(input.type) || input.checked) fields.set(input.name, input.value);
             });
-            return { action: form.getAttribute('action'), fields };
+            const action = form.getAttribute('action');
+            if (!action) throw Error('Expected authorized form action missing.');
+            return { action, fields };
         } finally { dom.window.close(); }
     }
     async login(password) {
         const login = await this.request('/members/login');
-        const form = this.parse(await login.text(), 'form');
+        const form = this.parse(await login.text(), '[data-login-device-auth-target="passwordForm"]');
         form.fields.set('email_address', this.spec.email); form.fields.set('password', password);
         const response = await this.request(form.action, { method: 'POST', body: form.fields });
         await response.arrayBuffer();
@@ -125,7 +127,7 @@ export class Session {
         const live = Boolean(document.window.document.querySelector('meta[name="kmp-live-subscriptions-url"]'));
         document.window.close();
         if (enabled === this.metrics.baseline || live === this.metrics.baseline) throw Error('Runtime switches do not match the requested baseline/live workload.');
-        if (this.spec.writer) this.noteForm = this.parse(html, '#note_new form');
+        if (this.spec.writer) this.noteForm = this.parse(html, 'form[data-notes-new-form]');
         else {
             const dom = new JSDOM(html);
             this.csrf = dom.window.document.querySelector('meta[name="csrf-token"]')?.content;
@@ -327,6 +329,7 @@ async function main() {
         minimumConnected, telemetrySamples: telemetry.length,
         serverRequests: serverRequests.length, queryCount: serverRequests.reduce((sum, row) => sum + row.query_count, 0),
         observabilityComplete: serverRequests.length >= ordinaryRequests + mutations && telemetry.length > 0
+            && serverRequests.some(row => row.query_count > 0)
             && manifest.replicas.web.every(replica => serverRequests.some(row => row.replica === replica.container))
             && telemetry.every(sample => sample.stats.length >= 4 && sample.databases.length === 5
                 && (baselineMode || (sample.gateways.every(gateway => gateway.ready && gateway.connections > 0)

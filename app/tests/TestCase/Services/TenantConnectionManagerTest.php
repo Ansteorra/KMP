@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
 
+use App\KMP\Telemetry\RequestQueryCounter;
 use App\KMP\TenantContext;
 use App\KMP\TenantMetadata;
 use App\Services\TenantConnectionManager;
@@ -15,6 +16,39 @@ use RuntimeException;
 
 class TenantConnectionManagerTest extends TestCase
 {
+    public function testTenantConnectionSwitchRetainsTheActiveRequestQueryCounter(): void
+    {
+        $config = ConnectionManager::getConfig('default');
+        $this->assertIsArray($config);
+        $tenant = new TenantMetadata(
+            'counter-tenant',
+            'counter',
+            'Counter fixture',
+            'active',
+            (string)$config['host'],
+            (string)$config['database'],
+            (string)$config['username'],
+        );
+        $manager = new TenantConnectionManager(new ArraySecretStore([
+            'tenant.counter.db.password' => (string)($config['password'] ?? ''),
+        ]));
+        $counter = RequestQueryCounter::instance();
+        $counter->beginRequest('fixture-request', 'GET', 'counter.localhost', '/members', '/members', '', false);
+        try {
+            $manager->withTenant($tenant, function () use ($counter): void {
+                $connection = ConnectionManager::get('default');
+                $this->assertSame($counter, $connection->getDriver()->getLogger());
+                $counter->reset();
+                $this->assertSame(1, (int)$connection->execute('SELECT 1')->fetch()[0]);
+                $this->assertSame(1, $counter->count());
+            });
+        } finally {
+            $counter->clearRequest();
+            $counter->reset();
+        }
+        $this->assertNull(TenantContext::tryCurrent());
+    }
+
     public function testWithTenantBindsTenantConnectionAndRestoresContext(): void
     {
         $defaultConfig = ConnectionManager::getConfig('default');

@@ -76,3 +76,27 @@ test('ordinary reads request the full document and mutations retain their stream
     await session.request('/notes/add', { method: 'POST', headers: { Accept: 'text/vnd.turbo-stream.html' } });
     assert.equal(calls[1].headers.Accept, 'text/vnd.turbo-stream.html');
 });
+
+test('HTTP login submits the password form rather than offline setup or quick unlock forms', async () => {
+    const session = new Session({ email: 'synthetic@example.invalid', detailPath: '/members/view/7',
+        origins: ['https://tenant.example.test:8443', 'https://tenant.example.test:8444'] }, { baseline: false });
+    const login = `<form><input name="offline_pin" value="not-a-server-login"></form>
+        <form action="/members/login" data-login-device-auth-target="quickForm"><input name="quick_login"></form>
+        <form action="/members/login" data-login-device-auth-target="passwordForm">
+            <input name="_csrfToken" value="fixture-token"><input name="email_address"><input name="password">
+        </form>`;
+    const detail = '<meta name="kmp-turbo-enabled" content="true"><meta name="kmp-live-subscriptions-url" content="/live/subscriptions">';
+    const posts = [];
+    session.request = async (path, options = {}) => {
+        if (options.method === 'POST') { posts.push({ path, fields: options.body }); return new Response(null, { status: 303 }); }
+        return new Response(path === '/members/login' ? login : detail);
+    };
+    await session.login('synthetic-password');
+    assert.equal(posts.length, 1);
+    assert.equal(posts[0].path, '/members/login');
+    assert.equal(posts[0].fields.get('email_address'), 'synthetic@example.invalid');
+    assert.equal(posts[0].fields.get('password'), 'synthetic-password');
+    assert.equal(posts[0].fields.get('_csrfToken'), 'fixture-token');
+    assert.equal(posts[0].fields.has('offline_pin'), false);
+    assert.equal(posts[0].fields.has('quick_login'), false);
+});

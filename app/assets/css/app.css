@@ -19,6 +19,19 @@
 @import 'easymde/dist/easymde.min.css';
 @import '@fortawesome/fontawesome-free/css/all.min.css';
 
+.btn-outline-warning {
+    --bs-btn-color: var(--bs-warning-text-emphasis, #664d03);
+    --bs-btn-border-color: #997404;
+    --bs-btn-hover-color: #212529;
+    --bs-btn-hover-bg: #ffc107;
+    --bs-btn-hover-border-color: #997404;
+    --bs-btn-active-color: #212529;
+    --bs-btn-active-bg: #ffcd39;
+    --bs-btn-active-border-color: #997404;
+    --bs-btn-disabled-color: var(--bs-warning-text-emphasis, #664d03);
+    --bs-btn-disabled-border-color: #997404;
+}
+
 :focus-visible {
     outline: 3px solid var(--bs-primary);
     outline-offset: 2px;

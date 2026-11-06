@@ -169,18 +169,6 @@
 }
 
 /* ========================================
-   Badge and Status Styling
-   ======================================== */
-
-.badge.bg-success {
-    background-color: #28a745 !important;
-}
-
-.badge.bg-secondary {
-    background-color: #6c757d !important;
-}
-
-/* ========================================
    Responsive Design
    ======================================== */
 

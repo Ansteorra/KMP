@@ -100,7 +100,7 @@ $stickyDefaults = json_encode([
 
     .calendar-day.other-month {
         background-color: #f8f9fa;
-        color: #5c636a;
+        color: #495057;
     }
 
     .calendar-day.today {

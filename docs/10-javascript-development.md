@@ -7,8 +7,10 @@ layout: default
 
 KMP's frontend is an ES-module application built by Vite. CakePHP owns routing,
 authorization, data, and initial markup; Stimulus adds behavior; Bootstrap
-provides components; Turbo Drive is disabled while Turbo Frames and Streams are
-used explicitly.
+provides components; gated Turbo Drive owns compatible document visits while
+Frames, Streams and guarded morphs update bounded content. An independent live
+switch enables authorized SSE invalidations. Both switches default off pending
+release verification.
 
 ## Runtime architecture
 
@@ -28,8 +30,8 @@ The shared layout loads two logical JavaScript entries through
 Each controller module assigns its class to `window.Controllers`. Then
 `index.js` starts Stimulus and registers every entry in that object. It also
 exposes shared Bootstrap, utility, and accessibility APIs; imports timezone
-support; disables Turbo Drive; reconnects controllers after frame renders; and
-initializes Bootstrap tooltips.
+support; installs the shared navigation/cache and form lifecycle; and manages
+Bootstrap instances across document visits, frame renders and morph updates.
 
 ```text
 CakePHP layout

@@ -28,6 +28,7 @@ const ensureLiveRegion = (role = 'status') => {
         region.setAttribute('role', role)
         region.setAttribute('aria-live', role === 'alert' ? 'assertive' : 'polite')
         region.setAttribute('aria-atomic', 'true')
+        region.setAttribute('data-turbo-temporary', '')
         document.body.appendChild(region)
     }
     return region
@@ -59,6 +60,7 @@ const openDialog = ({
     const modal = document.createElement('div')
     modal.className = 'modal fade'
     modal.tabIndex = -1
+    modal.setAttribute('data-turbo-temporary', '')
     modal.setAttribute('aria-labelledby', 'kmp-a11y-dialog-title')
     modal.setAttribute('aria-describedby', 'kmp-a11y-dialog-message')
 
@@ -98,8 +100,16 @@ const openDialog = ({
         const instance = new Modal(modal)
         const input = modal.querySelector('#kmp-a11y-dialog-input')
         let settled = false
+        let shown = false
+        let result = null
 
         const trapFocus = (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault()
+                event.stopPropagation()
+                settle(false)
+                return
+            }
             if (event.key !== 'Tab') return
 
             const focusable = Array.from(modal.querySelectorAll(dialogFocusableSelector))
@@ -123,11 +133,11 @@ const openDialog = ({
         modal.addEventListener('keydown', trapFocus)
 
         const settle = (confirmed) => {
-            if (settled) return
-            settled = true
-            const value = input ? input.value : ''
-            instance.hide()
-            resolve({ confirmed, value })
+            if (settled || result) return
+            result = { confirmed, value: input ? input.value : '' }
+            modal.querySelectorAll('button').forEach(button => { button.disabled = true })
+            // Bootstrap ignores hide() during its opening transition.
+            if (shown) instance.hide()
         }
 
         modal.querySelector('[data-dialog-confirm]').addEventListener('click', () => {
@@ -141,18 +151,30 @@ const openDialog = ({
         })
 
         modal.querySelector('[data-dialog-cancel]')?.addEventListener('click', () => settle(false))
+        modal.querySelector('.btn-close').addEventListener('click', event => {
+            event.stopPropagation()
+            settle(false)
+        })
+        modal.addEventListener('click', event => {
+            if (event.target === modal) settle(false)
+        })
         modal.addEventListener('hidden.bs.modal', () => {
-            if (!settled) {
-                resolve({ confirmed: false, value: '' })
-            }
+            if (settled) return
+            settled = true
             modal.removeEventListener('keydown', trapFocus)
             instance.dispose()
             modal.remove()
             if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
                 previouslyFocused.focus()
             }
+            resolve(result || { confirmed: false, value: '' })
         }, { once: true })
         modal.addEventListener('shown.bs.modal', () => {
+            shown = true
+            if (result) {
+                instance.hide()
+                return
+            }
             const focusTarget = input || modal.querySelector('[data-dialog-confirm]')
             focusTarget.focus()
         }, { once: true })

@@ -6,6 +6,7 @@ use Migrations\BaseMigration;
 /** Transactional invalidation metadata; contains no rendered/private record data. */
 class CreateUiUpdateOutbox extends BaseMigration
 {
+    /** Create the tenant-local retryable invalidation queue. */
     public function change(): void
     {
         $this->table('ui_update_outbox', ['id' => false, 'primary_key' => ['id']])

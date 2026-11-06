@@ -67,7 +67,7 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
         await page.goto('/members/view/' + fixture.memberId + '?tab=notes');
         await markDocument();
         await page.getByRole('button', { name: 'Add a Note', exact: true }).click();
-        const notes = page.locator('#note_new form');
+        const notes = page.locator('form[data-notes-new-form]');
         await notes.getByLabel('Subject', { exact: true }).fill(fixture.name);
         await notes.getByLabel('Note', { exact: true }).fill('Saved without leaving Notes');
         await notes.getByRole('button', { name: 'Submit', exact: true }).click();

@@ -1,5 +1,8 @@
 const { createBdd } = require('playwright-bdd');
 const { expect } = require('@playwright/test');
+const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
+const path = require('node:path');
 const {
     loginAs,
     waitForTurboFrame,
@@ -8,6 +11,24 @@ const {
 } = require('../../support/ui-helpers.cjs');
 
 const { Given, When, Then } = createBdd();
+
+Then('the real browser check {string} should pass', async ({ $testInfo }, check) => {
+    const allowed = new Set(['turbo-navigation', 'detail-tabs', 'partial-updates']);
+    expect(allowed.has(check)).toBe(true);
+    const script = path.resolve(__dirname, `../../support/${check}-browser-check.cjs`);
+    try {
+        const result = await promisify(execFile)(process.execPath, [script], {
+            env: { ...process.env, PLAYWRIGHT_BROWSER: $testInfo.project.name },
+            timeout: 180000, maxBuffer: 1024 * 1024,
+        });
+        await $testInfo.attach(`${check}-result`, { body: result.stdout, contentType: 'text/plain' });
+    } catch (error) {
+        await $testInfo.attach(`${check}-failure`, {
+            body: String(error.stdout || '') + String(error.stderr || ''), contentType: 'text/plain',
+        });
+        throw error;
+    }
+});
 
 Then('dialog initialization should survive repeated document visits', async ({ page }) => {
     const errors = [];

@@ -14,16 +14,38 @@ class SidebarToggleController extends Controller {
     static targets = ["icon"]
 
     connect() {
+        const root = document.documentElement;
+        const header = this.element.closest('header');
+        root.kmpHeaderLayoutOwner = this;
+        const measure = () => {
+            if (root.kmpHeaderLayoutOwner !== this || !header?.isConnected) return;
+            root.style.setProperty('--kmp-navbar-height', `${Math.ceil(header.getBoundingClientRect().height)}px`);
+        };
+        if (header && typeof ResizeObserver === 'function') {
+            this.headerObserver = new ResizeObserver(measure);
+            this.headerObserver.observe(header);
+        }
+        measure();
         if (localStorage.getItem("kmp-sidebar-collapsed") === "true") {
             // Apply collapsed state immediately without transition on page load
             document.body.classList.add("sidebar-no-transition", "sidebar-collapsed");
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
+            this.firstFrame = requestAnimationFrame(() => {
+                this.secondFrame = requestAnimationFrame(() => {
                     document.body.classList.remove("sidebar-no-transition");
                 });
             });
         }
         this._updateIcon();
+    }
+
+    disconnect() {
+        this.headerObserver?.disconnect();
+        cancelAnimationFrame(this.firstFrame);
+        cancelAnimationFrame(this.secondFrame);
+        if (document.documentElement.kmpHeaderLayoutOwner === this) {
+            delete document.documentElement.kmpHeaderLayoutOwner;
+            document.documentElement.style.removeProperty('--kmp-navbar-height');
+        }
     }
 
     toggle() {

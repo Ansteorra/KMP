@@ -842,11 +842,24 @@ class GridViewController extends Controller {
     updateViewTabs() {
         const container = this.element.querySelector('[data-view-tabs-container]')
         if (!container) return
+        let actions = this.element.querySelector('[data-view-actions-container]')
+        if (!actions) {
+            actions = document.createElement('div')
+            actions.dataset.viewActionsContainer = ''
+            actions.className = 'btn-group flex-shrink-0 mb-1'
+            container.after(actions)
+        }
         const focusedControl = document.activeElement
-        const restoreFocus = container.contains(focusedControl)
+        const restoreFocus = container.contains(focusedControl) || actions.contains(focusedControl)
         const focusedTab = focusedControl?.closest('li.nav-item')?.querySelector('[role="tab"]')
+            || container.querySelector('[role="tab"][aria-selected="true"]')
         const focusedViewId = focusedTab?.dataset.viewId || ''
         const restoreMenuButton = focusedControl?.matches('[data-bs-toggle="dropdown"]')
+        actions.querySelectorAll('[data-bs-toggle="dropdown"]').forEach(button => {
+            window.bootstrap?.Dropdown?.getInstance(button)?.dispose()
+        })
+        actions.replaceChildren()
+        actions.hidden = true
 
         // Check if we should show "All" tab (marker present means DON'T show it)
         const showAllTab = !this.element.querySelector('[data-no-all-tab]')
@@ -881,6 +894,18 @@ class GridViewController extends Controller {
 
         const tabs = [...container.querySelectorAll('[role="tab"]')]
         const activeTab = tabs.find(tab => tab.getAttribute('aria-selected') === 'true') || tabs[0]
+        const dropdown = activeTab?.closest('li')?.querySelector('[data-bs-toggle="dropdown"]')
+        const menu = activeTab?.closest('li')?.querySelector('.dropdown-menu')
+        if (dropdown && menu) {
+            activeTab.classList.remove('split-tab-left')
+            dropdown.className = 'btn btn-outline-secondary'
+            dropdown.style.removeProperty('padding-left')
+            dropdown.style.removeProperty('padding-right')
+            dropdown.innerHTML = ''
+            dropdown.append(createIcon('settings'))
+            actions.append(dropdown, menu)
+            actions.hidden = false
+        }
         const frame = this.element.querySelector('turbo-frame[id$="-table"]')
         if (frame && activeTab) {
             frame.setAttribute('role', 'tabpanel')
@@ -889,7 +914,7 @@ class GridViewController extends Controller {
         }
         if (restoreFocus) {
             const tab = tabs.find(node => (node.dataset.viewId || '') === focusedViewId) || activeTab
-            const menuButton = restoreMenuButton && tab?.closest('li')?.querySelector('[data-bs-toggle="dropdown"]')
+            const menuButton = restoreMenuButton && actions.querySelector('[data-bs-toggle="dropdown"]')
             tabs.forEach(node => { node.tabIndex = node === tab ? 0 : -1 })
             const focusTarget = menuButton || tab
             focusTarget?.focus({ preventScroll: true })
@@ -934,7 +959,7 @@ class GridViewController extends Controller {
             // Active tab with dropdown
             const btnGroup = document.createElement('div')
             btnGroup.className = 'btn-group'
-            btnGroup.setAttribute('role', 'group')
+            btnGroup.setAttribute('role', 'presentation')
             btnGroup.style.marginBottom = '-1px'
 
             const mainBtn = document.createElement('button')
@@ -1028,7 +1053,7 @@ class GridViewController extends Controller {
             // Active system view with limited dropdown
             const btnGroup = document.createElement('div')
             btnGroup.className = 'btn-group'
-            btnGroup.setAttribute('role', 'group')
+            btnGroup.setAttribute('role', 'presentation')
             btnGroup.style.marginBottom = '-1px'
 
             const mainBtn = document.createElement('button')

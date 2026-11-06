@@ -26,6 +26,7 @@ $showViewTabs = $gridState['config']['showViewTabs'] ?? true;
                 <li class="d-none" data-no-all-tab></li>
             <?php endif; ?>
         </ul>
+        <div class="btn-group flex-shrink-0 mb-1" data-view-actions-container hidden></div>
         <?php if ($canAddViews) : ?>
             <button type="button" class="btn btn-outline-secondary flex-shrink-0 mb-1"
                 data-action="click-><?= h($controllerName) ?>#saveView"

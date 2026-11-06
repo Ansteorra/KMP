@@ -107,6 +107,16 @@ class AppView extends View
         // This allows controllers to still choose their own layouts while
         // getting Bootstrap form helpers and components
         $this->initializeUI(['layout' => false]);
+        $this->loadHelper('Paginator', $this->helpers['Paginator']);
+        foreach (['prevDisabled', 'nextDisabled'] as $template) {
+            $disabledTemplate = str_replace(
+                ['<a ', '</a>'],
+                ['<span role="link" ', '</span>'],
+                $this->Paginator->getTemplate($template),
+            );
+            $this->Paginator->setConfig("templates.$template", $disabledTemplate);
+            $this->Paginator->setTemplates([$template => $disabledTemplate]);
+        }
         $this->helpers['Html'] = ['className' => 'KmpHtml'];
         $this->helpers['Form'] = ['className' => 'KmpForm'];
         $this->loadHelper('Html', $this->helpers['Html']);
