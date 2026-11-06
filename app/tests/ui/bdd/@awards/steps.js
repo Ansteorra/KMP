@@ -2630,7 +2630,7 @@ When('I open the bestowal detail linked to recommendation {string}', async ({ pa
 
 Then('the bestowal detail page should show {string} in the state row', async ({ page }, text) => {
     const stateRow = page.locator('tr')
-        .filter({ has: page.locator('th').filter({ hasText: /^(State|Lifecycle Status)$/ }) })
+        .filter({ has: page.locator('th').filter({ hasText: /^(State|Lifecycle Status|Terminal state)$/ }) })
         .locator('td');
     await expect(stateRow).toContainText(text);
 });
@@ -2692,10 +2692,15 @@ Then('the bestowal to-do {string} should show a court assigned', async ({ page }
     await expect(item).toContainText('Court assigned');
 });
 
-Then('the bestowal terminal mark-given action should be available', async ({ page }) => {
-    const todoPanel = page.locator('#nav-bestowalTodos');
-    await expect(todoPanel.getByRole('link', { name: 'Mark Given', exact: true })).toBeVisible();
-    await expect(todoPanel).toContainText('Terminal — marks Given');
+Then('the bestowal terminal completion outcomes should be available', async ({ page }) => {
+    const item = getBestowalTodoItem(page, 'Given');
+    const outcome = item.getByRole('combobox', { name: 'Completion outcome', exact: true });
+    await expect(outcome).toBeVisible();
+    await expect(outcome.locator('option')).toHaveText([
+        'Choose a completion outcome', 'Given', 'Given Not Received',
+    ]);
+    await expect(item.getByRole('button', { name: 'Complete Given', exact: true })).toBeVisible();
+    await expect(item).toContainText('Terminal — marks Given');
 });
 
 When('I assign the first available gathering and complete the bestowal to-do {string}', async ({ page }, title) => {
@@ -2718,7 +2723,11 @@ When('I complete the bestowal to-do {string}', async ({ page }, title) => {
     const item = getBestowalTodoItem(page, title);
     await expect(item).toBeVisible({ timeout: 15000 });
     const directComplete = item.getByRole('link', { name: /Complete|Mark complete:/ });
-    if (await directComplete.count()) {
+    const outcome = item.getByRole('combobox', { name: 'Completion outcome', exact: true });
+    if (await outcome.count()) {
+        await outcome.selectOption({ label: title });
+        await item.getByRole('button', { name: `Complete ${title}`, exact: true }).click();
+    } else if (await directComplete.count()) {
         await directComplete.click();
     } else {
         const courtAssignment = item.getByLabel('Court Assignment');

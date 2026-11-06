@@ -39,7 +39,7 @@ Feature: Award Bestowals
         Then the bestowal to-dos should include "Event Scheduled"
         And the bestowal to-do "Event Scheduled" should require a gathering
         Then the bestowal to-dos should include "Given"
-        And the bestowal terminal mark-given action should be available
+        And the bestowal terminal completion outcomes should be available
         When I assign the first available gathering and complete the bestowal to-do "Event Scheduled"
         Then I should see the flash message "Marked complete."
         And the "wf-crown" recommendation record should have state "Scheduled"
