@@ -1,3 +1,4 @@
+const { getUiTestEnvironment, getMailpitApiUrl } = require('../../support/test-environment.cjs');
 const { createBdd } = require('playwright-bdd');
 const { expect } = require('@playwright/test');
 const { execFileSync } = require('node:child_process');
@@ -234,14 +235,14 @@ const getFlashText = async (page) => {
 };
 
 const clearMailpit = async (page) => {
-    const response = await page.request.delete('http://127.0.0.1:8025/api/v1/messages');
+    const response = await page.request.delete(getMailpitApiUrl('api/v1/messages'));
     expect(response.ok()).toBeTruthy();
 };
 
 const waitForEmailPresence = async (page, subject, shouldExist, attempts = 10) => {
     let count = 0;
     for (let attempt = 0; attempt < attempts; attempt += 1) {
-        await page.goto('http://127.0.0.1:8025', { waitUntil: 'networkidle' });
+        await page.goto(getUiTestEnvironment().mailpitUrl, { waitUntil: 'networkidle' });
         count = await page.locator(`.subject b:has-text("${subject}")`).count();
         if ((shouldExist && count > 0) || (!shouldExist && count === 0)) {
             return count;
@@ -254,7 +255,7 @@ const waitForEmailPresence = async (page, subject, shouldExist, attempts = 10) =
 
 const assertEmailBodyContains = async (page, subject, recipient, snippets) => {
     await waitForEmailPresence(page, subject, true);
-    await page.goto('http://127.0.0.1:8025', { waitUntil: 'networkidle' });
+    await page.goto(getUiTestEnvironment().mailpitUrl, { waitUntil: 'networkidle' });
     const row = page.locator(`.subject b:has-text("${subject}")`).first();
     await expect(row).toBeVisible({ timeout: 15000 });
     await row.click();

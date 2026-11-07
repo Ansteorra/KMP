@@ -31,7 +31,7 @@
                 <td><?= $warrantRoster->created_by_member === null ? '' : $warrantRoster->created_by_member->sca_name ?>
                 </td>
                 <td class="actions text-end text-nowrap">
-                    <?= $this->Html->link(__(''), ['action' => 'view', $warrantRoster->id], ['title' => __('View'), 'class' => 'btn-sm btn btn-secondary bi bi-binoculars-fill',  "data-turbo-frame" => "_top"]) ?>
+                    <?= $this->Html->link(__(''), ['action' => 'view', $warrantRoster->id], ['title' => __('View'), 'class' => 'btn-sm btn btn-secondary', 'icon' => 'binoculars',  "data-turbo-frame" => "_top"]) ?>
                 </td>
             </tr>
             <?php endforeach; ?>

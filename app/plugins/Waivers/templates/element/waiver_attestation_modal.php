@@ -21,7 +21,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="waiverAttestationModalLabel">
-                    <i class="bi bi-shield-check"></i> <?= __('Attest Waiver Not Needed') ?>
+                    <kmp-icon name="shield-check"  aria-hidden="true"></kmp-icon> <?= __('Attest Waiver Not Needed') ?>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -37,7 +37,7 @@
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3"
                     aria-describedby="waiverAttestationReasonPrompt waiverAttestationReasonHelp">
                     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                        <i class="bi bi-list-check text-primary me-1" aria-hidden="true"></i>
+                        <kmp-icon name="list-check" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Reason') ?>
                     </legend>
                     <div data-waivers-waiver-attestation-target="reasonList">
@@ -75,7 +75,7 @@
                     class="btn btn-primary"
                     data-waivers-waiver-attestation-target="submitBtn"
                     data-action="click->waivers-waiver-attestation#submitAttestation">
-                    <i class="bi bi-shield-check"></i> <?= __('Submit Attestation') ?>
+                    <kmp-icon name="shield-check"  aria-hidden="true"></kmp-icon> <?= __('Submit Attestation') ?>
                 </button>
             </div>
         </div>

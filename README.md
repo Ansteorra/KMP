@@ -71,6 +71,11 @@ docker compose logs -f app scheduler
 
 ## Documentation
 
+For development from web or mobile without this workstation, see
+[Codex cloud development](app/docs/codex-cloud.md). The repository includes a
+native dependency installer, an isolated PostgreSQL test cluster, and a command
+wrapper for OpenAI-hosted environments.
+
 - [Developer documentation](docs/index.md)
 - [Multi-tenant architecture](docs/3.1-multi-tenant-architecture.md)
 - [Docker development](docs/docker-development.md)

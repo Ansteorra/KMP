@@ -4,10 +4,12 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Services;
 
 use App\Services\BackupSchemaManifestService;
+use App\Services\BackupService;
 use App\Services\DatabaseSchemaResetService;
 use App\Test\TestCase\BaseTestCase;
 use Cake\Database\Driver\Postgres;
 use Cake\Database\Driver\Sqlite;
+use Cake\Utility\Text;
 use ReflectionMethod;
 use RuntimeException;
 
@@ -16,6 +18,59 @@ use RuntimeException;
  */
 class DatabaseSchemaResetServiceTest extends BaseTestCase
 {
+    public function testRestoredSequencesAdvanceNumericIdsAndSkipNativeUuidIds(): void
+    {
+        $this->connection->execute('CREATE TABLE backup_uuid_sequence_test (id UUID PRIMARY KEY)');
+        $this->connection->execute('CREATE TABLE backup_serial_sequence_test (id SERIAL PRIMARY KEY)');
+        $id = Text::uuid();
+        $restoredNumericId = 37;
+        $this->connection->execute('INSERT INTO backup_uuid_sequence_test VALUES (?)', [$id]);
+        $this->connection->execute('INSERT INTO backup_serial_sequence_test VALUES (?)', [$restoredNumericId]);
+        $reset = new ReflectionMethod(BackupService::class, 'resetPostgresSequences');
+        $reset->invoke(
+            new BackupService('test'),
+            $this->connection,
+            $this->connection->getSchemaCollection(),
+            $this->connection->getDriver(),
+            ['backup_uuid_sequence_test', 'backup_serial_sequence_test'],
+        );
+
+        $nextId = $this->connection->execute(
+            'INSERT INTO backup_serial_sequence_test DEFAULT VALUES RETURNING id',
+        )->fetchColumn(0);
+        $this->assertSame($restoredNumericId + 1, (int)$nextId);
+        $this->assertSame(
+            $id,
+            $this->connection->execute('SELECT id FROM backup_uuid_sequence_test')->fetchColumn(0),
+        );
+    }
+
+    public function testNativeUuidColumnsSurviveSchemaExportAndRecreation(): void
+    {
+        $table = 'backup_uuid_test';
+        $this->connection->execute("CREATE TABLE $table (id UUID PRIMARY KEY, tenant_id UUID NOT NULL)");
+        $manifest = (new BackupSchemaManifestService())->export([], 'test');
+        $plan = new ReflectionMethod(DatabaseSchemaResetService::class, 'buildResetPlan');
+        $sql = $plan->invoke(new DatabaseSchemaResetService(), $this->connection->getDriver(), [
+            $table => $manifest['tables'][$table],
+        ]);
+        $this->connection->execute("DROP TABLE $table");
+        $this->connection->execute($sql['tables'][0]['sql']);
+        $id = Text::uuid();
+        $tenantId = Text::uuid();
+        $this->connection->execute("INSERT INTO $table (id, tenant_id) VALUES (?, ?)", [$id, $tenantId]);
+
+        $row = $this->connection->execute(
+            "SELECT id, tenant_id, pg_typeof(id)::text AS id_type, pg_typeof(tenant_id)::text AS tenant_type FROM $table",
+        )->fetch('assoc');
+        $this->assertSame([
+            'id' => $id,
+            'tenant_id' => $tenantId,
+            'id_type' => 'uuid',
+            'tenant_type' => 'uuid',
+        ], $row);
+    }
+
     public function testPartialUniqueIndexSurvivesSchemaExportAndRecreation(): void
     {
         $this->assertInstanceOf(Postgres::class, $this->connection->getDriver());
@@ -56,7 +111,6 @@ class DatabaseSchemaResetServiceTest extends BaseTestCase
     {
         $service = new DatabaseSchemaResetService();
         $method = new ReflectionMethod(DatabaseSchemaResetService::class, 'columnTypeSql');
-        $method->setAccessible(true);
         $driver = new Postgres([]);
 
         $this->assertSame(
@@ -77,7 +131,6 @@ class DatabaseSchemaResetServiceTest extends BaseTestCase
     {
         $service = new DatabaseSchemaResetService();
         $method = new ReflectionMethod(DatabaseSchemaResetService::class, 'columnTypeSql');
-        $method->setAccessible(true);
         $driver = new Postgres([]);
 
         $this->assertSame(
@@ -90,7 +143,6 @@ class DatabaseSchemaResetServiceTest extends BaseTestCase
     {
         $service = new DatabaseSchemaResetService();
         $method = new ReflectionMethod(DatabaseSchemaResetService::class, 'columnTypeSql');
-        $method->setAccessible(true);
 
         $this->assertSame(
             'CITEXT',
@@ -102,7 +154,6 @@ class DatabaseSchemaResetServiceTest extends BaseTestCase
     {
         $service = new DatabaseSchemaResetService();
         $method = new ReflectionMethod(DatabaseSchemaResetService::class, 'referentialActionSql');
-        $method->setAccessible(true);
 
         $this->assertSame('NO ACTION', $method->invoke($service, 'NOACTION'));
         $this->assertSame('SET NULL', $method->invoke($service, 'setNull'));
@@ -113,7 +164,6 @@ class DatabaseSchemaResetServiceTest extends BaseTestCase
     {
         $service = new DatabaseSchemaResetService();
         $method = new ReflectionMethod(DatabaseSchemaResetService::class, 'defaultSql');
-        $method->setAccessible(true);
         $driver = new Postgres([]);
 
         $this->assertSame('FALSE', $method->invoke($service, $driver, 0, 'boolean'));
@@ -124,7 +174,6 @@ class DatabaseSchemaResetServiceTest extends BaseTestCase
     {
         $service = new DatabaseSchemaResetService();
         $method = new ReflectionMethod(DatabaseSchemaResetService::class, 'defaultSql');
-        $method->setAccessible(true);
         $driver = new Postgres([]);
 
         $this->assertSame(
@@ -137,7 +186,6 @@ class DatabaseSchemaResetServiceTest extends BaseTestCase
     {
         $service = new DatabaseSchemaResetService();
         $method = new ReflectionMethod(DatabaseSchemaResetService::class, 'indexSql');
-        $method->setAccessible(true);
         $driver = new Postgres([]);
 
         $sql = $method->invoke($service, $driver, [

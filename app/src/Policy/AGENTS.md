@@ -20,6 +20,11 @@ Own authorization decisions and row-level scopes for core resources through Cake
 - Return explicit authorization failures consistently with nearby policy code.
 - Record visibility does not imply PII visibility. Apply `viewPii` per member to serializers, contact lookups and exports; private-field searches require the matching scope.
 - Attendance enrichment uses `GatheringAttendancePolicy::canViewShared` so audience consent and recipient branch scope are checked together.
+- Gathering activity assignment supplements native rules through `GatheringActivityDelegationRegistry`.
+  Providers use `canAssignNatively` to prevent inherited grants from passing onward; never merge
+  event grants into global identities or general gathering-edit permissions.
+  `GatheringPolicy::canViewManagement` preserves native gathering view/edit and steward access.
+  Activity-only access may show preparation tools, but cannot expose private staff or record details.
 
 ## Work Guidance
 

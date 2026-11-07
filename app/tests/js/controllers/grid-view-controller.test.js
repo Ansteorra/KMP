@@ -399,6 +399,143 @@ describe('GridViewController', () => {
         expect(controller.paginationFocusPending).toBeNull();
     });
 
+    test('keyboard pagination restores focus when activation starts with body focus', () => {
+        const frame = controller.element.querySelector('turbo-frame');
+        frame.dataset.gridSrc = '/members/grid-data?page=2';
+        frame.insertAdjacentHTML('beforeend', '<div class="paginator"><a href="/members/grid-data?page=3">3</a></div>');
+        const link = frame.querySelector('a');
+        expect(document.activeElement).toBe(document.body);
+        controller.handlePaginationClick({ target: link, button: 0, detail: 0, preventDefault() {} });
+        frame.innerHTML = '<div class="paginator"><span aria-current="page">3</span></div>';
+        controller.restorePaginationFocus(frame);
+        expect(document.activeElement).toHaveTextContent('3');
+        expect(document.activeElement).toHaveClass('focus-ring');
+    });
+
+    test('an older row-count render cannot consume focus for the next page', () => {
+        const frame = controller.element.querySelector('turbo-frame');
+        frame.dataset.gridSrc = '/members/grid-data?limit=10';
+        frame.insertAdjacentHTML('beforeend', '<div class="paginator"><a href="/members/grid-data?limit=10&page=3">3</a></div>');
+        const link = frame.querySelector('a');
+        link.focus();
+        controller.handlePaginationClick({ target: link, button: 0, detail: 0, preventDefault() {} });
+        const pending = controller.paginationFocusPending;
+        frame.innerHTML = '<div class="paginator"><span aria-current="page">1</span></div>';
+        controller.handleFrameRender({ target: frame, detail: { fetchResponse: { response: {
+            url: new URL('/members/grid-data?limit=10', window.location.origin).href,
+        } } } });
+        expect(controller.paginationFocusPending).toBe(pending);
+        expect(document.activeElement).toBe(document.body);
+        frame.innerHTML = '<div class="paginator"><span aria-current="page">3</span></div>';
+        controller.handleFrameRender({ target: frame, detail: { fetchResponse: { response: {
+            url: pending.navigationUrl,
+        } } } });
+        expect(document.activeElement).toHaveTextContent('3');
+        expect(controller.paginationFocusPending).toBeNull();
+    });
+
+    test.each([
+        [{}, 'asc'],
+        [{ field: 'name', direction: 'asc' }, 'desc'],
+        [{ field: 'name', direction: 'desc' }, 'asc'],
+        [{ field: 'created', direction: 'desc' }, 'asc'],
+    ])('clicking a header reverses its active sort or starts ascending: %j', (sort, direction) => {
+        const button = document.createElement('button');
+        button.dataset.columnKey = 'name';
+        controller.state = { sort, view: {} };
+        controller.buildUrl = jest.fn(() => '/members?sort=name');
+        controller.navigate = jest.fn();
+
+        controller.applySort({ currentTarget: button });
+
+        expect(controller.buildUrl).toHaveBeenCalledWith({ sort: 'name', direction });
+    });
+
+    test('sorting restores the focused header after replacement but preserves a subsequent toolbar focus', () => {
+        const frame = controller.element.querySelector('turbo-frame');
+        frame.innerHTML = '<table><thead><tr><th><button data-column-key="name">Name</button></th></tr></thead></table>';
+        controller.state = { sort: {}, view: {} };
+        controller.buildUrl = jest.fn(() => '/members?sort=name');
+        controller.navigate = jest.fn();
+        let button = frame.querySelector('button');
+        button.focus();
+        controller.applySort({ currentTarget: button });
+        frame.innerHTML = '<table><thead><tr><th><button data-column-key="name">Name ascending</button></th></tr></thead></table>';
+        controller.restoreSortFocus(frame);
+        button = frame.querySelector('button');
+        expect(button).toHaveFocus();
+        controller.applySort({ currentTarget: button });
+        controller.searchInputTarget.focus();
+        frame.innerHTML = '<table><thead><tr><th><button data-column-key="name">Name descending</button></th></tr></thead></table>';
+        controller.restoreSortFocus(frame);
+        expect(controller.searchInputTarget).toHaveFocus();
+        expect(controller.sortFocusPending).toBeNull();
+    });
+
+    test('filter refresh retains the focused option after rebuilding its panel', () => {
+        controller.element.insertAdjacentHTML('beforeend', '<div data-filter-panels-container></div>');
+        controller.state = { config: { gridKey: 'Members' }, filters: { active: {}, available: {
+            branch: { label: 'Branch', type: 'dropdown', options: [{ value: 'oakmere', label: 'Oakmere' }] },
+        } } };
+        controller.updateFilterPanels();
+        const checkbox = controller.element.querySelector('[data-filter-column="branch"]');
+        checkbox.focus();
+        for (const method of ['updateViewTabs', 'updateFilterPills', 'updateSearchDisplay', 'updateFilterCount',
+            'updateFilterDropdownCheckboxes', 'updateFilterNavigation', 'updateClearFiltersFooter', 'updateColumnPicker', 'updatePageSize']) {
+            jest.spyOn(controller, method).mockImplementation(() => {});
+        }
+        controller.state.filters.active.branch = ['oakmere'];
+        controller.updateToolbar();
+        const replacement = controller.element.querySelector('[data-filter-column="branch"]');
+        expect(replacement).not.toBe(checkbox);
+        expect(replacement).toBeChecked();
+        expect(replacement).toHaveFocus();
+    });
+
+    test('filter reset returns focus into the open menu when its footer control disappears', () => {
+        controller.element.insertAdjacentHTML('beforeend', `<button data-filter-button aria-expanded="true">Filter</button>
+            <div class="dropdown-menu show"><div data-filter-nav-container><button data-filter-nav-item>Branch</button></div>
+            <button data-clear-filters>Clear all filters</button></div>`);
+        const clear = controller.element.querySelector('[data-clear-filters]');
+        clear.focus();
+        for (const method of ['updateViewTabs', 'updateFilterPills', 'updateSearchDisplay', 'updateFilterCount',
+            'updateFilterDropdownCheckboxes', 'updateFilterNavigation', 'updateFilterPanels', 'updateColumnPicker', 'updatePageSize']) {
+            jest.spyOn(controller, method).mockImplementation(() => {});
+        }
+        jest.spyOn(controller, 'updateClearFiltersFooter').mockImplementation(() => clear.remove());
+        controller.updateToolbar();
+        expect(controller.element.querySelector('[data-filter-nav-item]')).toHaveFocus();
+    });
+
+    test('clearing filters moves focus before the reset footer can become hidden', () => {
+        controller.element.insertAdjacentHTML('beforeend', `<div class="dropdown"><button data-filter-button aria-expanded="true">Filter</button>
+            <div class="dropdown-menu show"><button data-filter-nav-item>Branch</button><button data-clear-filters>Clear all</button></div></div>`);
+        controller.state = { config: {}, view: {}, filters: { active: { branch: ['oakmere'] } } };
+        controller.buildUrlWithFilters = jest.fn(() => '/members');
+        controller.navigate = jest.fn(() => expect(controller.element.querySelector('[data-filter-nav-item]')).toHaveFocus());
+        controller.element.querySelector('[data-clear-filters]').focus();
+        controller.clearAllFilters();
+        expect(controller.navigate).toHaveBeenCalled();
+    });
+
+    test('filter field chooser exposes its pressed state when changing panels', () => {
+        controller.element.insertAdjacentHTML('beforeend', '<div data-filter-nav-container></div><div data-filter-panels-container></div>');
+        controller.state = { config: {}, filters: { active: {}, available: {
+            branch: { label: 'Branch', type: 'dropdown', options: [] },
+            status: { label: 'Status', type: 'dropdown', options: [] },
+        } } };
+        controller.updateFilterNavigation();
+        controller.updateFilterPanels();
+        expect(controller.element.querySelector('[data-filter-nav-container]')).toHaveAttribute('role', 'group');
+        expect(controller.element.querySelector('[data-filter-nav-container]')).toHaveAccessibleName('Filter fields');
+        const buttons = controller.element.querySelectorAll('[data-filter-nav-item]');
+        expect(buttons[0]).toHaveAttribute('aria-pressed', 'true');
+        expect(buttons[1]).toHaveAttribute('aria-pressed', 'false');
+        controller.selectFilter({ currentTarget: buttons[1] });
+        expect(buttons[0]).toHaveAttribute('aria-pressed', 'false');
+        expect(buttons[1]).toHaveAttribute('aria-pressed', 'true');
+    });
+
     test('disconnect cleans up the delegated pagination listener', () => {
         controller.connect();
         const removeSpy = jest.spyOn(controller.element, 'removeEventListener');
@@ -449,6 +586,105 @@ describe('GridViewController', () => {
         controller.connect();
         // State gets loaded by loadInlineState
         expect(controller.selectedIds).toEqual([]);
+    });
+
+    test('date-range filter labels are connected to distinct grid-scoped inputs', () => {
+        controller.element.insertAdjacentHTML('beforeend', '<div data-filter-panels-container></div>');
+        controller.state = {
+            config: { gridKey: 'UiPatterns.collection.main' },
+            filters: { active: {}, available: {
+                start_date_start: { type: 'date-range-start', baseField: 'start_date', label: 'Date (after)' },
+                start_date_end: { type: 'date-range-end', baseField: 'start_date', label: 'Date (before)' },
+            } },
+        };
+        controller.updateFilterPanels();
+        const inputs = [...controller.element.querySelectorAll('input[type="date"]')];
+        expect(inputs).toHaveLength(2);
+        expect(inputs[0]).toHaveAccessibleName('From');
+        expect(inputs[1]).toHaveAccessibleName('To');
+        expect(inputs[0].id).not.toBe(inputs[1].id);
+        expect(inputs[0].id).toContain('UiPatterns.collection.main');
+    });
+
+    test('saved tabs expose their panel, default status and named options without adding options to All', () => {
+        controller.element.insertAdjacentHTML('beforeend', '<ul data-view-tabs-container role="tablist"></ul>');
+        controller.state = { view: { currentId: 'mine', available: [
+            { id: 'mine', name: 'Royal visits', isPreferred: true, canManage: true },
+            { id: 'system', name: 'Published', canManage: false },
+        ] } };
+        controller.updateViewTabs();
+        const container = controller.element.querySelector('[data-view-tabs-container]');
+        const active = container.querySelector('[aria-selected="true"]');
+        expect(active).toHaveTextContent('Royal visits (Default view)');
+        expect(active).toHaveAttribute('aria-controls', 'members-table');
+        expect(active.tabIndex).toBe(0);
+        expect(container.querySelector('[data-bs-toggle="dropdown"]')).toBeNull();
+        expect(controller.element.querySelector('[data-view-actions-container] [data-bs-toggle="dropdown"]'))
+            .toHaveAccessibleName('View options: Royal visits');
+        expect(controller.element.querySelector('turbo-frame')).toHaveAttribute('aria-labelledby', active.id);
+        controller.state.view.currentId = null;
+        controller.updateViewTabs();
+        const all = container.querySelector('[aria-selected="true"]');
+        expect(all).toHaveTextContent('All');
+        expect(all.closest('li').querySelector('[data-bs-toggle="dropdown"]')).toBeNull();
+    });
+
+    test('saved tabs use manual keyboard activation and retain focus through refresh without stealing input focus', () => {
+        controller.element.insertAdjacentHTML('beforeend', '<ul data-view-tabs-container role="tablist"></ul>');
+        controller.state = { view: { currentId: null, available: [
+            { id: 'first', name: 'First', canManage: true },
+            { id: 'last', name: 'Last', canManage: true },
+        ] } };
+        controller.updateViewTabs();
+        const container = controller.element.querySelector('[data-view-tabs-container]');
+        let tabs = [...container.querySelectorAll('[role="tab"]')];
+        const navigate = jest.spyOn(controller, 'navigate').mockImplementation(() => {});
+        tabs[0].focus();
+        const press = key => controller.handleViewTabKeydown({
+            key, target: document.activeElement, preventDefault: jest.fn(),
+        });
+        press('ArrowRight');
+        expect(tabs[1]).toHaveFocus();
+        expect(tabs.map(tab => tab.tabIndex)).toEqual([-1, 0, -1]);
+        press('End');
+        expect(tabs[2]).toHaveFocus();
+        press('ArrowRight');
+        expect(tabs[0]).toHaveFocus();
+        press('ArrowLeft');
+        expect(tabs[2]).toHaveFocus();
+        press('Home');
+        expect(tabs[0]).toHaveFocus();
+        expect(navigate).not.toHaveBeenCalled();
+        tabs[1].focus();
+        controller.state.view.currentId = 'first';
+        controller.updateViewTabs();
+        tabs = [...container.querySelectorAll('[role="tab"]')];
+        expect(tabs[1]).toHaveFocus();
+        expect(tabs[1]).toHaveAttribute('aria-selected', 'true');
+        controller.searchInputTarget.focus();
+        controller.updateViewTabs();
+        expect(controller.searchInputTarget).toHaveFocus();
+    });
+
+    test('view switching retains configured page context before navigation and drops prior filters', () => {
+        window.history.replaceState({}, '', '/ui-patterns?pattern=collection&state=restricted&search=old&page=4');
+        controller.hasStickyQueryValue = true;
+        controller.stickyQueryValue = 'pattern,state';
+        controller.stickyParams = { pattern: 'collection', state: 'restricted' };
+        controller.navigate = jest.fn();
+        controller.switchView({ currentTarget: { dataset: { viewId: 'mine' } } });
+        let url = new URL(controller.navigate.mock.calls[0][0], window.location.origin);
+        expect(url.searchParams.get('pattern')).toBe('collection');
+        expect(url.searchParams.get('state')).toBe('restricted');
+        expect(url.searchParams.get('view_id')).toBe('mine');
+        expect(url.searchParams.has('search')).toBe(false);
+        expect(url.searchParams.has('page')).toBe(false);
+        controller.showAll();
+        url = new URL(controller.navigate.mock.calls[1][0], window.location.origin);
+        expect(url.searchParams.get('pattern')).toBe('collection');
+        expect(url.searchParams.get('state')).toBe('restricted');
+        expect(url.searchParams.get('ignore_default')).toBe('1');
+        expect(url.searchParams.has('view_id')).toBe(false);
     });
 
     test('connect initializes search debounce timer', () => {
@@ -552,7 +788,7 @@ describe('GridViewController', () => {
 
         const pill = controller.createFilterPill('branch_id', '1', false);
         const removeButton = pill.querySelector('button[data-action="click->grid-view#removeFilter"]');
-        const icon = removeButton.querySelector('i');
+        const icon = removeButton.querySelector('kmp-icon');
 
         expect(removeButton).not.toBeNull();
         expect(pill.classList).toContain('grid-view-filter-badge');
@@ -582,8 +818,150 @@ describe('GridViewController', () => {
         expect(pill.querySelector('button')).toBeNull();
         expect(lockIndicator).not.toBeNull();
         expect(lockIndicator.getAttribute('aria-hidden')).toBe('true');
-        expect(lockIndicator.querySelector('.bi-lock-fill')).not.toBeNull();
+        expect(lockIndicator.querySelector('kmp-icon[name="lock"]')).not.toBeNull();
         expect(pill.textContent).toContain('Locked filter; cannot be removed.');
+    });
+
+    test('same-field OR choices share one label and keep each connector with its following chip', () => {
+        controller.element.insertAdjacentHTML('beforeend', '<div data-filter-pills-container></div>');
+        controller.state = {
+            filters: {
+                active: { royal_progress: ['crown', 'coronet', 'principality'] },
+                available: { royal_progress: { label: 'Royal Progress', options: [
+                    { value: 'crown', label: 'Crown — Ansteorra' },
+                    { value: 'coronet', label: 'Coronet — Oakmere' },
+                    { value: 'principality', label: 'Principality Coronet — Riverlands' },
+                ] } },
+            },
+        };
+
+        controller.updateFilterPills();
+
+        const group = controller.element.querySelector('[data-or-group]');
+        const options = [...group.querySelectorAll('.grid-view-filter-option')];
+        expect(group).toHaveAttribute('role', 'group');
+        expect(group).toHaveAttribute('aria-label', 'Royal Progress: match any selected value');
+        expect(group.querySelector('.grid-view-filter-group-label')).toHaveTextContent('Royal Progress:');
+        expect(group.textContent.match(/Royal Progress/g)).toHaveLength(1);
+        expect(options).toHaveLength(3);
+        expect(options[0].querySelector('.grid-view-filter-or')).toBeNull();
+        for (const option of options.slice(1)) {
+            expect(option.firstElementChild).toHaveClass('grid-view-filter-or');
+            expect(option.firstElementChild).toHaveTextContent('OR');
+            expect(option.lastElementChild).toHaveAttribute('data-filter-badge');
+        }
+        expect(group.querySelector('[data-filter-value="principality"]')).toHaveAttribute(
+            'aria-label', 'Remove filter Royal Progress: Principality Coronet — Riverlands',
+        );
+    });
+
+    test('mixed-field OR expressions preserve each field label and locked meaning', () => {
+        controller.element.insertAdjacentHTML('beforeend', '<div data-filter-pills-container></div>');
+        controller.state = {
+            config: { lockedFilters: ['status'] },
+            filters: {
+                active: { status: ['Pending'], branch: ['oakmere'] },
+                available: {
+                    status: { label: 'Status' },
+                    branch: { label: 'Branch', options: [{ value: 'oakmere', label: 'Oakmere' }] },
+                },
+                grouping: { orGroups: [['status', 'branch']] },
+            },
+        };
+
+        controller.updateFilterPills();
+
+        const group = controller.element.querySelector('[data-or-group]');
+        expect(group.querySelector('.grid-view-filter-group-label')).toHaveTextContent('Match any:');
+        expect(group.querySelectorAll('.grid-view-filter-badge-text')[0]).toHaveTextContent('Status: Pending');
+        expect(group.querySelectorAll('.grid-view-filter-badge-text')[1]).toHaveTextContent('Branch: Oakmere');
+        expect(group.querySelector('[data-filter-locked] button')).toBeNull();
+        expect(group.querySelector('[data-filter-locked]')).toHaveTextContent('Locked filter; cannot be removed.');
+        expect(group.querySelectorAll('button')).toHaveLength(1);
+    });
+
+    test('chip labels and search values are rendered as text rather than markup', () => {
+        controller.state = { filters: { available: { subject: {
+            label: '<em>Subject</em>', options: [{ value: 'one', label: '<img src=x onerror=alert(1)>' }],
+        } } } };
+        const pill = controller.createFilterPill('subject', 'one');
+        const search = controller.createSearchBadge('<script>alert(1)</script>');
+        expect(pill.querySelector('em, img')).toBeNull();
+        expect(pill.querySelector('.grid-view-filter-badge-text')).toHaveTextContent(
+            '<em>Subject</em>: <img src=x onerror=alert(1)>',
+        );
+        expect(search.querySelector('script')).toBeNull();
+        expect(search.querySelector('[data-search-text]')).toHaveTextContent('<script>alert(1)</script>');
+    });
+
+    test('removing OR chips preserves the other filters and retains keyboard focus through refresh', () => {
+        window.history.replaceState({}, '', '/gatherings?view_id=mine');
+        controller.element.insertAdjacentHTML('beforeend',
+            '<button data-filter-button>Filters</button><div data-filter-pills-container></div>');
+        controller.state = {
+            view: { currentId: 'mine' }, config: { lockedFilters: ['status'] }, search: '',
+            filters: { active: { royal_progress: ['crown', 'coronet'], status: ['Published'] }, available: {
+                royal_progress: { label: 'Royal Progress', options: [
+                    { value: 'crown', label: 'Crown — Ansteorra' },
+                    { value: 'coronet', label: 'Coronet — Oakmere' },
+                ] },
+                status: { label: 'Status' },
+            } },
+        };
+        for (const method of ['updateViewTabs', 'updateFilterCount', 'updateFilterDropdownCheckboxes',
+            'updateFilterNavigation', 'updateFilterPanels', 'updateClearFiltersFooter', 'updateColumnPicker', 'updatePageSize']) {
+            jest.spyOn(controller, method).mockImplementation(() => {});
+        }
+        controller.navigate = jest.fn();
+        controller.updateToolbar();
+
+        const remove = controller.element.querySelector('[data-filter-value="crown"]');
+        remove.addEventListener('click', event => controller.removeFilter(event));
+        remove.focus();
+        remove.click();
+        const params = new URL(controller.navigate.mock.calls[0][0], window.location.origin).searchParams;
+        expect(params.getAll('filter[royal_progress][]')).toEqual(['coronet']);
+        expect(params.getAll('filter[status][]')).toEqual(['Published']);
+        expect(params.get('view_id')).toBe('mine');
+        expect(params.get('dirty[filters]')).toBe('1');
+
+        controller.state.filters.active.royal_progress = params.getAll('filter[royal_progress][]');
+        controller.updateToolbar();
+        const remaining = controller.element.querySelector('[data-filter-value="coronet"]');
+        expect(remaining).toHaveFocus();
+        expect(controller.element.querySelector('.grid-view-filter-or')).toBeNull();
+
+        remaining.addEventListener('click', event => controller.removeFilter(event));
+        remaining.click();
+        delete controller.state.filters.active.royal_progress;
+        controller.updateToolbar();
+        expect(controller.element.querySelector('[data-filter-button]')).toHaveFocus();
+        expect(controller.element.querySelector('[data-filter-locked]')).toHaveTextContent('Status: Published');
+    });
+
+    test('chip refresh retains a surviving control and does not steal focus from another toolbar input', () => {
+        controller.element.insertAdjacentHTML('beforeend', '<div data-filter-pills-container></div>');
+        controller.state = { search: 'court', filters: { active: {}, available: {} } };
+        for (const method of ['updateViewTabs', 'updateFilterCount', 'updateFilterDropdownCheckboxes',
+            'updateFilterNavigation', 'updateFilterPanels', 'updateClearFiltersFooter', 'updateColumnPicker', 'updatePageSize']) {
+            jest.spyOn(controller, method).mockImplementation(() => {});
+        }
+        controller.updateToolbar();
+        const original = controller.element.querySelector('[data-search-badge] button');
+        original.focus();
+        controller.updateToolbar();
+        const replacement = controller.element.querySelector('[data-search-badge] button');
+        expect(replacement).not.toBe(original);
+        expect(replacement).toHaveFocus();
+
+        controller.searchInputTarget.focus();
+        controller.updateToolbar();
+        expect(controller.searchInputTarget).toHaveFocus();
+
+        controller.element.querySelector('[data-search-badge] button').focus();
+        controller.state.search = '';
+        controller.updateToolbar();
+        expect(controller.searchInputTarget).toHaveFocus();
     });
 
     test('hidden-menu active filters remain locked pills and serialize with the view', () => {
@@ -626,7 +1004,7 @@ describe('GridViewController', () => {
         expect(pill.getAttribute('data-filter-locked')).toBe('true');
         expect(pill.textContent).toContain('Status: Pending');
         expect(pill.querySelector('button')).toBeNull();
-        expect(pill.querySelector('.bi-lock-fill')).not.toBeNull();
+        expect(pill.querySelector('kmp-icon[name="lock"]')).not.toBeNull();
 
         const navigation = controller.element.querySelector('[data-filter-nav-container]');
         const panels = controller.element.querySelector('[data-filter-panels-container]');
@@ -686,7 +1064,7 @@ describe('GridViewController', () => {
     test('createSearchBadge generates remove button with accessible target size and decorative icon', () => {
         const badge = controller.createSearchBadge('smith');
         const removeButton = badge.querySelector('button[data-action="click->grid-view#clearSearch"]');
-        const icon = removeButton.querySelector('i');
+        const icon = removeButton.querySelector('kmp-icon');
 
         expect(badge.classList).toContain('grid-view-filter-badge');
         expect(removeButton.classList).toContain('grid-view-filter-badge-control');
@@ -1063,7 +1441,7 @@ describe('GridViewController', () => {
                         <button type="button" data-action="click->grid-view#toggleSubRow"
                             data-row-id="99" data-subrow-type="details" data-subrow-url="/details/:id"
                             aria-expanded="false" aria-controls="subrow-99-details">
-                            <i class="toggle-icon bi bi-chevron-right"></i><span>Details</span>
+                            <kmp-icon name="chevron-right" class="toggle-icon" aria-hidden="true"></kmp-icon><span>Details</span>
                         </button>
                     </td>
                 </tr>

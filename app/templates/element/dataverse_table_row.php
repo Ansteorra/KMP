@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 use Cake\I18n\DateTime;
 
@@ -71,7 +72,18 @@ if ($rowDomIdPrefix !== null && $rowDomIdPrefix !== '' && $rowId !== null) {
         <?php $column = $columns[$columnKey]; ?>
         <td style="text-align: <?= h($column['alignment'] ?? 'left') ?>;">
             <?php
-            $value = is_array($row) ? ($row[$columnKey] ?? null) : ($row->{$columnKey} ?? null);
+            $renderField = is_string($column['renderField'] ?? null) ? $column['renderField'] : $columnKey;
+            $value = $row;
+            foreach (explode('.', $renderField) as $part) {
+                if (is_array($value)) {
+                    $value = $value[$part] ?? null;
+                } elseif (is_object($value)) {
+                    $value = $value->{$part} ?? null;
+                } else {
+                    $value = null;
+                    break;
+                }
+            }
             $hasClickAction = !empty($column['clickAction']);
             $clickAction = $column['clickAction'] ?? null;
 
@@ -99,27 +111,11 @@ if ($rowDomIdPrefix !== null && $rowDomIdPrefix !== '' && $rowId !== null) {
                 ob_start();
                 switch ($type) {
                     case 'relation':
-                        if (!empty($column['renderField'])) {
-                            $relationParts = explode('.', $column['renderField']);
-                            $relationValue = $row;
-                            foreach ($relationParts as $part) {
-                                if (is_array($relationValue) && isset($relationValue[$part])) {
-                                    $relationValue = $relationValue[$part];
-                                } elseif (is_object($relationValue) && isset($relationValue->{$part})) {
-                                    $relationValue = $relationValue->{$part};
-                                } else {
-                                    $relationValue = null;
-                                    break;
-                                }
-                            }
-                            echo $relationValue ? h($relationValue) : '<span class="text-muted">—</span>';
-                        } else {
-                            echo $value !== null ? h($value) : '<span class="text-muted">—</span>';
-                        }
+                        echo $value !== null ? h($value) : '<span class="text-muted">—</span>';
                         break;
                     case 'boolean':
-                        echo $value ? '<i class="bi bi-check-circle-fill text-success"></i>' :
-                            '<i class="bi bi-x-circle-fill text-danger"></i>';
+                        echo $value ? '<kmp-icon name="circle-check" class="text-success" aria-hidden="true"></kmp-icon>' :
+                            '<kmp-icon name="circle-x" class="text-danger" aria-hidden="true"></kmp-icon>';
                         break;
                     case 'badge':
                         $badgeConfig = $column['badgeConfig'] ?? null;

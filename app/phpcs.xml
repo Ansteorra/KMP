@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <ruleset name="App">
-    <config name="installed_paths" value="../../cakephp/cakephp-codesniffer"/>
+    <config name="installed_paths" value="../../cakephp/cakephp-codesniffer,../../slevomat/coding-standard"/>
 
     <arg name="extensions" value="php"/>
 

@@ -19,6 +19,30 @@ use Cake\ORM\TableRegistry;
  */
 class BestowalBulkTodoTest extends HttpIntegrationTestCase
 {
+    public function testBulkLeadCompletionAppliesTheChosenOutcome(): void
+    {
+        $bestowals = [$this->makeBestowal(), $this->makeBestowal()];
+        foreach ($bestowals as $bestowal) {
+            $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'given', [
+                'title' => 'Given', 'is_terminal' => true,
+                'completion_config' => ['terminal_outcomes' => ['given' => 'Given', 'Given Not Received' => 'Given Not Received']],
+            ]);
+            $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'prepare');
+        }
+        $this->post('/awards/bestowals/bulk-complete-todo', [
+            'bestowal_ids' => implode(',', array_map(static fn($bestowal) => $bestowal->id, $bestowals)),
+            'check_key' => 'given', 'terminal_status' => 'Given Not Received',
+        ]);
+        $this->assertResponseCode(302);
+        foreach ($bestowals as $bestowal) {
+            $this->assertSame('Given Not Received', $this->getTableLocator()->get('Awards.Bestowals')->get($bestowal->id)->lifecycle_status);
+            $this->assertSame(0, $this->getTableLocator()->get('ActionItems')->find()->where([
+                'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE, 'entity_id' => $bestowal->id,
+                'status' => ActionItem::STATUS_OPEN,
+            ])->count());
+        }
+    }
+
     /**
      * @return void
      */

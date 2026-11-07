@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Shared bestowal to-do checklist.
@@ -13,6 +14,7 @@
  *
  * @var \App\View\AppView $this
  * @var array<\App\Model\Entity\ActionItem> $todoItems
+ * @var array<int, string> $terminalStateByTodoId Current owner outcome for completed terminal tasks.
  * @var array<int, bool> $todoEligibility
  * @var array<int, array<string, mixed>> $todoRequirementStatus
  * @var array<int, array<string, mixed>> $todoBlockedStatus
@@ -22,8 +24,10 @@
  * @var string $currentPageUrl
  */
 use App\Model\Entity\ActionItem;
+use Awards\Model\Entity\BestowalTodoTemplateItem;
 
 $todoItems = $todoItems ?? [];
+$terminalStateByTodoId = $terminalStateByTodoId ?? [];
 $todoEligibility = $todoEligibility ?? [];
 $todoRequirementStatus = $todoRequirementStatus ?? [];
 $todoBlockedStatus = $todoBlockedStatus ?? [];
@@ -63,28 +67,55 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                 $blocked = $blocker !== null && !empty($blocker['blocked']);
                 $canAssignRequirement = $eligible && $item->isOpen() && $missingRequirement && !$blocked;
                 $canCompleteDirectly = $eligible && $item->isOpen() && !$missingRequirement && !$blocked;
+                $hasOutcomeChoices = $item->is_terminal && BestowalTodoTemplateItem::terminalOutcomesFor($item) !== [];
                 $requirementField = (string)($requirement['field'] ?? '');
                 ?>
-                <li class="list-group-item d-flex justify-content-between align-items-start gap-3">
+                <li class="list-group-item d-flex flex-wrap justify-content-between align-items-start gap-3">
                     <div class="me-auto">
                         <div class="fw-semibold">
                             <?php if ($item->isCompleted()) : ?>
-                                <i class="bi bi-check-square-fill text-success me-1" aria-hidden="true"></i>
+                                <kmp-icon name="checkbox" class="text-success me-1" aria-hidden="true"></kmp-icon>
                                 <span class="visually-hidden"><?= __('Completed task:') ?></span>
                             <?php elseif ($item->status === ActionItem::STATUS_CANCELLED) : ?>
-                                <i class="bi bi-dash-square text-secondary me-1" aria-hidden="true"></i>
+                                <kmp-icon name="square-minus" class="text-secondary me-1" aria-hidden="true"></kmp-icon>
                                 <span class="visually-hidden"><?= __('Closed task:') ?></span>
                             <?php else : ?>
-                                <i class="bi bi-hourglass-split text-secondary me-1" aria-hidden="true"></i>
+                                <kmp-icon name="hourglass" class="text-secondary me-1" aria-hidden="true"></kmp-icon>
                                 <span class="visually-hidden"><?= __('Open task:') ?></span>
                             <?php endif; ?>
                             <?= h($item->title) ?>
                             <?php if ($item->is_terminal) :
-                                ?><span class="badge bg-primary"><?= __('Terminal — marks Given') ?></span><?php
+                                ?><span class="badge bg-primary"><?= h(__(
+                                    isset($terminalStateByTodoId[(int)$item->id])
+                                        ? 'Terminal state: {0}' : 'Terminal — marks {0}',
+                                    ucfirst($terminalStateByTodoId[(int)$item->id]
+                                        ?? BestowalTodoTemplateItem::terminalStatusFor($item)),
+                                )) ?></span><?php
                             endif; ?>
                         </div>
                         <?php if (!empty($item->description)) : ?>
                             <div class="small text-muted"><?= h($item->description) ?></div>
+                        <?php endif; ?>
+                        <?php if (!empty($item->history_notes)) : ?>
+                            <div class="mt-3" data-bestowal-todo-notes>
+                                <p class="fw-semibold mb-1"><?= __('To-Do notes') ?></p>
+                                <ul class="list-unstyled mb-0" role="list"
+                                    aria-label="<?= h(__('Notes for {0}', $item->title)) ?>">
+                                    <?php foreach ($item->history_notes as $entry) : ?>
+                                        <li class="border-start ps-3 mb-2">
+                                            <div class="small text-muted">
+                                                <?= h($entry->transition_label) ?> · <?= h($entry->author_name) ?>
+                                                <?php if ($entry->created !== null) : ?>
+                                                    · <time datetime="<?= h($entry->created->format(DATE_ATOM)) ?>">
+                                                        <?= $this->Timezone->format($entry->created) ?>
+                                                    </time>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="text-break"><?= nl2br(h($entry->note)) ?></div>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
                         <?php endif; ?>
                         <div class="mt-1">
                             <?php if ($item->isCompleted()) : ?>
@@ -96,31 +127,31 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                             <?php endif; ?>
                             <?php if ($item->is_gating) : ?>
                                 <span class="badge bg-warning text-dark">
-                                    <i class="bi bi-flag-fill me-1" aria-hidden="true"></i><?= __('Required') ?>
+                                    <kmp-icon name="flag-3" class="me-1" aria-hidden="true"></kmp-icon><?= __('Required') ?>
                                 </span>
                             <?php else : ?>
                                 <span class="badge bg-light text-dark border">
-                                    <i class="bi bi-flag me-1" aria-hidden="true"></i><?= __('Optional') ?>
+                                    <kmp-icon name="flag" class="me-1" aria-hidden="true"></kmp-icon><?= __('Optional') ?>
                                 </span>
                             <?php endif; ?>
                             <?php if ($requirement !== null) : ?>
                                 <?php if (!empty($requirement['satisfied'])) : ?>
                                     <span class="badge bg-info text-dark">
                                         <?php if ($requirementField === 'court_slot') : ?>
-                                            <i class="bi bi-list-check me-1" aria-hidden="true"></i>
+                                            <kmp-icon name="list-check" class="me-1" aria-hidden="true"></kmp-icon>
                                             <?= __('Court assigned') ?>
                                         <?php else : ?>
-                                            <i class="bi bi-calendar-check me-1" aria-hidden="true"></i>
+                                            <kmp-icon name="calendar-check" class="me-1" aria-hidden="true"></kmp-icon>
                                             <?= __('Gathering assigned') ?>
                                         <?php endif; ?>
                                     </span>
                                 <?php else : ?>
                                     <span class="badge bg-danger">
                                         <?php if ($requirementField === 'court_slot') : ?>
-                                            <i class="bi bi-list-check me-1" aria-hidden="true"></i>
+                                            <kmp-icon name="list-check" class="me-1" aria-hidden="true"></kmp-icon>
                                             <?= __('Court assignment required') ?>
                                         <?php else : ?>
-                                            <i class="bi bi-calendar-x me-1" aria-hidden="true"></i>
+                                            <kmp-icon name="calendar-x" class="me-1" aria-hidden="true"></kmp-icon>
                                             <?= __('Gathering required') ?>
                                         <?php endif; ?>
                                     </span>
@@ -128,14 +159,14 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                             <?php endif; ?>
                             <?php if ($blocked) : ?>
                                 <span class="badge bg-secondary">
-                                    <i class="bi bi-lock-fill me-1" aria-hidden="true"></i>
+                                    <kmp-icon name="lock" class="me-1" aria-hidden="true"></kmp-icon>
                                     <?= h((string)($blocker['label'] ?? __('Waiting on prerequisite'))) ?>
                                 </span>
                             <?php endif; ?>
                         </div>
                         <?php if ($blocked) : ?>
                             <div class="small text-muted mt-1">
-                                <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+                                <kmp-icon name="info-circle" class="me-1" aria-hidden="true"></kmp-icon>
                                 <?= h((string)($blocker['message'] ?? __('Complete prerequisite checks first.'))) ?>
                             </div>
                         <?php endif; ?>
@@ -151,6 +182,7 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                     ],
                                 ]) ?>
                                 <?= $this->Form->hidden('id', ['value' => $item->id]) ?>
+                                <?= $this->element('bestowal_terminal_outcome_field', ['item' => $item]) ?>
                                 <?= $this->Form->hidden('current_page', ['value' => $currentPageUrl]) ?>
                                 <div class="form-check form-switch mb-2">
                                     <input class="form-check-input" type="checkbox"
@@ -207,6 +239,7 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                     ],
                                 ]) ?>
                                 <?= $this->Form->hidden('id', ['value' => $item->id]) ?>
+                                <?= $this->element('bestowal_terminal_outcome_field', ['item' => $item]) ?>
                                 <?= $this->Form->hidden('current_page', ['value' => $currentPageUrl]) ?>
                                 <?php
                                 $courtSlotId = 'todo-' . (int)$item->id . '-court-slot';
@@ -247,7 +280,18 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                         <?php endif; ?>
                     </div>
                     <div class="flex-shrink-0">
-                        <?php if ($canCompleteDirectly) : ?>
+                        <?php if ($canCompleteDirectly && $hasOutcomeChoices) : ?>
+                            <?= $this->Form->create(null, [
+                                'url' => ['plugin' => null, 'controller' => 'ActionItems', 'action' => 'complete', $item->id],
+                            ]) ?>
+                            <?= $this->Form->hidden('current_page', ['value' => $currentPageUrl]) ?>
+                            <?= $this->element('bestowal_terminal_outcome_field', ['item' => $item]) ?>
+                            <?= $this->Form->button(__('Complete {0}', $item->title), [
+                                'class' => 'btn btn-sm btn-success',
+                                'data-confirm-message' => $item->complete_confirmation,
+                            ]) ?>
+                            <?= $this->Form->end() ?>
+                        <?php elseif ($canCompleteDirectly) : ?>
                             <?= $this->Form->postLink(
                                 __('Complete'),
                                 ['plugin' => null, 'controller' => 'ActionItems', 'action' => 'complete', $item->id],
@@ -261,7 +305,7 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                             ) ?>
                         <?php elseif ($eligible && $item->isCompleted()) : ?>
                             <?= $this->Form->postLink(
-                                '<i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>' . __('Reopen'),
+                                '<kmp-icon name="rotate" class="me-1" aria-hidden="true"></kmp-icon>' . __('Reopen'),
                                 ['plugin' => null, 'controller' => 'ActionItems', 'action' => 'reopen', $item->id],
                                 [
                                     'escapeTitle' => false,

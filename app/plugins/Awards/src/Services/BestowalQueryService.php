@@ -122,7 +122,7 @@ class BestowalQueryService
     }
 
     /**
-     * Exclude terminal (given/cancelled) bestowals from an active-work queue query.
+     * Keep only open bestowals in active-work queues, regardless of completion outcome.
      *
      * @param \Cake\ORM\Query\SelectQuery $query Bestowals query.
      * @return \Cake\ORM\Query\SelectQuery
@@ -130,10 +130,7 @@ class BestowalQueryService
     public function applyActiveOnlyFilter(SelectQuery $query): SelectQuery
     {
         return $query->where([
-            'Bestowals.lifecycle_status NOT IN' => [
-                Bestowal::LIFECYCLE_GIVEN,
-                Bestowal::LIFECYCLE_CANCELLED,
-            ],
+            'Bestowals.lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
         ]);
     }
 
@@ -284,6 +281,12 @@ class BestowalQueryService
 
         if ($this->shouldLoadColumn('member_sca_name', $visibleColumns)) {
             $fields[] = 'Bestowals.member_sca_name';
+        }
+        if (
+            $this->shouldLoadColumn('awards', $visibleColumns)
+            || $this->shouldLoadColumn('specialty', $visibleColumns)
+        ) {
+            $fields[] = 'Bestowals.specialty';
         }
 
         if ($this->shouldLoadColumn('herald_notes_preview', $visibleColumns)) {

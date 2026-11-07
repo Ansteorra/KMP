@@ -3,8 +3,9 @@
 /**
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Gathering $gathering
- * @var \Waivers\Model\Entity\WaiverType[] $requiredWaiverTypes
+ * @var array<\Waivers\Model\Entity\WaiverType> $requiredWaiverTypes
  * @var array $waiverStatusSummary
+ * @var string|null $pageContextUrl
  */
 
 // Include the built waiver upload stylesheet via Vite.
@@ -17,13 +18,21 @@ if (!empty($requiredWaiverTypes)) {
             'id' => $waiverType->id,
             'name' => $waiverType->name,
             'description' => $waiverType->description ?? '',
-            'exemption_reasons' => $waiverType->exemption_reasons_parsed ?? []
+            'exemption_reasons' => $waiverType->exemption_reasons_parsed ?? [],
         ];
     }
 }
 
 // Get PHP upload limits for client-side validation
 $uploadLimits = $this->KMP->getUploadLimits();
+$attestUrl = $this->Url->build(['plugin' => 'Waivers', 'controller' => 'GatheringWaivers', 'action' => 'attest']);
+$gatheringViewUrl = $this->Url->build([
+    'plugin' => false, 'controller' => 'Gatherings', 'action' => 'view',
+    $gathering->public_id, '?' => ['tab' => 'gathering-waivers'],
+]);
+$mobileSelectUrl = $this->Url->build([
+    'plugin' => 'Waivers', 'controller' => 'GatheringWaivers', 'action' => 'mobileSelectGathering',
+]);
 ?>
 <?php
 $this->extend('/layout/TwitterBootstrap/view_record');
@@ -52,7 +61,7 @@ echo $this->KMP->startBlock('pageTitle');
         <?= $this->Timezone->format($gathering->end_date, $gathering, 'F j, Y') ?>
     </td>
 </tr>
-<?php if (!empty($gathering->location)): ?>
+<?php if (!empty($gathering->location)) : ?>
     <tr scope="row">
         <th class="col"><?= __('Location') ?></th>
         <td class="col-10"><?= h($gathering->location) ?></td>
@@ -65,7 +74,7 @@ echo $this->KMP->startBlock('pageTitle');
 <button class="nav-link active" id="nav-upload-waivers-tab" data-bs-toggle="tab" data-bs-target="#nav-upload-waivers"
     type="button" role="tab" aria-controls="nav-upload-waivers" aria-selected="true" data-detail-tabs-target='tabBtn'
     data-tab-order="10" style="order: 10;">
-    <?= __("Upload Wizard") ?>
+    <?= __('Upload Wizard') ?>
 </button>
 <?php $this->KMP->endBlock(); ?>
 
@@ -77,13 +86,14 @@ echo $this->KMP->startBlock('pageTitle');
     <div class="wizard-wrapper" data-controller="waiver-upload-wizard"
         data-waiver-upload-wizard-gathering-id-value="<?= $gathering->id ?>"
         data-waiver-upload-wizard-gathering-public-id-value="<?= h($gathering->public_id) ?>"
+        data-waiver-upload-wizard-return-url-value="<?= h($pageContextUrl ?? '') ?>"
         data-waiver-upload-wizard-total-steps-value="3"
         data-waiver-upload-wizard-max-file-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
         data-waiver-upload-wizard-total-max-size-value="<?= h($uploadLimits['postMaxSize']) ?>"
-        data-waiver-upload-wizard-attest-url-value="<?= $this->Url->build(['plugin' => 'Waivers', 'controller' => 'GatheringWaivers', 'action' => 'attest']) ?>"
-        data-waiver-upload-wizard-gathering-view-url-value="<?= $this->Url->build(['plugin' => false, 'controller' => 'Gatherings', 'action' => 'view', $gathering->public_id, '?' => ['tab' => 'gathering-waivers']]) ?>"
-        data-waiver-upload-wizard-mobile-select-url-value="<?= $this->Url->build(['plugin' => 'Waivers', 'controller' => 'GatheringWaivers', 'action' => 'mobileSelectGathering']) ?>"
-        <?php if (!empty($preSelectedWaiverTypeId)): ?>
+        data-waiver-upload-wizard-attest-url-value="<?= h($attestUrl) ?>"
+        data-waiver-upload-wizard-gathering-view-url-value="<?= h($gatheringViewUrl) ?>"
+        data-waiver-upload-wizard-mobile-select-url-value="<?= h($mobileSelectUrl) ?>"
+        <?php if (!empty($preSelectedWaiverTypeId)) : ?>
         data-waiver-upload-wizard-pre-selected-waiver-type-id-value="<?= h($preSelectedWaiverTypeId) ?>"
         <?php endif; ?>>
 
@@ -92,7 +102,7 @@ echo $this->KMP->startBlock('pageTitle');
             <div class="progress" style="height: 8px;">
                 <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar"
                     data-waiver-upload-wizard-target="progressBar" style="width: 33%;" aria-valuenow="33"
-                    aria-valuemin="0" aria-valuemax="100">
+                    aria-label="<?= __('Waiver upload progress') ?>" aria-valuemin="0" aria-valuemax="100">
                 </div>
             </div>
         </div>
@@ -106,7 +116,7 @@ echo $this->KMP->startBlock('pageTitle');
                         <span class="badge rounded-pill bg-primary">1</span>
                     </div>
                     <div class="step-label small">
-                        <i class="bi bi-file-earmark-text"></i><br>
+                        <kmp-icon name="file-text"  aria-hidden="true"></kmp-icon><br>
                         <?= __('Waiver Type') ?>
                     </div>
                 </div>
@@ -116,7 +126,7 @@ echo $this->KMP->startBlock('pageTitle');
                         <span class="badge rounded-pill bg-secondary">2</span>
                     </div>
                     <div class="step-label small">
-                        <i class="bi bi-file-earmark-image"></i><br>
+                        <kmp-icon name="file-image"  aria-hidden="true"></kmp-icon><br>
                         <?= __('Add Pages') ?>
                     </div>
                 </div>
@@ -126,7 +136,7 @@ echo $this->KMP->startBlock('pageTitle');
                         <span class="badge rounded-pill bg-secondary">3</span>
                     </div>
                     <div class="step-label small">
-                        <i class="bi bi-check-circle"></i><br>
+                        <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon><br>
                         <?= __('Review') ?>
                     </div>
                 </div>
@@ -140,7 +150,7 @@ echo $this->KMP->startBlock('pageTitle');
                     'waiverTypesData' => $waiverTypesData,
                     'gathering' => $gathering,
                     'uploadLimits' => $uploadLimits,
-                    'waiverStatusSummary' => $waiverStatusSummary
+                    'waiverStatusSummary' => $waiverStatusSummary,
                 ]); ?>
             </div>
         </div>

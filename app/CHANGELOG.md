@@ -6,6 +6,31 @@ Stay up to date with the latest features, improvements, and announcements for th
 <!-- LAST_SYNCED_COMMIT: e511adcc8a9f23ab4fff7c7957d8be3717b88a61 -->
 <!-- LAST_SYNCED_DATE: 2026-10-21 -->
 
+## Unreleased
+
+- Preserve detail tabs, grid queries, drafts, focus, and return navigation across partial saves. Replace the app Back stack with shared browser history and prepare optional Turbo Drive and authorized live updates behind fallback switches.
+
+- Delegate award preparation for a specific gathering and branch, with scoped access to bestowals, court agendas, and assigned To-Dos and an auditable revoke action.
+- Configure a lead terminal To-Do with multiple bestowal outcomes, including Given Not Received. Authorized editors can correct a completed outcome while retaining its original completion history. Regalia permissions support renamed fields.
+- Improve court agenda preparation, ordering, editing, and printouts, including scheduled-session dates/times and the appropriate recipient, herald, and recommendation notes.
+- Keep prerequisites and gathering/court assignments synchronized across bestowal To-Dos. Improve My To-Dos, bulk completion, submitted recommendations, and saved grid context.
+- Report lost waivers from each gathering grid row. Show Lost in the type summary and standard detail view, reverse that status with retained audit history, and keep uploaded PDFs viewable and downloadable throughout.
+- Use compact, spaced action buttons on waiver details and improve grid filters, saved tabs, navigation, and mobile layouts. Include an authenticated UI-pattern review showcase with fictional examples.
+
+- Match every activity configured as Royal Progress when filtering public events by Any Royal Progress, including custom royal-presence activities.
+
+- Manage Royal Progress exclusively through gathering activities. Remove Royal Progress RSVP controls, office eligibility settings, attendance-derived calendar filters and badges, and their retired database fields. Ordinary attendance and sharing preferences remain available.
+
+- Browse public events in a compact calendar with month boundaries, empty weekends, and continuing multi-week events. Select a row for details or the event name to open its public page.
+- Keep event filters visible while scrolling. Find activities by type in a wider icon picker, view choices in two columns on larger screens, and see selected activity names without reopening the picker.
+- Show Royal Progress activities first, Order Circles second, then other activities, ordered by Display Order and alphabetically within each group. Business activities remain in administrative views and are hidden from public calendars and event pages.
+- Add and edit gathering activities in a shared modal. The activity grid includes configured icons, activity types, display order, and direct View/Edit actions.
+- Add matching Order Circle icons and readable activity color palettes, with larger icons across activity displays.
+- Include current published example events hosted by a mix of local groups for development and POC review.
+- Update Symfony Filesystem and YAML to 7.4.23 for the November 4 path handling and parser denial-of-service security fixes.
+
+---
+
 ## KMP 1.5.13 — October 21, 2026
 
 KMP 1.5.13 is a security release addressing the October 21 critical PHP vulnerabilities and updating dependencies with security fixes.

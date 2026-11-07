@@ -20,13 +20,17 @@ function harness(filename, source = fixtureSource, failure = 'launch') {
         if (name === 'node:assert/strict') return assert;
         if (name === 'node:fs') return { readFileSync: () => source };
         if (name === 'playwright') return { chromium: { launch } };
-        if (name === '@playwright/test') return { expect: jest.fn() };
+        if (name === '@playwright/test') return { expect: jest.fn(),
+            chromium: { launch }, firefox: { launch }, webkit: { launch } };
         if (name === './ui-helpers.cjs') return { runPhpJson };
+        if (name === './test-environment.cjs') return { getUiTestEnvironment: () => ({ baseUrl: 'http://kmp.localhost:18280' }) };
+        if (name === '@axe-core/playwright') return { default: jest.fn() };
         throw new Error(`Unexpected dependency ${name}`);
     };
     require.resolve = name => name;
     require.main = module;
-    const sandbox = { require, module, console: { error: jest.fn() }, process: { exitCode: 0 } };
+    const sandbox = { require, module, console: { error: jest.fn() },
+        process: { env: {}, exitCode: 0, exit(code) { this.exitCode = code; } } };
     const script = fs.readFileSync(path.join(support, filename), 'utf8').replace('module.exports = { verifySchedule };', '');
     return { run: () => vm.runInNewContext(script, sandbox), runPhpJson, launch, close, fixture, sandbox };
 }
@@ -53,6 +57,17 @@ describe.each(scripts)('%s fixture safety', filename => {
             cleanup: check.fixture.id, name: check.fixture.name,
             memberId: check.fixture.memberId, email: check.fixture.email,
         });
+        expect(check.sandbox.process.exitCode).toBe(1);
+        expect(check.close).toHaveBeenCalledTimes(failure === 'launch' ? 0 : 1);
+    });
+});
+
+describe('native waiver upload fixture safety', () => {
+    test.each(['launch', 'close'])('cleans its synthetic records and files when browser %s fails', async failure => {
+        const check = harness('waiver-upload-browser-check.cjs', fixtureSource, failure);
+        await check.run();
+        expect(check.runPhpJson).toHaveBeenCalledTimes(2);
+        expect(check.runPhpJson.mock.calls[1][1]).toEqual(check.fixture);
         expect(check.sandbox.process.exitCode).toBe(1);
         expect(check.close).toHaveBeenCalledTimes(failure === 'launch' ? 0 : 1);
     });

@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { execFileSync } from 'node:child_process';
 import { resolve } from 'path';
 import { readdirSync, existsSync, copyFileSync, mkdirSync } from 'fs';
 import { join, extname } from 'path';
@@ -29,7 +30,18 @@ function copyAssetsPlugin() {
     };
 }
 
-export default defineConfig({
+/** Generate local SVG assets and the shared runtime before resolving CSS/JS imports. */
+function iconCatalogPlugin() {
+    return {
+        name: 'kmp-icons',
+        buildStart() {
+            execFileSync(process.execPath, ['scripts/icons/generate.mjs'], { stdio: 'inherit' });
+        },
+    };
+}
+
+export default defineConfig(({ mode }) => ({
+    define: { __KMP_ICON_DEBUG__: mode === 'development' },
     root: '.',
     base: '/',
     publicDir: false,
@@ -41,6 +53,7 @@ export default defineConfig({
         sourcemap: true,
 
         rollupOptions: {
+            external: [/^\/kmp-icons\/[a-f0-9]{16}\//],
             input: {
                 // Main app entry
                 index: resolve(__dirname, 'assets/js/index.js'),
@@ -48,6 +61,7 @@ export default defineConfig({
                 // All controllers + services via glob entry
                 controllers: resolve(__dirname, 'assets/js/controllers-entry.js'),
                 // CSS entries
+                icons: resolve(__dirname, 'assets/css/icons.css'),
                 app: resolve(__dirname, 'assets/css/app.css'),
                 signin: resolve(__dirname, 'assets/css/signin.css'),
                 cover: resolve(__dirname, 'assets/css/cover.css'),
@@ -55,6 +69,7 @@ export default defineConfig({
                 waivers: resolve(__dirname, 'plugins/Waivers/assets/css/waivers.css'),
                 'waiver-upload': resolve(__dirname, 'plugins/Waivers/assets/css/waiver-upload.css'),
                 'workflow-designer': resolve(__dirname, 'assets/css/workflow-designer.css'),
+                'ui-patterns': resolve(__dirname, 'assets/css/ui-patterns.css'),
                 error: resolve(__dirname, 'assets/css/error.css'),
                 'gatherings_public': resolve(__dirname, 'assets/css/gatherings_public.css'),
                 drawflow: resolve(__dirname, 'node_modules/drawflow/dist/drawflow.min.css'),
@@ -98,6 +113,7 @@ export default defineConfig({
     },
 
     plugins: [
+        iconCatalogPlugin(),
         copyAssetsPlugin(),
     ],
-});
+}));

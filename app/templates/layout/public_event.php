@@ -11,6 +11,7 @@
 <html lang="en">
 
 <head>
+    <meta name="turbo-visit-control" content="reload">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -20,13 +21,14 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
+    <?php $fontUrl = 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800'
+        . '&family=Playfair+Display:wght@600;700;800&display=swap'; ?>
+    <link href="<?= h($fontUrl) ?>" rel="stylesheet">
 
     <!-- Bootstrap CSS for modals and components -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://unpkg.com/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <?= $this->Vite->css('icons') ?>
 
     <style>
         :root {
@@ -194,7 +196,7 @@
             border-radius: var(--radius-lg);
         }
 
-        .hero-meta-item i {
+        .hero-meta-item :is(i, kmp-icon) {
             font-size: 1.5rem;
         }
 
@@ -420,7 +422,7 @@
             text-align: center;
         }
 
-        .location-address i {
+        .location-address :is(i, kmp-icon) {
             font-size: 2rem;
             color: var(--color-primary);
             margin-bottom: var(--space-md);
@@ -583,7 +585,7 @@
             background-color: var(--color-gray-100);
         }
 
-        .dropdown-item i {
+        .dropdown-item :is(i, kmp-icon) {
             margin-right: 0.5rem;
             width: 1.25rem;
             text-align: center;
@@ -652,7 +654,8 @@
 </head>
 
 <body>
-    <a class="visually-hidden-focusable position-absolute top-0 start-0 z-3 m-2 p-2 bg-white border rounded" href="#main-content">
+    <a class="visually-hidden-focusable position-absolute top-0 start-0 z-3 m-2 p-2 bg-white border rounded"
+        href="#main-content">
         <?= __('Skip to main content') ?>
     </a>
     <div id="flash-messages">

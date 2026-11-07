@@ -26,6 +26,17 @@ describe('DeleteConfirmationController', () => {
         jest.restoreAllMocks();
     });
 
+    test('retains the clicked control across asynchronous confirmation after the DOM clears currentTarget', async () => {
+        const form = document.createElement('form');
+        const button = document.createElement('button'); button.type = 'button'; form.append(button); document.body.append(form);
+        const submit = jest.spyOn(form, 'submit').mockImplementation(() => {});
+        let result;
+        button.addEventListener('click', event => { result = controller.confirm(event); });
+        button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+        await result;
+        expect(submit).toHaveBeenCalledTimes(1);
+    });
+
     test('registers on window.Controllers', () => {
         expect(window.Controllers['delete-confirmation']).toBe(DeleteConfirmationController);
     });

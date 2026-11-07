@@ -50,8 +50,32 @@ bash bin/verify.sh
 ```
 
 The standard script runs all three PHPUnit suites, the skipped-test budget, seed snapshot
-contracts, Jest, the Vite development build, the Azure runtime contract, PHPCS on changed PHP,
-and PHPStan. It does not run Playwright.
+contracts, documentation and icon checks, Jest, the Vite development build, the Azure runtime
+contract, PHPCS on changed PHP (including core and plugin templates), and PHPStan. It does not
+run Playwright.
+
+Run full verification with the complete repository available, including `.git`, root `docs/`,
+and `deploy/`. The running Docker app service mounts only `app/`, so it cannot run every
+repository check. With the local Docker stack initialized, run this from the repository root:
+
+```bash
+docker compose run --rm --no-deps --entrypoint bash \
+  -v "$PWD:/workspace" \
+  -v kmp-node-modules:/workspace/app/node_modules \
+  -w /workspace/app \
+  -e GIT_CONFIG_COUNT=1 \
+  -e GIT_CONFIG_KEY_0=safe.directory \
+  -e GIT_CONFIG_VALUE_0=/workspace \
+  app -c 'bash bin/verify.sh'
+```
+
+Run one PHP test process per test database. Concurrent runs must use separate
+`DATABASE_TEST_URL` and `PLATFORM_DATABASE_TEST_URL` values because each test bootstrap
+reloads shared seed data.
+
+Keep CakePHP CodeSniffer, PHPCS, Slevomat, and IDE Helper compatible when updating Composer
+development dependencies. Use the locked versions and the project's `phpcs.xml`; do not
+patch vendor code or disable checks to work around parser incompatibilities.
 
 Browser lanes are intentionally separate and share the local Docker stack, so run one at a
 time:
@@ -67,6 +91,13 @@ Each lane resets its database by default. Use `PLAYWRIGHT_RESET_DB=0` only for a
 rerun after a successful reset; do not add competing resets inside scenarios. Scope queue and
 Mailpit assertions with unique fixture tokens so background work from another scenario cannot
 satisfy them accidentally.
+
+Nightly verification runs Drive-enabled UAT on Chromium, Firefox and WebKit in
+sequence, with a fresh fixture reset for each browser. The destructive platform
+lane runs separately on Chromium with its own reset and administrative worker.
+Smoke/journey and PHP contracts retain the default Frames/Streams fallback.
+The navigation lifecycle scenario enters To-Do, approval and recommendation
+dialogs through links and checks initialization, Escape and returned focus.
 
 Coverage and mutation checks are opt-in. Run `npm ci` first: mutation testing uses
 the locked Stryker core and Jest runner, which must be upgraded together. Dependabot

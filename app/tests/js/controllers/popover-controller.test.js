@@ -14,6 +14,7 @@ beforeAll(() => {
     window.bootstrap.Popover.Default = {
         allowList: { a: ['href', 'title'], div: ['class'] }
     };
+    window.bootstrap.Popover.getInstance = jest.fn(() => mockPopoverInstance);
 });
 
 describe('PopoverController', () => {
@@ -75,6 +76,27 @@ describe('PopoverController', () => {
             })
         );
         expect(controller.popover).toBe(mockPopoverInstance);
+    });
+
+    test('disconnect does not dispose a second time after Turbo released the instance', () => {
+        controller.connect();
+        window.bootstrap.Popover.getInstance.mockReturnValueOnce(null);
+        controller.disconnect();
+        expect(mockPopoverInstance.dispose).not.toHaveBeenCalled();
+        expect(controller.popover).toBeNull();
+    });
+
+    test('morphed note content refreshes an open popover while unchanged rows keep their instance', () => {
+        controller.connect();
+        controller.element.dispatchEvent(new Event('turbo:morph-element'));
+        expect(window.bootstrap.Popover).toHaveBeenCalledTimes(1);
+        controller.element.setAttribute('aria-describedby', 'open-popover');
+        controller.element.setAttribute('data-bs-content', 'Fresh note content');
+        controller.element.dispatchEvent(new Event('turbo:morph-element'));
+        expect(mockPopoverInstance.dispose).toHaveBeenCalledTimes(1);
+        expect(window.bootstrap.Popover).toHaveBeenCalledTimes(2);
+        expect(mockPopoverInstance.show).toHaveBeenCalledTimes(1);
+        controller.disconnect();
     });
 
     test('connect includes customClass when provided', () => {

@@ -129,7 +129,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
         </div>
         <?php if ($user->checkCan('edit', $template)) : ?>
         <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal">
-            <i class="bi bi-plus-circle" aria-hidden="true"></i> <?= __('Add Check') ?>
+            <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon> <?= __('Add Check') ?>
         </button>
         <?php endif; ?>
     </div>
@@ -186,7 +186,10 @@ echo $this->KMP->startBlock('pageTitle') ?>
                     <td>
                         <strong><?= h($item->label) ?></strong>
                         <?php if ($item->is_terminal) : ?>
-                            <span class="badge bg-primary"><?= __('Terminal — marks Given') ?></span>
+                        <span class="badge bg-primary"><?= h(__(
+                            $item->is_terminal_lead ? 'Lead To-Do — default {0}' : 'Outcome option — {0}',
+                            ucfirst((string)($item->terminal_status ?: 'given')),
+                        )) ?></span>
                         <?php endif; ?><br>
                         <small class="text-muted"><?= h($item->item_key) ?></small>
                     </td>
@@ -213,9 +216,9 @@ echo $this->KMP->startBlock('pageTitle') ?>
                     </td>
                     <td class="actions text-end text-nowrap">
                         <?php if ($user->checkCan('edit', $template)) : ?>
-                        <button type="button" class="btn btn-sm btn-secondary bi bi-pencil-fill" data-bs-toggle="modal"
+                        <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal"
                             data-bs-target="#editItemModal-<?= $item->id ?>"
-                            aria-label="<?= __('Edit {0}', $item->label) ?>"></button>
+                            aria-label="<?= __('Edit {0}', $item->label) ?>"><kmp-icon name="pencil" aria-hidden="true"></kmp-icon> </button>
                             <?= $this->Form->postLink(
                                 '',
                                 ['action' => 'delete-item', $item->id],
@@ -223,7 +226,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
                                 'confirm' => __('Remove check "{0}"?', $item->label),
                                 'title' => __('Remove'),
                                 'aria-label' => __('Remove {0}', $item->label),
-                                'class' => 'btn-sm btn btn-outline-danger bi bi-trash-fill',
+                                'class' => 'btn-sm btn btn-outline-danger', 'icon' => 'trash',
                                 ],
                             ) ?>
                         <?php endif; ?>
@@ -307,7 +310,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
         echo '<div class="col-12 col-lg-6">';
         echo '<fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">';
         echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">' .
-        '<i class="bi bi-list-check text-primary me-1" aria-hidden="true"></i>' .
+        '<kmp-icon name="list-check" class="text-primary me-1" aria-hidden="true"></kmp-icon>' .
         __('Check Identity') . '</legend>';
         echo $this->Form->control('label', ['value' => $item?->label]);
         echo $this->Form->control('item_key', [
@@ -323,11 +326,27 @@ echo $this->KMP->startBlock('pageTitle') ?>
             'checked' => $item?->is_terminal ?? false,
             'data-awards-bestowal-todo-item-form-target' => 'terminal',
             'data-action' => 'change->awards-bestowal-todo-item-form#sync',
-            'label' => __('Terminal: completing this task marks the bestowal Given'),
-            'help' => __('One per template. Requires manual confirmation; unfinished '
-                . 'required and optional tasks close as not applicable. Sync '
-                . 'existing bestowals to apply changes.'),
+            'label' => __('Terminal outcome'),
+            'help' => __('Terminal definitions supply completion choices. Only the lead becomes a To-Do. '
+                . 'Its assignee and required fields control completion. Sync existing bestowals to apply changes.'),
         ]);
+        echo $this->Form->control('is_terminal_lead', [
+            'type' => 'checkbox',
+            'checked' => $item?->is_terminal_lead ?? false,
+            'label' => __('Use as the lead terminal To-Do'),
+            'help' => __('Completing this To-Do asks the user to choose any configured terminal outcome. '
+                . 'Selecting a new lead replaces the previous lead. The first terminal definition becomes the lead.'),
+        ]);
+        echo $this->Form->control('terminal_status', [
+            'id' => $fieldPrefix . '-terminal-status',
+            'value' => ucfirst((string)($item?->terminal_status ?: 'given')),
+            'label' => __('Completion status'),
+            'maxlength' => 100,
+            'aria-describedby' => $fieldPrefix . '-terminal-status-help',
+        ]);
+        echo '<p class="form-text" id="' . h($fieldPrefix . '-terminal-status-help') . '">' .
+            __('Used only for terminal tasks. Enter Given, Given Not Received, or another completion status. ' .
+                'This status appears in bestowal lists and reports. Open and Cancelled are reserved.') . '</p>';
         echo $this->Form->control('is_gating', [
         'type' => 'checkbox',
         'switch' => true,
@@ -340,7 +359,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
         echo '<div class="col-12 col-lg-6">';
         echo '<fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">';
         echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">' .
-        '<i class="bi bi-person-check text-success me-1" aria-hidden="true"></i>' .
+        '<kmp-icon name="user-check" class="text-success me-1" aria-hidden="true"></kmp-icon>' .
         __('Assignee Source') . '</legend>';
         echo $this->Form->control('assignee_type', [
         'options' => $assigneeTypeOptions,
@@ -448,7 +467,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
         echo '<div class="col-12">';
         echo '<fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">';
         echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">' .
-        '<i class="bi bi-ui-checks-grid text-warning me-1" aria-hidden="true"></i>' .
+        '<kmp-icon name="list-check" class="text-warning me-1" aria-hidden="true"></kmp-icon>' .
         __('Completion Requirements') . '</legend>';
         echo $this->Form->control('required_field', [
         'options' => $requiredFieldOptions,
@@ -485,7 +504,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
         echo '<div class="col-12">';
         echo '<fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">';
         echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">' .
-        '<i class="bi bi-sliders text-info me-1" aria-hidden="true"></i>' .
+        '<kmp-icon name="adjustments" class="text-info me-1" aria-hidden="true"></kmp-icon>' .
         __('Branch Scope') . '</legend>';
         echo $this->Form->control('branch_mode', [
         'options' => $branchModeOptions,
@@ -512,7 +531,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
     <?= $this->Modal->create(__('Add Check'), ['id' => 'addItemModal', 'close' => true, 'form' => true]) ?>
 <fieldset class="border rounded-3 bg-white shadow-sm p-3" data-controller="awards-bestowal-todo-item-form">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-        <i class="bi bi-list-check text-primary me-1" aria-hidden="true"></i>
+        <kmp-icon name="list-check" class="text-primary me-1" aria-hidden="true"></kmp-icon>
         <?= __('To-Do Check') ?>
     </legend>
     <?php $renderItemFields(); ?>
@@ -534,7 +553,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
         ) ?>
 <fieldset class="border rounded-3 bg-white shadow-sm p-3" data-controller="awards-bestowal-todo-item-form">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-        <i class="bi bi-list-check text-primary me-1" aria-hidden="true"></i>
+        <kmp-icon name="list-check" class="text-primary me-1" aria-hidden="true"></kmp-icon>
         <?= __('To-Do Check') ?>
     </legend>
         <?php $renderItemFields($item); ?>

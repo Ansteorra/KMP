@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Quick To-Dos modal frame for a single bestowal.
@@ -20,7 +21,7 @@
 
 use Awards\Model\Entity\Bestowal;
 
-$memberName = $bestowal->member->sca_name ?? $bestowal->member_sca_name ?? '';
+$memberName = $bestowal->getRecipientName();
 $lifecycleStatus = (string)($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN);
 $currentPageUrl = $currentPageUrl ?? $this->Url->build([
     'plugin' => 'Awards',
@@ -40,16 +41,17 @@ $viewUrl = $this->Url->build([
             <h2 class="h6 mb-0"><?= h($memberName) ?></h2>
             <?php if ($lifecycleStatus === Bestowal::LIFECYCLE_CANCELLED) : ?>
                 <span class="badge bg-secondary"><?= __('Cancelled') ?></span>
-            <?php elseif ($lifecycleStatus === Bestowal::LIFECYCLE_GIVEN) : ?>
-                <span class="badge bg-success"><?= __('Given') ?></span>
+            <?php elseif ($bestowal->isCompleted()) : ?>
+                <span class="badge bg-success"><?= h(ucfirst($lifecycleStatus)) ?></span>
             <?php endif; ?>
         </div>
         <a href="<?= h($viewUrl) ?>" class="btn btn-sm btn-outline-secondary" data-turbo="false">
-            <i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i><?= __('Open') ?>
+            <kmp-icon name="external-link" class="me-1" aria-hidden="true"></kmp-icon><?= __('Open') ?>
         </a>
     </div>
     <?= $this->element('bestowal_todo_checklist', [
         'todoItems' => $todoItems,
+        'terminalStateByTodoId' => $terminalStateByTodoId ?? [],
         'todoEligibility' => $todoEligibility,
         'todoRequirementStatus' => $todoRequirementStatus ?? [],
         'todoBlockedStatus' => $todoBlockedStatus ?? [],

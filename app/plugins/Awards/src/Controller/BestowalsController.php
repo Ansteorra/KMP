@@ -9,18 +9,22 @@ use App\KMP\GridRowDomId;
 use App\Model\Entity\ActionItem;
 use App\Services\ActionItems\ActionItemService;
 use App\Services\CsvExportService;
+use App\Services\IconCatalog;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use Awards\KMP\GridColumns\BestowalsGridColumns;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
+use Awards\Policy\BestowalPolicy;
 use Awards\Services\BestowalCancellationService;
 use Awards\Services\BestowalCourtSlotService;
 use Awards\Services\BestowalCreationService;
+use Awards\Services\BestowalDelegationAccessService;
 use Awards\Services\BestowalFieldAccessService;
 use Awards\Services\BestowalFinalizationService;
 use Awards\Services\BestowalFormService;
 use Awards\Services\BestowalGatheringLookupService;
+use Awards\Services\BestowalOutcomeChangeService;
 use Awards\Services\BestowalQueryService;
 use Awards\Services\BestowalUpdateService;
 use Cake\Datasource\Exception\RecordNotFoundException;
@@ -69,7 +73,10 @@ class BestowalsController extends AppController
         $this->Authorization->authorize($emptyBestowal, 'index');
 
         $user = $this->request->getAttribute('identity');
-        if ($user->checkCan('edit', $emptyBestowal)) {
+        $canEditBestowalRecords = $user->checkCan('edit', $emptyBestowal)
+            || (new BestowalDelegationAccessService())->scopesFor($user, 'canEdit') !== [];
+        $this->set(compact('canEditBestowalRecords'));
+        if ($canEditBestowalRecords) {
             $formService = new BestowalFormService();
             $adHocFormData = $formService->prepareAdHocFormData($user);
             $adHocFormData['protectedFieldAccess'] = $this->fieldAccessService->accessFor($user, $emptyBestowal);
@@ -295,7 +302,7 @@ class BestowalsController extends AppController
             'GatheringScheduledActivities',
             'Awards' => ['Domains', 'Levels'],
             'PrimaryRecommendation' => ['Awards', 'Awards.Levels'],
-            'Recommendations' => ['Awards', 'Awards.Levels', 'Requesters'],
+            'Recommendations' => ['Awards', 'Awards.Levels', 'Requesters', 'Members'],
         ]);
         $this->Authorization->authorize($bestowal, 'view');
 
@@ -311,6 +318,8 @@ class BestowalsController extends AppController
 
         $this->set(compact('bestowal', 'protectedFieldAccess'));
         $this->set($todoContext);
+        $this->set('terminalStateOptions', $bestowal->isCompleted()
+            ? (new BestowalOutcomeChangeService())->options((int)$bestowal->id) : []);
 
         return null;
     }
@@ -379,9 +388,11 @@ class BestowalsController extends AppController
             !$bestowal->allowsActionItemMutations(),
         );
         $todoEligibility = [];
+        $todoNotes = $this->loadTodoNotes($todoItems);
         $todoGatingTotal = 0;
         $todoGatingDone = 0;
         foreach ($todoItems as $todoItem) {
+            $todoItem->history_notes = $todoNotes[(int)$todoItem->id] ?? [];
             $todoEligibility[$todoItem->id] = $bestowal->allowsActionItemMutations()
                 && ($isSuperUser || $actionItemService->isMemberEligible($todoItem, $memberId));
             $todoItem->complete_confirmation = $actionItemService->confirmationFor($todoItem, 'complete');
@@ -397,13 +408,33 @@ class BestowalsController extends AppController
             Bestowal::ACTION_ITEM_ENTITY_TYPE,
             (int)$bestowal->id,
         );
-        $terminalTodo = null;
+        $terminalTodos = [];
+        $leadTodos = [];
         foreach ($todoItems as $todoItem) {
             if ($todoItem->is_terminal && $todoItem->status !== ActionItem::STATUS_CANCELLED) {
-                $terminalTodo = $todoItem;
+                $terminalTodos[] = $todoItem;
+                if (BestowalTodoTemplateItem::terminalOutcomesFor($todoItem) !== []) {
+                    $leadTodos[] = $todoItem;
+                }
             }
         }
-        $this->set('terminalTodo', $terminalTodo);
+        if ($leadTodos !== []) {
+            foreach ($terminalTodos as $terminalTodo) {
+                if (BestowalTodoTemplateItem::terminalOutcomesFor($terminalTodo) === []) {
+                    $todoEligibility[$terminalTodo->id] = false;
+                }
+            }
+            $terminalTodos = $leadTodos;
+        }
+        $this->set('terminalTodos', $terminalTodos);
+        $terminalStateByTodoId = [];
+        if ($bestowal->isCompleted()) {
+            foreach ($terminalTodos as $terminalTodo) {
+                if ($terminalTodo->isCompleted()) {
+                    $terminalStateByTodoId[(int)$terminalTodo->id] = (string)$bestowal->lifecycle_status;
+                }
+            }
+        }
         $todoRequirementStatus = $this->buildTodoRequirementStatus($todoItems, $bestowal);
         $todoBlockedStatus = $this->buildTodoBlockedStatus($todoItems, $bestowal);
         $gatingPercent = $todoGatingTotal > 0
@@ -419,7 +450,56 @@ class BestowalsController extends AppController
             'todoGatingDone',
             'gatingPercent',
             'allGatingComplete',
+            'terminalStateByTodoId',
         );
+    }
+
+    /**
+     * Load transition notes only for the authorized bestowal's displayed To-Dos.
+     *
+     * @param array<\App\Model\Entity\ActionItem> $items Displayed To-Dos.
+     * @return array<int, list<\App\Model\Entity\ActionItemLog>> Notes grouped by To-Do.
+     */
+    private function loadTodoNotes(array $items): array
+    {
+        if ($items === []) {
+            return [];
+        }
+        $logs = $this->fetchTable('ActionItemLogs')->find()
+            ->select([
+                'ActionItemLogs.id', 'ActionItemLogs.action_item_id', 'ActionItemLogs.note',
+                'ActionItemLogs.to_status', 'ActionItemLogs.created', 'ActionItemLogs.created_by',
+                'author_name' => 'NoteAuthors.sca_name',
+            ])
+            ->leftJoin(['NoteAuthors' => 'members'], [
+                'NoteAuthors.id = ActionItemLogs.created_by', 'NoteAuthors.deleted IS' => null,
+            ])
+            ->where([
+                'ActionItemLogs.action_item_id IN' => array_map(
+                    static fn(ActionItem $item): int => (int)$item->id,
+                    $items,
+                ),
+                'ActionItemLogs.note IS NOT' => null,
+                'ActionItemLogs.note !=' => '',
+            ])
+            ->orderBy(['ActionItemLogs.created' => 'ASC', 'ActionItemLogs.id' => 'ASC']);
+        $notes = [];
+        foreach ($logs as $log) {
+            if (trim((string)$log->note) !== '') {
+                $author = trim((string)$log->author_name);
+                $log->author_name = $author !== '' ? $author
+                    : ($log->created_by === null ? __('System') : __('Unknown author'));
+                $log->transition_label = match ($log->to_status) {
+                    ActionItem::STATUS_COMPLETED => __('Completed'),
+                    ActionItem::STATUS_OPEN => __('Reopened'),
+                    ActionItem::STATUS_CANCELLED => __('Closed'),
+                    default => ucfirst((string)$log->to_status),
+                };
+                $notes[(int)$log->action_item_id][] = $log;
+            }
+        }
+
+        return $notes;
     }
 
     /**
@@ -555,6 +635,10 @@ class BestowalsController extends AppController
             $this->Authorization->authorize($bestowal, 'edit');
 
             $user = $this->request->getAttribute('identity');
+            $withinScope = (new BestowalPolicy())->canUpdateWithinScope($user, $bestowal, $this->request->getData());
+            if (!$withinScope) {
+                throw new ForbiddenException(__('Delegated changes must stay within the event and awarding group.'));
+            }
             $deniedFields = $this->fieldAccessService->deniedMutationFields(
                 $this->request->getData(),
                 $user,
@@ -632,11 +716,13 @@ class BestowalsController extends AppController
             $this->Authorization->authorize($bestowal, 'turboEditForm');
             $user = $this->request->getAttribute('identity');
             $protectedFieldAccess = $this->fieldAccessService->accessFor($user, $bestowal);
+            $canLinkRecommendations = $protectedFieldAccess['crownFields']
+                && (new BestowalPolicy())->hasNativePermission($user, 'canAccessCrownFields', $bestowal);
             $formData = $formService->prepareEditFormData(
                 $this->Bestowals,
                 $bestowal,
                 $user,
-                $protectedFieldAccess['crownFields'],
+                $canLinkRecommendations,
             );
             $this->fieldAccessService->redact($bestowal, $user);
             $this->set($formData + compact('protectedFieldAccess'));
@@ -657,6 +743,7 @@ class BestowalsController extends AppController
     {
         $this->request->allowMethod(['get']);
         $emptyBestowal = $this->Bestowals->newEmptyEntity();
+        $emptyBestowal->gathering_id = $gatheringId;
         $this->Authorization->authorize($emptyBestowal, 'courtSlotsForGathering');
 
         $member = $this->request->getAttribute('identity');
@@ -676,6 +763,60 @@ class BestowalsController extends AppController
         return $this->response
             ->withType('application/json')
             ->withStringBody((string)json_encode($payload));
+    }
+
+    /** Check the proposed assignment without the autocomplete's always-included selected option. */
+    public function gatheringEligibility(
+        BestowalGatheringLookupService $lookupService,
+        ?string $bestowalId = null,
+    ): Response {
+        $this->request->allowMethod(['get']);
+        $id = $this->positiveIntOrNull($bestowalId);
+        if ($id === null) {
+            throw new BadRequestException(__('A bestowal is required.'));
+        }
+        $bestowal = $this->Bestowals->get($id);
+        $this->Authorization->authorize($bestowal, 'edit');
+        $awardId = $this->positiveIntOrNull($this->request->getQuery('award_id'));
+        $gatheringId = $this->positiveIntOrNull($this->request->getQuery('gathering_id'));
+        if ($awardId === null || $gatheringId === null) {
+            throw new BadRequestException(__('An award and gathering are required.'));
+        }
+        if (
+            !(new BestowalPolicy())->canUpdateWithinScope($this->request->getAttribute('identity'), $bestowal, [
+                'award_id' => $awardId, 'gathering_id' => $gatheringId,
+            ])
+        ) {
+            throw new ForbiddenException(__('This assignment is outside your event authority.'));
+        }
+        $probe = clone $bestowal;
+        $probe->award_id = $awardId;
+        $probe->gathering_id = $gatheringId;
+        $includePast = filter_var($this->request->getQuery('include_past', false), FILTER_VALIDATE_BOOLEAN);
+        $eligible = $lookupService->isGatheringSelectableForBestowal(
+            $probe,
+            $gatheringId,
+            !$bestowal->isCompleted() && !$includePast,
+        ) && !TableRegistry::getTableLocator()->get('Gatherings')->exists([
+            'id' => $gatheringId, 'cancelled_at IS NOT' => null,
+        ]);
+        $courtSelection = (string)$this->request->getQuery('court_session', '');
+        $courtEligible = null;
+        if ($courtSelection === BestowalCourtSlotService::ROAMING_COURT_VALUE) {
+            $courtEligible = true;
+        } elseif ($courtSelection !== '') {
+            $courtId = $this->positiveIntOrNull($courtSelection);
+            if ($courtId === null) {
+                throw new BadRequestException(__('Choose a valid court session.'));
+            }
+            $courtEligible = (new BestowalCourtSlotService())->scheduledActivityCanGiveBestowalAward($probe, $courtId);
+        }
+
+        return $this->response->withType('application/json')->withHeader('Cache-Control', 'no-store')
+            ->withStringBody(json_encode(
+                ['eligible' => $eligible, 'courtEligible' => $courtEligible],
+                JSON_THROW_ON_ERROR,
+            ));
     }
 
     /**
@@ -699,6 +840,11 @@ class BestowalsController extends AppController
         // Approval-modal callers are authorized as eligible approvers of the
         // pending approval for this recommendation; carry it as policy context.
         $emptyBestowal->set('approval_context_recommendation_id', $recommendationId, ['guard' => false]);
+        if ($recommendationId !== null) {
+            $recommendationContext = TableRegistry::getTableLocator()->get('Awards.Recommendations')
+                ->get($recommendationId, select: ['id', 'award_id']);
+            $emptyBestowal->award_id = $recommendationContext->award_id;
+        }
         $this->Authorization->authorize($emptyBestowal, 'gatheringsForBestowalAutoComplete');
         $this->viewBuilder()->setClassName('Ajax');
         $this->viewBuilder()->setTemplate('/Recommendations/gatherings_auto_complete');
@@ -828,6 +974,22 @@ class BestowalsController extends AppController
                 );
             }
             $rankedGatherings = $this->filterRankedGatheringsByFlatList($rankedGatherings, $gatherings);
+            $user = $this->request->getAttribute('identity');
+            $nativePolicy = new BestowalPolicy();
+            if (
+                !$nativePolicy->hasNativePermission($user, 'canEdit', $emptyBestowal)
+                && !$nativePolicy->hasNativePermission($user, 'canManageCourtSchedule', $emptyBestowal)
+                && $recommendationId === null
+            ) {
+                $allowed = [];
+                foreach ((new BestowalDelegationAccessService())->scopesFor($user, 'canEdit') as $scope) {
+                    if ($awardIdOverride === null || $bestowal?->getBranchId() === $scope['branch_id']) {
+                        $allowed[$scope['gathering_id']] = true;
+                    }
+                }
+                $gatherings = array_intersect_key($gatherings, $allowed);
+                $rankedGatherings = $this->filterRankedGatheringsByFlatList($rankedGatherings, $gatherings);
+            }
         } catch (Throwable $e) {
             Log::error('Error in gatheringsForBestowalAutoComplete: ' . $e->getMessage());
             $gatherings = [];
@@ -945,9 +1107,6 @@ class BestowalsController extends AppController
         $this->request->allowMethod(['post']);
 
         $user = $this->request->getAttribute('identity');
-        $emptyBestowal = $this->Bestowals->newEmptyEntity();
-        $this->Authorization->authorize($emptyBestowal, 'updateState');
-
         $bestowalId = $this->request->getData('bestowalId') ?? $this->request->getData('id');
         $pageContext = $this->getPageContextUrl();
 
@@ -956,6 +1115,7 @@ class BestowalsController extends AppController
 
             return $this->redirectAfterBestowalMutation($pageContext, $bestowalId);
         }
+        $this->Authorization->authorize($this->Bestowals->get((int)$bestowalId), 'updateState');
 
         try {
             $bestowedAt = new DateTime($this->request->getData('bestowed_at') ?: 'now');
@@ -964,15 +1124,53 @@ class BestowalsController extends AppController
 
             return $this->redirectAfterBestowalMutation($pageContext, $bestowalId);
         }
-        $result = $finalizationService->markGiven((int)$bestowalId, (int)$user->id, $bestowedAt);
+        $terminalItemId = $this->request->getData('terminalItemId');
+        $result = $finalizationService->markGiven(
+            (int)$bestowalId,
+            (int)$user->id,
+            $bestowedAt,
+            $terminalItemId === null ? null : (int)$terminalItemId,
+            is_string($this->request->getData('terminal_status')) ? $this->request->getData('terminal_status') : null,
+        );
 
         if ($result->success) {
-            $this->Flash->success(__('The bestowal has been marked given.'));
+            $this->Flash->success(__(
+                'The bestowal has been marked {0}.',
+                (string)$result->data->lifecycle_status,
+            ));
         } else {
             $this->Flash->error($result->reason ?? __('The bestowal could not be marked given.'));
         }
 
         return $this->redirectAfterBestowalMutation($pageContext, $bestowalId);
+    }
+
+    /** Change a completed outcome while preserving the original close date and checklist. */
+    public function changeTerminalState(BestowalOutcomeChangeService $service, ?string $id = null): ?Response
+    {
+        $this->request->allowMethod(['post']);
+        $bestowal = $this->Bestowals->get($id);
+        $this->Authorization->authorize($bestowal, 'updateState');
+        $status = $this->request->getData('terminal_status');
+        $expected = $this->request->getData('expected_status');
+        $note = $this->request->getData('note');
+        if (!is_string($status) || !is_string($expected) || ($note !== null && !is_string($note))) {
+            throw new BadRequestException('Invalid terminal state change.');
+        }
+        $result = $service->change(
+            (int)$bestowal->id,
+            $expected,
+            $status,
+            $this->request->getAttribute('identity'),
+            $note,
+        );
+        if ($result->success) {
+            $this->Flash->success(__('The bestowal has been marked {0}.', ucfirst($status)));
+        } else {
+            $this->Flash->error($result->reason);
+        }
+
+        return $this->redirect(['action' => 'view', $bestowal->id]);
     }
 
     /**
@@ -1001,6 +1199,9 @@ class BestowalsController extends AppController
         $checkKey = trim((string)$this->request->getData('check_key'));
         $bestowalIds = $this->parseBulkBestowalIds($this->request->getData('bestowal_ids'));
         $completionData = [];
+        if (is_string($this->request->getData('terminal_status'))) {
+            $completionData['terminal_status'] = $this->request->getData('terminal_status');
+        }
         $gatheringId = $this->positiveIntOrNull($this->request->getData('bestowal_gathering_id'));
         if ($gatheringId !== null) {
             $completionData['bestowal_gathering_id'] = $gatheringId;
@@ -1456,7 +1657,6 @@ class BestowalsController extends AppController
 
         $user = $this->request->getAttribute('identity');
         $emptyBestowal = $this->Bestowals->newEmptyEntity();
-        $this->Authorization->authorize($emptyBestowal, 'adHoc');
         $pageContext = $this->getPageContextUrl();
         if ($pageContext === null) {
             $legacyReturn = $this->request->getData('current_page');
@@ -1466,6 +1666,7 @@ class BestowalsController extends AppController
         }
 
         $data = $this->request->getData();
+        $emptyBestowal->gathering_id = $this->positiveIntOrNull($data['gatheringId'] ?? $data['gathering_id'] ?? null);
         $awardId = $data['awardId'] ?? $data['award_id'] ?? null;
         if (is_numeric((string)$awardId) && (int)$awardId > 0) {
             $emptyBestowal->award_id = (int)$awardId;
@@ -1473,6 +1674,7 @@ class BestowalsController extends AppController
                 ->get('Awards.Awards')
                 ->get((int)$awardId);
         }
+        $this->Authorization->authorize($emptyBestowal, 'adHoc');
         $deniedFields = $this->fieldAccessService->deniedMutationFields($data, $user, $emptyBestowal);
         if ($deniedFields !== []) {
             throw new ForbiddenException(__('You are not authorized to set protected bestowal fields.'));
@@ -1552,10 +1754,16 @@ class BestowalsController extends AppController
                 $bestowal->bulk_todo_options = $bulkTodoOptions;
             }
             if ($this->shouldLoadBestowalDisplayColumn('member_sca_name', $visibleColumns)) {
-                $bestowal->member_sca_name = $bestowal->member->sca_name ?? $bestowal->member_sca_name ?? '';
+                $bestowal->member_sca_name = $bestowal->getRecipientName();
             }
             if ($this->shouldLoadBestowalDisplayColumn('awards', $visibleColumns)) {
-                $bestowal->awards = $this->buildAwardsHtml($bestowal);
+                $awardLabel = $this->buildAwardsHtml(
+                    $bestowal,
+                    $visibleColumns === null || !in_array('specialty', $visibleColumns, true),
+                );
+                $bestowal->awards = $forExport
+                    ? html_entity_decode(strip_tags($awardLabel), ENT_QUOTES | ENT_HTML5, 'UTF-8')
+                    : $awardLabel;
             }
             if ($loadTodoSummary) {
                 $bestowal->todos_summary = $this->buildBestowalTodoSummaryHtml(
@@ -1669,6 +1877,11 @@ class BestowalsController extends AppController
 
             $bestowalId = (int)$item->entity_id;
             $option['isTerminal'] = (bool)$item->is_terminal;
+            $option['terminalOutcomes'] = BestowalTodoTemplateItem::terminalOutcomesFor($item);
+            if ($item->is_terminal && $option['terminalOutcomes'] === []) {
+                $status = BestowalTodoTemplateItem::terminalStatusFor($item);
+                $option['terminalOutcomes'] = [$status => ucfirst($status)];
+            }
             $option['confirmation'] = $actionItemService->confirmationFor($item, 'complete');
             $optionsByBestowal[$bestowalId][$option['key']] = $option;
         }
@@ -1852,17 +2065,19 @@ class BestowalsController extends AppController
             }
 
             if ($completed) {
-                $icon = 'bi-check-square-fill text-success';
+                $icon = 'checkbox';
+                $iconClass = 'text-success';
                 $statusLabel = __('Completed task:');
             } else {
-                $icon = 'bi-hourglass-split text-secondary';
+                $icon = 'hourglass';
+                $iconClass = 'text-secondary';
                 $statusLabel = __('Open task:');
             }
             $required = $isGating
                 ? ' <span class="text-danger" aria-hidden="true">*</span>'
                 : '';
             $rows[] = '<li class="d-flex align-items-start gap-2 mb-1">'
-                . '<i class="bi ' . $icon . '" aria-hidden="true"></i>'
+                . IconCatalog::render($icon, ['class' => $iconClass])
                 . '<span class="visually-hidden">' . h($statusLabel) . '</span>'
                 . '<span>' . h($item->title) . $required . '</span>'
                 . '</li>';
@@ -1897,7 +2112,7 @@ class BestowalsController extends AppController
             . 'data-bs-content="' . h($content) . '" '
             . 'aria-label="' . h($ariaLabel) . '">'
             . '<span class="badge ' . $badgeClass . '">'
-            . '<i class="bi bi-check2-square me-1" aria-hidden="true"></i>' . h($progressLabel)
+            . '<kmp-icon name="checkbox" class="me-1" aria-hidden="true"></kmp-icon>' . h($progressLabel)
             . '</span>'
             . '</button>';
     }
@@ -1912,14 +2127,24 @@ class BestowalsController extends AppController
 
     /**
      * @param \Awards\Model\Entity\Bestowal $bestowal Bestowal entity
+     * @param bool $includeSpecialty Include specialty when it has no separate visible column.
      * @return string
      */
-    protected function buildAwardsHtml(Bestowal $bestowal): string
+    protected function buildAwardsHtml(Bestowal $bestowal, bool $includeSpecialty = true): string
     {
         if ($bestowal->hasValue('award')) {
             $label = h($bestowal->award->abbreviation ?? $bestowal->award->name ?? '');
             if ($bestowal->award->hasValue('level') && !empty($bestowal->award->level->name)) {
                 $label .= ' (' . h($bestowal->award->level->name) . ')';
+            }
+            if ($includeSpecialty && trim((string)$bestowal->specialty) !== '') {
+                $label .= ' — ' . h($bestowal->specialty);
+            }
+            if ($bestowal->hasDifferentRecommendationAward()) {
+                $warning = h(__('Award differs from recommendation'));
+                $label .= ' <span class="d-inline-block text-body-secondary" title="' . $warning . '">'
+                    . '<kmp-icon name="alert-circle" class="kmp-icon-16" aria-hidden="true"></kmp-icon>'
+                    . '<span class="visually-hidden">' . $warning . '</span></span>';
             }
 
             return $label;
@@ -2455,6 +2680,15 @@ class BestowalsController extends AppController
         if ($success) {
             $this->Flash->success(__('The bestowal has been saved.'));
 
+            if ($this->wantsGridReconciliation() && $syncContext !== null) {
+                if ($syncContext['contextKey'] === 'gathering') {
+                    $gridRoute['action'] = 'gatheringBestowalsGridData';
+                    $gridRoute[] = $syncContext['gatheringId'];
+                }
+
+                return $this->renderTurboCloseModal($syncContext['tableFrameId'], $gridRoute, $pageContext);
+            }
+
             if ($updatedBestowalId !== null) {
                 $queryService ??= new BestowalQueryService();
                 $sync = $this->resolveBestowalGridRowSync(
@@ -2478,6 +2712,9 @@ class BestowalsController extends AppController
         }
 
         if ($reloadEditId !== null) {
+            if ($this->wantsGridReconciliation()) {
+                return $this->renderTurboFlashOnly()->withStatus(422);
+            }
             $frameSrc = Router::url([
                 'plugin' => 'Awards',
                 'controller' => 'Bestowals',

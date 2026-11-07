@@ -20,7 +20,7 @@ $gridFrameId = 'activity-awards-grid-' . $gatheringActivity->id;
         <div class="d-flex justify-content-between align-items-center mb-3">
             <?php if ($canEdit && !empty($availableAwards)) : ?>
                 <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addAwardModal">
-                    <i class="bi bi-plus-circle"></i> <?= __('Add Award') ?>
+                    <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon> <?= __('Add Award') ?>
                 </button>
             <?php endif; ?>
         </div>

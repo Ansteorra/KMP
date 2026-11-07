@@ -53,7 +53,7 @@ isolation contract.
 - PHP 8.4 runtime and CakePHP 5.4
 - PostgreSQL 16 for platform and tenant databases
 - CakePHP Authentication and Authorization
-- Vite, Stimulus, Turbo Frames, Bootstrap 5, and Bootstrap Icons
+- Vite, Stimulus, Turbo Frames, Bootstrap 5, and the unified KMP SVG icon catalog
 - PHPUnit, Jest/jsdom, and Playwright BDD tests
 - Docker Compose for the supported local environment
 - Azure Container Apps for the managed hosted platform

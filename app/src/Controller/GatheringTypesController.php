@@ -120,10 +120,7 @@ class GatheringTypesController extends AppController
         $this->Authorization->authorize($gatheringType);
 
         // Get all available activities for the add activity modal
-        $availableActivities = $this->GatheringTypes->GatheringActivities->find(
-            'list',
-            order: ['name' => 'ASC'],
-        )->all();
+        $availableActivities = $this->GatheringTypes->GatheringActivities->find('list')->find('forDisplay')->all();
 
         $this->set(compact('gatheringType', 'availableActivities'));
     }

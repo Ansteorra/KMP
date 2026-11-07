@@ -46,14 +46,23 @@ class MemberRolesController extends AppController
 
             return $this->redirect($this->referer());
         }
-        $member = $this->MemberRoles->Members->find()
-            ->where(['id' => $memberid])
-            ->select('sca_name')->first();
+        $member = null;
+        if (is_string($memberid) || is_int($memberid)) {
+            $member = $this->MemberRoles->Members->find()
+                ->where(['public_id' => (string)$memberid])
+                ->select(['id', 'sca_name'])->first();
+            if (!$member && ctype_digit((string)$memberid)) {
+                $member = $this->MemberRoles->Members->find()
+                    ->where(['id' => (int)$memberid])
+                    ->select(['id', 'sca_name'])->first();
+            }
+        }
         if (!$member) {
             $this->Flash->error(__('The member could not be found.'));
 
             return $this->redirect($this->referer());
         }
+        $memberid = $member->id;
         $permissions = $this->MemberRoles->Roles->Permissions->find()
             ->join([
                 'table' => 'roles_permissions',

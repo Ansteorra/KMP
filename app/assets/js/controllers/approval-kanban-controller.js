@@ -1,3 +1,4 @@
+import { setIcon } from '../services/icon-service.js';
 import { Controller } from "@hotwired/stimulus"
 
 class ApprovalKanbanController extends Controller {
@@ -235,7 +236,7 @@ class ApprovalKanbanController extends Controller {
         const empty = document.createElement("div")
         empty.className = "approval-kanban-empty"
         empty.setAttribute("role", "note")
-        empty.innerHTML = '<i class="bi bi-inbox" aria-hidden="true"></i><span>No approvals here.</span>'
+        empty.innerHTML = '<kmp-icon name="inbox"  aria-hidden="true"></kmp-icon><span>No approvals here.</span>'
         cardList.appendChild(empty)
     }
 
@@ -251,12 +252,12 @@ class ApprovalKanbanController extends Controller {
         if (expanded) {
             region.hidden = true
             button.setAttribute("aria-expanded", "false")
-            this.setButtonIcon(button, "bi-chevron-down")
+            this.setButtonIcon(button, "chevron-down")
             return
         }
 
         button.disabled = true
-        this.setButtonIcon(button, "bi-hourglass-split")
+        this.setButtonIcon(button, "hourglass")
         try {
             if (!region.dataset.loaded) {
                 const response = await fetch(`${this.detailUrlValue.replace(/\/$/, "")}/${approvalId}`, {
@@ -269,11 +270,11 @@ class ApprovalKanbanController extends Controller {
             }
             region.hidden = false
             button.setAttribute("aria-expanded", "true")
-            this.setButtonIcon(button, "bi-chevron-up")
+            this.setButtonIcon(button, "chevron-up")
         } catch (error) {
             console.error("Failed to load approval detail:", error)
             this.announce("Unable to load approval details.", "assertive")
-            this.setButtonIcon(button, "bi-chevron-down")
+            this.setButtonIcon(button, "chevron-down")
         } finally {
             button.disabled = false
         }
@@ -307,9 +308,9 @@ class ApprovalKanbanController extends Controller {
     }
 
     setButtonIcon(button, iconClass) {
-        const icon = button.querySelector("i.bi")
+        const icon = button.querySelector("kmp-icon")
         if (!icon) return
-        icon.className = `bi ${iconClass} me-1`
+        setIcon(icon, iconClass)
         icon.setAttribute("aria-hidden", "true")
     }
 

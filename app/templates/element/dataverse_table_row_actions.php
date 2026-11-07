@@ -1,5 +1,7 @@
 <?php
 
+use Cake\Utility\Inflector;
+
 /**
  * Dataverse Table Row Actions Element
  *
@@ -98,7 +100,7 @@ foreach ($actions as $action) :
     // Build button label
     $label = '';
     if (!empty($action['icon'])) {
-        $label .= '<i class="bi ' . h($action['icon']) . '" aria-hidden="true"></i>';
+        $label .= $this->Icon->render($action['icon']);
         if (!empty($action['label'])) {
             $label .= ' ';
         }
@@ -111,6 +113,10 @@ foreach ($actions as $action) :
     $buttonClass = $action['class'] ?? 'btn btn-sm btn-secondary';
     $title = !empty($action['title']) ? $processTemplate($action['title'], $row) : null;
     $ariaLabel = !empty($action['ariaLabel']) ? $processTemplate($action['ariaLabel'], $row) : $title;
+    if (($ariaLabel === null || $ariaLabel === '') && empty($action['label'])) {
+        $actionName = $action['key'] ?? $action['url']['action'] ?? $action['icon'] ?? 'action';
+        $ariaLabel = __(Inflector::humanize(Inflector::underscore($actionName)));
+    }
 
     // Render based on action type
     switch ($action['type']) :

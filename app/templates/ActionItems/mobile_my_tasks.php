@@ -29,7 +29,7 @@ $completeBaseUrl = $this->Url->build(['controller' => 'ActionItems', 'action' =>
                 class="btn btn-sm btn-outline-secondary"
                 data-action="click->mobile-action-items#refresh"
                 data-mobile-action-items-target="refreshBtn">
-            <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i><?= __('Refresh') ?>
+            <kmp-icon name="refresh" class="me-1" aria-hidden="true"></kmp-icon><?= __('Refresh') ?>
         </button>
     </div>
 
@@ -46,7 +46,7 @@ $completeBaseUrl = $this->Url->build(['controller' => 'ActionItems', 'action' =>
     <div data-mobile-action-items-target="empty" hidden>
         <div class="card cardbox" data-section="todos">
             <div class="card-body text-center py-5">
-                <i class="bi bi-check2-all d-block fs-1 mb-3 text-success" aria-hidden="true"></i>
+                <kmp-icon name="checks" class="d-block fs-1 mb-3 text-success" aria-hidden="true"></kmp-icon>
                 <h2 class="h5 mb-2"><?= __('All Caught Up!') ?></h2>
                 <p class="text-muted mb-0">
                     <?= __('You have no open to-dos right now.') ?>
@@ -58,13 +58,13 @@ $completeBaseUrl = $this->Url->build(['controller' => 'ActionItems', 'action' =>
     <div data-mobile-action-items-target="error" hidden>
         <div class="card cardbox border-danger" data-section="todos">
             <div class="card-body text-center py-4">
-                <i class="bi bi-exclamation-triangle d-block fs-1 mb-3 text-danger" aria-hidden="true"></i>
+                <kmp-icon name="alert-triangle" class="d-block fs-1 mb-3 text-danger" aria-hidden="true"></kmp-icon>
                 <h2 class="h5 mb-2"><?= __('Unable to Load') ?></h2>
                 <p class="text-muted mb-3" data-mobile-action-items-target="errorMessage">
                     <?= __('Failed to load to-dos.') ?>
                 </p>
                 <button type="button" class="btn btn-outline-danger" data-action="click->mobile-action-items#refresh">
-                    <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i><?= __('Try Again') ?>
+                    <kmp-icon name="refresh" class="me-1" aria-hidden="true"></kmp-icon><?= __('Try Again') ?>
                 </button>
             </div>
         </div>

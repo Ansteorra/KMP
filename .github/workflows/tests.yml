@@ -16,6 +16,10 @@ permissions:
   packages: read
 
 jobs:
+  live-updates:
+    name: Live updates
+    uses: ./.github/workflows/live-updates.yml
+
   security:
     name: Security gates
     uses: ./.github/workflows/security.yml
@@ -47,7 +51,7 @@ jobs:
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: '8.4.27'
-          extensions: mbstring, intl, pdo_pgsql, gd, apcu, grpc, protobuf, yaml
+          extensions: mbstring, intl, pdo_pgsql, gd, apcu, redis, grpc, protobuf, yaml
           ini-values: apc.enable_cli=1
           coverage: none
 
@@ -185,6 +189,9 @@ jobs:
       - name: Validate workflow definition JSON
         run: cd app && npm run validate:workflows
 
+      - name: Validate live capacity acceptance contracts
+        run: cd app && npm run test:perf:contracts
+
       - name: Validate developer documentation
         run: |
           cd app
@@ -214,7 +221,7 @@ jobs:
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: '8.4.27'
-          extensions: mbstring, intl, pdo_pgsql, gd, apcu, grpc, protobuf, yaml
+          extensions: mbstring, intl, pdo_pgsql, gd, apcu, redis, grpc, protobuf, yaml
           ini-values: apc.enable_cli=1
           coverage: none
 
@@ -236,6 +243,7 @@ jobs:
             "export KMP_ENV='ci'" \
             "export CACHE_ENGINE='apcu'" \
             "export KMP_SESSION_DEFAULTS='php'" \
+            "export KMP_SESSION_COOKIE_SECURE='false'" \
             "export PLAYWRIGHT_USE_DOCKER_PHP='1'" \
             "export KMP_RESET_DB_ON_UP='false'" \
             "export KMP_SKIP_INITIAL_DB_SETUP='true'" \
@@ -271,6 +279,9 @@ jobs:
       - name: Build Docker test image
         run: docker build --file docker/Dockerfile.ci --tag kmp-app:dev .
 
+      - name: Verify live PHP source refresh
+        run: python3 docker/test-development-php-cache.py --image kmp-app:dev
+
       - name: Start Docker test services
         run: |
           echo "127.0.0.1 kmp.localhost kmp2.localhost" | sudo tee -a /etc/hosts
@@ -289,14 +300,16 @@ jobs:
           cd app
           PLAYWRIGHT_RESET_DB=0 npm run test:ui:smoke
 
+      - name: Package Playwright smoke artifacts
+        if: success() || failure()
+        run: bash .github/scripts/package-playwright-artifacts.sh "$RUNNER_TEMP/playwright-smoke-artifacts.tar.gz"
+
       - name: Upload Playwright smoke artifacts
         if: success() || failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: playwright-smoke-artifacts
-          path: |
-            app/tests/ui-reports
-            app/tests/ui-results
+          path: ${{ runner.temp }}/playwright-smoke-artifacts.tar.gz
 
       - name: Show Docker logs
         if: failure()
@@ -323,7 +336,7 @@ jobs:
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: '8.4.27'
-          extensions: mbstring, intl, pdo_pgsql, gd, apcu, grpc, protobuf, yaml
+          extensions: mbstring, intl, pdo_pgsql, gd, apcu, redis, grpc, protobuf, yaml
           ini-values: apc.enable_cli=1
           coverage: none
 
@@ -345,6 +358,7 @@ jobs:
             "export KMP_ENV='ci'" \
             "export CACHE_ENGINE='apcu'" \
             "export KMP_SESSION_DEFAULTS='php'" \
+            "export KMP_SESSION_COOKIE_SECURE='false'" \
             "export PLAYWRIGHT_USE_DOCKER_PHP='1'" \
             "export KMP_RESET_DB_ON_UP='false'" \
             "export KMP_SKIP_INITIAL_DB_SETUP='true'" \
@@ -380,6 +394,9 @@ jobs:
       - name: Build Docker test image
         run: docker build --file docker/Dockerfile.ci --tag kmp-app:dev .
 
+      - name: Verify live PHP source refresh
+        run: python3 docker/test-development-php-cache.py --image kmp-app:dev
+
       - name: Start Docker test services
         run: |
           echo "127.0.0.1 kmp.localhost kmp2.localhost" | sudo tee -a /etc/hosts
@@ -398,14 +415,16 @@ jobs:
           cd app
           PLAYWRIGHT_RESET_DB=0 npm run test:ui:journey
 
+      - name: Package Playwright journey artifacts
+        if: success() || failure()
+        run: bash .github/scripts/package-playwright-artifacts.sh "$RUNNER_TEMP/playwright-journey-artifacts.tar.gz"
+
       - name: Upload Playwright journey artifacts
         if: success() || failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: playwright-journey-artifacts
-          path: |
-            app/tests/ui-reports
-            app/tests/ui-results
+          path: ${{ runner.temp }}/playwright-journey-artifacts.tar.gz
 
       - name: Show Docker logs
         if: failure()

@@ -1,5 +1,5 @@
 /* Only the public offline shell and build-controlled assets belong in Cache Storage. */
-const SW_VERSION = '4.0.0';
+const SW_VERSION = '4.1.0';
 // Cache format stays stable so a failed worker update retains the last usable public shell.
 const CACHE_NAME = 'kmp-public-offline-v3.0.0';
 const SHELL = '/offline';
@@ -8,7 +8,8 @@ const SHELLS = [SHELL, '/offline?page=rsvps', '/offline?page=calendar'];
 const ownedCache = name => name === 'offline-cache-activity-card' || name.startsWith('kmp-mobile-v') || name.startsWith('kmp-public-offline-v');
 const publicResponse = response => response?.ok && !response.redirected
     && !/no-store|private/i.test(response.headers.get('Cache-Control') || '');
-const assetPath = path => /^\/(?:js|css|fonts|assets)\/[a-zA-Z0-9_.-]+\.(?:js|css|woff2?|png|svg)$/.test(path);
+const iconPath = path => /^\/kmp-icons\/[a-f0-9]{16}\/(?:[a-z0-9-]+\.[a-f0-9]{16}\.svg|lookup\/(?:[0-9]|[1-5][0-9]|6[0-3])\.json|catalog\.json)$/.test(path);
+const assetPath = path => iconPath(path) || /^\/(?:js|css|fonts|assets)\/[a-zA-Z0-9_.-]+\.(?:js|css|woff2?|png|svg)$/.test(path);
 
 async function installPublicShell() {
     const manifest = await fetch(MANIFEST, { cache: 'no-store', credentials: 'omit' });
@@ -33,6 +34,10 @@ async function installPublicShell() {
     await cache.put(MANIFEST, manifest);
     await Promise.all(shells.map(([path, response]) => cache.put(path, response)));
     await cache.put('/offline/ready', new Response('ready'));
+    // Remove the retired font after a successful refresh, preserving the usable shell if preparation fails.
+    for (const request of await cache.keys()) {
+        if (/\/fonts\/bootstrap-icons[^/]*\.woff2?$/.test(new URL(request.url).pathname)) await cache.delete(request);
+    }
 }
 
 // Security cleanup must activate even when an asset is temporarily unavailable.
@@ -90,6 +95,7 @@ self.addEventListener('fetch', event => {
                 })
             ]);
             if (mobileNavigation && response.status >= 500 && cached) return cached;
+            if (iconPath(url.pathname) && publicResponse(response)) await cache.put(url.pathname, response.clone());
             return response;
         } catch (error) {
             if (cached) return cached;

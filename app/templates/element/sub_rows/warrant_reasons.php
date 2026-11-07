@@ -12,12 +12,12 @@
 <div class="warrant-reasons p-3">
     <?php if (empty($reasons)): ?>
         <div class="text-success">
-            <i class="bi bi-check-circle-fill me-2"></i>
+            <kmp-icon name="circle-check" class="me-2" aria-hidden="true"></kmp-icon>
             <strong>Member is warrantable</strong> - All requirements met
         </div>
     <?php else: ?>
         <div class="text-warning">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <kmp-icon name="alert-triangle" class="me-2" aria-hidden="true"></kmp-icon>
             <strong>Cannot receive warrant due to:</strong>
         </div>
         <ul class="mb-0 mt-2">

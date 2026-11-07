@@ -455,7 +455,7 @@ class TimezoneHelper extends Helper
         $abbr = $this->getAbbreviation(null, $timezone, $member);
 
         return sprintf(
-            '<div class="%s"><i class="bi bi-clock"></i> Times shown in %s (%s)</div>',
+            '<div class="%s"><kmp-icon name="clock"  aria-hidden="true"></kmp-icon> Times shown in %s (%s)</div>',
             h($class),
             h($timezone),
             h($abbr),

@@ -61,7 +61,7 @@ class ActivitiesApprovalContextRenderer implements ApprovalContextRendererInterf
             description: $description,
             fields: $fields,
             entityUrl: $entityUrl,
-            icon: 'bi-shield-check',
+            icon: 'shield-check',
             requester: $requesterName,
             requesterMemberId: $requesterName === null ? null : (int)$memberId,
         );

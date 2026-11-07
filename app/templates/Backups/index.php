@@ -40,29 +40,29 @@ $formatBytes = static function ($bytes): string {
         <div class="col-md-4 mb-4">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="bi bi-shield-check" aria-hidden="true"></i> <?= __('Backup Status') ?></h5>
+                    <h5 class="card-title mb-0"><kmp-icon name="shield-check"  aria-hidden="true"></kmp-icon> <?= __('Backup Status') ?></h5>
                 </div>
                 <div class="card-body">
                     <?php if (!$managedAvailable || $backupStatus === null): ?>
                         <div class="alert alert-warning mb-0">
-                            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                            <kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon>
                             <?= __('Managed backup status is currently unavailable. Contact your platform administrator.') ?>
                         </div>
                     <?php else: ?>
                         <?php $latest = $backupStatus['latest_completed'] ?? null; ?>
                         <?php if ($latest === null): ?>
                             <div class="alert alert-danger py-2 px-2">
-                                <i class="bi bi-exclamation-octagon" aria-hidden="true"></i>
+                                <kmp-icon name="alert-octagon"  aria-hidden="true"></kmp-icon>
                                 <?= __('No completed backup exists yet.') ?>
                             </div>
                         <?php elseif (!empty($backupStatus['stale'])): ?>
                             <div class="alert alert-warning py-2 px-2">
-                                <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                                <kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon>
                                 <?= __('The latest backup is older than the scheduled cadence.') ?>
                             </div>
                         <?php else: ?>
                             <div class="alert alert-success py-2 px-2">
-                                <i class="bi bi-check-circle" aria-hidden="true"></i>
+                                <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon>
                                 <?= __('Backups are up to date.') ?>
                             </div>
                         <?php endif; ?>
@@ -86,10 +86,10 @@ $formatBytes = static function ($bytes): string {
         <div class="col-md-8 mb-4">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0"><i class="bi bi-archive" aria-hidden="true"></i> <?= __('Backups') ?></h5>
+                    <h5 class="card-title mb-0"><kmp-icon name="archive"  aria-hidden="true"></kmp-icon> <?= __('Backups') ?></h5>
                     <?php if ($managedAvailable): ?>
                         <?= $this->Form->postLink(
-                            '<i class="bi bi-plus-circle" aria-hidden="true"></i> ' . __('Request Backup'),
+                            '<kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon> ' . __('Request Backup'),
                             ['action' => 'create'],
                             [
                                 'class' => 'btn btn-primary btn-sm',
@@ -101,7 +101,7 @@ $formatBytes = static function ($bytes): string {
                 </div>
                 <div class="card-body">
                     <div class="alert alert-info py-2 px-2">
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                        <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                         <?= __('Downloads use two files: the encrypted archive and a recovery key. The recovery key can be exported only once per backup — store both files in separate safe locations.') ?>
                     </div>
                     <div class="table-responsive">
@@ -137,7 +137,7 @@ $formatBytes = static function ($bytes): string {
                                         <td>
                                             <span class="badge bg-<?= $badge ?>"><?= h($status) ?></span>
                                             <?php if ($status === 'failed' && !empty($backup['error_summary'])): ?>
-                                                <i class="bi bi-info-circle" title="<?= h($backup['error_summary']) ?>" aria-hidden="true"></i>
+                                                <kmp-icon name="info-circle" class="" title="<?= h($backup['error_summary']) ?>" aria-hidden="true"></kmp-icon>
                                             <?php endif; ?>
                                         </td>
                                         <td><?= $formatBytes($backup['object_size_bytes'] ?? 0) ?></td>
@@ -146,18 +146,18 @@ $formatBytes = static function ($bytes): string {
                                             <?php if ($downloadable): ?>
                                                 <div class="d-inline-flex flex-nowrap gap-1">
                                                     <?= $this->Form->postLink(
-                                                        '<i class="bi bi-download" aria-hidden="true"></i> ' . __('Archive'),
+                                                        '<kmp-icon name="download"  aria-hidden="true"></kmp-icon> ' . __('Archive'),
                                                         ['action' => 'download', (string)$backup['id']],
                                                         ['class' => 'btn btn-outline-primary btn-sm', 'escape' => false],
                                                     ) ?>
                                                     <?php if ($keyExported): ?>
                                                         <button type="button" class="btn btn-outline-secondary btn-sm" disabled
                                                             title="<?= h(__('The recovery key was already exported on {0}.', (string)$backup['recovery_key_exported_at'])) ?>">
-                                                            <i class="bi bi-key" aria-hidden="true"></i> <?= __('Key exported') ?>
+                                                            <kmp-icon name="key"  aria-hidden="true"></kmp-icon> <?= __('Key exported') ?>
                                                         </button>
                                                     <?php else: ?>
                                                         <?= $this->Form->postLink(
-                                                            '<i class="bi bi-key" aria-hidden="true"></i> ' . __('Recovery key'),
+                                                            '<kmp-icon name="key"  aria-hidden="true"></kmp-icon> ' . __('Recovery key'),
                                                             ['action' => 'downloadRecoveryKey', (string)$backup['id']],
                                                             [
                                                                 'class' => 'btn btn-outline-warning btn-sm',
@@ -189,11 +189,11 @@ $formatBytes = static function ($bytes): string {
             <div class="col-12 mb-4">
                 <div class="card">
                     <div class="card-header">
-                        <h5 class="card-title mb-0"><i class="bi bi-clock-history" aria-hidden="true"></i> <?= __('Legacy Backups') ?></h5>
+                        <h5 class="card-title mb-0"><kmp-icon name="history"  aria-hidden="true"></kmp-icon> <?= __('Legacy Backups') ?></h5>
                     </div>
                     <div class="card-body">
                         <div class="alert alert-secondary py-2 px-2">
-                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                             <?= __('These older .kmpbackup files are passphrase-encrypted with your previous backup encryption key. They are read-only; new backups are created and retained by the managed system above. To restore one, contact your platform administrator.') ?>
                         </div>
                         <div class="table-responsive">
@@ -219,7 +219,7 @@ $formatBytes = static function ($bytes): string {
                                             <td class="text-end">
                                                 <?php if ($backup->status === 'completed'): ?>
                                                     <?= $this->Form->postLink(
-                                                        '<i class="bi bi-download" aria-hidden="true"></i> ' . __('Download'),
+                                                        '<kmp-icon name="download"  aria-hidden="true"></kmp-icon> ' . __('Download'),
                                                         ['action' => 'legacyDownload', $backup->id],
                                                         ['class' => 'btn btn-outline-secondary btn-sm', 'escape' => false],
                                                     ) ?>

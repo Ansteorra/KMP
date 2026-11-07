@@ -17,7 +17,7 @@ Treat accessibility regressions as functional bugs. Do not ship user-facing UI t
 - Stimulus controllers live in `app/assets/js/controllers` and `app/plugins/*/assets/js/controllers`.
 - Shared accessibility utilities live in `app/assets/js/KMP_accessibility.js`.
 - Bootstrap is the primary UI framework.
-- Turbo Drive is disabled, but Turbo Frames are used for dynamic content.
+- Turbo Drive is gated by `KMP_TURBO_ENABLED`; Frames/Streams remain the fallback and live delivery has an independent switch. Review repeated visits, cached restoration and morph updates as well as frames.
 - Jest/jsdom tests live in `app/tests/js`.
 - Playwright BDD tests live in `app/tests/ui/bdd`.
 

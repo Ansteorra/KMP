@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 use Awards\Model\Entity\Bestowal;
+use Awards\Model\Entity\BestowalTodoTemplateItem;
 use Awards\Services\BestowalCourtSlotService;
 
 /**
@@ -12,8 +13,10 @@ use Awards\Services\BestowalCourtSlotService;
 
 $this->extend('/layout/TwitterBootstrap/view_record');
 
-$memberName = $bestowal->member->sca_name ?? $bestowal->member_sca_name ?? __('Unknown Member');
+$memberName = $bestowal->getRecipientName();
 $protectedFieldAccess ??= ['heraldNotes' => false, 'crownFields' => false];
+$canChangeTerminalState = $bestowal->isCompleted() && count($terminalStateOptions ?? []) > 1
+    && $user->checkCan('updateState', $bestowal);
 $canCancel = (string)$bestowal->lifecycle_status === Bestowal::LIFECYCLE_OPEN
     && $user->checkCan('cancel', $bestowal);
 
@@ -26,13 +29,19 @@ echo h($memberName);
 $this->KMP->endBlock();
 
 echo $this->KMP->startBlock('recordActions');
+echo '<div class="d-flex flex-wrap justify-content-end gap-2">';
+if ($canChangeTerminalState) {
+    echo $this->Form->button(__('Change terminal state'), [
+        'type' => 'button', 'class' => 'btn btn-outline-secondary btn-sm',
+        'data-bs-toggle' => 'modal', 'data-bs-target' => '#changeTerminalStateModal',
+    ]);
+}
 if ($user->checkCan('edit', $bestowal)) {
-    echo $this->Html->tag(
-        'button',
+    echo $this->Form->button(
         __(' Edit'),
         [
             'type' => 'button',
-            'class' => 'btn btn-primary btn-sm edit-bestowal bi-pencil-fill',
+            'class' => 'btn btn-primary btn-sm edit-bestowal', 'icon' => 'pencil',
             'data-bs-toggle' => 'modal',
             'data-bs-target' => '#editBestowalModal',
             'data-controller' => 'outlet-btn',
@@ -56,9 +65,13 @@ if ($canCancel) {
         ],
     );
 }
+echo '</div>';
 $this->KMP->endBlock();
 
 echo $this->KMP->startBlock('modals');
+if ($canChangeTerminalState) {
+    echo $this->element('bestowalChangeTerminalStateModal', compact('bestowal', 'terminalStateOptions'));
+}
 if ($user->checkCan('edit', $bestowal)) {
     echo $this->element('bestowalEditModal', [
         'modalId' => 'editBestowalModal',
@@ -99,9 +112,23 @@ echo $this->KMP->startBlock('recordDetails');
     </td>
 </tr>
 <tr>
-    <th scope="row"><?= __('Lifecycle Status') ?></th>
+    <th scope="row"><?= $bestowal->isCompleted() ? __('Terminal state') : __('Lifecycle Status') ?></th>
     <td><?= h(ucfirst((string)($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN))) ?></td>
 </tr>
+<?php if ($bestowal->isCompleted()) : ?>
+<tr>
+    <th scope="row"><?= __('Close date') ?></th>
+    <td>
+        <?php if ($bestowal->bestowed_at !== null) : ?>
+            <time datetime="<?= h($bestowal->bestowed_at->format(DATE_ATOM)) ?>">
+                <?= h($this->Timezone->date($bestowal->bestowed_at)) ?>
+            </time>
+        <?php else : ?>
+            <span class="text-muted"><?= __('Not recorded') ?></span>
+        <?php endif; ?>
+    </td>
+</tr>
+<?php endif; ?>
 <tr>
     <th scope="row"><?= __('Source') ?></th>
     <td><?= h($bestowal->source) ?></td>
@@ -166,7 +193,7 @@ if ($courtSlotLabel !== '') :
                     <?php
                     $recommendationLabel = ($recommendation->award->abbreviation
                         ?? $recommendation->award->name
-                        ?? __('Award')) . ' — ' . ($recommendation->member_sca_name ?? '');
+                        ?? __('Award')) . ' — ' . $recommendation->getRecipientName();
                     $recommendationReason = trim((string)($recommendation->reason ?? ''));
                     ?>
                     <li class="mb-3">
@@ -218,7 +245,7 @@ $todoGatingTotal = $todoGatingTotal ?? 0;
 $todoGatingDone = $todoGatingDone ?? 0;
 $allGatingComplete = $allGatingComplete ?? false;
 $lifecycleStatus = (string)($bestowal->lifecycle_status ?? '');
-$alreadyGiven = $lifecycleStatus === Bestowal::LIFECYCLE_GIVEN;
+$alreadyGiven = $bestowal->isCompleted();
 $currentPageUrl = $this->Url->build([
     'plugin' => 'Awards',
     'controller' => 'Bestowals',
@@ -248,6 +275,7 @@ $gatingPercent = $todoGatingTotal > 0 ? (int)round($todoGatingDone / $todoGating
     <h4 class="h5"><?= __('Preparation checks') ?></h4>
     <?= $this->element('bestowal_todo_checklist', [
         'todoItems' => $todoItems,
+        'terminalStateByTodoId' => $terminalStateByTodoId ?? [],
         'todoEligibility' => $todoEligibility,
         'todoRequirementStatus' => $todoRequirementStatus ?? [],
         'todoBlockedStatus' => $todoBlockedStatus ?? [],
@@ -261,26 +289,69 @@ $gatingPercent = $todoGatingTotal > 0 ? (int)round($todoGatingDone / $todoGating
         <div class="border-top pt-3">
             <?php if ($alreadyGiven) : ?>
                 <p class="mb-0">
-                    <i class="bi bi-award-fill text-success me-1" aria-hidden="true"></i>
-                    <?= __('This bestowal has been marked given.') ?>
+                    <kmp-icon name="award" class="text-success me-1" aria-hidden="true"></kmp-icon>
+                    <?= h(__('This bestowal has been marked {0}.', ucfirst($lifecycleStatus))) ?>
                 </p>
             <?php elseif (!$bestowal->allowsActionItemMutations()) : ?>
                 <p class="mb-0"><?= h($bestowal->actionItemReadOnlyReason()) ?></p>
-            <?php elseif ($allGatingComplete || !empty($terminalTodo)) : ?>
+            <?php elseif (!empty($terminalTodos)) : ?>
+                <p><?= __('Complete the lead terminal To-Do above and choose its completion outcome.') ?></p>
+                <?php /* Older snapshots retain their original controls until explicit synchronization. */ ?>
+                <div class="d-flex flex-wrap gap-2">
+                    <?php foreach ($terminalTodos as $terminalTodo) : ?>
+                        <?php if (
+                            !empty($todoEligibility[$terminalTodo->id])
+                            && BestowalTodoTemplateItem::terminalOutcomesFor($terminalTodo) === []
+) : ?>
+                            <?= $this->Form->postLink(
+                                __('Mark {0}', ucfirst(BestowalTodoTemplateItem::terminalStatusFor($terminalTodo))),
+                                ['plugin' => 'Awards', 'controller' => 'Bestowals', 'action' => 'markGiven'],
+                                [
+                                    'class' => 'btn btn-primary',
+                                    'data' => [
+                                        'bestowalId' => $bestowal->id,
+                                        'terminalItemId' => $terminalTodo->id,
+                                        'current_page' => $currentPageUrl,
+                                    ],
+                                    'confirm' => $terminalTodo->complete_confirmation,
+                                    'aria-label' => __(
+                                        'Complete {0}: mark {1}',
+                                        $terminalTodo->title,
+                                        ucfirst(BestowalTodoTemplateItem::terminalStatusFor($terminalTodo)),
+                                    ),
+                                ],
+                            ) ?>
+                        <?php endif; ?>
+                        <?php if (
+                            !empty($todoEligibility[$terminalTodo->id]) && $terminalTodo->isCompleted()
+                            && BestowalTodoTemplateItem::terminalOutcomesFor($terminalTodo) !== []
+) : ?>
+                            <?= $this->Form->create(null, [
+                                'url' => ['plugin' => 'Awards', 'controller' => 'Bestowals', 'action' => 'markGiven'],
+                            ]) ?>
+                            <?= $this->Form->hidden('bestowalId', ['value' => $bestowal->id]) ?>
+                            <?= $this->Form->hidden('terminalItemId', ['value' => $terminalTodo->id]) ?>
+                            <?= $this->element('bestowal_terminal_outcome_field', ['item' => $terminalTodo]) ?>
+                            <?= $this->Form->button(__('Finalize bestowal'), [
+                                'class' => 'btn btn-primary', 'data-confirm-message' => $terminalTodo->complete_confirmation,
+                            ]) ?>
+                            <?= $this->Form->end() ?>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                </div>
+            <?php elseif ($allGatingComplete) : ?>
                 <?= $this->Form->postLink(
-                    '<i class="bi bi-award me-1" aria-hidden="true"></i>' . __('Mark Given'),
+                    '<kmp-icon name="award" class="me-1" aria-hidden="true"></kmp-icon>' . __('Mark Given'),
                     ['plugin' => 'Awards', 'controller' => 'Bestowals', 'action' => 'markGiven'],
                     [
                         'escapeTitle' => false,
                         'class' => 'btn btn-primary',
                         'data' => ['bestowalId' => $bestowal->id, 'current_page' => $currentPageUrl],
-                        'confirm' => $terminalTodo?->complete_confirmation ?? __('Mark this bestowal as given?'),
+                        'confirm' => __('Mark this bestowal as given?'),
                     ],
                 ) ?>
                 <p class="form-text mb-0">
-                    <?= !empty($terminalTodo)
-                        ? __('The terminal task closes remaining work as not applicable.')
-                        : __('All required checks are complete.') ?>
+                    <?= __('All required checks are complete.') ?>
                 </p>
             <?php else : ?>
                 <button type="button" class="btn btn-primary" disabled

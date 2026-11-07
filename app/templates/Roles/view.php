@@ -185,7 +185,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                             "Are you sure you want to remove for {0}?",
                                             $permission->name,
                                         ),
-                                        "class" => "btn-sm btn btn-danger bi bi-trash3-fill",
+                                        "class" => "btn-sm btn btn-danger", 'icon' => 'trash',
                                         "data" => [
                                             "permission_id" => $permission->id,
                                             "role_id" => $role->id,

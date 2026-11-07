@@ -253,7 +253,7 @@ export default class WorkflowVariablePicker {
             const btn = document.createElement('button')
             btn.type = 'button'
             btn.className = 'btn btn-outline-secondary btn-sm wf-var-picker-btn'
-            btn.innerHTML = '<i class="fa-solid fa-code"></i>'
+            btn.innerHTML = '<kmp-icon name="code" class="" aria-hidden="true"></kmp-icon>'
             btn.title = 'Insert variable reference'
             btn.setAttribute('aria-label', 'Insert variable reference')
             btn.addEventListener('click', (e) => {

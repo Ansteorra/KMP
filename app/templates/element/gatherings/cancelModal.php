@@ -17,7 +17,7 @@
         <div class="modal-content">
             <div class="modal-header bg-warning">
                 <h5 class="modal-title" id="cancelGatheringModalLabel">
-                    <i class="bi bi-exclamation-triangle"></i>
+                    <kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon>
                     <?= __('Cancel Gathering') ?>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -27,7 +27,7 @@
             ]) ?>
             <div class="modal-body bg-light-subtle">
                 <div class="alert alert-warning border-start border-warning border-4">
-                    <i class="bi bi-info-circle"></i>
+                    <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                     <?= __('Cancelling a gathering will mark it as cancelled but preserve all data (attendances, waivers, etc.). This action can be undone.') ?>
                 </div>
 
@@ -56,7 +56,7 @@
                     __(' Cancel Gathering'),
                     [
                         'type' => 'submit',
-                        'class' => 'btn btn-warning bi bi-x-circle',
+                        'class' => 'btn btn-warning', 'icon' => 'circle-x',
                         'escape' => false,
                     ]
                 ) ?>

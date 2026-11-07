@@ -1371,6 +1371,7 @@ class ActionItemService
             ];
         }
 
+        $conditions = array_merge($conditions, ActionItemDelegationRegistry::candidateConditions($memberId));
         $query->where(['OR' => $conditions]);
     }
 
@@ -1383,6 +1384,8 @@ class ActionItemService
     {
         return [
             'id',
+            'entity_type',
+            'entity_id',
             'assignee_type',
             'assignee_config',
             'assignee_lookup_type',

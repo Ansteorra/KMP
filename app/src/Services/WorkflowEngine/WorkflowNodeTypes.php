@@ -51,8 +51,12 @@ final class WorkflowNodeTypes
 
     /**
      * Check whether executing a node can suspend its workflow.
+     *
+     * @param array $node Node definition
+     * @param bool $durableRetries Include retries that require a durable queue wait
+     * @return bool
      */
-    public static function requiresWaiting(array $node): bool
+    public static function requiresWaiting(array $node, bool $durableRetries = true): bool
     {
         $type = (string)($node['type'] ?? '');
         if (self::isWaiting($type)) {
@@ -62,6 +66,9 @@ final class WorkflowNodeTypes
             return false;
         }
         if (!empty($node['config']['isAsync'])) {
+            return true;
+        }
+        if ($durableRetries && (int)($node['config']['maxRetries'] ?? $node['config']['retryCount'] ?? 0) > 0) {
             return true;
         }
 

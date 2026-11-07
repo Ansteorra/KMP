@@ -1149,6 +1149,29 @@ const getOpenRecommendationEditModal = async (page) => {
     throw new Error('No recommendation edit modal is currently open.');
 };
 
+const openReadyRecommendationEditModal = async (page, activate) => {
+    await page.evaluate(() => {
+        window.__recommendationEditShown = false;
+        document.getElementById('editRecommendationModal').addEventListener('shown.bs.modal', () => {
+            window.__recommendationEditShown = true;
+        }, { once: true });
+    });
+    await activate();
+    await page.waitForFunction(() => window.__recommendationEditShown);
+    const modal = page.locator('#editRecommendationModal');
+    await expect(modal).toBeVisible();
+    await expect(page.locator('form#recommendation_form')).toBeAttached();
+    await expect(modal.locator('turbo-frame#editRecommendation textarea[name="note"]')).toBeVisible();
+    await expect(modal.locator('button#recommendation_submit')).toBeVisible();
+};
+
+const recommendationNoteFromRequest = async (request) => {
+    const body = new Response(request.postDataBuffer(), {
+        headers: { 'Content-Type': request.headers()['content-type'] },
+    });
+    return (await body.formData()).get('note');
+};
+
 const getRecommendationFieldLocator = (modal, fieldLabel) => {
     switch (fieldLabel) {
         case 'Plan to Give At':
@@ -1430,12 +1453,7 @@ When('I open the {string} recommendation edit modal from the grid', async ({ pag
     const fixture = getFixture(page, name);
     const row = page.locator(`table tbody tr[data-id="${fixture.id}"]`);
     await expect(row).toBeVisible();
-    await row.locator('button.edit-rec').click();
-    await page.waitForSelector('#editRecommendationModal.show', { state: 'visible', timeout: 10000 });
-    await expect(page.locator('form#recommendation_form')).toBeAttached({ timeout: 10000 });
-    await expect(page.locator('#editRecommendationModal turbo-frame#editRecommendation textarea[name="note"]'))
-        .toBeVisible({ timeout: 10000 });
-    await expect(page.locator('#editRecommendationModal button#recommendation_submit')).toBeVisible({ timeout: 10000 });
+    await openReadyRecommendationEditModal(page, () => row.locator('button.edit-rec').click());
 });
 
 When('I change the open recommendation state to {string}', async ({ page }, state) => {
@@ -1464,6 +1482,8 @@ When('I set the open recommendation given date to today', async ({ page }) => {
 When('I fill in the open recommendation note with {string}', async ({ page }, note) => {
     const modal = await getOpenRecommendationEditModal(page);
     await modal.locator('textarea[name="note"]').fill(note);
+    await expect(modal.locator('textarea[name="note"]')).toHaveValue(note);
+    page.__expectedRecommendationNote = note;
 });
 
 When('I fill in the open recommendation close reason with {string}', async ({ page }, reason) => {
@@ -2630,7 +2650,7 @@ When('I open the bestowal detail linked to recommendation {string}', async ({ pa
 
 Then('the bestowal detail page should show {string} in the state row', async ({ page }, text) => {
     const stateRow = page.locator('tr')
-        .filter({ has: page.locator('th').filter({ hasText: /^(State|Lifecycle Status)$/ }) })
+        .filter({ has: page.locator('th').filter({ hasText: /^(State|Lifecycle Status|Terminal state)$/ }) })
         .locator('td');
     await expect(stateRow).toContainText(text);
 });
@@ -2692,10 +2712,15 @@ Then('the bestowal to-do {string} should show a court assigned', async ({ page }
     await expect(item).toContainText('Court assigned');
 });
 
-Then('the bestowal terminal mark-given action should be available', async ({ page }) => {
-    const todoPanel = page.locator('#nav-bestowalTodos');
-    await expect(todoPanel.getByRole('link', { name: 'Mark Given', exact: true })).toBeVisible();
-    await expect(todoPanel).toContainText('Terminal — marks Given');
+Then('the bestowal terminal completion outcomes should be available', async ({ page }) => {
+    const item = getBestowalTodoItem(page, 'Given');
+    const outcome = item.getByRole('combobox', { name: 'Completion outcome', exact: true });
+    await expect(outcome).toBeVisible();
+    await expect(outcome.locator('option')).toHaveText([
+        'Choose a completion outcome', 'Given', 'Given Not Received',
+    ]);
+    await expect(item.getByRole('button', { name: 'Complete Given', exact: true })).toBeVisible();
+    await expect(item).toContainText('Terminal — marks Given');
 });
 
 When('I assign the first available gathering and complete the bestowal to-do {string}', async ({ page }, title) => {
@@ -2718,7 +2743,11 @@ When('I complete the bestowal to-do {string}', async ({ page }, title) => {
     const item = getBestowalTodoItem(page, title);
     await expect(item).toBeVisible({ timeout: 15000 });
     const directComplete = item.getByRole('link', { name: /Complete|Mark complete:/ });
-    if (await directComplete.count()) {
+    const outcome = item.getByRole('combobox', { name: 'Completion outcome', exact: true });
+    if (await outcome.count()) {
+        await outcome.selectOption({ label: title });
+        await item.getByRole('button', { name: `Complete ${title}`, exact: true }).click();
+    } else if (await directComplete.count()) {
         await directComplete.click();
     } else {
         const courtAssignment = item.getByLabel('Court Assignment');
@@ -2929,9 +2958,16 @@ When('I submit the open recommendation edit with a turbo stream response', async
     await expect(page.locator('form#recommendation_form')).toBeAttached({ timeout: 15000 });
     await expect(modal.locator('turbo-frame#editRecommendation textarea[name="note"]')).toBeVisible({ timeout: 15000 });
 
-    await waitForTurboStreamResponse(page, async () => {
-        await modal.locator('button#recommendation_submit').click();
-    });
+    const action = await page.locator('form#recommendation_form').evaluate(form => form.action);
+    const [response] = await Promise.all([
+        page.waitForResponse(result => result.url() === action && result.request().method() === 'POST'
+            && result.ok() && result.headers()['content-type']?.includes('turbo-stream')),
+        modal.locator('button#recommendation_submit').click(),
+    ]);
+    if (page.__expectedRecommendationNote !== undefined) {
+        expect(await recommendationNoteFromRequest(response.request()))
+            .toBe(page.__expectedRecommendationNote);
+    }
 
     await expect(modal).toBeHidden({ timeout: 15000 });
     await page.locator('turbo-frame#recommendations-grid-table table.table tbody tr').first().waitFor({
@@ -2940,10 +2976,82 @@ When('I submit the open recommendation edit with a turbo stream response', async
     });
 });
 
+When('the next recommendation save fails with {string}', async ({ page }, failure) => {
+    expect(['validation', 'network', 'server']).toContain(failure);
+    const modal = await getOpenRecommendationEditModal(page);
+    const form = page.locator('form#recommendation_form');
+    const action = await form.evaluate(element => element.action);
+    page.__failedRecommendationWrites = 0;
+    page.__recommendationFailureMode = failure;
+    page.__recommendationPageErrors = [];
+    page.on('pageerror', error => page.__recommendationPageErrors.push(error.message));
+    await page.route(action, async route => {
+        expect(route.request().method()).toBe('POST');
+        expect(await recommendationNoteFromRequest(route.request()))
+            .toBe(page.__expectedRecommendationNote);
+        page.__failedRecommendationWrites++;
+        if (failure === 'network') await route.abort('failed');
+        else if (failure === 'server') await route.fulfill({ status: 500, contentType: 'text/html',
+            body: '<html><body><h1>Temporary service failure</h1></body></html>' });
+        else await route.fulfill({ status: 422, contentType: 'text/vnd.turbo-stream.html',
+            body: '<turbo-stream action="replace" target="flash-messages"><template>'
+                + '<div role="alert" class="alert alert-danger">This note needs more detail.</div>'
+                + '</template></turbo-stream>' });
+    }, { times: 1 });
+    const completed = failure === 'network'
+        ? page.waitForEvent('requestfailed', { predicate: request => request.url() === action })
+        : page.waitForResponse(response => response.url() === action && response.status() === (failure === 'server' ? 500 : 422));
+    await modal.locator('button#recommendation_submit').click();
+    await completed;
+});
+
+Then('the recommendation edit should retain note {string} after the failed save', async ({ page }, note) => {
+    const modal = await getOpenRecommendationEditModal(page);
+    await expect(modal).toBeVisible();
+    await expect(modal.locator('textarea[name="note"]')).toHaveValue(note);
+    await expect(modal.locator('[data-turbo-modal-feedback] [role="alert"]')).toBeVisible();
+    await expect(modal.locator('button#recommendation_submit')).toBeEnabled();
+    expect(page.__failedRecommendationWrites).toBe(1);
+});
+
+Then('the recommendation retry should have no unexpected browser errors', async ({ page }) => {
+    const unexpected = page.__recommendationPageErrors.filter(message =>
+        page.__recommendationFailureMode !== 'network' || !/Failed to fetch|Load failed|NetworkError.*fetch/i.test(message));
+    expect(unexpected).toEqual([]);
+});
+
 const paginationTable = (page, grid = 'recommendations') => page.locator(`#${grid}-grid-table`);
 
 const paginationToken = (page) => page.__awardRecommendationFixtures?.token
     || page.__awardBestowalPaginationFixtures?.token;
+
+When('I open page three while the row count frame is still rendering', async ({ page }) => {
+    await page.evaluate(() => {
+        const overlap = event => {
+            if (event.target.id !== 'recommendations-grid-table') return;
+            document.removeEventListener('turbo:before-frame-render', overlap);
+            const render = event.detail.render;
+            event.detail.render = async (currentFrame, incomingFrame) => {
+                await render(currentFrame, incomingFrame);
+                const link = [...currentFrame.querySelectorAll('.pagination a')]
+                    .find(node => node.textContent.trim() === '3');
+                if (!link) throw Error('Pagination fixture must have a third page.');
+                link.focus();
+                link.click();
+                window.__overlappedPagination = true;
+            };
+        };
+        document.addEventListener('turbo:before-frame-render', overlap);
+    });
+    await page.getByLabel('Rows per page', { exact: true }).selectOption('10');
+    await expect.poll(() => page.evaluate(() => window.__overlappedPagination)).toBe(true);
+    await expect(paginationTable(page).locator('.paginator')).toContainText('Page 3 of');
+});
+
+Then('grid page three should retain keyboard focus', async ({ page }) => {
+    await expect(paginationTable(page).locator('.pagination [aria-current="page"]'))
+        .toBeFocused();
+});
 
 When('I set the grid rows per page to {int}', async ({ page }, count) => {
     const rows = page.getByLabel('Rows per page', { exact: true });
@@ -2964,6 +3072,8 @@ When('I open grid page {int}', async ({ page }, number) => {
         name: String(number), exact: true,
     });
     await expect(link).toBeVisible();
+    await link.focus();
+    await expect(link).toBeFocused();
     await link.press('Enter');
     await expect(paginationTable(page, grid).locator('.paginator')).toContainText(`Page ${number} of`);
     await expect.poll(() => page.evaluate(() => document.activeElement?.textContent.trim()))
@@ -2973,9 +3083,7 @@ When('I open grid page {int}', async ({ page }, number) => {
 When('I open the first visible recommendation edit modal', async ({ page }) => {
     const row = paginationTable(page).locator('tr[data-id]').first();
     page.__paginationEditedRecommendationId = await row.getAttribute('data-id');
-    await row.locator('button.edit-rec').press('Enter');
-    await expect(page.locator('#editRecommendationModal')).toBeVisible();
-    await expect(page.locator('#editRecommendationModal textarea[name="note"]')).toBeVisible();
+    await openReadyRecommendationEditModal(page, () => row.locator('button.edit-rec').press('Enter'));
 });
 
 Then('the {string} grid should retain page {int} with {int} rows per page and fixture search',
@@ -3001,24 +3109,48 @@ Then('the recommendations grid should show the updated pagination note', async (
     const row = paginationTable(page).locator(`tr[data-id="${page.__paginationEditedRecommendationId}"]`);
     const notes = row.locator('button[data-bs-content*="Preserved page three update"]');
     await expect(notes).toHaveText('1');
+    if (process.env.PLAYWRIGHT_DIAGNOSTICS === '1') {
+        console.log('Notes popover before key', await notes.evaluate(element => ({
+            instance: Boolean(window.bootstrap?.Popover.getInstance(element)),
+            customClass: window.bootstrap?.Popover.getInstance(element)?._config.customClass,
+            connected: element.isConnected, disabled: element.disabled,
+        })));
+    }
     await notes.press('Enter');
+    if (process.env.PLAYWRIGHT_DIAGNOSTICS === '1') {
+        console.log('Notes popover after key', await notes.evaluate(element => ({
+            focused: document.activeElement === element, describedBy: element.getAttribute('aria-describedby'),
+            popovers: [...document.querySelectorAll('.popover')].map(popover => popover.className),
+            instance: Boolean(window.bootstrap?.Popover.getInstance(element)),
+        })));
+    }
     await expect(page.locator('.notes-popover')).toContainText('Preserved page three update');
     await notes.press('Enter');
 });
 
 When('I leave and return to the recommendations grid', async ({ page }) => {
+    const diagnose = async label => {
+        if (process.env.PLAYWRIGHT_DIAGNOSTICS !== '1') return;
+        console.log(label, await page.evaluate(() => ({ url: location.href, state: history.state,
+            tabs: [...document.querySelectorAll('[data-controller~="detail-tabs"]')].map(group => ({
+                id: group.id, active: group.querySelector('[aria-selected="true"]')?.id,
+            })) })));
+    };
     const visitDetail = async () => {
         await paginationTable(page).locator('tr[data-id]').first()
             .locator('a[href*="/awards/recommendations/view/"]').click();
         await expect(page).toHaveURL(/\/awards\/recommendations\/view\//);
+        await diagnose('detail');
     };
     await visitDetail();
     await page.getByRole('link', { name: 'Go back', exact: true }).click();
     await expect(paginationTable(page).locator('.paginator')).toContainText('Page 3 of');
     await expect.poll(() => new URL(page.url()).searchParams.get('search'))
         .toBe(ensureFixtureSet(page).token);
+    await diagnose('app-back');
     await visitDetail();
     await page.goBack({ waitUntil: 'domcontentloaded' });
+    await diagnose('browser-back');
 });
 
 When('I log in as the pagination fixture approval recipient', async ({ page }) => {

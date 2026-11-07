@@ -16,6 +16,24 @@ describe('AwardsBestowalBulkTodo', () => {
     let clearBtn;
     let includePast;
 
+    test('terminal outcome choices are limited to those shared by matching bestowals', () => {
+        const options = controller.buildOptions([
+            { id: '1', options: [{ key: 'given', isTerminal: true,
+                terminalOutcomes: { given: 'Given', other: 'Given Not Received' } }] },
+            { id: '2', options: [{ key: 'given', isTerminal: true,
+                terminalOutcomes: { given: 'Given', third: 'Filed' } }] },
+        ]);
+        expect(options[0].terminalOutcomes).toEqual({ given: 'Given' });
+        controller.outcomeSelectTarget = document.createElement('select');
+        controller.hasOutcomeSelectTarget = true;
+        controller.outcomeSectionTarget = document.createElement('div');
+        controller.hasOutcomeSectionTarget = true;
+        controller.populateOutcomeOptions(options[0]);
+        expect(controller.outcomeSelectTarget.required).toBe(true);
+        expect(controller.outcomeSelectTarget.value).toBe('');
+        expect([...controller.outcomeSelectTarget.options].map(option => option.value)).toEqual(['', 'given']);
+    });
+
     beforeEach(() => {
         document.body.replaceChildren();
         const root = document.createElement('div');

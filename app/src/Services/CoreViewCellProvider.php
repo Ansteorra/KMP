@@ -36,7 +36,7 @@ class CoreViewCellProvider
         $cells[] = [
             'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
             'label' => 'Calendar',
-            'icon' => 'bi-calendar-event',
+            'icon' => 'calendar-event',
             'url' => ['controller' => 'Gatherings', 'action' => 'mobileCalendar', 'plugin' => null],
             'order' => 35,
             'color' => 'events', // Section-specific color
@@ -62,7 +62,7 @@ class CoreViewCellProvider
         $cells[] = [
             'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
             'label' => 'My RSVPs',
-            'icon' => 'bi-calendar-check',
+            'icon' => 'calendar-check',
             'url' => ['controller' => 'GatheringAttendances', 'action' => 'myRsvps', 'plugin' => null],
             'order' => 36,
             'color' => 'rsvps', // Section-specific color
@@ -77,7 +77,7 @@ class CoreViewCellProvider
             $cells[] = [
                 'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
                 'label' => 'My Approvals',
-                'icon' => 'bi-check2-square',
+                'icon' => 'checkbox',
                 'url' => ['controller' => 'Approvals', 'action' => 'mobileApprovals', 'plugin' => null],
                 'order' => 32,
                 'color' => 'approvals',
@@ -95,7 +95,7 @@ class CoreViewCellProvider
             $cells[] = [
                 'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
                 'label' => 'My To-Dos',
-                'icon' => 'bi-check2-all',
+                'icon' => 'checks',
                 'url' => ['controller' => 'ActionItems', 'action' => 'mobileMyTasks', 'plugin' => null],
                 'order' => 33,
                 'color' => 'todos',

@@ -32,6 +32,17 @@ class AwardsBestowalTodos extends Controller {
         }
     }
 
+    /** Keep the confirmation explicit about the outcome chosen in this form. */
+    selectTerminalOutcome(event) {
+        const select = event.currentTarget;
+        const button = select.closest("form")?.querySelector("[data-confirm-message]");
+        if (!button) return;
+        button.dataset.terminalConfirmationBase ||= button.dataset.confirmMessage;
+        button.dataset.confirmMessage = select.value
+            ? `Completion outcome: ${select.selectedOptions[0].textContent}. ${button.dataset.terminalConfirmationBase}`
+            : button.dataset.terminalConfirmationBase;
+    }
+
     /** @return {HTMLElement|null} */
     getModalElement() {
         const modalId = this.modalIdValue || "bestowalTodosModal";

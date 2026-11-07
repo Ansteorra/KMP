@@ -37,7 +37,7 @@ $approvalDetailUrl = $this->Url->build(['controller' => 'Approvals', 'action' =>
                 type="button"
                 data-action="click->mobile-approvals#refresh"
                 data-mobile-approvals-target="refreshBtn">
-            <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i><?= __('Refresh') ?>
+            <kmp-icon name="refresh" class="me-1" aria-hidden="true"></kmp-icon><?= __('Refresh') ?>
         </button>
     </div>
 
@@ -53,7 +53,7 @@ $approvalDetailUrl = $this->Url->build(['controller' => 'Approvals', 'action' =>
     <div data-mobile-approvals-target="empty" hidden>
         <div class="card cardbox" data-section="approvals">
             <div class="card-body text-center py-5">
-                <i class="bi bi-check2-all d-block fs-1 mb-3" style="color: var(--section-approvals);"></i>
+                <kmp-icon name="checks" class="d-block fs-1 mb-3" style="color: var(--section-approvals);" aria-hidden="true"></kmp-icon>
                 <h3 class="h5 mb-2"><?= __('All Caught Up!') ?></h3>
                 <p class="text-muted mb-0">
                     <?= __('You have no pending approvals to review.') ?>
@@ -66,13 +66,13 @@ $approvalDetailUrl = $this->Url->build(['controller' => 'Approvals', 'action' =>
     <div data-mobile-approvals-target="error" hidden>
         <div class="card cardbox border-danger" data-section="approvals">
             <div class="card-body text-center py-4">
-                <i class="bi bi-exclamation-triangle d-block fs-1 mb-3 text-danger"></i>
+                <kmp-icon name="alert-triangle" class="d-block fs-1 mb-3 text-danger" aria-hidden="true"></kmp-icon>
                 <h3 class="h5 mb-2"><?= __('Unable to Load') ?></h3>
                 <p class="text-muted mb-3" data-mobile-approvals-target="errorMessage">
                     <?= __('Failed to load approvals.') ?>
                 </p>
                 <button class="btn btn-outline-danger" type="button" data-action="click->mobile-approvals#refresh">
-                    <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i><?= __('Try Again') ?>
+                    <kmp-icon name="refresh" class="me-1" aria-hidden="true"></kmp-icon><?= __('Try Again') ?>
                 </button>
             </div>
         </div>

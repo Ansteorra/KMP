@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Awards\Services;
 
+use Awards\KMP\GridColumns\MemberSubmittedRecommendationsGridColumns;
 use Awards\KMP\GridColumns\RecommendationsGridColumns;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\Table;
@@ -106,13 +107,15 @@ class RecommendationQueryService
         }
         $baseQuery->contain($contain);
 
+        $baseQuery->leftJoinWith('Members');
+
         $systemViews = RecommendationsGridColumns::getSystemViews([]);
 
         $bulkActions = [
             [
                 'key' => 'workflow-decision',
                 'label' => 'Approval Decision',
-                'icon' => 'bi-check2-circle',
+                'icon' => 'circle-check',
                 'modalTarget' => '#recommendationWorkflowDecisionModal',
                 'requiresSelectionField' => 'canWorkflowDecide',
             ],
@@ -122,13 +125,13 @@ class RecommendationQueryService
                 [
                     'key' => 'group-recs',
                     'label' => 'Group',
-                    'icon' => 'bi-collection',
+                    'icon' => 'layers-linked',
                     'modalTarget' => '#groupRecommendationsModal',
                 ],
                 [
                     'key' => 'request-feedback',
                     'label' => 'Request Feedback',
-                    'icon' => 'bi-chat-left-text',
+                    'icon' => 'message',
                     'modalTarget' => '#requestRecommendationFeedbackModal',
                 ],
             ]);
@@ -220,11 +223,13 @@ class RecommendationQueryService
         }
         $baseQuery->contain($contain);
 
+        $baseQuery->leftJoinWith('Members');
+
         $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'memberSubmitted']);
 
         $gridOptions = [
             'gridKey' => 'Awards.Recommendations.memberSubmitted',
-            'gridColumnsClass' => RecommendationsGridColumns::class,
+            'gridColumnsClass' => MemberSubmittedRecommendationsGridColumns::class,
             'baseQuery' => $baseQuery,
             'tableName' => 'Recommendations',
             'defaultSort' => ['Recommendations.created' => 'desc'],
@@ -302,6 +307,9 @@ class RecommendationQueryService
             $baseQuery->select($selectFields);
         }
         $baseQuery->contain($contain);
+
+        $baseQuery->contain(['Members' => fn($q) => $q->select(['id', 'sca_name'])]);
+        $baseQuery->leftJoinWith('Members');
 
         $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'recsForMember']);
 

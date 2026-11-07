@@ -27,7 +27,7 @@
 
 <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-        <i class="bi bi-card-text text-primary me-1" aria-hidden="true"></i>
+        <kmp-icon name="id" class="text-primary me-1" aria-hidden="true"></kmp-icon>
         <?= __('Activity Description') ?>
     </legend>
     <input type="hidden"
@@ -47,7 +47,7 @@
 
     <div class="mb-3">
         <label class="form-label text-muted small">
-            <i class="bi bi-info-circle"></i> <?= __('Default Description') ?>
+            <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon> <?= __('Default Description') ?>
         </label>
         <div id="edit-default-description"
             class="form-control-plaintext text-muted small"

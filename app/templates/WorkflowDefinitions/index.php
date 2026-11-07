@@ -28,7 +28,7 @@ $toggleUrl = $this->Url->build(['action' => 'toggleActive', '__id__']);
         <h3><?= __('Workflow Definitions') ?></h3>
         <div>
             <?= $this->Html->link(
-                '<i class="bi bi-plus-circle me-1"></i>' . __('New Workflow'),
+                '<kmp-icon name="circle-plus" class="me-1" aria-hidden="true"></kmp-icon>' . __('New Workflow'),
                 ['action' => 'add'],
                 ['class' => 'btn btn-primary', 'escape' => false],
             ) ?>
@@ -106,7 +106,7 @@ $toggleUrl = $this->Url->build(['action' => 'toggleActive', '__id__']);
                     <td class="text-end">
                         <div class="btn-group btn-group-sm">
                             <?= $this->Html->link(
-                                '<i class="bi bi-pencil-square" aria-hidden="true"></i>',
+                                '<kmp-icon name="edit"  aria-hidden="true"></kmp-icon>',
                                 ['action' => 'designer', $workflow->id],
                                 [
                                     'class' => 'btn btn-primary',
@@ -116,7 +116,7 @@ $toggleUrl = $this->Url->build(['action' => 'toggleActive', '__id__']);
                                 ],
                             ) ?>
                             <?= $this->Html->link(
-                                '<i class="bi bi-play-circle" aria-hidden="true"></i>',
+                                '<kmp-icon name="player-play"  aria-hidden="true"></kmp-icon>',
                                 ['controller' => 'WorkflowInstances', 'action' => 'instances', $workflow->id],
                                 [
                                     'class' => 'btn btn-info',
@@ -126,7 +126,7 @@ $toggleUrl = $this->Url->build(['action' => 'toggleActive', '__id__']);
                                 ],
                             ) ?>
                             <?= $this->Html->link(
-                                '<i class="bi bi-clock-history" aria-hidden="true"></i>',
+                                '<kmp-icon name="history"  aria-hidden="true"></kmp-icon>',
                                 ['action' => 'versions', $workflow->id],
                                 [
                                     'class' => 'btn btn-secondary',
@@ -137,7 +137,7 @@ $toggleUrl = $this->Url->build(['action' => 'toggleActive', '__id__']);
                             ) ?>
                             <?php if ($instanceCount > 0) : ?>
                                 <?= $this->Form->postLink(
-                                    '<i class="bi bi-archive" aria-hidden="true"></i>',
+                                    '<kmp-icon name="archive"  aria-hidden="true"></kmp-icon>',
                                     ['action' => 'archive', $workflow->id],
                                     [
                                         'class' => 'btn btn-warning',
@@ -153,7 +153,7 @@ $toggleUrl = $this->Url->build(['action' => 'toggleActive', '__id__']);
                                 ) ?>
                             <?php else : ?>
                                 <?= $this->Form->postLink(
-                                    '<i class="bi bi-trash" aria-hidden="true"></i>',
+                                    '<kmp-icon name="trash"  aria-hidden="true"></kmp-icon>',
                                     ['action' => 'delete', $workflow->id],
                                     [
                                         'class' => 'btn btn-danger',

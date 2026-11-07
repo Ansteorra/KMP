@@ -5,9 +5,9 @@ const MemberMobileCardMenu = window.Controllers['member-mobile-card-menu'];
 describe('MemberMobileCardMenuController', () => {
     let controller;
     const menuItemsJson = JSON.stringify([
-        { label: 'Auth Card', url: '/card', icon: 'bi-person-vcard', color: 'primary', order: 1, badge: 0 },
-        { label: 'My RSVPs', url: '/rsvps', icon: 'bi-calendar', color: 'success', order: 2, badge: 3 },
-        { label: 'Settings', url: '/settings', icon: 'bi-gear', color: 'secondary', order: 3, badge: 0 }
+        { label: 'Auth Card', url: '/card', icon: 'address-book', color: 'primary', order: 1, badge: 0 },
+        { label: 'My RSVPs', url: '/rsvps', icon: 'calendar', color: 'success', order: 2, badge: 3 },
+        { label: 'Settings', url: '/settings', icon: 'settings', color: 'secondary', order: 3, badge: 0 }
     ]);
 
     beforeEach(() => {
@@ -112,19 +112,19 @@ describe('MemberMobileCardMenuController', () => {
     // --- createMenuItem ---
 
     test('createMenuItem creates link with icon and label', () => {
-        const item = { label: 'Test', url: '/test', icon: 'bi-star', color: 'warning', badge: 0 };
+        const item = { label: 'Test', url: '/test', icon: 'star', color: 'warning', badge: 0 };
         const el = controller.createMenuItem(item);
 
         expect(el.tagName).toBe('A');
         expect(el.href).toContain('/test');
         expect(el.className).toContain('btn-warning');
         expect(el.getAttribute('aria-label')).toBe('Test');
-        expect(el.querySelector('.bi-star')).toBeTruthy();
+        expect(el.querySelector('kmp-icon[name="star"]')).toBeTruthy();
         expect(el.textContent).toContain('Test');
     });
 
     test('createMenuItem adds badge when badge > 0', () => {
-        const item = { label: 'Test', url: '/test', icon: 'bi-star', color: 'primary', badge: 5 };
+        const item = { label: 'Test', url: '/test', icon: 'star', color: 'primary', badge: 5 };
         const el = controller.createMenuItem(item);
 
         const badge = el.querySelector('.badge');
@@ -133,7 +133,7 @@ describe('MemberMobileCardMenuController', () => {
     });
 
     test('createMenuItem does not add badge when badge is 0', () => {
-        const item = { label: 'Test', url: '/test', icon: 'bi-star', color: 'primary', badge: 0 };
+        const item = { label: 'Test', url: '/test', icon: 'star', color: 'primary', badge: 0 };
         const el = controller.createMenuItem(item);
 
         expect(el.querySelector('.badge')).toBeNull();

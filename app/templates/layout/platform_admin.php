@@ -47,6 +47,7 @@ $navItems = [
 <!doctype html>
 <html lang="en">
 <head>
+    <meta name="turbo-visit-control" content="reload">
     <?= $this->Html->charset() ?>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= h($this->fetch('title') ?: __('Platform Admin')) ?></title>

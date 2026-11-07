@@ -7,6 +7,7 @@ use App\KMP\WorkflowApprovalDecisionOptions;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowApprovalResponse;
 use App\Services\ServiceResult;
+use App\Services\UiBulkMutation;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use Awards\Model\Entity\Recommendation;
 use Awards\Model\Entity\RecommendationFeedbackRequest;
@@ -234,7 +235,8 @@ class RecommendationFeedbackService
                 $noteBody = $this->formatFeedbackNoteBody($comment, $hasDecisionOptions ? $answerLabel : null);
 
                 $now = DateTime::now();
-                $this->recipientsTable->updateAll(
+                UiBulkMutation::update(
+                    $this->recipientsTable,
                     [
                         'status' => RecommendationFeedbackRequestRecipient::STATUS_RESPONDED,
                         'response_comment' => $comment,
@@ -317,7 +319,8 @@ class RecommendationFeedbackService
                     return new ServiceResult(true, null, ['expired' => false]);
                 }
 
-                $updated = $this->recipientsTable->updateAll(
+                $updated = UiBulkMutation::update(
+                    $this->recipientsTable,
                     [
                         'status' => RecommendationFeedbackRequestRecipient::STATUS_EXPIRED,
                         'expired_at' => $expiredAt,
@@ -399,7 +402,8 @@ class RecommendationFeedbackService
                 }
 
                 if ($pendingApprovalIds !== []) {
-                    $this->workflowApprovalsTable->updateAll(
+                    UiBulkMutation::update(
+                        $this->workflowApprovalsTable,
                         ['status' => WorkflowApproval::STATUS_CANCELLED],
                         [
                             'id IN' => $pendingApprovalIds,
@@ -454,7 +458,8 @@ class RecommendationFeedbackService
                 foreach ($results as $result) {
                     if ($result instanceof ServiceResult && !$result->isSuccess()) {
                         throw new RuntimeException(
-                            $result->getError() ?? "Recommendation feedback workflow trigger \"{$event['eventName']}\" failed.",
+                            $result->getError()
+                                ?? "Recommendation feedback workflow trigger \"{$event['eventName']}\" failed.",
                         );
                     }
                 }

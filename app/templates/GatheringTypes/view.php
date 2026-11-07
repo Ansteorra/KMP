@@ -82,7 +82,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
 
     <?php if ($user->checkCan("edit", $gatheringType)) : ?>
         <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addActivityModal">
-            <i class="bi bi-plus-circle"></i> <?= __('Add Template Activity') ?>
+            <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon> <?= __('Add Template Activity') ?>
         </button>
     <?php endif; ?>
 
@@ -107,7 +107,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                             <td>
                                 <?php if ($activity->_joinData && $activity->_joinData->not_removable): ?>
                                     <span class="badge bg-warning text-dark">
-                                        <i class="bi bi-lock-fill"></i> <?= __('Cannot be removed') ?>
+                                        <kmp-icon name="lock"  aria-hidden="true"></kmp-icon> <?= __('Cannot be removed') ?>
                                     </span>
                                 <?php else: ?>
                                     <span class="text-muted"><?= __('Can be removed') ?></span>
@@ -116,7 +116,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                             <?php if ($user->checkCan("edit", $gatheringType)) : ?>
                                 <td class="actions">
                                     <?= $this->Form->postLink(
-                                        '<i class="bi bi-trash-fill"></i>',
+                                        '<kmp-icon name="trash"  aria-hidden="true"></kmp-icon>',
                                         ['action' => 'removeActivity', $gatheringType->id, $activity->id],
                                         [
                                             'confirm' => __('Are you sure you want to remove "{0}" from this gathering type?', $activity->name),
@@ -152,7 +152,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
             <div class="modal-body bg-light-subtle">
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
                     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                        <i class="bi bi-calendar-plus text-primary me-1" aria-hidden="true"></i>
+                        <kmp-icon name="calendar-plus" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Template Activity') ?>
                     </legend>
                 <div class="mb-3">
@@ -211,7 +211,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                             <td><?= h($gathering->start_date) ?></td>
                             <td><?= h($gathering->end_date) ?></td>
                             <td class="actions">
-                                <?= $this->Html->link('<i class="bi bi-binoculars-fill"></i>', ['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id], ['escape' => false, 'title' => __('View'), 'class' => 'btn btn-sm btn-outline-primary']) ?>
+                                <?= $this->Html->link('<kmp-icon name="binoculars"  aria-hidden="true"></kmp-icon>', ['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id], ['escape' => false, 'title' => __('View'), 'class' => 'btn btn-sm btn-outline-primary']) ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>

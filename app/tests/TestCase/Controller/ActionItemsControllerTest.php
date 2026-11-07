@@ -7,14 +7,18 @@ use App\Controller\AppController;
 use App\KMP\GridColumns\ActionItemsGridColumns;
 use App\Model\Entity\ActionItem;
 use App\Model\Entity\GridView;
+use App\Model\Entity\Permission;
 use App\Services\ActionItems\ActionItemCompletionFormRegistry;
 use App\Services\GridViewService;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
+use Awards\Services\BestowalTodoAssigneeResolver;
 use Awards\Services\BestowalTodoCompletionFormProvider;
+use Cake\Cache\Cache;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * ActionItemsController integration tests - the "My To-Dos" surface.
@@ -145,9 +149,187 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('Scroll finished');
     }
 
+    public function testMyTasksTabsIncludeOnlyDistinctEligibleOpenTypes(): void
+    {
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, ['title' => 'Scroll finished']);
+        $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, ['title' => 'Scroll finished']);
+        $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, ['title' => 'Regalia allotted']);
+        $this->makeMemberItem(self::TEST_MEMBER_BRYCE_ID, ['title' => 'Other member step']);
+        $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, [
+            'title' => 'Completed step',
+            'status' => ActionItem::STATUS_COMPLETED,
+            'completed_by' => self::TEST_MEMBER_AGATHA_ID,
+        ]);
+        $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, [
+            'title' => 'Cancelled step',
+            'status' => ActionItem::STATUS_CANCELLED,
+        ]);
+        $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, [
+            'title' => 'Missing permission step',
+            'assignee_type' => ActionItem::ASSIGNEE_TYPE_PERMISSION,
+            'assignee_config' => ['permission' => 'Unavailable To-Do Permission'],
+        ]);
+
+        $this->get('/action-items/my-tasks-data?search=no-matching-todos');
+
+        $this->assertResponseOk();
+        $state = $this->viewVariable('gridState');
+        $this->assertSame(
+            ['Open To-Dos', 'Regalia allotted', 'Scroll finished', 'Completed'],
+            array_column($state['view']['available'], 'name'),
+        );
+        $this->assertSame('sys-todos-open', $state['view']['currentId']);
+        $this->assertFalse($state['config']['showAllTab']);
+    }
+
+    public function testTodoTypeTabFiltersExactTitleAndCurrentMember(): void
+    {
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $title = 'Scroll 100%_finished';
+        $first = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, ['title' => $title]);
+        $second = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, ['title' => $title]);
+        $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, ['title' => $title . ' extra']);
+        $this->makeMemberItem(self::TEST_MEMBER_BRYCE_ID, ['title' => $title]);
+        $this->get('/action-items/my-tasks-data');
+        $views = array_column($this->viewVariable('gridState')['view']['available'], null, 'name');
+
+        $this->get('/action-items/my-tasks-data?' . http_build_query(['view_id' => $views[$title]['id']]));
+
+        $this->assertResponseOk();
+        $this->assertEqualsCanonicalizing([(int)$first->id, (int)$second->id], $this->currentGridRowIds());
+        $this->assertSame($title, $this->viewVariable('gridState')['view']['currentName']);
+    }
+
+    public function testNoOpenTodosDefaultsToCompletedEvenWithAnObsoleteTab(): void
+    {
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $completed = $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, [
+            'title' => 'Finished scroll',
+            'status' => ActionItem::STATUS_COMPLETED,
+            'completed_by' => self::TEST_MEMBER_AGATHA_ID,
+        ]);
+        $this->makeMemberItem(self::TEST_MEMBER_BRYCE_ID);
+
+        $this->get('/action-items/my-tasks-data?view_id=sys-todos-open');
+
+        $this->assertResponseOk();
+        $state = $this->viewVariable('gridState');
+        $this->assertSame(['Completed'], array_column($state['view']['available'], 'name'));
+        $this->assertSame('sys-todos-completed', $state['view']['currentId']);
+        $this->assertSame([(int)$completed->id], $this->currentGridRowIds());
+    }
+
+    public function testTodoTabsAndRowsRecheckEligibilityBeyondCandidateLookups(): void
+    {
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $item = $this->makeMemberItem(self::TEST_MEMBER_BRYCE_ID, ['title' => 'Stale assignment']);
+        $this->getTableLocator()->get('ActionItems')->updateAll(
+            ['assignee_lookup_id' => self::TEST_MEMBER_AGATHA_ID],
+            ['id' => $item->id],
+        );
+
+        $this->get('/action-items/my-tasks-data?ignore_default=1');
+
+        $this->assertResponseOk();
+        $this->assertSame([], $this->currentGridRowIds());
+        $this->assertSame(
+            ['Completed'],
+            array_column($this->viewVariable('gridState')['view']['available'], 'name'),
+        );
+    }
+
+    public function testTodoTypeTabsHonorPermissionBranchAndRoleExpiration(): void
+    {
+        $tables = $this->getTableLocator();
+        $permissions = $tables->get('Permissions');
+        $permission = $permissions->saveOrFail($permissions->newEntity([
+            'name' => 'Scoped To-Do Permission ' . uniqid(),
+            'scoping_rule' => Permission::SCOPE_BRANCH_ONLY,
+            'require_active_membership' => false,
+            'require_active_background_check' => false,
+            'require_min_age' => 0,
+            'requires_warrant' => false,
+            'is_super_user' => false,
+            'is_system' => false,
+        ]));
+        $roles = $tables->get('Roles');
+        $role = $roles->saveOrFail($roles->newEntity(['name' => 'To-Do Role ' . uniqid()]));
+        $rolePermissions = $roles->Permissions->junction();
+        $rolePermissions->saveOrFail($rolePermissions->newEntity([
+            'role_id' => $role->id,
+            'permission_id' => $permission->id,
+            'created_by' => self::ADMIN_MEMBER_ID,
+            'created' => DateTime::now(),
+        ]));
+        $memberRoles = $tables->get('MemberRoles');
+        $assignment = $memberRoles->saveOrFail($memberRoles->newEntity([
+            'member_id' => self::TEST_MEMBER_AGATHA_ID,
+            'role_id' => $role->id,
+            'branch_id' => self::TEST_BRANCH_STARGATE_ID,
+            'start_on' => DateTime::now()->subDays(2),
+            'approver_id' => self::ADMIN_MEMBER_ID,
+        ]));
+        foreach ([self::TEST_BRANCH_STARGATE_ID => 'Local scroll', self::KINGDOM_BRANCH_ID => 'Other branch scroll'] as $branchId => $title) {
+            $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, [
+                'title' => $title,
+                'branch_id' => $branchId,
+                'assignee_type' => ActionItem::ASSIGNEE_TYPE_DYNAMIC,
+                'assignee_config' => [
+                    'service' => BestowalTodoAssigneeResolver::class,
+                    'method' => 'resolveMemberIds',
+                    'kind' => 'permission',
+                    'source_id' => $permission->id,
+                ],
+            ]);
+        }
+        Cache::clear('member_permissions');
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->get('/action-items/my-tasks-data');
+        $this->assertResponseOk();
+        $views = $this->viewVariable('gridState')['view']['available'];
+        $this->assertSame(['Open To-Dos', 'Local scroll', 'Completed'], array_column($views, 'name'));
+        $this->assertCount(1, $this->currentGridRowIds());
+
+        $assignment->expires_on = DateTime::now()->subDays(1);
+        $memberRoles->saveOrFail($assignment);
+        Cache::clear('member_permissions');
+        $this->get('/action-items/my-tasks-data?' . http_build_query(['view_id' => $views[1]['id']]));
+
+        $this->assertResponseOk();
+        $this->assertSame([], $this->currentGridRowIds());
+        $this->assertSame(
+            ['Completed'],
+            array_column($this->viewVariable('gridState')['view']['available'], 'name'),
+        );
+    }
+
+    public function testTableRefreshRemovesCompletedTypesAndFallsBackToCompleted(): void
+    {
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $item = $this->makeBestowalMemberItem(self::TEST_MEMBER_AGATHA_ID);
+        $this->get('/action-items/my-tasks-data');
+        $views = array_column($this->viewVariable('gridState')['view']['available'], null, 'name');
+        $viewId = $views[$item->title]['id'];
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/action-items/complete', ['id' => $item->id]);
+        $this->assertResponseCode(302);
+
+        $this->configRequest(['headers' => ['Turbo-Frame' => 'action-items-grid-table']]);
+        $this->get('/action-items/my-tasks-data?' . http_build_query(['view_id' => $viewId]));
+
+        $this->assertResponseOk();
+        $state = $this->viewVariable('gridState');
+        $this->assertSame('sys-todos-completed', $state['view']['currentId']);
+        $this->assertSame(['Completed'], array_column($state['view']['available'], 'name'));
+        $this->assertResponseContains('id="action-items-grid-table"');
+    }
+
     public function testMyTasksGridAllowsCustomViews(): void
     {
         $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID);
 
         $this->get('/action-items/my-tasks-data');
 
@@ -201,6 +383,9 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
         $gridState = $this->viewVariable('gridState');
         $this->assertSame((int)$gridView->id, $gridState['view']['currentId']);
         $this->assertSame($viewName, $gridState['view']['currentName']);
+        $tabs = $gridState['view']['available'];
+        $this->assertSame('sys-todos-completed', $tabs[array_key_last($tabs)]['id']);
+        $this->assertContains((int)$gridView->id, array_column($tabs, 'id'));
         $this->assertSame([ActionItem::STATUS_OPEN], $gridState['filters']['active']['status_label']);
         $this->assertSame(
             [ActionItemsGridColumns::MEMBER_SCOPE_ACTIONABLE],
@@ -470,6 +655,78 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
         $this->assertSame($combinedRowIds, array_values(array_unique($combinedRowIds)));
     }
 
+    #[DataProvider('sourceAccessProvider')]
+    public function testTodoSourceLinksRequireCurrentViewPermission(int $memberId, bool $canView): void
+    {
+        $this->authenticateAsMember($memberId);
+        $bestowal = $this->makeBestowal([
+            'member_id' => null,
+            'member_sca_name' => 'Source Recipient <Oak> & Reed',
+        ]);
+        $item = $this->makeMemberItem($memberId, ['entity_id' => (int)$bestowal->id]);
+        $sourceUrl = '/awards/bestowals/view/' . $bestowal->id;
+
+        $this->get($sourceUrl);
+        if ($canView) {
+            $this->assertResponseOk();
+        } else {
+            $this->assertRedirectContains('unauthorized');
+        }
+
+        $this->get('/action-items/my-tasks-data');
+        $this->assertResponseOk();
+        $this->assertResponseContains('Source Recipient &lt;Oak&gt; &amp; Reed');
+        $rows = array_values(iterator_to_array($this->viewVariable('data')));
+        $row = collection($rows)->firstMatch(['id' => $item->id]);
+        $this->assertNotNull($row);
+        if ($canView) {
+            $this->assertStringContainsString('href="' . $sourceUrl . '"', $row->owner);
+        } else {
+            $this->assertStringNotContainsString('<a ', $row->owner);
+        }
+
+        $this->configRequest([
+            'headers' => ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'],
+        ]);
+        $this->get('/action-items/mobile-data');
+        $this->assertResponseOk();
+        $payload = json_decode((string)$this->_response->getBody(), true);
+        $group = collection($payload['groups'])->firstMatch(['entityId' => (int)$bestowal->id]);
+        $this->assertNotNull($group);
+        $this->assertStringContainsString('Source Recipient <Oak> & Reed', $group['label']);
+        $this->assertSame($canView ? $sourceUrl : null, $group['url']);
+        $this->assertSame((int)$item->id, $group['items'][0]['id']);
+    }
+
+    public static function sourceAccessProvider(): array
+    {
+        return [
+            'authorized source' => [self::ADMIN_MEMBER_ID, true],
+            'assigned todo without source access' => [self::TEST_MEMBER_AGATHA_ID, false],
+        ];
+    }
+
+    public function testMissingTodoSourceHasNoLink(): void
+    {
+        $this->authenticateAsMember(self::ADMIN_MEMBER_ID);
+        $item = $this->makeMemberItem(self::ADMIN_MEMBER_ID);
+
+        $this->get('/action-items/my-tasks-data');
+        $this->assertResponseOk();
+        $rows = array_values(iterator_to_array($this->viewVariable('data')));
+        $row = collection($rows)->firstMatch(['id' => $item->id]);
+        $this->assertNotNull($row);
+        $this->assertSame('Awards Bestowals #' . $item->entity_id, $row->owner);
+
+        $this->configRequest([
+            'headers' => ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'],
+        ]);
+        $this->get('/action-items/mobile-data');
+        $this->assertResponseOk();
+        $payload = json_decode((string)$this->_response->getBody(), true);
+        $this->assertNull($payload['groups'][0]['url']);
+    }
+
     public function testMyTasksGridDataShowsOperationalBestowalDetails(): void
     {
         $this->authenticateAsMember(self::ADMIN_MEMBER_ID);
@@ -519,6 +776,56 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
         );
     }
 
+    #[DataProvider('unscheduledRecipientProvider')]
+    public function testMyTasksShowsBestowalDetailsWithoutAGathering(bool $hasMember): void
+    {
+        $this->authenticateAsMember(self::ADMIN_MEMBER_ID);
+        $bestowal = $this->makeBestowal([
+            'member_id' => $hasMember ? self::ADMIN_MEMBER_ID : null,
+            'member_sca_name' => 'Unscheduled Recipient <Oak> & Reed',
+            'specialty' => 'Scribal Arts <Illumination>',
+        ]);
+        $this->makeMemberItem(self::ADMIN_MEMBER_ID, ['entity_id' => (int)$bestowal->id]);
+        $recipient = $hasMember
+            ? TableRegistry::getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID)->sca_name
+            : $bestowal->member_sca_name;
+        $award = TableRegistry::getTableLocator()->get('Awards.Awards')->get($bestowal->award_id);
+        $label = $recipient . ' — ' . $award->name;
+
+        $this->get('/action-items/my-tasks-data');
+
+        $this->assertResponseOk();
+        $this->assertResponseContains(h($label));
+        $this->assertResponseContains(h($bestowal->specialty));
+        $this->assertResponseNotContains($bestowal->specialty);
+        $this->assertResponseContains('/awards/bestowals/view/' . $bestowal->id);
+        foreach (['Specializations', 'Gathering', 'Gathering Date', 'Hosting Group', 'Court Assigned'] as $field) {
+            $this->assertResponseContains($field);
+        }
+        $this->assertResponseContains('Not assigned');
+
+        $this->get('/action-items/mobile-data');
+
+        $this->assertResponseOk();
+        $payload = json_decode((string)$this->_response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        $group = collection($payload['groups'])->firstMatch(['entityId' => (int)$bestowal->id]);
+        $this->assertNotNull($group);
+        $this->assertSame($label, $group['label']);
+        $this->assertSame('/awards/bestowals/view/' . $bestowal->id, $group['url']);
+        $details = array_column($group['details'], 'value', 'label');
+        $this->assertSame($bestowal->specialty, $details['Specializations']);
+        foreach (['Gathering', 'Gathering Date', 'Hosting Group', 'Court Assigned'] as $field) {
+            $this->assertSame('Not assigned', $details[$field]);
+        }
+        $gathering = collection($group['details'])->firstMatch(['label' => 'Gathering']);
+        $this->assertNull($gathering['url']);
+    }
+
+    public static function unscheduledRecipientProvider(): array
+    {
+        return ['linked member' => [true], 'recipient without an account' => [false]];
+    }
+
     public function testCompleteButtonsDoNotRenderCheckmarkIcons(): void
     {
         $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
@@ -528,7 +835,12 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
 
         $this->assertResponseOk();
         $this->assertResponseContains('>Complete</button>');
-        $this->assertResponseNotContains('bi-check2');
+        $body = str_replace('\\"', '"', (string)$this->_response->getBody());
+        preg_match_all('/<button[^>]*data-todo-mode="complete"[^>]*>(.*?)<\/button>/s', $body, $buttons);
+        $this->assertNotEmpty($buttons[1]);
+        foreach ($buttons[1] as $content) {
+            $this->assertSame('Complete', trim($content));
+        }
     }
 
     public function testMyTasksGridDataIncludesProviderCompletionFormMetadata(): void
@@ -614,6 +926,28 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
         $this->assertSame('gathering_scheduled_activity_id', $completionForm['fields'][0]['name'] ?? null);
         $this->assertArrayHasKey('roaming', $completionForm['fields'][0]['options'] ?? []);
         $this->assertArrayHasKey((string)$schedule['scheduledActivity']->id, $completionForm['fields'][0]['options'] ?? []);
+    }
+
+    public function testMyTasksAgendaFormExplainsMissingSchedulingPrerequisite(): void
+    {
+        ActionItemCompletionFormRegistry::register('AwardsBestowals', new BestowalTodoCompletionFormProvider());
+        $this->authenticateAsMember(self::ADMIN_MEMBER_ID);
+        $bestowal = $this->makeBestowal();
+        $this->makeMemberItem(self::ADMIN_MEMBER_ID, [
+            'entity_id' => (int)$bestowal->id,
+            'title' => 'Added to Agenda',
+            'source_ref' => BestowalTodoTemplateItem::ITEM_KEY_ADDED_TO_AGENDA,
+        ]);
+
+        $this->get('/action-items/my-tasks-data');
+
+        $this->assertResponseOk();
+        $form = $this->extractCompletionFormMetadata();
+        $this->assertSame([], $form['fields']);
+        $this->assertSame(
+            'Assign a gathering before Added to Agenda can be completed.',
+            $form['payload']['blockedReason'],
+        );
     }
 
     private function assertCompletionFormMetadataContainsBestowalGatheringField(int $bestowalId): void
@@ -834,11 +1168,14 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
             'completed_at' => DateTime::now(),
         ]));
         $this->assertNotEmpty($completed->id);
+        $this->makeMemberItem(self::TEST_MEMBER_AGATHA_ID, ['title' => 'Still open scroll']);
 
         $this->get('/action-items/my-tasks-data?view_id=sys-todos-completed');
 
         $this->assertResponseOk();
         $this->assertResponseContains('Regalia allotted');
+        $this->assertSame([(int)$completed->id], $this->currentGridRowIds());
+        $this->assertSame('sys-todos-completed', $this->viewVariable('gridState')['view']['currentId']);
     }
 
     /**

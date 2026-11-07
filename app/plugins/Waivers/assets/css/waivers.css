@@ -40,7 +40,7 @@
 }
 
 /* Icon-only button improvements */
-.waiverTypes.index .actions .btn.bi {
+.waiverTypes.index .actions .btn:has(kmp-icon) {
     padding: 0.25rem 0.5rem;
     min-width: 2rem;
 }
@@ -166,18 +166,6 @@
 .waiverTypes.view .badge {
     font-size: 0.875rem;
     padding: 0.35em 0.65em;
-}
-
-/* ========================================
-   Badge and Status Styling
-   ======================================== */
-
-.badge.bg-success {
-    background-color: #28a745 !important;
-}
-
-.badge.bg-secondary {
-    background-color: #6c757d !important;
 }
 
 /* ========================================

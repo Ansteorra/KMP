@@ -1,312 +1,213 @@
 <?php
+declare(strict_types=1);
 
-/**
- * Public Kingdom Calendar
- *
- * Read-only, list-first view of gatherings published to the kingdom calendar.
- * Requires no authentication (issue #60). Events are grouped by month and show
- * web links (#59) and royal progress (#61/#63) inline.
- *
- * @var \App\View\AppView $this
- * @var array<string, array<\App\Model\Entity\Gathering>> $gatheringsByMonth Keyed by "Y-m"
- * @var array<int, string> $activityOptions Activity id => name for the filter bar
- * @var array<int> $selectedActivityIds Currently applied activity filter
- */
+use App\Model\Entity\GatheringActivity;
 
-use Cake\I18n\DateTime;
-
-// Circles are activities flagged is_circle (Laurel Circle, Pelican Circle, etc.)
-$isCircleActivity = fn($activity) => (bool)$activity->is_circle;
-$hasCircle = fn($gathering) => (bool)array_filter(
-    $gathering->gathering_activities ?? [],
-    $isCircleActivity,
-);
-
+/** @var \App\View\AppView $this */
 $siteTitle = $this->KMP->getAppSetting('KMP.ShortSiteTitle');
 $this->assign('title', $siteTitle . ': ' . __('Kingdom Calendar'));
-
-// Base stylesheet + the manuscript type pairing this design is built on.
-$this->append('css', implode('', [
-    '<link rel="preconnect" href="https://fonts.googleapis.com">',
-    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>',
-    '<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Spectral:wght@400;500;600;700&display=swap" rel="stylesheet">',
-]));
 $this->append('css', $this->Vite->css('gatherings_public'));
-
-// Admin-authored theme overrides (App Setting), injected AFTER the base
-// stylesheet so a kingdom's custom CSS wins. Guard against tag breakout since
-// this is raw CSS placed inside <style>.
 $customCalendarCss = (string)$this->KMP->getAppSetting('Plugin.PublicGatherings.CustomCSS', '');
 if (trim($customCalendarCss) !== '') {
-    $this->append('css', '<style>' . str_ireplace('</style', '<\/style', $customCalendarCss) . '</style>');
+    $this->append('css', '<style>' . str_ireplace('</style', '<\\/style', $customCalendarCss) . '</style>');
 }
-
-$feedUrl = $this->Url->build(
-    ['controller' => 'Gatherings', 'action' => 'feed'],
-    ['fullBase' => true],
-);
+$calendarUrl = $this->Url->build(['controller' => 'Gatherings', 'action' => 'publicCalendar']);
+$feedUrl = $this->Url->build([
+    'controller' => 'Gatherings', 'action' => 'feed',
+], ['fullBase' => true]);
 $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
 ?>
-<div class="kingdom-calendar-page">
-    <header class="kc-header">
-        <div class="kc-header-ornament" aria-hidden="true">&#x2766;</div>
-        <span class="kc-eyebrow"><?= __('The Kingdom Calendar of') ?> <?= h($siteTitle) ?></span>
-        <h1 class="kc-title"><?= __('Upcoming Events') ?></h1>
-        <p class="kc-subtitle"><?= __('Tourneys, courts, feasts, and gatherings across the realm') ?></p>
-        <div class="kc-actions">
-            <a href="<?= h($webcalUrl) ?>" class="kc-subscribe-link">
-                <i class="bi bi-calendar-plus"></i> <?= __('Subscribe to Calendar') ?>
-            </a>
-        </div>
-        <div class="kc-legend">
-            <span class="kc-legend-item">
-                <span class="kc-progress-icon" aria-hidden="true">&#x1F451;</span>
-                <?= __('Royal Progress') ?>
-            </span>
-            <span class="kc-legend-item">
-                <i class="bi bi-record-circle kc-circle-icon" aria-hidden="true"></i>
-                <?= __('Order Circle') ?>
-            </span>
-        </div>
-
-        <?php if (!empty($activityOptions)): ?>
-            <form method="get" action="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'publicCalendar']) ?>"
-                class="kc-filter-bar">
-                <fieldset class="kc-filter-fieldset">
-                    <legend class="kc-filter-legend"><?= __('Filter by activity') ?></legend>
-                    <div class="kc-filter-options">
-                        <?php foreach ($activityOptions as $activityId => $activityName): ?>
-                            <label class="kc-filter-chip">
-                                <input type="checkbox" name="activities[]" value="<?= (int)$activityId ?>"
-                                    <?= in_array((int)$activityId, $selectedActivityIds, true) ? 'checked' : '' ?>>
-                                <span><?= h($activityName) ?></span>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
-                    <div class="kc-filter-actions">
-                        <button type="submit" class="kc-filter-apply"><?= __('Apply Filter') ?></button>
-                        <?php if (!empty($selectedActivityIds)): ?>
-                            <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'publicCalendar']) ?>"
-                                class="kc-filter-clear"><?= __('Clear') ?></a>
-                        <?php endif; ?>
-                    </div>
-                </fieldset>
-            </form>
-        <?php endif; ?>
-    </header>
-
-    <main class="kc-list">
-        <?php if (empty($gatheringsByMonth)): ?>
-            <div class="kc-empty">
-                <i class="bi bi-calendar-x"></i>
-                <p><?= __('No published events on the calendar yet. Check back soon!') ?></p>
+<div class="kingdom-calendar-page" data-controller="public-calendar"
+    data-public-calendar-pending-message-value="<?= h(__('Selection changed. Apply filters to update events.')) ?>"
+    data-action="focusin->public-calendar#revealFocus">
+    <div class="kc-shell">
+        <header class="kc-masthead">
+            <div class="kc-brand">
+                <?= $this->Icon->render('court-crown', ['size' => 36]) ?>
+                <div><strong><?= h($siteTitle) ?></strong><span><?= __('Kingdom Calendar') ?></span></div>
             </div>
-        <?php endif; ?>
+            <a href="<?= h($webcalUrl) ?>" class="kc-subscribe-link">
+                <?= $this->Icon->render('calendar-plus') ?> <?= __('Subscribe to Calendar') ?>
+            </a>
+        </header>
+        <main id="calendar-events">
+            <div class="kc-heading">
+                <h1><?= __('Find your next event') ?></h1>
+                <p><?= __('Tourneys, courts, classes, and gatherings. All in one place.') ?></p>
+            </div>
+            <form method="get" action="<?= h($calendarUrl) ?>" class="kc-filter-bar"
+                data-public-calendar-target="filterBar" aria-label="<?= h(__('Find events')) ?>">
+                <div class="kc-filter-fields">
+                    <label for="calendar-search"><?= __('Search events') ?>
+                        <input id="calendar-search" type="search" name="q" value="<?= h($search) ?>"
+                            placeholder="<?= h(__('Event name, group, or address')) ?>" maxlength="200">
+                    </label>
+                    <label for="calendar-month"><?= __('When') ?>
+                        <select id="calendar-month" name="month">
+                            <option value=""><?= __('All upcoming months') ?></option>
+                            <?php foreach ($monthOptions as $key => $label) : ?>
+                                <option
+                                    value="<?= h($key) ?>"
+                                    <?= $selectedMonth === $key ? 'selected' : '' ?>><?= h($label) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+                    <label for="calendar-branch"><?= __('Hosted by') ?>
+                        <select id="calendar-branch" name="branch">
+                            <option value=""><?= __('All groups') ?></option>
+                            <?php foreach ($branchOptions as $id => $name) : ?>
+                                <option
+                                    value="<?= (int)$id ?>"
+                                    <?= $selectedBranchId === (int)$id ? 'selected' : '' ?>><?= h($name) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+                </div>
+                <div class="kc-filter-tools">
+                    <details class="kc-filter-picker">
+                        <summary><?= __('Activities') ?>
+                            <span data-public-calendar-target="activityCount"><?php
+                            $selectedOptionCount = count($selectedActivityIds)
+                                + (int)$circlesOnly + (int)$royalsOnly;
+                            echo $selectedOptionCount ? '(' . $selectedOptionCount . ')' : '';
+                            ?></span></summary>
+                        <div class="kc-picker-body">
+                            <label for="calendar-activity-search"><?= __('Find an activity') ?></label>
+                            <input id="calendar-activity-search" type="search" autocomplete="off"
+                                placeholder="<?= h(__('Activity or type')) ?>"
 
-        <?php foreach ($gatheringsByMonth as $monthKey => $gatherings): ?>
-            <?php $monthDate = DateTime::createFromFormat('Y-m-d', $monthKey . '-01'); ?>
-            <section class="kc-month">
-                <h2 class="kc-month-header"><?= h($monthDate->format('F Y')) ?></h2>
-
-                <?php foreach ($gatherings as $gathering): ?>
-                    <?php
-                    $isCancelled = $gathering->is_cancelled ?? false;
-                    $hasPublicPage = (bool)$gathering->public_page_enabled;
-                    $progressAttendances = $gathering->gathering_attendances ?? [];
-                    $typeColor = $gathering->gathering_type->color ?? null;
-                    // The event's web link: the KMP public page when enabled
-                    // (it supersedes the Event Website field), else the
-                    // external website URL when populated.
-                    $eventUrl = null;
-                    $eventUrlIsExternal = false;
-                    if ($hasPublicPage) {
-                        $eventUrl = $this->Url->build([
-                            'controller' => 'Gatherings',
-                            'action' => 'public-landing',
-                            $gathering->public_id,
-                        ]);
-                    } elseif (!empty($gathering->website_url)) {
-                        $eventUrl = $gathering->website_url;
-                        $eventUrlIsExternal = true;
-                    }
-                    ?>
-                    <article class="kc-event<?= $isCancelled ? ' kc-event-cancelled' : '' ?>">
-                        <div class="kc-event-daterail" aria-hidden="true">
-                            <div class="kc-event-date">
-                                <span class="kc-event-month">
-                                    <?= $this->Timezone->format($gathering->start_date, 'M', false, null, $gathering) ?>
-                                </span>
-                                <span class="kc-event-day">
-                                    <?= $this->Timezone->format($gathering->start_date, 'j', false, null, $gathering) ?>
-                                </span>
-                                <span class="kc-event-dow">
-                                    <?= $this->Timezone->format($gathering->start_date, 'D', false, null, $gathering) ?>
-                                </span>
-                            </div>
-                            <?php if ($gathering->is_multi_day): ?>
-                                <?php
-                                // Count calendar days in the event's own timezone (date-only,
-                                // so a Fri 5pm–Sun 3pm event counts as 3 days, not 2).
-                                $startLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
-                                $endLocal = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
-                                $dayCount = 0;
-                                if ($startLocal && $endLocal) {
-                                    $startDay = \Cake\I18n\Date::parse($startLocal->format('Y-m-d'));
-                                    $endDay = \Cake\I18n\Date::parse($endLocal->format('Y-m-d'));
-                                    $dayCount = (int)$startDay->diffInDays($endDay) + 1;
-                                }
-                                ?>
-                                <span class="kc-event-through">
-                                    <?= $dayCount > 0
-                                        ? h(__n('{0} day', '{0} days', $dayCount, $dayCount))
-                                        : __('multi-day') ?>
-                                </span>
-                            <?php endif; ?>
-                        </div>
-
-                        <div class="kc-event-body">
-                            <div class="kc-event-title-row">
-                                <?php if ($eventUrl !== null): ?>
-                                    <a class="kc-event-name" href="<?= h($eventUrl) ?>"
-                                        <?= $eventUrlIsExternal ? 'target="_blank" rel="noopener"' : '' ?>
-                                        title="<?= h($eventUrlIsExternal ? __('Open the event website') : __('View the event page')) ?>"><?= h($gathering->name) ?></a>
-                                <?php else: ?>
-                                    <span class="kc-event-name"><?= h($gathering->name) ?></span>
-                                <?php endif; ?>
-                            </div>
-
-                            <div class="kc-event-tags">
-                                <?php if ($isCancelled): ?>
-                                    <span class="kc-badge kc-badge-cancelled"><?= __('Cancelled') ?></span>
-                                <?php endif; ?>
-
-                                <span class="kc-badge kc-badge-type"
-                                    <?php if ($typeColor): ?>style="--kc-type-color: <?= h($typeColor) ?>;"<?php endif; ?>>
-                                    <?= h($gathering->gathering_type->name) ?>
-                                </span>
-
-                                <?php if (!empty($progressAttendances)): ?>
-                                    <span class="kc-progress-icon"
-                                        title="<?= h(__('Royal Progress')) ?>"
-                                        aria-label="<?= h(__('Royal Progress')) ?>">&#x1F451;</span>
-                                <?php endif; ?>
-
-                                <?php if ($hasCircle($gathering)): ?>
-                                    <i class="bi bi-record-circle kc-circle-icon"
-                                        title="<?= h(__('Order Circle')) ?>"
-                                        aria-label="<?= h(__('Order Circle')) ?>"></i>
-                                <?php endif; ?>
-                            </div>
-
-                            <div class="kc-event-meta">
-                                <span class="kc-meta-item kc-meta-when">
-                                    <i class="bi bi-calendar3"></i>
-                                    <?php if ($gathering->is_multi_day): ?>
-                                        <?= $this->Timezone->format($gathering->start_date, 'M j', false, null, $gathering) ?>
-                                        &ndash; <?= $this->Timezone->format($gathering->end_date, 'M j, Y', false, null, $gathering) ?>
-                                    <?php else: ?>
-                                        <?= $this->Timezone->format($gathering->start_date, 'M j, Y g:i A', false, null, $gathering) ?>
-                                        &ndash; <?= $this->Timezone->format($gathering->end_date, 'g:i A', false, null, $gathering) ?>
-                                        <?php if (!empty($gathering->timezone)): ?>
-                                            (<?= $this->Timezone->getAbbreviation($gathering->start_date, $gathering->timezone) ?>)
+                                    data-public-calendar-target="activitySearch"
+                                    data-action="input->public-calendar#filterActivities">
+                            <div class="kc-picker-options">
+                                <?php foreach ($activityGroups as $type => $options) : ?>
+                                    <details class="kc-activity-group" data-public-calendar-target="activityGroup"
+                                        data-activity-type="<?= h($type) ?>"
+                                        <?= in_array(
+                                            $type,
+                                            ['Royal Progress', GatheringActivity::TYPE_ORDER_CIRCLE],
+                                            true,
+                                        )
+                                            ? 'open' : '' ?>>
+                                        <summary>
+                                            <?php if ($type === 'Royal Progress') : ?>
+                                                <?= $this->Icon->render('crown') ?>
+                                            <?php elseif ($type === GatheringActivity::TYPE_ORDER_CIRCLE) : ?>
+                                                <?= $this->Icon->render('circle-dot') ?>
+                                            <?php endif; ?>
+                                            <?= h(__($type)) ?>
+                                            <span
+                                                class="kc-group-count"
+                                                data-public-calendar-target="groupCount"></span>
+                                        </summary>
+                                        <fieldset>
+                                            <legend class="visually-hidden"><?= h(__($type)) ?></legend>
+                                        <?php if ($type === GatheringActivity::TYPE_ROYAL_PROGRESS) : ?>
+                                            <?= $this->element('gatherings/public_calendar_activity_option', [
+                                                'name' => 'royals', 'value' => 1, 'label' => __('Any Royal Progress'),
+                                                'icon' => 'crown', 'selected' => $royalsOnly,
+                                            ]) ?>
+                                        <?php elseif ($type === GatheringActivity::TYPE_ORDER_CIRCLE) : ?>
+                                            <?= $this->element('gatherings/public_calendar_activity_option', [
+                                                'name' => 'circles', 'value' => 1, 'label' => __('Any order circle'),
+                                                'icon' => 'circle-dot', 'selected' => $circlesOnly,
+                                            ]) ?>
                                         <?php endif; ?>
-                                    <?php endif; ?>
-                                </span>
-
-                                <span class="kc-meta-item">
-                                    <i class="bi bi-building"></i>
-                                    <?= h($gathering->branch->name) ?>
-                                </span>
-
-                                <?php if (!empty($gathering->location)): ?>
-                                    <span class="kc-meta-item">
-                                        <i class="bi bi-geo-alt"></i>
-                                        <?= h($gathering->location) ?>
-                                    </span>
-                                <?php endif; ?>
+                                        <?php foreach ($options as $id => $name) : ?>
+                                            <?= $this->element('gatherings/public_calendar_activity_option', [
+                                                'name' => 'activities[]', 'value' => $id, 'label' => $name,
+                                                'activity' => $activitiesById[$id],
+                                                'selected' => in_array((int)$id, $selectedActivityIds, true),
+                                            ]) ?>
+                                        <?php endforeach; ?>
+                                        </fieldset>
+                                    </details>
+                                <?php endforeach; ?>
                             </div>
-
-                            <?php // The title is the event-page link; the only standalone
-                                  // action is Pre-Register (an external, time-sensitive CTA). ?>
-                            <?php if ($gathering->is_preregistration_open): ?>
-                                <div class="kc-event-actions">
-                                    <a class="kc-action kc-action-prereg" href="<?= h($gathering->preregister_url) ?>"
-                                        target="_blank" rel="noopener"
-                                        title="<?= h(__('Pre-register and pay for this event (external site)')) ?>">
-                                        <i class="bi bi-ticket-perforated"></i> <?= __('Pre-Register') ?>
-                                        <?php if ($gathering->preregister_closes_on !== null): ?>
-                                            <small><?= __('until {0}', h($gathering->preregister_closes_on->format('M j'))) ?></small>
-                                        <?php endif; ?>
-                                    </a>
-                                </div>
-                            <?php endif; ?>
-
-                            <?php
-                            // Secondary detail folds behind a "Details" drawer so the mobile
-                            // list stays scannable. iCal lives here too (always present, so
-                            // the drawer renders on every event).
-                            $hasActivities = !empty($gathering->gathering_activities);
-                            $hasProgress = !empty($progressAttendances);
-                            if ($hasActivities && $hasProgress) {
-                                $moreLabel = __('Activities & royal progress');
-                            } elseif ($hasActivities) {
-                                $moreLabel = __n('{0} activity', '{0} activities', count($gathering->gathering_activities), count($gathering->gathering_activities));
-                            } elseif ($hasProgress) {
-                                $moreLabel = __('Royal progress');
-                            } else {
-                                $moreLabel = __('Add to calendar');
-                            }
-                            ?>
-                            <details class="kc-more">
-                                <summary class="kc-more-summary">
-                                    <span><?= h($moreLabel) ?></span>
-                                    <i class="bi bi-chevron-down kc-more-chevron" aria-hidden="true"></i>
-                                </summary>
-                                <div class="kc-more-body">
-                                    <?php if ($hasActivities): ?>
-                                        <div class="kc-event-activities">
-                                            <?php foreach ($gathering->gathering_activities as $activity): ?>
-                                                <span class="kc-activity-chip<?= $isCircleActivity($activity) ? ' kc-activity-chip-circle' : '' ?>">
-                                                    <?php if ($isCircleActivity($activity)): ?>
-                                                        <i class="bi bi-record-circle" aria-hidden="true"></i>
-                                                    <?php endif; ?>
-                                                    <?= h($activity->name) ?>
-                                                </span>
-                                            <?php endforeach; ?>
-                                        </div>
-                                    <?php endif; ?>
-
-                                    <?php if ($hasProgress): ?>
-                                        <div class="kc-event-progress">
-                                            <strong><?= __('Progress:') ?></strong>
-                                            <?= h(implode(', ', array_map(
-                                                fn($attendance) => $attendance->progress_title
-                                                    . (!empty($attendance->member->sca_name) ? ' (' . $attendance->member->sca_name . ')' : ''),
-                                                $progressAttendances,
-                                            ))) ?>
-                                        </div>
-                                    <?php endif; ?>
-
-                                    <div class="kc-more-actions">
-                                        <a class="kc-action" href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'downloadCalendar', $gathering->public_id]) ?>"
-                                            title="<?= h(__('Download calendar file (.ics)')) ?>">
-                                            <i class="bi bi-download"></i> <?= __('Add to calendar (.ics)') ?>
-                                        </a>
-                                    </div>
-                                </div>
-                            </details>
+                            <p role="status" data-public-calendar-target="activityStatus"></p>
                         </div>
-                    </article>
-                <?php endforeach; ?>
-            </section>
-        <?php endforeach; ?>
-    </main>
-
-    <footer class="kc-footer">
-        <p>
-            <?= __('Events are published to this calendar by the kingdom calendar staff.') ?>
-            <a href="<?= h($webcalUrl) ?>"><?= __('Subscribe') ?></a>
-            <?= __('to keep your personal calendar up to date.') ?>
-        </p>
-    </footer>
+                    </details>
+                    <button type="submit" class="kc-button kc-apply"><?= __('Apply filters') ?></button>
+                    <?php if ($hasFilters || $selectedMonth !== '') : ?>
+                        <a href="<?= h($calendarUrl) ?>"><?= __('Clear filters') ?></a>
+                    <?php endif; ?>
+                </div>
+                <div class="kc-selected-activities" data-public-calendar-target="selectedSummary"
+                    <?= $selectedActivityLabels === [] ? 'hidden' : '' ?>>
+                    <p><?= __('Selected activities') ?></p>
+                    <ul
+                        data-public-calendar-target="selectedLabels"
+                        tabindex="0"
+                        aria-label="<?= h(__('Selected activities')) ?>">
+                        <?php foreach ($selectedActivityLabels as $label) : ?>
+                            <li><?= h($label) ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+                <p class="kc-selection-status" role="status" data-public-calendar-target="selectionStatus"></p>
+            </form>
+            <div class="kc-results-heading">
+                <p><?= __n('{0} published event', '{0} published events', $eventCount, $eventCount) ?></p>
+                <span><?= __('Event local time · every weekend') ?></span>
+            </div>
+            <p id="calendar-scroll-help" class="kc-scroll-help"><?= __(
+                'Scroll sideways for all columns. Select a row to expand; '
+                . 'event names open the event page.',
+            ) ?></p>
+            <div
+                class="kc-table-scroll"
+                role="region"
+                tabindex="0"
+                aria-label="<?= h(__('Kingdom events')) ?>"
+                aria-describedby="calendar-scroll-help">
+                <table class="kc-table">
+                    <caption class="visually-hidden"><?= __(
+                        'Published events and weekends, grouped by month',
+                    ) ?></caption>
+                    <thead><tr>
+                        <th scope="col"><?= __('Date') ?></th><th scope="col"><?= __('Event / address') ?></th>
+                        <th scope="col"><?= __('Group') ?></th><th scope="col"><?= __('Activities') ?></th>
+                    </tr></thead>
+                    <?php foreach ($calendarMonths as $monthKey => $month) : ?>
+                        <tbody aria-labelledby="month-<?= h($monthKey) ?>">
+                            <tr class="kc-month"><th scope="rowgroup" colspan="4">
+                                <div><h2 id="month-<?= h($monthKey) ?>"><?= h($month['label']) ?></h2>
+                                    <span><?= __n('{0} event', '{0} events', $month['count'], $month['count']) ?></span>
+                                </div>
+                            </th></tr>
+                            <?php foreach ($month['rows'] as $row) : ?>
+                                <?php if ($row['empty']) : ?>
+                                    <tr class="kc-empty-weekend">
+                                        <td class="kc-date"><?= h($row['start']->format('M j')) ?>–<?php
+                                            echo h($row['end']->format('M j'));
+                                        ?>
+                                            <small><?= h($row['start']->format('Y')) ?> · <?= __('Fri–Sun') ?></small>
+                                        </td>
+                                        <td colspan="3"><?= $hasFilters
+                                            ? __('No matching events this weekend')
+                                            : __('No published events this weekend') ?></td>
+                                    </tr>
+                                <?php else : ?>
+                                    <?= $this->element('gatherings/public_calendar_row', ['row' => $row]) ?>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                        </tbody>
+                    <?php endforeach; ?>
+                </table>
+            </div>
+            <div class="kc-legend">
+                <span><?= __('Select a row to expand · event names open the event page') ?></span>
+            </div>
+        </main>
+        <footer class="kc-footer"><details><summary><?= __('About this calendar') ?></summary>
+            <p><?= __(
+                'Events are published by the kingdom calendar staff. Empty weekends show no published events; '
+                . 'they do not guarantee that a date is available to book.',
+            ) ?></p>
+            <p><?= __('Use Subscribe to Calendar to follow published updates in your calendar app.') ?></p>
+        </details></footer>
+    </div>
 </div>
+<noscript><style>
+.kingdom-calendar-page .kc-detail-row[hidden]{display:table-row!important}
+.kingdom-calendar-page .kc-more,.kingdom-calendar-page .kc-overflow{display:none}
+</style></noscript>

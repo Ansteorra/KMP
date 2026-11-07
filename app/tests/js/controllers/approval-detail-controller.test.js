@@ -111,7 +111,7 @@ describe('ApprovalDetailController', () => {
         const explanation = document.querySelector('[role="status"]');
         expect(explanation).toHaveAttribute('aria-live', 'polite');
         expect(explanation).toHaveAttribute('aria-atomic', 'true');
-        expect(explanation.querySelector('i')).toHaveAttribute('aria-hidden', 'true');
+        expect(explanation.querySelector('kmp-icon')).toHaveAttribute('aria-hidden', 'true');
     });
 
     test('does not invent an explanation for ordinary cancellations', () => {
@@ -155,7 +155,7 @@ describe('ApprovalDetailController', () => {
         expect(link).not.toBeNull();
         expect(link).toHaveTextContent('View Source');
         expect(link).toHaveAttribute('data-turbo-frame', '_top');
-        expect(link.querySelector('i')).toHaveAttribute('aria-hidden', 'true');
+        expect(link.querySelector('kmp-icon')).toHaveAttribute('aria-hidden', 'true');
     });
 
     test('renders private triage controls only when allowed', () => {

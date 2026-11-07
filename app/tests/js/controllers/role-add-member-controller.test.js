@@ -67,13 +67,20 @@ describe('RoleAddMemberController', () => {
         expect(controller.submitBtnTarget.disabled).toBe(true);
     });
 
-    test('checkSubmitEnable disables button for non-numeric member value', () => {
-        controller.scaMemberTarget.value = 'abc';
+    test('checkSubmitEnable accepts the public id returned by a member suggestion', () => {
+        controller.scaMemberTarget.value = 'aBcD2eFg';
+        controller.branchTarget.value = '1';
+        controller.checkSubmitEnable();
+        expect(controller.submitBtnTarget.disabled).toBe(false);
+    });
+
+    test('checkSubmitEnable disables button for a blank selection', () => {
+        controller.scaMemberTarget.value = '   ';
         controller.checkSubmitEnable();
         expect(controller.submitBtnTarget.disabled).toBe(true);
     });
 
-    test('checkSubmitEnable parses underscore-separated member ids', () => {
+    test('checkSubmitEnable retains legacy selected member ids', () => {
         controller.hasBranchTarget = false;
         controller.scaMemberTarget.value = '1_234';
         controller.checkSubmitEnable();

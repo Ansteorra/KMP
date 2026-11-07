@@ -28,6 +28,20 @@ describe('AwardsBestowalTodos', () => {
         expect(typeof BestowalTodosController).toBe('function');
     });
 
+    test('chosen outcome is named in confirmation and changing it replaces the previous choice', () => {
+        controller.element.innerHTML = `<form><select><option value="">Choose</option>
+            <option value="given">Given</option><option value="other">Given Not Received</option></select>
+            <button data-confirm-message="Close remaining tasks?">Complete Given</button></form>`;
+        const select = controller.element.querySelector('select');
+        const button = controller.element.querySelector('button');
+        select.value = 'other';
+        controller.selectTerminalOutcome({ currentTarget: select });
+        expect(button.dataset.confirmMessage).toBe('Completion outcome: Given Not Received. Close remaining tasks?');
+        select.value = 'given';
+        controller.selectTerminalOutcome({ currentTarget: select });
+        expect(button.dataset.confirmMessage).toBe('Completion outcome: Given. Close remaining tasks?');
+    });
+
     test('extractBestowalIdFromTrigger reads the outlet-btn data value', () => {
         const trigger = document.createElement('button');
         trigger.setAttribute('data-outlet-btn-btn-data-value', JSON.stringify({ id: 42 }));

@@ -80,19 +80,19 @@ if ($identity) {
         <div class="col-12">
             <div class="card mt-2">
                 <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-info-circle"></i> <?= __('Legend') ?></h6>
+                    <h6 class="mb-0"><kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon> <?= __('Legend') ?></h6>
                 </div>
                 <div class="card-body d-flex flex-wrap gap-3">
                     <div class="d-flex align-items-center gap-2">
-                        <span class="badge bg-success"><i class="bi bi-check-circle"></i></span>
+                        <span class="badge bg-success"><kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon></span>
                         <span><?= __('I\'m Attending') ?></span>
                     </div>
                     <div class="d-flex align-items-center gap-2">
-                        <span class="badge bg-info text-dark"><i class="bi bi-geo-alt"></i></span>
+                        <span class="badge bg-info text-dark"><kmp-icon name="map-pin"  aria-hidden="true"></kmp-icon></span>
                         <span><?= __('Has Location') ?></span>
                     </div>
                     <div class="d-flex align-items-center gap-2">
-                        <span class="badge bg-warning text-dark"><i class="bi bi-calendar-range"></i></span>
+                        <span class="badge bg-warning text-dark"><kmp-icon name="calendar-week"  aria-hidden="true"></kmp-icon></span>
                         <span><?= __('Multi-day Event') ?></span>
                     </div>
                 </div>

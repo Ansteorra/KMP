@@ -16,14 +16,18 @@ use function Cake\Collection\collection;
  * @var array<\App\Model\Entity\GatheringActivity> $scheduleActivities
  * @var bool $allowOtherActivities
  */
+$activitySelectionHelp = $allowOtherActivities
+    ? __('Select an activity from the gathering\'s activity list, or check "Other" above.')
+    : __('Select a Court activity attached to this gathering.');
 ?>
 <div class="modal fade" id="addScheduleModal" tabindex="-1" aria-labelledby="addScheduleModalLabel" aria-hidden="true"
-    data-gathering-schedule-target="addModal" data-action="shown.bs.modal->gathering-schedule#resetAddForm">
+    data-gathering-schedule-target="addModal"
+    data-action="shown.bs.modal->gathering-schedule#resetAddForm hidden.bs.modal->gathering-schedule#discardAddDraft">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="addScheduleModalLabel">
-                    <i class="bi bi-calendar-plus" aria-hidden="true"></i> <?= __('Add Scheduled Activity') ?>
+                    <kmp-icon name="calendar-plus"  aria-hidden="true"></kmp-icon> <?= __('Add Scheduled Activity') ?>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"
                     aria-label="<?= __('Close') ?>"></button>
@@ -35,9 +39,12 @@ use function Cake\Collection\collection;
             ]) ?>
             <div class="modal-body bg-light-subtle">
                 <div class="alert alert-info border-start border-info border-4">
-                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                     <?php
-                    $timezone = TimezoneHelper::getGatheringTimezone($gathering, $this->getRequest()->getAttribute('identity'));
+                    $timezone = TimezoneHelper::getGatheringTimezone(
+                        $gathering,
+                        $this->getRequest()->getAttribute('identity'),
+                    );
                     ?>
                     <?= __(
                         'This gathering runs from {0} to {1}. Scheduled activities must fall within these dates.',
@@ -46,13 +53,13 @@ use function Cake\Collection\collection;
                     ) ?>
                     <br>
                     <small>
-                        <i class="bi bi-clock" aria-hidden="true"></i> <?= __('All times in {0}', $timezone) ?>
+                        <kmp-icon name="clock"  aria-hidden="true"></kmp-icon> <?= __('All times in {0}', $timezone) ?>
                     </small>
                 </div>
 
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3">
                     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                        <i class="bi bi-clock text-primary me-1" aria-hidden="true"></i>
+                        <kmp-icon name="clock" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Schedule Timing') ?>
                     </legend>
                     <?= $this->element('gatherings/scheduleTimingFields', ['mode' => 'add']) ?>
@@ -60,7 +67,7 @@ use function Cake\Collection\collection;
 
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
                     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                        <i class="bi bi-card-text text-success me-1" aria-hidden="true"></i>
+                        <kmp-icon name="id" class="text-success me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Activity Details') ?>
                     </legend>
                     <div class="row g-3">
@@ -75,7 +82,9 @@ use function Cake\Collection\collection;
                                         'data-action' => 'change->gathering-schedule#handleOtherChange',
                                     ]) ?>
                                     <label class="form-check-label" for="add-is-other">
-                                        <?= __('This is an "Other" activity (not from the gathering\'s activity list)') ?>
+                                        <?= __(
+                                            'This is an "Other" activity (not from the gathering\'s activity list)',
+                                        ) ?>
                                     </label>
                                 </div>
                             </div>
@@ -98,9 +107,7 @@ use function Cake\Collection\collection;
                                 'data-gathering-schedule-target' => 'activitySelect',
                             ]) ?>
                             <small class="form-text text-muted">
-                                <?= $allowOtherActivities
-                                    ? __('Select an activity from the gathering\'s activity list, or check "Other" above.')
-                                    : __('Select a Court activity attached to this gathering.') ?>
+                                <?= h($activitySelectionHelp) ?>
                             </small>
                         </div>
                         <div class="col-12 col-lg-7">
@@ -139,7 +146,7 @@ use function Cake\Collection\collection;
                     <?= __('Cancel') ?>
                 </button>
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-plus-circle" aria-hidden="true"></i> <?= __('Add Scheduled Activity') ?>
+                    <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon> <?= __('Add Scheduled Activity') ?>
                 </button>
             </div>
             <?= $this->Form->end() ?>

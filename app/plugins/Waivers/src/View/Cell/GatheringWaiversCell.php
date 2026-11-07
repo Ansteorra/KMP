@@ -157,6 +157,10 @@ class GatheringWaiversCell extends Cell
         $gatheringWaiversTable = TableRegistry::getTableLocator()->get('Waivers.GatheringWaivers');
         $gatheringWaiverClosuresTable = TableRegistry::getTableLocator()->get('Waivers.GatheringWaiverClosures');
         $waiverTypesTable = TableRegistry::getTableLocator()->get('Waivers.WaiverTypes');
+        $lostTypeIds = TableRegistry::getTableLocator()->get('Waivers.GatheringWaiverLosses')->find()
+            ->select(['waiver_type_id'])
+            ->where(['gathering_id' => $gatheringId, 'reversed_at IS' => null])
+            ->all()->extract('waiver_type_id')->toList();
 
         $activityIds = array_column($gathering->gathering_activities ?? [], 'id');
 
@@ -247,6 +251,7 @@ class GatheringWaiversCell extends Cell
 
             $waiverRows[] = [
                 'waiver_type' => $waiverType,
+                'is_lost' => in_array($waiverTypeId, $lostTypeIds, true),
                 'uploaded_count' => $uploadedCount,
                 'is_complete' => ($uploadedCount > 0 || (bool)$exemption),
                 'exemption' => $exemption,

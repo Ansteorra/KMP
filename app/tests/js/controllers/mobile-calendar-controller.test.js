@@ -128,7 +128,7 @@ describe('MobileCalendarController', () => {
                 <div data-mobile-calendar-target="pendingBanner" hidden>
                     <span data-mobile-calendar-target="pendingCount">0</span>
                     <button data-mobile-calendar-target="syncBtn">
-                        <i class="bi bi-arrow-repeat"></i> Sync
+                        <kmp-icon name="repeat"  aria-hidden="true"></kmp-icon> Sync
                     </button>
                 </div>
             </div>
@@ -457,6 +457,22 @@ describe('MobileCalendarController', () => {
 
         const branchOptions = controller.branchFilterTarget.querySelectorAll('option');
         expect(branchOptions.length).toBe(3); // "All Branches" + 2 unique
+    });
+
+    test('activity choices prioritize royal progress and circles before display order and name', () => {
+        setupController();
+        controller.calendarData = { events: [{ activities: [
+            { name: 'Zulu court', activity_type: 'Court', display_order: 0 },
+            { name: 'Zulu royal', activity_type: 'Royal Progress', display_order: 999 },
+            { name: 'Circle late', activity_type: 'Order Circle', display_order: 999 },
+            { name: 'Circle early', activity_type: 'Order Circle', display_order: 0 },
+            { name: 'alpha royal', activity_type: 'Royal Progress', display_order: 999 },
+            { name: 'Arts', activity_type: 'Arts & Sciences', display_order: 0 },
+        ] }] };
+        controller.populateFilters();
+        expect(Array.from(controller.activityFilterTarget.options).map(option => option.textContent)).toEqual([
+            'All Activities', 'alpha royal', 'Zulu royal', 'Circle early', 'Circle late', 'Arts', 'Zulu court',
+        ]);
     });
 
     test('populateFilters does nothing without calendar data', () => {
@@ -1181,6 +1197,7 @@ describe('MobileCalendarController', () => {
 
         expect(controller.eventListTarget.innerHTML).toContain('Event A');
         expect(controller.eventListTarget.innerHTML).toContain('Shire A');
+        expect(controller.eventListTarget.querySelector('[data-royal-progress-badge]')).toBeNull();
     });
 
     test('renderEventList does nothing when no events', () => {

@@ -45,7 +45,7 @@ $renderTodayMarker = function () use ($today): void {
                 <?php $renderTodayMarker() ?>
             <?php endif; ?>
             <div class="alert alert-info">
-                <i class="bi bi-info-circle"></i>
+                <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                 No gatherings found for the selected period and filters.
             </div>
         <?php else : ?>
@@ -89,7 +89,7 @@ $renderTodayMarker = function () use ($today): void {
                                     <h5 class="mb-1">
                                         <?php if ($isCancelled) : ?>
                                             <span class="badge bg-danger me-2">
-                                                <i class="bi bi-x-circle"></i> CANCELLED
+                                                <kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> CANCELLED
                                             </span>
                                         <?php endif; ?>
                                         <?= $this->Html->link(
@@ -102,7 +102,7 @@ $renderTodayMarker = function () use ($today): void {
                                         ) ?>
                                         <?php if ($isAttending && !$isCancelled) : ?>
                                             <span class="badge bg-success ms-2">
-                                                <i class="bi bi-check-circle"></i> Attending
+                                                <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon> Attending
                                             </span>
                                         <?php endif; ?>
                                     </h5>
@@ -112,7 +112,7 @@ $renderTodayMarker = function () use ($today): void {
                                 </div>
 
                                 <p class="mb-1">
-                                    <i class="bi bi-geo-alt"></i>
+                                    <kmp-icon name="map-pin"  aria-hidden="true"></kmp-icon>
                                     <strong><?= h($gathering->branch->name) ?></strong>
                                     <?php if ($hasLocation) : ?>
                                         <br>
@@ -123,7 +123,7 @@ $renderTodayMarker = function () use ($today): void {
                                 </p>
 
                                 <p class="mb-1">
-                                    <i class="bi bi-calendar-event"></i>
+                                    <kmp-icon name="calendar-event"  aria-hidden="true"></kmp-icon>
                                     <?php if ($isMultiDay) : ?>
                                         <?= $this->Timezone->format($startInUserTz, null, 'M j, Y') ?>
                                         - <?= $this->Timezone->format($endInUserTz, null, 'M j, Y') ?>
@@ -137,11 +137,11 @@ $renderTodayMarker = function () use ($today): void {
 
                                 <?php if (!empty($gathering->gathering_activities)) : ?>
                                     <p class="mb-1">
-                                        <i class="bi bi-activity"></i>
+                                        <kmp-icon name="activity"  aria-hidden="true"></kmp-icon>
                                         <small>
                                             <?php
                                             $activityNames = array_map(
-                                                fn($a) => h($a->name),
+                                                fn($a) => $this->GatheringActivity->badge($a),
                                                 $gathering->gathering_activities,
                                             );
                                             echo implode(', ', $activityNames);
@@ -164,7 +164,7 @@ $renderTodayMarker = function () use ($today): void {
                             <div class="col-md-4 text-end">
                                 <div class="btn-group-vertical" role="group">
                                     <?= $this->Html->link(
-                                        '<i class="bi bi-eye"></i> View Details',
+                                        '<kmp-icon name="eye"  aria-hidden="true"></kmp-icon> View Details',
                                         ['action' => 'view', $gathering->public_id],
                                         [
                                             'class' => 'btn btn-sm btn-outline-primary',
@@ -187,7 +187,7 @@ $renderTodayMarker = function () use ($today): void {
                                             <?php if ($attendanceRecord) : ?>
                                             data-attendance-id="<?= $attendanceRecord->id ?>"
                                             <?php endif; ?>>
-                                            <i class="bi bi-calendar-check"></i>
+                                            <kmp-icon name="calendar-check"  aria-hidden="true"></kmp-icon>
                                             <?= $isAttending ? 'Update' : 'Mark' ?> Attendance
                                         </button>
                                     <?php elseif (!$isPast && $isCancelled && $isAttending) : ?>
@@ -202,7 +202,7 @@ $renderTodayMarker = function () use ($today): void {
                                             <?php if ($attendanceRecord) : ?>
                                             data-attendance-id="<?= $attendanceRecord->id ?>"
                                             <?php endif; ?>>
-                                            <i class="bi bi-pencil"></i> Edit Attendance
+                                            <kmp-icon name="pencil"  aria-hidden="true"></kmp-icon> Edit Attendance
                                         </button>
                                     <?php endif; ?>
 
@@ -211,7 +211,7 @@ $renderTodayMarker = function () use ($today): void {
                                             target="_blank" rel="noopener"
                                             class="btn btn-sm btn-warning"
                                             title="<?= h(__('Pre-register and pay for this event (external site)')) ?>">
-                                            <i class="bi bi-ticket-perforated"></i> Pre-Register
+                                            <kmp-icon name="ticket"  aria-hidden="true"></kmp-icon> Pre-Register
                                             <?php if ($gathering->preregister_closes_on !== null) : ?>
                                                 <small>(<?= __('until {0}', h($gathering->preregister_closes_on->format('M j'))) ?>)</small>
                                             <?php endif; ?>
@@ -223,7 +223,7 @@ $renderTodayMarker = function () use ($today): void {
                                             class="btn btn-sm btn-outline-info"
                                             data-action="click->gatherings-calendar#showLocation"
                                             data-gathering-id="<?= $gathering->id ?>">
-                                            <i class="bi bi-map"></i> View Map
+                                            <kmp-icon name="map"  aria-hidden="true"></kmp-icon> View Map
                                         </button>
                                     <?php endif; ?>
                                 </div>

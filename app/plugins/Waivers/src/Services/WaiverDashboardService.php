@@ -125,7 +125,7 @@ class WaiverDashboardService
             ->contain([
                 'Branches',
                 'GatheringActivities' => function ($q) {
-                    return $q->select(['id', 'name']);
+                    return $q->select(['id', 'name', 'activity_type', 'display_order']);
                 },
             ])
             ->orderBy(['Gatherings.end_date' => 'ASC', 'Gatherings.id' => 'ASC']);
@@ -505,7 +505,7 @@ class WaiverDashboardService
             ->contain([
                 'Branches',
                 'GatheringActivities' => function ($q) {
-                    return $q->select(['id', 'name']);
+                    return $q->select(['id', 'name', 'activity_type', 'display_order']);
                 },
             ])
             ->orderBy(['Gatherings.start_date' => 'DESC'])
@@ -830,7 +830,7 @@ class WaiverDashboardService
                     return $q->select(['id', 'name']);
                 },
                 'GatheringActivities' => function ($q) {
-                    return $q->select(['id', 'name']);
+                    return $q->select(['id', 'name', 'activity_type', 'display_order']);
                 },
             ])
             ->orderBy(['Gatherings.start_date' => 'ASC'])
@@ -992,7 +992,7 @@ class WaiverDashboardService
                 'Branches',
                 'GatheringTypes',
                 'GatheringActivities' => function ($q) {
-                    return $q->select(['id', 'name']);
+                    return $q->select(['id', 'name', 'activity_type', 'display_order']);
                 },
             ])
             ->orderBy(['Gatherings.start_date' => 'ASC', 'Gatherings.name' => 'ASC']);

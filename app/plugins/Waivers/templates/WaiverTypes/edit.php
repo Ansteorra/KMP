@@ -58,11 +58,11 @@ $this->KMP->endBlock(); ?>
                             <strong>Current Template:</strong>
                             <?php if ($currentSource === 'url'): ?>
                                 <a href="<?= h($waiverType->template_path) ?>" target="_blank" rel="noopener">
-                                    <i class="bi bi-box-arrow-up-right"></i> <?= h($waiverType->template_path) ?>
+                                    <kmp-icon name="external-link"  aria-hidden="true"></kmp-icon> <?= h($waiverType->template_path) ?>
                                 </a>
                             <?php elseif ($currentSource === 'upload'): ?>
                                 <?= $this->Html->link(
-                                    '<i class="bi bi-download"></i> ' . h($waiverType->document->original_filename ?? 'template.pdf'),
+                                    '<kmp-icon name="download"  aria-hidden="true"></kmp-icon> ' . h($waiverType->document->original_filename ?? 'template.pdf'),
                                     ['action' => 'downloadTemplate', $waiverType->id],
                                     [
                                         'class' => 'btn btn-sm btn-success',
@@ -218,7 +218,7 @@ $this->KMP->endBlock(); ?>
                     <button type="button"
                         class="btn btn-sm btn-outline-secondary mt-2"
                         data-action="click->exemption-reasons#addReason">
-                        <i class="bi bi-plus-circle"></i> Add Reason
+                        <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon> Add Reason
                     </button>
 
                     <!-- Hidden input for JSON data -->
@@ -239,7 +239,7 @@ $this->KMP->endBlock(); ?>
                                 class="btn btn-outline-danger"
                                 data-action="click->exemption-reasons#removeReason"
                                 title="Remove this reason">
-                                <i class="bi bi-x-lg"></i>
+                                <kmp-icon name="x"  aria-hidden="true"></kmp-icon>
                             </button>
                         </div>
                     </template>

@@ -68,7 +68,7 @@ class WarrantRosterApprovalContextRenderer implements ApprovalContextRendererInt
             description: $description,
             fields: $fields,
             entityUrl: $entityUrl,
-            icon: 'bi-file-earmark-check',
+            icon: 'file-check',
             requester: $creatorName,
             requesterMemberId: $creatorName === null ? null : (int)$roster->created_by,
         );

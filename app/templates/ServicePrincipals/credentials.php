@@ -25,7 +25,7 @@ $this->assign('title', __('Service Principal Created'));
             <div class="card border-warning">
                 <div class="card-header bg-warning text-dark">
                     <h4 class="mb-0">
-                        <i class="bi bi-exclamation-triangle"></i>
+                        <kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon>
                         <?= __('Save These Credentials Now') ?>
                     </h4>
                 </div>
@@ -49,7 +49,7 @@ $this->assign('title', __('Service Principal Created'));
                                     data-clipboard-source-selector-value="#clientId"
                                     data-clipboard-success-message-value="<?= h(__('Client ID copied to clipboard.')) ?>"
                                     title="<?= __('Copy') ?>">
-                                <i class="bi bi-clipboard" aria-hidden="true"></i>
+                                <kmp-icon name="clipboard"  aria-hidden="true"></kmp-icon>
                                 <span class="visually-hidden"><?= __('Copy Client ID') ?></span>
                             </button>
                         </div>
@@ -67,7 +67,7 @@ $this->assign('title', __('Service Principal Created'));
                                     data-clipboard-source-selector-value="#bearerToken"
                                     data-clipboard-success-message-value="<?= h(__('Bearer token copied to clipboard.')) ?>"
                                     title="<?= __('Copy') ?>">
-                                <i class="bi bi-clipboard" aria-hidden="true"></i>
+                                <kmp-icon name="clipboard"  aria-hidden="true"></kmp-icon>
                                 <span class="visually-hidden"><?= __('Copy bearer token') ?></span>
                             </button>
                         </div>

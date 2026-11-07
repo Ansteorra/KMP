@@ -65,6 +65,32 @@ describe('NavBarController', () => {
         );
     });
 
+    test('a preference write can finish after departure and preserves the local menu state', async () => {
+        let finish;
+        global.fetch = jest.fn(() => new Promise(resolve => { finish = resolve; }));
+        const button = controller.navHeaderTargets[1];
+        const saved = controller.navHeaderClicked({ currentTarget: button });
+        expect(global.fetch).toHaveBeenCalledWith('/api/nav/expand/menu2', expect.objectContaining({
+            keepalive: true, credentials: 'same-origin', cache: 'no-store',
+        }));
+        window.dispatchEvent(new Event('pagehide'));
+        controller.navHeaderTargetDisconnected(button);
+        finish({ ok: true });
+        await expect(saved).resolves.toBeUndefined();
+        expect(button.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    test.each(['network', 'server'])('handles %s preference failures without rejecting the click', async (failure) => {
+        const warning = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        global.fetch = failure === 'network'
+            ? jest.fn().mockRejectedValue(new TypeError('Load failed'))
+            : jest.fn().mockResolvedValue({ ok: false, status: 503 });
+        const button = controller.navHeaderTargets[1];
+        await expect(controller.navHeaderClicked({ currentTarget: button })).resolves.toBeUndefined();
+        expect(button.getAttribute('aria-expanded')).toBe('true');
+        expect(warning).toHaveBeenCalledWith('Navigation preference could not be saved.');
+    });
+
     test('navHeaderTargetConnected adds click listener', () => {
         const btn = document.createElement('button');
         const addSpy = jest.spyOn(btn, 'addEventListener');

@@ -9,46 +9,46 @@
 $this->extend("/layout/TwitterBootstrap/view_record");
 
 echo $this->KMP->startBlock("pageTitle");
-echo __('Waiver Details');
+echo $waiverLoss ? __('Waiver Details — Lost') : __('Waiver Details');
 $this->KMP->endBlock();
 
 echo $this->KMP->startBlock("recordActions");
 ?>
-<div class="btn-group" role="group">
-    <?php if (!$gatheringWaiver->is_exemption && $gatheringWaiver->document_id): ?>
+<div class="d-flex flex-wrap justify-content-end gap-2" role="group" aria-label="<?= __('Waiver actions') ?>">
+    <?php if ($gatheringWaiver->document_id): ?>
     <?= $this->Html->link(
-            '<i class="bi bi-eye"></i> ' . __('View PDF'),
+            '<kmp-icon name="eye"  aria-hidden="true"></kmp-icon> ' . __('View PDF'),
             ['action' => 'inlinePdf', $gatheringWaiver->id],
-            ['class' => 'btn btn-primary', 'escape' => false, 'target' => '_blank', 'rel' => 'noopener']
+            ['class' => 'btn btn-outline-secondary btn-sm', 'escape' => false, 'target' => '_blank', 'rel' => 'noopener']
         ) ?>
     <?= $this->Html->link(
-            '<i class="bi bi-download"></i> ' . __('Download'),
+            '<kmp-icon name="download"  aria-hidden="true"></kmp-icon> ' . __('Download'),
             ['action' => 'download', $gatheringWaiver->id],
-            ['class' => 'btn btn-success', 'escape' => false]
+            ['class' => 'btn btn-outline-secondary btn-sm', 'escape' => false]
         ) ?>
     <?php endif; ?>
     <?php
     $user = $this->getRequest()->getAttribute('identity');
     // Only show change type/activities for actual waivers, not exemptions
-    if (!$gatheringWaiver->is_exemption && $user && $user->checkCan('changeWaiverType', $gatheringWaiver)): ?>
-    <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#changeTypeActivitiesModal">
-        <i class="bi bi-pencil-square"></i> <?= __('Change') ?>
+    if ($gatheringWaiver->id && !$gatheringWaiver->is_exemption && $user && $user->checkCan('changeWaiverType', $gatheringWaiver)): ?>
+    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#changeTypeActivitiesModal">
+        <kmp-icon name="edit"  aria-hidden="true"></kmp-icon> <?= __('Change') ?>
     </button>
     <?php endif; ?>
     <?php
     // Show decline button if user can decline and waiver can be declined
     if ($user && $user->checkCan('decline', $gatheringWaiver) && $gatheringWaiver->can_be_declined): ?>
-    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#declineWaiverModal">
-        <i class="bi bi-x-circle-fill"></i> <?= __('Decline') ?>
+    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#declineWaiverModal">
+        <kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> <?= __('Decline') ?>
     </button>
     <?php endif; ?>
     <?php if ($gatheringWaiver->status === 'expired'): ?>
     <?= $this->Form->postLink(
-            '<i class="bi bi-trash-fill"></i> ' . __('Delete'),
+            '<kmp-icon name="trash"  aria-hidden="true"></kmp-icon> ' . __('Delete'),
             ['action' => 'delete', $gatheringWaiver->id],
             [
                 'confirm' => __('Are you sure you want to delete this expired waiver?'),
-                'class' => 'btn btn-danger',
+                'class' => 'btn btn-danger btn-sm',
                 'escape' => false
             ]
         ) ?>
@@ -60,12 +60,36 @@ $this->KMP->endBlock();
 echo $this->KMP->startBlock("recordDetails");
 ?>
 
+<tr><td colspan="2">
+<?= $this->element('Waivers.GatheringWaivers/loss_report_history') ?>
+
+<?php if (count($uploadedWaivers)) : ?>
+<section class="card mb-3" aria-labelledby="waiver-uploaded-files-heading">
+    <div class="card-header">
+        <h2 class="h5 mb-0" id="waiver-uploaded-files-heading"><?= __('Uploaded Files') ?></h2>
+    </div>
+    <ul class="list-group list-group-flush">
+        <?php foreach ($uploadedWaivers as $upload) : ?>
+        <li class="list-group-item">
+            <span><?= h($upload->document->original_filename) ?></span>
+            <?= $this->Html->link(__('View PDF'), ['action' => 'inlinePdf', $upload->id], [
+                'class' => 'btn btn-sm btn-outline-primary', 'target' => '_blank', 'rel' => 'noopener',
+            ]) ?>
+            <?= $this->Html->link(__('Download'), ['action' => 'download', $upload->id], [
+                'class' => 'btn btn-sm btn-outline-secondary',
+            ]) ?>
+        </li>
+        <?php endforeach; ?>
+    </ul>
+</section>
+<?php endif; ?>
+
 <div class="row">
     <div class="col-md-8">
         <!-- Gathering Information -->
         <div class="card mb-3">
             <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-calendar-event"></i> <?= __('Gathering Information') ?></h5>
+                <h5 class="mb-0"><kmp-icon name="calendar-event"  aria-hidden="true"></kmp-icon> <?= __('Gathering Information') ?></h5>
             </div>
             <div class="card-body">
                 <dl class="row">
@@ -96,7 +120,7 @@ echo $this->KMP->startBlock("recordDetails");
         <!-- Waiver Information -->
         <div class="card mb-3">
             <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-file-text"></i> <?= __('Waiver Information') ?></h5>
+                <h5 class="mb-0"><kmp-icon name="file-text"  aria-hidden="true"></kmp-icon> <?= __('Waiver Information') ?></h5>
             </div>
             <div class="card-body">
                 <dl class="row">
@@ -111,12 +135,16 @@ echo $this->KMP->startBlock("recordDetails");
 
                     <dt class="col-sm-3"><?= __('Status') ?></dt>
                     <dd class="col-sm-9">
-                        <?php if ($gatheringWaiver->is_declined): ?>
+                        <?php if ($waiverLoss) : ?>
+                        <span class="badge bg-danger"><?= __('Lost') ?></span>
+                        <?php elseif ($gatheringWaiver->is_declined): ?>
                         <span class="badge bg-danger"><?= __('Declined') ?></span>
                         <?php elseif ($gatheringWaiver->status === 'active'): ?>
                         <span class="badge bg-success"><?= __('Active') ?></span>
                         <?php elseif ($gatheringWaiver->status === 'expired'): ?>
                         <span class="badge bg-danger"><?= __('Expired') ?></span>
+                        <?php elseif ($gatheringWaiver->status === 'pending') : ?>
+                        <span class="badge bg-warning text-dark"><?= __('Pending') ?></span>
                         <?php else: ?>
                         <span class="badge bg-secondary"><?= h($gatheringWaiver->status) ?></span>
                         <?php endif; ?>
@@ -125,7 +153,7 @@ echo $this->KMP->startBlock("recordDetails");
                     <dt class="col-sm-3"><?= __('Exemption') ?></dt>
                     <dd class="col-sm-9">
                         <?php if ($gatheringWaiver->is_exemption): ?>
-                        <span class="badge bg-info text-dark"><i class="bi bi-shield-check"></i>
+                        <span class="badge bg-info text-dark"><kmp-icon name="shield-check"  aria-hidden="true"></kmp-icon>
                             <?= __('Waiver Exempted') ?></span>
                         <?php else: ?>
                         <span class="text-muted"><?= __('No') ?></span>
@@ -161,7 +189,7 @@ echo $this->KMP->startBlock("recordDetails");
                     <dt class="col-sm-3"><?= __('Decline Reason') ?></dt>
                     <dd class="col-sm-9">
                         <div class="alert alert-danger mb-0">
-                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            <kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon>
                             <?= nl2br(h($gatheringWaiver->decline_reason)) ?>
                         </div>
                     </dd>
@@ -172,7 +200,7 @@ echo $this->KMP->startBlock("recordDetails");
                     <dt class="col-sm-3"><?= __('Exemption Reason') ?></dt>
                     <dd class="col-sm-9">
                         <div class="alert alert-info mb-0">
-                            <i class="bi bi-info-circle-fill"></i>
+                            <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                             <?php if ($gatheringWaiver->exemption_reason): ?>
                             <?= nl2br(h($gatheringWaiver->exemption_reason)) ?>
                             <?php else: ?>
@@ -182,6 +210,7 @@ echo $this->KMP->startBlock("recordDetails");
                     </dd>
                     <?php endif; ?>
 
+                    <?php if ($gatheringWaiver->id) : ?>
                     <dt class="col-sm-3"><?= __('Submitted') ?></dt>
                     <dd class="col-sm-9">
                         <?= $this->Timezone->format($gatheringWaiver->created, null, null, \IntlDateFormatter::LONG, \IntlDateFormatter::SHORT) ?>
@@ -200,6 +229,7 @@ echo $this->KMP->startBlock("recordDetails");
                         <?php endif; ?>
                     </dd>
 
+                    <?php endif; ?>
                     <?php if ($gatheringWaiver->notes): ?>
                     <dt class="col-sm-3"><?= __('Notes') ?></dt>
                     <dd class="col-sm-9"><?= h($gatheringWaiver->notes) ?></dd>
@@ -212,7 +242,7 @@ echo $this->KMP->startBlock("recordDetails");
         <?php if ($gatheringWaiver->document): ?>
         <div class="card mb-3">
             <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-file-earmark-pdf"></i> <?= __('Document Information') ?></h5>
+                <h5 class="mb-0"><kmp-icon name="file-type-pdf"  aria-hidden="true"></kmp-icon> <?= __('Document Information') ?></h5>
             </div>
             <div class="card-body">
                 <dl class="row">
@@ -230,7 +260,7 @@ echo $this->KMP->startBlock("recordDetails");
                     <dt class="col-sm-3"><?= __('Pages') ?></dt>
                     <dd class="col-sm-9">
                         <span class="badge bg-info">
-                            <i class="bi bi-file-earmark-text"></i> <?= h($metadata['page_count']) ?> <?= __('pages') ?>
+                            <kmp-icon name="file-text"  aria-hidden="true"></kmp-icon> <?= h($metadata['page_count']) ?> <?= __('pages') ?>
                         </span>
                     </dd>
                     <?php endif; ?>
@@ -286,12 +316,12 @@ echo $this->KMP->startBlock("recordDetails");
 
                 <div class="text-center">
                     <h6 class="text-muted mb-3">
-                        <i class="bi bi-image"></i> <?= __('Waiver Preview') ?>
+                        <kmp-icon name="photo"  aria-hidden="true"></kmp-icon> <?= __('Waiver Preview') ?>
                     </h6>
                     <img src="<?= h($previewUrl) ?>" class="img-fluid border rounded shadow-sm"
                         alt="<?= h(__('Preview of waiver document first page')) ?>" loading="lazy" />
                     <p class="small text-muted mt-2 mb-0">
-                        <i class="bi bi-eye"></i>
+                        <kmp-icon name="eye"  aria-hidden="true"></kmp-icon>
                         <?= __('Displaying the first page for quick review. Use View PDF to open embedded PDF Viewer for the complete document.') ?>
                     </p>
                 </div>
@@ -304,9 +334,10 @@ echo $this->KMP->startBlock("recordDetails");
 
     <div class="col-md-4">
         <!-- Retention Policy Information -->
+        <?php if ($gatheringWaiver->retention_date) : ?>
         <div class="card mb-3">
             <div class="card-header bg-info text-white">
-                <h5 class="mb-0"><i class="bi bi-calendar-check"></i> <?= __('Retention Policy') ?></h5>
+                <h5 class="mb-0"><kmp-icon name="calendar-check"  aria-hidden="true"></kmp-icon> <?= __('Retention Policy') ?></h5>
             </div>
             <div class="card-body">
                 <p class="mb-2">
@@ -322,20 +353,20 @@ echo $this->KMP->startBlock("recordDetails");
 
                 <?php if ($daysRemaining < 0): ?>
                 <div class="alert alert-danger mt-3 mb-0" role="alert">
-                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon>
                     <strong><?= __('Expired') ?></strong><br>
                     <?= __('This waiver expired {0} days ago and is eligible for deletion.', abs($daysRemaining)) ?>
                 </div>
                 <?php elseif ($daysRemaining < 90): ?>
                 <div class="alert alert-warning mt-3 mb-0" role="alert">
-                    <i class="bi bi-clock"></i>
+                    <kmp-icon name="clock"  aria-hidden="true"></kmp-icon>
                     <strong><?= __('Expiring Soon') ?></strong><br>
                     <?= __('This waiver will expire in {0} days.', $daysRemaining) ?>
                 </div>
                 <?php else: ?>
                 <div class="alert alert-success mt-3 mb-0" role="alert">
-                    <i class="bi bi-check-circle"></i>
-                    <strong><?= __('Active') ?></strong><br>
+                    <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon>
+                    <strong><?= $waiverLoss ? __('Retained for the paper trail') : __('Active') ?></strong><br>
                     <?= __('This waiver will expire in {0} days.', $daysRemaining) ?>
                 </div>
                 <?php endif; ?>
@@ -343,47 +374,49 @@ echo $this->KMP->startBlock("recordDetails");
                 <hr>
 
                 <p class="small text-muted mb-0">
-                    <i class="bi bi-info-circle"></i>
+                    <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                     <?= __('Retention policies are captured at upload time and remain fixed even if the waiver type policy changes.') ?>
                 </p>
             </div>
         </div>
 
         <!-- Quick Actions -->
+        <?php endif; ?>
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0"><?= __('Quick Actions') ?></h5>
             </div>
             <div class="list-group list-group-flush">
-                <?php if (!$gatheringWaiver->is_exemption && $gatheringWaiver->document_id): ?>
+                <?php if ($gatheringWaiver->document_id): ?>
                 <a href="<?= $this->Url->build(['action' => 'inlinePdf', $gatheringWaiver->id]) ?>" target="_blank"
                     rel="noopener" class="list-group-item list-group-item-action">
-                    <i class="bi bi-eye"></i> <?= __('Open Embedded PDF Viewer') ?>
+                    <kmp-icon name="eye"  aria-hidden="true"></kmp-icon> <?= __('Open Embedded PDF Viewer') ?>
                 </a>
                 <a href="<?= $this->Url->build(['action' => 'download', $gatheringWaiver->id]) ?>"
                     class="list-group-item list-group-item-action">
-                    <i class="bi bi-download"></i> <?= __('Download PDF') ?>
+                    <kmp-icon name="download"  aria-hidden="true"></kmp-icon> <?= __('Download PDF') ?>
                 </a>
                 <?php endif; ?>
                 <a href="<?= $this->Url->build(['action' => 'index', '?' => ['gathering_id' => $gatheringWaiver->gathering_id]]) ?>"
                     class="list-group-item list-group-item-action">
-                    <i class="bi bi-list-ul"></i> <?= __('View All Waivers for This Gathering') ?>
+                    <kmp-icon name="list"  aria-hidden="true"></kmp-icon> <?= __('View All Waivers for This Gathering') ?>
                 </a>
                 <a href="<?= $this->Url->build(['plugin' => false, 'controller' => 'Gatherings', 'action' => 'view', $gatheringWaiver->gathering->public_id]) ?>"
                     class="list-group-item list-group-item-action">
-                    <i class="bi bi-calendar-event"></i> <?= __('View Gathering Details') ?>
+                    <kmp-icon name="calendar-event"  aria-hidden="true"></kmp-icon> <?= __('View Gathering Details') ?>
                 </a>
             </div>
         </div>
     </div>
 </div>
+</td></tr>
 
 <?php
 $this->KMP->endBlock();
 
 // Include the change type/activities modal
 $user = $this->getRequest()->getAttribute('identity');
-if ($user && $user->checkCan('changeWaiverType', $gatheringWaiver)) {
+if ($gatheringWaiver->id && $user && $user->checkCan('changeWaiverType', $gatheringWaiver)) {
     echo $this->element('Waivers.GatheringWaivers/changeTypeActivitiesModal', [
         'gatheringWaiver' => $gatheringWaiver,
         'waiverTypes' => $waiverTypes,
@@ -403,14 +436,14 @@ if ($user && $user->checkCan('decline', $gatheringWaiver) && $gatheringWaiver->c
                 ]) ?>
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title" id="declineWaiverModalLabel">
-                    <i class="bi bi-x-circle-fill"></i> <?= __('Decline Waiver') ?>
+                    <kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> <?= __('Decline Waiver') ?>
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                     aria-label="Close"></button>
             </div>
             <div class="modal-body bg-light-subtle">
                 <div class="alert alert-warning border-start border-warning border-4">
-                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon>
                     <strong><?= __('Warning:') ?></strong>
                     <?= __('You are about to decline this waiver. This action cannot be undone.') ?>
                 </div>
@@ -435,13 +468,13 @@ if ($user && $user->checkCan('decline', $gatheringWaiver) && $gatheringWaiver->c
                             'placeholder' => __('Please provide a detailed reason why this waiver is being declined...')
                         ]) ?>
                     <small class="form-text text-muted">
-                        <i class="bi bi-info-circle"></i>
+                        <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                         <?= __('This reason will be visible to users who can view this waiver.') ?>
                     </small>
                 </div>
 
                 <div class="alert alert-info">
-                    <i class="bi bi-clock"></i>
+                    <kmp-icon name="clock"  aria-hidden="true"></kmp-icon>
                     <strong><?= __('Note:') ?></strong>
                     <?= __(
                             'Waivers can only be declined within 90 days of upload. This waiver was uploaded {0}.',
@@ -451,13 +484,13 @@ if ($user && $user->checkCan('decline', $gatheringWaiver) && $gatheringWaiver->c
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="bi bi-x"></i> <?= __('Cancel') ?>
+                    <kmp-icon name="x"  aria-hidden="true"></kmp-icon> <?= __('Cancel') ?>
                 </button>
                 <?= $this->Form->button(
                         'Decline Waiver',
                         [
                             'type' => 'submit',
-                            'class' => 'btn btn-danger bi bi-x-circle-fill',
+                            'class' => 'btn btn-danger', 'icon' => 'circle-x',
                             'escape' => false
                         ]
                     ) ?>

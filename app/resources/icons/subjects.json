@@ -1,0 +1,960 @@
+{
+  "armored-combat": {
+    "label": "Armored combat",
+    "keywords": [
+      "heavy combat",
+      "armor",
+      "armour",
+      "marshal",
+      "fighting",
+      "body armor"
+    ],
+    "category": "SCA activities"
+  },
+  "archery": {
+    "label": "Archery",
+    "keywords": [
+      "bow",
+      "arrows",
+      "target",
+      "marshal",
+      "arc de or",
+      "arc d or",
+      "arc d'or",
+      "arc d’or",
+      "arc dor",
+      "order circle",
+      "circle",
+      "circles"
+    ],
+    "category": "SCA activities"
+  },
+  "equestrian": {
+    "label": "Equestrian",
+    "keywords": [
+      "horse",
+      "riding",
+      "saddle"
+    ],
+    "category": "SCA activities"
+  },
+  "needlework": {
+    "label": "Needlework",
+    "keywords": [
+      "sewing",
+      "embroidery",
+      "crafting",
+      "arts and sciences",
+      "textile"
+    ],
+    "category": "SCA activities"
+  },
+  "scribal": {
+    "label": "Scribal arts",
+    "keywords": [
+      "quill",
+      "calligraphy",
+      "illumination",
+      "writing",
+      "scroll",
+      "arts and sciences"
+    ],
+    "category": "SCA activities"
+  },
+  "crown": {
+    "label": "Court and crown",
+    "keywords": [
+      "court",
+      "royalty",
+      "royal progress",
+      "king",
+      "queen",
+      "coronet",
+      "prince",
+      "princess"
+    ],
+    "category": "SCA activities"
+  },
+  "laurel-wreath": {
+    "label": "Laurel wreath",
+    "keywords": [
+      "awards",
+      "laurels",
+      "service",
+      "arts and sciences"
+    ],
+    "category": "SCA activities"
+  },
+  "metalwork": {
+    "label": "Metalwork",
+    "keywords": [
+      "anvil",
+      "smithing",
+      "crafting",
+      "arts and sciences"
+    ],
+    "category": "SCA activities"
+  },
+  "fencing": {
+    "label": "Fencing blades",
+    "keywords": [
+      "rapier",
+      "fencing",
+      "swords",
+      "steel combat",
+      "marshal"
+    ],
+    "category": "SCA activities"
+  },
+  "fencing-mask": {
+    "label": "Fencing mask",
+    "keywords": [
+      "rapier",
+      "fencing",
+      "marshal",
+      "safety"
+    ],
+    "category": "SCA activities"
+  },
+  "sword": {
+    "label": "Sword",
+    "keywords": [
+      "rapier",
+      "fencing",
+      "swords",
+      "steel",
+      "combat"
+    ],
+    "category": "SCA activities"
+  },
+  "swords": {
+    "label": "Crossed swords",
+    "keywords": [
+      "rapier",
+      "fencing",
+      "swords",
+      "combat"
+    ],
+    "category": "SCA activities"
+  },
+  "shield": {
+    "label": "Shield",
+    "keywords": [
+      "heraldry",
+      "armor",
+      "armour",
+      "marshal"
+    ],
+    "category": "SCA activities"
+  },
+  "scroll": {
+    "label": "Scroll",
+    "keywords": [
+      "heraldry",
+      "scribal",
+      "calligraphy",
+      "awards"
+    ],
+    "category": "SCA activities"
+  },
+  "sword-01": {
+    "label": "Sword 01",
+    "category": "SCA activities",
+    "keywords": [
+      "sword",
+      "swords",
+      "rapier",
+      "fencing",
+      "steel combat",
+      "combat"
+    ]
+  },
+  "sword-02": {
+    "label": "Sword 02",
+    "category": "SCA activities",
+    "keywords": [
+      "sword",
+      "swords",
+      "rapier",
+      "fencing",
+      "steel combat",
+      "combat"
+    ]
+  },
+  "sword-03": {
+    "label": "Sword 03",
+    "category": "SCA activities",
+    "keywords": [
+      "sword",
+      "swords",
+      "rapier",
+      "fencing",
+      "steel combat",
+      "combat"
+    ]
+  },
+  "swords-rounded": {
+    "label": "Swords rounded",
+    "category": "SCA activities",
+    "keywords": [
+      "sword",
+      "swords",
+      "rapier",
+      "fencing",
+      "steel combat",
+      "combat"
+    ]
+  },
+  "armored-boot": {
+    "label": "Armored boot",
+    "category": "SCA activities",
+    "keywords": [
+      "armored combat",
+      "heavy combat",
+      "armor",
+      "armour",
+      "marshal"
+    ]
+  },
+  "greek-helmet": {
+    "label": "Greek helmet",
+    "category": "SCA activities",
+    "keywords": [
+      "armored combat",
+      "heavy combat",
+      "armor",
+      "armour",
+      "marshal"
+    ]
+  },
+  "spartan-helmet": {
+    "label": "Spartan helmet",
+    "category": "SCA activities",
+    "keywords": [
+      "armored combat",
+      "heavy combat",
+      "armor",
+      "armour",
+      "marshal"
+    ]
+  },
+  "bow-arrow": {
+    "label": "Bow arrow",
+    "category": "SCA activities",
+    "keywords": [
+      "archery",
+      "bow",
+      "arrows",
+      "marshal"
+    ]
+  },
+  "shield-01": {
+    "label": "Shield 01",
+    "category": "SCA activities",
+    "keywords": [
+      "heraldry",
+      "shield",
+      "armored combat"
+    ]
+  },
+  "shield-02": {
+    "label": "Shield 02",
+    "category": "SCA activities",
+    "keywords": [
+      "heraldry",
+      "shield",
+      "armored combat"
+    ]
+  },
+  "knight-shield": {
+    "label": "Knight shield",
+    "category": "SCA activities",
+    "keywords": [
+      "heraldry",
+      "shield",
+      "armored combat"
+    ]
+  },
+  "crown-02": {
+    "label": "Crown 02",
+    "category": "SCA activities",
+    "keywords": [
+      "court",
+      "crown",
+      "royalty",
+      "royal progress"
+    ]
+  },
+  "crown-03": {
+    "label": "Crown 03",
+    "category": "SCA activities",
+    "keywords": [
+      "court",
+      "crown",
+      "royalty",
+      "royal progress"
+    ]
+  },
+  "crown-minus": {
+    "label": "Crown minus",
+    "category": "SCA activities",
+    "keywords": [
+      "court",
+      "crown",
+      "royalty",
+      "royal progress"
+    ]
+  },
+  "crown-plus": {
+    "label": "Crown plus",
+    "category": "SCA activities",
+    "keywords": [
+      "court",
+      "crown",
+      "royalty",
+      "royal progress"
+    ]
+  },
+  "laurel-wreath-01": {
+    "label": "Laurel wreath 01",
+    "category": "SCA activities",
+    "keywords": [
+      "awards",
+      "laurels",
+      "service",
+      "heraldry"
+    ]
+  },
+  "laurel-wreath-02": {
+    "label": "Laurel wreath 02",
+    "category": "SCA activities",
+    "keywords": [
+      "awards",
+      "laurels",
+      "service",
+      "heraldry"
+    ]
+  },
+  "laurel-wreath-first-01": {
+    "label": "Laurel wreath first 01",
+    "category": "SCA activities",
+    "keywords": [
+      "awards",
+      "laurels",
+      "service",
+      "heraldry"
+    ]
+  },
+  "laurel-wreath-first-02": {
+    "label": "Laurel wreath first 02",
+    "category": "SCA activities",
+    "keywords": [
+      "awards",
+      "laurels",
+      "service",
+      "heraldry"
+    ]
+  },
+  "laurel-wreath-left-01": {
+    "label": "Laurel wreath left 01",
+    "category": "SCA activities",
+    "keywords": [
+      "awards",
+      "laurels",
+      "service",
+      "heraldry"
+    ]
+  },
+  "laurel-wreath-left-02": {
+    "label": "Laurel wreath left 02",
+    "category": "SCA activities",
+    "keywords": [
+      "awards",
+      "laurels",
+      "service",
+      "heraldry"
+    ]
+  },
+  "laurel-wreath-left-03": {
+    "label": "Laurel wreath left 03",
+    "category": "SCA activities",
+    "keywords": [
+      "awards",
+      "laurels",
+      "service",
+      "heraldry"
+    ]
+  },
+  "laurel-wreath-right-01": {
+    "label": "Laurel wreath right 01",
+    "category": "SCA activities",
+    "keywords": [
+      "awards",
+      "laurels",
+      "service",
+      "heraldry"
+    ]
+  },
+  "laurel-wreath-right-02": {
+    "label": "Laurel wreath right 02",
+    "category": "SCA activities",
+    "keywords": [
+      "awards",
+      "laurels",
+      "service",
+      "heraldry"
+    ]
+  },
+  "laurel-wreath-right-03": {
+    "label": "Laurel wreath right 03",
+    "category": "SCA activities",
+    "keywords": [
+      "awards",
+      "laurels",
+      "service",
+      "heraldry"
+    ]
+  },
+  "quill-write-02": {
+    "label": "Quill write 02",
+    "category": "SCA activities",
+    "keywords": [
+      "scribal",
+      "calligraphy",
+      "illumination",
+      "quill",
+      "arts and sciences"
+    ]
+  },
+  "thread": {
+    "label": "Thread",
+    "category": "SCA activities",
+    "keywords": [
+      "needlework",
+      "thread",
+      "sewing",
+      "embroidery",
+      "crafting",
+      "arts and sciences"
+    ]
+  },
+  "scroll-01": {
+    "label": "Scroll 01",
+    "category": "SCA activities",
+    "keywords": [
+      "scroll",
+      "heraldry",
+      "scribal",
+      "awards"
+    ]
+  },
+  "scroll-text": {
+    "label": "Scroll text",
+    "category": "SCA activities",
+    "keywords": [
+      "scroll",
+      "heraldry",
+      "scribal",
+      "awards"
+    ]
+  },
+  "graduation-scroll": {
+    "label": "Graduation scroll",
+    "category": "SCA activities",
+    "keywords": [
+      "scroll",
+      "heraldry",
+      "scribal",
+      "awards"
+    ]
+  },
+  "crown-simple": {
+    "label": "Simple crown",
+    "category": "SCA activities",
+    "keywords": [
+      "court",
+      "crown",
+      "royalty"
+    ]
+  },
+  "court-crown": {
+    "label": "Crowned thrones",
+    "category": "SCA activities",
+    "keywords": [
+      "kingdom court",
+      "kingdom courts",
+      "royal court",
+      "court",
+      "crown",
+      "king",
+      "queen",
+      "royalty",
+      "throne",
+      "group activities"
+    ]
+  },
+  "court-coronet": {
+    "label": "Gemmed coronet and thrones",
+    "category": "SCA activities",
+    "keywords": [
+      "principality court",
+      "principality courts",
+      "prince",
+      "princess",
+      "court",
+      "coronet",
+      "royalty",
+      "throne",
+      "group activities"
+    ]
+  },
+  "court-pearls": {
+    "label": "Pearled coronet and thrones",
+    "category": "SCA activities",
+    "keywords": [
+      "baronial court",
+      "baronial courts",
+      "barony",
+      "baron",
+      "baroness",
+      "court",
+      "coronet",
+      "pearls",
+      "throne",
+      "group activities"
+    ]
+  },
+  "round-table": {
+    "label": "Round table gathering",
+    "category": "SCA activities",
+    "keywords": [
+      "group activities",
+      "meeting",
+      "council",
+      "discussion",
+      "guild",
+      "populace",
+      "round table",
+      "people"
+    ]
+  },
+  "group-class": {
+    "label": "Group class",
+    "category": "SCA activities",
+    "keywords": [
+      "group activities",
+      "class",
+      "classes",
+      "teaching",
+      "learning",
+      "workshop",
+      "university",
+      "arts and sciences",
+      "people"
+    ]
+  },
+  "shared-feast": {
+    "label": "Shared feast",
+    "category": "SCA activities",
+    "keywords": [
+      "group activities",
+      "feast",
+      "banquet",
+      "dining",
+      "meal",
+      "cooking",
+      "hospitality",
+      "revel",
+      "people",
+      "communal meals"
+    ]
+  },
+  "dance-circle": {
+    "label": "Group dance",
+    "category": "SCA activities",
+    "keywords": [
+      "group activities",
+      "dance",
+      "dancing",
+      "ball",
+      "revel",
+      "entertainment",
+      "music",
+      "people"
+    ]
+  },
+  "encampment": {
+    "label": "Group encampment",
+    "category": "SCA activities",
+    "keywords": [
+      "group activities",
+      "camp",
+      "camping",
+      "encampment",
+      "pavilion",
+      "tent",
+      "war camp",
+      "people"
+    ]
+  },
+  "trumpet-straight": {
+    "label": "Straight herald trumpet",
+    "category": "SCA activities",
+    "keywords": [
+      "trumpet",
+      "trumpets",
+      "straight trumpet",
+      "herald",
+      "heralds",
+      "heraldic",
+      "announcing",
+      "announcement",
+      "announcements",
+      "fanfare",
+      "medieval",
+      "ceremonial",
+      "court",
+      "procession",
+      "music"
+    ]
+  },
+  "trumpet-banner": {
+    "label": "Bannered herald trumpet",
+    "category": "SCA activities",
+    "keywords": [
+      "trumpet",
+      "trumpets",
+      "banner",
+      "bannered trumpet",
+      "swallowtail",
+      "herald",
+      "heralds",
+      "heraldic",
+      "heraldry",
+      "announcing",
+      "announcement",
+      "announcements",
+      "fanfare",
+      "medieval",
+      "ceremonial",
+      "court",
+      "procession",
+      "music"
+    ]
+  },
+  "curved-horn": {
+    "label": "Curved herald horn",
+    "category": "SCA activities",
+    "keywords": [
+      "horn",
+      "horns",
+      "curved horn",
+      "sounding horn",
+      "hunting horn",
+      "herald",
+      "heralds",
+      "announcing",
+      "announcement",
+      "announcements",
+      "fanfare",
+      "medieval",
+      "ceremonial",
+      "court",
+      "procession",
+      "music"
+    ]
+  },
+  "herald-trumpeter": {
+    "label": "Herald sounding a trumpet",
+    "category": "SCA activities",
+    "keywords": [
+      "herald",
+      "heralds",
+      "trumpeter",
+      "trumpet",
+      "trumpets",
+      "announcing",
+      "announcement",
+      "announcements",
+      "fanfare",
+      "medieval",
+      "ceremonial",
+      "court",
+      "procession",
+      "music"
+    ]
+  },
+  "herald-proclamation": {
+    "label": "Herald with proclamation",
+    "category": "SCA activities",
+    "keywords": [
+      "herald",
+      "heralds",
+      "announcing",
+      "announcement",
+      "announcements",
+      "proclamation",
+      "town crier",
+      "voice herald",
+      "court herald",
+      "scroll",
+      "medieval",
+      "ceremonial",
+      "court",
+      "procession",
+      "tournament"
+    ]
+  },
+  "lute": {
+    "label": "Lute",
+    "category": "SCA activities",
+    "keywords": [
+      "lute",
+      "lutes",
+      "bardic",
+      "bard",
+      "bards",
+      "minstrel",
+      "troubadour",
+      "music",
+      "musical instrument",
+      "strings",
+      "stringed instrument",
+      "medieval",
+      "performance",
+      "arts and sciences"
+    ]
+  },
+  "harp": {
+    "label": "Harp",
+    "category": "SCA activities",
+    "keywords": [
+      "harp",
+      "harps",
+      "harper",
+      "harpist",
+      "bardic",
+      "bard",
+      "bards",
+      "music",
+      "musical instrument",
+      "strings",
+      "stringed instrument",
+      "medieval",
+      "performance",
+      "arts and sciences"
+    ]
+  },
+  "singing": {
+    "label": "Singing",
+    "category": "SCA activities",
+    "keywords": [
+      "singing",
+      "singer",
+      "singers",
+      "song",
+      "songs",
+      "vocal",
+      "voice",
+      "choir",
+      "choral",
+      "bardic",
+      "bard",
+      "bards",
+      "music",
+      "performance",
+      "arts and sciences"
+    ]
+  },
+  "bardic-circle": {
+    "label": "Bardic circle",
+    "category": "SCA activities",
+    "keywords": [
+      "bardic",
+      "bardic circle",
+      "bardic circles",
+      "bard",
+      "bards",
+      "music",
+      "singing",
+      "song",
+      "songs",
+      "storytelling",
+      "stories",
+      "poetry",
+      "performance",
+      "campfire",
+      "camp fire",
+      "revel",
+      "group activities",
+      "arts and sciences"
+    ]
+  },
+  "chain-necklace": {
+    "label": "Chain necklace",
+    "keywords": [
+      "chain",
+      "chains",
+      "necklace",
+      "necklaces",
+      "chain collar",
+      "chivalry",
+      "knight",
+      "knighthood",
+      "jewelry",
+      "jewellery"
+    ],
+    "category": "SCA activities"
+  },
+  "master-of-defense": {
+    "label": "Master of Defense",
+    "keywords": [
+      "master of defense",
+      "masters of defense",
+      "mistress of defense",
+      "order of defense",
+      "master of defence",
+      "order of defence",
+      "MoD",
+      "peerage",
+      "rapier",
+      "rapiers",
+      "three swords",
+      "crossed tips",
+      "pall inverted",
+      "fencing",
+      "defense circle",
+      "defence circle",
+      "order circle",
+      "circles"
+    ],
+    "category": "SCA activities"
+  },
+  "pelican-vulning": {
+    "label": "Pelican vulning itself",
+    "keywords": [
+      "pelican",
+      "pelicans",
+      "pelican vulning itself",
+      "vulning",
+      "order of the pelican",
+      "service",
+      "peerage",
+      "medieval pelican",
+      "heraldic pelican",
+      "self sacrifice"
+    ],
+    "category": "SCA activities"
+  },
+  "ansteorran-star": {
+    "label": "Ansteorran star",
+    "keywords": [
+      "Ansteorra",
+      "Ansteorran",
+      "Ansteorran star",
+      "black star",
+      "sable star",
+      "ten pointed star",
+      "10 point star",
+      "five greater five lesser",
+      "kingdom",
+      "heraldry",
+      "star of merit",
+      "order circle",
+      "circle",
+      "circles"
+    ],
+    "category": "SCA activities"
+  },
+  "lance": {
+    "label": "Lance",
+    "keywords": [
+      "lance",
+      "lances",
+      "lancer",
+      "lancers",
+      "joust",
+      "jousting",
+      "equestrian",
+      "mounted combat",
+      "golden lance",
+      "spears",
+      "cavalry",
+      "golden lance circle",
+      "order circle",
+      "circles"
+    ],
+    "category": "SCA activities"
+  },
+  "order-of-the-mark": {
+    "label": "Order of the Mark",
+    "keywords": [
+      "order of the mark",
+      "master of the mark",
+      "mistress of the mark",
+      "peerage",
+      "ranged martial arts",
+      "ranged weapons",
+      "archery",
+      "thrown weapons",
+      "siege",
+      "nesting weights",
+      "scale weights",
+      "mascle",
+      "fleur de lis",
+      "diamond badge",
+      "mark circle",
+      "the mark",
+      "order circle",
+      "circles"
+    ],
+    "category": "SCA activities"
+  },
+  "single-rapier": {
+    "label": "Single rapier",
+    "category": "SCA activities",
+    "keywords": [
+      "rapier",
+      "single rapier",
+      "fencing",
+      "blade",
+      "blades",
+      "blade of merit",
+      "blades of merit",
+      "order circle",
+      "circle",
+      "circles",
+      "dueling",
+      "sword"
+    ]
+  },
+  "phoenix": {
+    "label": "Rising phoenix",
+    "category": "SCA activities",
+    "keywords": [
+      "phoenix",
+      "rising phoenix",
+      "firebird",
+      "fire bird",
+      "flames",
+      "centurion",
+      "centurions",
+      "centurions of the sable star",
+      "order circle",
+      "circle",
+      "circles"
+    ]
+  },
+  "rainbow": {
+    "label": "Rainbow",
+    "category": "SCA activities",
+    "keywords": [
+      "iris of merit",
+      "iris",
+      "rainbow",
+      "order circle",
+      "circle",
+      "circles"
+    ]
+  }
+}

@@ -200,18 +200,18 @@ class KmpHelper extends Helper
     /**
      * Returns a boolean icon for visual representation of true/false values.
      *
-     * Uses Bootstrap icons: green check-circle-fill for true, red x-circle for false.
+     * Uses the shared catalog with named yes/no indicators.
      *
      * @param bool $value The boolean value to represent
      * @param \Cake\View\Helper\HtmlHelper $Html CakePHP HTML helper instance
      * @param array $options Additional HTML attributes for the icon
-     * @return string HTML string containing the Bootstrap icon
+     * @return string HTML string containing the catalog icon
      */
     public function bool(bool $value, HtmlHelper $Html, array $options = []): string
     {
         return $value
-            ? $Html->icon('check-circle-fill', $options)
-            : $Html->icon('x-circle', $options);
+            ? $Html->icon('circle-check', $options + ['label' => __('Yes')])
+            : $Html->icon('circle-x', $options + ['label' => __('No')]);
     }
 
     /**

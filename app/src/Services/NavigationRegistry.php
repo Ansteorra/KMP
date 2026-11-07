@@ -84,7 +84,7 @@ class NavigationRegistry
      *
      * // Items structure:
      * // [
-     * //     ['type' => 'parent', 'label' => 'Members', 'icon' => 'bi-people'],
+     * //     ['type' => 'parent', 'label' => 'Members', 'icon' => 'users'],
      * //     ['type' => 'item', 'label' => 'View All', 'parent' => 'members'],
      * //     ['type' => 'item', 'label' => 'Add New', 'parent' => 'members']
      * // ]

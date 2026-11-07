@@ -130,7 +130,7 @@ class ApprovalsController extends AppController
 
         $this->set('mobileTitle', 'Approvals');
         $this->set('mobileSection', 'approvals');
-        $this->set('mobileIcon', 'bi-check2-square');
+        $this->set('mobileIcon', 'checkbox');
         $this->set('mobileQueuePerPage', self::MOBILE_QUEUE_DEFAULT_PER_PAGE);
 
         $this->viewBuilder()->setLayout('mobile_app');
@@ -170,7 +170,7 @@ class ApprovalsController extends AppController
                 'description' => '',
                 'fields' => [],
                 'entityUrl' => null,
-                'icon' => 'bi-question-circle',
+                'icon' => 'help-circle',
                 'requester' => null,
             ];
 
@@ -409,7 +409,7 @@ class ApprovalsController extends AppController
                 [
                     'key' => 'approval-response',
                     'label' => __('Respond'),
-                    'icon' => 'bi-reply-fill',
+                    'icon' => 'corner-up-left',
                     'modalTarget' => '#approvalResponseModal',
                 ],
             ],
@@ -794,7 +794,7 @@ class ApprovalsController extends AppController
                 $approval->request = $cachedTitle !== '' ? $cachedTitle : __('Unknown Approval');
                 $approval->requester = '—';
                 $approval->source_url = null;
-                $approval->icon = 'bi-question-circle';
+                $approval->icon = 'help-circle';
             }
         }
     }
@@ -1621,7 +1621,7 @@ class ApprovalsController extends AppController
             'description' => '',
             'fields' => [],
             'entityUrl' => null,
-            'icon' => 'bi-question-circle',
+            'icon' => 'help-circle',
             'requester' => null,
         ];
 

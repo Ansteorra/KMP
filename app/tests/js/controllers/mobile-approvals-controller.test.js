@@ -74,7 +74,7 @@ describe('MobileApprovalsController', () => {
             id,
             title: `Approval ${id}`,
             requester: 'Requester',
-            icon: 'bi-check2-square',
+            icon: 'checkbox',
             progress: { required: 1, approved: 0, rejected: 0 },
             approverConfig: {},
             triage: {},
@@ -188,7 +188,7 @@ describe('MobileApprovalsController', () => {
         expect(link).not.toBeNull();
         expect(link).toHaveTextContent('View Source');
         expect(link).toHaveAttribute('data-turbo-frame', '_top');
-        expect(link.querySelector('i')).toHaveAttribute('aria-hidden', 'true');
+        expect(link.querySelector('kmp-icon')).toHaveAttribute('aria-hidden', 'true');
     });
 
     test('renders private triage controls with labels and help text', () => {
@@ -217,7 +217,7 @@ describe('MobileApprovalsController', () => {
             id: 46,
             title: 'Keyboard approval',
             requester: 'Requester',
-            icon: 'bi-check2-square',
+            icon: 'checkbox',
             progress: { required: 1, approved: 0 },
             approverConfig: {},
             triage: { stateLabel: 'Reviewing' },
