@@ -28,10 +28,11 @@ Own browser-driven Playwright and playwright-bdd coverage for authentication, te
 - Wait for reopened editors too: existing field values can be present before the dialog finishes taking focus. Assert the submitted value when verifying dependent content so input races are distinguishable from stale rendering.
 - Before deleting fixture owners, remove their queued jobs and progress rows by exact fixture IDs/references. Cleanup must also work after a failed assertion so later scenarios do not inherit orphaned work.
 - Do not hard-code credentials or IDs when a support helper or seeded fixture can provide them.
-- Exercise autocomplete suggestions through the visible control and submit their public IDs; do not inject numeric IDs into hidden fields.
+- Exercise autocomplete suggestions through the visible control and submit the server-issued identifier (public IDs for core member pickers). Do not inject numeric IDs into hidden fields: input handlers can clear that fabricated selection. Officer hiring tests must assert the submitted assignee as well as the dates.
 - Plain HTTP browser test environments explicitly disable secure session cookies; HTTPS deployment defaults stay secure.
 - Full hosted release UAT runs without retries. CI archives reports/results together before artifact upload so tagged paths remain intact and relative report links still work.
 - Retain a trace for the first CI failure; retry-only tracing produces no evidence in release UAT. Keyboard pagination checks establish focus before activation and verify it on the replacement page control.
+- Document-navigation assertions still count actual navigation requests unconditionally. Distinguish authorized background screen reconciliation (`X-KMP-UI-Refresh: screen`) from Turbo document fetches; the load harness must still measure those reads.
 
 ## Work Guidance
 

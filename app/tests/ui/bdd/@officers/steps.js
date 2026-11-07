@@ -1,6 +1,7 @@
 const { getUiTestEnvironment } = require('../../support/test-environment.cjs');
 const { createBdd } = require('playwright-bdd');
 const { expect } = require('@playwright/test');
+const AxeBuilder = require('@axe-core/playwright').default;
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 const {
@@ -866,29 +867,39 @@ const chooseAutocompleteOption = async (scope, label, queryText, optionText) => 
     await option.click();
 };
 
-const setOfficerAssignee = async (modal, fixture) => {
-    const assignee = modal.locator('[data-officers-assign-officer-target="assignee"]');
-    await assignee.evaluate((element, values) => {
-        const hiddenId = element.querySelector('input[name="member_id"]');
-        const hiddenText = element.querySelector('input[name="sca_name"]');
-        const displayInput = element.querySelector('input[type="text"]');
-
-        if (!hiddenId || !hiddenText || !displayInput) {
-            throw new Error('Could not find assignee inputs in officer assignment modal.');
-        }
-
-        hiddenId.value = String(values.memberId);
-        hiddenText.value = values.memberName;
-        displayInput.value = values.memberName;
-
-        for (const target of [hiddenId, hiddenText, displayInput, element]) {
-            target.dispatchEvent(new Event('input', { bubbles: true }));
-            target.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-    }, {
-        memberId: fixture.memberId,
-        memberName: fixture.memberName,
+const openOfficerAssignment = async (page, testInfo) => {
+    await page.evaluate(() => {
+        window.__officerAssignmentShown = false;
+        document.getElementById('assignOfficerModal').addEventListener('shown.bs.modal', () => {
+            window.__officerAssignmentShown = true;
+        }, { once: true });
     });
+    await page.getByRole('button', { name: /Assign Officer/i }).click();
+    await page.waitForFunction(() => window.__officerAssignmentShown);
+    const result = await new AxeBuilder({ page }).include('#assignOfficerModal')
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+    const summarize = rule => ({ id: rule.id, impact: rule.impact, help: rule.help,
+        targets: rule.nodes.map(node => node.target) });
+    await testInfo.attach('accessibility-officer-assignment', {
+        body: JSON.stringify([{ state: 'Officer assignment dialog', ...page.viewportSize(),
+            scope: '#assignOfficerModal', violations: result.violations.map(summarize),
+            manualReview: result.incomplete.map(summarize) }]), contentType: 'application/json',
+    });
+    expect(result.violations.map(rule => ({ id: rule.id, targets: rule.nodes.map(node => node.target) }))).toEqual([]);
+    return page.locator('#assignOfficerModal');
+};
+
+const setOfficerAssignee = async (modal, fixture) => {
+    const input = modal.getByLabel('Officer', { exact: true });
+    const inputId = await input.getAttribute('id');
+    expect(inputId).toBeTruthy();
+    await expect(modal.page().locator(`[id="${inputId}"]`)).toHaveCount(1);
+    await input.fill(fixture.memberName);
+    const option = modal.getByRole('option').filter({ hasText: fixture.memberName })
+        .filter({ hasText: `Account #${fixture.memberId}` });
+    await expect(option).toHaveCount(1);
+    await option.click();
+    await expect(modal.locator('input[name="member_id"]')).toHaveValue(String(fixture.memberId));
 };
 
 const drainQueuedEmails = async () => {
@@ -938,22 +949,23 @@ Given('I prepare the officer lifecycle fixture', async ({ page }) => {
     refreshFixtureState(page);
 });
 
-When('I assign the officer lifecycle member', async ({ page }) => {
+When('I assign the officer lifecycle member', async ({ page, $testInfo }) => {
     const fixture = ensureFixture(page);
     await openBranchOfficersTab(page);
-    await page.getByRole('button', { name: /Assign Officer/i }).click();
-
-    const modal = page.locator('#assignOfficerModal');
-    await expect(modal).toBeVisible({ timeout: 10000 });
+    const modal = await openOfficerAssignment(page, $testInfo);
     await chooseAutocompleteOption(modal, 'Office', fixture.officeName, fixture.officeName);
     await setOfficerAssignee(modal, fixture);
     await modal.getByLabel('Start Date', { exact: true }).fill(fixture.startDate);
     await expect(modal.getByRole('button', { name: /^Submit$/ })).toBeEnabled({ timeout: 10000 });
 
-    await Promise.all([
+    const [request] = await Promise.all([
+        page.waitForRequest(request => request.method() === 'POST' && request.url().endsWith('/officers/assign')),
         page.waitForLoadState('networkidle'),
         modal.getByRole('button', { name: /^Submit$/ }).click(),
     ]);
+    const payload = new URLSearchParams(request.postData() ?? '');
+    expect(payload.get('member_id')).toBe(String(fixture.memberId));
+    expect(payload.get('start_on')).toBe(fixture.startDate);
 });
 
 Then('the officer lifecycle should have a pending warrant approval', async ({ page }) => {
@@ -1181,13 +1193,10 @@ Given('I prepare the officer overlap fixture for {string}', async ({ page }, cas
     refreshOverlapFixtureState(page);
 });
 
-When('I assign the officer overlap replacement member', async ({ page }) => {
+When('I assign the officer overlap replacement member', async ({ page, $testInfo }) => {
     const fixture = ensureOverlapFixture(page);
     await openBranchOfficersTab(page);
-    await page.getByRole('button', { name: /Assign Officer/i }).click();
-
-    const modal = page.locator('#assignOfficerModal');
-    await expect(modal).toBeVisible({ timeout: 10000 });
+    const modal = await openOfficerAssignment(page, $testInfo);
     await chooseAutocompleteOption(modal, 'Office', fixture.officeName, fixture.officeName);
     await setOfficerAssignee(modal, fixture);
     const startDateInput = modal.getByLabel('Start Date', { exact: true });
@@ -1210,6 +1219,7 @@ When('I assign the officer overlap replacement member', async ({ page }) => {
 
     const request = await requestPromise;
     const payload = new URLSearchParams(request.postData() ?? '');
+    expect(payload.get('member_id')).toBe(String(fixture.memberId));
     expect(payload.get('start_on')).toBe(fixture.newStartDate);
     expect(payload.get('end_on')).toBe(fixture.newEndDate);
 });

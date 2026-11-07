@@ -1,4 +1,4 @@
-/** Cancel obsolete frame reads before page removal, including native navigation. */
+/** Cancel owned frame and screen reads before page removal, including native navigation. */
 export function installFrameRequestLifecycle(host = window) {
     const original = host.fetch;
     let page = new AbortController();
@@ -12,8 +12,10 @@ export function installFrameRequestLifecycle(host = window) {
         const request = typeof Request !== 'undefined' && input instanceof Request ? input : null;
         const headers = new Headers(options.headers || request?.headers);
         const upstream = options.signal || request?.signal;
-        const isFrame = headers.has('Turbo-Frame') && (options.method || request?.method || 'GET').toUpperCase() === 'GET';
-        const signal = isFrame ? AbortSignal.any([page.signal, ...(upstream ? [upstream] : [])]) : upstream;
+        const isGet = (options.method || request?.method || 'GET').toUpperCase() === 'GET';
+        const isFrame = isGet && headers.has('Turbo-Frame');
+        const ownedRead = isFrame || (isGet && headers.get('X-KMP-UI-Refresh') === 'screen');
+        const signal = ownedRead ? AbortSignal.any([page.signal, ...(upstream ? [upstream] : [])]) : upstream;
         try {
             const response = await original.call(host, input, signal ? { ...options, signal } : options);
             if (isFrame && /(?:text\/html|application\/xhtml\+xml|text\/vnd\.turbo-stream\.html)/i.test(response.headers?.get('Content-Type') || '')) {

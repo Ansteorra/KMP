@@ -268,6 +268,10 @@ requests, timers, and observers. `frame-request-lifecycle-service.js` installs
 before Turbo upgrades eager frames, cancels obsolete reads, and buffers finite
 frame HTML before handing it to Turbo. This keeps cancellation after headers
 inside the request error boundary, including Firefox native navigation.
+It also cancels finite background screen reads marked `X-KMP-UI-Refresh: screen`
+when their document departs. These reads remain part of performance measurements;
+they are distinct from document visits and must not report a navigation failure
+when an obsolete read is canceled.
 `modal-navigation-service.js` coordinates ordinary HTML form redirects with
 Bootstrap and retains validation errors/drafts inside an open dialog. Render
 wrappers preserve the authenticated snapshot validation pause. View transitions

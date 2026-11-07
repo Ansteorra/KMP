@@ -23,6 +23,7 @@ Own source JavaScript, CSS, Vite entrypoints, frontend dependencies, and build-t
 - The build copies FontAwesome webfonts to `webroot/fonts` and the PDF.js worker to `webroot/js/pdf.worker.min.mjs`.
 - Bootstrap, Stimulus, Turbo, and shared utilities are app-level dependencies, not template-level script tags.
 - Use `ui-navigation-service.js` for document and local UI history. Drive is gated by `KMP_TURBO_ENABLED`; fallback stops Turbo’s document-history observer. Preserve Turbo state, draft protection, and fresh snapshot context checks. Run the real Back and detail-tab browser checks after Turbo upgrades. See `app/docs/hotwire-interactions.md`.
+- `frame-request-lifecycle-service.js` also owns finite screen reconciliation reads marked `X-KMP-UI-Refresh: screen`. Cancel these on document departure so live refreshes cannot outlive their page; ordinary reads and mutations retain their caller's lifetime.
 
 ## Work Guidance
 

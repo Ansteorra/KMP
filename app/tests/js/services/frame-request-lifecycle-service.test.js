@@ -45,4 +45,17 @@ describe('obsolete frame reads', () => {
         window.dispatchEvent(new Event('pagehide'));
         await canceled;
     });
+
+    test('native departure cancels background screen reconciliation without taking ownership of ordinary reads', async () => {
+        original.mockImplementation((input, options) => new Promise((resolve, reject) => {
+            options.signal.addEventListener('abort', () => reject(new TypeError('Access control checks canceled the read.')));
+        }));
+        const read = window.fetch('/members/view/1', { headers: { 'X-KMP-UI-Refresh': 'screen' } });
+        const canceled = expect(read).rejects.toMatchObject({ name: 'AbortError' });
+        window.dispatchEvent(new Event('beforeunload'));
+        await canceled;
+        original.mockResolvedValue({ ok: true });
+        await window.fetch('/ordinary-read');
+        expect(original.mock.calls[1][1]).not.toHaveProperty('signal');
+    });
 });

@@ -25,7 +25,8 @@ const { getUiTestEnvironment } = require('./test-environment.cjs');
         const track = request => {
             const headers = request.headers();
             if ((request.isNavigationRequest() && request.frame() === page.mainFrame())
-                || (request.method() === 'GET' && headers.accept?.includes('text/html') && !headers['turbo-frame'])) documentLoads++;
+                || (request.method() === 'GET' && headers.accept?.includes('text/html') && !headers['turbo-frame']
+                    && headers['x-kmp-ui-refresh'] !== 'screen')) documentLoads++;
             if (new URL(request.url()).pathname.includes('gatherings-grid-data')) gridLoads++;
         };
         page.on('request', track);
@@ -92,9 +93,10 @@ const { getUiTestEnvironment } = require('./test-environment.cjs');
         await expect(page.locator('#nav-gatherings-tab')).toHaveAttribute('aria-selected', 'true');
         await expect.poll(() => page.evaluate(() => document.activeElement.closest('turbo-frame')?.id)).toBe(tableId);
         assert.equal(documentLoads, 0, 'modal saves must not load documents');
-        page.off('request', track);
 
         await page.goto('/officers/offices');
+        assert.ok(documentLoads > 0, 'the counter must still detect an actual document navigation');
+        page.off('request', track);
         await expect(page.locator('#offices-grid-table table')).toBeVisible();
         await expect(page.locator('#offices-grid')).toHaveCount(1);
         const sorted = page.waitForResponse(response => new URL(response.url()).pathname === '/officers/offices/grid-data');
