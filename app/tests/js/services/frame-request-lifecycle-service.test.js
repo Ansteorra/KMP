@@ -58,4 +58,28 @@ describe('obsolete frame reads', () => {
         await window.fetch('/ordinary-read');
         expect(original.mock.calls[1][1]).not.toHaveProperty('signal');
     });
+
+    test('late background timers cannot start reads after departure; restored pages can refresh again', async () => {
+        original.mockResolvedValue({ ok: true });
+        window.dispatchEvent(new Event('beforeunload'));
+        await Promise.resolve();
+        await expect(window.fetch('/members/view/1', { headers: { 'X-KMP-UI-Refresh': 'screen' } }))
+            .rejects.toMatchObject({ name: 'AbortError' });
+        await expect(window.fetch('/members/grid-data', { headers: { 'Turbo-Frame': 'members-table' } }))
+            .rejects.toMatchObject({ name: 'AbortError' });
+        expect(original).not.toHaveBeenCalled();
+        window.dispatchEvent(new Event('pageshow'));
+        await window.fetch('/members/view/1', { headers: { 'X-KMP-UI-Refresh': 'screen' } });
+        expect(original).toHaveBeenCalledTimes(1);
+    });
+
+    test('a canceled native departure leaves background refresh available', async () => {
+        original.mockResolvedValue({ ok: true });
+        const event = new Event('beforeunload', { cancelable: true });
+        event.preventDefault();
+        window.dispatchEvent(event);
+        await Promise.resolve();
+        await window.fetch('/members/view/1', { headers: { 'X-KMP-UI-Refresh': 'screen' } });
+        expect(original).toHaveBeenCalledTimes(1);
+    });
 });

@@ -78,6 +78,14 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
                 const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
                 assert.deepEqual(result.violations.map(rule => ({ id: rule.id, targets: rule.nodes.map(node => node.target) })), [],
                     `Native upload at ${viewport.width}x${viewport.height}`);
+                const details = page.getByRole('region', { name: 'Record details. Scroll horizontally to read all details.', exact: true });
+                if (await details.evaluate(element => element.scrollWidth > element.clientWidth)) {
+                    await details.evaluate(element => { element.scrollLeft = 0; });
+                    await details.focus();
+                    await expect(details).toBeFocused();
+                    await page.keyboard.press('ArrowRight');
+                    await expect.poll(() => details.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
+                }
             }
         };
         await scan();

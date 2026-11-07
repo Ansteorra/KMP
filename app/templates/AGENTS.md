@@ -18,6 +18,7 @@ Own CakePHP views, layouts, elements, cells, email templates, Bootstrap markup, 
 - Reusable grids, autocomplete controls and dialogs need document-unique label/ARIA IDs, including hidden and retained frames. Scope IDs to the grid/control; give repeated form help explicit IDs because BootstrapUI otherwise derives them from the field name.
 - Use semantic HTML and Bootstrap classes before custom markup.
 - Every form control needs an associated label and, where relevant, accessible help/error text.
+- Responsive table wrappers need a meaningful region label and `tabindex="0"` so keyboard users can scroll overflowing record details as well as grids.
 - Icons must have useful accessible names or be decorative with `aria-hidden="true"`.
 - Email templates display pre-formatted variables; they must not perform timezone conversion.
 

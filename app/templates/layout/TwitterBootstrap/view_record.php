@@ -209,7 +209,8 @@ $url = $fullBaseUrl . '/keepalive';
                 </div>
                 <?php
                 $this->KMP->endBlock(); ?>
-                <div class="table-responsive">
+                <div class="table-responsive" role="region" tabindex="0"
+                    aria-label="<?= h(__('Record details. Scroll horizontally to read all details.')) ?>">
                     <table class="table table-striped">
                         <tbody>
                             <?= $this->fetch('recordDetails') ?>

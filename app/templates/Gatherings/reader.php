@@ -203,7 +203,9 @@ $pluginOptions = [
                 <div class="tab-pane fade p-3" id="nav-details" role="tabpanel" aria-labelledby="nav-details-tab"
                     data-detail-tabs-target="tabContent" data-tab-order="100" style="order: 100;" tabindex="0">
                     <h2 class="h5"><?= __('Record details') ?></h2>
-                    <div class="table-responsive"><table class="table table-striped"><tbody>
+                    <div class="table-responsive" role="region" tabindex="0"
+                        aria-label="<?= h(__('Record details. Scroll horizontally to read all details.')) ?>">
+                        <table class="table table-striped"><tbody>
                         <?= $this->fetch('recordDetails') ?>
                         <?= $this->element('pluginDetailBodies', $pluginOptions) ?>
                     </tbody></table></div>
