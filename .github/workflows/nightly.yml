@@ -1,4 +1,4 @@
-name: Nightly / Dev Docker Image
+name: Turbo / Verified image transport
 
 on:
   schedule:
