@@ -91,9 +91,16 @@ jobs:
       checkout_ref: ${{ needs.prepare.outputs.source_sha || github.sha }}
       image: ${{ needs.prepare.outputs.source_image }}
 
+  gateway-security:
+    needs: prepare
+    uses: ./.github/workflows/live-updates.yml
+    with:
+      checkout_ref: ${{ needs.prepare.outputs.source_sha || github.sha }}
+      image: ${{ needs.prepare.outputs.source_live_image }}
+
   deploy:
     name: Deploy POC
-    needs: [prepare, candidate-security]
+    needs: [prepare, candidate-security, gateway-security]
     permissions:
       contents: read
       id-token: write

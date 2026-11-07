@@ -116,7 +116,10 @@ production promotion. Template compilation and local tests alone do not establis
 release readiness. Production deployment remains a separate authorized action.
 
 The image workflow builds matching web and `kmp-live` images with the candidate
-revision label. POC imports both digests, verifies the gateway's ready revision
+revision label. Publication and POC gates scan both published digests and retain
+their native findings and SBOMs. The gateway gate verifies its revision against
+the checked-out source; a separately rebuilt verification image cannot substitute
+for the published gateway. POC imports both digests, verifies the gateway's ready revision
 before cutting over workers/web, and records `poc-image-pair-<commit>` evidence only
 after successful POC validation. Release promotion requires that exact paired
 artifact and attaches the pair to the GitHub Release. It never rebuilds the images.

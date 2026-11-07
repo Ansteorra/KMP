@@ -2,14 +2,28 @@ name: Live update gateway
 
 on:
   workflow_call:
+    inputs:
+      checkout_ref:
+        description: Exact source commit accompanying the published gateway
+        required: false
+        type: string
+        default: ''
+      image:
+        description: Published immutable gateway to audit without rebuilding
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   gateway:
     name: Gateway and shared Redis contracts
     runs-on: ubuntu-latest
+    env:
+      GATEWAY_IMAGE: ${{ inputs.image || 'kmp-live-updates:verification' }}
     services:
       redis:
         image: redis:8-alpine@sha256:71885d8cc6e42f2bc0aa2eb853bfc4be200b5108a46ac50e117ae1df0531fb80
@@ -22,6 +36,8 @@ jobs:
           --health-retries=10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '24'
@@ -39,7 +55,29 @@ jobs:
         working-directory: services/live-updates
         run: npm audit --omit=dev --audit-level=high
       - name: Build gateway runtime
+        if: inputs.image == ''
         run: docker build -f docker/Dockerfile.live -t kmp-live-updates:verification .
+      - name: Authenticate published gateway read
+        if: inputs.image != ''
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull immutable published gateway
+        if: inputs.image != ''
+        run: |
+          set -euo pipefail
+          [[ "$GATEWAY_IMAGE" =~ ^ghcr\.io/ansteorra/kmp-live@sha256:[0-9a-f]{64}$ ]] || {
+            echo 'Gateway security requires the official immutable image.' >&2
+            exit 64
+          }
+          docker pull "$GATEWAY_IMAGE"
+          revision="$(docker image inspect "$GATEWAY_IMAGE" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')"
+          [[ "$revision" == "$(git rev-parse HEAD)" ]] || {
+            echo 'Published gateway revision differs from its checked-out source.' >&2
+            exit 64
+          }
       - name: Install verified image scanner
         env:
           SCANNER_DIR: ${{ runner.temp }}/kmp-trivy
@@ -57,12 +95,12 @@ jobs:
           set -euo pipefail
           mkdir -p '${{ runner.temp }}/gateway-security'
           trivy image --scanners vuln --disable-telemetry --format json \
-            --output '${{ runner.temp }}/gateway-security/image.json' kmp-live-updates:verification
+            --output '${{ runner.temp }}/gateway-security/image.json' "$GATEWAY_IMAGE"
           trivy convert --format cyclonedx \
             --output '${{ runner.temp }}/gateway-security/sbom.cdx.json' \
             '${{ runner.temp }}/gateway-security/image.json'
           trivy image --scanners vuln --disable-telemetry --severity HIGH,CRITICAL \
-            --ignore-unfixed --exit-code 1 kmp-live-updates:verification
+            --ignore-unfixed --exit-code 1 "$GATEWAY_IMAGE"
       - name: Retain gateway security evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

@@ -110,6 +110,72 @@ print(os.environ['WORKFLOW_RESPONSE'])
         self.assertRegex(security, r'(?m)^          no-cache-filters: runtime-base$')
         self.assertIn('cache-from: type=gha,scope=kmp-security', security)
 
+    def gateway_pull_command(self):
+        workflow = (ROOT / '.github/workflows/live-updates.yml').read_text()
+        step = workflow.split('      - name: Pull immutable published gateway\n', 1)[1]
+        step = step.split('      - name: Install verified image scanner\n', 1)[0]
+        return textwrap.dedent(step.split('        run: |\n', 1)[1])
+
+    def check_gateway_image(self, image, revision=None):
+        docker = self.bin / 'docker'
+        docker.write_text('''#!/usr/bin/env python3
+import os, sys
+if sys.argv[1] == 'pull':
+    assert sys.argv[2] == os.environ['GATEWAY_IMAGE']
+    print('Pulled immutable gateway')
+elif sys.argv[1:3] == ['image', 'inspect']:
+    assert sys.argv[3] == os.environ['GATEWAY_IMAGE']
+    print(os.environ['TEST_GATEWAY_REVISION'])
+else:
+    raise AssertionError(sys.argv)
+''')
+        docker.chmod(0o755)
+        git = self.bin / 'git'
+        git.write_text('''#!/bin/sh
+[ "$1" = rev-parse ] && [ "$2" = HEAD ] || exit 64
+printf '%s\\n' "$TEST_SOURCE_REVISION"
+''')
+        git.chmod(0o755)
+        env = self.environment('dev', [])
+        env.update({
+            'GATEWAY_IMAGE': image,
+            'TEST_SOURCE_REVISION': SHA,
+            'TEST_GATEWAY_REVISION': revision or SHA,
+        })
+        return subprocess.run(['bash', '-c', self.gateway_pull_command()], cwd=ROOT,
+                              env=env, capture_output=True, text=True, timeout=5)
+
+    def test_published_gateway_accepts_only_immutable_matching_source(self):
+        result = self.check_gateway_image('ghcr.io/ansteorra/kmp-live@sha256:' + 'b' * 64)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn('Pulled immutable gateway', result.stdout)
+        wrong_revision = self.check_gateway_image(
+            'ghcr.io/ansteorra/kmp-live@sha256:' + 'b' * 64, '0' * 40)
+        self.assertEqual(64, wrong_revision.returncode)
+        self.assertIn('revision differs', wrong_revision.stderr)
+
+    def test_mutable_or_unrelated_gateway_images_are_rejected_before_pull(self):
+        for image in ['ghcr.io/ansteorra/kmp-live:dev', 'kmp-live:verification',
+                      'ghcr.io/other/kmp-live@sha256:' + 'b' * 64,
+                      'ghcr.io/ansteorra/kmp-live@sha256:invalid']:
+            with self.subTest(image=image):
+                result = self.check_gateway_image(image)
+                self.assertEqual(64, result.returncode)
+                self.assertNotIn('Pulled', result.stdout)
+
+    def test_publication_and_poc_wait_for_both_published_image_audits(self):
+        nightly = (ROOT / '.github/workflows/nightly.yml').read_text()
+        self.assertIn('needs: [build-and-push, candidate-security, gateway-security]', nightly)
+        self.assertIn('image: ${{ needs.build-and-push.outputs.live-image }}', nightly)
+        poc = (ROOT / '.github/workflows/nightly-deploy-azure.yml').read_text()
+        self.assertIn('needs: [prepare, candidate-security, gateway-security]', poc)
+        self.assertIn('image: ${{ needs.prepare.outputs.source_live_image }}', poc)
+        gateway = (ROOT / '.github/workflows/live-updates.yml').read_text()
+        self.assertIn('ref: ${{ inputs.checkout_ref || github.sha }}', gateway)
+        self.assertIn('if: inputs.image == \'\'', gateway.split('      - name: Build gateway runtime', 1)[1])
+        audit = gateway.split('      - name: Audit final gateway and retain all native findings', 1)[1]
+        self.assertEqual(2, audit.count('"$GATEWAY_IMAGE"'))
+
     def poc_image_command(self):
         workflow = (ROOT / '.github/workflows/nightly-deploy-azure.yml').read_text()
         step = workflow.split('      - name: Resolve immutable source and target tags\n', 1)[1]
@@ -155,9 +221,9 @@ print(os.environ[images[sys.argv[4]]])
         self.assertEqual('ghcr.io/ansteorra/kmp-live@sha256:' + 'd' * 64, outputs['source_live_image'])
         poc = (ROOT / '.github/workflows/nightly-deploy-azure.yml').read_text()
         ref = '      checkout_ref: ${{ needs.prepare.outputs.source_sha || github.sha }}'
-        self.assertEqual(2, poc.count(ref), 'Security and deployment must use the same source commit')
+        self.assertEqual(3, poc.count(ref), 'Both image audits and deployment must use the same source commit')
         self.assertIn("github.event.workflow_run.conclusion == 'success'", poc)
-        self.assertIn('    needs: [prepare, candidate-security]', poc)
+        self.assertIn('    needs: [prepare, candidate-security, gateway-security]', poc)
         security = (ROOT / '.github/workflows/security.yml').read_text()
         self.assertRegex(security, r'workflow_call:\n    inputs:\n      checkout_ref:')
         self.assertRegex(security, r'(?m)^          ref: \$\{\{ inputs.checkout_ref \|\| github.sha \}\}$')

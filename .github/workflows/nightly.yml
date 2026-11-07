@@ -174,9 +174,15 @@ jobs:
     with:
       image: ${{ needs.build-and-push.outputs.image }}
 
+  gateway-security:
+    needs: build-and-push
+    uses: ./.github/workflows/live-updates.yml
+    with:
+      image: ${{ needs.build-and-push.outputs.live-image }}
+
   smoke-test:
-    needs: [build-and-push, candidate-security]
-    if: needs.build-and-push.result == 'success' && needs.candidate-security.result == 'success'
+    needs: [build-and-push, candidate-security, gateway-security]
+    if: needs.build-and-push.result == 'success' && needs.candidate-security.result == 'success' && needs.gateway-security.result == 'success'
     runs-on: ubuntu-latest
     services:
       redis:
