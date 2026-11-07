@@ -15,6 +15,7 @@ Own CakePHP views, layouts, elements, cells, email templates, Bootstrap markup, 
 - Escape output with `h()` unless rendering already-sanitized HTML.
 - Keep data transformation in controllers, services, or helpers, not templates.
 - Preserve Turbo Frame IDs, Stimulus `data-*` attributes, and test selectors used by existing tests.
+- Reusable grids, autocomplete controls and dialogs need document-unique label/ARIA IDs, including hidden and retained frames. Scope IDs to the grid/control; give repeated form help explicit IDs because BootstrapUI otherwise derives them from the field name.
 - Use semantic HTML and Bootstrap classes before custom markup.
 - Every form control needs an associated label and, where relevant, accessible help/error text.
 - Icons must have useful accessible names or be decorative with `aria-hidden="true"`.

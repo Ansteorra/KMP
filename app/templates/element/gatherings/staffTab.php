@@ -446,9 +446,11 @@ foreach ($gathering->gathering_staff as $staff) {
                         'type' => 'checkbox',
                         'label' => __('Show on Public Event Page'),
                         'id' => 'add-show-on-public-page',
-                        'help' =>
-                            __('When checked, this staff member will be visible on the public '
-                            . 'event page. Stewards are always shown.'),
+                        'help' => [
+                            'id' => 'add-show-on-public-page-help',
+                            'content' => __('When checked, this staff member will be visible on the public '
+                                . 'event page. Stewards are always shown.'),
+                        ],
                     ]) ?>
                     </fieldset>
                 </div>
@@ -572,9 +574,11 @@ foreach ($gathering->gathering_staff as $staff) {
                         'type' => 'checkbox',
                         'label' => __('Show on Public Event Page'),
                         'id' => 'edit-show-on-public-page',
-                        'help' =>
-                            __('When checked, this staff member will be visible on the public '
-                            . 'event page. Stewards are always shown.'),
+                        'help' => [
+                            'id' => 'edit-show-on-public-page-help',
+                            'content' => __('When checked, this staff member will be visible on the public '
+                                . 'event page. Stewards are always shown.'),
+                        ],
                     ]) ?>
                     </fieldset>
                 </div>

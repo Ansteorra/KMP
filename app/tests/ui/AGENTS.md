@@ -22,6 +22,7 @@ Own browser-driven Playwright and playwright-bdd coverage for authentication, te
 - Use `flushWorkflowsAndQueue()` and `waitForQueueSettled()` before asserting email or queued side effects.
 - Tenant scenarios must use host-bound contexts and assert tenant isolation.
 - The UAT accessibility examples scan core/plugin screens and shared dialogs at desktop, 320px mobile and short-window sizes with axe. Retain sanitized rule attachments; automated scans do not replace keyboard or screen-reader review.
+- Check label and ARIA references against duplicate IDs across the whole document, including hidden dialogs and retained tabs.
 - Include calendar hover and keyboard-focus states: controls hidden until interaction still need adequate target size, spacing and visible focus.
 - UAT also runs real native waiver image-to-PDF upload/download and public RSVP browser checks. Their synthetic fixtures and uploaded files must be cleaned after failures. Wait for Bootstrap's focused, shown dialog before keyboard submission; do not replace that lifecycle assertion with sleeps.
 - Before deleting fixture owners, remove their queued jobs and progress rows by exact fixture IDs/references. Cleanup must also work after a failed assertion so later scenarios do not inherit orphaned work.

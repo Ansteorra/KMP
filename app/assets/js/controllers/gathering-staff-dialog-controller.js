@@ -15,7 +15,7 @@ class GatheringStaffDialogController extends Controller {
         const addModal = document.getElementById('addStaffModal');
         if (addModal) {
             const isStewardCheckbox = document.getElementById('add-is-steward');
-            const memberPublicIdInput = document.getElementById('member-public-id'); // Hidden field from autocomplete
+            const memberPublicIdInput = addModal.querySelector('[data-ac-target="hidden"]');
             const memberAutocomplete = document.getElementById('add-member-autocomplete'); // Text field from autocomplete
             const emailInput = document.getElementById('add-email');
             const phoneInput = document.getElementById('add-phone');

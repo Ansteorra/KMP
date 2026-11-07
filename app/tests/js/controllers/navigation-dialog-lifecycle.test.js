@@ -1,6 +1,7 @@
 import AttendanceDialogController from '../../../assets/js/controllers/attendance-dialog-controller.js';
 import ApprovalDialogController from '../../../assets/js/controllers/approval-dialog-controller.js';
 import PermissionDisclosureController from '../../../assets/js/controllers/permission-disclosure-controller.js';
+import GatheringStaffDialogController from '../../../assets/js/controllers/gathering-staff-dialog-controller.js';
 import { createControllerScope } from '../../../assets/js/services/controller-scope-service.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -88,6 +89,39 @@ describe('dialogs across document, frame, and cached visits', () => {
         button.setAttribute('aria-expanded', 'false');
         button.dispatchEvent(new Event('hidden.bs.collapse', { bubbles: true }));
         expect(button.previousElementSibling).toHaveAttribute('name', 'caret-right');
+    });
+
+    test('staff contact reads use their own autocomplete and retain drafts across reconnects', async () => {
+        document.body.innerHTML = `<input id="member-public-id" value="other-form-member">
+            <div id="addStaffModal"><form id="addStaffForm">
+                <input type="checkbox" id="add-is-steward">
+                <div id="add-member-autocomplete" data-controller="ac">
+                    <input type="hidden" id="add-member-autocomplete-value"
+                        data-ac-target="hidden" value="selected-staff-member">
+                </div>
+                <input id="add-email"><input id="add-phone">
+            </form></div>`;
+        let complete;
+        window.fetch = jest.fn(() => new Promise(resolve => { complete = resolve; }));
+        controller = new GatheringStaffDialogController();
+        controller.element = document.getElementById('addStaffModal');
+        controller.bindingsValue = { gatheringPublicId: 'gathering-public', contactUrl: '/staff/contact' };
+        controller.connect(); controller.disconnect(); controller.connect();
+        const steward = document.getElementById('add-is-steward');
+        steward.checked = true;
+        steward.dispatchEvent(new Event('change'));
+        expect(window.fetch).toHaveBeenCalledTimes(1);
+        expect(window.fetch.mock.calls[0][0]).toBe(
+            '/staff/contact?member_public_id=selected-staff-member&gathering_public_id=gathering-public'
+        );
+        document.getElementById('add-email').value = 'my-draft@example.invalid';
+        complete({ json: async () => ({ email: 'member@example.invalid', phone: '555-0100' }) });
+        await settle();
+        expect(document.getElementById('add-email')).toHaveValue('my-draft@example.invalid');
+        expect(document.getElementById('add-phone')).toHaveValue('555-0100');
+        controller.element.dispatchEvent(new Event('hidden.bs.modal'));
+        expect(document.getElementById('add-member-autocomplete-value')).toHaveValue('');
+        expect(document.getElementById('member-public-id')).toHaveValue('other-form-member');
     });
 
     test('disposing a scope cancels delayed work and pending fetches', () => {

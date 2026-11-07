@@ -22,6 +22,17 @@ Then('core and plugin screens pass accessibility checks at {int} by {int}', asyn
         await page.waitForFunction(() => document.readyState === 'complete'
             && ![...document.querySelectorAll('turbo-frame[aria-busy="true"]')].some(frame => frame.getClientRects().length));
         await page.evaluate(() => document.fonts.ready);
+        const ambiguousReferences = await page.evaluate(() => {
+            const counts = new Map();
+            document.querySelectorAll('[id]').forEach(element => counts.set(element.id, (counts.get(element.id) || 0) + 1));
+            const references = new Set();
+            const attributes = ['for', 'aria-controls', 'aria-describedby', 'aria-labelledby', 'aria-owns'];
+            document.querySelectorAll('label[for], [aria-controls], [aria-describedby], [aria-labelledby], [aria-owns]')
+                .forEach(element => attributes.forEach(attribute => element.getAttribute(attribute)?.split(/\s+/)
+                    .forEach(id => references.add(id))));
+            return [...references].filter(id => counts.get(id) > 1).sort();
+        });
+        expect(ambiguousReferences, `${state}: labels and ARIA references resolve to one element`).toEqual([]);
         const builder = new AxeBuilder({ page })
             .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']);
         if (scope) builder.include(scope);
