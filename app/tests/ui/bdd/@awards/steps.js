@@ -1165,6 +1165,13 @@ const openReadyRecommendationEditModal = async (page, activate) => {
     await expect(modal.locator('button#recommendation_submit')).toBeVisible();
 };
 
+const recommendationNoteFromRequest = async (request) => {
+    const body = new Response(request.postDataBuffer(), {
+        headers: { 'Content-Type': request.headers()['content-type'] },
+    });
+    return (await body.formData()).get('note');
+};
+
 const getRecommendationFieldLocator = (modal, fieldLabel) => {
     switch (fieldLabel) {
         case 'Plan to Give At':
@@ -2951,11 +2958,14 @@ When('I submit the open recommendation edit with a turbo stream response', async
     await expect(page.locator('form#recommendation_form')).toBeAttached({ timeout: 15000 });
     await expect(modal.locator('turbo-frame#editRecommendation textarea[name="note"]')).toBeVisible({ timeout: 15000 });
 
-    const [response] = await waitForTurboStreamResponse(page, async () => {
-        await modal.locator('button#recommendation_submit').click();
-    });
+    const action = await page.locator('form#recommendation_form').evaluate(form => form.action);
+    const [response] = await Promise.all([
+        page.waitForResponse(result => result.url() === action && result.request().method() === 'POST'
+            && result.ok() && result.headers()['content-type']?.includes('turbo-stream')),
+        modal.locator('button#recommendation_submit').click(),
+    ]);
     if (page.__expectedRecommendationNote !== undefined) {
-        expect(new URLSearchParams(response.request().postData() || '').get('note'))
+        expect(await recommendationNoteFromRequest(response.request()))
             .toBe(page.__expectedRecommendationNote);
     }
 
@@ -2977,7 +2987,7 @@ When('the next recommendation save fails with {string}', async ({ page }, failur
     page.on('pageerror', error => page.__recommendationPageErrors.push(error.message));
     await page.route(action, async route => {
         expect(route.request().method()).toBe('POST');
-        expect(new URLSearchParams(route.request().postData() || '').get('note'))
+        expect(await recommendationNoteFromRequest(route.request()))
             .toBe(page.__expectedRecommendationNote);
         page.__failedRecommendationWrites++;
         if (failure === 'network') await route.abort('failed');
