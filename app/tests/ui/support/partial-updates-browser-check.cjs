@@ -78,12 +78,13 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
     const openAttendance = () => openDialog(page.locator('#gathering-rsvp-trigger'), '#attendGatheringModal');
     const detail = '/gatherings/view/' + fixture.publicId + '?tab=schedule&search=retained#place';
     const leaveAndReturn = async () => {
-        await page.evaluate(() => {
-            const link = document.createElement('a'); link.href = '/gatherings'; link.id = 'partial-save-navigation';
-            link.textContent = 'Return to gatherings'; document.querySelector('#main-content').prepend(link);
-        });
-        await page.locator('#partial-save-navigation').click();
-        await expect(page).toHaveURL(/\/gatherings(?:\?|$)/);
+        // Use the persistent real menu; a live morph can remove synthetic content links.
+        const gatherings = page.locator('#sidebarMenu').getByRole('button', { name: 'Gatherings', exact: true });
+        if (await gatherings.getAttribute('aria-expanded') !== 'true') await gatherings.click();
+        const calendar = page.locator('#sidebarMenu').getByRole('link', { name: 'Calendar', exact: true });
+        await expect(calendar).toBeVisible();
+        await calendar.click();
+        await expect(page).toHaveURL(/\/gatherings\/calendar(?:\?|$)/);
         await page.goto(detail);
         await markDocument();
     };
