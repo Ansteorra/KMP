@@ -85,6 +85,7 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
         await expect(calendar).toBeVisible();
         await calendar.click();
         await expect(page).toHaveURL(/\/gatherings\/calendar(?:\?|$)/);
+        await page.waitForLoadState('load');
         await page.goto(detail);
         await markDocument();
     };

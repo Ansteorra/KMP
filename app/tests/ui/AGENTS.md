@@ -34,6 +34,7 @@ Own browser-driven Playwright and playwright-bdd coverage for authentication, te
 - Retain a trace for the first CI failure; retry-only tracing produces no evidence in release UAT. Keyboard pagination checks establish focus before activation and verify it on the replacement page control.
 - Document-navigation assertions still count actual navigation requests unconditionally. Distinguish authorized background screen reconciliation (`X-KMP-UI-Refresh: screen`) from Turbo document fetches; the load harness must still measure those reads.
 - Exercise real navigation controls when leaving an editor. Do not inject links into live content: legitimate reconciliation may remove them before a click and create a fixture race.
+- Await intermediate native document loads before an explicit return visit. A URL-only wait can abort that document's scripts before initialization completes.
 
 ## Work Guidance
 

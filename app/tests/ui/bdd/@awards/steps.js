@@ -1149,6 +1149,22 @@ const getOpenRecommendationEditModal = async (page) => {
     throw new Error('No recommendation edit modal is currently open.');
 };
 
+const openReadyRecommendationEditModal = async (page, activate) => {
+    await page.evaluate(() => {
+        window.__recommendationEditShown = false;
+        document.getElementById('editRecommendationModal').addEventListener('shown.bs.modal', () => {
+            window.__recommendationEditShown = true;
+        }, { once: true });
+    });
+    await activate();
+    await page.waitForFunction(() => window.__recommendationEditShown);
+    const modal = page.locator('#editRecommendationModal');
+    await expect(modal).toBeVisible();
+    await expect(page.locator('form#recommendation_form')).toBeAttached();
+    await expect(modal.locator('turbo-frame#editRecommendation textarea[name="note"]')).toBeVisible();
+    await expect(modal.locator('button#recommendation_submit')).toBeVisible();
+};
+
 const getRecommendationFieldLocator = (modal, fieldLabel) => {
     switch (fieldLabel) {
         case 'Plan to Give At':
@@ -1430,12 +1446,7 @@ When('I open the {string} recommendation edit modal from the grid', async ({ pag
     const fixture = getFixture(page, name);
     const row = page.locator(`table tbody tr[data-id="${fixture.id}"]`);
     await expect(row).toBeVisible();
-    await row.locator('button.edit-rec').click();
-    await page.waitForSelector('#editRecommendationModal.show', { state: 'visible', timeout: 10000 });
-    await expect(page.locator('form#recommendation_form')).toBeAttached({ timeout: 10000 });
-    await expect(page.locator('#editRecommendationModal turbo-frame#editRecommendation textarea[name="note"]'))
-        .toBeVisible({ timeout: 10000 });
-    await expect(page.locator('#editRecommendationModal button#recommendation_submit')).toBeVisible({ timeout: 10000 });
+    await openReadyRecommendationEditModal(page, () => row.locator('button.edit-rec').click());
 });
 
 When('I change the open recommendation state to {string}', async ({ page }, state) => {
@@ -1464,6 +1475,8 @@ When('I set the open recommendation given date to today', async ({ page }) => {
 When('I fill in the open recommendation note with {string}', async ({ page }, note) => {
     const modal = await getOpenRecommendationEditModal(page);
     await modal.locator('textarea[name="note"]').fill(note);
+    await expect(modal.locator('textarea[name="note"]')).toHaveValue(note);
+    page.__expectedRecommendationNote = note;
 });
 
 When('I fill in the open recommendation close reason with {string}', async ({ page }, reason) => {
@@ -2938,9 +2951,13 @@ When('I submit the open recommendation edit with a turbo stream response', async
     await expect(page.locator('form#recommendation_form')).toBeAttached({ timeout: 15000 });
     await expect(modal.locator('turbo-frame#editRecommendation textarea[name="note"]')).toBeVisible({ timeout: 15000 });
 
-    await waitForTurboStreamResponse(page, async () => {
+    const [response] = await waitForTurboStreamResponse(page, async () => {
         await modal.locator('button#recommendation_submit').click();
     });
+    if (page.__expectedRecommendationNote !== undefined) {
+        expect(new URLSearchParams(response.request().postData() || '').get('note'))
+            .toBe(page.__expectedRecommendationNote);
+    }
 
     await expect(modal).toBeHidden({ timeout: 15000 });
     await page.locator('turbo-frame#recommendations-grid-table table.table tbody tr').first().waitFor({
@@ -2960,6 +2977,8 @@ When('the next recommendation save fails with {string}', async ({ page }, failur
     page.on('pageerror', error => page.__recommendationPageErrors.push(error.message));
     await page.route(action, async route => {
         expect(route.request().method()).toBe('POST');
+        expect(new URLSearchParams(route.request().postData() || '').get('note'))
+            .toBe(page.__expectedRecommendationNote);
         page.__failedRecommendationWrites++;
         if (failure === 'network') await route.abort('failed');
         else if (failure === 'server') await route.fulfill({ status: 500, contentType: 'text/html',
@@ -3054,9 +3073,7 @@ When('I open grid page {int}', async ({ page }, number) => {
 When('I open the first visible recommendation edit modal', async ({ page }) => {
     const row = paginationTable(page).locator('tr[data-id]').first();
     page.__paginationEditedRecommendationId = await row.getAttribute('data-id');
-    await row.locator('button.edit-rec').press('Enter');
-    await expect(page.locator('#editRecommendationModal')).toBeVisible();
-    await expect(page.locator('#editRecommendationModal textarea[name="note"]')).toBeVisible();
+    await openReadyRecommendationEditModal(page, () => row.locator('button.edit-rec').press('Enter'));
 });
 
 Then('the {string} grid should retain page {int} with {int} rows per page and fixture search',
