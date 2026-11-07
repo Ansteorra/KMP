@@ -38,7 +38,7 @@ Own reusable business workflows, side effects, integrations, registries, workflo
   Candidate conditions only discover possible work; all lists, counts, transitions, and reverse assignment resolution
   still use the live assignee resolver. Providers must check native eligibility to prevent delegation chains and resolve
   the current tenant locator on every call rather than retaining tenant tables from registration or a prior tenant.
-- Logical backup manifests preserve PostgreSQL partial-index predicates; restore must not widen conditional uniqueness. Unsupported target engines must fail while planning, before dropping tables.
+- Logical backup manifests preserve PostgreSQL UUID columns and partial-index predicates; restore must not widen conditional uniqueness. Unsupported target engines must fail while planning, before dropping tables.
 - Tenant-aware data must use tenant-safe cache keys and context handling.
 - Release GD images with normal object lifetime or `unset()`. Do not call the obsolete `imagedestroy()` function: PHP 8.5 deprecations can corrupt image-upload JSON responses when development errors are displayed.
 - Deferred workflow jobs and state commit on the same tenant connection. Execute async

@@ -67,7 +67,9 @@ workers retain their existing runtime identities and database boundaries.
 Use the existing **NoCluster** Redis contract: both CakePHP sessions/cache and the
 publisher's multi-key Lua operation require it. Budget separate Redis capacity for
 sessions, cache, replay and pubsub; choose eviction/availability settings so
-session storage cannot be evicted by replay growth. Replay is bounded per tenant
+session storage cannot be evicted by replay growth. The main template selects
+`NoEviction` when live delivery is enabled; monitor memory headroom and rejected
+writes so a full cache does not become an availability incident. Replay is bounded per tenant
 and expires after one day. Outbox rows contain metadata and delivered rows are
 pruned in bounded batches after one day; undelivered rows remain retryable.
 

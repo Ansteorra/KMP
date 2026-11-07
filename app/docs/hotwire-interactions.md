@@ -291,7 +291,8 @@ gateway. Apache/PHP does not hold persistent browser connections.
 `Services\UiUpdateProvider` implementations. Providers resolve tenant tables at
 use time. The mutation behavior records invalidation metadata on the domain
 connection, including old/new ownership and bounded transitive dependencies. A
-rollback leaves no event. After commit, publishing uses Redis fanout, bounded
+rollback leaves no event. Logical backup/restore preserves the outbox's native
+PostgreSQL UUID columns. After commit, publishing uses Redis fanout, bounded
 per-tenant replay, and event-ID deduplication. Failed deliveries remain in the
 tenant-local outbox with retry delay; tenant worker drains retry them. Delivered
 rows expire after one day in bounded batches. Administrative imports do not emit

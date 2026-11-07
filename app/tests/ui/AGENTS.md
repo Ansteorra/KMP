@@ -9,6 +9,7 @@ Own browser-driven Playwright and playwright-bdd coverage for authentication, te
 - Feature files live under `bdd/@domain`.
 - Shared steps live in `bdd/SharedSteps.js`; domain-specific steps live in each `@domain/steps.js`.
 - Support helpers in `support` own tenant contexts, app environment handling, PHP fixture setup, queue draining, and stable assertions.
+- Standalone module fixtures serve the real imported dependencies with JavaScript MIME types; unknown module requests return 404 instead of the HTML shell.
 - `gen`, `ui-reports`, and `ui-results` are generated output.
 
 ## Local Contracts
@@ -24,6 +25,8 @@ Own browser-driven Playwright and playwright-bdd coverage for authentication, te
 - UAT also runs real native waiver image-to-PDF upload/download and public RSVP browser checks. Their synthetic fixtures and uploaded files must be cleaned after failures. Wait for Bootstrap's focused, shown dialog before keyboard submission; do not replace that lifecycle assertion with sleeps.
 - Before deleting fixture owners, remove their queued jobs and progress rows by exact fixture IDs/references. Cleanup must also work after a failed assertion so later scenarios do not inherit orphaned work.
 - Do not hard-code credentials or IDs when a support helper or seeded fixture can provide them.
+- Exercise autocomplete suggestions through the visible control and submit their public IDs; do not inject numeric IDs into hidden fields.
+- Full hosted release UAT runs without retries. CI archives reports/results together before artifact upload so tagged paths remain intact and relative report links still work.
 
 ## Work Guidance
 

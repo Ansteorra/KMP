@@ -772,7 +772,7 @@ resource managedRedisDatabase 'Microsoft.Cache/redisEnterprise/databases@2025-07
     accessKeysAuthentication: 'Enabled'
     clientProtocol: 'Encrypted'
     clusteringPolicy: managedRedisClusteringPolicy
-    evictionPolicy: 'AllKeysLRU'
+    evictionPolicy: enableLiveUpdates ? 'NoEviction' : 'AllKeysLRU'
     modules: []
     port: 10000
   }

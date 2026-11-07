@@ -192,6 +192,7 @@ class DatabaseSchemaResetService
             'boolean' => 'BOOLEAN',
             'string' => 'VARCHAR(' . max(1, $limit ?? 255) . ')',
             'citext' => 'CITEXT',
+            'uuid' => 'UUID',
             'text' => 'TEXT',
             'date' => 'DATE',
             'time' => 'TIME',
