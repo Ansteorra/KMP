@@ -25,6 +25,7 @@ Own browser-driven Playwright and playwright-bdd coverage for authentication, te
 - Check label and ARIA references against duplicate IDs across the whole document, including hidden dialogs and retained tabs.
 - Include calendar hover and keyboard-focus states: controls hidden until interaction still need adequate target size, spacing and visible focus.
 - UAT also runs real native waiver image-to-PDF upload/download and public RSVP browser checks. Their synthetic fixtures and uploaded files must be cleaned after failures. Wait for Bootstrap's focused, shown dialog before keyboard submission; do not replace that lifecycle assertion with sleeps.
+- Wait for reopened editors too: existing field values can be present before the dialog finishes taking focus. Assert the submitted value when verifying dependent content so input races are distinguishable from stale rendering.
 - Before deleting fixture owners, remove their queued jobs and progress rows by exact fixture IDs/references. Cleanup must also work after a failed assertion so later scenarios do not inherit orphaned work.
 - Do not hard-code credentials or IDs when a support helper or seeded fixture can provide them.
 - Exercise autocomplete suggestions through the visible control and submit their public IDs; do not inject numeric IDs into hidden fields.

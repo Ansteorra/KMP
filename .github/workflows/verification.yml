@@ -212,6 +212,7 @@ jobs:
             "export KMP_ENV='ci'" \
             "export KMP_TURBO_ENABLED='true'" \
             "export KMP_LIVE_UPDATES_ENABLED='false'" \
+            "export KMP_PLATFORM_ADMIN_PORTAL_ENABLED='${{ matrix.destructive == '1' && 'true' || 'false' }}'" \
             "export CACHE_ENGINE='apcu'" \
             "export KMP_SESSION_DEFAULTS='php'" \
             "export KMP_SESSION_COOKIE_SECURE='false'" \

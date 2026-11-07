@@ -61,17 +61,21 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
     page.on('pageerror', error => errors.push(error.message));
     const markDocument = () => page.evaluate(() => { window.__partialDocument = document.documentElement; });
     const unchanged = async () => assert.equal(await page.evaluate(() => window.__partialDocument === document.documentElement), true);
-    const openAttendance = async () => {
-        const modal = page.locator('#attendGatheringModal');
-        await modal.evaluate(element => {
-            element.__kmpTestShown = new Promise(resolve => {
-                element.addEventListener('shown.bs.modal', () => resolve(), { once: true });
-            });
-        });
-        await page.locator('#gathering-rsvp-trigger').click();
-        await modal.evaluate(element => element.__kmpTestShown);
-        return modal;
+    const openDialog = async (trigger, selector) => {
+        await page.evaluate(selector => {
+            window.__kmpTestShown = false;
+            const shown = event => {
+                if (!event.target.matches(selector)) return;
+                document.removeEventListener('shown.bs.modal', shown);
+                window.__kmpTestShown = true;
+            };
+            document.addEventListener('shown.bs.modal', shown);
+        }, selector);
+        await trigger.click();
+        await page.waitForFunction(() => window.__kmpTestShown);
+        return page.locator(selector);
     };
+    const openAttendance = () => openDialog(page.locator('#gathering-rsvp-trigger'), '#attendGatheringModal');
     const detail = '/gatherings/view/' + fixture.publicId + '?tab=schedule&search=retained#place';
     const leaveAndReturn = async () => {
         await page.evaluate(() => {
@@ -120,8 +124,7 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
         await unchanged();
 
         console.log('RSVP summaries updated');
-        await page.locator('#schedule-add-trigger').click();
-        const add = page.locator('#addScheduleModal');
+        const add = await openDialog(page.locator('#schedule-add-trigger'), '#addScheduleModal');
         await add.locator('#add-is-other').check();
         await add.getByLabel('Start Date', { exact: true }).fill(fixture.startDate);
         await add.getByLabel('Start Time', { exact: true }).selectOption('12:15');
@@ -141,16 +144,22 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
         await expect(page.locator('#gathering-schedule-content')).toContainText('Partial schedule entry');
         await expect(page.locator('[id^="schedule-edit-"]')).toBeFocused();
         await unchanged();
-        await page.locator('[id^="schedule-edit-"]').click();
-        const edit = page.locator('#editScheduleModal');
+        const edit = await openDialog(page.locator('[id^="schedule-edit-"]'), '#editScheduleModal');
         await edit.getByLabel('Display Title', { exact: true }).fill('Cancelled edit');
         await edit.getByRole('button', { name: 'Cancel', exact: true }).click();
         await expect(edit).not.toBeVisible();
         await leaveAndReturn();
-        await page.locator('[id^="schedule-edit-"]').click();
+        await openDialog(page.locator('[id^="schedule-edit-"]'), '#editScheduleModal');
         await expect(edit.getByLabel('Display Title', { exact: true })).toHaveValue('Partial schedule entry');
         await edit.getByLabel('Display Title', { exact: true }).fill('Revised schedule entry');
+        await expect(edit.getByLabel('Display Title', { exact: true })).toHaveValue('Revised schedule entry');
+        await edit.getByLabel('Display Title', { exact: true }).evaluate(input => {
+            input.form.addEventListener('submit', () => {
+                window.__kmpSubmittedScheduleTitle = new FormData(input.form).get('display_title');
+            }, { capture: true, once: true });
+        });
         await edit.getByRole('button', { name: /Save/ }).click();
+        assert.equal(await page.evaluate(() => window.__kmpSubmittedScheduleTitle), 'Revised schedule entry');
         await expect(page.locator('#gathering-overview-content')).toContainText('Revised schedule entry');
         const activityId = await page.locator('[id^="schedule-edit-"]').getAttribute('data-activity-id');
         await leaveAndReturn();
@@ -192,8 +201,7 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
         const card = page.locator('.mobile-event-card').filter({ hasText: fixture.name });
         await expect(card).toHaveCount(1);
         await markDocument();
-        await card.getByRole('button', { name: 'Edit', exact: true }).click();
-        const mobileModal = page.locator('.modal.show').last();
+        const mobileModal = await openDialog(card.getByRole('button', { name: 'Edit', exact: true }), '#rsvpModal');
         await mobileModal.locator('[name="public_note"]').fill('Mobile partial update');
         await mobileModal.getByRole('button', { name: /Update|Save/ }).click();
         await expect(card).toContainText('Mobile partial update');
@@ -209,9 +217,9 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
         const calendarTrigger = page.locator(`[href="/gatherings/quick-view/${fixture.publicId}"][data-action*="showQuickView"]`).first();
         await expect(calendarTrigger).toBeVisible();
         await markDocument();
-        await calendarTrigger.click();
-        await page.locator('#gatheringQuickViewModal').getByRole('button', { name: 'Mark Your Attendance', exact: true }).click();
-        const calendarModal = page.locator('#attendanceModal');
+        const quickView = await openDialog(calendarTrigger, '#gatheringQuickViewModal');
+        const calendarModal = await openDialog(
+            quickView.getByRole('button', { name: 'Mark Your Attendance', exact: true }), '#attendanceModal');
         await calendarModal.locator('[name="public_note"]').fill('Calendar partial RSVP');
         const calendarPath = await page.locator('#gatherings-calendar-grid-table').evaluate(frame => new URL(frame.dataset.gridCurrentSrc || frame.getAttribute('src') || frame.dataset.gridSrc, location.origin).pathname);
         const calendarRefreshed = page.waitForResponse(response => response.request().method() === 'GET'
@@ -220,7 +228,7 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
         assert.equal((await calendarRefreshed).status(), 200);
         await expect(calendarModal).not.toBeVisible();
         await expect(calendarTrigger).toBeFocused();
-        await calendarTrigger.click();
+        await openDialog(calendarTrigger, '#gatheringQuickViewModal');
         await expect(page.locator('#gatheringQuickViewModal')).toContainText("You're attending this gathering!");
         await unchanged();
         assert.deepEqual(errors, []);
