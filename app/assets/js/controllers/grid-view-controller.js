@@ -62,6 +62,8 @@ class GridViewController extends Controller {
 
         // Listen for Turbo Frame updates
         document.addEventListener('turbo:frame-load', this.boundHandleFrameLoad)
+        this.boundHandleFrameRender = this.handleFrameRender.bind(this)
+        document.addEventListener('turbo:frame-render', this.boundHandleFrameRender)
         this.boundFrameError = this.handleFrameError.bind(this)
         document.addEventListener('turbo:fetch-request-error', this.boundFrameError)
         document.addEventListener('turbo:frame-missing', this.boundFrameError)
@@ -126,6 +128,7 @@ class GridViewController extends Controller {
             this.searchDebounceTimer = null
         }
         document.removeEventListener('turbo:frame-load', this.boundHandleFrameLoad)
+        document.removeEventListener('turbo:frame-render', this.boundHandleFrameRender)
         document.removeEventListener('turbo:fetch-request-error', this.boundFrameError)
         document.removeEventListener('turbo:frame-missing', this.boundFrameError)
         this.element.removeEventListener('click', this.boundPaginationClick)
@@ -157,7 +160,8 @@ class GridViewController extends Controller {
         if (url.origin !== window.location.origin) return
         event.preventDefault()
         this.sortFocusPending = null
-        this.paginationFocusPending = document.activeElement === link
+        // Keyboard activation has no pointer clicks, even if focus moved before click dispatch.
+        this.paginationFocusPending = (document.activeElement === link || event.detail === 0)
             ? { frameId: link.closest('turbo-frame')?.id, source: link }
             : null
         this.navigate(window.location.pathname + url.search)
@@ -191,6 +195,15 @@ class GridViewController extends Controller {
         const button = [...frame.querySelectorAll('thead button[data-column-key]')]
             .find(node => node.dataset.columnKey === pending.field)
         button?.focus({ preventScroll: true })
+    }
+
+    /** An older render must not consume focus intended for a newer frame request. */
+    handleFrameRender(event) {
+        if (!this.element.contains(event.target)) return
+        const renderedUrl = event.detail?.fetchResponse?.response?.url
+        if (!renderedUrl) return
+        if (this.paginationFocusPending?.navigationUrl === renderedUrl) this.restorePaginationFocus(event.target)
+        if (this.sortFocusPending?.navigationUrl === renderedUrl) this.restoreSortFocus(event.target)
     }
 
     /** Restore the loading state when a frame request fails or returns no matching frame. */
@@ -242,8 +255,6 @@ class GridViewController extends Controller {
                 // Capture sticky parameters based on the loaded frame
                 this.captureStickyParamsFromFrame(tableFrame)
                 this.syncFrameLocation(tableFrame)
-                this.restorePaginationFocus(tableFrame)
-                this.restoreSortFocus(tableFrame)
                 if (this.state.pagination) {
                     const { currentPage, pageCount, count } = this.state.pagination
                     window.KMP_accessibility?.announce(`Page ${currentPage} of ${pageCount} loaded, showing ${count} records.`)
@@ -2648,6 +2659,9 @@ class GridViewController extends Controller {
                 this.captureStickyParamsFromUrl(finalUrl.toString())
 
                 // Navigate the frame by setting src to gridData URL
+                for (const pending of [this.paginationFocusPending, this.sortFocusPending]) {
+                    if (pending?.frameId === tableFrame.id) pending.navigationUrl = finalUrl.href
+                }
                 tableFrame.dataset.gridCurrentSrc = gridDataUrl
                 tableFrame.setAttribute('aria-busy', 'true')
                 tableFrame.src = gridDataUrl

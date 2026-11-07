@@ -31,6 +31,7 @@ Own browser-driven Playwright and playwright-bdd coverage for authentication, te
 - Exercise autocomplete suggestions through the visible control and submit their public IDs; do not inject numeric IDs into hidden fields.
 - Plain HTTP browser test environments explicitly disable secure session cookies; HTTPS deployment defaults stay secure.
 - Full hosted release UAT runs without retries. CI archives reports/results together before artifact upload so tagged paths remain intact and relative report links still work.
+- Retain a trace for the first CI failure; retry-only tracing produces no evidence in release UAT. Keyboard pagination checks establish focus before activation and verify it on the replacement page control.
 
 ## Work Guidance
 

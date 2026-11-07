@@ -65,8 +65,8 @@ module.exports = defineConfig({
 
     extraHTTPHeaders: e2eHeaders,
 
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
+    /* Release UAT has no retries; retain the first failure's trace. */
+    trace: process.env.CI ? 'retain-on-failure' : 'on-first-retry',
 
     /* Capture screenshot after each test failure */
     screenshot: 'only-on-failure',

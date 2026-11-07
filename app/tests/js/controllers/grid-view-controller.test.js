@@ -399,6 +399,41 @@ describe('GridViewController', () => {
         expect(controller.paginationFocusPending).toBeNull();
     });
 
+    test('keyboard pagination restores focus when activation starts with body focus', () => {
+        const frame = controller.element.querySelector('turbo-frame');
+        frame.dataset.gridSrc = '/members/grid-data?page=2';
+        frame.insertAdjacentHTML('beforeend', '<div class="paginator"><a href="/members/grid-data?page=3">3</a></div>');
+        const link = frame.querySelector('a');
+        expect(document.activeElement).toBe(document.body);
+        controller.handlePaginationClick({ target: link, button: 0, detail: 0, preventDefault() {} });
+        frame.innerHTML = '<div class="paginator"><span aria-current="page">3</span></div>';
+        controller.restorePaginationFocus(frame);
+        expect(document.activeElement).toHaveTextContent('3');
+        expect(document.activeElement).toHaveClass('focus-ring');
+    });
+
+    test('an older row-count render cannot consume focus for the next page', () => {
+        const frame = controller.element.querySelector('turbo-frame');
+        frame.dataset.gridSrc = '/members/grid-data?limit=10';
+        frame.insertAdjacentHTML('beforeend', '<div class="paginator"><a href="/members/grid-data?limit=10&page=3">3</a></div>');
+        const link = frame.querySelector('a');
+        link.focus();
+        controller.handlePaginationClick({ target: link, button: 0, detail: 0, preventDefault() {} });
+        const pending = controller.paginationFocusPending;
+        frame.innerHTML = '<div class="paginator"><span aria-current="page">1</span></div>';
+        controller.handleFrameRender({ target: frame, detail: { fetchResponse: { response: {
+            url: new URL('/members/grid-data?limit=10', window.location.origin).href,
+        } } } });
+        expect(controller.paginationFocusPending).toBe(pending);
+        expect(document.activeElement).toBe(document.body);
+        frame.innerHTML = '<div class="paginator"><span aria-current="page">3</span></div>';
+        controller.handleFrameRender({ target: frame, detail: { fetchResponse: { response: {
+            url: pending.navigationUrl,
+        } } } });
+        expect(document.activeElement).toHaveTextContent('3');
+        expect(controller.paginationFocusPending).toBeNull();
+    });
+
     test.each([
         [{}, 'asc'],
         [{ field: 'name', direction: 'asc' }, 'desc'],

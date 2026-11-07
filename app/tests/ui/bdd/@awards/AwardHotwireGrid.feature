@@ -30,6 +30,15 @@ Feature: Hotwire turbo-stream grid saves (Awards)
         When I leave and return to the recommendations grid
         Then the "recommendations" grid should retain page 3 with 10 rows per page and fixture search
 
+    Scenario: Rapid pagination keeps keyboard focus when the previous frame finishes late
+        Given I am logged in as "admin@amp.ansteorra.org"
+        And I create recommendation fixtures for "grid pagination"
+        When I navigate to "/awards/recommendations"
+        And I search the recommendations grid for the current fixture token
+        And I open page three while the row count frame is still rendering
+        Then the "recommendations" grid should retain page 3 with 10 rows per page and fixture search
+        And grid page three should retain keyboard focus
+
     Scenario Outline: Recover a recommendation save after <failure>
         Given I am logged in as "admin@amp.ansteorra.org"
         And I create recommendation fixtures for "grid edit"

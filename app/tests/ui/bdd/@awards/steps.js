@@ -2996,6 +2996,34 @@ const paginationTable = (page, grid = 'recommendations') => page.locator(`#${gri
 const paginationToken = (page) => page.__awardRecommendationFixtures?.token
     || page.__awardBestowalPaginationFixtures?.token;
 
+When('I open page three while the row count frame is still rendering', async ({ page }) => {
+    await page.evaluate(() => {
+        const overlap = event => {
+            if (event.target.id !== 'recommendations-grid-table') return;
+            document.removeEventListener('turbo:before-frame-render', overlap);
+            const render = event.detail.render;
+            event.detail.render = async (currentFrame, incomingFrame) => {
+                await render(currentFrame, incomingFrame);
+                const link = [...currentFrame.querySelectorAll('.pagination a')]
+                    .find(node => node.textContent.trim() === '3');
+                if (!link) throw Error('Pagination fixture must have a third page.');
+                link.focus();
+                link.click();
+                window.__overlappedPagination = true;
+            };
+        };
+        document.addEventListener('turbo:before-frame-render', overlap);
+    });
+    await page.getByLabel('Rows per page', { exact: true }).selectOption('10');
+    await expect.poll(() => page.evaluate(() => window.__overlappedPagination)).toBe(true);
+    await expect(paginationTable(page).locator('.paginator')).toContainText('Page 3 of');
+});
+
+Then('grid page three should retain keyboard focus', async ({ page }) => {
+    await expect(paginationTable(page).locator('.pagination [aria-current="page"]'))
+        .toBeFocused();
+});
+
 When('I set the grid rows per page to {int}', async ({ page }, count) => {
     const rows = page.getByLabel('Rows per page', { exact: true });
     await expect(rows).toBeVisible();
@@ -3015,6 +3043,8 @@ When('I open grid page {int}', async ({ page }, number) => {
         name: String(number), exact: true,
     });
     await expect(link).toBeVisible();
+    await link.focus();
+    await expect(link).toBeFocused();
     await link.press('Enter');
     await expect(paginationTable(page, grid).locator('.paginator')).toContainText(`Page ${number} of`);
     await expect.poll(() => page.evaluate(() => document.activeElement?.textContent.trim()))
