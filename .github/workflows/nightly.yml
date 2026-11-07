@@ -22,6 +22,7 @@ env:
 
 jobs:
   quality-gate-evidence:
+    if: github.event_name != 'workflow_dispatch' || github.ref_name != 'codex/turbo-image-export'
     name: Verify branch quality gates
     runs-on: ubuntu-latest
     steps:
@@ -277,3 +278,91 @@ jobs:
       - name: Cleanup
         if: always()
         run: docker rm -f kmp-smoke kmp-live-smoke 2>/dev/null || true
+
+  export-images:
+    name: Export verified candidate images (read only)
+    if: github.event_name == 'workflow_dispatch' && github.ref_name == 'codex/turbo-image-export'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+      packages: read
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      EXPORT_RUN_ID: '42331401307'
+      EXPECTED_CANDIDATE_SHA: 82bfe782c8363c774e838e1b7abae76d8c94a54b
+      IMAGE_EXPORT_ROOT: ${{ runner.temp }}/kmp-image-export
+    steps:
+    - name: Resolve only the successful official candidate pair
+      run: |-
+        set -euo pipefail
+        umask 077
+        python3 - <<'PY'
+        import json,os,re,subprocess
+        from pathlib import Path
+        repo=os.environ['GITHUB_REPOSITORY']
+        assert repo=='Ansteorra/KMP'
+        run_id=os.environ['EXPORT_RUN_ID']
+        assert run_id=='42331401307'
+        sha=os.environ['EXPECTED_CANDIDATE_SHA']
+        run=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/actions/runs/{run_id}'],text=True))
+        assert run['head_sha']==sha and run['head_branch']=='dev' and run['event']=='push'
+        assert run['status']=='completed' and run['conclusion']=='success'
+        assert run['path']=='.github/workflows/nightly.yml'
+        root=Path(os.environ['IMAGE_EXPORT_ROOT']);root.mkdir(mode=0o700)
+        evidence=Path(os.environ['RUNNER_TEMP'])/'image-source-evidence'
+        pair={'commit':sha,'sourceRunId':int(run_id),'transport':'dir','images':{}}
+        for key,package,artifact in [('web','kmp','security-evidence-amd64'),('gateway','kmp-live','live-gateway-security')]:
+            folder=evidence/key
+            subprocess.run(['gh','run','download',run_id,'--repo',repo,'--name',artifact,'--dir',str(folder)],check=True)
+            reports=list(folder.rglob('image.json'));assert len(reports)==1
+            report=json.loads(reports[0].read_text());ref=report['ArtifactName']
+            prefix='ghcr.io/ansteorra/'+package+'@sha256:'
+            assert ref.startswith(prefix) and re.fullmatch('[0-9a-f]{64}',ref[len(prefix):])
+            pair['images'][key]={'source':ref,'directory':key,'imageId':report.get('Metadata',{}).get('ImageID')}
+        (root/'images.json').write_text(json.dumps(pair,indent=2))
+        print('Resolved the exact audited pair for '+sha)
+        PY
+    - name: Copy exact image digests without building or publishing
+      run: |-
+        set -euo pipefail
+        umask 077
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends skopeo
+        export KMP_EXPORT_AUTH="$RUNNER_TEMP/kmp-registry-auth.json"
+        printf '%s' "$GH_TOKEN" | skopeo login --authfile "$KMP_EXPORT_AUTH" --username "$GITHUB_ACTOR" --password-stdin ghcr.io
+        python3 - <<'PY'
+        import hashlib,json,os,subprocess
+        from pathlib import Path
+        root=Path(os.environ['IMAGE_EXPORT_ROOT']);pair=json.loads((root/'images.json').read_text())
+        auth=os.environ['KMP_EXPORT_AUTH']
+        for key,image in pair['images'].items():
+            ref=image['source']
+            config=json.loads(subprocess.check_output(['skopeo','inspect','--config','--authfile',auth,'docker://'+ref],text=True))
+            assert config['config']['Labels']['org.opencontainers.image.revision']==pair['commit']
+            destination=root/image['directory']
+            subprocess.run(['skopeo','copy','--all','--preserve-digests','--src-authfile',auth,'docker://'+ref,'dir:'+str(destination)],check=True)
+            digest='sha256:'+hashlib.sha256((destination/'manifest.json').read_bytes()).hexdigest()
+            assert digest==ref.split('@')[1], 'Export changed the audited manifest bytes'
+            image['revision']=pair['commit']
+        (root/'images.json').write_text(json.dumps(pair,indent=2))
+        checks=[]
+        for file in sorted(root.rglob('*')):
+            if file.is_file():
+                value=hashlib.file_digest(file.open('rb'),'sha256').hexdigest()
+                checks.append(value+'  '+str(file.relative_to(root)))
+        (root/'SHA256SUMS').write_text('\n'.join(checks)+'\n')
+        print('Both immutable manifests and source revisions verified; no image was rebuilt or published.')
+        PY
+    - name: Retain temporary verified image transport
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: verified-turbo-images-82bfe782
+        path: ${{ runner.temp }}/kmp-image-export
+        compression-level: 0
+        retention-days: 1
+        if-no-files-found: error
+    - name: Remove temporary registry credential
+      if: always()
+      run: rm -f "$RUNNER_TEMP/kmp-registry-auth.json"
