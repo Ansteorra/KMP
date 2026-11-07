@@ -277,6 +277,8 @@ when an obsolete read is canceled.
 Bootstrap and retains validation errors/drafts inside an open dialog. Render
 wrappers preserve the authenticated snapshot validation pause. View transitions
 honor reduced motion.
+Sidebar preference writes use keepalive and handle network/server failures while
+preserving the local expanded state. They can finish after document departure.
 Background table refreshes use a morph stream inside the existing frame, retaining
 focusable elements where possible and choosing a surviving grid/tab control if a
 focused row disappears. Removed Bootstrap nodes are disposed; retained popovers

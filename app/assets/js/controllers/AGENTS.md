@@ -16,6 +16,7 @@ Own user-facing JavaScript behavior implemented as Stimulus controllers, includi
 - Define `static targets`, `static values`, `static classes`, and `static outlets` instead of querying arbitrary DOM where possible.
 - Clean up event listeners, timers, observers, pending async work, and Bootstrap instances in `disconnect()`.
 - Preserve Turbo Frame compatibility; controllers may connect and disconnect repeatedly.
+- Persist small sidebar preferences with keepalive requests and handle rejected writes. Preserve the local expanded state and allow navigation to continue during failures.
 - Initialize page and dialog behavior in Stimulus `connect()`, never a template `DOMContentLoaded` listener. Use `createControllerScope()` when a connection owns several listeners, finite reads, or timers; dispose it on disconnect. Cancel superseded reads and discard results after their owning record or selection changes.
 - Detail tabs synchronize Bootstrap activation and browser history without reloading loaded frames. Nested groups must not overwrite the host detail tab or discard its query/hash context.
 - Restore grid pagination/sorting focus only for the matching rendered response URL. An earlier frame can finish rendering after a newer navigation starts; it must not consume the newer focus intent.
