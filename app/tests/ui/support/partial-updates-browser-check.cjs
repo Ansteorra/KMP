@@ -61,6 +61,17 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
     page.on('pageerror', error => errors.push(error.message));
     const markDocument = () => page.evaluate(() => { window.__partialDocument = document.documentElement; });
     const unchanged = async () => assert.equal(await page.evaluate(() => window.__partialDocument === document.documentElement), true);
+    const openAttendance = async () => {
+        const modal = page.locator('#attendGatheringModal');
+        await modal.evaluate(element => {
+            element.__kmpTestShown = new Promise(resolve => {
+                element.addEventListener('shown.bs.modal', () => resolve(), { once: true });
+            });
+        });
+        await page.locator('#gathering-rsvp-trigger').click();
+        await modal.evaluate(element => element.__kmpTestShown);
+        return modal;
+    };
     const detail = '/gatherings/view/' + fixture.publicId + '?tab=schedule&search=retained#place';
     const leaveAndReturn = async () => {
         await page.evaluate(() => {
@@ -89,8 +100,7 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
         console.log('Notes saved without navigation');
         await page.goto(detail);
         await markDocument();
-        await page.locator('#gathering-rsvp-trigger').click();
-        let modal = page.locator('#attendGatheringModal');
+        let modal = await openAttendance();
         await modal.locator('[name="public_note"]').fill('First partial RSVP');
         await modal.locator('input[type="checkbox"][name="share_with_kingdom"]').check();
         await modal.getByRole('button', { name: 'Register', exact: true }).click();
@@ -102,8 +112,7 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
         assert.equal(new URL(page.url()).searchParams.get('search'), 'retained');
         assert.equal(new URL(page.url()).hash, '#place');
         await unchanged();
-        await page.locator('#gathering-rsvp-trigger').click();
-        modal = page.locator('#attendGatheringModal');
+        modal = await openAttendance();
         await modal.locator('[name="public_note"]').fill('Updated partial RSVP');
         await modal.getByRole('button', { name: 'Update', exact: true }).click();
         await expect(page.locator('#gathering-overview-content')).toContainText('Updated partial RSVP');

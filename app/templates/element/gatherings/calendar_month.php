@@ -16,6 +16,7 @@ declare(strict_types=1);
  * @var bool $canAddGathering
  */
 
+use App\KMP\TimezoneHelper;
 use Cake\I18n\DateTime;
 
 // Get current user for timezone conversion
@@ -26,8 +27,13 @@ $currentUser = $this->getRequest()->getAttribute('identity');
 $gatheringsByDate = [];
 foreach ($gatherings as $gathering) {
     // Convert UTC dates to gathering's timezone using the core TimezoneHelper
-    $startInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
-    $endInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
+    $startInUserTz = TimezoneHelper::toUserTimezone(
+        $gathering->start_date,
+        null,
+        null,
+        $gathering,
+    );
+    $endInUserTz = TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
 
     // Skip if timezone conversion failed
     if ($startInUserTz === null || $endInUserTz === null) {
@@ -53,8 +59,8 @@ foreach ($gatherings as $gathering) {
 }
 
 // Get current date in user's timezone
-$userTimezone = \App\KMP\TimezoneHelper::getUserTimezone($currentUser);
-$today = new DateTime($todayDate ?? 'now', new \DateTimeZone($userTimezone));
+$userTimezone = TimezoneHelper::getUserTimezone($currentUser);
+$today = new DateTime($todayDate ?? 'now', new DateTimeZone($userTimezone));
 $today->setTime(0, 0, 0);
 $canAddGathering = $canAddGathering ?? false;
 ?>
@@ -65,8 +71,8 @@ $canAddGathering = $canAddGathering ?? false;
             <!-- Day Headers -->
             <?php
             $dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-            foreach ($dayNames as $dayName):
-            ?>
+            foreach ($dayNames as $dayName) :
+                ?>
             <div class="calendar-day-header">
                 <?= h($dayName) ?>
             </div>
@@ -78,7 +84,7 @@ $canAddGathering = $canAddGathering ?? false;
             $maxDays = 42; // Maximum 6 weeks of 7 days
             $dayCount = 0;
 
-            while ($current <= $calendarEnd && $dayCount < $maxDays):
+            while ($current <= $calendarEnd && $dayCount < $maxDays) :
                 $dateKey = $current->format('Y-m-d');
                 $isCurrentMonth = ($current->format('m') == $startDate->format('m'));
                 $isToday = ($current->format('Y-m-d') == $today->format('Y-m-d'));
@@ -90,7 +96,7 @@ $canAddGathering = $canAddGathering ?? false;
                 if ($isToday) {
                     $dayClasses[] = 'today';
                 }
-            ?>
+                ?>
             <div class="<?= implode(' ', $dayClasses) ?>"
                 <?= $isToday
                     ? 'id="gatherings-calendar-today" data-calendar-date="' . h($dateKey)
@@ -101,17 +107,22 @@ $canAddGathering = $canAddGathering ?? false;
                     <?= $this->Timezone->format($current, null, 'j') ?>
                 </div>
 
-                <?php if (isset($gatheringsByDate[$dateKey])): ?>
-                <?php foreach ($gatheringsByDate[$dateKey] as $gathering): ?>
-                <?php
+                <?php if (isset($gatheringsByDate[$dateKey])) : ?>
+                    <?php foreach ($gatheringsByDate[$dateKey] as $gathering) : ?>
+                        <?php
                             // Convert gathering dates to gathering's timezone for correct multi-day detection
-                            $startInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
-                            $endInUserTz = \App\KMP\TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
+                            $startInUserTz = TimezoneHelper::toUserTimezone(
+                                $gathering->start_date,
+                                null,
+                                null,
+                                $gathering,
+                            );
+                            $endInUserTz = TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
 
                             // Skip if timezone conversion failed
-                            if ($startInUserTz === null || $endInUserTz === null) {
-                                continue;
-                            }
+                        if ($startInUserTz === null || $endInUserTz === null) {
+                            continue;
+                        }
 
                             $isAttending = !empty($gathering->gathering_attendances);
                             // Compare dates in the event's timezone, not UTC
@@ -120,65 +131,76 @@ $canAddGathering = $canAddGathering ?? false;
                             $isCancelled = $gathering->is_cancelled ?? false;
                             $itemClasses = ['gathering-item'];
 
-                            if ($isMultiDay) {
-                                $itemClasses[] = 'multi-day';
-                            }
-                            if ($isAttending) {
-                                $itemClasses[] = 'attending';
-                            }
-                            if ($isCancelled) {
-                                $itemClasses[] = 'cancelled';
-                            }
+                        if ($isMultiDay) {
+                            $itemClasses[] = 'multi-day';
+                        }
+                        if ($isAttending) {
+                            $itemClasses[] = 'attending';
+                        }
+                        if ($isCancelled) {
+                            $itemClasses[] = 'cancelled';
+                        }
 
                             // Use gathering type color if available, grey for cancelled
                             $bgColor = $isCancelled ? '#6c757d' : ($gathering->gathering_type->color ?? '#0d6efd');
 
                             $gatheringContent = '';
-                            if ($isCancelled) {
-                                $gatheringContent .= '<div class="badge bg-danger mb-1 w-100"><kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> CANCELLED</div>';
-                            }
-                            $gatheringContent .= '<div class="fw-bold' . ($isCancelled ? ' text-decoration-line-through' : '') . '">' . h($gathering->name) . '</div>';
-                            $gatheringContent .= '<div class="text-muted small text-truncate">' . h($gathering->branch->name) . '</div>';
+                        if ($isCancelled) {
+                            $gatheringContent .= '<div class="badge bg-danger mb-1 w-100">'
+                                . '<kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> CANCELLED</div>';
+                        }
+                            $gatheringContent .= '<div class="fw-bold'
+                                . ($isCancelled ? ' text-decoration-line-through' : '') . '">'
+                                . h($gathering->name) . '</div>';
+                            $gatheringContent .= '<div class="text-muted small text-truncate">'
+                                . h($gathering->branch->name) . '</div>';
                             $gatheringContent .= '<div class="gathering-badges">';
-                            if ($isAttending) {
-                                $gatheringContent .= '<span class="badge bg-success" title="I\'m attending" aria-label="I\'m attending"><kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon></span>';
-                            }
-                            if ($hasLocation) {
-                                $gatheringContent .= '<span class="badge bg-info text-dark" title="Has location" aria-label="Has location"><kmp-icon name="map-pin"  aria-hidden="true"></kmp-icon></span>';
-                            }
-                            if ($isMultiDay) {
-                                $gatheringContent .= '<span class="badge bg-warning text-dark" title="Multi-day event" aria-label="Multi-day event"><kmp-icon name="calendar-week"  aria-hidden="true"></kmp-icon></span>';
-                            }
-                            foreach ($gathering->gathering_activities as $activity) {
-                                $gatheringContent .= $this->GatheringActivity->badge($activity, true);
-                            }
+                        if ($isAttending) {
+                            $gatheringContent .= '<span class="badge bg-success"'
+                                . ' title="I\'m attending" aria-label="I\'m attending">'
+                                . '<kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon></span>';
+                        }
+                        if ($hasLocation) {
+                            $gatheringContent .= '<span class="badge bg-info text-dark"'
+                                . ' title="Has location" aria-label="Has location">'
+                                . '<kmp-icon name="map-pin"  aria-hidden="true"></kmp-icon></span>';
+                        }
+                        if ($isMultiDay) {
+                            $gatheringContent .= '<span class="badge bg-warning text-dark"'
+                                . ' title="Multi-day event" aria-label="Multi-day event">'
+                                . '<kmp-icon name="calendar-week"  aria-hidden="true"></kmp-icon></span>';
+                        }
+                        foreach ($gathering->gathering_activities as $activity) {
+                            $gatheringContent .= $this->GatheringActivity->badge($activity, true);
+                        }
                             $gatheringContent .= '</div>';
-                            ?>
-                <?= $this->Html->link(
-                                $gatheringContent,
-                                ['action' => 'quick-view', $gathering->public_id],
-                                [
+                        ?>
+                        <?= $this->Html->link(
+                            $gatheringContent,
+                            ['action' => 'quick-view', $gathering->public_id],
+                            [
                                     'escape' => false,
                                     'class' => implode(' ', $itemClasses),
-                                    'style' => "background-color: {$bgColor}22; border-left-color: {$bgColor}; display: block; text-decoration: none; color: inherit;",
+                                    'style' => "background-color: {$bgColor}22; border-left-color: {$bgColor}; "
+                                        . 'display: block; text-decoration: none; color: inherit;',
                                     'title' => h($gathering->name),
                                     'data-turbo-frame' => 'gatheringQuickView',
-                                    'data-action' => 'click->gatherings-calendar#showQuickView'
-                                ]
-                            ) ?>
-                <?php endforeach; ?>
+                                    'data-action' => 'click->gatherings-calendar#showQuickView',
+                                ],
+                        ) ?>
+                    <?php endforeach; ?>
                 <?php endif; ?>
 
-                <?php if ($canAddGathering): ?>
+                <?php if ($canAddGathering) : ?>
                 <a href="<?= $this->Url->build(['action' => 'add', '?' => ['start_date' => $dateKey . 'T09:00']]) ?>"
-                   class="calendar-day-add" title="<?= __('Add gathering on this date') ?>"
-                   aria-label="<?= __('Add gathering on this date') ?>"
+                   class="calendar-day-add" title="<?= h(__('Add gathering on {0}', $dateKey)) ?>"
+                   aria-label="<?= h(__('Add gathering on {0}', $dateKey)) ?>"
                    data-turbo-frame="_top">
                     <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon>
                 </a>
                 <?php endif; ?>
             </div>
-            <?php
+                <?php
                 $current = $current->modify('+1 day');
                 $dayCount++;
             endwhile;

@@ -243,6 +243,7 @@ jobs:
             "export KMP_ENV='ci'" \
             "export CACHE_ENGINE='apcu'" \
             "export KMP_SESSION_DEFAULTS='php'" \
+            "export KMP_SESSION_COOKIE_SECURE='false'" \
             "export PLAYWRIGHT_USE_DOCKER_PHP='1'" \
             "export KMP_RESET_DB_ON_UP='false'" \
             "export KMP_SKIP_INITIAL_DB_SETUP='true'" \
@@ -357,6 +358,7 @@ jobs:
             "export KMP_ENV='ci'" \
             "export CACHE_ENGINE='apcu'" \
             "export KMP_SESSION_DEFAULTS='php'" \
+            "export KMP_SESSION_COOKIE_SECURE='false'" \
             "export PLAYWRIGHT_USE_DOCKER_PHP='1'" \
             "export KMP_RESET_DB_ON_UP='false'" \
             "export KMP_SKIP_INITIAL_DB_SETUP='true'" \

@@ -67,6 +67,8 @@ $stickyDefaults = json_encode([
         background-color: #fff;
         min-height: 120px;
         padding: 0.5rem;
+        padding-bottom: 2rem;
+        scroll-margin-top: calc(var(--kmp-navbar-height, 48px) + 1rem);
         position: relative;
         border: 1px solid #dee2e6;
         overflow: hidden;
@@ -77,8 +79,9 @@ $stickyDefaults = json_encode([
         position: absolute;
         bottom: 4px;
         right: 6px;
-        width: 20px;
-        height: 20px;
+        width: 24px;
+        height: 24px;
+        scroll-margin-block: calc(var(--kmp-navbar-height, 48px) + 1rem) 1rem;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -90,12 +93,25 @@ $stickyDefaults = json_encode([
         text-decoration: none;
     }
 
-    .calendar-day:hover .calendar-day-add {
+    .calendar-day:hover .calendar-day-add,
+    .calendar-day:focus-within .calendar-day-add {
         opacity: 0.7;
     }
 
-    .calendar-day .calendar-day-add:hover {
+    .calendar-day .calendar-day-add:hover,
+    .calendar-day .calendar-day-add:focus-visible {
         opacity: 1;
+    }
+
+    .calendar-day .calendar-day-add:focus-visible {
+        outline: 2px solid var(--bs-primary);
+        outline-offset: 2px;
+    }
+
+    @media (hover: none) {
+        .calendar-day .calendar-day-add {
+            opacity: 1;
+        }
     }
 
     .calendar-day.other-month {

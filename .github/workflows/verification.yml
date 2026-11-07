@@ -214,6 +214,7 @@ jobs:
             "export KMP_LIVE_UPDATES_ENABLED='false'" \
             "export CACHE_ENGINE='apcu'" \
             "export KMP_SESSION_DEFAULTS='php'" \
+            "export KMP_SESSION_COOKIE_SECURE='false'" \
             "export PLAYWRIGHT_USE_DOCKER_PHP='1'" \
             "export KMP_RESET_DB_ON_UP='false'" \
             "export KMP_SKIP_INITIAL_DB_SETUP='true'" \
@@ -268,7 +269,7 @@ jobs:
           bash reset_dev_database.sh
           docker compose --env-file app/config/.env up -d --no-build scheduler admin-worker
           cd app
-          PLAYWRIGHT_RESET_DB=0 npm run test:ui:${{ matrix.lane }} -- --project=${{ matrix.browser }} --retries=0
+          PLAYWRIGHT_RESET_DB=0 bash bin/run-playwright-lane.sh "${{ matrix.lane }}" --project=${{ matrix.browser }} --retries=0
 
       - name: Package Playwright UAT artifacts
         if: success() || failure()

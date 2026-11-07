@@ -18,16 +18,18 @@ Then('core and plugin screens pass accessibility checks at {int} by {int}', asyn
     await page.setViewportSize({ width, height });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     const reports = [];
-    const scan = async state => {
+    const scan = async (state, scope = null) => {
         await page.waitForFunction(() => document.readyState === 'complete'
             && ![...document.querySelectorAll('turbo-frame[aria-busy="true"]')].some(frame => frame.getClientRects().length));
         await page.evaluate(() => document.fonts.ready);
-        const result = await new AxeBuilder({ page })
-            .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
+        const builder = new AxeBuilder({ page })
+            .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']);
+        if (scope) builder.include(scope);
+        const result = await builder.analyze();
         // Keep rule evidence without serializing authenticated HTML or form values.
         const summarize = rule => ({ id: rule.id, impact: rule.impact, help: rule.help,
             targets: rule.nodes.map(node => node.target) });
-        reports.push({ state, width, height, violations: result.violations.map(summarize),
+        reports.push({ state, width, height, scope: scope || 'document', violations: result.violations.map(summarize),
             manualReview: result.incomplete.map(summarize) });
         expect(result.violations, `${state}: ${result.violations.map(rule => rule.id).join(', ')}`).toEqual([]);
     };
@@ -40,6 +42,26 @@ Then('core and plugin screens pass accessibility checks at {int} by {int}', asyn
         for (const route of routes) {
             expect((await page.goto(route)).status(), route).toBe(200);
             await scan(route);
+            if (route === '/gatherings/calendar') {
+                // Retain the full-page baseline above; audit the extra calendar
+                // states after scrolling with an explicit, recorded component scope.
+                const day = page.locator('.calendar-day').filter({ has: page.locator('.gathering-item') }).first();
+                const add = day.locator('.calendar-day-add');
+                await day.hover();
+                await scan('Calendar add action on hover', '.calendar-grid');
+                await add.focus();
+                await page.keyboard.press('Shift+Tab');
+                await page.keyboard.press('Tab');
+                await expect(add).toBeFocused();
+                await expect(add).toHaveCSS('opacity', '1');
+                const visible = await add.evaluate(element => {
+                    const rect = element.getBoundingClientRect();
+                    const header = document.querySelector('.navbar')?.getBoundingClientRect();
+                    return rect.top >= (header?.bottom || 0) && rect.bottom <= innerHeight;
+                });
+                expect(visible, 'Focused calendar action is visible below the header').toBe(true);
+                await scan('Calendar add action with keyboard focus', '.calendar-grid');
+            }
         }
         await page.goto(`/members/view/${fixture.member}?tab=notes`);
         const addNote = page.getByRole('button', { name: 'Add a Note', exact: true });
