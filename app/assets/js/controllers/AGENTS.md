@@ -23,6 +23,7 @@ Own user-facing JavaScript behavior implemented as Stimulus controllers, includi
 - Update ARIA state such as `aria-expanded`, `aria-selected`, `aria-busy`, and `aria-hidden` when UI state changes.
 - Use `KMP_accessibility` for accessible alert, confirm, prompt, and announce flows.
 - Use `KMP_utils` for URL and sanitization helpers.
+- Member autocomplete selections use opaque public IDs. Check whether a suggestion is selected instead of coercing its ID to a number; the server owns identifier validation and authorization.
 
 ## Work Guidance
 

@@ -18,6 +18,7 @@ Own CakePHP app configuration that changes runtime wiring: routes, plugin activa
 - Enabled first-party domain plugins currently load in this order: `Activities` 1, `Officers` 2, `Awards` 3, `Waivers` 4.
 - Keep `Template` disabled unless the task is specifically about the skeleton plugin.
 - Never hard-code secrets or deployment-only values; use environment configuration and existing app settings patterns.
+- `REDIS_URL` credentials use URI encoding. Decode the password once for PHP clients; deployment templates encode generated access keys before composing the URL.
 - Core routes should use CakePHP conventions and dashed URLs; plugin-specific routes belong with the plugin.
 - Schema changes require migrations in the owning app or plugin migration directory.
 - Applied migrations are immutable: once a migration has run in any shared environment, add a new corrective migration instead of editing the original. Squash only unreleased migration chains that have not run in shared environments, and preserve restore/hydration paths.

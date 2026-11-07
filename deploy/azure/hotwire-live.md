@@ -20,7 +20,7 @@ the outbox migrations, ordinary tenant worker scheduling, and the gateway.
 | `KMP_LIVE_PUBLIC_KEY` | Gateway | Matching SPKI PEM public key |
 | `KMP_LIVE_GATEWAY_URL` | Web | Browser-reachable HTTPS `/events` URL |
 | `KMP_LIVE_ALLOWED_ORIGINS` | Gateway | Explicit comma-separated tenant origins, including ports locally |
-| `REDIS_URL` | Web/workers/gateway | Shared Redis; authenticated TLS in Azure |
+| `REDIS_URL` | Web/workers/gateway | Shared Redis; authenticated TLS in Azure, with URI-encoded credentials |
 | `KMP_LIVE_PREFIX` | Web/workers/gateway | Identical dedicated key namespace on every replica |
 | `KMP_SESSION_DEFAULTS` | Web | `cache` with shared Redis cache configuration |
 

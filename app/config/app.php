@@ -72,7 +72,9 @@ if ($cacheEngine === RedisEngine::class) {
         $redisConfig = [
             'server'   => $parsed['host'] ?? 'redis',
             'port'     => $parsed['port'] ?? 6379,
-            'password' => ($parsed['pass'] ?? null) ?: env('REDIS_PASSWORD', null),
+            'password' => ($parsed['pass'] ?? '') !== ''
+                ? rawurldecode($parsed['pass'])
+                : env('REDIS_PASSWORD', null),
             'database' => (int)(ltrim($parsed['path'] ?? '/0', '/') ?: '0'),
             'timeout'  => 0,
             'persistent' => filter_var(

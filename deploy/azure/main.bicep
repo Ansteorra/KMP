@@ -785,7 +785,7 @@ resource managedRedisDatabase 'Microsoft.Cache/redisEnterprise/databases@2025-07
 // =============================================================================
 var databaseUrlValue = 'postgres://${postgresRuntimeUser}:${uriComponent(postgresRuntimePassword)}@${pg.properties.fullyQualifiedDomainName}:5432/${postgresDatabaseName}?ssl=true&ssl_mode=require'
 var platformDatabaseUrlValue = 'postgres://${platformPostgresRuntimeUser}:${uriComponent(platformPostgresRuntimePassword)}@${pg.properties.fullyQualifiedDomainName}:5432/${platformPostgresDatabaseName}?ssl=true&ssl_mode=require'
-var redisUrlValue = enableManagedRedis ? 'rediss://:${managedRedisDatabase.listKeys().primaryKey}@${managedRedis.properties.hostName}:10000/0' : 'unused'
+var redisUrlValue = enableManagedRedis ? 'rediss://:${uriComponent(managedRedisDatabase.listKeys().primaryKey)}@${managedRedis.properties.hostName}:10000/0' : 'unused'
 
 resource secretSecuritySalt 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   parent: runtimeKv
