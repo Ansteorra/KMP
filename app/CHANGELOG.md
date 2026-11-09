@@ -8,6 +8,8 @@ Stay up to date with the latest features, improvements, and announcements for th
 
 ## Unreleased
 
+- Read public events on phones in compact rows that fit the screen, with collapsible filters, larger touch controls, and single-column expanded details. Keep date ranges on one line, with the year and duration underneath.
+
 - Preserve detail tabs, grid queries, drafts, focus, and return navigation across partial saves. Replace the app Back stack with shared browser history and prepare optional Turbo Drive and authorized live updates behind fallback switches.
 
 - Delegate award preparation for a specific gathering and branch, with scoped access to bestowals, court agendas, and assigned To-Dos and an auditable revoke action.

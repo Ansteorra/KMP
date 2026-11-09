@@ -27,6 +27,34 @@ describe('Public calendar rows and activity picker', () => {
     });
     afterEach(() => { document.body.innerHTML = ''; });
 
+    test('phone filters collapse, reopen for desktop, and release the viewport listener', () => {
+        const disclosure = document.createElement('details');
+        disclosure.open = true;
+        disclosure.innerHTML = '<summary>Filters</summary><input aria-label="Search events">';
+        document.body.append(disclosure);
+        controller.hasFilterDisclosureTarget = true;
+        controller.filterDisclosureTarget = disclosure;
+        const media = { matches: true, addEventListener: jest.fn(), removeEventListener: jest.fn() };
+        const originalMatchMedia = window.matchMedia;
+        window.matchMedia = jest.fn().mockReturnValue(media);
+        controller.connect();
+        expect(disclosure.open).toBe(false);
+        expect(media.addEventListener).toHaveBeenCalledWith('change', controller.filterLayoutListener);
+        disclosure.open = true;
+        disclosure.querySelector('input').focus();
+        controller.layoutFilters();
+        expect(disclosure.open).toBe(true);
+        disclosure.querySelector('input').blur();
+        controller.layoutFilters();
+        expect(disclosure.open).toBe(false);
+        media.matches = false;
+        controller.filterLayoutListener();
+        expect(disclosure.open).toBe(true);
+        controller.disconnect();
+        expect(media.removeEventListener).toHaveBeenCalledWith('change', controller.filterLayoutListener);
+        window.matchMedia = originalMatchMedia;
+    });
+
     test('selected names remain visible through searching and distinguish pending changes from applied filters', () => {
         controller.connect();
         expect(controller.selectedLabelsTarget).toHaveTextContent('Archery');

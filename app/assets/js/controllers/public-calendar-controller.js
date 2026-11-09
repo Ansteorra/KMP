@@ -3,12 +3,31 @@ import { Controller } from '@hotwired/stimulus';
 /** Enhances native public calendar disclosures and bounded activity filtering. */
 class PublicCalendarController extends Controller {
     static targets = ['activityOption', 'activityGroup', 'groupCount', 'activitySearch', 'activityStatus', 'activityCount', 'filterBar',
-        'selectedSummary', 'selectedLabels', 'selectionStatus'];
+        'selectedSummary', 'selectedLabels', 'selectionStatus', 'filterDisclosure'];
     static values = { pendingMessage: String };
 
     connect() {
         this.appliedSelection = this.selectionKey(this.selectedOptions());
         this.updateCount();
+        if (this.hasFilterDisclosureTarget) {
+            this.filterMedia = window.matchMedia('(max-width: 700px), (max-height: 500px)');
+            this.filterLayoutListener = () => this.layoutFilters();
+            this.filterMedia.addEventListener('change', this.filterLayoutListener);
+            this.layoutFilters();
+        }
+    }
+
+    disconnect() {
+        this.filterMedia?.removeEventListener('change', this.filterLayoutListener);
+    }
+
+    layoutFilters() {
+        const disclosure = this.filterDisclosureTarget;
+        const focusInside = disclosure.contains(document.activeElement)
+            && document.activeElement !== disclosure.querySelector('summary');
+        if (!this.filterMedia.matches || !focusInside) {
+            disclosure.open = !this.filterMedia.matches;
+        }
     }
 
     revealFocus(event) {

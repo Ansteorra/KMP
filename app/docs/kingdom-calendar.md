@@ -78,15 +78,27 @@ also omit Business activities and their scheduled sessions, including for signed
 Filtering happens before schedule grouping, so empty days and sections are not rendered.
 Internal event assignments and schedules remain available to staff.
 
-The document owns vertical calendar scrolling; the table wrapper only scrolls horizontally
-on narrow screens and never shows a separate vertical scrollbar. The filter bar stays pinned
-to the top as the document scrolls underneath. Its opaque
-background and stacking order keep controls and open pickers above the event rows. Only
-keyboard-visible focus in the calendar is revealed below the bar. Pointer focus must not
-move the document during a row click. At short viewport heights, the filter bar
-is capped at 60% of the viewport and can scroll internally, leaving the event list reachable.
+The document owns vertical calendar scrolling. Desktop and tablet calendars keep the wide table;
+its wrapper scrolls horizontally only when needed, with no separate vertical scrollbar.
+At widths of 700px and below, events reflow into a continuous list: date beside the event name
+and address, followed by the group and activity icons. Date ranges stay on one line; the year
+and duration may wrap underneath. Month boundaries, empty weekends, and
+continuation rows remain visible. Expanded details use one column, long content wraps, and
+row disclosure controls have 44px touch targets. Explicit table roles retain the table's
+accessible structure when CSS changes its visual layout.
 
-The **Activities & progress** filter starts collapsed and opens a picker up to 600px wide with
+The filter bar stays pinned as the document scrolls underneath. Phones and viewport heights
+of 500px or less start with a compact native **Filters** disclosure. Opening it reveals the
+same search, month, group and activity controls; activity choices open inline on phones.
+The bar is capped at 60% of the viewport while open, leaving events reachable. Selected
+activity names remain visible when filters are closed; the disclosure also summarizes applied
+search, month and group filters. Resizing to desktop reopens the
+controls; resizing must not hide a focused form field. Without JavaScript, filters start
+open and scroll with the document, and expanded event information remains available.
+Only keyboard-visible focus is revealed below the pinned bar; pointer focus does not move
+the document during a row click.
+
+The **Activities** filter starts collapsed and opens a picker up to 600px wide with
 two columns of choices within each type at viewport widths of 600px and above. Phones use one
 column. The searchable choice area remains capped at 240px. Each activity shows its configured icon or uploaded artwork and colors beside
 its name. A border and checkmark indicate selection; keyboard focus has a separate outline.
@@ -104,7 +116,7 @@ preserves checked choices. Searching opens matching groups; clearing the search 
 group’s previous expanded/collapsed state. The summary counts selections across all groups.
 Selected activity and circle names remain visible beneath the controls, even
 when the picker is closed or search hides their options. The names are also server-rendered
-for JavaScript-free browsing. The selected-name list is capped at 90px to keep the pinned
+for JavaScript-free browsing. The selected-name list is capped at 90px on desktop and 64px on phones to keep the pinned
 filters compact. Changing a selection announces that **Apply filters** is required; reverting
 to the applied selection clears the reminder. Filters submit
 explicitly and work with native form navigation. The month selector keeps the full two-year horizon accessible without adding a long

@@ -1940,7 +1940,9 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertSame(0, $xpath->query('.//*[contains(@class,"kc-progress-icon") or contains(@class,"kc-circle-icon")]', $row)->length);
         $this->assertSame(0, $xpath->query('//details[@data-activity-type="Business"]')->length);
         $this->assertResponseNotContains('Administrative gate fixture');
-        $this->assertResponseNotContains('kc-activity-chip-circle');
+        $this->assertSame(0, $xpath->query(
+            '//*[contains(concat(" ", normalize-space(@class), " "), " kc-activity-chip-circle ")]',
+        )->length);
         $this->assertResponseNotContains('data-royal-progress-badge');
         $this->assertTrue($this->getTableLocator()->get('GatheringsGatheringActivities')->exists([
             'gathering_id' => $gathering->id, 'gathering_activity_id' => $gate->id,

@@ -35,9 +35,9 @@ $result = $manager->withTenant($tenant, function () use ($input) {
         while ($start->format('N') !== '5') { $start = $start->subDays(1); }
         $start = $start->setTime(18,0);
         $event = $gatherings->newEntity([
-            'name'=>$prefix, 'branch_id'=>$admin->branch_id, 'gathering_type_id'=>$type->id,
+            'name'=>$prefix.' — A gathering with a long event name for narrow screens', 'branch_id'=>$admin->branch_id, 'gathering_type_id'=>$type->id,
             'start_date'=>$start, 'end_date'=>$start->addDays(9), 'timezone'=>'America/Chicago',
-            'location'=>'100 Synthetic Lane, Testville, TX 75001', 'description'=>'Synthetic ten-day calendar acceptance.',
+            'location'=>'100 Synthetic Lane, Testville, TX 75001', 'description'=>'Calendar acceptance with a long address link: https://example.test/'.str_repeat('event-information-',20),
             'public_page_enabled'=>true, 'created_by'=>$admin->id,
         ]);
         $event->set('published',true); $gatherings->saveOrFail($event);
@@ -165,6 +165,7 @@ echo json_encode($result, JSON_THROW_ON_ERROR);
         await page.goto('/events?q=' + encodeURIComponent(data.prefix));
         for (const width of [1280, 768, 375, 320]) {
             await page.setViewportSize({ width, height: 950 });
+            await expect(page.locator('.kc-table')).toHaveCSS('min-width', width <= 700 ? '0px' : '810px');
             const geometry = await page.evaluate(() => ({ viewport: innerWidth, scroll: document.documentElement.scrollWidth,
                 table: (()=>{const el=document.querySelector('.kc-table-scroll');return {width:el.clientWidth,scroll:el.scrollWidth,overflow:getComputedStyle(el).overflowX,rect:el.getBoundingClientRect().toJSON()};})(), outside: [...document.querySelectorAll('body *')].filter(el => el.getBoundingClientRect().right > innerWidth + 1).slice(0, 12).map(el => ({tag:el.tagName,cls:el.className,right:el.getBoundingClientRect().right})) }));
             assert.ok(geometry.scroll <= width + 1, `Overflow at ${width}: ${JSON.stringify(geometry)}`);
@@ -187,6 +188,11 @@ echo json_encode($result, JSON_THROW_ON_ERROR);
             const after = await page.locator('.kc-table').boundingBox();
             assert.ok(after.y < before.y - 140, 'The document should scroll beneath the filters');
             assert.ok(Math.abs((await filters.boundingBox()).y) < 1, 'Filters should remain pinned');
+            const filterDisclosure = page.locator('.kc-filter-settings');
+            if (width <= 700) {
+                assert.ok((await filters.boundingBox()).height < 100, 'Closed phone filters should leave room for events');
+                await filterDisclosure.locator(':scope > summary').click();
+            }
             await picker.locator(':scope > summary').click();
             await expect(picker.getByLabel('Find an activity')).toBeVisible();
             assert.ok(await picker.getByLabel('Find an activity').evaluate(el => {
@@ -194,6 +200,7 @@ echo json_encode($result, JSON_THROW_ON_ERROR);
                 return document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2) === el;
             }), 'The activity picker must appear above scrolling rows');
             await picker.locator(':scope > summary').click();
+            if (width <= 700) await filterDisclosure.locator(':scope > summary').click();
             const eventLink = page.locator(`.kc-event-name[href*="${data.publicId}"]`).first();
             await page.keyboard.press('Tab');
             await eventLink.evaluate(el => {
@@ -206,15 +213,72 @@ echo json_encode($result, JSON_THROW_ON_ERROR);
                 const focused = await eventLink.boundingBox();
                 return focused.y - header.y - header.height;
             }).toBeGreaterThanOrEqual(0);
-            if (width < 810) {
+            if (width > 700 && width < 858) {
                 const scroll = page.locator('.kc-table-scroll');
                 await scroll.focus(); await page.keyboard.press('ArrowRight'); await page.waitForTimeout(150);
                 assert.ok(await scroll.evaluate(el => el.scrollLeft > 0));
+            }
+            if (width <= 700) {
+                assert.ok(await tableScroll.evaluate(el => el.scrollWidth <= el.clientWidth + 1), 'Phone rows should fit without horizontal scrolling');
+                assert.ok(await page.locator('.kc-date-range').evaluateAll(nodes => nodes.every(node => {
+                    const range = document.createRange();
+                    range.selectNodeContents(node);
+                    const tops = [...range.getClientRects()].filter(rect => rect.width > 0).map(rect => rect.top);
+                    return Math.max(...tops) - Math.min(...tops) < 1;
+                })), 'Event and empty-weekend date ranges must stay on one line');
+                const phoneRow = eventLink.locator('xpath=ancestor::tr');
+                for (const selector of ['.kc-address', '.kc-group', '.kc-indicators']) {
+                    const rect = await phoneRow.locator(selector).boundingBox();
+                    assert.ok(rect.x >= 0 && rect.x + rect.width <= width + 1, selector + ' must fit on a phone');
+                }
+                const summary = phoneRow.locator('.kc-more summary');
+                const target = await summary.boundingBox();
+                assert.ok(target.width >= 44 && target.height >= 44, 'Phone disclosure targets should be at least 44px');
+                await summary.click();
+                const phonePanel = page.locator('#' + await phoneRow.locator('details').getAttribute('data-panel'));
+                await expect(phonePanel).toBeVisible();
+                const columns = await phonePanel.locator('.kc-detail-body').evaluate(el => getComputedStyle(el).gridTemplateColumns);
+                assert.equal(columns.split(' ').length, 1, 'Expanded phone details should use one column');
+                assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'Long expanded event information must wrap');
+                await summary.click();
+                await expect(phonePanel).toBeHidden();
+                await expect(page.getByRole('columnheader')).toHaveCount(4);
             }
         }
         await page.setViewportSize({ width: 320, height: 400 });
         await page.evaluate(() => window.scrollTo({ top: 1200, behavior: 'instant' }));
         assert.ok((await page.locator('.kc-filter-bar').boundingBox()).height <= 241, 'Short viewports must leave room for events');
+        const phoneContext = await browser.newContext({ baseURL: 'http://kmp.localhost:8080',
+            viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: 'reduce' });
+        const phone = await phoneContext.newPage();
+        await phone.goto('/events?q=' + encodeURIComponent(data.prefix));
+        const phoneFilters = phone.locator('.kc-filter-settings');
+        await expect(phoneFilters).not.toHaveAttribute('open', '');
+        await expect(phoneFilters.locator('.kc-filter-hint')).toContainText(data.prefix);
+        await phoneFilters.locator(':scope > summary').tap();
+        await phone.locator('.kc-filter-picker > summary').tap();
+        await phone.locator(`input[name="activities[]"][value="${data.ids[2]}"]`).locator('xpath=..').tap();
+        await phone.getByRole('button', { name: 'Apply filters', exact: true }).tap();
+        await expect(phone.locator('[data-public-calendar-target="selectedLabels"]')).toContainText(data.prefix + ' 002');
+        await expect(phoneFilters).not.toHaveAttribute('open', '');
+        if (process.env.KMP_CALENDAR_EVIDENCE_DIR) {
+            fs.mkdirSync(process.env.KMP_CALENDAR_EVIDENCE_DIR, { recursive: true });
+            await phone.screenshot({ path: path.join(process.env.KMP_CALENDAR_EVIDENCE_DIR, 'public-calendar-mobile.png'), fullPage: false });
+        }
+        await phone.setViewportSize({ width: 844, height: 390 });
+        await expect(phoneFilters).not.toHaveAttribute('open', '');
+        await phoneFilters.locator(':scope > summary').tap();
+        await expect(phone.getByLabel('Search events', { exact: true })).toBeVisible();
+        assert.ok((await phone.locator('.kc-filter-bar').boundingBox()).height <= 235, 'Landscape filters must leave room for events');
+        await phoneContext.close();
+        const noScript = await browser.newContext({ baseURL: 'http://kmp.localhost:8080', javaScriptEnabled: false,
+            viewport: { width: 320, height: 568 } });
+        const fallback = await noScript.newPage();
+        await fallback.goto('/events?q=' + encodeURIComponent(data.prefix));
+        await expect(fallback.getByLabel('Search events', { exact: true })).toBeVisible();
+        await expect(fallback.locator('.kc-detail-row').first()).toBeVisible();
+        assert.ok(await fallback.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'Phone fallback details must wrap without JavaScript');
+        await noScript.close();
         if (process.env.KMP_CALENDAR_EVIDENCE_DIR) {
             fs.mkdirSync(process.env.KMP_CALENDAR_EVIDENCE_DIR, { recursive: true });
             await page.setViewportSize({ width: 1280, height: 950 });

@@ -10,19 +10,22 @@ $eventUrl = $gathering->public_page_enabled
     : $gathering->website_url;
 $panelId = 'event-details-' . $row['key'];
 ?>
-<tr class="kc-event<?= $isCancelled ? ' kc-event-cancelled' : '' ?>" data-action="click->public-calendar#toggleRow">
-    <td class="kc-date">
-        <?= h($row['start']->format('M j')) ?>
-        <?php if ($row['end'] > $row['start']) : ?>
-            <span>→ <?= h($row['end']->format('M j')) ?></span>
-        <?php endif; ?>
+<tr class="kc-event<?= $isCancelled ? ' kc-event-cancelled' : '' ?>" role="row"
+    data-action="click->public-calendar#toggleRow">
+    <td class="kc-date" role="cell">
+        <span class="kc-date-range">
+            <?= h($row['start']->format('M j')) ?>
+            <?php if ($row['end'] > $row['start']) : ?>
+                → <?= h($row['end']->format('M j')) ?>
+            <?php endif; ?>
+        </span>
         <small><?= h($row['start']->format('Y')) ?> ·
             <span class="kc-event-through"><?= $event['days'] > 1
                 ? __n('{0} day', '{0} days', $event['days'], $event['days'])
                 : h($row['start']->format('l')) ?></span>
         </small>
     </td>
-    <th scope="row">
+    <th scope="row" role="rowheader">
         <div class="kc-event-title-row">
             <?php if ($eventUrl) : ?>
                 <a class="kc-event-name" href="<?= h($eventUrl) ?>"><?= h($gathering->name) ?></a>
@@ -40,8 +43,8 @@ $panelId = 'event-details-' . $row['key'];
             ?><span class="kc-address"><?= nl2br(h($gathering->location)) ?></span><?php
         endif; ?>
     </th>
-    <td class="kc-group"><?= h($gathering->branch->name) ?></td>
-    <td><div class="kc-indicators">
+    <td class="kc-group" role="cell"><?= h($gathering->branch->name) ?></td>
+    <td class="kc-activity-cell" role="cell"><div class="kc-indicators">
         <div class="kc-icons">
             <?php foreach ($event['summaryActivities'] as $activity) : ?>
                 <?= $this->GatheringActivity->badge($activity, true) ?>
@@ -63,7 +66,7 @@ $panelId = 'event-details-' . $row['key'];
         </details>
     </div></td>
 </tr>
-<tr class="kc-detail-row" id="<?= h($panelId) ?>" hidden><td colspan="4">
+<tr class="kc-detail-row" role="row" id="<?= h($panelId) ?>" hidden><td colspan="4" role="cell">
     <div class="kc-detail-body">
         <section aria-label="<?= h(__('Event information')) ?>">
             <h3><?= h($gathering->name) ?></h3>
