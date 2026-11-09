@@ -9,6 +9,7 @@ use App\Model\Entity\Permission;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Bestowal;
 use Awards\Services\BestowalCreationService;
+use Awards\Services\CourtAgendaService;
 use Awards\Services\RecommendationGroupingService;
 use Cake\Cache\Cache;
 use Cake\I18n\DateTime;
@@ -427,7 +428,7 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
     }
 
     /** @return void */
-    public function testBothPrintVersionsOrderCourtsByScheduleInsteadOfSavedSectionOrder(): void
+    public function testBuilderAndBothPrintVersionsOrderCourtsByScheduleInsteadOfSavedSectionOrder(): void
     {
         $gathering = $this->createGatheringWithoutActivities();
         $award = $this->getTableLocator()->get('Awards.Awards')->find()->firstOrFail();
@@ -450,6 +451,36 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
         $segments = $this->getTableLocator()->get('Awards.CourtAgendaSegments');
         $segments->updateAll(['sort_order' => 0], ['gathering_scheduled_activity_id' => $late->id]);
         $segments->updateAll(['sort_order' => 100], ['gathering_scheduled_activity_id' => $early->id]);
+        $roaming = $segments->saveOrFail($segments->newEntity([
+            'court_agenda_id' => $agenda->id,
+            'name' => 'Roaming Court',
+            'segment_type' => 'court',
+            'sort_order' => 0,
+        ]));
+
+        $viewModel = (new CourtAgendaService())->buildAgendaViewModel((int)$agenda->id);
+        $orderedIds = array_map(static fn(array $data): int => (int)$data['entity']->id, $viewModel['segments']);
+        $this->assertSame($orderedIds, array_keys($viewModel['segmentOptions']));
+        $earlySegmentId = $orderedIds[0];
+        $lateSegmentId = $orderedIds[1];
+        $this->assertSame((int)$early->id, (int)$viewModel['segments'][0]['entity']->gathering_scheduled_activity_id);
+        $this->assertSame((int)$late->id, (int)$viewModel['segments'][1]['entity']->gathering_scheduled_activity_id);
+        $this->assertSame((int)$roaming->id, $orderedIds[2]);
+        $builderUrl = '/awards/court-agendas/gathering/' . $gathering->id;
+        foreach ([null, $lateSegmentId] as $selectedId) {
+            $this->get($builderUrl . ($selectedId === null ? '' : '?segment_id=' . $selectedId));
+            $this->assertResponseOk();
+            $dom = new DOMDocument();
+            $dom->loadHTML((string)$this->_response->getBody(), LIBXML_NOERROR | LIBXML_NOWARNING);
+            $xpath = new DOMXPath($dom);
+            $options = $xpath->query('//select[@id="court-agenda-segment"]/option');
+            $this->assertSame((string)$earlySegmentId, $options->item(0)->getAttribute('value'));
+            $this->assertSame((string)$lateSegmentId, $options->item(1)->getAttribute('value'));
+            $this->assertSame((string)$roaming->id, $options->item(2)->getAttribute('value'));
+            $selected = $xpath->query('//select[@id="court-agenda-segment"]/option[@selected]');
+            $this->assertSame(1, $selected->length);
+            $this->assertSame((string)($selectedId ?? $earlySegmentId), $selected->item(0)->getAttribute('value'));
+        }
 
         foreach (['full', 'heralds'] as $version) {
             $this->get('/awards/court-agendas/print-agenda/' . $agenda->id . '?version=' . $version);
@@ -465,6 +496,17 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
         $this->assertSame(100, $segments->find()->where([
             'gathering_scheduled_activity_id' => $early->id,
         ])->firstOrFail()->sort_order);
+
+        $late->start_datetime = $early->start_datetime->subHours(1);
+        $late->end_datetime = $early->start_datetime;
+        $sessions->saveOrFail($late);
+        $this->get($builderUrl);
+        $this->assertResponseOk();
+        $dom = new DOMDocument();
+        $dom->loadHTML((string)$this->_response->getBody(), LIBXML_NOERROR | LIBXML_NOWARNING);
+        $options = (new DOMXPath($dom))->query('//select[@id="court-agenda-segment"]/option');
+        $this->assertSame((string)$lateSegmentId, $options->item(0)->getAttribute('value'));
+        $this->assertSame((string)$earlySegmentId, $options->item(1)->getAttribute('value'));
     }
 
     /** @return void */

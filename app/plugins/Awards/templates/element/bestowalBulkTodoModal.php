@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Bestowal bulk "Complete Check" modal.
@@ -68,6 +69,19 @@ $currentPage = $this->request->getRequestTarget();
                     <p class="form-text" id="<?= h($modalId) ?>OutcomeHelp">
                         <?= __('Choose an outcome supported by every matching selected bestowal. '
                             . 'If none are shared, complete the bestowals individually.') ?>
+                    </p>
+                </div>
+                <div class="mt-3" data-awards-bestowal-bulk-todo-target="courtSection" hidden>
+                    <label for="<?= h($modalId) ?>Court" class="form-label"><?= __('Court Assignment') ?></label>
+                    <select id="<?= h($modalId) ?>Court" class="form-select"
+                        name="gathering_scheduled_activity_id" disabled
+                        data-awards-bestowal-bulk-todo-target="courtSelect"
+                        data-action="change->awards-bestowal-bulk-todo#updateSubmitState"
+                        aria-describedby="<?= h($modalId) ?>CourtHelp"></select>
+                    <p class="form-text" id="<?= h($modalId) ?>CourtHelp">
+                        <?= __('Courts appear in schedule order. Only assignments shared by the matching selected '
+                            . 'bestowals are shown, with Roaming Court last. If no choices are shared, '
+                            . 'complete the bestowals individually.') ?>
                     </p>
                 </div>
                 <div class="mt-3" data-awards-bestowal-bulk-todo-target="gatheringSection" hidden>

@@ -14,6 +14,27 @@ use Migrations\Migration\Environment;
 
 class GatheringActivitySeedServiceTest extends BaseTestCase
 {
+    public function testOtherActivityRenamePreservesExistingRecordAndSettings(): void
+    {
+        $catalogue = $this->getTableLocator()->get('GatheringActivities');
+        $service = new GatheringActivitySeedService($this->getTableLocator());
+        $ids = $service->seed();
+        $activity = $catalogue->get($ids['Other Activity']);
+        $activity->name = 'Other Gathering';
+        $activity->description = 'Keep configured details';
+        $activity->icon_name = 'archery';
+        $activity->display_order = 777;
+        $catalogue->saveOrFail($activity);
+
+        $this->assertSame($ids, $service->seed());
+        $renamed = $catalogue->get($activity->id);
+        $this->assertSame('Other Activity', $renamed->name);
+        $this->assertSame('Keep configured details', $renamed->description);
+        $this->assertSame('archery', $renamed->icon_name);
+        $this->assertSame(777, $renamed->display_order);
+        $this->assertSame($ids, $service->seed());
+    }
+
     public function testSeedColorsAreReadableAndExplicitRefreshPreservesOtherSettings(): void
     {
         $tables = $this->getTableLocator();
@@ -203,8 +224,8 @@ class GatheringActivitySeedServiceTest extends BaseTestCase
         $service = new GatheringActivitySeedService($tables);
         $ids = $service->seed();
         $this->assertSame($normal->id, $ids['Armored Combat']);
-        $this->assertSame($rename->id, $ids['Other Gathering']);
-        $this->assertSame('Other Gathering', $catalogue->get($rename->id)->name);
+        $this->assertSame($rename->id, $ids['Other Activity']);
+        $this->assertSame('Other Activity', $catalogue->get($rename->id)->name);
         $this->assertSame('archery', $catalogue->get($normal->id)->icon_name);
         $this->assertSame(777, $catalogue->get($normal->id)->display_order);
         $this->assertSame('Retain configured description', $catalogue->get($normal->id)->description);

@@ -20,6 +20,8 @@ class AwardsBestowalBulkTodo extends Controller {
         "gatheringControl",
         "gatheringHelp",
         "includePast",
+        "courtSection",
+        "courtSelect",
     ];
     static values = {
         lookupUrl: String,
@@ -193,6 +195,7 @@ class AwardsBestowalBulkTodo extends Controller {
         }
         this.populateCheckOptions();
         this.populateOutcomeOptions(null);
+        this.populateCourtOptions(null);
         this.resetGathering();
         this.toggleGatheringSection(false);
         this.updateSubmitState();
@@ -223,6 +226,8 @@ class AwardsBestowalBulkTodo extends Controller {
                         key: option.key,
                         label: option.label || option.key,
                         requiresGathering: option.requiresGathering === true,
+                        requiresCourt: false,
+                        courtOptions: null,
                         gatheringHelp: option.gatheringHelp || "",
                         isTerminal: option.isTerminal === true,
                         terminalOutcomes: null,
@@ -230,6 +235,12 @@ class AwardsBestowalBulkTodo extends Controller {
                     });
                 }
                 const existing = options.get(option.key);
+                if (option.requiresCourt === true) {
+                    existing.requiresCourt = true;
+                    const courts = Array.isArray(option.courtOptions) ? option.courtOptions : [];
+                    existing.courtOptions = existing.courtOptions === null ? courts
+                        : existing.courtOptions.filter(([value]) => courts.some(([other]) => String(value) === String(other)));
+                }
                 existing.isTerminal ||= option.isTerminal === true;
                 if (option.isTerminal) {
                     const outcomes = option.terminalOutcomes || {};
@@ -283,6 +294,7 @@ class AwardsBestowalBulkTodo extends Controller {
         this.resetGathering();
         const option = this.selectedOption();
         this.populateOutcomeOptions(option);
+        this.populateCourtOptions(option);
         this.toggleGatheringSection(option?.requiresGathering === true);
         if (option?.requiresGathering === true) {
             this.updateLookupUrl(option.applicableIds);
@@ -318,6 +330,19 @@ class AwardsBestowalBulkTodo extends Controller {
         this.outcomeSelectTarget.replaceChildren(new Option("Choose a completion outcome", ""));
         Object.entries(option?.terminalOutcomes || {}).forEach(([value, label]) => {
             this.outcomeSelectTarget.appendChild(new Option(label, value));
+        });
+    }
+
+    /** Keep the server's schedule order while limiting choices to shared eligible courts. */
+    populateCourtOptions(option) {
+        if (!this.hasCourtSelectTarget) return;
+        const show = option?.requiresCourt === true;
+        if (this.hasCourtSectionTarget) this.courtSectionTarget.hidden = !show;
+        this.courtSelectTarget.disabled = !show;
+        this.courtSelectTarget.required = show;
+        this.courtSelectTarget.replaceChildren(new Option("Choose a court assignment", ""));
+        (option?.courtOptions || []).forEach(([value, label]) => {
+            this.courtSelectTarget.appendChild(new Option(String(label), String(value)));
         });
     }
 
@@ -393,6 +418,7 @@ class AwardsBestowalBulkTodo extends Controller {
         this.submitTarget.disabled = !hasIds
             || selectedOption === null
             || (selectedOption?.isTerminal && this.hasOutcomeSelectTarget && !this.outcomeSelectTarget.value)
+            || (selectedOption?.requiresCourt && (!this.hasCourtSelectTarget || !this.courtSelectTarget.value))
             || (selectedOption.requiresGathering === true && gatheringId === "");
     }
 }
