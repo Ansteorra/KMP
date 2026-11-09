@@ -2252,17 +2252,11 @@ class GridViewController extends Controller {
 
         const currentSort = this.state.sort
 
-        // Cycle through: none -> asc -> desc -> none
-        let direction = null
-        if (!currentSort || currentSort.field !== field) {
-            direction = 'asc'
-        } else if (currentSort.direction === 'asc') {
-            direction = 'desc'
-        }
-        // else direction stays null (clear sort)
+        // Reverse the active direction, including the grid's initial default sort.
+        const direction = currentSort?.field === field && currentSort.direction === 'asc' ? 'desc' : 'asc'
 
         const updates = {
-            sort: direction ? field : null,
+            sort: field,
             direction: direction
         }
 

@@ -118,13 +118,9 @@ class GatheringActivitiesController extends AppController
         $result = $this->processDataverseGrid([
             'gridKey' => 'GatheringActivities.index.main',
             'gridColumnsClass' => GatheringActivitiesGridColumns::class,
-            'baseQuery' => $this->GatheringActivities->find()
-                ->orderBy([GatheringActivityOrderingService::queryPriority()]),
+            'baseQuery' => $this->GatheringActivities->find(),
             'tableName' => 'GatheringActivities',
-            'defaultSort' => [
-                'GatheringActivities.display_order' => 'asc',
-                'GatheringActivities.name' => 'asc', 'GatheringActivities.id' => 'asc',
-            ],
+            'defaultSort' => GatheringActivityOrderingService::queryOrder(),
             'defaultPageSize' => 25,
             'showAllTab' => false,
             'canAddViews' => false,

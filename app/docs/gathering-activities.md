@@ -167,6 +167,12 @@ the activity grid. It is a nonnegative integer (default **100**). Activity lists
 these groups, lower display orders appear first; ties sort alphabetically, then by ID.
 This applies to calendars, event and template details, award associations, selectors, and
 the default activity grid. Public calendar filters retain their Activity Type sections.
+In admin grids, selecting a column sort replaces the default activity grouping and display
+order. The selected column and direction control the results, including saved-view sorts.
+Grid headers show the default sort direction on first load. Inactive sortable columns show
+both arrows; the active column shows a single arrow. Clicking the active header reverses
+its direction, and another column starts ascending. Header labels and arrows stay on one
+line, with horizontal scrolling available in the table region on narrow screens.
 
 `GatheringActivityOrderingService` owns the shared comparator and SQL order. The
 `forDisplay` finder orders catalog queries; `OrderedGatheringActivitiesTrait` orders loaded

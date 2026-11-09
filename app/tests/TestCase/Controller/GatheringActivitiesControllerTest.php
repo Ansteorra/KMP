@@ -82,6 +82,63 @@ class GatheringActivitiesControllerTest extends HttpIntegrationTestCase
         $this->assertSame(['Youth', 'Court'], $types);
     }
 
+    public function testGridColumnSortOverridesActivityGroupingAndDisplayOrder(): void
+    {
+        $table = $this->getTableLocator()->get('GatheringActivities');
+        $fixtures = [
+            ['name' => 'Admin sorting fixture A', 'activity_type' => 'General', 'display_order' => 30],
+            ['name' => 'Admin sorting fixture B', 'activity_type' => 'Royal Progress', 'display_order' => 40],
+            ['name' => 'Admin sorting fixture C', 'activity_type' => 'Order Circle', 'display_order' => 10],
+            ['name' => 'Admin sorting fixture Z', 'activity_type' => 'Court', 'display_order' => 20],
+        ];
+        foreach ($fixtures as $data) {
+            $table->saveOrFail($table->newEntity($data));
+        }
+        $url = '/gathering-activities/grid-data?search=Admin%20sorting%20fixture';
+        foreach (['name', 'activity_type', 'display_order'] as $field) {
+            $expected = array_column($fixtures, $field);
+            sort($expected);
+            foreach (['asc', 'desc'] as $direction) {
+                $this->configRequest(['headers' => ['Turbo-Frame' => 'gathering-activities-grid-table']]);
+                $this->get($url . '&sort=' . $field . '&direction=' . $direction);
+                $this->assertResponseOk();
+                $rows = iterator_to_array($this->viewVariable('gatheringActivities'));
+                $this->assertSame(
+                    $direction === 'asc' ? $expected : array_reverse($expected),
+                    array_column($rows, $field),
+                    $field . ' ' . $direction,
+                );
+                $this->assertSame(['field' => $field, 'direction' => $direction], $this->viewVariable('currentSort'));
+                $this->assertResponseContains('aria-sort="' . ($direction === 'asc' ? 'ascending' : 'descending') . '"');
+            }
+        }
+
+        $this->get($url);
+        $this->assertResponseOk();
+        $rows = iterator_to_array($this->viewVariable('gatheringActivities'));
+        $this->assertSame([
+            'Admin sorting fixture B', 'Admin sorting fixture C',
+            'Admin sorting fixture Z', 'Admin sorting fixture A',
+        ], array_column($rows, 'name'));
+
+        $views = $this->getTableLocator()->get('GridViews');
+        $view = $views->saveOrFail($views->newEntity([
+            'grid_key' => 'GatheringActivities.index.main',
+            'member_id' => self::ADMIN_MEMBER_ID,
+            'name' => 'Activities by name',
+            'config' => json_encode(['sort' => [['field' => 'name', 'direction' => 'desc']]]),
+        ]));
+        $this->get($url . '&view_id=' . $view->id);
+        $this->assertResponseOk();
+        $rows = iterator_to_array($this->viewVariable('gatheringActivities'));
+        $this->assertSame(array_reverse(array_column($fixtures, 'name')), array_column($rows, 'name'));
+
+        $this->get($url . '&view_id=' . $view->id . '&sort=name&direction=asc');
+        $this->assertResponseOk();
+        $rows = iterator_to_array($this->viewVariable('gatheringActivities'));
+        $this->assertSame(array_column($fixtures, 'name'), array_column($rows, 'name'));
+    }
+
     public function testModalSavesRefreshTheGridAndPreserveItsContext(): void
     {
         $headers = ['Accept' => 'text/vnd.turbo-stream.html', 'X-Requested-With' => 'XMLHttpRequest'];

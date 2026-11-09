@@ -115,7 +115,7 @@ $totalColumns = max(1, count($visibleColumns) + ($showActionsColumn ? 1 : 0) + (
     aria-label="<?= h(__('{0}. Scroll horizontally to compare columns.', $tableLabel)) ?>">
     <table class="table table-striped table-hover" data-<?= h($controllerName) ?>-target="gridTable">
         <caption class="visually-hidden"><?= h($tableLabel) ?></caption>
-        <thead class="table-light">
+        <thead class="table-light text-nowrap">
             <tr>
                 <?php if ($enableBulkSelection) : ?>
                     <th scope="col" style="width: 40px; text-align: center;">
@@ -164,7 +164,7 @@ $totalColumns = max(1, count($visibleColumns) + ($showActionsColumn ? 1 : 0) + (
                                         <kmp-icon name="caret-down"  aria-hidden="true"></kmp-icon>
                                     <?php endif; ?>
                                 <?php else : ?>
-                                    <kmp-icon name="caret-down" class="text-muted" aria-hidden="true"></kmp-icon>
+                                    <kmp-icon name="caret-up-down" class="text-muted" aria-hidden="true"></kmp-icon>
                                 <?php endif; ?>
                             </span>
                             </button>
@@ -235,9 +235,11 @@ $totalColumns = max(1, count($visibleColumns) + ($showActionsColumn ? 1 : 0) + (
     }
 
     .dataverse-sort-button {
+        display: inline-flex;
+        align-items: center;
         font: inherit;
         text-align: inherit;
-        white-space: normal;
+        white-space: nowrap;
     }
 
     .sortable-header:hover {
@@ -250,6 +252,7 @@ $totalColumns = max(1, count($visibleColumns) + ($showActionsColumn ? 1 : 0) + (
     }
 
     .sort-indicator {
+        flex-shrink: 0;
         font-size: 0.875rem;
     }
 </style>

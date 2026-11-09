@@ -38,7 +38,8 @@ class GatheringActivitySeedService
         '[Calendar Demo] Bardic' => 'Bardic',
         '[Calendar Demo] Youth Activities' => 'Youth Armored Combat',
         '[Calendar Demo] Feast' => 'Feast',
-        '[Calendar Demo] Other Gathering' => 'Other Gathering',
+        'Other Gathering' => 'Other Activity',
+        '[Calendar Demo] Other Gathering' => 'Other Activity',
         '[Local icon test] Archery' => 'Target Archery',
         '[Local icon test] Armored Combat' => 'Armored Combat',
         '[Local icon test] Royal Court' => 'Kingdom Court',
@@ -106,7 +107,7 @@ class GatheringActivitySeedService
             'Youth Rapier Combat' => ['Youth', 'fencing', 61, 'teal'],
             'Feast' => ['General', 'shared-feast', 70, 'amber'],
             'Guild Meeting' => ['General', 'round-table', 71, 'purple'],
-            'Other Gathering' => ['Other', 'encampment', 80, 'slate'],
+            'Other Activity' => ['Other', 'encampment', 80, 'slate'],
         ];
         $definitions = [];
         foreach ($rows as $name => [$type, $icon, $order, $palette]) {
@@ -156,8 +157,10 @@ class GatheringActivitySeedService
                         if ($canonical === $name && isset($existing[strtolower($legacy)])) {
                             $activity = $existing[strtolower($legacy)];
                             $activity->name = $name;
-                            $activity->description = '';
-                            $activity->activity_type = $defaults['activity_type'];
+                            if (str_starts_with($legacy, '[')) {
+                                $activity->description = '';
+                                $activity->activity_type = $defaults['activity_type'];
+                            }
                             break;
                         }
                     }

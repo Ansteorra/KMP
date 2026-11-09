@@ -399,6 +399,23 @@ describe('GridViewController', () => {
         expect(controller.paginationFocusPending).toBeNull();
     });
 
+    test.each([
+        [{}, 'asc'],
+        [{ field: 'name', direction: 'asc' }, 'desc'],
+        [{ field: 'name', direction: 'desc' }, 'asc'],
+        [{ field: 'created', direction: 'desc' }, 'asc'],
+    ])('clicking a header reverses its active sort or starts ascending: %j', (sort, direction) => {
+        const button = document.createElement('button');
+        button.dataset.columnKey = 'name';
+        controller.state = { sort, view: {} };
+        controller.buildUrl = jest.fn(() => '/members?sort=name');
+        controller.navigate = jest.fn();
+
+        controller.applySort({ currentTarget: button });
+
+        expect(controller.buildUrl).toHaveBeenCalledWith({ sort: 'name', direction });
+    });
+
     test('sorting restores the focused header after replacement but preserves a subsequent toolbar focus', () => {
         const frame = controller.element.querySelector('turbo-frame');
         frame.innerHTML = '<table><thead><tr><th><button data-column-key="name">Name</button></th></tr></thead></table>';

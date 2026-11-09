@@ -1706,13 +1706,18 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $table = $this->getTableLocator()->get('GatheringActivities');
         $ids = [];
         foreach (['Zulu', 'Alpha', 'Beta', 'Delta', 'Echo', 'First'] as $name) {
-            $activity = $this->linkActivity($gathering, 'Priority ' . $name);
-            $activity->set('display_order', $name === 'First' ? 0 : 1);
+            $type = match ($name) {
+                'Zulu' => GatheringActivity::TYPE_ROYAL_PROGRESS,
+                'Echo' => GatheringActivity::TYPE_ORDER_CIRCLE,
+                default => GatheringActivity::TYPE_GENERAL,
+            };
+            $activity = $this->linkActivity($gathering, 'Priority ' . $name, $type);
+            $activity->set('display_order', in_array($name, ['Zulu', 'Echo'], true) ? 999 : ($name === 'First' ? 0 : 1));
             $table->saveOrFail($activity);
             $ids[$name] = $activity->id;
         }
         $this->session(['Auth' => null]);
-        $this->get('/events');
+        $this->get('/events?sort=name&direction=asc');
         $this->assertResponseOk();
         $dom = new DOMDocument();
         $previousErrors = libxml_use_internal_errors(true);
@@ -1728,11 +1733,17 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         foreach ($badges as $badge) {
             $actual[] = (int)$badge->getAttribute('data-activity-badge');
         }
-        $this->assertSame([$ids['First'], $ids['Alpha'], $ids['Beta'], $ids['Delta']], $actual);
+        $this->assertSame([$ids['Zulu'], $ids['Echo'], $ids['First'], $ids['Alpha']], $actual);
         $this->assertSame(1, $xpath->query('.//button[contains(@class,"kc-overflow")]', $row)->length);
         $this->assertStringContainsString('123 Public Road', $row->textContent);
         $panelId = $xpath->query('.//details/summary', $row)->item(0)->getAttribute('aria-controls');
         $this->assertGreaterThanOrEqual(6, $xpath->query('//tr[@id="' . $panelId . '"]//*[@data-activity-badge]')->length);
+        $detailBadges = $xpath->query('//tr[@id="' . $panelId . '"]//*[@data-activity-badge]');
+        $detailIds = array_map(static fn($badge) => (int)$badge->getAttribute('data-activity-badge'), iterator_to_array($detailBadges));
+        $this->assertSame(
+            [$ids['Zulu'], $ids['Echo'], $ids['First'], $ids['Alpha'], $ids['Beta'], $ids['Delta']],
+            array_slice($detailIds, 0, count($ids)),
+        );
         foreach ($ids as $id) {
             $this->assertSame(1, $xpath->query('//tr[@id="' . $panelId . '"]//*[@data-activity-badge="' . $id . '"]')->length);
         }
