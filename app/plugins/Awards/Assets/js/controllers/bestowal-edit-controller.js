@@ -1600,6 +1600,10 @@ class AwardsBestowalEditForm extends Controller {
             .then((data) => {
                 const enabled = data?.enabled === true;
                 const options = data?.options ?? {};
+                // Numeric object keys enumerate by ID; the server supplies schedule order separately.
+                const entries = Array.isArray(data?.optionOrder)
+                    ? data.optionOrder.map((id) => [String(id), options[id]])
+                    : Object.entries(options);
                 this._courtSlotsAvailable = enabled;
                 if (this.hasCourtSlotNoScheduleTarget) {
                     const hasScheduled = data?.hasScheduledSessions === true;
@@ -1619,7 +1623,7 @@ class AwardsBestowalEditForm extends Controller {
                 if (this.hasCourtSlotTarget) {
                     this.replaceSelectOptions(
                         this.courtSlotTarget,
-                        Object.entries(options),
+                        entries,
                         currentValue,
                     );
                 }

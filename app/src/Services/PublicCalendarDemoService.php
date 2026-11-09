@@ -69,7 +69,7 @@ class PublicCalendarDemoService
                     'Bardic', 'Feast', 'Youth Armored Combat',
                 ]],
                 'guild-classes' => ['Guild Business & Classes', 35, 2, [
-                    'Guild Meeting', 'Arts & Sciences Class', 'Bardic', 'Other Gathering', 'Gate',
+                    'Guild Meeting', 'Arts & Sciences Class', 'Bardic', 'Other Activity', 'Gate',
                 ]],
                 'youth-family' => ['Youth & Family Day', 49, 2, [
                     'Youth Armored Combat', 'Feast', 'Arts & Sciences Class',

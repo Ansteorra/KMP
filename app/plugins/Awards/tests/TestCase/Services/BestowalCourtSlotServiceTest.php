@@ -29,7 +29,7 @@ class BestowalCourtSlotServiceTest extends TestCase
     /**
      * @return void
      */
-    public function testBuildOptionsIncludesRoamingCourtFirst(): void
+    public function testBuildOptionsIncludesRoamingCourtWhenNoSessionsExist(): void
     {
         $service = new BestowalCourtSlotService();
         $options = $service->buildOptions(999999);

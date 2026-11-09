@@ -188,6 +188,7 @@ class BestowalTodoCompletionFormProvider implements
                         'label' => __('Court Assignment'),
                         'required' => true,
                         'options' => $options,
+                        'optionOrder' => array_keys($options),
                         'value' => $currentValue,
                         'help' => __(
                             'Choose Roaming Court, or choose a scheduled court activity that can give this award.',
