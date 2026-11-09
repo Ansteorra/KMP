@@ -79,6 +79,29 @@ describe('My To-Dos completion modal', () => {
         expect(data.has('bestowal_gathering_id')).toBe(false);
     });
 
+    test.each(['90', '12', 'roaming', ''])(
+        'court choices retain schedule order and selected value %s after metadata is serialized',
+        value => {
+            open({ fields: [{
+                type: 'select', value,
+                options: { 12: 'Later Court', 90: 'Earlier <Court>', 91: 'Simultaneous Court', roaming: 'Roaming Court' },
+                optionOrder: [90, 91, 12, 'roaming'],
+            }] });
+
+            const select = target('courtSlotSelect');
+            expect(Array.from(select.options, option => option.value)).toEqual(['', '90', '91', '12', 'roaming']);
+            expect(select.value).toBe(value);
+            expect(select.options[1].textContent).toBe('Earlier <Court>');
+            expect(select.querySelector('court')).toBeNull();
+            select.focus();
+            expect(document.activeElement).toBe(select);
+            if (value) {
+                expect(form.checkValidity()).toBe(true);
+                expect(new FormData(form).get('gathering_scheduled_activity_id')).toBe(value);
+            }
+        },
+    );
+
     test('switching from scheduling to agenda clears the gathering and preserves form validity', () => {
         open({ fields: [{ ...eventForm.fields[0], selection: { value: '7', text: 'Event' } }] });
         expect(new FormData(form).get('bestowal_gathering_id')).toBe('7');

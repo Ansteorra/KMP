@@ -81,11 +81,25 @@ screens. Court scheduling help is available as a disclosure above the script. Th
 controls preserve the existing agenda and bestowal permissions; ordering never completes
 a bestowal.
 
-Both printer-ready agenda versions (including browser PDF exports) order court
-sections by their scheduled start time, earliest
-first across the entire event. Simultaneous sessions retain their existing order;
+The agenda builder's court selector and placement options, as well as both
+printer-ready versions (including browser PDF exports), order court sections by their
+scheduled start time, earliest first across the entire event. Simultaneous sessions retain their existing order;
 unscheduled and roaming sections follow scheduled sessions in their existing order.
-This changes only export presentation, preserving saved section and script-item order.
+This changes presentation only, preserving saved section and script-item order.
+The builder selects the earliest court by default and retains an explicitly selected court.
+Bestowal creation, edit, and court-assignment forms also list scheduled sessions
+chronologically, followed by Roaming Court. Refreshed choices preserve this order
+and the selected court; the JSON response includes an explicit option order so
+numeric record IDs cannot reorder the choices in the browser.
+This also applies to the bestowal checklist and the My To-Dos completion dialog;
+court requirement metadata carries the same explicit option order.
+The grid's quick To-Dos dialog uses that same checklist ordering. Core gathering
+schedule lists (including the public view) and the shared `ordered`/`byGathering`
+scheduled-activity finders use start time, then record ID for simultaneous sessions.
+The bulk **Complete a Check** dialog offers a court picker for court-required checks.
+It preserves schedule order while showing only assignments shared by the matching
+selected bestowals, with Roaming Court last. The existing per-bestowal assignment
+authorization, eligibility, and scheduling prerequisites are rechecked on submission.
 The printouts show the event date range, each scheduled court's local date as
 `MM/DD/YYYY`, and its current scheduled start
 and end times together in each court heading, with timezone abbreviations and no

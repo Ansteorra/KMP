@@ -418,6 +418,20 @@ class CourtAgendaService
                 'CourtAgendaItems',
             ],
         ]);
+        $orderedSegments = $agenda->court_agenda_segments ?? [];
+        usort($orderedSegments, static function (CourtAgendaSegment $left, CourtAgendaSegment $right): int {
+            $leftStart = $left->gathering_scheduled_activity?->start_datetime;
+            $rightStart = $right->gathering_scheduled_activity?->start_datetime;
+            if ($leftStart === null) {
+                return $rightStart === null ? 0 : 1;
+            }
+            if ($rightStart === null) {
+                return -1;
+            }
+
+            return $leftStart->getTimestamp() <=> $rightStart->getTimestamp();
+        });
+        $agenda->court_agenda_segments = $orderedSegments;
         $this->hydrateAgendaItemBestowals($agenda->court_agenda_segments ?? []);
         $placedBestowalIds = $this->placedBestowalIds($agenda->court_agenda_segments ?? []);
         $unscheduledBestowals = $this->unscheduledBestowals($agenda, $placedBestowalIds);
@@ -1409,13 +1423,9 @@ class CourtAgendaService
             return [];
         }
 
-        return $this->fetchTable('GatheringScheduledActivities')->find()
+        return $this->fetchTable('GatheringScheduledActivities')->find('ordered')
             ->where($conditions)
             ->contain(['GatheringActivities', 'Gatherings'])
-            ->orderBy([
-                'GatheringScheduledActivities.start_datetime' => 'ASC',
-                'GatheringScheduledActivities.id' => 'ASC',
-            ])
             ->all()
             ->toList();
     }

@@ -901,7 +901,16 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
         $this->authenticateAsMember(self::ADMIN_MEMBER_ID);
         $bestowal = $this->makeBestowal();
         $schedule = $this->makeScheduledCourtForAward((int)$bestowal->award_id);
+        $sessions = $this->getTableLocator()->get('GatheringScheduledActivities');
+        $earlier = $sessions->saveOrFail($sessions->newEntity([
+            'gathering_id' => $schedule['gathering']->id,
+            'gathering_activity_id' => $schedule['scheduledActivity']->gathering_activity_id,
+            'start_datetime' => $schedule['scheduledActivity']->start_datetime->subHours(1),
+            'display_title' => 'Earlier Court', 'has_end_time' => false,
+            'pre_register' => false, 'is_other' => false, 'created_by' => self::ADMIN_MEMBER_ID,
+        ]));
         $bestowal->gathering_id = $schedule['gathering']->id;
+        $bestowal->gathering_scheduled_activity_id = $schedule['scheduledActivity']->id;
         TableRegistry::getTableLocator()->get('Awards.Bestowals')->saveOrFail($bestowal);
         $this->makeMemberItem(self::ADMIN_MEMBER_ID, [
             'entity_id' => (int)$bestowal->id,
@@ -926,6 +935,10 @@ class ActionItemsControllerTest extends HttpIntegrationTestCase
         $this->assertSame('gathering_scheduled_activity_id', $completionForm['fields'][0]['name'] ?? null);
         $this->assertArrayHasKey('roaming', $completionForm['fields'][0]['options'] ?? []);
         $this->assertArrayHasKey((string)$schedule['scheduledActivity']->id, $completionForm['fields'][0]['options'] ?? []);
+        $this->assertSame([
+            (int)$earlier->id, (int)$schedule['scheduledActivity']->id, 'roaming',
+        ], $completionForm['fields'][0]['optionOrder']);
+        $this->assertSame((int)$schedule['scheduledActivity']->id, $completionForm['fields'][0]['value']);
     }
 
     public function testMyTasksAgendaFormExplainsMissingSchedulingPrerequisite(): void

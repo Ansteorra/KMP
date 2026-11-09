@@ -435,8 +435,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const options = field.options && typeof field.options === 'object' ? field.options : {};
+        const entries = Array.isArray(field.optionOrder)
+            ? field.optionOrder.map(value => [String(value), options[value]])
+            : Object.entries(options);
         select.replaceChildren(new Option('<?= __('Choose a court assignment') ?>', ''));
-        Object.entries(options).forEach(([value, label]) => {
+        entries.forEach(([value, label]) => {
             select.appendChild(new Option(String(label), String(value)));
         });
         select.value = field.value !== null && field.value !== undefined ? String(field.value) : '';

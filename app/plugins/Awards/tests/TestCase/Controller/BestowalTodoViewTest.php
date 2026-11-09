@@ -9,6 +9,8 @@ use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
+use DOMDocument;
+use DOMXPath;
 
 /**
  * Integration tests for the Bestowal view To-Dos checklist tab.
@@ -377,6 +379,14 @@ class BestowalTodoViewTest extends HttpIntegrationTestCase
     {
         $bestowal = $this->makeBestowal();
         $schedule = $this->makeScheduledCourtForAward((int)$bestowal->award_id);
+        $sessions = $this->getTableLocator()->get('GatheringScheduledActivities');
+        $earlier = $sessions->saveOrFail($sessions->newEntity([
+            'gathering_id' => $schedule['gathering']->id,
+            'gathering_activity_id' => $schedule['scheduledActivity']->gathering_activity_id,
+            'start_datetime' => $schedule['scheduledActivity']->start_datetime->subHours(1),
+            'display_title' => 'Earlier Court', 'has_end_time' => false,
+            'pre_register' => false, 'is_other' => false, 'created_by' => self::ADMIN_MEMBER_ID,
+        ]));
         $bestowal->gathering_id = $schedule['gathering']->id;
         TableRegistry::getTableLocator()->get('Awards.Bestowals')->saveOrFail($bestowal);
         $this->makeTodo((int)$bestowal->id, [
@@ -398,6 +408,22 @@ class BestowalTodoViewTest extends HttpIntegrationTestCase
         $this->assertResponseContains('Assign Court and Complete');
         $this->assertResponseContains('Roaming Court');
         $this->assertResponseContains('Evening Court');
+        $dom = new DOMDocument();
+        $dom->loadHTML((string)$this->_response->getBody(), LIBXML_NOERROR | LIBXML_NOWARNING);
+        $xpath = new DOMXPath($dom);
+        $options = $xpath->query('//select[contains(@id, "-court-slot")]/option[@value!=""]');
+        $this->assertSame([(string)$earlier->id, (string)$schedule['scheduledActivity']->id, 'roaming'], array_map(
+            static fn($option): string => $option->getAttribute('value'),
+            iterator_to_array($options),
+        ));
+        $this->get('/awards/bestowals/bestowal-todos/' . $bestowal->id);
+        $this->assertResponseOk();
+        $dom->loadHTML((string)$this->_response->getBody(), LIBXML_NOERROR | LIBXML_NOWARNING);
+        $options = (new DOMXPath($dom))->query('//select[contains(@id, "-court-slot")]/option[@value!=""]');
+        $this->assertSame([(string)$earlier->id, (string)$schedule['scheduledActivity']->id, 'roaming'], array_map(
+            static fn($option): string => $option->getAttribute('value'),
+            iterator_to_array($options),
+        ));
     }
 
     public function testAgendaSubmissionCannotBypassSchedulingOrChangeCourtPlacement(): void

@@ -7,6 +7,7 @@ use App\Controller\DataverseGridTrait;
 use App\Controller\WorkflowDispatchTrait;
 use App\KMP\GridRowDomId;
 use App\Model\Entity\ActionItem;
+use App\Services\ActionItems\ActionItemCompletionFormRegistry;
 use App\Services\ActionItems\ActionItemService;
 use App\Services\CsvExportService;
 use App\Services\IconCatalog;
@@ -751,6 +752,7 @@ class BestowalsController extends AppController
             'enabled' => $courtSlotData['available'],
             'hasScheduledSessions' => $courtSlotData['hasScheduledSessions'],
             'options' => $courtSlotData['options'],
+            'optionOrder' => array_keys($courtSlotData['options']),
             'optionDates' => $courtSlotData['optionDates'],
             'gatheringStartDate' => $courtSlotData['gatheringStartDate'],
             'helpText' => BestowalCourtSlotService::fieldHelpText(),
@@ -1199,6 +1201,10 @@ class BestowalsController extends AppController
         $gatheringId = $this->positiveIntOrNull($this->request->getData('bestowal_gathering_id'));
         if ($gatheringId !== null) {
             $completionData['bestowal_gathering_id'] = $gatheringId;
+        }
+        $courtSlot = $this->request->getData('gathering_scheduled_activity_id');
+        if (is_string($courtSlot) || is_int($courtSlot)) {
+            $completionData['gathering_scheduled_activity_id'] = $courtSlot;
         }
         if (filter_var($this->request->getData('include_past', false), FILTER_VALIDATE_BOOLEAN)) {
             $completionData['include_past'] = true;
@@ -1870,6 +1876,18 @@ class BestowalsController extends AppController
             }
 
             $bestowalId = (int)$item->entity_id;
+            if (!empty($option['requiresCourt'])) {
+                $option['courtOptions'] = [];
+                $form = ActionItemCompletionFormRegistry::formFor($item, $user);
+                foreach ($form?->fields ?? [] as $field) {
+                    if (($field['name'] ?? null) === 'gathering_scheduled_activity_id') {
+                        foreach ($field['options'] ?? [] as $value => $label) {
+                            $option['courtOptions'][] = [(string)$value, (string)$label];
+                        }
+                        break;
+                    }
+                }
+            }
             $option['isTerminal'] = (bool)$item->is_terminal;
             $option['terminalOutcomes'] = BestowalTodoTemplateItem::terminalOutcomesFor($item);
             if ($item->is_terminal && $option['terminalOutcomes'] === []) {
@@ -1946,6 +1964,7 @@ class BestowalsController extends AppController
             'key' => $key,
             'label' => (string)$item->title,
             'requiresGathering' => false,
+            'requiresCourt' => false,
             'gatheringLabel' => __('Bestowal Gathering'),
             'gatheringHelp' => __(
                 'Choose a future event or court using the same options available on the bestowal edit form.',
@@ -1954,11 +1973,14 @@ class BestowalsController extends AppController
 
         $fieldConfigs = $item->getRequiredFieldConfigs();
         $defaultConfig = BestowalTodoTemplateItem::getDefaultRequiredFieldConfigForSourceRef($item->source_ref);
-        if ($fieldConfigs === [] && $defaultConfig !== null) {
+        if ($fieldConfigs === [] && !is_array($item->completion_config) && $defaultConfig !== null) {
             $fieldConfigs[] = $defaultConfig;
         }
 
         foreach ($fieldConfigs as $fieldConfig) {
+            if (($fieldConfig['field'] ?? null) === BestowalTodoTemplateItem::REQUIRED_FIELD_COURT_SLOT) {
+                $option['requiresCourt'] = true;
+            }
             if (($fieldConfig['field'] ?? null) !== BestowalTodoTemplateItem::REQUIRED_FIELD_GATHERING) {
                 continue;
             }
@@ -1966,8 +1988,6 @@ class BestowalsController extends AppController
             $option['requiresGathering'] = true;
             $option['gatheringLabel'] = (string)($fieldConfig['label'] ?? $option['gatheringLabel']);
             $option['gatheringHelp'] = (string)($fieldConfig['help'] ?? $option['gatheringHelp']);
-
-            break;
         }
 
         return $option;
@@ -1981,6 +2001,13 @@ class BestowalsController extends AppController
     private function isTodoBlockedByPrerequisite(ActionItem $item, array $siblingItems): bool
     {
         if ($item->is_terminal || (string)$item->source_ref !== BestowalTodoTemplateItem::ITEM_KEY_ADDED_TO_AGENDA) {
+            return false;
+        }
+        $courtRequirements = array_filter(
+            $item->getRequiredFieldConfigs(),
+            static fn(array $field): bool => ($field['field'] ?? null) === BestowalTodoTemplateItem::REQUIRED_FIELD_COURT_SLOT,
+        );
+        if (is_array($item->completion_config) && $courtRequirements === []) {
             return false;
         }
 

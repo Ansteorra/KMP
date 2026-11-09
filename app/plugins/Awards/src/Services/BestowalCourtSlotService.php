@@ -7,7 +7,6 @@ use App\KMP\TimezoneHelper;
 use Awards\Model\Entity\Bestowal;
 use Cake\ORM\TableRegistry;
 use RuntimeException;
-use Throwable;
 
 /**
  * Court slots tie a bestowal to a scheduled activity on the gathering's Event Schedule,
@@ -65,31 +64,11 @@ class BestowalCourtSlotService
             return [];
         }
 
-        $options = [
-            self::ROAMING_COURT_VALUE => self::roamingCourtLabel(),
-        ];
-
-        $activitiesTable = TableRegistry::getTableLocator()->get('GatheringScheduledActivities');
-        $activities = $activitiesTable->find()
-            ->where(['gathering_id' => $gatheringId])
-            ->orderBy(['start_datetime' => 'ASC'])
-            ->all();
-
-        foreach ($activities as $activity) {
+        $options = [];
+        foreach ($this->fetchScheduledActivities($gatheringId, $selectedActivityId) as $activity) {
             $options[(int)$activity->id] = $this->buildActivityLabel($activity, $member);
         }
-
-        if ($selectedActivityId !== null && !isset($options[$selectedActivityId])) {
-            try {
-                $activity = $activitiesTable->get($selectedActivityId);
-                $options[$selectedActivityId] = $this->buildActivityLabel($activity, $member);
-            } catch (Throwable) {
-            }
-        }
-
-        if ($roamingCourtSelected && !isset($options[self::ROAMING_COURT_VALUE])) {
-            $options = [self::ROAMING_COURT_VALUE => self::roamingCourtLabel()] + $options;
-        }
+        $options[self::ROAMING_COURT_VALUE] = self::roamingCourtLabel();
 
         return $options;
     }
@@ -108,12 +87,11 @@ class BestowalCourtSlotService
             return [];
         }
 
-        $options = [
-            self::ROAMING_COURT_VALUE => self::roamingCourtLabel(),
-        ];
+        $options = [];
         foreach ($this->fetchEligibleScheduledActivities($bestowal) as $activity) {
             $options[(int)$activity->id] = $this->buildActivityLabel($activity, $member);
         }
+        $options[self::ROAMING_COURT_VALUE] = self::roamingCourtLabel();
 
         return $options;
     }
@@ -231,12 +209,8 @@ class BestowalCourtSlotService
 
         $activities = $this->fetchScheduledActivities($gatheringId, $selectedActivityId);
         $gatheringStartDate = $this->findGatheringStartDateYmd($gatheringId);
-        $options = [
-            self::ROAMING_COURT_VALUE => self::roamingCourtLabel(),
-        ];
-        $optionDates = [
-            self::ROAMING_COURT_VALUE => $gatheringStartDate ?? '',
-        ];
+        $options = [];
+        $optionDates = [];
 
         foreach ($activities as $activity) {
             $options[(int)$activity->id] = $this->buildActivityLabel($activity, $member);
@@ -255,10 +229,8 @@ class BestowalCourtSlotService
                 break;
             }
         }
-
-        if ($roamingCourtSelected && !isset($options[self::ROAMING_COURT_VALUE])) {
-            $options = [self::ROAMING_COURT_VALUE => self::roamingCourtLabel()] + $options;
-        }
+        $options[self::ROAMING_COURT_VALUE] = self::roamingCourtLabel();
+        $optionDates[self::ROAMING_COURT_VALUE] = $gatheringStartDate ?? '';
 
         return [
             'options' => $options,
@@ -489,13 +461,12 @@ class BestowalCourtSlotService
             return [];
         }
 
-        return TableRegistry::getTableLocator()->get('GatheringScheduledActivities')->find()
+        return TableRegistry::getTableLocator()->get('GatheringScheduledActivities')->find('ordered')
             ->select(['id', 'gathering_id', 'gathering_activity_id', 'display_title', 'start_datetime', 'end_datetime'])
             ->where([
                 'gathering_id' => $gatheringId,
                 'gathering_activity_id IN' => array_values(array_unique($allowedActivityIds)),
             ])
-            ->orderBy(['start_datetime' => 'ASC', 'id' => 'ASC'])
             ->all()
             ->toList();
     }
@@ -510,10 +481,9 @@ class BestowalCourtSlotService
         }
 
         $activitiesTable = TableRegistry::getTableLocator()->get('GatheringScheduledActivities');
-        $activities = $activitiesTable->find()
+        $activities = $activitiesTable->find('ordered')
             ->where(['gathering_id' => $gatheringId])
             ->select(['id', 'gathering_id', 'display_title', 'start_datetime', 'end_datetime'])
-            ->orderBy(['start_datetime' => 'ASC'])
             ->all()
             ->toList();
 
@@ -536,6 +506,17 @@ class BestowalCourtSlotService
                     ->first();
                 if ($selected !== null) {
                     $activities[] = $selected;
+                    usort($activities, static function (object $left, object $right): int {
+                        if ($left->start_datetime === null) {
+                            return $right->start_datetime === null ? $left->id <=> $right->id : 1;
+                        }
+                        if ($right->start_datetime === null) {
+                            return -1;
+                        }
+
+                        return $left->start_datetime->getTimestamp() <=> $right->start_datetime->getTimestamp()
+                            ?: $left->id <=> $right->id;
+                    });
                 }
             }
         }

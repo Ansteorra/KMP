@@ -123,6 +123,48 @@ describe('AwardsBestowalEditForm', () => {
         expect(controller.submitButtonTarget.disabled).toBe(false);
     });
 
+    test.each(['90', '12', 'roaming', ''])(
+        'refreshed court choices follow schedule order and keep selection %s and focus',
+        async (selectedValue) => {
+            const originalFetch = global.fetch;
+            const gathering = document.createElement('div');
+            gathering.innerHTML = '<input type="hidden" data-ac-target="hidden" value="123">';
+            const court = document.createElement('select');
+            court.innerHTML = '<option value="">Choose</option><option value="90">Earlier Court</option>'
+                + '<option value="12">Later Court</option><option value="roaming">Roaming Court</option>';
+            court.value = selectedValue;
+            controller.element.querySelector('form').append(gathering, court);
+            Object.assign(controller, {
+                planToGiveGatheringTarget: gathering, hasPlanToGiveGatheringTarget: true,
+                courtSlotTarget: court, hasCourtSlotTarget: true,
+                courtSlotsUrlValue: '/awards/bestowals/court-slots-for-gathering', hasCourtSlotsUrlValue: true,
+            });
+            controller.syncCourtSlotVisibility = jest.fn();
+            controller.isGivenState = jest.fn().mockReturnValue(false);
+            controller.updateSubmitState = jest.fn();
+            controller.checkGatheringEligibility = jest.fn();
+            court.focus();
+            global.fetch = jest.fn().mockResolvedValue({ json: async () => ({
+                enabled: true, hasScheduledSessions: true,
+                options: { 12: 'Later Court', 90: 'Earlier <Court>', roaming: 'Roaming Court' },
+                optionOrder: [90, 12, 'roaming'],
+                optionDates: { 90: '2026-10-24', 12: '2026-10-25', roaming: '2026-10-24' },
+            }) });
+            try {
+                controller.updateCourtSlots();
+                await new Promise(resolve => setTimeout(resolve, 0));
+                expect(Array.from(court.options, option => option.value)).toEqual(['', '90', '12', 'roaming']);
+                expect(court.options[1].textContent).toBe('Earlier <Court>');
+                expect(court.querySelector('court')).toBeNull();
+                expect(court.value).toBe(selectedValue);
+                expect(document.activeElement).toBe(court);
+                expect(controller._courtOptionDates['90']).toBe('2026-10-24');
+            } finally {
+                global.fetch = originalFetch;
+            }
+        },
+    );
+
     test('updateSubmitState allows an existing bestowal without a member account', () => {
         const memberId = document.createElement('input');
         memberId.type = 'hidden';
