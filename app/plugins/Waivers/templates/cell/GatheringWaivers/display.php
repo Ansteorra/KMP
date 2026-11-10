@@ -231,7 +231,7 @@ $isCancelled = $gathering->cancelled_at !== null;
                     <?= $overallStats['lost'] ?> <?= __('Lost') ?>
                 </span>
                 <?php endif; ?>
-                <span class="badge bg-warning me-1">
+                <span class="badge bg-warning text-dark me-1">
                     <?= $overallStats['pending'] ?> <?= __('Pending') ?>
                 </span>
                 <?php if ($declinedWaiverCount > 0) : ?>
