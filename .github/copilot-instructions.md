@@ -61,7 +61,7 @@ local `.env` loading. Full Playwright journeys require the complete Docker stack
 | PHPStan | `vendor/bin/phpstan analyse --no-progress` |
 | Clean API references (repository root) | `./generate_api_docs.sh` |
 
-`bin/verify.sh` runs the three PHPUnit suites, the skipped-test budget, seed snapshot contracts, Jest, Markdown and JSDoc integrity checks, a Vite development build, the Azure runtime contract, PHPCS for changed PHP files, and PHPStan. Coverage and mutation lanes are opt-in flags; Playwright remains a separate lane.
+`bin/verify.sh` runs the complete PHPUnit `all` suite (matching hosted CI), the skipped-test budget, seed snapshot contracts, Jest, Markdown and JSDoc integrity checks, a Vite development build, the Azure runtime contract, PHPCS for changed PHP files, and PHPStan. Coverage and mutation lanes are opt-in flags; Playwright remains a separate lane.
 
 Playwright lanes share the local Docker app, DB, worker, scheduler, and Mailpit containers. Run only one lane at a time; concurrent E2E lanes can race database resets, queue delivery, scheduler runs, and mailbox assertions. Use `PLAYWRIGHT_RESET_DB=0` only for targeted reruns after a lane reset has already completed.
 

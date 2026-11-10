@@ -94,9 +94,8 @@ run_check() {
 run_check "PHPUnit Tests" '
     # The Xdebug 512-frame nesting guard can abort Cake integration suites after
     # hundreds of requests even when the same suite passes in production PHP.
-    XDEBUG_MODE=off vendor/bin/phpunit --colors=always --testsuite core-unit &&
-    XDEBUG_MODE=off vendor/bin/phpunit --colors=always --testsuite core-feature &&
-    XDEBUG_MODE=off vendor/bin/phpunit --colors=always --testsuite plugins
+    # Match hosted CI, including Policy and other tests outside the targeted suites.
+    XDEBUG_MODE=off vendor/bin/phpunit --colors=always --testsuite all
 '
 
 run_check "Icon Catalog Contracts" 'npm run icons:check && npm run icons:guard'

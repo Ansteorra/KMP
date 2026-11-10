@@ -49,7 +49,7 @@ service boundary as production.
 bash bin/verify.sh
 ```
 
-The standard script runs all three PHPUnit suites, the skipped-test budget, seed snapshot
+The standard script runs the complete PHPUnit `all` suite, matching hosted CI, the skipped-test budget, seed snapshot
 contracts, documentation and icon checks, Jest, the Vite development build, the Azure runtime
 contract, PHPCS on changed PHP (including core and plugin templates), and PHPStan. It does not
 run Playwright.
@@ -115,3 +115,8 @@ bash bin/verify.sh --with-mutation
 
 Do not record test counts or timing estimates in maintained documentation; both become stale
 as the suite changes.
+
+The targeted `core-unit`, `core-feature`, and `plugins` suites are useful for focused
+checks, but do not include every directory under `tests/TestCase` (including `Policy`).
+Use `--testsuite all` for the complete regression gate. Test cleanup must restore an
+absent optional datasource as absent and always run the parent transaction cleanup.

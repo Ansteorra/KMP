@@ -67,15 +67,20 @@ class TenantHostCachePostgresTest extends BaseTestCase
 
     protected function tearDown(): void
     {
-        if ($this->platformConnection->inTransaction()) {
-            $this->platformConnection->rollback();
+        try {
+            if ($this->platformConnection->inTransaction()) {
+                $this->platformConnection->rollback();
+            }
+            TenantHostResolver::clearCache();
+            $this->reader->getDriver()->disconnect();
+            ConnectionManager::drop('platform');
+            if ($this->previousPlatformConfig !== null) {
+                ConnectionManager::setConfig('platform', $this->previousPlatformConfig);
+            }
+            $this->schemaAdmin->execute('DROP SCHEMA ' . $this->schemaName . ' CASCADE');
+        } finally {
+            parent::tearDown();
         }
-        TenantHostResolver::clearCache();
-        $this->reader->getDriver()->disconnect();
-        ConnectionManager::drop('platform');
-        ConnectionManager::setConfig('platform', $this->previousPlatformConfig);
-        $this->schemaAdmin->execute('DROP SCHEMA ' . $this->schemaName . ' CASCADE');
-        parent::tearDown();
     }
 
     public function testSuspensionInvalidatesOnlyAfterTheRealOuterCommit(): void

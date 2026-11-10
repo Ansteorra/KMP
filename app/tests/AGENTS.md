@@ -13,7 +13,8 @@ Own application test coverage across PHPUnit, Jest/jsdom, and Playwright BDD lan
 
 ## Local Contracts
 
-- PHPUnit suites are `core-unit`, `core-feature`, `plugins`, and `all`.
+- PHPUnit suites are `core-unit`, `core-feature`, `plugins`, and `all`. Full verification uses `all`, matching CI; targeted suites omit some directories, including `Policy`.
+- Restore absent optional datasource configurations as absent. Always run parent teardown so fixture failures cannot leak transactions into later tests.
 - Use project base test classes and seeded constants instead of raw magic IDs.
 - Use `reseedDatabase()` only for destructive tests that need a full reset.
 - PostgreSQL test database setup copies both schema and app/plugin migration histories before loading its data seed.

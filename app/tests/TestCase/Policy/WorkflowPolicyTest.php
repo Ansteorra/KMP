@@ -324,9 +324,9 @@ class WorkflowPolicyTest extends TestCase
         $this->assertTrue($result);
     }
 
-    public function testApprovalEntityPolicyAuthenticatedUserCanView(): void
+    public function testApprovalEntityPolicyCannotViewWithoutAnApprovalEntity(): void
     {
-        $this->assertTrue($this->approvalEntityPolicy->canView($this->makeRegularUser(), $this->table));
+        $this->assertFalse($this->approvalEntityPolicy->canView($this->makeRegularUser(), $this->table));
     }
 
     public function testApprovalEntityPolicyAuthenticatedUserCanIndex(): void
