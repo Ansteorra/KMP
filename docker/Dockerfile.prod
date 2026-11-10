@@ -22,7 +22,7 @@ RUN IPE_PROCESSOR_COUNT="${PHP_BUILD_JOBS}" sh /usr/local/bin/install-kmp-runtim
 # --platform=$BUILDPLATFORM: always runs on the CI runner's native arch (amd64)
 # No QEMU penalty for Node.js/Vite even in multi-platform builds.
 # =============================================================================
-FROM --platform=$BUILDPLATFORM node:26-alpine@sha256:0b36e8c136b94cd4fcf02188228e76c31ad5872eef3fec8cbd2eee500cfd9e80 AS node-builder
+FROM --platform=$BUILDPLATFORM node:26-alpine@sha256:c6ad9e9c1d80f6eb607c26b4b0a132ff7a2344fad1c78ea3baa2a7d4c8de6d94 AS node-builder
 
 ARG NPM_VERSION=11.21.1
 RUN npm install --global "npm@${NPM_VERSION}" --ignore-scripts --no-audit --no-fund \
