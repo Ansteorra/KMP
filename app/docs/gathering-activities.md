@@ -54,6 +54,20 @@ See [Event award delegation](awards-bestowal-todo-security.md#event-award-delega
   and waiver constraints continue to apply.
 - Superusers retain the shared policy framework's administrative override.
 
+**Can Manage Crown Presence** uses **Branch and Children** scope and requires current
+membership and a current warrant. The Awards migration grants it to existing roles
+holding **Crown Award Schedule Management** and adds it to existing **Crown Presence**
+activities of type **Royal Progress**. This allows Crown schedulers to attach and
+schedule Crown Presence at child-hosted events without general gathering-edit access.
+It does not grant other Royal Progress activities, Other scheduling, or private gathering
+details. Shared court scheduling permissions alone do not grant Crown Presence.
+As with other explicitly restricted activities, editor/steward status alone is insufficient.
+Existing activity rules and existing settings on an active permission of the same name
+are retained. A deleted permission requires operator resolution rather than automatic
+reactivation. Rollback is intentionally irreversible to preserve adopted grants.
+For later-created roles or differently named royal activities, configure the permission
+through the normal role and activity assignment screens.
+
 The Awards migration copies existing court delegation into these rules and removes the
 old gathering-policy grants. Court types use the same activity controls and policy as
 other types. Awards catalogue eligibility still activates award presentations and court

@@ -102,6 +102,10 @@ Own award domains, levels, recommendations, recommendation feedback approvals, b
   no separate court-only attachment or schedule authorization remains. Awards catalog eligibility still determines
   whether an activity supports award presentations and agendas. Bestowal and agenda content retains Awards permissions.
   See `app/docs/gathering-activities.md` for the shared contract.
+- Crown Presence uses the dedicated **Can Manage Crown Presence** permission with kingdom-and-child-branch scope,
+  current membership, and warrant requirements. Its migration grants existing Crown award scheduling roles and
+  maps existing Crown Presence Royal Progress activities, preserving unrelated grants and catalogue entries.
+  Shared court schedule permissions do not confer Crown Presence or other Royal Progress access.
 - Each scheduled award-giving activity occurrence has its own agenda section regardless of its name or court level.
   Builder and print preparation discover eligible sessions without requiring bestowals first. New sections reject
   ineligible activities and duplicate sessions; bestowal placement remains specific to the award/activity link.
