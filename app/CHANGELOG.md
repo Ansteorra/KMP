@@ -3,10 +3,10 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: e511adcc8a9f23ab4fff7c7957d8be3717b88a61 -->
-<!-- LAST_SYNCED_DATE: 2026-10-21 -->
+<!-- LAST_SYNCED_COMMIT: f7cb51898ee39cc5eed5f3afd2070d1434b5722f -->
+<!-- LAST_SYNCED_DATE: 2026-11-09 -->
 
-## Unreleased
+## KMP 1.5.14 — November 9, 2026
 
 - Read public events on phones in compact rows that fit the screen, with collapsible filters, larger touch controls, and single-column expanded details. Keep date ranges on one line, with the year and duration underneath.
 
@@ -16,20 +16,19 @@ Stay up to date with the latest features, improvements, and announcements for th
 - Configure a lead terminal To-Do with multiple bestowal outcomes, including Given Not Received. Authorized editors can correct a completed outcome while retaining its original completion history. Regalia permissions support renamed fields.
 - Improve court agenda preparation, ordering, editing, and printouts, including scheduled-session dates/times and the appropriate recipient, herald, and recommendation notes.
 - Keep prerequisites and gathering/court assignments synchronized across bestowal To-Dos. Improve My To-Dos, bulk completion, submitted recommendations, and saved grid context.
-- Report lost waivers from each gathering grid row. Show Lost in the type summary and standard detail view, reverse that status with retained audit history, and keep uploaded PDFs viewable and downloadable throughout.
+- Report lost waivers from each gathering grid row with a labeled Lost action beside View. Lost waivers satisfy gathering completion requirements alongside uploaded and not-required waivers, while retaining their distinct status and audit history. Reversing a loss restores any unmet requirement.
+- Close waiver collections directly with the authorized Close Waivers action. Completed losses no longer appear as missing waivers, and a declined upload followed by a loss report no longer creates a duplicate row. Existing files remain viewable and downloadable.
+- Keep the Activities tab selected after adding, removing, or editing an activity. Open Kingdom Calendar from the desktop or mobile navigation, and identify recommendation actions by their tooltips and accessible labels.
 - Use compact, spaced action buttons on waiver details and improve grid filters, saved tabs, navigation, and mobile layouts. Include an authenticated UI-pattern review showcase with fictional examples.
-
 - Match every activity configured as Royal Progress when filtering public events by Any Royal Progress, including custom royal-presence activities.
-
 - Manage Royal Progress exclusively through gathering activities. Remove Royal Progress RSVP controls, office eligibility settings, attendance-derived calendar filters and badges, and their retired database fields. Ordinary attendance and sharing preferences remain available.
-
 - Browse public events in a compact calendar with month boundaries, empty weekends, and continuing multi-week events. Select a row for details or the event name to open its public page.
 - Keep event filters visible while scrolling. Find activities by type in a wider icon picker, view choices in two columns on larger screens, and see selected activity names without reopening the picker.
 - Show Royal Progress activities first, Order Circles second, then other activities, ordered by Display Order and alphabetically within each group. Business activities remain in administrative views and are hidden from public calendars and event pages.
 - Add and edit gathering activities in a shared modal. The activity grid includes configured icons, activity types, display order, and direct View/Edit actions.
 - Add matching Order Circle icons and readable activity color palettes, with larger icons across activity displays.
-- Include current published example events hosted by a mix of local groups for development and POC review.
-- Update Symfony Filesystem and YAML to 7.4.23 for the November 4 path handling and parser denial-of-service security fixes.
+- Update dependencies with security fixes for filesystem path handling, YAML parsing, query strings, redirects, and schema validation.
+- Preserve PostgreSQL TLS settings during database readiness and migration checks.
 
 ---
 
