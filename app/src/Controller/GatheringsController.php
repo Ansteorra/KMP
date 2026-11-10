@@ -1410,7 +1410,7 @@ class GatheringsController extends AppController
 
         $this->Flash->{$result['type']}($result['message']);
 
-        return $this->redirect(['action' => 'view', $gathering->public_id]);
+        return $this->redirect(['action' => 'view', $gathering->public_id, '?' => ['tab' => 'activities']]);
     }
 
     /**
@@ -1445,7 +1445,7 @@ class GatheringsController extends AppController
                     'Cannot remove this activity because it is the last one supporting submitted waivers.',
                 ));
 
-                return $this->redirect(['action' => 'view', $gathering->public_id]);
+                return $this->redirect(['action' => 'view', $gathering->public_id, '?' => ['tab' => 'activities']]);
             }
         }
 
@@ -1456,7 +1456,7 @@ class GatheringsController extends AppController
         );
         $this->Flash->{$result['type']}($result['message']);
 
-        return $this->redirect(['action' => 'view', $gathering->public_id]);
+        return $this->redirect(['action' => 'view', $gathering->public_id, '?' => ['tab' => 'activities']]);
     }
 
     /**
@@ -1485,7 +1485,7 @@ class GatheringsController extends AppController
 
         $this->Flash->{$result['type']}($result['message']);
 
-        return $this->redirect(['action' => 'view', $gathering->public_id]);
+        return $this->redirect(['action' => 'view', $gathering->public_id, '?' => ['tab' => 'activities']]);
     }
 
     /**

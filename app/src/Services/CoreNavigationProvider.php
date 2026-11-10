@@ -207,6 +207,15 @@ class CoreNavigationProvider
             ],
             [
                 'type' => 'link',
+                'mergePath' => ['Gatherings'],
+                'label' => 'Kingdom Calendar',
+                'order' => 1,
+                'url' => ['controller' => 'Gatherings', 'action' => 'publicCalendar'],
+                'skipAuthorization' => true,
+                'icon' => 'calendar-event',
+            ],
+            [
+                'type' => 'link',
                 'mergePath' => ['Config'],
                 'label' => 'All Approvals',
                 'order' => 5,

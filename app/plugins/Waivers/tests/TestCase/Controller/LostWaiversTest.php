@@ -198,7 +198,7 @@ class LostWaiversTest extends HttpIntegrationTestCase
         $this->assertResponseCode(422);
     }
 
-    public function testLossDoesNotSatisfyComplianceOrInflateCountsAndPreservesPartialUpload(): void
+    public function testLossSatisfiesItsRequirementWithoutInflatingCountsAndPreservesPartialUpload(): void
     {
         $this->postLoss();
         $fileService = new WaiverFileService();
@@ -208,7 +208,11 @@ class LostWaiversTest extends HttpIntegrationTestCase
         $this->assertSame(0, $summary['uploaded_count']);
         $this->assertSame([], $summary['attestation_reasons']);
         $buckets = (new WaiverDashboardService())->getGatheringsWithIncompleteWaivers([self::TEST_BRANCH_LOCAL_ID], 30);
-        $this->assertContains((int)$this->gathering->id, array_map(static fn($g) => (int)$g->id, $buckets['missing']));
+        foreach ($buckets['missing'] as $gathering) {
+            if ($gathering->id === $this->gathering->id) {
+                $this->assertNotContains($type->name, $gathering->missing_waiver_names);
+            }
+        }
 
         $waivers = $this->getTableLocator()->get('Waivers.GatheringWaivers');
         $upload = $waivers->saveOrFail($waivers->newEntity([
@@ -217,6 +221,28 @@ class LostWaiversTest extends HttpIntegrationTestCase
         ]));
         $this->assertNotNull($waivers->get($upload->id));
         $this->assertSame(1, $fileService->getWaiverStatusSummary((int)$this->gathering->id, [$type])[0]['uploaded_count']);
+    }
+
+    public function testAuthorizedCloseExecutesWorkflowWithoutPriorReadyMarker(): void
+    {
+        $this->postLoss();
+        $this->assertResponseOk();
+        $closures = $this->getTableLocator()->get('Waivers.GatheringWaiverClosures');
+        $this->assertNull($closures->getClosureForGathering((int)$this->gathering->id));
+
+        $this->post('/waivers/gathering-waivers/close/' . $this->gathering->id);
+        $this->assertRedirect();
+        $this->assertTrue($closures->isGatheringClosed((int)$this->gathering->id));
+        $dashboard = new WaiverDashboardService();
+        $branches = [self::TEST_BRANCH_LOCAL_ID];
+        $this->assertNotContains((int)$this->gathering->id, array_map(
+            static fn($g) => (int)$g->id,
+            $dashboard->getGatheringsWithIncompleteWaivers($branches, 30)['missing'],
+        ));
+        $this->assertNotContains((int)$this->gathering->id, array_map(
+            static fn($g) => (int)$g->id,
+            $dashboard->getNeedingWaiversData($branches, [])['gatherings'],
+        ));
     }
 
     public function testLossRemainsVisibleAfterClosureAndNotesAreEscaped(): void
@@ -365,7 +391,13 @@ class LostWaiversTest extends HttpIntegrationTestCase
     private function assertLossActionsAreInGrid(): void
     {
         $document = new DOMDocument();
-        @$document->loadHTML((string)$this->_response->getBody());
+        $previous = libxml_use_internal_errors(true);
+        try {
+            $document->loadHTML((string)$this->_response->getBody());
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
         $xpath = new DOMXPath($document);
         $buttons = '//button[@data-bs-target="#report-lost-waiver-modal"]';
         $gridButtons = '//td[contains(@class, "actions")]' . $buttons;
@@ -380,7 +412,13 @@ class LostWaiversTest extends HttpIntegrationTestCase
     private function assertGridShowsLost(): void
     {
         $document = new DOMDocument();
-        @$document->loadHTML((string)$this->_response->getBody());
+        $previous = libxml_use_internal_errors(true);
+        try {
+            $document->loadHTML((string)$this->_response->getBody());
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
         $xpath = new DOMXPath($document);
         $this->assertSame(0, $xpath->query('//*[@id="waiver-loss-reports-heading"]')->length);
         $card = $xpath->query('//div[h6[text()="Loss regression waiver"]]')->item(0);
@@ -389,7 +427,7 @@ class LostWaiversTest extends HttpIntegrationTestCase
         $this->assertSame(0, $xpath->query('.//*[contains(@class, "display-4")]', $card)->length);
         $this->assertStringNotContainsString('waivers uploaded', $card->textContent);
         $rows = $xpath->query('//tbody/tr[td[1]/strong[text()="Loss regression waiver"]]');
-        $this->assertGreaterThan(0, $rows->length);
+        $this->assertSame(1, $rows->length, 'A declined upload must not also produce a synthetic Lost row.');
         foreach ($rows as $row) {
             $this->assertSame('Lost', trim($xpath->query('td[2]', $row)->item(0)->textContent));
             $this->assertStringContainsString('October 25, 2026', $xpath->query('td[3]', $row)->item(0)->textContent);
@@ -400,7 +438,13 @@ class LostWaiversTest extends HttpIntegrationTestCase
     private function assertSummaryUploadedCount(int $expectedCount): void
     {
         $document = new DOMDocument();
-        @$document->loadHTML((string)$this->_response->getBody());
+        $previous = libxml_use_internal_errors(true);
+        try {
+            $document->loadHTML((string)$this->_response->getBody());
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
         $xpath = new DOMXPath($document);
         $card = $xpath->query('//div[h6[text()="Loss regression waiver"]]')->item(0);
         $this->assertNotNull($card);

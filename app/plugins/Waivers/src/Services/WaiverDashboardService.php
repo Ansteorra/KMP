@@ -206,6 +206,7 @@ class WaiverDashboardService
             }
         }
 
+        $lostTypeIdsByGathering = (new GatheringWaiverSummaryService())->getLostTypeIdsByGathering($gatheringIds);
         $statsByGathering = [];
         $allWaiverTypeIds = [];
         foreach ($allGatherings as $gathering) {
@@ -222,7 +223,11 @@ class WaiverDashboardService
                 'intval',
                 array_keys($uploadedTypeIdsByGathering[$gatheringId] ?? []),
             );
-            $missingWaiverTypes = array_values(array_diff($requiredWaiverTypes, $uploadedWaiverTypes));
+            $missingWaiverTypes = array_values(array_diff(
+                $requiredWaiverTypes,
+                $uploadedWaiverTypes,
+                $lostTypeIdsByGathering[$gatheringId] ?? [],
+            ));
             if (empty($missingWaiverTypes)) {
                 continue;
             }
@@ -495,6 +500,7 @@ class WaiverDashboardService
         }
 
         $readyGatheringIds = array_keys($readyClosures);
+        $lostTypeIdsByGathering = (new GatheringWaiverSummaryService())->getLostTypeIdsByGathering($readyGatheringIds);
 
         $gatherings = $Gatherings->find()
             ->where([
@@ -549,7 +555,11 @@ class WaiverDashboardService
                         ->extract('waiver_type_id')
                         ->toArray();
 
-                    $missingWaiverTypes = array_diff($requiredWaiverTypes, $uploadedWaiverTypes);
+                    $missingWaiverTypes = array_diff(
+                        $requiredWaiverTypes,
+                        $uploadedWaiverTypes,
+                        $lostTypeIdsByGathering[$gathering->id] ?? [],
+                    );
 
                     if (!empty($missingWaiverTypes)) {
                         $WaiverTypes = TableRegistry::getTableLocator()->get('Waivers.WaiverTypes');
@@ -574,7 +584,7 @@ class WaiverDashboardService
     }
 
     /**
-     * Get gatherings that need to be closed (have waivers uploaded but not yet closed).
+     * Get open gatherings with uploads, exemptions, or active loss reports awaiting review.
      *
      * @param array $branchIds Branches to check
      * @return array Gatherings needing closure
@@ -670,6 +680,7 @@ class WaiverDashboardService
             $uploadedTypeIdsByGathering[$gid][$waiverTypeId] = true;
         }
 
+        $lostTypeIdsByGathering = (new GatheringWaiverSummaryService())->getLostTypeIdsByGathering($gatheringIds);
         $statsByGathering = [];
         $allWaiverTypeIds = [];
 
@@ -677,12 +688,16 @@ class WaiverDashboardService
             $gid = (int)$gathering->id;
             $uploadedTypeIds = array_map('intval', array_keys($uploadedTypeIdsByGathering[$gid] ?? []));
 
-            if (empty($uploadedTypeIds)) {
+            if (empty($uploadedTypeIds) && empty($lostTypeIdsByGathering[$gid])) {
                 continue;
             }
 
             $requiredTypeIds = array_map('intval', array_keys($requiredTypeIdsByGathering[$gid] ?? []));
-            $missingTypeIds = array_values(array_diff($requiredTypeIds, $uploadedTypeIds));
+            $missingTypeIds = array_values(array_diff(
+                $requiredTypeIds,
+                $uploadedTypeIds,
+                $lostTypeIdsByGathering[$gid] ?? [],
+            ));
 
             $statsByGathering[$gid] = [
                 'uploaded_type_ids' => $uploadedTypeIds,
@@ -836,22 +851,26 @@ class WaiverDashboardService
             ->orderBy(['Gatherings.start_date' => 'ASC'])
             ->all();
 
+        $lostTypeIdsByGathering = (new GatheringWaiverSummaryService())->getLostTypeIdsByGathering(
+            $gatherings->extract('id')->toList(),
+        );
         $events = [];
         foreach ($gatherings as $gathering) {
             $isClosed = in_array($gathering->id, $closedGatheringIds);
 
             $activityIds = collection($gathering->gathering_activities)->extract('id')->toArray();
-            $requiredCount = 0;
+            $requiredTypeIds = [];
             if (!empty($activityIds)) {
-                $requiredCount = $GatheringActivityWaivers->find()
+                $requiredTypeIds = $GatheringActivityWaivers->find()
                     ->where([
                         'gathering_activity_id IN' => $activityIds,
                         'deleted IS' => null,
                     ])
                     ->select(['waiver_type_id'])
                     ->distinct(['waiver_type_id'])
-                    ->count();
+                    ->all()->extract('waiver_type_id')->toList();
             }
+            $requiredCount = count($requiredTypeIds);
 
             if ($requiredCount === 0 && !$isClosed) {
                 continue;
@@ -875,7 +894,7 @@ class WaiverDashboardService
                 ])
                 ->count();
 
-            $uploadedTypeCount = $GatheringWaivers->find()
+            $uploadedTypeIds = $GatheringWaivers->find()
                 ->where([
                     'gathering_id' => $gathering->id,
                     'deleted IS' => null,
@@ -883,19 +902,23 @@ class WaiverDashboardService
                 ])
                 ->select(['waiver_type_id'])
                 ->distinct(['waiver_type_id'])
-                ->count();
+                ->all()->extract('waiver_type_id')->toList();
 
-            $pendingCount = max(0, $requiredCount - $uploadedTypeCount);
+            $pendingCount = count(array_diff(
+                $requiredTypeIds,
+                $uploadedTypeIds,
+                $lostTypeIdsByGathering[$gathering->id] ?? [],
+            ));
 
             $status = 'missing';
             $color = 'danger';
             if ($isClosed) {
                 $status = 'closed';
                 $color = 'primary';
-            } elseif ($requiredCount > 0 && $uploadedTypeCount >= $requiredCount) {
+            } elseif ($requiredCount > 0 && $pendingCount === 0) {
                 $status = 'complete';
                 $color = 'success';
-            } elseif ($uploadedTypeCount > 0) {
+            } elseif ($pendingCount < $requiredCount) {
                 $status = 'partial';
                 $color = 'warning';
             }
@@ -1007,6 +1030,7 @@ class WaiverDashboardService
         $gatheringIds = collection($allGatherings)->extract('id')->toArray();
         $gatherings = [];
         $incompleteCount = 0;
+        $lostTypeIdsByGathering = (new GatheringWaiverSummaryService())->getLostTypeIdsByGathering($gatheringIds);
 
         if (!empty($gatheringIds)) {
             // Batch 1: required waiver types per gathering
@@ -1067,7 +1091,7 @@ class WaiverDashboardService
                 }
 
                 $uploaded = $uploadedByGathering[$gid] ?? [];
-                $missing = array_diff($required, $uploaded);
+                $missing = array_diff($required, $uploaded, $lostTypeIdsByGathering[$gid] ?? []);
 
                 $gathering->has_waiver_requirements = true;
                 $gathering->is_ready_to_close = in_array($gid, $readyToCloseGatheringIds, true);

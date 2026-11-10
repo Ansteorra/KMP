@@ -57,6 +57,8 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'label' => '',
                 'icon' => 'pencil',
                 'class' => 'btn-sm btn btn-primary edit-rec',
+                'title' => 'Edit recommendation',
+                'ariaLabel' => 'Edit recommendation',
                 'modalTarget' => '#editRecommendationModal',
                 'permission' => 'edit',
                 'condition' => [
@@ -95,6 +97,8 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'label' => '',
                 'icon' => 'eye',
                 'class' => 'btn-sm btn btn-secondary',
+                'title' => 'View recommendation',
+                'ariaLabel' => 'View recommendation',
                 'permission' => 'view',
                 'url' => [
                     'plugin' => 'Awards',
@@ -134,6 +138,8 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'icon' => 'message',
                 'class' => 'btn-sm btn btn-outline-primary',
                 'modalTarget' => '#requestRecommendationFeedbackModal',
+                'title' => 'Request recommendation feedback',
+                'ariaLabel' => 'Request recommendation feedback',
                 'permission' => 'requestFeedback',
                 'dataAttributes' => [
                     'controller' => 'outlet-btn',

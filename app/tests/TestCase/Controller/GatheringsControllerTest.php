@@ -1069,7 +1069,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
             'custom_description' => 'Late-added activity that now needs waiver coverage.',
         ]);
 
-        $this->assertRedirect(['action' => 'view', $gathering->public_id]);
+        $this->assertRedirect(['action' => 'view', $gathering->public_id, '?' => ['tab' => 'activities']]);
 
         $link = $links->find()
             ->where([
@@ -1146,7 +1146,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
 
         $this->post('/gatherings/remove-activity/' . $gathering->id . '/' . $activityToRemove->id);
 
-        $this->assertRedirect(['action' => 'view', $gathering->public_id]);
+        $this->assertRedirect(['action' => 'view', $gathering->public_id, '?' => ['tab' => 'activities']]);
 
         $afterCount = $links->find()
             ->where([
@@ -1204,7 +1204,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
             'custom_description' => 'Royal Court for this gathering.',
         ]);
 
-        $this->assertRedirect(['action' => 'view', $gathering->public_id]);
+        $this->assertRedirect(['action' => 'view', $gathering->public_id, '?' => ['tab' => 'activities']]);
         $link = $this->getTableLocator()->get('GatheringsGatheringActivities')->find()
             ->where([
                 'gathering_id' => (int)$gathering->id,
