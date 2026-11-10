@@ -3,10 +3,10 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: fdbfa04bad436ea41d8bdab9a536346cbceee0e9 -->
-<!-- LAST_SYNCED_DATE: 2026-11-09 -->
+<!-- LAST_SYNCED_COMMIT: ad3c2d874411ddee0c0669a836ae8f5a28d63dd6 -->
+<!-- LAST_SYNCED_DATE: 2026-11-10 -->
 
-## KMP 1.5.14 — November 9, 2026
+## KMP 1.5.14 — November 10, 2026
 
 - Read public events on phones in compact rows that fit the screen, with collapsible filters, larger touch controls, and single-column expanded details. Keep date ranges on one line, with the year and duration underneath.
 
@@ -28,6 +28,7 @@ Stay up to date with the latest features, improvements, and announcements for th
 - Add and edit gathering activities in a shared modal. The activity grid includes configured icons, activity types, display order, and direct View/Edit actions.
 - Add matching Order Circle icons and readable activity color palettes, with larger icons across activity displays.
 - Update dependencies with security fixes for filesystem path handling, YAML parsing, query strings, redirects, and schema validation.
+- Apply additional framework and subprocess security fixes, including CakePHP 5.4.4 and Symfony Process 7.4.22. Refresh HTTP, PDF-viewer, and certificate dependencies.
 - Preserve PostgreSQL TLS settings during database readiness and migration checks.
 
 ---
