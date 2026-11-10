@@ -22,6 +22,9 @@ Own application test coverage across PHPUnit, Jest/jsdom, and Playwright BDD lan
 - Clean CI checkouts build frontend assets before PHP page tests; `verify.sh` rebuilds assets after its PHP suites and does not prepare that prerequisite.
 - Jest uses jsdom with setup in `tests/js/setup.js`; mock globals consistently.
 - Playwright reports, generated Playwright files, coverage output, and UI results are generated artifacts and should not be hand-edited.
+- Use the guarded Jest, coverage, and mutation runners. They set Node's --disable-proto=throw before Jest configuration
+  loads and propagate it to workers, mitigating the unfixed development-only deepmerge advisory GHSA-gcqx-w48m-w2h4.
+  Keep its reproduction tests active; do not suppress the advisory or treat the runtime safeguard as a patched dependency.
 
 ## Work Guidance
 

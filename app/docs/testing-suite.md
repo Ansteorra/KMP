@@ -99,6 +99,16 @@ Smoke/journey and PHP contracts retain the default Frames/Streams fallback.
 The navigation lifecycle scenario enters To-Do, approval and recommendation
 dialogs through links and checks initialization, Escape and returned focus.
 
+Jest, its coverage lanes, and Stryker run with Node's **--disable-proto=throw** option,
+including child workers. Use the npm scripts or their guarded runners rather than
+invoking the Jest binary directly. This mitigates prototype poisoning in the
+development-only deepmerge dependency used by jest-config
+([GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4)).
+There is no patched release at the time of this mitigation; the advisory remains
+open and is not excluded from dependency reports. The reproduction tests exercise
+null-prototype defaults, placeholder values, and target-owned prototype keys.
+The safeguard does not change application bundles or browser runtime behavior.
+
 Coverage and mutation checks are opt-in. Run `npm ci` first: mutation testing uses
 the locked Stryker core and Jest runner, which must be upgraded together. Dependabot
 groups `@stryker-mutator/*` updates to preserve that compatibility. Jest loads
