@@ -1034,16 +1034,16 @@
         },
         {
             "name": "dereuromark/cakephp-templating",
-            "version": "0.2.15",
+            "version": "0.2.16",
             "source": {
                 "type": "git",
                 "url": "https://github.com/dereuromark/cakephp-templating.git",
-                "reference": "6879ab2c80f34999fd7a1293b1100a4263e5eb62"
+                "reference": "141d08489d8c4c258eed928e0cdd685af387816c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/dereuromark/cakephp-templating/zipball/6879ab2c80f34999fd7a1293b1100a4263e5eb62",
-                "reference": "6879ab2c80f34999fd7a1293b1100a4263e5eb62",
+                "url": "https://api.github.com/repos/dereuromark/cakephp-templating/zipball/141d08489d8c4c258eed928e0cdd685af387816c",
+                "reference": "141d08489d8c4c258eed928e0cdd685af387816c",
                 "shasum": ""
             },
             "require": {
@@ -1051,6 +1051,7 @@
                 "php": ">=8.2"
             },
             "require-dev": {
+                "dereuromark/cakephp-i18n-lint": "^0.1.1",
                 "dereuromark/cakephp-ide-helper": "^2.0.2",
                 "ext-yaml": "*",
                 "fig-r/psr2r-sniffer": "dev-master",
@@ -1089,7 +1090,7 @@
                 "issues": "https://github.com/dereuromark/cakephp-templating/issues",
                 "source": "https://github.com/dereuromark/cakephp-templating"
             },
-            "time": "2026-10-02T12:52:23+00:00"
+            "time": "2026-10-11T17:50:46+00:00"
         },
         {
             "name": "dereuromark/cakephp-tools",
