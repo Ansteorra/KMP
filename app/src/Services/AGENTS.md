@@ -49,6 +49,9 @@ Own reusable business workflows, side effects, integrations, registries, workflo
 - Document reads and writes must not provision remote containers. Azure container lifecycle and restricted runtime grants belong to dedicated administrative provisioning; archives use independent `Backups.storage` configuration. Derived image variants use deterministic, versioned paths and bounded lazy generation after controller authorization.
 - Explicitly public artwork uses `PublicAssetService` with tenant-namespaced, immutable content keys and direct static/CDN URLs. Keep it separate from private Documents; runtime writes must not provision containers or change public access. See `app/docs/gathering-activities.md` for storage and caching requirements.
 
+- Tenant email overrides must pass `TenantMailConfigGuard` before secret lookup. Keep logical names tenant-local and mail-specific, API destinations official, and invalid stored settings fail-closed at delivery. See `app/docs/security-review-boundaries.md`.
+- Tenant host maps have a thirty-second maximum age; never cache uncommitted platform state. Invalidate lifecycle/configuration changes after the outer transaction commits.
+
 ## Work Guidance
 
 1. Search for an existing service or registry before adding a new class.

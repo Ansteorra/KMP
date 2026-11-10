@@ -158,13 +158,14 @@ $url = $fullBaseUrl . '/keepalive';
                 ) ?>
             </li>
             <li class="nav-item text-nowrap mx-1">
-                <?= $this->Html->link(
+                <?= $this->Form->postButton(
                     '<kmp-icon name="logout" aria-hidden="true"></kmp-icon> '
                     . '<span class="d-none d-lg-inline">' . h(__('Sign out')) . '</span>',
                     ['controller' => 'Members', 'action' => 'logout', 'plugin' => null],
                     [
-                        'class' => 'btn btn-outline-secondary', 'escape' => false,
+                        'class' => 'btn btn-outline-secondary', 'escapeTitle' => false,
                         'aria-label' => __('Sign out'), 'title' => __('Sign out'),
+                        'form' => ['class' => 'd-inline', 'data-turbo' => 'false'],
                     ],
                 ) ?>
             </li>

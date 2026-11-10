@@ -73,10 +73,10 @@ $navItems = [
                         ) ?>
                     <?php endforeach; ?>
                 </nav>
-                <span class="navbar-text small ms-lg-auto">
+                <div class="navbar-text small ms-lg-auto">
                     <?= h($platformAdmin['email'] ?? __('platform admin')) ?>
-                    <?= $this->Html->link(__('Logout'), ['prefix' => 'PlatformAdmin', 'controller' => 'Auth', 'action' => 'logout'], ['class' => 'link-light ms-3']) ?>
-                </span>
+                    <?= $this->Form->postButton(__('Logout'), ['prefix' => 'PlatformAdmin', 'controller' => 'Auth', 'action' => 'logout'], ['class' => 'btn btn-link link-light ms-3 p-0', 'form' => ['class' => 'd-inline', 'data-turbo' => 'false']]) ?>
+                </div>
             <?php endif; ?>
         </div>
     </header>

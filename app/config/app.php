@@ -130,11 +130,11 @@ if (!is_dir($tenantHostMapCachePath)) {
 $tenantHostMapCacheConfig = $cacheEngine === RedisEngine::class
     ? $redisConfig + [
         "className" => RedisEngine::class,
-        "duration" => "+999 days",
+        "duration" => "+30 seconds",
     ]
     : [
         "className" => FileEngine::class,
-        "duration" => "+999 days",
+        "duration" => "+30 seconds",
         "path" => $tenantHostMapCachePath,
     ];
 $restoreStatusCacheConfig = $cacheEngine === RedisEngine::class

@@ -3,6 +3,17 @@
 Remediation register for the authorized 2026-09-05 review and security PR. Code verification
 and production rollout are separate states; this review is not certification or evidence of a breach.
 
+## November static-review follow-up
+
+The scoped 2026-11-10 fixes add entity authorization to approval details/candidate discovery,
+tenant-local mail credential and provider allowlists with fresh Platform Admin step-up,
+bounded host-map caching with after-commit invalidation, validated reverse-proxy client
+addresses, automatic Platform Admin account lockout, and POST-only logout mutations.
+GET logout displays a confirmation without ending the session. See
+[security boundary contracts and rollout prerequisites](security-review-boundaries.md).
+Turbo adoption and the broader policy/controller/plugin refactors remain separate work;
+these fixes do not change their switches or authorize deployment.
+
 ## Baseline and handling
 
 - Reviewed commit: `dcdd85a8a3e43ab2d7dbecc8d283bdc6bf9cfc2f`.

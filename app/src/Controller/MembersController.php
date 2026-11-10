@@ -2675,7 +2675,11 @@ class MembersController extends AppController
      */
     public function logout()
     {
+        $this->request->allowMethod(['get', 'post']);
         $this->Authorization->skipAuthorization();
+        if (!$this->request->is('post')) {
+            return;
+        }
         $this->Authentication->logout();
         $this->request->getSession()->delete('QuickLoginSetup');
         $this->request->getSession()->delete('Impersonation');

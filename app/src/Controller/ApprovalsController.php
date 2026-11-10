@@ -16,6 +16,7 @@ use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\WorkflowApprovalManagerInterface;
 use App\Services\WorkflowEngine\WorkflowEngineInterface;
+use Authorization\Exception\ForbiddenException;
 use Awards\Model\Entity\Bestowal;
 use Awards\Services\BestowalGatheringLookupService;
 use Awards\Services\RecommendationApprovalProcessService;
@@ -1588,7 +1589,6 @@ class ApprovalsController extends AppController
     public function approvalDetail(int $approvalId)
     {
         $this->request->allowMethod(['get']);
-        $this->Authorization->skipAuthorization();
 
         $approvalsTable = $this->fetchTable('WorkflowApprovals');
         $approval = $approvalsTable->find()
@@ -1603,6 +1603,7 @@ class ApprovalsController extends AppController
             ->first();
 
         if (!$approval) {
+            $this->Authorization->skipAuthorization();
             $this->response = $this->response
                 ->withType('application/json')
                 ->withStatus(404)
@@ -1611,6 +1612,10 @@ class ApprovalsController extends AppController
             return $this->response;
         }
 
+        $denied = $this->authorizeApprovalRead($approval, 'view');
+        if ($denied !== null) {
+            return $denied;
+        }
         $instance = $approval->workflow_instance;
         $ctx = $instance
             ? ApprovalContextRendererRegistry::render($instance)
@@ -1819,11 +1824,18 @@ class ApprovalsController extends AppController
     public function eligibleApprovers(int $approvalId)
     {
         $this->request->allowMethod(['get']);
-        $this->Authorization->skipAuthorization();
 
         $q = $this->request->getQuery('q') ?? '';
         $context = $this->request->getQuery('context') ?? '';
         $currentUser = $this->request->getAttribute('identity');
+        $approval = $this->fetchTable('WorkflowApprovals')->get($approvalId);
+        $denied = $this->authorizeApprovalRead(
+            $approval,
+            $context === 'reassign' ? 'reassignApproval' : 'eligibleApprovers',
+        );
+        if ($denied !== null) {
+            return $denied;
+        }
 
         $approvalManager = $this->getApprovalManager();
 
@@ -1867,6 +1879,18 @@ class ApprovalsController extends AppController
             ->withStringBody($html);
 
         return $this->response;
+    }
+
+    /** Keep denied API reads out of the HTML authorization redirect and debug renderer. */
+    private function authorizeApprovalRead(WorkflowApproval $approval, string $action): ?Response
+    {
+        try {
+            $this->Authorization->authorize($approval, $action);
+        } catch (ForbiddenException) {
+            return $this->jsonResponse(['error' => 'Approval access denied.'], 403);
+        }
+
+        return null;
     }
 
     /**

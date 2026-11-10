@@ -359,6 +359,9 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'email_from_name' => 'New Kingdom',
             'email_endpoint_url' => 'https://api.resend.com/emails',
             'email_api_secret_ref' => 'tenant.newkingdom.email-api-key',
+            'confirmation' => 'EMAIL newkingdom',
+            'reason' => 'Configure tenant email during onboarding.',
+            'totp' => $this->totpCode(),
             'nonce' => 'newkingdom-provision',
         ]);
 
@@ -476,6 +479,9 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'documents_blob_container' => 'documents-old',
             'documents_blob_prefix' => 'tenants/old',
             'email_mode' => 'default',
+            'confirmation' => 'EMAIL example',
+            'reason' => 'Return email delivery to the platform default.',
+            'totp' => $this->totpCode(),
         ]);
 
         $this->assertRedirectContains('/platform-admin/tenants/example');
@@ -513,6 +519,9 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'email_smtp_username' => 'mailer',
             'email_smtp_password_secret_ref' => 'tenant.example.smtp-password',
             'email_smtp_tls' => '1',
+            'confirmation' => 'EMAIL example',
+            'reason' => 'Update tenant SMTP delivery settings.',
+            'totp' => $this->totpCode(),
         ]);
 
         $this->assertRedirectContains('/platform-admin/tenants/example');
@@ -1015,9 +1024,12 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
             'email_mode' => 'sendgrid',
             'email_from_address' => 'no-reply@example.test',
             'email_from_name' => 'Example Herald',
-            'email_endpoint_url' => 'https://mail.example.test/send',
+            'email_endpoint_url' => 'https://api.sendgrid.com/v3/mail/send',
             'email_api_secret_ref' => 'tenant.example.email-api-key',
             'email_smtp_password_secret_ref' => 'tenant.example.smtp-password',
+            'confirmation' => 'EMAIL example',
+            'reason' => 'Update tenant API mail delivery settings.',
+            'totp' => $this->totpCode(),
         ]);
 
         $this->assertRedirectContains('/platform-admin/tenants/example');
@@ -1048,6 +1060,196 @@ class PlatformAdminPortalTest extends HttpIntegrationTestCase
         $this->get('http://platform.kmp.localhost/platform-admin/tenants/example/config');
 
         $this->assertRedirectContains('/platform-admin/login');
+    }
+
+    public function testEmailChangesRequireStepUpOnBothEditRoutes(): void
+    {
+        $this->enablePortal();
+        $this->loginAsPlatformAdmin();
+        $before = $this->platform()->execute('SELECT tenant_config FROM tenants WHERE slug = ?', ['example'])->fetchColumn(0);
+        foreach (['config', 'edit'] as $action) {
+            $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/' . $action, [
+                ...($action === 'edit' ? [
+                    'display_name' => 'Example', 'status' => 'active', 'primary_host' => 'example.test',
+                ] : []),
+                'email_mode' => 'smtp', 'email_smtp_host' => 'smtp.example.test', 'email_smtp_port' => '587',
+                'email_smtp_password_secret_ref' => 'tenant.example.smtp-password',
+            ]);
+            $this->assertResponseOk();
+            $this->assertResponseContains('EMAIL example');
+            $after = $this->platform()->execute('SELECT tenant_config FROM tenants WHERE slug = ?', ['example'])->fetchColumn(0);
+            $this->assertSame($before, $after);
+        }
+    }
+
+    public function testMailReferencesCannotSelectOtherTenantOrPlatformSecrets(): void
+    {
+        $this->enablePortal();
+        $this->loginAsPlatformAdmin();
+        $before = $this->platform()->execute('SELECT tenant_config FROM tenants WHERE slug = ?', ['example'])->fetchColumn(0);
+        foreach (['platform.master_kek', 'tenant.other.email-api-key', 'tenant.example.db.password', 'env://DB_PASSWORD'] as $reference) {
+            $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/config', [
+                'email_mode' => 'sendgrid', 'email_api_secret_ref' => $reference,
+            ]);
+            $this->assertResponseOk();
+            $this->assertResponseContains('approved email secret reference');
+            $this->assertSame(
+                $before,
+                $this->platform()->execute('SELECT tenant_config FROM tenants WHERE slug = ?', ['example'])->fetchColumn(0),
+            );
+        }
+    }
+
+    public function testEmailChangeRejectsInvalidAndReplayedTotpWithoutWritingConfig(): void
+    {
+        $this->enablePortal();
+        $this->loginAsPlatformAdmin();
+        $before = $this->platform()->execute('SELECT tenant_config FROM tenants WHERE slug = ?', ['example'])->fetchColumn(0);
+        $payload = [
+            'email_mode' => 'sendgrid', 'email_api_secret_ref' => 'tenant.example.email-api-key',
+            'email_from_name' => 'First authorized change',
+            'confirmation' => 'EMAIL example', 'reason' => 'Test mail change with fresh authorization',
+        ];
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/config', $payload + ['totp' => 'invalid']);
+        $this->assertResponseOk();
+        $this->assertResponseContains('MFA');
+        $this->assertSame($before, $this->platform()->execute('SELECT tenant_config FROM tenants WHERE slug = ?', ['example'])->fetchColumn(0));
+        $code = $this->totpCode();
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/config', $payload + ['totp' => $code]);
+        $this->assertRedirect();
+        $after = $this->platform()->execute('SELECT tenant_config FROM tenants WHERE slug = ?', ['example'])->fetchColumn(0);
+        $this->assertNotSame($before, $after);
+        $payload['email_from_name'] = 'Replay must not change this';
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/config', $payload + ['totp' => $code]);
+        $this->assertResponseOk();
+        $this->assertResponseContains('MFA');
+        $this->assertSame($after, $this->platform()->execute('SELECT tenant_config FROM tenants WHERE slug = ?', ['example'])->fetchColumn(0));
+        $audit = $this->platform()->execute("SELECT reason FROM audit_events WHERE action = 'tenant.config.updated'")->fetchColumn(0);
+        $this->assertSame($payload['reason'], $audit);
+    }
+
+    public function testEmailChangeRollsBackWhenItsAuditEventCannotBeRecorded(): void
+    {
+        $this->enablePortal();
+        $this->loginAsPlatformAdmin();
+        $before = $this->platform()->execute('SELECT tenant_config FROM tenants WHERE slug = ?', ['example'])->fetchColumn(0);
+        $this->platform()->execute('DROP TABLE audit_events');
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/config', [
+            'email_mode' => 'sendgrid', 'email_api_secret_ref' => 'tenant.example.email-api-key',
+            'email_from_name' => 'Change must roll back', 'confirmation' => 'EMAIL example',
+            'reason' => 'Synthetic audit failure regression', 'totp' => $this->totpCode(),
+        ]);
+        $this->assertResponseOk();
+        $this->assertResponseContains('Email delivery changes require a recorded audit event.');
+        $this->assertSame($before, $this->platform()->execute('SELECT tenant_config FROM tenants WHERE slug = ?', ['example'])->fetchColumn(0));
+    }
+
+    public function testUnchangedEmailDoesNotRequireStepUpForDocumentConfig(): void
+    {
+        $this->enablePortal();
+        $this->loginAsPlatformAdmin();
+        $this->platform()->update('tenants', ['tenant_config' => '{}'], ['slug' => 'example']);
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/example/config', [
+            'email_mode' => 'default', 'documents_blob_prefix' => 'tenants/example',
+        ]);
+        $this->assertRedirect();
+        $config = json_decode((string)$this->platform()->execute('SELECT tenant_config FROM tenants WHERE slug = ?', ['example'])->fetchColumn(0), true);
+        $this->assertSame('tenants/example', $config['documents']['blob_prefix']);
+        $this->assertArrayNotHasKey('email', $config);
+    }
+
+    public function testPlatformLogoutGetDoesNotClearSessionButCsrfProtectedPostDoes(): void
+    {
+        $this->enablePortal();
+        $this->loginAsPlatformAdmin();
+        $this->get('http://platform.kmp.localhost/platform-admin/logout');
+        $this->assertResponseOk();
+        $this->assertSession('platform-admin-1', 'PlatformAdmin.id');
+        $this->assertResponseContains('Confirm to end your current sign-in');
+        $this->post('http://platform.kmp.localhost/platform-admin/logout');
+        $this->assertRedirectContains('/platform-admin/login');
+        $this->assertSession(null, 'PlatformAdmin');
+    }
+
+    public function testPlatformLogoutWithoutCsrfIsRejected(): void
+    {
+        $this->enablePortal();
+        $this->loginAsPlatformAdmin();
+        $this->_csrfToken = false;
+        $this->post('http://platform.kmp.localhost/platform-admin/logout');
+        $this->assertResponseCode(403);
+    }
+
+    public function testPlatformAccountLockRevokesAnExistingSessionOnItsNextRequest(): void
+    {
+        $this->enablePortal();
+        $this->loginAsPlatformAdmin();
+        $this->platform()->update('platform_users', [
+            'locked_until' => gmdate('Y-m-d H:i:s', time() + 900),
+        ], ['id' => 'platform-admin-1']);
+        $this->get('http://platform.kmp.localhost/platform-admin');
+        $this->assertRedirectContains('/platform-admin/login');
+        $this->assertSession(null, 'PlatformAdmin');
+    }
+
+    public function testFailedLoginDoesNotShortenAnExistingAdministrativeLock(): void
+    {
+        $this->enablePortal();
+        $until = gmdate('Y-m-d H:i:s', time() + 7200);
+        $this->platform()->update('platform_users', [
+            'failed_login_count' => 4, 'locked_until' => $until,
+        ], ['id' => 'platform-admin-1']);
+        $this->post('http://platform.kmp.localhost/platform-admin/login', [
+            'email' => 'admin@example.org', 'password' => 'incorrect', 'totp' => $this->totpCode(),
+        ]);
+        $this->assertResponseOk();
+        $row = $this->platform()->execute("SELECT locked_until FROM platform_users WHERE id = 'platform-admin-1'")->fetch('assoc');
+        $this->assertSame($until, $row['locked_until']);
+        $this->assertSession(null, 'PlatformAdmin');
+    }
+
+    public function testPlatformAccountLocksAfterFiveFailedLogins(): void
+    {
+        $this->enablePortal();
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->post('http://platform.kmp.localhost/platform-admin/login', [
+                'email' => 'admin@example.org', 'password' => 'incorrect', 'totp' => $this->totpCode(),
+            ]);
+            $this->assertResponseOk();
+        }
+        $row = $this->platform()->execute("SELECT failed_login_count, locked_until FROM platform_users WHERE id = 'platform-admin-1'")->fetch('assoc');
+        $this->assertSame(5, (int)$row['failed_login_count']);
+        $this->assertGreaterThan(time(), strtotime($row['locked_until']));
+        $this->post('http://platform.kmp.localhost/platform-admin/login', [
+            'email' => 'admin@example.org', 'password' => 'TestPassword', 'totp' => $this->totpCode(),
+        ]);
+        $this->assertResponseOk();
+        $this->assertSession(null, 'PlatformAdmin');
+        // Expire the fixed rate-limit window and account lock without waiting fifteen minutes.
+        $this->platform()->execute('DELETE FROM security_rate_limits');
+        $this->platform()->update('platform_users', ['locked_until' => gmdate('Y-m-d H:i:s', time() - 1)], ['id' => 'platform-admin-1']);
+        $this->post('http://platform.kmp.localhost/platform-admin/login', [
+            'email' => 'admin@example.org', 'password' => 'TestPassword', 'totp' => $this->totpCode(),
+        ]);
+        $this->assertRedirect();
+        $row = $this->platform()->execute("SELECT failed_login_count, locked_until FROM platform_users WHERE id = 'platform-admin-1'")->fetch('assoc');
+        $this->assertSame(0, (int)$row['failed_login_count']);
+        $this->assertNull($row['locked_until']);
+    }
+
+    public function testNewTenantCustomEmailCannotBypassStepUp(): void
+    {
+        $this->enablePortal();
+        $this->loginAsPlatformAdmin();
+        $this->post('http://platform.kmp.localhost/platform-admin/tenants/add', [
+            'slug' => 'mailguard', 'display_name' => 'Mail Guard', 'status' => 'provisioning',
+            'region' => 'us', 'primary_host' => 'mailguard.test', 'initial_super_user_email' => 'admin@mailguard.test',
+            'db_server' => 'db.internal', 'email_mode' => 'resend',
+            'email_api_secret_ref' => 'tenant.mailguard.email-api-key',
+        ]);
+        $this->assertResponseOk();
+        $this->assertResponseContains('EMAIL mailguard');
+        $this->assertSame(0, (int)$this->platform()->execute('SELECT count(*) FROM tenants WHERE slug = ?', ['mailguard'])->fetchColumn(0));
     }
 
     public function testTenantConfigRejectsPlaintextSecretValues(): void

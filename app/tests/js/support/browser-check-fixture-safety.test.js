@@ -52,8 +52,10 @@ describe.each(scripts)('%s fixture safety', filename => {
     test.each(['launch', 'close'])('cleans synthetic records when Chromium %s fails', async failure => {
         const check = harness(filename, fixtureSource, failure);
         await check.run();
-        expect(check.runPhpJson).toHaveBeenCalledTimes(2);
-        expect(check.runPhpJson.mock.calls[1][1]).toEqual({
+        const readsRuntimeFlag = filename === 'public-gathering-attendance-browser-check.cjs';
+        expect(check.runPhpJson).toHaveBeenCalledTimes(readsRuntimeFlag ? 3 : 2);
+        if (readsRuntimeFlag) expect(check.runPhpJson.mock.calls[1][0]).toContain('TurboConfig::enabled()');
+        expect(check.runPhpJson.mock.calls.at(-1)[1]).toEqual({
             cleanup: check.fixture.id, name: check.fixture.name,
             memberId: check.fixture.memberId, email: check.fixture.email,
         });

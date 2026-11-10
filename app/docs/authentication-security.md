@@ -55,6 +55,18 @@ authentication so a connectivity check cannot destroy a valid tenant session.
 
 Counters use atomic database updates. Successful MFA releases only its own reservation; prior failures remain counted. Successful TOTP moving factors are consumed atomically in `platform_users`, across login, step-up actions and emergency recovery. A previously used code or older code cannot authorize another action. Wait for a fresh authenticator code for each sensitive action; there is no reuse grace period. Recovery codes are also consumed conditionally once.
 
+Platform accounts also lock for fifteen minutes after five recorded failed logins. The database
+increments the failure counter and sets the lock atomically. Existing manual locks are honored;
+requests rejected by shared throttles do not extend a lock. A successful login after the lock
+and rate-limit windows expire clears the failure count. An account lock also denies an
+existing Platform Admin session on its next request. Account status and credential-epoch
+changes retain their existing per-request revocation checks.
+
+Explicit logout changes server state only on a CSRF-protected POST. A GET displays a
+confirmation form without ending the session or emitting offline-lock signals. Shared desktop
+navigation submits POST directly; bookmarked links and the mobile PIN gate use the confirmation.
+The successful POST retains existing offline locking and session-expiry behavior.
+
 ## Platform and API boundaries
 
 Every platform route, including login and logout, requires a host listed in `Platform.adminPortal.hosts`. The middleware rejects tenant and unlisted origins before session processing, and the controller repeats the check. Platform sessions carry their own format version, host and credential epoch and rotate the session identifier on login. Password recovery rotates the platform epoch and revokes emergency sessions. MFA reset continues to fail closed until the existing multi-administrator approval workflow is available.

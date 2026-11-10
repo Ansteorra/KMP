@@ -26,6 +26,8 @@ Own authorization decisions and row-level scopes for core resources through Cake
   `GatheringPolicy::canViewManagement` preserves native gathering view/edit and steward access.
   Activity-only access may show preparation tools, but cannot expose private staff or record details.
 
+- Approval details and candidate discovery require entity authorization. Current pending eligibility and prior responses have distinct read permissions; service-principal identifiers are not member identifiers. See `app/docs/security-review-boundaries.md`.
+
 ## Work Guidance
 
 1. Review `BasePolicy` and a neighboring policy before adding or changing permissions.

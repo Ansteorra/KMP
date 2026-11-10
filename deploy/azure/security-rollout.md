@@ -85,3 +85,19 @@ When running `app/bin/verify.sh` in a container without Git metadata, generate a
 The development Compose stack includes a separate `admin-worker` service for queued provisioning/restore work. Its credentials are development-only; local reset/fixture tooling still uses the development owner. Use the disposable PostgreSQL test for actual least-privilege assertions. Do not place administrative URLs in a shared app `.env` consumed by web containers.
 
 PostgreSQL 16 separates role membership from the ability to SET ROLE; reconciliation temporarily enables only the needed membership option and restores it afterward. See the [PostgreSQL role membership contract](https://www.postgresql.org/docs/16/role-membership.html) and [ownership transfer behavior](https://www.postgresql.org/docs/16/sql-reassign-owned.html).
+
+
+## Proxy and tenant-mail review prerequisites
+
+The shared Azure runtime environment selects `KMP_PROXY_MODE=azure-container-apps` with
+`TRUST_PROXY=true`. The application also requires Azure's runtime `CONTAINER_APP_NAME`
+and a private direct ingress peer before accepting the rightmost managed client address.
+Keep HTTP ingress as the only application entry path. Generic proxy deployments must
+instead configure explicit `TRUSTED_PROXY_IPS`; do not copy the Azure mode to other hosts.
+
+Before rollout, inventory tenant email overrides and migrate unsupported secret references
+and custom API endpoints to the approved tenant-local mail names and official provider
+URLs. Invalid stored overrides block delivery while other tenant pages remain available.
+Mail changes now require a fresh TOTP, typed confirmation, and an audited reason. Host-map
+caches expire within thirty seconds; shared Redis provides immediate cross-replica eviction.
+See [security boundary contracts](../../app/docs/security-review-boundaries.md).

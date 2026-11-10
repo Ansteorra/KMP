@@ -29,6 +29,10 @@ if grep -Fq 'KMP_STAGING_IMAGE_TAG' "$here/staging.bicepparam" "$here/README.md"
     exit 1
 fi
 
+assert_contains "$bicep" "{ name: 'KMP_PROXY_MODE', value: 'azure-container-apps' }"
+assert_contains "$here/main.json" "createObject('name', 'KMP_PROXY_MODE', 'value', 'azure-container-apps')"
+assert_contains "$here/update-web-runtime.sh" '{"name": "KMP_PROXY_MODE", "value": "azure-container-apps"}'
+assert_contains "$here/cutover-unified-worker.sh" '{"name": "KMP_PROXY_MODE", "value": "azure-container-apps"}'
 assert_contains "$bicep" "param queueWorkerCron string = '*/3 * * * *'"
 assert_contains "$bicep" 'param queueWorkerReplicaTimeoutSeconds int = 3600'
 assert_contains "$bicep" 'param enableScheduleHourlyJob bool = false'

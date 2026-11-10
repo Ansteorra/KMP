@@ -5,13 +5,17 @@ namespace App\Test\TestCase\Services;
 
 use App\KMP\TenantMetadata;
 use App\Mailer\Transport\AzureCommunicationTransport;
+use App\Mailer\Transport\RejectedTenantMailTransport;
 use App\Mailer\Transport\ResendApiTransport;
 use App\Mailer\Transport\SendGridApiTransport;
+use App\Services\Secrets\SecretStoreInterface;
 use App\Services\TenantMailConfigurator;
 use App\Test\TestCase\Support\ArraySecretStore;
 use Cake\Mailer\Mailer;
+use Cake\Mailer\Message;
 use Cake\Mailer\TransportFactory;
 use Cake\TestSuite\TestCase;
+use RuntimeException;
 
 class TenantMailConfiguratorTest extends TestCase
 {
@@ -76,6 +80,96 @@ class TenantMailConfiguratorTest extends TestCase
         $this->assertSame($before, TransportFactory::getConfig('default'));
         $restore();
         $this->assertSame($before, TransportFactory::getConfig('default'));
+    }
+
+    public function testUnrelatedSecretReferencesNeverReachTheTransport(): void
+    {
+        foreach (
+            [
+            'platform.master_kek',
+            'tenant.other.email-api-key',
+            'tenant.demo.db.password',
+            'secret://platform.master_kek',
+            'db://tenant.other.email-api-key',
+            'env://KMP_TEST_TENANT_MAIL_SECRET',
+            ] as $reference
+        ) {
+            $restore = $this->configurator([$reference => 'synthetic-secret'])->apply($this->tenant([
+                'mode' => 'sendgrid', 'api_secret_ref' => $reference,
+            ]));
+            try {
+                $config = TransportFactory::getConfig('default');
+                $this->assertSame(RejectedTenantMailTransport::class, $config['className'], $reference);
+                $this->assertArrayNotHasKey('apiKey', $config);
+            } finally {
+                $restore();
+            }
+        }
+    }
+
+    public function testBlockedConfigurationNeverLooksUpSecretsAndCannotDeliver(): void
+    {
+        $store = $this->createMock(SecretStoreInterface::class);
+        $store->expects($this->never())->method('get');
+        $restore = (new TenantMailConfigurator($store))->apply($this->tenant([
+            'mode' => 'resend', 'api_secret_ref' => 'tenant.other.email-api-key',
+        ]));
+        try {
+            $this->expectException(RuntimeException::class);
+            $this->expectExceptionMessage('approved credential reference');
+            TransportFactory::get('default')->send(new Message());
+        } finally {
+            $restore();
+        }
+    }
+
+    public function testSequentialTenantScopesRestoreTheirOwnMailConfiguration(): void
+    {
+        $configurator = $this->configurator([
+            'tenant.demo.email-api-key' => 'demo-key', 'tenant.other.email-api-key' => 'other-key',
+        ]);
+        $restoreDemo = $configurator->apply($this->tenant([
+            'mode' => 'sendgrid', 'api_secret_ref' => 'tenant.demo.email-api-key',
+        ]));
+        try {
+            $other = new TenantMetadata('other-id', 'other', 'Other', 'active', 'db', 'other_db', 'other_role', null, [
+                'email' => ['mode' => 'resend', 'api_secret_ref' => 'tenant.other.email-api-key'],
+            ]);
+            $restoreOther = $configurator->apply($other);
+            try {
+                $this->assertSame('other-key', TransportFactory::getConfig('default')['apiKey']);
+                $this->assertSame(ResendApiTransport::class, TransportFactory::getConfig('default')['className']);
+            } finally {
+                $restoreOther();
+            }
+            $this->assertSame('demo-key', TransportFactory::getConfig('default')['apiKey']);
+        } finally {
+            $restoreDemo();
+        }
+        $this->assertSame($this->originalTransport, TransportFactory::getConfig('default'));
+    }
+
+    public function testUnapprovedApiDestinationsCannotReceiveTenantCredentials(): void
+    {
+        foreach (
+            [
+            'https://unapproved.example.test/send',
+            'https://api.sendgrid.com.unapproved.example.test/v3/mail/send',
+            'https://api.sendgrid.com/v3/mail/send?token=synthetic',
+            'https://api.resend.com/emails',
+            ] as $endpoint
+        ) {
+            $restore = $this->configurator(['tenant.demo.email-api-key' => 'synthetic-secret'])->apply($this->tenant([
+                'mode' => 'sendgrid', 'api_secret_ref' => 'tenant.demo.email-api-key', 'endpoint_url' => $endpoint,
+            ]));
+            try {
+                $config = TransportFactory::getConfig('default');
+                $this->assertSame(RejectedTenantMailTransport::class, $config['className'], $endpoint);
+                $this->assertArrayNotHasKey('apiKey', $config);
+            } finally {
+                $restore();
+            }
+        }
     }
 
     public function testDefaultModeWithFromOverridesProfileOnly(): void
@@ -147,13 +241,13 @@ class TenantMailConfiguratorTest extends TestCase
         $restore = $this->configurator(['tenant.demo.sendgrid-key' => 'sg-key'])->apply($this->tenant([
             'mode' => 'sendgrid',
             'api_secret_ref' => 'tenant.demo.sendgrid-key',
-            'endpoint_url' => 'https://sendgrid.example.org/v3/mail/send',
+            'endpoint_url' => 'https://api.eu.sendgrid.com/v3/mail/send',
         ]));
 
         $config = TransportFactory::getConfig('default');
         $this->assertSame(SendGridApiTransport::class, $config['className']);
         $this->assertSame('sg-key', $config['apiKey']);
-        $this->assertSame('https://sendgrid.example.org/v3/mail/send', $config['endpoint']);
+        $this->assertSame('https://api.eu.sendgrid.com/v3/mail/send', $config['endpoint']);
         $restore();
     }
 
@@ -186,7 +280,7 @@ class TenantMailConfiguratorTest extends TestCase
         $restore();
     }
 
-    public function testEnvSchemeResolvesEnvironmentVariable(): void
+    public function testEnvSchemeDoesNotResolveArbitraryEnvironmentVariables(): void
     {
         $_ENV['KMP_TEST_TENANT_MAIL_SECRET'] = 'env-secret';
         try {
@@ -196,14 +290,15 @@ class TenantMailConfiguratorTest extends TestCase
                 'smtp_password_secret_ref' => 'env://KMP_TEST_TENANT_MAIL_SECRET',
             ]));
 
-            $this->assertSame('env-secret', TransportFactory::getConfig('default')['password'] ?? null);
+            $this->assertSame(RejectedTenantMailTransport::class, TransportFactory::getConfig('default')['className']);
+            $this->assertArrayNotHasKey('password', TransportFactory::getConfig('default'));
             $restore();
         } finally {
             unset($_ENV['KMP_TEST_TENANT_MAIL_SECRET']);
         }
     }
 
-    public function testKeyVaultSchemeIsUnresolvedWithoutResolver(): void
+    public function testUnsupportedKeyVaultSchemeCannotFallBackToPlatformMail(): void
     {
         $restore = $this->configurator()->apply($this->tenant([
             'mode' => 'sendgrid',
@@ -211,9 +306,8 @@ class TenantMailConfiguratorTest extends TestCase
         ]));
 
         $config = TransportFactory::getConfig('default');
-        $this->assertSame(SendGridApiTransport::class, $config['className']);
-        $this->assertArrayHasKey('apiKey', $config);
-        $this->assertNull($config['apiKey']);
+        $this->assertSame(RejectedTenantMailTransport::class, $config['className']);
+        $this->assertArrayNotHasKey('apiKey', $config);
         $restore();
     }
 

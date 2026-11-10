@@ -60,6 +60,7 @@ use App\KMP\Telemetry\RequestQueryCounter;
 use App\Log\LogPrivacy;
 use App\Middleware\RestoreMaintenanceMiddleware;
 use App\Middleware\TenantResolutionMiddleware;
+use App\Middleware\TrustedProxyMiddleware;
 // Authorization usings
 use App\Policy\ControllerResolver;
 use App\Services\ActionItems\ActionItemAssigneeResolver;
@@ -396,6 +397,7 @@ class Application extends BaseApplication implements
             // 1. Error Handler - Must be first to catch all exceptions
             // Converts exceptions to appropriate HTTP error responses
             ->add(new ErrorHandlerMiddleware(Configure::read('Error'), $this))
+            ->add(new TrustedProxyMiddleware())
 
             // 2. Request query log context for correlating SQL entries to HTTP requests.
             ->add(function ($request, $handler) {

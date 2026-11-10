@@ -932,6 +932,7 @@ var commonEnv = concat([
   { name: 'DEBUG', value: 'false' }
   { name: 'REQUIRE_HTTPS', value: 'true' }
   { name: 'TRUST_PROXY', value: 'true' }
+  { name: 'KMP_PROXY_MODE', value: 'azure-container-apps' }
   { name: 'KMP_TENANCY_ENABLED', value: string(tenancyEnabled) }
   { name: 'KMP_PLATFORM_ADMIN_PORTAL_ENABLED', value: string(platformAdminPortalEnabled) }
   { name: 'KMP_PLATFORM_DATA_CONSOLE_ENABLED', value: string(platformDataConsoleEnabled) }

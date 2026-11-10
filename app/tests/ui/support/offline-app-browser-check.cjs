@@ -260,6 +260,8 @@ const choosePin = async scope => {
         await revocationTab.getByRole('button', { name: `Unlock ${siteTitle}`, exact: true }).click();
         await revocationTab.waitForSelector('[data-member-mobile-card-profile-target=memberDetails]:not([hidden])');
         await page.goto('/members/logout');
+        await page.locator('section[aria-labelledby="sign-out-heading"]').getByRole('button', { name: 'Sign out', exact: true }).click();
+        await page.waitForLoadState('load');
         await page.getByLabel('Device PIN', { exact: true }).waitFor();
         assert.equal((await stored(page)).wrapper.unlockMethod, 'pin');
         await revocationTab.getByLabel('Device PIN', { exact: true }).waitFor();
@@ -279,6 +281,8 @@ const choosePin = async scope => {
         await context.setOffline(false);
         await expect.poll(() => page.evaluate(async () => (await fetch('/offline/context')).status), { timeout: 30000 }).toBe(200);
         await page.goto('/members/logout');
+        await page.locator('section[aria-labelledby="sign-out-heading"]').getByRole('button', { name: 'Sign out', exact: true }).click();
+        await page.waitForLoadState('load');
         await page.getByLabel('Device PIN', { exact: true }).fill('582694');
         await page.getByRole('button', { name: `Unlock ${siteTitle}`, exact: true }).click();
         await page.waitForURL(url => /\/members\/(?:view\/|view-mobile-card)/.test(url.pathname));
@@ -307,6 +311,8 @@ const choosePin = async scope => {
         await devicePage.reload();
         assert.equal(await devicePage.getByRole('button', { name: 'Trust this personal device', exact: true }).isVisible(), false);
         await devicePage.goto('/members/logout');
+        await devicePage.locator('section[aria-labelledby="sign-out-heading"]').getByRole('button', { name: 'Sign out', exact: true }).click();
+        await devicePage.waitForLoadState('load');
         await loginAs(devicePage, fixture.email, fixture.password);
         await devicePage.goto('/members/view-mobile-card');
         await expect(devicePage.getByRole('button', { name: 'Trust this personal device', exact: true })).toBeHidden();

@@ -223,3 +223,4 @@ declare(strict_types=1);
         </div>
     </div>
 </section>
+<?= $this->element('PlatformAdmin/email_change_confirmation') ?>
