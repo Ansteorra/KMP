@@ -20,6 +20,10 @@ fixturePhp = patch(fixturePhp, "return ['id' => $gathering->id", "return ['publi
     const fixture = runPhpJson(fixturePhp);
     let browser;
     try {
+        const { driveEnabled } = runPhpJson(String.raw`
+require 'vendor/autoload.php'; require 'config/bootstrap.php';
+echo json_encode(['driveEnabled' => \App\Services\TurboConfig::enabled()], JSON_THROW_ON_ERROR);
+`);
         const engine = process.env.PLAYWRIGHT_BROWSER || 'chromium';
         browser = await ({ chromium, firefox, webkit })[engine].launch({ headless: true });
         const context = await browser.newContext({ baseURL: getUiTestEnvironment().baseUrl, reducedMotion: 'reduce' });
@@ -37,7 +41,8 @@ fixturePhp = patch(fixturePhp, "return ['id' => $gathering->id", "return ['publi
                     && new URL(response.url()).pathname.startsWith('/gathering-attendances/' + action)),
                 trigger(),
             ]);
-            expect(response.status()).toBe(303);
+            // AppController preserves native redirects while Drive is disabled.
+            expect(response.status()).toBe(driveEnabled ? 303 : 302);
             expect(response.request().isNavigationRequest()).toBe(true);
             await page.waitForURL(url => url.pathname === path);
             await expect(page.locator('#attendGatheringModal')).not.toBeVisible();

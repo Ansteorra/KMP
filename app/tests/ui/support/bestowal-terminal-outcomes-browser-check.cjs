@@ -151,15 +151,23 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
         await expect(page.getByRole('button', { name: 'Sort by Terminal state', exact: true })).toBeVisible();
         const dateSort = page.getByRole('button', { name: 'Sort by Close date', exact: true });
         await expect(page.locator('turbo-frame[aria-busy="true"]')).toHaveCount(0);
-        await dateSort.focus();
-        await page.keyboard.press('Enter');
+        const activateSort = async button => {
+            await button.focus();
+            // The header can render before frame-load updates the grid controller's state.
+            await Promise.all([
+                button.evaluate(element => new Promise(resolve => {
+                    element.closest('turbo-frame').addEventListener('turbo:frame-load', () => resolve(true), { once: true });
+                })),
+                page.keyboard.press('Enter'),
+            ]);
+        };
+        await activateSort(dateSort);
         await expect(page.locator('th[data-column-key="close_date"]')).toHaveAttribute('aria-sort', 'ascending');
         await expect(page.locator('turbo-frame[aria-busy="true"]')).toHaveCount(0);
-        await dateSort.focus();
-        await page.keyboard.press('Enter');
+        await activateSort(dateSort);
         await expect(page.locator('th[data-column-key="close_date"]')).toHaveAttribute('aria-sort', 'descending');
         await expect(page.locator('turbo-frame[aria-busy="true"]')).toHaveCount(0);
-        await page.getByRole('button', { name: 'Sort by Terminal state', exact: true }).press('Enter');
+        await activateSort(page.getByRole('button', { name: 'Sort by Terminal state', exact: true }));
         await expect(page.locator('th[data-column-key="terminal_state"]')).toHaveAttribute('aria-sort', 'ascending');
         await expect(page.locator('turbo-frame[aria-busy="true"]')).toHaveCount(0);
         await expect(page.locator('body')).toContainText('Given Not Received');

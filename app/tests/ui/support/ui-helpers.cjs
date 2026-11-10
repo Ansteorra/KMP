@@ -54,6 +54,9 @@ const loginAs = async (page, emailAddress, password = 'TestPassword') => {
     if (![200, 302, 303].includes(loginResponse.status())) {
         throw new Error(`Login failed with HTTP ${loginResponse.status()}`);
     }
+    // Let the sign-in redirect finish before starting another document visit.
+    await waitForSuccessfulLogin(page, 30000);
+    await page.waitForLoadState('load');
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await waitForSuccessfulLogin(page, 30000);
 };
