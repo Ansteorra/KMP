@@ -82,6 +82,49 @@ class LocalCalendarDeputySeedTest extends BaseTestCase
         ]));
     }
 
+    public function testFreshInstallCanCreateTheParentOfficeAndDepartment(): void
+    {
+        $tables = $this->getTableLocator();
+        $offices = $tables->get('Officers.Offices');
+        $parent = $offices->find()->where(['name' => 'Local Seneschal'])->firstOrFail();
+        $parent->name = 'Previously configured Local Seneschal';
+        $offices->saveOrFail($parent);
+        $offices->updateAll(['name' => 'Previously configured Local Calendar Deputy'], [
+            'name' => InitLocalCalendarDeputySeed::ROLE,
+        ]);
+        $tables->get('Officers.Departments')->updateAll(['name' => 'Previously configured Seneschal'], [
+            'name' => 'Seneschal',
+        ]);
+        (new InitLocalCalendarDeputySeed())->run();
+        $created = $offices->find()->where(['name' => 'Local Seneschal'])->firstOrFail();
+        $deputy = $offices->find()->where(['name' => InitLocalCalendarDeputySeed::ROLE])->firstOrFail();
+        $this->assertNotSame($parent->id, $created->id);
+        $this->assertSame($created->id, $deputy->deputy_to_id);
+        $this->assertTrue($created->requires_warrant);
+        $this->assertFalse($deputy->requires_warrant);
+        $this->assertSame(['Local Group'], $created->branch_types);
+        $this->assertSame('Seneschal', $tables->get('Officers.Departments')->get($created->department_id)->name);
+        $this->assertSame($created->department_id, $deputy->department_id);
+        $this->assertNotSame($parent->department_id, $created->department_id);
+        $regional = $offices->find()->where(['name' => 'Regional Seneschal'])->firstOrFail();
+        $this->assertSame($regional->id, $created->reports_to_id);
+    }
+
+    public function testDeletedParentIsNotRecreatedOrGrantedNewAuthority(): void
+    {
+        $offices = $this->getTableLocator()->get('Officers.Offices');
+        $parent = $offices->find()->where(['name' => 'Local Seneschal'])->firstOrFail();
+        $offices->deleteOrFail($parent);
+        $before = $this->snapshot();
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('deleted Local Seneschal');
+        try {
+            (new InitLocalCalendarDeputySeed())->run();
+        } finally {
+            $this->assertSame($before, $this->snapshot());
+        }
+    }
+
     public static function conflicts(): array
     {
         return [['global'], ['superuser'], ['warrant'], ['deleted'], ['policy'], ['role'], ['office']];

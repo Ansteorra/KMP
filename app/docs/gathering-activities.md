@@ -309,7 +309,10 @@ Rerun with `bin/cake seeds run InitLocalCalendarDeputy --plugin Officers` to rep
 missing grants and policy mappings. It reuses compatible active permissions and
 preserves office contact/term settings. Conflicting scope, warrant requirements,
 additional policies or role permissions, and office hierarchy fail atomically for
-operator review. A pre-existing Local Seneschal office is required.
+operator review. Fresh installations create the missing Local Seneschal office
+and Seneschal department without assigning accounts or adding parent-role grants.
+Existing Local Seneschal configuration is preserved; a deleted parent requires
+operator resolution.
 
 Gathering creation reauthorizes the submitted hosting branch on the server. Moving
 an existing gathering requires creation authority in the destination group as well

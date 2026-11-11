@@ -28,7 +28,24 @@ class InitLocalCalendarDeputySeed extends BaseSeed
         $connection->transactional(function () use ($tables): void {
             $creator = $tables->get('Members')->find()->select(['id'])->orderByAsc('id')->firstOrFail()->id;
             $offices = $tables->get('Officers.Offices');
-            $parent = $offices->find()->where(['name' => 'Local Seneschal'])->firstOrFail();
+            $parent = $offices->find('withTrashed')->where(['name' => 'Local Seneschal'])->first();
+            if ($parent !== null && $parent->deleted !== null) {
+                throw new RuntimeException('Resolve the deleted Local Seneschal office before seeding.');
+            }
+            if ($parent === null) {
+                $departments = $tables->get('Officers.Departments');
+                $department = $departments->find()->where(['name' => 'Seneschal'])->first();
+                if ($department !== null && $department->deleted !== null) {
+                    throw new RuntimeException('Resolve the deleted Seneschal department before seeding.');
+                }
+                $department ??= $departments->saveOrFail($departments->newEntity(['name' => 'Seneschal']));
+                $regional = $offices->find()->where(['name' => 'Regional Seneschal'])->first();
+                $parent = $offices->saveOrFail($offices->newEntity([
+                    'name' => 'Local Seneschal', 'department_id' => $department->id,
+                    'reports_to_id' => $regional?->id, 'requires_warrant' => true,
+                    'only_one_per_branch' => true, 'term_length' => 24, 'branch_types' => ['Local Group'],
+                ]));
+            }
             $roles = $tables->get('Roles');
             $role = $roles->find('withTrashed')->where(['name' => self::ROLE])->first();
             if ($role !== null && $role->deleted !== null) {
