@@ -155,7 +155,8 @@ jobs:
   playwright-uat:
     name: Playwright ${{ matrix.lane }} (${{ matrix.browser }})
     needs: verify-bundle
-    runs-on: ubuntu-latest
+    # Keep browser OS dependencies on an explicit, Playwright-supported runner.
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -245,6 +246,9 @@ jobs:
       - name: Install Node dependencies
         run: cd app && npm ci --no-audit --no-fund
 
+      - name: Install Playwright browser
+        run: cd app && npx --no-install playwright install --with-deps ${{ matrix.browser }}
+
       - name: Build frontend assets
         run: cd app && npm run dev
 
@@ -261,9 +265,6 @@ jobs:
             docker volume create "$volume" >/dev/null
           done
           docker compose --env-file app/config/.env up -d --no-build app mailpit
-
-      - name: Install Playwright browser
-        run: cd app && npx playwright install --with-deps ${{ matrix.browser }}
 
       - name: Run Playwright UAT regression
         run: |

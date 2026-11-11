@@ -207,7 +207,8 @@ jobs:
 
   playwright-smoke:
     name: Playwright smoke
-    runs-on: ubuntu-latest
+    # Keep browser OS dependencies on an explicit, Playwright-supported runner.
+    runs-on: ubuntu-24.04
     env:
       PLAYWRIGHT_BASE_URL: http://kmp.localhost:8080
       PLAYWRIGHT_MAILPIT_URL: http://127.0.0.1:8025
@@ -273,6 +274,9 @@ jobs:
       - name: Install Node dependencies
         run: cd app && npm ci --no-audit --no-fund
 
+      - name: Install Playwright browser
+        run: cd app && npx --no-install playwright install --with-deps chromium
+
       - name: Build frontend assets
         run: cd app && npm run dev
 
@@ -289,9 +293,6 @@ jobs:
             docker volume create "$volume" >/dev/null
           done
           docker compose --env-file app/config/.env up -d --no-build app mailpit
-
-      - name: Install Playwright browser
-        run: cd app && npx playwright install --with-deps chromium
 
       - name: Run Playwright smoke tests
         run: |
@@ -322,7 +323,8 @@ jobs:
   playwright-journey:
     name: Playwright journey
     needs: playwright-smoke
-    runs-on: ubuntu-latest
+    # Keep browser OS dependencies on an explicit, Playwright-supported runner.
+    runs-on: ubuntu-24.04
     env:
       PLAYWRIGHT_BASE_URL: http://kmp.localhost:8080
       PLAYWRIGHT_MAILPIT_URL: http://127.0.0.1:8025
@@ -388,6 +390,9 @@ jobs:
       - name: Install Node dependencies
         run: cd app && npm ci --no-audit --no-fund
 
+      - name: Install Playwright browser
+        run: cd app && npx --no-install playwright install --with-deps chromium
+
       - name: Build frontend assets
         run: cd app && npm run dev
 
@@ -404,9 +409,6 @@ jobs:
             docker volume create "$volume" >/dev/null
           done
           docker compose --env-file app/config/.env up -d --no-build app mailpit
-
-      - name: Install Playwright browser
-        run: cd app && npx playwright install --with-deps chromium
 
       - name: Run Playwright journey tests
         run: |
