@@ -275,7 +275,7 @@ jobs:
         run: cd app && npm ci --no-audit --no-fund
 
       - name: Install Playwright browser
-        run: cd app && npx --no-install playwright install --with-deps chromium
+        run: bash .github/scripts/install-playwright-browser.sh chromium
 
       - name: Build frontend assets
         run: cd app && npm run dev
@@ -391,7 +391,7 @@ jobs:
         run: cd app && npm ci --no-audit --no-fund
 
       - name: Install Playwright browser
-        run: cd app && npx --no-install playwright install --with-deps chromium
+        run: bash .github/scripts/install-playwright-browser.sh chromium
 
       - name: Build frontend assets
         run: cd app && npm run dev

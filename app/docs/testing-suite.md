@@ -97,13 +97,21 @@ sequence, with a fresh fixture reset for each browser. The destructive platform
 lane runs separately on Chromium with its own reset and administrative worker.
 Smoke/journey and PHP contracts retain the default Frames/Streams fallback.
 
-Hosted browser jobs use the explicit `ubuntu-24.04` runner. Install browsers and
-OS dependencies with the lockfile-installed Playwright CLI (`npx --no-install
-playwright install --with-deps`) before building or starting the Docker test
-stack. Keep the runner pin aligned across smoke, journey, and nightly UAT;
-review browser dependency installation and all browser lanes before changing it.
-This prevents an `ubuntu-latest` OS transition from silently changing the browser
-dependency environment. Installation failures remain blocking failures.
+Hosted browser jobs use the explicit `ubuntu-24.04` runner and
+`.github/scripts/install-playwright-browser.sh` before building or starting the
+Docker test stack. Keep the runner pin and shared installer aligned across smoke,
+journey, and nightly UAT; review dependency installation and all browser lanes
+before changing them.
+
+The installer prefers the HTTPS Kernel.org mirror registered in
+[Ubuntu's official archive mirror list](https://launchpad.net/ubuntu/+archivemirrors),
+retaining the runner's Azure/Ubuntu mirrors as fallbacks. It changes only the
+hosted mirror list and bounded network settings; Ubuntu suites, components,
+archive keyrings, and signature checks stay intact. APT index failures block
+installation instead of silently reusing stale indexes. The lockfile-installed
+Playwright CLI installs the full browser/OS dependency set, and any failure still
+fails the job. Local invocations and unexpected runner mirror layouts are rejected.
+Installer failure-path tests run in the existing security gate.
 
 The navigation lifecycle scenario enters To-Do, approval and recommendation
 dialogs through links and checks initialization, Escape and returned focus.
