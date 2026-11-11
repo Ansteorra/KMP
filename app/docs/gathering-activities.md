@@ -263,6 +263,28 @@ Immutable orphan files are intentionally retained; any future cleanup must accou
 cached pages and database/tenant restores. Storage failures reject the appearance save
 and show an upload error. Private document authorization and storage are unaffected.
 
+## Calendar Deputy access
+
+The Officers migration provisions **Calendar Deputy**, a kingdom office deputy to
+**Kingdom Seneschal**, and a matching role. The role receives **Can Manage All
+Gatherings** with global create/edit and supporting read policies, plus **Can Publish
+Gatherings to Kingdom Calendar** for publishing and unpublishing. Global scope covers
+all groups within the current tenant. The role does not grant event deletion or
+waiver administration. Restricted activity assignments retain their separate rules.
+
+The deputy can create an event for any hosting group; that group's Seneschal can
+edit it using their existing branch-scoped gathering permission. Creating the event
+does not transfer ownership of the host group or widen the Seneschal's scope.
+
+`bin/cake seeds run InitCalendarDeputy --plugin Officers` safely reruns the setup.
+It reuses active permissions, repairs required policy mappings, and retains existing
+permission requirements and office settings. Missing permissions are created with
+current membership required; the management permission also requires a warrant.
+The office requires a warrant. Appoint the deputy through the normal officer workflow.
+Deleted or unsafe permissions and conflicting office hierarchy/roles require operator
+resolution. The migration also runs after development baseline imports, preserving
+the setup across resets; no account is appointed automatically.
+
 ## Development catalogue seeding
 
 The normal catalogue includes **Crown Presence** as **Royal Progress**, separately from

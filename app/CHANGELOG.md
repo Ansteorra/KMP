@@ -23,6 +23,7 @@ Stay up to date with the latest features, improvements, and announcements for th
 - Match every activity configured as Royal Progress when filtering public events by Any Royal Progress, including custom royal-presence activities.
 - Manage Royal Progress exclusively through gathering activities. Remove Royal Progress RSVP controls, office eligibility settings, attendance-derived calendar filters and badges, and their retired database fields. Ordinary attendance and sharing preferences remain available.
 - Let Crown staff and Crown schedulers attach and schedule Crown Presence at child-hosted events through a dedicated activity permission, without granting general gathering editing.
+- Add a Calendar Deputy office under the Kingdom Seneschal with a role that can create and edit events for any group and publish or unpublish public calendar events. The hosting group's Seneschal retains local editing access.
 - Browse public events in a compact calendar with month boundaries, empty weekends, and continuing multi-week events. Select a row for details or the event name to open its public page.
 - Keep event filters visible while scrolling. Find activities by type in a wider icon picker, view choices in two columns on larger screens, and see selected activity names without reopening the picker.
 - Show Royal Progress activities first, Order Circles second, then other activities, ordered by Display Order and alphabetically within each group. Business activities remain in administrative views and are hidden from public calendars and event pages.

@@ -16,6 +16,12 @@ Own officer assignment management, department and office hierarchy, roster APIs,
 - Migration order is `2` in `app/config/plugins.php`; it depends on earlier activity/authorization foundations.
 - Officer lifecycle behavior belongs in `OfficerManagerInterface` implementations and related services.
 - Warrant interactions should use `WarrantManagerInterface`; do not duplicate warrant state logic.
+- `InitCalendarDeputySeed` and the Calendar Deputy migration provision the kingdom
+  deputy office, its role, global gathering preparation, and calendar publication.
+  Reuse safe existing permissions and repair required policy mappings. Preserve local
+  Seneschal scopes and existing permission requirements; reject deleted, superuser,
+  non-global, or conflicting office configuration instead of expanding authority.
+  Office appointments still use the normal officer and warrant workflows.
 - Navigation, view cells, and branch API data must stay registered through plugin providers.
 - Settings use `Officer.*` and `Plugin.Officers.*` keys through `StaticHelpers`.
 - Hiring lookup options must distinguish same-name accounts with textual membership verification,
