@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Model\Entity\Permission;
 use App\Model\Entity\WarrantRoster;
+use App\Services\GatheringActivitySeedService;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 use Migrations\BaseSeed;
@@ -251,7 +253,70 @@ class DevLoadBestowalTodoUsersSeed extends BaseSeed
             }
         }
 
+        // Persona rebuilding removes managed grants; restore event access before warrant reconciliation.
+        $this->ensureCrownGatheringAccess($adminId, $now);
         $this->ensureManagedAssignmentWarrants($warrantRosterId, $adminId, $now);
+    }
+
+    /** Restore the development Crown roles' activity-only access after baseline import or persona reruns. */
+    private function ensureCrownGatheringAccess(int $adminId, DateTime $now): void
+    {
+        $tables = TableRegistry::getTableLocator();
+        $permissions = $tables->get('Permissions');
+        $permissions->getConnection()->transactional(function () use ($tables, $permissions, $adminId, $now): void {
+            $activityIds = (new GatheringActivitySeedService($tables))->seed();
+            $grants = $tables->get('RolesPermissions');
+            $rules = $tables->get('GatheringActivityAssignmentPermissions');
+            $roles = $tables->get('Roles');
+            $activityPermissions = [
+                'Can Manage Crown Presence' => ['Crown Presence'],
+                'Can Manage Court Schedule' => ['Kingdom Court', 'Baronial Court'],
+            ];
+            foreach ($activityPermissions as $name => $activities) {
+                $permission = $permissions->find('withTrashed')->where(['name' => $name])->first();
+                if ($permission !== null && ($permission->deleted !== null || $permission->is_super_user)) {
+                    throw new RuntimeException(
+                        'Resolve the deleted or superuser ' . $name . ' permission before seeding.',
+                    );
+                }
+                if ($permission === null) {
+                    $permission = $permissions->newEntity([
+                        'name' => $name, 'scoping_rule' => Permission::SCOPE_BRANCH_AND_CHILDREN,
+                        'require_active_membership' => true, 'requires_warrant' => true,
+                        'require_active_background_check' => false, 'require_min_age' => 0,
+                        'is_system' => true, 'is_super_user' => false,
+                    ]);
+                    $permission->set('created_by', $adminId);
+                    $permission->set('modified_by', $adminId);
+                    $permissions->saveOrFail($permission);
+                }
+                foreach (['Ansteorran Crown', 'Crown Award Schedule Bestowal Todo', 'Golden Staff'] as $roleName) {
+                    $role = $roles->find('withTrashed')->where(['name' => $roleName])->first();
+                    if ($role !== null && $role->deleted !== null) {
+                        throw new RuntimeException('Resolve the deleted ' . $roleName . ' role before seeding.');
+                    }
+                    if ($role === null) {
+                        $role = $roles->saveOrFail($roles->newEntity([
+                            'name' => $roleName, 'is_system' => true, 'created_by' => $adminId, 'created' => $now,
+                        ]));
+                    }
+                    $conditions = ['role_id' => $role->id, 'permission_id' => $permission->id];
+                    if (!$grants->exists($conditions)) {
+                        $grants->saveOrFail($grants->newEntity($conditions + [
+                            'created_by' => $adminId, 'created' => $now,
+                        ]));
+                    }
+                }
+                foreach ($activities as $activity) {
+                    $conditions = [
+                        'gathering_activity_id' => $activityIds[$activity], 'permission_id' => $permission->id,
+                    ];
+                    if (!$rules->exists($conditions)) {
+                        $rules->saveOrFail($rules->newEntity($conditions));
+                    }
+                }
+            }
+        });
     }
 
     /**

@@ -81,7 +81,7 @@ class PublicCalendarDemoServiceTest extends BaseTestCase
         ]));
         $service = new PublicCalendarDemoService($tables);
         $counts = $service->refresh(new DateTime('2026-11-04', 'America/Chicago'));
-        $this->assertSame(['events' => 6, 'activities' => 27], $counts);
+        $this->assertSame(['events' => 6, 'activities' => 28], $counts);
         $state = $tables->get('AppSettings')->find()->where(['name' => PublicCalendarDemoService::EVENT_IDS_SETTING])->firstOrFail();
         $publicIds = array_values(json_decode($state->value, true, flags: JSON_THROW_ON_ERROR));
         $query = fn() => $events->find()->where(['public_id IN' => $publicIds])->orderBy(['id' => 'ASC']);

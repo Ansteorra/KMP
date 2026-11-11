@@ -82,6 +82,7 @@ class GatheringActivitySeedService
         ];
         $rows = [
             'Royal Visit' => ['Royal Progress', 'crown', 0, 'gold'],
+            'Crown Presence' => ['Royal Progress', 'crown', 2, 'gold'],
             'Laurel Circle' => ['Order Circle', 'laurel-wreath', 10, 'green'],
             'Pelican Circle' => ['Order Circle', 'pelican-vulning', 11, 'crimson'],
             'Chivalric Circle' => ['Order Circle', 'chain-necklace', 12, 'gold'],

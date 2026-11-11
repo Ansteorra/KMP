@@ -265,6 +265,18 @@ and show an upload error. Private document authorization and storage are unaffec
 
 ## Development catalogue seeding
 
+The normal catalogue includes **Crown Presence** as **Royal Progress**, separately from
+**Royal Visit**. PostgreSQL development resets (`./dev-reset-db.sh --seed`) run
+`DevLoadBestowalTodoUsersSeed` after the baseline import and migrations. After rebuilding
+the personas' single-purpose roles, that seed restores **Can Manage Crown Presence** and
+**Can Manage Court Schedule** for **Ansteorran Crown**, **Crown Award Schedule Bestowal
+Todo**, and **Golden Staff**, with mappings to Crown Presence and both court activities.
+Missing fixture permissions use **Branch and Children** scope with current membership and
+warrant requirements; no general gathering-edit or Other scheduling policies are added.
+The same seed can be rerun after persona changes. It retains existing catalogue IDs,
+appearance, active permission settings, and additional assignment rules. Deleted permissions
+or roles, and permissions configured as superusers, require operator resolution.
+
 `DevLoadGatheringActivitiesSeed` and rolling calendar examples share
 `GatheringActivitySeedService`. Seed normal activity names and reuse their IDs; do not
 create separate demo/test activity catalogues. Fill missing types and create absent entries
