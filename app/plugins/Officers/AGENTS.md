@@ -22,6 +22,12 @@ Own officer assignment management, department and office hierarchy, roster APIs,
   Seneschal scopes and existing permission requirements; reject deleted, superuser,
   non-global, or conflicting office configuration instead of expanding authority.
   Office appointments still use the normal officer and warrant workflows.
+- `InitLocalCalendarDeputySeed` provisions a separate deputy to Local Seneschal.
+  Its office and two permissions do not require a personal warrant. The role grants
+  gathering create/edit and desktop/mobile waiver upload in Branch and Children
+  scope, with current membership required. It grants neither publication nor waiver
+  administration. Reject conflicting scope, warrant flags, extra policy bindings,
+  role permissions, or office hierarchy rather than silently expanding authority.
 - Navigation, view cells, and branch API data must stay registered through plugin providers.
 - Settings use `Officer.*` and `Plugin.Officers.*` keys through `StaticHelpers`.
 - Hiring lookup options must distinguish same-name accounts with textual membership verification,

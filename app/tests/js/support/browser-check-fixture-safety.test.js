@@ -64,9 +64,9 @@ describe.each(scripts)('%s fixture safety', filename => {
     });
 });
 
-describe('native waiver upload fixture safety', () => {
+describe.each(['waiver-upload-browser-check.cjs', 'local-calendar-deputy-browser-check.cjs'])('%s fixture safety', filename => {
     test.each(['launch', 'close'])('cleans its synthetic records and files when browser %s fails', async failure => {
-        const check = harness('waiver-upload-browser-check.cjs', fixtureSource, failure);
+        const check = harness(filename, fixtureSource, failure);
         await check.run();
         expect(check.runPhpJson).toHaveBeenCalledTimes(2);
         expect(check.runPhpJson.mock.calls[1][1]).toEqual(check.fixture);

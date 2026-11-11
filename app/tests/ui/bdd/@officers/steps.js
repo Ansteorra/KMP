@@ -19,6 +19,16 @@ const { Given, When, Then } = createBdd();
 const APP_ROOT = path.resolve(__dirname, '../../../..');
 const REPO_ROOT = path.resolve(APP_ROOT, '..');
 
+Then('an unwarranted Local Calendar Deputy should prepare scoped gatherings and upload waivers', async ({ $testInfo }) => {
+    const output = execFileSync(process.execPath, [
+        path.resolve(__dirname, '../../support/local-calendar-deputy-browser-check.cjs'),
+    ], {
+        cwd: APP_ROOT, env: { ...process.env, PLAYWRIGHT_BROWSER: $testInfo.project.name },
+        timeout: 180000, maxBuffer: 1024 * 1024, encoding: 'utf8',
+    });
+    await $testInfo.attach('local-calendar-deputy-result', { body: output, contentType: 'text/plain' });
+});
+
 const SETUP_FIXTURE_PHP = String.raw`
 require 'vendor/autoload.php';
 require 'config/bootstrap.php';

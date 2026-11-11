@@ -272,8 +272,9 @@ Gatherings to Kingdom Calendar** for publishing and unpublishing. Global scope c
 all groups within the current tenant. The role does not grant event deletion or
 waiver administration. Restricted activity assignments retain their separate rules.
 
-The deputy can create an event for any hosting group; that group's Seneschal can
-edit it using their existing branch-scoped gathering permission. Creating the event
+The deputy can create an event for any hosting group. A hosting Seneschal with the
+branch-scoped gathering permission can edit it. Office hierarchy alone does not grant
+that permission; check the hosting office's role configuration. Creating the event
 does not transfer ownership of the host group or widen the Seneschal's scope.
 
 `bin/cake seeds run InitCalendarDeputy --plugin Officers` safely reruns the setup.
@@ -284,6 +285,41 @@ The office requires a warrant. Appoint the deputy through the normal officer wor
 Deleted or unsafe permissions and conflicting office hierarchy/roles require operator
 resolution. The migration also runs after development baseline imports, preserving
 the setup across resets; no account is appointed automatically.
+
+### Local Calendar Deputy
+
+**Local Calendar Deputy** is a separate office deputy to **Local Seneschal**, in
+the same department and applicable local branch types. Its matching role grants
+**Manage Scoped Gatherings Without Warrant** and **Upload Scoped Gathering Waivers
+Without Warrant**. Both use **Branch and Children** scope from the appointment's
+branch and require current membership. Neither the office nor these permissions
+requires the deputy's own warrant. The Seneschal's existing warrant requirements
+remain unchanged; this does not create automatic inherited warrant authority.
+
+The deputy can create and edit gatherings for the appointed group and its dependent
+groups, and upload required waivers through desktop and mobile flows. It does not
+grant kingdom calendar publication/unpublication, event deletion, waiver download,
+loss reporting, closure, or waiver administration. Existing cancellation and closure
+restrictions still apply. Other roles held by the member remain independently effective.
+Appoint and release the deputy through the normal officer workflow, which grants
+and expires the scoped role without requesting a warrant for this office.
+
+The migration provisions existing and new tenants, including development resets.
+Rerun with `bin/cake seeds run InitLocalCalendarDeputy --plugin Officers` to repair
+missing grants and policy mappings. It reuses compatible active permissions and
+preserves office contact/term settings. Conflicting scope, warrant requirements,
+additional policies or role permissions, and office hierarchy fail atomically for
+operator review. A pre-existing Local Seneschal office is required.
+
+Gathering creation reauthorizes the submitted hosting branch on the server. Moving
+an existing gathering requires creation authority in the destination group as well
+as editing authority over the original event. Form dropdowns alone do not enforce scope.
+
+`node tests/ui/support/local-calendar-deputy-browser-check.cjs` runs an additive
+local browser check with synthetic accounts, gatherings and a real waiver upload;
+it cleans up its records and stored document after success or failure. The same
+check runs in the Officers UAT scenario on each configured browser. PHPUnit also
+exercises the normal appointment workflow, scope boundaries and revoked eligibility.
 
 ## Development catalogue seeding
 

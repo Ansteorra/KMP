@@ -1009,6 +1009,7 @@ class GatheringsController extends AppController
 
             $gathering = $this->Gatherings->patchEntity($gathering, $data);
             if (!$gathering->hasErrors()) {
+                $this->Authorization->authorize($gathering, 'add');
                 $this->authorizeTemplateActivities($gathering);
             }
 
@@ -1108,6 +1109,10 @@ class GatheringsController extends AppController
             }
 
             $gathering = $this->Gatherings->patchEntity($gathering, $data);
+            if (!$gathering->hasErrors() && $gathering->isDirty('branch_id')) {
+                // Moving an event requires creation authority in its destination group.
+                $this->Authorization->authorize($gathering, 'add');
+            }
             if (
                 !$gathering->hasErrors()
                 && ($gathering->isDirty('gathering_type_id') || $gathering->isDirty('branch_id'))
