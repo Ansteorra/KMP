@@ -503,6 +503,141 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('Add Gathering');
     }
 
+    public function testAddFiltersTypesWithRestrictedDefaultActivities(): void
+    {
+        [$restricted, $allowed] = $this->createTypePermissionFixtures();
+        $this->authenticateAsMember(self::TEST_MEMBER_BRYCE_ID);
+        $this->get('/gatherings/add');
+
+        $this->assertResponseOk();
+        $this->assertResponseNotContains($restricted->name);
+        $this->assertResponseContains($allowed->name);
+        $this->assertResponseContains('aria-describedby="gathering-type-availability"');
+    }
+
+    public function testAddSuperuserCanSelectRestrictedTypesForEveryBranch(): void
+    {
+        [$restricted] = $this->createTypePermissionFixtures();
+        $this->get('/gatherings/add');
+
+        $this->assertResponseOk();
+        $choices = $this->viewVariable('gatheringTypesByBranch');
+        foreach ([self::KINGDOM_BRANCH_ID, self::TEST_BRANCH_STARGATE_ID] as $branchId) {
+            $this->assertContains($restricted->id, array_column($choices[$branchId], 'value'));
+        }
+    }
+
+    public function testAddTypeChoicesRespectActivityGrantBranchScope(): void
+    {
+        [$restricted, , , $activityPermission] = $this->createTypePermissionFixtures();
+        $permissions = $this->getTableLocator()->get('Permissions');
+        $global = $permissions->saveOrFail($permissions->newEntity([
+            'name' => 'Create gathering anywhere fixture', 'scoping_rule' => 'Global',
+        ]));
+        $policies = $this->getTableLocator()->get('PermissionPolicies');
+        foreach (['canAdd', 'canEdit'] as $method) {
+            $policies->saveOrFail($policies->newEntity([
+                'permission_id' => $global->id,
+                'policy_class' => 'App\\Policy\\GatheringPolicy', 'policy_method' => $method,
+            ]));
+        }
+        $roles = $this->getTableLocator()->get('Roles');
+        $role = $roles->saveOrFail($roles->newEntity([
+            'name' => 'Branch-scoped activity fixture',
+        ]));
+        foreach ([$global->id, $activityPermission->id] as $permissionId) {
+            $roles->getConnection()->insert('roles_permissions', [
+                'role_id' => $role->id, 'permission_id' => $permissionId,
+                'created' => DateTime::now()->toDateTimeString(), 'created_by' => self::ADMIN_MEMBER_ID,
+            ]);
+        }
+        $memberRoles = $this->getTableLocator()->get('MemberRoles');
+        $memberRoles->saveOrFail($memberRoles->newEntity([
+            'member_id' => self::TEST_MEMBER_BRYCE_ID, 'role_id' => $role->id,
+            'branch_id' => self::TEST_BRANCH_STARGATE_ID,
+            'start_on' => DateTime::now()->subDays(1), 'expires_on' => DateTime::now()->addDays(1),
+            'approver_id' => self::ADMIN_MEMBER_ID,
+            'created_by' => self::ADMIN_MEMBER_ID, 'modified_by' => self::ADMIN_MEMBER_ID,
+        ]));
+        Cache::clearGroup('security');
+        $this->authenticateAsMember(self::TEST_MEMBER_BRYCE_ID);
+        $this->get('/gatherings/add');
+
+        $this->assertResponseOk();
+        $choices = $this->viewVariable('gatheringTypesByBranch');
+        $this->assertContains($restricted->id, array_column($choices[self::TEST_BRANCH_STARGATE_ID], 'value'));
+        $this->assertNotContains($restricted->id, array_column($choices[self::KINGDOM_BRANCH_ID], 'value'));
+    }
+
+    public function testAddRejectsRestrictedTypeWithoutSavingAndPreservesForm(): void
+    {
+        [$restricted] = $this->createTypePermissionFixtures();
+        $this->authenticateAsMember(self::TEST_MEMBER_BRYCE_ID);
+        $this->post('/gatherings/add', [
+            'branch_id' => self::TEST_BRANCH_STARGATE_ID,
+            'gathering_type_id' => $restricted->id,
+            'name' => 'Restricted type submission',
+            'start_date' => '2027-01-01T09:00',
+        ]);
+
+        $this->assertResponseCode(422);
+        $this->assertResponseContains('activities you are not authorized to assign');
+        $this->assertResponseContains('value="Restricted type submission"');
+        $this->assertResponseContains('aria-describedby="gathering-type-availability gathering-type-id-error"');
+        $this->assertResponseContains('id="gathering-type-id-error"');
+        $this->assertResponseNotContains('Page Not Found');
+        $this->assertFalse($this->getTableLocator()->get('Gatherings')->exists([
+            'name' => 'Restricted type submission',
+        ]));
+    }
+
+    public function testAddAllowsTypeWithUnrestrictedDefaultActivities(): void
+    {
+        [, $allowed, $activity] = $this->createTypePermissionFixtures();
+        $this->authenticateAsMember(self::TEST_MEMBER_BRYCE_ID);
+        $this->post('/gatherings/add', [
+            'branch_id' => self::TEST_BRANCH_STARGATE_ID,
+            'gathering_type_id' => $allowed->id,
+            'name' => 'Allowed type submission',
+            'start_date' => '2027-01-01T09:00',
+        ]);
+
+        $this->assertRedirect();
+        $gathering = $this->getTableLocator()->get('Gatherings')->find()
+            ->where(['name' => 'Allowed type submission'])->firstOrFail();
+        $this->assertTrue($this->getTableLocator()->get('GatheringsGatheringActivities')->exists([
+            'gathering_id' => $gathering->id, 'gathering_activity_id' => $activity->id,
+        ]));
+    }
+
+    /** Types with mixed default activities must reject any unauthorized activity. */
+    private function createTypePermissionFixtures(): array
+    {
+        $types = $this->getTableLocator()->get('GatheringTypes');
+        $restricted = $types->saveOrFail($types->newEntity(['name' => 'Restricted default activity type']));
+        $allowed = $types->saveOrFail($types->newEntity(['name' => 'Allowed default activity type']));
+        $activities = $this->getTableLocator()->get('GatheringActivities');
+        $ordinary = $activities->saveOrFail($activities->newEntity(['name' => 'Ordinary default fixture']));
+        $protected = $activities->saveOrFail($activities->newEntity(['name' => 'Protected default fixture']));
+        $permissions = $this->getTableLocator()->get('Permissions');
+        $permission = $permissions->saveOrFail($permissions->newEntity([
+            'name' => 'Restricted default fixture grant', 'scoping_rule' => 'Branch Only',
+        ]));
+        $rules = $this->getTableLocator()->get('GatheringActivityAssignmentPermissions');
+        $rules->saveOrFail($rules->newEntity([
+            'gathering_activity_id' => $protected->id, 'permission_id' => $permission->id,
+        ]));
+        $links = $this->getTableLocator()->get('GatheringTypeGatheringActivities');
+        foreach ([[$restricted, $ordinary], [$restricted, $protected], [$allowed, $ordinary]] as [$type, $activity]) {
+            $links->saveOrFail($links->newEntity([
+                'gathering_type_id' => $type->id, 'gathering_activity_id' => $activity->id,
+                'not_removable' => false,
+            ]));
+        }
+
+        return [$restricted, $allowed, $ordinary, $permission];
+    }
+
     /**
      * Test add method - POST with valid data
      *

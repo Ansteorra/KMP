@@ -49,6 +49,9 @@ See [Event award delegation](awards-bestowal-todo-security.md#event-award-delega
   Typed schedule entries must reference an activity attached to that gathering.
 - Actor-driven activity and schedule services repeat authorization in the write transaction,
   holding any active delegation grant until commit so revocation cannot race a stale form.
+- The create-gathering form offers only types whose default activities the user may assign
+  in the selected branch. Changing branches refreshes the choices and clears an unavailable
+  selection. Submission rechecks permissions and returns a field error if access has changed.
 - Template assignments, gathering type/branch changes, and cloning check the same rules.
   Remove scheduled entries before removing the activity. Existing non-removable template
   and waiver constraints continue to apply.

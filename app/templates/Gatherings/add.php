@@ -23,7 +23,8 @@ $this->KMP->endBlock();
 <div class="gatherings form content">
     <?= $this->Form->create($gathering, [
         'data-controller' => 'gathering-form',
-        'data-action' => 'submit->gathering-form#validateForm'
+        'data-action' => 'submit->gathering-form#validateForm change->gathering-form#branchChanged',
+        'data-gathering-form-types-by-branch-value' => json_encode($gatheringTypesByBranch),
     ]) ?>
     <fieldset>
         <legend><?= $this->element('backButton') ?> <?= __('Add Gathering') ?></legend>
@@ -38,7 +39,7 @@ $this->KMP->endBlock();
         </div>
 
         <div class="row">
-            <div class="col-md-6 mb-3">
+            <div class="col-md-6 mb-3" data-gathering-form-target="branch">
                 <?php if ($lockBranch): ?>
                     <?= $this->Form->control('branch_id', [
                         'options' => $branches,
@@ -75,8 +76,17 @@ $this->KMP->endBlock();
                     'required' => true,
                     'class' => 'form-select',
                     'data-gathering-form-target' => 'gatheringTypeSelect',
+                    'aria-describedby' => 'gathering-type-availability'
+                        . ($gathering->getError('gathering_type_id') ? ' gathering-type-id-error' : ''),
+                    'aria-invalid' => $gathering->getError('gathering_type_id') ? 'true' : 'false',
                     'data-action' => 'change->gathering-form#gatheringTypeChanged',
                 ]) ?>
+                <small id="gathering-type-availability" class="form-text text-muted d-block"
+                       role="status" aria-live="polite" data-gathering-form-target="typeAvailability">
+                    <?= $gathering->branch_id
+                        ? __('Only types whose default activities you can assign are available.')
+                        : __('Select a branch to see the gathering types you can create.') ?>
+                </small>
                 <small class="form-text text-muted d-none"
                        data-gathering-form-target="gatheringTypeDescription"></small>
             </div>

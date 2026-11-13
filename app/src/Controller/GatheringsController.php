@@ -1010,7 +1010,17 @@ class GatheringsController extends AppController
             $gathering = $this->Gatherings->patchEntity($gathering, $data);
             if (!$gathering->hasErrors()) {
                 $this->Authorization->authorize($gathering, 'add');
-                $this->authorizeTemplateActivities($gathering);
+                try {
+                    $this->authorizeTemplateActivities($gathering);
+                } catch (ForbiddenException) {
+                    $gathering->setError('gathering_type_id', [
+                        'activityPermission' => __(
+                            'You cannot create this gathering type for the selected branch because it includes '
+                            . 'activities you are not authorized to assign. Choose another type.',
+                        ),
+                    ]);
+                    $this->setResponse($this->getResponse()->withStatus(422));
+                }
             }
 
             if ($this->Gatherings->save($gathering)) {
@@ -1062,19 +1072,38 @@ class GatheringsController extends AppController
 
         $gatheringTypesRaw = $this->Gatherings->GatheringTypes->find()
             ->select(['id', 'name', 'description'])
+            ->contain(['GatheringActivities'])
             ->orderBy(['name' => 'ASC'])
             ->toArray();
 
-        $gatheringTypes = array_map(
-            fn($t) => [
-                'value' => $t->id,
-                'text' => $t->name,
-                'data-description' => $t->description ?? '',
-            ],
-            $gatheringTypesRaw,
-        );
+        $gatheringTypesByBranch = [];
+        foreach (array_keys($branches) as $branchId) {
+            $candidate = $this->Gatherings->newEmptyEntity();
+            $candidate->branch_id = $branchId;
+            $gatheringTypesByBranch[$branchId] = [];
+            foreach ($gatheringTypesRaw as $type) {
+                foreach ($type->gathering_activities as $activity) {
+                    if (!$currentUser->checkCan('manageActivity', $candidate, $activity)) {
+                        continue 2;
+                    }
+                }
+                $gatheringTypesByBranch[$branchId][] = [
+                    'value' => $type->id,
+                    'text' => $type->name,
+                    'data-description' => $type->description ?? '',
+                ];
+            }
+        }
+        $gatheringTypes = $gatheringTypesByBranch[(int)$gathering->branch_id] ?? [];
 
-        $this->set(compact('gathering', 'branches', 'gatheringTypes', 'lockBranch', 'branchCount'));
+        $this->set(compact(
+            'gathering',
+            'branches',
+            'gatheringTypes',
+            'gatheringTypesByBranch',
+            'lockBranch',
+            'branchCount',
+        ));
     }
 
     /**
