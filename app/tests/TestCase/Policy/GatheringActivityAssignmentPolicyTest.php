@@ -67,8 +67,15 @@ class GatheringActivityAssignmentPolicyTest extends BaseTestCase
         $driver->setLogger($counter);
         $driver->enableQueryLogging();
         try {
+            // Warm ORM metadata before comparing a single activity with the whole catalogue.
+            (new GatheringActivityPolicy())->canAssignAny($user, [$candidates[0]], $gathering);
+            $counter->reset();
+            $this->assertFalse((new GatheringActivityPolicy())->canAssignAny($user, [$candidates[0]], $gathering));
+            $singleActivityQueries = $counter->count();
+            $counter->reset();
             $this->assertFalse((new GatheringActivityPolicy())->canAssignAny($user, $candidates, $gathering));
-            $this->assertLessThanOrEqual(6, $counter->count(), 'Catalogue size must not multiply permission queries.');
+            $this->assertGreaterThan(0, $singleActivityQueries, 'The query counter must observe database reads.');
+            $this->assertSame($singleActivityQueries, $counter->count(), 'Catalogue size must not multiply queries.');
         } finally {
             (new ReflectionProperty($driver, 'logger'))->setValue($driver, $originalLogger);
             if (!$wasLogging) {
