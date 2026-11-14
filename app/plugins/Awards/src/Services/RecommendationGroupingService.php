@@ -472,7 +472,7 @@ class RecommendationGroupingService
     {
         $archivedStates = Recommendation::getStatuses()['Closed'] ?? [];
         $archiveConditions = [
-            'Bestowals.lifecycle_status' => Bestowal::LIFECYCLE_GIVEN,
+            'Bestowals.lifecycle_status NOT IN' => [Bestowal::LIFECYCLE_OPEN, Bestowal::LIFECYCLE_CANCELLED],
         ];
         if ($archivedStates !== []) {
             $archiveConditions[] = ['Recommendations.state IN' => $archivedStates];

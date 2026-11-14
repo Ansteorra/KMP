@@ -5,6 +5,7 @@ namespace Awards\Services;
 
 use App\KMP\KmpIdentityInterface;
 use Awards\Model\Entity\Bestowal;
+use Awards\Model\Entity\CourtAgendaItem;
 
 /**
  * Applies field-level authorization to protected bestowal data.
@@ -15,12 +16,12 @@ class BestowalFieldAccessService
 
     public const ACTION_ACCESS_CROWN_FIELDS = 'accessCrownFields';
 
-    private const HERALD_MUTATION_FIELDS = [
+    public const HERALD_MUTATION_FIELDS = [
         'herald_notes',
         'heraldNotes',
     ];
 
-    private const CROWN_MUTATION_FIELDS = [
+    public const CROWN_MUTATION_FIELDS = [
         'noble_notes',
         'nobleNotes',
         'reason_summary',
@@ -95,7 +96,7 @@ class BestowalFieldAccessService
     }
 
     /**
-     * Redact protected bestowal data embedded in a court agenda view model.
+     * Apply bestowal visibility and field permissions to builder and print data.
      *
      * @param array<string, mixed> $viewModel Court agenda view model.
      * @return array<string, mixed>
@@ -105,29 +106,81 @@ class BestowalFieldAccessService
         foreach ($viewModel['segments'] ?? [] as $segmentIndex => $segmentData) {
             foreach ($segmentData['items'] ?? [] as $itemIndex => $itemData) {
                 $bestowal = $itemData['entity']->bestowal ?? null;
-                if (!$bestowal instanceof Bestowal) {
+                if (
+                    !$bestowal instanceof Bestowal
+                    && empty($itemData['entity']->bestowal_id)
+                    && $itemData['entity']->item_type !== CourtAgendaItem::TYPE_BESTOWAL
+                ) {
                     continue;
                 }
 
-                $access = $this->redact($bestowal, $identity);
-                if (!$access['crownFields']) {
-                    $viewModel['segments'][$segmentIndex]['items'][$itemIndex]['reasons'] = [];
+                if (!$bestowal instanceof Bestowal || !$identity->checkCan('view', $bestowal)) {
+                    $itemData = $this->blockedAgendaItem($itemData);
+                } else {
+                    $access = $this->redact($bestowal, $identity);
+                    if (!$access['crownFields']) {
+                        $itemData['reasons'] = [];
+                    }
                 }
+                $viewModel['segments'][$segmentIndex]['items'][$itemIndex] = $itemData;
             }
 
+            $eligible = [];
             foreach ($segmentData['eligibleBestowals'] ?? [] as $bestowal) {
-                if ($bestowal instanceof Bestowal) {
+                if ($bestowal instanceof Bestowal && $identity->checkCan('placeOnAgenda', $bestowal)) {
                     $this->redact($bestowal, $identity);
+                    $eligible[] = $bestowal;
                 }
+            }
+            $viewModel['segments'][$segmentIndex]['eligibleBestowals'] = $eligible;
+            if (isset($segmentData['entity'])) {
+                $segmentData['entity']->court_agenda_items = array_column(
+                    $viewModel['segments'][$segmentIndex]['items'] ?? [],
+                    'entity',
+                );
             }
         }
 
+        $unscheduled = [];
         foreach ($viewModel['unscheduledBestowals'] ?? [] as $bestowalData) {
-            if (($bestowalData['entity'] ?? null) instanceof Bestowal) {
-                $this->redact($bestowalData['entity'], $identity);
+            $bestowal = $bestowalData['entity'] ?? null;
+            if ($bestowal instanceof Bestowal && $identity->checkCan('placeOnAgenda', $bestowal)) {
+                $this->redact($bestowal, $identity);
+                $unscheduled[] = $bestowalData;
             }
         }
+        $viewModel['unscheduledBestowals'] = $unscheduled;
 
         return $viewModel;
+    }
+
+    /**
+     * Retain only placement and timing for a bestowal the viewer cannot read.
+     *
+     * @param array<string, mixed> $itemData Agenda item view data.
+     * @return array<string, mixed>
+     */
+    private function blockedAgendaItem(array $itemData): array
+    {
+        $item = new CourtAgendaItem($itemData['entity']->extract([
+            'id',
+            'court_agenda_segment_id',
+            'item_type',
+            'sort_order',
+            'estimated_minutes',
+            'duration_locked',
+        ]), ['guard' => false]);
+
+        return [
+            'entity' => $item,
+            'detailsBlocked' => true,
+            'label' => __('Court Item  (details blocked by security)'),
+            'awardLabel' => '',
+            'durationHint' => '',
+            'reasons' => [],
+            'specialties' => [],
+            'moveSegmentOptions' => [],
+            'minutes' => $itemData['minutes'],
+        ];
     }
 }

@@ -31,7 +31,7 @@ if ($fromMobile) {
 <?php if ($fromMobile): ?>
 <div class="gathering-public-mobile-back-bar">
     <a href="<?= $this->Url->build($backParams) ?>" class="gathering-public-mobile-back-link">
-        <i class="bi bi-arrow-left me-2 gathering-public-mobile-back-icon"></i>
+        <kmp-icon name="arrow-left" class="me-2 gathering-public-mobile-back-icon" aria-hidden="true"></kmp-icon>
         Back to Events
     </a>
 </div>

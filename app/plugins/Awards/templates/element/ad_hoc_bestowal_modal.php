@@ -99,7 +99,7 @@ $submitAction = implode(' ', [
                 <div class="modal-header">
                     <h5 class="modal-title d-flex align-items-center gap-2" id="<?= h($modalId) ?>Label">
                         <span class="badge rounded-pill text-bg-warning text-dark" aria-hidden="true">
-                            <i class="bi bi-award"></i>
+                            <kmp-icon name="award"  aria-hidden="true"></kmp-icon>
                         </span>
                         <?= __('Record Ad-Hoc Bestowal') ?>
                     </h5>
@@ -111,7 +111,7 @@ $submitAction = implode(' ', [
                 <div class="modal-body bg-light-subtle">
                     <div class="alert alert-warning border-start border-warning border-4 py-2 mb-3" role="note">
                         <div class="d-flex gap-2">
-                            <i class="bi bi-lightning-charge-fill flex-shrink-0" aria-hidden="true"></i>
+                            <kmp-icon name="bolt" class="flex-shrink-0" aria-hidden="true"></kmp-icon>
                             <p class="mb-0">
                                 <?= h($adHocHelpText) ?>
                             </p>
@@ -141,7 +141,7 @@ $submitAction = implode(' ', [
                         <div class="col-12 col-xl-7">
                             <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
                                 <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                                    <i class="bi bi-person-badge text-primary me-1" aria-hidden="true"></i>
+                                    <kmp-icon name="id-badge" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                                     <?= __('Recipient & Award') ?>
                                     <span class="badge text-bg-primary ms-2"><?= __('Required') ?></span>
                                 </legend>
@@ -238,7 +238,7 @@ $submitAction = implode(' ', [
                         <div class="col-12 col-xl-5">
                             <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
                                 <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                                    <i class="bi bi-calendar-event text-success me-1" aria-hidden="true"></i>
+                                    <kmp-icon name="calendar-event" class="text-success me-1" aria-hidden="true"></kmp-icon>
                                     <?= __('Court & Timing') ?>
                                 </legend>
                                 <div class="row g-3">
@@ -336,7 +336,7 @@ $submitAction = implode(' ', [
                         <div class="col-12">
                             <fieldset class="border rounded-3 bg-white shadow-sm p-3">
                                 <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                                    <i class="bi bi-journal-text text-secondary me-1" aria-hidden="true"></i>
+                                    <kmp-icon name="notebook" class="text-secondary me-1" aria-hidden="true"></kmp-icon>
                                     <?= __('Notes for Court and Records') ?>
                                 </legend>
                                 <div class="row g-3">

@@ -37,7 +37,7 @@ echo $this->Form->hidden('branch_links', ['value' => $links, 'id' => 'links', 'd
     <div class="col-12 col-lg-6">
         <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
             <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                <i class="bi bi-diagram-3 text-primary me-1" aria-hidden="true"></i>
+                <kmp-icon name="sitemap" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                 <?= __("Branch Details") ?>
             </legend>
             <?php
@@ -71,7 +71,7 @@ echo $this->Form->hidden('branch_links', ['value' => $links, 'id' => 'links', 'd
     <div class="col-12 col-lg-6">
         <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
             <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                <i class="bi bi-person-lines-fill text-success me-1" aria-hidden="true"></i>
+                <kmp-icon name="user-scan" class="text-success me-1" aria-hidden="true"></kmp-icon>
                 <?= __("Hierarchy & Contact") ?>
             </legend>
             <?php
@@ -97,7 +97,7 @@ echo $this->Form->hidden('branch_links', ['value' => $links, 'id' => 'links', 'd
     <div class="col-12">
         <fieldset class="border rounded-3 bg-white shadow-sm p-3">
             <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                <i class="bi bi-link-45deg text-info me-1" aria-hidden="true"></i>
+                <kmp-icon name="link" class="text-info me-1" aria-hidden="true"></kmp-icon>
                 <?= __("Public Links") ?>
             </legend>
             <div class="mb-3 form-group links">
@@ -106,25 +106,25 @@ echo $this->Form->hidden('branch_links', ['value' => $links, 'id' => 'links', 'd
                 <div class="input-group">
                     <button class="btn btn-outline-secondary dropdown-toggle" type="button"
                         data-bs-toggle="dropdown" aria-expanded="false" aria-label="<?= h(__('Select branch link type')) ?>">
-                        <i class="bi bi-link" data-value="link" data-branch-links-target="linkType" aria-hidden="true"></i>
+                        <kmp-icon name="link"  data-value="link" data-branch-links-target="linkType" aria-hidden="true"></kmp-icon>
                     </button>
                     <ul class="dropdown-menu">
                         <li><button type="button" class="dropdown-item" data-value="link"
-                                data-action="branch-links#setLinkType"><i class="bi bi-link" data-value="link" aria-hidden="true"></i> Website</button></li>
+                                data-action="branch-links#setLinkType"><kmp-icon name="link"  data-value="link" aria-hidden="true"></kmp-icon> Website</button></li>
                         <li><button type="button" class="dropdown-item" data-value="discord"
-                                data-action="branch-links#setLinkType"><i class="bi bi-discord" data-value="discord" aria-hidden="true"></i> Discord</button></li>
+                                data-action="branch-links#setLinkType"><kmp-icon name="brand-discord"  data-value="discord" aria-hidden="true"></kmp-icon> Discord</button></li>
                         <li><button type="button" class="dropdown-item" data-value="facebook"
-                                data-action="branch-links#setLinkType"><i class="bi bi-facebook" data-value="facebook" aria-hidden="true"></i> Facebook</button></li>
+                                data-action="branch-links#setLinkType"><kmp-icon name="brand-facebook"  data-value="facebook" aria-hidden="true"></kmp-icon> Facebook</button></li>
                         <li><button type="button" class="dropdown-item" data-value="instagram"
-                                data-action="branch-links#setLinkType"><i class="bi bi-instagram" data-value="instagram" aria-hidden="true"></i> Instagram</button></li>
+                                data-action="branch-links#setLinkType"><kmp-icon name="brand-instagram"  data-value="instagram" aria-hidden="true"></kmp-icon> Instagram</button></li>
                         <li><button type="button" class="dropdown-item" data-value="tiktok"
-                                data-action="branch-links#setLinkType"><i class="bi bi-tiktok" data-value="tiktok" aria-hidden="true"></i> TikTok</button></li>
+                                data-action="branch-links#setLinkType"><kmp-icon name="brand-tiktok"  data-value="tiktok" aria-hidden="true"></kmp-icon> TikTok</button></li>
                         <li><button type="button" class="dropdown-item" data-value="threads"
-                                data-action="branch-links#setLinkType"><i class="bi bi-threads" data-value="threads" aria-hidden="true"></i> Threads</button></li>
+                                data-action="branch-links#setLinkType"><kmp-icon name="brand-threads"  data-value="threads" aria-hidden="true"></kmp-icon> Threads</button></li>
                         <li><button type="button" class="dropdown-item" data-value="twitter-x"
-                                data-action="branch-links#setLinkType"><i class="bi bi-twitter-x" data-value="twitter-x" aria-hidden="true"></i> X/Twitter</button></li>
+                                data-action="branch-links#setLinkType"><kmp-icon name="brand-x"  data-value="twitter-x" aria-hidden="true"></kmp-icon> X/Twitter</button></li>
                         <li><button type="button" class="dropdown-item" data-value="youtube"
-                                data-action="branch-links#setLinkType"><i class="bi bi-youtube" data-value="youtube" aria-hidden="true"></i> YouTube</button></li>
+                                data-action="branch-links#setLinkType"><kmp-icon name="brand-youtube"  data-value="youtube" aria-hidden="true"></kmp-icon> YouTube</button></li>
                     </ul>
                     <input type="url" data-branch-links-target="new" class="form-control col-8"
                         placeholder="https://example.com">

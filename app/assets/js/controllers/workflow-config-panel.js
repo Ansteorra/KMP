@@ -34,7 +34,7 @@ export default class WorkflowConfigPanel {
         const hasTabs = variableInfo && (variableInfo.available?.length || variableInfo.produced?.length)
 
         let html = `<div class="config-panel-header">
-                <h6><i class="bi bi-sliders me-1"></i>${typeLabels[type] || type} Configuration</h6>
+                <h6><kmp-icon name="adjustments" class="me-1" aria-hidden="true"></kmp-icon>${typeLabels[type] || type} Configuration</h6>
             </div>`
 
         if (hasTabs) {
@@ -43,14 +43,14 @@ export default class WorkflowConfigPanel {
                     <button class="nav-link active py-1 px-2" id="${configTabId}-btn" data-bs-toggle="tab"
                         data-bs-target="#${configTabId}" type="button" role="tab"
                         aria-controls="${configTabId}" aria-selected="true">
-                        <i class="bi bi-gear me-1"></i>Config
+                        <kmp-icon name="settings" class="me-1" aria-hidden="true"></kmp-icon>Config
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link py-1 px-2" id="${varsTabId}-btn" data-bs-toggle="tab"
                         data-bs-target="#${varsTabId}" type="button" role="tab"
                         aria-controls="${varsTabId}" aria-selected="false">
-                        <i class="bi bi-code-slash me-1"></i>Variables
+                        <kmp-icon name="code" class="me-1" aria-hidden="true"></kmp-icon>Variables
                     </button>
                 </li>
             </ul>`
@@ -86,10 +86,10 @@ export default class WorkflowConfigPanel {
     renderEmptyHTML() {
         return `
             <div class="config-panel-header">
-                <h6><i class="bi bi-sliders me-1"></i>Configuration</h6>
+                <h6><kmp-icon name="adjustments" class="me-1" aria-hidden="true"></kmp-icon>Configuration</h6>
             </div>
             <div class="config-panel-empty">
-                <i class="bi bi-hand-index"></i>
+                <kmp-icon name="hand-finger"  aria-hidden="true"></kmp-icon>
                 <p>Select a node on the canvas to configure it</p>
             </div>`
     }
@@ -103,13 +103,13 @@ export default class WorkflowConfigPanel {
         let html = '<div class="p-2">'
 
         if (produced.length) {
-            html += '<h6 class="small text-muted mb-2"><i class="bi bi-box-arrow-right me-1"></i>Produced by this Node</h6>'
+            html += '<h6 class="small text-muted mb-2"><kmp-icon name="logout" class="me-1" aria-hidden="true"></kmp-icon>Produced by this Node</h6>'
             html += this._variableListHTML(produced)
         }
 
         if (available.length) {
             if (produced.length) html += '<hr class="my-2">'
-            html += '<h6 class="small text-muted mb-2"><i class="bi bi-box-arrow-in-right me-1"></i>Available Variables</h6>'
+            html += '<h6 class="small text-muted mb-2"><kmp-icon name="login" class="me-1" aria-hidden="true"></kmp-icon>Available Variables</h6>'
             html += '<label class="form-label form-label-sm visually-hidden" for="workflow-variable-filter">Filter variables</label>'
             html += '<input type="text" class="form-control form-control-sm mb-2" id="workflow-variable-filter" placeholder="Filter variables..." data-action="input->workflow-designer#filterVariableCatalog">'
             html += this._variableListHTML(available, true)
@@ -488,7 +488,7 @@ export default class WorkflowConfigPanel {
             <input type="checkbox" class="form-check-input" name="serialPickNext" id="workflow-config-serial-pick-next" ${config.serialPickNext ? 'checked' : ''} data-action="change->workflow-designer#onSerialPickNextChange">
             <label class="form-check-label" for="workflow-config-serial-pick-next">
               Serial Pick Next Approver
-              <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" title="Each approver picks the next approver from the eligible pool. Approvals happen one at a time in sequence."></i>
+              <kmp-icon name="info-circle" class="ms-1" data-bs-toggle="tooltip" title="Each approver picks the next approver from the eligible pool. Approvals happen one at a time in sequence." aria-hidden="true"></kmp-icon>
             </label>
           </div>
         </div>
@@ -570,7 +570,7 @@ export default class WorkflowConfigPanel {
     _forkHTML(config) {
         return `<div class="mb-3">
             <small class="form-text text-muted">
-                <i class="bi bi-info-circle me-1"></i>
+                <kmp-icon name="info-circle" class="me-1" aria-hidden="true"></kmp-icon>
                 Executes all connected output paths in parallel. No additional configuration needed.
             </small>
         </div>`
@@ -579,7 +579,7 @@ export default class WorkflowConfigPanel {
     _joinHTML(config) {
         return `<div class="mb-3">
             <small class="form-text text-muted">
-                <i class="bi bi-info-circle me-1"></i>
+                <kmp-icon name="info-circle" class="me-1" aria-hidden="true"></kmp-icon>
                 Waits for all incoming paths to complete before advancing.
             </small>
         </div>`
@@ -780,7 +780,7 @@ export default class WorkflowConfigPanel {
                 <button type="button" class="btn btn-outline-secondary btn-sm"
                     data-action="click->workflow-designer#addKvRow"
                     data-kv-target="${escapedFieldName}">
-                    <i class="bi bi-plus-circle" aria-hidden="true"></i> Add Variable
+                    <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon> Add Variable
                 </button>
             </div>
             <div class="kv-rows" data-kv-rows="${escapedFieldName}">
@@ -808,7 +808,7 @@ export default class WorkflowConfigPanel {
                 <button type="button" class="btn btn-outline-secondary btn-sm"
                     data-action="click->workflow-designer#addArrayRow"
                     data-array-target="${escapedFieldName}">
-                    <i class="bi bi-plus-circle" aria-hidden="true"></i> Add Option
+                    <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon> Add Option
                 </button>
             </div>
             ${description}
@@ -841,7 +841,7 @@ export default class WorkflowConfigPanel {
                     <button type="button" class="btn btn-outline-danger btn-sm"
                         data-action="click->workflow-designer#removeArrayRow"
                         aria-label="${this._escapeAttr(removeLabel)}">
-                        <i class="bi bi-trash" aria-hidden="true"></i>
+                        <kmp-icon name="trash"  aria-hidden="true"></kmp-icon>
                     </button>
                 </div>
                 <label class="form-label form-label-sm mb-1" for="${this._escapeAttr(labelId)}">Display label</label>
@@ -902,7 +902,7 @@ export default class WorkflowConfigPanel {
                     <button type="button" class="btn btn-outline-danger btn-sm wf-template-variable-remove"
                         data-action="click->workflow-designer#removeKvRow"
                         aria-label="${this._escapeAttr(removeLabel)}">
-                        <i class="bi bi-trash" aria-hidden="true"></i>
+                        <kmp-icon name="trash"  aria-hidden="true"></kmp-icon>
                     </button>
                 </div>
                 <div class="row g-2 align-items-start">

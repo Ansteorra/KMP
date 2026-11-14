@@ -40,6 +40,12 @@ Active first-party plugins are `Activities`, `Officers`, `Awards`, and `Waivers`
 
 Run commands from `app/` unless noted.
 
+For OpenAI-hosted checkouts, follow `app/docs/codex-cloud.md`. Start the isolated
+test cluster with `bash tools/codex/environment.sh start` from the repository
+root, then run app commands with `bash tools/codex/environment.sh run COMMAND
+[ARGS...]`. This wrapper supplies cloud-only PostgreSQL configuration and skips
+local `.env` loading. Full Playwright journeys require the complete Docker stack.
+
 | Need | Command |
 | --- | --- |
 | Full local verification | `bash bin/verify.sh` |
@@ -55,7 +61,7 @@ Run commands from `app/` unless noted.
 | PHPStan | `vendor/bin/phpstan analyse --no-progress` |
 | Clean API references (repository root) | `./generate_api_docs.sh` |
 
-`bin/verify.sh` runs the three PHPUnit suites, the skipped-test budget, seed snapshot contracts, Jest, Markdown and JSDoc integrity checks, a Vite development build, the Azure runtime contract, PHPCS for changed PHP files, and PHPStan. Coverage and mutation lanes are opt-in flags; Playwright remains a separate lane.
+`bin/verify.sh` runs the complete PHPUnit `all` suite (matching hosted CI), the skipped-test budget, seed snapshot contracts, Jest, Markdown and JSDoc integrity checks, a Vite development build, the Azure runtime contract, PHPCS for changed PHP files, and PHPStan. Coverage and mutation lanes are opt-in flags; Playwright remains a separate lane.
 
 Playwright lanes share the local Docker app, DB, worker, scheduler, and Mailpit containers. Run only one lane at a time; concurrent E2E lanes can race database resets, queue delivery, scheduler runs, and mailbox assertions. Use `PLAYWRIGHT_RESET_DB=0` only for targeted reruns after a lane reset has already completed.
 
@@ -227,7 +233,7 @@ Do not run `phpcbf` across the whole codebase. The PHPCS config intentionally ex
 - Define `static targets`, `static values`, `static classes`, and `static outlets` instead of querying arbitrary DOM where possible.
 - Clean up event listeners, timers, observers, and pending async work in `disconnect()`.
 - Use namespaced custom events for cross-component communication, such as `offline-queue:*` or controller-specific prefixes.
-- Turbo Drive is disabled in `assets/js/index.js`; Turbo Frames remain in use. Do not re-enable Drive without a focused compatibility review.
+- Turbo Drive is gated by `KMP_TURBO_ENABLED`; the Frame/Stream fallback remains available. Use the shared navigation adapter, preserve Turbo history and drafts, and validate cached authenticated snapshots through `/navigation/context`. Live updates require their separate switch and the release gates in `app/docs/hotwire-interactions.md`.
 - Use `KMP_utils` for URL and sanitization helpers and `KMP_accessibility` for accessible alert/confirm/prompt/announce flows.
 - Bootstrap is imported by the frontend entrypoint and bundled by Vite. Use Bootstrap classes and components consistently with existing templates.
 - Keep controllers accessibility-aware: preserve focus, update ARIA state (`aria-expanded`, `aria-selected`, `aria-busy`, etc.), avoid inaccessible hidden content, and announce async results when needed.
@@ -302,3 +308,9 @@ Do not run `phpcbf` across the whole codebase. The PHPCS config intentionally ex
   image digest without rebuilding or rerunning quality gates. Never bypass the
   original quality gates, digest checks, or the GitHub production environment
   approval.
+
+
+Use canonical KMP icon IDs with `IconHelper::render()`, `IconCatalog`, or the JavaScript
+`icon-service.js` API. Keep application controls deduplicated and useful overlapping SCA
+subjects available. Do not add Bootstrap Icons rendering or font dependencies. See
+`app/docs/icons.md`; run `npm run icons:check && npm run icons:guard` after catalog changes.

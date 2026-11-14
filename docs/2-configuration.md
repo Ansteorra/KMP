@@ -164,8 +164,9 @@ small typed resolver/service at the owning boundary.
   connection cleanup, TableLocator reset, cache namespace, and worker context.
 - **A rotated secret appears ignored:** check the configured driver, namespace,
   and import semantics; do not overwrite the store to make the environment win.
-- **URLs use HTTP behind a proxy:** verify `TRUST_PROXY`, the trusted proxy list,
-  and `X-Forwarded-Proto` handling.
+- **URLs use HTTP behind a proxy:** `TRUST_PROXY=true` also requires explicit
+  `TRUSTED_PROXY_IPS` for generic proxies, or the Azure managed-ingress mode selected
+  by Bicep. See [proxy configuration](8.1-environment-setup.md).
 - **Local settings do not change:** confirm whether the value is overridden in
   `app_local.php`, queue/secrets config, or a real process environment variable.
 

@@ -156,7 +156,7 @@ class ActivitiesViewCellProvider
         $cells[] = [
             'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
             'label' => 'Request Auths',
-            'icon' => 'bi-file-earmark-check',
+            'icon' => 'file-check',
             'url' => ['controller' => 'Authorizations', 'action' => 'mobileRequestAuthorization', 'plugin' => 'Activities'],
             'order' => 10,
             'color' => 'request',  // Section-specific color

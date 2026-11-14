@@ -84,6 +84,7 @@ class WaiverMobileService
             ->all()
             ->toArray();
 
+        $lostTypeIdsByGathering = (new GatheringWaiverSummaryService())->getLostTypeIdsByGathering($gatheringIds);
         $authorizedGatherings = [];
         $now = new DateTime();
 
@@ -124,7 +125,11 @@ class WaiverMobileService
                         ->extract('waiver_type_id')
                         ->toArray();
 
-                    $missingWaiverTypes = array_diff($requiredWaiverTypes, $uploadedWaiverTypes);
+                    $missingWaiverTypes = array_diff(
+                        $requiredWaiverTypes,
+                        $uploadedWaiverTypes,
+                        $lostTypeIdsByGathering[$gathering->id] ?? [],
+                    );
 
                     if (!empty($missingWaiverTypes)) {
                         $WaiverTypes = TableRegistry::getTableLocator()->get('Waivers.WaiverTypes');
@@ -198,10 +203,15 @@ class WaiverMobileService
 
         if ($existing) {
             if ($existing->exemption_reason === $reason) {
-                return new ServiceResult(false, __('An exemption with this reason already exists for this gathering and waiver type'));
+                return new ServiceResult(false, __(
+                    'An exemption with this reason already exists for this gathering and waiver type',
+                ));
             }
 
-            return new ServiceResult(false, __('An exemption already exists for this gathering and waiver type. Please delete the existing exemption before creating a new one with a different reason.'));
+            return new ServiceResult(false, __(
+                'An exemption already exists for this gathering and waiver type. '
+                . 'Please delete the existing exemption before creating a new one with a different reason.',
+            ));
         }
 
         $retentionPolicyService = new RetentionPolicyService();

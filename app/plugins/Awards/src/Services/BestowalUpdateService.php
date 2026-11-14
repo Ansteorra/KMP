@@ -6,6 +6,7 @@ namespace Awards\Services;
 use App\Services\ActionItems\ActionItemService;
 use App\Services\ServiceResult;
 use Awards\Model\Entity\Bestowal;
+use Awards\Policy\BestowalPolicy;
 use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Cake\ORM\Table;
@@ -66,7 +67,14 @@ class BestowalUpdateService
         try {
             return $bestowalsTable->getConnection()->transactional(
                 function () use ($bestowalsTable, $bestowalId, $data, $actorId): array {
-                    $bestowal = $bestowalsTable->get($bestowalId);
+                    $bestowal = $bestowalsTable->find()->where(['Bestowals.id' => $bestowalId])
+                        ->epilog('FOR UPDATE')->firstOrFail();
+                    $actor = $this->fetchTable('Members')->get($actorId);
+                    if (!(new BestowalPolicy())->canUpdateWithinScope($actor, $bestowal, $data)) {
+                        throw new RuntimeException(
+                            'You cannot update this bestowal outside your current event authority.',
+                        );
+                    }
                     $originalGatheringId = $bestowal->gathering_id !== null ? (int)$bestowal->gathering_id : null;
                     $unlinkIds = $this->normalizeIdList($data['unlink_recommendation_ids'] ?? []);
                     $linkIds = $this->normalizeIdList($data['link_recommendation_ids'] ?? []);
@@ -188,6 +196,7 @@ class BestowalUpdateService
      * @param int $actorId Actor performing the update.
      * @param bool $futureOnly When true, only future gatherings are selectable.
      * @param bool $autoCompleteTodos Whether satisfied required-field to-dos should be system-closed.
+     * @param int|null $actionItemId Optional native scheduling task authorizing the assignment.
      * @return array<string, mixed>
      */
     public function assignGathering(
@@ -197,6 +206,7 @@ class BestowalUpdateService
         int $actorId,
         bool $futureOnly = true,
         bool $autoCompleteTodos = true,
+        ?int $actionItemId = null,
     ): array {
         if ($bestowalId <= 0 || $gatheringId <= 0) {
             return $this->failureResult('A valid bestowal and gathering are required.');
@@ -211,6 +221,7 @@ class BestowalUpdateService
                     $actorId,
                     $futureOnly,
                     $autoCompleteTodos,
+                    $actionItemId,
                 ): array {
                     $bestowal = $bestowalsTable->find()
                         ->where(['Bestowals.id' => $bestowalId])
@@ -219,9 +230,24 @@ class BestowalUpdateService
                                 return $query->select(['id', 'award_id', 'member_id', 'bestowal_id']);
                             },
                         ])
-                        ->first();
+                        ->epilog('FOR UPDATE')->first();
                     if ($bestowal === null) {
                         throw new RuntimeException('Bestowal not found.');
+                    }
+                    $actor = $this->fetchTable('Members')->get($actorId);
+                    $policy = new BestowalPolicy();
+                    $nativeAuthority = $policy->hasNativePermission($actor, 'canManageCourtSchedule', $bestowal);
+                    if (!$nativeAuthority && $actionItemId !== null) {
+                        $item = $this->fetchTable('ActionItems')->find()->where(['id' => $actionItemId])->first();
+                        $nativeAuthority = $item !== null
+                            && $policy->hasNativeGatheringTaskAuthority($actor, $bestowal, $item);
+                    }
+                    if (
+                        !$nativeAuthority
+                        && ((int)$bestowal->gathering_id !== $gatheringId
+                            || !$policy->canManageCourtSchedule($actor, $bestowal))
+                    ) {
+                        throw new RuntimeException('You cannot schedule this bestowal outside your current authority.');
                     }
                     if (!$bestowal->isActiveBestowal()) {
                         throw new RuntimeException('Only open bestowals can be assigned to a gathering.');

@@ -1,5 +1,8 @@
 const { createBdd } = require('playwright-bdd');
 const { expect } = require('@playwright/test');
+const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
+const path = require('node:path');
 const {
     loginAs,
     waitForTurboFrame,
@@ -8,6 +11,75 @@ const {
 } = require('../../support/ui-helpers.cjs');
 
 const { Given, When, Then } = createBdd();
+
+Then('the real browser check {string} should pass', async ({ $testInfo }, check) => {
+    const allowed = new Set(['turbo-navigation', 'detail-tabs', 'partial-updates', 'waiver-upload', 'public-gathering-attendance']);
+    expect(allowed.has(check)).toBe(true);
+    const script = path.resolve(__dirname, `../../support/${check}-browser-check.cjs`);
+    try {
+        const result = await promisify(execFile)(process.execPath, [script], {
+            env: { ...process.env, PLAYWRIGHT_BROWSER: $testInfo.project.name },
+            timeout: 180000, maxBuffer: 1024 * 1024,
+        });
+        await $testInfo.attach(`${check}-result`, { body: result.stdout, contentType: 'text/plain' });
+    } catch (error) {
+        await $testInfo.attach(`${check}-failure`, {
+            body: String(error.stdout || '') + String(error.stderr || ''), contentType: 'text/plain',
+        });
+        throw error;
+    }
+});
+
+Then('dialog initialization should survive repeated document visits', async ({ page }) => {
+    const errors = [];
+    const onError = error => errors.push(error.message);
+    page.on('pageerror', onError);
+    try {
+        await page.goto('/members');
+        const enabled = await page.locator('meta[name="kmp-turbo-enabled"]').getAttribute('content') === 'true';
+        const marker = await page.evaluate(() => { window.__dialogVisitCheck = crypto.randomUUID(); return window.__dialogVisitCheck; });
+        for (const path of ['/action-items/my-tasks', '/approvals', '/approvals/all', '/awards/recommendations', '/action-items/my-tasks']) {
+            await page.evaluate(path => {
+                const link = document.createElement('a'); link.href = path; link.id = 'dialog-visit-link';
+                link.textContent = 'Open dialog screen'; document.querySelector('#main-content').prepend(link);
+            }, path);
+            await page.locator('#dialog-visit-link').click();
+            await expect(page).toHaveURL(new RegExp(`${path.replaceAll('/', '\\/')}(?:\\?|$)`));
+            if (enabled) expect(await page.evaluate(() => window.__dialogVisitCheck)).toBe(marker);
+            const selector = path.startsWith('/action-items') ? '#todoCompleteModal'
+                : path.startsWith('/awards') ? '#recommendationWorkflowDecisionModal' : '#approvalResponseModal';
+            const modal = page.locator(selector);
+            await expect(modal).toBeAttached();
+            await expect.poll(() => modal.evaluate(element => {
+                const identifier = element.dataset.controller;
+                return !!window.Stimulus?.getControllerForElementAndIdentifier(element, identifier);
+            })).toBe(true);
+            await modal.evaluate(element => {
+                const trigger = document.createElement('button');
+                trigger.type = 'button'; trigger.id = 'dialog-check-trigger'; trigger.textContent = 'Open test dialog';
+                trigger.dataset.bsToggle = 'modal'; trigger.dataset.bsTarget = `#${element.id}`;
+                trigger.dataset.todoId = '42'; trigger.dataset.todoTitle = 'Navigation check';
+                trigger.dataset.outletBtnBtnDataValue = JSON.stringify({ id: 42 });
+                document.querySelector('#main-content').prepend(trigger);
+            });
+            await page.locator('#dialog-check-trigger').click();
+            await expect(modal).toBeVisible();
+            await expect(modal).toBeFocused();
+            if (path.startsWith('/action-items')) {
+                await expect(modal.locator('[data-todo-target="id"]')).toHaveValue('42');
+                await expect(modal.locator('[data-todo-target="title"]')).toHaveText('Navigation check');
+            } else {
+                await expect(modal.locator('input[name="approvalId"]')).toHaveValue('42');
+            }
+            await page.keyboard.press('Escape');
+            await expect(modal).not.toBeVisible();
+            await expect(page.locator('#dialog-check-trigger')).toBeFocused();
+        }
+        expect(errors).toEqual([]);
+    } finally {
+        page.off('pageerror', onError);
+    }
+});
 
 const waitForRecommendationsGridReady = async (page) => {
     await waitForTurboFrame(page, 'recommendations-grid');

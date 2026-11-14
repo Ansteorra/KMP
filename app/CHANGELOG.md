@@ -3,8 +3,42 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: e511adcc8a9f23ab4fff7c7957d8be3717b88a61 -->
-<!-- LAST_SYNCED_DATE: 2026-10-21 -->
+<!-- LAST_SYNCED_COMMIT: ad3c2d874411ddee0c0669a836ae8f5a28d63dd6 -->
+<!-- LAST_SYNCED_DATE: 2026-11-10 -->
+
+## KMP 1.5.14 — November 10, 2026
+
+- Keep completion notes attached to the selected To-Do and offer optional notes from bestowal detail and quick checklists.
+- Show award descriptions correctly when recommending an award, and omit the separator when no description is available.
+- Load bestowal details faster by batching the activity-access checks used for the gathering link.
+
+- Read public events on phones in compact rows that fit the screen, with collapsible filters, larger touch controls, and single-column expanded details. Keep date ranges on one line, with the year and duration underneath.
+
+- Preserve detail tabs, grid queries, drafts, focus, and return navigation across partial saves. Replace the app Back stack with shared browser history and prepare optional Turbo Drive and authorized live updates behind fallback switches.
+
+- Delegate award preparation for a specific gathering and branch, with scoped access to bestowals, court agendas, and assigned To-Dos and an auditable revoke action.
+- Configure a lead terminal To-Do with multiple bestowal outcomes, including Given Not Received. Authorized editors can correct a completed outcome while retaining its original completion history. Regalia permissions support renamed fields.
+- Improve court agenda preparation, ordering, editing, and printouts, including scheduled-session dates/times and the appropriate recipient, herald, and recommendation notes.
+- Keep prerequisites and gathering/court assignments synchronized across bestowal To-Dos. Improve My To-Dos, bulk completion, submitted recommendations, and saved grid context.
+- Report lost waivers from each gathering grid row with a labeled Lost action beside View. Lost waivers satisfy gathering completion requirements alongside uploaded and not-required waivers, while retaining their distinct status and audit history. Reversing a loss restores any unmet requirement.
+- Close waiver collections directly with the authorized Close Waivers action. Completed losses no longer appear as missing waivers, and a declined upload followed by a loss report no longer creates a duplicate row. Existing files remain viewable and downloadable.
+- Keep the Activities tab selected after adding, removing, or editing an activity. Open Kingdom Calendar from the desktop or mobile navigation, and identify recommendation actions by their tooltips and accessible labels.
+- Use compact, spaced action buttons on waiver details and improve grid filters, saved tabs, navigation, and mobile layouts. Include an authenticated UI-pattern review showcase with fictional examples.
+- Match every activity configured as Royal Progress when filtering public events by Any Royal Progress, including custom royal-presence activities.
+- Manage Royal Progress exclusively through gathering activities. Remove Royal Progress RSVP controls, office eligibility settings, attendance-derived calendar filters and badges, and their retired database fields. Ordinary attendance and sharing preferences remain available.
+- Let Crown staff and Crown schedulers attach and schedule Crown Presence at child-hosted events through a dedicated activity permission, without granting general gathering editing.
+- Add a Calendar Deputy office under the Kingdom Seneschal with a role that can create and edit events for any group and publish or unpublish public calendar events. The hosting group's Seneschal retains local editing access.
+- Add a Local Calendar Deputy office under the Local Seneschal with scoped gathering creation, editing, and desktop/mobile waiver uploads. The office and permissions require no personal warrant and grant no calendar publication rights. Enforce hosting-group scope on submitted gathering creation and moves.
+- Browse public events in a compact calendar with month boundaries, empty weekends, and continuing multi-week events. Select a row for details or the event name to open its public page.
+- Keep event filters visible while scrolling. Find activities by type in a wider icon picker, view choices in two columns on larger screens, and see selected activity names without reopening the picker.
+- Show Royal Progress activities first, Order Circles second, then other activities, ordered by Display Order and alphabetically within each group. Business activities remain in administrative views and are hidden from public calendars and event pages.
+- Add and edit gathering activities in a shared modal. The activity grid includes configured icons, activity types, display order, and direct View/Edit actions.
+- Add matching Order Circle icons and readable activity color palettes, with larger icons across activity displays.
+- Update dependencies with security fixes for filesystem path handling, YAML parsing, query strings, redirects, and schema validation.
+- Apply additional framework and subprocess security fixes, including CakePHP 5.4.4 and Symfony Process 7.4.22. Refresh HTTP, PDF-viewer, and certificate dependencies.
+- Preserve PostgreSQL TLS settings during database readiness and migration checks.
+
+---
 
 ## KMP 1.5.13 — October 21, 2026
 

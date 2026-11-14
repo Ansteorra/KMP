@@ -55,8 +55,10 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'key' => 'edit',
                 'type' => 'modal',
                 'label' => '',
-                'icon' => 'bi-pencil-fill',
+                'icon' => 'pencil',
                 'class' => 'btn-sm btn btn-primary edit-rec',
+                'title' => 'Edit recommendation',
+                'ariaLabel' => 'Edit recommendation',
                 'modalTarget' => '#editRecommendationModal',
                 'permission' => 'edit',
                 'condition' => [
@@ -74,7 +76,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'key' => 'bestowal',
                 'type' => 'link',
                 'label' => '',
-                'icon' => 'bi-award-fill',
+                'icon' => 'award',
                 'class' => 'btn-sm btn btn-outline-primary',
                 'permission' => 'view',
                 'title' => 'Open linked bestowal',
@@ -93,8 +95,10 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'key' => 'view',
                 'type' => 'link',
                 'label' => '',
-                'icon' => 'bi-eye-fill',
+                'icon' => 'eye',
                 'class' => 'btn-sm btn btn-secondary',
+                'title' => 'View recommendation',
+                'ariaLabel' => 'View recommendation',
                 'permission' => 'view',
                 'url' => [
                     'plugin' => 'Awards',
@@ -107,7 +111,7 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'key' => 'workflow-decision',
                 'type' => 'modal',
                 'label' => '',
-                'icon' => 'bi-check2-circle',
+                'icon' => 'circle-check',
                 'class' => 'btn-sm btn btn-success',
                 'modalTarget' => '#recommendationWorkflowDecisionModal',
                 'title' => 'Approve or decline recommendation workflow',
@@ -131,9 +135,11 @@ class RecommendationsGridColumns extends BaseGridColumns
                 'key' => 'request-feedback',
                 'type' => 'modal',
                 'label' => '',
-                'icon' => 'bi-chat-left-text',
+                'icon' => 'message',
                 'class' => 'btn-sm btn btn-outline-primary',
                 'modalTarget' => '#requestRecommendationFeedbackModal',
+                'title' => 'Request recommendation feedback',
+                'ariaLabel' => 'Request recommendation feedback',
                 'permission' => 'requestFeedback',
                 'dataAttributes' => [
                     'controller' => 'outlet-btn',
@@ -205,6 +211,7 @@ class RecommendationsGridColumns extends BaseGridColumns
 
             'member_sca_name' => [
                 'key' => 'member_sca_name',
+                'queryField' => "COALESCE(NULLIF(TRIM(Members.sca_name), ''), Recommendations.member_sca_name)",
                 'label' => 'For',
                 'type' => 'string',
                 'sortable' => true,
@@ -768,6 +775,14 @@ class RecommendationsGridColumns extends BaseGridColumns
         ];
     }
 
+    /** Search both current account names and the historical submitted names. */
+    public static function getSearchableColumns(): array
+    {
+        $columns = array_values(array_diff(parent::getSearchableColumns(), ['member_sca_name']));
+
+        return array_merge($columns, ['Members.sca_name', 'Recommendations.member_sca_name']);
+    }
+
     /**
      * Get system views for recommendations
      *
@@ -1147,8 +1162,8 @@ class RecommendationsGridColumns extends BaseGridColumns
                 $field = $bestowals->aliasField('lifecycle_status');
 
                 return $isGiven
-                    ? $exp->eq($field, Bestowal::LIFECYCLE_GIVEN)
-                    : $exp->notEq($field, Bestowal::LIFECYCLE_GIVEN);
+                    ? $exp->notIn($field, [Bestowal::LIFECYCLE_OPEN, Bestowal::LIFECYCLE_CANCELLED])
+                    : $exp->in($field, [Bestowal::LIFECYCLE_OPEN, Bestowal::LIFECYCLE_CANCELLED]);
             });
 
         return $outerQuery->expr()->exists($subquery);

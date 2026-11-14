@@ -1,3 +1,4 @@
+import { createIcon } from '../services/icon-service.js';
 import MobileControllerBase from "./mobile-controller-base.js";
 
 /**
@@ -136,8 +137,7 @@ class MemberMobileCardMenu extends MobileControllerBase {
 
         // Add icon
         if (item.icon) {
-            const icon = document.createElement('i');
-            icon.className = `bi ${item.icon} me-2`;
+            const icon = createIcon(item.icon, { class: 'me-2' });
             icon.setAttribute('aria-hidden', 'true');
             content.appendChild(icon);
         }

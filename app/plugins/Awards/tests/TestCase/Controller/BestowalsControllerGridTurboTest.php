@@ -14,6 +14,7 @@ use Awards\Model\Entity\BestowalTodoTemplateItem;
 use Cake\Core\ContainerInterface as CakeContainerInterface;
 use Cake\ORM\TableRegistry;
 use Closure;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * Turbo stream grid row sync for BestowalsController.
@@ -42,7 +43,13 @@ class BestowalsControllerGridTurboTest extends HttpIntegrationTestCase
         });
     }
 
-    public function testEditFromGridReturnsRowReplaceStreamOnMainIndex(): void
+    public static function responseModes(): array
+    {
+        return ['legacy row client' => [false], 'table reconciliation client' => [true]];
+    }
+
+    #[DataProvider('responseModes')]
+    public function testEditFromGridReturnsRowReplaceStreamOnMainIndex(bool $reconcile): void
     {
         $this->ensureActiveWorkflow('awards-bestowal-update');
         $bestowal = $this->createExistingBestowal();
@@ -70,6 +77,7 @@ class BestowalsControllerGridTurboTest extends HttpIntegrationTestCase
         $this->configRequest([
             'headers' => [
                 'Accept' => 'text/vnd.turbo-stream.html',
+                'X-KMP-Grid-Reconcile' => $reconcile ? 'table' : '',
             ],
         ]);
         $this->post('/awards/bestowals/edit/' . $bestowal->id, [
@@ -78,6 +86,13 @@ class BestowalsControllerGridTurboTest extends HttpIntegrationTestCase
         ]);
 
         $this->assertResponseOk();
+        if ($reconcile) {
+            $this->assertResponseContains('<turbo-stream action="replace" target="bestowals-grid-table"');
+            $this->assertResponseNotContains('target="bestowals-grid-row-');
+            $this->assertResponseNotContains('data-grid-view-target="rowCheckbox"');
+
+            return;
+        }
         $this->assertResponseContains(
             '<turbo-stream action="replace" target="bestowals-grid-row-' . $bestowal->id . '"',
         );
@@ -85,6 +100,32 @@ class BestowalsControllerGridTurboTest extends HttpIntegrationTestCase
         $this->assertResponseContains('aria-label=');
         $this->assertResponseContains('data-bulk-todo-options=');
         $this->assertResponseNotContains('target="bestowals-grid-table"');
+    }
+
+    public function testFailedGridSaveReturnsFeedbackWithoutReloadingTheSubmittedForm(): void
+    {
+        $this->ensureActiveWorkflow('awards-bestowal-update');
+        $bestowal = $this->createExistingBestowal();
+        $originalNote = $bestowal->note;
+        $this->mockServiceClean(TriggerDispatcher::class, function () {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->once())->method('dispatch')
+                ->willReturn([new ServiceResult(false, 'The submitted note needs more detail.')]);
+
+            return $mock;
+        });
+        $this->configRequest(['headers' => [
+            'Accept' => 'text/vnd.turbo-stream.html', 'X-KMP-Grid-Reconcile' => 'table',
+        ]]);
+        $this->post('/awards/bestowals/edit/' . $bestowal->id, [
+            'page_context_url' => '/awards/bestowals?search=preserved', 'note' => 'Unsubmitted draft',
+        ]);
+        $this->assertResponseCode(422);
+        $this->assertResponseContains('The submitted note needs more detail.');
+        $this->assertResponseContains('target="flash-messages"');
+        $this->assertResponseNotContains('target="editBestowalQuick"');
+        $this->assertResponseNotContains('turbo-edit-form');
+        $this->assertSame($originalNote, $this->getTableLocator()->get('Awards.Bestowals')->get($bestowal->id)->note);
     }
 
     public function testEditFromGridFallsBackToTableRefreshOutsideMainIndex(): void

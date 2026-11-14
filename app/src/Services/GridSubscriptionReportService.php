@@ -55,6 +55,7 @@ class GridSubscriptionReportService
         $request = $request->withAttribute('identity', $member->setAuthorization($authorization))
             ->withAttribute('authorization', $authorization)
             ->withAttribute('authentication', new AuthenticationService())
+            ->withAttribute('gridSubscriptionReport', true)
             ->withHeader('Turbo-Frame', 'grid-subscription-report');
 
         // A separate container prevents request/controller state leaking between recipients.

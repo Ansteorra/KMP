@@ -1,12 +1,13 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Gathering Attendance Modals for Member View
- * 
+ *
  * Contains:
  * - Add modal: For RSVPing to a new gathering (with gathering selector dropdown)
  * - Edit modal: Shell that dynamically loads content from attendance_modal.php (same as calendar)
- * 
+ *
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Member $member
  * @var array $availableGatherings
@@ -22,7 +23,10 @@ $isMinor = $member && $member->age !== null && $member->age < 18;
         <div class="modal-content">
             <?= $this->Form->create(null, [
                 'url' => ['controller' => 'GatheringAttendances', 'action' => 'add'],
-                'id' => 'addGatheringAttendanceForm'
+                'id' => 'addGatheringAttendanceForm',
+                'data-controller' => 'turbo-modal', 'data-turbo' => 'true',
+                'data-action' => 'submit->turbo-modal#submitAsTurboStream',
+                'data-turbo-modal-changed-value' => 'attendance',
             ]) ?>
             <div class="modal-header">
                 <h5 class="modal-title" id="addGatheringAttendanceModalLabel">RSVP for Gathering</h5><br />
@@ -33,11 +37,12 @@ $isMinor = $member && $member->age !== null && $member->age < 18;
                     <small>Share with the crown, your friends, or the gathering hosts that you plan to attend this
                         gathering (not a replacement for paypal prereg).</small>
                 </div>
+                <?= $this->Form->hidden('page_context_url', ['value' => '']) ?>
                 <?= $this->Form->hidden('member_id', ['value' => $member->id]) ?>
 
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3">
                     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                        <i class="bi bi-calendar-event text-primary me-1" aria-hidden="true"></i>
+                        <kmp-icon name="calendar-event" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Gathering and Note') ?>
                     </legend>
                 <?= $this->Form->control('gathering_id', [
@@ -46,7 +51,7 @@ $isMinor = $member && $member->age !== null && $member->age < 18;
                     'options' => $availableGatherings,
                     'empty' => '-- Select a Gathering --',
                     'required' => true,
-                    'class' => 'form-select'
+                    'class' => 'form-select',
                 ]) ?>
 
                 <?= $this->Form->control('public_note', [
@@ -55,14 +60,15 @@ $isMinor = $member && $member->age !== null && $member->age < 18;
                     'placeholder' => 'Optional note to share...',
                     'tooltip' => 'Optional note to viewable by those that you select below.',
                     'rows' => 3,
-                    'class' => 'form-control'
+                    'class' => 'form-control',
                 ]) ?>
 
                 </fieldset>
 
+
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
                     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                        <i class="bi bi-share text-primary me-1" aria-hidden="true"></i>
+                        <kmp-icon name="share" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Sharing') ?>
                     </legend>
                 <div>
@@ -72,16 +78,17 @@ $isMinor = $member && $member->age !== null && $member->age < 18;
                         SCA name and note.
                     </small>
 
-                    <?php if (!$isMinor): ?>
-                    <?= $this->Form->control('share_with_kingdom', [
+                    <?php if (!$isMinor) : ?>
+                        <?= $this->Form->control('share_with_kingdom', [
                         'type' => 'checkbox',
                         'label' => 'Share with Kingdom',
                         'class' => 'form-check-input',
                         'switch' => true,
-                        'tooltip' => 'Signed-in members can see your name and note on the public gathering page, and the host group and crown can view it in AMP.'
+                        'tooltip' => 'Signed-in members can see your name and note on the public gathering page, '
+                        . 'and the host group and crown can view it in AMP.',
                     ]) ?>
-                    <?php else: ?>
-                    <?= $this->Form->hidden('share_with_kingdom', ['value' => '0']) ?>
+                    <?php else : ?>
+                        <?= $this->Form->hidden('share_with_kingdom', ['value' => '0']) ?>
                     <?php endif; ?>
 
                     <?= $this->Form->control('share_with_hosting_group', [
@@ -89,7 +96,8 @@ $isMinor = $member && $member->age !== null && $member->age < 18;
                         'label' => 'Share with Hosting Group',
                         'class' => 'form-check-input',
                         'switch' => true,
-                        'tooltip' => 'Hosts of the event will be able to see your name and public note on the gathering page.'
+                        'tooltip' => 'Hosts of the event will be able to see your name and public note '
+                    . 'on the gathering page.',
                     ]) ?>
 
                     <?= $this->Form->control('share_with_crown', [
@@ -97,7 +105,8 @@ $isMinor = $member && $member->age !== null && $member->age < 18;
                         'label' => 'Share with Nobility/Crown',
                         'class' => 'form-check-input',
                         'switch' => true,
-                        'tooltip' => 'The nobility and crown will be able to see your attendance information in regards to managing award recommendations.'
+                        'tooltip' => 'The nobility and crown will be able to see your attendance information '
+                    . 'in regards to managing award recommendations.',
                     ]) ?>
 
                 </div>
@@ -114,12 +123,18 @@ $isMinor = $member && $member->age !== null && $member->age < 18;
 
 <!-- Edit Gathering Attendance Modal - Content loaded dynamically via AJAX -->
 <div class="modal fade" id="editGatheringAttendanceModal" tabindex="-1"
+    data-controller="attendance-dialog"
+    data-attendance-dialog-loading-value="<?= h(__('Loading attendance form…')) ?>"
+    data-attendance-dialog-error-value="<?= h(__(
+        'Unable to load the attendance form. Close this dialog and try again.',
+    )) ?>"
+    data-attendance-dialog-close-value="<?= h(__('Close')) ?>"
     aria-labelledby="editGatheringAttendanceModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
-        <div class="modal-content" id="editGatheringAttendanceModalContent">
+        <div class="modal-content" id="editGatheringAttendanceModalContent" data-attendance-dialog-target="content">
             <!-- Content will be loaded dynamically -->
             <div class="modal-header">
-                <h5 class="modal-title">Loading...</h5>
+                <h5 class="modal-title" id="editGatheringAttendanceModalLabel">Loading...</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body text-center py-5">
@@ -130,78 +145,3 @@ $isMinor = $member && $member->age !== null && $member->age < 18;
         </div>
     </div>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const editModal = document.getElementById('editGatheringAttendanceModal');
-    const modalContent = document.getElementById('editGatheringAttendanceModalContent');
-
-    if (editModal && modalContent) {
-        editModal.addEventListener('show.bs.modal', async function(event) {
-            const button = event.relatedTarget;
-            const attendanceId = button.getAttribute('data-attendance-id');
-            const gatheringId = button.getAttribute('data-gathering-id');
-
-            if (!gatheringId || !attendanceId) {
-                console.error('Missing gathering ID or attendance ID');
-                return;
-            }
-
-            // Show loading state
-            modalContent.innerHTML = `
-                <div class="modal-header">
-                    <h5 class="modal-title">Loading...</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body text-center py-5">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                </div>
-            `;
-
-            try {
-                // Fetch the modal content from the same endpoint used by the calendar
-                const url = `/gatherings/attendance-modal/${gatheringId}?attendance_id=${attendanceId}`;
-                const response = await fetch(url);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const html = await response.text();
-                modalContent.innerHTML = html;
-
-                // Manually attach click handler to close button since Bootstrap's event delegation
-                // doesn't work on dynamically inserted content
-                const closeButton = modalContent.querySelector('.btn-close');
-                if (closeButton) {
-                    closeButton.addEventListener('click', function() {
-                        const bsModal = bootstrap.Modal.getInstance(editModal);
-                        if (bsModal) {
-                            bsModal.hide();
-                        }
-                    });
-                }
-
-            } catch (error) {
-                console.error('Error loading attendance modal:', error);
-                modalContent.innerHTML = `
-                    <div class="modal-header">
-                        <h5 class="modal-title text-danger">Error</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="alert alert-danger">
-                            Failed to load attendance form. Please try again or refresh the page.
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    </div>
-                `;
-            }
-        });
-    }
-});
-</script>

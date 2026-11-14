@@ -44,6 +44,7 @@ Then('the device PIN mismatch should be announced', async ({ page }) => {
 When('I finish device setup and log out', async ({ page }) => {
     await devicePanel(page).getByRole('button', { name: 'Done', exact: true }).click();
     await page.goto('/members/logout', { waitUntil: 'domcontentloaded' });
+    await page.locator('section[aria-labelledby="sign-out-heading"]').getByRole('button', { name: 'Sign out', exact: true }).click();
     await expect(page).toHaveURL(/\/members\/login/);
 });
 

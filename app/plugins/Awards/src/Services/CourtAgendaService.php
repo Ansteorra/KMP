@@ -3,11 +3,15 @@ declare(strict_types=1);
 
 namespace Awards\Services;
 
+use App\KMP\TimezoneHelper;
 use App\Services\ActionItems\ActionItemService;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\CourtAgenda;
 use Awards\Model\Entity\CourtAgendaItem;
 use Awards\Model\Entity\CourtAgendaSegment;
+use Awards\Policy\BestowalPolicy;
+use Awards\Policy\CourtAgendaPolicy;
+use Cake\Http\Exception\ForbiddenException;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Cake\ORM\Table;
 use RuntimeException;
@@ -43,6 +47,21 @@ class CourtAgendaService
      * @return \Awards\Model\Entity\CourtAgenda
      */
     public function getOrCreateDefaultAgenda(int $gatheringId, ?int $actorId = null): CourtAgenda
+    {
+        return $this->fetchTable('Awards.CourtAgendas')->getConnection()->transactional(
+            function () use ($gatheringId, $actorId): CourtAgenda {
+                $gathering = $this->fetchTable('Gatherings')->get($gatheringId);
+                $this->assertAgendaReadable(new CourtAgenda([
+                    'gathering_id' => $gatheringId, 'gathering' => $gathering,
+                ]), $actorId);
+
+                return $this->findOrCreateDefaultAgenda($gatheringId, $actorId);
+            },
+        );
+    }
+
+    /** Canonical bestowal saves may mirror placement without separate agenda permissions. */
+    private function findOrCreateDefaultAgenda(int $gatheringId, ?int $actorId): CourtAgenda
     {
         $agendas = $this->fetchTable('Awards.CourtAgendas');
         $agenda = $agendas->find()
@@ -81,6 +100,16 @@ class CourtAgendaService
      * @return int Number of imported items.
      */
     public function importGatheringBestowals(int $agendaId, ?int $actorId = null): int
+    {
+        return $this->withAgendaEdit(
+            $agendaId,
+            $actorId,
+            fn(): int => $this->importAuthorizedBestowals($agendaId, $actorId),
+        );
+    }
+
+    /** Import only while the current actor's agenda authority is held. */
+    private function importAuthorizedBestowals(int $agendaId, ?int $actorId): int
     {
         $agendas = $this->fetchTable('Awards.CourtAgendas');
         $agenda = $agendas->get($agendaId, contain: ['CourtAgendaSegments']);
@@ -160,6 +189,19 @@ class CourtAgendaService
      * @return int Number of created segments.
      */
     public function ensureEligibleCourtSegments(int $agendaId, ?int $actorId = null): int
+    {
+        return $this->fetchTable('Awards.CourtAgendas')->getConnection()->transactional(
+            function () use ($agendaId, $actorId): int {
+                $agenda = $this->fetchTable('Awards.CourtAgendas')->get($agendaId, contain: ['Gatherings']);
+                $this->assertAgendaReadable($agenda, $actorId);
+
+                return $this->createEligibleCourtSegments($agendaId, $actorId);
+            },
+        );
+    }
+
+    /** Populate deterministic court sections only while current read access is held. */
+    private function createEligibleCourtSegments(int $agendaId, ?int $actorId): int
     {
         $agenda = $this->fetchTable('Awards.CourtAgendas')->get($agendaId);
         $segments = $this->fetchTable('Awards.CourtAgendaSegments');
@@ -323,13 +365,14 @@ class CourtAgendaService
             return null;
         }
 
-        $agenda = $this->getOrCreateDefaultAgenda($gatheringId, $actorId);
+        $agenda = $this->findOrCreateDefaultAgenda($gatheringId, $actorId);
         if ($roaming) {
             return $this->ensureRoamingSegment((int)$agenda->id, $actorId);
         }
 
         $activity = $this->fetchTable('GatheringScheduledActivities')->find()
-            ->where(['id' => $activityId])
+            ->where(['GatheringScheduledActivities.id' => $activityId])
+            ->contain(['Gatherings'])
             ->first();
         if ($activity === null || (int)$activity->gathering_id !== $gatheringId) {
             return null;
@@ -359,18 +402,36 @@ class CourtAgendaService
     }
 
     /**
+     * Synchronize scheduled sessions before preparing the builder or printable agenda.
+     *
      * @param int $agendaId Agenda ID.
+     * @param int|null $actorId Actor for schedule synchronization audit fields.
      * @return array<string, mixed>
      */
-    public function buildAgendaViewModel(int $agendaId): array
+    public function buildAgendaViewModel(int $agendaId, ?int $actorId = null): array
     {
+        $this->ensureEligibleCourtSegments($agendaId, $actorId);
         $agenda = $this->fetchTable('Awards.CourtAgendas')->get($agendaId, contain: [
             'Gatherings',
             'CourtAgendaSegments' => [
-                'GatheringScheduledActivities' => ['GatheringActivities'],
+                'GatheringScheduledActivities' => ['GatheringActivities', 'Gatherings' => ['joinType' => 'LEFT']],
                 'CourtAgendaItems',
             ],
         ]);
+        $orderedSegments = $agenda->court_agenda_segments ?? [];
+        usort($orderedSegments, static function (CourtAgendaSegment $left, CourtAgendaSegment $right): int {
+            $leftStart = $left->gathering_scheduled_activity?->start_datetime;
+            $rightStart = $right->gathering_scheduled_activity?->start_datetime;
+            if ($leftStart === null) {
+                return $rightStart === null ? 0 : 1;
+            }
+            if ($rightStart === null) {
+                return -1;
+            }
+
+            return $leftStart->getTimestamp() <=> $rightStart->getTimestamp();
+        });
+        $agenda->court_agenda_segments = $orderedSegments;
         $this->hydrateAgendaItemBestowals($agenda->court_agenda_segments ?? []);
         $placedBestowalIds = $this->placedBestowalIds($agenda->court_agenda_segments ?? []);
         $unscheduledBestowals = $this->unscheduledBestowals($agenda, $placedBestowalIds);
@@ -425,6 +486,7 @@ class CourtAgendaService
                 $eligibleBestowalsBySegment,
             ),
             'scheduledActivityOptions' => $this->scheduledActivityOptions((int)$agenda->gathering_id),
+            'unscheduledAwardActivities' => $this->unscheduledAwardActivities((int)$agenda->gathering_id),
             'segmentOptions' => $segmentOptions,
             'totalWarning' => $agendaMinutes >= self::LONG_AGENDA_MINUTES
                 ? __('This court agenda is running long. Consider adding breaks or splitting court.')
@@ -480,6 +542,16 @@ class CourtAgendaService
      */
     public function addSegment(array $data, ?int $actorId = null): CourtAgendaSegment
     {
+        return $this->withAgendaEdit(
+            (int)($data['court_agenda_id'] ?? 0),
+            $actorId,
+            fn(): CourtAgendaSegment => $this->createAuthorizedSegment($data, $actorId),
+        );
+    }
+
+    /** Persist a scheduled court section inside the authorization transaction. */
+    private function createAuthorizedSegment(array $data, ?int $actorId): CourtAgendaSegment
+    {
         $segments = $this->fetchTable('Awards.CourtAgendaSegments');
         $agendaId = (int)($data['court_agenda_id'] ?? 0);
         if ($agendaId <= 0) {
@@ -491,8 +563,23 @@ class CourtAgendaService
         if ($scheduledActivityId === null) {
             throw new RuntimeException('Court activities must be linked to a scheduled gathering activity.');
         }
-        if ($scheduledActivityId !== null) {
-            $this->assertScheduledActivityBelongsToGathering((int)$scheduledActivityId, (int)$agenda->gathering_id);
+        $this->assertScheduledActivityBelongsToGathering((int)$scheduledActivityId, (int)$agenda->gathering_id);
+        $activity = $this->fetchTable('GatheringScheduledActivities')->get((int)$scheduledActivityId);
+        if (
+            $activity->gathering_activity_id === null
+            || !$this->fetchTable('Awards.AwardGatheringActivities')->exists([
+                'gathering_activity_id' => $activity->gathering_activity_id,
+            ])
+        ) {
+            throw new RuntimeException('Court activities must support award presentations.');
+        }
+        if (
+            $segments->exists([
+                'court_agenda_id' => $agendaId,
+                'gathering_scheduled_activity_id' => (int)$scheduledActivityId,
+            ])
+        ) {
+            throw new RuntimeException('This scheduled activity already has a court agenda segment.');
         }
 
         $segment = $segments->newEntity([
@@ -517,6 +604,18 @@ class CourtAgendaService
      * @return \Awards\Model\Entity\CourtAgendaItem
      */
     public function addBlock(array $data, ?int $actorId = null): CourtAgendaItem
+    {
+        $segment = $this->fetchTable('Awards.CourtAgendaSegments')->get((int)($data['court_agenda_segment_id'] ?? 0));
+
+        return $this->withAgendaEdit(
+            (int)$segment->court_agenda_id,
+            $actorId,
+            fn(): CourtAgendaItem => $this->createAuthorizedBlock($data, $actorId),
+        );
+    }
+
+    /** Persist a manual item inside the authorization transaction. */
+    private function createAuthorizedBlock(array $data, ?int $actorId): CourtAgendaItem
     {
         $items = $this->fetchTable('Awards.CourtAgendaItems');
         $segmentId = (int)($data['court_agenda_segment_id'] ?? 0);
@@ -562,6 +661,7 @@ class CourtAgendaService
 
         return $items->getConnection()->transactional(
             function () use ($agendaId, $bestowalId, $targetSegmentId, $actorId, $items): CourtAgendaItem {
+                $this->assertAgendaEdit($agendaId, $actorId);
                 $agenda = $this->fetchTable('Awards.CourtAgendas')->get($agendaId);
                 $segment = $this->fetchTable('Awards.CourtAgendaSegments')->get($targetSegmentId);
                 if ((int)$segment->court_agenda_id !== $agendaId) {
@@ -572,6 +672,12 @@ class CourtAgendaService
                     ->where(['Bestowals.id' => $bestowalId])
                     ->epilog('FOR UPDATE')
                     ->firstOrFail();
+                if ($actorId !== null) {
+                    $actor = $this->fetchTable('Members')->get($actorId);
+                    if (!(new BestowalPolicy())->canPlaceOnAgenda($actor, $bestowal)) {
+                        throw new ForbiddenException('You are not authorized to place this bestowal.');
+                    }
+                }
                 if ((int)$bestowal->gathering_id !== (int)$agenda->gathering_id) {
                     throw new RuntimeException('Bestowal is not scheduled for this gathering.');
                 }
@@ -634,6 +740,20 @@ class CourtAgendaService
         ?int $bestowalId = null,
         ?int $actorId = null,
     ): CourtAgendaItem {
+        return $this->withAgendaEdit(
+            $agendaId,
+            $actorId,
+            fn(): CourtAgendaItem => $this->placeInRoamingCourt($agendaId, $itemId, $bestowalId, $actorId),
+        );
+    }
+
+    /** Move or create an item while holding the agenda authorization transaction. */
+    private function placeInRoamingCourt(
+        int $agendaId,
+        ?int $itemId,
+        ?int $bestowalId,
+        ?int $actorId,
+    ): CourtAgendaItem {
         $roamingSegment = $this->ensureRoamingSegment($agendaId, $actorId);
         if ($itemId !== null && $itemId > 0) {
             $this->moveItem(
@@ -660,8 +780,26 @@ class CourtAgendaService
      */
     public function updateItem(int $itemId, array $data, ?int $actorId = null): CourtAgendaItem
     {
+        $item = $this->fetchTable('Awards.CourtAgendaItems')->get($itemId, contain: ['CourtAgendaSegments']);
+
+        return $this->withAgendaEdit(
+            (int)$item->court_agenda_segment->court_agenda_id,
+            $actorId,
+            fn(): CourtAgendaItem => $this->updateAuthorizedItem($itemId, $data, $actorId),
+        );
+    }
+
+    /** Hidden bestowal details may not be edited through a guessed item ID. */
+    private function updateAuthorizedItem(int $itemId, array $data, ?int $actorId): CourtAgendaItem
+    {
         $items = $this->fetchTable('Awards.CourtAgendaItems');
         $item = $items->get($itemId);
+        if ($actorId !== null && $item->bestowal_id !== null) {
+            $bestowal = $this->fetchTable('Awards.Bestowals')->get((int)$item->bestowal_id);
+            if (!(new BestowalPolicy())->canView($this->fetchTable('Members')->get($actorId), $bestowal)) {
+                throw new ForbiddenException('You are not authorized to edit this bestowal item.');
+            }
+        }
         $patch = [
             'estimated_minutes' => (int)($data['estimated_minutes'] ?? $item->estimated_minutes),
             'duration_locked' => true,
@@ -695,10 +833,11 @@ class CourtAgendaService
         $items->getConnection()->transactional(
             function () use ($items, $itemId, $targetSegmentId, $targetSortOrder, $actorId): void {
                 $item = $items->get($itemId, contain: ['CourtAgendaSegments']);
+                $agenda = $this->assertAgendaEdit((int)$item->court_agenda_segment->court_agenda_id, $actorId);
                 $sourceSegmentId = (int)$item->court_agenda_segment_id;
                 $targetSegment = $this->fetchTable('Awards.CourtAgendaSegments')->get($targetSegmentId);
                 if ((int)$targetSegment->court_agenda_id !== (int)$item->court_agenda_segment->court_agenda_id) {
-                    throw new RuntimeException('Agenda items can only move within the same court agenda.');
+                    throw new ForbiddenException('Agenda items can only move within the same court agenda.');
                 }
                 $this->assertSegmentCanAcceptAgendaItems($targetSegment);
                 if ($item->bestowal_id !== null) {
@@ -707,7 +846,11 @@ class CourtAgendaService
                         contain: ['GatheringScheduledActivities'],
                     );
                     $this->assertSegmentCanAcceptAgendaItems($targetSegment);
-                    $bestowal = $this->fetchTable('Awards.Bestowals')->get((int)$item->bestowal_id);
+                    $bestowal = $this->fetchTable('Awards.Bestowals')->find()
+                        ->where(['Bestowals.id' => $item->bestowal_id])->epilog('FOR UPDATE')->firstOrFail();
+                    if ((int)$bestowal->gathering_id !== (int)$agenda->gathering_id) {
+                        throw new ForbiddenException('This bestowal no longer belongs to this event.');
+                    }
                     $this->assertBestowalCanUseSegment($bestowal, $targetSegment);
                 }
                 $item->court_agenda_segment_id = $targetSegmentId;
@@ -744,12 +887,20 @@ class CourtAgendaService
         $items->getConnection()->transactional(
             function () use ($items, $itemId, $actorId): void {
                 $item = $items->get($itemId, contain: ['CourtAgendaSegments']);
+                $agenda = $this->assertAgendaEdit((int)$item->court_agenda_segment->court_agenda_id, $actorId);
                 $sourceSegmentId = (int)$item->court_agenda_segment_id;
                 $bestowalId = $item->bestowal_id !== null ? (int)$item->bestowal_id : null;
+                $bestowal = null;
+                if ($bestowalId !== null) {
+                    $bestowal = $this->fetchTable('Awards.Bestowals')->find()
+                        ->where(['Bestowals.id' => $bestowalId])->epilog('FOR UPDATE')->firstOrFail();
+                    if ((int)$bestowal->gathering_id !== (int)$agenda->gathering_id) {
+                        throw new ForbiddenException('This bestowal no longer belongs to this event.');
+                    }
+                }
 
                 $items->deleteOrFail($item);
-                if ($bestowalId !== null) {
-                    $bestowal = $this->fetchTable('Awards.Bestowals')->get($bestowalId);
+                if ($bestowal !== null) {
                     $this->clearBestowalCourtAssignment($bestowal, $actorId);
                 }
 
@@ -757,6 +908,45 @@ class CourtAgendaService
                 $this->syncBestowalStackRanksForSegment($sourceSegmentId);
             },
         );
+    }
+
+    /** Hold delegation grants through the write so revocation cannot race a previously authorized request. */
+    private function withAgendaEdit(int $agendaId, ?int $actorId, callable $operation): mixed
+    {
+        return $this->fetchTable('Awards.CourtAgendas')->getConnection()->transactional(
+            function () use ($agendaId, $actorId, $operation): mixed {
+                $this->assertAgendaEdit($agendaId, $actorId);
+
+                return $operation();
+            },
+        );
+    }
+
+    /** Recheck actor authority against the persisted agenda, never a submitted event ID. */
+    private function assertAgendaEdit(int $agendaId, ?int $actorId): CourtAgenda
+    {
+        $agenda = $this->fetchTable('Awards.CourtAgendas')->get($agendaId, contain: ['Gatherings']);
+        if ($actorId !== null) {
+            $actor = $this->fetchTable('Members')->get($actorId);
+            if (!(new CourtAgendaPolicy())->canEdit($actor, $agenda)) {
+                throw new ForbiddenException('You are not authorized to manage this court agenda.');
+            }
+        }
+
+        return $agenda;
+    }
+
+    /** Automatic court setup is part of viewing; it still requires current event authority. */
+    private function assertAgendaReadable(CourtAgenda $agenda, ?int $actorId): void
+    {
+        if ($actorId === null) {
+            return;
+        }
+        $actor = $this->fetchTable('Members')->get($actorId);
+        $policy = new CourtAgendaPolicy();
+        if (!$policy->canGathering($actor, $agenda) && !$policy->canPrintAgenda($actor, $agenda)) {
+            throw new ForbiddenException('You are not authorized to read this court agenda.');
+        }
     }
 
     /**
@@ -1003,10 +1193,7 @@ class CourtAgendaService
                 'Bestowals.gathering_id' => (int)$agenda->gathering_id,
                 'Bestowals.gathering_scheduled_activity_id IS' => null,
                 'Bestowals.roaming_court' => false,
-                'Bestowals.lifecycle_status NOT IN' => [
-                    Bestowal::LIFECYCLE_GIVEN,
-                    Bestowal::LIFECYCLE_CANCELLED,
-                ],
+                'Bestowals.lifecycle_status' => Bestowal::LIFECYCLE_OPEN,
             ])
             ->contain([
                 'Members',
@@ -1034,11 +1221,7 @@ class CourtAgendaService
             $eligibleSegmentOptions = $this->eligibleSegmentOptionsFromMap($bestowal, $segments, $eligibleBySegment);
             $rows[] = [
                 'entity' => $bestowal,
-                'label' => (string)(
-                    $bestowal->member->sca_name
-                    ?? $bestowal->member_sca_name
-                    ?? __('Unknown recipient')
-                ),
+                'label' => $bestowal->getRecipientName(),
                 'awardLabel' => $this->bestowalAwardLabel($bestowal),
                 'eligibleSegmentOptions' => $eligibleSegmentOptions,
                 'isSchedulable' => $eligibleSegmentOptions !== [],
@@ -1151,6 +1334,34 @@ class CourtAgendaService
     }
 
     /**
+     * Award-giving types attached to the gathering but absent from its schedule.
+     *
+     * @param int $gatheringId Gathering ID.
+     * @return array<int, string> Activity names keyed by activity ID.
+     */
+    private function unscheduledAwardActivities(int $gatheringId): array
+    {
+        $eligibleIds = $this->fetchTable('Awards.AwardGatheringActivities')->find()
+            ->select(['gathering_activity_id']);
+        $scheduledIds = $this->fetchTable('GatheringScheduledActivities')->find()
+            ->select(['gathering_activity_id'])
+            ->where(['gathering_id' => $gatheringId, 'gathering_activity_id IS NOT' => null]);
+        $attached = $this->fetchTable('GatheringsGatheringActivities')->find()
+            ->where([
+                'GatheringsGatheringActivities.gathering_id' => $gatheringId,
+                'GatheringsGatheringActivities.gathering_activity_id IN' => $eligibleIds,
+                'GatheringsGatheringActivities.gathering_activity_id NOT IN' => $scheduledIds,
+            ])
+            ->contain(['GatheringActivities']);
+        $names = [];
+        foreach ($attached as $row) {
+            $names[(int)$row->gathering_activity_id] = (string)$row->gathering_activity->name;
+        }
+
+        return $names;
+    }
+
+    /**
      * @param \Awards\Model\Entity\Bestowal $bestowal Bestowal.
      * @return string
      */
@@ -1212,13 +1423,9 @@ class CourtAgendaService
             return [];
         }
 
-        return $this->fetchTable('GatheringScheduledActivities')->find()
+        return $this->fetchTable('GatheringScheduledActivities')->find('ordered')
             ->where($conditions)
-            ->contain(['GatheringActivities'])
-            ->orderBy([
-                'GatheringScheduledActivities.start_datetime' => 'ASC',
-                'GatheringScheduledActivities.id' => 'ASC',
-            ])
+            ->contain(['GatheringActivities', 'Gatherings'])
             ->all()
             ->toList();
     }
@@ -1524,12 +1731,15 @@ class CourtAgendaService
         if (empty($activity->start_datetime)) {
             return null;
         }
-        $start = $activity->start_datetime;
+        $gathering = $activity->gathering ?? $this->fetchTable('Gatherings')->get((int)$activity->gathering_id);
+        $start = TimezoneHelper::toUserTimezone($activity->start_datetime, gathering: $gathering);
         if (empty($activity->end_datetime)) {
             return $start->format('D g:i A');
         }
 
-        return $start->format('D g:i A') . ' - ' . $activity->end_datetime->format('g:i A');
+        $end = TimezoneHelper::toUserTimezone($activity->end_datetime, gathering: $gathering);
+
+        return $start->format('D g:i A') . ' - ' . $end->format('g:i A');
     }
 
     /**
@@ -1544,7 +1754,9 @@ class CourtAgendaService
             return null;
         }
 
-        return $activity->start_datetime->format('D g:i A');
+        $gathering = $activity->gathering ?? $this->fetchTable('Gatherings')->get((int)$activity->gathering_id);
+
+        return TimezoneHelper::toUserTimezone($activity->start_datetime, gathering: $gathering)->format('D g:i A');
     }
 
     /**
@@ -1771,7 +1983,7 @@ class CourtAgendaService
             return (string)$item->title;
         }
 
-        return (string)($item->bestowal->member->sca_name ?? __('Unknown recipient'));
+        return $item->bestowal?->getRecipientName() ?? __('Unknown recipient');
     }
 
     /**

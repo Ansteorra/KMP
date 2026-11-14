@@ -6,6 +6,8 @@ namespace Awards\Policy;
 use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\BaseEntity;
 use App\Policy\BasePolicy;
+use Awards\Model\Entity\CourtAgenda;
+use Awards\Services\BestowalDelegationAccessService;
 use Cake\ORM\TableRegistry;
 
 /**
@@ -13,6 +15,16 @@ use Cake\ORM\TableRegistry;
  */
 class CourtAgendaPolicy extends BasePolicy
 {
+    /** Evaluate the grantor's own court permission in the delegated awarding branch. */
+    public function hasNativePermission(
+        KmpIdentityInterface $user,
+        string $method,
+        CourtAgenda $agenda,
+        int $branchId,
+    ): bool {
+        return parent::_hasPolicy($user, $method, $agenda, $branchId);
+    }
+
     /**
      * @param \App\KMP\KmpIdentityInterface $user User.
      * @param \App\Model\Entity\BaseEntity $entity Agenda entity.
@@ -135,11 +147,11 @@ class CourtAgendaPolicy extends BasePolicy
     }
 
     /**
-     * Authorize an agenda by its host branch or by an in-scope award at the gathering.
+     * Authorize by host branch, assigned awards, or awards supported by scheduled sessions.
      *
      * Court agenda staff follow award ownership scope, while gatherings may be hosted
-     * by a different branch. A matching bestowal lets those staff manage the shared
-     * agenda without widening their permission to unrelated gatherings.
+     * by a different branch. Eligible scheduled sessions allow planning before any
+     * bestowals exist without widening permission to unrelated gatherings.
      *
      * @param \App\KMP\KmpIdentityInterface $user User.
      * @param string $policyMethod Policy method.
@@ -154,6 +166,12 @@ class CourtAgendaPolicy extends BasePolicy
         ...$optionalArgs,
     ): bool {
         if ($this->_hasPolicy($user, $policyMethod, $entity, ...$optionalArgs)) {
+            return true;
+        }
+        if (
+            $entity instanceof CourtAgenda
+            && (new BestowalDelegationAccessService())->allowsAgenda($user, $policyMethod, $entity)
+        ) {
             return true;
         }
 
@@ -174,6 +192,20 @@ class CourtAgendaPolicy extends BasePolicy
         $query = $bestowals->find()->where(['Bestowals.gathering_id' => $gatheringId]);
         $query = $bestowals->addBranchScopeQuery($query, $branchIds);
 
-        return $query->first() !== null;
+        if ($query->first() !== null) {
+            return true;
+        }
+
+        $scheduledActivityTypes = TableRegistry::getTableLocator()->get('GatheringScheduledActivities')->find()
+            ->select(['GatheringScheduledActivities.gathering_activity_id'])
+            ->where(['GatheringScheduledActivities.gathering_id' => $gatheringId]);
+
+        return TableRegistry::getTableLocator()->get('Awards.AwardGatheringActivities')->find()
+            ->innerJoinWith('Awards')
+            ->where([
+                'AwardGatheringActivities.gathering_activity_id IN' => $scheduledActivityTypes,
+                'Awards.branch_id IN' => $branchIds,
+            ])
+            ->first() !== null;
     }
 }

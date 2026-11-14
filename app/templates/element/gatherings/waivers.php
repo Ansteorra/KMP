@@ -30,7 +30,7 @@ if ($waiverCollectionClosed === null && class_exists('Waivers\Model\Table\Gather
         <h5><?= __('Gathering Waivers') ?></h5>
         <?php if ($user->checkCan('edit', $gathering) && !empty($requiredWaiverTypes) && !$waiverCollectionClosed): ?>
             <?= $this->Html->link(
-                '<i class="bi bi-cloud-upload"></i> ' . __('Upload Waivers'),
+                '<kmp-icon name="cloud-upload"  aria-hidden="true"></kmp-icon> ' . __('Upload Waivers'),
                 [
                     'plugin' => 'Waivers',
                     'controller' => 'GatheringWaivers',
@@ -47,7 +47,7 @@ if ($waiverCollectionClosed === null && class_exists('Waivers\Model\Table\Gather
 
     <?php if ($waiverCollectionClosed): ?>
         <div class="alert alert-dark">
-            <i class="bi bi-lock-fill"></i>
+            <kmp-icon name="lock"  aria-hidden="true"></kmp-icon>
             <?= __('Waiver collection is closed for this gathering.') ?>
             <?php if ($waiverClosure): ?>
                 <div class="small text-muted mt-1">
@@ -59,7 +59,7 @@ if ($waiverCollectionClosed === null && class_exists('Waivers\Model\Table\Gather
 
     <?php if (empty($requiredWaiverTypes)): ?>
         <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i>
+            <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
             <?= __('No waiver requirements are set for this gathering. Add activities that require waivers to enable waiver collection.') ?>
         </div>
     <?php else: ?>
@@ -96,7 +96,7 @@ if ($waiverCollectionClosed === null && class_exists('Waivers\Model\Table\Gather
                         <?= __('View, download, and manage the {0} waiver(s) uploaded for this gathering.', array_sum($waiverStats)) ?>
                     </p>
                     <?= $this->Html->link(
-                        '<i class="bi bi-list-ul"></i> ' . __('View All Waivers'),
+                        '<kmp-icon name="list"  aria-hidden="true"></kmp-icon> ' . __('View All Waivers'),
                         [
                             'plugin' => 'Waivers',
                             'controller' => 'GatheringWaivers',
@@ -113,7 +113,7 @@ if ($waiverCollectionClosed === null && class_exists('Waivers\Model\Table\Gather
 
             <!-- Gathering Status Info -->
             <div class="alert alert-success mt-3">
-                <i class="bi bi-check-circle"></i>
+                <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon>
                 <?php if ($gathering->waivers_collected): ?>
                     <?= __('Waivers have been collected and uploaded for this gathering.') ?>
                 <?php else: ?>
@@ -123,7 +123,7 @@ if ($waiverCollectionClosed === null && class_exists('Waivers\Model\Table\Gather
         <?php else: ?>
             <!-- No Waivers Uploaded Yet -->
             <div class="alert alert-warning">
-                <i class="bi bi-exclamation-triangle"></i>
+                <kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon>
                 <?= __('No waivers have been uploaded yet. Use the "Upload Waivers" button above to begin.') ?>
             </div>
 

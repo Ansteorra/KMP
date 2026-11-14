@@ -41,7 +41,7 @@ case "$scope" in
         report_dir="$report_root/js-security"
         rm -rf "$report_dir"
 
-        command=("$jest_bin" "--coverage" "--runInBand" "--coverageDirectory=$report_dir")
+        command=("bash" "bin/run-jest.sh" "--coverage" "--runInBand" "--coverageDirectory=$report_dir")
         for source_file in "${security_sources[@]}"; do
             command+=("--collectCoverageFrom=$source_file")
         done
@@ -50,7 +50,7 @@ case "$scope" in
     all)
         report_dir="$report_root/js-all"
         rm -rf "$report_dir"
-        command=("$jest_bin" "--coverage" "--runInBand" "--coverageDirectory=$report_dir" "$@")
+        command=("bash" "bin/run-jest.sh" "--coverage" "--runInBand" "--coverageDirectory=$report_dir" "$@")
         ;;
     *)
         echo "Unknown Jest coverage scope: $scope" >&2

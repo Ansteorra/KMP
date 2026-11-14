@@ -40,7 +40,7 @@ echo $this->Modal->create('Submit your SCA Card ', [
 ]); ?>
 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-        <i class="bi bi-card-image text-primary me-1" aria-hidden="true"></i>
+        <kmp-icon name="photo" class="text-primary me-1" aria-hidden="true"></kmp-icon>
         <?= __('Membership Card') ?>
     </legend>
     <?php if ($user->checkCan('partialEdit', $member)) : ?>
@@ -56,16 +56,7 @@ echo $this->Modal->create('Submit your SCA Card ', [
                 <div data-file-size-validator-target="warning" class="d-none m-2"></div>
 
                 <div class="card-body text-center">
-                    <svg class="bi bi-card-image text-secondary text-center"
-                        width="200" height="200" fill="currentColor"
-                        viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" data-image-preview-target="loading">
-                        <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0" />
-                        <path
-                            d="M1.5 2A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13
-                                a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2zm13 1a.5.5 0 0 1 .5.5v6
-                                l-3.775-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062
-                                L1.002 12v.54L1 12.5v-9a.5.5 0 0 1 .5-.5z" />
-                    </svg>
+                    <kmp-icon name="photo" class="text-secondary text-center" style="--kmp-icon-size:200px" data-image-preview-target="loading" aria-hidden="true"></kmp-icon>
                     <img hidden alt="Image Preview" class="w-100" data-image-preview-target="preview">
                 </div>
                 <div class="card-footer">

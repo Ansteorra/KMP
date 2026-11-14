@@ -8,10 +8,16 @@ local setup, deployment, and the complete documentation map.
 
 | Document | Purpose |
 | --- | --- |
+| [`icons.md`](icons.md) | Unified SVG catalog, picker, compatibility, delivery, and updates |
+| [`icon-migration.md`](icon-migration.md) | Icon audit, migration coverage, verification, exceptions, and deployment report |
+| [`ui-pattern-showcase.md`](ui-pattern-showcase.md) | Isolated six-family design review and full-app mobile interaction contracts |
+| [`hotwire-interactions.md`](hotwire-interactions.md) | Turbo update boundaries, detail-tab context, modal saves, and interaction review |
+| [`codex-cloud.md`](codex-cloud.md) | OpenAI-hosted development prerequisites, lifecycle commands, and verification scope |
 | [`workflow-api-endpoints.md`](workflow-api-endpoints.md) | Workflow definition, instance, and approval route ownership |
 | [`date-range-filtering-implementation.md`](date-range-filtering-implementation.md) | Dataverse grid date-range metadata, URL, timezone, and view contract |
 | [`case-insensitive-text.md`](case-insensitive-text.md) | PostgreSQL `citext`/`unaccent` and portable query rules |
 | [`kingdom-calendar.md`](kingdom-calendar.md) | Tenant-host public calendar, feed, publication, and royal progress |
+| [`gathering-activities.md`](gathering-activities.md) | Activity appearance, scoped assignment, court integration, and public artwork storage |
 | [`testing-suite.md`](testing-suite.md) | App-local test harness and multi-tenant verification quick reference |
 | [`domain-risk-matrix.md`](domain-risk-matrix.md) | Risk gates, with tenant/platform trust boundaries as P0 |
 | [`security-remediation-log.md`](security-remediation-log.md) | Prioritized security and PII findings, ownership areas, and remediation acceptance checks |

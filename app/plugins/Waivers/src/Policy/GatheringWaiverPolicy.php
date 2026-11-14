@@ -27,6 +27,12 @@ use Cake\ORM\TableRegistry;
  */
 class GatheringWaiverPolicy extends BasePolicy
 {
+    /** Only the dedicated Deputy permission can record loss; stewards do not inherit it. */
+    public function canRecordLost(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
+    {
+        return $this->_hasPolicy($user, __FUNCTION__, $entity);
+    }
+
     /**
      * Check if user can download.
      *

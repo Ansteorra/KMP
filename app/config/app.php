@@ -31,7 +31,6 @@ use Cake\Http\Session\CacheSession;
 use Cake\Log\Engine\FileLog;
 use Cake\Mailer\Mailer;
 use Cake\Mailer\Transport\MailTransport;
-use Templating\View\Icon\BootstrapIcon;
 
 // Determine cache engine and Redis config from environment
 $runtimeEnvironment = strtolower((string)env('KMP_ENV', env('APP_ENV', '')));
@@ -73,7 +72,9 @@ if ($cacheEngine === RedisEngine::class) {
         $redisConfig = [
             'server'   => $parsed['host'] ?? 'redis',
             'port'     => $parsed['port'] ?? 6379,
-            'password' => ($parsed['pass'] ?? null) ?: env('REDIS_PASSWORD', null),
+            'password' => ($parsed['pass'] ?? '') !== ''
+                ? rawurldecode($parsed['pass'])
+                : env('REDIS_PASSWORD', null),
             'database' => (int)(ltrim($parsed['path'] ?? '/0', '/') ?: '0'),
             'timeout'  => 0,
             'persistent' => filter_var(
@@ -129,11 +130,11 @@ if (!is_dir($tenantHostMapCachePath)) {
 $tenantHostMapCacheConfig = $cacheEngine === RedisEngine::class
     ? $redisConfig + [
         "className" => RedisEngine::class,
-        "duration" => "+999 days",
+        "duration" => "+30 seconds",
     ]
     : [
         "className" => FileEngine::class,
-        "duration" => "+999 days",
+        "duration" => "+30 seconds",
         "path" => $tenantHostMapCachePath,
     ];
 $restoreStatusCacheConfig = $cacheEngine === RedisEngine::class
@@ -879,19 +880,6 @@ return [
         ]),
     ], static fn(mixed $value): bool => $value !== null),
 
-    'Icon' => [
-        /** @see docs/9.2-bootstrap-icons.md */
-        'sets' => [
-            /** @var array Bootstrap Icons configuration */
-            'bs' => [
-                /** @var string Icon rendering class */
-                'class' => BootstrapIcon::class,
-
-                /** @var string Path to icon definitions JSON file */
-                'path' => WWW_ROOT . 'assets/bootstrap-icons/font/bootstrap-icons.json',
-            ],
-        ],
-    ],
     'Backups' => [
         // Archives have independent configuration and container permissions.
         'storage' => [
@@ -909,6 +897,13 @@ return [
                 'endpoint' => env('AWS_BACKUP_S3_ENDPOINT'),
             ],
         ],
+    ],
+    // Explicitly public artwork is served directly by the web server or object store/CDN.
+    'PublicAssets' => [
+        'adapter' => env('PUBLIC_ASSETS_ADAPTER', 'local'),
+        'baseUrl' => env('PUBLIC_ASSETS_BASE_URL', ''),
+        'azureContainer' => env('PUBLIC_ASSETS_AZURE_CONTAINER', 'public-assets'),
+        'localPath' => WWW_ROOT . 'public-assets',
     ],
     /**
      * Document Management Configuration

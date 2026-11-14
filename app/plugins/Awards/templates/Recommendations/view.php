@@ -12,11 +12,12 @@
 $this->extend("/layout/TwitterBootstrap/view_record");
 
 echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': View Award Recommendation - ' . $recommendation->member_sca_name . ' for ' . $recommendation->award->name;
+echo h($this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': View Award Recommendation - '
+    . $recommendation->getRecipientName() . ' for ' . $recommendation->award->name);
 $this->KMP->endBlock();
 
 echo $this->KMP->startBlock("pageTitle") ?>
-<?= h($recommendation->member_sca_name . ' for ' . $recommendation->award->name) ?>
+<?= h($recommendation->getRecipientName() . ' for ' . $recommendation->award->name) ?>
 <?php $this->KMP->endBlock() ?>
 <?= $this->KMP->startBlock("recordActions") ?>
 <?php if ($user->checkCan('edit', $recommendation)) : ?>
@@ -28,12 +29,12 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal"
     data-bs-target="#requestRecommendationFeedbackModal" data-controller="outlet-btn"
     data-action="click->outlet-btn#fireNotice" data-outlet-btn-btn-data-value='{ "id":<?= $recommendation->id ?>}'>
-    <i class="bi bi-chat-left-text"></i> <?= __('Request Feedback') ?>
+    <kmp-icon name="message"  aria-hidden="true"></kmp-icon> <?= __('Request Feedback') ?>
 </button>
 <?php endif; ?>
 <?php if (!empty($workflowContext['canStartWorkflow']) && $user->checkCan('startApprovalWorkflow', $recommendation)) : ?>
 <?= $this->Form->postLink(
-        '<i class="bi bi-play-circle"></i> ' . __('Start Approval'),
+        '<kmp-icon name="player-play"  aria-hidden="true"></kmp-icon> ' . __('Start Approval'),
         ['action' => 'startApprovalWorkflow', $recommendation->id],
         [
             'class' => 'btn btn-outline-success btn-sm',
@@ -48,7 +49,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <tr>
     <td colspan="2">
         <div class="alert alert-info mb-0">
-            <i class="bi bi-link-45deg"></i>
+            <kmp-icon name="link"  aria-hidden="true"></kmp-icon>
             <?= __('This recommendation is linked to a group.') ?>
             <?= $this->Html->link(
                     __('View Group Head'),
@@ -75,15 +76,14 @@ echo $this->KMP->startBlock("pageTitle") ?>
 <tr>
     <th scope="row"><?= __('Member Sca Name') ?></th>
     <td><?php
-        if ($recommendation->member_id == null) {
-            echo h($recommendation->member_sca_name);
-        } else {
-            if ($user->checkCan('view', $recommendation->member)) {
-                echo $this->Html->link($recommendation->member->sca_name, ['plugin' => null, 'controller' => 'Members', 'action' => 'view', $recommendation->member_id]);
-            } else {
-                echo h($recommendation->member->sca_name);
-            }
-        } ?>
+    if ($recommendation->member !== null && $user->checkCan('view', $recommendation->member)) {
+        echo $this->Html->link(
+            $recommendation->getRecipientName(),
+            ['plugin' => null, 'controller' => 'Members', 'action' => 'view', $recommendation->member_id],
+        );
+    } else {
+        echo h($recommendation->getRecipientName());
+    } ?>
     </td>
 </tr>
 <tr>
@@ -133,7 +133,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
             );
             $isCancelled = $recommendation->assigned_gathering->cancelled_at !== null;
             if ($isCancelled) {
-                echo '<div class="alert alert-danger mt-2 mb-0 py-1 px-2"><i class="bi bi-exclamation-triangle-fill"></i> <strong>' . __('Warning:') . '</strong> ' . __('Scheduled for cancelled gathering:') . ' <span class="fw-bold">[CANCELLED]</span> ' . $gatheringLink . '. ' . __('Please reschedule.') . '</div>';
+                echo '<div class="alert alert-danger mt-2 mb-0 py-1 px-2"><kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon> <strong>' . __('Warning:') . '</strong> ' . __('Scheduled for cancelled gathering:') . ' <span class="fw-bold">[CANCELLED]</span> ' . $gatheringLink . '. ' . __('Please reschedule.') . '</div>';
             } else {
                 echo "to be given at " . $gatheringLink;
             }
@@ -195,7 +195,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
             <?php endforeach; ?>
         </ul>
         <small class="text-muted">
-            <i class="bi bi-info-circle"></i> Events the member has indicated they plan to attend
+            <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon> Events the member has indicated they plan to attend
         </small>
     </td>
 </tr>
@@ -275,10 +275,10 @@ $runStatusClass = static function (?string $status): string {
 <div class="related tab-pane fade m-3" id="nav-grouped" role="tabpanel" aria-labelledby="nav-grouped-tab"
     data-detail-tabs-target="tabContent" data-tab-order="5" style="order: 5;">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0"><i class="bi bi-collection"></i> <?= __('Grouped Recommendations') ?></h5>
+        <h5 class="mb-0"><kmp-icon name="layers-linked"  aria-hidden="true"></kmp-icon> <?= __('Grouped Recommendations') ?></h5>
         <?php if ($user->checkCan('edit', $recommendation)) : ?>
         <?= $this->Form->postLink(
-                    '<i class="bi bi-x-circle"></i> ' . __('Ungroup All'),
+                    '<kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> ' . __('Ungroup All'),
                     ['action' => 'ungroupRecommendations'],
                     [
                         'data' => ['recommendation_id' => $recommendation->id],
@@ -307,19 +307,19 @@ $runStatusClass = static function (?string $status): string {
                 <?php foreach ($recommendation->group_children as $child) : ?>
                 <tr>
                     <td><?= h($child->award->abbreviation ?? $child->award->name ?? '—') ?></td>
-                    <td><?= h($child->member_sca_name) ?></td>
+                    <td><?= h($child->getRecipientName()) ?></td>
                     <td><?= $this->Text->autoParagraph(h($child->reason ?? '')) ?></td>
                     <td><?= h($child->requester->sca_name ?? $child->requester_sca_name) ?></td>
                     <td><?= $child->created ? $child->created->format('Y-m-d') : '—' ?></td>
                     <?php if ($user->checkCan('edit', $recommendation)) : ?>
                     <td class="text-end text-nowrap">
                         <?= $this->Html->link(
-                                        '<i class="bi bi-eye"></i>',
+                                        '<kmp-icon name="eye"  aria-hidden="true"></kmp-icon>',
                                         ['action' => 'view', $child->id],
                                         ['class' => 'btn btn-sm btn-outline-secondary', 'escape' => false, 'title' => __('View')]
                                     ) ?>
                         <?= $this->Form->postLink(
-                                        '<i class="bi bi-x-lg"></i>',
+                                        '<kmp-icon name="x"  aria-hidden="true"></kmp-icon>',
                                         ['action' => 'removeFromGroup'],
                                         [
                                             'data' => ['recommendation_id' => $child->id],
@@ -351,7 +351,7 @@ $runStatusClass = static function (?string $status): string {
     data-detail-tabs-target="tabContent" data-tab-order="12" style="order: 12;">
     <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
         <div>
-            <h5 class="mb-1"><i class="bi bi-diagram-3" aria-hidden="true"></i> <?= __('Approval Workflow') ?></h5>
+            <h5 class="mb-1"><kmp-icon name="sitemap"  aria-hidden="true"></kmp-icon> <?= __('Approval Workflow') ?></h5>
             <?php $latestRun = $workflowContext['latestRun'] ?? null; ?>
             <p class="text-muted mb-0">
                 <?php if ($latestRun) : ?>
@@ -369,7 +369,7 @@ $runStatusClass = static function (?string $status): string {
         </div>
         <?php if (!empty($workflowContext['canStartWorkflow']) && $user->checkCan('startApprovalWorkflow', $recommendation)) : ?>
         <?= $this->Form->postLink(
-                '<i class="bi bi-play-circle"></i> ' . __('Start Approval Workflow'),
+                '<kmp-icon name="player-play"  aria-hidden="true"></kmp-icon> ' . __('Start Approval Workflow'),
                 ['action' => 'startApprovalWorkflow', $recommendation->id],
                 [
                     'class' => 'btn btn-outline-success btn-sm',
@@ -388,7 +388,7 @@ $runStatusClass = static function (?string $status): string {
                 <?php if (false == true): ?>
                 <div class="flex-grow-1">
                     <h6 class="mb-2" id="approval-progress-heading">
-                        <i class="bi bi-list-check me-1" aria-hidden="true"></i><?= __('Approval Progress') ?>
+                        <kmp-icon name="list-check" class="me-1" aria-hidden="true"></kmp-icon><?= __('Approval Progress') ?>
                     </h6>
                     <div class="progress mb-2" role="img"
                         aria-label="<?= h(__('Approval workflow is {0}% complete', (int)$workflowSummary['progressPercent'])) ?>">
@@ -423,7 +423,7 @@ $runStatusClass = static function (?string $status): string {
             <section class="card h-100" aria-labelledby="approval-next-steps-heading">
                 <div class="card-header">
                     <h6 class="mb-0" id="approval-next-steps-heading">
-                        <i class="bi bi-hourglass-split me-1" aria-hidden="true"></i><?= __('Next / Pending Steps') ?>
+                        <kmp-icon name="hourglass" class="me-1" aria-hidden="true"></kmp-icon><?= __('Next / Pending Steps') ?>
                     </h6>
                 </div>
                 <div class="card-body">
@@ -476,7 +476,7 @@ $runStatusClass = static function (?string $status): string {
             <section class="card h-100" aria-labelledby="approval-completed-steps-heading">
                 <div class="card-header">
                     <h6 class="mb-0" id="approval-completed-steps-heading">
-                        <i class="bi bi-check2-circle me-1" aria-hidden="true"></i><?= __('Completed Steps') ?>
+                        <kmp-icon name="circle-check" class="me-1" aria-hidden="true"></kmp-icon><?= __('Completed Steps') ?>
                     </h6>
                 </div>
                 <div class="card-body">
@@ -580,11 +580,11 @@ $runStatusClass = static function (?string $status): string {
             <div class="d-flex flex-wrap gap-2">
                 <button type="submit" name="decision" value="<?= h(WorkflowApprovalResponse::DECISION_APPROVE) ?>"
                     class="btn btn-success">
-                    <i class="bi bi-check-circle" aria-hidden="true"></i> <?= __('Approve') ?>
+                    <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon> <?= __('Approve') ?>
                 </button>
                 <button type="submit" name="decision" value="<?= h(WorkflowApprovalResponse::DECISION_REJECT) ?>"
                     class="btn btn-outline-danger">
-                    <i class="bi bi-x-circle" aria-hidden="true"></i> <?= __('Decline') ?>
+                    <kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> <?= __('Decline') ?>
                 </button>
             </div>
             <?= $this->Form->end() ?>
@@ -701,7 +701,7 @@ $runStatusClass = static function (?string $status): string {
 <div class="related tab-pane fade m-3" id="nav-feedback" role="tabpanel" aria-labelledby="nav-feedback-tab"
     data-detail-tabs-target="tabContent" data-tab-order="15" style="order: 15;">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0"><i class="bi bi-chat-left-text"></i> <?= __('Feedback Requests') ?></h5>
+        <h5 class="mb-0"><kmp-icon name="message"  aria-hidden="true"></kmp-icon> <?= __('Feedback Requests') ?></h5>
     </div>
     <?php foreach ($feedbackRequests as $feedbackRequest) : ?>
     <?php
@@ -737,7 +737,7 @@ $runStatusClass = static function (?string $status): string {
                         && $user->checkCan('retractFeedback', $recommendation)
                     ) : ?>
             <?= $this->Form->postLink(
-                            '<i class="bi bi-x-circle"></i> ' . __('Retract'),
+                            '<kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> ' . __('Retract'),
                             ['action' => 'retractFeedback'],
                             [
                                 'data' => ['feedback_request_id' => $feedbackRequest->id],

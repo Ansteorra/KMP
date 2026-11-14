@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Services\GatheringActivitySeedService;
 use Migrations\BaseSeed;
 
 /**
@@ -11,9 +12,8 @@ use Migrations\BaseSeed;
  * Defines which waivers are required for which activities.
  *
  * Uses name-based lookups rather than hard-coded IDs so the seed remains
- * compatible with both MySQL and Postgres (the latter does not advance
- * auto-increment sequences for explicit-id inserts, so hard-coded IDs are
- * fragile). Silently skips link rows for which the activity or waiver type
+ * compatible with PostgreSQL seed refreshes and normal catalogue naming variants.
+ * Silently skips link rows for which the activity or waiver type
  * is missing, since waiver_types are not seeded on a clean install.
  */
 class DevLoadGatheringActivityWaiversSeed extends BaseSeed
@@ -26,12 +26,12 @@ class DevLoadGatheringActivityWaiversSeed extends BaseSeed
     public function getData(): array
     {
         return [
-            ['activity' => 'Armored Combat',   'waiver_type' => 'General Liability Waiver'],
-            ['activity' => 'Rapier Combat',    'waiver_type' => 'General Liability Waiver'],
-            ['activity' => 'Youth Combat',     'waiver_type' => 'Youth Participation Waiver'],
-            ['activity' => 'Youth Combat',     'waiver_type' => 'General Liability Waiver'],
-            ['activity' => 'Archery',          'waiver_type' => 'General Liability Waiver'],
-            ['activity' => 'Thrown Weapons',   'waiver_type' => 'General Liability Waiver'],
+            ['activity' => 'Armored Combat', 'waiver_type' => 'General Liability Waiver'],
+            ['activity' => 'Rapier Combat', 'waiver_type' => 'General Liability Waiver'],
+            ['activity' => 'Youth Combat', 'waiver_type' => 'Youth Participation Waiver'],
+            ['activity' => 'Youth Combat', 'waiver_type' => 'General Liability Waiver'],
+            ['activity' => 'Archery', 'waiver_type' => 'General Liability Waiver'],
+            ['activity' => 'Thrown Weapons', 'waiver_type' => 'General Liability Waiver'],
         ];
     }
 
@@ -43,22 +43,32 @@ class DevLoadGatheringActivityWaiversSeed extends BaseSeed
     public function run(): void
     {
         $activities = [];
-        foreach ($this->fetchAll("SELECT id, name FROM gathering_activities") as $row) {
-            $activities[$row['name']] = (int)$row['id'];
+        foreach ($this->fetchAll('SELECT id, name FROM gathering_activities') as $row) {
+            $activities[strtolower(GatheringActivitySeedService::canonicalName($row['name']))] = (int)$row['id'];
         }
         $waiverTypes = [];
-        foreach ($this->fetchAll("SELECT id, name FROM waivers_waiver_types") as $row) {
+        foreach ($this->fetchAll('SELECT id, name FROM waivers_waiver_types') as $row) {
             $waiverTypes[$row['name']] = (int)$row['id'];
+        }
+        $existing = [];
+        foreach (
+            $this->fetchAll(
+                'SELECT gathering_activity_id, waiver_type_id '
+                . 'FROM waivers_gathering_activity_waivers WHERE deleted IS NULL',
+            ) as $row
+        ) {
+            $existing[$row['gathering_activity_id'] . ':' . $row['waiver_type_id']] = true;
         }
 
         $now = '2025-01-01 10:00:00';
         $toInsert = [];
         foreach ($this->getData() as $link) {
-            $actId = $activities[$link['activity']] ?? null;
+            $actId = $activities[strtolower(GatheringActivitySeedService::canonicalName($link['activity']))] ?? null;
             $wtId = $waiverTypes[$link['waiver_type']] ?? null;
-            if ($actId === null || $wtId === null) {
+            if ($actId === null || $wtId === null || isset($existing[$actId . ':' . $wtId])) {
                 continue;
             }
+            $existing[$actId . ':' . $wtId] = true;
             $toInsert[] = [
                 'gathering_activity_id' => $actId,
                 'waiver_type_id' => $wtId,

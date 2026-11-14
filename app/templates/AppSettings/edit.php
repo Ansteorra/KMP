@@ -28,7 +28,7 @@
 
     <div class="modal-header">
         <h5 class="modal-title">
-            <i class="bi bi-pencil me-2"></i><?= __('Edit App Setting') ?>
+            <kmp-icon name="pencil" class="me-2" aria-hidden="true"></kmp-icon><?= __('Edit App Setting') ?>
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
     </div>
@@ -36,7 +36,7 @@
     <div class="modal-body bg-light-subtle">
         <fieldset class="border rounded-3 bg-white shadow-sm p-3">
             <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                <i class="bi bi-gear text-primary me-1" aria-hidden="true"></i>
+                <kmp-icon name="settings" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                 <?= __('Setting Value') ?>
             </legend>
             <?php $displayType = $appSetting->name === 'Backup.encryptionKey' ? 'password' : ($appSetting->type ?? 'string'); ?>
@@ -67,7 +67,7 @@
                         autocomplete="new-password"
                         data-app-setting-edit-target="valueInput">
                     <div class="form-text">
-                        <i class="bi bi-shield-lock me-1"></i><?= __('Hidden for security. Leave blank to keep the current value.') ?>
+                        <kmp-icon name="shield-lock" class="me-1" aria-hidden="true"></kmp-icon><?= __('Hidden for security. Leave blank to keep the current value.') ?>
                     </div>
                 </div>
             <?php elseif ($displayType === 'image' || $displayType === 'file') : ?>
@@ -81,7 +81,7 @@
                         class="form-control"
                         accept="<?= $displayType === 'image' ? 'image/png,image/jpeg,image/gif,image/webp' : 'image/png,image/jpeg,image/gif,image/webp,application/pdf,text/plain' ?>">
                     <div class="form-text">
-                        <i class="bi bi-speedometer2 me-1"></i>
+                        <kmp-icon name="dashboard" class="me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Uploads are stored as cached public assets. Maximum size: 2 MB.') ?>
                     </div>
                 </div>
@@ -130,11 +130,11 @@
                     <div data-code-editor-target="errorDisplay" class="d-none"></div>
                     <div class="form-text">
                         <?php if ($displayType === 'yaml') : ?>
-                            <i class="bi bi-info-circle me-1"></i><?= __('Enter valid YAML. Use 2-space indentation. Press Tab to indent.') ?>
+                            <kmp-icon name="info-circle" class="me-1" aria-hidden="true"></kmp-icon><?= __('Enter valid YAML. Use 2-space indentation. Press Tab to indent.') ?>
                         <?php elseif ($displayType === 'css') : ?>
-                            <i class="bi bi-info-circle me-1"></i><?= __('Custom CSS for the public page. The default value documents the theme variables and classes you can override.') ?>
+                            <kmp-icon name="info-circle" class="me-1" aria-hidden="true"></kmp-icon><?= __('Custom CSS for the public page. The default value documents the theme variables and classes you can override.') ?>
                         <?php else : ?>
-                            <i class="bi bi-info-circle me-1"></i><?= __('Enter valid JSON. Press Tab to indent.') ?>
+                            <kmp-icon name="info-circle" class="me-1" aria-hidden="true"></kmp-icon><?= __('Enter valid JSON. Press Tab to indent.') ?>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -202,7 +202,7 @@
             <!-- Required indicator -->
             <?php if ($appSetting->required) : ?>
                 <div class="alert alert-info">
-                    <i class="bi bi-info-circle me-2"></i>
+                    <kmp-icon name="info-circle" class="me-2" aria-hidden="true"></kmp-icon>
                     <?= __('This is a required setting and cannot be deleted.') ?>
                 </div>
             <?php endif; ?>

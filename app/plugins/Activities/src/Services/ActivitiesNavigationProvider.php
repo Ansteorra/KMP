@@ -48,7 +48,7 @@ class ActivitiesNavigationProvider
                     "action" => "index",
                     "model" => "Activities.ActivityGroups",
                 ],
-                "icon" => "bi-archive",
+                "icon" => "archive",
                 "activePaths" => [
                     "activities/ActivityGroups/view/*",
                 ]
@@ -64,7 +64,7 @@ class ActivitiesNavigationProvider
                     "plugin" => "Activities",
                     "model" => "Activities.Activities",
                 ],
-                "icon" => "bi-collection",
+                "icon" => "layers-linked",
                 "activePaths" => [
                     "activities/activities/view/*",
                 ]
@@ -79,7 +79,7 @@ class ActivitiesNavigationProvider
                     "action" => "Authorizations",
                     "plugin" => "Activities",
                 ],
-                "icon" => "bi-person-lines-fill",
+                "icon" => "user-scan",
             ]
         ];
     }

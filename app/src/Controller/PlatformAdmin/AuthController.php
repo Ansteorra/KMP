@@ -77,6 +77,10 @@ class AuthController extends PlatformAdminAppController
      */
     public function logout(): ?Response
     {
+        $this->request->allowMethod(['get', 'post']);
+        if (!$this->request->is('post')) {
+            return null;
+        }
         $this->request->getSession()->delete('PlatformAdmin');
         $this->request->getSession()->renew();
         $this->Flash->success(__('You have been logged out of platform admin.'));
@@ -173,7 +177,7 @@ class AuthController extends PlatformAdminAppController
     }
 
     /**
-     * Preserve login lockout behavior for all failures tied to a known user.
+     * Record failures tied to a known user using an atomic account counter.
      *
      * @param array<string, mixed>|null $user Platform user row
      */
@@ -183,17 +187,24 @@ class AuthController extends PlatformAdminAppController
             return;
         }
 
-        $this->recordFailedLogin((string)$user['id'], (int)($user['failed_login_count'] ?? 0));
+        $this->recordFailedLogin((string)$user['id']);
     }
 
     /**
      * Record a failed login and lock the account after repeated failures.
      */
-    private function recordFailedLogin(string $userId, int $currentFailedCount): void
+    private function recordFailedLogin(string $userId): void
     {
         $this->platform()->execute(
-            'UPDATE platform_users SET failed_login_count = failed_login_count + 1, modified_at = :now WHERE id = :id',
-            ['now' => $this->dbNow(), 'id' => $userId],
+            'UPDATE platform_users SET failed_login_count = failed_login_count + 1, ' .
+            'locked_until = CASE WHEN failed_login_count + 1 >= :max AND ' .
+            '(locked_until IS NULL OR locked_until < :now) THEN :lockedUntil ELSE locked_until END, ' .
+            'modified_at = :now WHERE id = :id',
+            [
+                'max' => self::MAX_FAILED_LOGINS, 'now' => $this->dbNow(), 'id' => $userId,
+                'lockedUntil' => (new DateTimeImmutable('+' . self::LOCK_MINUTES . ' minutes'))->format('Y-m-d H:i:s'),
+            ],
+            ['max' => 'integer'],
         );
     }
 

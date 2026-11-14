@@ -186,7 +186,7 @@ prevents loops if that page alone is failing; a successful normal page clears th
 guard. If sign-in has expired, saved information remains open until the user signs
 in. Device removal is a secondary control under **This device**.
 Shared mobile CSS must remain free of session data because the shell is public.
-Mobile fonts and Bootstrap icons are bundled through Vite and cached with the
+Mobile fonts and the common KMP SVG icons are built locally and cached with the
 shell; they must not depend on external stylesheet or font services.
 
 ## Storage and trust boundary

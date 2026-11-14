@@ -60,11 +60,10 @@ class RoleAddMember extends Controller {
      * Provides focus management and real-time validation feedback
      */
     checkSubmitEnable() {
-        let scaMember = this.scaMemberTarget.value;
-        let memberId = Number(scaMember.replace(/_/g, ""));
-        let require_branch = this.hasBranchTarget;
+        const memberSelected = this.scaMemberTarget.value.trim() !== "";
+        const require_branch = this.hasBranchTarget;
 
-        if (memberId > 0) {
+        if (memberSelected) {
             if (require_branch && this.branchTarget.value == "") {
                 this.submitBtnTarget.disabled = true;
                 return;

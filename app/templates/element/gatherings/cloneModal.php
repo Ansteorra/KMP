@@ -26,14 +26,14 @@
 ]); ?>
 
 <div class="alert alert-info border-start border-info border-4">
-    <i class="bi bi-info-circle"></i>
+    <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
     <strong><?= __('Cloning this gathering') ?></strong><br>
     <?= __('This will create a new gathering with the same activities and settings. You can customize the name and dates below.') ?>
 </div>
 
 <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-        <i class="bi bi-pencil-square text-primary me-1" aria-hidden="true"></i>
+        <kmp-icon name="edit" class="text-primary me-1" aria-hidden="true"></kmp-icon>
         <?= __('New Gathering Details') ?>
     </legend>
 <div class="mb-3">
@@ -95,7 +95,7 @@
 
 <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-        <i class="bi bi-copy text-primary me-1" aria-hidden="true"></i>
+        <kmp-icon name="copy" class="text-primary me-1" aria-hidden="true"></kmp-icon>
         <?= __('Clone Options') ?>
     </legend>
     <div class="form-check">

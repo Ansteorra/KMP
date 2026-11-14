@@ -15,62 +15,6 @@ class GatheringActivityService
     use LocatorAwareTrait;
 
     /**
-     * Return activity types the award catalog allows to present an award.
-     *
-     * AwardGatheringActivities is catalog configuration, not an assignment of a
-     * bestowal to a gathering. It lets a planner attach the right Court activity
-     * before that gathering becomes eligible for matching bestowals. Activity names
-     * are intentionally not used because Court labels vary by branch and tier.
-     *
-     * @return array<int, int>
-     */
-    public function courtActivityIds(): array
-    {
-        if (!class_exists('Awards\\Model\\Table\\AwardGatheringActivitiesTable')) {
-            return [];
-        }
-
-        return $this->fetchTable('Awards.AwardGatheringActivities')
-            ->find()
-            ->select(['gathering_activity_id'])
-            ->distinct(['gathering_activity_id'])
-            ->all()
-            ->extract('gathering_activity_id')
-            ->map(static fn($id): int => (int)$id)
-            ->toList();
-    }
-
-    /**
-     * Check whether the award catalog permits presentations at this activity type.
-     *
-     * @param int $activityId Gathering activity ID
-     * @return bool
-     */
-    public function isCourtActivity(int $activityId): bool
-    {
-        return in_array($activityId, $this->courtActivityIds(), true);
-    }
-
-    /**
-     * Check whether a Court activity is attached to the requested gathering.
-     *
-     * @param int $gatheringId Gathering ID
-     * @param int $activityId Gathering activity ID
-     * @return bool
-     */
-    public function isLinkedCourtActivity(int $gatheringId, int $activityId): bool
-    {
-        if (!$this->isCourtActivity($activityId)) {
-            return false;
-        }
-
-        return $this->fetchTable('GatheringsGatheringActivities')->exists([
-            'gathering_id' => $gatheringId,
-            'gathering_activity_id' => $activityId,
-        ]);
-    }
-
-    /**
      * Check whether the gathering already has uploaded waivers.
      *
      * @param int $gatheringId Gathering id
@@ -95,6 +39,7 @@ class GatheringActivityService
      * @param int $activityId Activity id to add
      * @param array $existingIds Already-linked activity ids
      * @param string|null $customDescription Optional custom description
+     * @param int|null $actorId Actual operator; null is reserved for trusted internal callers.
      * @return array{success: bool, message: string, type: string}
      */
     public function addActivity(
@@ -102,6 +47,22 @@ class GatheringActivityService
         int $activityId,
         array $existingIds,
         ?string $customDescription = null,
+        ?int $actorId = null,
+    ): array {
+        return $this->withActivityAuthority(
+            $gatheringId,
+            $activityId,
+            $actorId,
+            fn(): array => $this->linkActivity($gatheringId, $activityId, $existingIds, $customDescription),
+        );
+    }
+
+    /** Persist the attachment while the caller holds current activity authority. */
+    private function linkActivity(
+        int $gatheringId,
+        int $activityId,
+        array $existingIds,
+        ?string $customDescription,
     ): array {
         // Check if activity is already linked
         if (in_array($activityId, $existingIds)) {
@@ -146,10 +107,30 @@ class GatheringActivityService
      *
      * @param int $gatheringId Gathering id
      * @param int $activityId Activity id to remove
+     * @param int|null $actorId Actual operator; null is reserved for trusted internal callers.
      * @return array{success: bool, message: string, type: string}
      */
-    public function removeActivity(int $gatheringId, int $activityId): array
+    public function removeActivity(int $gatheringId, int $activityId, ?int $actorId = null): array
     {
+        return $this->withActivityAuthority(
+            $gatheringId,
+            $activityId,
+            $actorId,
+            fn(): array => $this->unlinkActivity($gatheringId, $activityId),
+        );
+    }
+
+    /** Remove an attachment only after its schedule dependencies are gone. */
+    private function unlinkActivity(int $gatheringId, int $activityId): array
+    {
+        if (
+            $this->fetchTable('GatheringScheduledActivities')->exists([
+                'gathering_id' => $gatheringId, 'gathering_activity_id' => $activityId,
+            ])
+        ) {
+            return ['success' => false, 'type' => 'error',
+                'message' => __('Remove this activity’s schedule entries before removing the activity.')];
+        }
         $table = $this->fetchTable('GatheringsGatheringActivities');
         $link = $table->find()
             ->where([
@@ -187,13 +168,26 @@ class GatheringActivityService
      * @param int $gatheringId Gathering id
      * @param int $activityId Activity id
      * @param string|null $customDescription New description (null/empty to clear)
+     * @param int|null $actorId Actual operator; null is reserved for trusted internal callers.
      * @return array{success: bool, message: string, type: string}
      */
     public function editDescription(
         int $gatheringId,
         int $activityId,
         ?string $customDescription,
+        ?int $actorId = null,
     ): array {
+        return $this->withActivityAuthority(
+            $gatheringId,
+            $activityId,
+            $actorId,
+            fn(): array => $this->updateDescription($gatheringId, $activityId, $customDescription),
+        );
+    }
+
+    /** Update descriptive text while holding the current event grant. */
+    private function updateDescription(int $gatheringId, int $activityId, ?string $customDescription): array
+    {
         $table = $this->fetchTable('GatheringsGatheringActivities');
         $link = $table->find()
             ->where([
@@ -246,5 +240,24 @@ class GatheringActivityService
             'message' => __('Unable to update activity description. Please try again.'),
             'type' => 'error',
         ];
+    }
+
+    /** An actor's grant is held until the entire mutation commits. */
+    private function withActivityAuthority(int $gatheringId, int $activityId, ?int $actorId, callable $operation): array
+    {
+        $result = [];
+        $this->fetchTable('GatheringsGatheringActivities')->getConnection()->transactional(
+            function () use ($gatheringId, $activityId, $actorId, $operation, &$result): bool {
+                if ($actorId !== null) {
+                    (new GatheringActivityAuthorizationService())->assertActivity($gatheringId, $activityId, $actorId);
+                }
+
+                $result = $operation();
+
+                return (bool)$result['success'];
+            },
+        );
+
+        return $result;
     }
 }

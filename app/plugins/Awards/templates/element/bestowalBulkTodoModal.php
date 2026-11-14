@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Bestowal bulk "Complete Check" modal.
@@ -34,7 +35,7 @@ $currentPage = $this->request->getRequestTarget();
             <?= $this->Form->create(null, ['url' => $formUrl, 'id' => 'bestowal_bulk_todo_form']) ?>
             <div class="modal-header">
                 <h1 class="modal-title fs-5" id="<?= h($modalId) ?>Label">
-                    <i class="bi bi-check2-square me-2" aria-hidden="true"></i><?= __('Complete a Check') ?>
+                    <kmp-icon name="checkbox" class="me-2" aria-hidden="true"></kmp-icon><?= __('Complete a Check') ?>
                 </h1>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"
                     aria-label="<?= __('Close') ?>"></button>
@@ -58,6 +59,30 @@ $currentPage = $this->request->getRequestTarget();
                             'The list only includes open checks assigned to you on the selected bestowals.',
                         ) ?>
                     </div>
+                </div>
+                <div class="mt-3" data-awards-bestowal-bulk-todo-target="outcomeSection" hidden>
+                    <label for="<?= h($modalId) ?>Outcome" class="form-label"><?= __('Completion outcome') ?></label>
+                    <select id="<?= h($modalId) ?>Outcome" class="form-select" name="terminal_status" disabled
+                        data-awards-bestowal-bulk-todo-target="outcomeSelect"
+                        data-action="change->awards-bestowal-bulk-todo#updateSubmitState"
+                        aria-describedby="<?= h($modalId) ?>OutcomeHelp"></select>
+                    <p class="form-text" id="<?= h($modalId) ?>OutcomeHelp">
+                        <?= __('Choose an outcome supported by every matching selected bestowal. '
+                            . 'If none are shared, complete the bestowals individually.') ?>
+                    </p>
+                </div>
+                <div class="mt-3" data-awards-bestowal-bulk-todo-target="courtSection" hidden>
+                    <label for="<?= h($modalId) ?>Court" class="form-label"><?= __('Court Assignment') ?></label>
+                    <select id="<?= h($modalId) ?>Court" class="form-select"
+                        name="gathering_scheduled_activity_id" disabled
+                        data-awards-bestowal-bulk-todo-target="courtSelect"
+                        data-action="change->awards-bestowal-bulk-todo#updateSubmitState"
+                        aria-describedby="<?= h($modalId) ?>CourtHelp"></select>
+                    <p class="form-text" id="<?= h($modalId) ?>CourtHelp">
+                        <?= __('Courts appear in schedule order. Only assignments shared by the matching selected '
+                            . 'bestowals are shown, with Roaming Court last. If no choices are shared, '
+                            . 'complete the bestowals individually.') ?>
+                    </p>
                 </div>
                 <div class="mt-3" data-awards-bestowal-bulk-todo-target="gatheringSection" hidden>
                     <div class="form-check form-switch mb-2">

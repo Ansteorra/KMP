@@ -57,7 +57,7 @@ $user = $this->request->getAttribute("identity");
                     <?php // External URL - link to external site 
                                     ?>
                     <?= $this->Html->link(
-                                        '<i class="fas fa-external-link-alt"></i> ' . __('View Template'),
+                                        '<kmp-icon name="external-link" aria-hidden="true"></kmp-icon> ' . __('View Template'),
                                         $requirement->waiver_type->template_path,
                                         [
                                             'escape' => false,
@@ -70,7 +70,7 @@ $user = $this->request->getAttribute("identity");
                     <?php // Internal document - download link 
                                     ?>
                     <?= $this->Html->link(
-                                        '<i class="fas fa-download"></i> ' . __('Download'),
+                                        '<kmp-icon name="download" aria-hidden="true"></kmp-icon> ' . __('Download'),
                                         [
                                             'controller' => 'WaiverTypes',
                                             'action' => 'downloadTemplate',
@@ -119,7 +119,7 @@ $user = $this->request->getAttribute("identity");
 </div>
 <?php else : ?>
 <div class="alert alert-info">
-    <i class="fas fa-info-circle"></i>
+    <kmp-icon name="info-circle" aria-hidden="true"></kmp-icon>
     <?= __('No waiver requirements have been configured for this activity.') ?>
     <?php if ($user && $user->checkCan('add', 'Waivers.GatheringActivityWaivers')) : ?>
     <?= __('Click "Add Waiver Requirement" above to specify which waivers are required for participants.') ?>

@@ -1,3 +1,5 @@
+import { createIcon, setIcon } from '../services/icon-service.js';
+import { updateUiHistory, visitDocument } from '../services/ui-navigation-service.js';
 import { Controller } from "@hotwired/stimulus"
 
 /**
@@ -46,6 +48,7 @@ class GridViewController extends Controller {
         this.searchDebounceTimer = null
         this.searchDebounceMs = 900
         this.paginationFocusPending = null
+        this.sortFocusPending = null
 
         // Initialize sticky query parameter support
         this.stickyParams = {}
@@ -59,14 +62,19 @@ class GridViewController extends Controller {
 
         // Listen for Turbo Frame updates
         document.addEventListener('turbo:frame-load', this.boundHandleFrameLoad)
+        this.boundHandleFrameRender = this.handleFrameRender.bind(this)
+        document.addEventListener('turbo:frame-render', this.boundHandleFrameRender)
         this.boundFrameError = this.handleFrameError.bind(this)
         document.addEventListener('turbo:fetch-request-error', this.boundFrameError)
         document.addEventListener('turbo:frame-missing', this.boundFrameError)
 
         this.boundPopState = this.handlePopState.bind(this)
         window.addEventListener('popstate', this.boundPopState)
+        window.addEventListener('kmp:ui-history-restored', this.boundPopState)
         this.boundPaginationClick = this.handlePaginationClick.bind(this)
         this.element.addEventListener('click', this.boundPaginationClick)
+        this.boundViewTabKeydown = this.handleViewTabKeydown.bind(this)
+        this.element.addEventListener('keydown', this.boundViewTabKeydown)
 
         // Check if state is already present (inline rendered content)
         this.loadInlineState()
@@ -112,6 +120,7 @@ class GridViewController extends Controller {
      */
     disconnect() {
         this.paginationFocusPending = null
+        this.sortFocusPending = null
         this.subscriptionRequest?.abort()
         this.subscriptionRequest = null
         if (this.searchDebounceTimer) {
@@ -119,11 +128,14 @@ class GridViewController extends Controller {
             this.searchDebounceTimer = null
         }
         document.removeEventListener('turbo:frame-load', this.boundHandleFrameLoad)
+        document.removeEventListener('turbo:frame-render', this.boundHandleFrameRender)
         document.removeEventListener('turbo:fetch-request-error', this.boundFrameError)
         document.removeEventListener('turbo:frame-missing', this.boundFrameError)
         this.element.removeEventListener('click', this.boundPaginationClick)
+        this.element.removeEventListener('keydown', this.boundViewTabKeydown)
         if (this.boundPopState) {
             window.removeEventListener('popstate', this.boundPopState)
+            window.removeEventListener('kmp:ui-history-restored', this.boundPopState)
             this.boundPopState = null
         }
     }
@@ -147,7 +159,9 @@ class GridViewController extends Controller {
         const url = new URL(link.href, window.location.origin)
         if (url.origin !== window.location.origin) return
         event.preventDefault()
-        this.paginationFocusPending = document.activeElement === link
+        this.sortFocusPending = null
+        // Keyboard activation has no pointer clicks, even if focus moved before click dispatch.
+        this.paginationFocusPending = (document.activeElement === link || event.detail === 0)
             ? { frameId: link.closest('turbo-frame')?.id, source: link }
             : null
         this.navigate(window.location.pathname + url.search)
@@ -172,10 +186,31 @@ class GridViewController extends Controller {
         target.focus()
     }
 
+    /** Return keyboard sorting focus to the replacement header unless the user moved elsewhere. */
+    restoreSortFocus(frame) {
+        const pending = this.sortFocusPending
+        if (!pending || pending.frameId !== frame.id) return
+        this.sortFocusPending = null
+        if (document.activeElement !== document.body && document.activeElement !== pending.source) return
+        const button = [...frame.querySelectorAll('thead button[data-column-key]')]
+            .find(node => node.dataset.columnKey === pending.field)
+        button?.focus({ preventScroll: true })
+    }
+
+    /** An older render must not consume focus intended for a newer frame request. */
+    handleFrameRender(event) {
+        if (!this.element.contains(event.target)) return
+        const renderedUrl = event.detail?.fetchResponse?.response?.url
+        if (!renderedUrl) return
+        if (this.paginationFocusPending?.navigationUrl === renderedUrl) this.restorePaginationFocus(event.target)
+        if (this.sortFocusPending?.navigationUrl === renderedUrl) this.restoreSortFocus(event.target)
+    }
+
     /** Restore the loading state when a frame request fails or returns no matching frame. */
     handleFrameError(event) {
         if (!this.element.contains(event.target)) return
         if (this.paginationFocusPending?.frameId === event.target.id) this.paginationFocusPending = null
+        if (this.sortFocusPending?.frameId === event.target.id) this.sortFocusPending = null
         event.target.removeAttribute('aria-busy')
         this.setSearchBusy(false)
     }
@@ -199,6 +234,7 @@ class GridViewController extends Controller {
             if (!stateScript) {
                 console.warn('No state script found in table frame')
                 this.paginationFocusPending = null
+                this.sortFocusPending = null
                 tableFrame.removeAttribute('aria-busy')
                 this.setSearchBusy(false)
                 return
@@ -219,7 +255,6 @@ class GridViewController extends Controller {
                 // Capture sticky parameters based on the loaded frame
                 this.captureStickyParamsFromFrame(tableFrame)
                 this.syncFrameLocation(tableFrame)
-                this.restorePaginationFocus(tableFrame)
                 if (this.state.pagination) {
                     const { currentPage, pageCount, count } = this.state.pagination
                     window.KMP_accessibility?.announce(`Page ${currentPage} of ${pageCount} loaded, showing ${count} records.`)
@@ -308,6 +343,16 @@ class GridViewController extends Controller {
      * Update toolbar UI based on current state
      */
     updateToolbar() {
+        const focused = document.activeElement
+        const pillContainer = this.element.querySelector('[data-filter-pills-container]')
+        const pillControls = [...(pillContainer?.querySelectorAll('button.grid-view-filter-badge-control') || [])]
+        const focusedPillIndex = pillControls.indexOf(focused)
+        const wasInFilterMenu = this.element.contains(focused)
+            && Boolean(focused?.closest('.dropdown-menu')?.querySelector('[data-filter-nav-container]'))
+        const focusedFilter = this.element.contains(focused)
+            && focused?.closest('[data-filter-nav-container], [data-filter-panels-container]')
+        const focusedId = focusedFilter ? focused.id : null
+        const focusedKey = focusedFilter ? focused.dataset.filterKey : null
         // Update all UI elements from state
         this.updateViewTabs()
         this.updateFilterPills()
@@ -319,6 +364,27 @@ class GridViewController extends Controller {
         this.updateClearFiltersFooter()
         this.updateColumnPicker()
         this.updatePageSize()
+        if (focusedPillIndex !== -1 && !focused.isConnected && document.activeElement === document.body) {
+            const controls = [...pillContainer.querySelectorAll('button.grid-view-filter-badge-control')]
+            const replacement = controls.find(control => control.dataset.action === focused.dataset.action
+                && control.dataset.filterColumn === focused.dataset.filterColumn
+                && control.dataset.filterValue === focused.dataset.filterValue)
+                || controls[Math.min(focusedPillIndex, controls.length - 1)]
+                || this.element.querySelector('[data-filter-button]')
+                || (this.hasSearchInputTarget ? this.searchInputTarget : null)
+            replacement?.focus({ preventScroll: true })
+        }
+        if (focusedFilter && !focused.isConnected && document.activeElement === document.body) {
+            const replacement = focusedId ? document.getElementById(focusedId)
+                : [...this.element.querySelectorAll('[data-filter-nav-item]')]
+                    .find(node => node.dataset.filterKey === focusedKey)
+            if (replacement && this.element.contains(replacement)) replacement.focus({ preventScroll: true })
+        }
+        // Clearing filters can hide the focused footer button without removing its DOM node.
+        if (wasInFilterMenu && document.activeElement === document.body
+            && this.element.querySelector('[data-filter-button]')?.getAttribute('aria-expanded') === 'true') {
+            this.element.querySelector('[data-filter-nav-item]')?.focus({ preventScroll: true })
+        }
     }
 
     /** Keep the persistent toolbar control aligned with the effective saved or live row count. */
@@ -360,7 +426,7 @@ class GridViewController extends Controller {
         browserUrl.search = frameUrl.search
         const nextUrl = browserUrl.pathname + browserUrl.search + browserUrl.hash
         if (nextUrl !== window.location.pathname + window.location.search + window.location.hash) {
-            window.history.replaceState(window.history.state, '', nextUrl)
+            updateUiHistory(nextUrl, { replace: true })
             window.dispatchEvent(new CustomEvent('grid-view:navigated'))
             window.dispatchEvent(new CustomEvent('page-context:sync'))
         }
@@ -491,28 +557,43 @@ class GridViewController extends Controller {
         groupedFilters.forEach((filters, groupIndex) => {
             if (filters.length === 0) return
 
-            // Create a wrapper for the OR group
+            const sharedColumn = filters.every(filter => filter.column === filters[0].column)
+                ? filters[0].column : null
+            const groupLabel = sharedColumn ? this.getFilterColumnLabel(sharedColumn) : 'Match any'
             const groupWrapper = document.createElement('div')
-            groupWrapper.className = 'd-inline-flex align-items-center gap-1'
-            groupWrapper.style.cssText = 'padding: 2px 6px; border-radius: 6px; background-color: rgba(13, 110, 253, 0.08); border: 1px dashed rgba(13, 110, 253, 0.3);'
+            groupWrapper.className = 'grid-view-filter-group'
             groupWrapper.setAttribute('data-or-group', groupIndex)
+            groupWrapper.setAttribute('role', 'group')
+            groupWrapper.setAttribute('aria-label', sharedColumn
+                ? `${groupLabel}: match any selected value` : 'Match any of these filters')
+
+            const label = document.createElement('span')
+            label.className = 'grid-view-filter-group-label'
+            label.textContent = `${groupLabel}:`
+            groupWrapper.appendChild(label)
+
+            const options = document.createElement('div')
+            options.className = 'grid-view-filter-group-options'
 
             filters.forEach((filterData, index) => {
-                const isLocked = this.isFilterLocked(filterData.column, lockedFilters)
-                const pill = this.createFilterPill(filterData.column, filterData.value, isLocked)
-                groupWrapper.appendChild(pill)
+                const option = document.createElement('span')
+                option.className = 'grid-view-filter-option'
 
-                // Add OR indicator between pills (but not after the last one)
-                if (index < filters.length - 1) {
+                // Keep each connector with the following choice when the group wraps.
+                if (index > 0) {
                     const orIndicator = document.createElement('span')
-                    orIndicator.className = 'text-primary fw-bold px-1'
-                    orIndicator.style.cssText = 'font-size: 0.65rem; letter-spacing: 0.5px;'
+                    orIndicator.className = 'grid-view-filter-or'
                     orIndicator.textContent = 'OR'
-                    orIndicator.setAttribute('title', 'These filters are combined with OR logic - any one can match')
-                    groupWrapper.appendChild(orIndicator)
+                    option.appendChild(orIndicator)
                 }
+
+                const isLocked = this.isFilterLocked(filterData.column, lockedFilters)
+                const pill = this.createFilterPill(filterData.column, filterData.value, isLocked, !sharedColumn)
+                option.appendChild(pill)
+                options.appendChild(option)
             })
 
+            groupWrapper.appendChild(options)
             container.appendChild(groupWrapper)
         })
     }
@@ -523,8 +604,9 @@ class GridViewController extends Controller {
      * @param {string} column - The filter column key
      * @param {string} value - The filter value
      * @param {boolean} isLocked - Whether this filter is locked (cannot be removed)
+     * @param {boolean} showColumnLabel - Omit repeated field labels within a named same-field group.
      */
-    createFilterPill(column, value, isLocked = false) {
+    createFilterPill(column, value, isLocked = false, showColumnLabel = true) {
         const badge = document.createElement('span')
         badge.className = 'badge d-inline-flex align-items-center gap-1 grid-view-filter-badge'
         badge.setAttribute('data-filter-badge', '')
@@ -538,7 +620,11 @@ class GridViewController extends Controller {
         const columnLabel = this.getFilterColumnLabel(column)
 
         const textSpan = document.createElement('span')
-        textSpan.innerHTML = `${columnLabel}: <strong>${this.escapeHtml(valueLabel)}</strong>`
+        textSpan.className = 'grid-view-filter-badge-text'
+        if (showColumnLabel) textSpan.appendChild(document.createTextNode(`${columnLabel}: `))
+        const valueSpan = document.createElement('strong')
+        valueSpan.textContent = valueLabel
+        textSpan.appendChild(valueSpan)
         badge.appendChild(textSpan)
 
         // Only add remove button if filter is not locked
@@ -551,8 +637,7 @@ class GridViewController extends Controller {
             removeBtn.setAttribute('data-filter-column', column)
             removeBtn.setAttribute('data-filter-value', value)
 
-            const icon = document.createElement('i')
-            icon.className = 'bi bi-x'
+            const icon = createIcon('x', { class: '' })
             icon.setAttribute('aria-hidden', 'true')
             removeBtn.appendChild(icon)
 
@@ -568,8 +653,7 @@ class GridViewController extends Controller {
             lockIndicator.setAttribute('title', 'This filter cannot be removed')
             lockIndicator.setAttribute('aria-hidden', 'true')
 
-            const lockIcon = document.createElement('i')
-            lockIcon.className = 'bi bi-lock-fill'
+            const lockIcon = createIcon('lock', { class: '' })
             lockIcon.setAttribute('aria-hidden', 'true')
             lockIndicator.appendChild(lockIcon)
             badge.appendChild(lockIndicator)
@@ -665,7 +749,12 @@ class GridViewController extends Controller {
         badge.setAttribute('data-search-badge', '')
 
         const textSpan = document.createElement('span')
-        textSpan.innerHTML = `Search: <strong data-search-text>${this.escapeHtml(searchTerm)}</strong>`
+        textSpan.className = 'grid-view-filter-badge-text'
+        textSpan.appendChild(document.createTextNode('Search: '))
+        const valueSpan = document.createElement('strong')
+        valueSpan.setAttribute('data-search-text', '')
+        valueSpan.textContent = searchTerm
+        textSpan.appendChild(valueSpan)
         badge.appendChild(textSpan)
 
         const removeBtn = document.createElement('button')
@@ -674,8 +763,7 @@ class GridViewController extends Controller {
         removeBtn.setAttribute('aria-label', 'Remove search')
         removeBtn.setAttribute('data-action', 'click->grid-view#clearSearch')
 
-        const icon = document.createElement('i')
-        icon.className = 'bi bi-x'
+        const icon = createIcon('x', { class: '' })
         icon.setAttribute('aria-hidden', 'true')
         removeBtn.appendChild(icon)
 
@@ -690,7 +778,7 @@ class GridViewController extends Controller {
     updateFilterCount() {
         // Find the filter button (it has a Filter icon and text)
         const filterButton = Array.from(this.element.querySelectorAll('button'))
-            .find(btn => btn.textContent.includes('Filter') && btn.querySelector('.bi-funnel'))
+            .find(btn => btn.textContent.includes('Filter') && btn.querySelector('kmp-icon[name="filter"]'))
 
         if (!filterButton) return
 
@@ -765,6 +853,24 @@ class GridViewController extends Controller {
     updateViewTabs() {
         const container = this.element.querySelector('[data-view-tabs-container]')
         if (!container) return
+        let actions = this.element.querySelector('[data-view-actions-container]')
+        if (!actions) {
+            actions = document.createElement('div')
+            actions.dataset.viewActionsContainer = ''
+            actions.className = 'btn-group flex-shrink-0 mb-1'
+            container.after(actions)
+        }
+        const focusedControl = document.activeElement
+        const restoreFocus = container.contains(focusedControl) || actions.contains(focusedControl)
+        const focusedTab = focusedControl?.closest('li.nav-item')?.querySelector('[role="tab"]')
+            || container.querySelector('[role="tab"][aria-selected="true"]')
+        const focusedViewId = focusedTab?.dataset.viewId || ''
+        const restoreMenuButton = focusedControl?.matches('[data-bs-toggle="dropdown"]')
+        actions.querySelectorAll('[data-bs-toggle="dropdown"]').forEach(button => {
+            window.bootstrap?.Dropdown?.getInstance(button)?.dispose()
+        })
+        actions.replaceChildren()
+        actions.hidden = true
 
         // Check if we should show "All" tab (marker present means DON'T show it)
         const showAllTab = !this.element.querySelector('[data-no-all-tab]')
@@ -796,6 +902,54 @@ class GridViewController extends Controller {
                 container.appendChild(viewTab)
             })
         }
+
+        const tabs = [...container.querySelectorAll('[role="tab"]')]
+        const activeTab = tabs.find(tab => tab.getAttribute('aria-selected') === 'true') || tabs[0]
+        const dropdown = activeTab?.closest('li')?.querySelector('[data-bs-toggle="dropdown"]')
+        const menu = activeTab?.closest('li')?.querySelector('.dropdown-menu')
+        if (dropdown && menu) {
+            activeTab.classList.remove('split-tab-left')
+            dropdown.className = 'btn btn-outline-secondary'
+            dropdown.style.removeProperty('padding-left')
+            dropdown.style.removeProperty('padding-right')
+            dropdown.innerHTML = ''
+            dropdown.append(createIcon('settings'))
+            actions.append(dropdown, menu)
+            actions.hidden = false
+        }
+        const frame = this.element.querySelector('turbo-frame[id$="-table"]')
+        if (frame && activeTab) {
+            frame.setAttribute('role', 'tabpanel')
+            frame.setAttribute('aria-labelledby', activeTab.id)
+            if (!frame.hasAttribute('tabindex')) frame.setAttribute('tabindex', '0')
+        }
+        if (restoreFocus) {
+            const tab = tabs.find(node => (node.dataset.viewId || '') === focusedViewId) || activeTab
+            const menuButton = restoreMenuButton && actions.querySelector('[data-bs-toggle="dropdown"]')
+            tabs.forEach(node => { node.tabIndex = node === tab ? 0 : -1 })
+            const focusTarget = menuButton || tab
+            focusTarget?.focus({ preventScroll: true })
+        }
+    }
+
+    /** Move focus between saved tabs; Enter and Space activate the focused native button. */
+    handleViewTabKeydown(event) {
+        const tab = event.target.closest('[role="tab"]')
+        const container = tab?.closest('[data-view-tabs-container]')
+        if (!container || !this.element.contains(container) || event.altKey || event.ctrlKey || event.metaKey) return
+        const tabs = [...container.querySelectorAll('[role="tab"]')]
+        const index = tabs.indexOf(tab)
+        let nextIndex
+        switch (event.key) {
+            case 'ArrowRight': nextIndex = (index + 1) % tabs.length; break
+            case 'ArrowLeft': nextIndex = (index - 1 + tabs.length) % tabs.length; break
+            case 'Home': nextIndex = 0; break
+            case 'End': nextIndex = tabs.length - 1; break
+            default: return
+        }
+        event.preventDefault()
+        tabs.forEach((node, i) => { node.tabIndex = i === nextIndex ? 0 : -1 })
+        tabs[nextIndex]?.focus()
     }
 
     /**
@@ -812,11 +966,11 @@ class GridViewController extends Controller {
         li.className = 'nav-item'
         li.setAttribute('role', 'presentation')
 
-        if (isActive && canManage) {
+        if (isActive && canManage && viewId) {
             // Active tab with dropdown
             const btnGroup = document.createElement('div')
             btnGroup.className = 'btn-group'
-            btnGroup.setAttribute('role', 'group')
+            btnGroup.setAttribute('role', 'presentation')
             btnGroup.style.marginBottom = '-1px'
 
             const mainBtn = document.createElement('button')
@@ -841,8 +995,7 @@ class GridViewController extends Controller {
                 mainBtn.appendChild(badge)
             }
             if (isPreferred) {
-                const star = document.createElement('i')
-                star.className = 'bi bi-star-fill text-warning'
+                const star = createIcon('star-circle', { class: 'text-warning' })
                 star.style.fontSize = '0.75rem'
                 mainBtn.appendChild(document.createTextNode(' '))
                 mainBtn.appendChild(star)
@@ -864,7 +1017,7 @@ class GridViewController extends Controller {
                 const updateItem = document.createElement('li')
                 updateItem.innerHTML = `
                     <button type="button" class="dropdown-item" data-action="click->grid-view#updateView">
-                        <i class="bi bi-arrow-repeat me-2"></i> Update View
+                        <kmp-icon name="repeat" class="me-2" aria-hidden="true"></kmp-icon> Update View
                     </button>
                 `
                 dropdownMenu.appendChild(updateItem)
@@ -875,13 +1028,13 @@ class GridViewController extends Controller {
             if (isPreferred) {
                 defaultItem.innerHTML = `
                     <button type="button" class="dropdown-item" data-action="click->grid-view#clearDefault">
-                        <i class="bi bi-star-fill me-2"></i> Remove as Default
+                        <kmp-icon name="star-circle" class="me-2" aria-hidden="true"></kmp-icon> Remove as Default
                     </button>
                 `
             } else {
                 defaultItem.innerHTML = `
                     <button type="button" class="dropdown-item" data-action="click->grid-view#setDefault">
-                        <i class="bi bi-star me-2"></i> Set as Default
+                        <kmp-icon name="star" class="me-2" aria-hidden="true"></kmp-icon> Set as Default
                     </button>
                 `
             }
@@ -897,7 +1050,7 @@ class GridViewController extends Controller {
                 const deleteItem = document.createElement('li')
                 deleteItem.innerHTML = `
                     <button type="button" class="dropdown-item text-danger" data-action="click->grid-view#deleteView">
-                        <i class="bi bi-trash me-2"></i> Delete View
+                        <kmp-icon name="trash" class="me-2" aria-hidden="true"></kmp-icon> Delete View
                     </button>
                 `
                 dropdownMenu.appendChild(deleteItem)
@@ -907,11 +1060,11 @@ class GridViewController extends Controller {
             btnGroup.appendChild(dropdownBtn)
             btnGroup.appendChild(dropdownMenu)
             li.appendChild(btnGroup)
-        } else if (isActive && !canManage) {
+        } else if (isActive && !canManage && viewId) {
             // Active system view with limited dropdown
             const btnGroup = document.createElement('div')
             btnGroup.className = 'btn-group'
-            btnGroup.setAttribute('role', 'group')
+            btnGroup.setAttribute('role', 'presentation')
             btnGroup.style.marginBottom = '-1px'
 
             const mainBtn = document.createElement('button')
@@ -930,8 +1083,7 @@ class GridViewController extends Controller {
             }
 
             if (isPreferred) {
-                const star = document.createElement('i')
-                star.className = 'bi bi-star-fill text-warning'
+                const star = createIcon('star-circle', { class: 'text-warning' })
                 star.style.fontSize = '0.75rem'
                 mainBtn.appendChild(document.createTextNode(' '))
                 mainBtn.appendChild(star)
@@ -952,13 +1104,13 @@ class GridViewController extends Controller {
             if (isPreferred) {
                 defaultItem.innerHTML = `
                     <button type="button" class="dropdown-item" data-action="click->grid-view#clearDefault">
-                        <i class="bi bi-star-fill me-2"></i> Remove as Default
+                        <kmp-icon name="star-circle" class="me-2" aria-hidden="true"></kmp-icon> Remove as Default
                     </button>
                 `
             } else {
                 defaultItem.innerHTML = `
                     <button type="button" class="dropdown-item" data-action="click->grid-view#setDefault">
-                        <i class="bi bi-star me-2"></i> Set as Default
+                        <kmp-icon name="star" class="me-2" aria-hidden="true"></kmp-icon> Set as Default
                     </button>
                 `
             }
@@ -969,12 +1121,12 @@ class GridViewController extends Controller {
             btnGroup.appendChild(dropdownMenu)
             li.appendChild(btnGroup)
         } else {
-            // Inactive tab
+            // Inactive view or the All tab, which has no saved default to manage.
             const btn = document.createElement('button')
             btn.type = 'button'
-            btn.className = 'nav-link'
+            btn.className = isActive ? 'nav-link active' : 'nav-link'
             btn.setAttribute('role', 'tab')
-            btn.setAttribute('aria-selected', 'false')
+            btn.setAttribute('aria-selected', String(isActive))
 
             if (viewId) {
                 btn.setAttribute('data-action', 'click->grid-view#switchView')
@@ -992,8 +1144,7 @@ class GridViewController extends Controller {
                 btn.appendChild(badge)
             }
             if (isPreferred) {
-                const star = document.createElement('i')
-                star.className = 'bi bi-star-fill text-warning'
+                const star = createIcon('star-circle', { class: 'text-warning' })
                 star.style.fontSize = '0.75rem'
                 btn.appendChild(document.createTextNode(' '))
                 btn.appendChild(star)
@@ -1001,6 +1152,26 @@ class GridViewController extends Controller {
 
             li.appendChild(btn)
         }
+
+        const tab = li.querySelector('[role="tab"]')
+        const frame = this.element.querySelector('turbo-frame[id$="-table"]')
+        tab.tabIndex = isActive ? 0 : -1
+        if (frame) {
+            tab.id = `${frame.id}-view-${encodeURIComponent(String(viewId || 'all'))}`
+            tab.setAttribute('aria-controls', frame.id)
+        }
+        if (viewId) {
+            tab.dataset.viewId = viewId
+            tab.dataset.action = 'click->grid-view#switchView'
+        }
+        if (isPreferred) {
+            const defaultLabel = document.createElement('span')
+            defaultLabel.className = 'visually-hidden'
+            defaultLabel.textContent = ' (Default view)'
+            tab.appendChild(defaultLabel)
+        }
+        const menuButton = li.querySelector('[data-bs-toggle="dropdown"]')
+        if (menuButton) menuButton.setAttribute('aria-label', `View options: ${name}`)
 
         return li
     }
@@ -1049,6 +1220,8 @@ class GridViewController extends Controller {
     updateFilterNavigation() {
         const container = this.element.querySelector('[data-filter-nav-container]')
         if (!container) return
+        container.setAttribute('role', 'group')
+        container.setAttribute('aria-label', 'Filter fields')
 
         container.innerHTML = ''
 
@@ -1088,6 +1261,7 @@ class GridViewController extends Controller {
             button.setAttribute('data-filter-key', item.key)
             button.setAttribute('data-filter-type', item.type)
             button.setAttribute('data-filter-nav-item', '')
+            button.setAttribute('aria-pressed', String(item.key === activeKey))
             button.setAttribute('data-action', 'click->grid-view#selectFilter')
 
             const label = document.createElement('span')
@@ -1155,8 +1329,7 @@ class GridViewController extends Controller {
                 const title = document.createElement('strong')
                 title.textContent = item.label
                 if (isLocked) {
-                    const lockIcon = document.createElement('i')
-                    lockIcon.className = 'bi bi-lock-fill ms-2'
+                    const lockIcon = createIcon('lock', { class: 'ms-2' })
                     lockIcon.style.cssText = 'font-size: 0.75rem; opacity: 0.5;'
                     lockIcon.setAttribute('title', 'This filter is locked and cannot be changed')
                     title.appendChild(lockIcon)
@@ -1193,6 +1366,8 @@ class GridViewController extends Controller {
 
                     const fromInput = document.createElement('input')
                     fromInput.type = 'date'
+                    fromInput.id = `${this.state.config.gridKey || 'grid'}-filter-${startFilter.key}`
+                    fromLabel.htmlFor = fromInput.id
                     fromInput.className = 'form-control'
                     fromInput.value = startValue
                     fromInput.setAttribute('data-filter-column', startFilter.key)
@@ -1219,6 +1394,8 @@ class GridViewController extends Controller {
 
                     const toInput = document.createElement('input')
                     toInput.type = 'date'
+                    toInput.id = `${this.state.config.gridKey || 'grid'}-filter-${endFilter.key}`
+                    toLabel.htmlFor = toInput.id
                     toInput.className = 'form-control'
                     toInput.value = endValue
                     toInput.setAttribute('data-filter-column', endFilter.key)
@@ -1251,8 +1428,7 @@ class GridViewController extends Controller {
                 const title = document.createElement('strong')
                 title.textContent = item.label
                 if (isLocked) {
-                    const lockIcon = document.createElement('i')
-                    lockIcon.className = 'bi bi-lock-fill ms-2'
+                    const lockIcon = createIcon('lock', { class: 'ms-2' })
                     lockIcon.style.cssText = 'font-size: 0.75rem; opacity: 0.5;'
                     lockIcon.setAttribute('title', 'This filter is locked and cannot be changed')
                     title.appendChild(lockIcon)
@@ -1396,7 +1572,7 @@ class GridViewController extends Controller {
             dragHandle.className = 'drag-handle me-2'
             dragHandle.style.cursor = 'move'
             dragHandle.setAttribute('aria-hidden', 'true')
-            dragHandle.innerHTML = '<i class="bi bi-grip-vertical" aria-hidden="true"></i>'
+            dragHandle.innerHTML = '<kmp-icon name="grip-vertical"  aria-hidden="true"></kmp-icon>'
             item.appendChild(dragHandle)
 
             // Checkbox
@@ -1452,7 +1628,7 @@ class GridViewController extends Controller {
             moveUpButton.className = 'btn btn-outline-secondary'
             moveUpButton.setAttribute('data-action', 'click->sortable-list#moveUp')
             moveUpButton.setAttribute('aria-label', `Move ${columnLabel} column up`)
-            moveUpButton.innerHTML = '<i class="bi bi-arrow-up" aria-hidden="true"></i>'
+            moveUpButton.innerHTML = '<kmp-icon name="arrow-up"  aria-hidden="true"></kmp-icon>'
             moveControls.appendChild(moveUpButton)
 
             const moveDownButton = document.createElement('button')
@@ -1460,7 +1636,7 @@ class GridViewController extends Controller {
             moveDownButton.className = 'btn btn-outline-secondary'
             moveDownButton.setAttribute('data-action', 'click->sortable-list#moveDown')
             moveDownButton.setAttribute('aria-label', `Move ${columnLabel} column down`)
-            moveDownButton.innerHTML = '<i class="bi bi-arrow-down" aria-hidden="true"></i>'
+            moveDownButton.innerHTML = '<kmp-icon name="arrow-down"  aria-hidden="true"></kmp-icon>'
             moveControls.appendChild(moveDownButton)
 
             item.appendChild(moveControls)
@@ -1488,6 +1664,7 @@ class GridViewController extends Controller {
         const url = new URL(window.location.href)
         url.search = '' // Clear all query parameters
         url.searchParams.set('ignore_default', '1')
+        this.applyStickyParamsToParams(url.searchParams)
 
         this.navigate(url.pathname + url.search) // Table frame nav
     }
@@ -1503,6 +1680,7 @@ class GridViewController extends Controller {
         const url = new URL(window.location.href)
         url.search = '' // Clear all query parameters
         url.searchParams.set('view_id', viewId)
+        this.applyStickyParamsToParams(url.searchParams)
 
         this.navigate(url.pathname + url.search) // Table frame nav
     }
@@ -1982,6 +2160,9 @@ class GridViewController extends Controller {
      * Clear all filters and search (preserves locked filters)
      */
     clearAllFilters() {
+        // The footer disappears after reset; move focus before that happens so Escape remains available.
+        const filterToggle = this.element.querySelector('[data-filter-button][aria-expanded="true"]')
+        filterToggle?.parentElement.querySelector('[data-filter-nav-item]')?.focus({ preventScroll: true })
         const lockedFilters = this.state.config?.lockedFilters || []
 
         // Build filter params preserving only locked filters
@@ -2049,8 +2230,10 @@ class GridViewController extends Controller {
         // Update nav item active states
         this.element.querySelectorAll('[data-filter-nav-item]').forEach(item => {
             item.classList.remove('active')
+            item.setAttribute('aria-pressed', 'false')
         })
         event.currentTarget.classList.add('active')
+        event.currentTarget.setAttribute('aria-pressed', 'true')
     }
 
     /**
@@ -2101,20 +2284,18 @@ class GridViewController extends Controller {
     applySort(event) {
         const field = event.currentTarget.dataset.columnKey
         if (!field) return
+        this.paginationFocusPending = null
+        this.sortFocusPending = document.activeElement === event.currentTarget
+            ? { frameId: event.currentTarget.closest('turbo-frame')?.id, source: event.currentTarget, field }
+            : null
 
         const currentSort = this.state.sort
 
-        // Cycle through: none -> asc -> desc -> none
-        let direction = null
-        if (!currentSort || currentSort.field !== field) {
-            direction = 'asc'
-        } else if (currentSort.direction === 'asc') {
-            direction = 'desc'
-        }
-        // else direction stays null (clear sort)
+        // Reverse the active direction, including the grid's initial default sort.
+        const direction = currentSort?.field === field && currentSort.direction === 'asc' ? 'desc' : 'asc'
 
         const updates = {
-            sort: direction ? field : null,
+            sort: field,
             direction: direction
         }
 
@@ -2272,7 +2453,7 @@ class GridViewController extends Controller {
 
         const queryString = params.toString()
         const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname
-        window.history.replaceState({}, '', newUrl)
+        updateUiHistory(newUrl, { replace: true })
     }
 
     applyStickyParamsToParams(params, updates = null) {
@@ -2417,9 +2598,9 @@ class GridViewController extends Controller {
         if (fullPage) {
             if (!this.syncsBrowserUrl) {
                 const currentUrl = this.currentGridUrl()
-                window.history.replaceState(window.history.state, '', currentUrl.pathname + currentUrl.search + currentUrl.hash)
+                updateUiHistory(currentUrl.pathname + currentUrl.search + currentUrl.hash, { replace: true })
             }
-            window.location.assign(url)
+            visitDocument(url)
         } else {
             // Frame navigation - find the table frame and update its src
             const tableFrame = this.element.querySelector('turbo-frame[id$="-table"]')
@@ -2469,7 +2650,7 @@ class GridViewController extends Controller {
                 const gridDataUrl = finalUrl.pathname + finalUrl.search
 
                 if (updateHistory && this.syncsBrowserUrl) {
-                    window.history.pushState({}, '', url)
+                    updateUiHistory(url)
                     window.dispatchEvent(new CustomEvent('grid-view:navigated'))
                     window.dispatchEvent(new CustomEvent('page-context:sync'))
                 }
@@ -2478,12 +2659,15 @@ class GridViewController extends Controller {
                 this.captureStickyParamsFromUrl(finalUrl.toString())
 
                 // Navigate the frame by setting src to gridData URL
+                for (const pending of [this.paginationFocusPending, this.sortFocusPending]) {
+                    if (pending?.frameId === tableFrame.id) pending.navigationUrl = finalUrl.href
+                }
                 tableFrame.dataset.gridCurrentSrc = gridDataUrl
                 tableFrame.setAttribute('aria-busy', 'true')
                 tableFrame.src = gridDataUrl
             } else {
                 console.warn('Table frame not found, falling back to full page navigation')
-                window.location.assign(url)
+                visitDocument(url)
             }
         }
     }
@@ -2627,8 +2811,7 @@ class GridViewController extends Controller {
 
             const icon = toggle.querySelector('.toggle-icon')
             if (icon) {
-                icon.classList.remove('bi-chevron-down')
-                icon.classList.add('bi-chevron-right')
+                setIcon(icon, 'chevron-right')
             }
         } else {
             // Sub-row doesn't exist - expand it
@@ -2669,8 +2852,7 @@ class GridViewController extends Controller {
 
                     const icon = toggle.querySelector('.toggle-icon')
                     if (icon) {
-                        icon.classList.remove('bi-chevron-right')
-                        icon.classList.add('bi-chevron-down')
+                        setIcon(icon, 'chevron-down')
                     }
                 })
                 .catch(error => {

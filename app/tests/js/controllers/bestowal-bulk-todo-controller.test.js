@@ -16,6 +16,73 @@ describe('AwardsBestowalBulkTodo', () => {
     let clearBtn;
     let includePast;
 
+    test('terminal outcome choices are limited to those shared by matching bestowals', () => {
+        const options = controller.buildOptions([
+            { id: '1', options: [{ key: 'given', isTerminal: true,
+                terminalOutcomes: { given: 'Given', other: 'Given Not Received' } }] },
+            { id: '2', options: [{ key: 'given', isTerminal: true,
+                terminalOutcomes: { given: 'Given', third: 'Filed' } }] },
+        ]);
+        expect(options[0].terminalOutcomes).toEqual({ given: 'Given' });
+        controller.outcomeSelectTarget = document.createElement('select');
+        controller.hasOutcomeSelectTarget = true;
+        controller.outcomeSectionTarget = document.createElement('div');
+        controller.hasOutcomeSectionTarget = true;
+        controller.populateOutcomeOptions(options[0]);
+        expect(controller.outcomeSelectTarget.required).toBe(true);
+        expect(controller.outcomeSelectTarget.value).toBe('');
+        expect([...controller.outcomeSelectTarget.options].map(option => option.value)).toEqual(['', 'given']);
+    });
+
+    test('bulk court choices keep schedule order while intersecting eligible sessions and resetting selection', () => {
+        const court = document.createElement('select');
+        const section = document.createElement('div');
+        section.append(court);
+        controller.element.append(section);
+        Object.assign(controller, {
+            courtSelectTarget: court, hasCourtSelectTarget: true,
+            courtSectionTarget: section, hasCourtSectionTarget: true,
+        });
+        controller.applySelection(['1', '2'], [
+            { id: '1', options: [{ key: 'agenda', requiresCourt: true, courtOptions: [
+                ['90', 'Earlier <Court>'], ['91', 'Only first award'], ['12', 'Later Court'], ['roaming', 'Roaming Court'],
+            ] }] },
+            { id: '2', options: [{ key: 'agenda', requiresCourt: true, courtOptions: [
+                ['90', 'Earlier <Court>'], ['12', 'Later Court'], ['roaming', 'Roaming Court'],
+            ] }] },
+        ]);
+        checkSelect.value = 'agenda';
+        controller.handleCheckChange();
+        expect(section.hidden).toBe(false);
+        expect(court).toBeRequired();
+        expect(Array.from(court.options, option => option.value)).toEqual(['', '90', '12', 'roaming']);
+        expect(court.options[1].textContent).toBe('Earlier <Court>');
+        expect(court.querySelector('court')).toBeNull();
+        expect(submit).toBeDisabled();
+        court.value = '90';
+        court.focus();
+        controller.updateSubmitState();
+        expect(submit).toBeEnabled();
+        expect(document.activeElement).toBe(court);
+        controller.applySelection(['3'], [{ id: '3', options: [{ key: 'other' }] }]);
+        expect(court.value).toBe('');
+        expect(court).toBeDisabled();
+        expect(court).not.toBeRequired();
+    });
+
+    test('bulk court choices cannot be submitted when matching bestowals share no court assignments', () => {
+        controller.courtSelectTarget = document.createElement('select');
+        controller.hasCourtSelectTarget = true;
+        controller.applySelection(['1', '2'], [
+            { id: '1', options: [{ key: 'agenda', requiresCourt: true, courtOptions: [['90', 'Court A']] }] },
+            { id: '2', options: [{ key: 'agenda', requiresCourt: true, courtOptions: [['12', 'Court B']] }] },
+        ]);
+        checkSelect.value = 'agenda';
+        controller.handleCheckChange();
+        expect(controller.courtSelectTarget.options).toHaveLength(1);
+        expect(submit).toBeDisabled();
+    });
+
     beforeEach(() => {
         document.body.replaceChildren();
         const root = document.createElement('div');

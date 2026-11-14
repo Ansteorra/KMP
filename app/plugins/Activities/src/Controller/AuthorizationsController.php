@@ -229,7 +229,7 @@ class AuthorizationsController extends AppController
         $this->viewBuilder()->setLayout('mobile_app');
         $this->set('mobileTitle', 'Request Auth');
         $this->set('mobileSection', 'request');
-        $this->set('mobileIcon', 'bi-file-earmark-check');
+        $this->set('mobileIcon', 'file-check');
         $this->set('mobileBackUrl', $this->request->referer());
         $this->set('showRefreshBtn', false); // No refresh button needed for form page
     }

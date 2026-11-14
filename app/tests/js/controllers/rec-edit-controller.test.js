@@ -146,6 +146,28 @@ describe('AwardsRecommendationEditForm', () => {
         expect(spy).toHaveBeenCalled();
     });
 
+    test('removes the same outlet callback that was registered', () => {
+        const outlet = { addListener: jest.fn(), removeListener: jest.fn() };
+        controller.outletBtnOutletConnected(outlet);
+        controller.outletBtnOutletDisconnected(outlet);
+        expect(outlet.removeListener).toHaveBeenCalledWith(outlet.addListener.mock.calls[0][0]);
+    });
+
+    test('does not request an undefined domain before the autocomplete shim connects', () => {
+        global.fetch = jest.fn();
+        controller.populateAwardDescriptions({ target: document.createElement('div') });
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    test('reads the initialized hidden domain before the autocomplete shim connects', async () => {
+        global.fetch = jest.fn(async () => ({ json: async () => [] }));
+        const widget = document.createElement('div');
+        widget.innerHTML = '<input data-ac-target="hidden" value="7">';
+        controller.populateAwardDescriptions({ target: widget });
+        await Promise.resolve(); await Promise.resolve();
+        expect(global.fetch).toHaveBeenCalledWith('/awards/list/7?current_award_id=1', expect.any(Object));
+    });
+
     test('populateAwardDescriptions fetches and populates award options', async () => {
         global.fetch = jest.fn(() => Promise.resolve({
             ok: true,

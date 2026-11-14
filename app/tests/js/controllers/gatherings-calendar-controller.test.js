@@ -575,7 +575,7 @@ describe('GatheringsCalendarController', () => {
         const button = document.createElement('button');
         button.dataset.gatheringId = '42';
         button.dataset.attending = 'false';
-        button.innerHTML = '<i class="bi bi-calendar-check"></i> Attend';
+        button.innerHTML = '<kmp-icon name="calendar-check"  aria-hidden="true"></kmp-icon> Attend';
         button.classList.add('btn-outline-success');
 
         global.fetch = jest.fn().mockResolvedValue({
@@ -608,7 +608,7 @@ describe('GatheringsCalendarController', () => {
         button.dataset.gatheringId = '42';
         button.dataset.attendanceId = '99';
         button.dataset.attending = 'true';
-        button.innerHTML = '<i class="bi bi-check-circle"></i> Attending';
+        button.innerHTML = '<kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon> Attending';
 
         global.fetch = jest.fn().mockResolvedValue({
             ok: true,

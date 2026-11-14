@@ -1,0 +1,110 @@
+name: Live update gateway
+
+on:
+  workflow_call:
+    inputs:
+      checkout_ref:
+        description: Exact source commit accompanying the published gateway
+        required: false
+        type: string
+        default: ''
+      image:
+        description: Published immutable gateway to audit without rebuilding
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  gateway:
+    name: Gateway and shared Redis contracts
+    runs-on: ubuntu-latest
+    env:
+      GATEWAY_IMAGE: ${{ inputs.image || 'kmp-live-updates:verification' }}
+    services:
+      redis:
+        image: redis:8-alpine@sha256:71885d8cc6e42f2bc0aa2eb853bfc4be200b5108a46ac50e117ae1df0531fb80
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: services/live-updates/package-lock.json
+      - name: Install locked gateway dependencies
+        working-directory: services/live-updates
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify authorization, replay, and independent replica fanout
+        working-directory: services/live-updates
+        env:
+          KMP_TEST_REDIS_URL: redis://127.0.0.1:6379
+        run: npm test && npm run test:redis
+      - name: Audit locked gateway runtime dependencies
+        working-directory: services/live-updates
+        run: npm audit --omit=dev --audit-level=high
+      - name: Build gateway runtime
+        if: inputs.image == ''
+        run: docker build -f docker/Dockerfile.live -t kmp-live-updates:verification .
+      - name: Authenticate published gateway read
+        if: inputs.image != ''
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull immutable published gateway
+        if: inputs.image != ''
+        run: |
+          set -euo pipefail
+          [[ "$GATEWAY_IMAGE" =~ ^ghcr\.io/ansteorra/kmp-live@sha256:[0-9a-f]{64}$ ]] || {
+            echo 'Gateway security requires the official immutable image.' >&2
+            exit 64
+          }
+          docker pull "$GATEWAY_IMAGE"
+          revision="$(docker image inspect "$GATEWAY_IMAGE" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')"
+          [[ "$revision" == "$(git rev-parse HEAD)" ]] || {
+            echo 'Published gateway revision differs from its checked-out source.' >&2
+            exit 64
+          }
+      - name: Install verified image scanner
+        env:
+          SCANNER_DIR: ${{ runner.temp }}/kmp-trivy
+        run: |
+          set -euo pipefail
+          mkdir -p "$SCANNER_DIR"
+          curl --fail --silent --show-error --location --proto '=https' \
+            https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-64bit.tar.gz \
+            --output "$SCANNER_DIR/trivy.tar.gz"
+          printf '%s  %s\n' '2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a' "$SCANNER_DIR/trivy.tar.gz" | sha256sum --check
+          tar -xzf "$SCANNER_DIR/trivy.tar.gz" -C "$SCANNER_DIR" trivy
+          echo "$SCANNER_DIR" >> "$GITHUB_PATH"
+      - name: Audit final gateway and retain all native findings
+        run: |
+          set -euo pipefail
+          mkdir -p '${{ runner.temp }}/gateway-security'
+          trivy image --scanners vuln --disable-telemetry --format json \
+            --output '${{ runner.temp }}/gateway-security/image.json' "$GATEWAY_IMAGE"
+          trivy convert --format cyclonedx \
+            --output '${{ runner.temp }}/gateway-security/sbom.cdx.json' \
+            '${{ runner.temp }}/gateway-security/image.json'
+          trivy image --scanners vuln --disable-telemetry --severity HIGH,CRITICAL \
+            --ignore-unfixed --exit-code 1 "$GATEWAY_IMAGE"
+      - name: Retain gateway security evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: live-gateway-security
+          path: ${{ runner.temp }}/gateway-security
+          retention-days: 30

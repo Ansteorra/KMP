@@ -83,7 +83,7 @@ class MobileOfflineOverlayController extends MobileControllerBase {
         const content = `
             <div class="mobile-offline-content">
                 <div class="mobile-offline-icon">
-                    <i class="bi bi-wifi-off" aria-hidden="true"></i>
+                    <kmp-icon name="wifi-off"  aria-hidden="true"></kmp-icon>
                 </div>
                 <h2 id="offline-title" class="mobile-offline-title">You're Offline</h2>
                 <p class="mobile-offline-message">
@@ -93,7 +93,7 @@ class MobileOfflineOverlayController extends MobileControllerBase {
                 <div class="mobile-offline-buttons">
                     <a href="${this.authCardUrlValue}" 
                        class="btn btn-primary btn-lg">
-                        <i class="bi bi-person-vcard me-2"></i>
+                        <kmp-icon name="address-book" class="me-2" aria-hidden="true"></kmp-icon>
                         Return to Auth Card
                     </a>
                 </div>

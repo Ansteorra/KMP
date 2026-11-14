@@ -62,6 +62,30 @@ describe('AwardsRecommendationAddForm', () => {
         delete global.fetch;
     });
 
+    test.each([undefined, null, '', '   ', 'Useful guidance'])('award description %p renders without missing-value artifacts', async description => {
+        global.fetch = jest.fn().mockResolvedValue({ json: async () => [{
+            id: 1, name: 'An <Award>', description, specialties: [],
+        }] });
+        controller.populateAwardDescriptions({ target: { value: '5' } });
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const panel = controller.awardDescriptionsTarget.querySelector('[role="tabpanel"]');
+        expect(panel.textContent).toBe(description?.trim() ? 'An <Award>: Useful guidance' : 'An <Award>');
+        expect(panel.querySelector('award')).toBeNull();
+        const button = controller.awardDescriptionsTarget.querySelector('[role="tab"]');
+        expect(button.textContent).toBe('An <Award>');
+        expect(panel.getAttribute('aria-labelledby')).toBe(button.id);
+    });
+
+    test('description markup is displayed as text', async () => {
+        global.fetch = jest.fn().mockResolvedValue({ json: async () => [{
+            id: 1, name: 'Award', description: '<img src=x onerror=alert(1)>', specialties: [],
+        }] });
+        controller.populateAwardDescriptions({ target: { value: '5' } });
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(controller.awardDescriptionsTarget.querySelector('img')).toBeNull();
+        expect(controller.awardDescriptionsTarget.textContent).toContain('<img src=x onerror=alert(1)>');
+    });
+
     // --- Instantiation ---
 
     test('instantiates with correct static targets', () => {

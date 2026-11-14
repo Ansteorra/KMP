@@ -17,10 +17,6 @@ namespace App\Model\Entity;
  * @property bool $share_with_hosting_group
  * @property bool $share_with_crown
  * @property bool $is_public
- * @property bool $is_royal_progress
- * @property int|null $progress_office_id
- * @property string|null $progress_office_name
- * @property string|null $progress_branch_name
  * @property int|null $created_by
  * @property int|null $modified_by
  * @property \Cake\I18n\DateTime $created
@@ -49,12 +45,6 @@ class GatheringAttendance extends BaseEntity
         'is_public' => true,
         // Set only by the actor-bound offline RSVP endpoint.
         'offline_request_id' => false,
-        // Royal progress fields are set via GatheringAttendancesTable::applyRoyalProgress()
-        // after the officer assignment is verified; never from request data.
-        'is_royal_progress' => false,
-        'progress_office_id' => false,
-        'progress_office_name' => false,
-        'progress_branch_name' => false,
         'created_by' => true,
         'modified_by' => true,
         'created' => true,
@@ -104,25 +94,6 @@ class GatheringAttendance extends BaseEntity
     }
 
     /**
-     * Virtual field with the display title for a royal progress RSVP,
-     * built from the office snapshot taken at RSVP time.
-     *
-     * @return string|null e.g. "Crown of Ansteorra", null when not progress
-     */
-    protected function _getProgressTitle(): ?string
-    {
-        if (!$this->is_royal_progress || empty($this->progress_office_name)) {
-            return null;
-        }
-
-        if (!empty($this->progress_branch_name)) {
-            return sprintf('%s of %s', $this->progress_office_name, $this->progress_branch_name);
-        }
-
-        return $this->progress_office_name;
-    }
-
-    /**
      * Get the branch ID for policy scoping
      *
      * Returns the branch_id of the gathering this attendance is for.
@@ -151,5 +122,5 @@ class GatheringAttendance extends BaseEntity
      *
      * @var array<string>
      */
-    protected array $_virtual = ['is_shared', 'sharing_description', 'progress_title'];
+    protected array $_virtual = ['is_shared', 'sharing_description'];
 }

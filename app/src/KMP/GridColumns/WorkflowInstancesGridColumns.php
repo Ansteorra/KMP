@@ -27,7 +27,7 @@ class WorkflowInstancesGridColumns extends BaseGridColumns
                 'key' => 'view',
                 'type' => 'link',
                 'label' => '',
-                'icon' => 'bi-eye',
+                'icon' => 'eye',
                 'class' => 'btn btn-sm btn-secondary',
                 'title' => 'View instance',
                 'ariaLabel' => 'View workflow instance {{id}}',

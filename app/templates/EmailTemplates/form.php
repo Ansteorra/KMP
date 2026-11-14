@@ -95,7 +95,7 @@ $this->KMP->endBlock(); ?>
         <div class="d-flex flex-column flex-md-row gap-2 justify-content-between align-items-md-start">
             <div>
                 <h2 class="h6 alert-heading mb-1" id="template-conditional-help-heading">
-                    <i class="bi bi-lightbulb" aria-hidden="true"></i>
+                    <kmp-icon name="bulb"  aria-hidden="true"></kmp-icon>
                     <?= __('Template conditional blocks') ?>
                 </h2>
                 <p class="small mb-0">
@@ -113,7 +113,7 @@ $this->KMP->endBlock(); ?>
                 aria-expanded="false"
                 aria-controls="template-conditional-help-details"
             >
-                <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                <kmp-icon name="chevron-down"  aria-hidden="true"></kmp-icon>
                 <?= __('Show examples') ?>
             </button>
         </div>
@@ -163,15 +163,15 @@ This request is still active.
                 <button class="nav-link active" id="nav-html-tab" data-bs-toggle="tab" data-bs-target="#nav-html"
                     type="button" role="tab" aria-controls="nav-html" aria-selected="true"
                     data-detail-tabs-target='tabBtn'>
-                    <i class="bi bi-filetype-html"></i> HTML Template (Markdown)
+                    <kmp-icon name="file-type-html"  aria-hidden="true"></kmp-icon> HTML Template (Markdown)
                 </button>
                 <button class="nav-link" id="nav-text-tab" data-bs-toggle="tab" data-bs-target="#nav-text" type="button"
                     role="tab" aria-controls="nav-text" aria-selected="false" data-detail-tabs-target='tabBtn'>
-                    <i class="bi bi-file-text"></i> Text Template
+                    <kmp-icon name="file-text"  aria-hidden="true"></kmp-icon> Text Template
                 </button>
                 <button class="nav-link" id="nav-vars-tab" data-bs-toggle="tab" data-bs-target="#nav-vars" type="button"
                     role="tab" aria-controls="nav-vars" aria-selected="false" data-detail-tabs-target='tabBtn'>
-                    <i class="bi bi-braces"></i> Variables Contract
+                    <kmp-icon name="braces"  aria-hidden="true"></kmp-icon> Variables Contract
                 </button>
             </div>
         </nav>
@@ -182,7 +182,7 @@ This request is still active.
                 data-detail-tabs-target="tabContent">
                 <div class="m-3">
                     <p class="text-muted">
-                        <i class="bi bi-info-circle"></i>
+                        <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                         Enter your email template using <strong>Markdown</strong> syntax.
                         It will be automatically converted to HTML when the email is sent.
                     </p>
@@ -205,7 +205,7 @@ This request is still active.
                     </div>
 
                     <div class="alert alert-info mt-3">
-                        <h6 class="alert-heading"><i class="bi bi-lightbulb"></i> Markdown Quick Reference</h6>
+                        <h6 class="alert-heading"><kmp-icon name="bulb"  aria-hidden="true"></kmp-icon> Markdown Quick Reference</h6>
                         <div class="row small">
                             <div class="col-md-6">
                                 <ul class="mb-0">
@@ -277,7 +277,7 @@ This request is still active.
                 data-detail-tabs-target="tabContent">
                 <div class="m-3">
                     <p class="text-muted">
-                        <i class="bi bi-info-circle"></i>
+                        <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                         The <strong>Variables Contract</strong> declares every placeholder this template can use.
                         Workflow nodes use this to validate data before sending. Add one row for each placeholder.
                     </p>
@@ -287,7 +287,7 @@ This request is still active.
                         data-email-template-form-target="parsedVarsPanel">
                         <div class="card border-info">
                             <div class="card-header bg-info bg-opacity-10 py-2">
-                                <small class="fw-semibold"><i class="bi bi-magic"></i> Placeholders detected in your templates</small>
+                                <small class="fw-semibold"><kmp-icon name="wand"  aria-hidden="true"></kmp-icon> Placeholders detected in your templates</small>
                             </div>
                             <div class="card-body py-2">
                                 <p class="small text-muted mb-2">
@@ -312,7 +312,7 @@ This request is still active.
                                 class="btn btn-primary btn-sm"
                                 data-action="email-template-form#addVariable"
                             >
-                                <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                                <kmp-icon name="plus"  aria-hidden="true"></kmp-icon>
                                 <?= __('Add variable') ?>
                             </button>
                         </div>
@@ -403,7 +403,7 @@ This request is still active.
                                         aria-label="<?= h(__('Remove variable')) ?>"
                                         title="<?= h(__('Remove variable')) ?>"
                                     >
-                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                        <kmp-icon name="trash"  aria-hidden="true"></kmp-icon>
                                     </button>
                                 </div>
                             </div>

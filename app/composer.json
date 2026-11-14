@@ -15,13 +15,14 @@
         "azure-oss/storage-blob-flysystem": "^2.2",
         "cakephp/authentication": "^4.2",
         "cakephp/authorization": "^3.1",
-        "cakephp/cakephp": "5.4.3",
+        "cakephp/cakephp": "5.4.4",
         "cakephp/migrations": "^5.1",
         "cakephp/plugin-installer": "^2.0",
         "dereuromark/cakephp-templating": "^0.2.1",
         "dereuromark/cakephp-tools": "^3.13.0",
         "dragonmantank/cron-expression": "^3.6",
         "erusev/parsedown": "^1.8",
+        "firebase/php-jwt": "^7.0",
         "friendsofcake/bootstrap-ui": "^5.0",
         "friendsofcake/cakepdf": "^5.0",
         "friendsofcake/cakephp-csvview": "^5.0",
@@ -37,12 +38,12 @@
         "setasign/fpdf": "^1.8",
         "setasign/fpdi": "^2.6.4",
         "smalot/pdfparser": "^2.12.3",
-        "symfony/process": "^7.4",
+        "symfony/process": "^7.4.22",
         "symfony/yaml": "^7.4"
     },
     "require-dev": {
         "cakephp/bake": "^3.8",
-        "cakephp/cakephp-codesniffer": "^5.0",
+        "cakephp/cakephp-codesniffer": "^5.3.2",
         "cakephp/debug_kit": "^5.0.0",
         "cakephp/repl": "^2.0",
         "dereuromark/cakephp-dto": "^2.1.0",
@@ -51,7 +52,7 @@
         "josegonzalez/dotenv": "^4.0",
         "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^10.1.0",
-        "squizlabs/php_codesniffer": "^3.10"
+        "squizlabs/php_codesniffer": "^4.0.4"
     },
     "suggest": {
         "markstory/asset_compress": "An asset compression plugin which provides file concatenation and a flexible filter system for preprocessing and minification.",

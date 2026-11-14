@@ -165,6 +165,17 @@ param keyVaultPurgeProtection bool = false
 @description('Provision Azure Managed Redis for shared caches and sessions.')
 param enableManagedRedis bool = false
 
+@description('Enable audited Turbo Drive navigation after release regression gates pass.')
+param enableTurbo bool = false
+
+@description('Enable authorized live invalidations. Requires shared Redis and a separately pinned gateway image.')
+param enableLiveUpdates bool = false
+param liveGatewayImage string = ''
+param liveGatewayPublicKey string = ''
+param liveGatewayAllowedOrigins array = []
+@secure()
+param liveGatewayPrivateKey string = ''
+
 @description('Azure Managed Redis SKU.')
 param managedRedisSkuName string = 'Balanced_B0'
 
@@ -229,6 +240,15 @@ param webMinReplicas int = 1
 @minValue(1)
 @description('Maximum web replicas.')
 param webMaxReplicas int = 3
+
+@allowed(['0.5', '1.0', '2.0', '4.0'])
+@description('CPU cores per web replica. Memory follows the supported Consumption CPU/memory ratio.')
+param webCpu string = '0.5'
+
+@minValue(4)
+@maxValue(128)
+@description('Maximum concurrent PHP requests per web replica; budget platform and tenant connections across the fleet.')
+param apacheMaxRequestWorkers int = 16
 
 @description('Whether to provision Azure Front Door in front of the Container App.')
 param deployFrontDoor bool = false
@@ -312,6 +332,7 @@ var appInsightsName = '${namePrefix}-appi'
 var kvName = take('${namePrefix}-kv-${take(suffix, 6)}', 24)
 var pgName = '${namePrefix}-pg-${take(suffix, 6)}'
 var managedRedisName = take('${namePrefix}-redis-${toLower(managedRedisClusteringPolicy)}-${take(suffix, 6)}', 60)
+var webMemory = { '0.5': '1Gi', '1.0': '2Gi', '2.0': '4Gi', '4.0': '8Gi' }[webCpu]
 var managedOpenTelemetryEnabled = enableApplicationInsights && applicationInsightsTransport == 'otlp'
 var uamiName = '${namePrefix}-runtime-v2-id'
 var adminUamiName = '${namePrefix}-admin-v2-id'
@@ -751,7 +772,7 @@ resource managedRedisDatabase 'Microsoft.Cache/redisEnterprise/databases@2025-07
     accessKeysAuthentication: 'Enabled'
     clientProtocol: 'Encrypted'
     clusteringPolicy: managedRedisClusteringPolicy
-    evictionPolicy: 'AllKeysLRU'
+    evictionPolicy: enableLiveUpdates ? 'NoEviction' : 'AllKeysLRU'
     modules: []
     port: 10000
   }
@@ -764,7 +785,7 @@ resource managedRedisDatabase 'Microsoft.Cache/redisEnterprise/databases@2025-07
 // =============================================================================
 var databaseUrlValue = 'postgres://${postgresRuntimeUser}:${uriComponent(postgresRuntimePassword)}@${pg.properties.fullyQualifiedDomainName}:5432/${postgresDatabaseName}?ssl=true&ssl_mode=require'
 var platformDatabaseUrlValue = 'postgres://${platformPostgresRuntimeUser}:${uriComponent(platformPostgresRuntimePassword)}@${pg.properties.fullyQualifiedDomainName}:5432/${platformPostgresDatabaseName}?ssl=true&ssl_mode=require'
-var redisUrlValue = enableManagedRedis ? 'rediss://:${managedRedisDatabase.listKeys().primaryKey}@${managedRedis.properties.hostName}:10000/0' : 'unused'
+var redisUrlValue = enableManagedRedis ? 'rediss://:${uriComponent(managedRedisDatabase.listKeys().primaryKey)}@${managedRedis.properties.hostName}:10000/0' : 'unused'
 
 resource secretSecuritySalt 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   parent: runtimeKv
@@ -891,6 +912,9 @@ var applicationInsightsEnv = enableApplicationInsights ? concat([
 ], directApplicationInsightsEnv) : []
 
 var commonEnv = concat([
+  { name: 'KMP_TURBO_ENABLED', value: string(enableTurbo) }
+  { name: 'APACHE_MAX_REQUEST_WORKERS', value: string(apacheMaxRequestWorkers) }
+  { name: 'KMP_LIVE_UPDATES_ENABLED', value: string(enableLiveUpdates) }
   // entrypoint.prod.sh parses DATABASE_URL to auto-detect engine + compose
   // config/app_local.php. postgres:// prefix triggers Postgres behaviour
   // (pg_isready probe, explicit TLS options honoured by the CakePHP PDO driver).
@@ -908,6 +932,7 @@ var commonEnv = concat([
   { name: 'DEBUG', value: 'false' }
   { name: 'REQUIRE_HTTPS', value: 'true' }
   { name: 'TRUST_PROXY', value: 'true' }
+  { name: 'KMP_PROXY_MODE', value: 'azure-container-apps' }
   { name: 'KMP_TENANCY_ENABLED', value: string(tenancyEnabled) }
   { name: 'KMP_PLATFORM_ADMIN_PORTAL_ENABLED', value: string(platformAdminPortalEnabled) }
   { name: 'KMP_PLATFORM_DATA_CONSOLE_ENABLED', value: string(platformDataConsoleEnabled) }
@@ -934,11 +959,12 @@ var commonEnv = concat([
 ], applicationInsightsEnv)
 
 var webEnv = concat(commonEnv, [
+  { name: 'KMP_LIVE_GATEWAY_URL', value: 'https://${namePrefix}-live.${acaEnv.properties.defaultDomain}/events' }
   { name: 'AZURE_CLIENT_ID', value: uami.properties.clientId }
   { name: 'KMP_PLATFORM_ADMIN_HOSTS', value: effectivePlatformAdminHosts }
   { name: 'KMP_SKIP_CRON', value: 'true' }
   { name: 'KMP_SKIP_MIGRATIONS', value: 'true' }
-])
+], enableLiveUpdates ? [{ name: 'KMP_LIVE_PRIVATE_KEY', secretRef: 'live-signing-key' }] : [])
 
 // Secrets (pulled from Key Vault via UAMI)
 var commonSecrets = concat([
@@ -1000,6 +1026,31 @@ var commonRegistries = [
 
 var fullImage = '${imageRepository}@${imageDigest}'
 
+resource secretLiveSigningKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (enableLiveUpdates) {
+  parent: runtimeKv
+  name: 'live-signing-key'
+  properties: { value: liveGatewayPrivateKey }
+}
+
+module liveGateway './live-updates.bicep' = if (enableApplicationRuntime && enableLiveUpdates) {
+  name: '${namePrefix}-live'
+  params: {
+    name: '${namePrefix}-live'
+    location: location
+    managedEnvironmentId: acaEnv.id
+    registryServer: acr.properties.loginServer
+    registryName: acr.name
+    redisVaultName: runtimeKv.name
+    redisSecretName: secretRedisUrl.name
+    image: liveGatewayImage
+    publicKey: liveGatewayPublicKey
+    allowedOrigins: liveGatewayAllowedOrigins
+    redisSecretUrl: secretRedisUrl.properties.secretUri
+    sharedRedisEnabled: enableManagedRedis
+    driveEnabled: enableTurbo
+  }
+}
+
 // =============================================================================
 // Container App — web
 // =============================================================================
@@ -1029,14 +1080,18 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = if (enableApplicationRun
         }]
       }
       registries: commonRegistries
-      secrets: commonSecrets
+      secrets: concat(commonSecrets, enableLiveUpdates ? [{
+        name: 'live-signing-key'
+        keyVaultUrl: secretLiveSigningKey!.properties.secretUri
+        identity: uami.id
+      }] : [])
     }
     template: {
       containers: [
         {
           name: 'web'
           image: fullImage
-          resources: { cpu: json('0.5'), memory: '1Gi' }
+          resources: { cpu: json(webCpu), memory: webMemory }
           env: webEnv
           probes: [
             {

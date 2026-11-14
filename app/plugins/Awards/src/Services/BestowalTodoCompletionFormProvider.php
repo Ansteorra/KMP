@@ -5,12 +5,14 @@ namespace Awards\Services;
 
 use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\ActionItem;
+use App\Services\ActionItems\ActionItemAssigneeResolver;
 use App\Services\ActionItems\ActionItemCompletionForm;
 use App\Services\ActionItems\ActionItemCompletionFormProviderInterface;
 use App\Services\ActionItems\ActionItemLifecycleProviderInterface;
 use App\Services\ServiceResult;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
+use Awards\Policy\BestowalPolicy;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Cake\Routing\Router;
 use RuntimeException;
@@ -78,16 +80,32 @@ class BestowalTodoCompletionFormProvider implements
                 'status' => ActionItem::STATUS_OPEN, 'id !=' => $item->id])
             ->all()->extract('title')->toList();
 
+        if (BestowalTodoTemplateItem::terminalOutcomesFor($item) !== []) {
+            return __(
+                'Complete "{0}" using the selected outcome? '
+                    . 'Unfinished tasks will close as not applicable: {1}.',
+                $item->title,
+                $remaining === [] ? __('None') : implode(', ', $remaining),
+            );
+        }
+
         return __(
-            'Complete "{0}" and mark this bestowal Given? Unfinished tasks will close as not applicable: {1}.',
+            'Complete "{0}" and mark this bestowal {2}? Unfinished tasks will close as not applicable: {1}.',
             $item->title,
             $remaining === [] ? __('None') : implode(', ', $remaining),
+            ucfirst(BestowalTodoTemplateItem::terminalStatusFor($item)),
         );
     }
 
     /** @inheritDoc */
     public function afterTransition(ActionItem $item, int $actorId, string $fromStatus, array $data = []): ServiceResult
     {
+        if ($item->is_terminal && $item->isOpen()) {
+            $terminals = (new BestowalFinalizationService())->terminalItems((int)$item->entity_id);
+            if (!in_array((int)$item->id, array_map(static fn($terminal): int => (int)$terminal->id, $terminals), true)) {
+                return new ServiceResult(false, 'This terminal To-Do has been replaced by the current lead To-Do.');
+            }
+        }
         if ($item->is_terminal && $item->isCompleted()) {
             return (new BestowalFinalizationService())->finalizeTerminalCompletion(
                 $item,
@@ -114,14 +132,46 @@ class BestowalTodoCompletionFormProvider implements
      */
     public function buildForm(ActionItem $item, KmpIdentityInterface $user): ?ActionItemCompletionForm
     {
+        $form = $this->buildRequirementForm($item, $user);
+        $outcomes = BestowalTodoTemplateItem::terminalOutcomesFor($item);
+        if (!$item->is_terminal || $outcomes === []) {
+            return $form;
+        }
+
+        return new ActionItemCompletionForm(
+            provider: 'Awards.BestowalTerminalOutcome',
+            title: __('Complete {0}', $item->title),
+            description: __('Choose the bestowal’s completion outcome. Remaining To-Dos close as not applicable.'),
+            fields: array_merge([[
+                'type' => 'select', 'purpose' => 'completion_outcome', 'name' => 'terminal_status',
+                'label' => __('Completion outcome'), 'required' => true,
+                'options' => $outcomes, 'value' => '',
+                'help' => __('This is the status recorded for the completed bestowal.'),
+            ]], $form?->fields ?? []),
+        );
+    }
+
+    /** Build the existing gathering or court requirement without duplicating its rules. */
+    private function buildRequirementForm(ActionItem $item, KmpIdentityInterface $user): ?ActionItemCompletionForm
+    {
         $bestowal = $this->loadBestowal($item);
         if ($bestowal === null) {
             return null;
         }
 
         if ($this->courtSlotRequirementConfig($item) !== null) {
+            $prerequisite = $this->validatePrerequisites($item, $bestowal);
+            if (!$prerequisite->success) {
+                return new ActionItemCompletionForm(
+                    provider: BestowalTodoTemplateItem::COMPLETION_PROVIDER_BESTOWAL_COURT_SLOT,
+                    title: __('Add Bestowal to Agenda'),
+                    description: (string)$prerequisite->reason,
+                    fields: [],
+                    payload: ['blockedReason' => (string)$prerequisite->reason],
+                );
+            }
             $options = $this->courtSlotService->buildEligibleOptionsForBestowal($bestowal, $user);
-            if ($options === [] || !$this->validatePrerequisites($item, $bestowal)->success) {
+            if ($options === []) {
                 return null;
             }
 
@@ -138,6 +188,7 @@ class BestowalTodoCompletionFormProvider implements
                         'label' => __('Court Assignment'),
                         'required' => true,
                         'options' => $options,
+                        'optionOrder' => array_keys($options),
                         'value' => $currentValue,
                         'help' => __(
                             'Choose Roaming Court, or choose a scheduled court activity that can give this award.',
@@ -202,9 +253,30 @@ class BestowalTodoCompletionFormProvider implements
         int $actorId,
         KmpIdentityInterface $user,
     ): ServiceResult {
+        $outcomes = BestowalTodoTemplateItem::terminalOutcomesFor($item);
+        if (
+            $item->is_terminal && $outcomes === [] && array_key_exists('terminal_status', $data)
+            && $data['terminal_status'] !== BestowalTodoTemplateItem::terminalStatusFor($item)
+        ) {
+            return new ServiceResult(false, 'Choose a valid completion outcome.');
+        }
+        if ($item->is_terminal && $outcomes !== []) {
+            $status = $data['terminal_status'] ?? null;
+            if (!is_string($status) || !array_key_exists($status, $outcomes)) {
+                return new ServiceResult(false, 'Choose a valid completion outcome.');
+            }
+            $config = $item->completion_config;
+            $config['selected_terminal_status'] = $status;
+            $item->completion_config = $config;
+        }
         $bestowal = $this->loadBestowal($item);
         if ($bestowal === null) {
             return new ServiceResult(false, 'Bestowal not found.');
+        }
+
+        $prerequisite = $this->validatePrerequisites($item, $bestowal);
+        if (!$prerequisite->success) {
+            return $prerequisite;
         }
 
         if ($this->courtSlotRequirementConfig($item) !== null) {
@@ -250,6 +322,12 @@ class BestowalTodoCompletionFormProvider implements
         if (!$user->checkCan('assignRequiredTodoGathering', $bestowal, $item)) {
             return new ServiceResult(false, 'You are not allowed to assign a gathering for this bestowal.');
         }
+        if (
+            !(new ActionItemAssigneeResolver())->isMemberDirectlyEligible($item, $actorId)
+            && !(new BestowalPolicy())->hasNativePermission($user, 'canManageCourtSchedule', $bestowal)
+        ) {
+            return new ServiceResult(false, 'Delegated event work cannot move a bestowal to another event.');
+        }
 
         $result = ($this->bestowalUpdateService ?? new BestowalUpdateService())->assignGathering(
             $this->fetchTable('Awards.Bestowals'),
@@ -258,6 +336,7 @@ class BestowalTodoCompletionFormProvider implements
             $actorId,
             !$includePast,
             false,
+            (int)$item->id,
         );
         if (!($result['success'] ?? false)) {
             return new ServiceResult(false, (string)($result['error'] ?? 'Failed to assign the gathering.'));
@@ -271,6 +350,13 @@ class BestowalTodoCompletionFormProvider implements
      */
     public function validateCompletion(ActionItem $item): ServiceResult
     {
+        $outcomes = BestowalTodoTemplateItem::terminalOutcomesFor($item);
+        if ($item->is_terminal && $outcomes !== []) {
+            $status = $item->completion_config['selected_terminal_status'] ?? null;
+            if (!is_string($status) || !array_key_exists($status, $outcomes)) {
+                return new ServiceResult(false, 'Choose a valid completion outcome.');
+            }
+        }
         $bestowal = $this->loadBestowal($item);
         if ($bestowal === null) {
             return new ServiceResult(false, 'Bestowal not found.');

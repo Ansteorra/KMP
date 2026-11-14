@@ -15,7 +15,9 @@ use Cake\Log\Log;
  */
 class TenantHostResolver
 {
-    private const CACHE_KEY_PREFIX = 'tenant_host_map:';
+    public const MAX_CACHE_AGE_SECONDS = 30;
+
+    private const CACHE_KEY_PREFIX = 'tenant_host_map:v2:';
     private const CACHE_CONFIG = 'tenant_host_map';
 
     /**
@@ -76,8 +78,12 @@ class TenantHostResolver
     {
         $cacheKey = self::cacheKey($this->connectionName);
         $cached = $this->cache->readPlatform($cacheKey, self::CACHE_CONFIG);
-        if (is_array($cached)) {
-            return $cached;
+        $now = time();
+        if (
+            is_array($cached) && is_int($cached['cached_at'] ?? null) && is_array($cached['hosts'] ?? null)
+            && $cached['cached_at'] <= $now && $now - $cached['cached_at'] < self::MAX_CACHE_AGE_SECONDS
+        ) {
+            return $cached['hosts'];
         }
 
         $connection = ConnectionManager::get($this->connectionName);
@@ -97,7 +103,9 @@ class TenantHostResolver
             }
             $map[(string)$row['host_normalized']] = $row;
         }
-        $this->writeHostMapCache($cacheKey, $map);
+        if (!$connection->inTransaction()) {
+            $this->writeHostMapCache($cacheKey, ['cached_at' => $now, 'hosts' => $map]);
+        }
 
         return $map;
     }
@@ -128,13 +136,13 @@ class TenantHostResolver
      * Write the host map without letting cache backend/debug wrapper failures break requests.
      *
      * @param string $cacheKey Logical platform cache key
-     * @param array<string, array<string, mixed>> $map Host map
+     * @param array{cached_at:int,hosts:array<string,array<string,mixed>>} $entry Bounded host map snapshot
      * @return void
      */
-    private function writeHostMapCache(string $cacheKey, array $map): void
+    private function writeHostMapCache(string $cacheKey, array $entry): void
     {
         try {
-            $this->cache->writePlatform($cacheKey, $map, self::CACHE_CONFIG);
+            $this->cache->writePlatform($cacheKey, $entry, self::CACHE_CONFIG);
         } catch (CacheWriteException $exception) {
             Log::warning('Unable to write tenant host map cache: ' . $exception->getMessage());
         }

@@ -42,18 +42,35 @@ describe('TurboModalController', () => {
         global.IntersectionObserver = originalIntersectionObserver;
         window.KMP_accessibility = originalAccessibility;
         jest.restoreAllMocks();
+        document.head.querySelector('meta[name="kmp-turbo-enabled"]')?.remove();
     });
 
     test('registers on window.Controllers', () => {
         expect(window.Controllers['turbo-modal']).toBe(TurboModal);
     });
 
-    test('connect logs connection', () => {
-        controller.connect();
-        expect(console.log).toHaveBeenCalledWith('TurboModal controller connected');
+    test('Drive explicitly takes over a legacy manual-fetch form without a duplicate fetch', async () => {
+        const meta = document.createElement('meta'); meta.name = 'kmp-turbo-enabled'; meta.content = 'true';
+        document.head.append(meta);
+        controller.element.dataset.turbo = 'false';
+        global.fetch = jest.fn();
+        const event = { preventDefault: jest.fn(), stopImmediatePropagation: jest.fn() };
+        await controller.submitAsTurboStream(event);
+        expect(controller.element.dataset.turbo).toBe('true');
+        expect(event.preventDefault).not.toHaveBeenCalled();
+        expect(fetch).not.toHaveBeenCalled();
     });
 
-    test('closeModalBeforeSubmit hides modal when modal instance exists', () => {
+    test('connect and disconnect clean up Turbo response coordination', () => {
+        const added = jest.spyOn(controller.element, 'addEventListener');
+        const removed = jest.spyOn(controller.element, 'removeEventListener');
+        controller.connect();
+        expect(added).toHaveBeenCalledWith('turbo:before-fetch-response', controller.boundTurboResponse);
+        controller.disconnect();
+        expect(removed).toHaveBeenCalledWith('turbo:before-fetch-response', controller.boundTurboResponse);
+    });
+
+    test('submission start leaves the dialog and draft visible until success', () => {
         const hideMock = jest.fn();
         window.bootstrap.Modal = {
             getInstance: jest.fn(() => ({ hide: hideMock })),
@@ -62,10 +79,43 @@ describe('TurboModalController', () => {
 
         controller.closeModalBeforeSubmit({ target: controller.element });
 
-        expect(window.bootstrap.Modal.getInstance).toHaveBeenCalledWith(
-            document.getElementById('testModal')
-        );
-        expect(hideMock).toHaveBeenCalled();
+        expect(hideMock).not.toHaveBeenCalled();
+        expect(controller.element.querySelector('[name="field"]')).toHaveValue('test');
+    });
+
+    test('Turbo network failures show retry feedback without discarding the form', () => {
+        controller.connect();
+        controller.submitting = true;
+        controller.element.dispatchEvent(new CustomEvent('turbo:submit-end', {
+            detail: { success: false, error: new TypeError('Private transport details') },
+        }));
+        expect(controller.submitting).toBe(false);
+        expect(controller.element.querySelector('[name="field"]')).toHaveValue('test');
+        expect(controller.element.querySelector('[role="alert"]')).toHaveTextContent('Unable to save. Please try again.');
+        expect(controller.element).not.toHaveTextContent('Private transport details');
+        controller.disconnect();
+    });
+
+    test('Turbo server errors retain frame-contained input instead of rendering an error document', async () => {
+        global.IntersectionObserver = jest.fn().mockImplementation(() => ({
+            disconnect: jest.fn(), observe: jest.fn(), unobserve: jest.fn(),
+        }));
+        const meta = document.createElement('meta'); meta.name = 'kmp-turbo-enabled'; meta.content = 'true';
+        document.head.append(meta);
+        const form = controller.element;
+        const frame = document.createElement('turbo-frame'); frame.id = 'retry-frame';
+        form.before(frame); frame.append(form);
+        const response = { ok: false, status: 500, redirected: false,
+            headers: { get: () => 'text/html' }, text: async () => '<html>Private server details</html>',
+            clone() { return this; } };
+        const event = { target: form, detail: { fetchResponse: { response } },
+            preventDefault: jest.fn(), stopImmediatePropagation: jest.fn() };
+        await controller.handleTurboResponse(event);
+        expect(event.preventDefault).toHaveBeenCalledTimes(1);
+        expect(form.isConnected).toBe(true);
+        expect(form.querySelector('[name="field"]')).toHaveValue('test');
+        expect(form.querySelector('[role="alert"]')).toBeVisible();
+        expect(frame).not.toHaveTextContent('Private server details');
     });
 
     test('closeModalBeforeSubmit handles no modal instance', () => {
@@ -168,6 +218,7 @@ describe('TurboModalController', () => {
                 headers: {
                     'Accept': 'text/vnd.turbo-stream.html',
                     'X-Requested-With': 'XMLHttpRequest',
+                    'X-KMP-Grid-Reconcile': 'table',
                 },
             })
         );
@@ -435,7 +486,7 @@ describe('TurboModalController', () => {
             .toContain('replacement-form');
     });
 
-    test('failed non-stream response replaces the frame and announces failure', async () => {
+    test('HTML validation responses replace the frame with the server field errors', async () => {
         global.IntersectionObserver = jest.fn().mockImplementation(() => ({
             disconnect: jest.fn(),
             observe: jest.fn(),
@@ -453,6 +504,7 @@ describe('TurboModalController', () => {
         controller.element = document.querySelector('[data-controller="turbo-modal"]');
         global.fetch = jest.fn().mockResolvedValue({
             ok: false,
+            status: 422,
             redirected: false,
             headers: { get: jest.fn(() => 'text/html; charset=UTF-8') },
             text: jest.fn().mockResolvedValue('<form id="replacement-form"></form>'),
@@ -641,6 +693,63 @@ describe('TurboModalController', () => {
         document.body.insertAdjacentHTML('beforeend', '<table><tbody><tr id="plain-row"></tr></tbody></table>');
         const html = '<turbo-stream action="remove" target="plain-row"></turbo-stream>';
         expect(controller.prepareGridRefreshStreams(html)).toEqual({ html, frameIds: [] });
+    });
+
+    test('keeps server validation feedback and entered values inside the open dialog', async () => {
+        const hide = jest.fn();
+        window.bootstrap.Modal = { getInstance: () => ({ hide }) };
+        controller.renderTurboStream = jest.fn();
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: false,
+            headers: { get: () => 'text/vnd.turbo-stream.html' },
+            text: async () => `<turbo-stream action="replace" target="flash-messages"><template>
+                <div role="alert" class="alert alert-danger">A note is required when changing the term dates.</div>
+            </template></turbo-stream>`,
+        });
+        await controller.submitAsTurboStream({ preventDefault() {}, stopImmediatePropagation() {} });
+        expect(hide).not.toHaveBeenCalled();
+        expect(controller.element.querySelector('[data-turbo-modal-feedback]'))
+            .toHaveTextContent('A note is required when changing the term dates.');
+        expect(controller.element.querySelector('[name="field"]').value).toBe('test');
+        expect(controller.element.querySelector('[role="alert"]')).toBeVisible();
+    });
+
+    test('includes the chosen submit action and prevents concurrent duplicate writes', async () => {
+        const submitter = controller.element.querySelector('button[type="submit"]');
+        submitter.name = 'decision';
+        submitter.value = 'approve';
+        let finish;
+        global.fetch = jest.fn(() => new Promise(resolve => { finish = resolve; }));
+        controller.renderTurboStream = jest.fn();
+        controller.closeModalAndWait = jest.fn().mockResolvedValue();
+        const event = { preventDefault() {}, stopImmediatePropagation() {}, submitter };
+        const first = controller.submitAsTurboStream(event);
+        await controller.submitAsTurboStream(event);
+        expect(global.fetch).toHaveBeenCalledTimes(1);
+        expect(global.fetch.mock.calls[0][1].body.get('decision')).toBe('approve');
+        expect(submitter).toBeDisabled();
+        finish({ ok: true, headers: { get: () => 'text/vnd.turbo-stream.html' }, text: async () => '<turbo-stream></turbo-stream>' });
+        await first;
+        expect(submitter).not.toBeDisabled();
+    });
+
+    test('remote attendance forms return focus to the refreshed calendar link', async () => {
+        controller.returnFocusHrefValue = '/gatherings/quick-view/record';
+        controller.returnFocusIdValue = '';
+        document.body.insertAdjacentHTML('beforeend', '<a href="/gatherings/quick-view/record">Calendar event</a>');
+        const plan = controller.createStreamFocusPlan('<turbo-stream action="replace" target="flash-messages"></turbo-stream>');
+        document.querySelector('a').outerHTML = '<a href="/gatherings/quick-view/record">Updated event</a>';
+        await controller.restoreFocusAfterStream(plan);
+        expect(document.activeElement).toHaveTextContent('Updated event');
+    });
+
+    test('attendance removal falls back to the current calendar when its filtered event disappears', async () => {
+        controller.returnFocusHrefValue = '/gatherings/quick-view/removed';
+        controller.returnFocusFrameValue = 'calendar-table';
+        document.body.insertAdjacentHTML('beforeend', '<section id="calendar-table"><button>Calendar controls</button></section>');
+        const plan = controller.createStreamFocusPlan('<turbo-stream action="replace" target="flash-messages"></turbo-stream>');
+        await controller.restoreFocusAfterStream(plan);
+        expect(document.activeElement).toHaveTextContent('Calendar controls');
     });
 
 });

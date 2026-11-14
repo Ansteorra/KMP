@@ -17,6 +17,8 @@ use Awards\Services\BestowalCreationService;
 use Cake\Core\ContainerInterface as CakeContainerInterface;
 use Cake\ORM\TableRegistry;
 use Closure;
+use DOMDocument;
+use DOMXPath;
 use Exception;
 
 /**
@@ -57,6 +59,70 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
     /**
      * @return void
      */
+    public function testCourtChoicesKeepScheduleOrderInFormsAndJson(): void
+    {
+        $gatherings = $this->getTableLocator()->get('Gatherings');
+        $source = $gatherings->find()->firstOrFail();
+        $gathering = $gatherings->saveOrFail($gatherings->newEntity([
+            'name' => 'Court choices order fixture', 'created_by' => self::ADMIN_MEMBER_ID,
+            'branch_id' => $source->branch_id, 'gathering_type_id' => $source->gathering_type_id,
+            'start_date' => $source->start_date, 'end_date' => $source->end_date, 'location' => 'Test Hall',
+        ]));
+        $activity = $this->getTableLocator()->get('GatheringActivities')->find()->firstOrFail();
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()->firstOrFail();
+        $links = $this->getTableLocator()->get('Awards.AwardGatheringActivities');
+        if (!$links->exists(['award_id' => $award->id, 'gathering_activity_id' => $activity->id])) {
+            $links->saveOrFail($links->newEntity([
+                'award_id' => $award->id, 'gathering_activity_id' => $activity->id,
+            ]));
+        }
+        $sessions = $this->getTableLocator()->get('GatheringScheduledActivities');
+        $sessionIds = [];
+        foreach (['Later Court' => 24, 'Earlier Court' => 1, 'Simultaneous Court' => 1] as $title => $hours) {
+            $session = $sessions->saveOrFail($sessions->newEntity([
+                'gathering_id' => $gathering->id, 'gathering_activity_id' => $activity->id,
+                'display_title' => $title, 'start_datetime' => $gathering->start_date->addHours($hours),
+                'end_datetime' => $gathering->start_date->addHours($hours + 1),
+                'has_end_time' => true, 'pre_register' => false, 'is_other' => false,
+                'created_by' => self::ADMIN_MEMBER_ID,
+            ]));
+            $sessionIds[] = (int)$session->id;
+        }
+        [$lateId, $earlyId, $simultaneousId] = $sessionIds;
+        $expectedOrder = [$earlyId, $simultaneousId, $lateId, BestowalCourtSlotService::ROAMING_COURT_VALUE];
+        $service = new BestowalCourtSlotService();
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $bestowal = $bestowals->saveOrFail($bestowals->newEntity([
+            'member_id' => self::ADMIN_MEMBER_ID, 'award_id' => $award->id,
+            'gathering_id' => $gathering->id, 'gathering_scheduled_activity_id' => $lateId,
+            'source' => Bestowal::SOURCE_AD_HOC, 'stack_rank' => 0,
+        ]));
+        $this->assertSame($expectedOrder, array_keys($service->buildOptions((int)$gathering->id, $lateId)));
+        $this->assertSame($expectedOrder, array_keys($service->buildEligibleOptionsForBestowal($bestowal)));
+
+        $this->get('/awards/bestowals/court-slots-for-gathering/' . $gathering->id);
+        $this->assertResponseOk();
+        $payload = json_decode((string)$this->_response->getBody(), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame($expectedOrder, $payload['optionOrder']);
+        $this->assertSame($expectedOrder, array_keys($payload['options']));
+        $this->assertArrayHasKey($earlyId, $payload['optionDates']);
+
+        $this->configRequest(['headers' => ['Turbo-Frame' => 'editBestowalQuick']]);
+        $this->get('/awards/bestowals/turbo-edit-form/' . $bestowal->id);
+        $this->assertResponseOk();
+        $dom = new DOMDocument();
+        $dom->loadHTML((string)$this->_response->getBody(), LIBXML_NOERROR | LIBXML_NOWARNING);
+        $xpath = new DOMXPath($dom);
+        $options = $xpath->query('//select[@name="gathering_scheduled_activity_id"]/option[@value!=""]');
+        $this->assertSame(array_map(strval(...), $expectedOrder), array_map(
+            static fn($option): string => $option->getAttribute('value'),
+            iterator_to_array($options),
+        ));
+        $selected = $xpath->query('//select[@name="gathering_scheduled_activity_id"]/option[@selected]');
+        $this->assertSame((string)$lateId, $selected->item(0)->getAttribute('value'));
+    }
+
+    /** @return void */
     public function testGridDataSortByGatheringNameAsc(): void
     {
         $this->get(

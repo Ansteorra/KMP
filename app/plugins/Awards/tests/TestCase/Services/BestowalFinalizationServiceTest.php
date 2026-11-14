@@ -16,6 +16,7 @@ use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
 use Awards\Services\BestowalCancellationService;
 use Awards\Services\BestowalFinalizationService;
+use Awards\Services\BestowalQueryService;
 use Awards\Services\BestowalRecommendationSyncService;
 use Awards\Services\BestowalTodoCompletionFormProvider;
 use Awards\Services\BestowalTodoMaterializationService;
@@ -143,7 +144,9 @@ class BestowalFinalizationServiceTest extends BaseTestCase
             };
             $result = $service->markGiven((int)$bestowal->id, self::TEST_MEMBER_AGATHA_ID);
             $this->assertFalse($result->success);
-            $this->assertSame('You are not assigned to the terminal to-do.', $result->reason);
+            $this->assertStringContainsString('You are not assigned to the final reporting to-do', $result->reason);
+            $this->assertStringContainsString((string)$replacement->title, $result->reason);
+            $this->assertStringContainsString('Ask your awards administrator', $result->reason);
             $this->assertSame(Bestowal::LIFECYCLE_OPEN, $this->bestowals->get($bestowal->id)->lifecycle_status);
             $this->assertSame($status, $items->get($old->id)->status);
             $this->assertSame($status, $items->get($replacement->id)->status);
@@ -183,7 +186,7 @@ class BestowalFinalizationServiceTest extends BaseTestCase
         $this->assertSame(Bestowal::LIFECYCLE_OPEN, $this->bestowals->get($bestowal->id)->lifecycle_status);
     }
 
-    public function testCompletedGivenAdoptsTerminalOnlyOnSyncAndNeedsExplicitFinalization(): void
+    public function testCompletedTaskAdoptsTerminalOutcomeOnlyOnSyncAndNeedsExplicitChoice(): void
     {
         ActionItemCompletionFormRegistry::register('AwardsBestowals', new BestowalTodoCompletionFormProvider());
         $bestowal = $this->makeBestowal();
@@ -193,6 +196,7 @@ class BestowalFinalizationServiceTest extends BaseTestCase
         $this->assertFalse((bool)$given->is_terminal);
         $result = $this->actionItemService->synchronizeFor(Bestowal::ACTION_ITEM_ENTITY_TYPE, (int)$bestowal->id, [[
             'source_ref' => 'given', 'title' => 'Presented', 'is_terminal' => true,
+            'completion_config' => ['terminal_status' => 'Given Not Received'],
             'assignee_type' => ActionItem::ASSIGNEE_TYPE_MEMBER,
             'assignee_config' => ['member_id' => self::ADMIN_MEMBER_ID],
         ]], self::KINGDOM_BRANCH_ID, self::ADMIN_MEMBER_ID);
@@ -203,8 +207,16 @@ class BestowalFinalizationServiceTest extends BaseTestCase
         $this->assertEquals($given->completed_at, $saved->completed_at);
         $this->assertSame($given->completed_by, $saved->completed_by);
         $this->assertSame(Bestowal::LIFECYCLE_OPEN, $this->bestowals->get($bestowal->id)->lifecycle_status);
+        $this->makeTodo((int)$bestowal->id, ['title' => 'Given', 'is_terminal' => true]);
         $date = new DateTime('2026-09-10 13:30:00');
-        $this->assertTrue((new BestowalFinalizationService())->markGiven((int)$bestowal->id, self::ADMIN_MEMBER_ID, $date)->success);
+        $result = (new BestowalFinalizationService())->markGiven(
+            (int)$bestowal->id,
+            self::ADMIN_MEMBER_ID,
+            $date,
+            (int)$given->id,
+        );
+        $this->assertTrue($result->success, (string)$result->reason);
+        $this->assertSame('Given Not Received', $this->bestowals->get($bestowal->id)->lifecycle_status);
         $this->assertEquals($date, $this->bestowals->get($bestowal->id)->bestowed_at);
         $this->assertEquals($given->completed_at, $this->actionItems->get($given->id)->completed_at);
     }
@@ -233,6 +245,157 @@ class BestowalFinalizationServiceTest extends BaseTestCase
         $ordinary = $this->makeTodo((int)$bestowal->id, ['title' => 'Required']);
         $this->assertTrue($this->actionItemService->complete((int)$ordinary->id, self::ADMIN_MEMBER_ID)->success);
         $this->assertSame(Bestowal::LIFECYCLE_OPEN, $this->bestowals->get($bestowal->id)->lifecycle_status);
+    }
+
+    public function testAnyTerminalOutcomeClosesWorkAndLeavesActiveQueues(): void
+    {
+        ActionItemCompletionFormRegistry::register('AwardsBestowals', new BestowalTodoCompletionFormProvider());
+        foreach (['given', 'Given Not Received', 'Filed with Herald'] as $outcome) {
+            $bestowal = $this->makeBestowal();
+            $terminals = [];
+            foreach (['given', 'Given Not Received', 'Filed with Herald'] as $status) {
+                $terminals[$status] = $this->makeTodo((int)$bestowal->id, [
+                    'title' => ucfirst($status), 'is_terminal' => true,
+                    'completion_config' => ['terminal_status' => $status, 'required_fields' => []],
+                ]);
+            }
+            $required = $this->makeTodo((int)$bestowal->id, ['title' => 'Required preparation']);
+            $history = $this->makeTodo((int)$bestowal->id, ['status' => ActionItem::STATUS_COMPLETED]);
+            $selected = $terminals[$outcome];
+            $result = $this->actionItemService->complete((int)$selected->id, self::ADMIN_MEMBER_ID);
+            $this->assertTrue($result->success, (string)$result->reason);
+            $saved = $this->bestowals->get($bestowal->id);
+            $this->assertSame($outcome, $saved->lifecycle_status);
+            $this->assertTrue($saved->isCompleted());
+            $this->assertFalse($saved->isActiveBestowal());
+            $this->assertNotNull($saved->bestowed_at);
+            foreach ($terminals as $status => $terminal) {
+                $this->assertSame(
+                    $status === $outcome ? ActionItem::STATUS_COMPLETED : ActionItem::STATUS_CANCELLED,
+                    $this->actionItems->get($terminal->id)->status,
+                );
+            }
+            $this->assertSame(ActionItem::STATUS_COMPLETED, $this->actionItems->get($history->id)->status);
+            $this->assertSame(ActionItem::STATUS_CANCELLED, $this->actionItems->get($required->id)->status);
+            $log = $this->getTableLocator()->get('ActionItemLogs')->find()
+                ->where(['action_item_id' => $required->id])->firstOrFail();
+            $this->assertStringContainsString($selected->title, $log->note);
+            $this->assertSame(0, (new BestowalQueryService())->applyActiveOnlyFilter(
+                $this->bestowals->find()->where(['Bestowals.id' => $bestowal->id]),
+            )->count());
+            $this->assertFalse($this->actionItemService->reopen((int)$selected->id, self::ADMIN_MEMBER_ID)->success);
+            $this->assertFalse((new BestowalCancellationService())->cancel(
+                (int)$bestowal->id,
+                self::ADMIN_MEMBER_ID,
+                'Stale cancellation',
+            )['success']);
+        }
+    }
+
+    public function testMarkGivenRequiresChoiceAndAuthorizesTheChosenTerminal(): void
+    {
+        ActionItemCompletionFormRegistry::register('AwardsBestowals', new BestowalTodoCompletionFormProvider());
+        $bestowal = $this->makeBestowal();
+        $given = $this->makeTodo((int)$bestowal->id, ['is_terminal' => true]);
+        $alternative = $this->makeTodo((int)$bestowal->id, [
+            'title' => 'Given Not Received', 'is_terminal' => true,
+            'assignee_config' => ['member_id' => self::TEST_MEMBER_AGATHA_ID],
+            'completion_config' => ['terminal_status' => 'Given Not Received'],
+        ]);
+        $service = $this->finalizationService();
+        $result = $service->markGiven((int)$bestowal->id, self::ADMIN_MEMBER_ID);
+        $this->assertFalse($result->success);
+        $this->assertStringContainsString('Choose a terminal', $result->reason);
+        $result = $service->markGiven((int)$bestowal->id, self::TEST_MEMBER_AGATHA_ID, null, (int)$given->id);
+        $this->assertFalse($result->success);
+        $this->assertStringContainsString('You are not assigned', $result->reason);
+        $this->assertSame(ActionItem::STATUS_OPEN, $this->actionItems->get($given->id)->status);
+        $result = $service->markGiven((int)$bestowal->id, self::TEST_MEMBER_AGATHA_ID, null, (int)$alternative->id);
+        $this->assertTrue($result->success, (string)$result->reason);
+        $this->assertSame('Given Not Received', $this->bestowals->get($bestowal->id)->lifecycle_status);
+    }
+
+    public function testLeadRequiresAValidOutcomeAndCompletesWithAnyConfiguredChoice(): void
+    {
+        ActionItemCompletionFormRegistry::register('AwardsBestowals', new BestowalTodoCompletionFormProvider());
+        $outcomes = ['given' => 'Given', 'Given Not Received' => 'Given Not Received', 'Filed with Herald' => 'Filed with Herald'];
+        $actor = $this->getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID);
+        foreach (array_keys($outcomes) as $status) {
+            $bestowal = $this->makeBestowal();
+            $lead = $this->makeTodo((int)$bestowal->id, [
+                'title' => 'Given', 'is_terminal' => true,
+                'completion_config' => ['terminal_status' => 'given', 'terminal_outcomes' => $outcomes],
+            ]);
+            $required = $this->makeTodo((int)$bestowal->id, ['title' => 'Required preparation']);
+            foreach (
+                [[], ['terminal_status' => 'Unconfigured'], ['terminal_status' => ['given']],
+                    ['selected_terminal_status' => 'given']] as $invalid
+            ) {
+                $result = $this->actionItemService->complete(
+                    (int)$lead->id,
+                    self::ADMIN_MEMBER_ID,
+                    null,
+                    false,
+                    $invalid,
+                    $actor,
+                );
+                $this->assertFalse($result->success);
+                $this->assertSame('Choose a valid completion outcome.', $result->reason);
+                $this->assertSame(ActionItem::STATUS_OPEN, $this->actionItems->get($lead->id)->status);
+                $this->assertSame(Bestowal::LIFECYCLE_OPEN, $this->bestowals->get($bestowal->id)->lifecycle_status);
+            }
+            $result = $this->actionItemService->complete(
+                (int)$lead->id,
+                self::ADMIN_MEMBER_ID,
+                null,
+                false,
+                ['terminal_status' => $status],
+                $actor,
+            );
+            $this->assertTrue($result->success, (string)$result->reason);
+            $this->assertSame($status, $this->bestowals->get($bestowal->id)->lifecycle_status);
+            $savedLead = $this->actionItems->get($lead->id);
+            $this->assertSame(ActionItem::STATUS_COMPLETED, $savedLead->status);
+            $this->assertSame($status, $savedLead->completion_config['selected_terminal_status']);
+            $this->assertSame(ActionItem::STATUS_CANCELLED, $this->actionItems->get($required->id)->status);
+        }
+    }
+
+    public function testMarkGivenUsesTheLeadAndRecordsItsChosenOutcome(): void
+    {
+        ActionItemCompletionFormRegistry::register('AwardsBestowals', new BestowalTodoCompletionFormProvider());
+        foreach ([ActionItem::STATUS_OPEN, ActionItem::STATUS_COMPLETED] as $status) {
+            $bestowal = $this->makeBestowal();
+            $lead = $this->makeTodo((int)$bestowal->id, [
+                'title' => 'Given', 'is_terminal' => true, 'status' => $status,
+                'completion_config' => ['terminal_outcomes' => ['given' => 'Given', 'Given Not Received' => 'Given Not Received']],
+            ]);
+            $result = $this->finalizationService()->markGiven(
+                (int)$bestowal->id,
+                self::ADMIN_MEMBER_ID,
+                null,
+                (int)$lead->id,
+                'Given Not Received',
+            );
+            $this->assertTrue($result->success, (string)$result->reason);
+            $this->assertSame('Given Not Received', $this->bestowals->get($bestowal->id)->lifecycle_status);
+        }
+    }
+
+    public function testTerminalCallbackRejectsAnotherOwnersTerminal(): void
+    {
+        $owner = $this->makeBestowal();
+        $other = $this->makeBestowal();
+        $foreign = $this->makeTodo((int)$other->id, ['is_terminal' => true]);
+        $this->makeTodo((int)$owner->id, ['is_terminal' => true]);
+        $result = $this->finalizationService()->markGiven(
+            (int)$owner->id,
+            self::ADMIN_MEMBER_ID,
+            null,
+            (int)$foreign->id,
+        );
+        $this->assertFalse($result->success);
+        $this->assertSame(Bestowal::LIFECYCLE_OPEN, $this->bestowals->get($owner->id)->lifecycle_status);
     }
 
     public function testTerminalLifecycleFailureRollsBackTaskAndBestowal(): void

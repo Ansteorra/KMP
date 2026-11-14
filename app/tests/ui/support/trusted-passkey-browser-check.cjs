@@ -82,6 +82,8 @@ const fixtureScript = source.match(/const tenantFixture = String.raw`([\s\S]*?)`
             await page.screenshot({ path: '/tmp/kmp-passkey-' + scenario + '.png', fullPage: true });
             await page.getByRole('button', { name: 'Done', exact: true }).click();
             await page.goto('/members/logout');
+            await page.locator('section[aria-labelledby="sign-out-heading"]').getByRole('button', { name: 'Sign out', exact: true }).click();
+            await page.waitForLoadState('load');
             if (pinOnly) await target('unlockPin').fill('582694');
             else {
                 await expect(target('unlockButton')).toHaveText('Sign in with passkey');
@@ -95,6 +97,8 @@ const fixtureScript = source.match(/const tenantFixture = String.raw`([\s\S]*?)`
             assert.equal(await page.evaluate(async () => (await fetch('/offline/context')).status), 200);
             if (scenario === 'online-only') {
                 await page.goto('/members/logout');
+                await page.locator('section[aria-labelledby="sign-out-heading"]').getByRole('button', { name: 'Sign out', exact: true }).click();
+                await page.waitForLoadState('load');
                 offline = true; await context.setOffline(true);
                 await page.goto('/members/login');
                 await expect(target('status')).toContainText('Offline access is unavailable');
@@ -114,6 +118,8 @@ const fixtureScript = source.match(/const tenantFixture = String.raw`([\s\S]*?)`
                 await expect(target('readiness')).toContainText('Ready offline', { timeout: 30000 });
             }
             await page.goto('/members/logout');
+            await page.locator('section[aria-labelledby="sign-out-heading"]').getByRole('button', { name: 'Sign out', exact: true }).click();
+            await page.waitForLoadState('load');
             offline = true; await context.setOffline(true);
             await page.goto('/members/login');
             if (!prf && !pinOnly) {

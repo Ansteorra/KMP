@@ -149,10 +149,9 @@ class BestowalsTable extends BaseTable
 
         $validator
             ->scalar('lifecycle_status')
-            ->maxLength('lifecycle_status', 20)
+            ->maxLength('lifecycle_status', 100)
             ->requirePresence('lifecycle_status', 'create')
-            ->notEmptyString('lifecycle_status')
-            ->inList('lifecycle_status', Bestowal::LIFECYCLE_STATUSES);
+            ->notEmptyString('lifecycle_status');
 
         $validator
             ->integer('stack_rank')
@@ -233,6 +232,7 @@ class BestowalsTable extends BaseTable
 
                 return $this->GatheringScheduledActivities->exists([
                     'id' => $entity->gathering_scheduled_activity_id,
+                    'gathering_id' => $entity->gathering_id,
                 ]);
             },
             'gatheringScheduledActivityValid',

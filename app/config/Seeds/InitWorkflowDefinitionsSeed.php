@@ -289,7 +289,7 @@ class InitWorkflowDefinitionsSeed extends BaseSeed
             [
                 'name' => 'Waiver Collection Closure',
                 'slug' => 'waiver-closure',
-                'description' => 'Closes a waiver collection when ready and notifies the gathering organizer.',
+                'description' => 'Closes a waiver collection on an authorized close request.',
                 'trigger_type' => 'event',
                 'trigger_config' => ['event' => 'Waivers.CollectionClosed'],
                 'entity_type' => 'Waivers',

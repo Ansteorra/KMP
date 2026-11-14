@@ -27,7 +27,7 @@ $this->KMP->endBlock();
             <?= $this->Html->link(
                 ' Add Recommendation',
                 ['action' => 'add'],
-                ['class' => 'btn btn-primary bi bi-plus-circle', 'escape' => false, 'data-turbo-frame' => '_top']
+                ['class' => 'btn btn-primary', 'icon' => 'circle-plus', 'escape' => false, 'data-turbo-frame' => '_top']
             ) ?>
         <?php endif; ?>
     </div>
@@ -69,7 +69,7 @@ if ($user->checkCan("edit", "Awards.Recommendations")):
             ]) ?>
             <div class="modal-header">
                 <h5 class="modal-title" id="groupRecommendationsModalLabel">
-                    <i class="bi bi-collection"></i> <?= __('Group Recommendations') ?>
+                    <kmp-icon name="layers-linked"  aria-hidden="true"></kmp-icon> <?= __('Group Recommendations') ?>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -83,7 +83,7 @@ if ($user->checkCan("edit", "Awards.Recommendations")):
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= __('Cancel') ?></button>
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-collection"></i> <?= __('Group Selected') ?>
+                    <kmp-icon name="layers-linked"  aria-hidden="true"></kmp-icon> <?= __('Group Selected') ?>
                 </button>
             </div>
             <?= $this->Form->end() ?>

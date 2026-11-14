@@ -17,7 +17,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="changeTypeActivitiesModalLabel">
-                    <i class="bi bi-pencil-square"></i> <?= __('Change Waiver Type') ?>
+                    <kmp-icon name="edit"  aria-hidden="true"></kmp-icon> <?= __('Change Waiver Type') ?>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -29,7 +29,7 @@
 
             <div class="modal-body bg-light-subtle">
                 <div class="alert alert-warning border-start border-warning border-4" role="alert">
-                    <i class="bi bi-exclamation-triangle"></i>
+                    <kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon>
                     <strong><?= __('Warning:') ?></strong>
                     <?= __('Changing the waiver type or activity associations should be done carefully. This action affects which activities this waiver fulfills requirements for.') ?>
                 </div>
@@ -37,7 +37,7 @@
                 <!-- Waiver Type Selection -->
                 <div class="border rounded-3 bg-white shadow-sm p-3">
                     <label for="waiver-type-select" class="form-label">
-                        <i class="bi bi-file-earmark-text"></i> <?= __('Waiver Type') ?>
+                        <kmp-icon name="file-text"  aria-hidden="true"></kmp-icon> <?= __('Waiver Type') ?>
                         <span class="text-danger">*</span>
                     </label>
                     <?= $this->Form->control('waiver_type_id', [
@@ -57,10 +57,10 @@
 
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="bi bi-x-circle"></i> <?= __('Cancel') ?>
+                    <kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> <?= __('Cancel') ?>
                 </button>
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-check-circle"></i> <?= __('Save Changes') ?>
+                    <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon> <?= __('Save Changes') ?>
                 </button>
             </div>
 

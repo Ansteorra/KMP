@@ -30,6 +30,61 @@ describe('KMP_accessibility dialogs', () => {
         delete window.bootstrap.Modal;
     });
 
+    test('multiline prompts retain supplied text and restore the parent modal and focus on cancel', async () => {
+        const parent = document.createElement('div');
+        parent.className = 'modal show';
+        parent.innerHTML = '<button>Complete</button>';
+        document.body.appendChild(parent);
+        const trigger = parent.querySelector('button');
+        trigger.focus();
+        const parentInstance = new ModalMock(parent);
+        ModalMock.getInstance = () => parentInstance;
+        const result = KMPAccessibility.prompt('Complete?', {
+            inputType: 'textarea', inputLabel: 'Note (optional)', defaultValue: 'First\nSecond',
+        });
+        await Promise.resolve();
+        const input = document.getElementById('kmp-a11y-dialog-input');
+        expect(input.tagName).toBe('TEXTAREA');
+        expect(input.value).toBe('First\nSecond');
+        expect(document.activeElement).toBe(input);
+        expect(parent).not.toHaveClass('show');
+        input.closest('.modal').querySelector('[data-dialog-cancel]').click();
+        await expect(result).resolves.toBeNull();
+        expect(parent).toHaveClass('show');
+        expect(document.activeElement).toBe(trigger);
+        delete ModalMock.getInstance;
+    });
+
+    test.each(['confirm', 'Escape', 'close'])('an early %s waits for both Bootstrap transitions before resolving', async action => {
+        let instance;
+        class TransitionModal extends ModalMock {
+            constructor(element) {
+                super(element); instance = this;
+                this.hide = jest.fn();
+            }
+            show() { this.element.classList.add('show'); }
+        }
+        window.bootstrap.Modal = TransitionModal;
+        const trigger = document.getElementById('dialog-trigger'); trigger.focus();
+        let resolved = false;
+        const result = KMPAccessibility.confirm('Continue?').then(value => { resolved = true; return value; });
+        const modal = document.querySelector('.modal');
+        expect(modal).toHaveAttribute('data-turbo-temporary');
+        if (action === 'Escape') modal.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        else modal.querySelector(action === 'confirm' ? '[data-dialog-confirm]' : '.btn-close').click();
+        await Promise.resolve();
+        expect(instance.hide).not.toHaveBeenCalled();
+        expect(resolved).toBe(false);
+        modal.dispatchEvent(new Event('shown.bs.modal'));
+        expect(instance.hide).toHaveBeenCalledTimes(1);
+        await Promise.resolve();
+        expect(resolved).toBe(false);
+        modal.dispatchEvent(new Event('hidden.bs.modal'));
+        await expect(result).resolves.toBe(action === 'confirm');
+        expect(modal.isConnected).toBe(false);
+        expect(document.activeElement).toBe(trigger);
+    });
+
     test('keeps forward and reverse tab focus inside the confirmation dialog', async () => {
         const trigger = document.getElementById('dialog-trigger');
         trigger.focus();

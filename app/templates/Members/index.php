@@ -26,7 +26,7 @@ $this->assign('title', __('Members'));
             <?= $this->Html->link(
                 __(' Add Member'),
                 ['action' => 'add'],
-                ['class' => 'btn btn-primary bi bi-plus-circle']
+                ['class' => 'btn btn-primary', 'icon' => 'circle-plus']
             ) ?>
         </div>
     </div>

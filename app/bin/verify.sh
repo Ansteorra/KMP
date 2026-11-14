@@ -94,10 +94,11 @@ run_check() {
 run_check "PHPUnit Tests" '
     # The Xdebug 512-frame nesting guard can abort Cake integration suites after
     # hundreds of requests even when the same suite passes in production PHP.
-    XDEBUG_MODE=off vendor/bin/phpunit --colors=always --testsuite core-unit &&
-    XDEBUG_MODE=off vendor/bin/phpunit --colors=always --testsuite core-feature &&
-    XDEBUG_MODE=off vendor/bin/phpunit --colors=always --testsuite plugins
+    # Match hosted CI, including Policy and other tests outside the targeted suites.
+    XDEBUG_MODE=off vendor/bin/phpunit --colors=always --testsuite all
 '
+
+run_check "Icon Catalog Contracts" 'npm run icons:check && npm run icons:guard'
 
 # 2. Skipped-test budget
 run_check "Skipped-Test Budget" 'bash bin/enforce_skip_budget.sh'
@@ -111,13 +112,16 @@ run_check "Seed Snapshot Contracts" '
 # 4. Jest
 run_check "Jest Tests" 'npm run test:js 2>&1; test "${PIPESTATUS[0]}" -eq 0'
 
+run_check "Live Gateway Tests" 'npm --prefix ../services/live-updates test'
+run_check "Live Capacity Contracts" 'npm run test:perf:contracts'
+
 # 5. Documentation integrity and JSDoc parsing
 run_check "Documentation Integrity" 'npm run docs:check && npm run docs:js:check'
 
 # 6. Vite Build
 run_check "Vite Build" 'npm run dev 2>&1 | tail -10; test "${PIPESTATUS[0]}" -eq 0'
 
-# 7. PHPCS (pre-existing violations are baselined — only check files we've changed)
+# 7. PHPCS (check changed PHP files, including core and plugin templates)
 run_check "PHPCS Code Style" '
     # Check only staged/modified files for PHPCS violations
     if [ -n "${KMP_VERIFY_CHANGED_PHP_FILE:-}" ]; then
@@ -133,8 +137,8 @@ run_check "PHPCS Code Style" '
         ALL_CHANGED_PHP=$(
             cd "$APP_DIR/.." &&
             {
-                git diff --name-only --diff-filter=ACMR HEAD -- app/src app/plugins app/tests app/config/PlatformMigrations
-                git ls-files --others --exclude-standard -- app/src app/plugins app/tests app/config/PlatformMigrations
+                git diff --name-only --diff-filter=ACMR HEAD -- app/src app/templates app/plugins app/tests app/config/PlatformMigrations
+                git ls-files --others --exclude-standard -- app/src app/templates app/plugins app/tests app/config/PlatformMigrations
             } |
                 grep "\.php$" |
                 sort -u |

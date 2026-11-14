@@ -47,6 +47,7 @@ $navItems = [
 <!doctype html>
 <html lang="en">
 <head>
+    <meta name="turbo-visit-control" content="reload">
     <?= $this->Html->charset() ?>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= h($this->fetch('title') ?: __('Platform Admin')) ?></title>
@@ -72,10 +73,10 @@ $navItems = [
                         ) ?>
                     <?php endforeach; ?>
                 </nav>
-                <span class="navbar-text small ms-lg-auto">
+                <div class="navbar-text small ms-lg-auto">
                     <?= h($platformAdmin['email'] ?? __('platform admin')) ?>
-                    <?= $this->Html->link(__('Logout'), ['prefix' => 'PlatformAdmin', 'controller' => 'Auth', 'action' => 'logout'], ['class' => 'link-light ms-3']) ?>
-                </span>
+                    <?= $this->Form->postButton(__('Logout'), ['prefix' => 'PlatformAdmin', 'controller' => 'Auth', 'action' => 'logout'], ['class' => 'btn btn-link link-light ms-3 p-0', 'form' => ['class' => 'd-inline', 'data-turbo' => 'false']]) ?>
+                </div>
             <?php endif; ?>
         </div>
     </header>

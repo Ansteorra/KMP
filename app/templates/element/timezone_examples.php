@@ -200,7 +200,7 @@
 
             <div class="gathering-details">
                 <div class="detail-row">
-                    <i class="bi bi-calendar-event"></i>
+                    <kmp-icon name="calendar-event"  aria-hidden="true"></kmp-icon>
                     <strong>When:</strong>
                     <?php if ($gathering->is_multi_day): ?>
                         <?= $this->Timezone->date($gathering->start_date) ?> -
@@ -211,7 +211,7 @@
                 </div>
 
                 <div class="detail-row">
-                    <i class="bi bi-clock"></i>
+                    <kmp-icon name="clock"  aria-hidden="true"></kmp-icon>
                     <strong>Time:</strong>
                     <?= $this->Timezone->time($gathering->start_date) ?>
                     <?php if ($gathering->end_date): ?>
@@ -280,7 +280,7 @@ public function edit($id = null)
         margin-bottom: 0.5rem;
     }
 
-    .detail-row i {
+    .detail-row :is(i, kmp-icon) {
         margin-right: 0.5rem;
         color: #6c757d;
     }

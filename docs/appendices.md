@@ -156,7 +156,7 @@ that cache keys and queries remain tenant-scoped.
 - [Stimulus handbook](https://stimulus.hotwired.dev/handbook/introduction)
 - [Turbo handbook](https://turbo.hotwired.dev/handbook/introduction)
 - [Bootstrap 5.3 documentation](https://getbootstrap.com/docs/5.3/)
-- [Bootstrap Icons](https://icons.getbootstrap.com/)
+- [KMP icons](9.2-bootstrap-icons.md)
 - [Font Awesome](https://fontawesome.com/docs)
 - [Jest documentation](https://jestjs.io/docs/getting-started)
 - [Playwright documentation](https://playwright.dev/docs/intro)

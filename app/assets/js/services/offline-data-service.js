@@ -1,4 +1,5 @@
 import vault from './offline-vault-service.js';
+import { preloadIcons } from './icon-service.js';
 
 /** Requests used by the offline UI are fixed, same-origin, authenticated and never cached. */
 export async function privateJson(path, options = {}) {
@@ -61,7 +62,12 @@ export function projectEvent(event) {
     return { gathering_id: Number(event.gathering_id ?? event.id), public_id: text(event.public_id), name: text(event.name),
         start_date: text(event.start_date), start_time: text(event.start_time), end_date: text(event.end_date),
         type: event.type ? { name: text(event.type.name), color: /^#[a-f0-9]{6}$/i.test(event.type.color || '') ? event.type.color : '#6c757d' } : null,
-        activities: (Array.isArray(event.activities) ? event.activities : []).slice(0, 50).map(activity => ({ name: text(activity.name) })),
+        activities: (Array.isArray(event.activities) ? event.activities : []).slice(0, 50).map(activity => ({
+            name: text(activity.name),
+            icon_name: /^[a-z0-9:-]+$/.test(activity.icon_name || '') ? text(activity.icon_name) : 'activity',
+            foreground_color: /^#[a-f0-9]{6}$/i.test(activity.foreground_color || '') ? activity.foreground_color : '#212529',
+            background_color: /^#[a-f0-9]{6}$/i.test(activity.background_color || '') ? activity.background_color : '#e9ecef'
+        })),
         public_page_enabled: !!event.public_page_enabled,
         location: text(event.location, 1000), branch: text(event.branch), is_cancelled: event.is_cancelled === true,
         attendance_id: Number(event.attendance_id) || null, user_attending: !!event.user_attending,
@@ -121,6 +127,8 @@ export async function refreshOfflineSnapshot() {
         months[scope] = result.data.events.map(projectEvent);
     }
     const rsvps = projectRsvps(own);
+    await preloadIcons([...Object.values(months).flat(), ...rsvps]
+        .flatMap(event => event.activities.map(activity => activity.icon_name)));
     // Check again after collecting responses: another tab may have changed the login during the fetches.
     await currentOfflineContext();
     await vault.refresh(context, { card, months, rsvps, resourceTimes });

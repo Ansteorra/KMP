@@ -7,6 +7,7 @@ use App\Model\Entity\ActionItem;
 use App\Services\ActionItems\ActionItemService;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\RecommendationApprovalRun;
+use Awards\Policy\BestowalPolicy;
 use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Cake\ORM\Table;
@@ -89,9 +90,15 @@ class BestowalCancellationService
                         ->contain(['Recommendations'])
                         ->epilog('FOR UPDATE')
                         ->firstOrFail();
+                    $actor = $this->fetchTable('Members')->get($actorId);
+                    if (!(new BestowalPolicy())->canEdit($actor, $bestowal)) {
+                        throw new RuntimeException('You are not authorized to cancel this bestowal.');
+                    }
                     $lifecycleStatus = (string)($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN);
-                    if ($lifecycleStatus === Bestowal::LIFECYCLE_GIVEN) {
-                        throw new RuntimeException('Given bestowals cannot be cancelled.');
+                    if ($bestowal->isCompleted()) {
+                        throw new RuntimeException($lifecycleStatus === Bestowal::LIFECYCLE_GIVEN
+                            ? 'Given bestowals cannot be cancelled.'
+                            : 'Completed bestowals cannot be cancelled.');
                     }
                     if ($lifecycleStatus === Bestowal::LIFECYCLE_CANCELLED) {
                         throw new RuntimeException('Bestowal is already cancelled.');

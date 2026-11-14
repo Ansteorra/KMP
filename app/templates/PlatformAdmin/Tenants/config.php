@@ -31,7 +31,7 @@ $this->assign('title', __('Tenant Config: {0}', $tenant['slug']));
 <?php endif; ?>
 
 <div class="alert alert-info" role="note">
-    <?= __('Only non-secret settings are stored in tenant_config. For passwords, API keys, tokens, and client secrets, enter the secret reference name only (for example, tenant.example.email-api-key or keyvault://vault/secret).') ?>
+    <?= __('Only non-secret settings are stored in tenant_config. For passwords, API keys, tokens, and client secrets, enter the secret reference name only (for example, tenant.example.email-api-key).') ?>
 </div>
 
 <?= $this->element('PlatformAdmin/tenant_config_docs', ['section' => 'overview']) ?>
@@ -99,7 +99,7 @@ $this->assign('title', __('Tenant Config: {0}', $tenant['slug']));
                 <?= $this->Form->control('email_endpoint_url', [
                     'label' => __('SendGrid or Resend endpoint URL'),
                     'value' => $formData['email_endpoint_url'],
-                    'help' => __('Optional HTTPS override for SendGrid or Resend; leave blank for the transport default.'),
+                    'help' => __('Official provider mail endpoint only; leave blank for the transport default.'),
                 ]) ?>
             </div>
             <div class="col-12 col-lg-6">
@@ -148,7 +148,7 @@ $this->assign('title', __('Tenant Config: {0}', $tenant['slug']));
                 <?= $this->Form->control('email_smtp_password_secret_ref', [
                     'label' => __('SMTP password secret reference'),
                     'value' => $formData['email_smtp_password_secret_ref'],
-                    'help' => __('Reference/name only, never the password — e.g. env://EMAIL_SMTP_PASSWORD or tenant.example.smtp-password. Leave blank for unauthenticated relays.'),
+                    'help' => __('Reference/name only, never the password — e.g. tenant.example.smtp-password. Leave blank for unauthenticated relays.'),
                 ]) ?>
             </div>
             <div class="col-12 col-lg-2 d-flex align-items-center">
@@ -161,6 +161,8 @@ $this->assign('title', __('Tenant Config: {0}', $tenant['slug']));
         </div>
     </div>
 </section>
+
+<?= $this->element('PlatformAdmin/email_change_confirmation') ?>
 
 <div class="d-flex gap-2">
     <?= $this->Form->button(__('Save configuration'), ['class' => 'btn btn-primary']) ?>

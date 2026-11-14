@@ -103,6 +103,67 @@ class BestowalTodoMaterializationServiceTest extends BaseTestCase
         $this->assertTrue($eventScheduled->canAutoCompleteWhenRequirementsSatisfied());
     }
 
+    public function testTerminalOutcomeSnapshotsChangeOnlyOnExplicitSynchronization(): void
+    {
+        $templateId = $this->createTemplateWithItems();
+        $definition = $this->itemsTable->find()->where(['template_id' => $templateId])->firstOrFail();
+        $definition->is_terminal = true;
+        $definition->terminal_status = 'Given Not Received';
+        $this->itemsTable->saveOrFail($definition);
+        $awardId = $this->assignTemplateToAward($templateId, self::KINGDOM_BRANCH_ID);
+        $bestowal = $this->createPersistedBestowal($awardId, Bestowal::LIFECYCLE_OPEN, 'Terminal snapshot');
+        $this->assertTrue($this->service->materializeForBestowal($bestowal)->success);
+        $snapshot = $this->loadActionItems((int)$bestowal->id)[$definition->item_key];
+        $this->assertSame('Given Not Received', $snapshot->completion_config['terminal_status']);
+
+        $definition->terminal_status = 'Filed with Herald';
+        $this->itemsTable->saveOrFail($definition);
+        $this->assertSame(1, $this->service->countOutdatedOpenBestowals($templateId));
+        $this->assertSame('Given Not Received', $this->actionItemsTable->get($snapshot->id)->completion_config['terminal_status']);
+        $this->assertTrue($this->service->syncForBestowal($bestowal, self::ADMIN_MEMBER_ID)->success);
+        $this->assertSame('Filed with Herald', $this->actionItemsTable->get($snapshot->id)->completion_config['terminal_status']);
+        $this->assertSame(Bestowal::LIFECYCLE_OPEN, $this->getTableLocator()
+            ->get('Awards.Bestowals')->get($bestowal->id)->lifecycle_status);
+        $this->assertSame(0, $this->service->countOutdatedOpenBestowals($templateId));
+    }
+
+    public function testOnlyTheLeadMaterializesAndSwitchingLeadReconcilesTheChecklist(): void
+    {
+        $templateId = $this->createTemplateWithItems();
+        $definitions = [];
+        foreach (['given' => 'Given', 'not_received' => 'Given Not Received', 'filed' => 'Filed with Herald'] as $key => $status) {
+            $definitions[$key] = $this->itemsTable->saveOrFail($this->itemsTable->newEntity([
+                'template_id' => $templateId, 'item_key' => $key, 'label' => $status, 'terminal_status' => $status,
+                'is_terminal' => true, 'is_gating' => true, 'sort_order' => 10,
+                'assignee_type' => BestowalTodoTemplateItem::ASSIGNEE_TYPE_MEMBER,
+                'assignee_source_id' => self::ADMIN_MEMBER_ID,
+                'branch_mode' => BestowalTodoTemplateItem::BRANCH_MODE_AWARD,
+            ]));
+        }
+        $awardId = $this->assignTemplateToAward($templateId, self::KINGDOM_BRANCH_ID);
+        $bestowal = $this->createPersistedBestowal($awardId, Bestowal::LIFECYCLE_OPEN, 'Lead terminal test');
+        $this->assertTrue($this->service->materializeForBestowal($bestowal)->success);
+        $snapshots = $this->loadActionItems((int)$bestowal->id);
+        $this->assertCount(3, $snapshots);
+        $this->assertArrayHasKey('given', $snapshots);
+        $this->assertArrayNotHasKey('not_received', $snapshots);
+        $this->assertArrayNotHasKey('filed', $snapshots);
+        $this->assertEqualsCanonicalizing(['given', 'Given Not Received', 'Filed with Herald'], array_keys(
+            BestowalTodoTemplateItem::terminalOutcomesFor($snapshots['given']),
+        ));
+        $replacement = $definitions['not_received'];
+        $replacement->is_terminal_lead = true;
+        $this->itemsTable->saveOrFail($replacement);
+        $this->assertFalse($this->itemsTable->get($definitions['given']->id)->is_terminal_lead);
+        $this->assertSame(1, $this->itemsTable->find()->where(['template_id' => $templateId, 'is_terminal_lead' => true])->count());
+        $this->assertTrue($this->service->syncForBestowal($bestowal, self::ADMIN_MEMBER_ID)->success);
+        $snapshots = $this->loadActionItems((int)$bestowal->id);
+        $this->assertSame(ActionItem::STATUS_CANCELLED, $snapshots['given']->status);
+        $this->assertSame(ActionItem::STATUS_OPEN, $snapshots['not_received']->status);
+        $this->assertArrayNotHasKey('filed', $snapshots);
+        $this->assertSame(Bestowal::LIFECYCLE_OPEN, $this->getTableLocator()->get('Awards.Bestowals')->get($bestowal->id)->lifecycle_status);
+    }
+
     public function testMaterializeScopesRolePermissionAndOfficeItemsToAwardBranch(): void
     {
         $templateId = $this->createTemplateWithScopedAssigneeItems();

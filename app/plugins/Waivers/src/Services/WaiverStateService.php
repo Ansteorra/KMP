@@ -16,6 +16,80 @@ use Cake\ORM\TableRegistry;
  */
 class WaiverStateService
 {
+    /** Record a loss without changing uploaded waivers or collection closure. */
+    public function recordLost(int $gatheringId, int $waiverTypeId, string $notes, int $recordedBy): ServiceResult
+    {
+        $notes = trim($notes);
+        if ($notes === '' || mb_strlen($notes) > 10000) {
+            return new ServiceResult(false, __(
+                'Enter notes (up to 10,000 characters) identifying who reported the loss and when.',
+            ));
+        }
+
+        $tables = TableRegistry::getTableLocator();
+        $losses = $tables->get('Waivers.GatheringWaiverLosses');
+
+        return $losses->getConnection()->transactional(function () use (
+            $tables,
+            $losses,
+            $gatheringId,
+            $waiverTypeId,
+            $notes,
+            $recordedBy,
+        ): ServiceResult {
+            // Serialize duplicate reports for the same gathering, including concurrent submissions.
+            $losses->getConnection()->execute(
+                'SELECT id FROM gatherings WHERE id = :id FOR UPDATE',
+                ['id' => $gatheringId],
+            );
+            $required = $tables->get('Waivers.GatheringActivityWaivers')->find()
+                ->innerJoinWith('GatheringActivities.Gatherings')
+                ->where([
+                    'Gatherings.id' => $gatheringId,
+                    'GatheringActivityWaivers.waiver_type_id' => $waiverTypeId,
+                ])->count();
+            $conditions = ['gathering_id' => $gatheringId, 'waiver_type_id' => $waiverTypeId];
+            if (!$required && !$tables->get('Waivers.GatheringWaivers')->exists($conditions)) {
+                return new ServiceResult(false, __('This waiver type is not required for this gathering.'));
+            }
+            if ($losses->exists($conditions + ['reversed_at IS' => null])) {
+                return new ServiceResult(false, __(
+                    'A loss has already been recorded for this gathering and waiver type.',
+                ));
+            }
+            $loss = $losses->newEntity($conditions + ['notes' => $notes]);
+            $loss->created_by = $recordedBy;
+            $losses->saveOrFail($loss);
+
+            return new ServiceResult(true, __(
+                'Waivers Lost recorded. Existing files and collection status have been preserved.',
+            ), $loss);
+        });
+    }
+
+    /** Reverse the displayed loss without modifying the report notes, files, or collection state. */
+    public function reverseLoss(int $lossId, int $reversedBy): ServiceResult
+    {
+        $losses = TableRegistry::getTableLocator()->get('Waivers.GatheringWaiverLosses');
+        $loss = $losses->get($lossId);
+
+        return $losses->getConnection()->transactional(function () use ($losses, $loss, $reversedBy): ServiceResult {
+            $losses->getConnection()->execute(
+                'SELECT id FROM gatherings WHERE id = :id FOR UPDATE',
+                ['id' => $loss->gathering_id],
+            );
+            $current = $losses->get($loss->id);
+            if ($current->reversed_at !== null) {
+                return new ServiceResult(false, __('This loss report has already been reversed.'));
+            }
+            $current->reversed_at = DateTime::now();
+            $current->reversed_by = $reversedBy;
+            $losses->saveOrFail($current);
+
+            return new ServiceResult(true, __('Lost status reversed. Uploaded files and report history have been kept.'));
+        });
+    }
+
     /**
      * Close waiver collection for a gathering.
      *

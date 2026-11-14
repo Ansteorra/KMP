@@ -16,12 +16,12 @@ $apiKey = $this->KMP->getAppSetting('GoogleMaps.ApiKey', '');
 ?>
 
 <div class="related tab-pane fade m-3" id="nav-location" role="tabpanel" aria-labelledby="nav-location-tab"
-    data-detail-tabs-target="tabContent" data-tab-order="20" style="order: 20;">
+    data-detail-tabs-target="tabContent" data-tab-order="6" style="order: 6;">
 
     <div class="row">
         <div class="col-12">
             <h4 class="mb-3">
-                <i class="bi bi-geo-alt-fill"></i> <?= __('Gathering Location') ?>
+                <kmp-icon name="map-pin"  aria-hidden="true"></kmp-icon> <?= __('Gathering Location') ?>
             </h4>
 
             <!-- Location Address Display -->
@@ -29,7 +29,7 @@ $apiKey = $this->KMP->getAppSetting('GoogleMaps.ApiKey', '');
                 <div class="card-body">
                     <h5 class="card-title"><?= __('Address') ?></h5>
                     <p class="card-text fs-5">
-                        <i class="bi bi-pin-map-fill text-primary"></i>
+                        <kmp-icon name="map-pin" class="text-primary" aria-hidden="true"></kmp-icon>
                         <?= h($gathering->location) ?>
                     </p>
                 </div>
@@ -64,41 +64,41 @@ $apiKey = $this->KMP->getAppSetting('GoogleMaps.ApiKey', '');
                 <div class="d-flex flex-wrap gap-2 mt-3">
                     <button type="button" class="btn btn-primary" data-action="click->gathering-map#getDirections"
                         title="<?= __('Get directions in Google Maps') ?>">
-                        <i class="bi bi-signpost-2-fill"></i> <?= __('Get Directions') ?>
+                        <kmp-icon name="sign-right"  aria-hidden="true"></kmp-icon> <?= __('Get Directions') ?>
                     </button>
 
                     <div class="btn-group" role="group">
                         <button type="button" class="btn btn-outline-secondary dropdown-toggle"
                             data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-box-arrow-up-right"></i> <?= __('Open In...') ?>
+                            <kmp-icon name="external-link"  aria-hidden="true"></kmp-icon> <?= __('Open In...') ?>
                         </button>
                         <ul class="dropdown-menu">
                             <li>
                                 <a class="dropdown-item" href="#" data-action="click->gathering-map#openInGoogleMaps">
-                                    <i class="bi bi-google"></i> <?= __('Google Maps') ?>
+                                    <kmp-icon name="brand-google"  aria-hidden="true"></kmp-icon> <?= __('Google Maps') ?>
                                 </a>
                             </li>
                             <li>
                                 <a class="dropdown-item" href="#" data-action="click->gathering-map#openInAppleMaps">
-                                    <i class="bi bi-apple"></i> <?= __('Apple Maps') ?>
+                                    <kmp-icon name="brand-apple"  aria-hidden="true"></kmp-icon> <?= __('Apple Maps') ?>
                                 </a>
                             </li>
                         </ul>
                     </div>
 
-                    <button type="button" class="btn btn-outline-secondary bi bi-clipboard"
+                    <button type="button" class="btn btn-outline-secondary"
                         data-controller="clipboard"
                         data-action="clipboard#copy"
                         data-clipboard-text-value="<?= h($gathering->location) ?>"
                         data-clipboard-success-message-value="<?= h(__('Address copied to clipboard!')) ?>"
-                        title="<?= h(__('Copy address to clipboard')) ?>">
+                        title="<?= h(__('Copy address to clipboard')) ?>"><kmp-icon name="clipboard" aria-hidden="true"></kmp-icon>
                         <?= __(' Copy Address') ?>
                     </button>
                 </div>
 
                 <!-- Help text -->
                 <div class="alert alert-info mt-3" role="alert">
-                    <i class="bi bi-info-circle-fill"></i>
+                    <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                     <strong><?= __('Tip:') ?></strong>
                     <?= __('Click "Get Directions" to open this location in your preferred mapping application and get turn-by-turn navigation.') ?>
                 </div>

@@ -6,6 +6,7 @@ namespace Awards\Policy;
 use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\BaseEntity;
 use App\Policy\BasePolicy;
+use Awards\Services\BestowalDelegationAccessService;
 use Cake\ORM\Table;
 
 /**
@@ -28,11 +29,23 @@ class BestowalsTablePolicy extends BasePolicy
         $table = $query->getRepository();
         $branchIds = $this->_getBranchIdsForPolicy($user, 'canIndex');
 
-        if (!empty($branchIds) && $branchIds[0] != -10000000) {
-            $query = $table->addBranchScopeQuery($query, $branchIds);
+        if ($branchIds === null) {
+            return $query;
         }
+        $conditions = (new BestowalDelegationAccessService())->bestowalConditions($user);
+        $conditions[] = ['Bestowals.award_id IN' => $table->Awards->find()
+            ->select(['Awards.id'])->where(['Awards.branch_id IN' => $branchIds ?: [-1]])];
+
+        $query->where(['OR' => $conditions]);
 
         return $query;
+    }
+
+    /** @inheritDoc */
+    public function canIndex(KmpIdentityInterface $user, BaseEntity|Table $entity, ...$optionalArgs): bool
+    {
+        return parent::canIndex($user, $entity, ...$optionalArgs)
+            || (new BestowalDelegationAccessService())->scopesFor($user) !== [];
     }
 
     /**

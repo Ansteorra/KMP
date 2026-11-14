@@ -117,6 +117,7 @@ export class BaseGatheringFormController extends Controller {
             feedbackElement.className = 'invalid-feedback';
             element.parentElement.appendChild(feedbackElement);
         }
+        feedbackElement.dataset.gatheringDateError = 'true';
         feedbackElement.textContent = message;
         feedbackElement.style.display = 'block';
     }
@@ -149,7 +150,7 @@ export class BaseGatheringFormController extends Controller {
         }
         
         // Remove feedback elements
-        const feedbackElements = this.element.querySelectorAll('.invalid-feedback');
+        const feedbackElements = this.element.querySelectorAll('[data-gathering-date-error]');
         feedbackElements.forEach(el => {
             el.style.display = 'none';
         });

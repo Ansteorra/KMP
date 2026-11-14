@@ -958,13 +958,19 @@ SQL;
                 continue;
             }
 
+            $sequence = $connection->execute(
+                "SELECT pg_get_serial_sequence(?, 'id')",
+                [$tableName],
+            )->fetchColumn(0);
+            if (!$sequence) {
+                continue;
+            }
+
             $quotedTable = $driver->quoteIdentifier($tableName);
             $connection->execute(
-                "SELECT setval(seq.sequence_name, COALESCE((SELECT MAX(id) FROM {$quotedTable}), 1), "
-                . "COALESCE((SELECT MAX(id) FROM {$quotedTable}), 0) > 0)
-                FROM (SELECT pg_get_serial_sequence(?, 'id') AS sequence_name) seq
-                WHERE seq.sequence_name IS NOT NULL",
-                [$tableName],
+                'SELECT setval(CAST(? AS regclass), COALESCE(MAX(id), 1), COALESCE(MAX(id), 0) > 0) '
+                . "FROM {$quotedTable}",
+                [$sequence],
             );
         }
     }

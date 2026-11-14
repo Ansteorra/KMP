@@ -89,6 +89,7 @@
  * @see /templates/layout/TwitterBootstrap/dashboard.php For dashboard layout variant
  */
 
+use App\Services\IconCatalog;
 use Cake\Core\Configure;
 
 $this->assign('main_content_wrapped', '1');
@@ -119,19 +120,20 @@ $url = $fullBaseUrl . '/keepalive';
                 data-action="click->sidebar-toggle#toggle"
                 title="Toggle sidebar"
                 aria-label="Toggle sidebar">
-                <i class="bi bi-chevron-bar-left" data-sidebar-toggle-target="icon"></i>
+                <kmp-icon name="chevron-left-pipe"  data-sidebar-toggle-target="icon" aria-hidden="true"></kmp-icon>
             </button>
             <?= $this->Html->image($this->KMP->assetUrl($this->KMP->getAppSetting('KMP.BannerLogo')), [
-                'alt' => 'Logo',
+                'alt' => $this->KMP->getAppSetting('KMP.ShortSiteTitle'),
                 'height' => '24',
                 'class' => 'd-inline-block mb-1',
             ]) ?>
-            <span class="fs-5"><?= h($this->KMP->getAppSetting('KMP.ShortSiteTitle')) ?></span>
+            <span class="fs-5 d-none d-md-inline"><?= h($this->KMP->getAppSetting('KMP.ShortSiteTitle')) ?></span>
         </div>
         <ul class="navbar-nav flex-row px-3">
             <?php foreach ($headerLinks as $key => $value) :
                 $key = str_replace('KMP.HeaderLink.', '', $key);
                 $keys = explode('.', $key);
+                $linkName = $keys[0];
                 $key = $keys[0];
                 if (count($keys) > 1) {
                     $key = $keys[1] == 'no-label' ? '' : $keys[0];
@@ -144,21 +146,35 @@ $url = $fullBaseUrl . '/keepalive';
                 }
                 ?>
             <li class="nav-item text-nowrap mx-1">
-                <a class="btn btn-outline-secondary <?= $css ?>" href="<?= $url ?>"><?= $key ?></a>
+                <?= $this->Html->link(
+                    '<span class="d-none d-lg-inline">' . h($key) . '</span>',
+                    $url,
+                    IconCatalog::controlOptions('btn btn-outline-secondary ' . $css, $parts[2] ?? null)
+                            + ['icon' => 'link', 'aria-label' => $linkName, 'escape' => false],
+                ) ?>
             </li>
             <?php endforeach; ?>
             <li class="nav-item text-nowrap mx-1">
                 <?= $this->Html->link(
-                    '<i class="bi bi-phone"></i> ' . __('Mobile'),
+                    '<kmp-icon name="device-mobile" aria-hidden="true"></kmp-icon> '
+                    . '<span class="d-none d-lg-inline">' . h(__('Mobile')) . '</span>',
                     ['controller' => 'App', 'action' => 'switchView', 'plugin' => null, '?' => ['mode' => 'mobile']],
-                    ['class' => 'btn btn-outline-secondary', 'escape' => false, 'title' => __('Switch to mobile view')],
+                    [
+                        'class' => 'btn btn-outline-secondary', 'escape' => false,
+                        'aria-label' => __('Mobile'), 'title' => __('Switch to mobile view'),
+                    ],
                 ) ?>
             </li>
             <li class="nav-item text-nowrap mx-1">
-                <?= $this->Html->link(
-                    __('Sign out'),
+                <?= $this->Form->postButton(
+                    '<kmp-icon name="logout" aria-hidden="true"></kmp-icon> '
+                    . '<span class="d-none d-lg-inline">' . h(__('Sign out')) . '</span>',
                     ['controller' => 'Members', 'action' => 'logout', 'plugin' => null],
-                    ['class' => 'btn btn-outline-secondary'],
+                    [
+                        'class' => 'btn btn-outline-secondary', 'escapeTitle' => false,
+                        'aria-label' => __('Sign out'), 'title' => __('Sign out'),
+                        'form' => ['class' => 'd-inline', 'data-turbo' => 'false'],
+                    ],
                 ) ?>
             </li>
             <li class="nav-item text-nowrap mx-1">
@@ -194,7 +210,8 @@ $url = $fullBaseUrl . '/keepalive';
                 </div>
                 <?php
                 $this->KMP->endBlock(); ?>
-                <div class="table-responsive">
+                <div class="table-responsive" role="region" tabindex="0"
+                    aria-label="<?= h(__('Record details. Scroll horizontally to read all details.')) ?>">
                     <table class="table table-striped">
                         <tbody>
                             <?= $this->fetch('recordDetails') ?>

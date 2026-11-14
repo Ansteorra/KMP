@@ -1,32 +1,33 @@
 # App back-arrow navigation
 
-`AppController::beforeRender()` records successful GET document renders after the
-action has chosen the response and layout. Redirects, unsuccessful responses,
-AJAX/Turbo/grid requests, non-document Fetch Metadata destinations, downloads,
-non-HTML content, disabled layouts, and AJAX/Turbo layouts do not change history.
-Login/logout, navbar/assets, the public calendar, and `nostack` remain excluded.
-A fragment with action `index` must not clear history. Full-page Turbo visits use
-Fetch Metadata destination `empty` but explicitly accept `text/html`; those remain
-eligible when they render a whole page. Background HTML fetches must send the AJAX
-header. Other background fetches are excluded.
+The shared browser navigation adapter owns document and local UI history. The app
+Back arrow uses real browser history and skips the current record’s tab/filter
+entries, returning to the previous document with its query and scroll restoration.
+PHP no longer maintains a second `pageStack` in the session.
 
-The session stores at most 50 local request targets, retaining query parameters
-and the request's existing base path. Reloads do not duplicate entries. Returning
-to an earlier entry truncates the later entries; full `index` pages reset the list.
-`pageStackVersion = 2` discards old fragment/redirect entries once, on the next
-eligible page. The back button navigates the top-level page and has an accessible
-name. With fewer than two app entries, it uses browser history.
+`NavigationParentService` supplies a same-tenant, policy-checked list link for
+directly opened records. It uses the registered list action (including My Tasks
+and My RSVPs), or the home page when no authorized list exists. Foreign referrers
+and authentication pages never become app return destinations. The control stays
+a normal accessible link when JavaScript or browser history is unavailable.
 
-When a successful document navigation leaves a grid, the same-origin Referer
-can update the last history entry's query if its path matches that entry.
-This retains the browser's current page, filters, search, sort, and row count
-after frame navigation, so the app back arrow returns to the displayed grid.
-References from another origin or an unrelated path cannot replace the entry.
+With `KMP_TURBO_ENABLED=true`, Turbo owns document visits.
+`ui-navigation-service.js` preserves Turbo’s restoration identifiers and state
+while tab/grid changes add local entries. Its listener runs before Turbo’s history
+observer so local Back/Forward cannot trigger a competing document restoration.
+With the switch off, native document navigation and Frames/Streams remain active,
+and the same adapter maintains local UI history.
 
 Detail-tab grids keep their query in the table frame while the user works. Before
 a same-origin record link leaves the page, or a native form submits from that grid,
 `page-context` replaces the host history entry with the live grid query and current
 tab. This lets browser Back and redirect Referers restore the displayed grid.
+The adapter stops Turbo’s document-history observer in fallback mode and brokers
+local restoration before Turbo in Drive mode. Top-level tab
+changes preserve other query parameters and the hash; nested tab
+groups do not replace the host tab. Back/Forward restores selection without
+reloading loaded tab frames. The profile alias retains the query when redirecting
+to the member record. See [Hotwire interaction contracts](hotwire-interactions.md).
 Frame endpoint identities (`frame_id`, `member_id`, `branch_id`, `gathering_id`)
 stay on their own data URLs so reloading the host cannot override sibling grids.
 Parameters already present in a grid's data URL take precedence over restored host

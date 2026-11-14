@@ -1,3 +1,4 @@
+import { createIcon } from '../services/icon-service.js';
 import { Controller } from "@hotwired/stimulus"
 
 /**
@@ -36,6 +37,7 @@ class EmailTemplateEditorController extends Controller {
         // Initialize EasyMDE on the textarea
         this.editor = new EasyMDE({
             element: this.editorTarget,
+            autoDownloadFontAwesome: false,
             placeholder: this.placeholderValue,
             minHeight: this.minHeightValue,
             spellChecker: false,
@@ -49,6 +51,8 @@ class EmailTemplateEditorController extends Controller {
                 return this.renderPreview(plainText);
             }
         })
+
+        this.editor.toolbarElements?.['insert-variable']?.replaceChildren(createIcon('code'));
 
         // Render variable insertion buttons if we have variables
         if (this.hasVariableButtonsTarget && this.variablesValue.length > 0) {
@@ -93,7 +97,7 @@ class EmailTemplateEditorController extends Controller {
                 action: (editor) => {
                     this.showVariableMenu(editor)
                 },
-                className: "fa fa-code",
+                className: "kmp-editor-variable",
                 title: "Insert Variable",
             });
         }

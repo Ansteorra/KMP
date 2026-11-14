@@ -8,7 +8,7 @@ declare(strict_types=1);
  * @var \Awards\Model\Entity\Bestowal $bestowal
  */
 
-$memberName = $bestowal->member->sca_name ?? $bestowal->member_sca_name ?? __('Unknown Member');
+$memberName = $bestowal->getRecipientName();
 ?>
 <div class="modal fade" id="cancelBestowalModal" tabindex="-1"
     aria-labelledby="cancelBestowalModalLabel" aria-describedby="cancelBestowalImpact" aria-hidden="true">
@@ -16,7 +16,7 @@ $memberName = $bestowal->member->sca_name ?? $bestowal->member_sca_name ?? __('U
         <div class="modal-content">
             <div class="modal-header bg-danger text-white">
                 <h2 class="modal-title fs-5" id="cancelBestowalModalLabel">
-                    <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                    <kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon>
                     <?= __('Cancel Bestowal') ?>
                 </h2>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
@@ -51,7 +51,10 @@ $memberName = $bestowal->member->sca_name ?? $bestowal->member_sca_name ?? __('U
                     'label' => __('Cancellation reason'),
                     'required' => true,
                     'rows' => 4,
-                    'placeholder' => __('Why is this bestowal being reverted to recommendation(s)? eg. need to reconsider, need to add group in more recommendations, no longer ready to bestow, etc.'),
+                    'placeholder' => __(
+                        'Why is this bestowal being reverted to recommendation(s)? eg. need to reconsider, '
+                        . 'need to add group in more recommendations, no longer ready to bestow, etc.',
+                    ),
                     'aria-describedby' => 'cancelBestowalReasonHelp',
                 ]) ?>
                 <div id="cancelBestowalReasonHelp" class="form-text">

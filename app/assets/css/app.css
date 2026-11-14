@@ -1,6 +1,10 @@
+@import './activity-badges.css';
+@import './hotwire.css';
+@import './gathering-reader.css';
+@import '../../plugins/Awards/Assets/css/court-agenda.css';
 @import 'bootstrap.css';
 @import 'modal.css';
-@import 'bootstrap-icons/font/bootstrap-icons.css';
+@import './icons.css';
 @import '@fontsource/cinzel/latin-400.css';
 @import '@fontsource/cinzel/latin-500.css';
 @import '@fontsource/cinzel/latin-600.css';
@@ -9,11 +13,24 @@
 @import '@fontsource/crimson-pro/latin-500.css';
 @import '@fontsource/crimson-pro/latin-600.css';
 @import '@fontsource/crimson-pro/latin-400-italic.css';
-@import 'bootstrap-icon-sizes.css';
+
 @import 'dashboard.css';
 @import 'platform-admin.css';
 @import 'easymde/dist/easymde.min.css';
 @import '@fortawesome/fontawesome-free/css/all.min.css';
+
+.btn-outline-warning {
+    --bs-btn-color: var(--bs-warning-text-emphasis, #664d03);
+    --bs-btn-border-color: #997404;
+    --bs-btn-hover-color: #212529;
+    --bs-btn-hover-bg: #ffc107;
+    --bs-btn-hover-border-color: #997404;
+    --bs-btn-active-color: #212529;
+    --bs-btn-active-bg: #ffcd39;
+    --bs-btn-active-border-color: #997404;
+    --bs-btn-disabled-color: var(--bs-warning-text-emphasis, #664d03);
+    --bs-btn-disabled-border-color: #997404;
+}
 
 :focus-visible {
     outline: 3px solid var(--bs-primary);
@@ -46,45 +63,98 @@
     }
 }
 
-/* Dataverse grid filter badges share one footprint, whether removable or locked. */
+/* Group logic stays with its choices; chip labels wrap independently of controls. */
+.grid-view-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--bs-border-color, #c9cccf);
+    border-radius: 0.5rem;
+    background: var(--bs-tertiary-bg, #f8f9fa);
+}
+
+.grid-view-filter-group-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--bs-body-color, #202223);
+}
+
+.grid-view-filter-group-options {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+.grid-view-filter-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.grid-view-filter-or {
+    flex: 0 0 auto;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--bs-secondary-color, #596675);
+}
+
+/* Removable and locked filters retain the same label/control alignment. */
 .grid-view-filter-badge {
     min-height: 34px;
+    min-width: 0;
+    max-width: 100%;
     padding: 0.25rem 0.25rem 0.25rem 0.5rem;
-    border: 1px solid #c9cccf;
+    border: 1px solid var(--bs-border-color, #c9cccf);
     border-radius: 0.4rem;
-    background-color: #f6f6f7;
-    color: #202223;
-    font-size: 0.75rem;
+    background-color: var(--bs-body-bg, #fff);
+    color: var(--bs-body-color, #202223);
+    font-size: 0.8125rem;
     font-weight: 500;
+    white-space: normal;
+    text-align: left;
+}
+
+.grid-view-filter-badge-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
 }
 
 .grid-view-filter-badge-control {
+    box-sizing: border-box;
     width: 24px;
     height: 24px;
     min-width: 24px;
     min-height: 24px;
     flex: 0 0 24px;
-    border-radius: 50%;
-    background-color: rgba(0, 0, 0, 0.1);
-    color: #202223;
+    border: 1px solid var(--bs-border-color, #c9cccf);
+    border-radius: 0.3rem;
+    background-color: var(--bs-tertiary-bg, #f8f9fa);
+    color: inherit;
     font-size: 0.7rem;
     line-height: 1;
 }
 
-.grid-view-filter-badge-control .bi-x {
+.grid-view-filter-badge-control kmp-icon[name="x"] {
     font-size: 0.9rem;
     font-weight: 700;
 }
 
-.grid-view-filter-badge-control .bi-lock-fill {
-    font-size: 0.65rem;
-    opacity: 0.65;
+.grid-view-filter-badge-control kmp-icon[name="lock"] {
+    font-size: 0.9rem;
 }
 
 button.grid-view-filter-badge-control:hover,
 button.grid-view-filter-badge-control:focus {
-    background-color: rgba(0, 0, 0, 0.16);
-    color: #202223;
+    background-color: var(--bs-secondary-bg, #e9ecef);
+    color: inherit;
 }
 
 /* Drag and Drop Sortable Styles */
@@ -359,32 +429,18 @@ input:checked+.slider:before {
 
 
 .policy-class::before {
+    content: '';
     display: inline-block;
-    font-family: bootstrap-icons !important;
-    font-style: normal;
-    font-weight: normal !important;
-    font-variant: normal;
-    text-transform: none;
-    line-height: 1;
-    vertical-align: -.125em;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    content: "\F13A";
+    width: 1.25em;
+    height: 1.25em;
+    vertical-align: -.25em;
+    background-color: currentColor;
+    mask: var(--kmp-policy-collapsed) center / contain no-repeat;
+    -webkit-mask: var(--kmp-policy-collapsed) center / contain no-repeat;
 }
-
-/* add an down arrow icon using bootstrap icons to policy-class when aria-expanded is true */
 .policy-class[aria-expanded="true"]::before {
-    display: inline-block;
-    font-family: bootstrap-icons !important;
-    font-style: normal;
-    font-weight: normal !important;
-    font-variant: normal;
-    text-transform: none;
-    line-height: 1;
-    vertical-align: -.125em;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    content: "\F119";
+    mask-image: var(--kmp-policy-expanded);
+    -webkit-mask-image: var(--kmp-policy-expanded);
 }
 
 .namespace-cell {
@@ -665,7 +721,7 @@ tr.row-expanded {
     color: #6c757d;
 }
 
-tr.row-expanded .toggle-icon.bi-chevron-down {
+tr.row-expanded kmp-icon.toggle-icon[name="chevron-down"] {
     transform: rotate(0deg);
 }
 
