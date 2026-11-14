@@ -42,12 +42,13 @@ const announce = (message, options = {}) => {
     }, 10)
 }
 
-const openDialog = ({
+const openDialog = async ({
     title,
     message,
     inputLabel,
     inputRequired = false,
     inputType = 'text',
+    inputValue = '',
     confirmLabel = 'OK',
     cancelLabel = 'Cancel',
 }) => {
@@ -57,6 +58,14 @@ const openDialog = ({
     }
 
     const previouslyFocused = document.activeElement
+    const parentModal = previouslyFocused?.closest('.modal.show')
+    const parentInstance = parentModal ? Modal.getInstance?.(parentModal) : null
+    if (parentInstance) {
+        await new Promise(resolve => {
+            parentModal.addEventListener('hidden.bs.modal', resolve, { once: true })
+            parentInstance.hide()
+        })
+    }
     const modal = document.createElement('div')
     modal.className = 'modal fade'
     modal.tabIndex = -1
@@ -70,7 +79,9 @@ const openDialog = ({
     const inputMarkup = inputLabel ? `
         <div class="mb-3">
             <label class="form-label" for="kmp-a11y-dialog-input">${escapeHtml(inputLabel)}</label>
-            <input id="kmp-a11y-dialog-input" class="form-control" type="${safeInputType}" ${inputRequired ? 'required' : ''}>
+            ${inputType === 'textarea'
+                ? `<textarea id="kmp-a11y-dialog-input" class="form-control" rows="3" ${inputRequired ? 'required' : ''}></textarea>`
+                : `<input id="kmp-a11y-dialog-input" class="form-control" type="${safeInputType}" ${inputRequired ? 'required' : ''}>`}
         </div>
     ` : ''
     const cancelMarkup = cancelLabel ? `<button type="button" class="btn btn-secondary" data-dialog-cancel>${escapeHtml(cancelLabel)}</button>` : ''
@@ -99,6 +110,7 @@ const openDialog = ({
     return new Promise((resolve) => {
         const instance = new Modal(modal)
         const input = modal.querySelector('#kmp-a11y-dialog-input')
+        if (input) input.value = inputValue
         let settled = false
         let shown = false
         let result = null
@@ -158,13 +170,19 @@ const openDialog = ({
         modal.addEventListener('click', event => {
             if (event.target === modal) settle(false)
         })
-        modal.addEventListener('hidden.bs.modal', () => {
+        modal.addEventListener('hidden.bs.modal', async () => {
             if (settled) return
             settled = true
             modal.removeEventListener('keydown', trapFocus)
             instance.dispose()
             modal.remove()
-            if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+            if (parentInstance && parentModal.isConnected) {
+                await new Promise(resolve => {
+                    parentModal.addEventListener('shown.bs.modal', resolve, { once: true })
+                    parentInstance.show()
+                })
+            }
+            if (previouslyFocused?.isConnected && typeof previouslyFocused.focus === 'function') {
                 previouslyFocused.focus()
             }
             resolve(result || { confirmed: false, value: '' })
@@ -198,6 +216,7 @@ const prompt = async (message, options = {}) => {
         message,
         inputLabel: options.inputLabel || message,
         inputType: options.inputType || 'text',
+        inputValue: options.defaultValue || '',
         inputRequired: options.required || false,
         confirmLabel: options.confirmLabel || 'Save',
         cancelLabel: options.cancelLabel || 'Cancel',

@@ -4,11 +4,13 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Policy;
 
 use App\KMP\KmpIdentityInterface;
+use App\KMP\Telemetry\RequestQueryCounter;
 use App\Model\Entity\Permission;
 use App\Policy\GatheringActivityPolicy;
 use App\Policy\GatheringPolicy;
 use App\Test\TestCase\BaseTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
+use ReflectionProperty;
 
 class GatheringActivityAssignmentPolicyTest extends BaseTestCase
 {
@@ -43,6 +45,35 @@ class GatheringActivityAssignmentPolicyTest extends BaseTestCase
             $outside = clone $gathering;
             $outside->branch_id = self::TEST_BRANCH_LOCAL_ID;
             $this->assertFalse($policy->canAssign($user, $activity, $outside));
+        }
+    }
+
+    public function testDeniedCatalogueCheckHasBoundedQueries(): void
+    {
+        $activities = $this->getTableLocator()->get('GatheringActivities');
+        $candidates = [];
+        for ($i = 0; $i < 30; $i++) {
+            $candidates[] = $activities->saveOrFail($activities->newEntity(['name' => 'Catalogue fixture ' . $i]));
+        }
+        $gathering = $this->getTableLocator()->get('Gatherings')->find()->firstOrFail();
+        $user = $this->createMock(KmpIdentityInterface::class);
+        $user->method('getIdentifier')->willReturn(self::TEST_MEMBER_AGATHA_ID);
+        $user->method('getPolicies')->willReturn([]);
+        $user->method('getPermissions')->willReturn([]);
+        $driver = $activities->getConnection()->getDriver();
+        $originalLogger = $driver->getLogger();
+        $wasLogging = (new ReflectionProperty($driver, 'logQueries'))->getValue($driver);
+        $counter = new RequestQueryCounter();
+        $driver->setLogger($counter);
+        $driver->enableQueryLogging();
+        try {
+            $this->assertFalse((new GatheringActivityPolicy())->canAssignAny($user, $candidates, $gathering));
+            $this->assertLessThanOrEqual(6, $counter->count(), 'Catalogue size must not multiply permission queries.');
+        } finally {
+            (new ReflectionProperty($driver, 'logger'))->setValue($driver, $originalLogger);
+            if (!$wasLogging) {
+                $driver->disableQueryLogging();
+            }
         }
     }
 
@@ -90,6 +121,7 @@ class GatheringActivityAssignmentPolicyTest extends BaseTestCase
         ]] : []);
 
         $this->assertSame($expected, (new GatheringActivityPolicy())->canAssign($user, $activity, $gathering));
+        $this->assertSame($expected, (new GatheringActivityPolicy())->canAssignAny($user, [$activity], $gathering));
         $this->assertFalse((new GatheringActivityPolicy())->canAssign($user, $activity));
     }
 }

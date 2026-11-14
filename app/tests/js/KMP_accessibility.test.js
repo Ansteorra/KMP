@@ -30,6 +30,31 @@ describe('KMP_accessibility dialogs', () => {
         delete window.bootstrap.Modal;
     });
 
+    test('multiline prompts retain supplied text and restore the parent modal and focus on cancel', async () => {
+        const parent = document.createElement('div');
+        parent.className = 'modal show';
+        parent.innerHTML = '<button>Complete</button>';
+        document.body.appendChild(parent);
+        const trigger = parent.querySelector('button');
+        trigger.focus();
+        const parentInstance = new ModalMock(parent);
+        ModalMock.getInstance = () => parentInstance;
+        const result = KMPAccessibility.prompt('Complete?', {
+            inputType: 'textarea', inputLabel: 'Note (optional)', defaultValue: 'First\nSecond',
+        });
+        await Promise.resolve();
+        const input = document.getElementById('kmp-a11y-dialog-input');
+        expect(input.tagName).toBe('TEXTAREA');
+        expect(input.value).toBe('First\nSecond');
+        expect(document.activeElement).toBe(input);
+        expect(parent).not.toHaveClass('show');
+        input.closest('.modal').querySelector('[data-dialog-cancel]').click();
+        await expect(result).resolves.toBeNull();
+        expect(parent).toHaveClass('show');
+        expect(document.activeElement).toBe(trigger);
+        delete ModalMock.getInstance;
+    });
+
     test.each(['confirm', 'Escape', 'close'])('an early %s waits for both Bootstrap transitions before resolving', async action => {
         let instance;
         class TransitionModal extends ModalMock {

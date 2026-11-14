@@ -50,6 +50,35 @@ class GatheringActivityPolicy extends BasePolicy
                 && GatheringActivityDelegationRegistry::canAssign($user, $entity, $gathering));
     }
 
+    /**
+     * Evaluate a catalogue in one operation without repeating unconfigured activity fallbacks.
+     *
+     * @param array<\App\Model\Entity\GatheringActivity> $activities Catalogue candidates.
+     */
+    public function canAssignAny(KmpIdentityInterface $user, array $activities, Gathering $gathering): bool
+    {
+        if (!$gathering->branch_id || $activities === []) {
+            return false;
+        }
+        if ($user->isSuperUser()) {
+            return true;
+        }
+        $this->loadAssignmentPermissions();
+        $canEditGathering = null;
+        foreach ($activities as $activity) {
+            if (($this->assignmentPermissionIds[$activity->id] ?? []) === []) {
+                $canEditGathering ??= (new GatheringPolicy())->canEdit($user, $gathering);
+                if ($canEditGathering) {
+                    return true;
+                }
+            } elseif ($this->canAssignNatively($user, $activity, $gathering)) {
+                return true;
+            }
+        }
+
+        return GatheringActivityDelegationRegistry::canAssignAny($user, $activities, $gathering);
+    }
+
     /** Native catalogue rules; a branch override requires an already-validated owner grant. */
     public function canAssignNatively(
         KmpIdentityInterface $user,
@@ -60,16 +89,7 @@ class GatheringActivityPolicy extends BasePolicy
         if ($user->isSuperUser()) {
             return true;
         }
-        $tenantId = TenantContext::tryCurrent()?->id ?? 'standalone';
-        if ($this->assignmentPermissionIds === null || $this->assignmentTenantId !== $tenantId) {
-            $this->assignmentTenantId = $tenantId;
-            $this->assignmentPermissionIds = [];
-            $rules = TableRegistry::getTableLocator()->get('GatheringActivityAssignmentPermissions')->find()
-                ->select(['gathering_activity_id', 'permission_id'])->all();
-            foreach ($rules as $rule) {
-                $this->assignmentPermissionIds[$rule->gathering_activity_id][] = (int)$rule->permission_id;
-            }
-        }
+        $this->loadAssignmentPermissions();
         $permissionIds = $this->assignmentPermissionIds[$entity->id] ?? [];
         if ($permissionIds === []) {
             return (new GatheringPolicy())->canEdit($user, $gathering);
@@ -89,5 +109,20 @@ class GatheringActivityPolicy extends BasePolicy
         }
 
         return false;
+    }
+
+    /** Load native rules once for this policy instance and tenant. */
+    private function loadAssignmentPermissions(): void
+    {
+        $tenantId = TenantContext::tryCurrent()?->id ?? 'standalone';
+        if ($this->assignmentPermissionIds === null || $this->assignmentTenantId !== $tenantId) {
+            $this->assignmentTenantId = $tenantId;
+            $this->assignmentPermissionIds = [];
+            $rules = TableRegistry::getTableLocator()->get('GatheringActivityAssignmentPermissions')->find()
+                ->select(['gathering_activity_id', 'permission_id'])->all();
+            foreach ($rules as $rule) {
+                $this->assignmentPermissionIds[$rule->gathering_activity_id][] = (int)$rule->permission_id;
+            }
+        }
     }
 }

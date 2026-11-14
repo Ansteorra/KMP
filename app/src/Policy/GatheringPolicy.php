@@ -214,12 +214,10 @@ class GatheringPolicy extends BasePolicy
             return true;
         }
 
-        if ($entity instanceof BaseEntity) {
-            foreach (TableRegistry::getTableLocator()->get('GatheringActivities')->find()->all() as $activity) {
-                if ($this->canManageActivity($user, $entity, $activity)) {
-                    return true;
-                }
-            }
+        if ($entity instanceof Gathering) {
+            $activities = TableRegistry::getTableLocator()->get('GatheringActivities')->find()->all()->toList();
+
+            return (new GatheringActivityPolicy())->canAssignAny($user, $activities, $entity);
         }
 
         return false;

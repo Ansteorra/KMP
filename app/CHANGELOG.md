@@ -8,6 +8,10 @@ Stay up to date with the latest features, improvements, and announcements for th
 
 ## KMP 1.5.14 — November 10, 2026
 
+- Keep completion notes attached to the selected To-Do and offer optional notes from bestowal detail and quick checklists.
+- Show award descriptions correctly when recommending an award, and omit the separator when no description is available.
+- Load bestowal details faster by batching the activity-access checks used for the gathering link.
+
 - Read public events on phones in compact rows that fit the screen, with collapsible filters, larger touch controls, and single-column expanded details. Keep date ranges on one line, with the year and duration underneath.
 
 - Preserve detail tabs, grid queries, drafts, focus, and return navigation across partial saves. Replace the app Back stack with shared browser history and prepare optional Turbo Drive and authorized live updates behind fallback switches.

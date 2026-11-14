@@ -14,6 +14,15 @@ class TodoCompletionModalController extends Controller {
         if (!modal) {
             return;
         }
+        let activeTask = null;
+        const clearNote = () => {
+            const note = modal.querySelector('[name="note"]');
+            if (note) note.value = '';
+        };
+        listen(modal, 'turbo-modal:saved', () => {
+            clearNote();
+            activeTask = null;
+        });
         const labels = {
             complete: {
                 title: bindings.completeToDo,
@@ -35,6 +44,9 @@ class TodoCompletionModalController extends Controller {
             }
             const mode = btn.dataset.todoMode === 'reopen' ? 'reopen' : 'complete';
             const id = btn.dataset.todoId || '';
+            const task = `${mode}:${id}`;
+            if (activeTask !== task) clearNote();
+            activeTask = task;
             const title = btn.dataset.todoTitle || '';
             const config = labels[mode];
             const completionForm = parseCompletionForm(btn.dataset.todoCompletionForm || '{}');

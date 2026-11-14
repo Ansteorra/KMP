@@ -117,12 +117,12 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
             const dialog = page.getByRole('dialog');
             await expect(dialog).toContainText(`Completion outcome: ${outcome}.`);
             await expect(dialog).toContainText('Prepare Scroll');
-            await expect(dialog.getByRole('button', { name: 'Confirm', exact: true })).toBeFocused();
+            await expect(dialog.getByLabel('Note (optional)', { exact: true })).toBeFocused();
             await page.keyboard.press('Escape');
             await expect(dialog).toHaveCount(0);
             await expect(choice).toBeFocused();
             await page.keyboard.press('Enter');
-            await page.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true }).press('Enter');
+            await page.getByRole('dialog').getByRole('button', { name: 'Mark Complete', exact: true }).press('Enter');
             await expect(page.locator('[data-controller=awards-bestowal-todos]')).toContainText('its checklist is read-only');
             await expect(page.locator('[data-controller=awards-bestowal-todos]')).toContainText('Closed — not applicable');
             await expect(page.locator('[data-controller=awards-bestowal-todos]').getByRole('link')).toHaveCount(0);

@@ -187,6 +187,15 @@ author, and date displayed in the viewer's timezone. These are separate from the
 tab. Reading notes uses the bestowal's existing view authorization and only loads logs for its
 displayed To-Dos; prior notes remain visible after reopening or finalization. Note text is escaped
 and line breaks are preserved. No notes are copied or rewritten when viewed.
+Completion from the detail checklist and quick checklist prompts for an optional multiline note.
+Cancel leaves the task unchanged and restores focus to its completion control. In My To-Dos,
+switching tasks or successfully saving clears the previous note; a failed save keeps the current
+note available for retry. Blank notes remain optional.
+
+Gathering-link visibility evaluates activity access as one batch. Catalogue rules, award/activity
+links and event grants are read once per evaluation, while native grantor permissions and branch
+scope remain authoritative. Batch providers retain no decisions across evaluations or tenant
+changes, and transactional grant reads retain their shared locks.
 
 ## Schedule to agenda
 

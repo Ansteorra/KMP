@@ -35,4 +35,23 @@ class GatheringActivityDelegationRegistry
 
         return false;
     }
+
+    /**
+     * Batch catalogue access without retaining authorization decisions between operations.
+     *
+     * @param array<\App\Model\Entity\GatheringActivity> $activities Catalogue candidates.
+     */
+    public static function canAssignAny(
+        KmpIdentityInterface $user,
+        array $activities,
+        Gathering $gathering,
+    ): bool {
+        foreach (self::$providers as $provider) {
+            if ($provider->canAssignAny($user, $activities, $gathering)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

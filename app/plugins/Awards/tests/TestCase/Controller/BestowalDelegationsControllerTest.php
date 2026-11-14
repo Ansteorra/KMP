@@ -976,6 +976,26 @@ class BestowalDelegationsControllerTest extends HttpIntegrationTestCase
         $this->assertFalse($policy->canManageActivity($delegate, $this->gathering, $activity));
     }
 
+    public function testBatchActivityAccessRetainsEventScopeAndRechecksRevocation(): void
+    {
+        $activity = $this->courtActivity();
+        $unrelated = $this->courtActivity(false);
+        $grant = $this->delegate();
+        $delegate = $this->getTableLocator()->get('Members')->get(self::TEST_MEMBER_BRYCE_ID);
+        $provider = new BestowalGatheringActivityDelegationProvider();
+        $this->assertTrue($provider->canAssignAny($delegate, [$unrelated, $activity], $this->gathering));
+        $this->assertFalse($provider->canAssignAny($delegate, [$unrelated], $this->gathering));
+        $this->assertFalse($provider->canAssignAny($delegate, [$activity], $this->otherGathering));
+        $this->assertTrue((new GatheringPolicy())->canView($delegate, $this->gathering));
+        $service = new BestowalDelegationService();
+        $service->revoke(
+            $this->getTableLocator()->get('Members')->get(self::TEST_MEMBER_AGATHA_ID),
+            (int)$grant->id,
+        );
+        $this->assertFalse($provider->canAssignAny($delegate, [$unrelated, $activity], $this->gathering));
+        $this->assertFalse((new GatheringPolicy())->canView($delegate, $this->gathering));
+    }
+
     private function courtActivity(bool $eligible = true): object
     {
         $tables = $this->getTableLocator();

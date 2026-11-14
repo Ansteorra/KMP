@@ -482,6 +482,7 @@ class AwardsController extends AppController
             ->select([
                 'Awards.id',
                 'Awards.name',
+                'Awards.description',
                 'Awards.specialties',
                 'Awards.approval_process_id',
                 'Awards.domain_id',

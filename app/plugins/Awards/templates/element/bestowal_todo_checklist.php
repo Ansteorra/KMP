@@ -68,6 +68,17 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                 $canAssignRequirement = $eligible && $item->isOpen() && $missingRequirement && !$blocked;
                 $canCompleteDirectly = $eligible && $item->isOpen() && !$missingRequirement && !$blocked;
                 $hasOutcomeChoices = $item->is_terminal && BestowalTodoTemplateItem::terminalOutcomesFor($item) !== [];
+                $completionFormOptions = [
+                    'url' => [
+                        'plugin' => null, 'controller' => 'ActionItems', 'action' => 'complete', $item->id,
+                    ],
+                    'data-action' => 'submit->awards-bestowal-todos#completeWithNote',
+                    'data-todo-confirmation' => $item->complete_confirmation
+                        ?? __('Mark "{0}" complete?', $item->title),
+                    'data-note-title' => __('Complete {0}', $item->title),
+                    'data-note-label' => __('Note (optional)'),
+                    'data-note-submit-label' => __('Mark Complete'),
+                ];
                 $requirementField = (string)($requirement['field'] ?? '');
                 ?>
                 <li class="list-group-item d-flex flex-wrap justify-content-between align-items-start gap-3">
@@ -127,11 +138,13 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                             <?php endif; ?>
                             <?php if ($item->is_gating) : ?>
                                 <span class="badge bg-warning text-dark">
-                                    <kmp-icon name="flag-3" class="me-1" aria-hidden="true"></kmp-icon><?= __('Required') ?>
+                                    <kmp-icon name="flag-3" class="me-1" aria-hidden="true"></kmp-icon>
+                                    <?= __('Required') ?>
                                 </span>
                             <?php else : ?>
                                 <span class="badge bg-light text-dark border">
-                                    <kmp-icon name="flag" class="me-1" aria-hidden="true"></kmp-icon><?= __('Optional') ?>
+                                    <kmp-icon name="flag" class="me-1" aria-hidden="true"></kmp-icon>
+                                    <?= __('Optional') ?>
                                 </span>
                             <?php endif; ?>
                             <?php if ($requirement !== null) : ?>
@@ -173,14 +186,8 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                         <?php if ($canAssignRequirement && $requirementField === 'gathering_id') : ?>
                             <div class="border rounded-3 bg-light-subtle p-3 mt-3"
                                 data-bestowal-gathering-requirement>
-                                <?= $this->Form->create(null, [
-                                    'url' => [
-                                        'plugin' => null,
-                                        'controller' => 'ActionItems',
-                                        'action' => 'complete',
-                                        $item->id,
-                                    ],
-                                ]) ?>
+                                <?= $this->Form->create(null, $completionFormOptions) ?>
+                                <?= $this->element('bestowal_todo_note') ?>
                                 <?= $this->Form->hidden('id', ['value' => $item->id]) ?>
                                 <?= $this->element('bestowal_terminal_outcome_field', ['item' => $item]) ?>
                                 <?= $this->Form->hidden('current_page', ['value' => $currentPageUrl]) ?>
@@ -222,7 +229,7 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                 </div>
                                 <button type="submit" class="btn btn-sm btn-success"
                                     <?php if ($item->is_terminal) :
-                                        ?>data-confirm-message="<?= h($item->complete_confirmation) ?>"<?php
+                                        ?>data-todo-confirmation="<?= h($item->complete_confirmation) ?>"<?php
                                     endif; ?>>
                                     <?= __('Assign Gathering and Complete') ?>
                                 </button>
@@ -230,14 +237,8 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                             </div>
                         <?php elseif ($canAssignRequirement && $requirementField === 'court_slot') : ?>
                             <div class="border rounded-3 bg-light-subtle p-3 mt-3">
-                                <?= $this->Form->create(null, [
-                                    'url' => [
-                                        'plugin' => null,
-                                        'controller' => 'ActionItems',
-                                        'action' => 'complete',
-                                        $item->id,
-                                    ],
-                                ]) ?>
+                                <?= $this->Form->create(null, $completionFormOptions) ?>
+                                <?= $this->element('bestowal_todo_note') ?>
                                 <?= $this->Form->hidden('id', ['value' => $item->id]) ?>
                                 <?= $this->element('bestowal_terminal_outcome_field', ['item' => $item]) ?>
                                 <?= $this->Form->hidden('current_page', ['value' => $currentPageUrl]) ?>
@@ -271,7 +272,7 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                                 </div>
                                 <button type="submit" class="btn btn-sm btn-success"
                                     <?php if ($item->is_terminal) :
-                                        ?>data-confirm-message="<?= h($item->complete_confirmation) ?>"<?php
+                                        ?>data-todo-confirmation="<?= h($item->complete_confirmation) ?>"<?php
                                     endif; ?>>
                                     <?= __('Assign Court and Complete') ?>
                                 </button>
@@ -281,28 +282,24 @@ $progressId = $progressId ?? 'bestowal-todo-progress-label';
                     </div>
                     <div class="flex-shrink-0">
                         <?php if ($canCompleteDirectly && $hasOutcomeChoices) : ?>
-                            <?= $this->Form->create(null, [
-                                'url' => ['plugin' => null, 'controller' => 'ActionItems', 'action' => 'complete', $item->id],
-                            ]) ?>
+                            <?= $this->Form->create(null, $completionFormOptions) ?>
+                            <?= $this->element('bestowal_todo_note') ?>
                             <?= $this->Form->hidden('current_page', ['value' => $currentPageUrl]) ?>
                             <?= $this->element('bestowal_terminal_outcome_field', ['item' => $item]) ?>
                             <?= $this->Form->button(__('Complete {0}', $item->title), [
                                 'class' => 'btn btn-sm btn-success',
-                                'data-confirm-message' => $item->complete_confirmation,
+                                'data-todo-confirmation' => $item->complete_confirmation,
                             ]) ?>
                             <?= $this->Form->end() ?>
                         <?php elseif ($canCompleteDirectly) : ?>
-                            <?= $this->Form->postLink(
-                                __('Complete'),
-                                ['plugin' => null, 'controller' => 'ActionItems', 'action' => 'complete', $item->id],
-                                [
-                                    'class' => 'btn btn-sm btn-success',
-                                    'data' => ['current_page' => $currentPageUrl],
-                                    'confirm' => $item->complete_confirmation
-                                        ?? __('Mark "{0}" complete?', $item->title),
-                                    'aria-label' => __('Mark complete: {0}', $item->title),
-                                ],
-                            ) ?>
+                            <?= $this->Form->create(null, $completionFormOptions) ?>
+                            <?= $this->element('bestowal_todo_note') ?>
+                            <?= $this->Form->hidden('current_page', ['value' => $currentPageUrl]) ?>
+                            <?= $this->Form->button(__('Complete'), [
+                                'class' => 'btn btn-sm btn-success',
+                                'aria-label' => __('Mark complete: {0}', $item->title),
+                            ]) ?>
+                            <?= $this->Form->end() ?>
                         <?php elseif ($eligible && $item->isCompleted()) : ?>
                             <?= $this->Form->postLink(
                                 '<kmp-icon name="rotate" class="me-1" aria-hidden="true"></kmp-icon>' . __('Reopen'),

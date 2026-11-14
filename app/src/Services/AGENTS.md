@@ -32,7 +32,8 @@ Own reusable business workflows, side effects, integrations, registries, workflo
   a documented native/admin exception or explicit same-transaction invalidation. See `app/docs/hotwire-interactions.md`.
 - Actor-driven gathering activity and schedule mutations reauthorize through
   `GatheringActivityAuthorizationService` inside their transactions. Plugin-owned activity grants use
-  `GatheringActivityDelegationRegistry`; providers must resolve the active tenant lazily and evaluate
+  `GatheringActivityDelegationRegistry`; batch catalogue checks use fresh operation-local data and retain
+  transactional grant locks. Providers must resolve the active tenant lazily and evaluate
   only native grantor permissions. Keep general gathering editing and Other scheduling independent.
 - Owner-specific ActionItem delegation uses `ActionItemDelegationRegistry`; core does not import plugin policies.
   Candidate conditions only discover possible work; all lists, counts, transitions, and reverse assignment resolution

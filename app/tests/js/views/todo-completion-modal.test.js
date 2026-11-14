@@ -13,10 +13,11 @@ describe('My To-Dos completion modal', () => {
         fields: [{ type: 'select', options: { roaming: 'Roaming Court', 42: 'Evening Court' } }],
     };
 
-    function open(completionForm = {}, mode = 'complete') {
+    function open(completionForm = {}, mode = 'complete', id = '1') {
         const button = document.createElement('button');
         button.dataset.todoCompletionForm = JSON.stringify(completionForm);
         button.dataset.todoMode = mode;
+        button.dataset.todoId = id;
         const event = new Event('show.bs.modal');
         event.relatedTarget = button;
         modal.dispatchEvent(event);
@@ -51,6 +52,7 @@ describe('My To-Dos completion modal', () => {
                     <select data-todo-target="completionOutcomeSelect" disabled></select>
                     <p data-todo-target="completionOutcomeHelp"></p>
                 </div>
+                <textarea name="note"></textarea>
                 <button data-todo-target="submit" type="submit">Complete</button>
             </form>
         </div>`;
@@ -63,6 +65,28 @@ describe('My To-Dos completion modal', () => {
     });
 
     afterEach(() => controller.disconnect());
+
+    test('notes stay with a failed task, clear for another task, and clear after success', () => {
+        const note = form.querySelector('[name="note"]');
+        open({}, 'complete', '1');
+        note.value = 'Fred has it';
+        open({}, 'complete', '1');
+        expect(note.value).toBe('Fred has it');
+        open({}, 'complete', '2');
+        expect(note.value).toBe('');
+        note.value = 'Second task';
+        form.dispatchEvent(new CustomEvent('turbo-modal:saved', { bubbles: true }));
+        expect(note.value).toBe('');
+        open({}, 'complete', '2');
+        expect(note.value).toBe('');
+    });
+
+    test('reopening a task does not inherit its completion note', () => {
+        open({}, 'complete', '1');
+        form.querySelector('[name="note"]').value = 'Completion';
+        open({}, 'reopen', '1');
+        expect(form.querySelector('[name="note"]').value).toBe('');
+    });
 
     test('Add to Agenda validates the visible court picker and excludes hidden gathering controls', () => {
         open(agendaForm);
