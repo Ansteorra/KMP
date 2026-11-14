@@ -60,12 +60,12 @@ await page.getByRole('dialog').getByRole('button',{name:'Confirm',exact:true}).c
 await expect(page.locator('[data-controller=awards-bestowal-todos]')).toContainText('Gathering required');
 const state=runPhpJson(php,{inspect:fixture.bestowalId});
 expect(state.gathering_id).toBe(null);expect(state.roaming_court).toBe(false);
-const terminal=page.getByRole('link',{name:'Mark complete: Presented',exact:true});
+const terminal=page.getByRole('button',{name:'Mark complete: Presented',exact:true});
 await terminal.press('Enter');
 await expect(page.getByRole('dialog')).toContainText('Prepare Scroll');
 await expect(page.getByRole('dialog')).toContainText('Scheduling');
 await page.screenshot({path:'/tmp/kmp-local-terminal-confirm.png'});
-await page.getByRole('dialog').getByRole('button',{name:'Confirm',exact:true}).click();
+await page.getByRole('dialog').getByRole('button',{name:'Mark Complete',exact:true}).click();
 await expect(page.locator('[data-controller=awards-bestowal-todos]')).toContainText('given; its checklist is read-only');
 await expect(page.locator('[data-controller=awards-bestowal-todos]')).toContainText('Closed — not applicable');
 await expect(page.locator('[data-controller=awards-bestowal-todos]').getByRole('link')).toHaveCount(0);

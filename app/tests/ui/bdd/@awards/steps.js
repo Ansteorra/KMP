@@ -2723,6 +2723,17 @@ Then('the bestowal terminal completion outcomes should be available', async ({ p
     await expect(item).toContainText('Terminal — marks Given');
 });
 
+const confirmBestowalCompletion = async (page, title) => {
+    const dialog = page.getByRole('dialog', { name: `Complete ${title}`, exact: true });
+    const note = dialog.getByLabel('Note (optional)', { exact: true });
+    await expect(note).toBeFocused();
+    await expect(note).toHaveValue('');
+    await Promise.all([
+        page.waitForNavigation({ waitUntil: 'load' }),
+        dialog.getByRole('button', { name: 'Mark Complete', exact: true }).click(),
+    ]);
+};
+
 When('I assign the first available gathering and complete the bestowal to-do {string}', async ({ page }, title) => {
     const gatheringFixture = ensureFutureGatheringFixture(page);
     const item = getBestowalTodoItem(page, title);
@@ -2736,13 +2747,13 @@ When('I assign the first available gathering and complete the bestowal to-do {st
     await expect(item.locator('input[name="bestowal_gathering_id"]')).not.toHaveValue('', { timeout: 5000 });
 
     await item.getByRole('button', { name: 'Assign Gathering and Complete' }).click();
-    await page.waitForLoadState('networkidle');
+    await confirmBestowalCompletion(page, title);
 });
 
 When('I complete the bestowal to-do {string}', async ({ page }, title) => {
     const item = getBestowalTodoItem(page, title);
     await expect(item).toBeVisible({ timeout: 15000 });
-    const directComplete = item.getByRole('link', { name: /Complete|Mark complete:/ });
+    const directComplete = item.getByRole('button', { name: `Mark complete: ${title}`, exact: true });
     const outcome = item.getByRole('combobox', { name: 'Completion outcome', exact: true });
     if (await outcome.count()) {
         await outcome.selectOption({ label: title });
@@ -2754,17 +2765,14 @@ When('I complete the bestowal to-do {string}', async ({ page }, title) => {
         if (await courtAssignment.count()) {
             await courtAssignment.selectOption({ index: 1 });
             await item.getByRole('button', { name: 'Assign Court and Complete' }).click();
-            await page.waitForLoadState('networkidle');
+            await confirmBestowalCompletion(page, title);
 
             return;
         }
 
         throw new Error(`No completion control found for bestowal to-do "${title}".`);
     }
-    const confirmDialog = page.getByRole('dialog', { name: 'Confirm action' });
-    await expect(confirmDialog).toBeVisible({ timeout: 10000 });
-    await confirmDialog.getByRole('button', { name: 'Confirm' }).click();
-    await page.waitForLoadState('networkidle');
+    await confirmBestowalCompletion(page, title);
 });
 
 When('I open the bestowal edit modal', async ({ page }) => {
