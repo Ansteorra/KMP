@@ -3369,6 +3369,9 @@ When('I approve consecutive recommendations with separate gathering selections',
         await expect(combo.locator('[data-ac-target="hidden"]')).toHaveValue('');
         await selectFutureGatheringFixture(combo, input, gathering);
         if (index === 1) {
+            const close = modal.getByRole('button', { name: 'Close', exact: true });
+            await close.focus();
+            await expect(close).toBeFocused();
             await page.keyboard.press('Escape');
             await expect(modal).toBeHidden();
             await expect(trigger).toBeFocused();
