@@ -8,6 +8,10 @@ Stay up to date with the latest features, improvements, and announcements for th
 
 ## KMP 1.5.14 — November 10, 2026
 
+- Keep the gathering picker available when responding to consecutive award recommendations.
+- Restore scoped Coronet Presence and Principality Court activity access for Principality scheduling staff.
+- Show full award names and specialties together in court agenda selection, planning, and printouts.
+
 - Keep completion notes attached to the selected To-Do and offer optional notes from bestowal detail and quick checklists.
 - Show award descriptions correctly when recommending an award, and omit the separator when no description is available.
 - Load bestowal details faster by batching the activity-access checks used for the gathering link.

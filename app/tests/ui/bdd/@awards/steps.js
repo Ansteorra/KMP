@@ -152,6 +152,10 @@ const FIXTURE_SETS = {
         { name: 'group-two', awardName: 'Award of the Compass Rose of Ansteorra' },
         { name: 'group-three', awardName: 'Award of the Golden Bridge of Ansteorra' },
     ],
+    'workflow consecutive crown': [
+        { name: 'first', processName: APPROVAL_PROCESS_NAMES.singleCrown },
+        { name: 'second', processName: APPROVAL_PROCESS_NAMES.singleCrown },
+    ],
     'workflow single crown': [
         { name: 'wf-crown', processName: APPROVAL_PROCESS_NAMES.singleCrown },
     ],
@@ -3339,4 +3343,65 @@ After(async ({ page }) => {
         recommendationIds: fixture.recommendationId ? [fixture.recommendationId] : [],
         actorEmail: FIXTURE_REQUESTER_EMAIL,
     });
+});
+
+When('I approve consecutive recommendations with separate gathering selections', async ({ page }) => {
+    const first = getFixture(page, 'first');
+    const second = getFixture(page, 'second');
+    const gathering = ensureFutureGatheringFixture(page);
+    await loginAs(page, getFixtureApprover(first).email);
+    await page.goto('/awards/recommendations');
+    await searchRecommendationsGrid(page, ensureFixtureSet(page).token, { allowAuditFallback: true });
+    const modal = page.locator('#recommendationWorkflowDecisionModal');
+    const combo = modal.locator('[data-approval-response-target="bestowalGathering"]');
+    const input = combo.locator('[data-ac-target="input"]');
+    const marker = await page.evaluate(() => { window.__consecutiveApproval = crypto.randomUUID(); return window.__consecutiveApproval; });
+    for (const [index, fixture] of [first, second].entries()) {
+        const row = page.locator(`tr[data-id="${fixture.id}"]`);
+        const trigger = row.locator('[data-bs-target="#recommendationWorkflowDecisionModal"]');
+        await trigger.press('Enter');
+        await expect(modal).toBeVisible();
+        await expect(modal).toBeFocused();
+        await modal.getByLabel('Approve', { exact: true }).check();
+        await expect(input).toBeVisible();
+        await expect(input).toBeEnabled();
+        await expect(input).toHaveValue('');
+        await expect(combo.locator('[data-ac-target="hidden"]')).toHaveValue('');
+        await selectFutureGatheringFixture(combo, input, gathering);
+        if (index === 1) {
+            await page.keyboard.press('Escape');
+            await expect(modal).toBeHidden();
+            await expect(trigger).toBeFocused();
+            await trigger.press('Enter');
+            await expect(modal).toBeFocused();
+            await modal.getByLabel('Approve', { exact: true }).check();
+            await expect(input).toBeEnabled();
+            await expect(combo.locator('[data-ac-target="hidden"]')).toHaveValue('');
+            await selectFutureGatheringFixture(combo, input, gathering);
+        }
+        await waitForTurboStreamResponse(page, () => modal.getByRole('button', {
+            name: 'Submit Response', exact: true,
+        }).click());
+        await expect(modal).toBeHidden();
+        await expect(trigger).toBeHidden();
+        expect(await page.evaluate(() => window.__consecutiveApproval)).toBe(marker);
+    }
+    page.__consecutiveGatheringId = gathering.id;
+});
+
+Then('both consecutive approvals should retain their selected gathering in the database', async ({ page }) => {
+    const ids = [getFixture(page, 'first').id, getFixture(page, 'second').id];
+    const rows = runPhpJson(String.raw`
+require 'vendor/autoload.php'; require 'config/bootstrap.php';
+$input = json_decode(stream_get_contents(STDIN), true);
+$l = \Cake\ORM\TableRegistry::getTableLocator();
+$rows = [];
+foreach ($l->get('Awards.Recommendations')->find()->where(['id IN' => $input['ids']]) as $rec) {
+    $b = $l->get('Awards.Bestowals')->get($rec->bestowal_id);
+    $rows[] = ['recommendation' => $rec->id, 'gathering' => $b->gathering_id];
+}
+echo json_encode($rows, JSON_THROW_ON_ERROR);
+`, { ids });
+    expect(rows).toHaveLength(2);
+    for (const row of rows) expect(row.gathering).toBe(page.__consecutiveGatheringId);
 });

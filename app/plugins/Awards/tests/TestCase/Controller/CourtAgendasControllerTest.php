@@ -296,7 +296,8 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
         $this->assertTrue($this->viewVariable('isHeraldsVersion'));
         $this->assertResponseContains('Court Agenda (Heralds)');
         $this->assertResponseContains($bestowal->getRecipientName());
-        $this->assertResponseContains('Class:');
+        $award = $this->getTableLocator()->get('Awards.Awards')->get($bestowal->award_id);
+        $this->assertResponseContains(h($award->name . ' — ' . $bestowal->specialty));
         $this->assertResponseContains('Heralds &lt;Class&gt;');
         $this->assertResponseContains(h($this->viewVariable('eventDates')));
         $this->assertResponseContains(h($this->viewVariable('segments')[0]['printHeading']));
@@ -577,7 +578,8 @@ class CourtAgendasControllerTest extends HttpIntegrationTestCase
         $this->get('/awards/court-agendas/print-agenda/' . $agenda->id);
 
         $this->assertResponseOk();
-        $this->assertResponseContains('Class:');
+        $award = $this->getTableLocator()->get('Awards.Awards')->get($bestowal->award_id);
+        $this->assertResponseContains(h($award->name . ' — ' . $bestowal->specialty));
         $this->assertResponseContains('Current &lt;Class&gt;');
         $this->assertResponseNotContains('Obsolete class');
         $this->assertResponseNotContains('Specialties:');

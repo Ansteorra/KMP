@@ -97,3 +97,11 @@ Feature: Hotwire turbo-stream grid saves (Awards)
         And I complete the pagination bestowal check on two visible rows
         Then the "bestowals" grid should retain page 3 with 10 rows per page and fixture search
         And the selected pagination bestowal checks should be completed
+
+    Scenario: Consecutive recommendation approvals retain an available gathering picker
+        Given I am logged in as "admin@amp.ansteorra.org"
+        And I create recommendation fixtures for "workflow consecutive crown"
+        When the workflow engine processes pending work
+        And I approve consecutive recommendations with separate gathering selections
+        And the workflow engine processes pending work
+        Then both consecutive approvals should retain their selected gathering in the database

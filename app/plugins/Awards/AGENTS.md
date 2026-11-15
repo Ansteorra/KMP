@@ -106,6 +106,13 @@ Own award domains, levels, recommendations, recommendation feedback approvals, b
   current membership, and warrant requirements. Its migration grants existing Crown award scheduling roles and
   maps existing Crown Presence Royal Progress activities, preserving unrelated grants and catalogue entries.
   Shared court schedule permissions do not confer Crown Presence or other Royal Progress access.
+- Principality activity setup uses `PrincipalityActivityAccessService` from its corrective migration and
+  development persona seed. Grant activity-only Coronet Presence access to Principality scheduling roles,
+  and Principality Court to scheduling and court-planning roles, with branch-and-children scope,
+  membership and configured warrant enforcement. Preserve domain scopes, custom mappings, and warrant records.
+- Agenda labels use the full award name with authorized specialties beside it, including candidate lists
+  and print. Preserve the item specialty visibility option and blocked-bestowal redaction; do not invent
+  specialties where none were recorded.
 - Each scheduled award-giving activity occurrence has its own agenda section regardless of its name or court level.
   Builder and print preparation discover eligible sessions without requiring bestowals first. New sections reject
   ineligible activities and duplicate sessions; bestowal placement remains specific to the award/activity link.

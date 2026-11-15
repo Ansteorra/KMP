@@ -60,9 +60,10 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
         }
         $l->get('Awards.Bestowals')->saveOrFail($l->get('Awards.Bestowals')->newEntity([
             'member_sca_name' => 'Synthetic Court Recipient', 'award_id' => $award->id,
+            'specialty' => 'Hospitality & service',
             'gathering_id' => $g->id, 'roaming_court' => false, 'lifecycle_status' => 'open', 'source' => 'ad_hoc',
         ]));
-        return ['gatheringId' => $g->id, 'name' => $name, 'activityId' => $activity->id,
+        return ['agendaId' => $agenda->id, 'awardName' => $award->name, 'gatheringId' => $g->id, 'name' => $name, 'activityId' => $activity->id,
             'firstSegmentId' => $segments[0]->id, 'secondSegmentId' => $segments[1]->id];
     });
 }), JSON_THROW_ON_ERROR);`;
@@ -164,12 +165,22 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
         await page.getByRole('button', { name: 'Add to court', exact: true }).click();
         await page.getByRole('button', { name: 'Add Synthetic Court Recipient to this court', exact: true }).click();
         await expect(items).toHaveCount(4);
+        await expect(items.filter({ hasText: 'Synthetic Court Recipient' })).toContainText(
+            `${fixture.awardName} — Hospitality & service`,
+        );
         await page.getByRole('button', { name: 'Add to court', exact: true }).click();
         const tools = page.locator('#court-agenda-tools');
         await tools.getByLabel('Title', { exact: true }).fill('Mobile announcement');
         await tools.getByRole('button', { name: 'Add', exact: true }).click();
         await expect(items).toHaveCount(5);
         await expect(items.last().getByRole('heading')).toHaveText('Mobile announcement');
+        for (const version of ['', '?version=heralds']) {
+            const print = await context.newPage();
+            await print.goto(`/awards/court-agendas/print-agenda/${fixture.agendaId}${version}`);
+            const row = print.getByRole('row').filter({ hasText: 'Synthetic Court Recipient' });
+            await expect(row.getByRole('cell').nth(2)).toHaveText(`${fixture.awardName} — Hospitality & service`);
+            await print.close();
+        }
         expect(errors).toEqual([]);
         console.log(JSON.stringify({ desktop: 'passed', widths: [390, 320], reordering: 'persisted',
             editing: 'persisted', adding: 'passed', keyboardAndFocus: 'passed', screenshots: output }));

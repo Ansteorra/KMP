@@ -160,12 +160,6 @@ $title = ($isHeraldsVersion ? __('Court Agenda (Heralds)') : __('Court Agenda'))
                             </td>
                             <td>
                                 <?= h($itemData['awardLabel'] ?: ($item->planned_action ?? $item->title ?? '')) ?>
-                                <?php if ($itemData['specialties'] !== []) : ?>
-                                    <div class="notes">
-                                        <strong><?= __('Class:') ?></strong>
-                                        <?= h(implode(', ', $itemData['specialties'])) ?>
-                                    </div>
-                                <?php endif; ?>
                             </td>
                             <td>
                                 <?php if ($isHeraldsVersion) : ?>

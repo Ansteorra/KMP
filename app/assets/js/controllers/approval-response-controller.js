@@ -274,12 +274,26 @@ class ApprovalResponseController extends Controller {
     _setBestowalGatheringValue(value) {
         if (!this.hasBestowalGatheringTarget) return
 
+        const autocomplete = window.Stimulus?.getControllerForElementAndIdentifier?.(
+            this.bestowalGatheringTarget, 'ac',
+        )
+        if (autocomplete && !value) {
+            // Clear the widget's selection lock and pending results as well as its fields.
+            autocomplete.clear()
+            return
+        }
+
         const hidden = this.bestowalGatheringTarget.querySelector('[data-ac-target="hidden"]')
         if (hidden) hidden.value = value
         const hiddenText = this.bestowalGatheringTarget.querySelector('[data-ac-target="hiddenText"]')
         if (hiddenText) hiddenText.value = ''
         const input = this._getBestowalGatheringInput()
-        if (input) input.value = ''
+        if (input) {
+            input.value = ''
+            input.disabled = false
+        }
+        const clearButton = this.bestowalGatheringTarget.querySelector('[data-ac-target="clearBtn"]')
+        if (clearButton) clearButton.disabled = true
         if (!hidden && !input) this.bestowalGatheringTarget.value = value
     }
 

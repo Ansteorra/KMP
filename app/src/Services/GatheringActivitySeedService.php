@@ -83,6 +83,7 @@ class GatheringActivitySeedService
         $rows = [
             'Royal Visit' => ['Royal Progress', 'crown', 0, 'gold'],
             'Crown Presence' => ['Royal Progress', 'crown', 2, 'gold'],
+            'Coronet Presence' => ['Royal Progress', 'crown', 3, 'gold'],
             'Laurel Circle' => ['Order Circle', 'laurel-wreath', 10, 'green'],
             'Pelican Circle' => ['Order Circle', 'pelican-vulning', 11, 'crimson'],
             'Chivalric Circle' => ['Order Circle', 'chain-necklace', 12, 'gold'],
@@ -96,6 +97,7 @@ class GatheringActivitySeedService
             "Arc d'Or Circle" => ['Order Circle', 'archery', 20, 'green'],
             'Kingdom Court' => ['Court', 'court-crown', 20, 'gold'],
             'Baronial Court' => ['Court', 'court-pearls', 21, 'purple'],
+            'Principality Court' => ['Court', 'court-crown', 22, 'gold'],
             'Gate' => ['Business', 'door-enter', 30, 'slate'],
             'Armored Combat' => ['Martial', 'armored-combat', 40, 'crimson'],
             'Steel Combat' => ['Martial', 'fencing', 41, 'blue'],

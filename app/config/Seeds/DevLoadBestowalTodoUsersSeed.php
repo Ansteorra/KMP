@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Model\Entity\Permission;
 use App\Model\Entity\WarrantRoster;
 use App\Services\GatheringActivitySeedService;
+use Awards\Services\PrincipalityActivityAccessService;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 use Migrations\BaseSeed;
@@ -255,6 +256,7 @@ class DevLoadBestowalTodoUsersSeed extends BaseSeed
 
         // Persona rebuilding removes managed grants; restore event access before warrant reconciliation.
         $this->ensureCrownGatheringAccess($adminId, $now);
+        (new PrincipalityActivityAccessService())->ensure();
         $this->ensureManagedAssignmentWarrants($warrantRosterId, $adminId, $now);
     }
 

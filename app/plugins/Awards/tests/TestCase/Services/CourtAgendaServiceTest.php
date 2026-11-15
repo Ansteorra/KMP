@@ -66,6 +66,7 @@ class CourtAgendaServiceTest extends BaseTestCase
             'status' => 'Scheduling',
             'source' => Bestowal::SOURCE_AD_HOC,
             'stack_rank' => 10,
+            'specialty' => 'Court specialty regression',
         ]);
         $bestowals->saveOrFail($bestowal);
         $secondBestowal = $bestowals->newEntity([
@@ -102,6 +103,17 @@ class CourtAgendaServiceTest extends BaseTestCase
         $this->assertNotEmpty($viewModel['segments']);
         $this->assertGreaterThan(0, $viewModel['totalMinutes']);
         $this->assertSame(0, $legacySegmentCount);
+        $allItems = array_merge(...array_column($viewModel['segments'], 'items'));
+        $row = array_values(array_filter($allItems, fn($data) => $data['entity']->bestowal_id === $bestowal->id))[0];
+        $this->assertSame($award->name . ' — Court specialty regression', $row['awardLabel']);
+        $item = $row['entity'];
+        $item->include_specialties = false;
+        $this->getTableLocator()->get('Awards.CourtAgendaItems')->saveOrFail($item);
+        $model = $this->service->buildAgendaViewModel((int)$agenda->id);
+        $allItems = array_merge(...array_column($model['segments'], 'items'));
+        $row = array_values(array_filter($allItems, fn($data) => $data['entity']->bestowal_id === $bestowal->id))[0];
+        $this->assertSame($award->name, $row['awardLabel']);
+        $this->assertSame([], $row['specialties']);
     }
 
     /**

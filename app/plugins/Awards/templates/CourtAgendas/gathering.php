@@ -358,12 +358,6 @@ if ($selectedSegmentId !== null) {
 
                                             <?php if ($bestowal !== null) : ?>
                                                 <dl class="row small mb-2">
-                                                    <?php if ($itemData['specialties'] !== []) : ?>
-                                                        <dt class="col-sm-3"><?= __('Specialties') ?></dt>
-                                                        <dd class="col-sm-9">
-                                                            <?= h(implode(', ', $itemData['specialties'])) ?>
-                                                        </dd>
-                                                    <?php endif; ?>
                                                     <dt class="col-sm-3"><?= __('Timing hint') ?></dt>
                                                     <dd class="col-sm-9"><?= h($itemData['durationHint']) ?></dd>
                                                     <?php if (!empty($bestowal->person_to_notify)) : ?>

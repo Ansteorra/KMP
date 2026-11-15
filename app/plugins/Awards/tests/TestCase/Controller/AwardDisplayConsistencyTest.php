@@ -75,7 +75,7 @@ class AwardDisplayConsistencyTest extends HttpIntegrationTestCase
         foreach (['gathering/' . $gathering->id, 'print-agenda/' . $agenda->id] as $action) {
             $this->get('/awards/court-agendas/' . $action);
             $this->assertResponseOk();
-            $this->assertResponseContains(h($actualAward->abbreviation));
+            $this->assertResponseContains(h($actualAward->name . ' — ' . $bestowal->specialty));
             $this->assertResponseContains(h($bestowal->specialty));
         }
     }

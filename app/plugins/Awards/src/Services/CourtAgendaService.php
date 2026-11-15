@@ -1363,15 +1363,22 @@ class CourtAgendaService
 
     /**
      * @param \Awards\Model\Entity\Bestowal $bestowal Bestowal.
+     * @param array<string>|null $specialties Visible specialties; null uses bestowal data.
      * @return string
      */
-    private function bestowalAwardLabel(Bestowal $bestowal): string
+    private function bestowalAwardLabel(Bestowal $bestowal, ?array $specialties = null): string
     {
         if ($bestowal->award === null) {
             return '';
         }
 
-        return (string)($bestowal->award->abbreviation ?? $bestowal->award->name ?? '');
+        $label = trim((string)$bestowal->award->name);
+        if ($label === '') {
+            $label = trim((string)$bestowal->award->abbreviation);
+        }
+        $specialties ??= $this->bestowalSpecialties($bestowal);
+
+        return $label . ($specialties === [] ? '' : ' — ' . implode(', ', $specialties));
     }
 
     /**
@@ -1996,7 +2003,7 @@ class CourtAgendaService
             return '';
         }
 
-        return (string)($item->bestowal->award->abbreviation ?? $item->bestowal->award->name ?? '');
+        return $this->bestowalAwardLabel($item->bestowal, $this->recommendationSpecialties($item));
     }
 
     /**
@@ -2051,20 +2058,40 @@ class CourtAgendaService
             return [];
         }
 
-        $bestowalSpecialty = trim((string)($item->bestowal->specialty ?? ''));
+        return $this->bestowalSpecialties($item->bestowal);
+    }
+
+    /**
+     * @param \Awards\Model\Entity\Bestowal $bestowal Authorized bestowal.
+     * @return array<string>
+     */
+    private function bestowalSpecialties(Bestowal $bestowal): array
+    {
+        $bestowalSpecialty = $this->specialtyText($bestowal->specialty);
         if ($bestowalSpecialty !== '') {
             return [$bestowalSpecialty];
         }
 
         $specialties = [];
-        foreach ($item->bestowal->recommendations ?? [] as $recommendation) {
-            $specialty = trim((string)($recommendation->specialty ?? ''));
+        foreach ($bestowal->recommendations ?? [] as $recommendation) {
+            $specialty = $this->specialtyText($recommendation->specialty);
             if ($specialty !== '') {
                 $specialties[] = $specialty;
             }
         }
 
         return array_values(array_unique($specialties));
+    }
+
+    /**
+     * @param mixed $value Stored optional specialty.
+     * @return string
+     */
+    private function specialtyText(mixed $value): string
+    {
+        $text = trim((string)$value);
+
+        return in_array(strtolower($text), ['not set', 'no specialties available'], true) ? '' : $text;
     }
 
     /**

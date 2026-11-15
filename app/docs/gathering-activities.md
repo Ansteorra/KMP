@@ -389,3 +389,19 @@ For court builder layout changes, run
 `node tests/ui/support/court-agenda-browser-check.cjs` against the local Docker stack
 to check saved ordering, notes, court selection, mobile additions, and keyboard focus.
 Build Vite assets after changing icon catalogue imports or styles.
+
+### Principality activity access
+
+`Can Manage Coronet Presence` grants activity-only access to Coronet Presence (including
+named Coronet Presence catalogue entries) for roles with Principality Award Schedule
+Management. `Can Manage Principality Court` covers Principality Court for roles with
+Principality Award Schedule Management or Principality Court Management. Both use the
+role assignment branch and its descendants, require current membership and, when the
+tenant enables warrant enforcement, a current warrant. They do not grant general event
+editing or unrelated activities. Existing domain permission scopes remain unchanged.
+
+The corrective Awards migration maps existing activities and grants eligible existing
+roles. Development catalogue/persona seeds restore the same rules after reset, including
+Coronet Presence and Principality Court catalogue entries. Neither setup changes warrant
+records or the tenant's warrant enforcement setting. Deleted or unsafe existing target
+permissions stop setup; compatible additional restrictions and custom activity rules persist.
