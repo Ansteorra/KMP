@@ -147,6 +147,31 @@ async function runSecurityBoundaries(browser) {
             expect((await replacement.request.get(detail, { headers })).status()).toBe(200);
             const admin = await session(tenant, tenant === 'kmp' ? 'admin@amp.ansteorra.org' : 'admin@amp2demo.com');
             expect((await admin.request.get(candidates + '?context=reassign', { headers })).status()).toBe(200);
+            // Warm administrator and target graphs, then switch twice in the same browser session.
+            // An unrelated target must lose admin access; the assigned target keeps only its own approval access.
+            for (const [target, canReadApproval] of [[fixture.members.unrelated, false], [fixture.members.replacement, true]]) {
+                expect((await admin.request.get('/roles', { headers })).status()).toBe(200);
+                expect((await admin.request.get('/roles', { headers })).status()).toBe(200);
+                await admin.goto('/members/view/' + target.id);
+                await admin.getByRole('link', { name: 'Impersonate Member', exact: true }).click();
+                const confirm = admin.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true });
+                await expect(confirm).toBeVisible();
+                await confirm.focus();
+                await Promise.all([admin.waitForNavigation(), confirm.press('Enter')]);
+                await expect(admin.getByRole('link', { name: 'Return to admin account', exact: true })).toBeVisible();
+                for (let warm = 0; warm < 2; warm++) {
+                    expect((await admin.request.get('/roles', { headers })).status()).toBe(403);
+                    expect((await admin.request.get(detail, { headers })).status()).toBe(canReadApproval ? 200 : 403);
+                    await denied(admin, candidates + '?context=reassign');
+                }
+                await admin.getByRole('link', { name: 'Return to admin account', exact: true }).click();
+                const restore = admin.getByRole('dialog').getByRole('button', { name: 'Confirm', exact: true });
+                await expect(restore).toBeVisible();
+                await restore.focus();
+                await Promise.all([admin.waitForNavigation(), restore.press('Enter')]);
+                expect((await admin.request.get('/roles', { headers })).status()).toBe(200);
+                expect((await admin.request.get(candidates + '?context=reassign', { headers })).status()).toBe(200);
+            }
             fixtures.at(-1).page = replacement;
         }
         // The same numeric ID exists in both databases with a different private comment.
@@ -159,7 +184,7 @@ async function runSecurityBoundaries(browser) {
             expect(body).not.toContain(foreign.title);
         }
         expect(errors).toEqual([]);
-        return 'PASS: two-tenant approval authorization, candidate restrictions, reassignment revocation, GET/POST logout, keyboard confirmation, and axe.';
+        return 'PASS: two-tenant approval authorization, warm-cache impersonation/restore with two targets, candidate restrictions, reassignment revocation, GET/POST logout, keyboard confirmation, and axe.';
     } finally {
         try {
             for (const context of contexts.reverse()) await context.close();

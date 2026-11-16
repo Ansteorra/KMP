@@ -192,6 +192,33 @@ class ReadModelCacheTest extends BaseTestCase
         }
     }
 
+    public function testAuthorizationLoadCrossingExpiryCannotExtendAnOldGrant(): void
+    {
+        $db = ConnectionManager::get('test');
+        $role = $db->execute('SELECT id,start_on,expires_on,revoker_id FROM member_roles WHERE member_id = :member LIMIT 1', [
+            'member' => self::TEST_MEMBER_BRYCE_ID,
+        ])->fetch('assoc');
+        $now = new DateTime('2030-01-15 12:00:00', 'UTC');
+        $key = 'slow-authorization-' . bin2hex(random_bytes(8));
+        try {
+            $db->update('member_roles', ['start_on' => '2030-01-15 11:00:00',
+                'expires_on' => '2030-01-15 12:00:02', 'revoker_id' => null], ['id' => $role['id']]);
+            DateTime::setTestNow($now);
+            $this->request();
+            $deadline = static fn(): int => MemberSecurityGraph::validUntil(self::TEST_MEMBER_BRYCE_ID);
+            ReadModelCache::remember($key, static function () use ($now): string {
+                // A query began while the grant was valid, but finishes after its expiry.
+                DateTime::setTestNow($now->addSeconds(3));
+
+                return 'previously allowed';
+            }, $deadline);
+            $this->request();
+            $this->assertSame('denied', ReadModelCache::remember($key, static fn() => 'denied', $deadline));
+        } finally {
+            $db->update('member_roles', array_diff_key($role, ['id' => true]), ['id' => $role['id']]);
+        }
+    }
+
     public function testEveryDependencyInvalidatesEvenForRawBulkStatements(): void
     {
         $db = ConnectionManager::get('test');

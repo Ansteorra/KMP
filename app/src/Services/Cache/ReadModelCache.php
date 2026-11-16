@@ -63,12 +63,15 @@ final class ReadModelCache
         ) {
             return $cached['value'];
         }
-        $value = $load();
+        // Capture deadlines before loading: a query can finish after a grant's expiry.
         $until = DateTime::now()->getTimestamp() + 600;
         if ($validUntil !== null) {
             $until = min($until, $validUntil());
         }
-        Cache::write($cacheKey, ['until' => $until, 'value' => $value]);
+        $value = $load();
+        if ($until > DateTime::now()->getTimestamp()) {
+            Cache::write($cacheKey, ['until' => $until, 'value' => $value]);
+        }
 
         return $value;
     }
