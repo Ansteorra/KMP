@@ -37,13 +37,6 @@ class WorkflowApprovalsTable extends BaseTable
     public const REQUEST_TITLE_MAX_LENGTH = 255;
 
     /**
-     * Request-local member approval scope cache.
-     *
-     * @var array<int, array<string, mixed>>
-     */
-    private static array $memberApprovalScopeCache = [];
-
-    /**
      * Request-local pending approval eligibility cache.
      *
      * @var array<string, array<\App\Model\Entity\WorkflowApproval>>
@@ -1238,10 +1231,6 @@ class WorkflowApprovalsTable extends BaseTable
      */
     private static function getMemberApprovalScope(int $memberId): array
     {
-        if (isset(self::$memberApprovalScopeCache[$memberId])) {
-            return self::$memberApprovalScopeCache[$memberId];
-        }
-
         // Source roles and permissions through the canonical cached loader so the
         // approval scope honours warrant/membership validation and permission
         // scoping rules (Global vs branch) instead of querying member_roles directly.
@@ -1286,7 +1275,7 @@ class WorkflowApprovalsTable extends BaseTable
             }
         }
 
-        return self::$memberApprovalScopeCache[$memberId] = [
+        return [
             'permissionNames' => array_keys($permissionNamesByName),
             'roleNames' => array_keys($roleNamesByName),
             'roleIdsByBranch' => $roleIdsByBranch,
@@ -1296,7 +1285,7 @@ class WorkflowApprovalsTable extends BaseTable
     }
 
     /**
-     * Clear request-local approval scope cache.
+     * Clear pending eligibility derived from member scopes.
      *
      * Primarily useful for tests or long-running CLI workers that mutate member
      * role/office state and then need fresh approval-scope reads.
@@ -1305,7 +1294,6 @@ class WorkflowApprovalsTable extends BaseTable
      */
     public static function clearApprovalScopeCache(): void
     {
-        self::$memberApprovalScopeCache = [];
         self::clearPendingApprovalEligibilityCache();
     }
 

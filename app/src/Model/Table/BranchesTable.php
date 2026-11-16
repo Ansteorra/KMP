@@ -87,10 +87,9 @@ use Cake\Validation\Validator;
  *
  * **Caching Strategy:**
  * - Static cache keys: none (all data is dynamic)
- * - ID-based caches: descendants_[id], parents_[id] in 'branch_structure' config
- * - Group caches: 'security' group for authorization data
- * - Cache TTL: Managed by CakePHP cache configuration
- * - Invalidation: On any save operation affecting tree structure
+ * - ReadModelCache stores tenant-wide descendant/parent lookups for read requests.
+ * - Database revision triggers invalidate hierarchy changes, including bulk SQL.
+ * - Transactions and mutation requests read the current hierarchy directly.
  *
  * **Database Schema:**
  * - Standard tree behavior fields (lft, rght, parent_id)
