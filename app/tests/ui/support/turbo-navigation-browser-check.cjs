@@ -50,6 +50,20 @@ const { getUiTestEnvironment } = require('./test-environment.cjs');
         await fallback.click();
         await expect(direct).toHaveURL(/\/members(?:\?|$)/);
         await direct.close();
+        await page.goto('/gatherings/calendar');
+        const addGathering = page.getByRole('link', { name: 'Add Gathering', exact: true });
+        await expect(addGathering).toBeVisible();
+        const addRequests = [];
+        page.on('request', request => {
+            if (request.method() === 'GET' && new URL(request.url()).pathname === '/gatherings/add') {
+                addRequests.push(request.resourceType());
+            }
+        });
+        await addGathering.focus();
+        await addGathering.press('Enter');
+        await expect(page.locator('form[data-controller="gathering-form"]')).toBeVisible();
+        await expect(page).toHaveURL(/\/gatherings\/add$/);
+        assert.deepEqual(addRequests, [enabled ? 'fetch' : 'document'], 'A frame-to-document link must render once');
         assert.deepEqual(errors, []);
         console.log(`PASS ${engine}, Drive ${enabled ? 'enabled' : 'disabled'}: real Back skips local tabs and preserves list query; direct records use the list fallback`);
     } finally {

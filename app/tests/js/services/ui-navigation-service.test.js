@@ -54,6 +54,35 @@ describe('shared Turbo navigation ownership', () => {
         expect(document.forms[0]).toHaveAttribute('data-turbo', 'false');
     });
 
+    test.each([
+        ['<turbo-frame><a href="/gatherings/add" data-turbo-frame="_top">Add</a></turbo-frame>', false],
+        ['<turbo-frame target="_top"><a href="/gatherings/add">Add</a></turbo-frame>', false],
+        ['<turbo-frame target="_top"><a href="/gatherings/add" data-turbo-frame="details">Details</a></turbo-frame>', true],
+        ['<turbo-frame><a href="/gatherings/add">Details</a></turbo-frame>', true],
+    ])('Drive-off links navigate documents natively while retaining frame targets: %s', (markup, frameNavigation) => {
+        document.querySelector('meta[name="kmp-turbo-enabled"]').content = 'false';
+        document.body.innerHTML = markup;
+        const link = document.querySelector('a');
+        link.addEventListener('click', event => event.preventDefault());
+        link.click();
+        expect(link.dataset.turbo).toBe(frameNavigation ? undefined : 'false');
+    });
+
+    test('Drive-on top-level frame links remain eligible for Turbo navigation', () => {
+        document.body.innerHTML = '<turbo-frame><a href="/gatherings/add" data-turbo-frame="_top">Add</a></turbo-frame>';
+        const link = document.querySelector('a');
+        link.addEventListener('click', event => event.preventDefault());
+        link.click();
+        expect(link.dataset.turbo).toBeUndefined();
+    });
+
+    test.each([true, false])('document prefetch follows the Drive switch: %s', enabled => {
+        document.querySelector('meta[name="kmp-turbo-enabled"]').content = String(enabled);
+        const event = new Event('turbo:before-prefetch', { bubbles: true, cancelable: true });
+        document.dispatchEvent(event);
+        expect(event.defaultPrevented).toBe(!enabled);
+    });
+
     test('the Drive fallback retains explicit frame-form opt-ins', () => {
         document.querySelector('meta[name="kmp-turbo-enabled"]').content = 'false';
         document.body.innerHTML = '<form method="post" action="/members/edit/1" data-turbo="true"></form>';

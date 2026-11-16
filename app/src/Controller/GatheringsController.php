@@ -6,6 +6,7 @@ namespace App\Controller;
 use App\KMP\GridColumns\GatheringsGridColumns;
 use App\KMP\TimezoneHelper;
 use App\Model\Entity\GatheringActivity;
+use App\Policy\GatheringActivityPolicy;
 use App\Services\CsvExportService;
 use App\Services\GatheringActivityPresentationService;
 use App\Services\GatheringActivityService;
@@ -1076,6 +1077,8 @@ class GatheringsController extends AppController
             ->orderBy(['name' => 'ASC'])
             ->toArray();
 
+        // Share catalogue rules for this form while evaluating every hosting branch independently.
+        $activityPolicy = new GatheringActivityPolicy();
         $gatheringTypesByBranch = [];
         foreach (array_keys($branches) as $branchId) {
             $candidate = $this->Gatherings->newEmptyEntity();
@@ -1083,7 +1086,7 @@ class GatheringsController extends AppController
             $gatheringTypesByBranch[$branchId] = [];
             foreach ($gatheringTypesRaw as $type) {
                 foreach ($type->gathering_activities as $activity) {
-                    if (!$currentUser->checkCan('manageActivity', $candidate, $activity)) {
+                    if (!$activityPolicy->canAssign($currentUser, $activity, $candidate)) {
                         continue 2;
                     }
                 }

@@ -16,7 +16,10 @@ With `KMP_TURBO_ENABLED=true`, Turbo owns document visits.
 while tab/grid changes add local entries. Its listener runs before Turbo’s history
 observer so local Back/Forward cannot trigger a competing document restoration.
 With the switch off, native document navigation and Frames/Streams remain active,
-and the same adapter maintains local UI history.
+and the same adapter maintains local UI history. Links targeting `_top`, directly
+or through their enclosing frame, use native navigation in this mode so reload-only
+responses are not fetched once by Turbo and again by the browser. Named-frame links
+retain their frame navigation. Document prefetch is also disabled while Drive is off.
 
 Detail-tab grids keep their query in the table frame while the user works. Before
 a same-origin record link leaves the page, or a native form submits from that grid,

@@ -188,8 +188,17 @@ export function installUiNavigation(runtime) {
     window.addEventListener('popstate', restoreLocal, true);
     document.addEventListener('click', event => {
         const link = event.target.closest?.('a[href]');
-        if (driveEnabled() && link && usesNativeNavigation(link.href)) link.dataset.turbo = 'false';
+        if (!link) return;
+        const target = link.dataset.turboFrame || link.closest('turbo-frame')?.getAttribute('target');
+        // Frames can promote _top links to Drive even when session.drive is off.
+        // A reload-only response would then fetch the same document twice.
+        if ((driveEnabled() && usesNativeNavigation(link.href)) || (!driveEnabled() && target === '_top')) {
+            link.dataset.turbo = 'false';
+        }
     }, true);
+    document.addEventListener('turbo:before-prefetch', event => {
+        if (!driveEnabled()) event.preventDefault();
+    });
     document.addEventListener('submit', event => {
         if (driveEnabled() && event.target instanceof HTMLFormElement
             && usesNativeNavigation(event.submitter?.getAttribute('formaction') || event.target.action)) {

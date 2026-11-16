@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Controller;
 
 use App\KMP\GridColumns\GatheringsGridColumns;
+use App\KMP\Telemetry\RequestQueryCounter;
 use App\KMP\TimezoneHelper;
 use App\Model\Entity\ActionItem;
 use App\Model\Entity\GatheringActivity;
@@ -21,6 +22,8 @@ use DateTimeZone;
 use DOMDocument;
 use DOMXPath;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Psr\Log\LoggerInterface;
+use ReflectionProperty;
 use Waivers\Policy\GatheringWaiverPolicy;
 
 /**
@@ -561,9 +564,29 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         ]));
         Cache::clearGroup('security');
         $this->authenticateAsMember(self::TEST_MEMBER_BRYCE_ID);
-        $this->get('/gatherings/add');
+        $driver = $roles->getConnection()->getDriver();
+        $originalLogger = $driver->getLogger();
+        $wasLogging = (new ReflectionProperty($driver, 'logQueries'))->getValue($driver);
+        $ruleReads = 0;
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->method('log')->willReturnCallback(function ($level, $message, $context) use (&$ruleReads): void {
+            if (str_contains((string)$message, 'FROM gathering_activity_assignment_permissions')) {
+                $ruleReads++;
+            }
+        });
+        $driver->setLogger(new RequestQueryCounter($logger));
+        $driver->enableQueryLogging();
+        try {
+            $this->get('/gatherings/add');
+        } finally {
+            (new ReflectionProperty($driver, 'logger'))->setValue($driver, $originalLogger);
+            if (!$wasLogging) {
+                $driver->disableQueryLogging();
+            }
+        }
 
         $this->assertResponseOk();
+        $this->assertSame(1, $ruleReads, 'Branches and template activities must share one rules read.');
         $choices = $this->viewVariable('gatheringTypesByBranch');
         $this->assertContains($restricted->id, array_column($choices[self::TEST_BRANCH_STARGATE_ID], 'value'));
         $this->assertNotContains($restricted->id, array_column($choices[self::KINGDOM_BRANCH_ID], 'value'));

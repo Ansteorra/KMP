@@ -319,7 +319,9 @@ operator resolution.
 
 Gathering creation reauthorizes the submitted hosting branch on the server. Moving
 an existing gathering requires creation authority in the destination group as well
-as editing authority over the original event. Form dropdowns alone do not enforce scope.
+as editing authority over the original event. Form dropdowns alone do not enforce scope. The add form shares one activity-rule
+catalogue read across its branch/type choices, while evaluating assignment authority
+separately for every hosting branch.
 
 `node tests/ui/support/local-calendar-deputy-browser-check.cjs` runs an additive
 local browser check with synthetic accounts, gatherings and a real waiver upload;
