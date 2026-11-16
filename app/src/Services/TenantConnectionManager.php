@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\KMP\Telemetry\RequestQueryCounter;
 use App\KMP\TenantContext;
 use App\KMP\TenantMetadata;
 use App\Services\Platform\AdministrativeDatabase;
@@ -62,9 +63,15 @@ class TenantConnectionManager
         }
         ConnectionManager::alias(self::CONNECTION_ALIAS, 'default');
         FactoryLocator::add('Table', new TableLocator());
-        $restoreMail = $this->mailConfigurator->apply($tenant);
+        $restoreMail = static function (): void {
+        };
 
         try {
+            if (RequestQueryCounter::currentRequestContext() !== []) {
+                ConnectionManager::get('default')->getDriver()->setLogger(RequestQueryCounter::instance());
+            }
+            $restoreMail = $this->mailConfigurator->apply($tenant);
+
             return TenantContext::with($tenant, $callback);
         } finally {
             $restoreMail();

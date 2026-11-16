@@ -31,6 +31,7 @@ async function login(page, email) {
 async function logout(page) {
     try {
         await page.goto(`${BASE_URL}/members/logout`, { waitUntil: 'networkidle' });
+        await page.locator('section[aria-labelledby="sign-out-heading"]').getByRole('button', { name: 'Sign out', exact: true }).click();
     } catch (e) { /* ignore */ }
 }
 

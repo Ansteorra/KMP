@@ -7,6 +7,7 @@ use App\Controller\DataverseGridTrait;
 use App\KMP\CaseInsensitiveQuery;
 use App\Services\CsvExportService;
 use Awards\KMP\GridColumns\BestowalTodoTemplatesGridColumns;
+use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
 use Awards\Services\BestowalTodoMaterializationService;
 use Cake\Http\Exception\NotFoundException;
@@ -481,6 +482,11 @@ class BestowalTodoTemplatesController extends AppController
 
         $data['is_gating'] = !empty($data['is_gating']);
         $data['is_terminal'] = !empty($data['is_terminal']);
+        $data['is_terminal_lead'] = $data['is_terminal'] && !empty($data['is_terminal_lead']);
+        $terminalStatus = trim((string)($data['terminal_status'] ?? ''));
+        $data['terminal_status'] = strcasecmp($terminalStatus, 'Given') === 0 || $terminalStatus === ''
+            ? Bestowal::LIFECYCLE_GIVEN
+            : $terminalStatus;
 
         unset(
             $data['role_source_id'],

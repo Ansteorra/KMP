@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Awards\Model\Entity;
 
 use App\Model\Entity\BaseEntity;
+use App\Model\Entity\OrderedGatheringActivitiesTrait;
 
 /**
  * Award Entity - Individual award configuration with hierarchical organization.
@@ -43,6 +44,8 @@ use App\Model\Entity\BaseEntity;
  */
 class Award extends BaseEntity
 {
+    use OrderedGatheringActivitiesTrait;
+
     /**
      * @var array<string, bool>
      */

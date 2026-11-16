@@ -28,7 +28,7 @@ echo $this->Modal->create(__("Update Profile Photo"), [
 ]); ?>
 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-        <i class="bi bi-person-square text-primary me-1" aria-hidden="true"></i>
+        <kmp-icon name="user-square-rounded" class="text-primary me-1" aria-hidden="true"></kmp-icon>
         <?= __("Profile Photo") ?>
     </legend>
     <?php if ($canPartialEdit): ?>
@@ -44,12 +44,7 @@ echo $this->Modal->create(__("Update Profile Photo"), [
             <div data-face-photo-validator-target="warning" class="d-none m-2"></div>
 
             <div class="card-body text-center">
-                <svg class="bi bi-person-square text-secondary text-center" width="200" height="200" fill="currentColor"
-                    viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" data-image-preview-target="loading">
-                    <path d="M9 11c0 1-1 1-1 1s-1 0-1-1 1-2 1-2 1 1 1 2" />
-                    <path
-                        d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm10.5 3a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0M4.5 7a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0M8 8a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5m-5 5.5a3.5 3.5 0 0 1 7 0z" />
-                </svg>
+                <kmp-icon name="user-square-rounded" class="text-secondary text-center" style="--kmp-icon-size:200px" data-image-preview-target="loading" aria-hidden="true"></kmp-icon>
                 <img hidden alt="<?= __('Profile photo preview') ?>" class="w-100"
                     data-image-preview-target="preview">
             </div>

@@ -223,7 +223,7 @@ class ApprovalResponseController extends Controller {
                         data-approval-response-target="decision"
                         data-action="change->approval-response#onDecisionChange">
                     <label class="form-check-label text-success fw-semibold" for="decisionApprove">
-                        <i class="bi bi-check-circle me-1"></i>${this._escHtml(this._approveLabel)}
+                        <kmp-icon name="circle-check" class="me-1" aria-hidden="true"></kmp-icon>${this._escHtml(this._approveLabel)}
                     </label>
                 </div>
                 <div class="form-check"${rejectHidden}>
@@ -231,7 +231,7 @@ class ApprovalResponseController extends Controller {
                         data-approval-response-target="decision"
                         data-action="change->approval-response#onDecisionChange">
                     <label class="form-check-label text-danger fw-semibold" for="decisionReject">
-                        <i class="bi bi-x-circle me-1"></i>Reject
+                        <kmp-icon name="circle-x" class="me-1" aria-hidden="true"></kmp-icon>Reject
                     </label>
                 </div>`
             return
@@ -274,12 +274,26 @@ class ApprovalResponseController extends Controller {
     _setBestowalGatheringValue(value) {
         if (!this.hasBestowalGatheringTarget) return
 
+        const autocomplete = window.Stimulus?.getControllerForElementAndIdentifier?.(
+            this.bestowalGatheringTarget, 'ac',
+        )
+        if (autocomplete && !value) {
+            // Clear the widget's selection lock and pending results as well as its fields.
+            autocomplete.clear()
+            return
+        }
+
         const hidden = this.bestowalGatheringTarget.querySelector('[data-ac-target="hidden"]')
         if (hidden) hidden.value = value
         const hiddenText = this.bestowalGatheringTarget.querySelector('[data-ac-target="hiddenText"]')
         if (hiddenText) hiddenText.value = ''
         const input = this._getBestowalGatheringInput()
-        if (input) input.value = ''
+        if (input) {
+            input.value = ''
+            input.disabled = false
+        }
+        const clearButton = this.bestowalGatheringTarget.querySelector('[data-ac-target="clearBtn"]')
+        if (clearButton) clearButton.disabled = true
         if (!hidden && !input) this.bestowalGatheringTarget.value = value
     }
 

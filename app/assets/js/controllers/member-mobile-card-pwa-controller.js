@@ -205,7 +205,7 @@ class MemberMobileCardPWA extends MobileControllerBase {
         toast.style.zIndex = '9999';
         toast.setAttribute('data-member-mobile-card-pwa-target', 'updateToast');
         toast.innerHTML = `
-            <i class="bi bi-arrow-repeat me-2"></i>
+            <kmp-icon name="repeat" class="me-2" aria-hidden="true"></kmp-icon>
             Update available - tap to refresh
             <button type="button" class="btn-close" data-action="click->member-mobile-card-pwa#dismissUpdate"></button>
         `;

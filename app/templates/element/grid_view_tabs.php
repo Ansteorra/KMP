@@ -26,13 +26,16 @@ $showViewTabs = $gridState['config']['showViewTabs'] ?? true;
                 <li class="d-none" data-no-all-tab></li>
             <?php endif; ?>
         </ul>
+        <div class="btn-group flex-shrink-0 mb-1" data-view-actions-container hidden></div>
         <?php if ($canAddViews) : ?>
             <button type="button" class="btn btn-outline-secondary flex-shrink-0 mb-1"
                 data-action="click-><?= h($controllerName) ?>#saveView"
                 title="<?= h(__('Save current settings as a new view')) ?>"
                 aria-label="<?= h(__('Save current settings as a new view')) ?>">
-                <i class="bi bi-plus-lg" aria-hidden="true"></i>
-                <span class="visually-hidden"><?= h(__('Save view')) ?></span>
+                <kmp-icon name="plus"  aria-hidden="true"></kmp-icon>
+                <span class="<?= !empty($gridState['config']['showSaveViewLabel']) ? '' : 'visually-hidden' ?>">
+                    <?= h(__('Save view')) ?>
+                </span>
             </button>
         <?php endif; ?>
     </div>

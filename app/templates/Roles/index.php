@@ -26,7 +26,7 @@ $this->assign('title', __('Roles'));
                 <?= $this->Html->link(
                     __(' Add Role'),
                     ['action' => 'add'],
-                    ['class' => 'btn btn-primary bi bi-plus-circle']
+                    ['class' => 'btn btn-primary', 'icon' => 'circle-plus']
                 ) ?>
             <?php endif; ?>
         </div>

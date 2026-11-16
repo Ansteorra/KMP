@@ -9,7 +9,7 @@ describe('PublicGatheringController', () => {
         document.body.innerHTML = `
             <div data-controller="public-gathering">
                 <a class="email-link" data-email="dGVzdEBleGFtcGxlLmNvbQ==">Email</a>
-                <a class="email-link" data-email="aW5mb0BleGFtcGxlLmNvbQ=="><i class="bi bi-envelope"></i></a>
+                <a class="email-link" data-email="aW5mb0BleGFtcGxlLmNvbQ=="><kmp-icon name="mail"  aria-hidden="true"></kmp-icon></a>
             </div>
         `;
 

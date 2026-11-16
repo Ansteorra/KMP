@@ -1,6 +1,14 @@
 #!/bin/bash
 set -e
 
+# Bound short HTTP work independently from the separate live gateway connections.
+export APACHE_MAX_REQUEST_WORKERS="${APACHE_MAX_REQUEST_WORKERS:-16}"
+if ! [[ "$APACHE_MAX_REQUEST_WORKERS" =~ ^[1-9][0-9]{0,2}$ ]] \
+    || [ "$APACHE_MAX_REQUEST_WORKERS" -lt 4 ] || [ "$APACHE_MAX_REQUEST_WORKERS" -gt 128 ]; then
+    echo 'ERROR: APACHE_MAX_REQUEST_WORKERS must be an integer between 4 and 128.' >&2
+    exit 64
+fi
+
 case "${KMP_DB_DRIVER:-postgres}" in
     postgres|pgsql) ;;
     *) echo 'ERROR: KMP supports PostgreSQL only.' >&2; exit 1 ;;
@@ -180,6 +188,13 @@ mkdir -p /var/www/html/logs \
 chown -R www-data:www-data /var/www/html/logs /var/www/html/tmp /var/www/html/images 2>/dev/null || true
 chmod -R 775 /var/www/html/logs /var/www/html/tmp /var/www/html/images 2>/dev/null || true
 
+# Mount persistent storage here when using the local public asset adapter.
+if [ "${PUBLIC_ASSETS_ADAPTER:-local}" = "local" ]; then
+    mkdir -p /var/www/html/webroot/public-assets
+    chown www-data:www-data /var/www/html/webroot/public-assets
+    chmod 755 /var/www/html/webroot/public-assets
+fi
+
 # ---------------------------------------------------------------------------
 # 5. Migration lock & auto-migrate
 # ---------------------------------------------------------------------------
@@ -310,6 +325,23 @@ sed -ri "s/<VirtualHost \\*:[0-9]+>/<VirtualHost *:${APACHE_PORT}>/" /etc/apache
 # ---------------------------------------------------------------------------
 # 8. Start application
 # ---------------------------------------------------------------------------
+if [ "${KMP_DB_POOL_ENABLED:-false}" = 'true' ] && [ "${1:-}" = 'apache2-foreground' ]; then
+    install -d -m 0700 -o www-data -g www-data /run/kmp-db-pool
+    runuser -u www-data -- php /opt/docker/db-pool.php render
+    runuser -u www-data -- /bin/bash /opt/docker/run-db-pool.sh &
+    pool_ready=false
+    for pool_attempt in $(seq 1 30); do
+        if runuser -u www-data -- php /opt/docker/db-pool.php check; then
+            pool_ready=true
+            break
+        fi
+        sleep 1
+    done
+    if [ "$pool_ready" != 'true' ]; then
+        echo 'ERROR: PostgreSQL application pool is not ready.' >&2
+        exit 1
+    fi
+fi
 echo "=== KMP Production Container Ready ==="
 echo "  Listening on port ${APACHE_PORT}"
 

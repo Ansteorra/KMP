@@ -1,3 +1,4 @@
+import { createIcon } from '../services/icon-service.js';
 import { Controller } from "@hotwired/stimulus";
 
 /**
@@ -87,8 +88,7 @@ class TimezoneInputController extends Controller {
                 notice.removeChild(notice.firstChild);
             }
 
-            const icon = document.createElement('i');
-            icon.classList.add('bi', 'bi-clock');
+            const icon = createIcon('clock');
             notice.appendChild(icon);
 
             notice.appendChild(document.createTextNode(` ${noticeText}`));

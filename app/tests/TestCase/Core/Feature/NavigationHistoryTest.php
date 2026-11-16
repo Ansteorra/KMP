@@ -4,168 +4,104 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Core\Feature;
 
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
-use Cake\Event\EventManager;
+use DOMDocument;
+use DOMXPath;
 
+/** Browser history owns return context; PHP renders only an authorized fallback. */
 class NavigationHistoryTest extends HttpIntegrationTestCase
 {
-    private array $history;
-    private mixed $captureHistory;
-    private mixed $recordedHistory = null;
-
     protected function setUp(): void
     {
         parent::setUp();
         $this->authenticateAsSuperUser();
-        $this->history = ['/gatherings/calendar', '/members/view/' . self::ADMIN_MEMBER_ID];
-        $this->session(['pageStack' => $this->history, 'pageStackVersion' => 2]);
-        $this->captureHistory = function ($event): void {
-            $this->recordedHistory = $event->getSubject()->getRequest()->getSession()->read('pageStack');
-        };
-        EventManager::instance()->on('Controller.shutdown', $this->captureHistory);
     }
 
-    protected function tearDown(): void
+    public function testProfileRedirectPreservesDetailTabAndGridContext(): void
     {
-        EventManager::instance()->off('Controller.shutdown', $this->captureHistory);
-        parent::tearDown();
+        $query = ['tab' => 'gatherings', 'grid_context' => 'member-gatherings-grid-' . self::ADMIN_MEMBER_ID,
+            'search' => 'context test', 'page' => '3'];
+        $this->get('/members/profile?' . http_build_query($query));
+        $this->assertRedirect('/members/view/' . self::ADMIN_MEMBER_ID . '?' . http_build_query($query));
     }
 
-    public function testRedirectDoesNotBecomeABackDestination(): void
+    public function testOrdinaryVisitsDoNotBuildASecondServerHistoryStack(): void
     {
-        $this->get('/grid-subscriptions');
-        $this->assertRedirect();
-        $this->assertSame($this->history, $this->recordedHistory);
+        foreach (['/members/view/' . self::ADMIN_MEMBER_ID, '/gatherings/calendar', '/members'] as $url) {
+            $this->get($url);
+            $this->assertResponseOk();
+            $this->assertSession(null, 'pageStack');
+            $this->assertSession(null, 'pageStackVersion');
+        }
     }
 
-    public function testFragmentIndexDoesNotResetOrAppendHistory(): void
+    public function testLegacySessionHistoryCannotChooseTheBackDestination(): void
+    {
+        $this->session(['pageStack' => ['https://attacker.example/', '/unrelated-old-page'], 'pageStackVersion' => 2]);
+        $this->get('/members/view/' . self::ADMIN_MEMBER_ID);
+        $this->assertResponseOk();
+        $xpath = $this->responseXPath();
+        $links = $xpath->query('//a[@data-kmp-back]');
+        $this->assertGreaterThan(0, $links->length);
+        foreach ($links as $link) {
+            $this->assertSame('/members', $link->getAttribute('href'));
+            $this->assertSame('history-back', $link->getAttribute('data-controller'));
+            $this->assertSame('history-back#go', $link->getAttribute('data-action'));
+        }
+    }
+
+    public function testGatheringReaderAndOrganizerUseTheSharedBrowserBackControl(): void
+    {
+        $gathering = $this->getTableLocator()->get('Gatherings')->find()->firstOrFail();
+        foreach ([self::ADMIN_MEMBER_ID, self::TEST_MEMBER_AGATHA_ID] as $memberId) {
+            $this->authenticateAsMember($memberId);
+            $this->get('/gatherings/view/' . $gathering->public_id);
+            $this->assertResponseOk();
+            $xpath = $this->responseXPath();
+            $back = $xpath->query('//article[contains(@class, "gathering-reader")]//a[@data-kmp-back]');
+            $this->assertCount(1, $back);
+            $this->assertSame('Go back', $back->item(0)->getAttribute('aria-label'));
+            $this->assertSame('_top', $back->item(0)->getAttribute('data-turbo-frame'));
+            $this->assertCount(1, $xpath->query('.//kmp-icon[@name="circle-arrow-left"]', $back->item(0)));
+            $this->assertStringStartsWith('/', $back->item(0)->getAttribute('href'));
+        }
+    }
+
+    public function testFragmentsAndBackgroundReadsDoNotCreateBackDestinations(): void
     {
         $this->configRequest(['headers' => ['Turbo-Frame' => 'email-subscriptions']]);
         $this->get('/grid-subscriptions');
         $this->assertResponseOk();
-        // Fragment sessions close early; inspect the captured in-request history.
-        $this->assertSame($this->history, $this->viewVariable('pageStack'));
-    }
-
-    public function testAttendancePartialWithoutAjaxHeadersDoesNotEnterHistory(): void
-    {
-        $gathering = $this->getTableLocator()->get('Gatherings')->find()->firstOrFail();
-        $this->get('/gatherings/attendance-modal/' . $gathering->id);
+        $this->assertSession(null, 'pageStack');
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest']]);
+        $this->get('/navigation/context');
         $this->assertResponseOk();
-        $this->assertSame($this->history, $this->recordedHistory);
+        $this->assertSession(null, 'pageStack');
     }
 
-    public function testBackgroundDocumentFetchDoesNotEnterHistory(): void
-    {
-        $this->configRequest(['headers' => ['Sec-Fetch-Dest' => 'empty', 'Accept' => '*/*']]);
-        $this->get('/gatherings/calendar');
-        $this->assertResponseOk();
-        $this->assertSame($this->history, $this->recordedHistory);
-    }
-
-    public function testFullPageTurboVisitStillRecordsTheDocument(): void
-    {
-        $this->configRequest(['headers' => [
-            'Sec-Fetch-Dest' => 'empty', 'Accept' => 'text/html, application/xhtml+xml',
-        ]]);
-        $this->get('/gatherings/calendar');
-        $this->assertResponseOk();
-        $this->assertSame(['/gatherings/calendar'], $this->recordedHistory);
-    }
-
-    public function testErrorDoesNotEnterHistory(): void
-    {
-        $this->get('/gatherings/view/not-a-gathering');
-        $this->assertResponseCode(404);
-        $this->assertSame($this->history, $this->recordedHistory);
-    }
-
-    public function testBackToAnEarlierDocumentTruncatesHistory(): void
-    {
-        $this->session(['pageStack' => [...$this->history, '/gatherings/all-gatherings']]);
-        $this->get('/gatherings/calendar');
-        $this->assertResponseOk();
-        $this->assertSame(['/gatherings/calendar'], $this->recordedHistory);
-    }
-
-    public function testReloadDoesNotDuplicateTheCurrentDocument(): void
-    {
-        $this->get('/members/view/' . self::ADMIN_MEMBER_ID);
-        $this->assertResponseOk();
-        $this->assertSame($this->history, $this->recordedHistory);
-    }
-
-    public function testRecordNavigationPreservesTheLiveGridReturnUrl(): void
-    {
-        $this->session(['pageStack' => ['/members'], 'pageStackVersion' => 2]);
-        $returnUrl = '/members?page=3&limit=10&search=Iris&filter%5Bstatus%5D%5B%5D=active';
-        $this->configRequest(['headers' => ['Referer' => 'http://localhost' . $returnUrl]]);
-        $this->get('/members/view/' . self::ADMIN_MEMBER_ID);
-        $this->assertResponseOk();
-        $this->assertSame([$returnUrl, '/members/view/' . self::ADMIN_MEMBER_ID], $this->recordedHistory);
-    }
-
-    public function testAnotherOriginCannotReplaceTheGridReturnUrl(): void
-    {
-        $this->session(['pageStack' => ['/members'], 'pageStackVersion' => 2]);
-        $this->configRequest(['headers' => ['Referer' => 'http://another-tenant.example/members?page=3']]);
-        $this->get('/members/view/' . self::ADMIN_MEMBER_ID);
-        $this->assertResponseOk();
-        $this->assertSame(['/members', '/members/view/' . self::ADMIN_MEMBER_ID], $this->recordedHistory);
-    }
-
-    public function testUnrelatedReferrerDoesNotReplaceThePriorDocument(): void
-    {
-        $this->session(['pageStack' => ['/members'], 'pageStackVersion' => 2]);
-        $this->configRequest(['headers' => ['Referer' => 'http://localhost/awards/recommendations?page=3']]);
-        $this->get('/members/view/' . self::ADMIN_MEMBER_ID);
-        $this->assertResponseOk();
-        $this->assertSame(['/members', '/members/view/' . self::ADMIN_MEMBER_ID], $this->recordedHistory);
-    }
-
-    public function testCalendarDownloadDoesNotEnterHistory(): void
+    public function testDownloadsAndPrefetchesDoNotCreateBackDestinations(): void
     {
         $gathering = $this->getTableLocator()->get('Gatherings')->find()->firstOrFail();
         $this->get('/gatherings/download-calendar/' . $gathering->public_id);
         $this->assertResponseOk();
         $this->assertHeaderContains('Content-Disposition', 'attachment');
-        $this->assertSame($this->history, $this->recordedHistory);
+        $this->assertSession(null, 'pageStack');
+        $this->configRequest(['headers' => ['X-Sec-Purpose' => 'prefetch', 'Accept' => 'text/html']]);
+        $this->get('/members');
+        $this->assertResponseOk();
+        $this->assertSession(null, 'pageStack');
     }
 
-    public function testNoStackIndexDoesNotClearHistory(): void
+    private function responseXPath(): DOMXPath
     {
-        $this->get('/members?nostack=1');
-        $this->assertResponseOk();
-        $this->assertSame($this->history, $this->recordedHistory);
-    }
+        $document = new DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+        try {
+            $document->loadHTML((string)$this->_response->getBody());
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
 
-    public function testHistoryIsBoundedAndPreservesQueryParameters(): void
-    {
-        $this->session(['pageStack' => array_map(fn($i) => '/members/view/' . $i, range(100, 149))]);
-        $url = '/gatherings/calendar?year=2026&month=9';
-        $this->get($url);
-        $this->assertResponseOk();
-        $this->assertCount(50, $this->recordedHistory);
-        $this->assertSame('/members/view/101', $this->recordedHistory[0]);
-        $this->assertSame($url, $this->recordedHistory[49]);
-    }
-
-    public function testPostDoesNotEnterHistory(): void
-    {
-        $this->enableCsrfToken();
-        $this->enableSecurityToken();
-        $this->post('/grid-subscriptions/add', [
-            'gridKey' => 'Core.actionItems.myTasks', 'name' => 'Navigation test',
-            'intervalDays' => 1, 'query' => '',
-        ]);
-        $this->assertResponseOk();
-        $this->assertSame($this->history, $this->recordedHistory);
-    }
-
-    public function testLegacyPollutedHistoryIsDiscardedOnNextDocument(): void
-    {
-        $this->session(['pageStackVersion' => null, 'pageStack' => ['/gatherings/attendance-modal/1']]);
-        $this->get('/members/view/' . self::ADMIN_MEMBER_ID);
-        $this->assertResponseOk();
-        $this->assertSame(['/members/view/' . self::ADMIN_MEMBER_ID], $this->recordedHistory);
+        return new DOMXPath($document);
     }
 }

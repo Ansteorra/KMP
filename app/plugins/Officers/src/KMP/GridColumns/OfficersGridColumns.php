@@ -36,7 +36,7 @@ class OfficersGridColumns extends BaseGridColumns
                 'key' => 'edit',
                 'type' => 'modal',
                 'label' => '',
-                'icon' => 'bi-pencil-fill',
+                'icon' => 'pencil',
                 'class' => 'btn-sm btn btn-primary edit-btn',
                 'modalTarget' => '#editOfficerModal',
                 'permission' => 'edit',

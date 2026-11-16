@@ -1,3 +1,4 @@
+import { setIcon, iconHtml } from '../services/icon-service.js';
 import { Controller } from "@hotwired/stimulus";
 
 /**
@@ -72,10 +73,9 @@ class ApprovalDetailController extends Controller {
 
     async _expand(row, approvalId, btn) {
         btn.disabled = true;
-        const icon = btn.querySelector("i.bi");
+        const icon = btn.querySelector("kmp-icon");
         if (icon) {
-            icon.classList.remove("bi-chevron-down");
-            icon.classList.add("bi-hourglass-split");
+            setIcon(icon, 'hourglass');
         }
 
         try {
@@ -95,14 +95,12 @@ class ApprovalDetailController extends Controller {
             this._expandedRows.set(approvalId, detailRow);
 
             if (icon) {
-                icon.classList.remove("bi-hourglass-split");
-                icon.classList.add("bi-chevron-up");
+                setIcon(icon, 'chevron-up');
             }
         } catch (err) {
             console.error("Failed to load approval detail:", err);
             if (icon) {
-                icon.classList.remove("bi-hourglass-split");
-                icon.classList.add("bi-chevron-down");
+                setIcon(icon, 'chevron-down');
             }
         } finally {
             btn.disabled = false;
@@ -114,10 +112,9 @@ class ApprovalDetailController extends Controller {
         if (detailRow) detailRow.remove();
         this._expandedRows.delete(approvalId);
 
-        const icon = btn.querySelector("i.bi");
+        const icon = btn.querySelector("kmp-icon");
         if (icon) {
-            icon.classList.remove("bi-chevron-up");
-            icon.classList.add("bi-chevron-down");
+            setIcon(icon, 'chevron-down');
         }
     }
 
@@ -228,7 +225,7 @@ class ApprovalDetailController extends Controller {
         html += hideProgress
             ? '<div class="col-12">'
             : '<div class="col-md-6 mb-3 mb-md-0">';
-        html += `<h6 class="mb-2"><i class="bi ${h(ctx.icon)} me-1"></i>${h(ctx.title)}</h6>`;
+        html += `<h6 class="mb-2">${iconHtml(ctx.icon, { class: 'me-1' })}${h(ctx.title)}</h6>`;
         if (ctx.description) {
             html += `<p class="text-muted small mb-2">${h(ctx.description)}</p>`;
         }
@@ -238,7 +235,7 @@ class ApprovalDetailController extends Controller {
             });
         }
         if (ctx.entityUrl) {
-            html += `<a href="${h(ctx.entityUrl)}" class="btn btn-sm btn-outline-primary mt-2" data-turbo-frame="_top"><i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>View Source</a>`;
+            html += `<a href="${h(ctx.entityUrl)}" class="btn btn-sm btn-outline-primary mt-2" data-turbo-frame="_top"><kmp-icon name="external-link" class="me-1" aria-hidden="true"></kmp-icon>View Source</a>`;
         }
         if (ui.canTriage === true) {
             html += this._renderTriageForm(data, triage);
@@ -272,7 +269,7 @@ class ApprovalDetailController extends Controller {
                 html +=
                     '<div class="alert alert-info py-2 small" role="status" aria-live="polite" aria-atomic="true">';
                 html +=
-                    '<div class="fw-semibold mb-1"><i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>Why this approval was reset</div>';
+                    '<div class="fw-semibold mb-1"><kmp-icon name="repeat" class="me-1" aria-hidden="true"></kmp-icon>Why this approval was reset</div>';
                 html += `<div>${h(prog.statusExplanation)}</div>`;
                 html += "</div>";
             }
@@ -283,12 +280,10 @@ class ApprovalDetailController extends Controller {
                 html += '<ul class="list-group list-group-flush small">';
                 responses.forEach((r) => {
                     const isApprove = r.decision === "approve";
-                    const iconCls = isApprove
-                        ? "bi-check-circle-fill text-success"
-                        : "bi-x-circle-fill text-danger";
+                    const icon = isApprove ? "circle-check" : "circle-x";
                     html +=
                         '<li class="list-group-item bg-transparent px-0 py-1">';
-                    html += `<i class="bi ${iconCls} me-1"></i>`;
+                    html += `${iconHtml(icon, { class: `me-1 ${isApprove ? "text-success" : "text-danger"}` })}`;
                     html += `<strong>${h(r.memberName)}</strong> &mdash; ${h(r.decision)}`;
                     if (r.comment) {
                         html += ` <em class="text-muted">&ldquo;${h(r.comment)}&rdquo;</em>`;

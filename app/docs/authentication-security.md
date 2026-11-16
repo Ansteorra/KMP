@@ -55,6 +55,18 @@ authentication so a connectivity check cannot destroy a valid tenant session.
 
 Counters use atomic database updates. Successful MFA releases only its own reservation; prior failures remain counted. Successful TOTP moving factors are consumed atomically in `platform_users`, across login, step-up actions and emergency recovery. A previously used code or older code cannot authorize another action. Wait for a fresh authenticator code for each sensitive action; there is no reuse grace period. Recovery codes are also consumed conditionally once.
 
+Platform accounts also lock for fifteen minutes after five recorded failed logins. The database
+increments the failure counter and sets the lock atomically. Existing manual locks are honored;
+requests rejected by shared throttles do not extend a lock. A successful login after the lock
+and rate-limit windows expire clears the failure count. An account lock also denies an
+existing Platform Admin session on its next request. Account status and credential-epoch
+changes retain their existing per-request revocation checks.
+
+Explicit logout changes server state only on a CSRF-protected POST. A GET displays a
+confirmation form without ending the session or emitting offline-lock signals. Shared desktop
+navigation submits POST directly; bookmarked links and the mobile PIN gate use the confirmation.
+The successful POST retains existing offline locking and session-expiry behavior.
+
 ## Platform and API boundaries
 
 Every platform route, including login and logout, requires a host listed in `Platform.adminPortal.hosts`. The middleware rejects tenant and unlisted origins before session processing, and the controller repeats the check. Platform sessions carry their own format version, host and credential epoch and rotate the session identifier on login. Password recovery rotates the platform epoch and revokes emergency sessions. MFA reset continues to fail closed until the existing multi-administrator approval workflow is available.
@@ -68,3 +80,18 @@ Apply `20260905090000_AddPlatformAuthenticationState` to the platform database a
 Do not roll back to the vulnerable session implementation after issuing new sessions. Coordinate any rollback with a session purge and forward security fix. No production migration or credential changes are performed by the repository tests.
 
 Targeted PHPUnit coverage is in `MemberSessionAuthenticatorTest`, `MemberSecurityLifecycleTest`, `PasswordRecoveryDispatchHttpTest`, `MembersQuickLoginSetupTest`, `ServicePrincipalHeaderTest`, `RequestRateLimiterTest`, `PlatformTotpChallengeServiceTest`, `PlatformAdminRecoveryServiceTest`, `PlatformAdminPortalTest` and `TenantResolutionMiddlewareTest`. Run these with the repository test database, never against production. Logout sends `X-KMP-Offline-Lock: 1`; self-revocation sends `X-KMP-Offline-Clear: 1`. Both have host-only cookie signals for redirect delivery.
+
+
+## Member authorization read cache
+
+`ReadModelCache` caches tenant reference catalogues and the member security graph on GET/HEAD requests. Native permissions, role branch coverage, policy mappings, office assignments, gathering stewardship, and event/awarding-group delegation facts retain their existing policy rules. Catalogue consumers still apply each identity's branch and activity policies; authorized form results and pending-work counts are not shared cache entries. Desktop layouts do not construct mobile-only badges or run their authorization callbacks. Mobile layouts retain their existing menu and counts.
+
+Keys include the tenant namespace, database/role identity and one committed database revision per request. PostgreSQL statement triggers invalidate after inserts, updates, deletes and truncates, including raw SQL, CLI and bulk writes. Each transaction records its own token, so unrelated writers do not lock one shared revision row. The revision fingerprints all visible tokens (not the greatest transaction ID), preserving invalidation when transactions commit out of order. Bounded compaction rotates a checkpoint UUID before removing old tokens. Rollbacks publish no invalidation or cached data. A local transaction commit discards the request's revision snapshot.
+
+Cache entries have a maximum ten-minute age. Capture temporal deadlines before loading authorization data; if loading crosses a deadline, do not publish that result into the cache. Native graph deadlines also stop at role/warrant starts and expirations, membership/background expiry, and month-based age transitions. Office start/expiry is evaluated on each access to cached assignment facts. Empty results are cached. Approval scopes are composed from these facts without an additional unversioned static member-scope cache. The warrant-enforcement setting uses the same revision and respects application configuration overrides.
+
+Mutation requests, CLI work and any open database transaction bypass this read cache. Delegation mutation reads retain their shared grant locks and native grantor checks; grants stay scoped to an event and awarding branch and cannot form delegation chains. Cached associated member facts omit credentials. Session authentication still reads the current member and credential epoch on every request. Missing revision metadata fails closed; it does not permit an unchecked cache fallback.
+
+When adding a cached dependency, add its invalidation trigger in the owning core/plugin migration and cover raw committed writes, rollback, tenant separation and temporal boundaries. Keep plugin grant facts separate from global native permissions. Logical backup reset preserves installed trigger definitions from the trusted live database, rotates the checkpoint, and excludes transient cache rows from archives. Restore never executes trigger SQL supplied by an archive.
+
+Regression coverage: `ReadModelCacheTest`, `SecurityReadCacheBoundaryTest`, `DatabaseSchemaResetServiceTest`, `ViewCellRegistryTest`, the member permission/policy suites, and the Awards delegation controller suite. Use disposable local test databases for invalidation and restore tests. Cache tests must use committed GET/HEAD reads and verify actual cache hits: the default transactional test wrapper exercises the bypass path. The security browser journey warms admin/target graphs and switches impersonation targets on both seeded tenants.

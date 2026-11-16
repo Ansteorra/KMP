@@ -9,7 +9,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
- * Re-throws authorization exceptions for API routes and XHR/fetch requests so
+ * Re-throws authorization exceptions for API, XHR and Turbo partial requests so
  * the exception renderer returns a proper 403; redirects normal navigations.
  *
  * Redirecting an XHR to the unauthorized page returns 200 HTML that embedded
@@ -28,7 +28,9 @@ class ApiAwareRedirectHandler extends RedirectHandler
     ): ResponseInterface {
         $path = $request->getUri()->getPath();
         $isXhr = strcasecmp($request->getHeaderLine('X-Requested-With'), 'XMLHttpRequest') === 0;
-        if ($isXhr || str_contains($path, '/api/')) {
+        $isTurboFrame = $request->getHeaderLine('Turbo-Frame') !== '';
+        $isTurboStream = str_contains(strtolower($request->getHeaderLine('Accept')), 'text/vnd.turbo-stream.html');
+        if ($isXhr || $isTurboFrame || $isTurboStream || str_contains($path, '/api/')) {
             throw $exception;
         }
 

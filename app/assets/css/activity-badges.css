@@ -1,0 +1,48 @@
+.gathering-activity-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .3em;
+    vertical-align: middle;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: start;
+}
+
+.gathering-activity-badge > kmp-icon {
+    width: calc(var(--kmp-icon-size, 1.25em) * 1.25);
+    height: calc(var(--kmp-icon-size, 1.25em) * 1.25);
+}
+
+.gathering-activity-mask {
+    flex: none;
+    display: inline-block;
+    width: 1.25em;
+    height: 1.25em;
+    background-color: currentColor;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    mask-size: contain;
+    mask-mode: alpha;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    -webkit-mask-size: contain;
+}
+
+.gathering-activity-image {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+}
+
+.activity-icon-picker {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+    gap: .4rem;
+    max-width: 40rem;
+}
+
+.activity-icon-picker button {
+    min-height: 44px;
+}

@@ -21,7 +21,7 @@ $this->KMP->endBlock();
     <div class="col text-end">
         <?php if ($user->checkCan("index", "Waivers.GatheringWaivers")): ?>
             <?= $this->Html->link(
-                '<i class="bi bi-speedometer2"></i> ' . __('Waiver Dashboard'),
+                '<kmp-icon name="dashboard"  aria-hidden="true"></kmp-icon> ' . __('Waiver Dashboard'),
                 ['action' => 'dashboard'],
                 ['class' => 'btn btn-outline-primary', 'escape' => false]
             ) ?>

@@ -100,10 +100,14 @@ jq \
                             (.env // [] | map(select(
                                 .name != "KMP_SKIP_CRON"
                                 and .name != "KMP_SKIP_MIGRATIONS"
+                                and .name != "TRUST_PROXY"
+                                and .name != "KMP_PROXY_MODE"
                             )))
                             + [
                                 {"name": "KMP_SKIP_CRON", "value": "true"},
-                                {"name": "KMP_SKIP_MIGRATIONS", "value": "true"}
+                                {"name": "KMP_SKIP_MIGRATIONS", "value": "true"},
+                                {"name": "TRUST_PROXY", "value": "true"},
+                                {"name": "KMP_PROXY_MODE", "value": "azure-container-apps"}
                             ]
                         )
                         | .probes = [

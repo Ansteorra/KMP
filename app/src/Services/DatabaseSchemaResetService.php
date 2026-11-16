@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Services\Cache\ReadModelCacheRestore;
 use Cake\Database\Driver;
 use Cake\Database\Driver\Postgres;
 use Cake\Datasource\ConnectionManager;
@@ -34,6 +35,7 @@ class DatabaseSchemaResetService
         $tables = $manifest['tables'];
         $plan = $this->buildResetPlan($driver, $tables);
         $this->report($progressReporter, 'resetting_schema', 'Dropping current database tables.');
+        $cacheTriggers = ReadModelCacheRestore::capture($connection);
         $this->dropExistingTables($connection, $driver);
 
         $created = 0;
@@ -59,6 +61,7 @@ class DatabaseSchemaResetService
         foreach ($plan['foreignKeys'] as $sql) {
             $connection->execute($sql);
         }
+        ReadModelCacheRestore::restore($connection, $cacheTriggers);
     }
 
     /**
@@ -192,10 +195,12 @@ class DatabaseSchemaResetService
             'boolean' => 'BOOLEAN',
             'string' => 'VARCHAR(' . max(1, $limit ?? 255) . ')',
             'citext' => 'CITEXT',
+            'uuid' => 'UUID',
             'text' => 'TEXT',
             'date' => 'DATE',
             'time' => 'TIME',
             'datetime', 'timestamp' => 'TIMESTAMP',
+            'timestamptimezone' => 'TIMESTAMP WITH TIME ZONE',
             'datetimefractional', 'timestampfractional' => 'TIMESTAMP(6)',
             'timefractional' => 'TIME(6)',
             'float' => 'DOUBLE PRECISION',
@@ -229,6 +234,12 @@ class DatabaseSchemaResetService
         }
         if (is_int($default) || is_float($default)) {
             return (string)$default;
+        }
+        if ($type === 'uuid' && $default === 'gen_random_uuid()') {
+            return 'gen_random_uuid()';
+        }
+        if ($type === 'timestamptimezone' && $default === 'clock_timestamp()') {
+            return 'clock_timestamp()';
         }
         if (is_string($default) && strtoupper($default) === 'CURRENT_TIMESTAMP') {
             return 'CURRENT_TIMESTAMP';

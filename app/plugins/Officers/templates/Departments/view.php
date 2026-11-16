@@ -89,7 +89,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                     <?= $this->Html->link(
                                 __(""),
                                 ["action" => "view", "controller" => "offices", $office->id],
-                                ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
+                                ["title" => __("View"), "class" => "btn-sm btn btn-secondary", 'icon' => 'binoculars'],
                             ) ?>
                 </td>
             </tr>
@@ -121,7 +121,7 @@ echo $this->Modal->create("Edit Department", [
 ?>
 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-        <i class="bi bi-building text-primary me-1" aria-hidden="true"></i>
+        <kmp-icon name="building" class="text-primary me-1" aria-hidden="true"></kmp-icon>
         <?= __("Department Details") ?>
     </legend>
     <div class="row g-3">

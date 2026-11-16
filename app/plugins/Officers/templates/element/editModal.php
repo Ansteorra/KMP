@@ -26,7 +26,7 @@ echo $this->Modal->create("Edit Officer", [
 <div class="d-none mb-3" data-turbo-modal-feedback></div>
 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-        <i class="bi bi-person-badge text-primary me-1" aria-hidden="true"></i>
+        <kmp-icon name="id-badge" class="text-primary me-1" aria-hidden="true"></kmp-icon>
         <?= __("Officer Details") ?>
     </legend>
     <?php
@@ -64,7 +64,7 @@ echo $this->Modal->create("Edit Officer", [
 </fieldset>
 <fieldset class="border rounded-3 bg-white shadow-sm p-3 mt-3">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-        <i class="bi bi-calendar-range text-primary me-1" aria-hidden="true"></i>
+        <kmp-icon name="calendar-week" class="text-primary me-1" aria-hidden="true"></kmp-icon>
         <?= __('Officer Term') ?>
     </legend>
     <div class="row g-3">

@@ -860,6 +860,118 @@ class UnifiedApprovalsControllerTest extends HttpIntegrationTestCase
         $this->assertRedirectContains('/login');
     }
 
+    public function testApprovalReadsDenyUnrelatedMembersWithinAndAcrossBranches(): void
+    {
+        $members = $this->getTableLocator()->get('Members');
+        $viewer = $members->get(self::TEST_MEMBER_AGATHA_ID);
+        $sameBranchMember = $members->find()
+            ->where(['branch_id' => $viewer->branch_id, 'Members.id !=' => $viewer->id])
+            ->firstOrFail();
+        $this->assertNotSame($viewer->branch_id, $members->get(self::TEST_MEMBER_BRYCE_ID)->branch_id);
+        foreach ([(int)$sameBranchMember->id, self::TEST_MEMBER_BRYCE_ID] as $ownerId) {
+            [$instanceId, $logId] = $this->createWorkflowContext();
+            $approvalId = $this->createApproval($instanceId, $logId, 'Private approval', ['member_id' => $ownerId]);
+            $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+            $this->configRequest(['headers' => ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest']]);
+            foreach (['detail/', 'eligible-approvers/'] as $path) {
+                $this->get('/approvals/' . $path . $approvalId);
+                $this->assertResponseCode(403);
+                $this->assertResponseNotContains('Private approval');
+                $this->get('/approvals/' . $path . $approvalId . '?context=reassign');
+                $this->assertResponseCode(403);
+            }
+        }
+    }
+
+    public function testAssignedApproverCanReadDetailAndNextCandidatesButNotReassignmentCandidates(): void
+    {
+        [$instanceId, $logId] = $this->createWorkflowContext();
+        $approvalId = $this->createApproval(
+            $instanceId,
+            $logId,
+            'Assigned approval',
+            ['member_id' => self::TEST_MEMBER_AGATHA_ID],
+        );
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest']]);
+        $this->get('/approvals/detail/' . $approvalId);
+        $this->assertResponseOk();
+        $this->assertSame($approvalId, json_decode((string)$this->_response->getBody(), true)['approvalId']);
+        $this->get('/approvals/eligible-approvers/' . $approvalId);
+        $this->assertResponseOk();
+        $this->get('/approvals/eligible-approvers/' . $approvalId . '?context=reassign');
+        $this->assertResponseCode(403);
+    }
+
+    public function testCompletedApprovalHistoryIsLimitedToRespondentsAndAdministrators(): void
+    {
+        [$instanceId, $logId] = $this->createWorkflowContext();
+        $approvalId = $this->createApproval($instanceId, $logId);
+        $responses = $this->getTableLocator()->get('WorkflowApprovalResponses');
+        $responses->saveOrFail($responses->newEntity([
+            'workflow_approval_id' => $approvalId,
+            'member_id' => self::TEST_MEMBER_AGATHA_ID,
+            'decision' => 'approve',
+            'comment' => 'Private response history sentinel',
+            'responded_at' => DateTime::now(),
+        ]));
+        $this->getTableLocator()->get('WorkflowApprovals')->updateAll(
+            ['status' => WorkflowApproval::STATUS_APPROVED],
+            ['id' => $approvalId],
+        );
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest']]);
+        $this->authenticateAsMember(self::TEST_MEMBER_BRYCE_ID);
+        $this->get('/approvals/detail/' . $approvalId);
+        $this->assertResponseCode(403);
+        $this->assertResponseNotContains('Private response history sentinel');
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->get('/approvals/detail/' . $approvalId);
+        $this->assertResponseOk();
+        $this->assertResponseContains('Private response history sentinel');
+        $this->get('/approvals/eligible-approvers/' . $approvalId);
+        $this->assertResponseCode(403);
+        $this->authenticateAsSuperUser();
+        $this->get('/approvals/detail/' . $approvalId);
+        $this->assertResponseOk();
+    }
+
+    public function testReassigningAnApprovalRevokesThePreviousApproversReadAccess(): void
+    {
+        [$instanceId, $logId] = $this->createWorkflowContext();
+        $approvalId = $this->createApproval(
+            $instanceId,
+            $logId,
+            'Reassigned approval',
+            ['member_id' => self::TEST_MEMBER_AGATHA_ID],
+        );
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest']]);
+        $this->get('/approvals/detail/' . $approvalId);
+        $this->assertResponseOk();
+        $table = $this->getTableLocator()->get('WorkflowApprovals');
+        $approval = $table->get($approvalId);
+        $approval->approver_config = ['member_id' => self::TEST_MEMBER_BRYCE_ID];
+        $table->saveOrFail($approval);
+        $this->get('/approvals/detail/' . $approvalId);
+        $this->assertResponseCode(403);
+        $this->authenticateAsMember(self::TEST_MEMBER_BRYCE_ID);
+        $this->get('/approvals/detail/' . $approvalId);
+        $this->assertResponseOk();
+        $this->authenticateAsSuperUser();
+        $this->get('/approvals/eligible-approvers/' . $approvalId . '?context=reassign');
+        $this->assertResponseOk();
+    }
+
+    public function testMissingApprovalReadsReturnNotFound(): void
+    {
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->configRequest(['headers' => ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest']]);
+        foreach (['detail/', 'eligible-approvers/'] as $path) {
+            $this->get('/approvals/' . $path . PHP_INT_MAX);
+            $this->assertResponseCode(404);
+        }
+    }
+
     public function testApprovalDetailExplainsProcessUpdateReset(): void
     {
         $this->authenticateAsSuperUser();

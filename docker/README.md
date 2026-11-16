@@ -17,6 +17,8 @@ stack is documented separately as unsupported.
 | `scheduler-loop.sh` | Long-running local/self-hosted scheduler loop |
 | `reset-and-seed.sh` | Destructive default-POC database rebuild |
 | `Dockerfile.ci` | Test image |
+| `php-development.ini` | Disables opcode caching for live-mounted development and browser-test source |
+| `test-development-php-cache.py` | Isolated Apache regression check for source replacements |
 | `app_local.php` | Docker-oriented local configuration |
 | `apache-vhost.conf` | Apache development vhost |
 | `verify-php-version.php` | Branch-specific minimum security versions for container builds and final-image audits |
@@ -32,6 +34,42 @@ logical backup archives can still be imported into PostgreSQL; no live database
 conversion is performed by this change. The nightly image smoke test uses
 PostgreSQL 16. Production builds reject prebuilt runtime overrides with enabled
 MySQL extensions or without `pdo_pgsql`; rebuild old bases before using them.
+
+## Development PHP cache policy
+
+Development and browser-test containers serve a changing, bind-mounted checkout.
+Both images install `php-development.ini`, and Compose mounts it into the app,
+scheduler, and administrative worker so a reused image receives the same policy.
+It disables OPcache for web and CLI execution. Every request compiles the current
+source, including file replacements that preserve timestamps and file sizes.
+[PHP’s timestamp validation](https://www.php.net/manual/en/opcache.configuration.php)
+alone cannot detect those replacements.
+
+Production keeps OPcache enabled for immutable release images. Deploy a new image
+and replace its processes when changing production code; do not mount a live
+checkout into that runtime. Running `opcache_reset()` in a CLI process does not
+clear Apache's separate opcode cache.
+
+After updating this policy, recreate local application services to load the INI
+mount. This preserves the database volume and does not rebuild or seed it:
+
+```bash
+docker compose --env-file app/config/.env up -d --no-deps --no-build \
+  --force-recreate app scheduler admin-worker
+```
+
+Verify a rebuilt development or browser-test image:
+
+```bash
+python3 docker/test-development-php-cache.py --image kmp-app:dev
+```
+
+To verify the Compose override against an existing image before rebuilding, add
+`--ini docker/php-development.ini`. The test launches an isolated Apache container
+without published ports or application data. It replaces PHP source in place and
+by atomic rename, preserving both modification time and content length, and
+requires the next HTTP request to serve the new content. Browser-test CI runs this
+check immediately after building its image.
 
 ## PHP security updates
 
@@ -211,6 +249,14 @@ against production or customer data. See the
 [seed contract](../deploy/azure/seed/README.md).
 
 ## Secrets and writable data
+
+Activity artwork uses the separate public asset store described in
+[`app/docs/gathering-activities.md`](../app/docs/gathering-activities.md). Entrypoints create
+`/var/www/html/webroot/public-assets` for app writes and direct anonymous static reads.
+Local Compose keeps this directory on the app bind mount. Production deployments using
+`PUBLIC_ASSETS_ADAPTER=local` must mount persistent shared storage there; Azure/CDN deployments
+should set the dedicated public container and absolute base URL. Uploaded artwork is excluded
+from Docker build inputs and must never be copied from a developer checkout into an image.
 
 Do not bake `.env` files, database URLs, keys, or credentials into an image.
 Azure supplies Key Vault references and managed-identity configuration at

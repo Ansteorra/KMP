@@ -162,6 +162,7 @@ describe('BaseGatheringFormController', () => {
         // Create a feedback element
         const feedback = document.createElement('div');
         feedback.className = 'invalid-feedback';
+        feedback.dataset.gatheringDateError = 'true';
         feedback.style.display = 'block';
         controller.element.appendChild(feedback);
 

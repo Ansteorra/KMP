@@ -5,11 +5,13 @@ namespace Awards\Test\TestCase\Controller;
 
 use App\Model\Entity\ActionItem;
 use App\Model\Entity\Member;
+use App\Services\ActionItems\ActionItemCompletionFormRegistry;
 use App\Services\ActionItems\ActionItemService;
 use App\Services\ServiceResult;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
+use Awards\Services\BestowalTodoCompletionFormProvider;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 
@@ -19,6 +21,129 @@ use Cake\ORM\TableRegistry;
  */
 class BestowalBulkTodoTest extends HttpIntegrationTestCase
 {
+    public function testBulkAgendaRespectsExplicitNoCourtRequirement(): void
+    {
+        $bestowal = $this->makeBestowal();
+        $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'event_scheduled');
+        $todo = $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'added_to_agenda', [
+            'completion_config' => ['required_fields' => []],
+        ]);
+        $this->get('/awards/bestowals/grid-data?ignore_default=1&limit=100');
+        $this->assertResponseOk();
+        preg_match_all('/data-bulk-todo-options="([^"]+)"/', (string)$this->_response->getBody(), $matches);
+        $options = array_merge(...array_map(
+            static fn(string $encoded): array => json_decode(html_entity_decode($encoded, ENT_QUOTES | ENT_HTML5), true),
+            $matches[1],
+        ));
+        $agenda = array_values(array_filter($options, static fn(array $option): bool => $option['key'] === 'added_to_agenda'));
+        $this->assertCount(1, $agenda);
+        $this->assertFalse($agenda[0]['requiresCourt']);
+        $this->post('/awards/bestowals/bulk-complete-todo', [
+            'bestowal_ids' => (string)$bestowal->id, 'check_key' => 'added_to_agenda',
+        ]);
+        $this->assertResponseCode(302);
+        $this->assertTrue($this->getTableLocator()->get('ActionItems')->get($todo->id)->isCompleted());
+    }
+
+    public function testBulkAgendaCourtChoicesAreChronologicalAndAssignTheChosenSession(): void
+    {
+        ActionItemCompletionFormRegistry::register('AwardsBestowals', new BestowalTodoCompletionFormProvider());
+        $bestowals = [$this->makeBestowal(), $this->makeBestowal()];
+        $gathering = $this->makeSelectableGatheringForAward((int)$bestowals[0]->award_id);
+        $link = $this->getTableLocator()->get('Awards.AwardGatheringActivities')->find()
+            ->where(['award_id' => $bestowals[0]->award_id])->orderBy(['id' => 'DESC'])->firstOrFail();
+        $sessions = $this->getTableLocator()->get('GatheringScheduledActivities');
+        $ids = [];
+        foreach (['Later Court' => 24, 'Earlier Court' => 1] as $title => $hours) {
+            $session = $sessions->saveOrFail($sessions->newEntity([
+                'gathering_id' => $gathering->id, 'gathering_activity_id' => $link->gathering_activity_id,
+                'display_title' => $title, 'start_datetime' => $gathering->start_date->addHours($hours),
+                'has_end_time' => false, 'pre_register' => false, 'is_other' => false,
+                'created_by' => self::ADMIN_MEMBER_ID,
+            ]));
+            $ids[] = (int)$session->id;
+        }
+        $todos = [];
+        foreach ($bestowals as $bestowal) {
+            $bestowal->gathering_id = $gathering->id;
+            $this->getTableLocator()->get('Awards.Bestowals')->saveOrFail($bestowal);
+            $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'event_scheduled', [
+                'status' => ActionItem::STATUS_COMPLETED,
+            ]);
+            $todos[] = $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'added_to_agenda');
+            $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'given', ['is_terminal' => true]);
+        }
+
+        $this->get('/awards/bestowals/grid-data?ignore_default=1&limit=100');
+        $this->assertResponseOk();
+        preg_match_all('/data-bulk-todo-options="([^"]+)"/', (string)$this->_response->getBody(), $matches);
+        $agendaOptions = [];
+        foreach ($matches[1] as $encoded) {
+            foreach (json_decode(html_entity_decode($encoded, ENT_QUOTES | ENT_HTML5), true) as $option) {
+                if ($option['key'] === 'added_to_agenda') {
+                    $agendaOptions[] = $option;
+                }
+            }
+        }
+        $this->assertCount(2, $agendaOptions);
+        foreach ($agendaOptions as $option) {
+            $this->assertTrue($option['requiresCourt']);
+            $this->assertSame([(string)$ids[1], (string)$ids[0], 'roaming'], array_column($option['courtOptions'], 0));
+        }
+        $foreignGathering = $this->makeSelectableGatheringForAward((int)$bestowals[0]->award_id);
+        $foreignSession = $sessions->saveOrFail($sessions->newEntity([
+            'gathering_id' => $foreignGathering->id, 'gathering_activity_id' => $link->gathering_activity_id,
+            'display_title' => 'Another event court', 'start_datetime' => $foreignGathering->start_date,
+            'has_end_time' => false, 'pre_register' => false, 'is_other' => false,
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]));
+        $selectedIds = implode(',', array_map(static fn($bestowal) => $bestowal->id, $bestowals));
+        $this->post('/awards/bestowals/bulk-complete-todo', [
+            'bestowal_ids' => $selectedIds, 'check_key' => 'added_to_agenda',
+            'gathering_scheduled_activity_id' => (string)$foreignSession->id,
+        ]);
+        $this->assertResponseCode(302);
+        foreach ($bestowals as $index => $bestowal) {
+            $this->assertNull($this->getTableLocator()->get('Awards.Bestowals')
+                ->get($bestowal->id)->gathering_scheduled_activity_id);
+            $this->assertTrue($this->getTableLocator()->get('ActionItems')->get($todos[$index]->id)->isOpen());
+        }
+        $this->post('/awards/bestowals/bulk-complete-todo', [
+            'bestowal_ids' => $selectedIds,
+            'check_key' => 'added_to_agenda', 'gathering_scheduled_activity_id' => (string)$ids[1],
+        ]);
+        $this->assertResponseCode(302);
+        foreach ($bestowals as $index => $bestowal) {
+            $this->assertSame($ids[1], $this->getTableLocator()->get('Awards.Bestowals')
+                ->get($bestowal->id)->gathering_scheduled_activity_id);
+            $this->assertTrue($this->getTableLocator()->get('ActionItems')->get($todos[$index]->id)->isCompleted());
+        }
+    }
+
+    public function testBulkLeadCompletionAppliesTheChosenOutcome(): void
+    {
+        $bestowals = [$this->makeBestowal(), $this->makeBestowal()];
+        foreach ($bestowals as $bestowal) {
+            $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'given', [
+                'title' => 'Given', 'is_terminal' => true,
+                'completion_config' => ['terminal_outcomes' => ['given' => 'Given', 'Given Not Received' => 'Given Not Received']],
+            ]);
+            $this->makeTodo((int)$bestowal->id, self::ADMIN_MEMBER_ID, 'prepare');
+        }
+        $this->post('/awards/bestowals/bulk-complete-todo', [
+            'bestowal_ids' => implode(',', array_map(static fn($bestowal) => $bestowal->id, $bestowals)),
+            'check_key' => 'given', 'terminal_status' => 'Given Not Received',
+        ]);
+        $this->assertResponseCode(302);
+        foreach ($bestowals as $bestowal) {
+            $this->assertSame('Given Not Received', $this->getTableLocator()->get('Awards.Bestowals')->get($bestowal->id)->lifecycle_status);
+            $this->assertSame(0, $this->getTableLocator()->get('ActionItems')->find()->where([
+                'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE, 'entity_id' => $bestowal->id,
+                'status' => ActionItem::STATUS_OPEN,
+            ])->count());
+        }
+    }
+
     /**
      * @return void
      */

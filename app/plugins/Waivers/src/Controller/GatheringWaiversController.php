@@ -33,6 +33,88 @@ class GatheringWaiversController extends AppController
     use DataverseGridTrait;
     use WorkflowDispatchTrait;
 
+    /** Record a Deputy's loss report; authorization stays outside JSON error handling. */
+    public function recordLost(WaiverStateService $stateService)
+    {
+        $this->request->allowMethod(['post']);
+        $gatheringId = (int)$this->request->getData('gathering_id');
+        $waiverTypeId = (int)$this->request->getData('waiver_type_id');
+        $notes = $this->request->getData('notes');
+        if ($gatheringId <= 0 || $waiverTypeId <= 0 || !is_string($notes)) {
+            throw new BadRequestException(__('Gathering, waiver type, and notes are required.'));
+        }
+        $gathering = $this->fetchTable('Gatherings')->get($gatheringId);
+        $context = $this->GatheringWaivers->newEmptyEntity();
+        $context->gathering = $gathering;
+        $this->Authorization->authorize($context, 'recordLost');
+
+        $result = $stateService->recordLost(
+            $gatheringId,
+            $waiverTypeId,
+            $notes,
+            (int)$this->Authentication->getIdentity()->getIdentifier(),
+        );
+        $redirect = ['action' => 'index', '?' => ['gathering_id' => $gatheringId]];
+        if (
+            !$this->request->is('ajax') && !$this->request->is('json')
+            && !$this->request->accepts('application/json')
+        ) {
+            if ($result->success) {
+                $this->Flash->success($result->reason);
+            } else {
+                $this->Flash->error($result->reason);
+            }
+
+            return $this->redirect($redirect);
+        }
+        $this->viewBuilder()->setClassName('Json');
+        $this->set('success', $result->success);
+        $this->set('message', $result->reason);
+        $this->set('redirectUrl', Router::url($redirect));
+        $this->viewBuilder()->setOption('serialize', ['success', 'message', 'redirectUrl']);
+        if (!$result->success) {
+            $this->response = $this->response->withStatus(422);
+        }
+    }
+
+    /** Keep old report links working through the standard waiver detail view. */
+    public function viewLoss(?string $id = null)
+    {
+        $loss = $this->fetchTable('Waivers.GatheringWaiverLosses')->get($id, contain: [
+            'Gatherings', 'WaiverTypes', 'CreatedByMembers',
+        ]);
+        $context = $this->GatheringWaivers->newEmptyEntity();
+        $context->gathering = $loss->gathering;
+        $this->Authorization->authorize($context, 'viewGatheringWaivers');
+
+        return $this->redirect(['action' => 'view', '?' => [
+            'gathering_id' => $loss->gathering_id, 'waiver_type_id' => $loss->waiver_type_id,
+        ], '#' => 'lost-report']);
+    }
+
+    /** The existing scoped loss-reporting permission also controls reversal. */
+    public function reverseLoss(WaiverStateService $stateService, ?string $id = null)
+    {
+        $this->request->allowMethod(['post']);
+        $loss = $this->fetchTable('Waivers.GatheringWaiverLosses')->get($id, contain: ['Gatherings']);
+        $context = $this->GatheringWaivers->newEmptyEntity();
+        $context->gathering = $loss->gathering;
+        $this->Authorization->authorize($context, 'recordLost');
+        $result = $stateService->reverseLoss(
+            (int)$loss->id,
+            (int)$this->Authentication->getIdentity()->getIdentifier(),
+        );
+        if ($result->success) {
+            $this->Flash->success($result->reason);
+        } else {
+            $this->Flash->error($result->reason);
+        }
+
+        return $this->redirect(['action' => 'view', '?' => [
+            'gathering_id' => $loss->gathering_id, 'waiver_type_id' => $loss->waiver_type_id,
+        ], '#' => 'lost-report']);
+    }
+
     /**
      * Initialize method
      *
@@ -122,11 +204,15 @@ class GatheringWaiversController extends AppController
             $countsMap = $summary['countsMap'];
             $this->set('exemptionCounts', $summary['exemptionCounts']);
             $this->set('pendingWaiverTypes', $summary['pendingWaiverTypes']);
+            $waiverLosses = $this->fetchTable('Waivers.GatheringWaiverLosses')->find()
+                ->where(['gathering_id' => $gatheringId, 'reversed_at IS' => null])->all();
+            $this->set('waiverLossesByType', $waiverLosses->indexBy('waiver_type_id')->toArray());
 
             // Check if user can close/reopen waivers for this gathering
             $tempWaiver = $this->GatheringWaivers->newEmptyEntity();
             $tempWaiver->gathering = $gathering;
             $canCloseWaivers = $currentUser->checkCan('closeWaivers', $tempWaiver);
+            $this->set('canRecordLost', $currentUser->checkCan('recordLost', $tempWaiver));
 
             $this->set(compact(
                 'gathering',
@@ -511,17 +597,71 @@ class GatheringWaiversController extends AppController
      */
     public function view(WaiverFileService $fileService, ?string $id = null)
     {
-        $gatheringWaiver = $this->GatheringWaivers->get($id, [
-            'contain' => [
-                'Gatherings' => ['GatheringTypes', 'Branches'],
-                'WaiverTypes',
-                'Documents',
-                'DeclinedByMembers',
-                'CreatedByMembers',
-            ],
-        ]);
+        if ($id === null) {
+            $gatheringId = (int)$this->request->getQuery('gathering_id');
+            $waiverTypeId = (int)$this->request->getQuery('waiver_type_id');
+            if ($gatheringId <= 0 || $waiverTypeId <= 0) {
+                throw new BadRequestException(__('Gathering and waiver type are required.'));
+            }
+            $existing = $this->GatheringWaivers->find()->where([
+                'gathering_id' => $gatheringId, 'waiver_type_id' => $waiverTypeId,
+            ])->orderBy(['created' => 'DESC', 'id' => 'DESC'])->first();
+            $id = $existing ? (string)$existing->id : null;
+        }
 
-        $this->Authorization->authorize($gatheringWaiver);
+        if ($id !== null) {
+            $gatheringWaiver = $this->GatheringWaivers->get($id, [
+                'contain' => [
+                    'Gatherings' => ['GatheringTypes', 'Branches'],
+                    'WaiverTypes',
+                    'Documents',
+                    'DeclinedByMembers',
+                    'CreatedByMembers',
+                ],
+            ]);
+
+            $this->Authorization->authorize($gatheringWaiver);
+        } else {
+            $gatheringWaiver = $this->GatheringWaivers->newEmptyEntity();
+            $gatheringWaiver->gathering_id = $gatheringId;
+            $gatheringWaiver->waiver_type_id = $waiverTypeId;
+            $gatheringWaiver->gathering = $this->fetchTable('Gatherings')->get($gatheringId, contain: [
+                'GatheringTypes', 'Branches',
+            ]);
+            $gatheringWaiver->waiver_type = $this->fetchTable('Waivers.WaiverTypes')->get($waiverTypeId);
+            $gatheringWaiver->status = 'pending';
+            $this->Authorization->authorize($gatheringWaiver, 'viewGatheringWaivers');
+            $required = $this->fetchTable('Waivers.GatheringActivityWaivers')->find()
+                ->innerJoinWith('GatheringActivities.Gatherings')->where([
+                    'Gatherings.id' => $gatheringId,
+                    'GatheringActivityWaivers.waiver_type_id' => $waiverTypeId,
+                ])->count();
+            if (
+                !$required && !$this->fetchTable('Waivers.GatheringWaiverLosses')->exists([
+                    'gathering_id' => $gatheringId, 'waiver_type_id' => $waiverTypeId,
+                ])
+            ) {
+                throw new NotFoundException(__('This waiver type is not required for this gathering.'));
+            }
+        }
+
+        $lossReports = $this->fetchTable('Waivers.GatheringWaiverLosses')->find()
+            ->where([
+                'gathering_id' => $gatheringWaiver->gathering_id,
+                'waiver_type_id' => $gatheringWaiver->waiver_type_id,
+            ])
+            ->contain(['CreatedByMembers', 'ReversedByMembers'])
+            ->orderBy(['GatheringWaiverLosses.id' => 'DESC'])->all();
+        $waiverLoss = $lossReports->filter(static fn($loss) => $loss->reversed_at === null)->first();
+        $this->set('waiverLoss', $waiverLoss);
+        $this->set('lossReports', $lossReports);
+        $this->set('canReverseLoss', $this->Authentication->getIdentity()->checkCan('recordLost', $gatheringWaiver));
+        $this->set('uploadedWaivers', $this->GatheringWaivers->find()->where([
+            'gathering_id' => $gatheringWaiver->gathering_id,
+            'waiver_type_id' => $gatheringWaiver->waiver_type_id,
+            'document_id IS NOT' => null,
+        ])->contain(['Documents', 'CreatedByMembers'])->orderBy(['GatheringWaivers.created' => 'DESC'])
+            ->all()->filter(static fn($upload) => $upload->document !== null));
 
         // Load all waiver types for the change type modal
         $waiverTypes = $this->GatheringWaivers->WaiverTypes->find('list')->orderBy(['name' => 'ASC'])->toArray();
@@ -555,14 +695,21 @@ class GatheringWaiversController extends AppController
             throw new BadRequestException(__('Gathering ID is required'));
         }
 
+        $pageContextUrl = $this->getPageContextUrl();
+        if ($this->request->is('get')) {
+            $context = $this->request->getQuery('page_context_url') ?? $this->request->referer();
+            if (
+                is_string($context) && $context !== ''
+                && parse_url($context, PHP_URL_PATH) !== $this->request->getUri()->getPath()
+            ) {
+                $pageContextUrl = $this->assertSafeContextUrl($context);
+            }
+        }
+
         // Get gathering with activities
         $Gatherings = $this->fetchTable('Gatherings');
-        $gathering = $Gatherings->get($gatheringId, [
-            'contain' => [
-                'GatheringTypes',
-                'Branches',
-                'GatheringActivities',
-            ],
+        $gathering = $Gatherings->get($gatheringId, contain: [
+            'GatheringTypes', 'Branches', 'GatheringActivities',
         ]);
 
         // need an empty gathering waiver to check authorization
@@ -675,31 +822,10 @@ class GatheringWaiversController extends AppController
                 );
 
                 if ($result->success) {
-                    // Determine redirect URL based on referer or default to index
-                    $referer = $this->request->referer();
-                    $redirectUrl = null;
-
-                    // If coming from mobile card view, redirect back there
-                    if ($referer && strpos($referer, 'view-mobile-card') !== false) {
-                        $redirectUrl = $referer;
-                    } elseif ($referer && strpos($referer, 'viewMobileCard') !== false) {
-                        $redirectUrl = $referer;
-                    } else {
-                        // default back to the last page the user was on based on our managed back stack
-                        $pageStack = $this->request->getSession()->read('pageStack') ?? [];
-                        $historyCount = count($pageStack);
-                        if ($historyCount >= 2) {
-                            $redirectUrl = $pageStack[$historyCount - 2];
-                        } else {
-                            // Default to waiver index for this gathering
-                            $redirectUrl = Router::url([
-                                'plugin' => 'Waivers',
-                                'controller' => 'GatheringWaivers',
-                                'action' => 'index',
-                                '?' => ['gathering_id' => $gatheringId],
-                            ], true); // true = full base URL
-                        }
-                    }
+                    $redirectUrl = $pageContextUrl ?? Router::url([
+                        'plugin' => false, 'controller' => 'Gatherings', 'action' => 'view',
+                        $gathering->public_id, '?' => ['tab' => 'gathering-waivers'],
+                    ]);
 
                     // Get result data for messaging
                     $resultData = $result->getData();
@@ -728,7 +854,7 @@ class GatheringWaiversController extends AppController
                     }
 
                     // For non-AJAX, redirect
-                    return $this->redirect($redirectUrl);
+                    return $this->redirect($redirectUrl, 303);
                 } else {
                     // Handle error case
                     if ($this->request->is('ajax')) {
@@ -794,6 +920,7 @@ class GatheringWaiversController extends AppController
             'uploadLimits',
             'preSelectedWaiverTypeId',
             'waiverStatusSummary',
+            'pageContextUrl',
         ));
     }
 
@@ -1417,7 +1544,7 @@ class GatheringWaiversController extends AppController
         $this->viewBuilder()->setLayout('mobile_app');
         $this->set('mobileTitle', 'Submit Waiver');
         $this->set('mobileSection', 'waivers');
-        $this->set('mobileIcon', 'bi-file-earmark-text');
+        $this->set('mobileIcon', 'file-text');
         $this->set('mobileBackUrl', $this->request->referer());
         $this->set('showRefreshBtn', false);
     }
@@ -1653,7 +1780,7 @@ class GatheringWaiversController extends AppController
         $this->viewBuilder()->setLayout('mobile_app');
         $this->set('mobileTitle', 'Upload Waiver');
         $this->set('mobileSection', 'waivers');
-        $this->set('mobileIcon', 'bi-cloud-upload');
+        $this->set('mobileIcon', 'cloud-upload');
         $this->set('mobileBackUrl', ['action' => 'mobileSelectGathering']);
         $this->set('showRefreshBtn', false);
     }

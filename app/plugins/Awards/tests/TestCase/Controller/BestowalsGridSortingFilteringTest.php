@@ -10,6 +10,9 @@ use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\KMP\GridColumns\BestowalsGridColumns;
 use Awards\Model\Entity\Award;
 use Awards\Model\Entity\Bestowal;
+use Cake\I18n\DateTime;
+use DOMDocument;
+use DOMXPath;
 
 /**
  * Bestowal grid sorting, filtering, and Turbo-frame response coverage.
@@ -61,6 +64,144 @@ class BestowalsGridSortingFilteringTest extends HttpIntegrationTestCase
         foreach ($views as $view) {
             $this->assertNotContains('source', $view['config']['columns']);
         }
+    }
+
+    public function testCompletedViewShowsSortableFilterableOutcomeAndCloseDateColumns(): void
+    {
+        $columns = BestowalsGridColumns::getColumns();
+        $views = BestowalsGridColumns::getSystemViews();
+        foreach (['terminal_state', 'close_date'] as $key) {
+            $this->assertTrue($columns[$key]['sortable']);
+            $this->assertTrue($columns[$key]['filterable']);
+            $this->assertContains($key, $views['sys-bestowals-completed']['config']['columns']);
+            $this->assertNotContains($key, $views['sys-bestowals-active']['config']['columns']);
+        }
+        $this->assertSame('dropdown', $columns['terminal_state']['filterType']);
+        $this->assertSame('Bestowals.lifecycle_status', $columns['terminal_state']['queryField']);
+        $this->assertSame('date-range', $columns['close_date']['filterType']);
+        $this->assertSame('Bestowals.bestowed_at', $columns['close_date']['queryField']);
+        $this->assertNotContains('lifecycle_status', $views['sys-bestowals-completed']['config']['columns']);
+    }
+
+    public function testCompletedTerminalStateAndCloseDateSupportSortingFilteringAndExport(): void
+    {
+        $prefix = 'completed-grid-fields-' . uniqid();
+        $member = $this->createMember($prefix);
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()->firstOrFail();
+        $gathering = $this->getTableLocator()->get('Gatherings')->find()->firstOrFail();
+        $table = $this->getTableLocator()->get('Awards.Bestowals');
+        $records = [];
+        foreach (
+            ['given' => '2026-10-10 18:00:00', 'Given Not Received' => '2026-10-20 18:00:00',
+                'Filed with Herald' => '2026-11-01 18:00:00'] as $status => $date
+        ) {
+            $bestowal = $this->createBestowal((int)$member->id, (int)$award->id, (int)$gathering->id);
+            $bestowal->lifecycle_status = $status;
+            $bestowal->bestowed_at = new DateTime($date);
+            $records[$status] = $table->saveOrFail($bestowal);
+        }
+        $base = ['view_id' => 'sys-bestowals-completed', 'search' => $prefix];
+        foreach (['asc', 'desc'] as $direction) {
+            $this->get('/awards/bestowals/grid-data?' . http_build_query($base + [
+                'sort' => 'close_date', 'direction' => $direction,
+            ]));
+            $this->assertResponseOk();
+            $this->assertResponseContains('Sort by Terminal state');
+            $this->assertResponseContains('Sort by Close date');
+            $body = (string)$this->_response->getBody();
+            $document = new DOMDocument();
+            @$document->loadHTML($body);
+            $xpath = new DOMXPath($document);
+            $row = $xpath->query('//tr[@data-id="' . $records['Given Not Received']->id . '"]')->item(0);
+            $this->assertNotNull($row);
+            $terminalHeader = $xpath->query('//th[@data-column-key="terminal_state"]')->item(0);
+            $dateHeader = $xpath->query('//th[@data-column-key="close_date"]')->item(0);
+            $this->assertNotNull($terminalHeader);
+            $this->assertNotNull($dateHeader);
+            $terminalPosition = $xpath->query('preceding-sibling::th', $terminalHeader)->length + 1;
+            $datePosition = $xpath->query('preceding-sibling::th', $dateHeader)->length + 1;
+            $this->assertSame(
+                'Given Not Received',
+                trim($xpath->query('td[' . $terminalPosition . ']', $row)->item(0)->textContent),
+            );
+            $this->assertSame(
+                'October 20, 2026',
+                trim($xpath->query('td[' . $datePosition . ']', $row)->item(0)->textContent),
+            );
+            $ordered = $direction === 'asc' ? array_values($records) : array_reverse(array_values($records));
+            $this->assertLessThan(
+                strpos($body, 'data-id="' . $ordered[1]->id . '"'),
+                strpos($body, 'data-id="' . $ordered[0]->id . '"'),
+            );
+            $this->assertLessThan(
+                strpos($body, 'data-id="' . $ordered[2]->id . '"'),
+                strpos($body, 'data-id="' . $ordered[1]->id . '"'),
+            );
+            $this->get('/awards/bestowals/grid-data?' . http_build_query($base + [
+                'sort' => 'terminal_state', 'direction' => $direction,
+            ]));
+            $this->assertResponseOk();
+            $body = (string)$this->_response->getBody();
+            $filedPosition = strpos($body, 'data-id="' . $records['Filed with Herald']->id . '"');
+            $notReceivedPosition = strpos($body, 'data-id="' . $records['Given Not Received']->id . '"');
+            if ($direction === 'asc') {
+                $this->assertLessThan($notReceivedPosition, $filedPosition);
+            } else {
+                $this->assertLessThan($filedPosition, $notReceivedPosition);
+            }
+        }
+        $stateFilter = ['filter' => ['terminal_state' => ['Given Not Received']]];
+        $dateFilter = ['close_date_start' => '2026-10-20', 'close_date_end' => '2026-10-20'];
+        foreach ([$stateFilter, $dateFilter, $stateFilter + $dateFilter] as $filter) {
+            $this->get('/awards/bestowals/grid-data?' . http_build_query($base + $filter));
+            $this->assertResponseOk();
+            $this->assertResponseContains('data-id="' . $records['Given Not Received']->id . '"');
+            $this->assertResponseNotContains('data-id="' . $records['given']->id . '"');
+            $this->assertResponseNotContains('data-id="' . $records['Filed with Herald']->id . '"');
+        }
+        $options = array_column(BestowalsGridColumns::getTerminalStateFilterOptions(), 'label', 'value');
+        $this->assertSame('Filed with Herald', $options['Filed with Herald']);
+        $this->assertSame('Given Not Received', $options['Given Not Received']);
+        $this->assertArrayNotHasKey('open', $options);
+        $this->assertArrayNotHasKey('cancelled', $options);
+        $this->get('/awards/bestowals/grid-data?' . http_build_query($base + ['export' => 'csv']));
+        $this->assertResponseOk();
+        $this->assertResponseContains('Terminal state');
+        $this->assertResponseContains('Close date');
+        $this->assertResponseContains('2026-10-20');
+    }
+
+    public function testCompletedViewAndCsvIncludeEveryTerminalStatus(): void
+    {
+        $prefix = 'bestowal-terminal-outcomes-' . uniqid();
+        $member = $this->createMember($prefix);
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()->firstOrFail();
+        $gathering = $this->getTableLocator()->get('Gatherings')->find()->firstOrFail();
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $records = [];
+        foreach (['open', 'given', 'Given Not Received', 'Filed with Herald', 'cancelled'] as $status) {
+            $bestowal = $this->createBestowal((int)$member->id, (int)$award->id, (int)$gathering->id);
+            $bestowal->lifecycle_status = $status;
+            $records[$status] = $bestowals->saveOrFail($bestowal);
+        }
+        foreach (['sys-bestowals-active', 'sys-bestowals-completed'] as $view) {
+            $this->get('/awards/bestowals/grid-data?' . http_build_query(['view_id' => $view, 'search' => $prefix]));
+            $this->assertResponseOk();
+            foreach ($records as $status => $record) {
+                $visible = $view === 'sys-bestowals-active' ? $status === 'open' : $record->isCompleted();
+                if ($visible) {
+                    $this->assertResponseContains('data-id="' . $record->id . '"');
+                } else {
+                    $this->assertResponseNotContains('data-id="' . $record->id . '"');
+                }
+            }
+        }
+        $this->get('/awards/bestowals/grid-data?' . http_build_query([
+            'view_id' => 'sys-bestowals-completed', 'search' => $prefix, 'export' => 'csv',
+        ]));
+        $this->assertResponseOk();
+        $this->assertResponseContains('Given Not Received');
+        $this->assertResponseContains('Filed with Herald');
     }
 
     public function testProtectedColumnsAreAvailableOnlyForAuthorizedFieldSets(): void

@@ -3,12 +3,15 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Services\Platform;
 
+use App\Services\Cache\TenantAwareCache;
 use App\Services\Platform\Audit\NullWormAuditSink;
 use App\Services\Platform\PlatformAuditService;
+use App\Services\Platform\TenantHostResolver;
 use App\Services\Platform\TenantLifecycleService;
 use App\Test\TestCase\BaseTestCase;
 use Cake\Database\Connection;
 use Cake\Database\Driver\Sqlite;
+use ReflectionMethod;
 use RuntimeException;
 
 class TenantLifecycleServiceTest extends BaseTestCase
@@ -101,6 +104,44 @@ class TenantLifecycleServiceTest extends BaseTestCase
         $metadata = json_decode((string)$events[1]['metadata'], true, 512, JSON_THROW_ON_ERROR);
         $this->assertSame('suspended', $metadata['previous_status']);
         $this->assertSame('active', $metadata['new_status']);
+    }
+
+    public function testHostMapInvalidationWaitsForTheOutermostCommit(): void
+    {
+        $key = (new ReflectionMethod(TenantHostResolver::class, 'cacheKey'))->invoke(null, 'platform');
+        $cache = new TenantAwareCache();
+        $cache->writePlatform($key, ['sentinel' => true], 'tenant_host_map');
+        $this->tenantConnection->begin();
+        try {
+            $this->service()->transition('tenant-1', 'suspended', 'platform-admin-1', 'Suspending for cache regression.');
+            $this->assertSame(['sentinel' => true], $cache->readPlatform($key, 'tenant_host_map'));
+            $this->tenantConnection->commit();
+            $this->assertNull($cache->readPlatform($key, 'tenant_host_map'));
+        } finally {
+            if ($this->tenantConnection->inTransaction()) {
+                $this->tenantConnection->rollback();
+            }
+            $cache->deletePlatform($key, 'tenant_host_map');
+        }
+    }
+
+    public function testRolledBackTransitionsDoNotInvalidateCommittedHostMaps(): void
+    {
+        $key = (new ReflectionMethod(TenantHostResolver::class, 'cacheKey'))->invoke(null, 'platform');
+        $cache = new TenantAwareCache();
+        $cache->writePlatform($key, ['sentinel' => true], 'tenant_host_map');
+        $this->tenantConnection->begin();
+        try {
+            $this->service()->transition('tenant-1', 'suspended', 'platform-admin-1', 'Rolling back cache regression.');
+            $this->tenantConnection->rollback();
+            $this->assertSame(['sentinel' => true], $cache->readPlatform($key, 'tenant_host_map'));
+            $this->assertSame('active', $this->tenantConnection->execute('SELECT status FROM tenants')->fetchColumn(0));
+        } finally {
+            if ($this->tenantConnection->inTransaction()) {
+                $this->tenantConnection->rollback();
+            }
+            $cache->deletePlatform($key, 'tenant_host_map');
+        }
     }
 
     public function testLifecycleTransitionIsBlockedByActiveOperation(): void

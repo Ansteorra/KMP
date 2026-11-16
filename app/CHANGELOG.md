@@ -3,8 +3,60 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: e511adcc8a9f23ab4fff7c7957d8be3717b88a61 -->
-<!-- LAST_SYNCED_DATE: 2026-10-21 -->
+<!-- LAST_SYNCED_COMMIT: a9a3901871ab16eff13e23a28231fe8e7b2c3004 -->
+<!-- LAST_SYNCED_DATE: 2026-11-16 -->
+
+## KMP 1.5.14 — November 16, 2026
+
+KMP 1.5.14 improves kingdom calendars, award preparation, court agendas, and waiver completion. It adds Kingdom and Local Calendar Deputy support, resolves review feedback, and speeds up gathering and bestowal pages while strengthening authorization and tenant administration.
+
+### Calendars, Gatherings, and Activities
+
+- Browse public events in a compact calendar with month boundaries, empty weekends, and continuing multi-week events. Phone layouts keep event dates, names, hosting groups, and activities on screen, with collapsible filters, larger touch controls, and single-column details. Event names open the public event page.
+- Open **Kingdom Calendar** from desktop or mobile navigation. Calendar filters remain visible while scrolling, and **Any Royal Progress** includes custom activities configured as Royal Progress.
+- Manage Royal Progress through gathering activities. Retired Royal Progress RSVP controls and office eligibility settings are removed; ordinary attendance and sharing preferences remain available.
+- Add and edit gathering activities in a shared modal, with searchable icons, activity types, display order, and readable color choices. Royal Progress appears first, Order Circles second, then other activities. Business activities remain available to administrators and are hidden from public calendars and event pages.
+- Keep the Activities tab selected after adding, removing, or editing an activity. Larger activity icons and matching Order Circle artwork make activities easier to identify.
+- Add a **Calendar Deputy** office under the Kingdom Seneschal, with a role that can create and edit gatherings for any hosting group and publish or unpublish kingdom calendar events. The hosting group's Seneschal retains local editing access.
+- Add a **Local Calendar Deputy** office under the Local Seneschal, with gathering creation/editing and desktop/mobile waiver uploads scoped to the appointed branch and descendants. This office requires no personal warrant and grants no calendar publication rights.
+- Filter gathering types by the selected hosting branch and the creator's activity permissions. Calendar deputies can create eligible local-group events without unrelated activity grants; submitted creation and moves enforce the destination branch's permissions.
+- Let Crown scheduling staff attach and schedule Crown Presence at child-hosted events. Restore scoped Coronet Presence and Principality Court access for Principality scheduling staff without granting general gathering editing.
+
+### Awards, Court Agendas, and To-Dos
+
+- Delegate award preparation for a specific gathering and awarding branch, with scoped access to bestowals, court agendas, and assigned To-Dos, plus an auditable revoke action.
+- Configure a lead terminal To-Do with multiple bestowal outcomes, including **Given Not Received**. Authorized editors can correct a completed outcome while preserving its original completion history. Regalia permissions continue working with renamed fields.
+- Prepare, order, edit, and print court agendas with scheduled-session dates/times and appropriately scoped recipient, herald, and recommendation notes. Court choices are ordered, and eligible bestowals can be assigned to a court in bulk.
+- Show full award names and specialties together in court selection, planning, and printouts. Recommendation forms display award descriptions correctly and omit the separator when a description is absent.
+- Keep scheduling prerequisites and gathering/court assignments synchronized across bestowal To-Dos. Improve bulk completion, My To-Dos, and submitted recommendations while retaining grid context.
+- Offer optional completion notes from both My To-Dos and bestowal detail/quick checklists. Notes stay attached to the selected task and no longer carry into the next task's dialog.
+- Keep the gathering picker available when responding to consecutive award recommendations. Recommendation actions include tooltips and accessible labels.
+
+### Waiver Completion
+
+- Report a lost waiver through the labeled **Lost** action beside **View**. Active loss reports satisfy gathering completion requirements while retaining their distinct status, notes, and audit history. Reversing a loss restores any unmet requirement.
+- Close waiver collections directly through the authorized **Close Waivers** action. Completed losses no longer remain in missing/past-due lists, and declining an upload before marking it lost no longer creates a duplicate summary row. Existing files remain viewable and downloadable.
+- Improve waiver action spacing, summary readability, and status contrast. The built-in closure workflow is corrected while preserving customized tenant workflows.
+
+### Navigation, Performance, and Security
+
+- Improve saved grid filters, sorting indicators, detail tabs, draft retention, and return navigation during partial saves. App Back controls use shared browser history, and sidebar preferences persist across page navigation.
+- Load gathering forms and bestowal details faster by removing duplicate navigation, batching repeated permission checks, and avoiding unused mobile-menu queries on desktop. Mobile menus retain their authorized entries and counts.
+- Cache shared catalogues and member authorization facts separately by tenant and identity. Committed changes and grant expirations invalidate cached access; impersonation uses the target member's authority. A lookup that crosses a grant's expiry cannot extend that grant through the cache. Current account/session checks and write authorization remain in place.
+- Add optional, bounded PostgreSQL connection pooling for web requests, preserving tenant database roles and connection cleanup. Readiness and migration checks retain PostgreSQL TLS settings.
+- Restrict approval details and reassignment candidate discovery to authorized users based on current assignments and response history. Reassignment removes the former assignee's pending access.
+- Require fresh MFA, explicit confirmation, and audit recording for sensitive tenant mail changes. Restrict mail credentials and API destinations; unsafe stored overrides block delivery until corrected.
+- Refresh tenant routing after committed changes, validate trusted-proxy metadata, enforce Platform Admin account lockout, and protect sign-out mutations with CSRF-checked POST requests.
+- Apply dependency security fixes, including CakePHP 5.4.4, Symfony Process 7.4.22, gRPC, and Addressable, alongside fixes for filesystem paths, YAML, query strings, redirects, and schema validation.
+
+### Upgrade Notes
+
+- Apply the normal core, platform, and tenant/plugin migration workflow before serving the new image. This installs activity/award/waiver updates, deputy-role configuration, and authorization-cache invalidation triggers. Retired Royal Progress attendance fields are removed; use gathering activities for Royal Progress.
+- Deputy setup creates offices and roles without appointing members. Assign **Can Record Lost Waivers** to the intended roles; it does not grant broader waiver administration.
+- Review tenant mail overrides and trusted-proxy configuration using the [security boundary guide](https://github.com/Ansteorra/KMP/blob/main/app/docs/security-review-boundaries.md). Configure optional web pooling and connection budgets using the [Azure deployment guide](https://github.com/Ansteorra/KMP/blob/main/deploy/azure/README.md#optional-web-database-connection-pool).
+- **Turbo Drive and live updates remain disabled for this release.** Their foundation is included behind separate switches; enabling them requires the documented browser, accessibility, infrastructure, and load acceptance gates.
+
+---
 
 ## KMP 1.5.13 — October 21, 2026
 

@@ -35,7 +35,7 @@ class AwardsNavigationProvider
             [
                 'type' => 'parent',
                 'label' => 'Award Recs.',
-                'icon' => 'bi-patch-exclamation-fill',
+                'icon' => 'badge-alert',
                 'id' => 'navheader_award_recs',
                 'order' => 40,
             ],
@@ -50,7 +50,7 @@ class AwardsNavigationProvider
                     'action' => 'index',
                     'model' => 'Awards.Recommendations',
                 ],
-                'icon' => 'bi-megaphone',
+                'icon' => 'speakerphone',
                 'activePaths' => [
                     'awards/Recommendations/view/*',
                     'awards/Recommendations/index*',
@@ -67,7 +67,7 @@ class AwardsNavigationProvider
                     'action' => 'index',
                     'model' => 'Awards.Bestowals',
                 ],
-                'icon' => 'bi-award',
+                'icon' => 'award',
                 'activePaths' => [
                     'awards/Bestowals/view/*',
                     'awards/Bestowals/index*',
@@ -84,7 +84,7 @@ class AwardsNavigationProvider
                     'action' => 'index',
                     'model' => 'Awards.Domains',
                 ],
-                'icon' => 'bi-compass',
+                'icon' => 'compass',
                 'activePaths' => [
                     'awards/Domains/view/*',
                 ],
@@ -100,7 +100,7 @@ class AwardsNavigationProvider
                     'action' => 'index',
                     'model' => 'Awards.Levels',
                 ],
-                'icon' => 'bi-ladder',
+                'icon' => 'ladder',
                 'activePaths' => [
                     'awards/Levels/view/*',
                 ],
@@ -116,7 +116,7 @@ class AwardsNavigationProvider
                     'action' => 'index',
                     'model' => 'Awards.Awards',
                 ],
-                'icon' => 'bi-award',
+                'icon' => 'award',
                 'activePaths' => [
                     'awards/Awards/view/*',
                 ],
@@ -132,7 +132,7 @@ class AwardsNavigationProvider
                     'action' => 'index',
                     'model' => 'Awards.ApprovalProcesses',
                 ],
-                'icon' => 'bi-ui-checks-grid',
+                'icon' => 'list-check',
                 'activePaths' => [
                     'awards/approval-processes/view/*',
                     'awards/approval-processes/index*',
@@ -149,7 +149,7 @@ class AwardsNavigationProvider
                     'action' => 'index',
                     'model' => 'Awards.BestowalTodoTemplates',
                 ],
-                'icon' => 'bi-list-check',
+                'icon' => 'list-check',
                 'activePaths' => [
                     'awards/bestowal-todo-templates/view/*',
                     'awards/bestowal-todo-templates/index*',
@@ -166,7 +166,7 @@ class AwardsNavigationProvider
                     'action' => 'add',
                     'model' => 'Awards.Recommendations',
                 ],
-                'icon' => 'bi-megaphone-fill',
+                'icon' => 'speakerphone',
                 'linkTypeClass' => 'btn',
                 'otherClasses' => StaticHelpers::getAppSetting('Awards.RecButtonClass'),
             ],

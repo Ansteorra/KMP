@@ -214,7 +214,7 @@
     padding: 2rem;
 }
 
-.config-panel-empty i {
+.config-panel-empty :is(i, kmp-icon) {
     font-size: 2rem;
     margin-bottom: 0.75rem;
     opacity: 0.4;

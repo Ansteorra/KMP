@@ -35,6 +35,8 @@ const waitForSuccessfulLogin = async (page, timeout = DEFAULT_TIMEOUT) => {
 
 const loginAs = async (page, emailAddress, password = 'TestPassword') => {
     await page.goto('/members/logout', { waitUntil: 'domcontentloaded' });
+    await page.locator('section[aria-labelledby="sign-out-heading"]').getByRole('button', { name: 'Sign out', exact: true }).click();
+    await page.waitForLoadState('load');
     await waitForPageBody(page);
     await page.goto('/members/login', { waitUntil: 'load' });
     await waitForPageBody(page);
@@ -54,6 +56,9 @@ const loginAs = async (page, emailAddress, password = 'TestPassword') => {
     if (![200, 302, 303].includes(loginResponse.status())) {
         throw new Error(`Login failed with HTTP ${loginResponse.status()}`);
     }
+    // Let the sign-in redirect finish before starting another document visit.
+    await waitForSuccessfulLogin(page, 30000);
+    await page.waitForLoadState('load');
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await waitForSuccessfulLogin(page, 30000);
 };
@@ -89,8 +94,9 @@ const runPhpJson = (script, payload = {}, { timeoutMs = 60000 } = {}) => {
     const useDocker = shouldUseDockerPhp();
     const file = useDocker ? 'docker' : 'php';
     const phpArgs = ['-d', 'xdebug.mode=off', '-r', script];
+    // Fixture setup may write the local secret file; cache files must retain the web group.
     const args = useDocker
-        ? ['exec', '-i', '-w', CONTAINER_APP_DIR, getAppContainerName(), 'php', ...phpArgs]
+        ? ['exec', '--user', 'root:www-data', '-i', '-w', CONTAINER_APP_DIR, getAppContainerName(), 'php', ...phpArgs]
         : phpArgs;
 
     let output;
@@ -601,7 +607,7 @@ const clickTabAndWait = async (tab, panel = null, timeout = DEFAULT_TIMEOUT) => 
     }
 };
 
-const getSignOutButton = (page) => page.locator('a.btn-outline-secondary').filter({ hasText: /Sign out/i }).first();
+const getSignOutButton = (page) => page.locator('header').getByRole('button', { name: 'Sign out', exact: true }).first();
 
 const isLocatorVisible = async (locator) => {
     try {

@@ -31,12 +31,13 @@ class ActivitiesApproveAndAssignAuthorization extends Controller {
 
     /** Register setId listener when outlet button connects. */
     outletBtnOutletConnected(outlet, element) {
-        outlet.addListener(this.setId.bind(this));
+        this.setIdListener ??= this.setId.bind(this);
+        outlet.addListener(this.setIdListener);
     }
 
     /** Remove setId listener when outlet button disconnects. */
     outletBtnOutletDisconnected(outlet) {
-        outlet.removeListener(this.setId.bind(this));
+        if (this.setIdListener) outlet.removeListener(this.setIdListener);
     }
 
     /** Fetch approvers from server and populate combobox dropdown. */

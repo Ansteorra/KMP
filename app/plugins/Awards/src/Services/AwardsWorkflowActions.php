@@ -6,6 +6,7 @@ namespace Awards\Services;
 use App\KMP\StaticHelpers;
 use App\KMP\WorkflowApprovalDecisionOptions;
 use App\Model\Entity\WorkflowApproval;
+use App\Services\UiBulkMutation;
 use App\Services\WorkflowEngine\WorkflowContextAwareTrait;
 use Awards\Model\Entity\Recommendation;
 use Awards\Model\Entity\RecommendationFeedbackRequestRecipient;
@@ -336,7 +337,8 @@ class AwardsWorkflowActions
 
             // Atomic link: only attach when the row is still unlinked, guarding against a
             // replayed event racing a second instance. A rolled-back txn discards the approval.
-            $affected = $recipientsTable->updateAll(
+            $affected = UiBulkMutation::update(
+                $recipientsTable,
                 ['workflow_approval_id' => $approval->id],
                 ['id' => $recipientRowId, 'workflow_approval_id IS' => null],
             );

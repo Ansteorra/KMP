@@ -33,6 +33,7 @@ x-app-base: &app-base
     - "host.docker.internal:host-gateway"
   volumes:
     - ./app:/var/www/html:cached
+    - ./docker/php-development.ini:/usr/local/etc/php/conf.d/zz-kmp-development.ini:ro
     - composer-cache:/root/.composer/cache
     - node-modules:/var/www/html/node_modules
   environment: &app-environment
@@ -157,11 +158,13 @@ services:
     command: ["sh", "/usr/local/bin/kmp-scheduler-loop-dev"]
     volumes:
       - ./app:/var/www/html:cached
+      - ./docker/php-development.ini:/usr/local/etc/php/conf.d/zz-kmp-development.ini:ro
       - composer-cache:/root/.composer/cache
       - node-modules:/var/www/html/node_modules
       - ./docker/scheduler-loop.sh:/usr/local/bin/kmp-scheduler-loop-dev:ro
     environment:
       <<: *app-environment
+      KMP_PUBLIC_CALENDAR_DEMO: ${KMP_PUBLIC_CALENDAR_DEMO:-true}
       KMP_SKIP_CRON: "true"
       KMP_SKIP_INITIAL_DB_SETUP: "true"
     stop_grace_period: 30s
@@ -173,6 +176,7 @@ services:
     command: ["sh", "/usr/local/bin/kmp-admin-job-loop-dev"]
     volumes:
       - ./app:/var/www/html:cached
+      - ./docker/php-development.ini:/usr/local/etc/php/conf.d/zz-kmp-development.ini:ro
       - composer-cache:/root/.composer/cache
       - node-modules:/var/www/html/node_modules
       - ./docker/admin-job-loop.sh:/usr/local/bin/kmp-admin-job-loop-dev:ro

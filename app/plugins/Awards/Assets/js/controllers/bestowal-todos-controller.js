@@ -16,6 +16,7 @@ class AwardsBestowalTodos extends Controller {
     static outlets = ["outlet-btn"];
 
     connect() {
+        this.disconnected = false;
         if (this.hasTurboFrameUrlValue) {
             this.boundHandleOutletClick = this.handleOutletClick.bind(this);
             document.addEventListener("outlet-btn:outlet-button-clicked", this.boundHandleOutletClick);
@@ -24,12 +25,59 @@ class AwardsBestowalTodos extends Controller {
     }
 
     disconnect() {
+        this.disconnected = true;
         if (this.boundHandleOutletClick) {
             document.removeEventListener("outlet-btn:outlet-button-clicked", this.boundHandleOutletClick);
         }
         if (this.boundHandleModalShow) {
             this.unbindModalEvents();
         }
+    }
+
+    /** Collect an optional audit note before the existing authorized completion POST. */
+    async completeWithNote(event) {
+        const form = event.currentTarget;
+        if (this.confirmedForm === form) {
+            this.confirmedForm = null;
+            return;
+        }
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (this.prompting) return;
+        this.prompting = true;
+        const submitter = event.submitter;
+        const note = form.querySelector('[data-bestowal-completion-note]');
+        try {
+            const value = await window.KMP_accessibility.prompt(
+                submitter?.dataset.todoConfirmation || form.dataset.todoConfirmation,
+                {
+                    title: form.dataset.noteTitle,
+                    inputLabel: form.dataset.noteLabel,
+                    inputType: 'textarea',
+                    defaultValue: note.value,
+                    confirmLabel: form.dataset.noteSubmitLabel,
+                },
+            );
+            if (value === null || this.disconnected || !form.isConnected) return;
+            note.value = value;
+            this.confirmedForm = form;
+            form.requestSubmit(submitter);
+            this.confirmedForm = null;
+        } finally {
+            this.prompting = false;
+        }
+    }
+
+    /** Keep the confirmation explicit about the outcome chosen in this form. */
+    selectTerminalOutcome(event) {
+        const select = event.currentTarget;
+        const button = select.closest("form")?.querySelector("[data-confirm-message], [data-todo-confirmation]");
+        if (!button) return;
+        const key = button.hasAttribute("data-todo-confirmation") ? "todoConfirmation" : "confirmMessage";
+        button.dataset.terminalConfirmationBase ||= button.dataset[key];
+        button.dataset[key] = select.value
+            ? `Completion outcome: ${select.selectedOptions[0].textContent}. ${button.dataset.terminalConfirmationBase}`
+            : button.dataset.terminalConfirmationBase;
     }
 
     /** @return {HTMLElement|null} */

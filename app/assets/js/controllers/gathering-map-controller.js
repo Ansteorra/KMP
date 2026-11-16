@@ -326,7 +326,7 @@ class GatheringMapController extends Controller {
             // Create error display if target doesn't exist
             const errorDiv = document.createElement('div')
             errorDiv.className = 'alert alert-warning'
-            errorDiv.innerHTML = `<i class="bi bi-exclamation-triangle"></i> ${message}`
+            errorDiv.innerHTML = `<kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon> ${message}`
             this.mapTarget.parentNode.insertBefore(errorDiv, this.mapTarget)
         }
         

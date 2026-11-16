@@ -284,7 +284,7 @@ class AwardsController extends AppController
                     return $q->select(['id', 'name']);
                 },
                 'GatheringActivities' => function ($q) {
-                    return $q->select(['id', 'name', 'description']);
+                    return $q->select(['id', 'name', 'description', 'activity_type', 'display_order']);
                 },
             ])
             ->first();
@@ -317,7 +317,7 @@ class AwardsController extends AppController
             return $activity->id;
         }, $award->gathering_activities);
 
-        $availableActivities = $gatheringActivitiesTable->find('list')
+        $availableActivities = $gatheringActivitiesTable->find('list')->find('forDisplay')
             ->where(function ($exp) use ($existingActivityIds) {
                 if (!empty($existingActivityIds)) {
                     return $exp->notIn('id', $existingActivityIds);
@@ -325,7 +325,6 @@ class AwardsController extends AppController
 
                 return $exp;
             })
-            ->orderBy(['name' => 'ASC'])
             ->toArray();
 
         $this->set(compact(
@@ -483,6 +482,7 @@ class AwardsController extends AppController
             ->select([
                 'Awards.id',
                 'Awards.name',
+                'Awards.description',
                 'Awards.specialties',
                 'Awards.approval_process_id',
                 'Awards.domain_id',

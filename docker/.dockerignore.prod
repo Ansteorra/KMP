@@ -107,6 +107,7 @@ app/backups
 app/images/uploaded
 app/images/cache
 app/webroot/uploads
+app/webroot/public-assets
 app/webroot/images/uploaded
 **/node_modules
 **/vendor
@@ -136,3 +137,5 @@ app/config/secrets.local.json
 deploy/azure/nightly.env
 deploy/azure/*.secret
 deploy/azure/.azure-outputs.json
+
+app/webroot/kmp-icons

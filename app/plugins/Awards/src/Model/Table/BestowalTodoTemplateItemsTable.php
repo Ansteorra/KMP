@@ -4,7 +4,10 @@ declare(strict_types=1);
 namespace Awards\Model\Table;
 
 use App\Model\Table\BaseTable;
+use ArrayObject;
 use Awards\Model\Entity\BestowalTodoTemplateItem as TodoItem;
+use Cake\Datasource\EntityInterface;
+use Cake\Event\EventInterface;
 use Cake\ORM\RulesChecker;
 use Cake\Validation\Validator;
 
@@ -154,8 +157,22 @@ class BestowalTodoTemplateItemsTable extends BaseTable
 
         $validator
             ->boolean('is_terminal')
+            ->boolean('is_terminal_lead')
             ->boolean('is_gating')
             ->notEmptyString('is_gating');
+
+        $validator
+            ->scalar('terminal_status')
+            ->maxLength('terminal_status', 100)
+            ->allowEmptyString('terminal_status')
+            ->add('terminal_status', 'completedStatus', [
+                'rule' => static fn($value): bool => !in_array(
+                    mb_strtolower(trim((string)$value)),
+                    ['open', 'cancelled'],
+                    true,
+                ),
+                'message' => __('Use a completion status other than Open or Cancelled.'),
+            ]);
 
         $validator
             ->scalar('required_field')
@@ -189,22 +206,30 @@ class BestowalTodoTemplateItemsTable extends BaseTable
             'message' => __('Item keys must be unique within a template.'),
         ]);
 
-        $rules->add(function ($entity): bool {
-            if (!$entity->is_terminal || $entity->deleted !== null) {
-                return true;
-            }
-
-            return !$this->exists([
-                'template_id' => $entity->template_id,
-                'is_terminal' => true,
-                'deleted IS' => null,
-                'id !=' => $entity->id ?? 0,
-            ]);
-        }, 'oneTerminal', [
-            'errorField' => 'is_terminal',
-            'message' => __('A template can have only one terminal item. Unset the current terminal item first.'),
-        ]);
-
         return $rules;
+    }
+
+    /** Switch the lead atomically; the first terminal definition becomes the default lead. */
+    public function beforeSave(EventInterface $event, EntityInterface $entity, ArrayObject $options): void
+    {
+        $this->BestowalTodoTemplates->find()->select(['id'])
+            ->where(['id' => $entity->get('template_id')])->epilog('FOR UPDATE')->firstOrFail();
+        if (!$entity->get('is_terminal')) {
+            $entity->set('is_terminal_lead', false);
+
+            return;
+        }
+        if (
+            $entity->get('is_terminal_lead') || !$this->exists([
+                'template_id' => $entity->get('template_id'), 'is_terminal_lead' => true,
+                'deleted IS' => null, 'id !=' => $entity->get('id') ?? 0,
+            ])
+        ) {
+            $this->updateAll(['is_terminal_lead' => false], [
+                'template_id' => $entity->get('template_id'), 'is_terminal_lead' => true,
+                'id !=' => $entity->get('id') ?? 0,
+            ]);
+            $entity->set('is_terminal_lead', true);
+        }
     }
 }

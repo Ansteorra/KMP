@@ -22,7 +22,7 @@ $user = $this->request->getAttribute("identity");
     <div class="mb-3">
         <button type="button" class="btn btn-primary" data-bs-toggle="modal"
             data-bs-target="#assignOfficerModal">
-            <i class="bi bi-plus-lg"></i> Assign Officer
+            <kmp-icon name="plus"  aria-hidden="true"></kmp-icon> Assign Officer
         </button>
     </div>
 <?php endif; ?>

@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus";
+import { driveEnabled, visitDocument } from '../services/ui-navigation-service.js';
 
 /**
  * Delete Confirmation Controller
@@ -22,6 +23,7 @@ class DeleteConfirmationController extends Controller {
 
         event.preventDefault();
         event.stopPropagation();
+        const trigger = event.currentTarget;
 
         const confirmed = await window.KMP_accessibility.confirm(message, {
             title: 'Confirm delete',
@@ -32,12 +34,12 @@ class DeleteConfirmationController extends Controller {
             return false;
         }
 
-        const trigger = event.currentTarget;
         const form = trigger?.closest('form');
         if (form instanceof HTMLFormElement) {
-            form.submit();
+            if (driveEnabled() && form.dataset.turbo !== 'false') form.requestSubmit();
+            else form.submit();
         } else if (trigger instanceof HTMLAnchorElement && trigger.href) {
-            window.location.assign(trigger.href);
+            visitDocument(trigger.href);
         }
 
         return true;

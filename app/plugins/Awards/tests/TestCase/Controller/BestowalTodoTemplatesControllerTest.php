@@ -301,6 +301,32 @@ class BestowalTodoTemplatesControllerTest extends HttpIntegrationTestCase
         $this->assertTrue((bool)$restored->required_field_config['auto_complete_when_satisfied']);
     }
 
+    public function testAdminCanConfigureMultipleTerminalStatuses(): void
+    {
+        $template = $this->createTemplateForSyncTest();
+        $items = $this->getTableLocator()->get('Awards.BestowalTodoTemplateItems');
+        foreach (['given' => 'Given', 'given_not_received' => 'Given Not Received', 'filed' => 'Filed with Herald'] as $key => $status) {
+            $this->post('/awards/bestowal-todo-templates/add-item/' . $template->id, [
+                'item_key' => $key, 'label' => $status, 'terminal_status' => $status,
+                'is_terminal' => '1', 'is_gating' => '0',
+                'assignee_type' => BestowalTodoTemplateItem::ASSIGNEE_TYPE_MEMBER,
+                'member_source_id' => self::ADMIN_MEMBER_ID,
+                'branch_mode' => BestowalTodoTemplateItem::BRANCH_MODE_AWARD,
+                'required_field' => '', 'sort_order' => '1',
+            ]);
+            $this->assertFlashMessage('The to-do item has been added.', 'flash');
+            $saved = $items->find()->where(['template_id' => $template->id, 'item_key' => $key])->firstOrFail();
+            $this->assertTrue($saved->is_terminal);
+            $this->assertSame($key === 'given' ? 'given' : $status, $saved->terminal_status);
+            $this->assertSame(self::ADMIN_MEMBER_ID, $saved->assignee_source_id);
+        }
+        $this->get('/awards/bestowal-todo-templates/view/' . $template->id);
+        $this->assertResponseOk();
+        $this->assertResponseContains('Completion status');
+        $this->assertResponseContains('Only the lead becomes a To-Do.');
+        $this->assertResponseContains('Outcome option — Given Not Received');
+    }
+
     public function testAddItemCannotMoveRestoredDefinitionToSubmittedTemplate(): void
     {
         $templates = $this->getTableLocator()->get('Awards.BestowalTodoTemplates');

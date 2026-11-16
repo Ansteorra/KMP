@@ -172,7 +172,7 @@ $this->KMP->endBlock() ?>
     <div class="mb-3">
         <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
             data-bs-target="#addGatheringAttendanceModal">
-            <i class="bi bi-plus-circle"></i> RSVP for Gathering
+            <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon> RSVP for Gathering
         </button>
     </div>
     <?php endif; ?>

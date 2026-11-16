@@ -136,7 +136,7 @@ $firstTabActive = !empty($primaryVars);
         aria-labelledby="nav-variables-tab" data-detail-tabs-target="tabContent" data-tab-order="10" style="order: 10;">
         <?php if ($hasVarsSchema) : ?>
             <p class="text-muted small mb-3">
-                <i class="bi bi-check-circle-fill text-success"></i>
+                <kmp-icon name="circle-check" class="text-success" aria-hidden="true"></kmp-icon>
                 This template has an explicit <strong>Variables Contract</strong> — the fields below are the documented interface for workflow nodes.
             </p>
             <div class="row">
@@ -162,7 +162,7 @@ $firstTabActive = !empty($primaryVars);
         <?php else : ?>
             <!-- Legacy available_vars fallback -->
             <p class="text-muted small mb-3">
-                <i class="bi bi-exclamation-triangle text-warning"></i>
+                <kmp-icon name="alert-triangle" class="text-warning" aria-hidden="true"></kmp-icon>
                 Using legacy <code>available_vars</code> (imported from mailer). Consider defining a <strong>Variables Contract</strong> in the edit form for a richer schema.
             </p>
             <div class="row">

@@ -222,7 +222,7 @@ class BestowalRecommendationSyncService
         int $actorId,
     ): bool {
         $lifecycle = (string)($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN);
-        if ($lifecycle === Bestowal::LIFECYCLE_GIVEN) {
+        if ($bestowal->isCompleted()) {
             $targetStatus = 'Closed';
             $targetState = 'Given';
         } elseif ($lifecycle === Bestowal::LIFECYCLE_OPEN) {

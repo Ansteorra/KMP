@@ -157,7 +157,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
         </div>
         <?php if ($user->checkCan('edit', $approvalProcess)) : ?>
         <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addStepModal">
-            <i class="bi bi-plus-circle" aria-hidden="true"></i> <?= __('Add Step') ?>
+            <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon> <?= __('Add Step') ?>
         </button>
         <?php endif; ?>
     </div>
@@ -217,9 +217,9 @@ echo $this->KMP->startBlock('pageTitle') ?>
                     <td><?= h($step->threshold_summary) ?></td>
                     <td class="actions text-end text-nowrap">
                         <?php if ($user->checkCan('edit', $approvalProcess)) : ?>
-                        <button type="button" class="btn btn-sm btn-secondary bi bi-pencil-fill" data-bs-toggle="modal"
+                        <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal"
                             data-bs-target="#editStepModal-<?= $step->id ?>"
-                            aria-label="<?= __('Edit {0}', $step->label) ?>"></button>
+                            aria-label="<?= __('Edit {0}', $step->label) ?>"><kmp-icon name="pencil" aria-hidden="true"></kmp-icon> </button>
                             <?= $this->Form->postLink(
                                 '',
                                 ['action' => 'delete-step', $step->id],
@@ -227,7 +227,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
                                             'confirm' => __('Remove approval step "{0}"?', $step->label),
                                             'title' => __('Remove'),
                                             'aria-label' => __('Remove {0}', $step->label),
-                                            'class' => 'btn-sm btn btn-outline-danger bi bi-trash-fill',
+                                            'class' => 'btn-sm btn btn-outline-danger', 'icon' => 'trash',
                                         ],
                             ) ?>
                         <?php endif; ?>
@@ -319,7 +319,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
         echo '<div class="col-12 col-lg-6">';
         echo '<fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">';
         echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">' .
-            '<i class="bi bi-list-ol text-primary me-1" aria-hidden="true"></i>' .
+            '<kmp-icon name="list-numbers" class="text-primary me-1" aria-hidden="true"></kmp-icon>' .
             __('Step Identity') . '</legend>';
         echo $this->Form->control('label', ['value' => $step?->label]);
         echo $this->Form->control('step_key', [
@@ -334,7 +334,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
         echo '<div class="col-12 col-lg-6">';
         echo '<fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">';
         echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">' .
-            '<i class="bi bi-person-check text-success me-1" aria-hidden="true"></i>' .
+            '<kmp-icon name="user-check" class="text-success me-1" aria-hidden="true"></kmp-icon>' .
             __('Approver Source') . '</legend>';
         echo $this->Form->control('approver_type', [
             'options' => $approverTypeOptions,
@@ -442,7 +442,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
         echo '<div class="col-12">';
         echo '<fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">';
         echo '<legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">' .
-            '<i class="bi bi-sliders text-info me-1" aria-hidden="true"></i>' .
+            '<kmp-icon name="adjustments" class="text-info me-1" aria-hidden="true"></kmp-icon>' .
             __('Routing Rules') . '</legend>';
         echo $this->Form->control('branch_mode', [
             'options' => $branchModeOptions,
@@ -501,7 +501,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
     <?= $this->Modal->create(__('Add Approval Step'), ['id' => 'addStepModal', 'close' => true, 'form' => true]) ?>
 <fieldset class="border rounded-3 bg-white shadow-sm p-3" data-controller="awards-approval-step-form">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-        <i class="bi bi-list-check text-primary me-1" aria-hidden="true"></i>
+        <kmp-icon name="list-check" class="text-primary me-1" aria-hidden="true"></kmp-icon>
         <?= __('Approval Step') ?>
     </legend>
     <?php $renderStepFields(); ?>
@@ -523,7 +523,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
         ) ?>
 <fieldset class="border rounded-3 bg-white shadow-sm p-3" data-controller="awards-approval-step-form">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-        <i class="bi bi-list-check text-primary me-1" aria-hidden="true"></i>
+        <kmp-icon name="list-check" class="text-primary me-1" aria-hidden="true"></kmp-icon>
             <?= __('Approval Step') ?>
     </legend>
         <?php $renderStepFields($step); ?>

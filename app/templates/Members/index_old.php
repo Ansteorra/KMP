@@ -29,7 +29,7 @@ if (!$isTurboFrame) {
         <?= $this->Html->link(
                     ' Add Member',
                     ['action' => 'add'],
-                    ['class' => 'btn btn-primary bi bi-plus-circle', 'data-turbo-frame' => '_top']
+                    ['class' => 'btn btn-primary', 'icon' => 'circle-plus', 'data-turbo-frame' => '_top']
                 ) ?>
         <?php endif; ?>
     </div>
@@ -44,7 +44,7 @@ if (!$isTurboFrame) {
                     <form class="form-inline">
 
                         <div class="input-group">
-                            <div class="input-group-text" id="btnSearch"><span class='bi bi-search'></span></div>
+                            <div class="input-group-text" id="btnSearch"><kmp-icon name="search"  aria-hidden="true"></kmp-icon></div>
                             <input type="text" name="search" class="form-control" placeholder="Search..."
                                 value="<?= $search ?>" aria-describedby="btnSearch" aria-label="Search">
                         </div>
@@ -79,7 +79,7 @@ if (!$isTurboFrame) {
                     <?= $this->Html->link(
                             __(""),
                             ["action" => "view", $Member->id],
-                            ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
+                            ["title" => __("View"), "class" => "btn-sm btn btn-secondary", 'icon' => 'binoculars'],
                         ) ?>
                     <?php if ($user->isSuperUser()) { ?>
                     <?= $this->Form->postLink(

@@ -48,7 +48,7 @@ provide equivalent tenant isolation.
 | Core `Documents` | Storage metadata, SHA-256 checksum, adapter, object path, uploader, and conversion metadata for uploaded PDFs and previews. |
 
 Required waiver types are the distinct requirements of all activities selected
-for a gathering. A valid upload or exemption satisfies the type at the
+for a gathering. A valid upload, exemption, or active loss report satisfies the type at the
 gathering level. Declined and soft-deleted records do not satisfy compliance.
 
 ## Runtime flow
@@ -73,7 +73,11 @@ gathering level. Declined and soft-deleted records do not satisfy compliance.
 
 Closing is workflow-driven: the controller dispatches
 `Waivers.CollectionClosed` and the configured workflow is responsible for the
-state transition. Mark-ready, reopen, and decline mutate through
+state transition. The built-in workflow honors an authorized close request without
+requiring a prior ready marker; already-closed collections are a no-op. The
+corrective migration publishes a new version only for the unchanged built-in
+graph, preserving customized workflows and historical versions. Mark-ready,
+reopen, and decline mutate through
 `WaiverStateService` and then dispatch their corresponding events. Preserve
 this distinction when changing controllers or workflow definitions.
 

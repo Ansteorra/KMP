@@ -35,8 +35,21 @@ class NotesController extends AppController
             $this->Authorization->authorize($model, 'addNote');
             if ($this->Notes->save($note)) {
                 $this->Flash->success(__('The note has been saved.'));
+                if ($this->wantsTurboStreamRequest()) {
+                    $note = $this->Notes->get($note->id, contain: ['Authors']);
+                    $notesListId = 'notes-list-' . md5($note->entity_type . ':' . $note->entity_id);
+                    $flashMessages = $this->consumeFlashForStream();
+                    $this->set(compact('note', 'notesListId', 'flashMessages'));
+                    $this->viewBuilder()->disableAutoLayout()->setTemplate('saved');
+                    $this->response = $this->response->withType('text/vnd.turbo-stream.html');
+
+                    return $this->render();
+                }
             } else {
                 $this->Flash->error(__('The note could not be saved. Please, try again.'));
+                if ($this->wantsTurboStreamRequest()) {
+                    return $this->renderTurboFlashOnly()->withStatus(422);
+                }
             }
         }
 

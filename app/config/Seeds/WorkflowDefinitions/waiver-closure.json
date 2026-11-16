@@ -16,31 +16,7 @@
             "outputs": [
                 {
                     "port": "next",
-                    "target": "check-ready-to-close"
-                }
-            ]
-        },
-        "check-ready-to-close": {
-            "type": "condition",
-            "label": "Is Ready to Close?",
-            "config": {
-                "condition": "Waivers.IsReadyToClose",
-                "gatheringId": "$.trigger.gatheringId"
-            },
-            "position": {
-                "x": 350,
-                "y": 200
-            },
-            "outputs": [
-                {
-                    "port": "true",
-                    "target": "close-collection",
-                    "label": "Ready"
-                },
-                {
-                    "port": "false",
-                    "target": "end-not-ready",
-                    "label": "Not Ready"
+                    "target": "check-closed"
                 }
             ]
         },
@@ -75,9 +51,33 @@
             },
             "outputs": []
         },
-        "end-not-ready": {
+        "check-closed": {
+            "type": "condition",
+            "label": "Already Closed?",
+            "config": {
+                "condition": "Waivers.IsClosed",
+                "gatheringId": "$.trigger.gatheringId"
+            },
+            "position": {
+                "x": 350,
+                "y": 200
+            },
+            "outputs": [
+                {
+                    "port": "true",
+                    "target": "end-already-closed",
+                    "label": "Already Closed"
+                },
+                {
+                    "port": "false",
+                    "target": "close-collection",
+                    "label": "Open"
+                }
+            ]
+        },
+        "end-already-closed": {
             "type": "end",
-            "label": "Not Ready to Close",
+            "label": "Collection Already Closed",
             "config": {},
             "position": {
                 "x": 650,

@@ -123,7 +123,7 @@ describe('EmailTemplateEditorController', () => {
         const toolbar = controller.buildToolbar();
         const customButton = toolbar.find(item => typeof item === 'object' && item.name === 'insert-variable');
         expect(customButton).toBeDefined();
-        expect(customButton.className).toBe('fa fa-code');
+        expect(customButton.className).toBe('kmp-editor-variable');
         expect(customButton.title).toBe('Insert Variable');
     });
 

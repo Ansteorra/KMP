@@ -88,13 +88,6 @@ echo $this->KMP->startBlock("pageTitle") ?>
                             $this->Html,
                         ) ?></td>
 </tr>
-<tr scope="row">
-    <th class='col'><?= __("Royal Progress") ?></th>
-    <td class="col-10"><?= $this->Kmp->bool(
-                            $office->is_royal_progress,
-                            $this->Html,
-                        ) ?></td>
-</tr>
 <th class='col'><?= __("Reports To") ?></th>
 <td class="col-10"><?= $office->hasValue(
                         "reports_to",
@@ -158,7 +151,7 @@ echo $this->Modal->create("Edit Office", [
     <div class="col-12 col-xl-6">
         <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
             <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                <i class="bi bi-briefcase text-primary me-1" aria-hidden="true"></i>
+                <kmp-icon name="briefcase" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                 <?= __("Office Identity") ?>
             </legend>
             <?php
@@ -182,7 +175,7 @@ echo $this->Modal->create("Edit Office", [
     <div class="col-12 col-xl-6">
         <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
             <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                <i class="bi bi-toggles text-success me-1" aria-hidden="true"></i>
+                <kmp-icon name="toggle-right" class="text-success me-1" aria-hidden="true"></kmp-icon>
                 <?= __("Rules") ?>
             </legend>
             <?php
@@ -190,7 +183,6 @@ echo $this->Modal->create("Edit Office", [
             echo $this->Form->control("can_skip_report", ["switch" => true, 'label' => 'Skip Report']);
             echo $this->Form->control("requires_warrant", ["switch" => true, 'label' => 'Warrant']);
             echo $this->Form->control("only_one_per_branch", ["switch" => true, 'label' => 'One Per Branch']);
-            echo $this->Form->control("is_royal_progress", ["switch" => true, 'label' => 'Royal Progress']);
             echo $this->Form->control("is_deputy", [
                 "type" => "checkbox",
                 "switch" => true,
@@ -204,7 +196,7 @@ echo $this->Modal->create("Edit Office", [
     <div class="col-12">
         <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
             <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                <i class="bi bi-diagram-3 text-info me-1" aria-hidden="true"></i>
+                <kmp-icon name="sitemap" class="text-info me-1" aria-hidden="true"></kmp-icon>
                 <?= __("Hierarchy & Scope") ?>
             </legend>
             <?php

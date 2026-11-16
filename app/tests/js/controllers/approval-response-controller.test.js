@@ -32,6 +32,7 @@ describe('ApprovalResponseController', () => {
                         <input type="hidden" data-ac-target="hidden" name="bestowal_gathering_id">
                         <input type="hidden" data-ac-target="hiddenText">
                         <input type="text" data-ac-target="input" aria-invalid="false">
+                        <button type="button" data-ac-target="clearBtn" disabled>Clear</button>
                     </div>
                     <div data-approval-response-target="bestowalGatheringError" hidden></div>
                 </div>
@@ -80,6 +81,43 @@ describe('ApprovalResponseController', () => {
 
     afterEach(() => {
         document.body.innerHTML = '';
+    });
+
+    test('reusing the dialog unlocks and clears a previously selected gathering', () => {
+        controller.configure({ id: 19, requiresBestowalGathering: true });
+        document.querySelector('input[value="approve"]').checked = true;
+        controller.onDecisionChange();
+        const widget = controller.bestowalGatheringTarget;
+        const input = widget.querySelector('[data-ac-target="input"]');
+        const hidden = widget.querySelector('[data-ac-target="hidden"]');
+        const clear = widget.querySelector('[data-ac-target="clearBtn"]');
+        input.value = 'Earlier gathering';
+        input.disabled = true;
+        hidden.value = '12';
+        clear.disabled = false;
+
+        controller.configure({ id: 20, requiresBestowalGathering: true });
+        document.querySelector('input[value="approve"]').checked = true;
+        controller.onDecisionChange();
+
+        expect(input).toBeEnabled();
+        expect(input).toHaveValue('');
+        expect(hidden).toHaveValue('');
+        expect(clear).toBeDisabled();
+    });
+
+    test('clears through the autocomplete lifecycle to discard pending suggestions', () => {
+        const clear = jest.fn();
+        window.Stimulus.getControllerForElementAndIdentifier = jest.fn(() => ({ clear }));
+        try {
+            controller.configure({ id: 21, requiresBestowalGathering: true });
+            expect(window.Stimulus.getControllerForElementAndIdentifier).toHaveBeenCalledWith(
+                controller.bestowalGatheringTarget, 'ac',
+            );
+            expect(clear).toHaveBeenCalled();
+        } finally {
+            delete window.Stimulus.getControllerForElementAndIdentifier;
+        }
     });
 
     test('hides decision controls and requires comments for feedback responses', () => {

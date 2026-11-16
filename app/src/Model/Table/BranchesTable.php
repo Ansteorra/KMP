@@ -3,8 +3,7 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
-use App\Services\Cache\TenantAwareCache;
-use Cake\Cache\Cache;
+use App\Services\Cache\ReadModelCache;
 use Cake\Database\Schema\TableSchemaInterface;
 use Cake\ORM\RulesChecker;
 use Cake\Validation\Validator;
@@ -88,10 +87,9 @@ use Cake\Validation\Validator;
  *
  * **Caching Strategy:**
  * - Static cache keys: none (all data is dynamic)
- * - ID-based caches: descendants_[id], parents_[id] in 'branch_structure' config
- * - Group caches: 'security' group for authorization data
- * - Cache TTL: Managed by CakePHP cache configuration
- * - Invalidation: On any save operation affecting tree structure
+ * - ReadModelCache stores tenant-wide descendant/parent lookups for read requests.
+ * - Database revision triggers invalidate hierarchy changes, including bulk SQL.
+ * - Transactions and mutation requests read the current hierarchy directly.
  *
  * **Database Schema:**
  * - Standard tree behavior fields (lft, rght, parent_id)
@@ -369,16 +367,12 @@ class BranchesTable extends BaseTable
      */
     public function getAllDecendentIds($id): array
     {
-        $descendants = Cache::read(TenantAwareCache::tenantScopedKey('descendants_' . $id), 'branch_structure');
-        if (!is_array($descendants)) {
-            $descendants = $this->getDescendantsLookup();
-            foreach ($descendants as $key => $value) {
-                Cache::write(TenantAwareCache::tenantScopedKey('descendants_' . $key), $value, 'branch_structure');
-            }
-            $descendants = $descendants[$id] ?? [];
-        }
+        $lookup = ReadModelCache::remember(
+            'getDescendantsLookup',
+            fn(): array => $this->getDescendantsLookup(),
+        );
 
-        return $descendants ?? [];
+        return $lookup[$id] ?? [];
     }
 
     /**
@@ -432,16 +426,12 @@ class BranchesTable extends BaseTable
      */
     public function getAllParents($id): array
     {
-        $parents = Cache::read(TenantAwareCache::tenantScopedKey('parents_' . $id), 'branch_structure');
-        if (!is_array($parents)) {
-            $parents = $this->getParentsLookup();
-            foreach ($parents as $key => $value) {
-                Cache::write(TenantAwareCache::tenantScopedKey('parents_' . $key), $value, 'branch_structure');
-            }
-            $parents = $parents[$id] ?? [];
-        }
+        $lookup = ReadModelCache::remember(
+            'getParentsLookup',
+            fn(): array => $this->getParentsLookup(),
+        );
 
-        return $parents ?? [];
+        return $lookup[$id] ?? [];
     }
 
     /**
@@ -486,11 +476,8 @@ class BranchesTable extends BaseTable
     public function getThreadedTree(): array
     {
         // rebuild the array into a tree structure
-        $branches = $this->find('threaded', [
-            'parentField' => 'parent_id',
-            'keyForeign' => 'id',
-            'nestingKey' => 'children',
-        ])->select(['id', 'name', 'parent_id'])->toArray();
+        $branches = $this->find('threaded', parentField: 'parent_id', keyField: 'id', nestingKey: 'children')
+            ->select(['id', 'name', 'parent_id'])->toArray();
         //create a quick index of all of the decendents for each branch
 
         return $branches;

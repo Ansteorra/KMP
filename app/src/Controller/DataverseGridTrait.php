@@ -745,6 +745,19 @@ trait DataverseGridTrait
         $sortField = $this->request->getQuery('sort');
         $sortDirection = $this->request->getQuery('direction');
         $currentSort = [];
+        foreach ($defaultSort as $field => $direction) {
+            if (!is_string($field)) {
+                continue;
+            }
+            $columnKey = $this->columnKeyForDataverseField($field, $columnsMetadata);
+            if (!empty($columnsMetadata[$columnKey]['sortable'])) {
+                $currentSort = [
+                    'field' => $columnKey,
+                    'direction' => strtoupper($direction) === 'DESC' ? 'desc' : 'asc',
+                ];
+                break;
+            }
+        }
 
         if ($sortField && $sortDirection) {
             $columnMeta = $columnsMetadata[$sortField] ?? null;
@@ -756,7 +769,10 @@ trait DataverseGridTrait
                     $columnMeta,
                     $tableName,
                 );
-                $currentSort = ['field' => $sortField, 'direction' => $sortDirection];
+                $currentSort = [
+                    'field' => $sortField,
+                    'direction' => strtoupper($sortDirection) === 'DESC' ? 'desc' : 'asc',
+                ];
             } else {
                 // Column not sortable or not found — fall back to default sort
                 $baseQuery->orderBy($defaultSort);
@@ -777,7 +793,10 @@ trait DataverseGridTrait
                             $columnMeta,
                             $tableName,
                         );
-                        $currentSort = ['field' => $sortField, 'direction' => $sortDirection];
+                        $currentSort = [
+                            'field' => $sortField,
+                            'direction' => strtoupper($sortDirection) === 'DESC' ? 'desc' : 'asc',
+                        ];
                     } else {
                         $baseQuery->orderBy($defaultSort);
                     }
@@ -2414,6 +2433,8 @@ trait DataverseGridTrait
         array $columnMeta,
         string $tableName,
     ): SelectQuery {
+        // A selected column or saved-view sort replaces ordering from the base query.
+        $query->orderBy([], true);
         $normalizedDirection = strtoupper($direction) === 'DESC' ? 'DESC' : 'ASC';
         $handler = $columnMeta['customSortHandler'] ?? null;
         if (is_array($handler)) {

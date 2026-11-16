@@ -16,6 +16,20 @@ class AwardsControllerTest extends HttpIntegrationTestCase
         $this->authenticateAsSuperUser();
     }
 
+    public function testAwardsByDomainIncludesStoredDescriptions(): void
+    {
+        $awards = $this->getTableLocator()->get('Awards.Awards');
+        $award = $awards->find()->where(['is_active' => true])->firstOrFail();
+        $award->description = 'Guidance for choosing this award.';
+        $awards->saveOrFail($award);
+
+        $this->get('/awards/awards/awards-by-domain/' . $award->domain_id);
+        $this->assertResponseOk();
+        $rows = json_decode((string)$this->_response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        $byId = array_column($rows, null, 'id');
+        $this->assertSame($award->description, $byId[$award->id]['description']);
+    }
+
     public function testEditCanDisableAward(): void
     {
         $awards = $this->getTableLocator()->get('Awards.Awards');

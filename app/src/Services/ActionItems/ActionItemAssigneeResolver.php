@@ -51,6 +51,14 @@ class ActionItemAssigneeResolver
      */
     public function isMemberEligible(ActionItem $item, int $memberId): bool
     {
+        return $this->isMemberDirectlyEligible($item, $memberId)
+            || ($memberId > 0 && (ActionItemDelegationRegistry::providerFor($item)
+                ?->isMemberEligible($item, $memberId, $this) ?? false));
+    }
+
+    /** Resolve native assignment only; delegation providers must use this to prevent chains. */
+    public function isMemberDirectlyEligible(ActionItem $item, int $memberId): bool
+    {
         if ($memberId <= 0) {
             return false;
         }
@@ -86,6 +94,15 @@ class ActionItemAssigneeResolver
      * @return array<int> Distinct eligible member IDs
      */
     public function getEligibleMemberIds(ActionItem $item): array
+    {
+        return array_values(array_unique(array_merge(
+            $this->getDirectlyEligibleMemberIds($item),
+            ActionItemDelegationRegistry::providerFor($item)?->getEligibleMemberIds($item, $this) ?? [],
+        )));
+    }
+
+    /** @return array<int> Native assignees, excluding delegated authority. */
+    public function getDirectlyEligibleMemberIds(ActionItem $item): array
     {
         $config = $item->assignee_config ?? [];
 

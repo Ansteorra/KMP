@@ -33,6 +33,7 @@ class ViteHelper extends Helper
      */
     public function css(string $name, array $options = []): ?string
     {
+        $options += ['data-turbo-track' => 'reload'];
         $manifest = $this->getManifest();
 
         // Try direct CSS entry first (e.g., "assets/css/app.css")
@@ -45,6 +46,7 @@ class ViteHelper extends Helper
         foreach ($candidates as $key) {
             if (isset($manifest[$key])) {
                 $file = '/' . $manifest[$key]['file'];
+
                 return $this->Html->css($file, $options);
             }
         }
@@ -56,6 +58,7 @@ class ViteHelper extends Helper
                 str_contains($key, $name)
             ) {
                 $file = '/' . $entry['file'];
+
                 return $this->Html->css($file, $options);
             }
         }
@@ -72,7 +75,7 @@ class ViteHelper extends Helper
      */
     public function script(string $name, array $options = []): ?string
     {
-        $defaults = ['type' => 'module'];
+        $defaults = ['type' => 'module', 'data-turbo-track' => 'reload'];
         $options += $defaults;
 
         $manifest = $this->getManifest();
@@ -81,6 +84,7 @@ class ViteHelper extends Helper
         $key = "assets/js/{$name}.js";
         if (isset($manifest[$key])) {
             $file = '/' . $manifest[$key]['file'];
+
             return $this->Html->script($file, $options);
         }
 
@@ -92,6 +96,7 @@ class ViteHelper extends Helper
                 str_ends_with($entry['file'] ?? '', '.js')
             ) {
                 $file = '/' . $entry['file'];
+
                 return $this->Html->script($file, $options);
             }
         }

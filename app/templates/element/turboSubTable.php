@@ -14,7 +14,7 @@ use App\KMP\StaticHelpers;
                 <?php if (!empty($tableConfig['exportButton']['fields'])): ?>
                 data-csv-download-fields-value='<?= json_encode($tableConfig['exportButton']['fields']) ?>' <?php endif; ?>
                 title="Download CSV">
-                <i class="bi bi-download"></i> Download CSV
+                <kmp-icon name="download"  aria-hidden="true"></kmp-icon> Download CSV
             </a>
         </div>
     <?php endif; ?>

@@ -289,7 +289,7 @@ class MemberMobileCardProfile extends MobileControllerBase {
         const offlineMsg = document.createElement("div");
         offlineMsg.className = "alert alert-warning text-center m-3";
         offlineMsg.innerHTML = `
-            <i class="bi bi-wifi-off me-2"></i>
+            <kmp-icon name="wifi-off" class="me-2" aria-hidden="true"></kmp-icon>
             Unable to load - you're offline
             <button class="btn btn-sm btn-outline-warning ms-2" data-action="click->member-mobile-card-profile#retryLoad">
                 Retry

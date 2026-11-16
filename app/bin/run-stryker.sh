@@ -5,6 +5,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# Stryker loads Jest configuration in its own process as well as test workers.
+export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--disable-proto=throw"
+
 scope="${1:-security}"
 if [ "$#" -gt 0 ]; then
     shift

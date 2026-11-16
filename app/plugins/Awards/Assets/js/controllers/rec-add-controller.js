@@ -197,7 +197,7 @@ class AwardsRecommendationAddForm extends Controller {
                         button.setAttribute("role", "tab");
                         button.setAttribute("aria-controls", "award_" + award.id);
                         button.setAttribute("aria-selected", selected);
-                        button.innerHTML = award.name;
+                        button.textContent = award.name;
                         tabButton.appendChild(button);
                         const tabContent = document.createElement("div");
                         tabContent.classList.add("tab-pane");
@@ -211,7 +211,8 @@ class AwardsRecommendationAddForm extends Controller {
                         tabContent.setAttribute("id", "award_" + award.id);
                         tabContent.setAttribute("role", "tabpanel");
                         tabContent.setAttribute("aria-labelledby", "award_" + award.id + "_btn");
-                        tabContent.innerHTML = award.name + ": " + award.description;
+                        const description = typeof award.description === "string" ? award.description.trim() : "";
+                        tabContent.textContent = description ? `${award.name}: ${description}` : award.name;
                         active = "";
                         show = "";
                         selected = "false";

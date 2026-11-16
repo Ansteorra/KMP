@@ -5,12 +5,14 @@ namespace App\Services;
 
 use App\KMP\TenantMetadata;
 use App\Mailer\Transport\AzureCommunicationTransport;
+use App\Mailer\Transport\RejectedTenantMailTransport;
 use App\Mailer\Transport\ResendApiTransport;
 use App\Mailer\Transport\SendGridApiTransport;
 use App\Services\Secrets\SecretStoreInterface;
 use Cake\Log\Log;
 use Cake\Mailer\Mailer;
 use Cake\Mailer\TransportFactory;
+use InvalidArgumentException;
 
 /**
  * Applies a tenant's tenant_config.email overrides to the default mail
@@ -48,7 +50,13 @@ class TenantMailConfigurator
             };
         }
 
-        $transportConfig = $this->transportConfig($tenant, $email);
+        try {
+            (new TenantMailConfigGuard())->assertAllowed($tenant->slug, $email);
+            $transportConfig = $this->transportConfig($tenant, $email);
+        } catch (InvalidArgumentException) {
+            Log::warning(sprintf('Tenant "%s" email configuration was rejected; delivery is blocked.', $tenant->slug));
+            $transportConfig = ['className' => RejectedTenantMailTransport::class];
+        }
         $fromOverride = $this->fromOverride($email);
         if ($transportConfig === null && $fromOverride === null) {
             return static function (): void {
@@ -199,11 +207,8 @@ class TenantMailConfigurator
     /**
      * Resolve a stored secret reference to its value.
      *
-     * Supports the reference forms accepted by TenantConfigSchema: portable
-     * dotted names via the configured secret store, env://VAR for literal
-     * environment variables, and secret:// or db:// prefixes stripped down to
-     * store lookups. Unresolvable references log a warning and return null so
-     * the failure surfaces at send time instead of breaking tenant binding.
+     * Approved tenant mail names resolve through the configured secret chain.
+     * Validation runs before any lookup; unresolved credentials fail at send time.
      *
      * @param \App\KMP\TenantMetadata $tenant Tenant metadata (for log context)
      * @param string $reference Secret reference name
@@ -213,24 +218,6 @@ class TenantMailConfigurator
         $reference = trim($reference);
         if ($reference === '') {
             return null;
-        }
-
-        if (str_starts_with($reference, 'env://')) {
-            $value = env(substr($reference, strlen('env://')));
-
-            return $value === null || $value === false ? null : (string)$value;
-        }
-
-        foreach (['keyvault://', 'kv://'] as $unsupported) {
-            if (str_starts_with($reference, $unsupported)) {
-                Log::warning(sprintf(
-                    'Tenant "%s" email secret reference "%s" needs a Key Vault resolver; none is configured.',
-                    $tenant->slug,
-                    $reference,
-                ));
-
-                return null;
-            }
         }
 
         foreach (['secret://', 'db://'] as $scheme) {

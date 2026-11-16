@@ -14,6 +14,12 @@ use Cake\Routing\Router;
  */
 trait TurboResponseTrait
 {
+    /** Shared modal clients reconcile the table once and do not need an intermediate row render. */
+    protected function wantsGridReconciliation(): bool
+    {
+        return $this->request->getHeaderLine('X-KMP-Grid-Reconcile') === 'table';
+    }
+
     /**
      * Whether the client expects a turbo-stream response.
      */

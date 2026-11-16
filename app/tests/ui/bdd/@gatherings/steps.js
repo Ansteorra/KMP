@@ -296,6 +296,8 @@ When('I create the gatherings lifecycle gathering', async ({ page }) => {
     await page.keyboard.type(data.gatheringDescription);
     await runAndWaitForNetworkIdle(page, () => page.getByRole('button', { name: 'Create Gathering', exact: true }).click());
 
+    // Turbo can paint the successful page before its history entry is committed.
+    await expect(page).toHaveURL(/\/gatherings\/view\/[^/?]+(?:\?.*)?$/);
     data.gatheringUrl = new URL(page.url()).pathname;
 });
 

@@ -18,11 +18,16 @@ Own CakePHP app configuration that changes runtime wiring: routes, plugin activa
 - Enabled first-party domain plugins currently load in this order: `Activities` 1, `Officers` 2, `Awards` 3, `Waivers` 4.
 - Keep `Template` disabled unless the task is specifically about the skeleton plugin.
 - Never hard-code secrets or deployment-only values; use environment configuration and existing app settings patterns.
+- `KMP_DB_POOL_ENABLED` selects the local PgBouncer driver for web default/platform connections after URL parsing. CLI, queue, and administrative connections stay direct. Keep pool credentials out of configuration output and retain real database/role metadata in CakePHP.
+- `REDIS_URL` credentials use URI encoding. Decode the password once for PHP clients; deployment templates encode generated access keys before composing the URL.
 - Core routes should use CakePHP conventions and dashed URLs; plugin-specific routes belong with the plugin.
 - Schema changes require migrations in the owning app or plugin migration directory.
 - Applied migrations are immutable: once a migration has run in any shared environment, add a new corrective migration instead of editing the original. Squash only unreleased migration chains that have not run in shared environments, and preserve restore/hydration paths.
 - Do not switch to the unified `cake_migrations` table until every tenant and backup migration-history consumer is
   updated and the rollout includes an explicit, verified `migrations upgrade` procedure.
+- `DevLoadBestowalTodoUsersSeed` restores Crown/Coronet Presence and court activity access after rebuilding persona roles,
+  before reconciling warrants. Keep those grants idempotent and activity-only; preserve the distinct Royal Visit
+  catalogue entry. See `app/docs/gathering-activities.md` for the development reset contract.
 
 ## Work Guidance
 

@@ -26,7 +26,7 @@ $this->assign('title', __('Service Principals'));
                 <?= $this->Html->link(
                     __(' Add Service Principal'),
                     ['action' => 'add'],
-                    ['class' => 'btn btn-primary bi bi-plus-circle']
+                    ['class' => 'btn btn-primary', 'icon' => 'circle-plus']
                 ) ?>
             <?php endif; ?>
         </div>
@@ -35,7 +35,7 @@ $this->assign('title', __('Service Principals'));
     <div class="card">
         <div class="card-body">
             <p class="text-muted mb-3">
-                <i class="bi bi-info-circle"></i>
+                <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                 <?= __('Service principals are non-human identities for third-party API integrations. They authenticate using Bearer tokens and can be assigned roles to control access.') ?>
             </p>
 
@@ -83,13 +83,13 @@ $this->assign('title', __('Service Principals'));
                                 </td>
                                 <td class="text-end">
                                     <?= $this->Html->link(
-                                        '<i class="bi bi-eye"></i>',
+                                        '<kmp-icon name="eye"  aria-hidden="true"></kmp-icon>',
                                         ['action' => 'view', $sp->id],
                                         ['class' => 'btn btn-sm btn-outline-primary', 'escape' => false, 'title' => __('View')]
                                     ) ?>
                                     <?php if ($user->checkCan("edit", $sp)) : ?>
                                         <?= $this->Html->link(
-                                            '<i class="bi bi-pencil"></i>',
+                                            '<kmp-icon name="pencil"  aria-hidden="true"></kmp-icon>',
                                             ['action' => 'edit', $sp->id],
                                             ['class' => 'btn btn-sm btn-outline-secondary', 'escape' => false, 'title' => __('Edit')]
                                         ) ?>
@@ -101,7 +101,7 @@ $this->assign('title', __('Service Principals'));
                         <?php if (empty($servicePrincipals->toArray())) : ?>
                             <tr>
                                 <td colspan="6" class="text-center text-muted py-4">
-                                    <i class="bi bi-key h1 d-block mb-2"></i>
+                                    <kmp-icon name="key" class="h1 d-block mb-2" aria-hidden="true"></kmp-icon>
                                     <?= __('No service principals configured yet.') ?>
                                     <?php if ($user->checkCan("add", "ServicePrincipals")) : ?>
                                         <br>

@@ -143,6 +143,14 @@ class GatheringCloneService
         $timeDiff = $newGathering->start_date->getTimestamp() - $original->start_date->getTimestamp();
 
         foreach ($original->gathering_scheduled_activities as $scheduledActivity) {
+            if ($scheduledActivity->gathering_activity_id) {
+                $links = $this->fetchTable('GatheringsGatheringActivities');
+                $conditions = ['gathering_id' => $newGathering->id,
+                    'gathering_activity_id' => $scheduledActivity->gathering_activity_id];
+                if (!$links->exists($conditions)) {
+                    $links->saveOrFail($links->newEntity($conditions + ['sort_order' => 999]));
+                }
+            }
             $newStartDateTime = clone $scheduledActivity->start_datetime;
             $newStartDateTime = $newStartDateTime->modify(sprintf('%+d seconds', $timeDiff));
 

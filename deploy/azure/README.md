@@ -30,6 +30,56 @@ is functionally aligned with the curated development seed, not byte-identical
 database state, and it does not restore the platform database or a tenant
 fleet.
 
+## Optional web database connection pool
+
+`enableDatabasePool` (default `false`) enables PgBouncer beside Apache, using
+`KMP_DB_POOL_ENABLED=true` in the web container only. `databasePoolSlots` and
+`databasePoolSize` set `KMP_DB_POOL_DATABASE_SLOTS` and
+`KMP_DB_POOL_SIZE` (defaults 6 and 2). The pool listens only
+on a private Unix socket under `/run/kmp-db-pool`; it exposes no network port.
+The final image must include PgBouncer even when the feature is disabled.
+
+Budget `slots × size` PostgreSQL connections per web replica, including old and
+new replicas during deployment. Reserve additional capacity for production,
+jobs, administration, and one direct credential-refresh connection per replica.
+The slots cover unique server/port/database combinations: platform, default,
+and active or suspended tenants. Slots remain allocated until container
+replacement even after a tenant is removed, so old sessions cannot cause the
+budget to be exceeded when a new tenant is added. Exceeding the slot budget
+fails refresh/startup; resize before provisioning beyond it. Per-database caps
+apply across roles; session pooling also bounds concurrent requests holding a
+platform connection. Tune with measured load, not Apache worker count alone.
+
+Session pooling retains each tenant's own PostgreSQL role and credentials,
+with matching route/role HBA rules and `DISCARD ALL` between clients. TLS-enabled
+backends use hostname verification and the system CA store. Mixed TLS/non-TLS
+backends and custom client certificates are rejected. A username must have
+consistent credentials across all configured servers. Canonical tenant secrets
+supersede duplicate default environment credentials when refreshing the pool;
+also update the default URL during rotation for direct CLI/readiness use.
+Authentication files,
+route manifests and the socket are private to `www-data`; never publish them
+as logs or artifacts. Passwords are refreshed from the canonical runtime secret
+store every 15 seconds. Unknown or newly rotated credentials fail until refresh
+instead of bypassing the pool. A failed refresh keeps existing routes available
+and emits a sanitized error. Removed routes lose new-login access on refresh;
+already connected sessions retain normal session lifetimes.
+
+Only web default/platform connections select the pooled driver, and tenant
+connections inherit it. CLI, queue and administrative jobs retain direct
+connections. Container startup verifies a pooled platform query before Apache
+starts, and the supervisor restarts a failed pool process. Existing clients may
+fail during a pool restart; ordinary readiness checks detect database failures.
+
+The image gate runs `python3 docker/test-db-pool.py --image IMAGE` against a
+disposable PostgreSQL server to verify reuse, cleanup, transaction rollback,
+tenant isolation, connection caps and credential rotation. Enable first in POC
+on the validated image digest, check tenant/platform health and real login/form
+journeys, then compare request latency and PostgreSQL connection counts. Roll
+back by setting `KMP_DB_POOL_ENABLED=false` on a new web revision; no schema or
+stored credential changes are involved. Production enablement is a separate
+release decision.
+
 ## Architecture
 
 ```

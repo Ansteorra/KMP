@@ -20,6 +20,9 @@ class GatheringScheduleService
 {
     use LocatorAwareTrait;
 
+    private const INPUT_FIELDS = ['gathering_activity_id', 'start_datetime', 'end_datetime', 'duration_minutes',
+        'has_end_time', 'display_title', 'description', 'pre_register', 'is_other'];
+
     /**
      * Prepare request data for a scheduled activity: timezone conversion,
      * duration selection and activity flags.
@@ -47,6 +50,7 @@ class GatheringScheduleService
                 : null;
         }
 
+        $data['is_other'] = filter_var($data['is_other'] ?? false, FILTER_VALIDATE_BOOLEAN);
         // Handle "other" checkbox
         if (!empty($data['is_other'])) {
             $data['gathering_activity_id'] = null;
@@ -70,6 +74,23 @@ class GatheringScheduleService
      */
     public function add(array $data, Gathering $gathering, mixed $identity): array
     {
+        return $this->withScheduleTransaction(
+            function () use ($data, $gathering, $identity): array {
+                $current = (new GatheringActivityAuthorizationService())->assertSchedule(
+                    (int)$gathering->id,
+                    $data,
+                    (int)$identity->getIdentifier(),
+                );
+
+                return $this->createScheduledActivity($data, $current, $identity);
+            },
+        );
+    }
+
+    /** Persist an event schedule entry inside its authorization transaction. */
+    private function createScheduledActivity(array $data, Gathering $gathering, mixed $identity): array
+    {
+        $data = array_intersect_key($data, array_flip(self::INPUT_FIELDS));
         if (!$this->validDuration($data)) {
             return ['success' => false, 'message' => __('Choose a duration from 15 minutes to 4 hours, or Other.')];
         }
@@ -112,6 +133,29 @@ class GatheringScheduleService
         Gathering $gathering,
         mixed $identity,
     ): array {
+        return $this->withScheduleTransaction(
+            function () use ($scheduledActivityId, $data, $gathering, $identity): array {
+                $authority = new GatheringActivityAuthorizationService();
+                $actorId = (int)$identity->getIdentifier();
+                $authority->assertScheduledOwner((int)$gathering->id, $scheduledActivityId, $actorId);
+                $scheduled = $this->fetchTable('GatheringScheduledActivities')->get($scheduledActivityId);
+                $current = $authority->assertSchedule((int)$gathering->id, $data + [
+                    'gathering_activity_id' => $scheduled->gathering_activity_id,
+                    'is_other' => $scheduled->is_other,
+                ], $actorId);
+
+                return $this->updateScheduledActivity($scheduledActivityId, $data, $current, $identity);
+            },
+        );
+    }
+
+    /** Persist an edit only after authorizing both the stored activity and replacement. */
+    private function updateScheduledActivity(
+        int $scheduledActivityId,
+        array $data,
+        Gathering $gathering,
+        mixed $identity,
+    ): array {
         $table = $this->fetchTable('GatheringScheduledActivities');
         $entity = $table->get($scheduledActivityId);
 
@@ -127,7 +171,10 @@ class GatheringScheduleService
         if (!$this->validDuration($data, true)) {
             return ['success' => false, 'message' => __('Choose a duration from 15 minutes to 4 hours, or Other.')];
         }
+        $data = array_intersect_key($data, array_flip(self::INPUT_FIELDS));
+        $data['gathering_id'] = $gathering->id;
         $data['modified_by'] = $identity->id;
+        $data += ['is_other' => $entity->is_other, 'gathering_activity_id' => $entity->gathering_activity_id];
         $data = $this->prepareData($data, $gathering, $identity);
         if (($data['duration_minutes'] ?? null) === 'existing') {
             $data['end_datetime'] = $entity->end_datetime;
@@ -178,9 +225,28 @@ class GatheringScheduleService
      *
      * @param int $scheduledActivityId Scheduled activity id
      * @param \App\Model\Entity\Gathering $gathering The parent gathering
+     * @param mixed $identity Actual operator; null is reserved for trusted internal callers.
      * @return array{success: bool, message: string, invalidOwner?: bool}
      */
-    public function delete(int $scheduledActivityId, Gathering $gathering): array
+    public function delete(int $scheduledActivityId, Gathering $gathering, mixed $identity = null): array
+    {
+        return $this->withScheduleTransaction(
+            function () use ($scheduledActivityId, $gathering, $identity): array {
+                if ($identity !== null) {
+                    (new GatheringActivityAuthorizationService())->assertScheduledOwner(
+                        (int)$gathering->id,
+                        $scheduledActivityId,
+                        (int)$identity->getIdentifier(),
+                    );
+                }
+
+                return $this->deleteScheduledActivity($scheduledActivityId, $gathering);
+            },
+        );
+    }
+
+    /** Release court placement before removing an authorized schedule row. */
+    private function deleteScheduledActivity(int $scheduledActivityId, Gathering $gathering): array
     {
         $table = $this->fetchTable('GatheringScheduledActivities');
         $entity = $table->get($scheduledActivityId);
@@ -214,6 +280,21 @@ class GatheringScheduleService
         ];
     }
 
+    /** Validation failures must roll back the authorization transaction instead of attempting a commit. */
+    private function withScheduleTransaction(callable $operation): array
+    {
+        $result = [];
+        $this->fetchTable('GatheringScheduledActivities')->getConnection()->transactional(
+            function () use ($operation, &$result): bool {
+                $result = $operation();
+
+                return (bool)$result['success'];
+            },
+        );
+
+        return $result;
+    }
+
     /**
      * Clear award court assignments that depend on a scheduled activity being deleted.
      *
@@ -224,13 +305,18 @@ class GatheringScheduleService
     {
         $bestowals = $this->fetchTable('Awards.Bestowals');
         $affectedRows = $bestowals->find()
-            ->select(['id'])
+            ->select(['id', 'gathering_id', 'member_id'])
             ->where(['gathering_scheduled_activity_id' => $scheduledActivityId])
             ->enableHydration(false)
             ->all();
         $affectedBestowalIds = [];
+        $invalidations = [];
         foreach ($affectedRows as $row) {
             $affectedBestowalIds[] = (int)$row['id'];
+            if (TurboConfig::liveEnabled()) {
+                $previous = $bestowals->newEmptyEntity()->patch($row, ['guard' => false]);
+                $invalidations += UiUpdateRegistry::changes($bestowals, $previous);
+            }
         }
 
         $bestowals->updateAll(
@@ -240,6 +326,8 @@ class GatheringScheduleService
             ],
             ['gathering_scheduled_activity_id' => $scheduledActivityId],
         );
+        // updateAll bypasses ORM behavior callbacks; record on this same transaction.
+        (new UiUpdateOutbox())->record($bestowals->getConnection(), $invalidations);
         $actionItemService = new ActionItemService();
         foreach ($affectedBestowalIds as $bestowalId) {
             $syncResult = $actionItemService->syncRequiredFieldCompletionStates(

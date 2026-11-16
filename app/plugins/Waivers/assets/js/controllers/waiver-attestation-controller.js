@@ -1,4 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
+import { driveEnabled } from '../../../../../assets/js/services/ui-navigation-service.js';
+import { refreshScreen, hideModalAndWait, showRefreshFailure } from '../../../../../assets/js/services/page-refresh-service.js';
 
 /**
  * Waiver Attestation Controller
@@ -43,9 +45,19 @@ class WaiverAttestationController extends Controller {
      * Initialize Bootstrap modal instance
      */
     connect() {
+        this.disconnected = false;
         if (this.hasModalTarget) {
             this.modalInstance = new bootstrap.Modal(this.modalTarget)
         }
+    }
+
+    disconnect() {
+        this.disconnected = true;
+        clearTimeout(this.reloadTimeout);
+        if (this.modalInstance && bootstrap.Modal.getInstance?.(this.modalTarget) === this.modalInstance) {
+            this.modalInstance.dispose();
+        }
+        this.modalInstance = null;
     }
 
     /**
@@ -57,6 +69,7 @@ class WaiverAttestationController extends Controller {
         
         // Get values from the button that was clicked
         const btn = event.currentTarget
+        this.returnFocus = btn;
         this.activityIdValue = parseInt(btn.dataset.activityId)
         this.waiverTypeIdValue = parseInt(btn.dataset.waiverTypeId)
         this.gatheringIdValue = parseInt(btn.dataset.gatheringId)
@@ -94,7 +107,7 @@ class WaiverAttestationController extends Controller {
         if (reasons.length === 0) {
             this.reasonListTarget.innerHTML = `
                 <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle"></i>
+                    <kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon>
                     No exemption reasons have been configured for this waiver type.
                 </div>
             `
@@ -137,6 +150,7 @@ class WaiverAttestationController extends Controller {
      */
     async submitAttestation(event) {
         event.preventDefault()
+        if (this.submitting) return;
 
         // Get selected reason
         const selectedReason = this.reasonListTarget.querySelector('input[name="attestation_reason"]:checked')
@@ -148,6 +162,7 @@ class WaiverAttestationController extends Controller {
 
         const reason = selectedReason.value
         const notes = this.hasNotesTarget ? this.notesTarget.value : ''
+        this.submitting = true;
 
         // Disable submit button
         if (this.hasSubmitBtnTarget) {
@@ -176,23 +191,34 @@ class WaiverAttestationController extends Controller {
             })
 
             const data = await response.json()
+            if (this.disconnected) return;
 
             if (response.ok && data.success) {
                 this.showSuccess(data.message || 'Attestation recorded successfully.')
                 
-                // Reload page after short delay
-                setTimeout(() => {
-                    window.location.reload()
-                }, 1500)
+                if (driveEnabled()) {
+                    await hideModalAndWait(this.modalTarget);
+                    const refresh = async () => {
+                        if (!await refreshScreen()) throw new Error('An editor still has unsaved changes.');
+                    };
+                    try { await refresh(); } catch { showRefreshFailure(refresh); }
+                    const focus = this.returnFocus?.isConnected ? this.returnFocus
+                        : document.querySelector('[role="tab"][aria-selected="true"]');
+                    focus?.focus({ preventScroll: true });
+                    window.KMP_accessibility?.announce(data.message || 'Attestation recorded successfully.');
+                } else {
+                    this.reloadTimeout = setTimeout(() => window.location.reload(), 1500);
+                }
             } else {
                 this.showError(data.message || 'Failed to record attestation.')
                 this.resetSubmitButton()
             }
         } catch (error) {
+            if (this.disconnected) return;
             console.error('Error submitting attestation:', error)
             this.showError('An error occurred while submitting the attestation.')
             this.resetSubmitButton()
-        }
+        } finally { this.submitting = false; }
     }
 
     /**
@@ -239,7 +265,7 @@ class WaiverAttestationController extends Controller {
     resetSubmitButton() {
         if (this.hasSubmitBtnTarget) {
             this.submitBtnTarget.disabled = false
-            this.submitBtnTarget.innerHTML = '<i class="bi bi-shield-check"></i> Submit Attestation'
+            this.submitBtnTarget.innerHTML = '<kmp-icon name="shield-check"  aria-hidden="true"></kmp-icon> Submit Attestation'
         }
     }
 

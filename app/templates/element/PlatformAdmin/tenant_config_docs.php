@@ -20,7 +20,7 @@ declare(strict_types=1);
         <summary class="fw-semibold"><?= __('How tenant configuration works') ?></summary>
         <div class="mt-2 small">
             <p>
-                <?= __('Everything on this screen is stored as one JSON document on the tenant\'s platform registry row (tenants.tenant_config). On save the input is validated and normalized; keys that are not part of the safe schema are discarded. The tenant application receives the document read-only when a request or job is bound to the tenant, so changes take effect on the tenant\'s next request or worker cycle.') ?>
+                <?= __('Everything on this screen is stored as one JSON document on the tenant\'s platform registry row (tenants.tenant_config). On save the input is validated and normalized; keys that are not part of the safe schema are discarded. The tenant application receives the document read-only when a request or job is bound to the tenant, so changes take effect after commit, within 30 seconds across replicas.') ?>
             </p>
             <p class="mb-0">
                 <?= __('Secrets never live here. Fields marked "secret reference" hold the NAME of a secret; the value itself stays in the platform secret store.') ?>
@@ -52,47 +52,21 @@ declare(strict_types=1);
                 <li><?= __('Disabled — the tenant sends no mail: messages are accepted and discarded. Not allowed while onboarding a new tenant, because the initial super user claims access by email.') ?></li>
                 <li><?= __('Azure Communication Services — uses the ACS connection string secret reference, plus an optional API version override.') ?></li>
                 <li><?= __('SMTP — uses host, port (1-65535), optional username, an SMTP password secret reference, and the TLS toggle.') ?></li>
-                <li><?= __('SendGrid / Resend — uses the API key secret reference, plus an optional HTTPS endpoint override.') ?></li>
+                <li><?= __('SendGrid / Resend — uses the tenant API key secret reference. Leave the endpoint blank for the provider default, or use the official global/EU SendGrid mail endpoint or Resend mail endpoint.') ?></li>
             </ul>
             <p>
                 <?= __('Sender precedence: the sender address and display name set here become the tenant\'s default mail identity. Template-based mail that sets an explicit sender from the tenant\'s own Email.SystemEmailFromAddress app setting still wins; the platform-wide sender is used only when neither is set. The sender address must be a full email address with a dotted domain (name@host.tld).') ?>
             </p>
-            <p class="fw-semibold mb-1"><?= __('What a secret reference looks like, per secret store') ?></p>
+            <p class="fw-semibold mb-1"><?= __('Approved email credential references') ?></p>
             <p>
-                <?= __('The secret reference fields (ACS connection string, SendGrid/Resend API key, SMTP password) hold the NAME of a credential, never its value. Prefer portable dotted names (tenant.&lt;slug&gt;.&lt;purpose&gt; or platform.&lt;purpose&gt;): they resolve through whichever secret backend the deployment has configured. The URI forms pin one specific backend and only resolve where that backend is wired up. If a reference cannot be resolved, tenant binding still succeeds and the failure is logged and surfaces when mail is sent.') ?>
+                <?= __('Use only the current tenant slug in these names. SMTP accepts tenant.&lt;slug&gt;.smtp-password or tenant.&lt;slug&gt;.email.smtp_password. SendGrid accepts tenant.&lt;slug&gt;.email-api-key, tenant.&lt;slug&gt;.sendgrid-key or tenant.&lt;slug&gt;.email.sendgrid.api_key. Resend accepts tenant.&lt;slug&gt;.email-api-key, tenant.&lt;slug&gt;.resend-key or tenant.&lt;slug&gt;.email.resend.api_key. Azure accepts tenant.&lt;slug&gt;.acs-connection or tenant.&lt;slug&gt;.email.azure.connection_string.') ?>
             </p>
-            <div class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead>
-                        <tr>
-                            <th scope="col"><?= __('Reference') ?></th>
-                            <th scope="col"><?= __('Where the value actually lives') ?></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>tenant.kmp.smtp-password</code></td>
-                            <td><?= __('Portable name, resolved by the configured store chain. Env backend: variable KMP_SECRET_TENANT_KMP_SMTP_PASSWORD. File backend (local dev): the "tenant.kmp.smtp-password" entry in config/secrets.local.json. Database backend: an encrypted row of that name in platform_secret_values.') ?></td>
-                        </tr>
-                        <tr>
-                            <td><code>platform.sendgrid.api-key</code></td>
-                            <td><?= __('Same resolution as above, for a platform-wide (not per-tenant) secret. Env backend: KMP_SECRET_PLATFORM_SENDGRID_API_KEY.') ?></td>
-                        </tr>
-                        <tr>
-                            <td><code>env://EMAIL_SMTP_PASSWORD</code></td>
-                            <td><?= __('An environment variable literally named EMAIL_SMTP_PASSWORD on the app host (no KMP_SECRET_ prefix applied).') ?></td>
-                        </tr>
-                        <tr>
-                            <td><code>keyvault://kmp-prod-vault/tenant-kmp-smtp-password</code></td>
-                            <td><?= __('Azure Key Vault named kmp-prod-vault, secret tenant-kmp-smtp-password. Key Vault secret names allow only letters, numbers, and hyphens — no dots — so translate dotted names to hyphens. kv:// is an accepted shorthand. This deployment has no direct Key Vault resolver; cloud deployments typically surface Key Vault secrets as environment variables instead, so dotted or env:// references keep working there.') ?></td>
-                        </tr>
-                        <tr>
-                            <td><code>db://tenant.kmp.smtp-password</code></td>
-                            <td><?= __('The encrypted platform database secret store (platform_secret_values), explicitly pinned rather than reached through the chain.') ?></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+            <p>
+                <?= __('Names resolve through the configured secret store; secret:// and db:// prefixes may precede an approved name. Platform secrets, other tenants, database credentials, raw env:// and direct Key Vault references are rejected. Choose Platform default to use the shared platform transport. Invalid stored overrides block email delivery until corrected; other tenant pages remain available.') ?>
+            </p>
+            <p class="mb-0">
+                <?= __('Changing email settings requires the EMAIL &lt;slug&gt; confirmation, a reason of at least 10 characters, and a fresh single-use authenticator code. The reason is recorded in the platform audit log. Unchanged email settings do not require confirmation when editing other tenant fields.') ?>
+            </p>
         </div>
     </details>
 <?php endif; ?>

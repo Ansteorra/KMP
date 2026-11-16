@@ -12,12 +12,12 @@
 <div class="p-3">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h6 class="mb-0">
-            <i class="bi bi-collection"></i>
+            <kmp-icon name="layers-linked"  aria-hidden="true"></kmp-icon>
             <?= __('Grouped Recommendations') ?>
         </h6>
         <?php if ($canEdit) : ?>
         <?= $this->Form->postLink(
-                '<i class="bi bi-x-circle"></i> ' . __('Ungroup All'),
+                '<kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> ' . __('Ungroup All'),
                 ['action' => 'ungroupRecommendations'],
                 [
                     'data' => ['recommendation_id' => $headId],
@@ -47,13 +47,13 @@
                         </div>
                         <div class="d-flex gap-1 flex-shrink-0">
                             <?= $this->Html->link(
-                                    '<i class="bi bi-eye"></i>',
+                                    '<kmp-icon name="eye"  aria-hidden="true"></kmp-icon>',
                                     ['action' => 'view', $child->id],
                                     ['class' => 'btn btn-sm btn-outline-secondary', 'escape' => false, 'title' => __('View'), 'data-turbo-frame' => '_top']
                                 ) ?>
                             <?php if ($canEdit) : ?>
                             <?= $this->Form->postLink(
-                                        '<i class="bi bi-x-lg"></i>',
+                                        '<kmp-icon name="x"  aria-hidden="true"></kmp-icon>',
                                         ['action' => 'removeFromGroup'],
                                         [
                                             'data' => ['recommendation_id' => $child->id],

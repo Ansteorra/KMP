@@ -1,0 +1,20 @@
+FROM node:24-trixie-slim@sha256:0820eaa85e07d0490446dd01d14707e17e6108a36988cf374899cd057eb3812d
+ARG APP_REVISION=unknown
+LABEL org.opencontainers.image.source="https://github.com/Ansteorra/KMP"
+LABEL org.opencontainers.image.revision="${APP_REVISION}"
+WORKDIR /srv/live
+ENV NODE_ENV=production
+COPY services/live-updates/package*.json ./
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/* \
+    && npm ci --omit=dev --ignore-scripts --no-audit --no-fund \
+    && npm cache clean --force \
+    && rm -rf /usr/local/lib/node_modules/npm /opt/yarn* /root/.npm \
+    && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/yarn /usr/local/bin/yarnpkg \
+    && chmod a-s /usr/bin/mount /usr/bin/umount
+COPY --chown=node:node services/live-updates/src ./src
+USER node
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=3s CMD node -e "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "src/main.js"]

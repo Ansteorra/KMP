@@ -1,20 +1,22 @@
 <?php
+declare(strict_types=1);
 
 use App\KMP\GridViewConfig;
+use App\Services\GridSubscriptionRegistry;
 
 /**
  * Grid View Toolbar Element - Dumb Container Version
- * 
+ *
  * This toolbar is just a container with data attributes.
  * The Stimulus controller will read the JSON state and populate the UI.
- * 
+ *
  * Server-side only handles:
  * - Feature availability (can we filter? can we add views?)
  * - Controller identifier
  * - Grid key for modal IDs
- * 
+ *
  * Everything else is driven by JavaScript reading the state JSON.
- * 
+ *
  * @var \App\View\AppView $this
  * @var array $gridState Complete grid state (only used for feature flags)
  * @var string $controllerName The Stimulus controller identifier
@@ -28,11 +30,9 @@ $gridKeyEscaped = h($gridKey);
 $canFilter = $gridState['config']['canFilter'] ?? true;
 $hasSearch = $gridState['config']['hasSearch'] ?? false;
 $hasDropdownFilters = $gridState['config']['hasDropdownFilters'] ?? false;
-$hasDateRangeFilters = $gridState['config']['hasDateRangeFilters'] ?? false;
 $canExportCsv = $gridState['config']['canExportCsv'] ?? true;
 $showFilterPills = $gridState['config']['showFilterPills'] ?? true;
 $enableColumnPicker = $gridState['config']['enableColumnPicker'] ?? true;
-$dateRangeFilterColumns = $gridState['dateRangeFilterColumns'] ?? [];
 $enableBulkSelection = $gridState['config']['enableBulkSelection'] ?? false;
 $bulkActions = $gridState['config']['bulkActions'] ?? [];
 $disablePagination = $gridState['config']['disablePagination'] ?? false;
@@ -60,22 +60,30 @@ $searchDescription = !empty($searchableLabels)
         'controllerName' => $controllerName,
     ]) ?>
 
-    <?php if (\App\Services\GridSubscriptionRegistry::supports($gridKey)): ?>
+    <?php if (GridSubscriptionRegistry::supports($gridKey)) : ?>
     <details class="mb-3 grid-subscription">
         <summary class="btn btn-outline-secondary" data-action="click-><?= h($controllerName) ?>#prepareSubscription">
-            <i class="bi bi-envelope" aria-hidden="true"></i> <?= __('Email this view') ?>
+            <kmp-icon name="mail"  aria-hidden="true"></kmp-icon> <?= __('Email this view') ?>
         </summary>
-        <form data-subscription-page-name="<?= h(\App\Services\GridSubscriptionRegistry::get($gridKey)['label']) ?>"
+        <form data-subscription-page-name="<?= h(GridSubscriptionRegistry::get($gridKey)['label']) ?>"
             class="border rounded p-3 mt-2" data-action="submit-><?= h($controllerName) ?>#subscribeToView"
-            action="<?= h($this->Url->build(['plugin' => null, 'controller' => 'GridSubscriptions', 'action' => 'add'])) ?>" method="post">
-            <p><?= __('Receive up to 50 current matching rows and a link to this view. Empty results are skipped. You can cancel from your profile.') ?></p>
+            action="<?= h($this->Url->build([
+                'plugin' => null, 'controller' => 'GridSubscriptions', 'action' => 'add',
+            ])) ?>" method="post">
+            <p><?= __('Receive up to 50 current matching rows and a link to this view. '
+                . 'Empty results are skipped. You can cancel from your profile.') ?></p>
             <div class="row g-3">
                 <div class="col-md-6">
-                    <label class="form-label" for="subscription-name-<?= $gridKeyEscaped ?>"><?= __('Subscription name') ?></label>
-                    <input class="form-control" id="subscription-name-<?= $gridKeyEscaped ?>" name="subscriptionName" maxlength="150" required>
+                    <label class="form-label" for="subscription-name-<?= $gridKeyEscaped ?>">
+                        <?= __('Subscription name') ?>
+                    </label>
+                    <input class="form-control" id="subscription-name-<?= $gridKeyEscaped ?>"
+                        name="subscriptionName" maxlength="150" required>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label" for="subscription-frequency-<?= $gridKeyEscaped ?>"><?= __('Frequency') ?></label>
+                    <label class="form-label" for="subscription-frequency-<?= $gridKeyEscaped ?>">
+                        <?= __('Frequency') ?>
+                    </label>
                     <select class="form-select" id="subscription-frequency-<?= $gridKeyEscaped ?>" name="intervalDays">
                         <option value="1"><?= __('Daily') ?></option>
                         <option value="3"><?= __('Every 3 days') ?></option>
@@ -83,13 +91,18 @@ $searchDescription = !empty($searchableLabels)
                     </select>
                 </div>
             </div>
-            <p class="small text-muted mt-2"><?= __('The first email is due after the selected interval. Results use your current permissions each time.') ?></p>
+            <p class="small text-muted mt-2"><?= __('The first email is due after the selected interval. '
+                . 'Results use your current permissions each time.') ?></p>
             <button type="submit" class="btn btn-primary"><?= __('Subscribe') ?></button>
             <button type="submit" class="btn btn-outline-secondary" data-subscription-sample
-                formaction="<?= h($this->Url->build(['plugin' => null, 'controller' => 'GridSubscriptions', 'action' => 'sample'])) ?>">
+                formaction="<?= h($this->Url->build([
+                    'plugin' => null, 'controller' => 'GridSubscriptions', 'action' => 'sample',
+                ])) ?>">
                 <?= __('Send me a sample') ?>
             </button>
-            <p class="small text-muted mt-2"><?= __('Samples go to your account email without creating or changing a subscription.') ?></p>
+            <p class="small text-muted mt-2">
+                <?= __('Samples go to your account email without creating or changing a subscription.') ?>
+            </p>
             <p class="mt-2 mb-0" role="status" data-subscription-status></p>
         </form>
     </details>
@@ -99,7 +112,7 @@ $searchDescription = !empty($searchableLabels)
     <div class="d-flex justify-content-between align-items-start gap-3">
         <!-- Left: Active filter badges -->
         <div class="d-flex flex-wrap gap-2 align-items-center grid-view-badges">
-            <?php if ($showFilterPills): ?>
+            <?php if ($showFilterPills) : ?>
                 <div class="d-flex flex-wrap gap-2 align-items-center" data-filter-pills-container>
                     <!-- JS will populate filter pills and search badge here -->
                 </div>
@@ -107,25 +120,32 @@ $searchDescription = !empty($searchableLabels)
         </div>
 
         <!-- Right: Filter Dropdown Button and Export -->
-        <?php if (!$disablePagination || $canFilter || $canExportCsv || ($enableBulkSelection && !empty($bulkActions))): ?>
+        <?php if (
+            !$disablePagination || $canFilter || $canExportCsv || ($enableBulkSelection && !empty($bulkActions))
+) : ?>
             <div class="d-flex flex-wrap gap-2 align-items-center">
-                <?php if (!$disablePagination): ?>
+                <?php if (!$disablePagination) : ?>
                     <div class="d-flex align-items-center gap-2">
-                        <label class="text-nowrap" for="<?= $gridKeyEscaped ?>-page-size"><?= __('Rows per page') ?></label>
+                        <label class="text-nowrap" for="<?= $gridKeyEscaped ?>-page-size">
+                            <?= __('Rows per page') ?>
+                        </label>
                         <select id="<?= $gridKeyEscaped ?>-page-size" class="form-select w-auto"
                             data-<?= h($controllerName) ?>-target="pageSize"
                             data-action="change-><?= h($controllerName) ?>#changePageSize">
-                            <?php foreach ($pageSizes as $size): ?>
-                                <option value="<?= h($size) ?>" <?= $size === $pageSize ? 'selected' : '' ?>><?= h($size) ?></option>
+                            <?php foreach ($pageSizes as $size) : ?>
+                                <option value="<?= h($size) ?>" <?= $size === $pageSize ? 'selected' : '' ?>>
+                                    <?= h($size) ?>
+                                </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                 <?php endif; ?>
                 <!-- Bulk Action Buttons (enabled via JS when rows are selected) -->
-                <?php if ($enableBulkSelection && !empty($bulkActions)): ?>
-                    <?php foreach ($bulkActions as $action): ?>
-                        <button type="button" 
-                            class="btn btn-primary d-flex align-items-center gap-2<?= !empty($action['requiresSelectionField']) ? ' d-none' : '' ?>"
+                <?php if ($enableBulkSelection && !empty($bulkActions)) : ?>
+                    <?php foreach ($bulkActions as $action) : ?>
+                        <?php $selectionClass = !empty($action['requiresSelectionField']) ? ' d-none' : ''; ?>
+                        <button type="button"
+                            class="btn btn-primary d-flex align-items-center gap-2<?= h($selectionClass) ?>"
                             data-bs-toggle="modal"
                             data-bs-target="<?= h($action['modalTarget'] ?? '') ?>"
                             data-<?= h($controllerName) ?>-target="bulkActionBtn"
@@ -136,91 +156,105 @@ $searchDescription = !empty($searchableLabels)
                             <?php endif; ?>
                             disabled
                             title="<?= h($action['label'] ?? 'Bulk Action') ?>">
-                            <?php if (!empty($action['icon'])): ?>
-                                <i class="bi <?= h($action['icon']) ?>"></i>
+                            <?php if (!empty($action['icon'])) : ?>
+                                <?= $this->Icon->render($action['icon']) ?>
                             <?php endif; ?>
                             <span><?= h($action['label'] ?? 'Bulk Action') ?></span>
-                            <span class="badge bg-light text-dark" data-<?= h($controllerName) ?>-target="selectionCount" style="display: none;">0</span>
+                            <span class="badge bg-light text-dark"
+                                data-<?= h($controllerName) ?>-target="selectionCount" style="display: none;">0</span>
                         </button>
                     <?php endforeach; ?>
                 <?php endif; ?>
 
                 <!-- CSV Export Button -->
-                <?php if ($canExportCsv): ?>
+                <?php if ($canExportCsv) : ?>
                     <button type="button" class="btn btn-outline-primary d-flex align-items-center gap-2"
                         data-action="click-><?= h($controllerName) ?>#exportCsv"
                         title="Export to CSV">
-                        <i class="bi bi-download"></i>
+                        <kmp-icon name="download"  aria-hidden="true"></kmp-icon>
                         <span>Export CSV</span>
                     </button>
                 <?php endif; ?>
 
-                <?php if ($canFilter): ?>
+                <?php if ($canFilter) : ?>
                     <div class="dropdown">
-                        <button class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2" type="button"
-                            id="filterDropdown" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
+                        <button class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2"
+                            type="button" id="<?= $gridKeyEscaped ?>-filter-dropdown"
+                            data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
                             data-filter-button>
-                            <i class="bi bi-funnel" aria-hidden="true"></i>
+                            <kmp-icon name="filter"  aria-hidden="true"></kmp-icon>
                             <span>Filter</span>
                             <!-- JS will add badge here if needed -->
                         </button>
 
                         <div class="dropdown-menu dropdown-menu-end p-0"
-                            style="min-width: 420px; max-height: 520px; overflow: hidden;" aria-labelledby="filterDropdown">
+                            style="min-width: 420px; max-height: 520px; overflow: hidden;"
+                            aria-labelledby="<?= $gridKeyEscaped ?>-filter-dropdown">
 
-                            <?php if ($hasSearch): ?>
+                            <?php if ($hasSearch) : ?>
                                 <!-- Search Section -->
                                 <div class="border-bottom">
                                     <div class="px-3 py-2 bg-light">
-                                        <strong id="<?= h($gridKey) ?>-search-heading" class="text-uppercase small" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+                                        <strong id="<?= h($gridKey) ?>-search-heading" class="text-uppercase small"
+                                            style="font-size: 0.75rem; letter-spacing: 0.5px;">
                                             Search
                                         </strong>
                                     </div>
                                     <div class="px-3 py-2">
                                         <div class="input-group input-group-sm">
-                                            <label class="input-group-text bg-white" for="<?= h($gridKey) ?>-grid-search">
-                                                <i class="bi bi-search" aria-hidden="true"></i>
-                                                <span class="visually-hidden"><?= h(__('Search table records')) ?></span>
+                                            <label class="input-group-text bg-white"
+                                                for="<?= h($gridKey) ?>-grid-search">
+                                                <kmp-icon name="search"  aria-hidden="true"></kmp-icon>
+                                                <span class="visually-hidden">
+                                                    <?= h(__('Search table records')) ?>
+                                                </span>
                                             </label>
                                             <input type="text" class="form-control" placeholder="Search..."
                                                 id="<?= h($gridKey) ?>-grid-search"
                                                 aria-labelledby="<?= h($gridKey) ?>-search-heading"
                                                 aria-describedby="<?= h($gridKey) ?>-search-description"
                                                 data-<?= h($controllerName) ?>-target="searchInput"
-                                                data-action="keyup-><?= h($controllerName) ?>#handleSearchKeyup keydown.enter-><?= h($controllerName) ?>#performSearch">
+                                                data-action="keyup-><?= h($controllerName) ?>#handleSearchKeyup
+                                                    keydown.enter-><?= h($controllerName) ?>#performSearch">
                                             <span class="input-group-text bg-white d-none"
-                                                data-<?= h($controllerName) ?>-target="searchStatusIndicator"
+                                                data-<?= h($controllerName)
+                                                ?>-target="searchStatusIndicator"
                                                 title="Searching..."
                                                 aria-live="polite">
-                                                <span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
+                                                <span class="spinner-border spinner-border-sm text-primary"
+                                                    role="status" aria-hidden="true"></span>
                                                 <span class="visually-hidden">Searching</span>
                                             </span>
                                         </div>
-                                        <small id="<?= h($gridKey) ?>-search-description" class="text-muted d-block mt-1">
+                                        <small id="<?= h($gridKey) ?>-search-description"
+                                            class="text-muted d-block mt-1">
                                             <?= h($searchDescription) ?>
                                         </small>
                                     </div>
                                 </div>
                             <?php endif; ?>
 
-                            <?php if ($hasDropdownFilters): ?>
+                            <?php if ($hasDropdownFilters) : ?>
                                 <!-- Filter Tree -->
                                 <div class="border-bottom">
                                     <div class="px-3 py-2 bg-light d-flex justify-content-between align-items-center">
-                                        <strong class="text-uppercase small" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+                                        <strong class="text-uppercase small"
+                                            style="font-size: 0.75rem; letter-spacing: 0.5px;">
                                             Filters
                                         </strong>
                                         <small class="text-muted">Select a filter to see options</small>
                                     </div>
                                     <div class="d-flex" style="max-height: 360px; overflow-y: auto;">
                                         <!-- Filter Navigation (populated by JS) -->
-                                        <div class="list-group list-group-flush flex-shrink-0" style="min-width: 190px;"
+                                        <div class="list-group list-group-flush flex-shrink-0"
+                                            style="min-width: 190px;"
                                             role="tablist" data-filter-nav-container>
                                             <!-- JS will populate filter tabs here -->
                                         </div>
 
                                         <!-- Filter Panels (populated by JS) -->
-                                        <div class="flex-grow-1 border-start" style="min-width: 230px;" data-filter-panels-container>
+                                        <div class="flex-grow-1 border-start" style="min-width: 230px;"
+                                            data-filter-panels-container>
                                             <!-- JS will populate filter panels here -->
                                         </div>
                                     </div>
@@ -228,7 +262,8 @@ $searchDescription = !empty($searchableLabels)
                             <?php endif; ?>
 
                             <!-- Clear All Footer -->
-                            <div class="px-3 py-2 bg-light border-top" data-clear-filters-container style="display: none;">
+                            <div class="px-3 py-2 bg-light border-top" data-clear-filters-container
+                                style="display: none;">
                                 <button type="button" class="btn btn-link btn-sm text-decoration-none p-0"
                                     data-action="click-><?= h($controllerName) ?>#clearAllFilters">
                                     Clear all filters
@@ -242,7 +277,7 @@ $searchDescription = !empty($searchableLabels)
     </div>
 </div>
 
-<?php if ($enableColumnPicker): ?>
+<?php if ($enableColumnPicker) : ?>
     <!-- Column Picker Modal (populated by JS) -->
     <div class="modal fade" id="columnPickerModal-<?= $gridKeyEscaped ?>" tabindex="-1"
         aria-labelledby="columnPickerLabel-<?= $gridKeyEscaped ?>" aria-hidden="true">
@@ -256,7 +291,7 @@ $searchDescription = !empty($searchableLabels)
                 </div>
                 <div class="modal-body">
                     <p class="text-muted">
-                        <i class="bi bi-info-circle"></i>
+                        <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                         Check columns to show/hide. Drag or use the Move up and Move down buttons to reorder.
                     </p>
 
@@ -273,7 +308,7 @@ $searchDescription = !empty($searchableLabels)
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-primary" data-bs-dismiss="modal"
                         data-action="click-><?= h($controllerName) ?>#applyColumnChanges">
-                        <i class="bi bi-check-lg"></i> Apply
+                        <kmp-icon name="check"  aria-hidden="true"></kmp-icon> Apply
                     </button>
                 </div>
             </div>

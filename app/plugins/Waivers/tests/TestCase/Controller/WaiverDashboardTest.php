@@ -5,11 +5,15 @@ namespace Waivers\Test\TestCase\Controller;
 
 use App\Model\Entity\Gathering;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use Cake\Http\Response;
+use Cake\Http\ServerRequest;
 use Cake\I18n\DateTime;
 use DOMDocument;
 use DOMXPath;
 use Waivers\Services\WaiverDashboardService;
 use Waivers\Services\WaiverMobileService;
+use Waivers\Services\WaiverStateService;
+use Waivers\View\Cell\GatheringWaiversCell;
 
 /**
  * End-date compliance and authorized mobile selection regressions.
@@ -94,6 +98,90 @@ class WaiverDashboardTest extends HttpIntegrationTestCase
     private function ids(array $gatherings): array
     {
         return array_map(static fn($gathering) => (int)$gathering->id, $gatherings);
+    }
+
+    public function testLostRequirementsAreCompleteAcrossClosureViewsAndCanBeClosed(): void
+    {
+        $gathering = $this->gathering('Lost requirements', '2026-09-01 10:00:00');
+        $state = new WaiverStateService();
+        foreach ($this->waiverTypeIds as $typeId) {
+            $this->assertTrue($state->recordLost(
+                (int)$gathering->id,
+                $typeId,
+                'Officer reported loss by email.',
+                self::ADMIN_MEMBER_ID,
+            )->success);
+        }
+
+        $service = new WaiverDashboardService();
+        $branches = [self::TEST_BRANCH_LOCAL_ID];
+        $this->assertNotContains((int)$gathering->id, $this->ids(
+            $service->getGatheringsWithIncompleteWaivers($branches, 30)['missing'],
+        ));
+        $closing = collection($service->getGatheringsNeedingClosed($branches))->indexBy('id')->toArray();
+        $this->assertTrue($closing[$gathering->id]->is_waiver_complete);
+        $this->assertSame(0, $closing[$gathering->id]->uploaded_waiver_count);
+        $this->assertSame(0, $closing[$gathering->id]->missing_waiver_count);
+        $needing = collection($service->getNeedingWaiversData($branches, [])['gatherings'])
+            ->indexBy('id')->toArray();
+        $this->assertTrue($needing[$gathering->id]->is_waiver_complete);
+        $mobile = collection((new WaiverMobileService())->getAuthorizedGatherings($branches, []))
+            ->indexBy('id')->toArray();
+        $this->assertTrue($mobile[$gathering->id]->is_waiver_complete);
+        $this->get('/waivers/gathering-waivers?gathering_id=' . $gathering->id);
+        $this->assertResponseOk();
+        $calendar = collection($service->getCalendarData(2026, 9, $branches, null)['events'])
+            ->indexBy('id')->toArray();
+        $this->assertSame('complete', $calendar[$gathering->id]['status']);
+        $this->assertSame(0, $calendar[$gathering->id]['pending']);
+        $this->assertSame(0, $calendar[$gathering->id]['uploaded']);
+
+        $cell = new GatheringWaiversCell(new ServerRequest(), new Response());
+        $cell->display((int)$gathering->id);
+        $stats = $cell->viewBuilder()->getVar('overallStats');
+        $this->assertSame(2, $stats['lost']);
+        $this->assertSame(0, $stats['pending']);
+        $this->assertSame(0, $stats['complete']);
+        $this->assertTrue($cell->viewBuilder()->getVar('waiverRows')[0]['is_complete']);
+
+        $closures = $this->getTableLocator()->get('Waivers.GatheringWaiverClosures');
+        $this->assertNull($closures->getClosureForGathering((int)$gathering->id));
+        $this->assertTrue($state->markReadyToClose((int)$gathering->id, self::ADMIN_MEMBER_ID)->success);
+        $ready = collection($service->getGatheringsReadyToClose($branches))->indexBy('id')->toArray();
+        $this->assertTrue($ready[$gathering->id]->is_waiver_complete);
+        $this->assertTrue($state->close((int)$gathering->id, self::ADMIN_MEMBER_ID)->success);
+        $this->assertTrue($closures->isGatheringClosed((int)$gathering->id));
+    }
+
+    public function testLossOnlySatisfiesItsTypeAndReversalRestoresMissingRequirement(): void
+    {
+        $gathering = $this->gathering('Mixed requirements', '2026-09-01 10:00:00');
+        $state = new WaiverStateService();
+        $loss = $state->recordLost(
+            (int)$gathering->id,
+            $this->waiverTypeIds[0],
+            'Officer reported loss.',
+            self::ADMIN_MEMBER_ID,
+        );
+        $this->assertTrue($loss->success);
+        $service = new WaiverDashboardService();
+        $branches = [self::TEST_BRANCH_LOCAL_ID];
+        $missing = collection($service->getGatheringsWithIncompleteWaivers($branches, 30)['missing'])
+            ->indexBy('id')->toArray();
+        $this->assertSame(['Dashboard minor waiver'], $missing[$gathering->id]->missing_waiver_names);
+        $this->waiver($gathering, $this->waiverTypeIds[1]);
+        $this->assertNotContains((int)$gathering->id, $this->ids(
+            $service->getGatheringsWithIncompleteWaivers($branches, 30)['missing'],
+        ));
+
+        $this->assertTrue($state->reverseLoss((int)$loss->data->id, self::ADMIN_MEMBER_ID)->success);
+        $missing = collection($service->getGatheringsWithIncompleteWaivers($branches, 30)['missing'])
+            ->indexBy('id')->toArray();
+        $this->assertSame(['Dashboard adult waiver'], $missing[$gathering->id]->missing_waiver_names);
+        $this->waiver($gathering, $this->waiverTypeIds[0], ['is_exemption' => false]);
+        $this->assertNotContains((int)$gathering->id, $this->ids(
+            $service->getGatheringsWithIncompleteWaivers($branches, 30)['missing'],
+        ));
     }
 
     public function testBucketsUseEndDateAndIncludeOldPartialGatherings(): void

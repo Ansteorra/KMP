@@ -45,16 +45,18 @@ class NavBarController extends Controller {
      * 
      * @param {Event} event - Click event from navigation header
      */
-    navHeaderClicked(event) {
+    async navHeaderClicked(event) {
         const target = event.currentTarget || event.target;
-        var state = target.getAttribute('aria-expanded');
-
-        if (state === 'true') {
-            var recordExpandUrl = target.getAttribute('data-expand-url');
-            fetch(recordExpandUrl, this.optionsForFetch());
-        } else {
-            var recordCollapseUrl = target.getAttribute('data-collapse-url');
-            fetch(recordCollapseUrl, this.optionsForFetch());
+        const attribute = target.getAttribute('aria-expanded') === 'true'
+            ? 'data-expand-url' : 'data-collapse-url';
+        const url = target.getAttribute(attribute);
+        if (!url) return;
+        try {
+            const response = await fetch(url, this.optionsForFetch());
+            if (!response.ok) throw new Error('Navigation preference was not saved.');
+        } catch {
+            // The menu's local state remains usable during an outage or departure.
+            console.warn('Navigation preference could not be saved.');
         }
     }
 
@@ -86,6 +88,10 @@ class NavBarController extends Controller {
      */
     optionsForFetch() {
         return {
+            // This small preference write should finish when its document leaves.
+            keepalive: true,
+            credentials: 'same-origin',
+            cache: 'no-store',
             headers: {
                 "X-Requested-With": "XMLHttpRequest",
                 "Accept": "application/json"

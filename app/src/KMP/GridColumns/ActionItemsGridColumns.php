@@ -12,10 +12,8 @@ use Cake\ORM\TableRegistry;
 /**
  * Action Items Grid Column Metadata
  *
- * Defines column configuration for the "My To-Dos" Dataverse grid. Mirrors the
- * My Approvals grid: an "Open To-Dos" system view (items the member may act on)
- * and a "Completed" system view (to-dos the member has completed), with a modal
- * Complete / Reopen row action.
+ * Defines the My To-Dos grid, member-scoped open/type views, the Completed
+ * history view, and modal Complete / Reopen row actions.
  */
 class ActionItemsGridColumns extends BaseGridColumns
 {
@@ -316,7 +314,7 @@ class ActionItemsGridColumns extends BaseGridColumns
                 'key' => 'reopen',
                 'type' => 'modal',
                 'label' => 'Reopen',
-                'icon' => 'bi-arrow-counterclockwise',
+                'icon' => 'rotate',
                 'class' => 'btn btn-sm btn-outline-secondary',
                 'modalTarget' => '#todoCompleteModal',
                 'statusFilter' => [ActionItem::STATUS_COMPLETED],
@@ -334,12 +332,12 @@ class ActionItemsGridColumns extends BaseGridColumns
     /**
      * System views for the My To-Dos grid.
      *
-     * @param array<string, mixed> $options Runtime context (unused).
+     * @param array<string, mixed> $options Optional openTitles from the member's eligible open items.
      * @return array<string, array<string, mixed>>
      */
     public static function getSystemViews(array $options = []): array
     {
-        return [
+        $views = [
             'sys-todos-open' => [
                 'id' => 'sys-todos-open',
                 'name' => __('Open To-Dos'),
@@ -386,5 +384,30 @@ class ActionItemsGridColumns extends BaseGridColumns
                 ],
             ],
         ];
+
+        // Without member context, retain the definitions used by saved views.
+        if (!array_key_exists('openTitles', $options)) {
+            return $views;
+        }
+
+        $titles = array_values(array_unique($options['openTitles']));
+        if ($titles === [] && !($options['includeOpenView'] ?? false)) {
+            return ['sys-todos-completed' => $views['sys-todos-completed']];
+        }
+
+        $openViews = ['sys-todos-open' => $views['sys-todos-open']];
+        foreach ($titles as $title) {
+            $id = 'sys-todos-type-' . hash('sha256', $title);
+            $view = $views['sys-todos-open'];
+            $view['id'] = $id;
+            $view['name'] = $title;
+            $view['description'] = __('Open to-dos of this type that you can complete');
+            $view['config']['filters'][] = ['field' => 'title', 'operator' => 'eq', 'value' => $title];
+            $openViews[$id] = $view;
+        }
+
+        $openViews['sys-todos-completed'] = $views['sys-todos-completed'];
+
+        return $openViews;
     }
 }

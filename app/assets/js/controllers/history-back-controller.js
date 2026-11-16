@@ -1,9 +1,9 @@
 import { Controller } from "@hotwired/stimulus"
+import { goBack } from '../services/ui-navigation-service.js';
 
 class HistoryBackController extends Controller {
     go(event) {
-        event.preventDefault()
-        history.back()
+        if (goBack()) event.preventDefault();
     }
 }
 

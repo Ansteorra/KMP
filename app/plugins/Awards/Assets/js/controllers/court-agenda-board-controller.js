@@ -1,7 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 
 class CourtAgendaBoardController extends Controller {
-    static targets = ["item", "segment", "status"]
+    static targets = ["item", "segment", "status", "position"]
     static values = {
         moveUrl: String,
         csrfToken: String,
@@ -12,6 +12,8 @@ class CourtAgendaBoardController extends Controller {
         this.dropPlaceholder = null
         this.currentDropSegment = null
         this.currentDropPlacement = null
+        this.moving = false
+        this.updateOrder()
     }
 
     disconnect() {
@@ -20,6 +22,10 @@ class CourtAgendaBoardController extends Controller {
     }
 
     dragStart(event) {
+        if (this.moving || event.target.closest("button, a, input, select, textarea, summary, label")) {
+            event.preventDefault()
+            return
+        }
         const item = event.currentTarget
         this.draggedItem = item
         event.dataTransfer.effectAllowed = "move"
@@ -75,7 +81,7 @@ class CourtAgendaBoardController extends Controller {
         const moved = await this.moveItem(itemId, segmentId, sortOrder)
         if (moved) {
             this.placeItem(item, segment, placement)
-            item.dataset.sortOrder = String(sortOrder)
+            this.updateOrder(true)
         }
     }
 
@@ -118,34 +124,63 @@ class CourtAgendaBoardController extends Controller {
         const moved = await this.moveItem(item.dataset.itemId, targetSegment.dataset.segmentId, targetSort)
         if (moved) {
             this.placeItem(item, targetSegment, placement)
-            item.dataset.sortOrder = String(targetSort)
-            item.focus({ preventScroll: true })
+            this.updateOrder(true)
+            button.focus({ preventScroll: true })
         }
     }
 
     async moveItem(itemId, segmentId, sortOrder) {
+        if (this.moving) {
+            return false
+        }
+        this.moving = true
+        this.element.setAttribute("aria-busy", "true")
         const body = new URLSearchParams()
         body.set("item_id", itemId)
         body.set("court_agenda_segment_id", segmentId)
         body.set("sort_order", String(sortOrder))
 
-        const response = await fetch(this.moveUrlValue, {
-            method: "POST",
-            headers: {
-                "Accept": "application/json",
-                "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-                "X-CSRF-Token": this.csrfTokenValue,
-            },
-            body,
-        })
+        try {
+            const response = await fetch(this.moveUrlValue, {
+                method: "POST",
+                headers: {
+                    "Accept": "application/json",
+                    "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                    "X-CSRF-Token": this.csrfTokenValue,
+                },
+                body,
+            })
 
-        if (!response.ok) {
-            this.announce("Could not move agenda item.")
+            if (!response.ok) {
+                this.announce("Could not move agenda item. Please try again.")
+                return false
+            }
+
+            this.announce("Agenda item moved.")
+            return true
+        } catch {
+            this.announce("Could not move agenda item. Check your connection and try again.")
             return false
+        } finally {
+            this.moving = false
+            this.element.removeAttribute("aria-busy")
         }
+    }
 
-        this.announce("Agenda item moved.")
-        return true
+    /** Keep repeated moves aligned with the server's ten-step ordering. */
+    updateOrder(renumber = false) {
+        this.element.querySelectorAll("[data-segment-id]").forEach(segment => {
+            const items = this.itemsForSegment(segment)
+            items.forEach((item, index) => {
+                if (renumber) item.dataset.sortOrder = String((index + 1) * 10)
+                const position = item.querySelector("[data-court-agenda-board-target~='position']")
+                if (position) position.textContent = `${index + 1}.`
+                item.querySelectorAll("[data-direction='up'], [data-direction='down']").forEach(button => {
+                    const atEdge = button.dataset.direction === "up" ? index === 0 : index === items.length - 1
+                    button.setAttribute("aria-disabled", String(atEdge))
+                })
+            })
+        })
     }
 
     nextSortOrder(segment) {

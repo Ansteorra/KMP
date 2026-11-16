@@ -26,6 +26,20 @@ class WorkflowApprovalsTableTest extends BaseTestCase
         $this->responsesTable = TableRegistry::getTableLocator()->get('WorkflowApprovalResponses');
     }
 
+    public function testApprovalScopeObservesRoleRevocationWithinTheTransaction(): void
+    {
+        $before = $this->getMemberApprovalScope(self::TEST_MEMBER_BRYCE_ID);
+        $this->assertNotEmpty($before['roleIdsByBranch']);
+        $this->getTableLocator()->get('MemberRoles')->updateAll(
+            ['revoker_id' => self::ADMIN_MEMBER_ID],
+            ['member_id' => self::TEST_MEMBER_BRYCE_ID],
+        );
+
+        $after = $this->getMemberApprovalScope(self::TEST_MEMBER_BRYCE_ID);
+        $this->assertSame([], $after['roleIdsByBranch']);
+        $this->assertSame([], $after['permissionsById']);
+    }
+
     public function testPendingCountIncludesDirectMemberApproval(): void
     {
         $countBefore = WorkflowApprovalsTable::getPendingApprovalCountForMember(self::ADMIN_MEMBER_ID);

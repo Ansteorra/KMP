@@ -81,7 +81,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
             <ul class='list-group'>
                 <?php foreach ($branch->links as $linkItem) : ?>
                     <li class='list-group-item'>
-                        <span class="bi bi-<?= $linkItem['type'] ?>"></span>
+                        <?= $this->Icon->render($linkItem['type'] === 'link' ? 'link' : 'brand-' . ($linkItem['type'] === 'twitter-x' ? 'x' : $linkItem['type'])) ?>
                         <a href="<?= h($linkItem['url']) ?>" title="<?= h($linkItem['url']) ?>" target="_blank">
                             <?= $linkItem['url'] ?></a>
                     </li>
@@ -150,7 +150,7 @@ echo $this->KMP->startBlock('pageTitle') ?>
                                         ],
                                         [
                                             'title' => __('View'),
-                                            'class' => 'btn-sm btn btn-secondary bi bi-binoculars-fill',
+                                            'class' => 'btn-sm btn btn-secondary', 'icon' => 'binoculars',
                                         ],
                                     ) ?>
                                 <?php endif; ?>

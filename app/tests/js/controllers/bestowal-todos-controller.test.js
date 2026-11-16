@@ -28,6 +28,47 @@ describe('AwardsBestowalTodos', () => {
         expect(typeof BestowalTodosController).toBe('function');
     });
 
+    test('chosen outcome is named in confirmation and changing it replaces the previous choice', () => {
+        controller.element.innerHTML = `<form><select><option value="">Choose</option>
+            <option value="given">Given</option><option value="other">Given Not Received</option></select>
+            <button data-confirm-message="Close remaining tasks?">Complete Given</button></form>`;
+        const select = controller.element.querySelector('select');
+        const button = controller.element.querySelector('button');
+        select.value = 'other';
+        controller.selectTerminalOutcome({ currentTarget: select });
+        expect(button.dataset.confirmMessage).toBe('Completion outcome: Given Not Received. Close remaining tasks?');
+        select.value = 'given';
+        controller.selectTerminalOutcome({ currentTarget: select });
+        expect(button.dataset.confirmMessage).toBe('Completion outcome: Given. Close remaining tasks?');
+    });
+
+    test.each([null, '', 'First line\nSecond line'])('completion note %p only submits on confirmation', async value => {
+        controller.element.innerHTML = `<form data-todo-confirmation="Complete this task?"
+            data-note-title="Complete Insignia Ready" data-note-label="Note (optional)"
+            data-note-submit-label="Mark Complete"><textarea data-bestowal-completion-note></textarea>
+            <button type="submit">Complete</button></form>`;
+        const form = controller.element.querySelector('form');
+        const submitter = form.querySelector('button');
+        form.requestSubmit = jest.fn();
+        window.KMP_accessibility.prompt.mockResolvedValue(value);
+        const event = { currentTarget: form, submitter, preventDefault: jest.fn(), stopImmediatePropagation: jest.fn() };
+        await controller.completeWithNote(event);
+        expect(window.KMP_accessibility.prompt).toHaveBeenCalledWith('Complete this task?', expect.objectContaining({
+            inputType: 'textarea', defaultValue: '', inputLabel: 'Note (optional)',
+        }));
+        expect(form.requestSubmit).toHaveBeenCalledTimes(value === null ? 0 : 1);
+        expect(form.querySelector('textarea').value).toBe(value ?? '');
+    });
+
+    test('a disconnected checklist cannot submit after the note dialog resolves', async () => {
+        controller.element.innerHTML = '<form><textarea data-bestowal-completion-note></textarea><button>Complete</button></form>';
+        const form = controller.element.querySelector('form');
+        form.requestSubmit = jest.fn();
+        window.KMP_accessibility.prompt.mockImplementation(async () => { controller.disconnect(); return 'Note'; });
+        await controller.completeWithNote({ currentTarget: form, preventDefault() {}, stopImmediatePropagation() {} });
+        expect(form.requestSubmit).not.toHaveBeenCalled();
+    });
+
     test('extractBestowalIdFromTrigger reads the outlet-btn data value', () => {
         const trigger = document.createElement('button');
         trigger.setAttribute('data-outlet-btn-btn-data-value', JSON.stringify({ id: 42 }));

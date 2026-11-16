@@ -28,7 +28,7 @@ $this->KMP->endBlock();
             </p>
             <?php if ($incompleteCount > 0): ?>
             <div class="alert alert-warning" role="alert">
-                <i class="bi bi-exclamation-triangle-fill"></i>
+                <kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon>
                 <?= __n(
                     '{0} gathering still needs waivers uploaded.',
                     '{0} gatherings still need waivers uploaded.',
@@ -38,7 +38,7 @@ $this->KMP->endBlock();
             </div>
             <?php else: ?>
             <div class="alert alert-success" role="alert">
-                <i class="bi bi-check-circle-fill"></i>
+                <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon>
                 <?= __('All required waivers have been uploaded!') ?>
             </div>
             <?php endif; ?>
@@ -47,7 +47,7 @@ $this->KMP->endBlock();
 
     <?php if (empty($gatherings)): ?>
     <div class="alert alert-info" role="alert">
-        <i class="bi bi-info-circle-fill"></i>
+        <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
         <?= __('No gatherings are currently available. Gatherings appear here when they start within 7 days and remain until the waiver secretary closes them.') ?>
     </div>
 
@@ -98,27 +98,27 @@ $this->KMP->endBlock();
                         <?= h($gathering->name) ?>
                         <?php if ($isComplete): ?>
                         <span class="badge bg-success ms-2">
-                            <i class="bi bi-check-circle-fill"></i> Complete
+                            <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon> Complete
                         </span>
                         <?php endif; ?>
                         <?php if ($isReadyToClose): ?>
                         <span class="badge bg-info ms-2">
-                            <i class="bi bi-check2-square"></i> Ready to Close
+                            <kmp-icon name="checkbox"  aria-hidden="true"></kmp-icon> Ready to Close
                         </span>
                         <?php endif; ?>
                         <?php if ($isUrgent && !$isComplete): ?>
                         <span class="badge bg-info text-dark ms-2">
-                            <i class="bi bi-exclamation-triangle-fill"></i> Upcoming
+                            <kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon> Upcoming
                         </span>
                         <?php endif; ?>
                         <?php if ($isOngoing): ?>
                         <span class="badge bg-warning ms-2">
-                            <i class="bi bi-alarm-fill"></i> In Progress
+                            <kmp-icon name="alarm"  aria-hidden="true"></kmp-icon> In Progress
                         </span>
                         <?php endif; ?>
                         <?php if ($hasEnded): ?>
                         <span class="badge bg-danger ms-2">
-                            <i class="bi bi-calendar-x"></i> Ended
+                            <kmp-icon name="calendar-x"  aria-hidden="true"></kmp-icon> Ended
                         </span>
                         <?php endif; ?>
                     </td>
@@ -157,14 +157,14 @@ $this->KMP->endBlock();
                     </td>
                     <td class="actions text-end text-nowrap">
                         <?= $this->Html->link(
-                                    '<i class="bi bi-upload"></i> ' . __('Upload'),
+                                    '<kmp-icon name="upload"  aria-hidden="true"></kmp-icon> ' . __('Upload'),
                                     ['controller' => 'GatheringWaivers', 'action' => 'upload', 'plugin' => 'Waivers', '?' => ['gathering_id' => $gathering->id]],
                                     ['class' => 'btn btn-sm btn-primary', 'escape' => false, 'title' => __('Upload Waivers')]
                                 ) ?>
                         <?= $this->Html->link(
                                     '',
                                     ['plugin' => false, 'controller' => 'Gatherings', 'action' => 'view', $gathering->public_id],
-                                    ['class' => 'btn btn-sm btn-secondary bi bi-binoculars-fill', 'escape' => false, 'title' => __('View Gathering')]
+                                    ['class' => 'btn btn-sm btn-secondary', 'icon' => 'binoculars', 'escape' => false, 'title' => __('View Gathering')]
                                 ) ?>
                     </td>
                 </tr>
@@ -176,7 +176,7 @@ $this->KMP->endBlock();
     <div class="row mt-3">
         <div class="col-md-12">
             <div class="alert alert-light border" role="alert">
-                <h6 class="alert-heading"><i class="bi bi-info-circle"></i> <?= __('Legend') ?></h6>
+                <h6 class="alert-heading"><kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon> <?= __('Legend') ?></h6>
                 <div class="row">
                     <div class="col-md-2">
                         <span class="badge bg-success">Complete</span>

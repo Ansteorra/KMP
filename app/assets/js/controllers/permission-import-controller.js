@@ -202,7 +202,7 @@ class PermissionImport extends Controller {
         // Display policies to add
         if (this.hasAddListTarget) {
             if (changes.policies_to_add.length > 0) {
-                let addHtml = '<h6 class="text-success"><i class="bi bi-plus-circle me-1"></i>Policies to Add:</h6>'
+                let addHtml = '<h6 class="text-success"><kmp-icon name="circle-plus" class="me-1" aria-hidden="true"></kmp-icon>Policies to Add:</h6>'
                 addHtml += '<div class="list-group list-group-flush" style="max-height: 200px; overflow-y: auto;">'
                 changes.policies_to_add.forEach(policy => {
                     addHtml += `
@@ -221,7 +221,7 @@ class PermissionImport extends Controller {
         // Display policies to remove
         if (this.hasRemoveListTarget) {
             if (changes.policies_to_remove.length > 0) {
-                let removeHtml = '<h6 class="text-danger"><i class="bi bi-dash-circle me-1"></i>Policies to Remove:</h6>'
+                let removeHtml = '<h6 class="text-danger"><kmp-icon name="circle-minus" class="me-1" aria-hidden="true"></kmp-icon>Policies to Remove:</h6>'
                 removeHtml += '<div class="list-group list-group-flush" style="max-height: 200px; overflow-y: auto;">'
                 changes.policies_to_remove.forEach(policy => {
                     removeHtml += `
@@ -244,7 +244,7 @@ class PermissionImport extends Controller {
             if (!hasChanges) {
                 this.summaryTarget.innerHTML = `
                     <div class="alert alert-success">
-                        <i class="bi bi-check-circle me-2"></i><strong>No changes needed!</strong>
+                        <kmp-icon name="circle-check" class="me-2" aria-hidden="true"></kmp-icon><strong>No changes needed!</strong>
                         The current permission policies match the import file exactly.
                     </div>
                 `

@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace Bootstrap\View\Helper;
 
+use App\Services\IconCatalog;
 use Cake\View\Helper;
 use Cake\View\StringTemplateTrait;
 use Cake\Log\Log;
@@ -575,11 +576,9 @@ class ModalHelper extends Helper
         )["class"];
         $icon = "";
         if ($options["icon"]) {
-            $icon = sprintf(
-                '<i class="%s %s me-1" aria-hidden="true"></i>',
-                h($options["icon"]),
-                h($options["iconClass"]),
-            );
+            $icon = IconCatalog::render($options["icon"], [
+                'class' => $options["iconClass"] . ' me-1',
+            ]);
         }
         $badge = "";
         if ($options["badge"]) {

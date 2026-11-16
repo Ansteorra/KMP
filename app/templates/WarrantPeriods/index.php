@@ -26,7 +26,7 @@ $this->assign('title', __('Warrant Periods'));
             <?php if ($user->checkCan("add", "WarrantPeriods")) : ?>
                 <button type="button" class="btn btn-primary" data-bs-toggle="modal"
                     data-bs-target="#addModal">
-                    <i class="bi bi-plus-circle me-1"></i><?= __('Add Warrant Period') ?>
+                    <kmp-icon name="circle-plus" class="me-1" aria-hidden="true"></kmp-icon><?= __('Add Warrant Period') ?>
                 </button>
             <?php endif; ?>
         </div>
@@ -56,7 +56,7 @@ echo $this->Modal->create("Add Warrant Period", [
 ?>
 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-        <i class="bi bi-calendar-range text-primary me-1" aria-hidden="true"></i>
+        <kmp-icon name="calendar-week" class="text-primary me-1" aria-hidden="true"></kmp-icon>
         <?= __("Period Dates") ?>
     </legend>
     <div class="row g-3">

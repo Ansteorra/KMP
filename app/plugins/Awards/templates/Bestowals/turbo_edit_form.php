@@ -49,13 +49,13 @@ $submitAction = implode(' ', [
         <div class="col-12 col-xl-5">
             <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
                 <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                    <i class="bi bi-award text-primary me-1" aria-hidden="true"></i>
+                    <kmp-icon name="award" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                     <?= __('Recipient & Award') ?>
                 </legend>
         <div class="mb-3">
             <p class="form-label mb-1"><?= __('Member') ?></p>
             <div class="form-control-plaintext">
-                <?= h($bestowal->member->sca_name ?? $bestowal->member_sca_name ?? __('Unknown Member')) ?>
+                <?= h($bestowal->getRecipientName()) ?>
             </div>
         </div>
         <?php
@@ -193,7 +193,7 @@ $submitAction = implode(' ', [
         <div class="col-12 col-xl-7">
             <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
                 <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                    <i class="bi bi-calendar-event text-success me-1" aria-hidden="true"></i>
+                    <kmp-icon name="calendar-event" class="text-success me-1" aria-hidden="true"></kmp-icon>
                     <?= __('Court Planning') ?>
                 </legend>
 
@@ -230,7 +230,7 @@ $submitAction = implode(' ', [
         $assignedGatheringCancelled = $assignedGatheringCancelled ?? false;
         if ($assignedGatheringCancelled) : ?>
             <div class="alert alert-danger mb-2" role="alert">
-                <i class="bi bi-exclamation-triangle-fill"></i>
+                <kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon>
                 <strong><?= __('Warning:') ?></strong>
                 <?= __(
                     'This bestowal is scheduled for a cancelled gathering. '
@@ -287,6 +287,8 @@ $submitAction = implode(' ', [
                     ]),
                 ],
             ) ?>
+            <div id="bestowalGatheringEligibilityWarning" class="alert alert-warning mt-2" role="alert" hidden
+                data-awards-bestowal-edit-target="gatheringEligibilityWarning"></div>
         </div>
         <?php
         $courtSlotsAvailable = $courtSlotsAvailable ?? false;
@@ -328,8 +330,11 @@ $submitAction = implode(' ', [
                     'empty' => __('Select a court session (optional)'),
                     'data-awards-bestowal-edit-target' => 'courtSlot',
                     'data-action' => 'change->awards-bestowal-edit#onCourtSlotChange',
+                    'aria-describedby' => 'bestowalCourtEligibilityWarning',
                 ]) ?>
             </div>
+            <div id="bestowalCourtEligibilityWarning" class="alert alert-warning mt-2" role="alert" hidden
+                data-awards-bestowal-edit-target="courtEligibilityWarning"></div>
         </div>
         <?php
         $bestowedValue = null;
@@ -368,10 +373,10 @@ $submitAction = implode(' ', [
             <fieldset class="border rounded-3 bg-white shadow-sm p-3">
                 <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
                     <?php if ($protectedFieldAccess['crownFields']) : ?>
-                        <i class="bi bi-link-45deg text-info me-1" aria-hidden="true"></i>
+                        <kmp-icon name="link" class="text-info me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Recommendation Links & Notes') ?>
                     <?php else : ?>
-                        <i class="bi bi-journal-text text-secondary me-1" aria-hidden="true"></i>
+                        <kmp-icon name="notebook" class="text-secondary me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Update Note') ?>
                     <?php endif; ?>
                 </legend>

@@ -51,7 +51,7 @@ $this->KMP->endBlock();
     </div>
 
     <!-- Execution Log Timeline -->
-    <h4 class="mb-3"><i class="bi bi-journal-text me-1"></i><?= __('Execution Log') ?></h4>
+    <h4 class="mb-3"><kmp-icon name="notebook" class="me-1" aria-hidden="true"></kmp-icon><?= __('Execution Log') ?></h4>
     <?php if (!empty($instance->workflow_execution_logs)) : ?>
     <div class="list-group mb-4">
         <?php foreach ($instance->workflow_execution_logs as $log) : ?>
@@ -86,7 +86,7 @@ $this->KMP->endBlock();
 
     <!-- Approvals -->
     <?php if (!empty($instance->workflow_approvals)) : ?>
-    <h4 class="mb-3"><i class="bi bi-check-circle me-1"></i><?= __('Approvals') ?></h4>
+    <h4 class="mb-3"><kmp-icon name="circle-check" class="me-1" aria-hidden="true"></kmp-icon><?= __('Approvals') ?></h4>
     <?php foreach ($instance->workflow_approvals as $approval) : ?>
     <div class="card mb-3">
         <div class="card-header d-flex justify-content-between">

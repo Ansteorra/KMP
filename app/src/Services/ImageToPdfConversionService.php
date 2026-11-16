@@ -907,7 +907,7 @@ class ImageToPdfConversionService
         try {
             return imagepng($image, $path);
         } finally {
-            imagedestroy($image);
+            unset($image);
         }
     }
 
@@ -1109,7 +1109,7 @@ class ImageToPdfConversionService
             // Save to temp file as JPEG (smaller than PNG for grayscale)
             $thumbnailTemp = tempnam(sys_get_temp_dir(), 'waiver_thumb_');
             if ($thumbnailTemp === false) {
-                imagedestroy($thumbnail);
+                unset($thumbnail);
 
                 return null;
             }
@@ -1117,13 +1117,13 @@ class ImageToPdfConversionService
             rename($thumbnailTemp, $thumbnailPath);
 
             if (!imagejpeg($thumbnail, $thumbnailPath, 75)) {
-                imagedestroy($thumbnail);
+                unset($thumbnail);
                 unlink($thumbnailPath);
 
                 return null;
             }
 
-            imagedestroy($thumbnail);
+            unset($thumbnail);
 
             return $thumbnailPath;
         } catch (Exception $e) {

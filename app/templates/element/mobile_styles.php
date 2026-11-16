@@ -348,7 +348,7 @@ $watermarkImage = $watermarkImage ?? null;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
     }
 
-    .mobile-page-title i {
+    .mobile-page-title :is(i, kmp-icon) {
         font-size: 1rem;
         opacity: 0.9;
         color: var(--medieval-gold-light);
@@ -385,7 +385,7 @@ $watermarkImage = $watermarkImage ?? null;
         text-transform: uppercase;
     }
 
-    .mobile-menu-pill i {
+    .mobile-menu-pill :is(i, kmp-icon) {
         font-size: 14px;
         margin-right: 6px;
         color: var(--medieval-gold);
@@ -526,7 +526,7 @@ $watermarkImage = $watermarkImage ?? null;
         margin-bottom: 0 !important;
     }
 
-    .mobile-menu-item i {
+    .mobile-menu-item :is(i, kmp-icon) {
         font-size: 18px;
         margin-right: 12px;
         width: 24px;
@@ -558,7 +558,7 @@ $watermarkImage = $watermarkImage ?? null;
             0 2px 4px rgba(0, 0, 0, 0.1);
     }
     
-    .mobile-menu-item[class*="btn-"] i {
+    .mobile-menu-item[class*="btn-"] :is(i, kmp-icon) {
         color: var(--medieval-parchment) !important;
     }
 
@@ -645,7 +645,7 @@ $watermarkImage = $watermarkImage ?? null;
         background: linear-gradient(180deg, var(--btn-base), var(--btn-dark));
         color: var(--medieval-ink) !important;
     }
-    .mobile-menu-item.btn-primary i {
+    .mobile-menu-item.btn-primary :is(i, kmp-icon) {
         color: var(--medieval-ink) !important;
     }
     .mobile-menu-item.btn-primary:hover {

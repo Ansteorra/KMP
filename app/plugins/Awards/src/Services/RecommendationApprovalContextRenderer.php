@@ -35,13 +35,13 @@ class RecommendationApprovalContextRenderer implements ApprovalContextRendererIn
             return new ApprovalContext(
                 title: __('Award Recommendation'),
                 description: __('Approval requested for an award recommendation.'),
-                icon: 'bi-award',
+                icon: 'award',
             );
         }
 
         $awardLabel = $this->awardLabel($recommendation);
         $fields = [
-            ['label' => __('Recommended For'), 'value' => (string)$recommendation->member_sca_name],
+            ['label' => __('Recommended For'), 'value' => $recommendation->getRecipientName()],
             ['label' => __('Submitted By'), 'value' => (string)$recommendation->requester_sca_name],
             ['label' => __('Branch'), 'value' => $recommendation->branch->name ?? __('Unknown')],
             ['label' => __('Award'), 'value' => $awardLabel],
@@ -73,11 +73,11 @@ class RecommendationApprovalContextRenderer implements ApprovalContextRendererIn
         }
 
         return new ApprovalContext(
-            title: __('Award Recommendation: {0}', $recommendation->member_sca_name),
-            description: __('Review {0} for {1}.', $recommendation->member_sca_name, $awardLabel),
+            title: __('Award Recommendation: {0}', $recommendation->getRecipientName()),
+            description: __('Review {0} for {1}.', $recommendation->getRecipientName(), $awardLabel),
             fields: $fields,
             entityUrl: $this->recommendationUrl((int)$recommendation->id),
-            icon: 'bi-award',
+            icon: 'award',
             requester: $recommendation->requester_sca_name,
             requesterMemberId: $recommendation->requester_id === null
                 ? null

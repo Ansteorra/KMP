@@ -3,11 +3,16 @@ declare(strict_types=1);
 
 namespace Waivers\Test\TestCase\Controller;
 
+use App\Services\ServiceResult;
+use App\Services\UiUpdateRegistry;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Cake\Core\Configure;
 use Cake\Datasource\ConnectionManager;
+use Cake\Routing\Router;
 use DateTimeImmutable;
 use DateTimeZone;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Waivers\Services\WaiverFileService;
 
 /**
  * Waivers\Controller\GatheringWaiversController Test Case
@@ -16,6 +21,107 @@ use DateTimeZone;
  */
 class GatheringWaiversControllerTest extends HttpIntegrationTestCase
 {
+    public static function uploadReturnContexts(): array
+    {
+        return [
+            'detail tab and query' => ['/gatherings/view/context?tab=gathering-waivers&search=kept#place'],
+            'mobile card' => ['/members/view-mobile-card?tab=rsvps'],
+            'direct upload fallback' => [null],
+            'native HTML submission' => [null, false],
+        ];
+    }
+
+    #[DataProvider('uploadReturnContexts')]
+    public function testSuccessfulUploadReturnsToExplicitContextWithoutLegacyHistory(
+        ?string $context,
+        bool $ajax = true,
+    ): void {
+        $waiver = $this->getTableLocator()->get('Waivers.GatheringWaivers')->find()
+            ->contain(['Gatherings', 'WaiverTypes'])->firstOrFail();
+        $service = $this->createMock(WaiverFileService::class);
+        $service->method('getRequiredWaiverTypes')->willReturn([$waiver->waiver_type]);
+        $service->expects($this->once())->method('processMultipleWaiverImages')
+            ->willReturn(new ServiceResult(true, data: ['page_count' => 1]));
+        $this->mockService(WaiverFileService::class, fn() => $service);
+        $this->session(['pageStack' => ['https://attacker.example/', '/unrelated-old-page', '/upload']]);
+        if ($ajax) {
+            $this->configRequest(['headers' => ['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest']]);
+        }
+        $data = ['waiver_type_id' => $waiver->waiver_type_id, 'waiver_images' => ['synthetic-upload']];
+        if ($context !== null) {
+            $data['page_context_url'] = $context;
+        }
+        $this->post('/waivers/gathering-waivers/upload?gathering_id=' . $waiver->gathering_id, $data);
+        $expected = $context ?? '/gatherings/view/' . $waiver->gathering->public_id . '?tab=gathering-waivers';
+        if (!$ajax) {
+            $this->assertResponseCode(303);
+            $this->assertRedirect($expected);
+
+            return;
+        }
+        $this->assertResponseOk();
+        $body = json_decode((string)$this->_response->getBody(), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertTrue($body['success']);
+        $this->assertSame($expected, $body['redirectUrl']);
+    }
+
+    public function testUploadRejectsForeignContextBeforeProcessingFiles(): void
+    {
+        $waiver = $this->getTableLocator()->get('Waivers.GatheringWaivers')->find()->firstOrFail();
+        $service = $this->createMock(WaiverFileService::class);
+        $service->expects($this->never())->method('processMultipleWaiverImages');
+        $this->mockService(WaiverFileService::class, fn() => $service);
+        $this->post('/waivers/gathering-waivers/upload?gathering_id=' . $waiver->gathering_id, [
+            'page_context_url' => 'https://attacker.example/', 'waiver_images' => ['synthetic-upload'],
+        ]);
+        $this->assertResponseCode(400);
+    }
+
+    public function testNativeUploadCarriesTheReturnContextAcrossSubmission(): void
+    {
+        $waiver = $this->getTableLocator()->get('Waivers.GatheringWaivers')->find()->firstOrFail();
+        $context = '/members/view-mobile-card?tab=rsvps&search=kept#place';
+        $this->get('/waivers/gathering-waivers/upload?' . http_build_query([
+            'gathering_id' => $waiver->gathering_id, 'page_context_url' => $context,
+        ]));
+        $this->assertResponseOk();
+        $this->assertResponseContains('data-waiver-upload-wizard-return-url-value="' . h($context) . '"');
+        $this->assertResponseContains('<meta name="kmp-turbo-enabled" content="false">');
+    }
+
+    public function testLiveRefreshResolvesPersistedAndPendingWaiverQueriesToTheirGathering(): void
+    {
+        $waivers = $this->getTableLocator()->get('Waivers.GatheringWaivers');
+        $row = $waivers->find()->firstOrFail();
+        Configure::write('Turbo.enabled', true);
+        Configure::write('Turbo.liveEnabled', true);
+        Configure::write('Turbo.gatewayUrl', 'https://live.example.test/events');
+        try {
+            $url = '/waivers/gathering-waivers/view?gathering_id=' . $row->gathering_id
+                . '&waiver_type_id=' . $row->waiver_type_id;
+            $this->post('/ui/refresh', ['context_url' => $url]);
+            $this->assertResponseOk();
+            $context = UiUpdateRegistry::resolve(Router::getRequest(), $url);
+            $this->assertSame('Gatherings:' . $row->gathering_id, $context['topic']);
+            $this->assertSame('view', $context['action']);
+
+            $required = $this->getTableLocator()->get('Waivers.GatheringActivityWaivers')->find()
+                ->select(['gathering_id' => 'Gatherings.id', 'waiver_type_id' => 'GatheringActivityWaivers.waiver_type_id'])
+                ->innerJoinWith('GatheringActivities.Gatherings')->firstOrFail();
+            $waivers->deleteAll(['gathering_id' => $required->gathering_id, 'waiver_type_id' => $required->waiver_type_id]);
+            $url = '/waivers/gathering-waivers/view?gathering_id=' . $required->gathering_id
+                . '&waiver_type_id=' . $required->waiver_type_id;
+            $this->post('/ui/refresh', ['context_url' => $url]);
+            $this->assertResponseOk();
+            $context = UiUpdateRegistry::resolve(Router::getRequest(), $url);
+            $this->assertSame('Gatherings:' . $required->gathering_id, $context['topic']);
+            $this->assertSame('viewGatheringWaivers', $context['action']);
+            $this->assertTrue($context['resource']->isNew());
+        } finally {
+            Configure::delete('Turbo');
+        }
+    }
+
     protected function setUp(): void
     {
         parent::setUp();

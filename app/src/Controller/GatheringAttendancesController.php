@@ -63,36 +63,6 @@ class GatheringAttendancesController extends AppController
     }
 
     /**
-     * Apply the royal progress selection from request data to an attendance.
-     *
-     * Reads `progress_officer_id` (an officers_officers.id, empty for none)
-     * and delegates to the table, which verifies the assignment and snapshots
-     * the office. Progress fields are guarded against mass assignment, so this
-     * is the only write path.
-     *
-     * @param \App\Model\Entity\GatheringAttendance $gatheringAttendance Attendance being saved
-     * @param array $data Request data
-     * @return bool False when the selected officer assignment is not valid for progress
-     */
-    private function applyProgressFromRequest($gatheringAttendance, array $data): bool
-    {
-        if (!array_key_exists('progress_officer_id', $data)) {
-            return true;
-        }
-
-        $progressOfficerId = $data['progress_officer_id'];
-        $progressOfficerId = $progressOfficerId === null || $progressOfficerId === ''
-            ? null
-            : (int)$progressOfficerId;
-
-        return $this->GatheringAttendances->applyRoyalProgress(
-            $gatheringAttendance,
-            $progressOfficerId,
-            (int)$gatheringAttendance->member_id,
-        );
-    }
-
-    /**
      * Add method - Create new gathering attendance
      *
      * @return \Cake\Http\Response|null|void Redirects on successful add, renders view otherwise.
@@ -115,22 +85,7 @@ class GatheringAttendancesController extends AppController
                 }
                 $this->Flash->error(__('Gathering not found.'));
 
-                return $this->redirect($this->referer());
-            }
-
-            $today = CakeDateTime::now()->startOfDay();
-
-            // Check if gathering has already ended
-            if ($gathering->end_date < $today) {
-                if ($this->wantsJson()) {
-                    return $this->jsonResponse(
-                        ['success' => false, 'error' => 'Cannot register for a gathering that has already ended'],
-                        400,
-                    );
-                }
-                $this->Flash->error(__('Cannot register for a gathering that has already ended.'));
-
-                return $this->redirect($this->referer());
+                return $this->attendanceRedirectOrFailure();
             }
 
             // Set created_by from current user
@@ -147,18 +102,19 @@ class GatheringAttendancesController extends AppController
             // Authorize after patching data so policy can check member_id
             $this->Authorization->authorize($gatheringAttendance);
 
-            if (!$this->applyProgressFromRequest($gatheringAttendance, $data)) {
+            $today = CakeDateTime::now()->startOfDay();
+
+            // Check if gathering has already ended
+            if ($gathering->end_date < $today) {
                 if ($this->wantsJson()) {
                     return $this->jsonResponse(
-                        ['success' => false, 'error' => 'Invalid royal progress selection'],
+                        ['success' => false, 'error' => 'Cannot register for a gathering that has already ended'],
                         400,
                     );
                 }
-                $this->Flash->error(__(
-                    'You do not currently hold that office, so the RSVP cannot be recorded as royal progress.',
-                ));
+                $this->Flash->error(__('Cannot register for a gathering that has already ended.'));
 
-                return $this->redirect($this->referer());
+                return $this->attendanceRedirectOrFailure();
             }
 
             if ($this->GatheringAttendances->save($gatheringAttendance)) {
@@ -205,7 +161,7 @@ class GatheringAttendancesController extends AppController
             }
         }
 
-        return $this->redirect($this->referer());
+        return $this->attendanceRedirectOrFailure();
     }
 
     /**
@@ -230,9 +186,15 @@ class GatheringAttendancesController extends AppController
             // Validate that the gathering hasn't ended
             $today = CakeDateTime::now()->startOfDay();
             if ($gatheringAttendance->gathering->end_date < $today) {
+                if ($this->wantsJson()) {
+                    return $this->jsonResponse([
+                        'success' => false,
+                        'error' => 'Cannot update attendance for a gathering that has already ended.',
+                    ], 422);
+                }
                 $this->Flash->error(__('Cannot update attendance for a gathering that has already ended.'));
 
-                return $this->redirect($this->referer());
+                return $this->attendanceRedirectOrFailure();
             }
 
             // Set modified_by from current user
@@ -241,15 +203,10 @@ class GatheringAttendancesController extends AppController
 
             $gatheringAttendance = $this->GatheringAttendances->patchEntity($gatheringAttendance, $data);
 
-            if (!$this->applyProgressFromRequest($gatheringAttendance, $data)) {
-                $this->Flash->error(__(
-                    'You do not currently hold that office, so the RSVP cannot be recorded as royal progress.',
-                ));
-
-                return $this->redirect($this->referer());
-            }
-
             if ($this->GatheringAttendances->save($gatheringAttendance)) {
+                if ($this->wantsJson()) {
+                    return $this->jsonResponse(['success' => true, 'message' => 'Your attendance has been updated.']);
+                }
                 $this->Flash->success(__('Your attendance has been updated.'));
                 $stream = $this->tryGatheringAttendanceGridTurboResponse(
                     $this->getPageContextUrl(),
@@ -271,14 +228,18 @@ class GatheringAttendancesController extends AppController
                             $errorMessages[] = "$field: $error";
                         }
                     }
-                    $this->Flash->error(__('Validation errors: {0}', implode(', ', $errorMessages)));
+                    $errorMessage = __('Validation errors: {0}', implode(', ', $errorMessages));
                 } else {
-                    $this->Flash->error(__('Unable to update your attendance. Please try again.'));
+                    $errorMessage = __('Unable to update your attendance. Please try again.');
                 }
+                if ($this->wantsJson()) {
+                    return $this->jsonResponse(['success' => false, 'error' => $errorMessage], 422);
+                }
+                $this->Flash->error($errorMessage);
             }
         }
 
-        return $this->redirect($this->referer());
+        return $this->attendanceRedirectOrFailure();
     }
 
     /**
@@ -300,7 +261,7 @@ class GatheringAttendancesController extends AppController
             }
             $this->Flash->error(__('Attendance record not found.'));
 
-            return $this->redirect($this->referer());
+            return $this->attendanceRedirectOrFailure();
         }
 
         $this->Authorization->authorize($gatheringAttendance);
@@ -345,6 +306,16 @@ class GatheringAttendancesController extends AppController
                 return $this->jsonResponse(['success' => false, 'error' => $errorMessage], 400);
             }
             $this->Flash->error(__($errorMessage));
+        }
+
+        return $this->attendanceRedirectOrFailure();
+    }
+
+    /** Native pages redirect; stream validation failures retain the user's draft. */
+    private function attendanceRedirectOrFailure(): Response
+    {
+        if ($this->wantsTurboStreamRequest()) {
+            return $this->renderTurboFlashOnly()->withStatus(422);
         }
 
         return $this->redirect($this->referer());
@@ -482,10 +453,6 @@ class GatheringAttendancesController extends AppController
         $updateData = array_intersect_key($data, array_flip($allowedFields));
 
         $gatheringAttendance = $this->GatheringAttendances->patchEntity($gatheringAttendance, $updateData);
-
-        if (!$this->applyProgressFromRequest($gatheringAttendance, $data)) {
-            return $this->jsonResponse(['success' => false, 'error' => 'Invalid royal progress selection'], 400);
-        }
 
         if ($this->GatheringAttendances->save($gatheringAttendance)) {
             return $this->jsonResponse([

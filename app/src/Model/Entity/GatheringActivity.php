@@ -13,7 +13,14 @@ namespace App\Model\Entity;
  * @property int $gathering_id
  * @property string $name
  * @property string|null $description
- * @property bool $is_circle
+ * @property int $display_order
+ * @property string $activity_type
+ * @property string $icon_source
+ * @property string $icon_name
+ * @property string|null $icon_asset_key
+ * @property string $foreground_color
+ * @property string $background_color
+ * @property array<\App\Model\Entity\Permission> $assignment_permissions
  * @property string|null $instructions
  * @property \Cake\I18n\DateTime $created
  * @property \Cake\I18n\DateTime $modified
@@ -23,6 +30,24 @@ namespace App\Model\Entity;
  */
 class GatheringActivity extends BaseEntity
 {
+    public const TYPE_ORDER_CIRCLE = 'Order Circle';
+
+    public const TYPE_ROYAL_PROGRESS = 'Royal Progress';
+
+    public const TYPE_GENERAL = 'General';
+
+    public const ACTIVITY_TYPES = [
+        self::TYPE_ORDER_CIRCLE,
+        self::TYPE_ROYAL_PROGRESS,
+        'Court',
+        'Business',
+        'Martial',
+        'Arts & Sciences',
+        'Youth',
+        self::TYPE_GENERAL,
+        'Other',
+    ];
+
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *
@@ -31,7 +56,15 @@ class GatheringActivity extends BaseEntity
     protected array $_accessible = [
         'name' => true,
         'description' => true,
-        'is_circle' => true,
+        'activity_type' => true,
+        'display_order' => true,
+        'icon_source' => true,
+        'icon_name' => true,
+        'foreground_color' => true,
+        'background_color' => true,
+        'icon_document_id' => false,
+        'icon_asset_key' => false,
+        'assignment_permissions' => false,
         'created' => true,
         'modified' => true,
     ];

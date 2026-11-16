@@ -6,8 +6,10 @@ namespace Awards;
 use App\KMP\KMPPluginInterface;
 use App\KMP\StaticHelpers;
 use App\Services\ActionItems\ActionItemCompletionFormRegistry;
+use App\Services\ActionItems\ActionItemDelegationRegistry;
 use App\Services\ActionItems\ActionItemService;
 use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
+use App\Services\GatheringActivityDelegationRegistry;
 use App\Services\GridSubscriptionRegistry;
 use App\Services\NavigationRegistry;
 use App\Services\ViewCellRegistry;
@@ -19,6 +21,7 @@ use Awards\Command\MigrateAwardRecommendationsCommand;
 use Awards\Command\ReconcileRecommendationStateCommand;
 use Awards\Event\BestowalTodoCompletionListener;
 use Awards\Event\RecommendationFeedbackApprovalListener;
+use Awards\Model\Entity\Bestowal;
 use Awards\Services\AdHocBestowalService;
 use Awards\Services\AwardApprovalResolverService;
 use Awards\Services\AwardsNavigationProvider;
@@ -29,12 +32,15 @@ use Awards\Services\BestowalCancellationService;
 use Awards\Services\BestowalCreationService;
 use Awards\Services\BestowalFinalizationService;
 use Awards\Services\BestowalFormService;
+use Awards\Services\BestowalGatheringActivityDelegationProvider;
 use Awards\Services\BestowalGatheringLookupService;
 use Awards\Services\BestowalNotificationVarsService;
+use Awards\Services\BestowalOutcomeChangeService;
 use Awards\Services\BestowalQueryService;
 use Awards\Services\BestowalRecommendationLinkService;
 use Awards\Services\BestowalRecommendationSyncService;
 use Awards\Services\BestowalTodoCompletionFormProvider;
+use Awards\Services\BestowalTodoDelegationProvider;
 use Awards\Services\BestowalTodoMaterializationService;
 use Awards\Services\BestowalUpdateService;
 use Awards\Services\CourtAgendaService;
@@ -136,6 +142,8 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
             'AwardsBestowals',
             new BestowalTodoCompletionFormProvider(),
         );
+        ActionItemDelegationRegistry::register(Bestowal::ACTION_ITEM_ENTITY_TYPE, new BestowalTodoDelegationProvider());
+        GatheringActivityDelegationRegistry::register('Awards', new BestowalGatheringActivityDelegationProvider());
 
         EventManager::instance()->on(new RecommendationFeedbackApprovalListener());
         EventManager::instance()->on(new BestowalTodoCompletionListener());
@@ -392,6 +400,7 @@ class AwardsPlugin extends BasePlugin implements KMPPluginInterface
             ->addArgument(ActionItemService::class)
             ->addArgument(BestowalRecommendationSyncService::class);
         $container->add(BestowalCancellationService::class);
+        $container->add(BestowalOutcomeChangeService::class);
         $container->add(AdHocBestowalService::class);
         $container->add(BestowalQueryService::class);
         $container->add(CourtAgendaService::class);

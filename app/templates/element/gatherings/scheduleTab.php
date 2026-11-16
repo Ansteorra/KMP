@@ -10,18 +10,14 @@ declare(strict_types=1);
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\Gathering $gathering
  * @var \App\Model\Entity\User $user
- * @var array<int, int> $courtActivityIds
  */
 $canEditGathering = $user->checkCan('edit', $gathering);
 $canCreateScheduledActivity = $user->checkCan('createScheduledActivity', $gathering);
 $showScheduleActions = $canEditGathering || $canCreateScheduledActivity;
-$scheduleActivities = $gathering->gathering_activities ?? [];
-if (!$canEditGathering) {
-    $scheduleActivities = array_values(array_filter(
-        $scheduleActivities,
-        static fn($activity): bool => in_array((int)$activity->id, $courtActivityIds, true),
-    ));
-}
+$scheduleActivities = array_values(array_filter(
+    $gathering->gathering_activities ?? [],
+    static fn($activity): bool => $user->checkCan('manageActivity', $gathering, $activity),
+));
 $allowOtherActivities = $canEditGathering;
 $showAddScheduleAction = $canCreateScheduledActivity
     && ($allowOtherActivities || $scheduleActivities !== []);
@@ -39,21 +35,23 @@ $deleteScheduleUrl = $this->Url->build(['action' => 'deleteScheduledActivity', $
     data-tab-order="4"
     style="order: 4;"
     data-controller="gathering-schedule"
-    data-gathering-schedule-gathering-id-value="<?= $gathering->public_id ?>"
+    data-gathering-schedule-gathering-id-value="<?= h($gathering->public_id) ?>"
     data-gathering-schedule-gathering-start-value="<?= h($scheduleStartValue) ?>"
     data-gathering-schedule-gathering-end-value="<?= h($scheduleEndValue) ?>"
     data-gathering-schedule-add-url-value="<?= h($addScheduleUrl) ?>"
     data-gathering-schedule-edit-url-value="<?= h($editScheduleUrl) ?>"
     data-gathering-schedule-delete-url-value="<?= h($deleteScheduleUrl) ?>">
 
+    <div id="gathering-schedule-content" data-refresh-on="schedule">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4><?= __('Event Schedule') ?></h4>
         <?php if ($showAddScheduleAction) : ?>
             <button type="button"
                 class="btn btn-sm btn-primary"
+                id="schedule-add-trigger"
                 data-bs-toggle="modal"
                 data-bs-target="#addScheduleModal">
-                <i class="bi bi-plus-circle" aria-hidden="true"></i> <?= __('Add Scheduled Activity') ?>
+                <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon> <?= __('Add Scheduled Activity') ?>
             </button>
         <?php endif; ?>
     </div>
@@ -76,8 +74,11 @@ $deleteScheduleUrl = $this->Url->build(['action' => 'deleteScheduledActivity', $
                 <tbody>
                     <?php foreach ($gathering->gathering_scheduled_activities as $scheduledActivity) : ?>
                         <?php
-                        $canEditScheduledActivity = $canEditGathering
-                            || $user->checkCan('editScheduledActivity', $gathering, $scheduledActivity);
+                        $canEditScheduledActivity = $user->checkCan(
+                            'editScheduledActivity',
+                            $gathering,
+                            $scheduledActivity,
+                        );
                         $scheduledStartDate = $this->Timezone->format(
                             $scheduledActivity->start_datetime,
                             'D, M j',
@@ -116,6 +117,7 @@ $deleteScheduleUrl = $this->Url->build(['action' => 'deleteScheduledActivity', $
                             )
                             : '';
                         $gatheringActivityId = $scheduledActivity->gathering_activity_id;
+                        $scheduledDurationInput = (string)($scheduledActivity->duration_hours * 60);
                         $preRegisterValue = $scheduledActivity->pre_register ? 'true' : 'false';
                         $isOtherValue = $scheduledActivity->is_other ? 'true' : 'false';
                         $hasEndTimeValue = $scheduledActivity->has_end_time ? 'true' : 'false';
@@ -143,7 +145,9 @@ $deleteScheduleUrl = $this->Url->build(['action' => 'deleteScheduledActivity', $
                                 <?php if ($scheduledActivity->is_other) : ?>
                                     <span class="badge bg-secondary"><?= __('Other') ?></span>
                                 <?php else : ?>
-                                    <?= h($scheduledActivity->gathering_activity->name ?? __('N/A')) ?>
+                                    <?= $scheduledActivity->gathering_activity
+                                        ? $this->GatheringActivity->badge($scheduledActivity->gathering_activity)
+                                        : h(__('N/A')) ?>
                                 <?php endif; ?>
                             </td>
                             <td>
@@ -155,11 +159,12 @@ $deleteScheduleUrl = $this->Url->build(['action' => 'deleteScheduledActivity', $
                             <td class="text-center">
                                 <?php if ($scheduledActivity->pre_register) : ?>
                                     <span class="badge bg-success">
-                                        <i class="bi bi-check-circle" aria-hidden="true"></i> <?= __('Enabled') ?>
+                                        <kmp-icon name="circle-check" aria-hidden="true"></kmp-icon>
+                                        <?= __('Enabled') ?>
                                     </span>
                                 <?php else : ?>
                                     <span class="badge bg-secondary">
-                                        <i class="bi bi-x-circle" aria-hidden="true"></i> <?= __('Disabled') ?>
+                                        <kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> <?= __('Disabled') ?>
                                     </span>
                                 <?php endif; ?>
                             </td>
@@ -169,11 +174,12 @@ $deleteScheduleUrl = $this->Url->build(['action' => 'deleteScheduledActivity', $
                                         <button type="button"
                                             class="btn btn-sm btn-primary"
                                             data-action="click->gathering-schedule#openEditModal"
+                                            id="schedule-edit-<?= $scheduledActivity->id ?>"
                                             data-activity-id="<?= $scheduledActivity->id ?>"
                                             data-gathering-activity-id="<?= h($gatheringActivityId) ?>"
                                             data-start-datetime="<?= h($scheduledStartInput) ?>"
                                             data-end-datetime="<?= h($scheduledEndInput) ?>"
-                                            data-duration-minutes="<?= h((string)($scheduledActivity->duration_hours * 60)) ?>"
+                                            data-duration-minutes="<?= h($scheduledDurationInput) ?>"
                                             data-display-title="<?= h($scheduledActivity->display_title) ?>"
                                             data-description="<?= h($scheduledActivity->description) ?>"
                                             data-pre-register="<?= $preRegisterValue ?>"
@@ -181,31 +187,23 @@ $deleteScheduleUrl = $this->Url->build(['action' => 'deleteScheduledActivity', $
                                             data-has-end-time="<?= $hasEndTimeValue ?>"
                                             title="<?= __('Edit {0}', $scheduledActivity->display_title) ?>"
                                             aria-label="<?= __('Edit {0}', $scheduledActivity->display_title) ?>">
-                                            <i class="bi bi-pencil-fill" aria-hidden="true"></i>
+                                            <kmp-icon name="pencil"  aria-hidden="true"></kmp-icon>
                                         </button>
                                     <?php endif; ?>
-                                    <?php if ($canEditGathering) : ?>
-                                        <?= $this->Form->postLink(
-                                            '<i class="bi bi-trash-fill" aria-hidden="true"></i>',
-                                            [
-                                                'action' => 'deleteScheduledActivity',
-                                                $gathering->public_id,
-                                                $scheduledActivity->id,
-                                            ],
-                                            [
-                                                'confirm' => __(
-                                                    'Are you sure you want to delete "{0}"?',
-                                                    $scheduledActivity->display_title,
-                                                ),
-                                                'escape' => false,
-                                                'title' => __('Delete {0}', $scheduledActivity->display_title),
-                                                'aria-label' => __(
-                                                    'Delete {0}',
-                                                    $scheduledActivity->display_title,
-                                                ),
-                                                'class' => 'btn btn-sm btn-danger',
-                                            ],
-                                        ) ?>
+                                    <?php
+                                    $canDeleteScheduledActivity = $user->checkCan(
+                                        'deleteScheduledActivity',
+                                        $gathering,
+                                        $scheduledActivity,
+                                    );
+                                    ?>
+                                    <?php if ($canDeleteScheduledActivity) : ?>
+                                        <button type="button" class="btn btn-sm btn-danger"
+                                            data-action="gathering-schedule#deleteActivity"
+                                            data-activity-id="<?= $scheduledActivity->id ?>"
+                                            aria-label="<?= h(__('Delete {0}', $scheduledActivity->display_title)) ?>">
+                                            <?= $this->Icon->render('trash') ?>
+                                        </button>
                                     <?php endif; ?>
                                 </td>
                             <?php endif; ?>
@@ -216,7 +214,7 @@ $deleteScheduleUrl = $this->Url->build(['action' => 'deleteScheduledActivity', $
         </div>
     <?php else : ?>
         <div class="alert alert-secondary">
-            <i class="bi bi-info-circle"></i>
+            <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
             <?= __('No activities have been scheduled yet.') ?>
             <?php if ($showAddScheduleAction) : ?>
                 <?= __('Click "Add Scheduled Activity" above to create your event schedule.') ?>
@@ -226,6 +224,7 @@ $deleteScheduleUrl = $this->Url->build(['action' => 'deleteScheduledActivity', $
         </div>
     <?php endif; ?>
 
+    </div>
     <?php // Modals must be inside the controller scope for Stimulus targets to work
     ?>
     <?php if ($showAddScheduleAction) : ?>

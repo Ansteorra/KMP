@@ -28,7 +28,7 @@ $newToken = $this->request->getSession()->consume('ServicePrincipal.newToken');
 <div class="service-principals view content">
     <?php if ($newToken) : ?>
         <div class="alert alert-warning alert-dismissible fade show">
-            <h5><i class="bi bi-exclamation-triangle"></i> <?= __('New Token Created - Save It Now!') ?></h5>
+            <h5><kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon> <?= __('New Token Created - Save It Now!') ?></h5>
             <p class="mb-1"><strong><?= __('Token Name:') ?></strong> <?= h($newToken['name']) ?></p>
             <div class="input-group mb-2">
                 <input type="text" class="form-control font-monospace" 
@@ -38,7 +38,7 @@ $newToken = $this->request->getSession()->consume('ServicePrincipal.newToken');
                     data-action="clipboard#copy"
                     data-clipboard-source-selector-value="#newToken"
                     data-clipboard-success-message-value="<?= h(__('Token copied to clipboard.')) ?>">
-                    <i class="bi bi-clipboard" aria-hidden="true"></i> <?= __('Copy') ?>
+                    <kmp-icon name="clipboard"  aria-hidden="true"></kmp-icon> <?= __('Copy') ?>
                 </button>
             </div>
             <small><?= __('This token will not be shown again.') ?></small>
@@ -145,7 +145,7 @@ $newToken = $this->request->getSession()->consume('ServicePrincipal.newToken');
                                         <td class="text-end">
                                             <?php if ($user->checkCan('edit', $servicePrincipal)) : ?>
                                                 <?= $this->Form->postLink(
-                                                    '<i class="bi bi-x-circle"></i>',
+                                                    '<kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon>',
                                                     ['action' => 'revokeRole', $servicePrincipal->id, $role->id],
                                                     ['confirm' => __('Revoke this role?'), 'class' => 'btn btn-sm btn-outline-danger', 'escape' => false]
                                                 ) ?>
@@ -185,7 +185,7 @@ $newToken = $this->request->getSession()->consume('ServicePrincipal.newToken');
                     <h6 class="mb-0"><?= __('API Tokens') ?></h6>
                     <?php if ($user->checkCan('edit', $servicePrincipal)) : ?>
                         <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#newTokenModal">
-                            <i class="bi bi-plus"></i> <?= __('New') ?>
+                            <kmp-icon name="plus"  aria-hidden="true"></kmp-icon> <?= __('New') ?>
                         </button>
                     <?php endif; ?>
                 </div>
@@ -207,7 +207,7 @@ $newToken = $this->request->getSession()->consume('ServicePrincipal.newToken');
                             </div>
                             <?php if ($user->checkCan('edit', $servicePrincipal)) : ?>
                                 <?= $this->Form->postLink(
-                                    '<i class="bi bi-trash"></i>',
+                                    '<kmp-icon name="trash"  aria-hidden="true"></kmp-icon>',
                                     ['action' => 'revokeToken', $servicePrincipal->id, $token->id],
                                     ['confirm' => __('Revoke this token? Applications using it will no longer be able to authenticate.'), 'class' => 'btn btn-sm btn-outline-danger', 'escape' => false]
                                 ) ?>
@@ -258,7 +258,7 @@ $newToken = $this->request->getSession()->consume('ServicePrincipal.newToken');
             <div class="modal-body bg-light-subtle">
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
                     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                        <i class="bi bi-key text-primary me-1" aria-hidden="true"></i>
+                        <kmp-icon name="key" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Token Details') ?>
                     </legend>
                 <div class="mb-3">

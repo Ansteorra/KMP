@@ -4,12 +4,14 @@ declare(strict_types=1);
 namespace Awards\Services;
 
 use Awards\Model\Entity\Bestowal;
+use Awards\Policy\BestowalPolicy;
 use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Cake\ORM\Table;
 use DateTimeInterface;
 use DateTimeZone;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -119,6 +121,12 @@ class AdHocBestowalService
                     $bestowal->member_sca_name = $memberScaName;
                     $bestowal->award_id = $awardId;
                     $bestowal->gathering_id = $gatheringId;
+                    $actor = $this->membersTable->get($actorId);
+                    if (!(new BestowalPolicy())->canUpdateWithinScope($actor, $bestowal, $data)) {
+                        throw new RuntimeException(
+                            'You cannot create a bestowal outside your current event authority.',
+                        );
+                    }
                     $bestowal->source = Bestowal::SOURCE_AD_HOC;
                     $bestowal->stack_rank = (int)($data['stackRank'] ?? $data['stack_rank'] ?? 0);
                     $bestowal->lifecycle_status = $bestowedAt !== null

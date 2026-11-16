@@ -1,32 +1,31 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Waivers\View\Cell;
 
-use Cake\View\Cell;
 use Cake\ORM\TableRegistry;
+use Cake\View\Cell;
 
 /**
  * Gathering Waivers View Cell
- * 
+ *
  * **Purpose**: Displays comprehensive waiver information for a gathering, combining
  * waiver requirements from activities with upload interface and management functionality.
  * This is a merged view that consolidates what were previously separate "Required Waivers"
  * and "Waivers" tabs into a single cohesive interface.
- * 
+ *
  * **Core Responsibilities**:
  * - Requirement Aggregation - Shows all waiver types required for the gathering
  * - Upload Statistics - Displays counts of uploaded waivers by type
  * - Upload Interface - Provides access to waiver upload functionality
  * - Waiver Management - Links to waiver listing and management interfaces
  * - Status Tracking - Shows collection status
- * 
- * **Architecture**: 
+ *
+ * **Architecture**:
  * This view cell extends CakePHP Cell to provide reusable waiver management
  * functionality for gathering views. It integrates with the Waivers plugin system
  * and the ViewCellRegistry for automatic tab injection.
- * 
+ *
  * **Display Features**:
  * - **Gathering-Level Table**: Shows each required waiver type for the gathering
  * - **Completion Status**: Visual indicators (progress bars/badges) for each waiver type
@@ -36,37 +35,37 @@ use Cake\ORM\TableRegistry;
  * - **Waiver Management Links**: Navigation to full waiver listing and management
  * - **Empty States**: Helpful guidance when no waivers required or uploaded
  * - **Instructions**: Step-by-step upload and configuration instructions
- * 
+ *
  * **Gathering Context Support**:
  * - **Gathering View Integration**: Embedded as tab in gathering detail pages
  * - **Authorization**: Respects user permissions for upload and management
- * 
+ *
  * **Integration Points**:
  * - GatheringsTable - Gathering entity data
  * - GatheringWaiversTable - Uploaded waiver statistics
  * - GatheringActivityWaiversTable - Required waiver types
  * - WaiverTypesTable - Waiver type details
  * - ViewCellRegistry - Automatic tab injection
- * 
+ *
  * **Data Loading Logic**:
  * 1. Load gathering with activities
  * 2. Check if any waivers have been uploaded
  * 3. Calculate statistics by waiver type
  * 4. Determine required waiver types from activities
  * 5. Prepare display data
- * 
+ *
  * **Performance Considerations**:
  * - Efficient queries with selective field loading
  * - Single query for statistics aggregation
  * - Cached waiver type lookups
- * 
+ *
  * **Usage Examples**:
- * 
+ *
  * ```php
  * // Gathering view integration (automatic via ViewCellRegistry)
  * echo $this->cell('Waivers.GatheringWaivers', [$gatheringId]);
  * ```
- * 
+ *
  * **Template Integration**:
  * Renders tab interface with:
  * - Upload button for authorized users
@@ -74,23 +73,23 @@ use Cake\ORM\TableRegistry;
  * - Links to waiver listing and management
  * - Status alerts and instructions
  * - Empty states for no requirements or uploads
- * 
+ *
  * **Security Features**:
  * - Authorization checks for upload and management actions
  * - Secure gathering identification
  * - User-specific permission handling
- * 
+ *
  * **Error Handling**:
  * - Graceful handling of missing gathering data
  * - Empty state for gatherings without activities
  * - Empty state for activities without waiver requirements
- * 
+ *
  * **Troubleshooting**:
  * - Verify gathering exists and has valid ID
  * - Check waiver table associations are correct
  * - Validate activity waiver requirements are configured
  * - Monitor query performance for gatherings with many waivers
- * 
+ *
  * @see GatheringRequiredWaiversCell Activity-level waiver requirements display
  * @see WaiversViewCellProvider View cell registration
  * @see ViewCellRegistry Automatic tab injection system
@@ -102,14 +101,16 @@ class GatheringWaiversCell extends Cell
      *
      * @return void
      */
-    public function initialize(): void {}
+    public function initialize(): void
+    {
+    }
 
     /**
      * Display Gathering Waivers Interface
      *
      * Generates waiver-centric display for a gathering, showing each waiver
      * requirement as a separate row with its upload status.
-     * 
+     *
      * **Display Components**:
      * - Individual rows for each activity/waiver combination
      * - Upload status indicator (checkmark/count) per row
@@ -117,20 +118,20 @@ class GatheringWaiversCell extends Cell
      * - Summary statistics
      * - Links to waiver management
      * - Instructions for configuration and upload
-     * 
+     *
      * **Data Loading Process**:
      * 1. Load gathering with activities
      * 2. Load all waiver requirements across the gathering
      * 3. Get uploaded waiver counts by type
      * 4. Calculate upload status per waiver requirement
      * 5. Prepare waiver-centric data structure
-     * 
+     *
      * **Waiver Row Structure**:
      * Creates an array where each element represents one waiver requirement:
      * - waiver_type: WaiverType entity
      * - uploaded_count: Number of waivers uploaded for this waiver type
-     * - is_complete: Boolean indicating if at least one waiver has been uploaded or attested
-     * 
+     * - is_complete: Whether an upload, exemption, or active loss satisfies the requirement
+     *
      * **Data Preparation**:
      * Sets template variables:
      * - gathering: Full gathering entity
@@ -139,9 +140,9 @@ class GatheringWaiversCell extends Cell
      * - isEmpty: Boolean indicating if gathering has any waiver requirements
      * - hasWaivers: Boolean indicating if any waivers uploaded
      * - overallStats: Overall completion statistics across all requirements
-     * 
+     *
      * Note: User is accessed in the template via $this->getRequest()->getAttribute('identity')
-     * 
+     *
      * @param int $gatheringId Gathering ID
      * @param string|null $model Optional model name (for compatibility with view cell pattern)
      * @return void
@@ -150,13 +151,17 @@ class GatheringWaiversCell extends Cell
     {
         $gatheringsTable = TableRegistry::getTableLocator()->get('Gatherings');
         $gathering = $gatheringsTable->get($gatheringId, [
-            'contain' => ['GatheringActivities' => ['sort' => ['GatheringActivities.name' => 'ASC']], 'GatheringTypes']
+            'contain' => ['GatheringActivities' => ['sort' => ['GatheringActivities.name' => 'ASC']], 'GatheringTypes'],
         ]);
 
         $gatheringActivityWaiversTable = TableRegistry::getTableLocator()->get('Waivers.GatheringActivityWaivers');
         $gatheringWaiversTable = TableRegistry::getTableLocator()->get('Waivers.GatheringWaivers');
         $gatheringWaiverClosuresTable = TableRegistry::getTableLocator()->get('Waivers.GatheringWaiverClosures');
         $waiverTypesTable = TableRegistry::getTableLocator()->get('Waivers.WaiverTypes');
+        $lostTypeIds = TableRegistry::getTableLocator()->get('Waivers.GatheringWaiverLosses')->find()
+            ->select(['waiver_type_id'])
+            ->where(['gathering_id' => $gatheringId, 'reversed_at IS' => null])
+            ->all()->extract('waiver_type_id')->toList();
 
         $activityIds = array_column($gathering->gathering_activities ?? [], 'id');
 
@@ -228,6 +233,7 @@ class GatheringWaiversCell extends Cell
         $overallComplete = 0;
         $overallPending = 0;
         $overallExempted = 0;
+        $overallLost = 0;
         $overallTotal = 0;
 
         foreach ($waiverTypes as $waiverTypeId => $waiverType) {
@@ -245,15 +251,19 @@ class GatheringWaiversCell extends Cell
                 }
             }
 
+            $isLost = in_array($waiverTypeId, $lostTypeIds, true);
             $waiverRows[] = [
                 'waiver_type' => $waiverType,
+                'is_lost' => $isLost,
                 'uploaded_count' => $uploadedCount,
-                'is_complete' => ($uploadedCount > 0 || (bool)$exemption),
+                'is_complete' => ($uploadedCount > 0 || (bool)$exemption || $isLost),
                 'exemption' => $exemption,
             ];
 
             $overallTotal++;
-            if ($exemption) {
+            if ($isLost) {
+                $overallLost++;
+            } elseif ($exemption) {
                 $overallExempted++;
             } elseif ($uploadedCount > 0) {
                 $overallComplete++;
@@ -278,6 +288,7 @@ class GatheringWaiversCell extends Cell
             'complete' => $overallComplete,
             'pending' => $overallPending,
             'exempted' => $overallExempted,
+            'lost' => $overallLost,
             'total' => $overallTotal,
         ]);
     }

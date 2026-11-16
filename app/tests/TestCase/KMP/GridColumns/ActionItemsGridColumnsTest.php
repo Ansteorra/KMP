@@ -93,4 +93,28 @@ class ActionItemsGridColumnsTest extends BaseTestCase
 
         $this->assertStringContainsString('(1 = 0', $filtered->sql());
     }
+
+    public function testMemberSystemViewsFallBackToCompletedWithoutOpenTypes(): void
+    {
+        $views = ActionItemsGridColumns::getSystemViews(['openTitles' => []]);
+
+        $this->assertSame(['sys-todos-completed'], array_keys($views));
+    }
+
+    public function testMemberSystemViewsDeduplicateTypesAndKeepStableIds(): void
+    {
+        $views = ActionItemsGridColumns::getSystemViews(['openTitles' => ['Scroll', 'Regalia', 'Scroll']]);
+        $reordered = ActionItemsGridColumns::getSystemViews(['openTitles' => ['Regalia', 'Scroll']]);
+
+        $this->assertSame(['Open To-Dos', 'Scroll', 'Regalia', 'Completed'], array_column($views, 'name'));
+        $this->assertSame('sys-todos-completed', array_key_last($views));
+        $byName = array_column($views, null, 'name');
+        $reorderedByName = array_column($reordered, null, 'name');
+        $this->assertSame($byName['Scroll']['id'], $reorderedByName['Scroll']['id']);
+        $this->assertContains(
+            ['field' => 'title', 'operator' => 'eq', 'value' => 'Scroll'],
+            $byName['Scroll']['config']['filters'],
+        );
+        $this->assertFalse($byName['Scroll']['canManage']);
+    }
 }

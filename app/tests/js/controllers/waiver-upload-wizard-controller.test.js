@@ -48,7 +48,9 @@ describe('WaiverUploadWizardController', () => {
                     <div data-waiver-upload-wizard-target="step3Lead"></div>
                     <div data-waiver-upload-wizard-target="modeToggle" class="d-none">
                         <input type="radio" name="mode" id="mode-upload" value="upload" checked>
-                        <input type="radio" name="mode" id="mode-attest" value="attest">
+                        <span class="d-flex" data-waiver-upload-wizard-target="attestOption">
+                            <input type="radio" name="mode" id="mode-attest" value="attest">
+                        </span>
                     </div>
                     <div data-waiver-upload-wizard-target="uploadSection">
                         <input type="file" data-waiver-upload-wizard-target="fileInput" multiple>
@@ -141,6 +143,11 @@ describe('WaiverUploadWizardController', () => {
         ctrl.hasModeToggleTarget = true;
         ctrl.step3LeadTarget = q('[data-waiver-upload-wizard-target="step3Lead"]');
         ctrl.hasStep3LeadTarget = true;
+
+        for (const name of ['attestOption']) {
+            ctrl[`${name}Target`] = q(`[data-waiver-upload-wizard-target="${name}"]`);
+            ctrl[`has${name[0].toUpperCase() + name.slice(1)}Target`] = true;
+        }
 
         // Values
         ctrl.currentStepValue = 1;
@@ -592,6 +599,26 @@ describe('WaiverUploadWizardController', () => {
         expect(uploadSpy).not.toHaveBeenCalled();
     });
 
+    test('native uploads carry the original detail tab and query with their files', async () => {
+        controller.hasReturnUrlValue = true;
+        controller.returnUrlValue = '/gatherings/view/fixture?tab=gathering-waivers&search=kept#place';
+        controller.selectedWaiverType = { id: 10, name: 'Fixture waiver' };
+        jest.spyOn(controller, 'prepareUploadPages').mockResolvedValue([
+            { uploadFile: new File(['fixture'], 'waiver.png', { type: 'image/png' }) },
+        ]);
+        jest.spyOn(controller, 'uploadFormData').mockImplementation(async form => {
+            expect(form.get('page_context_url')).toBe(controller.returnUrlValue);
+            expect(form.getAll('waiver_images[]')).toHaveLength(1);
+            return { ok: true, data: {} };
+        });
+        jest.spyOn(controller, 'updateProcessingStatus').mockImplementation(() => {});
+        const timer = jest.spyOn(global, 'setTimeout').mockImplementation(() => 1);
+        try {
+            await controller.submitWaiverUpload(Date.now());
+            expect(controller.uploadFormData).toHaveBeenCalledTimes(1);
+        } finally { timer.mockRestore(); }
+    });
+
     test('optimizeImage resizes and converts a larger image to grayscale JPEG', async () => {
         const image = { width: 4000, height: 3000, close: jest.fn() };
         const imageData = { data: new Uint8ClampedArray([255, 0, 0, 255]) };
@@ -686,12 +713,28 @@ describe('WaiverUploadWizardController', () => {
             { file: {}, number: 3, name: 'c.jpg', size: 300, pdfPageCount: 0 }
         ];
 
-        controller.removePage({ currentTarget: { dataset: { index: '1' } } });
+        controller.renderPages();
+        const remove = controller.pagesPreviewTarget.querySelector('button[data-index="1"]');
+        remove.focus();
+        controller.removePage({ currentTarget: remove });
 
         expect(controller.uploadedPages).toHaveLength(2);
         expect(controller.uploadedPages[0].number).toBe(1);
         expect(controller.uploadedPages[1].number).toBe(2);
         expect(controller.uploadedPages[1].name).toBe('c.jpg');
+        expect(controller.pagesPreviewTarget.querySelector('button[data-index="1"]')).toHaveFocus();
+    });
+
+    test('removing the last page returns focus to Add Page', () => {
+        const add = document.createElement('button');
+        add.dataset.action = 'click->waiver-upload-wizard#triggerFileInput';
+        controller.element.append(add);
+        controller.uploadedPages = [{ file: {}, number: 1, name: 'a.jpg', size: 100, pdfPageCount: 0 }];
+        controller.renderPages();
+        const remove = controller.pagesPreviewTarget.querySelector('button[data-index="0"]');
+        remove.focus();
+        controller.removePage({ currentTarget: remove });
+        expect(add).toHaveFocus();
     });
 
     // --- renderPages ---
@@ -709,6 +752,7 @@ describe('WaiverUploadWizardController', () => {
         controller.renderPages();
         expect(controller.pagesPreviewTarget.innerHTML).toContain('Page 1');
         expect(controller.pagesPreviewTarget.innerHTML).toContain('page1.jpg');
+        expect(controller.pagesPreviewTarget.querySelector('button')).toHaveAttribute('aria-label', 'Remove page 1');
     });
 
     test('renderPages shows PDF icon for PDF pages without thumbnail', () => {
@@ -716,7 +760,7 @@ describe('WaiverUploadWizardController', () => {
             { file: {}, number: 1, name: 'doc.pdf', size: 2048, isPdf: true, dataUrl: 'data:application/pdf;base64,abc', pdfPageCount: 3, thumbnailUrl: null }
         ];
         controller.renderPages();
-        expect(controller.pagesPreviewTarget.innerHTML).toContain('bi-file-earmark-pdf');
+        expect(controller.pagesPreviewTarget.innerHTML).toContain('file-type-pdf');
     });
 
     test('renderPages shows thumbnail for PDF with thumbnail', () => {
@@ -1045,4 +1089,5 @@ describe('WaiverUploadWizardController', () => {
         // Should not throw
         expect(() => controller.updateTotalSizeDisplay()).not.toThrow();
     });
+
 });

@@ -167,7 +167,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                     "action" => "view",
                                     $role->id,
                                 ],
-                                ["class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
+                                ["class" => "btn-sm btn btn-secondary", 'icon' => 'binoculars'],
                             ) ?>
                         </td>
                     </tr>
@@ -197,7 +197,7 @@ echo $this->Modal->create("Edit Authoriztion Type", [
     <div class="col-12 col-lg-5">
         <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
             <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                <i class="bi bi-shield text-primary me-1" aria-hidden="true"></i>
+                <kmp-icon name="shield" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                 <?= __("Authorization Type") ?>
             </legend>
             <?php
@@ -217,7 +217,7 @@ echo $this->Modal->create("Edit Authoriztion Type", [
             <div class="col-12">
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
                     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                        <i class="bi bi-person-check text-success me-1" aria-hidden="true"></i>
+                        <kmp-icon name="user-check" class="text-success me-1" aria-hidden="true"></kmp-icon>
                         <?= __("Approvals & Role Grant") ?>
                     </legend>
                     <div class="row g-3">
@@ -260,7 +260,7 @@ echo $this->Modal->create("Edit Authoriztion Type", [
             <div class="col-12">
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
                     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                        <i class="bi bi-calendar-heart text-info me-1" aria-hidden="true"></i>
+                        <kmp-icon name="calendar-heart" class="text-info me-1" aria-hidden="true"></kmp-icon>
                         <?= __("Eligibility Window") ?>
                     </legend>
                     <div class="row g-3">

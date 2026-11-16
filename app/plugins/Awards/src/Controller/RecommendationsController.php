@@ -19,6 +19,7 @@ use App\Services\GridViewService;
 use App\Services\ServiceResult;
 use App\Services\WorkflowEngine\DefaultWorkflowApprovalManager;
 use App\Services\WorkflowEngine\TriggerDispatcher;
+use Awards\KMP\GridColumns\MemberSubmittedRecommendationsGridColumns;
 use Awards\KMP\GridColumns\RecommendationsGridColumns;
 use Awards\Model\Entity\Recommendation;
 use Awards\Services\BestowalGatheringLookupService;
@@ -254,7 +255,7 @@ class RecommendationsController extends AppController
         if ($externalLinks) {
             foreach ($externalLinks as $name => $link) {
                 $links[] = '<a href="' . h($link) . '" target="_blank" title="' . h($name) . '">' .
-                    '<i class="bi bi-box-arrow-up-right"></i></a>';
+                    '<kmp-icon name="external-link"  aria-hidden="true"></kmp-icon></a>';
             }
         }
 
@@ -387,7 +388,7 @@ class RecommendationsController extends AppController
             if ($item['isAttendance']) {
                 // Add crown icon for attendance-based gatherings
                 $displayName = '<span title="' . __('Member shared attendance') . '">'
-                    . '<i class="bi bi-person-check text-success me-1"></i>' . $displayName . '</span>';
+                    . '<kmp-icon name="user-check" class="text-success me-1" aria-hidden="true"></kmp-icon>' . $displayName . '</span>';
             }
             $names[] = $displayName;
         }
@@ -612,6 +613,7 @@ class RecommendationsController extends AppController
 
         // Process each recommendation to populate computed fields for export
         foreach ($recommendations as $recommendation) {
+            $recommendation->member_sca_name = $recommendation->getRecipientName();
             $attendanceGatherings = [];
             if ($includeAttendance && $recommendation->member_id) {
                 $attendanceGatherings = $memberAttendanceGatherings[$recommendation->member_id] ?? [];
@@ -676,7 +678,7 @@ class RecommendationsController extends AppController
             if (isset($childrenByHead[$rec->id])) {
                 foreach ($childrenByHead[$rec->id] as $child) {
                     // Prefix member name to visually indicate linked child in export
-                    $child->member_sca_name = '↳ ' . ($child->member_sca_name ?? '');
+                    $child->member_sca_name = '↳ ' . $child->getRecipientName();
                     $child->gatherings = '';
                     $result[] = $child;
                 }
@@ -716,7 +718,7 @@ class RecommendationsController extends AppController
         $systemViews = RecommendationsGridColumns::getSystemViews(['context' => 'memberSubmitted']);
         $queryContext = $this->resolveDataverseGridQueryContext([
             'gridKey' => 'Awards.Recommendations.memberSubmitted',
-            'gridColumnsClass' => RecommendationsGridColumns::class,
+            'gridColumnsClass' => MemberSubmittedRecommendationsGridColumns::class,
             'systemViews' => $systemViews,
             'defaultSystemView' => 'sys-recs-submitted-by',
             'defaultSort' => ['Recommendations.created' => 'desc'],
@@ -732,7 +734,6 @@ class RecommendationsController extends AppController
 
         // Use unified trait for grid processing
         $result = $this->processDataverseGrid($built['gridOptions']);
-        $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
 
         // Post-process data
         $recommendations = $result['data'];
@@ -993,7 +994,7 @@ class RecommendationsController extends AppController
                 'AssignedGathering',
                 'Bestowals',
                 'GroupHead' => ['Awards'],
-                'GroupChildren' => ['Awards', 'Requesters'],
+                'GroupChildren' => ['Awards', 'Requesters', 'Members'],
                 'FeedbackRequestItems' => [
                     'FeedbackRequests' => [
                         'Requesters',
@@ -2879,6 +2880,7 @@ class RecommendationsController extends AppController
         $identity = $this->request->getAttribute('identity');
 
         foreach ($recommendations as $recommendation) {
+            $recommendation->member_sca_name = $recommendation->getRecipientName();
             $recommendation->bestowal_linked = !empty($recommendation->bestowal_id);
             $recommendation->bestowal_viewable = $this->canViewLinkedBestowal($recommendation, $identity);
 
@@ -3395,9 +3397,7 @@ class RecommendationsController extends AppController
             if ($contextKey === 'main') {
                 $canViewHidden = $canViewHidden ?? $user->checkCan('ViewHidden', $emptyRecommendation);
                 $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
-            } elseif ($contextKey === 'memberSubmitted') {
-                $result = $this->applyStateFilterOptionsToGridResult($result, $canViewHidden);
-            } else {
+            } elseif ($contextKey !== 'memberSubmitted') {
                 $result = $this->applyStateFilterOptionsToGridResult($result, true);
             }
 
@@ -3481,6 +3481,16 @@ class RecommendationsController extends AppController
         if ($success) {
             $this->Flash->success(__('The recommendation has been saved.'));
 
+            if ($this->wantsGridReconciliation() && $syncContext !== null) {
+                if ($syncContext['contextKey'] !== 'main') {
+                    $gridRoute['action'] = $syncContext['contextKey'] === 'memberSubmitted'
+                        ? 'memberSubmittedRecsGridData' : 'recsForMemberGridData';
+                    $gridRoute[] = $syncContext['memberId'];
+                }
+
+                return $this->renderTurboCloseModal($syncContext['tableFrameId'], $gridRoute, $pageContext);
+            }
+
             if ($updatedRecommendationId !== null) {
                 $queryService ??= new RecommendationQueryService();
                 $sync = $this->resolveRecommendationGridRowSync(
@@ -3504,6 +3514,9 @@ class RecommendationsController extends AppController
         }
 
         if ($reloadQuickEditId !== null) {
+            if ($this->wantsGridReconciliation()) {
+                return $this->renderTurboFlashOnly()->withStatus(422);
+            }
             $frameSrc = Router::url([
                 'plugin' => 'Awards',
                 'controller' => 'Recommendations',

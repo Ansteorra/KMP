@@ -9,6 +9,7 @@ use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 use Officers\Model\Entity\Officer;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * Turbo stream grid row sync for OfficersController::edit.
@@ -33,7 +34,13 @@ class OfficersControllerGridTurboTest extends HttpIntegrationTestCase
         $this->workflowVersions = $locator->get('WorkflowVersions');
     }
 
-    public function testEditFromBranchGridReturnsRowReplaceStream(): void
+    public static function responseModes(): array
+    {
+        return ['legacy row client' => [false], 'table reconciliation client' => [true]];
+    }
+
+    #[DataProvider('responseModes')]
+    public function testEditFromBranchGridReturnsRowReplaceStream(bool $reconcile): void
     {
         $this->ensureActiveWorkflow('officer-assignment-update');
         $branch = TableRegistry::getTableLocator()->get('Branches')->get(self::KINGDOM_BRANCH_ID);
@@ -43,6 +50,7 @@ class OfficersControllerGridTurboTest extends HttpIntegrationTestCase
         $this->configRequest([
             'headers' => [
                 'Accept' => 'text/vnd.turbo-stream.html',
+                'X-KMP-Grid-Reconcile' => $reconcile ? 'table' : '',
             ],
         ]);
         $this->post('/officers/officers/edit', [
@@ -56,13 +64,21 @@ class OfficersControllerGridTurboTest extends HttpIntegrationTestCase
         ]);
 
         $this->assertResponseOk();
+        if ($reconcile) {
+            $this->assertResponseContains('<turbo-stream action="replace" target="branch-officers-grid-table"');
+            $this->assertResponseNotContains('target="branch-officers-grid-row-');
+            $this->assertResponseContains('branch_id=' . $branch->id);
+
+            return;
+        }
         $this->assertResponseContains(
             '<turbo-stream action="replace" target="branch-officers-grid-row-' . $officer->id . '"',
         );
         $this->assertResponseNotContains('target="branch-officers-grid-table"');
     }
 
-    public function testEditFromMemberGridReturnsRowReplaceStream(): void
+    #[DataProvider('responseModes')]
+    public function testEditFromMemberGridReturnsRowReplaceStream(bool $reconcile): void
     {
         $this->ensureActiveWorkflow('officer-assignment-update');
         $officer = $this->createTestOfficerOnBranch(self::KINGDOM_BRANCH_ID);
@@ -72,6 +88,7 @@ class OfficersControllerGridTurboTest extends HttpIntegrationTestCase
         $this->configRequest([
             'headers' => [
                 'Accept' => 'text/vnd.turbo-stream.html',
+                'X-KMP-Grid-Reconcile' => $reconcile ? 'table' : '',
             ],
         ]);
         $this->post('/officers/officers/edit', [
@@ -85,8 +102,39 @@ class OfficersControllerGridTurboTest extends HttpIntegrationTestCase
         ]);
 
         $this->assertResponseOk();
+        if ($reconcile) {
+            $this->assertResponseContains('<turbo-stream action="replace" target="member-officers-grid-table"');
+            $this->assertResponseNotContains('target="member-officers-grid-row-');
+            $this->assertResponseContains('member_id=' . $memberId);
+
+            return;
+        }
         $this->assertResponseContains(
             '<turbo-stream action="replace" target="member-officers-grid-row-' . $officer->id . '"',
+        );
+    }
+
+    public function testInvalidTermStreamKeepsDialogOpenWithoutDispatchingWorkflow(): void
+    {
+        $officer = $this->createTestOfficerOnBranch(self::KINGDOM_BRANCH_ID);
+        $engine = $this->createMock(WorkflowEngineInterface::class);
+        $engine->expects($this->never())->method('dispatchTrigger');
+        $this->mockService(WorkflowEngineInterface::class, static fn() => $engine);
+        $this->configRequest(['headers' => ['Accept' => 'text/vnd.turbo-stream.html']]);
+
+        $this->post('/officers/officers/edit', [
+            'id' => $officer->id,
+            'start_on' => 'invalid-date',
+            'page_context_url' => '/members/view/' . $officer->member_id . '?tab=member-officers',
+        ]);
+
+        $this->assertResponseCode(422);
+        $this->assertHeader('Content-Type', 'text/vnd.turbo-stream.html; charset=UTF-8');
+        $this->assertResponseContains('Enter a valid start date.');
+        $this->assertResponseNotContains('target="member-officers-grid-table"');
+        $this->assertSame(
+            $officer->start_on->format('Y-m-d'),
+            TableRegistry::getTableLocator()->get('Officers.Officers')->get($officer->id)->start_on->format('Y-m-d'),
         );
     }
 

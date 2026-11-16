@@ -581,11 +581,11 @@ export default class WorkflowNodeConfigHandler {
         // Identity badge row
         html += '<div class="d-flex align-items-center gap-2 mb-2 flex-wrap">'
         if (isWorkflowNative && slug) {
-            html += `<span class="badge bg-primary" title="Workflow-native template"><i class="bi bi-diagram-3 me-1"></i>${this._escHtml(slug)}</span>`
+            html += `<span class="badge bg-primary" title="Workflow-native template"><kmp-icon name="sitemap" class="me-1" aria-hidden="true"></kmp-icon>${this._escHtml(slug)}</span>`
         } else if (slug) {
             html += `<span class="badge bg-secondary" title="Slug">${this._escHtml(slug)}</span>`
         } else {
-            html += '<span class="badge bg-warning text-dark" title="Legacy mailer-backed template (no slug)"><i class="bi bi-exclamation-triangle me-1"></i>Legacy</span>'
+            html += '<span class="badge bg-warning text-dark" title="Legacy mailer-backed template (no slug)"><kmp-icon name="alert-triangle" class="me-1" aria-hidden="true"></kmp-icon>Legacy</span>'
         }
         if (subjectPreview) {
             html += `<small class="text-muted text-truncate" style="max-width:220px;" title="${this._escHtml(subjectPreview)}">Subject: ${this._escHtml(subjectPreview.substring(0, 60))}${subjectPreview.length > 60 ? '…' : ''}</small>`
@@ -609,12 +609,12 @@ export default class WorkflowNodeConfigHandler {
                 const mapped = configuredTemplateVars.has(name)
                 let statusIcon, statusClass
                 if (mapped) {
-                    statusIcon = '<i class="bi bi-check-circle-fill text-success"></i>'
+                    statusIcon = '<kmp-icon name="circle-check" class="text-success" aria-hidden="true"></kmp-icon>'
                     statusClass = ''
                 } else {
                     statusIcon = req
-                        ? '<i class="bi bi-x-circle-fill text-danger"></i>'
-                        : '<i class="bi bi-dash-circle text-warning"></i>'
+                        ? '<kmp-icon name="circle-x" class="text-danger" aria-hidden="true"></kmp-icon>'
+                        : '<kmp-icon name="circle-minus" class="text-warning" aria-hidden="true"></kmp-icon>'
                     statusClass = req ? 'text-danger' : 'text-warning'
                     if (req) missingRequired++
                 }
@@ -641,7 +641,7 @@ export default class WorkflowNodeConfigHandler {
             // Summary warning if required vars are unmapped
             if (missingRequired > 0) {
                 html += `<div class="alert alert-danger py-1 px-2 mb-0 mt-1" style="font-size:0.8em;" role="alert">
-                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                    <kmp-icon name="alert-triangle" class="me-1" aria-hidden="true"></kmp-icon>
                     ${missingRequired} required template variable${missingRequired > 1 ? 's are' : ' is'} not configured in this Send Email step.
                 </div>`
             }
@@ -649,16 +649,16 @@ export default class WorkflowNodeConfigHandler {
             // Surface any subject placeholders not covered by schema
             const uncoveredPlaceholders = parsedPlaceholders.filter(p => !schemaNames.has(p))
             if (uncoveredPlaceholders.length > 0) {
-                html += `<div class="mt-1"><small class="text-muted"><i class="bi bi-info-circle me-1"></i>Subject also uses: ${uncoveredPlaceholders.map(p => `<code>${this._escHtml(p)}</code>`).join(', ')} (not in schema)</small></div>`
+                html += `<div class="mt-1"><small class="text-muted"><kmp-icon name="info-circle" class="me-1" aria-hidden="true"></kmp-icon>Subject also uses: ${uncoveredPlaceholders.map(p => `<code>${this._escHtml(p)}</code>`).join(', ')} (not in schema)</small></div>`
             }
         } else if (hasPlaceholders) {
             // No schema, show placeholders from subject as a fallback hint
-            html += `<div><small class="text-muted"><i class="bi bi-info-circle me-1"></i>Subject placeholders: ${parsedPlaceholders.map(p => `<code>${this._escHtml(p)}</code>`).join(', ')}</small></div>`
+            html += `<div><small class="text-muted"><kmp-icon name="info-circle" class="me-1" aria-hidden="true"></kmp-icon>Subject placeholders: ${parsedPlaceholders.map(p => `<code>${this._escHtml(p)}</code>`).join(', ')}</small></div>`
         } else if (availableVars.length > 0) {
             const varNames = availableVars.map(v => typeof v === 'object' ? (v.name || v) : v)
-            html += `<small class="text-muted"><i class="bi bi-info-circle me-1"></i>Available vars: <code>${varNames.map(n => this._escHtml(n)).join('</code>, <code>')}</code></small>`
+            html += `<small class="text-muted"><kmp-icon name="info-circle" class="me-1" aria-hidden="true"></kmp-icon>Available vars: <code>${varNames.map(n => this._escHtml(n)).join('</code>, <code>')}</code></small>`
         } else {
-            html += '<small class="text-muted"><i class="bi bi-info-circle me-1"></i>No variable schema defined for this template.</small>'
+            html += '<small class="text-muted"><kmp-icon name="info-circle" class="me-1" aria-hidden="true"></kmp-icon>No variable schema defined for this template.</small>'
         }
 
         html += '</div>'

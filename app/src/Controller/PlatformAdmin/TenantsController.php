@@ -21,6 +21,7 @@ use App\Services\Secrets\SecretStoreFactory;
 use App\Services\Secrets\SensitiveString;
 use App\Services\Secrets\WritableSecretStoreInterface;
 use App\Services\TenantConnectionManager;
+use App\Services\TenantMailConfigGuard;
 use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Exception\NotFoundException;
 use Cake\I18n\DateTime;
@@ -37,6 +38,8 @@ class TenantsController extends PlatformAdminAppController
      * Upper bound for synchronous legacy .kmpbackup imports.
      */
     private const MAX_LEGACY_IMPORT_BYTES = 512 * 1024 * 1024;
+
+    private ?string $emailChangeReason = null;
 
     /**
      * List platform tenants without database or secret metadata.
@@ -78,6 +81,7 @@ class TenantsController extends PlatformAdminAppController
                         'Email delivery cannot be disabled while onboarding the initial tenant super user.',
                     );
                 }
+                $this->authorizeEmailConfigChange((string)$tenantData['slug'], [], $newConfig);
                 $tenant = $this->createTenant($tenantData, $newConfig);
                 $job = $this->enqueueTenantProvisioningJob(
                     $tenant,
@@ -139,6 +143,7 @@ class TenantsController extends PlatformAdminAppController
                 $tenantData['db_name'] = (string)$tenant['db_name'];
                 $tenantData['db_role'] = (string)$tenant['db_role'];
                 $newConfig = $schema->buildFromFormData($this->configFormData($this->request->getData()));
+                $this->authorizeEmailConfigChange((string)$tenant['slug'], $safeConfig, $newConfig);
                 $this->updateTenant($tenant, $tenantData, $safeConfig, $newConfig);
                 $this->Flash->success(__('Tenant has been updated.'));
 
@@ -657,6 +662,7 @@ class TenantsController extends PlatformAdminAppController
         if ($this->request->is(['post', 'put', 'patch'])) {
             try {
                 $newConfig = $schema->buildFromFormData($this->request->getData());
+                $this->authorizeEmailConfigChange((string)$tenant['slug'], $safeConfig, $newConfig);
                 $this->saveTenantConfig($tenant, $safeConfig, $newConfig);
                 $this->Flash->success(__('Tenant configuration has been saved.'));
 
@@ -1165,7 +1171,7 @@ class TenantsController extends PlatformAdminAppController
             isset($this->platformAdmin['id']) ? (string)$this->platformAdmin['id'] : null,
             'tenant',
             (string)$tenant['id'],
-            'platform admin tenant registry update',
+            $this->emailChangeReason ?? 'platform admin tenant registry update',
             [
                 'slug' => (string)($tenant['slug'] ?? $tenantData['slug']),
                 'registry' => $tenantData,
@@ -1379,10 +1385,30 @@ class TenantsController extends PlatformAdminAppController
     }
 
     /**
-     * @param array<string, mixed> $tenant Tenant row
+     * @param string $slug Tenant slug
      * @param array<string, mixed> $oldConfig Previous safe config
      * @param array<string, mixed> $newConfig New safe config
      * @return void
+     */
+    private function authorizeEmailConfigChange(string $slug, array $oldConfig, array $newConfig): void
+    {
+        (new TenantMailConfigGuard())->assertAllowed($slug, $newConfig['email'] ?? []);
+        if (($oldConfig['email'] ?? []) === ($newConfig['email'] ?? [])) {
+            return;
+        }
+
+        try {
+            $this->emailChangeReason = $this->validateStepUpAction('EMAIL ' . $slug);
+        } catch (BadRequestException $exception) {
+            throw new InvalidArgumentException($exception->getMessage(), previous: $exception);
+        }
+    }
+
+    /** Persist validated config and invalidate cached metadata only after commit.
+     *
+     * @param array<string, mixed> $tenant Tenant row
+     * @param array<string, mixed> $oldConfig Previous safe config
+     * @param array<string, mixed> $newConfig New safe config
      */
     private function saveTenantConfig(array $tenant, array $oldConfig, array $newConfig): void
     {
@@ -1399,6 +1425,9 @@ class TenantsController extends PlatformAdminAppController
             ], ['id' => $tenant['id']]);
 
             $this->auditTenantConfigChange($tenant, $oldConfig, $newConfig);
+            $connection->afterCommit(static function (): void {
+                TenantHostResolver::clearCache();
+            });
         });
     }
 
@@ -1416,7 +1445,7 @@ class TenantsController extends PlatformAdminAppController
                 isset($this->platformAdmin['id']) ? (string)$this->platformAdmin['id'] : null,
                 'tenant',
                 (string)$tenant['id'],
-                'platform admin tenant config update',
+                $this->emailChangeReason ?? 'platform admin tenant config update',
                 [
                     'slug' => (string)$tenant['slug'],
                     'before' => $oldConfig,
@@ -1430,6 +1459,12 @@ class TenantsController extends PlatformAdminAppController
                 ],
             );
         } catch (Throwable $exception) {
+            if ($this->emailChangeReason !== null) {
+                throw new InvalidArgumentException(
+                    'Email delivery changes require a recorded audit event. No changes were saved.',
+                    previous: $exception,
+                );
+            }
             Log::warning('Unable to record tenant config audit event: ' . $exception->getMessage());
         }
     }

@@ -13,13 +13,13 @@
             <?= $this->Html->link(
                 __(' Add New'),
                 ['action' => 'add'],
-                ['class' => 'btn btn-primary  bi bi-plus-circle', 'escape' => false]
+                ['class' => 'btn btn-primary', 'icon' => 'circle-plus', 'escape' => false]
             ) ?>
         </div>
     </div>
 
     <div class="alert alert-info" role="alert">
-        <i class="bi bi-info-circle me-2"></i>
+        <kmp-icon name="info-circle" class="me-2" aria-hidden="true"></kmp-icon>
         <strong>Template Plugin</strong> - This is a demonstration of the KMP plugin system.
         Use this template as a starting point for your own plugins!
     </div>
@@ -31,7 +31,7 @@
         <div class="card-body">
             <?php if (empty($items)): ?>
                 <div class="alert alert-warning" role="alert">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <kmp-icon name="alert-triangle" class="me-2" aria-hidden="true"></kmp-icon>
                     No items found.
                 </div>
             <?php else: ?>
@@ -55,17 +55,17 @@
                                     <td><?= isset($item['created']) ? h($item['created']->format('Y-m-d H:i')) : 'N/A' ?></td>
                                     <td class="actions">
                                         <?= $this->Html->link(
-                                            '<i class="bi bi-eye"></i>',
+                                            '<kmp-icon name="eye"  aria-hidden="true"></kmp-icon>',
                                             ['action' => 'view', $item['id']],
                                             ['class' => 'btn btn-sm btn-outline-primary', 'escape' => false, 'title' => __('View')]
                                         ) ?>
                                         <?= $this->Html->link(
-                                            '<i class="bi bi-pencil"></i>',
+                                            '<kmp-icon name="pencil"  aria-hidden="true"></kmp-icon>',
                                             ['action' => 'edit', $item['id']],
                                             ['class' => 'btn btn-sm btn-outline-secondary', 'escape' => false, 'title' => __('Edit')]
                                         ) ?>
                                         <?= $this->Form->postLink(
-                                            '<i class="bi bi-trash"></i>',
+                                            '<kmp-icon name="trash"  aria-hidden="true"></kmp-icon>',
                                             ['action' => 'delete', $item['id']],
                                             [
                                                 'confirm' => __('Are you sure you want to delete # {0}?', $item['id']),

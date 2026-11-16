@@ -167,7 +167,7 @@ $this->KMP->endBlock(); ?>
                 <?php endif; ?>
 
                 <a href="<?= $this->Url->build(['plugin' => 'Awards', 'controller' => 'Recommendations', 'action' => 'SubmitRecommendation']) ?>"
-                    class="mt-3 btn fs-6 bi bi-megaphone-fill mb-2 <?= $this->KMP->getAppSetting('Awards.RecButtonClass') ?>">
+                    class="mt-3 btn fs-6 mb-2 <?= $this->KMP->getAppSetting('Awards.RecButtonClass') ?>"><kmp-icon name="speakerphone" aria-hidden="true"></kmp-icon>
                     Submit Award Rec.</a>
             </div>
         </div>

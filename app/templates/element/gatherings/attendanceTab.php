@@ -9,7 +9,7 @@
 
 <div class="gathering-attendance">
     <div class="alert alert-info mb-4">
-        <h5><i class="bi bi-info-circle"></i> Attendance Information</h5>
+        <h5><kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon> Attendance Information</h5>
         <p class="mb-2">
             <strong>Total Announced Attendance:</strong> <?= $totalAttendanceCount ?>
             <?= $totalAttendanceCount === 1 ? 'person' : 'people' ?>
@@ -75,7 +75,7 @@
         </div>
     <?php else: ?>
         <div class="alert alert-secondary mt-3">
-            <i class="bi bi-info-circle"></i>
+            <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
             No attendees have shared their attendance with the hosting group or kingdom yet.
         </div>
     <?php endif; ?>

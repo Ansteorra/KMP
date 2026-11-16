@@ -1,3 +1,5 @@
+import './services/turbo-fetch-bootstrap-service.js';
+import './services/icon-service.js';
 import { installOfflineFetchCapture } from './services/offline-fetch-service.js';
 import { reportOfflineSaveFailure } from './services/offline-runtime-service.js';
 import { startOfflineSessionObserver } from './services/offline-session-service.js';
@@ -9,6 +11,12 @@ import * as bootstrap from 'bootstrap';
 import KMP_utils from './KMP_utils.js';
 import KMP_accessibility from './KMP_accessibility.js';
 import './timezone-utils.js';
+import { installUiNavigation } from './services/ui-navigation-service.js';
+import { installFormState } from './services/form-state-service.js';
+import { installLiveUpdates } from './services/live-update-service.js';
+import { installMutationRequestMetadata } from './services/mutation-request-service.js';
+import { installBootstrapLifecycle } from './services/bootstrap-lifecycle-service.js';
+import { installModalNavigation } from './services/modal-navigation-service.js';
 
 // Import controllers
 import './controllers/qrcode-controller.js';
@@ -16,8 +24,10 @@ import './controllers/timezone-input-controller.js';
 import './controllers/security-debug-controller.js';
 import './controllers/popover-controller.js';
 
-// Disable Turbo Drive (automatic navigation) but keep Turbo Frames working
-Turbo.session.drive = false;
+// One navigation owner supports Drive and the frame/stream fallback.
+installLiveUpdates(Turbo);
+installUiNavigation(Turbo);
+if (Turbo.session.drive) installFormState();
 
 //window.$ = $;
 //window.jQuery = jQuery;
@@ -26,6 +36,7 @@ window.bootstrap = bootstrap;
 window.KMP_accessibility = KMP_accessibility;
 window.KMP_accessibility.installCakeConfirmAdapter();
 installOfflineFetchCapture(window, reportOfflineSaveFailure);
+installMutationRequestMetadata();
 const stimulusApp = Application.start();
 window.Stimulus = stimulusApp;
 
@@ -76,31 +87,7 @@ document.addEventListener('turbo:render', () => reconnectMissedControllers(stimu
 // Turbo frames (e.g. gathering tab cells) inject modal markup after the initial scan.
 document.addEventListener('turbo:frame-load', () => reconnectMissedControllers(stimulusApp));
 
-//activate boostrap tooltips
-const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
-const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
-
-// Re-initialize tooltips after Turbo renders (for dynamically loaded content)
-// Note: Popovers are handled by the popover Stimulus controller
-document.addEventListener('turbo:render', () => {
-    // Initialize new tooltips
-    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
-        if (!bootstrap.Tooltip.getInstance(el)) {
-            new bootstrap.Tooltip(el);
-        }
-    });
-});
-
-/** Dismiss open Bootstrap modals before Turbo caches the page snapshot. */
-document.addEventListener('turbo:before-cache', () => {
-    document.querySelectorAll('.modal.show').forEach((modalEl) => {
-        const instance = bootstrap.Modal.getInstance(modalEl);
-        if (instance) {
-            instance.hide();
-        }
-    });
-    document.body.classList.remove('modal-open');
-    document.querySelectorAll('.modal-backdrop').forEach((backdrop) => backdrop.remove());
-});
+installBootstrapLifecycle(bootstrap);
+installModalNavigation();
 
 startOfflineSessionObserver();

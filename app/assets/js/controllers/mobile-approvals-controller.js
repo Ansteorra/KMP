@@ -1,3 +1,4 @@
+import { iconHtml } from '../services/icon-service.js';
 import MobileControllerBase from "./mobile-controller-base.js"
 
 import { MOBILE_QUEUE_DEFAULT_PER_PAGE } from "../mobile-queue-pagination.js"
@@ -138,19 +139,19 @@ class MobileApprovalsController extends MobileControllerBase {
                  aria-controls="${detailId}"
                  data-id="${approval.id}">
                 <div class="approval-card-icon">
-                    <i class="bi ${this._escHtml(approval.icon)}"></i>
+                    ${iconHtml(approval.icon)}
                 </div>
                 <div class="approval-card-info">
                     <div class="approval-card-title">${this._escHtml(approval.title)}</div>
                     <div class="approval-card-meta">
-                        <span><i class="bi bi-person me-1"></i>${this._escHtml(approval.requester)}</span>
-                        ${approval.triage?.stateLabel ? `<span><i class="bi bi-journal-text me-1"></i>${this._escHtml(approval.triage.stateLabel)}</span>` : ''}
+                        <span><kmp-icon name="user" class="me-1" aria-hidden="true"></kmp-icon>${this._escHtml(approval.requester)}</span>
+                        ${approval.triage?.stateLabel ? `<span><kmp-icon name="notebook" class="me-1" aria-hidden="true"></kmp-icon>${this._escHtml(approval.triage.stateLabel)}</span>` : ''}
                         ${progressHtml}
-                        <span><i class="bi bi-clock me-1"></i>${age}</span>
+                        <span><kmp-icon name="clock" class="me-1" aria-hidden="true"></kmp-icon>${age}</span>
                     </div>
                 </div>
                 <div class="approval-card-chevron">
-                    <i class="bi bi-chevron-right"></i>
+                    <kmp-icon name="chevron-right"  aria-hidden="true"></kmp-icon>
                 </div>
             </div>
         </div>`
@@ -253,7 +254,7 @@ class MobileApprovalsController extends MobileControllerBase {
         }
 
         if (approval.entityUrl) {
-            html += `<a href="${this._escHtml(approval.entityUrl)}" class="btn btn-sm btn-outline-primary mb-3" data-turbo-frame="_top"><i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>View Source</a>`
+            html += `<a href="${this._escHtml(approval.entityUrl)}" class="btn btn-sm btn-outline-primary mb-3" data-turbo-frame="_top"><kmp-icon name="external-link" class="me-1" aria-hidden="true"></kmp-icon>View Source</a>`
         }
 
         // Response timeline
@@ -261,8 +262,8 @@ class MobileApprovalsController extends MobileControllerBase {
             html += '<div class="approval-responses"><small class="fw-semibold text-muted d-block mb-1">Responses:</small>'
             for (const r of responses) {
                 const icon = r.decision === 'approve'
-                    ? '<i class="bi bi-check-circle-fill text-success approval-response-icon"></i>'
-                    : '<i class="bi bi-x-circle-fill text-danger approval-response-icon"></i>'
+                    ? '<kmp-icon name="circle-check" class="text-success approval-response-icon" aria-hidden="true"></kmp-icon>'
+                    : '<kmp-icon name="circle-x" class="text-danger approval-response-icon" aria-hidden="true"></kmp-icon>'
                 html += `<div class="approval-response-item">
                     ${icon}
                     <div>
@@ -352,12 +353,12 @@ class MobileApprovalsController extends MobileControllerBase {
                 <button type="button" class="btn btn-approve" aria-pressed="false"
                        data-action="click->mobile-approvals#selectDecision"
                        data-id="${approval.id}" data-decision="approve">
-                    <i class="bi bi-check-circle me-1"></i>Approve
+                    <kmp-icon name="circle-check" class="me-1" aria-hidden="true"></kmp-icon>Approve
                 </button>
                 <button type="button" class="btn btn-reject" aria-pressed="false"
                        data-action="click->mobile-approvals#selectDecision"
                        data-id="${approval.id}" data-decision="reject">
-                    <i class="bi bi-x-circle me-1"></i>Reject
+                    <kmp-icon name="circle-x" class="me-1" aria-hidden="true"></kmp-icon>Reject
                 </button>
             </div>`
         }
@@ -376,12 +377,12 @@ class MobileApprovalsController extends MobileControllerBase {
                       aria-invalid="false"
                       rows="2"></textarea>`
         if (commentWarning) {
-            html += `<div class="approval-comment-warning" id="${commentHelpId}"><i class="bi bi-eye me-1"></i>${this._escHtml(commentWarning)}</div>`
+            html += `<div class="approval-comment-warning" id="${commentHelpId}"><kmp-icon name="eye" class="me-1" aria-hidden="true"></kmp-icon>${this._escHtml(commentWarning)}</div>`
         } else {
             html += `<div class="visually-hidden" id="${commentHelpId}">${isFeedbackResponse ? 'Enter feedback for this request.' : 'A comment is required when rejecting.'}</div>`
         }
         html += `<div class="text-danger small" id="${commentErrorId}" data-comment-required="${approval.id}" hidden>
-            <i class="bi bi-exclamation-circle me-1"></i>${isFeedbackResponse ? 'Feedback is required.' : 'A comment is required when rejecting.'}
+            <kmp-icon name="alert-circle" class="me-1" aria-hidden="true"></kmp-icon>${isFeedbackResponse ? 'Feedback is required.' : 'A comment is required when rejecting.'}
         </div></div>`
 
         const gatheringOptions = Array.isArray(cfg.bestowalGatheringOptions) ? cfg.bestowalGatheringOptions : []
@@ -397,7 +398,7 @@ class MobileApprovalsController extends MobileControllerBase {
             </select>
             <div class="form-text" id="${gatheringHelpId}">Optional: choose the event or court if you already know where the bestowal should be scheduled.</div>
             <div class="text-danger small" id="${gatheringErrorId}" data-bestowal-gathering-error="${approval.id}" hidden>
-                <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>Select a valid gathering or leave this field blank.
+                <kmp-icon name="alert-circle" class="me-1" aria-hidden="true"></kmp-icon>Select a valid gathering or leave this field blank.
             </div>
         </div>`
 
@@ -416,7 +417,7 @@ class MobileApprovalsController extends MobileControllerBase {
         html += `<button type="button" class="btn approval-submit-btn"
                          data-action="click->mobile-approvals#submitResponse"
                          data-submit-btn="${approval.id}"${isFeedbackResponse && decisionOptions.length === 0 ? '' : ' disabled'}>
-            <i class="bi bi-send me-1"></i>${isFeedbackResponse ? 'Send Feedback' : 'Submit Response'}
+            <kmp-icon name="send" class="me-1" aria-hidden="true"></kmp-icon>${isFeedbackResponse ? 'Send Feedback' : 'Submit Response'}
         </button>`
 
         html += '</div>'
@@ -712,7 +713,7 @@ class MobileApprovalsController extends MobileControllerBase {
             if (card) card.classList.remove('approval-card-submitting')
             if (submitBtn) {
                 submitBtn.disabled = false
-                submitBtn.innerHTML = '<i class="bi bi-send me-1"></i>Submit Response'
+                submitBtn.innerHTML = '<kmp-icon name="send" class="me-1" aria-hidden="true"></kmp-icon>Submit Response'
             }
         } finally {
             this._submitting = false

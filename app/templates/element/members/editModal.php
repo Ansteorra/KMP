@@ -53,7 +53,7 @@ $timezoneOptions = [
     <div class="col-12 col-xl-6">
         <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
             <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                <i class="bi bi-person-vcard text-primary me-1" aria-hidden="true"></i>
+                <kmp-icon name="address-book" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                 <?= __("SCA Identity") ?>
             </legend>
             <?php
@@ -80,7 +80,7 @@ $timezoneOptions = [
     <div class="col-12  col-xl-6">
         <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
             <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                <i class="bi bi-house-heart text-success me-1" aria-hidden="true"></i>
+                <kmp-icon name="home-heart" class="text-success me-1" aria-hidden="true"></kmp-icon>
                 <?= __("Legal Name & Contact") ?>
             </legend>
             <div class="row g-3">
@@ -100,7 +100,7 @@ $timezoneOptions = [
     <div class="col-12">
         <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
             <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                <i class="bi bi-card-checklist text-info me-1" aria-hidden="true"></i>
+                <kmp-icon name="list-details" class="text-info me-1" aria-hidden="true"></kmp-icon>
                 <?= __("Membership & Safety") ?>
             </legend>
             <?php

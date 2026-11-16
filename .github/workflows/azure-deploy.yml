@@ -11,6 +11,10 @@ on:
         description: Immutable GHCR image reference ending in @sha256:digest
         required: true
         type: string
+      source_live_image:
+        description: Matching immutable gateway image from the same candidate
+        required: true
+        type: string
       target_tag:
         description: Tag to create in the environment ACR
         required: true
@@ -39,6 +43,7 @@ jobs:
     env:
       DEPLOY_ENVIRONMENT: ${{ inputs.environment_name }}
       SOURCE_IMAGE: ${{ inputs.source_image }}
+      SOURCE_LIVE_IMAGE: ${{ inputs.source_live_image }}
       TARGET_TAG: ${{ inputs.target_tag }}
       AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
@@ -48,6 +53,8 @@ jobs:
       AZURE_POSTGRES_RESOURCE_GROUP: ${{ vars.AZURE_POSTGRES_RESOURCE_GROUP }}
       AZURE_POSTGRES_SERVER_NAME: ${{ vars.AZURE_POSTGRES_SERVER_NAME }}
       AZURE_WEB_APP_NAME: ${{ vars.AZURE_WEB_APP_NAME }}
+      AZURE_LIVE_APP_NAME: ${{ vars.AZURE_LIVE_APP_NAME }}
+      LIVE_UPDATES_ENABLED: ${{ vars.KMP_LIVE_UPDATES_ENABLED || 'false' }}
       AZURE_MIGRATE_JOB_NAME: ${{ vars.AZURE_MIGRATE_JOB_NAME }}
       AZURE_QUEUE_JOB_NAME: ${{ vars.AZURE_QUEUE_JOB_NAME }}
       AZURE_ADMIN_JOB_NAME: ${{ vars.AZURE_ADMIN_JOB_NAME }}
@@ -123,32 +130,52 @@ jobs:
             echo 'Only a verified immutable source image may be deployed.' >&2
             exit 64
           fi
-          SOURCE_DIGEST="${SOURCE_IMAGE##*@}"
-          EXISTING_DIGEST="$(az acr manifest show-metadata --registry "$AZURE_ACR_NAME" \
-            --name "kmp:$TARGET_TAG" --query digest --output tsv 2>/dev/null || true)"
-          if [[ -n "$EXISTING_DIGEST" && "$EXISTING_DIGEST" != "$SOURCE_DIGEST" && "$DEPLOY_ENVIRONMENT" == 'production' ]]; then
-            echo 'Refusing to replace an existing production release tag with different bytes.' >&2
-            exit 1
-          fi
-          if [[ "$EXISTING_DIGEST" != "$SOURCE_DIGEST" ]]; then
-            az acr import --name "$AZURE_ACR_NAME" --source "$SOURCE_IMAGE" \
-              --image "kmp:$TARGET_TAG" --username "$GHCR_USERNAME" --password "$GHCR_TOKEN" \
-              --force --only-show-errors
-          fi
-          IMPORTED_DIGEST="$(az acr manifest show-metadata --registry "$AZURE_ACR_NAME" \
-            --name "kmp:$TARGET_TAG" --query digest --output tsv)"
-          if [[ "$IMPORTED_DIGEST" != "$SOURCE_DIGEST" ]]; then
-            echo 'Imported manifest differs from the verified source digest.' >&2
-            exit 1
-          fi
           ACR_LOGIN_SERVER="$(az acr show --name "$AZURE_ACR_NAME" --query loginServer --output tsv)"
-          echo "IMAGE_REF=${ACR_LOGIN_SERVER}/kmp@${SOURCE_DIGEST}" >> "$GITHUB_ENV"
-          if [[ "$DEPLOY_ENVIRONMENT" == 'production' ]]; then
-            az acr repository update --name "$AZURE_ACR_NAME" --image "kmp:$TARGET_TAG" \
-              --write-enabled false --delete-enabled false --only-show-errors --output none
+          for pair in "kmp=$SOURCE_IMAGE" "kmp-live=$SOURCE_LIVE_IMAGE"; do
+            repository="${pair%%=*}"
+            source="${pair#*=}"
+            [[ "$source" =~ @sha256:[0-9a-f]{64}$ ]] || { echo 'Both candidate images must be immutable.' >&2; exit 64; }
+            source_digest="${source##*@}"
+            existing="$(az acr manifest show-metadata --registry "$AZURE_ACR_NAME" \
+              --name "$repository:$TARGET_TAG" --query digest --output tsv 2>/dev/null || true)"
+            if [[ -n "$existing" && "$existing" != "$source_digest" && "$DEPLOY_ENVIRONMENT" == 'production' ]]; then
+              echo 'Refusing to replace an existing production release tag with different bytes.' >&2
+              exit 1
+            fi
+            if [[ "$existing" != "$source_digest" ]]; then
+              az acr import --name "$AZURE_ACR_NAME" --source "$source" \
+                --image "$repository:$TARGET_TAG" --username "$GHCR_USERNAME" --password "$GHCR_TOKEN" \
+                --force --only-show-errors
+            fi
+            imported="$(az acr manifest show-metadata --registry "$AZURE_ACR_NAME" \
+              --name "$repository:$TARGET_TAG" --query digest --output tsv)"
+            [[ "$imported" == "$source_digest" ]] || { echo 'Imported manifest differs from the verified source digest.' >&2; exit 1; }
+            variable=IMAGE_REF
+            [[ "$repository" != kmp-live ]] || variable=LIVE_IMAGE_REF
+            echo "$variable=${ACR_LOGIN_SERVER}/${repository}@${source_digest}" >> "$GITHUB_ENV"
+            if [[ "$DEPLOY_ENVIRONMENT" == 'production' ]]; then
+              az acr repository update --name "$AZURE_ACR_NAME" --image "$repository:$TARGET_TAG" \
+                --write-enabled false --delete-enabled false --only-show-errors --output none
+            fi
+          done
+
+      - name: Cut over matching live gateway before web
+        id: gateway
+        env:
+          SNAPSHOT_DIR: ${{ runner.temp }}/kmp-aca-pre-cutover
+        run: |
+          set -euo pipefail
+          if [[ -z "$AZURE_LIVE_APP_NAME" ]]; then
+            [[ "$LIVE_UPDATES_ENABLED" != true ]] || { echo 'Enabled live delivery requires AZURE_LIVE_APP_NAME.' >&2; exit 64; }
+            echo 'Gateway runtime is not enabled in this environment; its matching digest was imported.'
+            exit 0
           fi
+          bash deploy/azure/cutover-live-gateway.sh \
+            --resource-group "$AZURE_RESOURCE_GROUP" --app "$AZURE_LIVE_APP_NAME" \
+            --image "$LIVE_IMAGE_REF" --snapshot-dir "$SNAPSHOT_DIR"
 
       - name: Cut over worker, migrations, and web
+        id: cutover
         env:
           SNAPSHOT_DIR: ${{ runner.temp }}/kmp-aca-pre-cutover
         run: |
@@ -175,6 +202,19 @@ jobs:
             --image "$IMAGE_REF" \
             --snapshot-dir "$SNAPSHOT_DIR" \
             "${legacy_args[@]}"
+
+      - name: Restore gateway when web cutover rolls back
+        if: ${{ failure() && steps.gateway.outcome == 'success' && steps.cutover.outcome == 'failure' }}
+        env:
+          SNAPSHOT_DIR: ${{ runner.temp }}/kmp-aca-pre-cutover
+        run: |
+          set -euo pipefail
+          if [[ -n "$AZURE_LIVE_APP_NAME" && -s "$SNAPSHOT_DIR/live.json" ]]; then
+            previous="$(jq -er '.properties.template.containers[] | select(.name == "live") | .image' "$SNAPSHOT_DIR/live.json")"
+            bash deploy/azure/cutover-live-gateway.sh \
+              --resource-group "$AZURE_RESOURCE_GROUP" --app "$AZURE_LIVE_APP_NAME" \
+              --image "$previous" --snapshot-dir "$SNAPSHOT_DIR/gateway-rollback"
+          fi
 
       - name: Align retained manual jobs
         run: |
@@ -232,6 +272,8 @@ jobs:
             echo ""
             echo "- Environment: \`$DEPLOY_ENVIRONMENT\`"
             echo "- Source: \`$SOURCE_IMAGE\`"
+            echo "- Gateway source: \`$SOURCE_LIVE_IMAGE\`"
+            echo "- Gateway image: \`${LIVE_IMAGE_REF:-not imported}\`"
             echo "- Image: \`${IMAGE_REF:-not imported}\`"
             echo "- URL: $DEPLOYED_URL"
             echo "- Status: \`$DEPLOY_STATUS\`"

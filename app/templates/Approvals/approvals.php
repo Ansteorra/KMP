@@ -22,7 +22,7 @@ echo $this->KMP->startBlock('title');
 echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': My Approvals';
 $this->KMP->endBlock(); ?>
 
-<h3><i class="bi bi-check2-square me-2"></i><?= __('My Approvals') ?></h3>
+<h3><kmp-icon name="checkbox" class="me-2" aria-hidden="true"></kmp-icon><?= __('My Approvals') ?></h3>
 
 <div data-controller="approval-detail"
      data-approval-detail-url-value="/approvals/detail/"
@@ -34,12 +34,38 @@ $this->KMP->endBlock(); ?>
 </div>
 
 <!-- Approval Response Modal -->
-<div class="modal fade" id="approvalResponseModal" tabindex="-1" aria-labelledby="approvalResponseModalLabel" aria-hidden="true">
+
+<?php
+$dialogBindings = [
+    'selectApprovalsOfTheSameTypeBefore' => __('Select approvals of the same type before responding in bulk.'),
+    'unableToReadTheSelectedApprovalDetails' =>
+        __('Unable to read the selected approval details. Refresh the grid and try again.'),
+    'sendFeedback' => __('Send Feedback'),
+    'submitResponse' => __('Submit Response'),
+    'decision' => __('Decision'),
+    'respondToSelectedApprovals' => __('Respond to Selected Approvals'),
+    'respondToApproval' => __('Respond to Approval'),
+    'required' => __('(required)'),
+    'requiredForRejections' => __('(required for rejections)'),
+    'feedback' => __('Feedback'),
+    'comment' => __('Comment'),
+    'focusedApprovalId' => $focusedApprovalId,
+];
+?>
+<div class="modal fade" id="approvalResponseModal"
+    data-controller="approval-dialog"
+    data-approval-dialog-bindings-value="<?= h(json_encode($dialogBindings)) ?>"
+    tabindex="-1" aria-labelledby="approvalResponseModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-sm-down">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="approvalResponseModalLabel">
-                    <i class="bi bi-check2-square me-2"></i><?= __('Respond to Approval') ?>
+                    <kmp-icon
+                        name="checkbox"
+                        class="me-2"
+                        aria-hidden="true">
+                    </kmp-icon>
+                    <?= __('Respond to Approval') ?>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -69,23 +95,44 @@ $this->KMP->endBlock(); ?>
                     data-approval-response-target="bulkSummary" hidden></div>
 
                 <!-- Decision -->
-                <fieldset class="border rounded-3 bg-white shadow-sm p-3 mb-3" data-approval-response-target="decisionSection">
-                    <legend class="float-none w-auto px-2 fw-semibold fs-6 mb-3" data-approval-response-target="decisionLegend"><?= __('Decision') ?></legend>
+                <fieldset
+                    class="border rounded-3 bg-white shadow-sm p-3 mb-3"
+                    data-approval-response-target="decisionSection">
+                    <legend
+                        class="float-none w-auto px-2 fw-semibold fs-6 mb-3"
+                        data-approval-response-target="decisionLegend">
+                    <?= __('Decision') ?>
+                    </legend>
                     <div class="d-flex gap-3 flex-wrap" data-approval-response-target="decisionOptions">
                         <div class="form-check">
-                            <input class="form-check-input" type="radio" name="decision" id="decisionApprove" value="approve"
+                        <input
+                            class="form-check-input"
+                            type="radio"
+                            name="decision"
+                            id="decisionApprove"
+                            value="approve"
                                 data-approval-response-target="decision"
                                 data-action="change->approval-response#onDecisionChange">
                             <label class="form-check-label text-success fw-semibold" for="decisionApprove">
-                                <i class="bi bi-check-circle me-1"></i><?= __('Approve') ?>
+                        <kmp-icon
+                            name="circle-check"
+                            class="me-1"
+                            aria-hidden="true">
+                        </kmp-icon>
+                        <?= __('Approve') ?>
                             </label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input" type="radio" name="decision" id="decisionReject" value="reject"
+                        <input
+                            class="form-check-input"
+                            type="radio"
+                            name="decision"
+                            id="decisionReject"
+                            value="reject"
                                 data-approval-response-target="decision"
                                 data-action="change->approval-response#onDecisionChange">
                             <label class="form-check-label text-danger fw-semibold" for="decisionReject">
-                                <i class="bi bi-x-circle me-1"></i><?= __('Reject') ?>
+                                <kmp-icon name="circle-x" class="me-1" aria-hidden="true"></kmp-icon><?= __('Reject') ?>
                             </label>
                         </div>
                     </div>
@@ -94,13 +141,25 @@ $this->KMP->endBlock(); ?>
                 <!-- Comment -->
                 <div class="border rounded-3 bg-white shadow-sm p-3 mb-3">
                     <label class="form-label" for="approvalComment"><?= __('Comment') ?>
-                        <span class="text-danger" data-approval-response-target="commentRequiredHint" hidden><?= __('(required for rejections)') ?></span>
+                        <span
+                            class="text-danger"
+                            data-approval-response-target="commentRequiredHint"
+                            hidden>
+                        <?= __('(required for rejections)') ?>
+                        </span>
                     </label>
                     <textarea class="form-control" id="approvalComment" name="comment" rows="3"
                         data-approval-response-target="comment"
                         placeholder="<?= __('Optional comment...') ?>"></textarea>
                     <div class="form-text text-muted small" data-approval-response-target="commentWarning" hidden>
-                        <i class="bi bi-eye me-1"></i><span data-approval-response-target="commentWarningText"></span>
+                        <kmp-icon
+                            name="eye"
+                            class="me-1"
+                            aria-hidden="true">
+                        </kmp-icon>
+                        <span
+                            data-approval-response-target="commentWarningText">
+                        </span>
                     </div>
                 </div>
 
@@ -123,20 +182,29 @@ $this->KMP->endBlock(); ?>
                         ],
                     ) ?>
                     <div class="form-text" id="approvalBestowalGatheringHelp">
-                        <?= __('Optional: choose a future event or court if you already know where the bestowal should be scheduled.') ?>
+                        <?=
+                            __('Optional: choose a future event or court if you already know where '
+                            . 'the bestowal should be scheduled.')
+                            ?>
                     </div>
                     <div class="text-danger small" id="approvalBestowalGatheringError"
                         data-approval-response-target="bestowalGatheringError" hidden>
-                        <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>
+                        <kmp-icon name="alert-circle" class="me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Select a valid gathering or leave this field blank.') ?>
                     </div>
                 </div>
 
                 <!-- Next Approver (conditional) -->
-                <div class="border rounded-3 bg-white shadow-sm p-3" data-approval-response-target="nextApproverSection" hidden>
+                <div
+                    class="border rounded-3 bg-white shadow-sm p-3"
+                    data-approval-response-target="nextApproverSection"
+                    hidden>
                     <div class="alert alert-info py-2 small" role="alert" data-approval-response-target="infoText">
                     </div>
-                    <label class="form-label fw-semibold" for="approval-next-approver-disp"><?= __('Select Next Approver') ?></label>
+                    <label
+                        class="form-label fw-semibold" for="approval-next-approver-disp">
+                    <?= __('Select Next Approver') ?>
+                    </label>
                     <div data-controller="ac"
                          data-ac-url-value="/workflows/eligible-approvers/0"
                          data-ac-min-length-value="0"
@@ -157,14 +225,26 @@ $this->KMP->endBlock(); ?>
                                    aria-describedby="approval-next-approver-status"
                                    data-ac-target="input"
                                    placeholder="<?= __('Click to see all or type to filter...') ?>">
-                            <button type="button" class="btn btn-outline-secondary" data-ac-target="clearBtn" data-action="ac#clear" disabled><?= __('Clear') ?></button>
+                        <button
+                            type="button"
+                            class="btn btn-outline-secondary"
+                            data-ac-target="clearBtn"
+                            data-action="ac#clear"
+                            disabled>
+                        <?= __('Clear') ?>
+                        </button>
                         </div>
                         <ul data-ac-target="results"
                             id="approval-next-approver-results"
                             role="listbox"
                             class="list-group z-3 col-12 position-absolute auto-complete-list"
                             hidden="hidden"></ul>
-                        <div id="approval-next-approver-status" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"
+                        <div
+                            id="approval-next-approver-status"
+                            class="visually-hidden"
+                            role="status"
+                            aria-live="polite"
+                            aria-atomic="true"
                             data-ac-target="status"></div>
                     </div>
                 </div>
@@ -172,195 +252,10 @@ $this->KMP->endBlock(); ?>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= __('Cancel') ?></button>
                 <button type="submit" class="btn btn-primary" data-approval-response-target="submitBtn" disabled>
-                    <i class="bi bi-send me-1"></i><?= __('Submit Response') ?>
+                    <kmp-icon name="send" class="me-1" aria-hidden="true"></kmp-icon><?= __('Submit Response') ?>
                 </button>
             </div>
             <?= $this->Form->end() ?>
         </div>
     </div>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const modal = document.getElementById('approvalResponseModal');
-    if (!modal) return;
-
-    modal.addEventListener('show.bs.modal', function(event) {
-        const btn = event.relatedTarget;
-        if (!btn) return;
-
-        const bulkSelection = parseBulkSelection(btn);
-        let btnData = {};
-        let bulkIds = [];
-        let bulkError = '';
-        if (bulkSelection) {
-            bulkIds = bulkSelection.ids;
-            const selectedRows = Array.isArray(bulkSelection.checkboxes) ? bulkSelection.checkboxes : [];
-            const selectedTypes = [...new Set(selectedRows.map(row => row.approvalTypeKey).filter(Boolean))];
-            if (selectedTypes.length !== 1) {
-                bulkError = '<?= __('Select approvals of the same type before responding in bulk.') ?>';
-            }
-            try {
-                btnData = JSON.parse(selectedRows[0]?.approvalResponsePayload || '{}');
-            } catch (e) {
-                bulkError = '<?= __('Unable to read the selected approval details. Refresh the grid and try again.') ?>';
-            }
-        } else {
-            try {
-                btnData = JSON.parse(btn.getAttribute('data-outlet-btn-btn-data-value') || '{}');
-            } catch (e) {
-                return;
-            }
-        }
-
-        const approvalId = btnData.id || 0;
-        const approverConfig = btnData.approver_config || {};
-        const requiredCount = btnData.required_count || 1;
-        const approvedCount = btnData.approved_count || 0;
-        const serialPickNext = approverConfig.serial_pick_next || false;
-        const commentWarning = approverConfig.comment_warning || '';
-        const feedbackResponse = approverConfig.feedback_response || false;
-        const responseLabel = approverConfig.response_label
-            || (feedbackResponse ? '<?= __('Send Feedback') ?>' : '<?= __('Submit Response') ?>');
-        const approveLabel = approverConfig.approve_label || 'Approve';
-        const hideReject = feedbackResponse || approverConfig.hide_reject || false;
-        const requiresComment = approverConfig.requires_comment || false;
-        const decisionPromptLabel = approverConfig.decision_prompt_label
-            || approverConfig.decisionPromptLabel
-            || '<?= __('Decision') ?>';
-        const decisionOptions = Array.isArray(approverConfig.decision_options)
-            ? approverConfig.decision_options
-            : (Array.isArray(approverConfig.decisionOptions) ? approverConfig.decisionOptions : []);
-        const form = document.getElementById('approvalResponseForm');
-
-        const modalTitle = document.getElementById('approvalResponseModalLabel');
-        if (modalTitle) {
-            modalTitle.innerHTML = bulkIds.length > 1
-                ? '<i class="bi bi-check2-square me-2"></i><?= __('Respond to Selected Approvals') ?>'
-                : (feedbackResponse
-                ? '<i class="bi bi-chat-left-text me-2"></i><?= __('Send Feedback') ?>'
-                : '<i class="bi bi-check2-square me-2"></i><?= __('Respond to Approval') ?>');
-        }
-        const approveLabelEl = document.querySelector('label[for="decisionApprove"]');
-        if (approveLabelEl) {
-            approveLabelEl.innerHTML = '<i class="bi bi-check-circle me-1"></i>' + approveLabel;
-        }
-        const rejectOption = document.getElementById('decisionReject')?.closest('.form-check');
-        if (rejectOption) {
-            rejectOption.hidden = !!hideReject;
-        }
-        const submitBtn = form?.querySelector('[data-approval-response-target="submitBtn"]');
-        if (submitBtn) {
-            submitBtn.innerHTML = '<i class="bi bi-send me-1"></i>' + responseLabel;
-        }
-        const commentHint = form?.querySelector('[data-approval-response-target="commentRequiredHint"]');
-        if (commentHint) {
-            commentHint.textContent = feedbackResponse
-                ? '<?= __('(required)') ?>'
-                : '<?= __('(required for rejections)') ?>';
-        }
-        const commentLabel = form?.querySelector('label[for="approvalComment"]');
-        if (commentLabel) {
-            const hintHtml = commentHint ? commentHint.outerHTML : '';
-            const labelText = feedbackResponse ? '<?= __('Feedback') ?>' : '<?= __('Comment') ?>';
-            commentLabel.innerHTML = labelText + ' ' + hintHtml;
-        }
-
-        // Set hidden field
-        document.getElementById('approvalResponseApprovalId').value = approvalId;
-        document.getElementById('approvalResponseApprovalIds').value = bulkIds.join(',');
-
-        // Configure the Stimulus controller
-        const controller = window.Stimulus?.getControllerForElementAndIdentifier(form, 'approval-response');
-        if (controller) {
-            controller.configure({
-                id: approvalId,
-                bulkIds: bulkIds,
-                bulkError: bulkError,
-                serialPickNext: serialPickNext,
-                requiredCount: requiredCount,
-                approvedCount: approvedCount,
-                eligibleUrl: '/approvals/eligible-approvers/' + approvalId,
-                commentWarning: commentWarning,
-                requiresComment: requiresComment,
-                feedbackResponse: feedbackResponse,
-                decisionOptions: decisionOptions,
-                decisionPromptLabel: decisionPromptLabel,
-                approveLabel: approveLabel,
-                hideReject: hideReject,
-                defaultDecision: feedbackResponse && decisionOptions.length === 0 ? 'approve' : null,
-                requiresBestowalGathering: approverConfig.requires_bestowal_gathering
-                    || approverConfig.requiresBestowalGathering
-                    || false,
-                bestowalGatheringOptions: Array.isArray(approverConfig.bestowal_gathering_options)
-                    ? approverConfig.bestowal_gathering_options
-                    : (Array.isArray(approverConfig.bestowalGatheringOptions)
-                        ? approverConfig.bestowalGatheringOptions
-                        : []),
-                bestowalGatheringUrl: approverConfig.bestowal_gathering_url
-                    || approverConfig.bestowalGatheringUrl
-                    || '',
-            });
-        }
-    });
-
-    function parseBulkSelection(btn) {
-        const liveSelection = getLiveBulkSelection(btn);
-        if (liveSelection) {
-            return liveSelection;
-        }
-        if (!btn.dataset.bulkActionSelection) {
-            return null;
-        }
-        try {
-            const selection = JSON.parse(btn.dataset.bulkActionSelection);
-            const ids = Array.isArray(selection.ids) ? selection.ids.filter(Boolean) : [];
-            if (ids.length === 0) {
-                return null;
-            }
-
-            return {
-                ids: ids,
-                checkboxes: Array.isArray(selection.checkboxes) ? selection.checkboxes : [],
-            };
-        } catch (e) {
-            return {
-                ids: [],
-                checkboxes: [],
-            };
-        }
-    }
-
-    function getLiveBulkSelection(btn) {
-        if (!btn.dataset.bulkActionKey) {
-            return null;
-        }
-        const grid = btn.closest('turbo-frame') || btn.closest('[data-controller~="grid-view"]') || document;
-        if (!grid) {
-            return null;
-        }
-        const selectedRows = Array.from(
-            grid.querySelectorAll('[data-grid-view-target~="rowCheckbox"]:checked:not(:disabled)')
-        );
-        if (selectedRows.length === 0) {
-            return null;
-        }
-
-        return {
-            ids: selectedRows.map(row => row.value).filter(Boolean),
-            checkboxes: selectedRows.map(row => ({ id: row.value, ...row.dataset })),
-        };
-    }
-
-    <?php if ($focusedApprovalId) : ?>
-    // Auto-open response modal for token deep-link approval
-    setTimeout(function () {
-        const focusedId = <?= json_encode($focusedApprovalId) ?>;
-        const respondBtn = document.querySelector('[data-outlet-btn-btn-data-value*="\"id\":' + focusedId + '"]');
-        if (respondBtn) {
-            respondBtn.click();
-        }
-    }, 1000);
-    <?php endif; ?>
-});
-</script>

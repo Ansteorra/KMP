@@ -1,35 +1,25 @@
 <?php
+declare(strict_types=1);
 
 /**
  * @var \App\View\AppView $this
  * @var \App\Model\Entity\GatheringActivity $gatheringActivity
- * @var \Cake\Collection\CollectionInterface|string[] $waiverTypes
+ * @var \Cake\Collection\CollectionInterface|array<string> $waiverTypes
  * @var array $selectedWaiverIds
  */
 ?>
 <?php
-$this->extend("/layout/TwitterBootstrap/dashboard");
+$this->extend('/layout/TwitterBootstrap/dashboard');
 
-echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Edit Gathering Activity';
+echo $this->KMP->startBlock('title');
+echo $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': Edit Gathering Activity';
 $this->KMP->endBlock();
 ?>
 
 <div class="gatheringActivities form content">
-    <?= $this->Form->create($gatheringActivity) ?>
-    <fieldset>
-        <legend><?= $this->element('backButton') ?> <?= __('Edit Gathering Activity') ?></legend>
-        <?php
-        echo $this->Form->control('name', ['required' => true]);
-        echo $this->Form->control('description', ['type' => 'textarea', 'rows' => 3]);
-        echo $this->Form->control('is_circle', [
-            'type' => 'checkbox',
-            'switch' => true,
-            'label' => __('Order Circle'),
-            'help' => __('Marks this activity as an order circle (Laurel, Pelican, etc.); shown with a circle icon on the public calendar.'),
-        ]);
-        ?>
-    </fieldset>
+    <?= $this->Form->create($gatheringActivity, ['type' => 'file']) ?>
+    <h1 class="h4"><?= $this->element('backButton') ?> <?= __('Edit Gathering Activity') ?></h1>
+    <?= $this->element('gatheringActivities/fields', compact('gatheringActivity')) ?>
     <div class="form-group">
         <?= $this->Form->button(__('Submit'), ['class' => 'btn btn-primary']) ?>
         <?= $this->Form->postLink(
@@ -37,8 +27,8 @@ $this->KMP->endBlock();
             ['action' => 'delete', $gatheringActivity->id],
             [
                 'confirm' => __('Are you sure you want to delete "{0}"?', $gatheringActivity->name),
-                'class' => 'btn btn-danger'
-            ]
+                'class' => 'btn btn-danger',
+            ],
         ) ?>
     </div>
     <?= $this->Form->end() ?>

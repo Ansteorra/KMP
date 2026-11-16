@@ -50,7 +50,7 @@ $canManage = $canManageOwn || $canManageOthers;
     <div class="mb-3">
         <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
             data-bs-target="#addGatheringAttendanceModal">
-            <i class="bi bi-plus-circle"></i> RSVP for Gathering
+            <kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon> RSVP for Gathering
         </button>
     </div>
     <?php endif; ?>
@@ -129,17 +129,19 @@ $canManage = $canManageOwn || $canManageOthers;
                             <?php if ($canManage): ?>
                             <td>
                                 <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal"
+                                    aria-label="<?= h(__('Edit RSVP')) ?>"
                                     data-bs-target="#editGatheringAttendanceModal"
                                     data-attendance-id="<?= $attendance->id ?>"
                                     data-gathering-id="<?= $attendance->gathering->id ?>">
-                                    <i class="bi bi-pencil"></i>
+                                    <kmp-icon name="pencil"  aria-hidden="true"></kmp-icon>
                                 </button>
                                 <?= $this->Form->postLink(
-                                                '<i class="bi bi-trash"></i>',
+                                                '<kmp-icon name="trash"  aria-hidden="true"></kmp-icon>',
                                                 ['controller' => 'GatheringAttendances', 'action' => 'delete', $attendance->id],
                                                 [
                                                     'confirm' => 'Are you sure you want to remove this attendance?',
                                                     'class' => 'btn btn-sm btn-danger',
+                                                    'aria-label' => __('Remove RSVP'),
                                                     'escape' => false
                                                 ]
                                             ) ?>

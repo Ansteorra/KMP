@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Queue\Controller;
 
-use Templating\View\Helper\IconHelper;
-use Templating\View\Helper\IconSnippetHelper;
 use Templating\View\Helper\TemplatingHelper;
 
 trait LoadHelperTrait
@@ -21,11 +19,8 @@ trait LoadHelperTrait
 			'Tools.Format',
 			'Tools.Text',
 			'Tools.Time',
-			class_exists(IconHelper::class) ? 'Templating.Icon' : 'Tools.Icon',
+			'Icon',
 		];
-		if (class_exists(IconSnippetHelper::class)) {
-			$helpers[] = 'Templating.IconSnippet';
-		}
 		if (class_exists(TemplatingHelper::class)) {
 			$helpers[] = 'Templating.Templating';
 		}

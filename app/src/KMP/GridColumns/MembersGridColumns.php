@@ -329,7 +329,7 @@ class MembersGridColumns extends BaseGridColumns
          *        $buttons = [];
          *        // Edit button
          *        if ($currentMember && $currentMember->can('edit', $row)) {
-         *            $buttons[] = $view->Html->link('<i class="bi bi-pencil"></i> Edit', [
+         *            $buttons[] = $view->Html->link('<kmp-icon name="pencil"  aria-hidden="true"></kmp-icon> Edit', [
          *                'controller' => 'Members',
          *                'action' => 'edit',
          *                $row['id']
@@ -341,7 +341,7 @@ class MembersGridColumns extends BaseGridColumns
          *        }
          *        // Authorize button (example)
          *        if ($currentMember && $currentMember->can('authorize', $row)) {
-         *            $buttons[] = $view->Html->link('<i class="bi bi-shield-check"></i> Authorize', [
+         *            $buttons[] = $view->Html->link('<kmp-icon name="shield-check"  aria-hidden="true"></kmp-icon> Authorize', [
          *                'controller' => 'Authorizations',
          *                'action' => 'add',
          *                'member_id' => $row['id']
@@ -353,7 +353,7 @@ class MembersGridColumns extends BaseGridColumns
          *        }
          *        // Delete button
          *        if ($currentMember && $currentMember->can('delete', $row)) {
-         *            $buttons[] = $view->Form->postLink('<i class="bi bi-trash"></i> Delete', [
+         *            $buttons[] = $view->Form->postLink('<kmp-icon name="trash"  aria-hidden="true"></kmp-icon> Delete', [
          *                'controller' => 'Members',
          *                'action' => 'delete',
          *                $row['id']

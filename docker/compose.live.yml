@@ -1,0 +1,45 @@
+# Overlay: docker compose -f docker-compose.yml -f docker/compose.live.yml --profile live up -d
+services:
+  live-redis:
+    image: redis:8-alpine@sha256:71885d8cc6e42f2bc0aa2eb853bfc4be200b5108a46ac50e117ae1df0531fb80
+    profiles: [live]
+    command: [redis-server, --appendonly, "yes"]
+    volumes:
+      - live-redis-data:/data
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      retries: 10
+  live-gateway:
+    image: kmp-live-updates:dev
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.live
+    profiles: [live]
+    environment:
+      REDIS_URL: redis://live-redis:6379/0
+      KMP_LIVE_PUBLIC_KEY: ${KMP_LIVE_PUBLIC_KEY:?Set the live public key}
+      KMP_LIVE_ALLOWED_ORIGINS: ${KMP_LIVE_ALLOWED_ORIGINS:-http://kmp.localhost:8080,http://kmp2.localhost:8080}
+    ports:
+      - 127.0.0.1:${KMP_LIVE_PORT:-9080}:8080
+    depends_on:
+      live-redis:
+        condition: service_healthy
+  app:
+    environment:
+      KMP_TURBO_ENABLED: ${KMP_TURBO_ENABLED:-false}
+      KMP_LIVE_UPDATES_ENABLED: ${KMP_LIVE_UPDATES_ENABLED:-false}
+      KMP_LIVE_PRIVATE_KEY: ${KMP_LIVE_PRIVATE_KEY:?Set the live signing key}
+      KMP_LIVE_GATEWAY_URL: ${KMP_LIVE_GATEWAY_URL:-http://localhost:9080/events}
+      REDIS_URL: redis://live-redis:6379/0
+      CACHE_ENGINE: redis
+      KMP_SESSION_DEFAULTS: cache
+  scheduler:
+    environment:
+      KMP_TURBO_ENABLED: ${KMP_TURBO_ENABLED:-false}
+      KMP_LIVE_UPDATES_ENABLED: ${KMP_LIVE_UPDATES_ENABLED:-false}
+      REDIS_URL: redis://live-redis:6379/0
+      CACHE_ENGINE: redis
+      KMP_SESSION_DEFAULTS: cache
+volumes:
+  live-redis-data:

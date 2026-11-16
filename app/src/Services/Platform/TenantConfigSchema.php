@@ -27,7 +27,7 @@ class TenantConfigSchema
         'email_smtp_tls',
     ];
 
-    private const IGNORED_FIELDS = ['_csrfToken', '_Token'];
+    private const IGNORED_FIELDS = ['_csrfToken', '_Token', 'confirmation', 'reason', 'totp'];
 
     /**
      * @return array<string, mixed>

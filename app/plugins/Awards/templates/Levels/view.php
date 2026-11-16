@@ -80,7 +80,7 @@ echo $this->KMP->startBlock("pageTitle") ?>
                                 <?= $this->Html->link(
                                     __(""),
                                     ["controller" => "Awards", "action" => "view", $award->id],
-                                    ["title" => __("View"), "class" => "btn-sm btn btn-secondary bi bi-binoculars-fill"],
+                                    ["title" => __("View"), "class" => "btn-sm btn btn-secondary", 'icon' => 'binoculars'],
                                 ) ?>
                             </td>
                         </tr>

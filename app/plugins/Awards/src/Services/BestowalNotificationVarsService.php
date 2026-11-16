@@ -56,7 +56,6 @@ class BestowalNotificationVarsService
                 'PrimaryRecommendation' => ['Awards' => ['Levels']],
             ]);
 
-            $member = $bestowal->member ?? null;
             $gathering = $bestowal->gathering ?? null;
             $recommendations = $bestowal->recommendations ?? [];
             if ($recommendations === [] && $bestowal->primary_recommendation !== null) {
@@ -77,9 +76,7 @@ class BestowalNotificationVarsService
                 'bestowalId' => (int)$bestowal->id,
                 'eventType' => $eventType,
                 'memberId' => $bestowal->member_id !== null ? (int)$bestowal->member_id : null,
-                'memberScaName' => $member !== null
-                    ? (string)$member->sca_name
-                    : (string)$bestowal->member_sca_name,
+                'memberScaName' => $bestowal->getRecipientName(),
                 'lifecycleStatus' => (string)$bestowal->lifecycle_status,
                 'source' => (string)$bestowal->source,
                 'gatheringId' => $bestowal->gathering_id !== null ? (int)$bestowal->gathering_id : null,

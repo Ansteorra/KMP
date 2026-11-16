@@ -6,6 +6,9 @@ namespace Awards\Test\TestCase\Services;
 use App\KMP\KmpIdentityInterface;
 use App\Test\TestCase\BaseTestCase;
 use Awards\Model\Entity\Bestowal;
+use Awards\Model\Entity\CourtAgenda;
+use Awards\Model\Entity\CourtAgendaItem;
+use Awards\Model\Entity\CourtAgendaSegment;
 use Awards\Model\Entity\Recommendation;
 use Awards\Services\BestowalFieldAccessService;
 use Cake\Datasource\EntityInterface;
@@ -105,6 +108,100 @@ class BestowalFieldAccessServiceTest extends BaseTestCase
         $this->assertFalse($bestowal->has('noble_notes'));
     }
 
+    public function testAgendaBlocksUnreadableItemsAndRemovesEveryUnreadableCandidate(): void
+    {
+        $blocked = $this->protectedBestowal();
+        $visible = $this->protectedBestowal();
+        $identity = $this->createMock(KmpIdentityInterface::class);
+        $identity->method('checkCan')->willReturnCallback(
+            static fn(string $action, mixed $resource): bool => $resource === $visible,
+        );
+        $item = new CourtAgendaItem([
+            'id' => 100,
+            'bestowal_id' => 200,
+            'bestowal' => $blocked,
+            'estimated_minutes' => 8,
+            'sort_order' => 20,
+            'presentation_notes' => 'Secret agenda notes',
+            'print_notes' => 'Secret print notes',
+            'planned_action' => 'Secret planned action',
+            'title' => 'Secret title',
+        ], ['guard' => false]);
+        $segment = new CourtAgendaSegment(['court_agenda_items' => [$item]]);
+        $agenda = new CourtAgenda(['court_agenda_segments' => [$segment]]);
+
+        $result = (new BestowalFieldAccessService())->redactAgendaViewModel([
+            'agenda' => $agenda,
+            'segments' => [[
+                'entity' => $segment,
+                'items' => [[
+                    'entity' => $item,
+                    'label' => 'Secret recipient',
+                    'awardLabel' => 'Secret award',
+                    'durationHint' => 'Secret award level',
+                    'reasons' => ['Secret reason'],
+                    'specialties' => ['Secret specialty'],
+                    'moveSegmentOptions' => [300 => 'Secret eligible court'],
+                    'minutes' => 8,
+                ]],
+                'eligibleBestowals' => [$blocked, $visible],
+            ]],
+            'unscheduledBestowals' => [
+                ['entity' => $blocked, 'label' => 'Secret backlog recipient'],
+                ['entity' => $visible, 'label' => 'Visible recipient'],
+            ],
+            'totalMinutes' => 8,
+        ], $identity);
+
+        $redacted = $result['segments'][0]['items'][0];
+        $this->assertSame('Court Item  (details blocked by security)', $redacted['label']);
+        $this->assertTrue($redacted['detailsBlocked']);
+        $this->assertSame(8, $redacted['minutes']);
+        $this->assertSame(100, $redacted['entity']->id);
+        $this->assertSame(20, $redacted['entity']->sort_order);
+        $this->assertNull($redacted['entity']->bestowal);
+        $this->assertNull($redacted['entity']->bestowal_id);
+        $this->assertSame('', $redacted['awardLabel']);
+        $this->assertSame('', $redacted['durationHint']);
+        $this->assertSame([], $redacted['reasons']);
+        $this->assertSame([], $redacted['specialties']);
+        $this->assertSame([], $redacted['moveSegmentOptions']);
+        $this->assertSame([$visible], $result['segments'][0]['eligibleBestowals']);
+        $this->assertSame([['entity' => $visible, 'label' => 'Visible recipient']], $result['unscheduledBestowals']);
+        $this->assertSame($redacted['entity'], $segment->court_agenda_items[0]);
+        $this->assertSame($redacted['entity'], $agenda->court_agenda_segments[0]->court_agenda_items[0]);
+        $this->assertStringNotContainsString('Secret', json_encode($result, JSON_THROW_ON_ERROR));
+    }
+
+    public function testUnresolvedBestowalIsBlockedAndManualBlocksKeepTheirDetails(): void
+    {
+        $unresolved = [
+            'entity' => new CourtAgendaItem([
+                'item_type' => CourtAgendaItem::TYPE_BESTOWAL,
+                'presentation_notes' => 'Secret notes for missing bestowal',
+            ]),
+            'label' => 'Secret recipient',
+            'minutes' => 5,
+        ];
+        $manual = [
+            'entity' => new CourtAgendaItem([
+                'item_type' => CourtAgendaItem::TYPE_BLOCK,
+                'title' => 'Court business',
+                'presentation_notes' => 'Public court business notes',
+            ]),
+            'label' => 'Court business',
+            'minutes' => 10,
+        ];
+
+        $result = (new BestowalFieldAccessService())->redactAgendaViewModel([
+            'segments' => [['items' => [$unresolved, $manual]]],
+        ], $this->identityWithAccess(false, false));
+
+        $this->assertTrue($result['segments'][0]['items'][0]['detailsBlocked']);
+        $this->assertSame($manual, $result['segments'][0]['items'][1]);
+        $this->assertStringNotContainsString('Secret', json_encode($result, JSON_THROW_ON_ERROR));
+    }
+
     private function protectedBestowal(): Bestowal
     {
         return new Bestowal([
@@ -127,6 +224,7 @@ class BestowalFieldAccessServiceTest extends BaseTestCase
                 }
 
                 return match ($action) {
+                    'view' => true,
                     BestowalFieldAccessService::ACTION_ACCESS_HERALD_NOTES => $heraldNotes,
                     BestowalFieldAccessService::ACTION_ACCESS_CROWN_FIELDS => $crownFields,
                     default => false,

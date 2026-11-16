@@ -56,50 +56,50 @@ $executionModeOptions = [
         data-workflow-toolbar-workflow-designer-outlet=".workflows.designer.content">
         <h5 class="mb-0 me-2">
             <?php if ($workflow) : ?>
-                <i class="bi bi-diagram-3 me-1"></i><span data-workflow-toolbar-target="workflowName"><?= h($workflow->name) ?></span>
+                <kmp-icon name="sitemap" class="me-1" aria-hidden="true"></kmp-icon><span data-workflow-toolbar-target="workflowName"><?= h($workflow->name) ?></span>
                 <?php if ($draftVersion) : ?>
                     <span class="badge bg-warning text-dark ms-2"><?= __('Draft v{0}', $draftVersion->version_number) ?></span>
                 <?php endif; ?>
                 <?php if ($workflow->execution_mode === 'ephemeral') : ?>
                     <span class="badge bg-info text-dark ms-2" data-workflow-toolbar-target="executionModeBadge" title="<?= __('Ephemeral workflows run in-memory with no persistence. Async nodes (approvals, delays) are not supported.') ?>">
-                        <i class="bi bi-lightning-charge me-1"></i><?= __('Ephemeral') ?>
+                        <kmp-icon name="bolt" class="me-1" aria-hidden="true"></kmp-icon><?= __('Ephemeral') ?>
                     </span>
                 <?php else : ?>
                     <span class="badge bg-primary ms-2" data-workflow-toolbar-target="executionModeBadge" title="<?= __('Durable workflows persist execution state and support async nodes like approvals and delays.') ?>">
-                        <i class="bi bi-database me-1"></i><?= __('Durable') ?>
+                        <kmp-icon name="database" class="me-1" aria-hidden="true"></kmp-icon><?= __('Durable') ?>
                     </span>
                 <?php endif; ?>
             <?php else : ?>
-                <i class="bi bi-diagram-3 me-1"></i><?= __('New Workflow') ?>
+                <kmp-icon name="sitemap" class="me-1" aria-hidden="true"></kmp-icon><?= __('New Workflow') ?>
             <?php endif; ?>
         </h5>
 
         <div class="wf-zoom-controls ms-3">
             <button class="btn btn-sm" data-action="workflow-toolbar#zoomOut" title="Zoom Out" aria-label="<?= __('Zoom Out') ?>">
-                <i class="bi bi-dash"></i>
+                <kmp-icon name="minus"  aria-hidden="true"></kmp-icon>
             </button>
             <span class="wf-zoom-level" data-workflow-toolbar-target="zoomLevel">100%</span>
             <button class="btn btn-sm" data-action="workflow-toolbar#zoomIn" title="Zoom In" aria-label="<?= __('Zoom In') ?>">
-                <i class="bi bi-plus"></i>
+                <kmp-icon name="plus"  aria-hidden="true"></kmp-icon>
             </button>
             <button class="btn btn-sm" data-action="workflow-toolbar#zoomReset" title="Reset Zoom" aria-label="<?= __('Reset Zoom') ?>">
-                <i class="bi bi-arrows-angle-expand"></i>
+                <kmp-icon name="arrows-maximize"  aria-hidden="true"></kmp-icon>
             </button>
         </div>
 
         <div class="toolbar-separator"></div>
 
         <button class="btn btn-sm btn-outline-secondary" data-action="workflow-toolbar#undo" title="Undo (Ctrl+Z)" aria-label="<?= __('Undo') ?>">
-            <i class="bi bi-arrow-counterclockwise"></i>
+            <kmp-icon name="rotate"  aria-hidden="true"></kmp-icon>
         </button>
         <button class="btn btn-sm btn-outline-secondary" data-action="workflow-toolbar#redo" title="Redo (Ctrl+Y)" aria-label="<?= __('Redo') ?>">
-            <i class="bi bi-arrow-clockwise"></i>
+            <kmp-icon name="refresh"  aria-hidden="true"></kmp-icon>
         </button>
 
         <div class="toolbar-separator"></div>
 
         <button class="btn btn-sm btn-outline-secondary" data-action="workflow-toolbar#validateWorkflow" title="Validate">
-            <i class="bi bi-check-circle me-1"></i><?= __('Validate') ?>
+            <kmp-icon name="circle-check" class="me-1" aria-hidden="true"></kmp-icon><?= __('Validate') ?>
         </button>
 
         <div class="ms-auto d-flex gap-2">
@@ -108,10 +108,10 @@ $executionModeOptions = [
                     type="button"
                     data-bs-toggle="modal"
                     data-bs-target="#workflow-metadata-modal">
-                    <i class="bi bi-pencil-square me-1"></i><?= __('Edit Details') ?>
+                    <kmp-icon name="edit" class="me-1" aria-hidden="true"></kmp-icon><?= __('Edit Details') ?>
                 </button>
                 <?= $this->Html->link(
-                    '<i class="bi bi-arrow-left me-1"></i>' . __('Back'),
+                    '<kmp-icon name="arrow-left" class="me-1" aria-hidden="true"></kmp-icon>' . __('Back'),
                     ['action' => 'index'],
                     ['class' => 'btn btn-sm btn-outline-secondary', 'escape' => false]
                 ) ?>
@@ -119,12 +119,12 @@ $executionModeOptions = [
             <button class="btn btn-sm btn-outline-primary"
                 data-action="workflow-toolbar#save"
                 data-workflow-toolbar-target="saveBtn">
-                <i class="bi bi-save me-1"></i><?= __('Save Draft') ?>
+                <kmp-icon name="device-floppy" class="me-1" aria-hidden="true"></kmp-icon><?= __('Save Draft') ?>
             </button>
             <button class="btn btn-sm btn-primary"
                 data-action="workflow-toolbar#publish"
                 data-workflow-toolbar-target="publishBtn">
-                <i class="bi bi-rocket-takeoff me-1"></i><?= __('Publish') ?>
+                <kmp-icon name="rocket" class="me-1" aria-hidden="true"></kmp-icon><?= __('Publish') ?>
             </button>
         </div>
         <?php if ($workflow) : ?>
@@ -140,7 +140,7 @@ $executionModeOptions = [
                                 <div class="alert alert-danger d-none" role="alert" data-workflow-toolbar-target="metadataStatus"></div>
                                 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
                                     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                                        <i class="bi bi-diagram-3 text-primary me-1" aria-hidden="true"></i>
+                                        <kmp-icon name="sitemap" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                                         <?= __('Workflow Metadata') ?>
                                     </legend>
                                        <div class="row g-3">
@@ -183,7 +183,7 @@ $executionModeOptions = [
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><?= __('Cancel') ?></button>
                                 <button type="submit" class="btn btn-primary" data-workflow-toolbar-target="metadataSaveBtn">
-                                    <i class="bi bi-save me-1"></i><?= __('Save Details') ?>
+                                    <kmp-icon name="device-floppy" class="me-1" aria-hidden="true"></kmp-icon><?= __('Save Details') ?>
                                 </button>
                             </div>
                         </form>
@@ -203,7 +203,7 @@ $executionModeOptions = [
             data-workflow-designer-target="nodePalette">
             <div style="padding: 0.25rem 0 0.5rem;">
                 <span style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #667085;">
-                    <i class="bi bi-grid-3x3-gap me-1" aria-hidden="true"></i><?= __('Nodes') ?>
+                    <kmp-icon name="layout-grid" class="me-1" aria-hidden="true"></kmp-icon><?= __('Nodes') ?>
                 </span>
             </div>
             <p class="visually-hidden" id="workflow-palette-keyboard-help">
@@ -231,10 +231,10 @@ $executionModeOptions = [
                 aria-label="<?= __('Resize configuration panel') ?>"
                 data-action="mousedown->workflow-designer#onResizeStart"></div>
             <div class="config-panel-header">
-                <h6><i class="bi bi-sliders me-1"></i><?= __('Configuration') ?></h6>
+                <h6><kmp-icon name="adjustments" class="me-1" aria-hidden="true"></kmp-icon><?= __('Configuration') ?></h6>
             </div>
             <div class="config-panel-empty">
-                <i class="bi bi-hand-index"></i>
+                <kmp-icon name="hand-finger"  aria-hidden="true"></kmp-icon>
                 <p><?= __('Select a node on the canvas to configure it') ?></p>
             </div>
         </div>

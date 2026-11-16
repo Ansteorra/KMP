@@ -38,6 +38,13 @@ describe('CourtAgendaBoardController', () => {
         expect(window.Controllers['court-agenda-board']).toBe(CourtAgendaBoardController);
     });
 
+    test('connecting preserves stored sort values until a saved move renumbers them', () => {
+        const item = root.querySelector('[data-item-id="1"]');
+        item.dataset.sortOrder = '3';
+        controller.connect();
+        expect(item.dataset.sortOrder).toBe('3');
+    });
+
     test('drop posts move request for target segment', async () => {
         const segment = root.querySelector('[data-segment-id="20"]');
         const event = {
@@ -243,7 +250,7 @@ describe('CourtAgendaBoardController', () => {
         expect(requestBody.get('court_agenda_segment_id')).toBe('20');
         expect(requestBody.get('sort_order')).toBe('10');
         expect(root.querySelector('[data-segment-id="20"] [data-item-id="1"]')).not.toBeNull();
-        expect(document.activeElement).toBe(firstItem);
+        expect(document.activeElement).toBe(button);
         expect(window.KMP_accessibility.announce).toHaveBeenCalledWith('Agenda item moved.');
     });
 
@@ -257,5 +264,66 @@ describe('CourtAgendaBoardController', () => {
 
         expect(window.KMP_accessibility.announce).toHaveBeenCalledWith('Agenda item is already in the edge segment.');
         expect(fetch).not.toHaveBeenCalled();
+    });
+
+    test('repeated keyboard moves keep numbering, edge state, and focus aligned', async () => {
+        const item = root.querySelector('[data-item-id="2"]');
+        item.innerHTML = `<span data-court-agenda-board-target="position">2.</span>
+            <button data-direction="up"></button><button data-direction="down"></button>`;
+        const up = item.querySelector('[data-direction="up"]');
+        const down = item.querySelector('[data-direction="down"]');
+
+        await controller.moveByButton({ currentTarget: up });
+        expect(document.activeElement).toBe(up);
+        expect(up).toHaveAttribute('aria-disabled', 'true');
+        expect(down).toHaveAttribute('aria-disabled', 'false');
+        expect(item.querySelector('span')).toHaveTextContent('1.');
+        expect(item.dataset.sortOrder).toBe('10');
+
+        await controller.moveByButton({ currentTarget: down });
+        expect(fetch.mock.calls[1][1].body.get('sort_order')).toBe('21');
+        expect(item.dataset.sortOrder).toBe('20');
+        expect(item.querySelector('span')).toHaveTextContent('2.');
+        expect(up).toHaveAttribute('aria-disabled', 'false');
+        expect(down).toHaveAttribute('aria-disabled', 'true');
+        expect(document.activeElement).toBe(down);
+    });
+
+    test.each(['network', 'server'])('failed %s move keeps the item and permits retry', async (failure) => {
+        const item = root.querySelector('[data-item-id="2"]');
+        const button = document.createElement('button');
+        button.dataset.direction = 'up';
+        item.appendChild(button);
+        if (failure === 'network') fetch.mockRejectedValueOnce(new Error('offline'));
+        else fetch.mockResolvedValueOnce({ ok: false });
+
+        await controller.moveByButton({ currentTarget: button });
+
+        expect(root.querySelector('[data-segment-id="10"]').lastElementChild).toBe(item);
+        expect(root).not.toHaveAttribute('aria-busy');
+        expect(controller.statusTarget.textContent).toContain('Could not move agenda item.');
+        await controller.moveByButton({ currentTarget: button });
+        expect(root.querySelector('[data-segment-id="10"]').firstElementChild).toBe(item);
+    });
+
+    test('overlapping reorder requests are ignored while saving', async () => {
+        let finish;
+        fetch.mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+        const move = controller.moveItem('1', '10', 21);
+        expect(root).toHaveAttribute('aria-busy', 'true');
+        expect(await controller.moveItem('2', '10', 9)).toBe(false);
+        expect(fetch).toHaveBeenCalledTimes(1);
+        finish({ ok: true });
+        await move;
+        expect(root).not.toHaveAttribute('aria-busy');
+    });
+
+    test('dragging an item control does not start a card move', () => {
+        const item = root.querySelector('[data-item-id="1"]');
+        item.innerHTML = '<details><summary>Details</summary></details>';
+        const preventDefault = jest.fn();
+        controller.dragStart({ currentTarget: item, target: item.querySelector('summary'), preventDefault });
+        expect(preventDefault).toHaveBeenCalled();
+        expect(controller.draggedItem).toBeFalsy();
     });
 });

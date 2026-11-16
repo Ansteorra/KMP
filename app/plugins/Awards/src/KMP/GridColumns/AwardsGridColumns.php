@@ -24,7 +24,7 @@ class AwardsGridColumns extends BaseGridColumns
                 'key' => 'removeActivity',
                 'type' => 'postLink',
                 'label' => '',
-                'icon' => 'bi-x-circle-fill',
+                'icon' => 'circle-x',
                 'class' => 'btn btn-sm btn-danger',
                 'url' => [
                     'plugin' => 'Awards',

@@ -53,11 +53,13 @@ class ViewCellRegistry
      *
      * @param array $urlParams URL parameters from request
      * @param \App\Model\Entity\Member|null $user The current user
+     * @param bool $includeMobileMenu Whether the selected layout renders mobile menu cells.
      * @return array All matching view cells organized by type
      */
-    public static function getViewCells(array $urlParams, ?Member $user = null): array
+    public static function getViewCells(array $urlParams, ?Member $user = null, bool $includeMobileMenu = true): array
     {
         self::ensureInitialized();
+        $urlParams['_includeMobileMenu'] = $includeMobileMenu;
 
         $allCells = [];
 
@@ -74,6 +76,9 @@ class ViewCellRegistry
 
             // Filter cells that match the current route
             foreach ($cells as $cell) {
+                if (!$includeMobileMenu && ($cell['type'] ?? null) === self::PLUGIN_TYPE_MOBILE_MENU) {
+                    continue;
+                }
                 if (self::cellMatchesRoute($cell, $urlParams, $user)) {
                     $allCells[] = $cell;
                 }

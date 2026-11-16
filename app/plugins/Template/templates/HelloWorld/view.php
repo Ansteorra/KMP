@@ -11,12 +11,12 @@
         <h1><?= __('Hello World Item') ?></h1>
         <div>
             <?= $this->Html->link(
-                '<i class="bi bi-pencil me-1"></i>' . __('Edit'),
+                '<kmp-icon name="pencil" class="me-1" aria-hidden="true"></kmp-icon>' . __('Edit'),
                 ['action' => 'edit', $item['id']],
                 ['class' => 'btn btn-primary', 'escape' => false]
             ) ?>
             <?= $this->Form->postLink(
-                '<i class="bi bi-trash me-1"></i>' . __('Delete'),
+                '<kmp-icon name="trash" class="me-1" aria-hidden="true"></kmp-icon>' . __('Delete'),
                 ['action' => 'delete', $item['id']],
                 [
                     'confirm' => __('Are you sure you want to delete this item?'),
@@ -25,7 +25,7 @@
                 ]
             ) ?>
             <?= $this->Html->link(
-                '<i class="bi bi-arrow-left me-1"></i>' . __('Back to List'),
+                '<kmp-icon name="arrow-left" class="me-1" aria-hidden="true"></kmp-icon>' . __('Back to List'),
                 ['action' => 'index'],
                 ['class' => 'btn btn-secondary', 'escape' => false]
             ) ?>
@@ -68,7 +68,7 @@
     </div>
 
     <div class="alert alert-info mt-4" role="alert">
-        <i class="bi bi-info-circle me-2"></i>
+        <kmp-icon name="info-circle" class="me-2" aria-hidden="true"></kmp-icon>
         This is a view template example. In a real plugin, this would display actual data from the database.
     </div>
 </div>

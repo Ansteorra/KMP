@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import { updateUiHistory } from '../services/ui-navigation-service.js';
 
 /**
  * Keeps hidden page_context_url fields in sync with the browser address bar.
@@ -123,7 +124,7 @@ class PageContextController extends Controller {
             return;
         }
         const url = this.gridContextUrl(grid);
-        window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+        updateUiHistory(url.pathname + url.search + url.hash, { replace: true });
     }
 
     sync(event) {

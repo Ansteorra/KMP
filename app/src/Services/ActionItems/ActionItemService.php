@@ -6,6 +6,9 @@ namespace App\Services\ActionItems;
 use App\KMP\KmpIdentityInterface;
 use App\KMP\PermissionsLoader;
 use App\Model\Entity\ActionItem;
+use App\Model\Table\ActionItemLogsTable;
+use App\Model\Table\ActionItemsTable;
+use App\Services\Security\MemberSecurityGraph;
 use App\Services\ServiceResult;
 use Cake\Datasource\EntityInterface;
 use Cake\Event\Event;
@@ -82,12 +85,12 @@ class ActionItemService
     /**
      * @var \App\Model\Table\ActionItemsTable
      */
-    protected $ActionItems;
+    protected ActionItemsTable $ActionItems;
 
     /**
      * @var \App\Model\Table\ActionItemLogsTable
      */
-    protected $ActionItemLogs;
+    protected ActionItemLogsTable $ActionItemLogs;
 
     /**
      * @param \App\Services\ActionItems\ActionItemAssigneeResolver|null $resolver Eligibility resolver
@@ -1371,6 +1374,7 @@ class ActionItemService
             ];
         }
 
+        $conditions = array_merge($conditions, ActionItemDelegationRegistry::candidateConditions($memberId));
         $query->where(['OR' => $conditions]);
     }
 
@@ -1383,6 +1387,8 @@ class ActionItemService
     {
         return [
             'id',
+            'entity_type',
+            'entity_id',
             'assignee_type',
             'assignee_config',
             'assignee_lookup_type',
@@ -1398,20 +1404,7 @@ class ActionItemService
      */
     private function getCurrentOfficeScopesForMember(int $memberId): array
     {
-        $now = DateTime::now();
-        $rows = TableRegistry::getTableLocator()->get('Officers.Officers')->find()
-            ->select(['office_id', 'branch_id'])
-            ->where([
-                'Officers.member_id' => $memberId,
-                'Officers.status' => 'Current',
-                'Officers.start_on <=' => $now,
-                'OR' => [
-                    'Officers.expires_on IS' => null,
-                    'Officers.expires_on >=' => $now,
-                ],
-            ])
-            ->enableHydration(false)
-            ->all();
+        $rows = MemberSecurityGraph::currentOfficeScopes($memberId);
 
         $officeScopes = [];
         foreach ($rows as $row) {

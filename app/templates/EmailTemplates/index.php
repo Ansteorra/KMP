@@ -26,7 +26,7 @@ $this->assign('title', __('Email Templates'));
                 <?= $this->Html->link(
                     __(' Add Email Template'),
                     ['action' => 'add'],
-                    ['class' => 'btn btn-primary bi bi-plus-circle me-2']
+                    ['class' => 'btn btn-primary me-2', 'icon' => 'circle-plus']
                 ) ?>
             <?php endif; ?>
         </div>

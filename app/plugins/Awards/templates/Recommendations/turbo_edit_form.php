@@ -3,7 +3,7 @@
     <?php if (!empty($recommendation->current_approval_run)) : ?>
     <div class="alert alert-primary" role="status">
         <div class="fw-semibold">
-            <i class="bi bi-diagram-3" aria-hidden="true"></i>
+            <kmp-icon name="sitemap"  aria-hidden="true"></kmp-icon>
             <?= __('Approval workflow in progress') ?>
         </div>
         <div>
@@ -59,7 +59,7 @@
             <div class="col-12 col-lg-6">
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
                     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                        <i class="bi bi-person-badge text-primary me-1" aria-hidden="true"></i>
+                        <kmp-icon name="id-badge" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Recipient') ?>
                     </legend>
                     <?php
@@ -77,7 +77,7 @@
                             'data-action' => 'autocomplete.change->awards-rec-edit#loadScaMemberInfo',
                             'data-ac-init-selection-value' => json_encode([
                                 'value' => $recommendation->member->public_id ?? null,
-                                'text' => $recommendation->member_sca_name,
+                                'text' => $recommendation->getRecipientName(),
                             ]),
                         ],
                     );
@@ -116,7 +116,7 @@
             <div class="col-12 col-lg-6">
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3 h-100">
                     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                        <i class="bi bi-award text-success me-1" aria-hidden="true"></i>
+                        <kmp-icon name="award" class="text-success me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Award') ?>
                     </legend>
                     <div class="row g-3">
@@ -188,7 +188,7 @@
             <div class="col-12">
                 <fieldset class="border rounded-3 bg-white shadow-sm p-3">
                     <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
-                        <i class="bi bi-journal-text text-info me-1" aria-hidden="true"></i>
+                        <kmp-icon name="notebook" class="text-info me-1" aria-hidden="true"></kmp-icon>
                         <?= __('Recommendation Details') ?>
                     </legend>
                     <div class="row g-3">

@@ -1065,7 +1065,7 @@ class MembersController extends AppController
         // Set layout variables for mobile_app layout
         $this->set('mobileTitle', 'Auth Card');
         $this->set('mobileSection', 'auth-card');
-        $this->set('mobileIcon', 'bi-person-vcard');
+        $this->set('mobileIcon', 'address-book');
         $this->set('watermarkImage', $watermarkimg);
         $this->set('showRefreshBtn', true); // Mobile card needs refresh button
         $this->set('cardUrl', $cardUrl); // For member-mobile-card-profile controller
@@ -1639,7 +1639,7 @@ class MembersController extends AppController
     /**
      * Profile method
      *
-     * Shows the current user's profile without changing the URL
+     * Redirects to the current user's record, retaining tab and grid context.
      *
      * @return \Cake\Http\Response|null|void Renders view
      */
@@ -1651,7 +1651,7 @@ class MembersController extends AppController
             throw new NotFoundException(__('User not authenticated.'));
         }
 
-        return $this->redirect(['action' => 'view', $user->id]);
+        return $this->redirect(['action' => 'view', $user->id, '?' => $this->request->getQueryParams()]);
     }
 
     /**
@@ -2675,7 +2675,11 @@ class MembersController extends AppController
      */
     public function logout()
     {
+        $this->request->allowMethod(['get', 'post']);
         $this->Authorization->skipAuthorization();
+        if (!$this->request->is('post')) {
+            return;
+        }
         $this->Authentication->logout();
         $this->request->getSession()->delete('QuickLoginSetup');
         $this->request->getSession()->delete('Impersonation');

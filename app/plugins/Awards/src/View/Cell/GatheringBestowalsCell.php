@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Awards\View\Cell;
 
+use Awards\Services\BestowalDelegationAccessService;
 use Awards\Services\BestowalFormService;
 use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
@@ -50,6 +51,12 @@ class GatheringBestowalsCell extends Cell
         $emptyBestowal->gathering_id = $gathering->id;
         $emptyBestowal->gathering = $gathering;
         $canManage = $currentUser->can('edit', $emptyBestowal);
+        $canEditBestowalRecords = $canManage
+            || (new BestowalDelegationAccessService())->allowsContext(
+                $currentUser,
+                'canEdit',
+                (int)$gathering->id,
+            );
 
         $statusList = [];
         $rules = [];
@@ -58,6 +65,13 @@ class GatheringBestowalsCell extends Cell
 
         $this->set('gatheringId', $gathering->id);
         $this->set('isEmpty', $isEmpty);
-        $this->set(compact('rules', 'statusList', 'gatheringList', 'canManage', 'adHocFormData'));
+        $this->set(compact(
+            'rules',
+            'statusList',
+            'gatheringList',
+            'canManage',
+            'canEditBestowalRecords',
+            'adHocFormData',
+        ));
     }
 }

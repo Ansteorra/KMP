@@ -442,7 +442,8 @@ class EngineEdgeCasesTest extends BaseTestCase
         ])->first();
         $this->assertNotNull($log);
         $this->assertEquals(WorkflowExecutionLog::STATUS_WAITING, $log->status);
-        $this->assertEquals(['delayConfig' => $delayConfig], $log->output_data);
+        $this->assertEquals($delayConfig, $log->output_data['delayConfig']);
+        $this->assertSame('delay', $log->output_data['_deferred']['kind']);
     }
 
     // =========================================================================

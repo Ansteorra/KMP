@@ -5,6 +5,7 @@ namespace App\KMP\GridColumns;
 
 use App\KMP\TimezoneHelper;
 use Cake\ORM\Query\SelectQuery;
+use Cake\ORM\TableRegistry;
 use DateTime;
 use DateTimeZone;
 
@@ -69,7 +70,7 @@ class GatheringsGridColumns extends BaseGridColumns
                 'key' => 'view',
                 'type' => 'link',
                 'label' => '',
-                'icon' => 'bi-binoculars',
+                'icon' => 'binoculars',
                 'class' => 'btn btn-sm btn-secondary',
                 'permission' => 'view',
                 'url' => [
@@ -82,7 +83,7 @@ class GatheringsGridColumns extends BaseGridColumns
                 'key' => 'edit',
                 'type' => 'link',
                 'label' => '',
-                'icon' => 'bi-pencil-fill',
+                'icon' => 'pencil',
                 'class' => 'btn btn-sm btn-primary',
                 'permission' => 'edit',
                 'url' => [
@@ -259,7 +260,10 @@ class GatheringsGridColumns extends BaseGridColumns
                 'sortable' => false,
                 'filterable' => true,
                 'filterType' => 'dropdown',
-                'filterOptionsSource' => 'GatheringActivities',
+                'filterOptionsSource' => [
+                    'class' => self::class,
+                    'method' => 'getActivityFilterOptions',
+                ],
                 'defaultVisible' => false,
                 'alignment' => 'left',
                 'queryField' => 'GatheringActivities.id',
@@ -324,6 +328,16 @@ class GatheringsGridColumns extends BaseGridColumns
                 ],
             ],
         ];
+    }
+
+    /** @return array<array{value: string, label: string}> Activities in shared display order */
+    public static function getActivityFilterOptions(): array
+    {
+        $activities = TableRegistry::getTableLocator()->get('GatheringActivities')->find('forDisplay')->all();
+
+        return $activities->map(static fn($activity) => [
+            'value' => (string)$activity->id, 'label' => $activity->name,
+        ])->toList();
     }
 
     /**

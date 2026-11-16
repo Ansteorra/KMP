@@ -121,7 +121,7 @@ class ApprovalContextRendererRegistry
                 ['label' => 'Entity Type', 'value' => $entityType],
                 ['label' => 'Entity', 'value' => (string)$name],
             ],
-            icon: 'bi-question-circle',
+            icon: 'help-circle',
         );
     }
 

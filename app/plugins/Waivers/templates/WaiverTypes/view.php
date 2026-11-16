@@ -52,13 +52,13 @@ echo $this->KMP->startBlock("pageTitle") ?>
     <td>
         <?php if (!empty($waiverType->template_path)): ?>
             <a href="<?= h($waiverType->template_path) ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
-                <i class="bi bi-box-arrow-up-right"></i> View External Template
+                <kmp-icon name="external-link"  aria-hidden="true"></kmp-icon> View External Template
             </a>
             <br>
             <small class="text-muted"><?= h($waiverType->template_path) ?></small>
         <?php elseif (!empty($waiverType->document_id)): ?>
             <?= $this->Html->link(
-                '<i class="bi bi-download"></i> Download Template PDF',
+                '<kmp-icon name="download"  aria-hidden="true"></kmp-icon> Download Template PDF',
                 ['action' => 'downloadTemplate', $waiverType->id],
                 [
                     'class' => 'btn btn-sm btn-success',

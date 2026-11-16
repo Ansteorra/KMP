@@ -27,7 +27,7 @@ $this->assign('title', __('Add Service Principal'));
                 </div>
                 <div class="card-body">
                     <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i>
+                        <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                         <?= __('A service principal allows third-party applications to authenticate with the KMP API. After creation, you will receive credentials that must be stored securely - they will only be shown once.') ?>
                     </div>
 

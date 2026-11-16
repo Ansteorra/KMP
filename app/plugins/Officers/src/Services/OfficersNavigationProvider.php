@@ -48,7 +48,7 @@ class OfficersNavigationProvider
                     "action" => "index",
                     "model" => "Officers.Departments",
                 ],
-                "icon" => "bi-building",
+                "icon" => "building",
                 "activePaths" => [
                     "officers/departments/view/*",
                 ]
@@ -64,7 +64,7 @@ class OfficersNavigationProvider
                     "action" => "index",
                     "model" => "Officers.Offices",
                 ],
-                "icon" => "bi-person-gear",
+                "icon" => "user-cog",
                 "activePaths" => [
                     "officers/offices/view/*",
                 ]
@@ -79,7 +79,7 @@ class OfficersNavigationProvider
                     "action" => "DepartmentOfficersRoster",
                     "plugin" => "Officers",
                 ],
-                "icon" => "bi-building-fill-check",
+                "icon" => "building-community",
             ],
             [
                 "type" => "link",
@@ -91,7 +91,7 @@ class OfficersNavigationProvider
                     "action" => "add",
                     "plugin" => "Officers",
                 ],
-                "icon" => "bi-plus",
+                "icon" => "plus",
             ],
         ];
     }

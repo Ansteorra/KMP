@@ -333,7 +333,7 @@ class BestowalRecommendationLinkService
                 $bestowal->primary_recommendation_id = (int)$recommendations[0]->id;
             }
 
-            $memberName = (string)($bestowal->member->sca_name ?? '');
+            $memberName = $bestowal->getRecipientName();
             $bestowal->specialty = $this->buildSpecialtySummary($recommendations);
             $bestowal->noble_notes = $this->buildNobleNotes($recommendations);
             $bestowal->herald_notes = $this->buildHeraldNotes($recommendations, $memberName);

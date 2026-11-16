@@ -1,5 +1,6 @@
 <?php
 
+use Cake\Core\Configure;
 /**
  * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
  * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
@@ -16,20 +17,21 @@
  */
 ?>
 <!DOCTYPE html>
-<html lang="<?= h(\Cake\Core\Configure::read('App.language') ?: 'en') ?>">
+<html lang="<?= h(Configure::read('App.language') ?: 'en') ?>">
 
 <head>
+    <meta name="turbo-visit-control" content="reload">
     <?= $this->Html->charset() ?>
     <title>
-        <?= $this->fetch("title") ?>
+        <?= $this->fetch('title') ?>
     </title>
-    <?= $this->Html->meta("icon") ?>
+    <?= $this->Html->meta('icon') ?>
 
     <?= $this->Vite->css('error') ?>
 
-    <?= $this->fetch("meta") ?>
-    <?= $this->fetch("css") ?>
-    <?= $this->fetch("script") ?>
+    <?= $this->fetch('meta') ?>
+    <?= $this->fetch('css') ?>
+    <?= $this->fetch('script') ?>
 </head>
 
 <body>
@@ -38,9 +40,9 @@
             <?= $this->Flash->render() ?>
         </div>
         <main id="main-content" tabindex="-1">
-            <?= $this->fetch("content") ?>
+            <?= $this->fetch('content') ?>
         </main>
-        <button type="button" data-controller="history-back" data-action="history-back#go"><?= __("Back") ?></button>
+        <button type="button" data-controller="history-back" data-action="history-back#go"><?= __('Back') ?></button>
     </div>
 </body>
 

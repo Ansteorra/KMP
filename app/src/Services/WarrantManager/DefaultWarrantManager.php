@@ -11,6 +11,7 @@ use App\Model\Entity\WarrantRoster;
 use App\Model\Entity\WorkflowInstance;
 use App\Services\ActiveWindowManager\ActiveWindowManagerInterface;
 use App\Services\ServiceResult;
+use App\Services\UiBulkMutation;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use Cake\I18n\Date;
 use Cake\I18n\DateTime;
@@ -714,7 +715,8 @@ class DefaultWarrantManager implements WarrantManagerInterface
                 return new ServiceResult(false, 'Failed to activate warrants in Roster');
             }
             //expire current warrants for the same entity_type entity_id member_id
-            $warrantTable->updateAll(
+            UiBulkMutation::update(
+                $warrantTable,
                 [
                     'expires_on' => $warrant->start_on,
                     'revoked_reason' => 'New Warrant Approved',

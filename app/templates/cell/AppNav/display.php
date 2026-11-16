@@ -1,8 +1,9 @@
 <?php
+declare(strict_types=1);
 
 /**
  * App Navigation Cell Template
- * 
+ *
  * @var \Cake\View\View $this
  * @var array $appNav
  * @var \App\Model\Entity\Member $user
@@ -11,44 +12,48 @@
 ?>
 
 <div class='nav flex-column' data-controller='nav-bar'>
-    <?php foreach ($appNav as $parent): ?>
+    <?php foreach ($appNav as $parent) : ?>
         <?php
         // Top-link: render as a direct clickable link at the parent level
-        if (!empty($parent['isTopLink'])):
+        if (!empty($parent['isTopLink'])) :
             $url = $parent['url'];
             $url['plugin'] = $url['plugin'] ?? false;
             $activeClass = !empty($parent['active']) ? 'active' : '';
             $badgeHtml = '';
             if (isset($parent['badgeResult']) && $parent['badgeResult'] > 0) {
                 $badgeHtml = ' ' . $this->Html->badge(strval($parent['badgeResult']), [
-                    'class' => $parent['badgeClass'] ?? 'bg-danger',
+                    'class' => ($parent['badgeClass'] ?? 'bg-danger') . ' kmp-nav-count',
                 ]);
             }
-            $linkBody = $parent['label'] . $badgeHtml;
-        ?>
+            $linkBody = $this->Icon->render($parent['icon'], ['class' => 'me-1 kmp-nav-icon'])
+                . $this->Html->tag('span', h($parent['label']), ['class' => 'kmp-nav-label', 'escape' => false])
+                . $badgeHtml;
+            ?>
             <?= $this->Html->link(
                 $linkBody,
                 $url,
                 [
-                    'class' => "navheader text-start badge fs-5 mb-2 mx-1 text-bg-secondary bi {$parent['icon']} {$activeClass}",
+                    'class' => "navheader text-start badge fs-5 mb-2 mx-1 text-bg-secondary {$activeClass}",
                     'style' => 'text-decoration:none;',
                     'escape' => false,
                     'id' => $parent['id'] ?? null,
-                ]
+                ],
             ) ?>
-        <?php continue; endif; ?>
+            <?php
+            continue;
+        endif;
+        ?>
 
         <?php
         $childHtml = '';
-        if(!isset($parent['children']))
-        {
+        if (!isset($parent['children'])) {
             continue;
         }
 
         foreach ($parent['children'] as $child) {
             $childHtml .= $this->element('nav/nav_child', [
                 'child' => $child,
-                'user' => $user
+                'user' => $user,
             ]);
 
             if ($child['active'] && isset($child['sublinks'])) {
@@ -56,18 +61,18 @@
                 foreach ($child['sublinks'] as $sublink) {
                     $childHtml .= $this->element('nav/nav_grandchild', [
                         'sublink' => $sublink,
-                        'user' => $user
+                        'user' => $user,
                     ]);
                 }
             }
         }
         ?>
 
-        <?php if ($childHtml !== ''): ?>
+        <?php if ($childHtml !== '') : ?>
             <?= $this->element('nav/nav_parent', [
                 'parent' => $parent,
                 'childHtml' => $childHtml,
-                'navBarState' => $navBarState
+                'navBarState' => $navBarState,
             ]) ?>
         <?php endif; ?>
     <?php endforeach; ?>

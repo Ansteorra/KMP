@@ -1,0 +1,13 @@
+{
+  "name": "kmp-live-updates",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "node src/main.js",
+    "test": "node --test test/*.test.js",
+    "test:redis": "node --test integration/redis-check.js"
+  },
+  "dependencies": { "jose": "6.2.15", "redis": "6.3.1" }
+}

@@ -1,0 +1,130 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import { readSources, sources } from './sources.mjs';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const resource = path.join(root, 'resources/icons');
+const read = name => JSON.parse(fs.readFileSync(path.join(resource, name)));
+const hash = text => crypto.createHash('sha256').update(text).digest('hex').slice(0, 16);
+const write = (file, value) => {
+    fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o755 });
+    const text = typeof value === 'string' ? value : JSON.stringify(value) + '\n';
+    if (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== text) fs.writeFileSync(file, text, { mode: 0o644 });
+};
+export function bucket(value) {
+    let number = 2166136261;
+    for (let index = 0; index < value.length; index++) number = Math.imul(number ^ value.charCodeAt(index), 16777619);
+    return (number >>> 0) % 64;
+}
+
+const imported = await readSources(root);
+const selections = read('selections.json');
+const compatibility = read('bootstrap-compatibility.json');
+const unmappedLegacy = read('bootstrap-unmapped.json');
+const retiredPicker = read('retired-picker-identifiers.json');
+const subjects = read('subjects.json');
+for (const name of retiredPicker.identifiers) {
+    if (Boolean(compatibility[name]) === Boolean(unmappedLegacy[name])) throw new Error(`Review retired picker identifier ${name}`);
+}
+if (Object.keys(selections).length !== imported.length) throw new Error('Source inventory changed: review selections before updating.');
+const bySource = new Map(imported.map(icon => [icon.key, icon]));
+const entries = {};
+const aliases = {};
+for (const source of imported) {
+    const selection = selections[source.key];
+    if (!selection || !selection.id || !selection.preferred || !selection.reason) throw new Error(`Missing reviewed selection: ${source.key}`);
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(selection.id)) throw new Error(`Unsafe ID ${selection.id}`);
+    const preferred = bySource.get(selection.preferred);
+    if (!preferred || selections[selection.preferred]?.id !== selection.id) throw new Error(`Invalid preferred source ${source.key}`);
+    aliases[source.key] = selection.id;
+    for (const alias of selection.aliases || []) {
+        if (aliases[alias] && aliases[alias] !== selection.id) throw new Error(`Conflicting selection alias ${alias}`);
+        aliases[alias] = selection.id;
+    }
+    const slugAlias = `${source.source}:${source.slug}`;
+    if (aliases[slugAlias] && aliases[slugAlias] !== selection.id) throw new Error(`Ambiguous upstream slug ${slugAlias}`);
+    aliases[slugAlias] = selection.id;
+    if (source.key !== selection.preferred) continue;
+    if (entries[selection.id]) throw new Error(`Duplicate canonical ID ${selection.id}`);
+    const subject = subjects[selection.id] || {};
+    entries[selection.id] = {
+        id: selection.id, label: subject.label || selection.id.replaceAll('-', ' ').replace(/^./, letter => letter.toUpperCase()),
+        category: subject.category || source.category,
+        keywords: [...new Set([...source.keywords, ...(subject.keywords || [])])],
+        source: source.source, upstream: source.name, version: sources[source.source].version,
+        license: sources[source.source].license, notice: sources[source.source].notice,
+        asset: `${selection.id}.${hash(preferred.svg)}.svg`,
+    };
+}
+for (const [alias, id] of Object.entries(compatibility)) {
+    if (!entries[id]) throw new Error(`Unmapped compatibility alias ${alias} -> ${id}`);
+    if (entries[alias] && alias !== id) throw new Error(`Alias conflicts with canonical ID ${alias}`);
+    aliases[alias] = id;
+}
+for (const [alias, id] of Object.entries(aliases)) {
+    if (!entries[id] || (entries[alias] && alias !== id)) throw new Error(`Invalid exact alias ${alias}`);
+}
+const sortedEntries = Object.fromEntries(Object.entries(entries).sort(([a], [b]) => a.localeCompare(b, 'en')));
+const sortedAliases = Object.fromEntries(Object.entries(aliases).sort(([a], [b]) => a.localeCompare(b, 'en')));
+const catalog = { schema: 1, normalization: '24x24; stroke 1.5; currentColor; round caps/joins; child stroke overrides removed; drawing geometry/fills preserved', sources, entries: sortedEntries, aliases: sortedAliases, unmappedLegacy, retiredPickerVersion: retiredPicker.version };
+const revision = hash(JSON.stringify(catalog));
+catalog.revision = revision;
+write(path.join(resource, 'catalog.json'), catalog);
+const phpString = value => "'" + value.replaceAll('\\', '\\\\').replaceAll("'", "\\'") + "'";
+const phpArray = object => '[\n' + Object.entries(object).map(([key, value]) => `        ${phpString(key)} => ${phpString(value)},`).join('\n') + '\n    ]';
+write(path.join(resource, 'resolver.php'), `<?php\ndeclare(strict_types=1);\n\n// Generated by scripts/icons/generate.mjs. Do not edit.\nreturn [\n    'revision' => ${phpString(revision)},\n    'entries' => ${phpArray(Object.fromEntries(Object.values(sortedEntries).map(entry => [entry.id, entry.asset])))},\n    'aliases' => ${phpArray(sortedAliases)},\n];\n`);
+const directory = path.join(root, 'webroot/kmp-icons');
+const assets = path.join(directory, revision);
+for (const entry of Object.values(sortedEntries)) {
+    const svg = bySource.get(selections[`${entry.source}:${entry.upstream}`].preferred).svg;
+    write(path.join(assets, entry.asset), svg);
+}
+for (const [source, config] of Object.entries(sources)) {
+    const license = fs.readFileSync(config.package
+        ? path.join(root, 'node_modules', config.package, source === 'tabler' ? 'LICENSE' : 'LICENSE.md')
+        : path.join(resource, config.notice), 'utf8');
+    write(path.join(resource, config.notice), license);
+    write(path.join(assets, config.notice), license);
+}
+const lookup = {};
+for (const id of Object.keys(sortedEntries)) lookup[id] = id;
+Object.assign(lookup, sortedAliases);
+const shards = Array.from({ length: 64 }, () => ({}));
+for (const [key, id] of Object.entries(lookup)) shards[bucket(key)][key] = { id, asset: sortedEntries[id].asset };
+for (let index = 0; index < shards.length; index++) write(path.join(assets, 'lookup', `${index}.json`), shards[index]);
+const aliasesById = {};
+for (const [alias, id] of Object.entries(sortedAliases)) (aliasesById[id] ||= []).push(alias);
+const search = Object.values(sortedEntries).map(entry => ({ ...entry, aliases: aliasesById[entry.id] || [] }));
+write(path.join(assets, 'catalog.json'), search);
+
+// Only application controls are in the normal page bundle. Subject catalogs and aliases resolve lazily.
+const usedLegacy = Object.keys(read('migration-inventory.json').identifiers).map(name => compatibility[name]).filter(Boolean);
+const baseIds = new Set(['help-circle', ...usedLegacy, ...Object.keys(subjects), ...read('application-controls.json')]);
+function includeStaticUses(directory) {
+    for (const item of fs.readdirSync(path.join(root, directory), { withFileTypes: true })) {
+        const file = `${directory}/${item.name}`;
+        if (item.isDirectory()) {
+            if (!['Migrations', 'Seeds', 'tests', 'node_modules', 'vendor'].includes(item.name)) includeStaticUses(file);
+        } else if (/\.(php|js)$/.test(file)) {
+            const code = fs.readFileSync(path.join(root, file), 'utf8');
+            for (const pattern of [/<kmp-icon\s+name=["']([a-z0-9-]+)["']/g, /(?:createIcon|iconHtml|render)\(\s*["']([a-z0-9-]+)["']/g]) {
+                for (const match of code.matchAll(pattern)) {
+                    // Other render() methods are unrelated; declarative elements are checked by icons:guard.
+                    if (sortedEntries[match[1]]) baseIds.add(match[1]);
+                }
+            }
+        }
+    }
+}
+for (const area of ['src', 'templates', 'assets', 'plugins']) includeStaticUses(area);
+const baseEntries = Object.fromEntries([...baseIds].sort().map(id => {
+    if (!sortedEntries[id]) throw new Error(`Missing base icon ${id}`);
+    return [id, { id, asset: sortedEntries[id].asset }];
+}));
+const baseAliases = Object.fromEntries(Object.entries(sortedAliases).filter(([, id]) => baseIds.has(id)));
+write(path.join(resource, 'runtime.json'), { revision, entries: baseEntries, aliases: baseAliases });
+write(path.join(root, 'assets/css/icons-generated.css'), `:root{--kmp-policy-collapsed:url("/kmp-icons/${revision}/${baseEntries['caret-right'].asset}");--kmp-policy-expanded:url("/kmp-icons/${revision}/${baseEntries['caret-down'].asset}")}\n` + `kmp-icon{--kmp-icon:url("/kmp-icons/${revision}/${baseEntries['help-circle'].asset}")}\n` + Object.values(baseEntries).map(entry => `kmp-icon[name="${entry.id}"]{--kmp-icon:url("/kmp-icons/${revision}/${entry.asset}")}`).join('\n') + '\n');
+write(path.join(resource, 'report.json'), { imported: imported.length, canonical: Object.keys(entries).length, suppressed: imported.length - Object.keys(entries).length, compatibility: Object.keys(compatibility).length, retiredPickerMapped: retiredPicker.identifiers.filter(name => compatibility[name]).length, unmappedLegacy: Object.keys(unmappedLegacy).length, revision });
+console.log(`KMP icons: ${imported.length} imported, ${Object.keys(entries).length} canonical, ${imported.length - Object.keys(entries).length} suppressed; revision ${revision}`);

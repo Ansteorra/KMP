@@ -29,7 +29,7 @@ class WaiversNavigationProvider
      * - label: Display text
      * - order: Sort order within the mergePath
      * - url: CakePHP URL array
-     * - icon: Bootstrap icon class
+     * - icon: Canonical KMP icon ID
      * - badgeValue: Optional dynamic badge configuration
      * - activePaths: Optional array of paths that highlight this nav item
      *
@@ -50,7 +50,7 @@ class WaiversNavigationProvider
         $items[] = [
             "type" => "parent",
             "label" => "Waivers",
-            "icon" => "bi-file-earmark-text",
+            "icon" => "file-text",
             "id" => "navheader_waivers",
             "order" => 600,
         ];
@@ -68,7 +68,7 @@ class WaiversNavigationProvider
                     "plugin" => "Waivers",
                     "model" => "Waivers.GatheringWaivers"
                 ],
-                "icon" => "bi-list-ul",
+                "icon" => "list",
                 "activePaths" => [
                     "waivers/GatheringWaivers/dashboard",
                 ]
@@ -83,7 +83,7 @@ class WaiversNavigationProvider
                     "action" => "dashboard",
                     "plugin" => "Waivers",
                 ],
-                "icon" => "bi-speedometer2",
+                "icon" => "dashboard",
                 "activePaths" => [
                     "waivers/GatheringWaivers/dashboard",
                 ]
@@ -102,7 +102,7 @@ class WaiversNavigationProvider
                 "plugin" => "Waivers",
                 "model" => "Waivers.WaiverTypes"
             ],
-            "icon" => "bi-file-earmark-ruled",
+            "icon" => "file-text",
             "activePaths" => [
                 "waivers/WaiverTypes/view/*",
                 "waivers/WaiverTypes/edit/*",
@@ -122,7 +122,7 @@ class WaiversNavigationProvider
                     "plugin" => "Waivers",
                     "model" => "Waivers.GatheringWaivers",
                 ],
-                "icon" => "bi-file-earmark-check",
+                "icon" => "file-check",
                 "badgeClass" => "bg-danger",
                 "badgeValue" => [
                     "class" => "Waivers\Model\Table\GatheringWaiversTable",
@@ -148,7 +148,7 @@ class WaiversNavigationProvider
         //             "action" => "pending",
         //             "plugin" => "Template",
         //         ],
-        //         "icon" => "bi-exclamation-circle",
+        //         "icon" => "alert-circle",
         //         "badgeClass" => "bg-danger",
         //         "badgeValue" => [
         //             "class" => "Template\Model\Table\HelloWorldItemsTable",

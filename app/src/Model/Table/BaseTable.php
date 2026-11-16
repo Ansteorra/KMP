@@ -30,6 +30,13 @@ use Throwable;
 
 class BaseTable extends Table
 {
+    /** @inheritDoc */
+    public function initialize(array $config): void
+    {
+        parent::initialize($config);
+        $this->addBehavior('UiUpdate');
+    }
+
     /** @var array<array{string, string}> Static cache entries to clear on save */
     protected const CACHES_TO_CLEAR = [];
 

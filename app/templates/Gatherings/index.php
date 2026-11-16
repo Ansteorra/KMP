@@ -25,7 +25,7 @@ $this->KMP->endBlock();
     </div>
     <div class="col text-end">
         <?= $this->Html->link(
-            '<i class="bi bi-calendar-event"></i> Calendar View',
+            '<kmp-icon name="calendar-event"  aria-hidden="true"></kmp-icon> Calendar View',
             ['action' => 'calendar'],
             ['class' => 'btn btn-info', 'escape' => false]
         ) ?>
@@ -41,7 +41,7 @@ $this->KMP->endBlock();
         <?= $this->Html->link(
                 ' Add Gathering',
                 ['action' => 'add'],
-                ['class' => 'btn btn-primary bi bi-plus-circle', 'data-turbo-frame' => '_top']
+                ['class' => 'btn btn-primary', 'icon' => 'circle-plus', 'data-turbo-frame' => '_top']
             ) ?>
         <?php endif; ?>
     </div>

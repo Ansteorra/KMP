@@ -107,7 +107,7 @@ class RecommendationFeedbackContextRendererTest extends BaseTestCase
 
         $recommendation = $this->getTableLocator()->get('Awards.Recommendations')
             ->find()
-            ->contain(['Awards', 'Branches'])
+            ->contain(['Awards', 'Branches', 'Members'])
             ->orderByAsc('Recommendations.id')
             ->firstOrFail();
         $renderer = new RecommendationApprovalContextRenderer();
@@ -124,8 +124,8 @@ class RecommendationFeedbackContextRendererTest extends BaseTestCase
         ));
 
         $this->assertTrue($renderer->canRender($instance));
-        $this->assertStringContainsString((string)$recommendation->member_sca_name, $context->getTitle());
-        $this->assertStringContainsString((string)$recommendation->member_sca_name, $fieldText);
+        $this->assertStringContainsString($recommendation->getRecipientName(), $context->getTitle());
+        $this->assertStringContainsString($recommendation->getRecipientName(), $fieldText);
         $this->assertStringContainsString((string)$recommendation->requester_sca_name, $fieldText);
         $this->assertStringContainsString((string)$recommendation->reason, $fieldText);
         $this->assertStringContainsString((string)$recommendation->award->name, $fieldText);

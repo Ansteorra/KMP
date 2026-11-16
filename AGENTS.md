@@ -42,9 +42,11 @@ Deliver small, correct, verified changes that match the existing CakePHP 5, Stim
 | `app/plugins` | First-party plugins |
 | `app/tests` | PHPUnit, Jest, and Playwright tests |
 | `.github/skills/wcag-accessibility` | WCAG 2.2 Level AA accessibility review and implementation skill |
+| `.github/skills/kmp-icons` | Create original SVG activity icons and register them in the unified catalog |
 | `.github/skills/release-deploy` | Gated POC and production release workflow, including shared changelog and GitHub Release notes |
 | `app/bin/verify.sh` | Full local verification script |
 | `generate_api_docs.sh` | Clean, validated PHP and JavaScript API-reference build |
+| `tools/codex/environment.sh` | Isolated cloud development install, PostgreSQL startup, and command wrapper |
 
 ## Current stack
 
@@ -52,7 +54,7 @@ Deliver small, correct, verified changes that match the existing CakePHP 5, Stim
 - JavaScript bundled with Vite.
 - Stimulus controllers registered through `window.Controllers`.
 - Bootstrap 5 UI components.
-- Turbo Drive disabled; Turbo Frames used for dynamic content.
+- Turbo Drive is gated by `KMP_TURBO_ENABLED`; Frames/Streams remain the fallback. Live SSE delivery has an independent switch. Keep both off until release gates pass.
 - PHPUnit, Jest/jsdom, and Playwright BDD tests.
 
 ## Core coding patterns
@@ -89,6 +91,12 @@ Run these from `app/` unless noted.
 | Clean API references (repository root) | `./generate_api_docs.sh` |
 
 `bin/verify.sh` checks PHPUnit, Jest, Markdown/JSDoc integrity, Vite, changed PHP files with PHPCS, and PHPStan.
+
+In Codex cloud checkouts, follow `app/docs/codex-cloud.md`: run
+`bash tools/codex/environment.sh start` from the repository root, then use
+`bash tools/codex/environment.sh run COMMAND [ARGS...]` for app commands.
+The wrapper supplies disposable PostgreSQL settings without loading local `.env`
+files. Browser journeys still require the complete Docker stack.
 
 ## Release phrase contracts
 
@@ -155,6 +163,12 @@ Use existing utilities:
 
 Clean up listeners in `disconnect()`, preserve data attributes used by templates/tests, and use namespaced custom events for cross-component state changes. Preserve WCAG 2.2 Level AA by using semantic HTML, labeled controls, visible focus, keyboard-operable interactions, adequate contrast, meaningful alt text or decorative `aria-hidden`, and accessible announcements for async updates.
 
+
+Use canonical KMP icon IDs with `IconHelper::render()`, `IconCatalog`, or the JavaScript
+`icon-service.js` API. Keep application controls deduplicated and useful overlapping SCA
+subjects available. Do not add Bootstrap Icons rendering or font dependencies. See
+`app/docs/icons.md`; run `npm run icons:check && npm run icons:guard` after catalog changes.
+
 ## Documentation guidance
 
 Keep inline docblocks short and maintenance-oriented. Put usage examples, architecture narratives, and workflow documentation in `app/docs` or another existing docs location. Update `.github/copilot-instructions.md` and this file when project-wide agent guidance changes.
@@ -174,3 +188,5 @@ Durable development boundaries with their own local contracts:
 | `deploy/AGENTS.md` | Cloud deployment templates, scripts, and environment examples |
 | `docker/AGENTS.md` | Container images, entrypoints, local runtime scripts, and Docker support files |
 | `installer/AGENTS.md` | Retirement notice for removed installer and updater tooling |
+| `tools/codex/AGENTS.md` | Isolated OpenAI-hosted development lifecycle and verification |
+| `services/AGENTS.md` | Independent runtime services, including authorized live-update delivery |

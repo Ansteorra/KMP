@@ -63,7 +63,7 @@ $visibleCount = count($data);
             data-lane-state="<?= h($laneState) ?>">
             <?php if ($visibleCount === 0 && !$hasNextPage) : ?>
             <div class="approval-kanban-empty" role="note">
-                <i class="bi bi-inbox" aria-hidden="true"></i>
+                <kmp-icon name="inbox"  aria-hidden="true"></kmp-icon>
                 <span><?= h(__('No approvals here.')) ?></span>
             </div>
             <?php endif; ?>
@@ -81,8 +81,7 @@ $visibleCount = count($data);
                 data-action="dragstart->approval-kanban#dragStart dragend->approval-kanban#dragEnd">
                 <div class="approval-kanban-card-topline">
                     <span class="approval-kanban-card-type">
-                        <i class="bi <?= h((string)($approval->icon ?? 'bi-question-circle')) ?>"
-                            aria-hidden="true"></i>
+                        <?= $this->Icon->render($approval->icon ?? 'help-circle') ?>
                         <?= h((string)$approval->workflow_name) ?>
                     </span>
                     <span class="approval-kanban-card-status"><?= h((string)$approval->status_label) ?></span>
@@ -111,7 +110,7 @@ $visibleCount = count($data);
 
                 <?php if (!empty($approval->triage_note)) : ?>
                 <p class="approval-kanban-note">
-                    <i class="bi bi-lock" aria-hidden="true"></i>
+                    <kmp-icon name="lock"  aria-hidden="true"></kmp-icon>
                     <?= h((string)$approval->triage_note) ?>
                 </p>
                 <?php endif; ?>
@@ -137,12 +136,12 @@ $visibleCount = count($data);
                         data-action="click->approval-kanban#toggleDetails"
                         data-approval-id="<?= h((string)$approvalId) ?>" aria-expanded="false"
                         aria-controls="<?= h($detailId) ?>">
-                        <i class="bi bi-chevron-down me-1" aria-hidden="true"></i><?= h(__('Details')) ?>
+                        <kmp-icon name="chevron-down" class="me-1" aria-hidden="true"></kmp-icon><?= h(__('Details')) ?>
                     </button>
                     <?php if (!empty($approval->source_url)) : ?>
                     <a href="<?= h((string)$approval->source_url) ?>" class="btn btn-sm btn-outline-primary"
                         data-turbo-frame="_top">
-                        <i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>
+                        <kmp-icon name="external-link" class="me-1" aria-hidden="true"></kmp-icon>
                         <?= h(__('View Source')) ?>
                     </a>
                     <?php endif; ?>

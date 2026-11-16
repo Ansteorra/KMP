@@ -1,12 +1,12 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Waivers\Policy;
 
-use App\Policy\BasePolicy;
 use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\BaseEntity;
+use App\Policy\BasePolicy;
+use App\Services\Security\MemberSecurityGraph;
 use Cake\ORM\TableRegistry;
 
 /**
@@ -56,18 +56,8 @@ class GatheringWaiversTablePolicy extends BasePolicy
             return false;
         }
 
-        $gatheringStaffTable = TableRegistry::getTableLocator()->get('GatheringStaff');
-
         // Find all gatherings where user is a steward
-        $stewardGatheringIds = $gatheringStaffTable->find()
-            ->where([
-                'GatheringStaff.member_id' => $userId,
-                'GatheringStaff.is_steward' => true,
-            ])
-            ->select(['gathering_id'])
-            ->all()
-            ->extract('gathering_id')
-            ->toArray();
+        $stewardGatheringIds = MemberSecurityGraph::stewardGatheringIds((int)$userId);
 
         if (empty($stewardGatheringIds)) {
             return false;
@@ -78,6 +68,7 @@ class GatheringWaiversTablePolicy extends BasePolicy
             $closuresTable = TableRegistry::getTableLocator()->get('Waivers.GatheringWaiverClosures');
             $closedGatheringIds = $closuresTable->getClosedGatheringIds($stewardGatheringIds);
             $openGatheringIds = array_diff($stewardGatheringIds, $closedGatheringIds);
+
             return !empty($openGatheringIds);
         }
 

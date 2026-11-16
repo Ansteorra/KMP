@@ -162,13 +162,13 @@ class WaiverUploadController extends Controller {
             item.className = 'list-group-item d-flex justify-content-between align-items-center'
             item.innerHTML = `
                 <div>
-                    <i class="bi bi-file-image text-primary" aria-hidden="true"></i>
+                    <kmp-icon name="photo" class="text-primary" aria-hidden="true"></kmp-icon>
                     <strong>${this.escapeHtml(file.name)}</strong>
                     <br>
                     <small class="text-muted">${this.formatFileSize(file.size)}</small>
                 </div>
                 <button type="button" class="btn btn-sm btn-outline-danger" data-index="${index}" aria-label="Remove ${this.escapeHtml(file.name)}">
-                    <i class="bi bi-x" aria-hidden="true"></i>
+                    <kmp-icon name="x"  aria-hidden="true"></kmp-icon>
                 </button>
             `
             
@@ -243,7 +243,7 @@ class WaiverUploadController extends Controller {
         // Disable submit button
         if (this.hasSubmitButtonTarget) {
             this.submitButtonTarget.disabled = true
-            this.submitButtonTarget.innerHTML = '<i class="bi bi-hourglass-split"></i> Uploading & Converting...'
+            this.submitButtonTarget.innerHTML = '<kmp-icon name="hourglass"  aria-hidden="true"></kmp-icon> Uploading & Converting...'
         }
 
         // Form will submit normally - progress will be indeterminate

@@ -126,7 +126,7 @@
    Tips Card
    ========================================================================== */
 
-.gathering-waivers.upload .card .bi-lightbulb {
+.gathering-waivers.upload .card kmp-icon[name="bulb"] {
     color: #ffc107;
 }
 
@@ -164,13 +164,13 @@
    Status Badges and Icons
    ========================================================================== */
 
-.bi-camera,
-.bi-file-image,
-.bi-file-earmark-pdf {
+kmp-icon[name="camera"],
+kmp-icon[name="photo"],
+kmp-icon[name="file-type-pdf"] {
     margin-right: 0.25rem;
 }
 
-.text-success .bi-camera-fill {
+.text-success kmp-icon[name="camera"] {
     animation: fade-in 0.5s ease-in;
 }
 
@@ -193,7 +193,7 @@
     opacity: 0.65;
 }
 
-[data-waiver-upload-target="submitButton"] .bi-hourglass-split {
+[data-waiver-upload-target="submitButton"] kmp-icon[name="hourglass"] {
     animation: spin 1s linear infinite;
 }
 
@@ -241,7 +241,7 @@ turbo-frame#waiver-upload[busy]::after {
    Alert Enhancements
    ========================================================================== */
 
-.alert .bi {
+.alert kmp-icon {
     margin-right: 0.5rem;
 }
 

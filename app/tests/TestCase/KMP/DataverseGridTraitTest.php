@@ -5,9 +5,40 @@ namespace App\Test\TestCase\KMP;
 
 use App\Controller\DataverseGridTrait;
 use App\Test\TestCase\BaseTestCase;
+use Cake\ORM\Query\SelectQuery;
 
 class DataverseGridTraitTest extends BaseTestCase
 {
+    public function testSelectedSortReplacesOrderingFromTheBaseQuery(): void
+    {
+        $harness = new class {
+            use DataverseGridTrait;
+
+            public function sortByName(SelectQuery $query, string $direction): SelectQuery
+            {
+                return $this->applyDataverseGridSort($query, 'name', $direction, [], 'GatheringActivities');
+            }
+        };
+        $table = $this->getTableLocator()->get('GatheringActivities');
+        $fixtures = [
+            ['name' => 'Selected sort A', 'display_order' => 30],
+            ['name' => 'Selected sort B', 'display_order' => 10],
+            ['name' => 'Selected sort C', 'display_order' => 20],
+        ];
+        foreach ($fixtures as $data) {
+            $table->saveOrFail($table->newEntity($data));
+        }
+        foreach (['ASC', 'DESC'] as $direction) {
+            $query = $table->find()->where(['name LIKE' => 'Selected sort %'])
+                ->orderBy(['GatheringActivities.display_order' => 'ASC']);
+            $expected = ['Selected sort A', 'Selected sort B', 'Selected sort C'];
+            $this->assertSame(
+                $direction === 'ASC' ? $expected : array_reverse($expected),
+                $harness->sortByName($query, $direction)->all()->extract('name')->toList(),
+            );
+        }
+    }
+
     public function testLockedDateRangeExtractionPreservesOpenBoundary(): void
     {
         $harness = new class {

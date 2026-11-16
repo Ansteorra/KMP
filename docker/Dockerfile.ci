@@ -10,6 +10,9 @@ FROM ${BASE_IMAGE}
 COPY docker/verify-php-version.php /usr/local/bin/verify-kmp-php-version.php
 RUN php /usr/local/bin/verify-kmp-php-version.php
 
+# The production base caches immutable code; browser tests mount a live checkout.
+COPY docker/php-development.ini /usr/local/etc/php/conf.d/zz-kmp-development.ini
+
 WORKDIR /var/www/html
 
 RUN mkdir -p /opt/docker

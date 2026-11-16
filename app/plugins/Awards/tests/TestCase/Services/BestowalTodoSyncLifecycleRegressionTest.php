@@ -43,7 +43,7 @@ class BestowalTodoSyncLifecycleRegressionTest extends BaseTestCase
         parent::tearDown();
     }
 
-    public function testTemplateAllowsOnlyOneLiveTerminalAndPreservesAssignee(): void
+    public function testTemplateAllowsMultipleTerminalOutcomesAndPreservesAssignees(): void
     {
         $templates = $this->getTableLocator()->get('Awards.BestowalTodoTemplates');
         $template = $templates->saveOrFail($templates->newEntity(['name' => 'Terminal uniqueness', 'is_active' => true]));
@@ -53,15 +53,27 @@ class BestowalTodoSyncLifecycleRegressionTest extends BaseTestCase
             'assignee_source_id' => self::ADMIN_MEMBER_ID, 'branch_mode' => BestowalTodoTemplateItem::BRANCH_MODE_AWARD,
             'is_gating' => true, 'is_terminal' => true, 'sort_order' => 1];
         $first = $items->saveOrFail($items->newEntity($definition));
-        $second = $items->newEntity(array_merge($definition, ['item_key' => 'other', 'label' => 'Other']));
-        $this->assertFalse($items->save($second));
-        $this->assertArrayHasKey('is_terminal', $second->getErrors());
-        $first->is_terminal = false;
-        $items->saveOrFail($first);
-        $second = $items->newEntity(array_merge($definition, ['item_key' => 'other', 'label' => 'Other']));
-        $this->assertNotFalse($items->save($second));
+        $second = $items->saveOrFail($items->newEntity(array_merge($definition, [
+            'item_key' => 'given_not_received', 'label' => 'Given Not Received',
+            'terminal_status' => 'Given Not Received',
+        ])));
+        $third = $items->saveOrFail($items->newEntity(array_merge($definition, [
+            'item_key' => 'other', 'label' => 'Other', 'terminal_status' => 'Filed with Herald',
+        ])));
+        $this->assertTrue($items->get($first->id)->is_terminal);
+        $this->assertTrue($items->get($second->id)->is_terminal);
+        $this->assertSame('Filed with Herald', $items->get($third->id)->terminal_status);
         $this->assertSame(self::ADMIN_MEMBER_ID, $items->get($first->id)->assignee_source_id);
         $this->assertSame(self::ADMIN_MEMBER_ID, $items->get($second->id)->assignee_source_id);
+    }
+
+    public function testTerminalStatusesCannotReopenOrCancelTheBestowal(): void
+    {
+        $items = $this->getTableLocator()->get('Awards.BestowalTodoTemplateItems');
+        foreach (['Open', ' cancelled '] as $status) {
+            $item = $items->newEntity(['terminal_status' => $status]);
+            $this->assertArrayHasKey('terminal_status', $item->getErrors());
+        }
     }
 
     public function testDeletedOwnerRejectsStaleSynchronizationAndQueuedTransitions(): void

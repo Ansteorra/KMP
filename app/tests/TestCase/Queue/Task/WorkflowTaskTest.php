@@ -8,6 +8,7 @@ use App\Model\Entity\WorkflowInstance;
 use App\Queue\Task\WorkflowApprovalDeadlineTask;
 use App\Queue\Task\WorkflowResumeTask;
 use App\Services\ServiceResult;
+use App\Services\WorkflowEngine\DefaultWorkflowEngine;
 use App\Services\WorkflowEngine\WorkflowEngineInterface;
 use App\Test\TestCase\BaseTestCase;
 use Cake\Core\ContainerInterface;
@@ -85,6 +86,41 @@ class WorkflowTaskTest extends BaseTestCase
 
         $task = $this->createResumeTask($engine);
         $task->run(['instanceId' => 1, 'nodeId' => 'n1'], 1);
+    }
+
+    public function testResumeTaskProcessesTheExactDeferredAttempt(): void
+    {
+        $engine = $this->createMock(DefaultWorkflowEngine::class);
+        $engine->expects($this->never())->method('resumeWorkflow');
+        $engine->expects($this->once())->method('processDeferredWork')
+            ->with(42, 'action', 123)
+            ->willReturn(new ServiceResult(true));
+        $this->createResumeTask($engine)->run([
+            'instanceId' => 42, 'nodeId' => 'action', 'executionLogId' => 123,
+        ], 1);
+    }
+
+    public function testResumeTaskRoutesLegacyAsyncJobsToTheActionExecutor(): void
+    {
+        $engine = $this->createMock(DefaultWorkflowEngine::class);
+        $engine->expects($this->never())->method('resumeWorkflow');
+        $engine->expects($this->once())->method('processDeferredWork')
+            ->with(42, 'action', null)
+            ->willReturn(new ServiceResult(true));
+        $this->createResumeTask($engine)->run([
+            'instanceId' => 42, 'nodeId' => 'action', 'additionalData' => ['asyncAction' => 'Core.Test'],
+        ], 1);
+    }
+
+    public function testResumeTaskFailsClosedWhenTheEngineCannotExecuteQueuedActions(): void
+    {
+        $engine = $this->createMock(WorkflowEngineInterface::class);
+        $engine->expects($this->never())->method('resumeWorkflow');
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('does not support deferred execution');
+        $this->createResumeTask($engine)->run([
+            'instanceId' => 42, 'nodeId' => 'action', 'executionLogId' => 123,
+        ], 1);
     }
 
     // =====================================================

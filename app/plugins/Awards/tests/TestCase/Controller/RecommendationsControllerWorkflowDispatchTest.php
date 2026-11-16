@@ -20,6 +20,7 @@ use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 use Closure;
 use InvalidArgumentException;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestCase
 {
@@ -182,6 +183,76 @@ class RecommendationsControllerWorkflowDispatchTest extends HttpIntegrationTestC
         $this->assertRedirectContains('/awards/recommendations/view/' . $savedRecommendation->id);
         $freshRecommendation = $this->recommendations->get((int)$savedRecommendation->id);
         $this->assertSame($originalReason, $freshRecommendation->reason);
+    }
+
+    public static function coordinatedGridContexts(): array
+    {
+        $adminId = self::ADMIN_MEMBER_ID;
+        $memberId = self::TEST_MEMBER_AGATHA_ID;
+
+        return [
+            'main grid' => ['/awards/recommendations?search=retained',
+                'recommendations-grid-table', '/awards/recommendations/grid-data'],
+            'submitted by member' => ["/members/view/$adminId?tab=member-submitted-recs&search=retained",
+                "member-submitted-recs-grid-$adminId-table", "/awards/recommendations/member-submitted-recs-grid-data/$adminId"],
+            'submitted for member' => ["/members/view/$memberId?tab=recs-for-member&search=retained",
+                "recs-for-member-grid-$memberId-table", "/awards/recommendations/recs-for-member-grid-data/$memberId"],
+        ];
+    }
+
+    #[DataProvider('coordinatedGridContexts')]
+    public function testCoordinatedEditsInvalidateTheirCurrentTableWithoutRenderingRows(
+        string $pageContext,
+        string $tableId,
+        string $endpoint,
+    ): void {
+        $this->ensureActiveWorkflow('awards-recommendation-updated');
+        $recommendation = $this->createExistingRecommendation();
+        $this->mockServiceClean(TriggerDispatcher::class, function () use ($recommendation) {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->once())->method('dispatch')->willReturn([
+                $this->successfulWorkflowDispatchResult(['recommendationId' => (int)$recommendation->id]),
+            ]);
+
+            return $mock;
+        });
+        $this->configRequest(['headers' => [
+            'Accept' => 'text/vnd.turbo-stream.html', 'X-KMP-Grid-Reconcile' => 'table',
+        ]]);
+        $this->post($this->recommendationsUrl('edit', [(string)$recommendation->id]), [
+            'reason' => 'Updated through workflow', 'page_context_url' => $pageContext,
+        ]);
+        $this->assertResponseOk();
+        $this->assertResponseContains('target="' . $tableId . '"');
+        $this->assertResponseContains($endpoint);
+        $this->assertResponseContains('search=retained');
+        $this->assertResponseNotContains('data-grid-view-target="rowCheckbox"');
+    }
+
+    public function testFailedGridSaveReturnsFeedbackWithoutReloadingTheSubmittedForm(): void
+    {
+        $this->ensureActiveWorkflow('awards-recommendation-updated');
+        $recommendation = $this->createExistingRecommendation();
+        $originalReason = $recommendation->reason;
+        $this->mockServiceClean(TriggerDispatcher::class, function () {
+            $mock = $this->createMock(TriggerDispatcher::class);
+            $mock->expects($this->once())->method('dispatch')
+                ->willReturn([new ServiceResult(false, 'The submitted reason needs more detail.')]);
+
+            return $mock;
+        });
+        $this->configRequest(['headers' => [
+            'Accept' => 'text/vnd.turbo-stream.html', 'X-KMP-Grid-Reconcile' => 'table',
+        ]]);
+        $this->post($this->recommendationsUrl('edit', [(string)$recommendation->id]), [
+            'reason' => 'Unsubmitted draft', 'page_context_url' => '/awards/recommendations?search=preserved',
+        ]);
+        $this->assertResponseCode(422);
+        $this->assertResponseContains('The submitted reason needs more detail.');
+        $this->assertResponseContains('target="flash-messages"');
+        $this->assertResponseNotContains('target="editRecommendation"');
+        $this->assertResponseNotContains('turbo-edit-form');
+        $this->assertSame($originalReason, $this->recommendations->get($recommendation->id)->reason);
     }
 
     public function testEditDispatchesWorkflowWhenActive(): void

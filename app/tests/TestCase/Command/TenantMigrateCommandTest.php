@@ -6,6 +6,7 @@ namespace App\Test\TestCase\Command;
 use App\Command\TenantMigrateCommand;
 use App\KMP\TenantMetadata;
 use App\Services\Cache\TenantAwareCache;
+use App\Services\Platform\TenantHostResolver;
 use App\Services\Platform\TenantMigrationLockException;
 use App\Services\Platform\TenantMigrationMarkerResult;
 use App\Services\Platform\TenantMigrationMarkerServiceInterface;
@@ -91,10 +92,10 @@ class TenantMigrateCommandTest extends TestCase
     {
         $this->insertTenant('alpha', 'active', '20260516000000');
         $cache = new TenantAwareCache();
-        $cacheKey = 'tenant_host_map:platform';
+        $cacheKey = (new ReflectionMethod(TenantHostResolver::class, 'cacheKey'))->invoke(null, 'platform');
         $this->assertTrue($cache->writePlatform(
             $cacheKey,
-            ['alpha.test' => ['schema_version' => '20260516000000']],
+            ['cached_at' => time(), 'hosts' => ['alpha.test' => ['schema_version' => '20260516000000']]],
             'tenant_host_map',
         ));
         $command = $this->commandWithRunner($this->runnerReturning('20260516009999'));
@@ -184,10 +185,10 @@ class TenantMigrateCommandTest extends TestCase
     {
         $this->insertTenant('alpha', 'active', '20260516000000');
         $cache = new TenantAwareCache();
-        $cacheKey = 'tenant_host_map:platform';
+        $cacheKey = (new ReflectionMethod(TenantHostResolver::class, 'cacheKey'))->invoke(null, 'platform');
         $this->assertTrue($cache->writePlatform(
             $cacheKey,
-            ['alpha.test' => ['schema_version' => '20260516000000']],
+            ['cached_at' => time(), 'hosts' => ['alpha.test' => ['schema_version' => '20260516000000']]],
             'tenant_host_map',
         ));
         $runnerCalled = false;

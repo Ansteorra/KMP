@@ -26,7 +26,7 @@ class WaiverTypesGridColumns extends BaseGridColumns
                 'key' => 'edit',
                 'type' => 'link',
                 'label' => '',
-                'icon' => 'bi-pencil-fill',
+                'icon' => 'pencil',
                 'class' => 'btn-sm btn btn-primary',
                 'permission' => 'edit',
                 'url' => [
@@ -40,7 +40,7 @@ class WaiverTypesGridColumns extends BaseGridColumns
                 'key' => 'toggleActive',
                 'type' => 'postLink',
                 'label' => '',
-                'icon' => 'bi-toggle-off',
+                'icon' => 'toggle-left',
                 'class' => 'btn-sm btn btn-warning',
                 'permission' => 'toggleActive',
                 'url' => [
@@ -55,7 +55,7 @@ class WaiverTypesGridColumns extends BaseGridColumns
                 'key' => 'delete',
                 'type' => 'postLink',
                 'label' => '',
-                'icon' => 'bi-trash-fill',
+                'icon' => 'trash',
                 'class' => 'btn-sm btn btn-danger',
                 'permission' => 'delete',
                 'url' => [

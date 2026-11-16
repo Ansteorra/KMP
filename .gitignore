@@ -32,6 +32,7 @@ prod_dump.sql
 /.playwright-cli/
 .beads/
 .container-home/
+.codex-runtime/
 installer/kmp
 installers/bin
 installer/bin/
@@ -65,3 +66,6 @@ deploy/azure/.azure-outputs.json
 
 # Generated Python security/deployment test bytecode
 **/__pycache__/
+/app/webroot/public-assets/
+
+/app/webroot/kmp-icons/

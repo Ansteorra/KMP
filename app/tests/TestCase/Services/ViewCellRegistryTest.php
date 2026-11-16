@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
 
+use App\Model\Entity\Member;
+use App\Services\CoreViewCellProvider;
 use App\Services\ViewCellRegistry;
 use App\Test\TestCase\BaseTestCase;
 
@@ -400,5 +402,33 @@ class ViewCellRegistryTest extends BaseTestCase
         ]);
 
         $this->assertEmpty($cells);
+    }
+
+    public function testDesktopSkipsMobileAuthorizationWhileMobileKeepsIt(): void
+    {
+        $calls = 0;
+        ViewCellRegistry::register('MobileContract', [[
+            'type' => ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU,
+            'label' => 'Test menu', 'order' => 99, 'validRoutes' => [],
+            'authCallback' => static function () use (&$calls): bool {
+                $calls++;
+
+                return true;
+            },
+        ]]);
+        $desktop = ViewCellRegistry::getViewCells([], null, false);
+        $this->assertArrayNotHasKey(ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU, $desktop);
+        $this->assertSame(0, $calls);
+        $mobile = ViewCellRegistry::getViewCells([], null, true);
+        $this->assertCount(1, $mobile[ViewCellRegistry::PLUGIN_TYPE_MOBILE_MENU]);
+        $this->assertSame(1, $calls);
+    }
+
+    public function testCoreProviderDoesNoBadgeWorkForDesktop(): void
+    {
+        $this->assertSame([], CoreViewCellProvider::getViewCells(
+            ['_includeMobileMenu' => false],
+            new Member(['id' => self::ADMIN_MEMBER_ID]),
+        ));
     }
 }

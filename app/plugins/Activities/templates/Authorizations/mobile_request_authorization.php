@@ -61,13 +61,13 @@
 
         <div class="d-grid gap-3 mt-4">
             <button type="submit" class="btn btn-success btn-lg" data-mobile-request-auth-target="submitBtn" disabled>
-                <i class="bi bi-send me-2"></i>
+                <kmp-icon name="send" class="me-2" aria-hidden="true"></kmp-icon>
                 <span data-mobile-request-auth-target="submitText">Submit Request</span>
             </button>
 
             <button type="button" class="btn btn-secondary btn-lg" data-controller="history-back"
                 data-action="history-back#go">
-                <i class="bi bi-arrow-left me-2" aria-hidden="true"></i>Cancel
+                <kmp-icon name="arrow-left" class="me-2" aria-hidden="true"></kmp-icon>Cancel
             </button>
         </div>
 

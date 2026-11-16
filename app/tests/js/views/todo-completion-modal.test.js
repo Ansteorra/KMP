@@ -1,0 +1,167 @@
+import TodoCompletionModalController from '../../../assets/js/controllers/todo-completion-modal-controller.js';
+
+describe('My To-Dos completion modal', () => {
+    let modal;
+    let form;
+    let controller;
+    const target = name => modal.querySelector(`[data-todo-target="${name}"]`);
+    const gatheringInput = () => target('bestowalGatheringControl').querySelector('[data-ac-target="input"]');
+    const eventForm = {
+        fields: [{ type: 'autocomplete', url: '/gatherings', selection: null }],
+    };
+    const agendaForm = {
+        fields: [{ type: 'select', options: { roaming: 'Roaming Court', 42: 'Evening Court' } }],
+    };
+
+    function open(completionForm = {}, mode = 'complete', id = '1') {
+        const button = document.createElement('button');
+        button.dataset.todoCompletionForm = JSON.stringify(completionForm);
+        button.dataset.todoMode = mode;
+        button.dataset.todoId = id;
+        const event = new Event('show.bs.modal');
+        event.relatedTarget = button;
+        modal.dispatchEvent(event);
+    }
+
+    beforeEach(() => {
+        document.body.innerHTML = `<div id="todoCompleteModal" data-complete-url="/complete" data-reopen-url="/reopen">
+            <form id="todoCompleteForm">
+                <input data-todo-target="id">
+                <h5 data-todo-target="modalTitle">Complete</h5>
+                <p data-todo-target="prompt">Complete <strong data-todo-target="title"></strong></p>
+                <section data-todo-target="specialForm" hidden>
+                    <h6 data-todo-target="specialTitle"></h6>
+                    <p data-todo-target="specialDescription" role="status"></p>
+                    <div class="form-check"><input type="checkbox" data-todo-target="includePastGatherings"></div>
+                    <div class="mb-3"><div data-todo-target="bestowalGatheringControl">
+                        <input data-ac-target="input" name="gathering_name">
+                        <input type="hidden" data-ac-target="hidden" name="bestowal_gathering_id">
+                        <input type="hidden" data-ac-target="hiddenText" name="gathering_text">
+                        <button type="button" data-ac-target="clearBtn">Clear</button>
+                    </div></div>
+                    <p data-todo-target="bestowalGatheringHelp"></p>
+                    <p data-todo-target="bestowalGatheringError" hidden></p>
+                    <div data-todo-target="courtSlotGroup" hidden>
+                        <select data-todo-target="courtSlotSelect" name="gathering_scheduled_activity_id"></select>
+                        <p data-todo-target="courtSlotHelp"></p>
+                        <p data-todo-target="courtSlotError" hidden></p>
+                    </div>
+                </section>
+                <div data-todo-target="completionOutcomeGroup" hidden>
+                    <label data-todo-target="completionOutcomeLabel"></label>
+                    <select data-todo-target="completionOutcomeSelect" disabled></select>
+                    <p data-todo-target="completionOutcomeHelp"></p>
+                </div>
+                <textarea name="note"></textarea>
+                <button data-todo-target="submit" type="submit">Complete</button>
+            </form>
+        </div>`;
+        modal = document.getElementById('todoCompleteModal');
+        form = document.getElementById('todoCompleteForm');
+        controller = new TodoCompletionModalController();
+        controller.element = modal;
+        controller.bindingsValue = new Proxy({}, { get: () => 'Label' });
+        controller.connect();
+    });
+
+    afterEach(() => controller.disconnect());
+
+    test('notes stay with a failed task, clear for another task, and clear after success', () => {
+        const note = form.querySelector('[name="note"]');
+        open({}, 'complete', '1');
+        note.value = 'Fred has it';
+        open({}, 'complete', '1');
+        expect(note.value).toBe('Fred has it');
+        open({}, 'complete', '2');
+        expect(note.value).toBe('');
+        note.value = 'Second task';
+        form.dispatchEvent(new CustomEvent('turbo-modal:saved', { bubbles: true }));
+        expect(note.value).toBe('');
+        open({}, 'complete', '2');
+        expect(note.value).toBe('');
+    });
+
+    test('reopening a task does not inherit its completion note', () => {
+        open({}, 'complete', '1');
+        form.querySelector('[name="note"]').value = 'Completion';
+        open({}, 'reopen', '1');
+        expect(form.querySelector('[name="note"]').value).toBe('');
+    });
+
+    test('Add to Agenda validates the visible court picker and excludes hidden gathering controls', () => {
+        open(agendaForm);
+        expect(gatheringInput()).toBeDisabled();
+        expect(gatheringInput()).not.toBeRequired();
+        expect(target('courtSlotSelect')).toBeRequired();
+        expect(form.checkValidity()).toBe(false);
+        target('courtSlotSelect').value = '42';
+        expect(form.checkValidity()).toBe(true);
+        const data = new FormData(form);
+        expect(data.get('gathering_scheduled_activity_id')).toBe('42');
+        expect(data.has('bestowal_gathering_id')).toBe(false);
+    });
+
+    test.each(['90', '12', 'roaming', ''])(
+        'court choices retain schedule order and selected value %s after metadata is serialized',
+        value => {
+            open({ fields: [{
+                type: 'select', value,
+                options: { 12: 'Later Court', 90: 'Earlier <Court>', 91: 'Simultaneous Court', roaming: 'Roaming Court' },
+                optionOrder: [90, 91, 12, 'roaming'],
+            }] });
+
+            const select = target('courtSlotSelect');
+            expect(Array.from(select.options, option => option.value)).toEqual(['', '90', '91', '12', 'roaming']);
+            expect(select.value).toBe(value);
+            expect(select.options[1].textContent).toBe('Earlier <Court>');
+            expect(select.querySelector('court')).toBeNull();
+            select.focus();
+            expect(document.activeElement).toBe(select);
+            if (value) {
+                expect(form.checkValidity()).toBe(true);
+                expect(new FormData(form).get('gathering_scheduled_activity_id')).toBe(value);
+            }
+        },
+    );
+
+    test('switching from scheduling to agenda clears the gathering and preserves form validity', () => {
+        open({ fields: [{ ...eventForm.fields[0], selection: { value: '7', text: 'Event' } }] });
+        expect(new FormData(form).get('bestowal_gathering_id')).toBe('7');
+        open(agendaForm);
+        expect(gatheringInput()).toBeDisabled();
+        expect(gatheringInput()).not.toBeRequired();
+        target('courtSlotSelect').value = 'roaming';
+        expect(form.checkValidity()).toBe(true);
+    });
+
+    test('switching back to scheduling restores its visible required field', () => {
+        open(agendaForm);
+        open(eventForm);
+        expect(gatheringInput()).toBeEnabled();
+        expect(gatheringInput()).toBeRequired();
+        expect(target('courtSlotSelect')).toBeDisabled();
+        expect(target('courtSlotSelect')).not.toBeRequired();
+        expect(form.checkValidity()).toBe(false);
+    });
+
+    test.each(['complete', 'reopen'])('ordinary %s leaves every hidden requirement disabled', mode => {
+        open(eventForm);
+        open({}, mode);
+        expect(gatheringInput()).toBeDisabled();
+        expect(gatheringInput()).not.toBeRequired();
+        expect(target('courtSlotSelect')).toBeDisabled();
+        expect(form.checkValidity()).toBe(true);
+    });
+
+    test('blocked agenda explains its prerequisite and cannot submit, then resets for another task', () => {
+        const reason = 'Complete Event Scheduled before Added to Agenda can be completed.';
+        open({ title: 'Add Bestowal to Agenda', fields: [], payload: { blockedReason: reason } });
+        expect(target('specialForm').hidden).toBe(false);
+        expect(target('specialDescription')).toHaveTextContent(reason);
+        expect(target('submit')).toBeDisabled();
+        expect(gatheringInput()).toBeDisabled();
+        open(agendaForm);
+        expect(target('submit')).toBeEnabled();
+        expect(target('specialDescription')).not.toHaveTextContent(reason);
+    });
+});

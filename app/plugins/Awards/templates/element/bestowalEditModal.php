@@ -12,6 +12,9 @@ $initialTurboFrameSrc = $initialBestowalId
     data-awards-bestowal-edit-outlet-btn-outlet=".edit-bestowal"
     data-awards-bestowal-edit-form-url-value="<?= h($formUrl) ?>"
     data-awards-bestowal-edit-turbo-frame-url-value="<?= h($turboFrameUrl) ?>"
+    data-awards-bestowal-edit-gathering-eligibility-url-value="<?= h($this->URL->build([
+        'plugin' => 'Awards', 'controller' => 'Bestowals', 'action' => 'gatheringEligibility',
+    ])) ?>"
     data-awards-bestowal-edit-court-slots-url-value="<?= h($this->URL->build([
         'plugin' => 'Awards',
         'controller' => 'Bestowals',

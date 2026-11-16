@@ -122,7 +122,9 @@ final class TenantLifecycleService
                 $auditOptions + ['tenantId' => $tenantId],
             );
 
-            TenantHostResolver::clearCache();
+            $this->connection->afterCommit(static function (): void {
+                TenantHostResolver::clearCache();
+            });
 
             return array_merge($tenant, $fields);
         });

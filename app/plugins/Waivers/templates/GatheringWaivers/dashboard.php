@@ -35,11 +35,11 @@ $this->KMP->endBlock();
         cursor: pointer;
     }
 
-    .waiver-dashboard .card-header[data-bs-toggle="collapse"] .bi-chevron-down {
+    .waiver-dashboard .card-header[data-bs-toggle="collapse"] kmp-icon[name="chevron-down"] {
         transition: transform 0.2s ease;
     }
 
-    .waiver-dashboard .card-header[data-bs-toggle="collapse"].collapsed .bi-chevron-down {
+    .waiver-dashboard .card-header[data-bs-toggle="collapse"].collapsed kmp-icon[name="chevron-down"] {
         transform: rotate(-90deg);
     }
 
@@ -201,7 +201,7 @@ $this->KMP->endBlock();
     <div class="row mb-4">
         <div class="col-md-12">
             <h2>
-                <i class="bi bi-file-earmark-text"></i> <?= __('Waiver Secretary Dashboard') ?>
+                <kmp-icon name="file-text"  aria-hidden="true"></kmp-icon> <?= __('Waiver Secretary Dashboard') ?>
             </h2>
             <p class="text-muted">
                 <?= __('Comprehensive overview of waiver compliance and management across all gatherings.') ?>
@@ -212,7 +212,7 @@ $this->KMP->endBlock();
     <!-- Key Statistics (always visible, not collapsible) -->
     <div class="row mb-4">
         <div class="col-md-12">
-            <h4><i class="bi bi-bar-chart-fill"></i> <?= __('Key Statistics') ?></h4>
+            <h4><kmp-icon name="chart-bar"  aria-hidden="true"></kmp-icon> <?= __('Key Statistics') ?></h4>
         </div>
         <div class="col-lg-3 col-md-3 col-sm-6 mb-3">
             <div class="card text-white bg-success">
@@ -257,10 +257,10 @@ $this->KMP->endBlock();
                         data-bs-toggle="collapse" data-bs-target="#collapse-calendar" aria-expanded="false" aria-controls="collapse-calendar">
                         <span class="mb-0 d-flex justify-content-between align-items-center w-100">
                         <span>
-                            <i class="bi bi-calendar3"></i>
+                            <kmp-icon name="calendar-month"  aria-hidden="true"></kmp-icon>
                             <?= __('Waiver Clerk Calendar') ?>
                         </span>
-                        <i class="bi bi-chevron-down"></i>
+                        <kmp-icon name="chevron-down"  aria-hidden="true"></kmp-icon>
                     </span>
                     </button>
                 </h5>
@@ -270,11 +270,11 @@ $this->KMP->endBlock();
                         data-waiver-calendar-url-value="<?= $this->Url->build(['action' => 'calendarData', 'plugin' => 'Waivers']) ?>">
                         <div class="waiver-calendar-nav">
                             <button class="btn btn-outline-primary btn-sm" data-action="waiver-calendar#prevMonth" data-waiver-calendar-target="prevBtn">
-                                <i class="bi bi-chevron-left"></i> <?= __('Prev') ?>
+                                <kmp-icon name="chevron-left"  aria-hidden="true"></kmp-icon> <?= __('Prev') ?>
                             </button>
                             <h5 class="mb-0" data-waiver-calendar-target="monthLabel"></h5>
                             <button class="btn btn-outline-primary btn-sm" data-action="waiver-calendar#nextMonth" data-waiver-calendar-target="nextBtn">
-                                <?= __('Next') ?> <i class="bi bi-chevron-right"></i>
+                                <?= __('Next') ?> <kmp-icon name="chevron-right"  aria-hidden="true"></kmp-icon>
                             </button>
                         </div>
                         <div data-waiver-calendar-target="calendar">
@@ -318,18 +318,18 @@ $this->KMP->endBlock();
                         data-bs-toggle="collapse" data-bs-target="#collapse-ready-close" aria-expanded="false" aria-controls="collapse-ready-close">
                         <span class="mb-0 d-flex justify-content-between align-items-center w-100">
                             <span>
-                                <i class="bi bi-check2-square"></i>
+                                <kmp-icon name="checkbox"  aria-hidden="true"></kmp-icon>
                                 <?= __('Ready for Review & Close') ?>
                                 <span class="badge bg-light text-dark"><?= count($gatheringsReadyToClose) ?></span>
                             </span>
-                            <i class="bi bi-chevron-down"></i>
+                            <kmp-icon name="chevron-down"  aria-hidden="true"></kmp-icon>
                         </span>
                     </button>
                 </h5>
                     <div id="collapse-ready-close" class="collapse">
                         <div class="card-body">
                             <p class="text-muted mb-3">
-                                <i class="bi bi-info-circle"></i>
+                                <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                                 <?= __('These gatherings have been marked as ready to close by event staff. Review the waivers and close each gathering when satisfied.') ?>
                             </p>
                             <div class="table-responsive">
@@ -375,7 +375,7 @@ $this->KMP->endBlock();
                                                 <td>
                                                     <?php if ($gathering->is_waiver_complete): ?>
                                                         <span class="badge bg-success">
-                                                            <i class="bi bi-check-circle-fill"></i> <?= __('Complete') ?>
+                                                            <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon> <?= __('Complete') ?>
                                                         </span>
                                                     <?php else: ?>
                                                         <span class="badge bg-warning text-dark">
@@ -392,12 +392,12 @@ $this->KMP->endBlock();
                                                 </td>
                                                 <td class="actions">
                                                     <?= $this->Html->link(
-                                                        '<i class="bi bi-binoculars-fill"></i> ' . __('Review'),
+                                                        '<kmp-icon name="binoculars"  aria-hidden="true"></kmp-icon> ' . __('Review'),
                                                         ['action' => 'index', '?' => ['gathering_id' => $gathering->id]],
                                                         ['class' => 'btn btn-sm btn-info', 'escape' => false]
                                                     ) ?>
                                                     <?= $this->Form->postLink(
-                                                        '<i class="bi bi-lock-fill"></i> ' . __('Close'),
+                                                        '<kmp-icon name="lock"  aria-hidden="true"></kmp-icon> ' . __('Close'),
                                                         ['action' => 'close', $gathering->id],
                                                         [
                                                             'class' => 'btn btn-sm btn-success',
@@ -428,18 +428,18 @@ $this->KMP->endBlock();
                         data-bs-toggle="collapse" data-bs-target="#collapse-needing-closed" aria-expanded="false" aria-controls="collapse-needing-closed">
                         <span class="mb-0 d-flex justify-content-between align-items-center w-100">
                             <span>
-                                <i class="bi bi-clipboard-check"></i>
+                                <kmp-icon name="clipboard-check"  aria-hidden="true"></kmp-icon>
                                 <?= __('In Progress Waivers') ?>
                                 <span class="badge bg-dark"><?= count($gatheringsNeedingClosed) ?></span>
                             </span>
-                            <i class="bi bi-chevron-down"></i>
+                            <kmp-icon name="chevron-down"  aria-hidden="true"></kmp-icon>
                         </span>
                     </button>
                 </h5>
                     <div id="collapse-needing-closed" class="collapse">
                         <div class="card-body">
                             <p class="text-muted mb-3">
-                                <i class="bi bi-info-circle"></i>
+                                <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                                 <?= __('These gatherings have waiver uploads/exemptions in progress and are not yet marked ready for review and close.') ?>
                             </p>
                             <div class="table-responsive">
@@ -465,7 +465,7 @@ $this->KMP->endBlock();
                                                     ) ?>
                                                     <?php if ($gathering->is_waiver_complete ?? false): ?>
                                                         <span class="badge bg-success ms-2">
-                                                            <i class="bi bi-check-circle-fill"></i> <?= __('Complete') ?>
+                                                            <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon> <?= __('Complete') ?>
                                                         </span>
                                                     <?php endif; ?>
                                                 </td>
@@ -508,12 +508,12 @@ $this->KMP->endBlock();
                                                 </td>
                                                 <td class="actions">
                                                     <?= $this->Html->link(
-                                                        '<i class="bi bi-binoculars-fill"></i> ' . __('Review'),
+                                                        '<kmp-icon name="binoculars"  aria-hidden="true"></kmp-icon> ' . __('Review'),
                                                         ['action' => 'index', '?' => ['gathering_id' => $gathering->id]],
                                                         ['class' => 'btn btn-sm btn-info', 'escape' => false]
                                                     ) ?>
                                                     <?= $this->Form->postLink(
-                                                        '<i class="bi bi-lock-fill"></i> ' . __('Close'),
+                                                        '<kmp-icon name="lock"  aria-hidden="true"></kmp-icon> ' . __('Close'),
                                                         ['action' => 'close', $gathering->id],
                                                         [
                                                             'class' => 'btn btn-sm btn-success',
@@ -561,7 +561,7 @@ $this->KMP->endBlock();
                                     <?= h($section['title']) ?>
                                     <span class="badge bg-light text-dark"><?= count($section['gatherings']) ?></span>
                                 </span>
-                                <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                                <kmp-icon name="chevron-down"  aria-hidden="true"></kmp-icon>
                             </span>
                         </button>
                     </h5>
@@ -589,9 +589,9 @@ $this->KMP->endBlock();
                         data-bs-toggle="collapse" data-bs-target="#collapse-branches" aria-expanded="false" aria-controls="collapse-branches">
                         <span class="mb-0 d-flex justify-content-between align-items-center w-100">
                             <span>
-                                <i class="bi bi-building"></i> <?= __('Branches with Compliance Issues') ?>
+                                <kmp-icon name="building"  aria-hidden="true"></kmp-icon> <?= __('Branches with Compliance Issues') ?>
                             </span>
-                            <i class="bi bi-chevron-down"></i>
+                            <kmp-icon name="chevron-down"  aria-hidden="true"></kmp-icon>
                         </span>
                     </button>
                 </h5>
@@ -670,9 +670,9 @@ $this->KMP->endBlock();
                         data-bs-toggle="collapse" data-bs-target="#collapse-recent" aria-expanded="false" aria-controls="collapse-recent">
                         <span class="mb-0 d-flex justify-content-between align-items-center w-100">
                         <span>
-                            <i class="bi bi-clock-history"></i> <?= __('Recent Activity & Waiver Types') ?>
+                            <kmp-icon name="history"  aria-hidden="true"></kmp-icon> <?= __('Recent Activity & Waiver Types') ?>
                         </span>
-                        <i class="bi bi-chevron-down"></i>
+                        <kmp-icon name="chevron-down"  aria-hidden="true"></kmp-icon>
                     </span>
                     </button>
                 </h5>
@@ -681,10 +681,10 @@ $this->KMP->endBlock();
                         <div class="row">
                             <!-- Recent Activity -->
                             <div class="col-md-8">
-                                <h6><i class="bi bi-clock-history"></i> <?= __('Recent Waiver Activity (Last 30 Days)') ?></h6>
+                                <h6><kmp-icon name="history"  aria-hidden="true"></kmp-icon> <?= __('Recent Waiver Activity (Last 30 Days)') ?></h6>
                                 <?php if (empty($recentActivity)): ?>
                                     <div class="alert alert-info">
-                                        <i class="bi bi-info-circle"></i> <?= __('No recent waiver activity.') ?>
+                                        <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon> <?= __('No recent waiver activity.') ?>
                                     </div>
                                 <?php else: ?>
                                     <div class="table-responsive">
@@ -724,7 +724,7 @@ $this->KMP->endBlock();
                                                             <?= $this->Html->link(
                                                                 '',
                                                                 ['action' => 'view', $activity->id],
-                                                                ['class' => 'btn btn-sm btn-secondary bi bi-binoculars-fill', 'title' => __('View Waiver')]
+                                                                ['class' => 'btn btn-sm btn-secondary', 'icon' => 'binoculars', 'title' => __('View Waiver')]
                                                             ) ?>
                                                         </td>
                                                     </tr>
@@ -737,10 +737,10 @@ $this->KMP->endBlock();
 
                             <!-- Waiver Types Summary -->
                             <div class="col-md-4">
-                                <h6><i class="bi bi-file-earmark-ruled"></i> <?= __('Waiver Types Summary') ?></h6>
+                                <h6><kmp-icon name="file-text"  aria-hidden="true"></kmp-icon> <?= __('Waiver Types Summary') ?></h6>
                                 <?php if (empty($waiverTypesSummary)): ?>
                                     <div class="alert alert-info">
-                                        <i class="bi bi-info-circle"></i> <?= __('No waiver types configured.') ?>
+                                        <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon> <?= __('No waiver types configured.') ?>
                                     </div>
                                 <?php else: ?>
                                     <div class="list-group">
@@ -770,18 +770,18 @@ $this->KMP->endBlock();
                         data-bs-toggle="collapse" data-bs-target="#collapse-closed" aria-expanded="false" aria-controls="collapse-closed">
                         <span class="mb-0 d-flex justify-content-between align-items-center w-100">
                             <span>
-                                <i class="bi bi-lock-fill"></i>
+                                <kmp-icon name="lock"  aria-hidden="true"></kmp-icon>
                                 <?= __('Closed Gatherings') ?>
                                 <span class="badge bg-light text-dark"><?= count($closedGatherings) ?></span>
                             </span>
-                            <i class="bi bi-chevron-down"></i>
+                            <kmp-icon name="chevron-down"  aria-hidden="true"></kmp-icon>
                         </span>
                     </button>
                 </h5>
                     <div id="collapse-closed" class="collapse">
                         <div class="card-body">
                             <p class="text-muted mb-3">
-                                <i class="bi bi-info-circle"></i>
+                                <kmp-icon name="info-circle"  aria-hidden="true"></kmp-icon>
                                 <?= __('Gatherings where waiver collection has been reviewed and closed (last 90 days).') ?>
                             </p>
                             <div class="table-responsive">
@@ -825,12 +825,12 @@ $this->KMP->endBlock();
                                                 </td>
                                                 <td class="actions">
                                                     <?= $this->Html->link(
-                                                        '<i class="bi bi-binoculars-fill"></i> ' . __('Review'),
+                                                        '<kmp-icon name="binoculars"  aria-hidden="true"></kmp-icon> ' . __('Review'),
                                                         ['action' => 'index', '?' => ['gathering_id' => $closure->gathering->id]],
                                                         ['class' => 'btn btn-sm btn-secondary', 'escape' => false]
                                                     ) ?>
                                                     <?= $this->Form->postLink(
-                                                        '<i class="bi bi-unlock-fill"></i> ' . __('Reopen'),
+                                                        '<kmp-icon name="lock-open"  aria-hidden="true"></kmp-icon> ' . __('Reopen'),
                                                         ['action' => 'reopen', $closure->gathering->id],
                                                         [
                                                             'class' => 'btn btn-sm btn-outline-warning',

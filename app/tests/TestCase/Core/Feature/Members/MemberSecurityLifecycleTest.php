@@ -121,10 +121,32 @@ class MemberSecurityLifecycleTest extends HttpIntegrationTestCase
         $this->assertNotSame($member->auth_version, $this->getTableLocator()->get('Members')->get($member->id)->auth_version);
     }
 
+    public function testLogoutGetCannotEndSessionOrLockOfflineCopy(): void
+    {
+        $this->session([
+            'Auth' => MemberSessionState::fromMember($this->admin()),
+        ]);
+        $this->get('/members/logout');
+        $this->assertResponseOk();
+        $this->assertResponseContains('Confirm to end your current sign-in');
+        $this->assertSessionHasKey('Auth');
+        $this->assertFalse($this->_response->hasHeader('X-KMP-Offline-Lock'));
+    }
+
+    public function testLogoutWithoutCsrfCannotEndSession(): void
+    {
+        $this->authenticateAsSuperUser();
+        $this->_csrfToken = false;
+        $this->post('/members/logout');
+        $this->assertResponseCode(403);
+    }
+
     public function testDirectLogoutLocksOfflineCopyAcrossRedirect(): void
     {
         $this->authenticateAsSuperUser();
-        $this->get('/members/logout');
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/members/logout');
         $this->assertRedirectContains('/members/login');
         $this->assertHeader('X-KMP-Offline-Lock', '1');
         $this->assertCookie('1', 'kmp_offline_lock');
@@ -134,7 +156,9 @@ class MemberSecurityLifecycleTest extends HttpIntegrationTestCase
     public function testLogoutAfterSessionExpiryStillLocksTrustedDevice(): void
     {
         $this->session([]);
-        $this->get('/members/logout');
+        $this->enableCsrfToken();
+        $this->enableSecurityToken();
+        $this->post('/members/logout');
         $this->assertRedirectContains('/members/login');
         $this->assertHeader('X-KMP-Offline-Lock', '1');
         $this->assertCookie('1', 'kmp_offline_lock');

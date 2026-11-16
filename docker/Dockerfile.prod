@@ -9,7 +9,7 @@ ARG BASE_IMAGE=runtime-base
 ARG APP_VERSION=dev
 
 
-FROM php:8.5.12-apache-trixie@sha256:4d1f268dd3b670bd003861c5385cb2f8ba7196dbc88ee84dcae47270c116f242 AS runtime-base
+FROM php:8.5.12-apache-trixie@sha256:08af36df144462d84c7f16190557eec06cb9f656882685610b712a15eec54d46 AS runtime-base
 COPY docker/verify-php-version.php /usr/local/bin/verify-kmp-php-version.php
 RUN php /usr/local/bin/verify-kmp-php-version.php
 COPY --from=mlocati/php-extension-installer:latest@sha256:b6d3fa381b9ba5cf051117c1c601d6a523b590e534bf3d56eb4fbe352949c138 /usr/bin/install-php-extensions /usr/local/bin/
@@ -22,7 +22,7 @@ RUN IPE_PROCESSOR_COUNT="${PHP_BUILD_JOBS}" sh /usr/local/bin/install-kmp-runtim
 # --platform=$BUILDPLATFORM: always runs on the CI runner's native arch (amd64)
 # No QEMU penalty for Node.js/Vite even in multi-platform builds.
 # =============================================================================
-FROM --platform=$BUILDPLATFORM node:26-alpine@sha256:0b36e8c136b94cd4fcf02188228e76c31ad5872eef3fec8cbd2eee500cfd9e80 AS node-builder
+FROM --platform=$BUILDPLATFORM node:26-alpine@sha256:c6ad9e9c1d80f6eb607c26b4b0a132ff7a2344fad1c78ea3baa2a7d4c8de6d94 AS node-builder
 
 ARG NPM_VERSION=11.21.1
 RUN npm install --global "npm@${NPM_VERSION}" --ignore-scripts --no-audit --no-fund \
@@ -37,7 +37,11 @@ RUN npm ci --no-audit --no-fund
 # Copy everything Vite needs
 COPY app/assets ./assets
 COPY app/plugins ./plugins
+COPY app/src ./src
+COPY app/templates ./templates
 COPY app/vite.config.js ./
+COPY app/scripts/icons ./scripts/icons
+COPY app/resources/icons ./resources/icons
 COPY app/webroot ./webroot
 
 RUN npm run build
@@ -90,18 +94,24 @@ FROM ${BASE_IMAGE} AS runtime
 # Re-declare so the value is available in this stage
 ARG APP_VERSION=dev
 ARG RELEASE_CHANNEL=release
+ARG APP_REVISION=unknown
 
 LABEL org.opencontainers.image.source="https://github.com/jhandel/KMP"
 LABEL org.opencontainers.image.description="Kingdom Management Portal"
+LABEL org.opencontainers.image.revision="${APP_REVISION}"
 
 WORKDIR /var/www/html
 
+ENV APACHE_MAX_REQUEST_WORKERS=16
+COPY docker/apache-capacity.conf /etc/apache2/conf-available/kmp-capacity.conf
 COPY docker/verify-php-version.php /usr/local/bin/verify-kmp-php-version.php
 # Container volumes are mounted by the platform, never by an application user.
 RUN php /usr/local/bin/verify-kmp-php-version.php \
+    && command -v pgbouncer \
     && php -r 'if (!extension_loaded("gd")) { exit(1); }' \
     && php -r 'if (!extension_loaded("pdo_pgsql") || extension_loaded("mysqli") || extension_loaded("pdo_mysql")) { fwrite(STDERR, "KMP requires a PostgreSQL-only runtime base.\n"); exit(1); }' \
     && (a2dismod mpm_event mpm_worker || true) && a2enmod mpm_prefork \
+    && a2enconf kmp-capacity && apache2ctl configtest \
     && chmod a-s /usr/bin/mount /usr/bin/umount \
     && test ! -u /usr/bin/mount && test ! -g /usr/bin/mount \
     && test ! -u /usr/bin/umount && test ! -g /usr/bin/umount
@@ -111,7 +121,8 @@ COPY --from=php-deps /app/ ./
 
 # Stamp version and channel from build-args
 RUN echo "${APP_VERSION}" > config/version.txt \
-    && echo "${RELEASE_CHANNEL}" > config/channel.txt
+    && echo "${RELEASE_CHANNEL}" > config/channel.txt \
+    && echo "${APP_REVISION}" > config/revision.txt
 
 # Overwrite webroot with compiled frontend assets (JS, CSS, fonts, manifest)
 COPY --from=node-builder /build/webroot/ ./webroot/
@@ -119,6 +130,7 @@ COPY --from=node-builder /build/webroot/ ./webroot/
 # Runtime config and volume setup
 RUN mkdir -p /opt/docker
 COPY docker/app_local.php /opt/docker/app_local.php
+COPY --chmod=0644 docker/db-pool.php docker/run-db-pool.sh /opt/docker/
 
 RUN mkdir -p \
     /var/www/html/logs \

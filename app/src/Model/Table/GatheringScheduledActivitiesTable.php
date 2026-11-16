@@ -315,7 +315,10 @@ class GatheringScheduledActivitiesTable extends Table
      */
     public function findOrdered(SelectQuery $query, array $options): SelectQuery
     {
-        return $query->orderBy(['start_datetime' => 'ASC']);
+        return $query->orderBy([
+            'GatheringScheduledActivities.start_datetime' => 'ASC',
+            'GatheringScheduledActivities.id' => 'ASC',
+        ]);
     }
 
     /**
@@ -327,9 +330,8 @@ class GatheringScheduledActivitiesTable extends Table
      */
     public function findByGathering(SelectQuery $query, array $options): SelectQuery
     {
-        return $query
+        return $this->findOrdered($query, $options)
             ->where(['GatheringScheduledActivities.gathering_id' => $options['gathering_id']])
-            ->contain(['GatheringActivities', 'Creators', 'Modifiers'])
-            ->orderBy(['start_datetime' => 'ASC']);
+            ->contain(['GatheringActivities', 'Creators', 'Modifiers']);
     }
 }

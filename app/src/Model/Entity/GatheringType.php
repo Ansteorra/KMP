@@ -22,6 +22,8 @@ namespace App\Model\Entity;
  */
 class GatheringType extends BaseEntity
 {
+    use OrderedGatheringActivitiesTrait;
+
     /**
      * Fields that can be mass assigned using newEntity() or patchEntity().
      *

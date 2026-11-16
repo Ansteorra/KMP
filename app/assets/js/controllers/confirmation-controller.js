@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { driveEnabled, visitDocument } from '../services/ui-navigation-service.js';
 
 class ConfirmationController extends Controller {
     static values = {
@@ -23,13 +24,18 @@ class ConfirmationController extends Controller {
 
         const targetForm = this.resolveForm(trigger)
         if (targetForm) {
+            if (targetForm.matches('[data-controller~="turbo-modal"]')
+                || (driveEnabled() && targetForm.dataset.turbo !== 'false')) {
+                targetForm.requestSubmit();
+                return true;
+            }
             document.dispatchEvent(new CustomEvent('page-context:before-submit', { detail: { form: targetForm } }))
             HTMLFormElement.prototype.submit.call(targetForm)
             return true
         }
 
         if (trigger instanceof HTMLAnchorElement && trigger.href) {
-            window.location.assign(trigger.href)
+            visitDocument(trigger.href)
         }
 
         return true

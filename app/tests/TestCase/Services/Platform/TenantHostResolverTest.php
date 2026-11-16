@@ -82,6 +82,89 @@ class TenantHostResolverTest extends TestCase
         $this->assertTrue(TenantHostResolver::clearCache());
     }
 
+    public function testAnotherReplicasExpiredCacheCannotKeepATenantActive(): void
+    {
+        $cache = $this->replicaCache();
+        $resolver = new TenantHostResolver('platform', $cache);
+        $this->assertSame('active', $resolver->resolve('alpha.example.test')?->status);
+        ConnectionManager::get('platform')->update('tenants', ['status' => 'suspended'], ['id' => 'tenant-alpha']);
+        foreach ($cache->entries as &$entry) {
+            $entry['cached_at'] = time() - 31;
+        }
+        unset($entry);
+
+        $this->assertSame('suspended', $resolver->resolve('alpha.example.test')?->status);
+    }
+
+    public function testExpiredCacheCannotKeepARemovedHostMapping(): void
+    {
+        $cache = $this->replicaCache();
+        $resolver = new TenantHostResolver('platform', $cache);
+        $this->assertSame('alpha', $resolver->resolve('alpha.example.test')?->slug);
+        ConnectionManager::get('platform')->update('tenant_hosts', ['status' => 'inactive'], ['id' => 'host-alpha']);
+        foreach ($cache->entries as &$entry) {
+            $entry['cached_at'] = time() - 31;
+        }
+        unset($entry);
+
+        $this->assertNull($resolver->resolve('alpha.example.test'));
+    }
+
+    public function testLegacyFutureAndMalformedCacheEntriesCannotExtendTrust(): void
+    {
+        foreach (['legacy', 'future', 'malformed'] as $format) {
+            $cache = $this->replicaCache();
+            $connection = ConnectionManager::get('platform');
+            $connection->update('tenants', ['status' => 'active'], ['id' => 'tenant-alpha']);
+            $resolver = new TenantHostResolver('platform', $cache);
+            $this->assertSame('active', $resolver->resolve('alpha.example.test')?->status);
+            foreach ($cache->entries as &$entry) {
+                if ($format === 'legacy') {
+                    $entry = $entry['hosts'];
+                } else {
+                    $entry['cached_at'] = $format === 'future' ? time() + 3600 : 'invalid';
+                }
+            }
+            unset($entry);
+            $connection->update('tenants', ['status' => 'suspended'], ['id' => 'tenant-alpha']);
+            $this->assertSame('suspended', $resolver->resolve('alpha.example.test')?->status, $format);
+        }
+    }
+
+    public function testUncommittedTenantChangesAreNotPublishedToTheCache(): void
+    {
+        $cache = $this->replicaCache();
+        $connection = ConnectionManager::get('platform');
+        $connection->begin();
+        try {
+            $connection->update('tenants', ['status' => 'suspended'], ['id' => 'tenant-alpha']);
+            $this->assertSame('suspended', (new TenantHostResolver('platform', $cache))->resolve('alpha.example.test')?->status);
+            $this->assertSame([], $cache->entries);
+        } finally {
+            $connection->rollback();
+        }
+        $this->assertSame('active', (new TenantHostResolver('platform', $cache))->resolve('alpha.example.test')?->status);
+    }
+
+    private function replicaCache(): TenantAwareCache
+    {
+        return new class extends TenantAwareCache {
+            public array $entries = [];
+
+            public function readPlatform(string $key, string $config = 'default'): mixed
+            {
+                return $this->entries[$key] ?? null;
+            }
+
+            public function writePlatform(string $key, mixed $value, string $config = 'default'): bool
+            {
+                $this->entries[$key] = $value;
+
+                return true;
+            }
+        };
+    }
+
     public function testResolveDoesNotFailWhenCacheWriteFails(): void
     {
         $throwingCache = new class extends TenantAwareCache {

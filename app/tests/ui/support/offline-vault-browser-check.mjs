@@ -6,9 +6,20 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const source = await readFile(fileURLToPath(new URL('../../../assets/js/services/offline-vault-service.js', import.meta.url)), 'utf8');
+const modules = new Map([['/vault.js', source]]);
+for (const name of ['passkey-auth-service', 'passkey-debug-service', 'app-branding-service', 'passkey-support-service']) {
+    modules.set(`/${name}.js`, await readFile(new URL(`../../../assets/js/services/${name}.js`, import.meta.url), 'utf8'));
+}
 const server = createServer((request, response) => {
-    response.setHeader('Content-Type', request.url === '/vault.js' ? 'text/javascript' : 'text/html');
-    response.end(request.url === '/vault.js' ? source : '<!doctype html><html lang="en"><title>Offline vault synthetic test</title><script type="module">import vault, {purgeLegacyOfflineStorage} from "/vault.js"; window.vault = vault; window.purgeLegacy = purgeLegacyOfflineStorage;</script><body><h1>Synthetic offline vault test</h1></body></html>');
+    if (modules.has(request.url)) {
+        response.setHeader('Content-Type', 'text/javascript');
+        response.end(modules.get(request.url));
+    } else if (request.url === '/') {
+        response.setHeader('Content-Type', 'text/html');
+        response.end('<!doctype html><html lang="en"><title>Offline vault synthetic test</title><script type="module">import vault, {purgeLegacyOfflineStorage} from "/vault.js"; window.vault = vault; window.purgeLegacy = purgeLegacyOfflineStorage;</script><body><h1>Synthetic offline vault test</h1></body></html>');
+    } else {
+        response.writeHead(404).end();
+    }
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const origin = `http://localhost:${server.address().port}`;

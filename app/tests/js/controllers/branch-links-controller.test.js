@@ -11,7 +11,7 @@ describe('BranchLinksController', () => {
         document.body.innerHTML = `
             <div data-controller="branch-links">
                 <input data-branch-links-target="new" type="url" value="">
-                <div data-branch-links-target="linkType" data-value="link" class="bi-link"></div>
+                <div data-branch-links-target="linkType" data-value="link" ><kmp-icon name="link" aria-hidden="true"></kmp-icon> </div>
                 <button data-action="click->branch-links#add">Add</button>
                 <div data-branch-links-target="displayList"></div>
                 <input data-branch-links-target="formValue" type="hidden" name="links" value="">
@@ -90,13 +90,13 @@ describe('BranchLinksController', () => {
         controller.newTarget.value = 'https://example.com';
         controller.newTarget.checkValidity = jest.fn().mockReturnValue(true);
         controller.linkTypeTarget.dataset.value = 'facebook';
-        controller.linkTypeTarget.classList.add('bi-facebook');
+        controller.linkTypeTarget.querySelector('kmp-icon').setAttribute('name', 'brand-facebook');
 
         controller.add({ preventDefault: jest.fn() });
 
         expect(controller.linkTypeTarget.dataset.value).toBe('link');
-        expect(controller.linkTypeTarget.classList.contains('bi-link')).toBe(true);
-        expect(controller.linkTypeTarget.classList.contains('bi-facebook')).toBe(false);
+        expect(controller.linkTypeTarget.querySelector('kmp-icon')).toHaveAttribute('name', 'link');
+        expect(controller.linkTypeTarget.querySelector('kmp-icon')).not.toHaveAttribute('name', 'brand-facebook');
     });
 
     test('add prevents duplicate links', () => {
@@ -173,16 +173,17 @@ describe('BranchLinksController', () => {
 
     test('setLinkType updates icon and data-value', () => {
         controller.linkTypeTarget.dataset.value = 'link';
-        controller.linkTypeTarget.classList.add('bi-link');
+        controller.linkTypeTarget.querySelector('kmp-icon').setAttribute('name', 'link');
 
         controller.setLinkType({
             preventDefault: jest.fn(),
-            target: { getAttribute: jest.fn().mockReturnValue('facebook') }
+            currentTarget: { getAttribute: jest.fn().mockReturnValue('facebook') }
         });
 
         expect(controller.linkTypeTarget.dataset.value).toBe('facebook');
-        expect(controller.linkTypeTarget.classList.contains('bi-facebook')).toBe(true);
-        expect(controller.linkTypeTarget.classList.contains('bi-link')).toBe(false);
+        expect(controller.linkTypeTarget).toHaveAttribute('aria-label', 'Link type: Facebook');
+        expect(controller.linkTypeTarget.querySelector('kmp-icon')).toHaveAttribute('name', 'brand-facebook');
+        expect(controller.linkTypeTarget.querySelector('kmp-icon')).not.toHaveAttribute('name', 'link');
     });
 
     // --- createListItem ---
@@ -192,7 +193,7 @@ describe('BranchLinksController', () => {
 
         const group = controller.displayListTarget.querySelector('.input-group');
         expect(group).toBeTruthy();
-        expect(group.querySelector('.bi-twitter')).toBeTruthy();
+        expect(group.querySelector('kmp-icon[name="brand-twitter"]')).toBeTruthy();
         expect(group.querySelector('.btn-danger')).toBeTruthy();
         expect(group.textContent).toContain('https://test.com');
     });

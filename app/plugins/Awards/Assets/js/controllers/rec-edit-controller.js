@@ -42,11 +42,12 @@ class AwardsRecommendationEditForm extends Controller {
     }
 
     outletBtnOutletConnected(outlet, element) {
-        outlet.addListener(this.setId.bind(this));
+        this.setIdListener ??= this.setId.bind(this);
+        outlet.addListener(this.setIdListener);
     }
 
     outletBtnOutletDisconnected(outlet) {
-        outlet.removeListener(this.setId.bind(this));
+        if (this.setIdListener) outlet.removeListener(this.setIdListener);
     }
 
     onTurboFrameLoad() {
@@ -81,7 +82,9 @@ class AwardsRecommendationEditForm extends Controller {
     }
 
     populateAwardDescriptions(event) {
-        let url = this.awardListUrlValue + "/" + event.target.value;
+        const domainId = event.target.value ?? event.target.querySelector?.('[data-ac-target="hidden"]')?.value;
+        if (!domainId) return;
+        let url = this.awardListUrlValue + "/" + encodeURIComponent(domainId);
         if (this.hasCurrentAwardIdTarget && this.currentAwardIdTarget.value) {
             url += `?current_award_id=${encodeURIComponent(this.currentAwardIdTarget.value)}`;
         }

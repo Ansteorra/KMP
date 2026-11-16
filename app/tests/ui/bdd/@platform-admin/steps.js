@@ -589,7 +589,8 @@ Given('I am logged into the Platform Admin portal', async ({ page, browser }) =>
     });
     state.platformPage = await state.platformContext.newPage();
 
-    await state.platformPage.goto('/platform-admin/login', { waitUntil: 'domcontentloaded' });
+    const response = await state.platformPage.goto('/platform-admin/login', { waitUntil: 'domcontentloaded' });
+    expect(response?.status(), 'The isolated platform lane must enable the admin portal').toBe(200);
     await waitForPageBody(state.platformPage);
     await state.platformPage.getByLabel('Email').fill(ADMIN_EMAIL);
     await state.platformPage.getByLabel('Password', { exact: true }).fill(ADMIN_PASSWORD);

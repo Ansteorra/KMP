@@ -61,6 +61,50 @@ class GatheringAttendancesControllerTest extends HttpIntegrationTestCase
         );
     }
 
+    #[DataProvider('rsvpFormats')]
+    public function testEditAndDeleteReturnRequestedFormat(string $accept): void
+    {
+        $gatherings = $this->getTableLocator()->get('Gatherings');
+        $gathering = $gatherings->saveOrFail($gatherings->newEntity([
+            'branch_id' => self::KINGDOM_BRANCH_ID, 'gathering_type_id' => 1,
+            'name' => 'Partial RSVP edit', 'start_date' => '2099-08-10 10:00:00',
+            'end_date' => '2099-08-10 16:00:00', 'timezone' => 'America/Chicago',
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]));
+        $table = $this->getTableLocator()->get('GatheringAttendances');
+        $attendance = $table->saveOrFail($table->newEntity([
+            'gathering_id' => $gathering->id, 'member_id' => self::ADMIN_MEMBER_ID,
+        ]));
+        $headers = ['Accept' => $accept, 'X-Requested-With' => 'XMLHttpRequest'];
+        $this->configRequest(['headers' => $headers]);
+        $this->post('/gathering-attendances/edit/' . $attendance->id, ['public_note' => 'Partial update']);
+        $this->assertResponseOk();
+        $this->assertContentType($accept);
+        $this->assertSame('Partial update', $table->get($attendance->id)->public_note);
+        $this->configRequest(['headers' => $headers]);
+        $this->post('/gathering-attendances/delete/' . $attendance->id);
+        $this->assertResponseOk();
+        $this->assertContentType($accept);
+        $this->assertFalse($table->exists(['id' => $attendance->id]));
+    }
+
+    #[DataProvider('rsvpFormats')]
+    public function testEndedGatheringReturnsFailureInsteadOfSuccessfulRedirect(string $accept): void
+    {
+        $gatherings = $this->getTableLocator()->get('Gatherings');
+        $gathering = $gatherings->saveOrFail($gatherings->newEntity([
+            'branch_id' => self::KINGDOM_BRANCH_ID, 'gathering_type_id' => 1,
+            'name' => 'Ended RSVP validation', 'start_date' => '2000-08-10 10:00:00',
+            'end_date' => '2000-08-10 16:00:00', 'timezone' => 'America/Chicago',
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]));
+        $this->configRequest(['headers' => ['Accept' => $accept, 'X-Requested-With' => 'XMLHttpRequest']]);
+        $this->post('/gathering-attendances/add', ['gathering_id' => $gathering->id]);
+        $this->assertResponseCode($accept === 'application/json' ? 400 : 422);
+        $this->assertContentType($accept);
+        $this->assertResponseContains('already ended');
+    }
+
     public static function rsvpFormats(): array
     {
         return [['text/vnd.turbo-stream.html'], ['application/json']];

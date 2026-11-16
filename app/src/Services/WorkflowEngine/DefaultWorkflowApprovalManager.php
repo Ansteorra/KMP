@@ -9,6 +9,7 @@ use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowApprovalResponse;
 use App\Model\Table\WorkflowApprovalsTable;
 use App\Services\ServiceResult;
+use App\Services\UiBulkMutation;
 use App\Services\WorkflowRegistry\WorkflowApproverResolverRegistry;
 use Cake\Core\ContainerInterface;
 use Cake\Datasource\ConnectionManager;
@@ -210,18 +211,21 @@ class DefaultWorkflowApprovalManager implements WorkflowApprovalManagerInterface
             // Layer 2: Atomic increment of counts to prevent lost updates
             // Layer 3: Optimistic version check — ensures no concurrent modification
             if ($decision === WorkflowApprovalResponse::DECISION_APPROVE) {
-                $affectedRows = $approvalsTable->updateAll(
+                $affectedRows = UiBulkMutation::update(
+                    $approvalsTable,
                     ['approved_count = approved_count + 1', 'version' => $currentVersion + 1],
                     ['id' => $approval->id, 'version' => $currentVersion],
                 );
             } elseif ($decision === WorkflowApprovalResponse::DECISION_REJECT) {
-                $affectedRows = $approvalsTable->updateAll(
+                $affectedRows = UiBulkMutation::update(
+                    $approvalsTable,
                     ['rejected_count = rejected_count + 1', 'version' => $currentVersion + 1],
                     ['id' => $approval->id, 'version' => $currentVersion],
                 );
             } else {
                 // Non-counted decision (e.g. abstain) — still bump version
-                $affectedRows = $approvalsTable->updateAll(
+                $affectedRows = UiBulkMutation::update(
+                    $approvalsTable,
                     ['version' => $currentVersion + 1],
                     ['id' => $approval->id, 'version' => $currentVersion],
                 );

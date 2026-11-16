@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\IconCatalog;
 use Cake\Core\Configure;
 
 $appName = $this->KMP->getAppSetting("KMP.LongSiteTitle");
@@ -18,6 +19,7 @@ echo $this->KMP->startBlock("tb_footer"); ?>
                 <?php foreach ($footerLinks as $key => $value) :
                     $key = str_replace("KMP.FooterLink.", "", $key);
                     $keys = explode(".", $key);
+                    $linkName = $keys[0];
                     $key = $keys[0];
                     if (count($keys) > 1) {
                         $key = $keys[1] == "no-label" ? "" : $keys[0];
@@ -30,13 +32,12 @@ echo $this->KMP->startBlock("tb_footer"); ?>
                     }
                 ?>
                 <li class="nav-item text-nowrap mx-2">
-                    <a class="<?= htmlspecialchars($css, ENT_QUOTES, 'UTF-8') ?>"
-                        href="<?= htmlspecialchars($url, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($key, ENT_QUOTES, 'UTF-8') ?></a>
+                    <?= $this->Html->link($key, $url, IconCatalog::controlOptions($css, $parts[2] ?? null) + ['aria-label' => $linkName]) ?>
                 </li>
                 <?php endforeach; ?>
                 <li class="nav-item text-nowrap mx-2">
                     <?= $this->Html->link(
-                        '<i class="bi bi-journal-text"></i> Changelog',
+                        '<kmp-icon name="notebook"  aria-hidden="true"></kmp-icon> Changelog',
                         [
                             'prefix' => false,
                             'plugin' => null,

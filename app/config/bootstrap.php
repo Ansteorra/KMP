@@ -19,23 +19,18 @@ declare(strict_types=1);
 /*
  * Configure paths required to find CakePHP + general filepath constants
  */
+use App\Database\Driver\PooledPostgres;
+use App\Services\Security\TrustedProxy;
+
 require __DIR__ . DIRECTORY_SEPARATOR . "paths.php";
 
 /*
- * Trust reverse-proxy TLS termination when TRUST_PROXY=true (e.g. Azure
- * Container Apps, AWS ALB, Nginx ingress). Azure's ingress sets
- * X-Forwarded-Proto: https; without this, CakePHP generates http://
- * Location headers which violates CSP `form-action 'self'` after POST
- * redirects.
+ * Honor TLS termination only from configured peers or managed Azure HTTP ingress.
+ * TrustedProxyMiddleware applies the matching client-IP policy to each request.
  */
-$trustedProxies = array_values(array_filter(array_map(
-    'trim',
-    explode(",", (string)(getenv("TRUSTED_PROXY_IPS") ?: ($_ENV["TRUSTED_PROXY_IPS"] ?? ""))),
-)));
 $remoteAddr = (string)($_SERVER["REMOTE_ADDR"] ?? "");
 if (
-    (getenv("TRUST_PROXY") === "true" || ($_ENV["TRUST_PROXY"] ?? null) === "true")
-    && ($trustedProxies === [] || in_array($remoteAddr, $trustedProxies, true))
+    TrustedProxy::fromEnvironment()->isTrustedPeer($remoteAddr)
     && empty($_SERVER["HTTPS"])
     && (($_SERVER["HTTP_X_FORWARDED_PROTO"] ?? "") === "https")
 ) {
@@ -245,6 +240,19 @@ foreach ($datasources as &$datasource) {
     }
 }
 unset($datasource);
+if (PHP_SAPI !== 'cli' && Configure::read('DatabasePool.enabled')) {
+    foreach (['default', 'platform'] as $name) {
+        $config = $datasources[$name];
+        if (!empty($config['url'])) {
+            $config = ConnectionManager::parseDsn($config['url']) + $config;
+            unset($config['url']);
+        }
+        $config['driver'] = PooledPostgres::class;
+        $config['poolDirectory'] = Configure::read('DatabasePool.directory');
+        $config['persistent'] = false;
+        $datasources[$name] = $config;
+    }
+}
 ConnectionManager::setConfig($datasources);
 TransportFactory::setConfig(Configure::consume("EmailTransport"));
 Mailer::setConfig(Configure::consume("Email"));

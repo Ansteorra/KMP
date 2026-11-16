@@ -219,11 +219,11 @@ class WorkflowToolbarController extends Controller {
         if (executionMode === 'ephemeral') {
             this.executionModeBadgeTarget.className = 'badge bg-info text-dark ms-2'
             this.executionModeBadgeTarget.title = 'Ephemeral workflows run in-memory with no persistence. Async nodes (approvals, delays) are not supported.'
-            this.executionModeBadgeTarget.innerHTML = '<i class="bi bi-lightning-charge me-1"></i>Ephemeral'
+            this.executionModeBadgeTarget.innerHTML = '<kmp-icon name="bolt" class="me-1" aria-hidden="true"></kmp-icon>Ephemeral'
         } else {
             this.executionModeBadgeTarget.className = 'badge bg-primary ms-2'
             this.executionModeBadgeTarget.title = 'Durable workflows persist execution state and support async nodes like approvals and delays.'
-            this.executionModeBadgeTarget.innerHTML = '<i class="bi bi-database me-1"></i>Durable'
+            this.executionModeBadgeTarget.innerHTML = '<kmp-icon name="database" class="me-1" aria-hidden="true"></kmp-icon>Durable'
         }
     }
 

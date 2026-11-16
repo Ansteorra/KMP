@@ -12,21 +12,21 @@ declare(strict_types=1);
 <div class="mobile-gathering-select px-3 pt-3" data-section="waivers">
     <!-- Info Alert -->
     <div class="alert alert-info mb-4" role="alert">
-        <i class="bi bi-info-circle me-2"></i>
+        <kmp-icon name="info-circle" class="me-2" aria-hidden="true"></kmp-icon>
         <?= __('Choose the gathering for which you want to upload waivers.') ?>
     </div>
 
     <?php if (empty($authorizedGatherings)) : ?>
         <!-- No Gatherings Available -->
         <div class="alert alert-warning" role="alert">
-            <i class="bi bi-exclamation-triangle me-2"></i>
+            <kmp-icon name="alert-triangle" class="me-2" aria-hidden="true"></kmp-icon>
             <?= __('No open gatherings requiring waivers were found that you have permission to upload waivers for.') ?>
         </div>
 
         <div class="d-grid gap-2">
             <button type="button" class="btn btn-secondary btn-lg" data-controller="history-back"
                 data-action="history-back#go">
-                <i class="bi bi-arrow-left me-2" aria-hidden="true"></i><?= __('Go Back') ?>
+                <kmp-icon name="arrow-left" class="me-2" aria-hidden="true"></kmp-icon><?= __('Go Back') ?>
             </button>
         </div>
     <?php else : ?>
@@ -58,7 +58,7 @@ declare(strict_types=1);
                     <div class="d-flex w-100 justify-content-between align-items-start">
                         <div class="flex-grow-1">
                             <h5 class="mb-1">
-                                <i class="bi bi-calendar-event text-primary me-1" aria-hidden="true"></i>
+                                <kmp-icon name="calendar-event" class="text-primary me-1" aria-hidden="true"></kmp-icon>
                                 <?= h($gathering->name) ?>
                             </h5>
                             
@@ -66,31 +66,31 @@ declare(strict_types=1);
                             <div class="mb-2">
                                 <?php if ($gathering->is_waiver_complete) : ?>
                                     <span class="badge bg-success">
-                                        <i class="bi bi-check-circle me-1" aria-hidden="true"></i><?= __('Complete') ?>
+                                        <kmp-icon name="circle-check" class="me-1" aria-hidden="true"></kmp-icon><?= __('Complete') ?>
                                     </span>
                                 <?php else : ?>
                                     <span class="badge bg-warning">
-                                        <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i><?= __n('{0} Missing', '{0} Missing', $gathering->missing_waiver_count, $gathering->missing_waiver_count) ?>
+                                        <kmp-icon name="alert-circle" class="me-1" aria-hidden="true"></kmp-icon><?= __n('{0} Missing', '{0} Missing', $gathering->missing_waiver_count, $gathering->missing_waiver_count) ?>
                                     </span>
                                 <?php endif; ?>
                                 
                                 <?php if ($gathering->is_ready_to_close) : ?>
                                     <span class="badge bg-info">
-                                        <i class="bi bi-check2-square me-1" aria-hidden="true"></i><?= __('Ready to Close') ?>
+                                        <kmp-icon name="checkbox" class="me-1" aria-hidden="true"></kmp-icon><?= __('Ready to Close') ?>
                                     </span>
                                 <?php endif; ?>
                                 
                                 <?php if ($gathering->is_ended) : ?>
                                     <span class="badge bg-danger">
-                                        <i class="bi bi-calendar-x me-1" aria-hidden="true"></i><?= __('Ended') ?>
+                                        <kmp-icon name="calendar-x" class="me-1" aria-hidden="true"></kmp-icon><?= __('Ended') ?>
                                     </span>
                                 <?php elseif ($gathering->is_ongoing) : ?>
                                     <span class="badge bg-warning">
-                                        <i class="bi bi-alarm me-1" aria-hidden="true"></i><?= __('In Progress') ?>
+                                        <kmp-icon name="alarm" class="me-1" aria-hidden="true"></kmp-icon><?= __('In Progress') ?>
                                     </span>
                                 <?php elseif ($gathering->is_upcoming) : ?>
                                     <span class="badge bg-info">
-                                        <i class="bi bi-clock me-1" aria-hidden="true"></i><?= __('Upcoming') ?>
+                                        <kmp-icon name="clock" class="me-1" aria-hidden="true"></kmp-icon><?= __('Upcoming') ?>
                                     </span>
                                 <?php endif; ?>
                             </div>
@@ -98,16 +98,16 @@ declare(strict_types=1);
                             <!-- Missing Waivers List -->
                             <?php if (!empty($gathering->missing_waiver_names)) : ?>
                                 <p class="mb-1 small text-danger">
-                                    <i class="bi bi-file-earmark-x me-1"></i>
+                                    <kmp-icon name="file-x" class="me-1" aria-hidden="true"></kmp-icon>
                                     <?= __('Missing: {0}', implode(', ', $gathering->missing_waiver_names)) ?>
                                 </p>
                             <?php endif; ?>
                             
                             <p class="mb-1 text-muted small">
-                                <i class="bi bi-geo-alt me-1"></i><?= h($gathering->branch->name ?? 'Unknown Branch') ?>
+                                <kmp-icon name="map-pin" class="me-1" aria-hidden="true"></kmp-icon><?= h($gathering->branch->name ?? 'Unknown Branch') ?>
                             </p>
                             <p class="mb-0 small">
-                                <i class="bi bi-calendar3 me-1"></i>
+                                <kmp-icon name="calendar-month" class="me-1" aria-hidden="true"></kmp-icon>
                                 <?= $this->Timezone->format($gathering->start_date, $gathering, 'M j, Y') ?>
                                 <?php if ($this->Timezone->format($gathering->start_date, $gathering, 'Y-m-d') !== $this->Timezone->format($gathering->end_date, $gathering, 'Y-m-d')) : ?>
                                     - <?= $this->Timezone->format($gathering->end_date, $gathering, 'M j, Y') ?>
@@ -115,12 +115,12 @@ declare(strict_types=1);
                             </p>
                             <?php if (!empty($gathering->location)) : ?>
                                 <p class="mb-0 text-muted small">
-                                    <i class="bi bi-map me-1"></i><?= h($gathering->location) ?>
+                                    <kmp-icon name="map" class="me-1" aria-hidden="true"></kmp-icon><?= h($gathering->location) ?>
                                 </p>
                             <?php endif; ?>
                         </div>
                         <div class="ms-2">
-                            <i class="bi bi-chevron-right text-muted"></i>
+                            <kmp-icon name="chevron-right" class="text-muted" aria-hidden="true"></kmp-icon>
                         </div>
                     </div>
                 </a>
@@ -129,7 +129,7 @@ declare(strict_types=1);
 
         <!-- Info Message -->
         <div class="alert alert-light small" role="alert">
-            <i class="bi bi-calendar-range me-2"></i>
+            <kmp-icon name="calendar-week" class="me-2" aria-hidden="true"></kmp-icon>
             <?= __('Showing open gatherings requiring waivers, ordered by end date, oldest first.') ?>
         </div>
     <?php endif; ?>

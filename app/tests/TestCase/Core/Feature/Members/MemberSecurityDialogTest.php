@@ -27,8 +27,8 @@ final class MemberSecurityDialogTest extends HttpIntegrationTestCase
         $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
         $this->configRequest(['headers' => ['Turbo-Frame' => 'security-settings']]);
         $this->get('/members/security/' . self::ADMIN_MEMBER_ID);
-        $this->assertRedirectContains('/pages/unauthorized');
-        $this->assertResponseNotContains('security-settings#open');
+        $this->assertResponseCode(403);
+        $this->assertResponseNotContains('<turbo-frame id="security-settings">');
     }
 
     public function testAdministratorGetsMemberResetActionsWithoutSelfSignOut(): void

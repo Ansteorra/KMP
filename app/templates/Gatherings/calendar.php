@@ -18,7 +18,8 @@
  * @var string $defaultView
  */
 
-use Cake\I18n\DateTime;
+use App\Model\Entity\Gathering;
+use Cake\I18n\FrozenDate;
 
 $this->extend('/layout/TwitterBootstrap/dashboard');
 
@@ -35,7 +36,7 @@ $stickyDefaults = json_encode([
     'week_start' => $this->request->getQuery('week_start'),
 ]);
 ?>
-<div data-controller="gatherings-calendar grid-view"
+<div data-controller="gatherings-calendar grid-view" data-refresh-frame-on="attendance"
     data-grid-view-sticky-query-value="year,month,view,week_start"
     data-grid-view-sticky-default-value='<?= h($stickyDefaults) ?>'>
     <?= $this->element('dv_custom', [
@@ -66,6 +67,8 @@ $stickyDefaults = json_encode([
         background-color: #fff;
         min-height: 120px;
         padding: 0.5rem;
+        padding-bottom: 2rem;
+        scroll-margin-top: calc(var(--kmp-navbar-height, 48px) + 1rem);
         position: relative;
         border: 1px solid #dee2e6;
         overflow: hidden;
@@ -76,8 +79,9 @@ $stickyDefaults = json_encode([
         position: absolute;
         bottom: 4px;
         right: 6px;
-        width: 20px;
-        height: 20px;
+        width: 24px;
+        height: 24px;
+        scroll-margin-block: calc(var(--kmp-navbar-height, 48px) + 1rem) 1rem;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -89,17 +93,30 @@ $stickyDefaults = json_encode([
         text-decoration: none;
     }
 
-    .calendar-day:hover .calendar-day-add {
+    .calendar-day:hover .calendar-day-add,
+    .calendar-day:focus-within .calendar-day-add {
         opacity: 0.7;
     }
 
-    .calendar-day .calendar-day-add:hover {
+    .calendar-day .calendar-day-add:hover,
+    .calendar-day .calendar-day-add:focus-visible {
         opacity: 1;
+    }
+
+    .calendar-day .calendar-day-add:focus-visible {
+        outline: 2px solid var(--bs-primary);
+        outline-offset: 2px;
+    }
+
+    @media (hover: none) {
+        .calendar-day .calendar-day-add {
+            opacity: 1;
+        }
     }
 
     .calendar-day.other-month {
         background-color: #f8f9fa;
-        color: #5c636a;
+        color: #495057;
     }
 
     .calendar-day.today {
@@ -163,7 +180,7 @@ $stickyDefaults = json_encode([
 
 <?php
 // Add modal block to layout
-$this->KMP->startBlock("modals");
+$this->KMP->startBlock('modals');
 ?>
 <!-- Quick View Modal -->
 <div class="modal fade" id="gatheringQuickViewModal" tabindex="-1" aria-labelledby="gatheringQuickViewModalLabel"
@@ -191,11 +208,11 @@ $this->KMP->startBlock("modals");
 <!-- Attendance Modal - Reusing attendGatheringModal element -->
 <?php
 // Create a temporary gathering object for the modal (will be populated via JS)
-$tempGathering = new \App\Model\Entity\Gathering([
+$tempGathering = new Gathering([
     'id' => 0,
     'name' => '',
-    'start_date' => new \Cake\I18n\FrozenDate(),
-    'end_date' => new \Cake\I18n\FrozenDate(),
+    'start_date' => new FrozenDate(),
+    'end_date' => new FrozenDate(),
 ]);
 
 echo $this->element('gatherings/attendGatheringModal', [
@@ -204,7 +221,6 @@ echo $this->element('gatherings/attendGatheringModal', [
     'user' => $this->request->getAttribute('identity'),
     'modalId' => 'attendanceModal',
     'fromCalendar' => true,
-    'progressOfficers' => $progressOfficers ?? [],
 ]);
 ?>
 <?php

@@ -87,6 +87,7 @@ echo json_encode([
     'permissionId' => (int)$permission->id,
     'permissionName' => (string)$permission->name,
     'memberId' => (int)$member->id,
+    'memberPublicId' => (string)$member->public_id,
     'memberName' => (string)$member->sca_name,
     'memberEmail' => (string)$member->email_address,
     'adminEmail' => (string)$admin->email_address,
@@ -224,32 +225,8 @@ const chooseAutocompleteOption = async (scope, label, queryText, optionText) => 
 };
 
 const setRoleMemberSelection = async (modal, fixture) => {
-    const picker = modal.locator('[data-role-add-member-target="scaMember"]');
-    await picker.evaluate((element, values) => {
-        const hiddenId = element.querySelector('input[name="member_id"]');
-        const hiddenText = element.querySelector('input[name="sca_name"]');
-        const displayInput = element.querySelector('input[type="text"]');
-
-        if (!hiddenId || !hiddenText || !displayInput) {
-            throw new Error('Could not find role member autocomplete inputs.');
-        }
-
-        hiddenId.value = String(values.memberId);
-        hiddenText.value = values.memberName;
-        displayInput.value = values.memberName;
-
-        if ('value' in element) {
-            element.value = { value: String(values.memberId), text: values.memberName };
-        }
-
-        for (const target of [hiddenId, hiddenText, displayInput, element]) {
-            target.dispatchEvent(new Event('input', { bubbles: true }));
-            target.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-    }, {
-        memberId: fixture.memberId,
-        memberName: fixture.memberName,
-    });
+    await chooseAutocompleteOption(modal, 'SCA Name', fixture.memberName, fixture.memberName);
+    await expect(modal.locator('input[name="member_id"]')).toHaveValue(fixture.memberPublicId);
 };
 
 const signOutIfNeeded = async (page) => {

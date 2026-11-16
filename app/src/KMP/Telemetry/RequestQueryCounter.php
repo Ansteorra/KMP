@@ -13,7 +13,7 @@ use Stringable;
  * PSR-3 logger that counts queries and accumulates their durations for the
  * current process / request.
  *
- * This is installed on the primary CakePHP database connection so per-request
+ * This is installed on the default, platform and active tenant connections so per-request
  * capacity signals (query_count, db_total_ms) are emitted regardless of
  * whether PERF_DB_QUERY_LOG_ENABLED is on. When the connection already had a
  * Cake QueryLogger configured, RequestQueryCounter delegates to it so the

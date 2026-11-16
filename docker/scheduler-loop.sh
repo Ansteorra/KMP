@@ -22,6 +22,7 @@ last_active_window=0
 last_warrantable="$started_at"
 last_age_up="$started_at"
 last_queue=0
+last_calendar_demo=0
 
 run_due() {
     name="$1"
@@ -61,6 +62,9 @@ age_up_command="$(schedule_command "age-up-members" "bin/cake age_up_members")"
 
 echo "KMP scheduler loop started."
 while true; do
+    if [ "${KMP_PUBLIC_CALENDAR_DEMO:-false}" = "true" ]; then
+        last_calendar_demo="$(run_due "development calendar demos" "bin/cake seed_public_calendar" "$last_calendar_demo" 86400)"
+    fi
     if [ "$tenancy_enabled" = "true" ]; then
         last_queue="$(run_due \
             "platform worker" \

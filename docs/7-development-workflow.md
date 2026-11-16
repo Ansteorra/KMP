@@ -143,7 +143,7 @@ Choose checks proportionate to risk:
 | Migration | clean setup + seeded upgrade + tenant catalog/status verification |
 | Cross-cutting | `bash bin/verify.sh` when practical |
 
-The standard verifier runs the three PHPUnit suites, skipped-test budget, seed
+The standard verifier runs the complete PHPUnit `all` suite (matching CI), skipped-test budget, seed
 snapshot contracts, Jest, Markdown/JSDoc integrity, Vite, changed-PHP PHPCS,
 Azure runtime contract, and PHPStan:
 

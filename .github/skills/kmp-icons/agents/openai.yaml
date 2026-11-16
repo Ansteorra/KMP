@@ -1,0 +1,4 @@
+interface:
+  display_name: "KMP SVG Icons"
+  short_description: "Create activity SVGs for the KMP icon catalog"
+  default_prompt: "Use $kmp-icons to create a new activity icon that matches KMP and add it to the searchable catalog."

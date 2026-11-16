@@ -24,7 +24,7 @@ $uploadLimits = $this->KMP->getUploadLimits();
                 hidden
                 data-member-mobile-card-profile-target="photoManageButton"
                 data-bs-toggle="modal" data-bs-target="#mobileCardPhotoUploadModal">
-                <i class="bi bi-camera me-1"></i><?= __('Photo') ?>
+                <kmp-icon name="camera" class="me-1" aria-hidden="true"></kmp-icon><?= __('Photo') ?>
             </button>
             <?php endif; ?>
         </div>
@@ -91,13 +91,7 @@ $uploadLimits = $this->KMP->getUploadLimits();
                     <div data-file-size-validator-target="warning" class="d-none m-2"></div>
                     <div data-face-photo-validator-target="warning" class="d-none m-2"></div>
                     <div class="card-body text-center">
-                        <svg class="bi bi-person-square text-secondary text-center" width="180" height="180"
-                            fill="currentColor" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"
-                            data-image-preview-target="loading">
-                            <path d="M9 11c0 1-1 1-1 1s-1 0-1-1 1-2 1-2 1 1 1 2" />
-                            <path
-                                d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm10.5 3a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0M4.5 7a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0M8 8a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5m-5 5.5a3.5 3.5 0 0 1 7 0z" />
-                        </svg>
+                        <kmp-icon name="user-square-rounded" class="text-secondary text-center" style="--kmp-icon-size:180px" data-image-preview-target="loading" aria-hidden="true"></kmp-icon>
                         <img hidden alt="<?= __('Profile photo preview') ?>" class="w-100"
                             data-image-preview-target="preview">
                     </div>
@@ -105,11 +99,11 @@ $uploadLimits = $this->KMP->getUploadLimits();
                         <div class="d-grid gap-2" data-controller="mobile-photo-source">
                             <button type="button" class="btn btn-primary"
                                 data-action="click->mobile-photo-source#chooseCamera">
-                                <i class="bi bi-camera-fill me-1"></i><?= __('Take Photo') ?>
+                                <kmp-icon name="camera" class="me-1" aria-hidden="true"></kmp-icon><?= __('Take Photo') ?>
                             </button>
                             <button type="button" class="btn btn-outline-secondary"
                                 data-action="click->mobile-photo-source#chooseGallery">
-                                <i class="bi bi-images me-1"></i><?= __('Choose from Gallery') ?>
+                                <kmp-icon name="library-photo" class="me-1" aria-hidden="true"></kmp-icon><?= __('Choose from Gallery') ?>
                             </button>
                             <input type="file" name="profile_photo" class="d-none" accept="image/*"
                                 data-mobile-photo-source-target="fileInput" data-image-preview-target="file"

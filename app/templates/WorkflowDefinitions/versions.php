@@ -32,10 +32,10 @@ $csrfToken = $this->request->getAttribute('csrfToken');
         <div class="d-flex gap-2">
             <button type="button" class="btn btn-outline-success btn-sm"
                 data-action="click->workflow-versions#createDraft">
-                <i class="bi bi-plus-lg me-1"></i><?= __('Create New Draft') ?>
+                <kmp-icon name="plus" class="me-1" aria-hidden="true"></kmp-icon><?= __('Create New Draft') ?>
             </button>
             <?= $this->Html->link(
-                '<i class="bi bi-pencil-square me-1"></i>' . __('Open Designer'),
+                '<kmp-icon name="edit" class="me-1" aria-hidden="true"></kmp-icon>' . __('Open Designer'),
                 ['action' => 'designer', $workflow->id],
                 ['class' => 'btn btn-primary btn-sm', 'escape' => false]
             ) ?>
@@ -75,7 +75,7 @@ $csrfToken = $this->request->getAttribute('csrfToken');
                     <button type="button" class="btn btn-sm btn-outline-primary" disabled
                         data-workflow-versions-target="compareBtn"
                         data-action="click->workflow-versions#compare">
-                        <i class="bi bi-arrow-left-right me-1"></i><?= __('Compare') ?>
+                        <kmp-icon name="arrows-left-right" class="me-1" aria-hidden="true"></kmp-icon><?= __('Compare') ?>
                     </button>
                 </div>
             </div>
@@ -122,7 +122,7 @@ $csrfToken = $this->request->getAttribute('csrfToken');
                             data-version-id="<?= h($version->id) ?>"
                             title="<?= __('Migrate Running Instances') ?>"
                             aria-label="<?= __('Migrate Running Instances') ?>">
-                            <i class="bi bi-arrow-repeat"></i>
+                            <kmp-icon name="repeat"  aria-hidden="true"></kmp-icon>
                         </button>
                         <?php endif; ?>
                     </td>

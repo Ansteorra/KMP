@@ -168,7 +168,7 @@ switch ($actionType) {
             data-subrow-url="<?= h($clickActionUrl ?? '') ?>"
             aria-expanded="false"
             aria-controls="<?= h($subRowDomId) ?>">
-            <i class="bi bi-chevron-right toggle-icon me-1" style="font-size: 0.75rem;" aria-hidden="true"></i>
+            <kmp-icon name="chevron-right" class="toggle-icon me-1" style="font-size: 0.75rem;" aria-hidden="true"></kmp-icon>
             <span><?= $content ?></span>
         </button>
         <?php

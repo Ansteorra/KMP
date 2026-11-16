@@ -656,6 +656,25 @@ $connection->transactional(function () use ($connection, $input): void {
         $connection->execute('DELETE FROM awards_awards WHERE id = :id', ['id' => $awardId]);
     }
     if ($processId > 0) {
+        // Failed browser assertions still clean up only this fixture's queued synchronization.
+        $syncRunIds = $connection->execute(
+            'SELECT id FROM awards_approval_sync_runs WHERE approval_process_id = :id',
+            ['id' => $processId],
+        )->fetchAll('assoc');
+        foreach ($syncRunIds as $syncRun) {
+            $connection->execute(
+                'DELETE FROM queued_jobs WHERE reference = :reference',
+                ['reference' => 'awards-approval-sync:' . (int)$syncRun['id']],
+            );
+            $connection->execute(
+                'DELETE FROM awards_approval_sync_items WHERE sync_run_id = :id',
+                ['id' => (int)$syncRun['id']],
+            );
+        }
+        $connection->execute(
+            'DELETE FROM awards_approval_sync_runs WHERE approval_process_id = :id',
+            ['id' => $processId],
+        );
         $connection->execute('DELETE FROM awards_approval_processes WHERE id = :id', ['id' => $processId]);
     }
     if ($templateId > 0) {

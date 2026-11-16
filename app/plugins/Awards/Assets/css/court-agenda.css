@@ -1,0 +1,164 @@
+.court-agenda-page {
+    max-width: 1600px;
+}
+
+.court-agenda-toolbar,
+.court-agenda-selector {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 1rem;
+}
+
+.court-agenda-selector {
+    flex: 1 1 24rem;
+    min-width: 0;
+}
+
+.court-agenda-selector .flex-grow-1 {
+    min-width: 0;
+    flex-basis: 16rem;
+}
+
+.court-agenda-workspace {
+    display: grid;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.court-agenda-script,
+.court-agenda-item-content {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.court-agenda-page .court-agenda-list {
+    padding: 0 1rem;
+}
+
+.court-agenda-item {
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.court-agenda-item:last-child {
+    border-bottom: 0;
+}
+
+.court-agenda-item-row {
+    display: flex;
+    gap: .75rem;
+    align-items: start;
+}
+
+.court-agenda-position {
+    min-width: 1.5rem;
+    padding-top: .15rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.court-agenda-item-content {
+    flex: 1;
+}
+
+.court-agenda-item-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: end;
+    gap: .375rem;
+}
+
+.court-agenda-item-actions .btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: .5rem;
+}
+
+.court-agenda-item-actions [aria-disabled="true"] {
+    color: var(--bs-secondary-color);
+    border-color: var(--bs-border-color);
+}
+
+.court-agenda-item-details {
+    margin: .5rem 0 0 2.25rem;
+}
+
+.court-agenda-page summary {
+    width: fit-content;
+    min-height: 28px;
+    cursor: pointer;
+}
+
+.court-agenda-available-item {
+    padding: .85rem 0;
+    border-bottom: 1px solid var(--bs-border-color);
+    overflow-wrap: anywhere;
+}
+
+.court-agenda-available-item:first-child {
+    padding-top: 0;
+}
+
+.court-agenda-available-item:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+.court-agenda-tools {
+    --bs-offcanvas-width: 26rem;
+    max-width: 100%;
+}
+
+.court-agenda-page .court-agenda-tools .offcanvas-body {
+    display: block;
+}
+
+@media (min-width: 992px) {
+    .court-agenda-with-tools {
+        grid-template-columns: minmax(0, 1fr) 22rem;
+    }
+
+    .court-agenda-page .court-agenda-tools .offcanvas-body {
+        padding: 0;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .court-agenda-item-actions {
+        flex-direction: column;
+    }
+
+    .court-agenda-item-row {
+        gap: .5rem;
+    }
+
+    .court-agenda-item h3 {
+        font-size: 1rem;
+    }
+
+    .court-agenda-position {
+        min-width: 1rem;
+    }
+
+    .court-agenda-item-details {
+        margin-left: 1.5rem;
+    }
+}
+
+@media (max-width: 991.98px) {
+    body.CourtAgendas.gathering header.navbar {
+        flex-wrap: wrap !important;
+    }
+
+    body.CourtAgendas.gathering .navbar-nav {
+        flex-wrap: wrap;
+        row-gap: .5rem;
+        padding-bottom: .5rem;
+    }
+
+    body.CourtAgendas.gathering footer .navbar-nav {
+        min-width: 0;
+        flex-basis: 100%;
+        justify-content: end;
+    }
+}

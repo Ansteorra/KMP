@@ -1063,7 +1063,7 @@ class DocumentService
         $thumbnailHeight = max(1, (int)round($sourceHeight * $scale));
         $thumbnailImage = imagecreatetruecolor($thumbnailWidth, $thumbnailHeight);
         if (!$thumbnailImage instanceof GdImage) {
-            imagedestroy($sourceImage);
+            unset($sourceImage);
 
             return null;
         }
@@ -1082,9 +1082,9 @@ class DocumentService
             $sourceWidth,
             $sourceHeight,
         );
-        imagedestroy($sourceImage);
+        unset($sourceImage);
         if (!$resampled) {
-            imagedestroy($thumbnailImage);
+            unset($thumbnailImage);
 
             return null;
         }
@@ -1096,7 +1096,7 @@ class DocumentService
             self::IMAGE_THUMBNAIL_JPEG_QUALITY,
         );
         $thumbnailContents = ob_get_clean();
-        imagedestroy($thumbnailImage);
+        unset($thumbnailImage);
 
         return $written && is_string($thumbnailContents)
             ? $thumbnailContents
@@ -1140,7 +1140,7 @@ class DocumentService
             return $image;
         }
 
-        imagedestroy($image);
+        unset($image);
 
         return $rotatedImage;
     }

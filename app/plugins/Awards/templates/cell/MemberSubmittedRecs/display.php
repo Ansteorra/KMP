@@ -15,7 +15,7 @@ $frameId = 'member-submitted-recs-grid-' . $id;
 
 <div class="mb-3">
     <?= $this->Html->link(
-        '<i class="bi bi-plus-circle"></i> ' . __("Submit Award Rec."),
+        '<kmp-icon name="circle-plus"  aria-hidden="true"></kmp-icon> ' . __("Submit Award Rec."),
         ['controller' => 'Recommendations', 'action' => 'add', 'plugin' => 'Awards'],
         ['class' => 'btn btn-primary btn-sm', 'escape' => false]
     ) ?>

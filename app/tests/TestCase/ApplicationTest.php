@@ -18,6 +18,7 @@ declare(strict_types=1);
 namespace App\Test\TestCase;
 
 use App\Application;
+use App\Middleware\TrustedProxyMiddleware;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Cake\Core\Configure;
 use Cake\Error\Middleware\ErrorHandlerMiddleware;
@@ -143,7 +144,8 @@ class ApplicationTest extends HttpIntegrationTestCase
         try {
             $app = new Application(dirname(dirname(__DIR__)) . '/config');
             $middleware = iterator_to_array($app->middleware(new MiddlewareQueue()));
-            $performanceMiddleware = $middleware[2];
+            $this->assertInstanceOf(TrustedProxyMiddleware::class, $middleware[1]);
+            $performanceMiddleware = $middleware[3];
 
             $logFile = TMP . 'performance-instrumentation-test.log';
             if (file_exists($logFile)) {
@@ -245,7 +247,8 @@ class ApplicationTest extends HttpIntegrationTestCase
             ]);
             $app = new Application(dirname(dirname(__DIR__)) . '/config');
             $middleware = iterator_to_array($app->middleware(new MiddlewareQueue()));
-            $performanceMiddleware = $middleware[2];
+            $this->assertInstanceOf(TrustedProxyMiddleware::class, $middleware[1]);
+            $performanceMiddleware = $middleware[3];
             $request = new ServerRequest([
                 'environment' => [
                     'REQUEST_METHOD' => 'GET',

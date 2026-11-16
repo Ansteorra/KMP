@@ -1,3 +1,4 @@
+import { iconHtml } from '../services/icon-service.js';
 /**
  * WorkflowSerializer
  *
@@ -95,9 +96,9 @@ export default class WorkflowSerializer {
 
     buildNodeHTML(type, nodeKey, config, outputPortLabels = null) {
         const icons = {
-            trigger: 'fa-bolt', action: 'fa-gear', condition: 'fa-diamond',
-            approval: 'fa-check-double', fork: 'fa-code-branch', join: 'fa-code-merge',
-            loop: 'fa-rotate', forEach: 'fa-list-ol', delay: 'fa-clock', subworkflow: 'fa-sitemap', end: 'fa-stop'
+            trigger: 'bolt', action: 'settings', condition: 'diamond',
+            approval: 'checks', fork: 'git-fork', join: 'git-merge',
+            loop: 'repeat', forEach: 'list-numbers', delay: 'clock', subworkflow: 'sitemap', end: 'player-stop'
         }
         const typeLabels = {
             trigger: 'Trigger', action: 'Action', condition: 'Condition',
@@ -105,7 +106,7 @@ export default class WorkflowSerializer {
             loop: 'Loop', forEach: 'For Each', delay: 'Delay', subworkflow: 'Sub-workflow', end: 'End'
         }
 
-        const icon = icons[type] || 'fa-circle'
+        const icon = icons[type] || 'circle'
         let label = typeLabels[type] || type
 
         if (config.event) {
@@ -170,7 +171,7 @@ export default class WorkflowSerializer {
 
         return `<div class="wf-node wf-node-${type}">
             <div class="wf-node-header">
-                <span class="wf-node-icon"><i class="fa-solid ${icon}"></i></span>
+                <span class="wf-node-icon">${iconHtml(icon)}</span>
                 <span class="wf-node-title" title="${escapedLabel}">${escapedLabel}</span>
             </div>
             <div class="wf-node-body">

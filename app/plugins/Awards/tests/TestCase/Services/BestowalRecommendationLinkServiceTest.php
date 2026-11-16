@@ -43,6 +43,23 @@ class BestowalRecommendationLinkServiceTest extends BaseTestCase
         parent::tearDown();
     }
 
+    public function testLinkRefreshPreservesHeraldRecipientNameWithoutAccount(): void
+    {
+        $recipient = ['member_id' => null, 'member_sca_name' => 'Visitor Without an Account'];
+        $firstId = $this->createRecommendation('Need to Schedule', $recipient);
+        $result = $this->creationService->createFromRecommendation($firstId, self::ADMIN_MEMBER_ID);
+        $this->assertTrue($result['success'], $result['error'] ?? 'Unable to create bestowal.');
+        $bestowalId = (int)$result['data']['bestowalId'];
+        $secondId = $this->createRecommendation('King Approved', $recipient);
+
+        $this->linkService->linkRecommendations($bestowalId, [$secondId], self::ADMIN_MEMBER_ID);
+
+        $bestowal = $this->bestowalsTable->get($bestowalId);
+        $this->assertNull($bestowal->member_id);
+        $this->assertSame($recipient['member_sca_name'], $bestowal->member_sca_name);
+        $this->assertStringStartsWith($recipient['member_sca_name'] . "\n", $bestowal->herald_notes);
+    }
+
     public function testCannotUnlinkOnlyLinkedRecommendation(): void
     {
         $bestowalId = $this->createBestowalWithRecommendations(1);

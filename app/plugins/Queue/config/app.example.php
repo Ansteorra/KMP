@@ -5,7 +5,6 @@
  *
  * To modify these parameters, copy this file into your own CakePHP config directory or copy the array into your existing file.
  */
-use Templating\View\Icon\BootstrapIcon;
 
 return [
 	'Queue' => [
@@ -68,10 +67,5 @@ return [
 		// ignores task classes
 		'ignoredTasks' => [],
 
-	],
-	'Icon' => [
-		'sets' => [
-			'bs' => BootstrapIcon::class,
-		],
 	],
 ];

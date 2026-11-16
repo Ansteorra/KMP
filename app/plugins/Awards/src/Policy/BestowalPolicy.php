@@ -11,7 +11,11 @@ use App\Policy\BasePolicy;
 use App\Services\ActionItems\ActionItemAssigneeResolver;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
+use Awards\Model\Entity\CourtAgenda;
 use Awards\Model\Entity\RecommendationApprovalRun;
+use Awards\Services\BestowalDelegationAccessService;
+use Awards\Services\BestowalFieldAccessService;
+use Cake\ORM\Table;
 use Cake\ORM\TableRegistry;
 
 /**
@@ -24,6 +28,81 @@ use Cake\ORM\TableRegistry;
  */
 class BestowalPolicy extends BasePolicy
 {
+    /** Native checks deliberately bypass delegation, including for granting authority. */
+    public function hasNativePermission(KmpIdentityInterface $user, string $method, Bestowal $bestowal): bool
+    {
+        if ($method === 'canPlaceOnAgenda') {
+            return parent::_hasPolicy($user, 'canView', $bestowal)
+                && (parent::_hasPolicy($user, 'canManageCourtSchedule', $bestowal)
+                    || ($bestowal->getBranchId() !== null
+                        && (new CourtAgendaPolicy())->hasNativePermission(
+                            $user,
+                            'canEdit',
+                            new CourtAgenda(['gathering_id' => $bestowal->gathering_id]),
+                            $bestowal->getBranchId(),
+                        )));
+        }
+
+        return parent::_hasPolicy($user, $method, $bestowal);
+    }
+
+    /** Read permission alone does not put a bestowal in the add-item list. */
+    public function canPlaceOnAgenda(KmpIdentityInterface $user, Bestowal $bestowal): bool
+    {
+        return $this->hasNativePermission($user, __FUNCTION__, $bestowal)
+            || (new BestowalDelegationAccessService())->allowsBestowal($user, __FUNCTION__, $bestowal);
+    }
+
+    /** Delegated edits cannot transfer a record to another event or awarding group. */
+    public function canUpdateWithinScope(KmpIdentityInterface $user, Bestowal $bestowal, array $data): bool
+    {
+        $nativeEdit = $this->hasNativePermission($user, 'canEdit', $bestowal);
+        if (!$nativeEdit && !(new BestowalDelegationAccessService())->allowsBestowal($user, 'canEdit', $bestowal)) {
+            return false;
+        }
+        $crownFields = $this->canAccessCrownFields($user, $bestowal);
+        if (!$crownFields && array_intersect(BestowalFieldAccessService::CROWN_MUTATION_FIELDS, array_keys($data))) {
+            return false;
+        }
+        if (
+            !$crownFields && !$this->canAccessHeraldNotes($user, $bestowal)
+            && array_intersect(BestowalFieldAccessService::HERALD_MUTATION_FIELDS, array_keys($data))
+        ) {
+            return false;
+        }
+        if ($nativeEdit) {
+            return true;
+        }
+        if (!empty($data['link_recommendation_ids']) || !empty($data['unlink_recommendation_ids'])) {
+            return false;
+        }
+        if (array_key_exists('gathering_id', $data) && (int)$data['gathering_id'] !== (int)$bestowal->gathering_id) {
+            return false;
+        }
+        if (isset($data['award_id']) && (int)$data['award_id'] !== (int)$bestowal->award_id) {
+            $award = TableRegistry::getTableLocator()->get('Awards.Awards')->find()
+                ->where(['Awards.id' => (int)$data['award_id']])->first();
+            if ($award === null || (int)$award->branch_id !== $bestowal->getBranchId()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** @inheritDoc */
+    protected function _hasPolicy(
+        KmpIdentityInterface $user,
+        string $policyMethod,
+        BaseEntity|Table $entity,
+        ?int $branchId = null,
+        $grantSource = null,
+    ): bool {
+        return parent::_hasPolicy($user, $policyMethod, $entity, $branchId, $grantSource)
+            || ($entity instanceof Bestowal
+                && (new BestowalDelegationAccessService())->allowsBestowal($user, $policyMethod, $entity));
+    }
+
     /**
      * Authorize gathering-scoped bestowal grid data.
      *
@@ -89,7 +168,8 @@ class BestowalPolicy extends BasePolicy
      */
     public function canCourtSlotsForGathering(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
-        return $this->canEdit($user, $entity, ...$optionalArgs);
+        return $this->canEdit($user, $entity, ...$optionalArgs)
+            || (new BestowalDelegationAccessService())->allowsContext($user, 'canEdit', (int)$entity->gathering_id);
     }
 
     /**
@@ -114,6 +194,8 @@ class BestowalPolicy extends BasePolicy
         if (
             $this->canEdit($user, $entity, ...$optionalArgs)
             || $this->canManageCourtSchedule($user, $entity, ...$optionalArgs)
+            || ((int)$entity->get('approval_context_recommendation_id') <= 0
+                && (new BestowalDelegationAccessService())->scopesFor($user, 'canEdit') !== [])
         ) {
             return true;
         }
@@ -212,6 +294,19 @@ class BestowalPolicy extends BasePolicy
         return (new ActionItemAssigneeResolver())->isMemberEligible($item, $memberId);
     }
 
+    /** Native scheduling tasks may move events; inherited task eligibility may not. */
+    public function hasNativeGatheringTaskAuthority(
+        KmpIdentityInterface $user,
+        Bestowal $bestowal,
+        ActionItem $item,
+    ): bool {
+        return $item->isOpen()
+            && (string)$item->entity_type === Bestowal::ACTION_ITEM_ENTITY_TYPE
+            && (int)$item->entity_id === (int)$bestowal->id
+            && $this->actionItemRequiresGathering($item)
+            && (new ActionItemAssigneeResolver())->isMemberDirectlyEligible($item, (int)$user->getIdentifier());
+    }
+
     /**
      * Authorize assigning the court slot required by an eligible Added to Agenda to-do.
      *
@@ -288,6 +383,10 @@ class BestowalPolicy extends BasePolicy
      */
     public function canViewGatheringBestowals(KmpIdentityInterface $user, BaseEntity $entity, ...$args): bool
     {
+        if ($entity instanceof Bestowal && isset($args[0]->id)) {
+            $entity = clone $entity;
+            $entity->gathering_id = (int)$args[0]->id;
+        }
         $method = __FUNCTION__;
 
         return $this->_hasPolicy($user, $method, $entity);

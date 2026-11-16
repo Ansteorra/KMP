@@ -1,3 +1,10 @@
+jest.mock('../../../assets/js/services/page-refresh-service.js', () => ({
+    refreshAfterChange: jest.fn().mockResolvedValue(),
+    hideModalAndWait: jest.fn().mockResolvedValue(),
+    showRefreshFailure: jest.fn(),
+}));
+import { refreshAfterChange } from '../../../assets/js/services/page-refresh-service.js';
+import { installFormState, rememberForms, isDirty } from '../../../assets/js/services/form-state-service.js';
 // Mock bootstrap.Modal
 window.bootstrap = {
     ...window.bootstrap,
@@ -18,6 +25,7 @@ const GatheringScheduleController = window.Controllers['gathering-schedule'];
 
 describe('GatheringScheduleController', () => {
     let controller;
+    beforeAll(() => installFormState());
 
     beforeEach(() => {
         const timing = prefix => `
@@ -39,13 +47,13 @@ describe('GatheringScheduleController', () => {
                 <div data-gathering-schedule-target="scheduleList"></div>
                 <div data-gathering-schedule-target="addModal"></div>
                 <div data-gathering-schedule-target="editModal"></div>
-                <form data-gathering-schedule-target="addForm">
+                <form method="post" data-gathering-schedule-target="addForm">
                     ${timing('')}
                     <input name="display_title">
                     <select data-gathering-schedule-target="activitySelect"><option value="">Select</option><option value="1">Archery</option></select>
                     <input type="checkbox" data-gathering-schedule-target="isOtherCheckbox">
                 </form>
-                <form data-gathering-schedule-target="editForm" action="/gatherings/schedule/edit/1">
+                <form method="post" data-gathering-schedule-target="editForm" action="/gatherings/schedule/edit/1">
                     ${timing('edit')}
                     <input name="gathering_activity_id">
                     <input name="display_title">
@@ -63,6 +71,8 @@ describe('GatheringScheduleController', () => {
 
         controller.startDateTargets = [controller.startDateTarget];
         controller.editStartDateTargets = [controller.editStartDateTarget];
+        controller.hasIsOtherCheckboxTarget = true;
+        rememberForms();
 
         // Wire values
         controller.gatheringIdValue = 10;
@@ -93,7 +103,7 @@ describe('GatheringScheduleController', () => {
     });
 
     test('has correct static values', () => {
-        expect(GatheringScheduleController.values).toHaveProperty('gatheringId', Number);
+        expect(GatheringScheduleController.values).toHaveProperty('gatheringId', String);
         expect(GatheringScheduleController.values).toHaveProperty('gatheringStart', String);
         expect(GatheringScheduleController.values).toHaveProperty('addUrl', String);
         expect(GatheringScheduleController.values).toHaveProperty('editUrl', String);
@@ -207,12 +217,12 @@ describe('GatheringScheduleController', () => {
         expect(alert).not.toBeNull();
     });
 
-    test('showFlashMessage auto-dismisses after 5 seconds', () => {
+    test('feedback remains available until dismissed', () => {
         jest.useFakeTimers();
         controller.showFlashMessage('success', 'Temp message');
         expect(document.querySelector('.alert')).not.toBeNull();
         jest.advanceTimersByTime(5000);
-        expect(document.querySelector('.alert')).toBeNull();
+        expect(document.querySelector('.alert')).not.toBeNull();
         jest.useRealTimers();
     });
 
@@ -278,7 +288,7 @@ describe('GatheringScheduleController', () => {
 
         await controller.submitAddForm(event);
 
-        expect(spy).toHaveBeenCalledWith('error', expect.stringContaining('error occurred'));
+        expect(spy).toHaveBeenCalledWith('error', expect.stringContaining('Unable to save'));
     });
 
     // submitEditForm tests
@@ -372,4 +382,27 @@ describe('GatheringScheduleController', () => {
         expect(controller.editActivitySelectTarget.required).toBe(false);
         expect(document.getElementById('edit-is-other').checked).toBe(true);
     });
+    test('a committed save refreshes schedule dependencies once without leaving the page', async () => {
+        global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, message: 'Saved', data: { id: 44 } }) });
+        const focus = document.createElement('button'); focus.id = 'schedule-edit-44'; document.body.append(focus);
+        await controller.submitSchedule(controller.addFormTarget, controller.addUrlValue, controller.addModalTarget);
+        expect(refreshAfterChange).toHaveBeenCalledWith('schedule');
+        expect(document.activeElement).toBe(focus);
+        expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
+    test('closing a cancelled editor clears its draft while an in-flight save retains its values', async () => {
+        for (const [form, close] of [[controller.addFormTarget, () => controller.discardAddDraft()],
+            [controller.editFormTarget, () => controller.restoreEditFocus()]]) {
+            const title = form.querySelector('[name="display_title"]');
+            title.value = 'Unsubmitted edit'; title.dispatchEvent(new Event('input', { bubbles: true }));
+            expect(isDirty(form)).toBe(true);
+            controller.saving = true; close();
+            expect(title.value).toBe('Unsubmitted edit');
+            controller.saving = false; close(); await Promise.resolve();
+            expect(title.value).toBe('');
+            expect(isDirty(form)).toBe(false);
+        }
+    });
+
 });

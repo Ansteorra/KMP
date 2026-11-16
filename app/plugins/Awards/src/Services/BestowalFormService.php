@@ -64,8 +64,7 @@ class BestowalFormService
         $member = null,
         bool $includeRecommendationLinks = true,
     ): array {
-        $futureOnly = (string)($bestowal->lifecycle_status ?? Bestowal::LIFECYCLE_OPEN)
-            !== Bestowal::LIFECYCLE_GIVEN;
+        $futureOnly = !$bestowal->isCompleted();
         $statusList = [];
         $rules = [];
         $gatheringData = $this->gatheringLookupService->getFilteredGatheringsForBestowal(

@@ -23,7 +23,7 @@ body {
     left: 0;
     z-index: 100;
     /* Behind the navbar */
-    padding: 48px 0 0;
+    padding: var(--kmp-navbar-height, 48px) 0 0;
     /* Height of navbar */
     box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
 }
@@ -36,7 +36,7 @@ body {
 .sidebar-sticky {
     position: relative;
     top: 0;
-    height: calc(100vh - 48px);
+    height: calc(100vh - var(--kmp-navbar-height, 48px));
     padding-top: .5rem;
     overflow-x: hidden;
     overflow-y: auto;
@@ -54,7 +54,29 @@ body {
 }
 
 .sidebar .nav-link.active {
-    color: #007bff;
+    color: var(--bs-primary-text-emphasis, #0a58ca);
+}
+
+.navbar.bg-dark .btn-outline-secondary {
+    --bs-btn-color: #dee2e6;
+    --bs-btn-border-color: #adb5bd;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #495057;
+    --bs-btn-hover-border-color: #dee2e6;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #495057;
+    --bs-btn-active-border-color: #dee2e6;
+}
+
+@media (max-width: 767.98px) {
+    .navbar .navbar-nav {
+        padding-inline: 0.5rem !important;
+        flex-wrap: wrap;
+    }
+
+    .navbar .navbar-nav .btn {
+        padding-inline: 0.25rem;
+    }
 }
 
 .sidebar .nav-link:hover .feather,

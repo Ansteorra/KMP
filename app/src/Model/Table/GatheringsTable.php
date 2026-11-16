@@ -97,7 +97,10 @@ class GatheringsTable extends Table
         $this->hasMany('GatheringScheduledActivities', [
             'foreignKey' => 'gathering_id',
             'dependent' => true,
-            'sort' => ['GatheringScheduledActivities.start_datetime' => 'ASC'],
+            'sort' => [
+                'GatheringScheduledActivities.start_datetime' => 'ASC',
+                'GatheringScheduledActivities.id' => 'ASC',
+            ],
         ]);
 
         // One-to-many relationship with gathering staff

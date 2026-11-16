@@ -41,6 +41,39 @@ class GatheringsTableTest extends BaseTestCase
         parent::tearDown();
     }
 
+    /** @return void */
+    public function testScheduledActivitiesUseChronologicalOrderWithStableSimultaneousSessions(): void
+    {
+        $source = $this->Gatherings->find()->firstOrFail();
+        $gathering = $this->Gatherings->saveOrFail($this->Gatherings->newEntity([
+            'name' => 'Scheduled activity ordering fixture', 'created_by' => self::ADMIN_MEMBER_ID,
+            'branch_id' => $source->branch_id, 'gathering_type_id' => $source->gathering_type_id,
+            'start_date' => $source->start_date, 'end_date' => $source->end_date,
+        ]));
+        $sessions = $this->getTableLocator()->get('GatheringScheduledActivities');
+        $ids = [];
+        foreach (['Later session' => 24, 'Earlier session' => 1, 'Simultaneous session' => 1] as $title => $hours) {
+            $session = $sessions->saveOrFail($sessions->newEntity([
+                'gathering_id' => $gathering->id, 'is_other' => true, 'display_title' => $title,
+                'start_datetime' => $gathering->start_date->addHours($hours),
+                'has_end_time' => false, 'pre_register' => false, 'created_by' => self::ADMIN_MEMBER_ID,
+            ]));
+            $ids[] = (int)$session->id;
+        }
+        $expected = [$ids[1], $ids[2], $ids[0]];
+
+        $this->assertSame($expected, $sessions->find('ordered')
+            ->where(['GatheringScheduledActivities.gathering_id' => $gathering->id])
+            ->contain(['Gatherings'])->all()->extract('id')->toList());
+        $this->assertSame($expected, $sessions->find('byGathering', ['gathering_id' => $gathering->id])
+            ->all()->extract('id')->toList());
+        $loaded = $this->Gatherings->get($gathering->id, contain: ['GatheringScheduledActivities']);
+        $this->assertSame($expected, array_map(
+            static fn($session): int => (int)$session->id,
+            $loaded->gathering_scheduled_activities,
+        ));
+    }
+
     /**
      * Sync template activities and not_removable flags on type change.
      *

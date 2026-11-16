@@ -16,7 +16,7 @@ $controllerName = $controllerName ?? 'grid-view';
     <button class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2" type="button"
         id="filterDropdown" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
         data-filter-button>
-        <i class="bi bi-funnel"></i>
+        <kmp-icon name="filter"  aria-hidden="true"></kmp-icon>
         <span><?= __('Filter') ?></span>
     </button>
 
@@ -30,7 +30,7 @@ $controllerName = $controllerName ?? 'grid-view';
             </div>
             <div class="px-3 py-2">
                 <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                    <span class="input-group-text bg-white"><kmp-icon name="search"  aria-hidden="true"></kmp-icon></span>
                     <input type="text" class="form-control" placeholder="<?= __('Search...') ?>"
                         data-<?= h($controllerName) ?>-target="searchInput"
                         data-action="keyup-><?= h($controllerName) ?>#handleSearchKeyup keydown.enter-><?= h($controllerName) ?>#performSearch">

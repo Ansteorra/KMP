@@ -58,7 +58,7 @@ class ApprovalContextRendererRegistryTest extends BaseTestCase
             description: 'Please approve this authorization',
             fields: [['label' => 'Type', 'value' => 'Heavy Fighting']],
             entityUrl: '/authorizations/view/42',
-            icon: 'bi-shield-check',
+            icon: 'shield-check',
             requester: 'Sir Test',
         );
 
@@ -81,7 +81,7 @@ class ApprovalContextRendererRegistryTest extends BaseTestCase
 
         $this->assertStringContainsString('Awards', $result->getTitle());
         $this->assertStringContainsString('Awards', $result->getDescription());
-        $this->assertSame('bi-question-circle', $result->getIcon());
+        $this->assertSame('help-circle', $result->getIcon());
         $this->assertNull($result->getEntityUrl());
         $this->assertNull($result->getRequester());
     }
@@ -119,7 +119,7 @@ class ApprovalContextRendererRegistryTest extends BaseTestCase
                 ['label' => 'Nominee', 'value' => 'Jane Doe'],
             ],
             entityUrl: '/awards/view/7',
-            icon: 'bi-trophy',
+            icon: 'trophy',
             requester: 'John Smith',
             requesterMemberId: self::ADMIN_MEMBER_ID,
         );
@@ -131,7 +131,7 @@ class ApprovalContextRendererRegistryTest extends BaseTestCase
         $this->assertCount(2, $array['fields']);
         $this->assertSame('Purple Fret', $array['fields'][0]['value']);
         $this->assertSame('/awards/view/7', $array['entityUrl']);
-        $this->assertSame('bi-trophy', $array['icon']);
+        $this->assertSame('trophy', $array['icon']);
         $this->assertSame('John Smith', $array['requester']);
         $this->assertSame(self::ADMIN_MEMBER_ID, $array['requesterMemberId']);
     }
@@ -143,7 +143,7 @@ class ApprovalContextRendererRegistryTest extends BaseTestCase
             description: 'Test Desc',
             fields: [['label' => 'Key', 'value' => 'Val']],
             entityUrl: '/test/1',
-            icon: 'bi-star',
+            icon: 'star',
             requester: 'Tester',
             requesterMemberId: self::ADMIN_MEMBER_ID,
         );
@@ -152,7 +152,7 @@ class ApprovalContextRendererRegistryTest extends BaseTestCase
         $this->assertSame('Test Desc', $context->getDescription());
         $this->assertCount(1, $context->getFields());
         $this->assertSame('/test/1', $context->getEntityUrl());
-        $this->assertSame('bi-star', $context->getIcon());
+        $this->assertSame('star', $context->getIcon());
         $this->assertSame('Tester', $context->getRequester());
         $this->assertSame(self::ADMIN_MEMBER_ID, $context->getRequesterMemberId());
 
@@ -173,7 +173,7 @@ class ApprovalContextRendererRegistryTest extends BaseTestCase
 
         $this->assertSame([], $context->getFields());
         $this->assertNull($context->getEntityUrl());
-        $this->assertSame('bi-question-circle', $context->getIcon());
+        $this->assertSame('help-circle', $context->getIcon());
         $this->assertNull($context->getRequester());
         $this->assertNull($context->getRequesterMemberId());
     }

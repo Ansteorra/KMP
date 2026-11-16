@@ -123,6 +123,8 @@ class BestowalTodoTemplateItem extends BaseEntity
         'branch_type' => true,
         'is_gating' => true,
         'is_terminal' => true,
+        'is_terminal_lead' => true,
+        'terminal_status' => true,
         'required_field' => true,
         'required_field_config' => true,
         'sort_order' => true,
@@ -155,8 +157,11 @@ class BestowalTodoTemplateItem extends BaseEntity
     public function getCompletionConfig(): ?array
     {
         $requiredField = (string)($this->required_field ?? '');
+        $terminalConfig = $this->is_terminal
+            ? ['terminal_status' => trim((string)($this->terminal_status ?? '')) ?: Bestowal::LIFECYCLE_GIVEN]
+            : [];
         if ($requiredField === '') {
-            return null;
+            return $terminalConfig === [] ? null : $terminalConfig + ['required_fields' => []];
         }
 
         $config = $this->required_field_config;
@@ -172,12 +177,29 @@ class BestowalTodoTemplateItem extends BaseEntity
             'conditional_complete_on_assign' => (bool)($config['conditional_complete_on_assign'] ?? true),
         ];
 
-        return [
+        return $terminalConfig + [
             ActionItem::COMPLETION_CONFIG_AUTO_COMPLETE => (bool)(
                 !$this->is_terminal && ($config[ActionItem::COMPLETION_CONFIG_AUTO_COMPLETE] ?? false)
             ),
             'required_fields' => [$fieldConfig],
         ];
+    }
+
+    /** Read the snapshotted outcome, including legacy terminal tasks without metadata. */
+    public static function terminalStatusFor(ActionItem $item): string
+    {
+        $status = trim((string)($item->completion_config['selected_terminal_status']
+            ?? $item->completion_config['terminal_status'] ?? ''));
+
+        return $status === '' || strcasecmp($status, 'Given') === 0 ? Bestowal::LIFECYCLE_GIVEN : $status;
+    }
+
+    /** @return array<string, string> Allowed outcomes from the owner's frozen checklist. */
+    public static function terminalOutcomesFor(ActionItem $item): array
+    {
+        $outcomes = $item->completion_config['terminal_outcomes'] ?? [];
+
+        return is_array($outcomes) ? $outcomes : [];
     }
 
     /**

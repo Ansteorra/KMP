@@ -26,7 +26,7 @@ $this->assign('title', __('Permissions'));
                 <?= $this->Html->link(
                     __(' Add Permission'),
                     ['action' => 'add'],
-                    ['class' => 'btn btn-primary bi bi-plus-circle']
+                    ['class' => 'btn btn-primary', 'icon' => 'circle-plus']
                 ) ?>
             <?php endif; ?>
         </div>

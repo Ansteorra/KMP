@@ -45,7 +45,7 @@ class CameraCaptureController extends Controller {
                 const helpText = parent.querySelector('.form-text')
                 if (helpText) {
                     helpText.classList.add('text-success')
-                    helpText.innerHTML = '<i class="bi bi-camera-fill"></i> ' + helpText.innerHTML
+                    helpText.innerHTML = '<kmp-icon name="camera"  aria-hidden="true"></kmp-icon> ' + helpText.innerHTML
                 }
             }
         }

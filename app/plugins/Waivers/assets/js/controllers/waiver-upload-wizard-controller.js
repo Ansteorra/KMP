@@ -48,7 +48,7 @@ class WaiverUploadWizardController extends Controller {
         "reviewAttestNotes",
         "reviewAttestNotesSection",
         "modeToggle",
-        "step3Lead"
+        "step3Lead", "attestOption"
     ]
 
     static values = {
@@ -56,6 +56,7 @@ class WaiverUploadWizardController extends Controller {
         totalSteps: { type: Number, default: 3 },
         gatheringId: Number,
         gatheringPublicId: String,
+        returnUrl: String,
         maxFileSize: Number,           // Maximum single file size in bytes
         totalMaxSize: Number,          // Maximum total upload size in bytes
         preSelectedWaiverTypeId: Number, // Pre-selected waiver type ID from URL
@@ -196,9 +197,9 @@ class WaiverUploadWizardController extends Controller {
 
                 // Update button text based on step
                 if (stepNumber === 3) {
-                    this.nextButtonTarget.innerHTML = '<i class="bi bi-arrow-right"></i> Review'
+                    this.nextButtonTarget.innerHTML = '<kmp-icon name="arrow-right"  aria-hidden="true"></kmp-icon> Review'
                 } else {
-                    this.nextButtonTarget.innerHTML = '<i class="bi bi-arrow-right"></i> Next'
+                    this.nextButtonTarget.innerHTML = '<kmp-icon name="arrow-right"  aria-hidden="true"></kmp-icon> Next'
                 }
             }
         }
@@ -259,7 +260,16 @@ class WaiverUploadWizardController extends Controller {
             }
         }
 
-        // Show/hide mode toggle and update lead text based on exemption reasons availability
+        if (this.hasAttestOptionTarget) {
+            this.attestOptionTarget.hidden = exemptionReasons.length === 0
+            this.attestOptionTarget.classList.toggle('d-none', exemptionReasons.length === 0)
+            this.attestOptionTarget.querySelectorAll('input').forEach(input => {
+                input.disabled = exemptionReasons.length === 0
+            })
+        }
+        if (exemptionReasons.length === 0 && this.isAttestMode) {
+            this.setModeUpload()
+        }
         if (exemptionReasons.length > 0) {
             // Has exemption reasons - show toggle
             if (this.hasModeToggleTarget) {
@@ -366,7 +376,7 @@ class WaiverUploadWizardController extends Controller {
         if (exemptionReasons.length === 0) {
             this.attestReasonListTarget.innerHTML = `
                 <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle"></i>
+                    <kmp-icon name="alert-triangle"  aria-hidden="true"></kmp-icon>
                     No exemption reasons have been configured for this waiver type.
                 </div>
             `
@@ -742,6 +752,7 @@ class WaiverUploadWizardController extends Controller {
 
     removePage(event) {
         const index = parseInt(event.currentTarget.dataset.index)
+        const restoreFocus = event.currentTarget === document.activeElement
         this.uploadedPages.splice(index, 1)
 
         // Renumber pages
@@ -750,6 +761,12 @@ class WaiverUploadWizardController extends Controller {
         })
 
         this.renderPages()
+        if (restoreFocus) {
+            const nextIndex = Math.min(index, this.uploadedPages.length - 1)
+            const next = this.pagesPreviewTarget.querySelector(`button[data-index="${nextIndex}"]`)
+                || this.element.querySelector('[data-action~="click->waiver-upload-wizard#triggerFileInput"]')
+            next?.focus()
+        }
 
         // Update total size display after removal
         if (this.uploadedPages.length > 0) {
@@ -763,7 +780,7 @@ class WaiverUploadWizardController extends Controller {
         if (this.uploadedPages.length === 0) {
             this.pagesPreviewTarget.innerHTML = `
                 <div class="text-center text-muted py-5">
-                    <i class="bi bi-file-earmark-image" style="font-size: 3rem;"></i>
+                    <kmp-icon name="file-image"  style="font-size: 3rem;" aria-hidden="true"></kmp-icon>
                     <p class="mt-3">No pages added yet</p>
                     <p class="small">Click "Add Page" to select images or PDFs</p>
                 </div>
@@ -792,7 +809,7 @@ class WaiverUploadWizardController extends Controller {
                     previewHtml = `<div class="d-flex align-items-center justify-content-center bg-light border rounded" 
                             style="width: 100px; height: 130px;">
                          <div class="text-center">
-                           <i class="bi bi-file-earmark-pdf text-danger" style="font-size: 2.5rem;"></i>
+                           <kmp-icon name="file-type-pdf" class="text-danger" style="font-size: 2.5rem;" aria-hidden="true"></kmp-icon>
                            <div class="small text-muted mt-1">PDF</div>
                          </div>
                        </div>`
@@ -826,9 +843,10 @@ class WaiverUploadWizardController extends Controller {
                                     </div>
                                     <button type="button" 
                                             class="btn btn-sm btn-outline-danger"
+                                            aria-label="Remove page ${page.number}"
                                             data-index="${index}"
                                             data-action="click->waiver-upload-wizard#removePage">
-                                        <i class="bi bi-trash"></i>
+                                        <kmp-icon name="trash"  aria-hidden="true"></kmp-icon>
                                     </button>
                                 </div>
                             </div>
@@ -929,7 +947,7 @@ class WaiverUploadWizardController extends Controller {
                     const pdfFallback = page.isPdf && !page.thumbnailUrl
                         ? `<div class="d-flex align-items-center justify-content-center" style="height: 200px; background: #f8f9fa;">
                              <div class="text-center">
-                               <i class="bi bi-file-earmark-pdf text-danger" style="font-size: 4rem;"></i>
+                               <kmp-icon name="file-type-pdf" class="text-danger" style="font-size: 4rem;" aria-hidden="true"></kmp-icon>
                                <div class="text-muted">PDF Document</div>
                                ${page.pdfPageCount > 1 ? `<div class="text-info">${page.pdfPageCount} pages</div>` : ''}
                              </div>
@@ -1096,6 +1114,7 @@ class WaiverUploadWizardController extends Controller {
 
     async submitWaiverUpload(startTime) {
         const formData = new FormData()
+        if (this.hasReturnUrlValue && this.returnUrlValue) formData.append('page_context_url', this.returnUrlValue)
         const preparedPages = await this.prepareUploadPages()
         if (this.isDisconnected) {
             return
@@ -1267,7 +1286,7 @@ class WaiverUploadWizardController extends Controller {
                         Please wait while we record your attestation...
                     </p>
                     <div class="alert alert-info d-inline-block">
-                        <i class="bi bi-shield-check"></i>
+                        <kmp-icon name="shield-check"  aria-hidden="true"></kmp-icon>
                         Attesting that a waiver is not needed for this gathering
                     </div>
                 </div>
@@ -1420,7 +1439,7 @@ class WaiverUploadWizardController extends Controller {
             <div class="toast align-items-center text-white bg-danger border-0" role="alert">
                 <div class="d-flex">
                     <div class="toast-body">
-                        <i class="bi bi-exclamation-triangle me-2"></i>${escapedMessage}
+                        <kmp-icon name="alert-triangle" class="me-2" aria-hidden="true"></kmp-icon>${escapedMessage}
                     </div>
                     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
                 </div>

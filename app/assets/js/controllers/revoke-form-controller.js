@@ -79,7 +79,8 @@ class RevokeForm extends Controller {
      * @param {HTMLElement} element - The outlet button element
      */
     outletBtnOutletConnected(outlet, element) {
-        outlet.addListener(this.setId.bind(this));
+        this.setIdListener ??= this.setId.bind(this);
+        outlet.addListener(this.setIdListener);
     }
 
     /**
@@ -89,7 +90,7 @@ class RevokeForm extends Controller {
      * @param {Controller} outlet - The disconnected outlet button controller
      */
     outletBtnOutletDisconnected(outlet) {
-        outlet.removeListener(this.setId.bind(this));
+        if (this.setIdListener) outlet.removeListener(this.setIdListener);
     }
 
     /**
