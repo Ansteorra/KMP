@@ -53,7 +53,11 @@ platform connection. Tune with measured load, not Apache worker count alone.
 Session pooling retains each tenant's own PostgreSQL role and credentials,
 with matching route/role HBA rules and `DISCARD ALL` between clients. TLS-enabled
 backends use hostname verification and the system CA store. Mixed TLS/non-TLS
-backends and custom client certificates are rejected. Authentication files,
+backends and custom client certificates are rejected. A username must have
+consistent credentials across all configured servers. Canonical tenant secrets
+supersede duplicate default environment credentials when refreshing the pool;
+also update the default URL during rotation for direct CLI/readiness use.
+Authentication files,
 route manifests and the socket are private to `www-data`; never publish them
 as logs or artifacts. Passwords are refreshed from the canonical runtime secret
 store every 15 seconds. Unknown or newly rotated credentials fail until refresh

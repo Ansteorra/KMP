@@ -5,12 +5,13 @@ namespace App\Services;
 
 use InvalidArgumentException;
 use RuntimeException;
+use SensitiveParameter;
 
 /** Builds private PgBouncer configuration with a fixed database-slot budget. */
 final class PostgresPool
 {
     /** Stable aliases keep equal database names on different servers separate. */
-    public static function alias(array $config): string
+    public static function alias(#[SensitiveParameter] array $config): string
     {
         return 'kmp_' . substr(hash('sha256', json_encode([
             strtolower((string)$config['host']), (int)($config['port'] ?? 5432), (string)$config['database'],
@@ -18,7 +19,7 @@ final class PostgresPool
     }
 
     /** Fingerprints never replace PostgreSQL/PgBouncer credential authentication. */
-    public static function credential(array $config): string
+    public static function credential(#[SensitiveParameter] array $config): string
     {
         return hash('sha256', (string)$config['username'] . "\0" . (string)$config['password']);
     }
@@ -30,7 +31,7 @@ final class PostgresPool
      * @return array{ini:string,auth:string,hba:string,manifest:array}
      */
     public static function build(
-        array $connections,
+        #[SensitiveParameter] array $connections,
         string $directory,
         int $slots,
         int $size,
@@ -119,7 +120,7 @@ final class PostgresPool
     }
 
     /** Refuse stale credentials and unknown routes instead of silently bypassing the pool. */
-    public static function dsn(array $config, string $directory): string
+    public static function dsn(#[SensitiveParameter] array $config, string $directory): string
     {
         $path = $directory . '/routes.json';
         $raw = is_readable($path) ? file_get_contents($path) : false;
@@ -140,7 +141,7 @@ final class PostgresPool
     }
 
     /** Quote an authentication-file or HBA identifier. */
-    private static function quoted(string $value): string
+    private static function quoted(#[SensitiveParameter] string $value): string
     {
         return '"' . str_replace('"', '""', $value) . '"';
     }

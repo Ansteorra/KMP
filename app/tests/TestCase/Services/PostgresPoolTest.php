@@ -3,13 +3,55 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Services;
 
+use App\Database\Driver\PooledPostgres;
 use App\Services\PostgresPool;
 use App\Test\TestCase\BaseTestCase;
 use InvalidArgumentException;
 use RuntimeException;
+use SensitiveParameterValue;
+use Throwable;
 
 class PostgresPoolTest extends BaseTestCase
 {
+    public function testFailureTracesRedactCredentialArguments(): void
+    {
+        $previous = ini_set('zend.exception_ignore_args', '0');
+        $config = $this->connection();
+        $calls = [
+            'build' => static fn() => PostgresPool::build(
+                [array_replace($config, ['host' => "bad\nserver"])],
+                '/run/kmp-db-pool',
+                2,
+                2,
+            ),
+            'createPdo' => static fn() => (new PooledPostgres(
+                $config + ['poolDirectory' => '/nonexistent-pool-contract-directory'],
+            ))->connect(),
+        ];
+        try {
+            foreach ($calls as $function => $call) {
+                $error = null;
+                try {
+                    $call();
+                } catch (Throwable $exception) {
+                    $error = $exception;
+                }
+                $this->assertNotNull($error);
+                $frames = array_values(array_filter(
+                    $error->getTrace(),
+                    static fn(array $frame): bool => $frame['function'] === $function,
+                ));
+                $this->assertCount(1, $frames);
+                $this->assertInstanceOf(
+                    SensitiveParameterValue::class,
+                    $frames[0]['args'][$function === 'build' ? 0 : 1],
+                );
+            }
+        } finally {
+            ini_set('zend.exception_ignore_args', (string)$previous);
+        }
+    }
+
     public function testRoutesSeparateServersAndUsersAndRetainRealCredentials(): void
     {
         $a = $this->connection();

@@ -125,6 +125,12 @@ try {
     $assert($scalar($newLogin, 'SELECT current_user') === 'pool_alpha', 'Rotated credentials failed.');
     $newLogin->disconnect();
     unset($newLogin);
+    $admin->exec("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='pool_alpha'");
+    usleep(300000);
+    $coldRotated = $connect($rotated);
+    $assert($scalar($coldRotated, 'SELECT current_user') === 'pool_alpha', 'Rotated upstream credentials failed.');
+    $coldRotated->disconnect();
+    unset($coldRotated);
     $rejected = false;
     try {
         new PDO($dsn, $a['username'], $password);
