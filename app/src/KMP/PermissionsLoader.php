@@ -6,7 +6,9 @@ namespace App\KMP;
 use App\Model\Entity\Member;
 use App\Model\Entity\Permission;
 use App\Model\Entity\Warrant;
+use App\Services\Cache\ReadModelCache;
 use App\Services\Cache\TenantAwareCache;
+use App\Services\Security\MemberSecurityGraph;
 use Cake\Cache\Cache;
 use Cake\Database\Expression\IdentifierExpression;
 use Cake\I18n\DateTime;
@@ -32,20 +34,23 @@ class PermissionsLoader
      * Get complete permissions set for member.
      *
      * Loads all permissions with role validation, temporal boundaries, and policy integration.
-     * Results are cached with key `member_permissions{memberId}`.
+     * Read-only requests cache the graph by committed revision and its next temporal boundary.
      *
      * @param int $memberId The member ID to load permissions for
      * @return array Associative array of permission objects indexed by permission ID
      */
     public static function getPermissions(int $memberId): array
     {
-        // 1. Cache Strategy - Check for cached permissions first
-        $cacheKey = TenantAwareCache::tenantScopedKey('member_permissions' . $memberId);
-        $cache = Cache::read($cacheKey, 'member_permissions');
-        if (is_array($cache) && $cache !== []) {
-            return $cache; // Return cached result if available
-        }
+        return ReadModelCache::remember(
+            'getPermissions:' . $memberId . ':' . MemberSecurityGraph::warrantRequirement(),
+            static fn(): array => self::loadPermissions($memberId),
+            static fn(): int => MemberSecurityGraph::validUntil($memberId),
+        );
+    }
 
+    /** Load current member grants without publishing uncommitted state. */
+    private static function loadPermissions(int $memberId): array
+    {
         // 2. Initialize Table Locators - Get required table instances
         $branchTable = TableRegistry::getTableLocator()->get('Branches');
         $permissionsTable = TableRegistry::getTableLocator()->get('Permissions');
@@ -147,11 +152,6 @@ class PermissionsLoader
             }
         }
 
-        // 6. Cache Result for Performance
-        if ($permissions !== []) {
-            Cache::write($cacheKey, $permissions, 'member_permissions');
-        }
-
         return $permissions;
     }
 
@@ -167,22 +167,24 @@ class PermissionsLoader
      * branch(es) where the member holds the role. Use a coverage check such as
      * `in_array($branchId, $role->branch_ids, true)` to test a branch-scoped match.
      *
-     * Results are cached with key `member_roles{memberId}` in the `member_permissions`
-     * config (security group), so role/permission/member-role writes invalidate them
-     * alongside {@see self::getPermissions()}.
+     * Committed role writes invalidate this graph across processes; time-based starts and expiry
+     * are checked through the cache deadline. Mutation requests read current assignments.
      *
      * @param int $memberId The member ID to load roles for.
      * @return array<int, object> Role objects keyed by role ID: {id, name, branch_ids}.
      */
     public static function getRoles(int $memberId): array
     {
-        // 1. Cache Strategy - Check for cached roles first
-        $cacheKey = TenantAwareCache::tenantScopedKey('member_roles' . $memberId);
-        $cache = Cache::read($cacheKey, 'member_permissions');
-        if (is_array($cache) && $cache !== []) {
-            return $cache;
-        }
+        return ReadModelCache::remember(
+            'getRoles:' . $memberId,
+            static fn(): array => self::loadRoles($memberId),
+            static fn(): int => MemberSecurityGraph::validUntil($memberId),
+        );
+    }
 
+    /** Load current member grants without publishing uncommitted state. */
+    private static function loadRoles(int $memberId): array
+    {
         // 2. Query current, non-revoked role assignments for the member
         $memberRolesTable = TableRegistry::getTableLocator()->get('MemberRoles');
         $now = DateTime::now();
@@ -230,11 +232,6 @@ class PermissionsLoader
             }
         }
 
-        // 4. Cache Result for Performance
-        if ($roles !== []) {
-            Cache::write($cacheKey, $roles, 'member_permissions');
-        }
-
         return $roles;
     }
 
@@ -242,7 +239,7 @@ class PermissionsLoader
      * Get policy framework mappings for member.
      *
      * Extracts policy class/method mappings from permissions with branch scoping support.
-     * Results are cached with key `permissions_policies{memberId}`.
+     * Read-only requests cache policy mappings with the same revision/expiry as native grants.
      *
      * @param int $id Member ID to get policies for
      * @param array|null $branchIds Optional array of branch IDs to filter policies by
@@ -250,16 +247,20 @@ class PermissionsLoader
      */
     public static function getPolicies($id, ?array $branchIds = null): array
     {
-        // 1. Cache Strategy - Check for cached policy mappings
-        $useCache = $branchIds === null || empty($branchIds);
-        $cacheKey = TenantAwareCache::tenantScopedKey('permissions_policies' . $id);
-        if ($useCache) {
-            $cache = Cache::read($cacheKey, 'member_permissions');
-            if (is_array($cache) && $cache !== []) {
-                return $cache; // Return cached result if available
-            }
+        if ($branchIds !== null && $branchIds !== []) {
+            return self::loadPolicies((int)$id, $branchIds);
         }
 
+        return ReadModelCache::remember(
+            'getPolicies:' . $id . ':' . MemberSecurityGraph::warrantRequirement(),
+            static fn(): array => self::loadPolicies((int)$id),
+            static fn(): int => MemberSecurityGraph::validUntil((int)$id),
+        );
+    }
+
+    /** Resolve policy/branch mappings from current native permissions. */
+    private static function loadPolicies(int $id, ?array $branchIds = null): array
+    {
         // 2. Load Base Permissions - Get complete permission set
         $permissions = self::getPermissions($id);
         $policies = [];
@@ -344,13 +345,6 @@ class PermissionsLoader
         foreach ($policies as $policyClass => $methods) {
             if (empty($methods)) {
                 unset($policies[$policyClass]);
-            }
-        }
-
-        // 8. Cache Result for Performance
-        if ($useCache) {
-            if ($policies !== []) {
-                Cache::write($cacheKey, $policies, 'member_permissions');
             }
         }
 
@@ -608,7 +602,7 @@ class PermissionsLoader
             ]);
 
         // 7. Configurable Warrant Validation Layer
-        $useWarrant = StaticHelpers::getAppSetting('KMP.RequireActiveWarrantForSecurity');
+        $useWarrant = MemberSecurityGraph::warrantRequirement();
         if (strtolower($useWarrant) == 'yes') {
             $q = $q->where([
                 'OR' => [

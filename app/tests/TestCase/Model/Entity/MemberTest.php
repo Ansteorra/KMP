@@ -4,9 +4,7 @@ declare(strict_types=1);
 namespace App\Test\TestCase\Model\Entity;
 
 use App\Model\Entity\Member;
-use App\Services\Cache\TenantAwareCache;
 use App\Test\TestCase\BaseTestCase;
-use Cake\Cache\Cache;
 use Cake\I18n\Date;
 use Cake\I18n\DateTime;
 use InvalidArgumentException;
@@ -289,33 +287,19 @@ class MemberTest extends BaseTestCase
 
     public function testPermissionLookupsAreMemoizedOnMemberEntity(): void
     {
-        $memberId = 990001;
-        $cacheKey = TenantAwareCache::tenantScopedKey('member_permissions' . $memberId);
-        $initialPermissions = [
-            101 => (object)['id' => 101, 'is_super_user' => false],
-        ];
-        $replacementPermissions = [
-            202 => (object)['id' => 202, 'is_super_user' => false],
-        ];
+        $members = $this->getTableLocator()->get('Members');
+        $member = $members->get(self::TEST_MEMBER_BRYCE_ID);
+        $loadedPermissions = $member->getPermissions();
+        $loadedIds = $member->getPermissionIDs();
+        $this->assertNotEmpty($loadedIds);
+        $this->getTableLocator()->get('MemberRoles')->updateAll(
+            ['revoker_id' => self::ADMIN_MEMBER_ID],
+            ['member_id' => self::TEST_MEMBER_BRYCE_ID],
+        );
 
-        try {
-            Cache::write($cacheKey, $initialPermissions, 'member_permissions');
-            $member = new Member();
-            $member->id = $memberId;
-            $loadedPermissions = $member->getPermissions();
-
-            Cache::write($cacheKey, $replacementPermissions, 'member_permissions');
-
-            $this->assertSame($loadedPermissions, $member->getPermissions());
-            $this->assertSame([101], $member->getPermissionIDs());
-            $this->assertSame([101], $member->getPermissionIDs());
-
-            $newMember = new Member();
-            $newMember->id = $memberId;
-            $this->assertSame([202], $newMember->getPermissionIDs());
-        } finally {
-            Cache::delete($cacheKey, 'member_permissions');
-        }
+        $this->assertSame($loadedPermissions, $member->getPermissions());
+        $this->assertSame($loadedIds, $member->getPermissionIDs());
+        $this->assertSame([], $members->get(self::TEST_MEMBER_BRYCE_ID)->getPermissionIDs());
     }
 
     public function testPolicyLookupsAreMemoizedByBranchFilter(): void

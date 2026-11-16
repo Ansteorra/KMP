@@ -10,7 +10,7 @@ use App\Model\Entity\Gathering;
 use App\Model\Entity\GatheringActivity;
 use App\Model\Entity\Permission;
 use App\Services\GatheringActivityDelegationRegistry;
-use Cake\ORM\TableRegistry;
+use App\Services\ReferenceCatalogue;
 
 /**
  * GatheringActivity Policy
@@ -117,12 +117,7 @@ class GatheringActivityPolicy extends BasePolicy
         $tenantId = TenantContext::tryCurrent()?->id ?? 'standalone';
         if ($this->assignmentPermissionIds === null || $this->assignmentTenantId !== $tenantId) {
             $this->assignmentTenantId = $tenantId;
-            $this->assignmentPermissionIds = [];
-            $rules = TableRegistry::getTableLocator()->get('GatheringActivityAssignmentPermissions')->find()
-                ->select(['gathering_activity_id', 'permission_id'])->all();
-            foreach ($rules as $rule) {
-                $this->assignmentPermissionIds[$rule->gathering_activity_id][] = (int)$rule->permission_id;
-            }
+            $this->assignmentPermissionIds = ReferenceCatalogue::activityPermissionIds();
         }
     }
 }

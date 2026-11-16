@@ -7,6 +7,7 @@ use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\BaseEntity;
 use App\Model\Entity\Gathering;
 use App\Model\Entity\GatheringActivity;
+use App\Services\Security\MemberSecurityGraph;
 use Cake\ORM\Table;
 use Cake\ORM\TableRegistry;
 
@@ -252,17 +253,11 @@ class GatheringPolicy extends BasePolicy
             return false;
         }
 
-        $gatheringStaffTable = TableRegistry::getTableLocator()->get('GatheringStaff');
-
-        $stewardRecord = $gatheringStaffTable->find()
-            ->where([
-                'GatheringStaff.gathering_id' => $entity->id,
-                'GatheringStaff.member_id' => $userId,
-                'GatheringStaff.is_steward' => true,
-            ])
-            ->first();
-
-        return $stewardRecord !== null;
+        return in_array(
+            (int)$entity->id,
+            MemberSecurityGraph::stewardGatheringIds((int)$userId),
+            true,
+        );
     }
 
     /**

@@ -1,11 +1,11 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Waivers\Policy;
 
 use App\KMP\KmpIdentityInterface;
 use App\Policy\BasePolicy;
+use App\Services\Security\MemberSecurityGraph;
 use Authorization\Policy\ResultInterface;
 use Cake\ORM\TableRegistry;
 
@@ -26,7 +26,7 @@ class GatheringWaiversControllerPolicy extends BasePolicy
      * Determines if the user can view the list of gatherings that need waivers.
      * This action shows gatherings where the user has permission to upload waivers
      * and required waivers are missing.
-     * 
+     *
      * Stewards can access this action if they are a steward for at least one
      * non-closed gathering.
      *
@@ -193,18 +193,8 @@ class GatheringWaiversControllerPolicy extends BasePolicy
             return false;
         }
 
-        $gatheringStaffTable = TableRegistry::getTableLocator()->get('GatheringStaff');
-
         // Find all gatherings where user is a steward
-        $stewardGatheringIds = $gatheringStaffTable->find()
-            ->where([
-                'GatheringStaff.member_id' => $userId,
-                'GatheringStaff.is_steward' => true,
-            ])
-            ->select(['gathering_id'])
-            ->all()
-            ->extract('gathering_id')
-            ->toArray();
+        $stewardGatheringIds = MemberSecurityGraph::stewardGatheringIds((int)$userId);
 
         if (empty($stewardGatheringIds)) {
             return false;
@@ -215,6 +205,7 @@ class GatheringWaiversControllerPolicy extends BasePolicy
             $closuresTable = TableRegistry::getTableLocator()->get('Waivers.GatheringWaiverClosures');
             $closedGatheringIds = $closuresTable->getClosedGatheringIds($stewardGatheringIds);
             $openGatheringIds = array_diff($stewardGatheringIds, $closedGatheringIds);
+
             return !empty($openGatheringIds);
         }
 

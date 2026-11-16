@@ -4,8 +4,10 @@ declare(strict_types=1);
 namespace Awards\Services;
 
 use App\KMP\KmpIdentityInterface;
+use App\Services\Cache\ReadModelCache;
 use Awards\Model\Entity\Award;
 use Awards\Model\Entity\Bestowal;
+use Awards\Model\Entity\BestowalDelegation;
 use Awards\Model\Entity\CourtAgenda;
 use Awards\Policy\BestowalPolicy;
 use Awards\Policy\CourtAgendaPolicy;
@@ -18,6 +20,25 @@ class BestowalDelegationAccessService
 
     /** @return list<\Awards\Model\Entity\BestowalDelegation> */
     public function grantsFor(int $delegateId, ?int $gatheringId = null, ?int $branchId = null): array
+    {
+        $grants = ReadModelCache::remember(
+            'bestowal_grants:' . $delegateId . ':' . ($gatheringId ?? '*') . ':' . ($branchId ?? '*'),
+            fn(): array => $this->loadGrants($delegateId, $gatheringId, $branchId),
+        );
+
+        // Member entities memoize permissions; never let callers populate identities held by the cache.
+        return array_map(static function (BestowalDelegation $grant): BestowalDelegation {
+            $copy = clone $grant;
+            $copy->grantor = clone $grant->grantor;
+            $copy->delegate = clone $grant->delegate;
+            $copy->gathering = clone $grant->gathering;
+
+            return $copy;
+        }, $grants);
+    }
+
+    /** Fresh grant records; mutation reads retain their shared locks. */
+    private function loadGrants(int $delegateId, ?int $gatheringId, ?int $branchId): array
     {
         $table = $this->fetchTable('Awards.BestowalDelegations');
         $query = $table->find()
@@ -37,7 +58,11 @@ class BestowalDelegationAccessService
             }
             $query->where(['BestowalDelegations.id IN' => $locked]);
         }
-        $query->contain(['Grantors', 'Delegates', 'Gatherings']);
+        $query->contain([
+            'Grantors' => fn($q) => $q->select(['id', 'status', 'branch_id']),
+            'Delegates' => fn($q) => $q->select(['id', 'status']),
+            'Gatherings',
+        ]);
 
         return array_values(array_filter($query->all()->toList(), static function ($grant): bool {
             return $grant->grantor !== null && $grant->delegate !== null && $grant->gathering !== null

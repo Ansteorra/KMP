@@ -393,7 +393,11 @@ class AppController extends Controller
             $currentUser = $this->request->getAttribute('identity');
             // ViewCellRegistry expects a Member entity; pass null for non-Member identities (e.g. ServicePrincipal)
             $memberUser = $currentUser instanceof Member ? $currentUser : null;
-            $this->pluginViewCells = ViewCellRegistry::getViewCells($urlParams, $memberUser);
+            $this->pluginViewCells = ViewCellRegistry::getViewCells(
+                $urlParams,
+                $memberUser,
+                $this->viewBuilder()->getLayout() === 'mobile_app',
+            );
         }
 
         $this->set('pluginViewCells', $this->pluginViewCells);

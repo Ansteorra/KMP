@@ -44,6 +44,8 @@ class BackupService
         'queue_processes',
         'backups',
         'sessions',
+        'application_read_cache_revision',
+        'application_read_cache_changes',
     ];
 
     /**
@@ -54,6 +56,8 @@ class BackupService
         'queued_jobs',
         'queue_processes',
         'sessions',
+        'application_read_cache_revision',
+        'application_read_cache_changes',
     ];
 
     /**

@@ -1,12 +1,12 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Waivers\Policy;
 
-use App\Policy\BasePolicy;
 use App\KMP\KmpIdentityInterface;
 use App\Model\Entity\BaseEntity;
+use App\Policy\BasePolicy;
+use App\Services\Security\MemberSecurityGraph;
 use Cake\ORM\TableRegistry;
 
 /**
@@ -15,7 +15,7 @@ use Cake\ORM\TableRegistry;
  * Provides entity-level authorization for gathering waiver operations.
  * Inherits standard CRUD operations from BasePolicy and adds waiver-specific
  * authorization methods.
- * 
+ *
  * Stewards (members marked as is_steward=true in gathering_staff) can upload
  * waivers and view pending waivers for gatherings they manage, as long as
  * the gathering has not been closed for waivers.
@@ -36,13 +36,14 @@ class GatheringWaiverPolicy extends BasePolicy
     /**
      * Check if user can download.
      *
-     * @param KmpIdentityInterface $user
-     * @param BaseEntity $entity
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param \App\Model\Entity\BaseEntity $entity
      * @return bool
      */
     public function canDownload(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
@@ -63,34 +64,36 @@ class GatheringWaiverPolicy extends BasePolicy
     /**
      * Check if user can preview.
      *
-     * @param KmpIdentityInterface $user
-     * @param BaseEntity $entity
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param \App\Model\Entity\BaseEntity $entity
      * @return bool
      */
     public function canPreview(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
     /**
      * Check if user can change waiver type.
      *
-     * @param KmpIdentityInterface $user
-     * @param BaseEntity $entity
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param \App\Model\Entity\BaseEntity $entity
      * @return bool
      */
     public function canChangeWaiverType(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
     /**
      * Check if user can view gathering waivers.
      *
-     * @param KmpIdentityInterface $user
-     * @param BaseEntity $entity
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param \App\Model\Entity\BaseEntity $entity
      * @return bool
      */
     public function canViewGatheringWaivers(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
@@ -107,8 +110,8 @@ class GatheringWaiverPolicy extends BasePolicy
     /**
      * Check if user can needing waivers.
      *
-     * @param KmpIdentityInterface $user
-     * @param BaseEntity $entity
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param \App\Model\Entity\BaseEntity $entity
      * @return bool
      */
     public function canNeedingWaivers(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
@@ -125,8 +128,8 @@ class GatheringWaiverPolicy extends BasePolicy
     /**
      * Check if user can upload waivers.
      *
-     * @param KmpIdentityInterface $user
-     * @param BaseEntity $entity
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param \App\Model\Entity\BaseEntity $entity
      * @return bool
      */
     public function canUploadWaivers(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
@@ -143,13 +146,14 @@ class GatheringWaiverPolicy extends BasePolicy
     /**
      * Check if user can close waivers.
      *
-     * @param KmpIdentityInterface $user
-     * @param BaseEntity $entity
+     * @param \App\KMP\KmpIdentityInterface $user
+     * @param \App\Model\Entity\BaseEntity $entity
      * @return bool
      */
     public function canCloseWaivers(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
@@ -160,6 +164,7 @@ class GatheringWaiverPolicy extends BasePolicy
     public function canDecline(KmpIdentityInterface $user, BaseEntity $entity, ...$optionalArgs): bool
     {
         $method = __FUNCTION__;
+
         return $this->_hasPolicy($user, $method, $entity);
     }
 
@@ -203,8 +208,11 @@ class GatheringWaiverPolicy extends BasePolicy
      * @param bool $checkClosure If true, also verify the gathering is not closed for waivers
      * @return bool True if user is a steward for this gathering (or any non-closed gathering if no specific gathering)
      */
-    protected function _isGatheringStewardForWaiver(KmpIdentityInterface $user, BaseEntity $entity, bool $checkClosure = false): bool
-    {
+    protected function _isGatheringStewardForWaiver(
+        KmpIdentityInterface $user,
+        BaseEntity $entity,
+        bool $checkClosure = false,
+    ): bool {
         $userId = $user->getIdentifier();
         if (empty($userId)) {
             return false;
@@ -223,15 +231,7 @@ class GatheringWaiverPolicy extends BasePolicy
         // If no specific gathering, check if user is a steward for ANY non-closed gathering
         if (empty($gatheringId)) {
             // Find all gatherings where user is a steward
-            $stewardGatheringIds = $gatheringStaffTable->find()
-                ->where([
-                    'GatheringStaff.member_id' => $userId,
-                    'GatheringStaff.is_steward' => true,
-                ])
-                ->select(['gathering_id'])
-                ->all()
-                ->extract('gathering_id')
-                ->toArray();
+            $stewardGatheringIds = MemberSecurityGraph::stewardGatheringIds((int)$userId);
 
             if (empty($stewardGatheringIds)) {
                 return false;
@@ -242,6 +242,7 @@ class GatheringWaiverPolicy extends BasePolicy
                 $closuresTable = TableRegistry::getTableLocator()->get('Waivers.GatheringWaiverClosures');
                 $closedGatheringIds = $closuresTable->getClosedGatheringIds($stewardGatheringIds);
                 $openGatheringIds = array_diff($stewardGatheringIds, $closedGatheringIds);
+
                 return !empty($openGatheringIds);
             }
 
@@ -279,19 +280,23 @@ class GatheringWaiverPolicy extends BasePolicy
     {
         $controllerPolicy = new GatheringWaiversControllerPolicy();
 
-        if ($controllerPolicy->canChangeActivities($user, [
+        if (
+            $controllerPolicy->canChangeActivities($user, [
             'plugin' => 'Waivers',
             'controller' => 'GatheringWaivers',
             'action' => 'changeActivities',
-        ])) {
+            ])
+        ) {
             return true;
         }
 
-        if ($controllerPolicy->canDashboard($user, [
+        if (
+            $controllerPolicy->canDashboard($user, [
             'plugin' => 'Waivers',
             'controller' => 'GatheringWaivers',
             'action' => 'dashboard',
-        ])) {
+            ])
+        ) {
             return true;
         }
 
@@ -318,7 +323,7 @@ class GatheringWaiverPolicy extends BasePolicy
             ->distinct(['waiver_type_id'])
             ->all()
             ->extract('waiver_type_id')
-            ->map(fn ($waiverTypeId) => (int)$waiverTypeId)
+            ->map(fn($waiverTypeId) => (int)$waiverTypeId)
             ->toList();
 
         if (empty($activityWaiverTypeIds)) {
@@ -335,7 +340,7 @@ class GatheringWaiverPolicy extends BasePolicy
             ->distinct(['waiver_type_id'])
             ->all()
             ->extract('waiver_type_id')
-            ->map(fn ($waiverTypeId) => (int)$waiverTypeId)
+            ->map(fn($waiverTypeId) => (int)$waiverTypeId)
             ->toList();
 
         if (empty($submittedWaiverTypeIds)) {
@@ -356,7 +361,7 @@ class GatheringWaiverPolicy extends BasePolicy
             ->distinct(['waiver_type_id'])
             ->all()
             ->extract('waiver_type_id')
-            ->map(fn ($waiverTypeId) => (int)$waiverTypeId)
+            ->map(fn($waiverTypeId) => (int)$waiverTypeId)
             ->toList();
 
         return !empty(array_diff($submittedWaiverTypeIds, $remainingWaiverTypeIds));

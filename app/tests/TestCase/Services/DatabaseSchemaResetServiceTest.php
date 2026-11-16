@@ -5,6 +5,7 @@ namespace App\Test\TestCase\Services;
 
 use App\Services\BackupSchemaManifestService;
 use App\Services\BackupService;
+use App\Services\Cache\ReadModelCacheRestore;
 use App\Services\DatabaseSchemaResetService;
 use App\Test\TestCase\BaseTestCase;
 use Cake\Database\Driver\Postgres;
@@ -18,6 +19,19 @@ use RuntimeException;
  */
 class DatabaseSchemaResetServiceTest extends BaseTestCase
 {
+    public function testSchemaResetPreservesCacheInvalidationAndRotatesGeneration(): void
+    {
+        $before = ReadModelCacheRestore::capture($this->connection);
+        $this->assertNotEmpty($before);
+        $oldRevision = $this->connection->execute('SELECT revision FROM application_read_cache_revision')->fetchColumn(0);
+        $manifest = (new BackupSchemaManifestService())->export([], 'test');
+        (new DatabaseSchemaResetService())->reset($manifest);
+        $this->assertCount(count($before), ReadModelCacheRestore::capture($this->connection));
+        $this->assertNotSame($oldRevision, $this->connection->execute('SELECT revision FROM application_read_cache_revision')->fetchColumn(0));
+        $this->connection->execute('DELETE FROM branches WHERE FALSE');
+        $this->assertSame(1, (int)$this->connection->execute('SELECT count(*) FROM application_read_cache_changes')->fetchColumn(0));
+    }
+
     public function testRestoredSequencesAdvanceNumericIdsAndSkipNativeUuidIds(): void
     {
         $this->connection->execute('CREATE TABLE backup_uuid_sequence_test (id UUID PRIMARY KEY)');

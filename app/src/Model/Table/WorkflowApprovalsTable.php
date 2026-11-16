@@ -7,10 +7,11 @@ use App\KMP\PermissionsLoader;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowInstance;
 use App\Services\ApprovalContext\ApprovalContextRendererRegistry;
+use App\Services\ReferenceCatalogue;
+use App\Services\Security\MemberSecurityGraph;
 use ArrayObject;
 use Cake\Datasource\EntityInterface;
 use Cake\Event\Event;
-use Cake\I18n\DateTime;
 use Cake\Log\Log;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\RulesChecker;
@@ -1241,8 +1242,6 @@ class WorkflowApprovalsTable extends BaseTable
             return self::$memberApprovalScopeCache[$memberId];
         }
 
-        $now = DateTime::now();
-
         // Source roles and permissions through the canonical cached loader so the
         // approval scope honours warrant/membership validation and permission
         // scoping rules (Global vs branch) instead of querying member_roles directly.
@@ -1278,19 +1277,7 @@ class WorkflowApprovalsTable extends BaseTable
         }
 
         $officeIdsByBranch = [];
-        $officerRows = TableRegistry::getTableLocator()->get('Officers.Officers')->find()
-            ->select(['office_id', 'branch_id'])
-            ->where([
-                'Officers.member_id' => $memberId,
-                'Officers.status' => 'Current',
-                'Officers.start_on <=' => $now,
-                'OR' => [
-                    'Officers.expires_on IS' => null,
-                    'Officers.expires_on >=' => $now,
-                ],
-            ])
-            ->enableHydration(false)
-            ->all();
+        $officerRows = MemberSecurityGraph::currentOfficeScopes($memberId);
         foreach ($officerRows as $row) {
             $branchId = (int)($row['branch_id'] ?? 0);
             $officeId = (int)($row['office_id'] ?? 0);
@@ -1377,19 +1364,6 @@ class WorkflowApprovalsTable extends BaseTable
             return [];
         }
 
-        $branches = TableRegistry::getTableLocator()->get('Branches')->find()
-            ->select(['id', 'parent_id', 'type'])
-            ->enableHydration(false)
-            ->all();
-
-        $index = [];
-        foreach ($branches as $branch) {
-            $index[(int)$branch['id']] = [
-                'parent_id' => $branch['parent_id'] !== null ? (int)$branch['parent_id'] : null,
-                'type' => $branch['type'] !== null ? (string)$branch['type'] : null,
-            ];
-        }
-
-        return $index;
+        return ReferenceCatalogue::branchIndex();
     }
 }

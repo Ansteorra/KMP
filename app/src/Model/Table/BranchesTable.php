@@ -3,8 +3,7 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
-use App\Services\Cache\TenantAwareCache;
-use Cake\Cache\Cache;
+use App\Services\Cache\ReadModelCache;
 use Cake\Database\Schema\TableSchemaInterface;
 use Cake\ORM\RulesChecker;
 use Cake\Validation\Validator;
@@ -369,16 +368,12 @@ class BranchesTable extends BaseTable
      */
     public function getAllDecendentIds($id): array
     {
-        $descendants = Cache::read(TenantAwareCache::tenantScopedKey('descendants_' . $id), 'branch_structure');
-        if (!is_array($descendants)) {
-            $descendants = $this->getDescendantsLookup();
-            foreach ($descendants as $key => $value) {
-                Cache::write(TenantAwareCache::tenantScopedKey('descendants_' . $key), $value, 'branch_structure');
-            }
-            $descendants = $descendants[$id] ?? [];
-        }
+        $lookup = ReadModelCache::remember(
+            'getDescendantsLookup',
+            fn(): array => $this->getDescendantsLookup(),
+        );
 
-        return $descendants ?? [];
+        return $lookup[$id] ?? [];
     }
 
     /**
@@ -432,16 +427,12 @@ class BranchesTable extends BaseTable
      */
     public function getAllParents($id): array
     {
-        $parents = Cache::read(TenantAwareCache::tenantScopedKey('parents_' . $id), 'branch_structure');
-        if (!is_array($parents)) {
-            $parents = $this->getParentsLookup();
-            foreach ($parents as $key => $value) {
-                Cache::write(TenantAwareCache::tenantScopedKey('parents_' . $key), $value, 'branch_structure');
-            }
-            $parents = $parents[$id] ?? [];
-        }
+        $lookup = ReadModelCache::remember(
+            'getParentsLookup',
+            fn(): array => $this->getParentsLookup(),
+        );
 
-        return $parents ?? [];
+        return $lookup[$id] ?? [];
     }
 
     /**
@@ -486,11 +477,8 @@ class BranchesTable extends BaseTable
     public function getThreadedTree(): array
     {
         // rebuild the array into a tree structure
-        $branches = $this->find('threaded', [
-            'parentField' => 'parent_id',
-            'keyForeign' => 'id',
-            'nestingKey' => 'children',
-        ])->select(['id', 'name', 'parent_id'])->toArray();
+        $branches = $this->find('threaded', parentField: 'parent_id', keyField: 'id', nestingKey: 'children')
+            ->select(['id', 'name', 'parent_id'])->toArray();
         //create a quick index of all of the decendents for each branch
 
         return $branches;

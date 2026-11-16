@@ -14,6 +14,7 @@ use App\Services\GatheringCloneService;
 use App\Services\GatheringScheduleService;
 use App\Services\ICalendarService;
 use App\Services\PublicCalendarService;
+use App\Services\ReferenceCatalogue;
 use App\Services\Security\OfflineIdentity;
 use Cake\Cache\Cache;
 use Cake\Event\EventInterface;
@@ -1054,11 +1055,10 @@ class GatheringsController extends AppController
         $currentUser = $this->Authentication->getIdentity();
         $branchIds = $currentUser->getBranchIdsForAction('add', 'Gatherings');
 
-        $branchesQuery = $this->Gatherings->Branches->find('list')->orderBy(['name' => 'ASC']);
+        $branches = ReferenceCatalogue::branches();
         if ($branchIds !== null) {
-            $branchesQuery->where(['Branches.id IN' => $branchIds]);
+            $branches = array_intersect_key($branches, array_fill_keys($branchIds, true));
         }
-        $branches = $branchesQuery->toArray();
         $branchCount = count($branches);
 
         // Single branch: lock the field and pre-populate
@@ -1071,11 +1071,7 @@ class GatheringsController extends AppController
             }
         }
 
-        $gatheringTypesRaw = $this->Gatherings->GatheringTypes->find()
-            ->select(['id', 'name', 'description'])
-            ->contain(['GatheringActivities'])
-            ->orderBy(['name' => 'ASC'])
-            ->toArray();
+        $gatheringTypesRaw = ReferenceCatalogue::gatheringTypes();
 
         // Share catalogue rules for this form while evaluating every hosting branch independently.
         $activityPolicy = new GatheringActivityPolicy();

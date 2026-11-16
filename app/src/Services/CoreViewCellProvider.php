@@ -28,7 +28,7 @@ class CoreViewCellProvider
         $cells = [];
 
         // Only show mobile menu items to authenticated users
-        if ($user === null) {
+        if ($user === null || ($urlParams['_includeMobileMenu'] ?? true) === false) {
             return $cells;
         }
 

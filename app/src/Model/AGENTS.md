@@ -17,6 +17,7 @@ Own data persistence, validation, associations, entity behavior, table rules, an
 - Use `PublicIdBehavior` and `find('byPublicId', ...)` for URL-facing IDs where supported.
 - Override `BaseEntity::getBranchId()` when authorization depends on a related record rather than a direct field.
 - Use `CACHES_TO_CLEAR`, `ID_CACHES_TO_CLEAR`, and `CACHE_GROUPS_TO_CLEAR` for table write cache invalidation.
+- Read-model dependencies also require database revision triggers in the owning migrations so raw SQL, bulk writes and other processes invalidate cached catalogues/security facts. ORM cache callbacks alone are insufficient.
 - Eager-load required associations with `contain()` to avoid N+1 queries.
 - Preserve impersonation audit behavior inherited from `BaseTable`.
 
