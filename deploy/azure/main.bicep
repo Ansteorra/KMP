@@ -250,6 +250,19 @@ param webCpu string = '0.5'
 @description('Maximum concurrent PHP requests per web replica; budget platform and tenant connections across the fleet.')
 param apacheMaxRequestWorkers int = 16
 
+@description('Enable the private application-side PostgreSQL pool for web requests only.')
+param enableDatabasePool bool = false
+
+@minValue(1)
+@maxValue(64)
+@description('Database slots per web replica, including platform and retained removed routes.')
+param databasePoolSlots int = 6
+
+@minValue(1)
+@maxValue(16)
+@description('Maximum backend connections per database slot. Budget across replicas and jobs.')
+param databasePoolSize int = 2
+
 @description('Whether to provision Azure Front Door in front of the Container App.')
 param deployFrontDoor bool = false
 
@@ -959,6 +972,9 @@ var commonEnv = concat([
 ], applicationInsightsEnv)
 
 var webEnv = concat(commonEnv, [
+  { name: 'KMP_DB_POOL_ENABLED', value: string(enableDatabasePool) }
+  { name: 'KMP_DB_POOL_DATABASE_SLOTS', value: string(databasePoolSlots) }
+  { name: 'KMP_DB_POOL_SIZE', value: string(databasePoolSize) }
   { name: 'KMP_LIVE_GATEWAY_URL', value: 'https://${namePrefix}-live.${acaEnv.properties.defaultDomain}/events' }
   { name: 'AZURE_CLIENT_ID', value: uami.properties.clientId }
   { name: 'KMP_PLATFORM_ADMIN_HOSTS', value: effectivePlatformAdminHosts }

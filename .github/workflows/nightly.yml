@@ -224,6 +224,7 @@ jobs:
           echo "Pulling $IMAGE"
           docker pull "$IMAGE"
           python3 docker/test-apache-capacity.py --image "$IMAGE"
+          python3 docker/test-db-pool.py --image "$IMAGE"
 
           docker run -d --name kmp-smoke \
             --network host \

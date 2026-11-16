@@ -325,6 +325,23 @@ sed -ri "s/<VirtualHost \\*:[0-9]+>/<VirtualHost *:${APACHE_PORT}>/" /etc/apache
 # ---------------------------------------------------------------------------
 # 8. Start application
 # ---------------------------------------------------------------------------
+if [ "${KMP_DB_POOL_ENABLED:-false}" = 'true' ] && [ "${1:-}" = 'apache2-foreground' ]; then
+    install -d -m 0700 -o www-data -g www-data /run/kmp-db-pool
+    runuser -u www-data -- php /opt/docker/db-pool.php render
+    runuser -u www-data -- /bin/bash /opt/docker/run-db-pool.sh &
+    pool_ready=false
+    for pool_attempt in $(seq 1 30); do
+        if runuser -u www-data -- php /opt/docker/db-pool.php check; then
+            pool_ready=true
+            break
+        fi
+        sleep 1
+    done
+    if [ "$pool_ready" != 'true' ]; then
+        echo 'ERROR: PostgreSQL application pool is not ready.' >&2
+        exit 1
+    fi
+fi
 echo "=== KMP Production Container Ready ==="
 echo "  Listening on port ${APACHE_PORT}"
 

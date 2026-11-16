@@ -192,6 +192,13 @@ $appInsightsLogConfig = [
 ];
 
 return [
+    // Web-only local connection pooling; CLI/admin/queue jobs retain direct connections.
+    'DatabasePool' => [
+        'enabled' => filter_var(env('KMP_DB_POOL_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+        'directory' => '/run/kmp-db-pool',
+        'databaseSlots' => (int)env('KMP_DB_POOL_DATABASE_SLOTS', 6),
+        'connectionsPerDatabase' => (int)env('KMP_DB_POOL_SIZE', 2),
+    ],
     // The public offline shell must never contain request-specific debug markup.
     'DebugKit' => ['ignorePathsPattern' => '#^/offline(?:/|$)#'],
     /** @var bool Enable debug mode - set via DEBUG environment variable */

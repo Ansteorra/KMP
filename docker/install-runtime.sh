@@ -41,6 +41,7 @@ apt-get update && apt-get install -y --no-install-recommends \
         > /etc/apt/sources.list.d/pgdg.list \
     && apt-get update && apt-get install -y --no-install-recommends \
         postgresql-client-16 \
+        pgbouncer \
     && rm -rf /var/lib/apt/lists/*
 
 mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"

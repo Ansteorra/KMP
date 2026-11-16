@@ -19,6 +19,7 @@ declare(strict_types=1);
 /*
  * Configure paths required to find CakePHP + general filepath constants
  */
+use App\Database\Driver\PooledPostgres;
 use App\Services\Security\TrustedProxy;
 
 require __DIR__ . DIRECTORY_SEPARATOR . "paths.php";
@@ -239,6 +240,19 @@ foreach ($datasources as &$datasource) {
     }
 }
 unset($datasource);
+if (PHP_SAPI !== 'cli' && Configure::read('DatabasePool.enabled')) {
+    foreach (['default', 'platform'] as $name) {
+        $config = $datasources[$name];
+        if (!empty($config['url'])) {
+            $config = ConnectionManager::parseDsn($config['url']) + $config;
+            unset($config['url']);
+        }
+        $config['driver'] = PooledPostgres::class;
+        $config['poolDirectory'] = Configure::read('DatabasePool.directory');
+        $config['persistent'] = false;
+        $datasources[$name] = $config;
+    }
+}
 ConnectionManager::setConfig($datasources);
 TransportFactory::setConfig(Configure::consume("EmailTransport"));
 Mailer::setConfig(Configure::consume("Email"));

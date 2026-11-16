@@ -10,6 +10,7 @@ Own core CakePHP application source under `app/src`: controllers, models, polici
 - `Model` handles persistence, validation, associations, rules, entity behavior, and cache invalidation.
 - `Policy` owns authorization decisions and row-level scopes.
 - `Services` owns reusable business workflows and cross-cutting registries.
+- `Database/Driver` owns PostgreSQL transport adapters; pooled routing must preserve real database metadata, tenant credentials, and CakePHP transaction semantics.
 - `KMP` owns domain helpers such as grid columns, permissions, static helpers, and identity interfaces.
 - `Mailer`, `Queue`, and `Command` own asynchronous, email, and CLI execution surfaces.
 
