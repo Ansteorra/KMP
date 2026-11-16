@@ -119,7 +119,7 @@ try {
     $admin->exec("ALTER ROLE pool_alpha PASSWORD 'rotated-pool-test'");
     $rotated = array_replace($a, ['password' => 'rotated-pool-test']);
     $publish([$rotated, $b], $manifest);
-    proc_terminate($process, SIGHUP);
+    proc_terminate($process, 1); // POSIX SIGHUP, without requiring the optional pcntl extension.
     usleep(200000);
     $newLogin = $connect($rotated);
     $assert($scalar($newLogin, 'SELECT current_user') === 'pool_alpha', 'Rotated credentials failed.');
