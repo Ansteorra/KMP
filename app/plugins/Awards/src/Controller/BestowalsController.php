@@ -49,7 +49,9 @@ use Traversable;
  */
 class BestowalsController extends AppController
 {
-    use DataverseGridTrait;
+    use DataverseGridTrait {
+        loadFilterOptionsCached as private loadSharedFilterOptionsCached;
+    }
     use WorkflowDispatchTrait;
 
     private BestowalFieldAccessService $fieldAccessService;
@@ -85,6 +87,32 @@ class BestowalsController extends AppController
         }
 
         return null;
+    }
+
+    /**
+     * Keep assignment-derived gathering choices inside the actor's current visibility scope.
+     *
+     * @param array|string $source Filter source metadata
+     * @return array
+     */
+    protected function loadFilterOptionsCached(string|array $source): array
+    {
+        if (
+            is_array($source) && ($source['class'] ?? null) === BestowalsGridColumns::class
+            && ($source['method'] ?? null) === 'getGatheringsFilterOptions'
+        ) {
+            $user = $this->request->getAttribute('identity');
+            $query = (new BestowalQueryService())->applyHiddenStateVisibility(
+                $this->Bestowals->find(),
+                $user->checkCan('ViewHidden', $this->Bestowals->newEmptyEntity()),
+            );
+            $query = $this->Authorization->applyScope($query, 'index');
+
+            // Never share or persist these choices: delegations and native grants can change between requests.
+            return BestowalsGridColumns::getGatheringsFilterOptions($query);
+        }
+
+        return $this->loadSharedFilterOptionsCached($source);
     }
 
     /**

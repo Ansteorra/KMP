@@ -27,6 +27,7 @@ describe('Public calendar rows and activity picker', () => {
         controller.eventDisclosureTargets = [document.querySelector('details[data-panel]')];
     });
     afterEach(() => {
+        controller.disconnect();
         document.body.innerHTML = '';
         window.history.replaceState({}, '', '/');
     });
@@ -35,8 +36,10 @@ describe('Public calendar rows and activity picker', () => {
         const details = controller.eventDisclosureTargets[0];
         const summary = details.querySelector('summary');
         const panel = document.getElementById('panel');
-        panel.scrollIntoView = jest.fn();
-        details.closest('tr').getBoundingClientRect = () => ({ height: 152 });
+        summary.scrollIntoView = jest.fn();
+        summary.getBoundingClientRect = () => ({ top: 900, left: 1000, right: 1050 });
+        panel.getBoundingClientRect = () => ({ top: 950, left: 0, right: 1200 });
+        details.closest('tr').getBoundingClientRect = () => ({ top: 0, height: 950 });
         const bar = document.createElement('form');
         bar.style.top = '56px';
         bar.getBoundingClientRect = () => ({ height: 118 });
@@ -54,10 +57,38 @@ describe('Public calendar rows and activity picker', () => {
         expect(document.getElementById('panel')).not.toHaveAttribute('hidden');
         expect(summary).toHaveAttribute('aria-expanded', 'true');
         expect(summary).toHaveFocus();
-        expect(panel.style.scrollMarginTop).toBe('338px');
-        expect(panel.scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'instant' });
+        expect(summary.style.scrollMarginTop).toBe('186px');
+        expect(panel.style.scrollMarginTop).toBe('236px');
+        expect(panel.style.scrollMarginLeft).toBe('-1000px');
+        expect(panel.style.scrollMarginRight).toBe('-150px');
+        expect(summary.scrollIntoView).toHaveBeenCalledWith({ block: 'start', inline: 'nearest', behavior: 'instant' });
         expect(other.open).toBe(false);
         expect(window.location.search).toBe('?month=11&year=2026');
+    });
+
+    test('restores focus cleared by native fragment loading without stealing deliberate focus', () => {
+        const summary = controller.eventDisclosureTargets[0].querySelector('summary');
+        summary.scrollIntoView = jest.fn();
+        window.history.replaceState({}, '', '/events#panel');
+        let callback;
+        const frame = jest.spyOn(window, 'requestAnimationFrame').mockImplementation(fn => { callback = fn; return 42; });
+        const cancel = jest.spyOn(window, 'cancelAnimationFrame');
+        controller.connect();
+        summary.blur();
+        window.dispatchEvent(new Event('pageshow'));
+        callback();
+        expect(summary).toHaveFocus();
+        document.getElementById('search').focus();
+        window.dispatchEvent(new Event('pageshow'));
+        callback();
+        expect(document.getElementById('search')).toHaveFocus();
+        controller.disconnect();
+        expect(cancel).toHaveBeenCalledWith(42);
+        frame.mockClear();
+        window.dispatchEvent(new Event('pageshow'));
+        expect(frame).not.toHaveBeenCalled();
+        frame.mockRestore();
+        cancel.mockRestore();
     });
 
     test.each(['', '#missing-event', '#%22%5B'])('unmatched calendar fragment %s leaves rows collapsed', hash => {

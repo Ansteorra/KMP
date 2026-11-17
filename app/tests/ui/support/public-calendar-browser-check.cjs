@@ -164,7 +164,7 @@ echo json_encode($result, JSON_THROW_ON_ERROR);
         await expect(page.locator('.kc-continuing')).toHaveCount(1);
         await page.locator(`.kc-event-name[href*="${data.publicId}"]`).click();
         await expect(page).toHaveURL(new RegExp('/gatherings/public-landing/' + data.publicId));
-        await page.goto('/events?q=' + encodeURIComponent(data.prefix));
+        await page.goto('/events');
         for (const width of [1280, 768, 375, 320]) {
             await page.setViewportSize({ width, height: 950 });
             await expect(page.locator('.kc-table')).toHaveCSS('min-width', width <= 700 ? '0px' : '810px');
@@ -245,6 +245,39 @@ echo json_encode($result, JSON_THROW_ON_ERROR);
                 await summary.click();
                 await expect(phonePanel).toBeHidden();
                 await expect(page.getByRole('columnheader')).toHaveCount(4);
+            }
+        }
+        for (const [width, height, tall] of [[1280, 844, false], [768, 844, false], [390, 390, true], [844, 390, false]]) {
+            await page.setViewportSize({ width, height });
+            await page.goto('/events?q=' + encodeURIComponent(data.prefix));
+            await page.waitForLoadState('load');
+            const details = page.locator('details[data-panel]').first();
+            const panelId = await details.getAttribute('data-panel');
+            const summary = details.locator('summary');
+            if (width <= 700 || height <= 500) await expect(page.locator('#calendar-date-help')).toBeHidden();
+            if (tall) {
+                await details.locator('xpath=ancestor::tr').locator('.kc-address').evaluate(el => {
+                    el.textContent = 'Long event address for a narrow screen. '.repeat(80);
+                });
+            }
+            await page.evaluate(id => {
+                document.querySelector('.kc-table-scroll').scrollLeft = 0;
+                location.hash = id;
+            }, panelId);
+            const assertVisibleFocus = async () => {
+                await expect(summary).toBeFocused();
+                await expect.poll(() => summary.evaluate(el => {
+                    const rect = el.getBoundingClientRect();
+                    const filters = document.querySelector('.kc-filter-bar').getBoundingClientRect();
+                    return rect.left >= 0 && rect.right <= innerWidth + 1
+                        && rect.top >= filters.bottom && rect.bottom <= innerHeight;
+                })).toBe(true);
+            };
+            await assertVisibleFocus();
+            if (!tall) {
+                await page.reload();
+                await page.waitForLoadState('load');
+                await assertVisibleFocus();
             }
         }
         await page.setViewportSize({ width: 320, height: 400 });

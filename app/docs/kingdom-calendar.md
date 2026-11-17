@@ -36,8 +36,13 @@ Dates before that epoch have no AS label. The source of this convention is the
 Public calendar month headings include a compact year label, such as **November 2026 (AS-LXI)**;
 individual calendar rows and expanded details do not repeat it. Public landing pages and
 signed-in gathering views append the label to the first Gregorian year in the event's
-date range. The end date repeats an AS label only when the Society year changes,
+date range. Gregorian dates, times, day-range selection, and AS labels all use the same resolved event/member timezone.
+The end date repeats an AS label only when the Society year changes,
 including events spanning April 30–May 1. They do not render a second copy of the date range.
+
+Password and passkey login both preserve the accepted same-origin return fragment. Restored
+calendar focus is visible horizontally and below sticky filters, even in tall mobile rows.
+Date-filter help collapses with its controls.
 
 Calendar RSVP actions appear in each expanded event beside **Add to calendar**, using
 the same button styling. Signed-in visitors can RSVP through the existing attendance modal,
@@ -74,7 +79,7 @@ reimplementing them in JavaScript.
 
 - defaults to `published = true` gatherings overlapping the full current month through two years ahead;
 - builds compact, horizontally scrollable rows using each event's timezone, grouped by month;
-- shows empty weekends and repeats multi-week events on affected weekends, with a Continues label;
+- shows empty weekends in the default view and repeats multi-week events on affected weekends, with a Continues label;
 - keeps weekday-only events visible; a weekend belongs to the month containing its Saturday;
 - supports `activities[]=<id>` filtering and derives group/activity options from all published history;
 - supports `q` (event/group/address), `branch`, separate `month` (1–12) and `year`,
@@ -84,7 +89,14 @@ reimplementing them in JavaScript.
 - allows month-only searches across years, year-only searches across months, and blank dates
   across all history; old `month=YYYY-MM` URLs still work;
 - keeps **Upcoming Events** as a link back to the default current-month-onward view;
-- derives year choices from published event bounds and omits empty months in unbounded archives;
+- derives year choices from published event bounds and omits empty months in archive pages;
+- pages archive searches in stable start-date/ID order with 50 events per page, preserving all
+  filters in Previous/Next links and login return URLs; each page loads event details only after
+  matching local dates in bounded lightweight batches;
+- indexes events directly into overlapping weekends/months rather than scanning intervening
+  empty years; archive pages omit empty-weekend claims because another page can contain matches;
+- clips boundary weekends to Gregorian months only for an explicit Month selection; otherwise
+  a Friday-only April 30 event belongs to the May 1 weekend;
 - displays branch, location, activity/circle metadata, cancellation state, event and calendar
   links;
 - renders the `public_event` layout with `templates/Gatherings/public_calendar.php` and

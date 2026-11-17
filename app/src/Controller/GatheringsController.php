@@ -2049,7 +2049,7 @@ class GatheringsController extends AppController
                 'GatheringActivities',
             ])
             ->where($publishedConditions)
-            ->orderBy(['Gatherings.start_date' => 'ASC']);
+            ->orderBy(['Gatherings.start_date' => 'ASC', 'Gatherings.id' => 'ASC']);
 
         // Widen UTC bounds for event-local dates; the row builder applies the exact local range.
         if ($from !== null) {
@@ -2098,6 +2098,14 @@ class GatheringsController extends AppController
             ]]);
         }
 
+        $calendarService = new PublicCalendarService();
+        $archivePage = max(1, min(1000000, (int)$this->request->getQuery('page', 1)));
+        $archiveHasNext = false;
+        if ($isArchive) {
+            $page = $calendarService->archivePage($query, $archivePage, $from, $until, $selectedMonth);
+            $archiveHasNext = $page['hasNext'];
+            $query->where(['Gatherings.id IN' => $page['ids'] ?: [-1]]);
+        }
         $gatherings = $query->all();
 
         // Filter options: activities present on any published event,
@@ -2132,7 +2140,7 @@ class GatheringsController extends AppController
         $branchOptions = $this->fetchTable('Branches')->find('list')
             ->where(['Branches.id IN' => $this->Gatherings->find()->select(['branch_id'])->where($publishedConditions)])
             ->orderBy(['Branches.name' => 'ASC'])->toArray();
-        $calendarMonths = (new PublicCalendarService())->build($gatherings, $from, $until, $selectedMonth);
+        $calendarMonths = $calendarService->build($gatherings, $from, $until, $selectedMonth, !$isArchive);
         $visibleIds = [];
         foreach ($calendarMonths as $month) {
             foreach ($month['rows'] as $row) {
@@ -2178,6 +2186,8 @@ class GatheringsController extends AppController
             'yearOptions',
             'selectedYear',
             'isArchive',
+            'archivePage',
+            'archiveHasNext',
             'user',
             'calendarAttendances',
             'rsvpGatherings',

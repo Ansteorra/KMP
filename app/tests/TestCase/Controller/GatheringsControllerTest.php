@@ -2108,6 +2108,75 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertSame(2, substr_count((string)$this->_response->getBody(), '(AS-'));
     }
 
+    public function testPublicLandingUsesOneTimezoneForDatesTimesAndSocietyYear(): void
+    {
+        $members = $this->getTableLocator()->get('Members');
+        $members->updateAll(['timezone' => 'Pacific/Kiritimati'], ['id' => self::ADMIN_MEMBER_ID]);
+        $this->authenticateAsSuperUser();
+        $event = $this->createCalendarGathering('Member timezone Society fixture', true, [
+            'public_page_enabled' => true,
+            'timezone' => null,
+            'start_date' => new DateTime('2030-04-30 09:30:00', 'UTC'),
+            'end_date' => new DateTime('2030-04-30 10:30:00', 'UTC'),
+        ]);
+        $this->get('/gatherings/public-landing/' . $event->public_id);
+        $this->assertResponseOk();
+        // One UTC day spans local April 30/May 1; both dates and both AS years are required.
+        $this->assertResponseContains('Apr 30, 2030 (AS-LXIV)');
+        $this->assertResponseContains('May 01, 2030 (AS-LXV)');
+        $this->assertResponseContains('11:30 PM');
+        $this->assertResponseContains('12:30 AM');
+    }
+
+    public function testArchivePaginationPreservesBlankDatesAndFiltersAcrossBatches(): void
+    {
+        $prefix = 'Archive paging fixture';
+        // Nonmatching local months force the bounded scan across more than one batch.
+        for ($i = 0; $i < 101; $i++) {
+            $this->createCalendarGathering($prefix . ' April ' . $i, true, [
+                'start_date' => new DateTime('2027-05-01 00:00:00', 'UTC'),
+                'end_date' => new DateTime('2027-05-01 02:00:00', 'UTC'),
+            ]);
+        }
+        $expected = [];
+        for ($i = 0; $i < 51; $i++) {
+            $expected[] = $this->createCalendarGathering($prefix . ' May ' . $i, true, [
+                'start_date' => new DateTime('2027-05-02 18:00:00', 'UTC'),
+                'end_date' => new DateTime('2027-05-02 20:00:00', 'UTC'),
+            ])->id;
+        }
+        $this->createCalendarGathering($prefix . ' unpublished', false, [
+            'start_date' => new DateTime('2027-05-02 18:00:00', 'UTC'),
+            'end_date' => new DateTime('2027-05-02 20:00:00', 'UTC'),
+        ]);
+        $this->session(['Auth' => null]);
+        $query = ['view' => 'archive', 'q' => $prefix, 'month' => '5', 'year' => ''];
+        $seen = [];
+        foreach ([1, 2] as $page) {
+            $this->get('/events?' . http_build_query($query + ['page' => $page]));
+            $this->assertResponseOk();
+            $ids = [];
+            foreach ($this->viewVariable('calendarMonths') as $month) {
+                foreach ($month['rows'] as $row) {
+                    $this->assertFalse($row['empty']);
+                    $ids[] = $row['event']['gathering']->id;
+                }
+            }
+            $this->assertCount($page === 1 ? 50 : 1, $ids);
+            $this->assertSame($page === 1, $this->viewVariable('archiveHasNext'));
+            $this->assertResponseNotContains($prefix . ' April');
+            $this->assertResponseNotContains($prefix . ' unpublished');
+            $this->assertResponseContains('month=5&amp;year=&amp;page=' . ($page === 1 ? 2 : 1));
+            array_push($seen, ...$ids);
+        }
+        $this->assertSame($expected, $seen);
+        // Blank dates are still unrestricted, but returned in bounded pages.
+        $this->get('/events?' . http_build_query(['view' => 'archive', 'q' => $prefix, 'month' => '', 'year' => '']));
+        $this->assertResponseOk();
+        $this->assertSame(50, $this->viewVariable('eventCount'));
+        $this->assertTrue($this->viewVariable('archiveHasNext'));
+    }
+
     public function testEventPagesShowSocietyYearOnlyOnceWithinTheSameSocietyYear(): void
     {
         foreach (['2030-11-22 20:00:00', '2030-11-24 20:00:00'] as $end) {

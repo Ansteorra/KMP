@@ -138,6 +138,32 @@ class PublicCalendarServiceTest extends BaseTestCase
         $this->assertSame(0, $months['2027-05']['count']);
     }
 
+    public function testBoundaryFridayBelongsToSaturdayMonthExceptInExplicitMonthArchive(): void
+    {
+        $event = $this->event('2027-04-30 18:00:00', '2027-04-30 20:00:00');
+        $service = new PublicCalendarService();
+        $months = $service->build([$event], new DateTime('2027-04-01'), new DateTime('2027-05-31'));
+        $this->assertSame(0, $months['2027-04']['count']);
+        $this->assertSame(1, $months['2027-05']['count']);
+        $this->assertSame(['2027-05'], array_keys($service->build([$event], null, null)));
+        $april = $service->build([$event], new DateTime('2027-04-01'), new DateTime('2027-04-30'), 4);
+        $this->assertSame(1, $april['2027-04']['count']);
+        $this->assertSame([], $service->build([$event], null, null, 5));
+    }
+
+    public function testSparseArchiveOnlyVisitsOccupiedMonthsAndOmitsEmptyWeekendClaimsOnPages(): void
+    {
+        $early = $this->event('1967-02-07 18:00:00', '1967-02-07 20:00:00');
+        $late = $this->event('2099-11-17 18:00:00', '2099-11-17 20:00:00');
+        $late->set('id', 2);
+        $months = (new PublicCalendarService())->build([$early, $late], null, null, null, false);
+        $this->assertSame(['1967-02', '2099-11'], array_keys($months));
+        foreach ($months as $month) {
+            $this->assertCount(1, $month['rows']);
+            $this->assertFalse($month['rows'][0]['empty']);
+        }
+    }
+
     private function event(string $start, string $end): Gathering
     {
         $event = new Gathering([

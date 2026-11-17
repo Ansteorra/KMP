@@ -85,7 +85,7 @@ class BestowalsGridSortingFilteringTest extends HttpIntegrationTestCase
         }
         $this->createBestowal(self::ADMIN_MEMBER_ID, (int)$award->id, (int)$events['open']->id);
 
-        $options = BestowalsGridColumns::getGatheringsFilterOptions();
+        $options = BestowalsGridColumns::getGatheringsFilterOptions($bestowals->find());
         $ids = array_column($options, 'value');
         $this->assertContains((string)$events['open']->id, $ids);
         $this->assertContains((string)$events['completed']->id, $ids);

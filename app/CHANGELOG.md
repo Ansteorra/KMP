@@ -11,11 +11,11 @@ Stay up to date with the latest features, improvements, and announcements for th
 KMP 1.5.15 makes public event history easier to find, improves calendar RSVPs, and simplifies bestowal grids.
 
 - Keep public calendar events visible throughout the current month, including completed events whose addresses and details are still useful to attendees.
-- Browse all published events for a selected month with separate Month and Year filters. Leave either or both blank to search history by hosting group, royal presence, activity, or circle without an unwanted date restriction.
+- Browse all published events for a selected month with separate Month and Year filters. Leave either or both blank to search history by hosting group, royal presence, activity, or circle without an unwanted date restriction. Archive results use pages of 50 events, with filters preserved between pages.
 - Show compact Anno Societatis years in public calendar month headings and beside the first Gregorian year on event pages. Repeat the AS year only when an event crosses the May 1 boundary, without duplicating the date range.
-- RSVP from expanded calendar events beside **Add to calendar**, with matching button styling. **Log in to RSVP** returns to the same expanded event with filters preserved and the event positioned below the sticky filters. On public event pages, the RSVP invitation appears immediately below the event summary.
+- RSVP from expanded calendar events beside **Add to calendar**, with matching button styling. **Log in to RSVP** supports password and passkey sign-in, returning to the same expanded event with filters preserved and its controls visible below the sticky filters. On public event pages, the RSVP invitation appears immediately below the event summary.
 - Simplify bestowal grid Award labels by omitting the level while retaining specialties.
-- Limit the bestowal grid Gathering filter to gatherings with assigned bestowals, including historical and completed bestowals, so unassigned practices and guild meetings do not crowd the list.
+- Limit the bestowal grid Gathering filter to gatherings with assigned bestowals the user is authorized to view, including historical and completed bestowals, so unassigned practices and guild meetings do not crowd the list.
 
 ---
 

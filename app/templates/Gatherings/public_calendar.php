@@ -39,9 +39,6 @@ $hasFilterSummary = $search !== '' || $selectedMonth !== null || $selectedYear !
             <form method="get" action="<?= h($calendarUrl) ?>" class="kc-filter-bar"
                 data-public-calendar-target="filterBar" aria-label="<?= h(__('Find events')) ?>">
                 <input type="hidden" name="view" value="archive">
-                <p id="calendar-date-help"><?= __(
-                    'Choose a month and/or year, or leave both blank to search all published events.',
-                ) ?></p>
                 <details class="kc-filter-settings" data-public-calendar-target="filterDisclosure" open>
                     <summary class="kc-filters-toggle">
                         <?= $this->Icon->render('filter') ?> <?= __('Filters') ?>
@@ -65,6 +62,9 @@ $hasFilterSummary = $search !== '' || $selectedMonth !== null || $selectedYear !
                         </span>
                     </summary>
                     <div class="kc-filter-content">
+                        <p id="calendar-date-help"><?= __(
+                            'Choose a month and/or year, or leave both blank to search all published events.',
+                        ) ?></p>
                         <div class="kc-filter-fields">
                             <div>
                                 <label for="calendar-search"><?= __('Search events') ?></label>
@@ -250,6 +250,23 @@ $hasFilterSummary = $search !== '' || $selectedMonth !== null || $selectedYear !
                     <?php endforeach; ?>
                 </table>
             </div>
+            <?php if ($isArchive && ($archivePage > 1 || $archiveHasNext)) : ?>
+                <nav class="d-flex flex-wrap align-items-center gap-3 my-3" aria-label="<?= h(__('Archive pages')) ?>">
+                    <?php if ($archivePage > 1) : ?>
+                        <a class="kc-button" href="<?= h($calendarUrl . '?' . http_build_query(array_merge(
+                            $this->getRequest()->getQueryParams(),
+                            ['page' => $archivePage - 1],
+                        )) . '#calendar-events') ?>" rel="prev"><?= __('Previous events') ?></a>
+                    <?php endif; ?>
+                    <span><?= __('Page {0} · {1} events on this page', $archivePage, $eventCount) ?></span>
+                    <?php if ($archiveHasNext) : ?>
+                        <a class="kc-button" href="<?= h($calendarUrl . '?' . http_build_query(array_merge(
+                            $this->getRequest()->getQueryParams(),
+                            ['page' => $archivePage + 1],
+                        )) . '#calendar-events') ?>" rel="next"><?= __('Next events') ?></a>
+                    <?php endif; ?>
+                </nav>
+            <?php endif; ?>
             <div class="kc-legend">
                 <span><?= __('Select a row to expand · event names open the event page') ?></span>
             </div>

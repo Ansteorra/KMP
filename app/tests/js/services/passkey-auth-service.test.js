@@ -1,5 +1,5 @@
 import { webcrypto, generateKeyPairSync, sign } from 'crypto';
-import { encodePasskeyBytes as b64, verifyPasskeyAssertion, serializePasskey } from '../../../assets/js/services/passkey-auth-service.js';
+import { encodePasskeyBytes as b64, verifyPasskeyAssertion, serializePasskey, submitPasskeyLogin } from '../../../assets/js/services/passkey-auth-service.js';
 
 beforeEach(() => Object.defineProperty(global, 'crypto', { value: webcrypto, configurable: true }));
 
@@ -38,4 +38,32 @@ test.each(['signature', 'challenge', 'credential', 'origin', 'rpId', 'userVerifi
     if (field === 'key') authentication.publicKey = (await assertion()).authentication.publicKey;
     if (field === 'client') credential.response.clientDataJSON[5] ^= 1;
     await expect(verifyPasskeyAssertion(credential, authentication, challenge)).rejects.toThrow('PIN cannot replace');
+});
+
+
+describe('passkey login return targets', () => {
+    const originalFetch = global.fetch;
+    afterEach(() => {
+        global.fetch = originalFetch;
+        window.history.replaceState({}, '', '/');
+    });
+
+    test.each(['/events?view=archive&page=2#event-details-42', '/gatherings/public-landing/event#rsvp'])(
+        'restores the accepted return fragment for %s even when Fetch omits it', async target => {
+            window.history.replaceState({}, '', '/members/login?redirect=' + encodeURIComponent(target));
+            global.fetch = jest.fn().mockResolvedValue({ ok: true, url: location.origin + target.split('#')[0] });
+            const credential = { rawId: new Uint8Array([1]), response: { clientDataJSON: new Uint8Array([2]) } };
+            await expect(submitPasskeyLogin(credential, { csrfToken: 'test' })).resolves.toBe(target);
+            expect(global.fetch.mock.calls[0][0]).toContain('redirect=');
+        },
+    );
+
+    test.each(['https://other.example/events#wrong', '/other-page#wrong', '/events?page=2#wrong', 'http://[invalid'])(
+        'does not restore a fragment from an unaccepted target %s', async target => {
+            window.history.replaceState({}, '', '/members/login?redirect=' + encodeURIComponent(target));
+            global.fetch = jest.fn().mockResolvedValue({ ok: true, url: location.origin + '/events' });
+            const credential = { rawId: new Uint8Array([1]), response: { clientDataJSON: new Uint8Array([2]) } };
+            await expect(submitPasskeyLogin(credential, { csrfToken: 'test' })).resolves.toBe('/events');
+        },
+    );
 });

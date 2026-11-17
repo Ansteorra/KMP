@@ -565,13 +565,14 @@ class BestowalsGridColumns extends BaseGridColumns
     /**
      * List gatherings with assigned, non-deleted bestowals, including completed bestowals.
      *
+     * @param \Cake\ORM\Query\SelectQuery $authorizedBestowals Current actor visibility scope, before UI filters
      * @return list<array{value: string, label: string}>
      */
-    public static function getGatheringsFilterOptions(): array
+    public static function getGatheringsFilterOptions(SelectQuery $authorizedBestowals): array
     {
         $locator = TableRegistry::getTableLocator();
-        $assignedGatherings = $locator->get('Awards.Bestowals')->find()
-            ->select(['Bestowals.gathering_id'])
+        $assignedGatherings = (clone $authorizedBestowals)
+            ->select(['Bestowals.gathering_id'], true)
             ->where(['Bestowals.gathering_id IS NOT' => null]);
         $gatherings = $locator->get('Gatherings')->find('list')
             ->where(['Gatherings.id IN' => $assignedGatherings])

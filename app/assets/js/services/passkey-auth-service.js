@@ -47,7 +47,17 @@ export async function submitPasskeyLogin(credential, options) {
     if (destination.origin !== location.origin || /\/members\/(?:passkey-login|login)\/?$/i.test(destination.pathname)) {
         throw new Error('Passkey sign-in was not completed. Sign in with your password.');
     }
-    return destination.pathname + destination.search;
+    // Fetch response URLs omit redirect fragments. Restore only the fragment of the
+    // same-origin return target that the server actually accepted.
+    const redirect = new URLSearchParams(query).get('redirect');
+    if (redirect) {
+        try {
+            const requested = new URL(redirect, location.origin);
+            if (requested.origin === destination.origin && requested.pathname === destination.pathname
+                && requested.search === destination.search) destination.hash = requested.hash;
+        } catch { /* Invalid return targets keep the server's safe destination. */ }
+    }
+    return destination.pathname + destination.search + destination.hash;
 }
 
 /** Only authenticated sessions can revoke this browser's server registration. Local removal is separate. */
