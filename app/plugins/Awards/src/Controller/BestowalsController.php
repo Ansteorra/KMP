@@ -2161,9 +2161,6 @@ class BestowalsController extends AppController
     {
         if ($bestowal->hasValue('award')) {
             $label = h($bestowal->award->abbreviation ?? $bestowal->award->name ?? '');
-            if ($bestowal->award->hasValue('level') && !empty($bestowal->award->level->name)) {
-                $label .= ' (' . h($bestowal->award->level->name) . ')';
-            }
             if ($includeSpecialty && trim((string)$bestowal->specialty) !== '') {
                 $label .= ' — ' . h($bestowal->specialty);
             }

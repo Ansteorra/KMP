@@ -8,6 +8,7 @@ Stay up to date with the latest features, improvements, and announcements for th
 
 ## Unreleased
 
+- Simplify bestowal grid Award labels by omitting the level, and limit the Gathering filter to gatherings with assigned bestowals.
 - Keep public calendar events visible throughout the current month. Search published history with separate, optional Month and Year filters, including searches by hosting group, royal presence, activity, or circle without date limits.
 - Show Anno Societatis dates beside conventional dates on the public calendar and event details.
 - RSVP directly from the public calendar when signed in, or log in and return to the event. Move the public event RSVP invitation immediately below its summary.
