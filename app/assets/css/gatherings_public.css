@@ -893,6 +893,7 @@
 .kc-detail-body p { margin: 0 0 10px; }
 .kc-event-activities,
 .kc-detail-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.kingdom-calendar-page .kc-detail-actions .kc-button { font: inherit; font-size: 13px; color: var(--kc-accent); text-decoration: underline; text-underline-offset: 3px; }
 .kc-empty-weekend td { color: var(--kc-muted); font-size: 12px; }
 .kc-empty-weekend td[colspan] { font-style: italic; }
 .kc-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 12px 0; font-size: 11px; color: var(--kc-muted); }

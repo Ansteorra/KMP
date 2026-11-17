@@ -61,7 +61,8 @@ $panelId = 'event-details-' . $row['key'];
                     )) ?>">…</button>
             <?php endif; ?>
         </div>
-        <details class="kc-more" data-panel="<?= h($panelId) ?>" data-action="toggle->public-calendar#sync">
+        <details class="kc-more" data-panel="<?= h($panelId) ?>" data-action="toggle->public-calendar#sync"
+            data-public-calendar-target="eventDisclosure">
             <summary aria-expanded="false" aria-controls="<?= h($panelId) ?>">
                 <?= $this->Icon->render('chevron-down') ?>
                 <span class="visually-hidden"><?= __('Details for {0}', h($gathering->name)) ?></span>
@@ -114,13 +115,13 @@ $panelId = 'event-details-' . $row['key'];
                 <?php elseif (!$user && !$isCancelled && $gathering->end_date >= DateTime::now()) : ?>
                     <?php $rsvpUrl = $this->Url->build([
                         'controller' => 'Gatherings',
-                        'action' => $gathering->public_page_enabled ? 'publicLanding' : 'view',
-                        $gathering->public_id,
-                        '#' => $gathering->public_page_enabled ? 'rsvp' : 'gathering-rsvp-summary',
-                    ]); ?>
+                        'action' => 'publicCalendar',
+                        '?' => $this->getRequest()->getQueryParams(),
+                        '#' => $panelId,
+                    ], ['escape' => false]); ?>
                     <a class="kc-button" href="<?= h($this->Url->build([
                         'controller' => 'Members', 'action' => 'login', '?' => ['redirect' => $rsvpUrl],
-                    ])) ?>">
+                    ], ['escape' => false])) ?>">
                         <?= $this->Icon->render('login') ?> <?= __('Log in to RSVP') ?>
                     </a>
                 <?php endif; ?>

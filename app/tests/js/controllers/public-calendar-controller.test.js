@@ -24,8 +24,39 @@ describe('Public calendar rows and activity picker', () => {
         controller.selectedLabelsTarget = document.getElementById('selection-labels');
         controller.selectionStatusTarget = document.getElementById('selection-status');
         controller.pendingMessageValue = 'Selection changed. Apply filters to update events.';
+        controller.eventDisclosureTargets = [document.querySelector('details[data-panel]')];
     });
-    afterEach(() => { document.body.innerHTML = ''; });
+    afterEach(() => {
+        document.body.innerHTML = '';
+        window.history.replaceState({}, '', '/');
+    });
+
+    test('login return restores only the linked event row and moves keyboard focus to its disclosure', () => {
+        const details = controller.eventDisclosureTargets[0];
+        const summary = details.querySelector('summary');
+        summary.scrollIntoView = jest.fn();
+        const other = document.createElement('details');
+        other.dataset.panel = 'another-panel';
+        controller.eventDisclosureTargets.push(other);
+        window.history.replaceState({}, '', '/events?month=11&year=2026#panel');
+
+        controller.connect();
+
+        expect(details.open).toBe(true);
+        expect(document.getElementById('panel')).not.toHaveAttribute('hidden');
+        expect(summary).toHaveAttribute('aria-expanded', 'true');
+        expect(summary).toHaveFocus();
+        expect(summary.scrollIntoView).toHaveBeenCalledWith({ block: 'center', behavior: 'instant' });
+        expect(other.open).toBe(false);
+        expect(window.location.search).toBe('?month=11&year=2026');
+    });
+
+    test.each(['', '#missing-event', '#%22%5B'])('unmatched calendar fragment %s leaves rows collapsed', hash => {
+        window.history.replaceState({}, '', `/events${hash}`);
+        controller.connect();
+        expect(controller.eventDisclosureTargets[0].open).toBe(false);
+        expect(document.getElementById('panel')).toHaveAttribute('hidden');
+    });
 
     test('phone filters collapse, reopen for desktop, and release the viewport listener', () => {
         const disclosure = document.createElement('details');

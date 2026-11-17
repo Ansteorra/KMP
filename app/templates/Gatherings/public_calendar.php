@@ -20,7 +20,7 @@ $hasFilterSummary = $search !== '' || $selectedMonth !== null || $selectedYear !
 ?>
 <div class="kingdom-calendar-page" data-controller="public-calendar"
     data-public-calendar-pending-message-value="<?= h(__('Selection changed. Apply filters to update events.')) ?>"
-    data-action="focusin->public-calendar#revealFocus">
+    data-action="focusin->public-calendar#revealFocus hashchange@window->public-calendar#restoreEvent">
     <div class="kc-shell">
         <header class="kc-masthead">
             <div class="kc-brand">

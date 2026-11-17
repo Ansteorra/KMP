@@ -3,7 +3,7 @@ import { Controller } from '@hotwired/stimulus';
 /** Enhances native public calendar disclosures and bounded activity filtering. */
 class PublicCalendarController extends Controller {
     static targets = ['activityOption', 'activityGroup', 'groupCount', 'activitySearch', 'activityStatus', 'activityCount', 'filterBar',
-        'selectedSummary', 'selectedLabels', 'selectionStatus', 'filterDisclosure'];
+        'selectedSummary', 'selectedLabels', 'selectionStatus', 'filterDisclosure', 'eventDisclosure'];
     static values = { pendingMessage: String };
 
     connect() {
@@ -15,10 +15,22 @@ class PublicCalendarController extends Controller {
             this.filterMedia.addEventListener('change', this.filterLayoutListener);
             this.layoutFilters();
         }
+        this.restoreEvent();
     }
 
     disconnect() {
         this.filterMedia?.removeEventListener('change', this.filterLayoutListener);
+    }
+
+    /** Restore the calendar row selected before login, including repeated event rows. */
+    restoreEvent() {
+        const details = this.eventDisclosureTargets.find(item => `#${item.dataset.panel}` === window.location.hash);
+        if (!details) return;
+        details.open = true;
+        this.sync({ currentTarget: details });
+        const summary = details.querySelector('summary');
+        summary.focus({ preventScroll: true });
+        summary.scrollIntoView({ block: 'center', behavior: 'instant' });
     }
 
     layoutFilters() {

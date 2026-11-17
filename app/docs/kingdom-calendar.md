@@ -40,7 +40,8 @@ conventional dates.
 Calendar RSVP actions appear in each expanded event beside **Add to calendar**, using
 the same button styling. Signed-in visitors can RSVP through the existing attendance modal,
 with one modal per event even when it repeats across weekends. Existing RSVPs open in edit
-mode. Anonymous visitors see **Log in to RSVP**, returning to the event after login.
+mode. Anonymous visitors see **Log in to RSVP**, returning to the same expanded
+calendar row after login with their filters preserved and the signed-in RSVP action available.
 Ended events do not invite new RSVPs; cancelled events only allow existing attendees to
 edit. Public landing pages place **Ready to Join Us?** immediately below the event summary,
 with a stable `#rsvp` anchor. Existing attendance endpoints, privacy choices, authorization,
