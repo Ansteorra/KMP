@@ -174,7 +174,11 @@ class PublicCalendarService
             if ($unbounded && $count === []) {
                 continue;
             }
-            $months[$key] = ['label' => $month->format('F Y'), 'rows' => $rows, 'count' => count($count)];
+            $months[$key] = [
+                'label' => $month->format('F Y') . AnnoSocietatis::suffix($month),
+                'rows' => $rows,
+                'count' => count($count),
+            ];
         }
 
         return $months;
@@ -195,7 +199,6 @@ class PublicCalendarService
         return [
             'start' => $start,
             'end' => $rowEnd,
-            'asDate' => AnnoSocietatis::range($start, $rowEnd),
             'event' => $event,
             'empty' => false,
             'continuing' => $continuing,

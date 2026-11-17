@@ -26,7 +26,6 @@ $panelId = 'event-details-' . $row['key'];
                 ? __n('{0} day', '{0} days', $event['days'], $event['days'])
                 : h($row['start']->format('l')) ?></span>
         </small>
-        <small><?= h($row['asDate']) ?></small>
     </td>
     <th scope="row" role="rowheader">
         <div class="kc-event-title-row">

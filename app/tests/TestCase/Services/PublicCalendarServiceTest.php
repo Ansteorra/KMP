@@ -119,7 +119,10 @@ class PublicCalendarServiceTest extends BaseTestCase
         $months = $service->build([$event, $later], null, null, 5);
         $this->assertSame(['2026-05', '2028-05'], array_keys($months));
         $rows = array_values(array_filter($months['2026-05']['rows'], static fn($r) => !$r['empty']));
-        $this->assertSame('30 April A.S. LX → 1 May A.S. LXI', $rows[0]['asDate']);
+        $this->assertSame('May 2026 (AS-LXI)', $months['2026-05']['label']);
+        $this->assertSame('May 2028 (AS-LXIII)', $months['2028-05']['label']);
+        $this->assertSame('2026-04-30', $rows[0]['start']->format('Y-m-d'));
+        $this->assertArrayNotHasKey('asDate', $rows[0]);
         $this->assertSame([], $service->build([], null, null));
     }
 

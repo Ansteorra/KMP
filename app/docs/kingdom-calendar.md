@@ -31,11 +31,13 @@ RSVP save/reopen, organization tools, keyboard tabs, cancellation and responsive
 
 `App\KMP\AnnoSocietatis` converts already localized dates to Society years and displays
 Roman numerals. A.S. I starts May 1, 1966; January–April use the preceding Society year.
-Dates before that epoch have no AS label. Ranges show both local dates and their own AS
-years, including events spanning April 30–May 1. The source of this convention is the
+Dates before that epoch have no AS label. The source of this convention is the
 [SCA calendar reference](https://www.sca.org/sca-calendar-reckoning-dates-in-the-society/).
-Public calendar rows and both public and signed-in event details show AS dates beside
-conventional dates.
+Public calendar month headings include a compact year label, such as **November 2026 (AS-LXI)**;
+individual calendar rows and expanded details do not repeat it. Public landing pages and
+signed-in gathering views append the label to the first Gregorian year in the event's
+date range. The end date repeats an AS label only when the Society year changes,
+including events spanning April 30–May 1. They do not render a second copy of the date range.
 
 Calendar RSVP actions appear in each expanded event beside **Add to calendar**, using
 the same button styling. Signed-in visitors can RSVP through the existing attendance modal,

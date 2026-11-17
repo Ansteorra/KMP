@@ -12,7 +12,7 @@ KMP 1.5.15 makes public event history easier to find, improves calendar RSVPs, a
 
 - Keep public calendar events visible throughout the current month, including completed events whose addresses and details are still useful to attendees.
 - Browse all published events for a selected month with separate Month and Year filters. Leave either or both blank to search history by hosting group, royal presence, activity, or circle without an unwanted date restriction.
-- Show Anno Societatis dates beside conventional dates on the public calendar and event details, including events that cross the May 1 new year.
+- Show compact Anno Societatis years in public calendar month headings and beside the first Gregorian year on event pages. Repeat the AS year only when an event crosses the May 1 boundary, without duplicating the date range.
 - RSVP from expanded calendar events beside **Add to calendar**, with matching button styling. **Log in to RSVP** returns to the same expanded event with filters preserved and the event positioned below the sticky filters. On public event pages, the RSVP invitation appears immediately below the event summary.
 - Simplify bestowal grid Award labels by omitting the level while retaining specialties.
 - Limit the bestowal grid Gathering filter to gatherings with assigned bestowals, including historical and completed bestowals, so unassigned practices and guild meetings do not crowd the list.

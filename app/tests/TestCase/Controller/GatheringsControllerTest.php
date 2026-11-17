@@ -2012,7 +2012,8 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
         $this->assertResponseContains($event->name);
         $this->assertResponseContains($royal->name);
-        $this->assertResponseContains('12 May A.S. LV');
+        $this->assertResponseContains('May 2020 (AS-LV)');
+        $this->assertResponseNotContains('12 May A.S.');
     }
 
     public function testPublicCalendarRsvpUsesOneModalPerEventAndLoginReturnsToExpandedCalendar(): void
@@ -2096,7 +2097,32 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $body = (string)$this->_response->getBody();
         $this->assertLessThan(strpos($body, '<!-- Event Information Cards -->'), strpos($body, 'id="rsvp"'));
         $this->assertResponseContains('data-bs-target="#attendGatheringModal"');
-        $this->assertResponseContains('30 April A.S. LXIV → 1 May A.S. LXV');
+        $this->assertResponseContains('Apr 30, 2030 (AS-LXIV)');
+        $this->assertResponseContains('May 01, 2030 (AS-LXV)');
+        $this->assertSame(2, substr_count($body, '(AS-'));
+
+        $this->get('/gatherings/view/' . $event->public_id);
+        $this->assertResponseOk();
+        $this->assertResponseContains('Apr 30, 2030 (AS-LXIV)');
+        $this->assertResponseContains('May 1, 2030 (AS-LXV)');
+        $this->assertSame(2, substr_count((string)$this->_response->getBody(), '(AS-'));
+    }
+
+    public function testEventPagesShowSocietyYearOnlyOnceWithinTheSameSocietyYear(): void
+    {
+        foreach (['2030-11-22 20:00:00', '2030-11-24 20:00:00'] as $end) {
+            $event = $this->createCalendarGathering('Compact Society year fixture', true, [
+                'public_page_enabled' => true,
+                'start_date' => new DateTime('2030-11-22 18:00:00', 'UTC'),
+                'end_date' => new DateTime($end, 'UTC'),
+            ]);
+            foreach (['public-landing', 'view'] as $action) {
+                $this->get('/gatherings/' . $action . '/' . $event->public_id);
+                $this->assertResponseOk();
+                $this->assertResponseContains('Nov 22, 2030 (AS-LXV)');
+                $this->assertSame(1, substr_count((string)$this->_response->getBody(), '(AS-'));
+            }
+        }
     }
 
     public function testMobileCalendarAndRsvpFormUseActivitiesWithoutRoyalAttendanceMetadata(): void

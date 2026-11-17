@@ -86,19 +86,20 @@ if (!isset($scheduleByDate)) {
             <span class="meta-item">
                 <kmp-icon name="calendar-month"  aria-hidden="true"></kmp-icon>
                 <?php if ($gathering->is_multi_day): ?>
-                    <?= $this->Timezone->format($gathering->start_date, 'M d, Y g:i A', false, null, $gathering) ?>
-                    - <?= $this->Timezone->format($gathering->end_date, 'M d, Y g:i A', false, null, $gathering) ?>
+                    <?= $this->Timezone->format($gathering->start_date, 'M d, Y', false, null, $gathering) ?><?php
+                    echo h(AnnoSocietatis::suffix($startInGatheringTz)); ?>
+                    <?= $this->Timezone->format($gathering->start_date, 'g:i A', false, null, $gathering) ?>
+                    - <?= $this->Timezone->format($gathering->end_date, 'M d, Y', false, null, $gathering) ?><?php
+                    echo h(AnnoSocietatis::suffix($endInGatheringTz, $startInGatheringTz)); ?>
+                    <?= $this->Timezone->format($gathering->end_date, 'g:i A', false, null, $gathering) ?>
                 <?php else: ?>
-                    <?= $this->Timezone->format($gathering->start_date, 'M d, Y', false, null, $gathering) ?><br>
+                    <?= $this->Timezone->format($gathering->start_date, 'M d, Y', false, null, $gathering) ?><?php
+                    echo h(AnnoSocietatis::suffix($startInGatheringTz)); ?><br>
                     <small>
                         <?= $this->Timezone->format($gathering->start_date, 'g:i A', false, null, $gathering) ?>
                         - <?= $this->Timezone->format($gathering->end_date, 'g:i A', false, null, $gathering) ?>
                     </small>
                 <?php endif; ?>
-            </span>
-
-            <span class="meta-item">
-                <?= h(AnnoSocietatis::range($startInGatheringTz, $endInGatheringTz)) ?>
             </span>
 
             <?php if (!empty($gathering->timezone)): ?>
