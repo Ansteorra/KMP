@@ -34,7 +34,15 @@ describe('Public calendar rows and activity picker', () => {
     test('login return restores only the linked event row and moves keyboard focus to its disclosure', () => {
         const details = controller.eventDisclosureTargets[0];
         const summary = details.querySelector('summary');
-        summary.scrollIntoView = jest.fn();
+        const panel = document.getElementById('panel');
+        panel.scrollIntoView = jest.fn();
+        details.closest('tr').getBoundingClientRect = () => ({ height: 152 });
+        const bar = document.createElement('form');
+        bar.style.top = '56px';
+        bar.getBoundingClientRect = () => ({ height: 118 });
+        document.body.prepend(bar);
+        controller.hasFilterBarTarget = true;
+        controller.filterBarTarget = bar;
         const other = document.createElement('details');
         other.dataset.panel = 'another-panel';
         controller.eventDisclosureTargets.push(other);
@@ -46,7 +54,8 @@ describe('Public calendar rows and activity picker', () => {
         expect(document.getElementById('panel')).not.toHaveAttribute('hidden');
         expect(summary).toHaveAttribute('aria-expanded', 'true');
         expect(summary).toHaveFocus();
-        expect(summary.scrollIntoView).toHaveBeenCalledWith({ block: 'center', behavior: 'instant' });
+        expect(panel.style.scrollMarginTop).toBe('338px');
+        expect(panel.scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'instant' });
         expect(other.open).toBe(false);
         expect(window.location.search).toBe('?month=11&year=2026');
     });

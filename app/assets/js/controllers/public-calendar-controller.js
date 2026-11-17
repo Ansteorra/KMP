@@ -28,9 +28,17 @@ class PublicCalendarController extends Controller {
         if (!details) return;
         details.open = true;
         this.sync({ currentTarget: details });
+        const panel = document.getElementById(details.dataset.panel);
+        const row = details.closest('tr');
+        if (!panel || !row) return;
+        const filterHeight = this.hasFilterBarTarget ? this.filterBarTarget.getBoundingClientRect().height : 0;
+        const filterTop = this.hasFilterBarTarget
+            ? Math.max(0, parseFloat(window.getComputedStyle(this.filterBarTarget).top) || 0) : 0;
+        // Native fragment scrolling can run after connect; give it the same safe landing position.
+        panel.style.scrollMarginTop = `${filterTop + filterHeight + row.getBoundingClientRect().height + 12}px`;
         const summary = details.querySelector('summary');
         summary.focus({ preventScroll: true });
-        summary.scrollIntoView({ block: 'center', behavior: 'instant' });
+        panel.scrollIntoView({ block: 'start', behavior: 'instant' });
     }
 
     layoutFilters() {
