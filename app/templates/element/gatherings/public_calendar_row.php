@@ -45,25 +45,6 @@ $panelId = 'event-details-' . $row['key'];
         <?php if ($gathering->location) :
             ?><span class="kc-address"><?= nl2br(h($gathering->location)) ?></span><?php
         endif; ?>
-        <?php if (isset($rsvpGatherings[$gathering->id])) : ?>
-            <button type="button" class="kc-button mt-2" data-bs-toggle="modal"
-                data-bs-target="#calendar-rsvp-<?= (int)$gathering->id ?>"
-                aria-label="<?= h(isset($calendarAttendances[$gathering->id])
-                    ? __('Update RSVP for {0}', $gathering->name)
-                    : __('RSVP for {0}', $gathering->name)) ?>">
-                <?= isset($calendarAttendances[$gathering->id]) ? __('Update RSVP') : __('RSVP') ?>
-            </button>
-        <?php elseif (!$user && !$isCancelled && $gathering->end_date >= DateTime::now()) : ?>
-            <?php $rsvpUrl = $this->Url->build([
-                'controller' => 'Gatherings',
-                'action' => $gathering->public_page_enabled ? 'publicLanding' : 'view',
-                $gathering->public_id,
-                '#' => $gathering->public_page_enabled ? 'rsvp' : 'gathering-rsvp-summary',
-            ]); ?>
-            <a class="kc-button mt-2" href="<?= h($this->Url->build([
-                'controller' => 'Members', 'action' => 'login', '?' => ['redirect' => $rsvpUrl],
-            ])) ?>"><?= __('Log in to RSVP') ?></a>
-        <?php endif; ?>
     </th>
     <td class="kc-group" role="cell"><?= h($gathering->branch->name) ?></td>
     <td class="kc-activity-cell" role="cell"><div class="kc-indicators">
@@ -121,6 +102,28 @@ $panelId = 'event-details-' . $row['key'];
                 ]) ?>" class="kc-button">
                     <?= $this->Icon->render('download') ?> <?= __('Add to calendar (.ics)') ?>
                 </a>
+                <?php if (isset($rsvpGatherings[$gathering->id])) : ?>
+                    <button type="button" class="kc-button" data-bs-toggle="modal"
+                        data-bs-target="#calendar-rsvp-<?= (int)$gathering->id ?>"
+                        aria-label="<?= h(isset($calendarAttendances[$gathering->id])
+                            ? __('Update RSVP for {0}', $gathering->name)
+                            : __('RSVP for {0}', $gathering->name)) ?>">
+                        <?= $this->Icon->render('calendar-check') ?>
+                        <?= isset($calendarAttendances[$gathering->id]) ? __('Update RSVP') : __('RSVP') ?>
+                    </button>
+                <?php elseif (!$user && !$isCancelled && $gathering->end_date >= DateTime::now()) : ?>
+                    <?php $rsvpUrl = $this->Url->build([
+                        'controller' => 'Gatherings',
+                        'action' => $gathering->public_page_enabled ? 'publicLanding' : 'view',
+                        $gathering->public_id,
+                        '#' => $gathering->public_page_enabled ? 'rsvp' : 'gathering-rsvp-summary',
+                    ]); ?>
+                    <a class="kc-button" href="<?= h($this->Url->build([
+                        'controller' => 'Members', 'action' => 'login', '?' => ['redirect' => $rsvpUrl],
+                    ])) ?>">
+                        <?= $this->Icon->render('login') ?> <?= __('Log in to RSVP') ?>
+                    </a>
+                <?php endif; ?>
             </div>
         </section>
     </div>

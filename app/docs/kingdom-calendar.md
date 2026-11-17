@@ -37,7 +37,8 @@ years, including events spanning April 30–May 1. The source of this convention
 Public calendar rows and both public and signed-in event details show AS dates beside
 conventional dates.
 
-Signed-in calendar visitors can RSVP directly through the existing attendance modal,
+Calendar RSVP actions appear in each expanded event beside **Add to calendar**, using
+the same button styling. Signed-in visitors can RSVP through the existing attendance modal,
 with one modal per event even when it repeats across weekends. Existing RSVPs open in edit
 mode. Anonymous visitors see **Log in to RSVP**, returning to the event after login.
 Ended events do not invite new RSVPs; cancelled events only allow existing attendees to
