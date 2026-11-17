@@ -2,6 +2,7 @@
 """Fail-closed dependency and immutable-image checks. Reports contain no application records."""
 import argparse
 import datetime
+import hashlib
 import json
 import os
 import re
@@ -15,14 +16,76 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def check_report(data, kind):
+def npm_reviewed(name, vulnerabilities, approved, visiting=frozenset()):
+    """Follow npm's advisory graph; unknown edges, cycles and new findings still block."""
+    if name in visiting or name not in vulnerabilities:
+        return False
+    issue = vulnerabilities[name]
+    via = issue.get('via')
+    if not isinstance(via, list) or not via:
+        return False
+    for source in via:
+        if isinstance(source, str):
+            if not npm_reviewed(source, vulnerabilities, approved, visiting | {name}):
+                return False
+        elif isinstance(source, dict):
+            severity = source.get('severity')
+            if severity in ('info', 'low', 'moderate'):
+                continue
+            key = (source.get('name'), source.get('url'))
+            if severity != 'high' or key not in approved or source.get('name') != name:
+                return False
+        else:
+            return False
+    return True
+
+
+def approved_npm_advisories(directory, root=ROOT, today=None):
+    """An unapproved, expired or changed reachability review cannot waive a finding."""
+    if directory != root / 'app':
+        return set()
+    review = json.loads((root / 'security/npm-picomatch-review.json').read_text())
+    approvals = review.get('approvals', {})
+    if not approvals.get('platform_owner') and not approvals.get('security_lead'):
+        print('Picomatch review is pending acceptance; npm High/Critical findings still block.')
+        return set()
+    if not all(approvals.get(role) for role in ('platform_owner', 'security_lead')):
+        raise ValueError('npm review requires Platform Owner and Security Lead acceptance')
+    if not all(review.get(key) for key in ('owner', 'reason', 'evidence', 'expires', 'reviewed_files')):
+        raise ValueError('npm review lacks required metadata')
+    if datetime.date.fromisoformat(review['expires']) < (
+            today or datetime.datetime.now(datetime.timezone.utc).date()):
+        raise ValueError('Picomatch reachability review has expired')
+    required = {'app/package.json', 'app/package-lock.json', 'app/vite.config.js',
+                'docker/Dockerfile.prod', 'services/live-updates/package-lock.json'}
+    if not required.issubset(review['reviewed_files']):
+        raise ValueError('npm review lacks dependency/build boundary evidence')
+    for relative, digest in review['reviewed_files'].items():
+        path = root / relative
+        if not path.resolve().is_relative_to(root.resolve()):
+            raise ValueError('npm review path leaves repository')
+        if hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+            raise ValueError('Picomatch review must be renewed after changing ' + relative)
+    lock = json.loads((directory / 'package-lock.json').read_text())
+    copies = [value for path, value in lock['packages'].items()
+              if path.endswith('node_modules/picomatch')]
+    if not copies or any(value.get('dev') is not True or value['version'] not in ('2.3.2', '4.0.7')
+                         for value in copies):
+        raise ValueError('Picomatch must remain a reviewed build/test-only dependency')
+    print('Applying accepted picomatch reachability review until ' + review['expires'])
+    return {('picomatch', 'https://github.com/advisories/GHSA-fc5q-39xc-vjpf')}
+
+
+def check_report(data, kind, approved=frozenset()):
     if not isinstance(data, dict) or data.get('error') or data.get('errors'):
         raise ValueError('Scanner returned an invalid/error report')
     if kind == 'npm':
         if not isinstance(data.get('vulnerabilities'), dict) or not isinstance(data.get('metadata'), dict):
             raise ValueError('npm audit report is incomplete')
         return sorted(name for name, value in data['vulnerabilities'].items()
-                      if value.get('severity') in ('high', 'critical'))
+                      if value.get('severity') in ('high', 'critical')
+                      and (value.get('severity') == 'critical' or not approved
+                           or not npm_reviewed(name, data['vulnerabilities'], approved)))
     if kind == 'composer':
         if 'advisories' not in data or not isinstance(data['advisories'], (dict, list)):
             raise ValueError('Composer audit report is incomplete')
@@ -38,7 +101,8 @@ def run_report(command, directory, output, kind):
     if result.returncode not in (0, 1, 2, 3):
         raise RuntimeError('Scanner failed: ' + command[0])
     data = json.loads(result.stdout)
-    failures = check_report(data, kind)
+    approved = approved_npm_advisories(directory) if kind == 'npm' else set()
+    failures = check_report(data, kind, approved)
     if result.returncode and not failures and kind == 'composer':
         raise RuntimeError('Composer failed without a recognized advisory report')
     if failures:

@@ -113,6 +113,17 @@ export default defineConfig(({ mode }) => ({
     },
 
     plugins: [
+        {
+            // The scoped security review permits picomatch only in build/test tooling.
+            name: 'kmp-no-runtime-picomatch',
+            buildEnd() {
+                for (const id of this.getModuleIds()) {
+                    if (/(?:^|\/)picomatch(?:\/|$)/.test(id.replaceAll('\\', '/'))) {
+                        this.error('Picomatch is build/test-only and must not enter browser modules.');
+                    }
+                }
+            },
+        },
         iconCatalogPlugin(),
         copyAssetsPlugin(),
     ],
