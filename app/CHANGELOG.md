@@ -3,15 +3,19 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: a9a3901871ab16eff13e23a28231fe8e7b2c3004 -->
-<!-- LAST_SYNCED_DATE: 2026-11-16 -->
+<!-- LAST_SYNCED_COMMIT: 1923becd875ba8afdb24731172a14ff6f70d392b -->
+<!-- LAST_SYNCED_DATE: 2026-11-17 -->
 
-## Unreleased
+## KMP 1.5.15 — November 17, 2026
 
-- Simplify bestowal grid Award labels by omitting the level, and limit the Gathering filter to gatherings with assigned bestowals.
-- Keep public calendar events visible throughout the current month. Search published history with separate, optional Month and Year filters, including searches by hosting group, royal presence, activity, or circle without date limits.
-- Show Anno Societatis dates beside conventional dates on the public calendar and event details.
-- RSVP directly from the public calendar when signed in, or log in and return to the event. Move the public event RSVP invitation immediately below its summary.
+KMP 1.5.15 makes public event history easier to find, improves calendar RSVPs, and simplifies bestowal grids.
+
+- Keep public calendar events visible throughout the current month, including completed events whose addresses and details are still useful to attendees.
+- Browse all published events for a selected month with separate Month and Year filters. Leave either or both blank to search history by hosting group, royal presence, activity, or circle without an unwanted date restriction.
+- Show Anno Societatis dates beside conventional dates on the public calendar and event details, including events that cross the May 1 new year.
+- RSVP from expanded calendar events beside **Add to calendar**, with matching button styling. **Log in to RSVP** returns to the same expanded event with filters preserved and the event positioned below the sticky filters. On public event pages, the RSVP invitation appears immediately below the event summary.
+- Simplify bestowal grid Award labels by omitting the level while retaining specialties.
+- Limit the bestowal grid Gathering filter to gatherings with assigned bestowals, including historical and completed bestowals, so unassigned practices and guild meetings do not crowd the list.
 
 ---
 
