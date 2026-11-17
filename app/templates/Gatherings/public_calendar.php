@@ -16,6 +16,7 @@ $feedUrl = $this->Url->build([
     'controller' => 'Gatherings', 'action' => 'feed',
 ], ['fullBase' => true]);
 $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
+$hasFilterSummary = $search !== '' || $selectedMonth !== null || $selectedYear !== null || $selectedBranchId > 0;
 ?>
 <div class="kingdom-calendar-page" data-controller="public-calendar"
     data-public-calendar-pending-message-value="<?= h(__('Selection changed. Apply filters to update events.')) ?>"
@@ -32,21 +33,28 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
         </header>
         <main id="calendar-events">
             <div class="kc-heading">
-                <h1><?= __('Find your next event') ?></h1>
+                <h1><?= $isArchive ? __('Event archive') : __('Upcoming Events') ?></h1>
                 <p><?= __('Tourneys, courts, classes, and gatherings. All in one place.') ?></p>
             </div>
             <form method="get" action="<?= h($calendarUrl) ?>" class="kc-filter-bar"
                 data-public-calendar-target="filterBar" aria-label="<?= h(__('Find events')) ?>">
+                <input type="hidden" name="view" value="archive">
+                <p id="calendar-date-help"><?= __(
+                    'Choose a month and/or year, or leave both blank to search all published events.',
+                ) ?></p>
                 <details class="kc-filter-settings" data-public-calendar-target="filterDisclosure" open>
                     <summary class="kc-filters-toggle">
                         <?= $this->Icon->render('filter') ?> <?= __('Filters') ?>
                         <span class="kc-filter-hint">
-                            <?php if ($search !== '' || $selectedMonth !== '' || $selectedBranchId > 0) : ?>
+                            <?php if ($hasFilterSummary) : ?>
                                 <?php if ($search !== '') : ?>
                                     <span><?= h(__('Search: {0}', $search)) ?></span>
                                 <?php endif; ?>
-                                <?php if ($selectedMonth !== '') : ?>
+                                <?php if ($selectedMonth !== null) : ?>
                                     <span><?= h($monthOptions[$selectedMonth]) ?></span>
+                                <?php endif; ?>
+                                <?php if ($selectedYear !== null) : ?>
+                                    <span><?= h($selectedYear) ?></span>
                                 <?php endif; ?>
                                 <?php if ($selectedBranchId > 0) : ?>
                                     <span><?= h($branchOptions[$selectedBranchId] ?? __('Selected group')) ?></span>
@@ -58,21 +66,35 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                     </summary>
                     <div class="kc-filter-content">
                         <div class="kc-filter-fields">
-                            <label for="calendar-search"><?= __('Search events') ?>
+                            <div>
+                                <label for="calendar-search"><?= __('Search events') ?></label>
                                 <input id="calendar-search" type="search" name="q" value="<?= h($search) ?>"
                                     placeholder="<?= h(__('Event name, group, or address')) ?>" maxlength="200">
-                            </label>
-                            <label for="calendar-month"><?= __('When') ?>
-                                <select id="calendar-month" name="month">
-                                    <option value=""><?= __('All upcoming months') ?></option>
+                            </div>
+                            <div>
+                                <label for="calendar-month"><?= __('Month') ?></label>
+                                <select id="calendar-month" name="month" aria-describedby="calendar-date-help">
+                                    <option value=""><?= __('All months') ?></option>
                                     <?php foreach ($monthOptions as $key => $label) : ?>
                                         <option
                                             value="<?= h($key) ?>"
                                             <?= $selectedMonth === $key ? 'selected' : '' ?>><?= h($label) ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                            </label>
-                            <label for="calendar-branch"><?= __('Hosted by') ?>
+                            </div>
+                            <div>
+                                <label for="calendar-year"><?= __('Year') ?></label>
+                                <select id="calendar-year" name="year" aria-describedby="calendar-date-help">
+                                    <option value=""><?= __('All years') ?></option>
+                                    <?php foreach ($yearOptions as $year) : ?>
+                                        <option value="<?= h($year) ?>"
+                                            <?= $selectedYear === $year ? 'selected' : '' ?>>
+                                            <?= h($year) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="calendar-branch"><?= __('Hosted by') ?></label>
                                 <select id="calendar-branch" name="branch">
                                     <option value=""><?= __('All groups') ?></option>
                                     <?php foreach ($branchOptions as $id => $name) : ?>
@@ -82,7 +104,7 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                                             <?= h($name) ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                            </label>
+                            </div>
                         </div>
                         <div class="kc-filter-tools">
                             <details class="kc-filter-picker">
@@ -151,9 +173,9 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
                                 </div>
                             </details>
                             <button type="submit" class="kc-button kc-apply"><?= __('Apply filters') ?></button>
-                            <?php if ($hasFilters || $selectedMonth !== '') : ?>
-                                <a href="<?= h($calendarUrl) ?>"><?= __('Clear filters') ?></a>
-                            <?php endif; ?>
+                            <a href="<?= h($calendarUrl) ?>"
+                                <?= !$isArchive ? 'aria-current="page"' : '' ?>><?= __('Upcoming Events') ?></a>
+                            <a href="<?= h($calendarUrl) ?>?view=archive"><?= __('All published events') ?></a>
                         </div>
                     </div>
                 </details>
@@ -173,8 +195,13 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
             </form>
             <div class="kc-results-heading">
                 <p><?= __n('{0} published event', '{0} published events', $eventCount, $eventCount) ?></p>
-                <span><?= __('Event local time · every weekend') ?></span>
+                <span><?= $isArchive
+                    ? __('Published event history · event local time')
+                    : __('This month onward · event local time') ?></span>
             </div>
+            <?php if ($eventCount === 0) : ?>
+                <p role="status"><?= __('No published events match these filters.') ?></p>
+            <?php endif; ?>
             <p id="calendar-scroll-help" class="kc-scroll-help">
                 <span class="kc-wide-help"><?= __('Scroll sideways for all columns.') ?></span>
                 <?= __('Select a row to expand; event names open the event page.') ?>
@@ -236,6 +263,14 @@ $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
         </details></footer>
     </div>
 </div>
+<?php foreach ($rsvpGatherings as $rsvpGathering) : ?>
+    <?= $this->element('gatherings/attendGatheringModal', [
+        'gathering' => $rsvpGathering,
+        'user' => $user,
+        'userAttendance' => $calendarAttendances[$rsvpGathering->id] ?? null,
+        'modalId' => 'calendar-rsvp-' . $rsvpGathering->id,
+    ]) ?>
+<?php endforeach; ?>
 <noscript><style>
 .kingdom-calendar-page .kc-detail-row[hidden]{display:table-row!important}
 .kingdom-calendar-page .kc-more,.kingdom-calendar-page .kc-overflow{display:none}

@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+use App\KMP\AnnoSocietatis;
+use App\KMP\TimezoneHelper;
 use App\Services\ViewCellRegistry;
 
 /** @var \App\View\AppView $this */
@@ -73,6 +75,10 @@ $pluginOptions = [
                         null,
                         $gathering,
                     ) ?></span>
+                    <small class="d-block text-muted"><?= h(AnnoSocietatis::range(
+                        TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering),
+                        TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering),
+                    )) ?></small>
                     <small class="d-block text-muted"><?= h($readerTimezone) ?></small>
                 </dd>
             </div>

@@ -13,6 +13,7 @@ use Cake\Log\Log;
 
 $modalId = $modalId ?? 'attendGatheringModal';
 $formId = $modalId . 'Form';
+$controlIdPrefix = $modalId === 'attendGatheringModal' ? '' : $modalId . '-';
 $streamAttendance = $streamAttendance ?? false;
 $streamOptions = $streamAttendance ? [
     'data-controller' => 'turbo-modal', 'data-turbo' => 'true',
@@ -100,6 +101,7 @@ if ($isEdit) {
                         <?= __('Attendance Note') ?>
                     </legend>
                 <?= $this->Form->control('public_note', [
+                    'id' => $controlIdPrefix . 'public-note',
                     'type' => 'textarea',
                     'label' => 'Public Note',
                     'placeholder' => 'Optional note to share...',
@@ -126,6 +128,7 @@ if ($isEdit) {
 
                     <?php if (!$isMinor) : ?>
                         <?= $this->Form->control('share_with_kingdom', [
+                        'id' => $controlIdPrefix . 'share-with-kingdom',
                         'type' => 'checkbox',
                         'label' => 'Share with Kingdom',
                         'class' => 'form-check-input',
@@ -139,6 +142,7 @@ if ($isEdit) {
                     <?php endif; ?>
 
                     <?= $this->Form->control('share_with_hosting_group', [
+                    'id' => $controlIdPrefix . 'share-with-hosting-group',
                         'type' => 'checkbox',
                         'label' => 'Share with Hosting Group',
                         'class' => 'form-check-input',
@@ -149,6 +153,7 @@ if ($isEdit) {
                     ]) ?>
 
                     <?= $this->Form->control('share_with_crown', [
+                    'id' => $controlIdPrefix . 'share-with-crown',
                         'type' => 'checkbox',
                         'label' => 'Share with Nobility/Crown',
                         'class' => 'form-check-input',

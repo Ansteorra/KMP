@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\KMP\AnnoSocietatis;
 use App\KMP\TimezoneHelper;
 use App\Model\Entity\GatheringActivity;
 use Cake\I18n\DateTime;
@@ -70,19 +71,25 @@ class PublicCalendarService
 
     /**
      * @param iterable<\App\Model\Entity\Gathering> $gatherings Published, filtered events
-     * @param \Cake\I18n\DateTime $from First visible day
-     * @param \Cake\I18n\DateTime $until Last visible day
+     * @param \Cake\I18n\DateTime|null $from First visible day; null searches all history
+     * @param \Cake\I18n\DateTime|null $until Last visible day; null includes all future events
+     * @param int|null $selectedMonth Month across any matching years
      * @return array<string, array<string, mixed>>
      */
-    public function build(iterable $gatherings, DateTime $from, DateTime $until): array
-    {
+    public function build(
+        iterable $gatherings,
+        ?DateTime $from,
+        ?DateTime $until,
+        ?int $selectedMonth = null,
+    ): array {
+        $unbounded = $from === null || $until === null;
         $events = [];
         foreach ($gatherings as $gathering) {
             $start = TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
             $end = TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
             if (
-                !$start || !$end || $end->format('Y-m-d') < $from->format('Y-m-d')
-                || $start->format('Y-m-d') > $until->format('Y-m-d')
+                !$start || !$end || ($from !== null && $end->format('Y-m-d') < $from->format('Y-m-d'))
+                || ($until !== null && $start->format('Y-m-d') > $until->format('Y-m-d'))
             ) {
                 continue;
             }
@@ -102,8 +109,16 @@ class PublicCalendarService
                 'overflow' => max(0, count($activities) - self::SUMMARY_ACTIVITY_LIMIT),
             ];
         }
+        if ($events === [] && $unbounded) {
+            return [];
+        }
+        $from ??= min(array_column($events, 'start'))->startOfMonth();
+        $until ??= max(array_column($events, 'end'))->endOfMonth();
         $months = [];
         for ($month = new DateTime($from->format('Y-m-01'), 'UTC'); $month <= $until; $month = $month->addMonths(1)) {
+            if ($selectedMonth !== null && (int)$month->format('n') !== $selectedMonth) {
+                continue;
+            }
             $key = $month->format('Y-m');
             $monthEnd = $month->endOfMonth()->startOfDay();
             $visibleStart = max($month->format('Y-m-d'), $from->format('Y-m-d'));
@@ -121,7 +136,11 @@ class PublicCalendarService
                 }
                 $matches = [];
                 foreach ($events as $event) {
-                    if ($event['start'] > $sunday || $event['end'] < $friday) {
+                    if (
+                        $event['start'] > $sunday || $event['end'] < $friday
+                        || $event['end']->format('Y-m-d') < $visibleStart
+                        || $event['start']->format('Y-m-d') > $visibleEnd
+                    ) {
                         continue;
                     }
                     $id = $event['gathering']->id;
@@ -152,6 +171,9 @@ class PublicCalendarService
             }
             usort($rows, static fn($a, $b): int => $a['start'] <=> $b['start']
                 ?: (($a['event']['gathering']->id ?? 0) <=> ($b['event']['gathering']->id ?? 0)));
+            if ($unbounded && $count === []) {
+                continue;
+            }
             $months[$key] = ['label' => $month->format('F Y'), 'rows' => $rows, 'count' => count($count)];
         }
 
@@ -168,9 +190,12 @@ class PublicCalendarService
      */
     private function eventRow(array $event, DateTime $start, DateTime $end, string $month, bool $continuing): array
     {
+        $rowEnd = $continuing ? min($end, $event['end']) : $event['end'];
+
         return [
             'start' => $start,
-            'end' => $continuing ? min($end, $event['end']) : $event['end'],
+            'end' => $rowEnd,
+            'asDate' => AnnoSocietatis::range($start, $rowEnd),
             'event' => $event,
             'empty' => false,
             'continuing' => $continuing,

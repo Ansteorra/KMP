@@ -6,6 +6,14 @@ Stay up to date with the latest features, improvements, and announcements for th
 <!-- LAST_SYNCED_COMMIT: a9a3901871ab16eff13e23a28231fe8e7b2c3004 -->
 <!-- LAST_SYNCED_DATE: 2026-11-16 -->
 
+## Unreleased
+
+- Keep public calendar events visible throughout the current month. Search published history with separate, optional Month and Year filters, including searches by hosting group, royal presence, activity, or circle without date limits.
+- Show Anno Societatis dates beside conventional dates on the public calendar and event details.
+- RSVP directly from the public calendar when signed in, or log in and return to the event. Move the public event RSVP invitation immediately below its summary.
+
+---
+
 ## KMP 1.5.14 — November 16, 2026
 
 KMP 1.5.14 improves kingdom calendars, award preparation, court agendas, and waiver completion. It adds Kingdom and Local Calendar Deputy support, resolves review feedback, and speeds up gathering and bestowal pages while strengthening authorization and tenant administration.

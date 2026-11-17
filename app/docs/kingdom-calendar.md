@@ -27,6 +27,24 @@ For local browser acceptance without a database reset, run
 creates and cleans up synthetic members and a gathering, and exercises reader privacy,
 RSVP save/reopen, organization tools, keyboard tabs, cancellation and responsive layout.
 
+## Society dates and public RSVP
+
+`App\KMP\AnnoSocietatis` converts already localized dates to Society years and displays
+Roman numerals. A.S. I starts May 1, 1966; January–April use the preceding Society year.
+Dates before that epoch have no AS label. Ranges show both local dates and their own AS
+years, including events spanning April 30–May 1. The source of this convention is the
+[SCA calendar reference](https://www.sca.org/sca-calendar-reckoning-dates-in-the-society/).
+Public calendar rows and both public and signed-in event details show AS dates beside
+conventional dates.
+
+Signed-in calendar visitors can RSVP directly through the existing attendance modal,
+with one modal per event even when it repeats across weekends. Existing RSVPs open in edit
+mode. Anonymous visitors see **Log in to RSVP**, returning to the event after login.
+Ended events do not invite new RSVPs; cancelled events only allow existing attendees to
+edit. Public landing pages place **Ready to Join Us?** immediately below the event summary,
+with a stable `#rsvp` anchor. Existing attendance endpoints, privacy choices, authorization,
+and CSRF protection remain responsible for saves.
+
 ## Publication and public links
 
 `GatheringsController::publish()` is the only normal write path for the guarded publication
@@ -50,12 +68,19 @@ reimplementing them in JavaScript.
 
 `GatheringsController::publicCalendar()`:
 
-- selects `published = true` gatherings whose dates overlap today through two years ahead;
+- defaults to `published = true` gatherings overlapping the full current month through two years ahead;
 - builds compact, horizontally scrollable rows using each event's timezone, grouped by month;
 - shows empty weekends and repeats multi-week events on affected weekends, with a Continues label;
 - keeps weekday-only events visible; a weekend belongs to the month containing its Saturday;
-- supports `activities[]=<id>` filtering and derives options from upcoming published events;
-- adds `q` (event/group/address), `branch`, `month` (`YYYY-MM`), and `circles=1` filters;
+- supports `activities[]=<id>` filtering and derives group/activity options from all published history;
+- supports `q` (event/group/address), `branch`, separate `month` (1–12) and `year`,
+  `circles=1`, and `royals=1` filters;
+- treats explicit date selection, submitted blank dates, `view=archive`, or other filters as
+  archive searches, including completed events without the default future horizon;
+- allows month-only searches across years, year-only searches across months, and blank dates
+  across all history; old `month=YYYY-MM` URLs still work;
+- keeps **Upcoming Events** as a link back to the default current-month-onward view;
+- derives year choices from published event bounds and omits empty months in unbounded archives;
 - displays branch, location, activity/circle metadata, cancellation state, event and calendar
   links;
 - renders the `public_event` layout with `templates/Gatherings/public_calendar.php` and

@@ -110,6 +110,31 @@ class PublicCalendarServiceTest extends BaseTestCase
         $this->assertFalse($rows[0]['continuing']);
     }
 
+    public function testUnboundedArchiveSkipsEmptyMonthsAndUsesLocalDates(): void
+    {
+        $event = $this->event('2026-05-01 00:00:00', '2026-05-02 00:00:00');
+        $later = $this->event('2028-05-15 18:00:00', '2028-05-15 20:00:00');
+        $later->set('id', 2);
+        $service = new PublicCalendarService();
+        $months = $service->build([$event, $later], null, null, 5);
+        $this->assertSame(['2026-05', '2028-05'], array_keys($months));
+        $rows = array_values(array_filter($months['2026-05']['rows'], static fn($r) => !$r['empty']));
+        $this->assertSame('30 April A.S. LX → 1 May A.S. LXI', $rows[0]['asDate']);
+        $this->assertSame([], $service->build([], null, null));
+    }
+
+    public function testArchiveMonthDoesNotIncludeAdjacentWeekendEventOutsideLocalMonth(): void
+    {
+        // UTC May 1 still falls entirely on April 30 at the event location.
+        $event = $this->event('2027-05-01 00:00:00', '2027-05-01 02:00:00');
+        $months = (new PublicCalendarService())->build(
+            [$event],
+            new DateTime('2027-05-01', 'UTC'),
+            new DateTime('2027-05-31', 'UTC'),
+        );
+        $this->assertSame(0, $months['2027-05']['count']);
+    }
+
     private function event(string $start, string $end): Gathering
     {
         $event = new Gathering([
