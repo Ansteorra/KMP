@@ -1810,7 +1810,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertTrue($this->viewVariable('hasFilters'));
         $this->assertSame(['Any Royal Progress'], $this->viewVariable('selectedActivityLabels'));
         $this->assertResponseContains('name="royals"');
-        $this->assertResponseContains('Clear filters');
+        $this->assertResponseContains('>Upcoming Events</a>');
         $this->assertResponseNotContains('name="royal_progress[]"');
         $this->get('/events');
         $this->assertResponseOk();
@@ -2015,9 +2015,9 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('12 May A.S. LV');
     }
 
-    public function testPublicCalendarRsvpUsesOneModalPerEventAndLoginReturnsToPublicRsvp(): void
+    public function testPublicCalendarRsvpUsesOneModalPerEventAndLoginReturnsToExpandedCalendar(): void
     {
-        $event = $this->createCalendarGathering('Calendar RSVP fixture', true, [
+        $event = $this->createCalendarGathering('Calendar RSVP & return fixture', true, [
             'public_page_enabled' => true,
             'end_date' => new DateTime('+30 days'),
         ]);
@@ -2040,10 +2040,21 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('action="/gathering-attendances/add"');
 
         $this->session(['Auth' => null]);
-        $this->get('/events');
+        $query = ['view' => 'archive', 'month' => '', 'year' => '', 'q' => $event->name];
+        $this->get('/events?' . http_build_query($query));
         $this->assertResponseOk();
         $this->assertResponseContains('Log in to RSVP');
-        $this->assertResponseContains(rawurlencode('/gatherings/public-landing/' . $event->public_id . '#rsvp'));
+        $checkedRows = 0;
+        foreach ($this->viewVariable('calendarMonths') as $month) {
+            foreach ($month['rows'] as $row) {
+                if (!$row['empty'] && $row['event']['gathering']->id === $event->id) {
+                    $returnUrl = '/events?' . http_build_query($query) . '#event-details-' . $row['key'];
+                    $this->assertResponseContains(rawurlencode($returnUrl));
+                    $checkedRows++;
+                }
+            }
+        }
+        $this->assertGreaterThan(0, $checkedRows);
         $this->assertResponseNotContains('id="calendar-rsvp-' . $event->id . '"');
     }
 

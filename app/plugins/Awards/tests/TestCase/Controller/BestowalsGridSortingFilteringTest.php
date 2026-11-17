@@ -10,6 +10,7 @@ use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\KMP\GridColumns\BestowalsGridColumns;
 use Awards\Model\Entity\Award;
 use Awards\Model\Entity\Bestowal;
+use Cake\Cache\Cache;
 use Cake\I18n\DateTime;
 use DOMDocument;
 use DOMXPath;
@@ -92,12 +93,18 @@ class BestowalsGridSortingFilteringTest extends HttpIntegrationTestCase
         $this->assertNotContains((string)$events['deleted']->id, $ids);
         $this->assertCount(count(array_unique($ids)), $ids);
 
-        $this->get('/awards/bestowals/grid-data?ignore_default=1');
-        $this->assertResponseOk();
-        $this->assertResponseContains(h($events['open']->name));
-        $this->assertResponseContains(h($events['completed']->name));
-        $this->assertResponseNotContains(h($events['empty']->name));
-        $this->assertResponseNotContains(h($events['deleted']->name));
+        // Fixtures bypass the lifetime of the shared grid option cache.
+        Cache::clear('grid_filter_options');
+        try {
+            $this->get('/awards/bestowals/grid-data?ignore_default=1');
+            $this->assertResponseOk();
+            $this->assertResponseContains(h($events['open']->name));
+            $this->assertResponseContains(h($events['completed']->name));
+            $this->assertResponseNotContains(h($events['empty']->name));
+            $this->assertResponseNotContains(h($events['deleted']->name));
+        } finally {
+            Cache::clear('grid_filter_options');
+        }
     }
 
     public function testAwardColumnOmitsLevelAndPreservesSpecialty(): void
