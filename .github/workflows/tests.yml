@@ -189,6 +189,9 @@ jobs:
       - name: Validate workflow definition JSON
         run: cd app && npm run validate:workflows
 
+      - name: Verify picomatch browser bundle boundary
+        run: node --test security/test-picomatch-boundary.mjs
+
       - name: Validate live capacity acceptance contracts
         run: cd app && npm run test:perf:contracts
 

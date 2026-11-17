@@ -10,7 +10,7 @@
   "reviewed_files": {
     "app/package.json": "878a26bcd9aa532c03d627fe7d34ff4c1adaa49dffbe7ce9f08b764437247931",
     "app/package-lock.json": "8aa1f5cb206206730b90a198d274eaec227912fa7e60759092edd661b111cdfa",
-    "app/vite.config.js": "70598d70cfff43f0586f8f2f2d4cd22981606defb96743e8f18fbb74d7b26e8d",
+    "app/vite.config.js": "bf86d84bdc9c287222562769c574413dfbc78b806d281e953a6f8a541c97ef2e",
     "app/assets/js/controllers-entry.js": "9b5359ab50e2f589909b2178d03e3f6faf9e5dda6fdb18136ad41fe7f530e656",
     "app/jest.config.cjs": "ca54b6fcd2d09c904e834286f00c2fbd7287840d347cef0698cecd7f887e9977",
     "app/playwright.config.cjs": "1318d240efd2f90f7976dd800bc94f4e7a62675c1ba0183fdec3f90085fabc19",

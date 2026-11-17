@@ -57,7 +57,9 @@ def approved_npm_advisories(directory, root=ROOT, today=None):
             today or datetime.datetime.now(datetime.timezone.utc).date()):
         raise ValueError('Picomatch reachability review has expired')
     required = {'app/package.json', 'app/package-lock.json', 'app/vite.config.js',
-                'docker/Dockerfile.prod', 'services/live-updates/package-lock.json'}
+                'app/assets/js/controllers-entry.js', 'app/jest.config.cjs',
+                'app/playwright.config.cjs', 'docker/Dockerfile.prod', '.dockerignore',
+                'services/live-updates/package-lock.json'}
     if not required.issubset(review['reviewed_files']):
         raise ValueError('npm review lacks dependency/build boundary evidence')
     for relative, digest in review['reviewed_files'].items():

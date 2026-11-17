@@ -74,8 +74,10 @@ verbatim. The exception is enabled subject to all of these constraints:
    Jest/Playwright configuration, final-image Dockerfile/exclusions, and gateway
    lock. Any change requires a fresh review; expiration fails closed.
 3. Reject any picomatch module from the browser build graph. The actual Vite
-   boundary test rejects both direct and nested imports and permits a benign
-   entry. This also prevents later accidental frontend use while the exception
+   boundary test rejects direct/nested page imports and dedicated/shared module
+   worker imports, while permitting benign page and worker entries. The worker
+   regression first failed on the original top-level-only guard; separate fresh
+   guard instances now protect every Vite worker build. This also prevents later accidental frontend use while the exception
    is active.
 4. Keep new advisories, Critical escalation, missing graph edges and cycles
    blocking. Only the reviewed advisory can be excluded from the decision.

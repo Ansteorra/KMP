@@ -96,11 +96,14 @@ class NpmReviewTest(unittest.TestCase):
                     self.approved(root)
 
     def test_missing_required_evidence_fails_closed(self):
-        root, policy, review = self.review_fixture()
-        del review['reviewed_files']['app/vite.config.js']
-        policy.write_text(json.dumps(review))
-        with self.assertRaises(ValueError):
-            self.approved(root)
+        _, _, original = self.review_fixture()
+        for path in original['reviewed_files']:
+            with self.subTest(path=path):
+                root, policy, review = self.review_fixture()
+                del review['reviewed_files'][path]
+                policy.write_text(json.dumps(review))
+                with self.assertRaises(ValueError):
+                    self.approved(root)
 
 
 if __name__ == '__main__':
