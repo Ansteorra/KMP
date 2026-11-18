@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+use Cake\I18n\DateTime;
+
 /** @var \App\View\AppView $this */
 $event = $row['event'];
 $gathering = $event['gathering'];
@@ -58,7 +60,8 @@ $panelId = 'event-details-' . $row['key'];
                     )) ?>">…</button>
             <?php endif; ?>
         </div>
-        <details class="kc-more" data-panel="<?= h($panelId) ?>" data-action="toggle->public-calendar#sync">
+        <details class="kc-more" data-panel="<?= h($panelId) ?>" data-action="toggle->public-calendar#sync"
+            data-public-calendar-target="eventDisclosure">
             <summary aria-expanded="false" aria-controls="<?= h($panelId) ?>">
                 <?= $this->Icon->render('chevron-down') ?>
                 <span class="visually-hidden"><?= __('Details for {0}', h($gathering->name)) ?></span>
@@ -99,6 +102,28 @@ $panelId = 'event-details-' . $row['key'];
                 ]) ?>" class="kc-button">
                     <?= $this->Icon->render('download') ?> <?= __('Add to calendar (.ics)') ?>
                 </a>
+                <?php if (isset($rsvpGatherings[$gathering->id])) : ?>
+                    <button type="button" class="kc-button" data-bs-toggle="modal"
+                        data-bs-target="#calendar-rsvp-<?= (int)$gathering->id ?>"
+                        aria-label="<?= h(isset($calendarAttendances[$gathering->id])
+                            ? __('Update RSVP for {0}', $gathering->name)
+                            : __('RSVP for {0}', $gathering->name)) ?>">
+                        <?= $this->Icon->render('calendar-check') ?>
+                        <?= isset($calendarAttendances[$gathering->id]) ? __('Update RSVP') : __('RSVP') ?>
+                    </button>
+                <?php elseif (!$user && !$isCancelled && $gathering->end_date >= DateTime::now()) : ?>
+                    <?php $rsvpUrl = $this->Url->build([
+                        'controller' => 'Gatherings',
+                        'action' => 'publicCalendar',
+                        '?' => $this->getRequest()->getQueryParams(),
+                        '#' => $panelId,
+                    ], ['escape' => false]); ?>
+                    <a class="kc-button" href="<?= h($this->Url->build([
+                        'controller' => 'Members', 'action' => 'login', '?' => ['redirect' => $rsvpUrl],
+                    ], ['escape' => false])) ?>">
+                        <?= $this->Icon->render('login') ?> <?= __('Log in to RSVP') ?>
+                    </a>
+                <?php endif; ?>
             </div>
         </section>
     </div>

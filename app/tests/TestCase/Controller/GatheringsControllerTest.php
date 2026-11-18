@@ -1810,7 +1810,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertTrue($this->viewVariable('hasFilters'));
         $this->assertSame(['Any Royal Progress'], $this->viewVariable('selectedActivityLabels'));
         $this->assertResponseContains('name="royals"');
-        $this->assertResponseContains('Clear filters');
+        $this->assertResponseContains('>Upcoming Events</a>');
         $this->assertResponseNotContains('name="royal_progress[]"');
         $this->get('/events');
         $this->assertResponseOk();
@@ -1936,6 +1936,262 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('Kingdom Calendar');
         $this->assertResponseContains($published->name);
         $this->assertResponseNotContains($unpublished->name);
+    }
+
+    /** @return array<string, array{string, list<string>}> */
+    public static function publicArchiveCases(): array
+    {
+        return [
+            'default keeps entire current month' => ['', ['Current completed', 'Current ongoing', 'Future']],
+            'explicit past month' => ['?month=5&year=2025', ['Old May', 'Cross month']],
+            'legacy month link' => ['?month=2025-05', ['Old May', 'Cross month']],
+            'year only' => ['?year=2025', ['Old May', 'Old June', 'Cross month']],
+            'month across years' => ['?month=5', ['Old May', 'Cross month', 'Recent May', 'Distant future']],
+            'blank dates' => ['?month=&year=', ['Old May', 'Old June', 'Cross month', 'Recent May',
+                'Current completed', 'Current ongoing', 'Future', 'Distant future']],
+            'explicit archive' => ['?view=archive', ['Old May', 'Old June', 'Cross month', 'Recent May',
+                'Current completed', 'Current ongoing', 'Future', 'Distant future']],
+        ];
+    }
+
+    #[DataProvider('publicArchiveCases')]
+    public function testPublicCalendarDateSelection(string $query, array $expected): void
+    {
+        DateTime::setTestNow(new DateTime('2027-06-20 12:00:00', 'America/Chicago'));
+        try {
+            $dates = [
+                'Old May' => ['2025-05-12 18:00:00', '2025-05-12 20:00:00'],
+                'Old June' => ['2025-06-12 18:00:00', '2025-06-12 20:00:00'],
+                'Cross month' => ['2025-04-30 18:00:00', '2025-05-01 20:00:00'],
+                'Recent May' => ['2027-05-12 18:00:00', '2027-05-12 20:00:00'],
+                'Current completed' => ['2027-06-01 18:00:00', '2027-06-01 20:00:00'],
+                'Current ongoing' => ['2027-06-19 18:00:00', '2027-06-21 20:00:00'],
+                'Future' => ['2027-07-12 18:00:00', '2027-07-12 20:00:00'],
+                'Distant future' => ['2031-05-12 18:00:00', '2031-05-12 20:00:00'],
+            ];
+            foreach ($dates as $name => [$start, $end]) {
+                $this->createCalendarGathering('Archive fixture ' . $name, true, [
+                    'start_date' => new DateTime($start, 'UTC'), 'end_date' => new DateTime($end, 'UTC'),
+                ]);
+            }
+            $this->createCalendarGathering('Archive unpublished fixture', false, [
+                'start_date' => new DateTime('2025-05-12'), 'end_date' => new DateTime('2025-05-13'),
+            ]);
+            $this->session(['Auth' => null]);
+            $this->get('/events' . $query);
+            $this->assertResponseOk();
+            foreach (array_keys($dates) as $name) {
+                if (in_array($name, $expected, true)) {
+                    $this->assertResponseContains('Archive fixture ' . $name);
+                } else {
+                    $this->assertResponseNotContains('Archive fixture ' . $name);
+                }
+            }
+            $this->assertResponseNotContains('Archive unpublished fixture');
+            $this->assertResponseContains('id="calendar-year"');
+            $this->assertResponseContains('id="calendar-month"');
+        } finally {
+            DateTime::setTestNow(null);
+        }
+    }
+
+    public function testPublicCalendarUndatedFiltersFindHistoricalRoyalAndCircleEvents(): void
+    {
+        $event = $this->createCalendarGathering('Historical royal circle fixture', true, [
+            'start_date' => new DateTime('2020-05-12 18:00:00', 'UTC'),
+            'end_date' => new DateTime('2020-05-12 20:00:00', 'UTC'),
+            'branch_id' => self::TEST_BRANCH_LOCAL_ID,
+        ]);
+        $royal = $this->linkActivity($event, 'Historical Crown fixture', GatheringActivity::TYPE_ROYAL_PROGRESS);
+        $this->linkActivity($event, 'Historical circle fixture', GatheringActivity::TYPE_ORDER_CIRCLE);
+        $this->session(['Auth' => null]);
+        $this->get('/events?' . http_build_query([
+            'month' => '', 'year' => '', 'branch' => self::TEST_BRANCH_LOCAL_ID,
+            'royals' => '1', 'circles' => '1', 'activities' => [$royal->id],
+        ]));
+        $this->assertResponseOk();
+        $this->assertResponseContains($event->name);
+        $this->assertResponseContains($royal->name);
+        $this->assertResponseContains('May 2020 (AS-LV)');
+        $this->assertResponseNotContains('12 May A.S.');
+    }
+
+    public function testPublicCalendarRsvpUsesOneModalPerEventAndLoginReturnsToExpandedCalendar(): void
+    {
+        $event = $this->createCalendarGathering('Calendar RSVP & return fixture', true, [
+            'public_page_enabled' => true,
+            'end_date' => new DateTime('+30 days'),
+        ]);
+        $this->createCalendarGathering('Second RSVP modal fixture', true);
+        $this->get('/events');
+        $this->assertResponseOk();
+        $dom = new DOMDocument();
+        $previousErrors = libxml_use_internal_errors(true);
+        $dom->loadHTML((string)$this->_response->getBody());
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousErrors);
+        $xpath = new DOMXPath($dom);
+        $ids = [];
+        foreach ($xpath->query('//div[contains(@class, "modal")]//input[@id] | //div[contains(@class, "modal")]//textarea[@id]') as $input) {
+            $this->assertArrayNotHasKey($input->getAttribute('id'), $ids);
+            $ids[$input->getAttribute('id')] = true;
+        }
+        $this->assertResponseContains('data-bs-target="#calendar-rsvp-' . $event->id . '"');
+        $this->assertSame(1, substr_count((string)$this->_response->getBody(), 'id="calendar-rsvp-' . $event->id . '"'));
+        $this->assertResponseContains('action="/gathering-attendances/add"');
+
+        $this->session(['Auth' => null]);
+        $query = ['view' => 'archive', 'month' => '', 'year' => '', 'q' => $event->name];
+        $this->get('/events?' . http_build_query($query));
+        $this->assertResponseOk();
+        $this->assertResponseContains('Log in to RSVP');
+        $checkedRows = 0;
+        foreach ($this->viewVariable('calendarMonths') as $month) {
+            foreach ($month['rows'] as $row) {
+                if (!$row['empty'] && $row['event']['gathering']->id === $event->id) {
+                    $returnUrl = '/events?' . http_build_query($query) . '#event-details-' . $row['key'];
+                    $this->assertResponseContains(rawurlencode($returnUrl));
+                    $checkedRows++;
+                }
+            }
+        }
+        $this->assertGreaterThan(0, $checkedRows);
+        $this->assertResponseNotContains('id="calendar-rsvp-' . $event->id . '"');
+    }
+
+    public function testPublicCalendarRsvpSaveAndCancelledEditing(): void
+    {
+        $event = $this->createCalendarGathering('Editable calendar RSVP fixture', true);
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->configRequest(['headers' => ['Referer' => '/events']]);
+        $this->post('/gathering-attendances/add', [
+            'gathering_id' => $event->id, 'member_id' => self::TEST_MEMBER_AGATHA_ID,
+            'share_with_kingdom' => '0', 'share_with_hosting_group' => '1', 'share_with_crown' => '0',
+        ]);
+        $this->assertRedirect();
+        $attendance = $this->getTableLocator()->get('GatheringAttendances')->find()
+            ->where(['gathering_id' => $event->id, 'member_id' => self::TEST_MEMBER_AGATHA_ID])->firstOrFail();
+        $event->set('cancelled_at', new DateTime());
+        $this->getTableLocator()->get('Gatherings')->saveOrFail($event);
+        $this->get('/events');
+        $this->assertResponseOk();
+        $this->assertResponseContains('aria-label="Update RSVP for Editable calendar RSVP fixture"');
+        $this->assertResponseContains('action="/gathering-attendances/edit/' . $attendance->id . '"');
+
+        $this->session(['Auth' => null]);
+        $this->get('/events?q=' . rawurlencode($event->name));
+        $this->assertResponseOk();
+        $this->assertResponseNotContains('Log in to RSVP');
+        $this->assertResponseNotContains('id="calendar-rsvp-' . $event->id . '"');
+    }
+
+    public function testPublicLandingRsvpPrecedesDetailsAndUsesEventLocalSocietyDates(): void
+    {
+        $event = $this->createCalendarGathering('Early RSVP fixture', true, [
+            'public_page_enabled' => true,
+            'start_date' => new DateTime('2030-05-01 00:00:00', 'UTC'),
+            'end_date' => new DateTime('2030-05-02 00:00:00', 'UTC'),
+        ]);
+        $this->get('/gatherings/public-landing/' . $event->public_id);
+        $this->assertResponseOk();
+        $body = (string)$this->_response->getBody();
+        $this->assertLessThan(strpos($body, '<!-- Event Information Cards -->'), strpos($body, 'id="rsvp"'));
+        $this->assertResponseContains('data-bs-target="#attendGatheringModal"');
+        $this->assertResponseContains('Apr 30, 2030 (AS-LXIV)');
+        $this->assertResponseContains('May 01, 2030 (AS-LXV)');
+        $this->assertSame(2, substr_count($body, '(AS-'));
+
+        $this->get('/gatherings/view/' . $event->public_id);
+        $this->assertResponseOk();
+        $this->assertResponseContains('Apr 30, 2030 (AS-LXIV)');
+        $this->assertResponseContains('May 1, 2030 (AS-LXV)');
+        $this->assertSame(2, substr_count((string)$this->_response->getBody(), '(AS-'));
+    }
+
+    public function testPublicLandingUsesOneTimezoneForDatesTimesAndSocietyYear(): void
+    {
+        $members = $this->getTableLocator()->get('Members');
+        $members->updateAll(['timezone' => 'Pacific/Kiritimati'], ['id' => self::ADMIN_MEMBER_ID]);
+        $this->authenticateAsSuperUser();
+        $event = $this->createCalendarGathering('Member timezone Society fixture', true, [
+            'public_page_enabled' => true,
+            'timezone' => null,
+            'start_date' => new DateTime('2030-04-30 09:30:00', 'UTC'),
+            'end_date' => new DateTime('2030-04-30 10:30:00', 'UTC'),
+        ]);
+        $this->get('/gatherings/public-landing/' . $event->public_id);
+        $this->assertResponseOk();
+        // One UTC day spans local April 30/May 1; both dates and both AS years are required.
+        $this->assertResponseContains('Apr 30, 2030 (AS-LXIV)');
+        $this->assertResponseContains('May 01, 2030 (AS-LXV)');
+        $this->assertResponseContains('11:30 PM');
+        $this->assertResponseContains('12:30 AM');
+    }
+
+    public function testArchivePaginationPreservesBlankDatesAndFiltersAcrossBatches(): void
+    {
+        $prefix = 'Archive paging fixture';
+        // Nonmatching local months force the bounded scan across more than one batch.
+        for ($i = 0; $i < 101; $i++) {
+            $this->createCalendarGathering($prefix . ' April ' . $i, true, [
+                'start_date' => new DateTime('2027-05-01 00:00:00', 'UTC'),
+                'end_date' => new DateTime('2027-05-01 02:00:00', 'UTC'),
+            ]);
+        }
+        $expected = [];
+        for ($i = 0; $i < 51; $i++) {
+            $expected[] = $this->createCalendarGathering($prefix . ' May ' . $i, true, [
+                'start_date' => new DateTime('2027-05-02 18:00:00', 'UTC'),
+                'end_date' => new DateTime('2027-05-02 20:00:00', 'UTC'),
+            ])->id;
+        }
+        $this->createCalendarGathering($prefix . ' unpublished', false, [
+            'start_date' => new DateTime('2027-05-02 18:00:00', 'UTC'),
+            'end_date' => new DateTime('2027-05-02 20:00:00', 'UTC'),
+        ]);
+        $this->session(['Auth' => null]);
+        $query = ['view' => 'archive', 'q' => $prefix, 'month' => '5', 'year' => ''];
+        $seen = [];
+        foreach ([1, 2] as $page) {
+            $this->get('/events?' . http_build_query($query + ['page' => $page]));
+            $this->assertResponseOk();
+            $ids = [];
+            foreach ($this->viewVariable('calendarMonths') as $month) {
+                foreach ($month['rows'] as $row) {
+                    $this->assertFalse($row['empty']);
+                    $ids[] = $row['event']['gathering']->id;
+                }
+            }
+            $this->assertCount($page === 1 ? 50 : 1, $ids);
+            $this->assertSame($page === 1, $this->viewVariable('archiveHasNext'));
+            $this->assertResponseNotContains($prefix . ' April');
+            $this->assertResponseNotContains($prefix . ' unpublished');
+            $this->assertResponseContains('month=5&amp;year=&amp;page=' . ($page === 1 ? 2 : 1));
+            array_push($seen, ...$ids);
+        }
+        $this->assertSame($expected, $seen);
+        // Blank dates are still unrestricted, but returned in bounded pages.
+        $this->get('/events?' . http_build_query(['view' => 'archive', 'q' => $prefix, 'month' => '', 'year' => '']));
+        $this->assertResponseOk();
+        $this->assertSame(50, $this->viewVariable('eventCount'));
+        $this->assertTrue($this->viewVariable('archiveHasNext'));
+    }
+
+    public function testEventPagesShowSocietyYearOnlyOnceWithinTheSameSocietyYear(): void
+    {
+        foreach (['2030-11-22 20:00:00', '2030-11-24 20:00:00'] as $end) {
+            $event = $this->createCalendarGathering('Compact Society year fixture', true, [
+                'public_page_enabled' => true,
+                'start_date' => new DateTime('2030-11-22 18:00:00', 'UTC'),
+                'end_date' => new DateTime($end, 'UTC'),
+            ]);
+            foreach (['public-landing', 'view'] as $action) {
+                $this->get('/gatherings/' . $action . '/' . $event->public_id);
+                $this->assertResponseOk();
+                $this->assertResponseContains('Nov 22, 2030 (AS-LXV)');
+                $this->assertSame(1, substr_count((string)$this->_response->getBody(), '(AS-'));
+            }
+        }
     }
 
     public function testMobileCalendarAndRsvpFormUseActivitiesWithoutRoyalAttendanceMetadata(): void

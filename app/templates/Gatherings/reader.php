@@ -1,12 +1,16 @@
 <?php
 declare(strict_types=1);
 
+use App\KMP\AnnoSocietatis;
+use App\KMP\TimezoneHelper;
 use App\Services\ViewCellRegistry;
 
 /** @var \App\View\AppView $this */
 $this->extend('/layout/TwitterBootstrap/dashboard');
 $this->assign('title', $this->KMP->getAppSetting('KMP.ShortSiteTitle') . ': ' . $gathering->name);
 $user = $this->getRequest()->getAttribute('identity');
+$startInGatheringTz = TimezoneHelper::toUserTimezone($gathering->start_date, null, null, $gathering);
+$endInGatheringTz = TimezoneHelper::toUserTimezone($gathering->end_date, null, null, $gathering);
 $publicLandingUrl = $this->Url->build(['action' => 'publicLanding', $gathering->public_id], ['fullBase' => true]);
 $hasRecordDetails = trim($this->fetch('recordDetails')) !== ''
     || !empty($pluginViewCells[ViewCellRegistry::PLUGIN_TYPE_DETAIL]);
@@ -61,18 +65,20 @@ $pluginOptions = [
                 <dd>
                     <?= $this->Timezone->format(
                         $gathering->start_date,
-                        'D, M j, Y · g:i A',
+                        'D, M j, Y',
                         false,
                         null,
                         $gathering,
-                    ) ?><br>
+                    ) ?><?= h(AnnoSocietatis::suffix($startInGatheringTz)) ?> ·
+                    <?= $this->Timezone->format($gathering->start_date, 'g:i A', false, null, $gathering) ?><br>
                     <span class="text-muted"><?= __('to') ?> <?= $this->Timezone->format(
                         $gathering->end_date,
-                        'D, M j, Y · g:i A',
+                        'D, M j, Y',
                         false,
                         null,
                         $gathering,
-                    ) ?></span>
+                    ) ?><?= h(AnnoSocietatis::suffix($endInGatheringTz, $startInGatheringTz)) ?> ·
+                    <?= $this->Timezone->format($gathering->end_date, 'g:i A', false, null, $gathering) ?></span>
                     <small class="d-block text-muted"><?= h($readerTimezone) ?></small>
                 </dd>
             </div>

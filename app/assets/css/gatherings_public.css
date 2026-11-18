@@ -809,7 +809,7 @@
 }
 .kc-filters-toggle { display: none; }
 .kc-filter-content { min-width: 0; }
-.kc-filter-fields { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(2, minmax(0, 1fr)); gap: 14px; }
+.kc-filter-fields { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr)); gap: 14px; }
 .kc-filter-fields label,
 .kc-picker-body > label { display: block; font-size: 12px; font-weight: 600; }
 .kc-filter-fields input,
@@ -893,6 +893,7 @@
 .kc-detail-body p { margin: 0 0 10px; }
 .kc-event-activities,
 .kc-detail-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.kingdom-calendar-page .kc-detail-actions .kc-button { font: inherit; font-size: 13px; color: var(--kc-accent); text-decoration: underline; text-underline-offset: 3px; }
 .kc-empty-weekend td { color: var(--kc-muted); font-size: 12px; }
 .kc-empty-weekend td[colspan] { font-style: italic; }
 .kc-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 12px 0; font-size: 11px; color: var(--kc-muted); }
@@ -908,7 +909,7 @@
     .kc-subscribe-link { flex: none; max-width: 142px; min-height: 44px; padding: 6px 8px; font-size: 12px; }
     .kc-heading h1 { font-size: 26px; }
     .kc-filter-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-    .kc-filter-fields > label:first-child { grid-column: 1 / -1; }
+    .kc-filter-fields > div:first-child { grid-column: 1 / -1; }
     .kc-filter-tools { gap: 8px; }
     .kc-filter-picker { position: static; }
     .kc-picker-body { position: static; width: 100%; margin-top: 8px; box-shadow: none; }

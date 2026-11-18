@@ -110,6 +110,60 @@ class PublicCalendarServiceTest extends BaseTestCase
         $this->assertFalse($rows[0]['continuing']);
     }
 
+    public function testUnboundedArchiveSkipsEmptyMonthsAndUsesLocalDates(): void
+    {
+        $event = $this->event('2026-05-01 00:00:00', '2026-05-02 00:00:00');
+        $later = $this->event('2028-05-15 18:00:00', '2028-05-15 20:00:00');
+        $later->set('id', 2);
+        $service = new PublicCalendarService();
+        $months = $service->build([$event, $later], null, null, 5);
+        $this->assertSame(['2026-05', '2028-05'], array_keys($months));
+        $rows = array_values(array_filter($months['2026-05']['rows'], static fn($r) => !$r['empty']));
+        $this->assertSame('May 2026 (AS-LXI)', $months['2026-05']['label']);
+        $this->assertSame('May 2028 (AS-LXIII)', $months['2028-05']['label']);
+        $this->assertSame('2026-04-30', $rows[0]['start']->format('Y-m-d'));
+        $this->assertArrayNotHasKey('asDate', $rows[0]);
+        $this->assertSame([], $service->build([], null, null));
+    }
+
+    public function testArchiveMonthDoesNotIncludeAdjacentWeekendEventOutsideLocalMonth(): void
+    {
+        // UTC May 1 still falls entirely on April 30 at the event location.
+        $event = $this->event('2027-05-01 00:00:00', '2027-05-01 02:00:00');
+        $months = (new PublicCalendarService())->build(
+            [$event],
+            new DateTime('2027-05-01', 'UTC'),
+            new DateTime('2027-05-31', 'UTC'),
+        );
+        $this->assertSame(0, $months['2027-05']['count']);
+    }
+
+    public function testBoundaryFridayBelongsToSaturdayMonthExceptInExplicitMonthArchive(): void
+    {
+        $event = $this->event('2027-04-30 18:00:00', '2027-04-30 20:00:00');
+        $service = new PublicCalendarService();
+        $months = $service->build([$event], new DateTime('2027-04-01'), new DateTime('2027-05-31'));
+        $this->assertSame(0, $months['2027-04']['count']);
+        $this->assertSame(1, $months['2027-05']['count']);
+        $this->assertSame(['2027-05'], array_keys($service->build([$event], null, null)));
+        $april = $service->build([$event], new DateTime('2027-04-01'), new DateTime('2027-04-30'), 4);
+        $this->assertSame(1, $april['2027-04']['count']);
+        $this->assertSame([], $service->build([$event], null, null, 5));
+    }
+
+    public function testSparseArchiveOnlyVisitsOccupiedMonthsAndOmitsEmptyWeekendClaimsOnPages(): void
+    {
+        $early = $this->event('1967-02-07 18:00:00', '1967-02-07 20:00:00');
+        $late = $this->event('2099-11-17 18:00:00', '2099-11-17 20:00:00');
+        $late->set('id', 2);
+        $months = (new PublicCalendarService())->build([$early, $late], null, null, null, false);
+        $this->assertSame(['1967-02', '2099-11'], array_keys($months));
+        foreach ($months as $month) {
+            $this->assertCount(1, $month['rows']);
+            $this->assertFalse($month['rows'][0]['empty']);
+        }
+    }
+
     private function event(string $start, string $end): Gathering
     {
         $event = new Gathering([

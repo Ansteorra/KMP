@@ -1982,11 +1982,7 @@ class GatheringsController extends AppController
 
         $today = CakeDateTime::now(TimezoneHelper::getUserTimezone())->startOfDay();
         $horizon = $today->addYears(2)->endOfDay();
-        $publishedConditions = [
-            'Gatherings.published' => true,
-            'Gatherings.end_date >=' => $today->subDays(1),
-            'Gatherings.start_date <=' => $horizon->addDays(1),
-        ];
+        $publishedConditions = ['Gatherings.published' => true];
 
         // Activity filter - circles are just activities (e.g. "Laurel Circle"),
         // so filtering by activity covers the circles facet too
@@ -2000,12 +1996,51 @@ class GatheringsController extends AppController
         $selectedBranchId = (int)$this->request->getQuery('branch', 0);
         $circlesOnly = $this->request->getQuery('circles') === '1';
         $royalsOnly = $this->request->getQuery('royals') === '1';
+        $hasFilters = $search !== '' || $selectedBranchId > 0 || $circlesOnly || $royalsOnly
+            || $selectedActivityIds !== [];
         $monthOptions = [];
-        for ($month = $today->startOfMonth(); $month <= $horizon; $month = $month->addMonths(1)) {
-            $monthOptions[$month->format('Y-m')] = $month->format('F Y');
+        for ($month = 1; $month <= 12; $month++) {
+            $monthOptions[$month] = $today->startOfYear()->addMonths($month - 1)->format('F');
         }
-        $selectedMonth = $this->request->getQuery('month', '');
-        $selectedMonth = is_string($selectedMonth) && isset($monthOptions[$selectedMonth]) ? $selectedMonth : '';
+        $monthInput = $this->request->getQuery('month', '');
+        $yearInput = $this->request->getQuery('year', '');
+        // Preserve links from the original combined month/year selector.
+        if (is_string($monthInput) && preg_match('/^(\d{4})-(\d{2})$/D', $monthInput, $parts)) {
+            $yearInput = $parts[1];
+            $monthInput = $parts[2];
+        }
+        $selectedMonth = is_string($monthInput) && preg_match('/^(0?[1-9]|1[0-2])$/D', $monthInput)
+            ? (int)$monthInput : null;
+        $selectedYear = is_string($yearInput) && preg_match('/^[1-9]\d{3}$/D', $yearInput)
+            ? (int)$yearInput : null;
+        $isArchive = $this->request->getQuery('view') === 'archive' || $hasFilters
+            || $selectedMonth !== null || $selectedYear !== null
+            || ($monthInput === '' && $this->request->getQuery('month') !== null)
+            || ($yearInput === '' && $this->request->getQuery('year') !== null);
+        $from = $isArchive ? null : $today->startOfMonth();
+        $until = $isArchive ? null : $horizon;
+        if ($selectedYear !== null) {
+            $from = new CakeDateTime(sprintf('%04d-%02d-01', $selectedYear, $selectedMonth ?? 1), 'UTC');
+            $until = $selectedMonth !== null ? $from->endOfMonth() : $from->endOfYear();
+        }
+
+        $boundsQuery = $this->Gatherings->find()->where($publishedConditions);
+        $bounds = $boundsQuery->select([
+            'first_date' => $boundsQuery->func()->min('Gatherings.start_date')->setReturnType('datetime'),
+            'last_date' => $boundsQuery->func()->max('Gatherings.end_date')->setReturnType('datetime'),
+        ])->disableHydration()->first();
+        $firstYear = (int)$today->format('Y');
+        $lastYear = (int)$horizon->format('Y');
+        if ($bounds['first_date']) {
+            // Include adjacent years for events whose local date crosses a UTC year boundary.
+            $firstYear = min($firstYear, (int)(new CakeDateTime($bounds['first_date']))->subDays(1)->format('Y'));
+            $lastYear = max($lastYear, (int)(new CakeDateTime($bounds['last_date']))->addDays(1)->format('Y'));
+        }
+        $yearOptions = array_combine(range($firstYear, $lastYear), range($firstYear, $lastYear));
+        if ($selectedYear !== null) {
+            $yearOptions[$selectedYear] = $selectedYear;
+            ksort($yearOptions);
+        }
 
         $query = $this->Gatherings->find()
             ->contain([
@@ -2014,7 +2049,15 @@ class GatheringsController extends AppController
                 'GatheringActivities',
             ])
             ->where($publishedConditions)
-            ->orderBy(['Gatherings.start_date' => 'ASC']);
+            ->orderBy(['Gatherings.start_date' => 'ASC', 'Gatherings.id' => 'ASC']);
+
+        // Widen UTC bounds for event-local dates; the row builder applies the exact local range.
+        if ($from !== null) {
+            $query->where(['Gatherings.end_date >=' => $from->subDays(1)]);
+        }
+        if ($until !== null) {
+            $query->where(['Gatherings.start_date <=' => $until->addDays(1)]);
+        }
 
         if ($selectedActivityIds !== []) {
             $activityGatheringIds = $this->fetchTable('GatheringsGatheringActivities')->find()
@@ -2055,9 +2098,17 @@ class GatheringsController extends AppController
             ]]);
         }
 
+        $calendarService = new PublicCalendarService();
+        $archivePage = max(1, min(1000000, (int)$this->request->getQuery('page', 1)));
+        $archiveHasNext = false;
+        if ($isArchive) {
+            $page = $calendarService->archivePage($query, $archivePage, $from, $until, $selectedMonth);
+            $archiveHasNext = $page['hasNext'];
+            $query->where(['Gatherings.id IN' => $page['ids'] ?: [-1]]);
+        }
         $gatherings = $query->all();
 
-        // Filter options: activities present on any upcoming published event,
+        // Filter options: activities present on any published event,
         // regardless of the currently applied filter
         $publishedGatheringIds = $this->Gatherings->find()
             ->select(['id'])
@@ -2089,9 +2140,7 @@ class GatheringsController extends AppController
         $branchOptions = $this->fetchTable('Branches')->find('list')
             ->where(['Branches.id IN' => $this->Gatherings->find()->select(['branch_id'])->where($publishedConditions)])
             ->orderBy(['Branches.name' => 'ASC'])->toArray();
-        $from = $selectedMonth !== '' ? new CakeDateTime($selectedMonth . '-01') : $today;
-        $until = $selectedMonth !== '' ? $from->endOfMonth() : $horizon;
-        $calendarMonths = (new PublicCalendarService())->build($gatherings, max($from, $today), min($until, $horizon));
+        $calendarMonths = $calendarService->build($gatherings, $from, $until, $selectedMonth, !$isArchive);
         $visibleIds = [];
         foreach ($calendarMonths as $month) {
             foreach ($month['rows'] as $row) {
@@ -2101,8 +2150,26 @@ class GatheringsController extends AppController
             }
         }
         $eventCount = count($visibleIds);
-        $hasFilters = $search !== '' || $selectedBranchId > 0 || $circlesOnly || $royalsOnly
-            || $selectedActivityIds !== [];
+        $user = null;
+        $calendarAttendances = [];
+        $rsvpGatherings = [];
+        $identity = $this->Authentication->getIdentity();
+        if ($identity) {
+            $user = $this->fetchTable('Members')->get($identity->id);
+            if ($visibleIds !== []) {
+                $calendarAttendances = $this->fetchTable('GatheringAttendances')->find()
+                    ->where(['member_id' => $user->id, 'gathering_id IN' => array_keys($visibleIds)])
+                    ->all()->indexBy('gathering_id')->toArray();
+            }
+            foreach ($gatherings as $gathering) {
+                if (
+                    isset($visibleIds[$gathering->id]) && $gathering->end_date >= CakeDateTime::now()
+                    && (!$gathering->is_cancelled || isset($calendarAttendances[$gathering->id]))
+                ) {
+                    $rsvpGatherings[$gathering->id] = $gathering;
+                }
+            }
+        }
 
         $this->set(compact(
             'calendarMonths',
@@ -2116,6 +2183,14 @@ class GatheringsController extends AppController
             'circlesOnly',
             'royalsOnly',
             'monthOptions',
+            'yearOptions',
+            'selectedYear',
+            'isArchive',
+            'archivePage',
+            'archiveHasNext',
+            'user',
+            'calendarAttendances',
+            'rsvpGatherings',
             'selectedMonth',
             'branchOptions',
             'hasFilters',

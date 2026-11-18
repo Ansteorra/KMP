@@ -27,6 +27,33 @@ For local browser acceptance without a database reset, run
 creates and cleans up synthetic members and a gathering, and exercises reader privacy,
 RSVP save/reopen, organization tools, keyboard tabs, cancellation and responsive layout.
 
+## Society dates and public RSVP
+
+`App\KMP\AnnoSocietatis` converts already localized dates to Society years and displays
+Roman numerals. A.S. I starts May 1, 1966; January–April use the preceding Society year.
+Dates before that epoch have no AS label. The source of this convention is the
+[SCA calendar reference](https://www.sca.org/sca-calendar-reckoning-dates-in-the-society/).
+Public calendar month headings include a compact year label, such as **November 2026 (AS-LXI)**;
+individual calendar rows and expanded details do not repeat it. Public landing pages and
+signed-in gathering views append the label to the first Gregorian year in the event's
+date range. Gregorian dates, times, day-range selection, and AS labels all use the same resolved event/member timezone.
+The end date repeats an AS label only when the Society year changes,
+including events spanning April 30–May 1. They do not render a second copy of the date range.
+
+Password and passkey login both preserve the accepted same-origin return fragment. Restored
+calendar focus is visible horizontally and below sticky filters, even in tall mobile rows.
+Date-filter help collapses with its controls.
+
+Calendar RSVP actions appear in each expanded event beside **Add to calendar**, using
+the same button styling. Signed-in visitors can RSVP through the existing attendance modal,
+with one modal per event even when it repeats across weekends. Existing RSVPs open in edit
+mode. Anonymous visitors see **Log in to RSVP**, returning to the same expanded
+calendar row after login with their filters preserved and the signed-in RSVP action available.
+Ended events do not invite new RSVPs; cancelled events only allow existing attendees to
+edit. Public landing pages place **Ready to Join Us?** immediately below the event summary,
+with a stable `#rsvp` anchor. Existing attendance endpoints, privacy choices, authorization,
+and CSRF protection remain responsible for saves.
+
 ## Publication and public links
 
 `GatheringsController::publish()` is the only normal write path for the guarded publication
@@ -50,12 +77,26 @@ reimplementing them in JavaScript.
 
 `GatheringsController::publicCalendar()`:
 
-- selects `published = true` gatherings whose dates overlap today through two years ahead;
+- defaults to `published = true` gatherings overlapping the full current month through two years ahead;
 - builds compact, horizontally scrollable rows using each event's timezone, grouped by month;
-- shows empty weekends and repeats multi-week events on affected weekends, with a Continues label;
+- shows empty weekends in the default view and repeats multi-week events on affected weekends, with a Continues label;
 - keeps weekday-only events visible; a weekend belongs to the month containing its Saturday;
-- supports `activities[]=<id>` filtering and derives options from upcoming published events;
-- adds `q` (event/group/address), `branch`, `month` (`YYYY-MM`), and `circles=1` filters;
+- supports `activities[]=<id>` filtering and derives group/activity options from all published history;
+- supports `q` (event/group/address), `branch`, separate `month` (1–12) and `year`,
+  `circles=1`, and `royals=1` filters;
+- treats explicit date selection, submitted blank dates, `view=archive`, or other filters as
+  archive searches, including completed events without the default future horizon;
+- allows month-only searches across years, year-only searches across months, and blank dates
+  across all history; old `month=YYYY-MM` URLs still work;
+- keeps **Upcoming Events** as a link back to the default current-month-onward view;
+- derives year choices from published event bounds and omits empty months in archive pages;
+- pages archive searches in stable start-date/ID order with 50 events per page, preserving all
+  filters in Previous/Next links and login return URLs; each page loads event details only after
+  matching local dates in bounded lightweight batches;
+- indexes events directly into overlapping weekends/months rather than scanning intervening
+  empty years; archive pages omit empty-weekend claims because another page can contain matches;
+- clips boundary weekends to Gregorian months only for an explicit Month selection; otherwise
+  a Friday-only April 30 event belongs to the May 1 weekend;
 - displays branch, location, activity/circle metadata, cancellation state, event and calendar
   links;
 - renders the `public_event` layout with `templates/Gatherings/public_calendar.php` and

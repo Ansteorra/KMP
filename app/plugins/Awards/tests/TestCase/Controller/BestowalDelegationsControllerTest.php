@@ -71,6 +71,47 @@ class BestowalDelegationsControllerTest extends HttpIntegrationTestCase
         GatheringActivityDelegationRegistry::register('Awards', new BestowalGatheringActivityDelegationProvider());
     }
 
+    public function testGatheringFilterUsesLiveBranchAndDelegationScopeAfterAnotherUserWarmsCache(): void
+    {
+        $gatherings = $this->getTableLocator()->get('Gatherings');
+        $third = $gatherings->saveOrFail($gatherings->newEntity([
+            'name' => 'Second authorized filter event',
+            'branch_id' => $this->gathering->branch_id,
+            'gathering_type_id' => $this->gathering->gathering_type_id,
+            'start_date' => $this->gathering->start_date,
+            'end_date' => $this->gathering->end_date,
+            'location' => 'Test Hall',
+            'created_by' => self::ADMIN_MEMBER_ID,
+        ]));
+        $this->bestowal();
+        $this->bestowal(['award_id' => $this->otherAward->id, 'gathering_id' => $this->otherGathering->id]);
+        $this->bestowal(['gathering_id' => $third->id]);
+        $service = new BestowalDelegationService();
+        $grant = $this->delegate();
+        $grantor = $this->getTableLocator()->get('Members')->get(self::TEST_MEMBER_AGATHA_ID);
+        $service->grant($grantor, (int)$third->id, self::KINGDOM_BRANCH_ID, self::TEST_MEMBER_BRYCE_ID);
+
+        foreach ([self::ADMIN_MEMBER_ID, self::TEST_MEMBER_AGATHA_ID, self::TEST_MEMBER_BRYCE_ID] as $memberId) {
+            $this->authenticateAsMember($memberId);
+            $this->get('/awards/bestowals/grid-data?ignore_default=1');
+            $this->assertResponseOk();
+            $ids = array_column($this->viewVariable('filterOptions')['gathering_name'], 'value');
+            $this->assertContains((string)$this->gathering->id, $ids);
+            $this->assertContains((string)$third->id, $ids);
+            if ($memberId === self::ADMIN_MEMBER_ID) {
+                $this->assertContains((string)$this->otherGathering->id, $ids);
+            } else {
+                $this->assertNotContains((string)$this->otherGathering->id, $ids);
+            }
+        }
+        $service->revoke($grantor, (int)$grant->id);
+        $this->get('/awards/bestowals/grid-data?ignore_default=1');
+        $this->assertResponseOk();
+        $ids = array_column($this->viewVariable('filterOptions')['gathering_name'], 'value');
+        $this->assertNotContains((string)$this->gathering->id, $ids);
+        $this->assertContains((string)$third->id, $ids);
+    }
+
     public function testGrantAndRevokeKeepAuditHistoryAndRejectFurtherDelegation(): void
     {
         $bestowal = $this->bestowal();

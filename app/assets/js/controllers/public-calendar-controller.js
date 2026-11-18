@@ -3,7 +3,7 @@ import { Controller } from '@hotwired/stimulus';
 /** Enhances native public calendar disclosures and bounded activity filtering. */
 class PublicCalendarController extends Controller {
     static targets = ['activityOption', 'activityGroup', 'groupCount', 'activitySearch', 'activityStatus', 'activityCount', 'filterBar',
-        'selectedSummary', 'selectedLabels', 'selectionStatus', 'filterDisclosure'];
+        'selectedSummary', 'selectedLabels', 'selectionStatus', 'filterDisclosure', 'eventDisclosure'];
     static values = { pendingMessage: String };
 
     connect() {
@@ -15,10 +15,51 @@ class PublicCalendarController extends Controller {
             this.filterMedia.addEventListener('change', this.filterLayoutListener);
             this.layoutFilters();
         }
+        this.restoreEvent();
+        this.restoreAfterPageShow = () => {
+            this.restoreFrame = window.requestAnimationFrame(() => {
+                // Native fragment focus can clear our focus after connect, especially from
+                // a cached passkey return. Do not override a control the visitor has selected.
+                if (document.activeElement === document.body) this.restoreEvent();
+            });
+        };
+        window.addEventListener('pageshow', this.restoreAfterPageShow);
     }
 
     disconnect() {
         this.filterMedia?.removeEventListener('change', this.filterLayoutListener);
+        window.removeEventListener('pageshow', this.restoreAfterPageShow);
+        window.cancelAnimationFrame(this.restoreFrame);
+    }
+
+    /** Restore the calendar row selected before login, including repeated event rows. */
+    restoreEvent() {
+        const details = this.eventDisclosureTargets.find(item => `#${item.dataset.panel}` === window.location.hash);
+        if (!details) return;
+        details.open = true;
+        this.sync({ currentTarget: details });
+        const panel = document.getElementById(details.dataset.panel);
+        const row = details.closest('tr');
+        if (!panel || !row) return;
+        const filterHeight = this.hasFilterBarTarget ? this.filterBarTarget.getBoundingClientRect().height : 0;
+        const filterTop = this.hasFilterBarTarget
+            ? Math.max(0, parseFloat(window.getComputedStyle(this.filterBarTarget).top) || 0) : 0;
+        const summary = details.querySelector('summary');
+        if (!summary) return;
+        const inset = filterTop + filterHeight + 12;
+        const summaryRect = summary.getBoundingClientRect();
+        const rowRect = row.getBoundingClientRect();
+        const summaryInset = inset + (rowRect.height <= window.innerHeight - inset
+            ? Math.max(0, summaryRect.top - rowRect.top) : 0);
+        summary.style.scrollMarginTop = `${summaryInset}px`;
+        // Native fragment scrolling can follow connect. Align it with the focused summary,
+        // including tall mobile rows where the summary sits far below the row's top.
+        const panelRect = panel.getBoundingClientRect();
+        panel.style.scrollMarginTop = `${summaryInset + panelRect.top - summaryRect.top}px`;
+        panel.style.scrollMarginLeft = `${panelRect.left - summaryRect.left}px`;
+        panel.style.scrollMarginRight = `${summaryRect.right - panelRect.right}px`;
+        summary.focus({ preventScroll: true });
+        summary.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'instant' });
     }
 
     layoutFilters() {

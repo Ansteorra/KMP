@@ -10,6 +10,7 @@ use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\KMP\GridColumns\BestowalsGridColumns;
 use Awards\Model\Entity\Award;
 use Awards\Model\Entity\Bestowal;
+use Cake\Cache\Cache;
 use Cake\I18n\DateTime;
 use DOMDocument;
 use DOMXPath;
@@ -52,6 +53,92 @@ class BestowalsGridSortingFilteringTest extends HttpIntegrationTestCase
             'navigate:/gatherings/view/:gathering_public_id?tab=gathering-bestowals',
             $columns['gathering_name']['clickAction'],
         );
+    }
+
+    public function testGatheringFilterOnlyIncludesAssignedBestowalsWithoutDuplicates(): void
+    {
+        $gatherings = $this->getTableLocator()->get('Gatherings');
+        $source = $gatherings->find()->firstOrFail();
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()->firstOrFail();
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $events = [];
+        foreach (['empty', 'open', 'completed', 'deleted'] as $kind) {
+            $start = $kind === 'completed' ? DateTime::now()->subYears(1) : DateTime::now()->addMonths(1);
+            $events[$kind] = $gatherings->saveOrFail($gatherings->newEntity([
+                'name' => 'Bestowal filter ' . $kind . ' ' . uniqid(),
+                'branch_id' => $source->branch_id,
+                'gathering_type_id' => $source->gathering_type_id,
+                'start_date' => $start,
+                'end_date' => $start->addDays(1),
+                'location' => 'Test Hall',
+                'created_by' => self::ADMIN_MEMBER_ID,
+            ]));
+            if ($kind === 'empty') {
+                continue;
+            }
+            $bestowal = $this->createBestowal(self::ADMIN_MEMBER_ID, (int)$award->id, (int)$events[$kind]->id);
+            if ($kind === 'completed') {
+                $bestowals->updateAll(['lifecycle_status' => Bestowal::LIFECYCLE_GIVEN], ['id' => $bestowal->id]);
+            } elseif ($kind === 'deleted') {
+                $bestowals->updateAll(['deleted' => DateTime::now()], ['id' => $bestowal->id]);
+            }
+        }
+        $this->createBestowal(self::ADMIN_MEMBER_ID, (int)$award->id, (int)$events['open']->id);
+
+        $options = BestowalsGridColumns::getGatheringsFilterOptions($bestowals->find());
+        $ids = array_column($options, 'value');
+        $this->assertContains((string)$events['open']->id, $ids);
+        $this->assertContains((string)$events['completed']->id, $ids);
+        $this->assertNotContains((string)$events['empty']->id, $ids);
+        $this->assertNotContains((string)$events['deleted']->id, $ids);
+        $this->assertCount(count(array_unique($ids)), $ids);
+
+        // Fixtures bypass the lifetime of the shared grid option cache.
+        Cache::clear('grid_filter_options');
+        try {
+            $this->get('/awards/bestowals/grid-data?ignore_default=1');
+            $this->assertResponseOk();
+            $this->assertResponseContains(h($events['open']->name));
+            $this->assertResponseContains(h($events['completed']->name));
+            $this->assertResponseNotContains(h($events['empty']->name));
+            $this->assertResponseNotContains(h($events['deleted']->name));
+        } finally {
+            Cache::clear('grid_filter_options');
+        }
+    }
+
+    public function testAwardColumnOmitsLevelAndPreservesSpecialty(): void
+    {
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()->contain(['Levels'])->firstOrFail();
+        $this->assertNotEmpty($award->level->name);
+        $gathering = $this->getTableLocator()->get('Gatherings')->find()->firstOrFail();
+        $bestowal = $this->createBestowal(self::ADMIN_MEMBER_ID, (int)$award->id, (int)$gathering->id);
+        $bestowal->specialty = 'Calligraphy & Illumination';
+        $this->getTableLocator()->get('Awards.Bestowals')->saveOrFail($bestowal);
+
+        $this->get('/awards/bestowals/grid-data?' . http_build_query([
+            'ignore_default' => 1,
+            'columns' => 'id,awards',
+            'filter' => ['member_sca_name' => [self::ADMIN_MEMBER_ID]],
+            'sort' => 'id',
+            'direction' => 'desc',
+        ]));
+        $this->assertResponseOk();
+        $document = new DOMDocument();
+        $previousErrors = libxml_use_internal_errors(true);
+        try {
+            $document->loadHTML('<?xml encoding="UTF-8">' . (string)$this->_response->getBody());
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previousErrors);
+        }
+        $xpath = new DOMXPath($document);
+        $header = $xpath->query('//th[@data-column-key="awards"]')->item(0);
+        $this->assertNotNull($header);
+        $position = $xpath->query('preceding-sibling::th', $header)->length + 1;
+        $cell = $xpath->query('//tr[@data-id="' . $bestowal->id . '"]/td[' . $position . ']')->item(0);
+        $this->assertNotNull($cell);
+        $this->assertSame($award->abbreviation . ' — ' . $bestowal->specialty, trim($cell->textContent));
     }
 
     public function testSystemViewsKeepSourceAvailableButHiddenByDefault(): void

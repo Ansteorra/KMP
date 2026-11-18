@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Public Gathering Content Element (Body Only)
@@ -15,6 +16,7 @@
  * @var array<\App\Model\Entity\GatheringAttendance> $kingdomAttendances Optional - kingdom-shared attendances
  */
 
+use App\KMP\AnnoSocietatis;
 use Cake\I18n\Date;
 use Cake\I18n\DateTime;
 
@@ -83,14 +85,19 @@ if (!isset($scheduleByDate)) {
         <div class="event-quick-meta">
             <span class="meta-item">
                 <kmp-icon name="calendar-month"  aria-hidden="true"></kmp-icon>
-                <?php if ($gathering->is_multi_day): ?>
-                    <?= $this->Timezone->format($gathering->start_date, 'M d, Y g:i A', false, null, $gathering) ?>
-                    - <?= $this->Timezone->format($gathering->end_date, 'M d, Y g:i A', false, null, $gathering) ?>
+                <?php if ($startInGatheringTz->format('Y-m-d') !== $endInGatheringTz->format('Y-m-d')) : ?>
+                    <?= h($startInGatheringTz->format('M d, Y')) ?><?php
+                    echo h(AnnoSocietatis::suffix($startInGatheringTz)); ?>
+                    <?= h($startInGatheringTz->format('g:i A')) ?>
+                    - <?= h($endInGatheringTz->format('M d, Y')) ?><?php
+                    echo h(AnnoSocietatis::suffix($endInGatheringTz, $startInGatheringTz)); ?>
+                    <?= h($endInGatheringTz->format('g:i A')) ?>
                 <?php else: ?>
-                    <?= $this->Timezone->format($gathering->start_date, 'M d, Y', false, null, $gathering) ?><br>
+                    <?= h($startInGatheringTz->format('M d, Y')) ?><?php
+                    echo h(AnnoSocietatis::suffix($startInGatheringTz)); ?><br>
                     <small>
-                        <?= $this->Timezone->format($gathering->start_date, 'g:i A', false, null, $gathering) ?>
-                        - <?= $this->Timezone->format($gathering->end_date, 'g:i A', false, null, $gathering) ?>
+                        <?= h($startInGatheringTz->format('g:i A')) ?>
+                        - <?= h($endInGatheringTz->format('g:i A')) ?>
                     </small>
                 <?php endif; ?>
             </span>
@@ -157,6 +164,67 @@ if (!isset($scheduleByDate)) {
         <?php endif; ?>
     </div>
 </div>
+
+
+<!-- Call to Action -->
+<?php if (!$isPast && (!$isCancelled || $canEditAttendance)) : ?>
+    <div class="event-container" id="rsvp">
+        <div class="cta-medieval fade-in">
+            <div class="cta-ornament-top">⚔ ⚔ ⚔</div>
+
+            <h2><?= $isCancelled ? __('Your RSVP') : __('Ready to Join Us?') ?></h2>
+            <p>
+                <?php if ($isCancelled) : ?>
+                    <?= __('This event has been cancelled. You can update or remove your RSVP.') ?>
+                <?php elseif ($isOngoing) : ?>
+                    <?= __('This event is happening now! Come join the festivities.') ?>
+                <?php else : ?>
+                    <?= __('Mark your calendar and prepare for an amazing experience!') ?>
+                <?php endif; ?>
+            </p>
+
+            <div class="cta-buttons">
+                <?php if ($isAuthenticated && ($canCreateAttendance || $canEditAttendance)) : ?>
+                    <!-- Authenticated user - show Attend/Update button -->
+                    <button type="button" class="btn-medieval btn-medieval-cta" data-bs-toggle="modal"
+                        data-bs-target="#attendGatheringModal">
+                        <kmp-icon name="calendar-check"  aria-hidden="true"></kmp-icon>
+                        <?= $userAttendance ? __('Update RSVP') : __('RSVP') ?>
+                    </button>
+                <?php elseif (!$isAuthenticated) : ?>
+                    <!-- Non-authenticated user - show login link -->
+                    <a href="<?= h($this->Url->build([
+                        'controller' => 'Members', 'action' => 'login',
+                        '?' => ['redirect' => $this->Url->build([
+                            'controller' => 'Gatherings', 'action' => 'publicLanding',
+                            $gathering->public_id, '#' => 'rsvp',
+                        ])],
+                    ])) ?>"
+                        class="btn-medieval btn-medieval-cta">
+                        <kmp-icon name="login"  aria-hidden="true"></kmp-icon>
+                        <?= __('Log in to RSVP') ?>
+                    </a>
+                <?php endif; ?>
+
+                <?php if ($gathering->latitude !== null && $gathering->longitude !== null) : ?>
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=<?= $gathering->latitude ?>,<?= $gathering->longitude ?>"
+                        target="_blank" class="btn-medieval btn-medieval-outline">
+                        <kmp-icon name="sign-right"  aria-hidden="true"></kmp-icon>
+                        <?= __('Get Directions') ?>
+                    </a>
+                <?php elseif ($gathering->location) : ?>
+                    <a href="https://www.google.com/maps/search/?api=1&query=<?= urlencode($gathering->location) ?>"
+                        target="_blank" class="btn-medieval btn-medieval-outline">
+                        <kmp-icon name="map"  aria-hidden="true"></kmp-icon>
+                        <?= __('Find Location') ?>
+                    </a>
+                <?php endif; ?>
+            </div>
+
+            <div class="cta-ornament-bottom">⚔ ⚔ ⚔</div>
+        </div>
+    </div>
+<?php endif; ?>
 
 
 <!-- Event Information Cards -->
@@ -544,57 +612,6 @@ if (!isset($scheduleByDate)) {
 <?php endif; ?>
 
 
-<!-- Call to Action -->
-<?php if (!$isPast): ?>
-    <div class="event-container">
-        <div class="cta-medieval fade-in" style="animation-delay: 0.25s;">
-            <div class="cta-ornament-top">⚔ ⚔ ⚔</div>
-
-            <h2><?= __('Ready to Join Us?') ?></h2>
-            <p>
-                <?php if ($isOngoing): ?>
-                    <?= __('This event is happening now! Come join the festivities.') ?>
-                <?php else: ?>
-                    <?= __('Mark your calendar and prepare for an amazing experience!') ?>
-                <?php endif; ?>
-            </p>
-
-            <div class="cta-buttons">
-                <?php if ($isAuthenticated && ($canCreateAttendance || $canEditAttendance)): ?>
-                    <!-- Authenticated user - show Attend/Update button -->
-                    <button type="button" class="btn-medieval btn-medieval-cta" data-bs-toggle="modal"
-                        data-bs-target="#attendGatheringModal">
-                        <kmp-icon name="calendar-check"  aria-hidden="true"></kmp-icon>
-                        <?= $userAttendance ? __('Update Attendance') : __('Attend This Gathering') ?>
-                    </button>
-                <?php elseif (!$isAuthenticated): ?>
-                    <!-- Non-authenticated user - show login link -->
-                    <a href="<?= $this->Url->build(['controller' => 'Gatherings', 'action' => 'view', $gathering->public_id]) ?>"
-                        class="btn-medieval btn-medieval-cta">
-                        <kmp-icon name="login"  aria-hidden="true"></kmp-icon>
-                        <?= __('Login to AMP to RSVP') ?>
-                    </a>
-                <?php endif; ?>
-
-                <?php if ($gathering->latitude !== null && $gathering->longitude !== null): ?>
-                    <a href="https://www.google.com/maps/dir/?api=1&destination=<?= $gathering->latitude ?>,<?= $gathering->longitude ?>"
-                        target="_blank" class="btn-medieval btn-medieval-outline">
-                        <kmp-icon name="sign-right"  aria-hidden="true"></kmp-icon>
-                        <?= __('Get Directions') ?>
-                    </a>
-                <?php elseif ($gathering->location): ?>
-                    <a href="https://www.google.com/maps/search/?api=1&query=<?= urlencode($gathering->location) ?>"
-                        target="_blank" class="btn-medieval btn-medieval-outline">
-                        <kmp-icon name="map"  aria-hidden="true"></kmp-icon>
-                        <?= __('Find Location') ?>
-                    </a>
-                <?php endif; ?>
-            </div>
-
-            <div class="cta-ornament-bottom">⚔ ⚔ ⚔</div>
-        </div>
-    </div>
-<?php endif; ?>
 
 <?php
 // Include Attend Gathering Modal for authenticated users

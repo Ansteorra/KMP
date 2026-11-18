@@ -415,10 +415,8 @@ class BestowalsGridColumns extends BaseGridColumns
                 'filterable' => true,
                 'filterType' => 'dropdown',
                 'filterOptionsSource' => [
-                    'table' => 'Gatherings',
-                    'valueField' => 'id',
-                    'labelField' => 'name',
-                    'order' => ['name' => 'ASC'],
+                    'method' => 'getGatheringsFilterOptions',
+                    'class' => self::class,
                 ],
                 'defaultVisible' => false,
                 'width' => '180px',
@@ -562,6 +560,30 @@ class BestowalsGridColumns extends BaseGridColumns
         ];
 
         return $views;
+    }
+
+    /**
+     * List gatherings with assigned, non-deleted bestowals, including completed bestowals.
+     *
+     * @param \Cake\ORM\Query\SelectQuery $authorizedBestowals Current actor visibility scope, before UI filters
+     * @return list<array{value: string, label: string}>
+     */
+    public static function getGatheringsFilterOptions(SelectQuery $authorizedBestowals): array
+    {
+        $locator = TableRegistry::getTableLocator();
+        $assignedGatherings = (clone $authorizedBestowals)
+            ->select(['Bestowals.gathering_id'], true)
+            ->where(['Bestowals.gathering_id IS NOT' => null]);
+        $gatherings = $locator->get('Gatherings')->find('list')
+            ->where(['Gatherings.id IN' => $assignedGatherings])
+            ->orderBy(['Gatherings.name' => 'ASC']);
+
+        $options = [];
+        foreach ($gatherings as $id => $name) {
+            $options[] = ['value' => (string)$id, 'label' => $name];
+        }
+
+        return $options;
     }
 
     /**

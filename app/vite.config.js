@@ -40,6 +40,20 @@ function iconCatalogPlugin() {
     };
 }
 
+/** Keep the accepted build/test dependency out of page and worker graphs. */
+function noRuntimePicomatchPlugin() {
+    return {
+        name: 'kmp-no-runtime-picomatch',
+        buildEnd() {
+            for (const id of this.getModuleIds()) {
+                if (/(?:^|\/)picomatch(?:\/|$)/.test(id.replaceAll('\\', '/'))) {
+                    this.error('Picomatch is build/test-only and must not enter browser modules.');
+                }
+            }
+        },
+    };
+}
+
 export default defineConfig(({ mode }) => ({
     define: { __KMP_ICON_DEBUG__: mode === 'development' },
     root: '.',
@@ -112,7 +126,10 @@ export default defineConfig(({ mode }) => ({
         },
     },
 
+    worker: { plugins: () => [noRuntimePicomatchPlugin()] },
+
     plugins: [
+        noRuntimePicomatchPlugin(),
         iconCatalogPlugin(),
         copyAssetsPlugin(),
     ],

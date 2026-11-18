@@ -94,6 +94,10 @@ Own award domains, levels, recommendations, recommendation feedback approvals, b
   `Recommendation::getRecipientName()`. Keep submitted snapshots and identity/OP links unchanged;
   eager-load members for current-name display, searching, and sorting. Bestowal grids and CSV
   report the actual award and specialty rather than substituting recommendation values.
+- Bestowal grid Award labels omit the level. The Gathering filter lists only gatherings with
+  at least one assigned, non-deleted bestowal visible through the current actor's branch/delegation
+  and hidden-state scope, including completed bestowals and past gatherings. Resolve these choices
+  fresh in the controller; do not persist them in the tenant-wide grid option cache.
 - The Submitted By Me recommendation grid offers text search only; use its dedicated column metadata to keep dropdown and date filters unavailable.
 - Gathering activity attachment, descriptions, removal, and scheduling use the core activity's **Can be assigned by**
   configuration. Matching permissions are evaluated in the gathering's branch and grant access to that activity only,
