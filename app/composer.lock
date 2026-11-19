@@ -975,16 +975,16 @@
         },
         {
             "name": "dereuromark/cakephp-shim",
-            "version": "3.9.1",
+            "version": "3.9.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/dereuromark/cakephp-shim.git",
-                "reference": "a934aec92d4e85e521f10346df3051cdcde793de"
+                "reference": "ed36b5fcc43b075cc75fbd8ff9026ac4baaf7772"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/dereuromark/cakephp-shim/zipball/a934aec92d4e85e521f10346df3051cdcde793de",
-                "reference": "a934aec92d4e85e521f10346df3051cdcde793de",
+                "url": "https://api.github.com/repos/dereuromark/cakephp-shim/zipball/ed36b5fcc43b075cc75fbd8ff9026ac4baaf7772",
+                "reference": "ed36b5fcc43b075cc75fbd8ff9026ac4baaf7772",
                 "shasum": ""
             },
             "require": {
@@ -1030,7 +1030,7 @@
                 "issues": "https://github.com/dereuromark/cakephp-shim/issues",
                 "source": "https://github.com/dereuromark/cakephp-shim"
             },
-            "time": "2026-05-25T03:25:20+00:00"
+            "time": "2026-10-11T13:52:51+00:00"
         },
         {
             "name": "dereuromark/cakephp-templating",
@@ -1094,16 +1094,16 @@
         },
         {
             "name": "dereuromark/cakephp-tools",
-            "version": "3.13.2",
+            "version": "3.14.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/dereuromark/cakephp-tools.git",
-                "reference": "106366692218360d44d05a8f89caaf7279232c82"
+                "reference": "0f7b4815365a78eb9debaae227e7161eafc251ad"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/dereuromark/cakephp-tools/zipball/106366692218360d44d05a8f89caaf7279232c82",
-                "reference": "106366692218360d44d05a8f89caaf7279232c82",
+                "url": "https://api.github.com/repos/dereuromark/cakephp-tools/zipball/0f7b4815365a78eb9debaae227e7161eafc251ad",
+                "reference": "0f7b4815365a78eb9debaae227e7161eafc251ad",
                 "shasum": ""
             },
             "require": {
@@ -1116,13 +1116,10 @@
             },
             "require-dev": {
                 "cakephp/authentication": "^4.0.0",
+                "dereuromark/cakephp-i18n-lint": "^0.1.2",
                 "fig-r/psr2r-sniffer": "dev-master",
                 "mobiledetect/mobiledetectlib": "^4.8.09",
-                "phpunit/phpunit": "^11.5 || ^12.1 || ^13.0",
-                "yangqi/htmldom": "^1.0"
-            },
-            "suggest": {
-                "yangqi/htmldom": "For HtmlDom usage"
+                "phpunit/phpunit": "^11.5 || ^12.1 || ^13.0"
             },
             "type": "cakephp-plugin",
             "autoload": {
@@ -1159,7 +1156,7 @@
                 "issues": "https://github.com/dereuromark/cakephp-tools/issues",
                 "source": "https://github.com/dereuromark/cakephp-tools"
             },
-            "time": "2026-07-18T16:56:14+00:00"
+            "time": "2026-11-11T12:27:27+00:00"
         },
         {
             "name": "dragonmantank/cron-expression",
@@ -2232,30 +2229,31 @@
         },
         {
             "name": "laminas/laminas-httphandlerrunner",
-            "version": "2.14.0",
+            "version": "2.15.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laminas/laminas-httphandlerrunner.git",
-                "reference": "14d5182a4ba180c998dfbba9d19f9a70337c02b4"
+                "reference": "459cf8e2cbf93abb582990f4243c31d42e965472"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laminas/laminas-httphandlerrunner/zipball/14d5182a4ba180c998dfbba9d19f9a70337c02b4",
-                "reference": "14d5182a4ba180c998dfbba9d19f9a70337c02b4",
+                "url": "https://api.github.com/repos/laminas/laminas-httphandlerrunner/zipball/459cf8e2cbf93abb582990f4243c31d42e965472",
+                "reference": "459cf8e2cbf93abb582990f4243c31d42e965472",
                 "shasum": ""
             },
             "require": {
-                "php": "~8.2.0 || ~8.3.0 || ~8.4.0 || ~8.5.0",
+                "php": "~8.3.0 || ~8.4.0 || ~8.5.0 || ~8.6.0",
                 "psr/http-message": "^1.0 || ^2.0",
                 "psr/http-message-implementation": "^1.0 || ^2.0",
                 "psr/http-server-handler": "^1.0"
             },
             "require-dev": {
+                "laminas/internal-tooling": "^1.2",
                 "laminas/laminas-coding-standard": "~3.1.0",
-                "laminas/laminas-diactoros": "^3.6.0",
-                "phpunit/phpunit": "^10.5.46",
-                "psalm/plugin-phpunit": "^0.19.5",
-                "vimeo/psalm": "^6.10.3"
+                "laminas/laminas-diactoros": "^3.10.0",
+                "phpunit/phpunit": "^10.5.66",
+                "psalm/plugin-phpunit": "^0.22.2",
+                "vimeo/psalm": "^6.20.11"
             },
             "type": "library",
             "extra": {
@@ -2295,7 +2293,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2026-09-21T10:14:52+00:00"
+            "time": "2026-11-12T14:06:40+00:00"
         },
         {
             "name": "lbuchs/webauthn",
