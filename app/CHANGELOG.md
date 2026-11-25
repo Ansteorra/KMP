@@ -3,8 +3,21 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: 972ddd8eec5a9a14050adc6116c718c435aca016 -->
-<!-- LAST_SYNCED_DATE: 2026-11-17 -->
+<!-- LAST_SYNCED_COMMIT: c4ebe4551d53bdd8d8f69b36b0588e3a26dad932 -->
+<!-- LAST_SYNCED_DATE: 2026-11-25 -->
+
+## KMP 1.5.16 — November 25, 2026
+
+KMP 1.5.16 gives kingdoms more control over their public calendar and makes gathering and waiver workflows easier to navigate.
+
+- Customize the public events calendar in **Config → Public Events Calendar**. Set the title, icon or logo, theme, fonts, colors, introduction, footer, and calendar subscription link.
+- Embed the public calendar on approved kingdom websites. Show or hide the header, introduction, and footer independently in the iframe. Visitors can filter events in place and open RSVP in KMP.
+- Create gatherings through a guided form. The hosting-group autocomplete defaults to your home group when permitted, and address entry works when map suggestions are unavailable.
+- Choose what visitors will see and review the gathering before saving. The hosted KMP event page is the default. Organizers can link to an external website or show the gathering without a website link.
+- Gathering creation and waiver uploads share numbered steps and the same navigation controls on desktop and mobile. Return to an earlier step without losing your entries.
+- Use Dataverse search and filters in the **Waiver Clerk Calendar** to narrow the month by hosting group, gathering type, activity, or waiver status. Filters stay applied while you move between months.
+
+---
 
 ## KMP 1.5.15 — November 17, 2026
 
