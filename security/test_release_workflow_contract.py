@@ -107,7 +107,9 @@ print(os.environ['WORKFLOW_RESPONSE'])
 
     def test_security_build_refreshes_native_packages_for_pushes_as_well_as_schedules(self):
         security = (ROOT / '.github/workflows/security.yml').read_text()
-        self.assertRegex(security, r'(?m)^          no-cache-filters: runtime-base$')
+        image_build = (ROOT / '.github/workflows/nightly.yml').read_text()
+        for workflow in (security, image_build):
+            self.assertRegex(workflow, r'(?m)^          no-cache-filters: runtime-base,runtime$')
         self.assertIn('cache-from: type=gha,scope=kmp-security', security)
 
     def gateway_pull_command(self):
