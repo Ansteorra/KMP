@@ -1,68 +1,43 @@
 import { Controller } from "@hotwired/stimulus"
 
-/**
- * Waiver Calendar Controller
- *
- * Renders a monthly calendar showing gatherings color-coded by waiver status.
- * Red = no waivers, Yellow = partial, Green = complete, Blue = closed.
- *
- * Values:
- * - url: API endpoint for calendar data
- *
- * Targets:
- * - calendar: Container for the calendar grid
- * - monthLabel: Displays current month/year
- * - prevBtn: Previous month button
- * - nextBtn: Next month button
- */
+/** Render the Dataverse-filtered waiver month and navigate through the shared grid controller. */
 class WaiverCalendarController extends Controller {
-    static targets = ["calendar", "monthLabel", "prevBtn", "nextBtn"]
-    static values = { url: String }
+    static outlets = ['grid-view']
+    static targets = ['frame', 'monthData', 'calendar', 'monthLabel', 'prevBtn', 'nextBtn', 'filterControls', 'status']
+    static values = { emptyMessage: String, errorMessage: String }
 
-    connect() {
-        const now = new Date()
-        this.year = now.getFullYear()
-        this.month = now.getMonth() + 1
-        this.loadMonth()
+    monthDataTargetConnected(target) {
+        const data = JSON.parse(target.textContent)
+        this.year = data.year
+        this.month = data.month
+        this.monthLabelTarget.textContent = data.monthName
+        this.prevBtnTarget.disabled = data.year === 2000 && data.month === 1
+        this.nextBtnTarget.disabled = data.year === 2100 && data.month === 12
+        this.filterControlsTarget.disabled = false
+        this.renderCalendar(data)
+        this.statusTarget.textContent = data.events.length ? data.summary : this.emptyMessageValue
+        this.statusTarget.classList.toggle('visually-hidden', Boolean(data.events.length))
     }
 
     prevMonth() {
-        this.month--
-        if (this.month < 1) {
-            this.month = 12
-            this.year--
-        }
-        this.loadMonth()
+        this.moveMonth(-1)
     }
 
     nextMonth() {
-        this.month++
-        if (this.month > 12) {
-            this.month = 1
-            this.year++
-        }
-        this.loadMonth()
+        this.moveMonth(1)
     }
 
-    async loadMonth() {
-        const sep = this.urlValue.includes('?') ? '&' : '?'
-        const url = `${this.urlValue}${sep}year=${this.year}&month=${this.month}`
+    moveMonth(offset) {
+        if (!this.hasGridViewOutlet || !this.month) return
+        const date = new Date(this.year, this.month - 1 + offset, 1)
+        const url = this.gridViewOutlet.buildUrl({ year: date.getFullYear(), month: date.getMonth() + 1 })
+        this.gridViewOutlet.navigate(url)
+    }
 
-        try {
-            const response = await fetch(url, {
-                headers: { 'Accept': 'application/json' }
-            })
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`)
-            }
-            const data = await response.json()
-            this.monthLabelTarget.textContent = data.monthName
-            this.renderCalendar(data)
-        } catch (error) {
-            console.error('Failed to load calendar data:', error)
-            this.calendarTarget.innerHTML =
-                '<div class="alert alert-danger">Failed to load calendar data.</div>'
-        }
+    loadFailed() {
+        if (!this.month) this.frameTarget.replaceChildren()
+        this.statusTarget.classList.remove('visually-hidden')
+        this.statusTarget.textContent = this.errorMessageValue
     }
 
     renderCalendar(data) {
@@ -75,8 +50,9 @@ class WaiverCalendarController extends Controller {
 
         // Build event lookup by date (only show on start_date to avoid clutter)
         const eventsByDate = {}
+        const firstDate = this.dateKey(firstDay)
         for (const evt of data.events) {
-            const key = evt.start_date
+            const key = evt.start_date < firstDate && evt.end_date >= firstDate ? firstDate : evt.start_date
             if (!eventsByDate[key]) eventsByDate[key] = []
             eventsByDate[key].push(evt)
         }
@@ -176,7 +152,7 @@ class WaiverCalendarController extends Controller {
     escapeHtml(str) {
         const div = document.createElement('div')
         div.textContent = str
-        return div.innerHTML
+        return div.innerHTML.replaceAll('"', '&quot;')
     }
 }
 

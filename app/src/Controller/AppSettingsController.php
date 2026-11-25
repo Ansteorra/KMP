@@ -7,7 +7,9 @@ use App\KMP\GridColumns\AppSettingsGridColumns;
 use App\KMP\GridRowDomId;
 use App\KMP\StaticHelpers;
 use App\Services\CsvExportService;
+use App\Services\PublicCalendarSettings;
 use Cake\Event\EventInterface;
+use Cake\Form\Form;
 use Cake\Http\Exception\NotFoundException;
 use Cake\Http\Response;
 use InvalidArgumentException;
@@ -70,6 +72,37 @@ class AppSettingsController extends AppController
         // Set empty entity for the add modal form
         $emptyAppSetting = $this->AppSettings->newEmptyEntity();
         $this->set(compact('emptyAppSetting'));
+    }
+
+    /** Edit the tenant's public calendar presentation. */
+    public function publicCalendar(): ?Response
+    {
+        $this->request->allowMethod(['get', 'post']);
+        $this->Authorization->authorize($this->AppSettings->newEmptyEntity());
+
+        $settings = new PublicCalendarSettings($this->AppSettings);
+        $fields = $settings->load();
+        $form = new Form();
+        if ($this->request->is('post')) {
+            $fields = $settings->submittedFields((array)$this->request->getData(), $fields);
+            $logo = $this->request->getUploadedFile('logo') ?? $this->request->getData('logo');
+            $errors = $settings->save($fields, $logo instanceof UploadedFileInterface ? $logo : null);
+            if ($errors === []) {
+                $this->Flash->success(__('The public calendar settings have been saved.'));
+
+                return $this->redirect(['action' => 'publicCalendar'], 303);
+            }
+
+            $form->setErrors($errors);
+            $this->Flash->error($errors['_settings']['save'] ?? __('Check the highlighted calendar settings.'));
+            $this->setResponse($this->getResponse()->withStatus(422));
+        }
+
+        $form->setData($fields);
+        $savedLogoUrl = PublicCalendarSettings::logoUrl($fields);
+        $this->set(compact('form', 'savedLogoUrl'));
+
+        return null;
     }
 
     /**

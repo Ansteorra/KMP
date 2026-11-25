@@ -5,40 +5,80 @@ use App\Model\Entity\GatheringActivity;
 
 /** @var \App\View\AppView $this */
 $siteTitle = $this->KMP->getAppSetting('KMP.ShortSiteTitle');
-$this->assign('title', $siteTitle . ': ' . __('Kingdom Calendar'));
+$mastheadTitle = $calendarSettings['header_title'] !== '' ? $calendarSettings['header_title'] : $siteTitle;
+$heading = $calendarSettings['calendar_heading'];
+$showHeader = $calendarSettings[$calendarEmbed ? 'embed_header' : 'show_header'] === '1';
+$showHeading = $heading !== '' && (!$calendarEmbed || $showHeader);
+$showIntro = (!$calendarEmbed || $calendarSettings['embed_intro'] === '1') && $calendarSettings['intro'] !== '';
+$showFooter = $calendarSettings[$calendarEmbed ? 'embed_footer' : 'show_footer'] === '1'
+    && $calendarSettings['footer_body'] !== '';
+$this->assign('title', h($calendarSettings['header_title'] !== ''
+    ? $mastheadTitle
+    : $siteTitle . ': ' . __('Kingdom Calendar')));
 $this->append('css', $this->Vite->css('gatherings_public'));
+$this->append('css', '<style>.kingdom-calendar-page{' . $calendarStyle . '}</style>');
 $customCalendarCss = (string)$this->KMP->getAppSetting('Plugin.PublicGatherings.CustomCSS', '');
 if (trim($customCalendarCss) !== '') {
     $this->append('css', '<style>' . str_ireplace('</style', '<\\/style', $customCalendarCss) . '</style>');
 }
-$calendarUrl = $this->Url->build(['controller' => 'Gatherings', 'action' => 'publicCalendar']);
+$calendarRoute = ['controller' => 'Gatherings', 'action' => 'publicCalendar'];
+$calendarUrl = $this->Url->build($calendarRoute);
+$modeQuery = $calendarEmbed ? ['embed' => '1'] : [];
+$upcomingUrl = $this->Url->build($calendarRoute + ['?' => $modeQuery], ['escape' => false]);
+$archiveUrl = $this->Url->build($calendarRoute + ['?' => $modeQuery + ['view' => 'archive']], ['escape' => false]);
 $feedUrl = $this->Url->build([
     'controller' => 'Gatherings', 'action' => 'feed',
 ], ['fullBase' => true]);
 $webcalUrl = preg_replace('/^https?:/', 'webcal:', $feedUrl);
 $hasFilterSummary = $search !== '' || $selectedMonth !== null || $selectedYear !== null || $selectedBranchId > 0;
 ?>
-<div class="kingdom-calendar-page" data-controller="public-calendar"
+<div class="kingdom-calendar-page<?= $calendarEmbed ? ' kingdom-calendar-page--embedded' : '' ?>"
+    data-controller="public-calendar"
     data-public-calendar-pending-message-value="<?= h(__('Selection changed. Apply filters to update events.')) ?>"
     data-action="focusin->public-calendar#revealFocus hashchange@window->public-calendar#restoreEvent">
     <div class="kc-shell">
-        <header class="kc-masthead">
-            <div class="kc-brand">
-                <?= $this->Icon->render('court-crown', ['size' => 36]) ?>
-                <div><strong><?= h($siteTitle) ?></strong><span><?= __('Kingdom Calendar') ?></span></div>
-            </div>
-            <a href="<?= h($webcalUrl) ?>" class="kc-subscribe-link">
-                <?= $this->Icon->render('calendar-plus') ?> <?= __('Subscribe to Calendar') ?>
-            </a>
-        </header>
-        <main id="calendar-events">
-            <div class="kc-heading">
-                <h1><?= $isArchive ? __('Event archive') : __('Upcoming Events') ?></h1>
-                <p><?= __('Tourneys, courts, classes, and gatherings. All in one place.') ?></p>
-            </div>
+        <?php if ($showHeader) : ?>
+            <header class="kc-masthead">
+                <div class="kc-brand">
+                    <?php if ($calendarLogo !== null) : ?>
+                        <img src="<?= h($calendarLogo) ?>" alt="" class="kc-logo">
+                    <?php elseif ($calendarIcon !== null) : ?>
+                        <?= $this->Icon->render($calendarIcon, ['size' => 36]) ?>
+                    <?php endif; ?>
+                    <div>
+                        <strong><?= h($mastheadTitle) ?></strong>
+                        <?php if ($calendarSettings['header_subtitle'] !== '') : ?>
+                            <span><?= h($calendarSettings['header_subtitle']) ?></span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php if ($calendarSettings['show_subscribe'] === '1') : ?>
+                    <a href="<?= h($webcalUrl) ?>" class="kc-subscribe-link">
+                        <?= $this->Icon->render('calendar-plus') ?> <?= __('Subscribe to Calendar') ?>
+                    </a>
+                <?php endif; ?>
+            </header>
+        <?php endif; ?>
+        <main id="calendar-events" tabindex="-1">
+            <?php if (!$showHeading) : ?>
+                <h1 class="visually-hidden"><?= h($heading !== '' ? $heading : __('Kingdom Calendar')) ?></h1>
+            <?php endif; ?>
+            <?php if ($showHeading || $showIntro) : ?>
+                <div class="kc-heading">
+                    <?php if ($showHeading) : ?>
+                        <h1><?= h($heading) ?></h1>
+                    <?php endif; ?>
+                    <?php if ($showIntro) : ?>
+                        <div class="kc-copy"><?= $this->Markdown->toHtml($calendarSettings['intro']) ?></div>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
             <form method="get" action="<?= h($calendarUrl) ?>" class="kc-filter-bar"
                 data-public-calendar-target="filterBar" aria-label="<?= h(__('Find events')) ?>">
                 <input type="hidden" name="view" value="archive">
+                <?php if ($calendarEmbed) : ?>
+                    <input type="hidden" name="embed" value="1">
+                <?php endif; ?>
                 <details class="kc-filter-settings" data-public-calendar-target="filterDisclosure" open>
                     <summary class="kc-filters-toggle">
                         <?= $this->Icon->render('filter') ?> <?= __('Filters') ?>
@@ -173,9 +213,9 @@ $hasFilterSummary = $search !== '' || $selectedMonth !== null || $selectedYear !
                                 </div>
                             </details>
                             <button type="submit" class="kc-button kc-apply"><?= __('Apply filters') ?></button>
-                            <a href="<?= h($calendarUrl) ?>"
-                                <?= !$isArchive ? 'aria-current="page"' : '' ?>><?= __('Upcoming Events') ?></a>
-                            <a href="<?= h($calendarUrl) ?>?view=archive"><?= __('All published events') ?></a>
+                            <a href="<?= h($upcomingUrl) ?>"
+                                <?= !$isArchive ? 'aria-current="page"' : '' ?>><?= __('This month onward') ?></a>
+                            <a href="<?= h($archiveUrl) ?>"><?= __('All published events') ?></a>
                         </div>
                     </div>
                 </details>
@@ -195,9 +235,7 @@ $hasFilterSummary = $search !== '' || $selectedMonth !== null || $selectedYear !
             </form>
             <div class="kc-results-heading">
                 <p><?= __n('{0} published event', '{0} published events', $eventCount, $eventCount) ?></p>
-                <span><?= $isArchive
-                    ? __('Published event history · event local time')
-                    : __('This month onward · event local time') ?></span>
+                <span><?= __('Event local time') ?></span>
             </div>
             <?php if ($eventCount === 0) : ?>
                 <p role="status"><?= __('No published events match these filters.') ?></p>
@@ -271,13 +309,18 @@ $hasFilterSummary = $search !== '' || $selectedMonth !== null || $selectedYear !
                 <span><?= __('Select a row to expand · event names open the event page') ?></span>
             </div>
         </main>
-        <footer class="kc-footer"><details><summary><?= __('About this calendar') ?></summary>
-            <p><?= __(
-                'Events are published by the kingdom calendar staff. Empty weekends show no published events; '
-                . 'they do not guarantee that a date is available to book.',
-            ) ?></p>
-            <p><?= __('Use Subscribe to Calendar to follow published updates in your calendar app.') ?></p>
-        </details></footer>
+        <?php if ($showFooter) : ?>
+            <footer class="kc-footer">
+                <?php if ($calendarSettings['footer_title'] !== '') : ?>
+                    <details>
+                        <summary><?= h($calendarSettings['footer_title']) ?></summary>
+                        <div class="kc-copy"><?= $this->Markdown->toHtml($calendarSettings['footer_body']) ?></div>
+                    </details>
+                <?php else : ?>
+                    <div class="kc-copy"><?= $this->Markdown->toHtml($calendarSettings['footer_body']) ?></div>
+                <?php endif; ?>
+            </footer>
+        <?php endif; ?>
     </div>
 </div>
 <?php foreach ($rsvpGatherings as $rsvpGathering) : ?>

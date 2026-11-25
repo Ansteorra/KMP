@@ -124,71 +124,7 @@ $this->KMP->endBlock();
             </div>
         </div>
 
-        <div class="mb-3">
-            <?php
-            // Get Google Maps API key for autocomplete
-            $apiKey = $this->KMP->getAppSetting('GoogleMaps.ApiKey', '');
-            ?>
-            <div data-controller="gathering-location-autocomplete"
-                data-gathering-location-autocomplete-api-key-value="<?= h($apiKey) ?>">
-                <?= $this->Form->control('location', [
-                    'type' => 'text',
-                    'class' => 'form-control',
-                    'placeholder' => 'Start typing an address or place name...',
-                    'autocomplete' => 'off',  // Disable browser autocomplete to avoid conflicts
-                    'data-gathering-location-autocomplete-target' => 'input'
-                ]) ?>
-
-                <?php // Hidden fields to store geocoded coordinates 
-                ?>
-                <?= $this->Form->hidden('latitude', [
-                    'data-gathering-location-autocomplete-target' => 'latitude'
-                ]) ?>
-                <?= $this->Form->hidden('longitude', [
-                    'data-gathering-location-autocomplete-target' => 'longitude'
-                ]) ?>
-            </div>
-            <small class="form-text text-muted">
-                <?= __('Start typing to see address suggestions powered by Google Maps') ?>
-            </small>
-        </div>
-
-        <div class="mb-3">
-            <?= $this->Form->control('website_url', [
-                'type' => 'url',
-                'class' => 'form-control',
-                'label' => __('Event Website'),
-                'placeholder' => 'https://...',
-                'data-gathering-form-target' => 'websiteUrl',
-            ]) ?>
-            <small class="form-text text-muted">
-                <?= __('External web page for the event. Disabled while the public landing page is enabled - the public page is used as the event\'s web link instead.') ?>
-            </small>
-        </div>
-
-        <div class="mb-3">
-            <?= $this->Form->control('preregister_url', [
-                'type' => 'url',
-                'class' => 'form-control',
-                'label' => __('Pre-Registration Link'),
-                'placeholder' => 'https://...',
-            ]) ?>
-            <small class="form-text text-muted">
-                <?= __('External pre-registration / payment link, shown prominently on the public event page.') ?>
-            </small>
-        </div>
-
-        <div class="mb-3">
-            <?= $this->Form->control('preregister_closes_on', [
-                'type' => 'date',
-                'class' => 'form-control',
-                'label' => __('Pre-Registration Closes'),
-                'empty' => true,
-            ]) ?>
-            <small class="form-text text-muted">
-                <?= __('Last day the pre-registration link is shown. Leave blank to keep it open until the event.') ?>
-            </small>
-        </div>
+        <?= $this->element('gatherings/location_field') ?>
 
         <div class="mb-3">
             <?= $this->Form->control('timezone', [
@@ -202,39 +138,8 @@ $this->KMP->endBlock();
                 <?= __('Set the timezone for this event based on its location. If not set, times will display in each user\'s timezone.') ?>
             </small>
         </div>
-
-        <div class="mb-3">
-            <?= $this->Form->control('description', [
-                'type' => 'textarea',
-                'rows' => 4,
-                'class' => 'form-control',
-                'label' => 'Description (Markdown supported)',
-                'data-controller' => 'markdown-editor',
-                'data-markdown-editor-placeholder-value' => 'Enter gathering description using Markdown...',
-                'data-markdown-editor-min-height-value' => '250px'
-            ]) ?>
-            <small class="form-text text-muted">
-                <?= __('You can use Markdown formatting: **bold**, *italic*, # headings, - lists, [links](url), etc.') ?>
-            </small>
-        </div>
-
-        <div class="mb-3">
-            <div class="form-check">
-                <?= $this->Form->checkbox('public_page_enabled', [
-                    'id' => 'public_page_enabled',
-                    'class' => 'form-check-input',
-                    'data-gathering-form-target' => 'publicPageToggle',
-                    'data-action' => 'change->gathering-form#publicPageToggled',
-                ]) ?>
-                <label class="form-check-label" for="public_page_enabled">
-                    <?= __('Enable Public Landing Page') ?>
-                </label>
-                <small class="form-text text-muted d-block">
-                    <?= __('Allow public access to this gathering\'s event page (includes schedule, activities, and staff information)') ?>
-                </small>
-            </div>
-        </div>
     </fieldset>
+    <?= $this->element('gatherings/public_details_form') ?>
 
     <div class="mt-3">
         <?= $this->Form->button(__('Save Changes'), [

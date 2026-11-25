@@ -284,16 +284,20 @@ When('I create the gatherings lifecycle gathering', async ({ page }) => {
     await page.getByLabel('Name').fill(data.gatheringName);
     await selectBranch(page, data.branchName);
     await page.locator('select[name="gathering_type_id"]').selectOption({ label: data.gatheringTypeName });
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
     await page.getByLabel('Start Date & Time').fill(data.startDate);
     await page.getByLabel('End Date & Time').fill(data.endDate);
     await page.getByLabel('Location').fill(data.gatheringLocation);
     await page.getByLabel('Event Timezone').selectOption('America/Chicago');
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
     // Description renders through the EasyMDE markdown-editor Stimulus controller,
     // which hides the underlying <textarea> behind a CodeMirror surface. Type into
     // the editor surface (forceSync keeps the textarea in sync for submission).
     const descriptionEditor = page.locator('.EasyMDEContainer .CodeMirror').first();
     await descriptionEditor.click();
     await page.keyboard.type(data.gatheringDescription);
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Review your gathering' })).toBeFocused();
     await runAndWaitForNetworkIdle(page, () => page.getByRole('button', { name: 'Create Gathering', exact: true }).click());
 
     // Turbo can paint the successful page before its history entry is committed.

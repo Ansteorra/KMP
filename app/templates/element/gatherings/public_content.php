@@ -23,6 +23,7 @@ use Cake\I18n\DateTime;
 // Check if user is authenticated
 $isAuthenticated = isset($user) && $user !== null;
 $kingdomAttendances = $kingdomAttendances ?? [];
+$eventWebsite = $gathering->publicEventUrl();
 
 // Get current time in the gathering's timezone for accurate status
 $gatheringTimezone = \App\KMP\TimezoneHelper::getGatheringTimezone($gathering, $this->getRequest()->getAttribute('identity'));
@@ -122,13 +123,10 @@ if (!isset($scheduleByDate)) {
                 <?= h($gathering->branch->name) ?>
             </span>
 
-            <?php // The public page supersedes the Event Website; only show the
-                  // external site link when the public page is not enabled
-                  // (i.e. the authenticated view_public context) ?>
-            <?php if (!$gathering->public_page_enabled && !empty($gathering->website_url)): ?>
+            <?php if ($eventWebsite !== null) : ?>
                 <span class="meta-item">
                     <kmp-icon name="link"  aria-hidden="true"></kmp-icon>
-                    <a href="<?= h($gathering->website_url) ?>" target="_blank" rel="noopener" class="event-website-link">
+                    <a href="<?= h($eventWebsite) ?>" target="_blank" rel="noopener" class="event-website-link">
                         <?= __('Event Website') ?>
                     </a>
                 </span>

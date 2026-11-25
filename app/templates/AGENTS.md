@@ -17,6 +17,7 @@ Own CakePHP views, layouts, elements, cells, email templates, Bootstrap markup, 
 - Preserve Turbo Frame IDs, Stimulus `data-*` attributes, and test selectors used by existing tests.
 - Reusable grids, autocomplete controls and dialogs need document-unique label/ARIA IDs, including hidden and retained frames. Scope IDs to the grid/control; give repeated form help explicit IDs because BootstrapUI otherwise derives them from the field name.
 - Use semantic HTML and Bootstrap classes before custom markup.
+- Use the shared `wizard/steps` and `wizard/actions` elements with `WizardControllerBase` for guided forms. Keep the same numbered steps and action order on desktop and mobile. Place each step in a bordered section with a focusable heading and validate before advancing.
 - Every form control needs an associated label and, where relevant, accessible help/error text.
 - Responsive table wrappers need a meaningful region label and `tabindex="0"` so keyboard users can scroll overflowing record details as well as grids.
 - Icons must have useful accessible names or be decorative with `aria-hidden="true"`.

@@ -61,7 +61,7 @@ const { getUiTestEnvironment } = require('./test-environment.cjs');
         });
         await addGathering.focus();
         await addGathering.press('Enter');
-        await expect(page.locator('form[data-controller="gathering-form"]')).toBeVisible();
+        await expect(page.locator('form[data-controller~="gathering-form"]')).toBeVisible();
         await expect(page).toHaveURL(/\/gatherings\/add$/);
         assert.deepEqual(addRequests, [enabled ? 'fetch' : 'document'], 'A frame-to-document link must render once');
         assert.deepEqual(errors, []);

@@ -1,247 +1,185 @@
 <?php
+declare(strict_types=1);
 
-/**
- * @var \App\View\AppView $this
- * @var \App\Model\Entity\Gathering $gathering
- * @var \App\Model\Entity\Branch[] $branches
- * @var \App\Model\Entity\GatheringType[] $gatheringTypes
- * @var bool $lockBranch
- * @var int $branchCount
- */
+/** @var \App\View\AppView $this */
+/** @var \App\Model\Entity\Gathering $gathering */
 
-$lockBranch = $lockBranch ?? false;
-$branchCount = $branchCount ?? count($branches);
-?>
-<?php
-$this->extend("/layout/TwitterBootstrap/dashboard");
+$this->extend('/layout/TwitterBootstrap/dashboard');
+$this->assign('title', __('Add Gathering'));
 
-echo $this->KMP->startBlock("title");
-echo $this->KMP->getAppSetting("KMP.ShortSiteTitle") . ': Add Gathering';
-$this->KMP->endBlock();
+$steps = [__('Basics'), __('When and where'), __('Public event page'), __('Review')];
+$fieldsByStep = [
+    ['name', 'branch_id', 'gathering_type_id'],
+    ['start_date', 'end_date', 'location', 'timezone', 'latitude', 'longitude'],
+    [
+        'website_destination', 'website_url', 'public_page_enabled', 'description',
+        'preregister_url', 'preregister_closes_on',
+    ],
+];
+$errors = $gathering->getErrors();
+$errorStep = 0;
+foreach ($fieldsByStep as $index => $fields) {
+    if (array_intersect($fields, array_keys($errors))) {
+        $errorStep = $index + 1;
+        break;
+    }
+}
 ?>
 
 <div class="gatherings form content">
+    <h1 class="h3 mb-3"><?= $this->element('backButton') ?> <?= __('Add Gathering') ?></h1>
+
     <?= $this->Form->create($gathering, [
-        'data-controller' => 'gathering-form',
-        'data-action' => 'submit->gathering-form#validateForm change->gathering-form#branchChanged',
+        'data-controller' => 'gathering-form gathering-wizard',
+        'data-action' => 'submit->gathering-wizard#submit change->gathering-form#branchChanged',
         'data-gathering-form-types-by-branch-value' => json_encode($gatheringTypesByBranch),
+        'data-gathering-wizard-error-step-value' => $errorStep,
+        'data-gathering-wizard-empty-value' => __('Not supplied'),
+        'data-gathering-wizard-yes-value' => __('Yes'),
+        'data-gathering-wizard-no-value' => __('No'),
+        'data-gathering-wizard-end-error-value' => __('End date and time must be on or after the start.'),
+        'data-gathering-wizard-hosting-group-error-value' => __('Select a hosting group from the list.'),
     ]) ?>
-    <fieldset>
-        <legend><?= $this->element('backButton') ?> <?= __('Add Gathering') ?></legend>
+    <?= $this->element('wizard/steps', [
+        'label' => __('Gathering creation steps'),
+        'steps' => $steps,
+        'panelIdPrefix' => 'gathering-wizard-step-',
+        'controller' => 'gathering-wizard',
+    ]) ?>
 
-        <div class="mb-3">
-            <?= $this->Form->control('name', [
-                'required' => true,
-                'class' => 'form-control',
-                'data-gathering-form-target' => 'name',
-                'placeholder' => 'e.g., Spring Fighter Practice, Summer Camp 2025'
-            ]) ?>
-        </div>
-
+    <section class="border rounded p-3 mb-3" id="gathering-wizard-step-1" aria-labelledby="gathering-basics"
+        data-gathering-wizard-target="panel">
+        <h2 id="gathering-basics" class="h5" tabindex="-1"><?= __('What are you planning?') ?></h2>
+        <?= $this->Form->control('name', [
+            'required' => true,
+            'placeholder' => __('e.g., Spring Fighter Practice'),
+        ]) ?>
         <div class="row">
-            <div class="col-md-6 mb-3" data-gathering-form-target="branch">
-                <?php if ($lockBranch): ?>
+            <div class="col-md-6" data-gathering-form-target="branch">
+                <div data-gathering-form-target="branchSelect">
                     <?= $this->Form->control('branch_id', [
                         'options' => $branches,
-                        'empty' => false,
+                        'empty' => $lockBranch ? false : __('Select a hosting group'),
                         'required' => true,
-                        'class' => 'form-select',
-                        'disabled' => true,
+                        'disabled' => $lockBranch,
+                        'label' => __('Hosting group'),
                     ]) ?>
+                </div>
+                <?php if ($lockBranch) : ?>
                     <?= $this->Form->hidden('branch_id', ['value' => $gathering->branch_id]) ?>
-                <?php elseif ($branchCount > 1): ?>
-                    <?= $this->KMP->comboBoxControl(
-                        $this->Form,
-                        'branch_name',
-                        'branch_id',
-                        $branches,
-                        __('Branch'),
-                        true,
-                        false,
-                        []
-                    ) ?>
-                <?php else: ?>
-                    <?= $this->Form->control('branch_id', [
-                        'options' => $branches,
-                        'empty' => __('-- Select Branch --'),
-                        'required' => true,
-                        'class' => 'form-select',
-                    ]) ?>
+                <?php elseif ($branchCount > 1) : ?>
+                    <?php
+                    $comboAttributes = [
+                        'idPrefix' => 'gathering-host',
+                        'data-action' => 'ready->gathering-form#activateBranchAutocomplete',
+                    ];
+                    $selectedBranch = $gathering->branch_id;
+                    if (isset($branches[$selectedBranch])) {
+                        $comboAttributes['data-ac-init-selection-value'] = json_encode([
+                            'value' => $selectedBranch,
+                            'text' => $branches[$selectedBranch],
+                        ]);
+                    }
+                    ?>
+                    <fieldset data-gathering-form-target="branchAutocomplete" disabled hidden>
+                        <?= $this->KMP->comboBoxControl(
+                            $this->Form,
+                            'branch_name',
+                            'branch_id',
+                            $branches,
+                            __('Hosting group'),
+                            true,
+                            false,
+                            $comboAttributes,
+                        ) ?>
+                    </fieldset>
                 <?php endif; ?>
             </div>
-            <div class="col-md-6 mb-3">
+            <div class="col-md-6">
                 <?= $this->Form->control('gathering_type_id', [
                     'options' => $gatheringTypes,
-                    'empty' => __('-- Select Type --'),
+                    'empty' => __('Select a gathering type'),
                     'required' => true,
-                    'class' => 'form-select',
                     'data-gathering-form-target' => 'gatheringTypeSelect',
-                    'aria-describedby' => 'gathering-type-availability'
+                    'aria-describedby' => 'gathering-type-availability gathering-type-description'
                         . ($gathering->getError('gathering_type_id') ? ' gathering-type-id-error' : ''),
                     'aria-invalid' => $gathering->getError('gathering_type_id') ? 'true' : 'false',
                     'data-action' => 'change->gathering-form#gatheringTypeChanged',
                 ]) ?>
-                <small id="gathering-type-availability" class="form-text text-muted d-block"
-                       role="status" aria-live="polite" data-gathering-form-target="typeAvailability">
-                    <?= $gathering->branch_id
-                        ? __('Only types whose default activities you can assign are available.')
-                        : __('Select a branch to see the gathering types you can create.') ?>
-                </small>
-                <small class="form-text text-muted d-none"
-                       data-gathering-form-target="gatheringTypeDescription"></small>
+                <p id="gathering-type-availability" class="form-text"
+                    role="status" data-gathering-form-target="typeAvailability">
+                    <?= __('The gathering type provides its default activities and waiver requirements.') ?>
+                </p>
+                <p id="gathering-type-description" class="form-text d-none"
+                    data-gathering-form-target="gatheringTypeDescription"></p>
             </div>
         </div>
+    </section>
 
+    <section class="border rounded p-3 mb-3" id="gathering-wizard-step-2" aria-labelledby="gathering-when-where"
+        data-gathering-wizard-target="panel">
+        <h2 id="gathering-when-where" class="h5" tabindex="-1"><?= __('When and where will it happen?') ?></h2>
         <div class="row">
-            <div class="col-md-6 mb-3">
+            <div class="col-md-6">
                 <?= $this->Form->control('start_date', [
                     'type' => 'datetime-local',
                     'required' => true,
-                    'class' => 'form-control',
                     'data-gathering-form-target' => 'startDate',
                     'data-action' => 'change->gathering-form#startDateChanged',
-                    'label' => 'Start Date & Time'
+                    'label' => __('Start Date & Time'),
                 ]) ?>
-                <small class="form-text text-muted">
-                    Event start date and time
-                </small>
             </div>
-            <div class="col-md-6 mb-3">
+            <div class="col-md-6">
                 <?= $this->Form->control('end_date', [
                     'type' => 'datetime-local',
-                    'required' => false,
-                    'class' => 'form-control',
                     'data-gathering-form-target' => 'endDate',
                     'data-action' => 'change->gathering-form#endDateChanged',
-                    'label' => 'End Date & Time'
-                ]) ?>
-                <small class="form-text text-muted">
-                    Will default to start date if not specified. For single-day gatherings, leave blank or use the same
-                    date as start date.
-                </small>
-            </div>
-        </div>
-
-        <div class="mb-3">
-            <?php
-            // Get Google Maps API key for autocomplete
-            $apiKey = $this->KMP->getAppSetting('GoogleMaps.ApiKey', '');
-            ?>
-            <div data-controller="gathering-location-autocomplete"
-                data-gathering-location-autocomplete-api-key-value="<?= h($apiKey) ?>">
-                <?= $this->Form->control('location', [
-                    'type' => 'text',
-                    'class' => 'form-control',
-                    'placeholder' => 'Start typing an address or place name...',
-                    'autocomplete' => 'off',  // Disable browser autocomplete to avoid conflicts
-                    'data-gathering-location-autocomplete-target' => 'input'
-                ]) ?>
-
-                <?php // Hidden fields to store geocoded coordinates 
-                ?>
-                <?= $this->Form->hidden('latitude', [
-                    'data-gathering-location-autocomplete-target' => 'latitude'
-                ]) ?>
-                <?= $this->Form->hidden('longitude', [
-                    'data-gathering-location-autocomplete-target' => 'longitude'
+                    'label' => __('End Date & Time'),
+                    'help' => __('Leave blank to use the start time.'),
                 ]) ?>
             </div>
-            <small class="form-text text-muted">
-                <?= __('Start typing to see address suggestions powered by Google Maps') ?>
-            </small>
         </div>
-
-        <div class="mb-3">
-            <?= $this->Form->control('website_url', [
-                'type' => 'url',
-                'class' => 'form-control',
-                'label' => __('Event Website'),
-                'placeholder' => 'https://...',
-                'data-gathering-form-target' => 'websiteUrl',
-            ]) ?>
-            <small class="form-text text-muted">
-                <?= __('External web page for the event. Disabled while the public landing page is enabled - the public page is used as the event\'s web link instead.') ?>
-            </small>
-        </div>
-
-        <div class="mb-3">
-            <?= $this->Form->control('preregister_url', [
-                'type' => 'url',
-                'class' => 'form-control',
-                'label' => __('Pre-Registration Link'),
-                'placeholder' => 'https://...',
-            ]) ?>
-            <small class="form-text text-muted">
-                <?= __('External pre-registration / payment link, shown prominently on the public event page.') ?>
-            </small>
-        </div>
-
-        <div class="mb-3">
-            <?= $this->Form->control('preregister_closes_on', [
-                'type' => 'date',
-                'class' => 'form-control',
-                'label' => __('Pre-Registration Closes'),
-                'empty' => true,
-            ]) ?>
-            <small class="form-text text-muted">
-                <?= __('Last day the pre-registration link is shown. Leave blank to keep it open until the event.') ?>
-            </small>
-        </div>
-
-        <div class="mb-3">
-            <?= $this->Form->control('timezone', [
-                'type' => 'select',
-                'options' => $this->Timezone->getTimezoneOptions(),
-                'empty' => sprintf('(Use User Timezone: %s)', $this->Timezone->getUserTimezone()),
-                'class' => 'form-select',
-                'label' => 'Event Timezone'
-            ]) ?>
-            <small class="form-text text-muted">
-                <?= __('Set the timezone for this event based on its location. If not set, times will display in each user\'s timezone.') ?>
-            </small>
-        </div>
-
-        <div class="mb-3">
-            <?= $this->Form->control('description', [
-                'type' => 'textarea',
-                'rows' => 4,
-                'class' => 'form-control',
-                'label' => 'Description (Markdown supported)',
-                'placeholder' => 'Additional information about the gathering...',
-                'data-controller' => 'markdown-editor',
-                'data-markdown-editor-placeholder-value' => 'Enter gathering description using Markdown...',
-                'data-markdown-editor-min-height-value' => '250px'
-            ]) ?>
-            <small class="form-text text-muted">
-                <?= __('You can use Markdown formatting: **bold**, *italic*, # headings, - lists, [links](url), etc.') ?>
-            </small>
-        </div>
-
-        <div class="mb-3">
-            <div class="form-check">
-                <?= $this->Form->checkbox('public_page_enabled', [
-                    'checked' => true,
-                    'id' => 'public_page_enabled',
-                    'class' => 'form-check-input',
-                    'data-gathering-form-target' => 'publicPageToggle',
-                    'data-action' => 'change->gathering-form#publicPageToggled',
-                ]) ?>
-                <label class="form-check-label" for="public_page_enabled">
-                    <?= __('Enable Public Landing Page') ?>
-                </label>
-                <small class="form-text text-muted d-block">
-                    <?= __('Allow public access to this gathering\'s event page (includes schedule, activities, and staff information)') ?>
-                </small>
-            </div>
-        </div>
-    </fieldset>
-
-    <div class="mt-3">
-        <?= $this->Form->button(__('Create Gathering'), [
-            'class' => 'btn btn-primary',
-            'data-gathering-form-target' => 'submitButton'
+        <?= $this->Form->control('timezone', [
+            'type' => 'select',
+            'options' => $this->Timezone->getTimezoneOptions(),
+            'empty' => __('Use your timezone ({0})', $this->Timezone->getUserTimezone()),
+            'label' => __('Event Timezone'),
+            'help' => __('Choose the timezone where the gathering takes place.'),
         ]) ?>
-        <?= $this->Html->link(__('Cancel'), ['action' => 'index'], ['class' => 'btn btn-secondary']) ?>
-    </div>
+        <?= $this->element('gatherings/location_field') ?>
+    </section>
+
+    <?= $this->element('gatherings/public_details_form', ['guided' => true]) ?>
+
+    <section class="border rounded p-3 mb-3" id="gathering-wizard-step-4" aria-labelledby="gathering-review"
+        data-gathering-wizard-target="panel" hidden>
+        <h2 id="gathering-review" class="h5" tabindex="-1"><?= __('Review your gathering') ?></h2>
+        <dl class="row">
+            <?php
+            $reviewFields = [
+                'name' => __('Name'), 'branch_id' => __('Hosting group'), 'gathering_type_id' => __('Gathering type'),
+                'start_date' => __('Start'), 'end_date' => __('End'), 'timezone' => __('Event timezone'),
+                'location' => __('Location'), 'website_destination' => __('Calendar link'),
+                'public_page_enabled' => __('KMP public page'),
+                'description' => __('Description'), 'preregister_url' => __('Pre-registration'),
+                'preregister_closes_on' => __('Pre-registration closes'),
+            ];
+            foreach ($reviewFields as $field => $label) :
+                ?>
+                <dt class="col-sm-4"><?= h($label) ?></dt>
+                <dd class="col-sm-8 text-break text-wrap" data-gathering-wizard-target="review"
+                    data-field="<?= h($field) ?>"></dd>
+            <?php endforeach; ?>
+        </dl>
+        <p class="mb-0"><?= __('After creating the gathering, you can add staff, activities, and a schedule. '
+            . 'Publishing it on the kingdom calendar is a separate step.') ?></p>
+    </section>
+
+    <?= $this->element('wizard/actions', [
+        'controller' => 'gathering-wizard',
+        'cancelUrl' => ['action' => 'index'],
+        'submitLabel' => __('Create Gathering'),
+        'submitOptions' => ['data-gathering-form-target' => 'submitButton'],
+    ]) ?>
     <?= $this->Form->end() ?>
 </div>

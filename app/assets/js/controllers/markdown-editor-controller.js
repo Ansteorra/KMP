@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { DefaultAllowlist, sanitizeHtml } from "bootstrap/js/dist/util/sanitizer.js"
 
 /**
  * Markdown Editor Controller
@@ -20,6 +21,8 @@ class MarkdownEditorController extends Controller {
         minHeight: { type: String, default: "300px" }
     }
 
+    connection = 0
+
     // Initialize function
     initialize() {
         this.editor = null
@@ -27,7 +30,10 @@ class MarkdownEditorController extends Controller {
 
     // Connect function - runs when controller connects to DOM
     async connect() {
+        const connection = ++this.connection
         const { default: EasyMDE } = await import('easymde')
+        if (connection !== this.connection || !this.element.isConnected) return
+
         // Initialize EasyMDE on the textarea
         this.editor = new EasyMDE({
             element: this.element,
@@ -60,24 +66,33 @@ class MarkdownEditorController extends Controller {
             autosave: {
                 enabled: false
             },
-            // Improve the preview rendering
-            previewRender: function(plainText) {
-                // Basic markdown to HTML conversion for preview
-                // You can enhance this with a proper markdown parser if needed
-                return this.parent.markdown(plainText);
+            renderingConfig: {
+                sanitizerFunction: html => sanitizeHtml(html, DefaultAllowlist)
             }
         })
 
-        // Log editor initialization
-        console.log('Markdown editor initialized on:', this.element)
+        const input = this.editor.codemirror.getInputField?.()
+        const label = this.element.labels?.[0]
+        if (input && label) {
+            label.id ||= `${this.element.id}-label`
+            input.setAttribute('aria-labelledby', label.id)
+            label.addEventListener('click', this.focusEditor)
+        }
+        for (const attribute of ['aria-describedby', 'aria-invalid']) {
+            const value = this.element.getAttribute(attribute)
+            if (value) input?.setAttribute(attribute, value)
+        }
     }
+
+    focusEditor = () => this.editor?.codemirror.focus()
 
     // Disconnect function - cleanup when controller disconnects
     disconnect() {
+        this.connection += 1
+        this.element.labels?.[0]?.removeEventListener('click', this.focusEditor)
         if (this.editor) {
             this.editor.toTextArea()
             this.editor = null
-            console.log('Markdown editor cleaned up')
         }
     }
 

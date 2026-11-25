@@ -10,6 +10,7 @@ use App\Model\Entity\ActionItem;
 use App\Model\Entity\GatheringActivity;
 use App\Model\Entity\GridView;
 use App\Services\GridViewService;
+use App\Services\PublicCalendarSettings;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\BestowalTodoTemplateItem;
@@ -503,7 +504,15 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
     {
         $this->get('/gatherings/add');
         $this->assertResponseOk();
+        $this->assertResponseContains('gathering-form gathering-wizard');
+        $this->assertResponseContains('Use the KMP public page (recommended)');
+        $this->assertResponseContains('Review your gathering');
         $this->assertResponseContains('Add Gathering');
+
+        $homeBranchId = $this->getTableLocator()->get('Members')->get(self::ADMIN_MEMBER_ID)->branch_id;
+        $this->assertSame($homeBranchId, $this->viewVariable('gathering')->branch_id);
+        $this->assertResponseContains('role="combobox"');
+        $this->assertResponseContains('id="gathering-host-branch_name-disp"');
     }
 
     public function testAddFiltersTypesWithRestrictedDefaultActivities(): void
@@ -515,7 +524,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
         $this->assertResponseNotContains($restricted->name);
         $this->assertResponseContains($allowed->name);
-        $this->assertResponseContains('aria-describedby="gathering-type-availability"');
+        $this->assertResponseContains('aria-describedby="gathering-type-availability gathering-type-description"');
     }
 
     public function testAddSuperuserCanSelectRestrictedTypesForEveryBranch(): void
@@ -606,7 +615,7 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseCode(422);
         $this->assertResponseContains('activities you are not authorized to assign');
         $this->assertResponseContains('value="Restricted type submission"');
-        $this->assertResponseContains('aria-describedby="gathering-type-availability gathering-type-id-error"');
+        $this->assertResponseContains('aria-describedby="gathering-type-availability gathering-type-description gathering-type-id-error"');
         $this->assertResponseContains('id="gathering-type-id-error"');
         $this->assertResponseNotContains('Page Not Found');
         $this->assertFalse($this->getTableLocator()->get('Gatherings')->exists([
@@ -675,6 +684,8 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
             'gathering_type_id' => 1,
             'name' => 'New Test Gathering',
             'description' => 'Test description',
+            'website_url' => 'https://example.test/gathering',
+            'public_page_enabled' => '1',
             'start_date' => '2025-08-01',
             'end_date' => '2025-08-03',
             'location' => 'Test Location',
@@ -685,7 +696,59 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         // Verify the gathering was created
         $Gatherings = $this->getTableLocator()->get('Gatherings');
         $query = $Gatherings->find()->where(['name' => 'New Test Gathering']);
-        $this->assertEquals(1, $query->count());
+        $gathering = $query->firstOrFail();
+        $this->assertTrue($gathering->public_page_enabled);
+        $this->assertSame('https://example.test/gathering', $gathering->website_url);
+        $this->assertFalse($gathering->published);
+    }
+
+    public static function gatheringDestinationChoices(): array
+    {
+        return [
+            'hosted' => ['kmp', 'https://example.test/old', null, true],
+            'external' => ['external', 'https://example.test/current', 'https://example.test/current', false],
+            'unlinked' => ['none', 'https://example.test/old', null, false],
+        ];
+    }
+
+    #[DataProvider('gatheringDestinationChoices')]
+    public function testAddGatheringDestination(
+        string $choice,
+        string $submittedUrl,
+        ?string $savedUrl,
+        bool $hasPublicPage,
+    ): void {
+        $name = 'Guided gathering ' . $choice;
+        $this->post('/gatherings/add', [
+            'name' => $name,
+            'branch_id' => self::KINGDOM_BRANCH_ID,
+            'gathering_type_id' => $this->getTableLocator()->get('GatheringTypes')->find()->firstOrFail()->id,
+            'start_date' => '2027-02-10T10:00',
+            'website_destination' => $choice,
+            'website_url' => $submittedUrl,
+            'public_page_enabled' => $choice === 'none' ? '1' : '0',
+        ]);
+        $this->assertRedirectContains('/gatherings/view/');
+        $gathering = $this->getTableLocator()->get('Gatherings')->find()->where(['name' => $name])->firstOrFail();
+        $this->assertSame($savedUrl, $gathering->website_url);
+        $this->assertSame($hasPublicPage, $gathering->public_page_enabled);
+        $this->assertFalse($gathering->published);
+    }
+
+    public function testAddGatheringExternalDestinationRequiresUrl(): void
+    {
+        $this->post('/gatherings/add', [
+            'name' => 'Guided gathering without external URL',
+            'branch_id' => self::KINGDOM_BRANCH_ID,
+            'gathering_type_id' => $this->getTableLocator()->get('GatheringTypes')->find()->firstOrFail()->id,
+            'start_date' => '2027-02-10T10:00',
+            'website_destination' => 'external',
+            'website_url' => '',
+        ]);
+        $this->assertResponseCode(422);
+        $this->assertResponseContains('Enter the website visitors should open.');
+        $this->assertResponseContains('data-gathering-wizard-error-step-value="3"');
+        $this->assertResponseContains('value="Guided gathering without external URL"');
     }
 
     /**
@@ -1810,11 +1873,15 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertTrue($this->viewVariable('hasFilters'));
         $this->assertSame(['Any Royal Progress'], $this->viewVariable('selectedActivityLabels'));
         $this->assertResponseContains('name="royals"');
-        $this->assertResponseContains('>Upcoming Events</a>');
+        $this->assertResponseContains('>This month onward</a>');
+        $this->assertResponseContains('<h1 class="visually-hidden">Kingdom Calendar</h1>');
+        $this->assertResponseNotContains('Event archive');
+        $this->assertResponseNotContains('Published event history');
         $this->assertResponseNotContains('name="royal_progress[]"');
         $this->get('/events');
         $this->assertResponseOk();
         $this->assertResponseContains($ordinary->name);
+        $this->assertResponseNotContains('<h1>Upcoming Events</h1>');
         $this->assertFalse($this->viewVariable('royalsOnly'));
     }
 
@@ -2388,34 +2455,126 @@ class GatheringsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseContains('Details Fold Event Sigma');
     }
 
-    /**
-     * Event link precedence on the public calendar: the KMP public page
-     * supersedes the Event Website; the website is used only when the public
-     * page is disabled.
-     *
-     * @return void
-     * @uses \App\Controller\GatheringsController::publicCalendar()
-     */
     public function testPublicCalendarEventLinkPrecedence(): void
     {
-        $withPublicPage = $this->createCalendarGathering('Public Page Event Lambda', true, [
+        $both = $this->createCalendarGathering('Both websites', true, [
             'public_page_enabled' => true,
-            'website_url' => 'https://example.org/superseded-site',
+            'website_url' => 'https://example.org/event-site',
         ]);
-        $this->createCalendarGathering('Website Only Event Mu', true, [
+        $hosted = $this->createCalendarGathering('Hosted website', true, ['public_page_enabled' => true]);
+        $this->createCalendarGathering('External only', true, [
             'public_page_enabled' => false,
-            'website_url' => 'https://example.org/external-site',
+            'website_url' => 'https://example.org/only-external',
         ]);
+        $noSite = $this->createCalendarGathering('No website', true, ['public_page_enabled' => false]);
 
         $this->session(['Auth' => null]);
         $this->get('/events');
-
         $this->assertResponseOk();
-        // Public page wins: landing link shown, external website suppressed
-        $this->assertResponseContains('public-landing/' . $withPublicPage->public_id);
-        $this->assertResponseNotContains('https://example.org/superseded-site');
-        // No public page: the external website is the event link
-        $this->assertResponseContains('https://example.org/external-site');
+        $this->assertResponseContains('href="https://example.org/event-site">Both websites');
+        $this->assertResponseContains('href="/gatherings/public-landing/' . $hosted->public_id . '">Hosted website');
+        $this->assertResponseContains('href="https://example.org/only-external">External only');
+        $this->assertResponseContains('<span class="kc-event-name">No website</span>');
+
+        $this->get('/gatherings/feed?filter[gathering_type_id][]=' . $both->gathering_type_id);
+        $this->assertResponseOk();
+        $this->assertResponseContains('URL:https://example.org/event-site');
+        $this->assertResponseContains('/gatherings/public-landing/' . $hosted->public_id);
+        $this->assertResponseNotContains('/gatherings/public-landing/' . $both->public_id);
+
+        $this->get('/gatherings/download-calendar/' . $both->public_id);
+        $this->assertResponseOk();
+        $this->assertResponseContains('URL:https://example.org/event-site');
+        $this->get('/gatherings/download-calendar/' . $noSite->public_id);
+        $this->assertResponseOk();
+        $this->assertResponseNotContains('URL:');
+
+        $this->get('/gatherings/public-landing/' . $both->public_id);
+        $this->assertResponseOk();
+        $this->assertResponseContains('https://example.org/event-site');
+    }
+
+    public function testEmbeddedCalendarCanBeFramedWithoutExposingSignedInControls(): void
+    {
+        $gathering = $this->createCalendarGathering('Embedded RSVP fixture', true, [
+            'public_page_enabled' => true,
+            'preregister_url' => 'https://registrations.example.org/entry',
+        ]);
+        $settings = $this->getTableLocator()->get('AppSettings');
+        $this->assertTrue($settings->updateSetting(PublicCalendarSettings::KEY, 'json', json_encode([
+            'embed_origins' => "https://kingdom.example\nhttps://www.kingdom.example:8443/",
+            'intro' => 'Standalone calendar introduction',
+        ], JSON_THROW_ON_ERROR)));
+
+        $this->get('/events');
+        $this->assertResponseOk();
+        $this->assertHeader('X-Frame-Options', 'SAMEORIGIN');
+        $this->assertHeaderNotContains('Content-Security-Policy', 'https://kingdom.example');
+        $this->assertResponseContains('Standalone calendar introduction');
+        $this->assertResponseContains('id="calendar-rsvp-' . $gathering->id . '"');
+
+        $this->get('/events?embed=1&q=Embedded+RSVP+fixture');
+        $this->assertResponseOk();
+        $this->assertFalse($this->_response->hasHeader('X-Frame-Options'));
+        $this->assertFalse($this->_response->hasHeader(PublicCalendarSettings::FRAME_ORIGINS_HEADER));
+        $this->assertHeaderContains(
+            'Content-Security-Policy',
+            "frame-ancestors 'self' https://kingdom.example https://www.kingdom.example:8443",
+        );
+        $this->assertHeaderContains('Cache-Control', 'no-store');
+        $this->assertResponseNotContains('class="kc-masthead"');
+        $this->assertResponseNotContains('class="kc-footer"');
+        $this->assertResponseNotContains('Standalone calendar introduction');
+        $this->assertResponseNotContains('id="calendar-rsvp-');
+        $this->assertResponseNotContains('id="flash-messages"');
+        $this->assertResponseContains('<input type="hidden" name="embed" value="1">');
+        $this->assertResponseContains('href="/events?embed=1&amp;view=archive"');
+        $this->assertResponseContains('https://registrations.example.org/entry" class="kc-button" target="_blank"');
+        $this->assertMatchesRegularExpression(
+            '/href="\/events\?q=Embedded(?:%20|\+)RSVP(?:%20|\+)fixture#event-details-/',
+            (string)$this->_response->getBody(),
+        );
+        $this->assertResponseContains('RSVP in KMP');
+
+        $this->get('/gatherings/public-landing/' . $gathering->public_id . '?embed=1');
+        $this->assertResponseOk();
+        $this->assertHeader('X-Frame-Options', 'SAMEORIGIN');
+        $this->assertHeaderNotContains('Content-Security-Policy', 'https://kingdom.example');
+    }
+
+    public function testEmbeddedCalendarContentTogglesAndInvalidStoredOrigins(): void
+    {
+        $settings = $this->getTableLocator()->get('AppSettings');
+        $this->assertTrue($settings->updateSetting(PublicCalendarSettings::KEY, 'json', json_encode([
+            'show_header' => '0',
+            'show_subscribe' => '0',
+            'show_footer' => '0',
+            'header_title' => 'Embed calendar header',
+            'artwork' => 'none',
+            'header_subtitle' => '',
+            'intro' => '',
+            'footer_title' => '',
+            'footer_body' => 'Embedded footer **with emphasis**.',
+            'embed_header' => '1',
+            'embed_intro' => '1',
+            'embed_footer' => '1',
+            'embed_origins' => 'https://kingdom.example; frame-ancestors *',
+        ], JSON_THROW_ON_ERROR)));
+
+        $this->get('/events?embed=1');
+        $this->assertResponseOk();
+        $this->assertHeader('X-Frame-Options', 'SAMEORIGIN');
+        $this->assertHeaderNotContains('Content-Security-Policy', 'https://kingdom.example');
+        $this->assertResponseContains('<strong>Embed calendar header</strong>');
+        $this->assertResponseNotContains('class="kc-subscribe-link"');
+        $this->assertResponseNotContains('class="kc-copy"></div>');
+        $this->assertResponseContains('Embedded footer <strong>with emphasis</strong>.');
+
+        $this->get('/events');
+        $this->assertResponseOk();
+        $this->assertResponseNotContains('class="kc-masthead"');
+        $this->assertResponseNotContains('Embedded footer');
+        $this->assertResponseNotContains('Tourneys, courts, classes, and gatherings.');
     }
 
     /**

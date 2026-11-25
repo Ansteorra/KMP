@@ -20,19 +20,18 @@ describe('WaiverUploadWizardController', () => {
     function buildWizardDom() {
         return `
             <div data-controller="waiver-upload-wizard"
-                 data-waiver-upload-wizard-current-step-value="1"
-                 data-waiver-upload-wizard-total-steps-value="3"
                  data-waiver-upload-wizard-gathering-id-value="42"
                  data-waiver-upload-wizard-max-file-size-value="5242880"
                  data-waiver-upload-wizard-total-max-size-value="26214400">
 
-                <div data-waiver-upload-wizard-target="progressBar" style="width: 0%;" aria-valuenow="0"></div>
+                <nav data-waiver-upload-wizard-target="navigation" hidden>
+                    <button type="button" data-waiver-upload-wizard-target="stepButton" data-step="1"></button>
+                    <button type="button" data-waiver-upload-wizard-target="stepButton" data-step="2"></button>
+                    <button type="button" data-waiver-upload-wizard-target="stepButton" data-step="3"></button>
+                </nav>
 
-                <div data-waiver-upload-wizard-target="stepIndicator" data-step="1"></div>
-                <div data-waiver-upload-wizard-target="stepIndicator" data-step="2"></div>
-                <div data-waiver-upload-wizard-target="stepIndicator" data-step="3"></div>
-
-                <div data-waiver-upload-wizard-target="step" data-step-number="1">
+                <section data-waiver-upload-wizard-target="panel">
+                    <h2 tabindex="-1">Select waiver type</h2>
                     <input type="radio" name="waiver_type" value="10" data-name="Minor Waiver"
                            data-exemption-reasons='["Under 18","Guardian present"]'
                            data-action="change->waiver-upload-wizard#selectWaiverType">
@@ -42,9 +41,10 @@ describe('WaiverUploadWizardController', () => {
                     <input type="radio" name="waiver_type" value="30" data-name="Attested Waiver"
                            disabled data-attested="1" data-name="Already Attested"
                            data-exemption-reasons='[]'>
-                </div>
+                </section>
 
-                <div data-waiver-upload-wizard-target="step" data-step-number="2" class="d-none">
+                <section data-waiver-upload-wizard-target="panel" hidden>
+                    <h2 tabindex="-1">Add waiver details</h2>
                     <div data-waiver-upload-wizard-target="step3Lead"></div>
                     <div data-waiver-upload-wizard-target="modeToggle" class="d-none">
                         <input type="radio" name="mode" id="mode-upload" value="upload" checked>
@@ -60,9 +60,10 @@ describe('WaiverUploadWizardController', () => {
                         <div data-waiver-upload-wizard-target="attestReasonList"></div>
                         <textarea data-waiver-upload-wizard-target="attestNotes"></textarea>
                     </div>
-                </div>
+                </section>
 
-                <div data-waiver-upload-wizard-target="step" data-step-number="3" class="d-none">
+                <section data-waiver-upload-wizard-target="panel" hidden>
+                    <h2 tabindex="-1">Review and submit</h2>
                     <span data-waiver-upload-wizard-target="reviewWaiverType"></span>
                     <div data-waiver-upload-wizard-target="reviewUploadSection">
                         <span data-waiver-upload-wizard-target="reviewPageCount"></span>
@@ -75,13 +76,11 @@ describe('WaiverUploadWizardController', () => {
                         </div>
                     </div>
                     <textarea data-waiver-upload-wizard-target="notesField"></textarea>
-                </div>
+                </section>
 
-                <button data-waiver-upload-wizard-target="prevButton" class="d-none">Prev</button>
-                <button data-waiver-upload-wizard-target="nextButton">Next</button>
-                <button data-waiver-upload-wizard-target="submitButton" class="d-none">
-                    <span data-waiver-upload-wizard-target="submitButtonText">Submit Waivers</span>
-                </button>
+                <button data-waiver-upload-wizard-target="previousButton" hidden>Previous step</button>
+                <button data-waiver-upload-wizard-target="nextButton" hidden>Continue</button>
+                <button data-waiver-upload-wizard-target="submitButton" hidden>Submit Waivers</button>
 
                 <meta name="csrf-token" content="test-csrf-token">
             </div>
@@ -93,18 +92,14 @@ describe('WaiverUploadWizardController', () => {
         const q = (sel) => el.querySelector(sel);
         const qa = (sel) => Array.from(el.querySelectorAll(sel));
 
-        ctrl.stepTargets = qa('[data-waiver-upload-wizard-target="step"]');
-        ctrl.stepIndicatorTargets = qa('[data-waiver-upload-wizard-target="stepIndicator"]');
-        ctrl.prevButtonTarget = q('[data-waiver-upload-wizard-target="prevButton"]');
+        ctrl.navigationTarget = q('[data-waiver-upload-wizard-target="navigation"]');
+        ctrl.panelTargets = qa('[data-waiver-upload-wizard-target="panel"]');
+        ctrl.stepButtonTargets = qa('[data-waiver-upload-wizard-target="stepButton"]');
+        ctrl.previousButtonTarget = q('[data-waiver-upload-wizard-target="previousButton"]');
         ctrl.hasPrevButtonTarget = true;
         ctrl.nextButtonTarget = q('[data-waiver-upload-wizard-target="nextButton"]');
-        ctrl.hasNextButtonTarget = true;
         ctrl.submitButtonTarget = q('[data-waiver-upload-wizard-target="submitButton"]');
         ctrl.hasSubmitButtonTarget = true;
-        ctrl.submitButtonTextTarget = q('[data-waiver-upload-wizard-target="submitButtonText"]');
-        ctrl.hasSubmitButtonTextTarget = true;
-        ctrl.progressBarTarget = q('[data-waiver-upload-wizard-target="progressBar"]');
-        ctrl.hasProgressBarTarget = true;
 
         ctrl.pagesPreviewTarget = q('[data-waiver-upload-wizard-target="pagesPreview"]');
         ctrl.hasPagesPreviewTarget = true;
@@ -150,8 +145,10 @@ describe('WaiverUploadWizardController', () => {
         }
 
         // Values
-        ctrl.currentStepValue = 1;
-        ctrl.totalStepsValue = 3;
+        ctrl.stepValue = 1;
+        ctrl.furthestStepValue = 0;
+        ctrl.submitWaiversLabelValue = 'Submit Waivers';
+        ctrl.submitAttestationLabelValue = 'Submit Attestation';
         ctrl.gatheringIdValue = 42;
         ctrl.hasMaxFileSizeValue = true;
         ctrl.maxFileSizeValue = 5 * 1024 * 1024;
@@ -203,127 +200,53 @@ describe('WaiverUploadWizardController', () => {
         expect(controller.attestNotes).toBe('');
     });
 
-    test('connect shows step 1', () => {
-        const step1 = controller.stepTargets[0];
-        const step2 = controller.stepTargets[1];
-        expect(step1.classList.contains('d-none')).toBe(false);
-        expect(step2.classList.contains('d-none')).toBe(true);
+    test('shows the first step and disables steps that have not been reached', () => {
+        expect(controller.navigationTarget.hidden).toBe(false);
+        expect(controller.panelTargets.map(panel => panel.hidden)).toEqual([false, true, true]);
+        expect(controller.stepButtonTargets.map(button => button.disabled)).toEqual([false, true, true]);
+        expect(controller.stepButtonTargets[0]).toHaveAttribute('aria-current', 'step');
+        expect(controller.previousButtonTarget.hidden).toBe(true);
+        expect(controller.nextButtonTarget.hidden).toBe(false);
+        expect(controller.submitButtonTarget.hidden).toBe(true);
     });
 
-    // --- Step Navigation ---
+    test('Continue checks the waiver type and focuses the heading after advancing', () => {
+        controller.next();
+        expect(controller.stepValue).toBe(1);
 
-    test('showStep shows correct step and hides others', () => {
-        controller.showStep(2);
-        expect(controller.stepTargets[0].classList.contains('d-none')).toBe(true);
-        expect(controller.stepTargets[1].classList.contains('d-none')).toBe(false);
-        expect(controller.stepTargets[2].classList.contains('d-none')).toBe(true);
-        expect(controller.stepTargets[0].getAttribute('aria-hidden')).toBe('true');
-        expect(controller.stepTargets[1].getAttribute('aria-hidden')).toBe('false');
-        expect(controller.stepTargets[1].getAttribute('aria-current')).toBe('step');
-        expect(controller.stepTargets[2].hasAttribute('aria-current')).toBe(false);
-    });
-
-    test('nextStep advances when current step is valid', () => {
-        // Select a waiver type to make step 1 valid
         controller.selectedWaiverType = { id: 10, name: 'Minor Waiver' };
-        controller.nextStep();
-        expect(controller.currentStepValue).toBe(2);
+        controller.next();
+        expect(controller.panelTargets.map(panel => panel.hidden)).toEqual([true, false, true]);
+        expect(controller.panelTargets[1].querySelector('h2')).toHaveFocus();
+        expect(controller.stepButtonTargets[1]).toHaveAttribute('aria-current', 'step');
+        expect(controller.previousButtonTarget.hidden).toBe(false);
     });
 
-    test('nextStep does not advance when validation fails', () => {
-        controller.selectedWaiverType = null;
-        controller.nextStep();
-        expect(controller.currentStepValue).toBe(1);
-    });
-
-    test('nextStep does not advance past total steps', () => {
-        controller.currentStepValue = 3;
+    test('navigates to visited steps and revalidates details before returning to review', () => {
+        const chooseStep = (index) => controller.goToStep({ currentTarget: controller.stepButtonTargets[index] });
         controller.selectedWaiverType = { id: 10, name: 'Minor Waiver' };
+        chooseStep(2);
+        expect(controller.stepValue).toBe(1);
+
+        controller.next();
         controller.uploadedPages = [{ file: {}, size: 100, pdfPageCount: 0 }];
-        controller.nextStep();
-        expect(controller.currentStepValue).toBe(3);
-    });
+        controller.next();
+        expect(controller.submitButtonTarget.hidden).toBe(false);
+        expect(controller.nextButtonTarget.hidden).toBe(true);
+        expect(controller.submitButtonTarget).toHaveTextContent('Submit Waivers');
 
-    test('prevStep goes back one step', () => {
-        controller.currentStepValue = 2;
-        controller.prevStep();
-        expect(controller.currentStepValue).toBe(1);
-    });
+        controller.previous();
+        controller.uploadedPages = [];
+        chooseStep(0);
+        chooseStep(2);
+        expect(controller.stepValue).toBe(2);
+        expect(controller.panelTargets[1].querySelector('h2')).toHaveFocus();
 
-    test('prevStep does not go below step 1', () => {
-        controller.currentStepValue = 1;
-        controller.prevStep();
-        expect(controller.currentStepValue).toBe(1);
-    });
-
-    test('goToStep navigates to earlier step', () => {
-        controller.currentStepValue = 3;
-        controller.goToStep({ currentTarget: { dataset: { step: '1' } } });
-        expect(controller.currentStepValue).toBe(1);
-    });
-
-    test('goToStep does not navigate to future step', () => {
-        controller.currentStepValue = 1;
-        controller.goToStep({ currentTarget: { dataset: { step: '3' } } });
-        expect(controller.currentStepValue).toBe(1);
-    });
-
-    // --- updateStepIndicators ---
-
-    test('updateStepIndicators marks current as active', () => {
-        controller.updateStepIndicators(2);
-        expect(controller.stepIndicatorTargets[0].classList.contains('completed')).toBe(true);
-        expect(controller.stepIndicatorTargets[1].classList.contains('active')).toBe(true);
-        expect(controller.stepIndicatorTargets[1].getAttribute('aria-current')).toBe('step');
-        expect(controller.stepIndicatorTargets[2].classList.contains('active')).toBe(false);
-    });
-
-    // --- updateNavigationButtons ---
-
-    test('hides prev button on step 1', () => {
-        controller.updateNavigationButtons(1);
-        expect(controller.prevButtonTarget.classList.contains('d-none')).toBe(true);
-    });
-
-    test('shows prev button on step 2', () => {
-        controller.updateNavigationButtons(2);
-        expect(controller.prevButtonTarget.classList.contains('d-none')).toBe(false);
-    });
-
-    test('hides next button on last step', () => {
-        controller.updateNavigationButtons(3);
-        expect(controller.nextButtonTarget.classList.contains('d-none')).toBe(true);
-    });
-
-    test('shows submit button on last step', () => {
-        controller.updateNavigationButtons(3);
-        expect(controller.submitButtonTarget.classList.contains('d-none')).toBe(false);
-    });
-
-    test('hides submit button on non-last step', () => {
-        controller.updateNavigationButtons(1);
-        expect(controller.submitButtonTarget.classList.contains('d-none')).toBe(true);
-    });
-
-    test('submit button text reflects attest mode', () => {
         controller.isAttestMode = true;
-        controller.updateNavigationButtons(3);
-        expect(controller.submitButtonTextTarget.textContent).toBe('Submit Attestation');
-    });
-
-    test('submit button text reflects upload mode', () => {
-        controller.isAttestMode = false;
-        controller.updateNavigationButtons(3);
-        expect(controller.submitButtonTextTarget.textContent).toBe('Submit Waivers');
-    });
-
-    // --- updateProgressBar ---
-
-    test('updateProgressBar sets correct width', () => {
-        controller.updateProgressBar(2);
-        const expectedWidth = (2 / 3) * 100;
-        expect(controller.progressBarTarget.style.width).toBe(`${expectedWidth}%`);
-        expect(controller.progressBarTarget.getAttribute('aria-valuetext')).toBe('Step 2 of 3');
+        controller.attestReason = 'Under 18';
+        chooseStep(2);
+        expect(controller.stepValue).toBe(3);
+        expect(controller.submitButtonTarget).toHaveTextContent('Submit Attestation');
     });
 
     // --- Waiver Type Selection ---
@@ -394,21 +317,6 @@ describe('WaiverUploadWizardController', () => {
         controller.isAttestMode = true;
         controller.attestReason = 'Under 18';
         expect(controller.validateUploadOrAttest()).toBe(true);
-    });
-
-    test('validateCurrentStep dispatches to correct validator', () => {
-        controller.currentStepValue = 1;
-        controller.selectedWaiverType = { id: 10, name: 'Minor Waiver' };
-        expect(controller.validateCurrentStep()).toBe(true);
-
-        controller.currentStepValue = 2;
-        controller.uploadedPages = [{ file: {}, size: 100 }];
-        expect(controller.validateCurrentStep()).toBe(true);
-    });
-
-    test('validateCurrentStep returns true for unknown steps', () => {
-        controller.currentStepValue = 99;
-        expect(controller.validateCurrentStep()).toBe(true);
     });
 
     // --- Mode Toggle ---

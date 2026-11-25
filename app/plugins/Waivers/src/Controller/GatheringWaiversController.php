@@ -5,15 +5,20 @@ namespace Waivers\Controller;
 
 use App\Controller\DataverseGridTrait;
 use App\Controller\WorkflowDispatchTrait;
+use App\KMP\TimezoneHelper;
 use App\Services\CsvExportService;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use Cake\Datasource\EntityInterface;
+use Cake\Datasource\ResultSetInterface;
 use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Exception\NotFoundException;
+use Cake\I18n\DateTime;
 use Cake\Log\Log;
+use Cake\ORM\Query\SelectQuery;
 use Cake\Routing\Router;
 use Exception;
 use Waivers\KMP\GridColumns\GatheringWaiversGridColumns;
+use Waivers\KMP\GridColumns\WaiverCalendarGridColumns;
 use Waivers\Services\GatheringWaiverSummaryService;
 use Waivers\Services\WaiverDashboardService;
 use Waivers\Services\WaiverFileService;
@@ -1435,7 +1440,10 @@ class GatheringWaiversController extends AppController
         // Get recently closed gatherings
         $closedGatherings = $dashboardService->getClosedGatherings($branchIds);
 
+        $calendarMonth = DateTime::now(TimezoneHelper::getUserTimezone($currentUser));
+
         $this->set(compact(
+            'calendarMonth',
             'statistics',
             'gatheringsMissingWaivers',
             'gatheringsNeedingWaivers',
@@ -1452,41 +1460,99 @@ class GatheringWaiversController extends AppController
     }
 
     /**
-     * Return JSON calendar data for gatherings in a given month
+     * Return the scoped waiver month for Dataverse filtering or JSON clients.
      *
-     * @return \Cake\Http\Response JSON response with gathering calendar data
+     * @return \Cake\Http\Response|null
      */
     public function calendarData(WaiverDashboardService $dashboardService)
     {
         $this->authorizeCurrentUrl();
         $this->request->allowMethod(['get']);
 
-        $year = (int)$this->request->getQuery('year', date('Y'));
-        $month = (int)$this->request->getQuery('month', date('n'));
-
-        // Clamp values
-        if ($year < 2000 || $year > 2100) {
-            $year = (int)date('Y');
-        }
-        if ($month < 1 || $month > 12) {
-            $month = (int)date('n');
-        }
-
         $currentUser = $this->Authentication->getIdentity();
+        $today = DateTime::now(TimezoneHelper::getUserTimezone($currentUser));
+        $currentYear = (int)$today->format('Y');
+        $currentMonth = (int)$today->format('n');
+        $year = (int)$this->request->getQuery('year', $currentYear);
+        $month = (int)$this->request->getQuery('month', $currentMonth);
+        $year = $year >= 2000 && $year <= 2100 ? $year : $currentYear;
+        $month = $month >= 1 && $month <= 12 ? $month : $currentMonth;
+
+        $frameId = 'waiver-clerk-calendar-table';
+        $isFrame = $this->request->getHeaderLine('Turbo-Frame') === $frameId;
+        $this->setResponse($this->response->withAddedHeader('Vary', 'Turbo-Frame'));
         $branchIds = $currentUser->getBranchIdsForAction('add', 'Waivers.GatheringWaivers');
-        $Branches = $this->fetchTable('Branches');
-        if ($branchIds === null) {
-            $branchIds = $Branches->find()->select(['id'])->all()->extract('id')->toArray();
+        $branches = $this->fetchTable('Branches')->find()
+            ->select(['id', 'public_id', 'name'])
+            ->orderBy(['name' => 'ASC']);
+        if ($branchIds !== null) {
+            $branches->whereInList('id', $branchIds, ['allowEmpty' => true]);
         }
-        if (is_array($branchIds) && empty($branchIds)) {
+        $allowedBranches = $branches->all();
+        $branchIds = $allowedBranches->extract('id')->toList();
+        if (!$branchIds && !$isFrame) {
             return $this->response->withType('application/json')
                 ->withStringBody(json_encode(['events' => []]));
         }
 
-        $result = $dashboardService->getCalendarData($year, $month, $branchIds, $currentUser);
+        // This endpoint accepts Dataverse filters but does not provide a CSV export.
+        $params = $this->request->getQueryParams();
+        unset($params['export']);
+        $this->setRequest($this->request->withQueryParams($params));
 
-        return $this->response->withType('application/json')
-            ->withStringBody(json_encode($result));
+        $gridState = [];
+        $calendar = $dashboardService->getCalendarData(
+            $year,
+            $month,
+            $branchIds,
+            $currentUser,
+            function (SelectQuery $query) use ($isFrame, &$gridState): ResultSetInterface {
+                $result = $this->processDataverseGrid([
+                    'gridKey' => 'Waivers.calendar.main',
+                    'gridColumnsClass' => WaiverCalendarGridColumns::class,
+                    'baseQuery' => $query->leftJoinWith('GatheringActivities')->distinct(),
+                    'tableName' => 'Gatherings',
+                    'defaultSort' => ['Gatherings.start_date' => 'ASC'],
+                    'disablePagination' => true,
+                    'metadataMode' => $isFrame ? 'full' : 'table',
+                    'showAllTab' => false,
+                    'showViewTabs' => false,
+                    'canAddViews' => false,
+                    'canExportCsv' => false,
+                    'enableColumnPicker' => false,
+                ]);
+                $gridState = $result['gridState'];
+
+                return $result['data'];
+            },
+        );
+        $statuses = (array)($gridState['filters']['active']['status'] ?? []);
+        if ($statuses) {
+            $calendar['events'] = array_values(array_filter(
+                $calendar['events'],
+                static fn(array $event): bool => in_array($event['status'], $statuses, true)
+                    || ($event['ready_to_close'] && in_array('ready_to_close', $statuses, true)),
+            ));
+        }
+
+        if (!$isFrame) {
+            return $this->response->withType('application/json')->withStringBody(json_encode($calendar));
+        }
+
+        $branchOptions = $allowedBranches->map(
+            static fn($branch): array => ['value' => $branch->public_id, 'label' => $branch->name],
+        )->toList();
+        $gridState['filters']['available'] = [
+            'branch_id' => ['label' => __('Hosting group'), 'options' => $branchOptions],
+        ] + $gridState['filters']['available'];
+
+        $count = count($calendar['events']);
+        $calendar['summary'] = __n('{0} gathering shown.', '{0} gatherings shown.', $count, $count);
+        $this->set(compact('calendar', 'frameId', 'gridState'));
+        $this->viewBuilder()->disableAutoLayout();
+        $this->viewBuilder()->setTemplate('calendar_data');
+
+        return null;
     }
 
     /**

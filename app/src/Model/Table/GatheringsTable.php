@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Model\Table;
 
+use App\Model\Entity\Gathering;
 use ArrayObject;
 use Cake\Datasource\EntityInterface;
 use Cake\Event\EventInterface;
@@ -172,7 +173,10 @@ class GatheringsTable extends Table
             ->scalar('website_url')
             ->maxLength('website_url', 512)
             ->allowEmptyString('website_url')
-            ->urlWithProtocol('website_url', __('Website must be a full URL including http:// or https://'));
+            ->add('website_url', 'httpUrl', [
+                'rule' => static fn($value): bool => is_string($value) && Gathering::isEventWebsite(trim($value)),
+                'message' => __('Website must be a full URL including http:// or https://'),
+            ]);
 
         $validator
             ->scalar('preregister_url')

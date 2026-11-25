@@ -6,7 +6,6 @@ namespace App\Services;
 use App\Model\Entity\GatheringActivity;
 use Cake\Log\Log;
 use Cake\ORM\Locator\LocatorAwareTrait;
-use Laminas\Diactoros\UploadedFile;
 use League\Flysystem\FilesystemException;
 use Psr\Http\Message\UploadedFileInterface;
 use RuntimeException;
@@ -96,7 +95,7 @@ class GatheringActivityPresentationService
         }
         $normalized = null;
         if ($file !== null && $file->getError() !== UPLOAD_ERR_NO_FILE) {
-            $normalized = $this->normalizeIcon($file);
+            $normalized = PublicAssetService::normalizePngUpload($file, self::MAX_ICON_BYTES, 128);
             if ($normalized === null) {
                 $activity->setError('icon_file', __('Upload a PNG or WebP image up to 128 × 128 pixels and 512 KB.'));
 
@@ -115,10 +114,8 @@ class GatheringActivityPresentationService
             $activity->set('icon_source', 'catalog');
         }
         if ($normalized !== null) {
-            $stream = $normalized->getStream();
-            $stream->rewind();
             try {
-                $key = ($this->assets ??= new PublicAssetService())->publishPng($stream->getContents());
+                $key = ($this->assets ??= new PublicAssetService())->publishPng($normalized);
             } catch (FilesystemException | RuntimeException $error) {
                 Log::error('Activity icon publication failed: ' . $error::class);
                 $activity->setError('icon_file', __('The icon could not be published. Please try again.'));
@@ -131,44 +128,5 @@ class GatheringActivityPresentationService
 
         // Immutable assets remain available to cached pages; unused keys can be collected separately.
         return new ServiceResult((bool)$table->save($activity));
-    }
-
-    /**
-     * Decode and re-encode small raster uploads, preserving their alpha channel and stripping metadata.
-     *
-     * @param \Psr\Http\Message\UploadedFileInterface $file Upload
-     * @return \Psr\Http\Message\UploadedFileInterface|null
-     */
-    private function normalizeIcon(UploadedFileInterface $file): ?UploadedFileInterface
-    {
-        if ($file->getError() !== UPLOAD_ERR_OK || ($file->getSize() ?? 0) > self::MAX_ICON_BYTES) {
-            return null;
-        }
-        $stream = $file->getStream();
-        $stream->rewind();
-        $bytes = $stream->read(self::MAX_ICON_BYTES + 1);
-        if ($bytes === '' || strlen($bytes) > self::MAX_ICON_BYTES) {
-            return null;
-        }
-        // Malformed raster files must fail validation without leaking decoder warnings into the response.
-        // phpcs:disable Generic.PHP.NoSilencedErrors.Discouraged
-        $size = @getimagesizefromstring($bytes);
-        if (
-            !$size || !in_array($size['mime'], ['image/png', 'image/webp'], true)
-            || $size[0] > 128 || $size[1] > 128
-        ) {
-            return null;
-        }
-        $image = @imagecreatefromstring($bytes);
-        // phpcs:enable Generic.PHP.NoSilencedErrors.Discouraged
-        if ($image === false) {
-            return null;
-        }
-        imagesavealpha($image, true);
-        $output = fopen('php://temp', 'w+b');
-        imagepng($image, $output);
-        rewind($output);
-
-        return new UploadedFile($output, null, UPLOAD_ERR_OK, 'activity-icon.png', 'image/png');
     }
 }

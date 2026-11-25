@@ -239,6 +239,17 @@ class CoreNavigationProvider
             [
                 'type' => 'link',
                 'mergePath' => ['Config'],
+                'label' => 'Public Events Calendar',
+                'order' => 0,
+                'url' => [
+                    'controller' => 'AppSettings',
+                    'action' => 'publicCalendar',
+                ],
+                'icon' => 'calendar-event',
+            ],
+            [
+                'type' => 'link',
+                'mergePath' => ['Config'],
                 'label' => 'Backups',
                 'order' => 10,
                 'url' => [

@@ -23,7 +23,7 @@ class NavigationRegistry
 {
     use StaticConfigTrait;
 
-    private const NAVIGATION_CACHE_VERSION = 5;
+    private const NAVIGATION_CACHE_VERSION = 6;
 
     /**
      * @var array [source => ['items' => [...], 'callback' => callable|null]]

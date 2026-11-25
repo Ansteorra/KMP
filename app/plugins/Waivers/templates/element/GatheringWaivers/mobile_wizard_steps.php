@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Mobile Waiver Upload Wizard Steps
@@ -18,339 +19,287 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
 }
 ?>
 
-<!-- Step 1: Select Waiver Type -->
-<div id="mobile-waiver-upload-step-1"
-    data-waiver-upload-wizard-target="step"
-    data-step-number="1"
-    role="region"
-    aria-labelledby="mobile-waiver-upload-step-1-heading"
-    aria-current="step"
-    aria-hidden="false">
-    <div class="card">
-        <div class="card-header"
-            style="background: var(--mobile-header-bg, #1e293b); color: var(--mobile-header-text, #f4efe4);">
-            <h5 id="mobile-waiver-upload-step-1-heading" class="mb-0">
-                <kmp-icon name="circle-number-1" class="me-2" aria-hidden="true"></kmp-icon>
-                <span class="visually-hidden"><?= __('Step 1 of 3: Select Waiver Type') ?></span>
-                <span aria-hidden="true"><?= __('Select Waiver Type') ?></span>
-            </h5>
-        </div>
-        <div class="card-body">
-            <p class="mb-3"><?= __('What type of waiver are you uploading for this gathering?') ?></p>
+<section class="border rounded p-3 mb-3" id="mobile-waiver-upload-step-1"
+    aria-labelledby="mobile-waiver-upload-step-1-heading" data-waiver-upload-wizard-target="panel">
+    <h2 id="mobile-waiver-upload-step-1-heading" class="h5" tabindex="-1"><?= __('Select waiver type') ?></h2>
 
-            <?php if (!empty($waiverStatusSummary)) : ?>
-                <div class="mb-3 p-3 border rounded" style="background: #f8fafc;">
-                    <div class="d-flex align-items-center mb-2 small text-muted">
-                        <kmp-icon name="clipboard-check" class="text-success me-2" aria-hidden="true"></kmp-icon>
-                        <strong class="text-dark"><?= __('Waiver Status') ?></strong>
-                    </div>
-                    <ul class="list-group list-group-flush">
-                        <?php foreach ($waiverStatusSummary as $summary) : ?>
-                            <?php
-                            $hasUploaded = $summary['uploaded_count'] > 0;
-                            $hasAttestation = !empty($summary['attestation_reasons']);
-                            $hasLoss = !empty($summary['loss_recorded']);
-                            $statusLabel = $hasUploaded || $hasAttestation ? __('On File') : __('Outstanding');
-                            $statusClass = $hasUploaded || $hasAttestation ? 'bg-success' : 'bg-warning text-dark';
-                            if ($hasLoss) {
-                                $statusLabel = __('Waivers Lost');
-                                $statusClass = 'bg-warning text-dark';
-                            }
-                            ?>
-                            <li class="list-group-item px-0 py-2 bg-transparent">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div class="me-2">
-                                        <strong class="d-block"><?= h($summary['name']) ?></strong>
-                                        <small class="text-muted">
-                                            <?php if ($hasUploaded) : ?>
-                                                <?= __('Uploaded: {0}', $summary['uploaded_count']) ?>
-                                            <?php else : ?>
-                                                <?= __('Uploaded: none') ?>
-                                            <?php endif; ?>
-                                            <?php if ($hasAttestation) : ?>
-                                                <span class="ms-1">
-                                                    <?=
-                                                        __(
-                                                            'Attested: {0}',
-                                                            h(implode(', ', $summary['attestation_reasons'])),
-                                                        )
-                                                    ?>
-                                                </span>
-                                            <?php endif; ?>
-                                        </small>
-                                    </div>
-                                    <span class="badge <?= $statusClass ?> align-self-center"><?= $statusLabel ?></span>
-                                </div>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                </div>
-            <?php endif; ?>
+    <p class="mb-3"><?= __('What type of waiver are you uploading for this gathering?') ?></p>
 
-            <?php if (!empty($waiverTypesData)) : ?>
-                <div class="list-group" data-waiver-upload-wizard-target="waiverTypeSelect">
-                    <?php foreach ($waiverTypesData as $waiverType) : ?>
-                        <?php
-                        $isAttested = isset($attestedWaiverTypes[$waiverType['id']]);
-                        $attestationReasons = $attestedWaiverTypes[$waiverType['id']] ?? [];
-                        ?>
-                        <div class="list-group-item" style="border-radius: 10px; margin-bottom: 8px;"
-                            data-waiver-upload-wizard-target="waiverTypeOption"
-                            data-waiver-type-id="<?= $waiverType['id'] ?>">
-                            <div class="form-check">
-                                <input class="form-check-input form-check-input-lg"
-                                    type="radio"
-                                    name="waiver_type"
-                                    value="<?= $waiverType['id'] ?>"
-                                    id="waiver-type-<?= $waiverType['id'] ?>"
-                                    data-name="<?= h($waiverType['name']) ?>"
-                                    data-exemption-reasons="<?=
-                                        h(json_encode($waiverType['exemption_reasons'] ?? []))
-                                    ?>"
-                                    data-attested="<?= $isAttested ? '1' : '0' ?>"
-                                    <?= $isAttested ? 'disabled' : '' ?>
-                                    data-action="change->waiver-upload-wizard#selectWaiverType">
-                                <label class="form-check-label w-100" for="waiver-type-<?= $waiverType['id'] ?>">
-                                    <strong><?= h($waiverType['name']) ?></strong>
-                                    <?php if (!empty($waiverType['description'])) : ?>
-                                        <br>
-                                        <small class="text-muted"><?= h($waiverType['description']) ?></small>
+    <?php if (!empty($waiverStatusSummary)) : ?>
+        <div class="mb-3 p-3 border rounded" style="background: #f8fafc;">
+            <div class="d-flex align-items-center mb-2 small text-muted">
+                <kmp-icon name="clipboard-check" class="text-success me-2" aria-hidden="true"></kmp-icon>
+                <strong class="text-dark"><?= __('Waiver Status') ?></strong>
+            </div>
+            <ul class="list-group list-group-flush">
+                <?php foreach ($waiverStatusSummary as $summary) : ?>
+                    <?php
+                    $hasUploaded = $summary['uploaded_count'] > 0;
+                    $hasAttestation = !empty($summary['attestation_reasons']);
+                    $hasLoss = !empty($summary['loss_recorded']);
+                    $statusLabel = $hasUploaded || $hasAttestation ? __('On File') : __('Outstanding');
+                    $statusClass = $hasUploaded || $hasAttestation ? 'bg-success' : 'bg-warning text-dark';
+                    if ($hasLoss) {
+                        $statusLabel = __('Waivers Lost');
+                        $statusClass = 'bg-warning text-dark';
+                    }
+                    ?>
+                    <li class="list-group-item px-0 py-2 bg-transparent">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="me-2">
+                                <strong class="d-block"><?= h($summary['name']) ?></strong>
+                                <small class="text-muted">
+                                    <?php if ($hasUploaded) : ?>
+                                        <?= __('Uploaded: {0}', $summary['uploaded_count']) ?>
+                                    <?php else : ?>
+                                        <?= __('Uploaded: none') ?>
                                     <?php endif; ?>
-                                    <?php if ($isAttested) : ?>
-                                        <br>
-                                        <small class="text-muted">
-                                            <kmp-icon name="shield-check"  aria-hidden="true"></kmp-icon>
-                                            <?= __('Attested not needed') ?>
-                                            <?php if (!empty($attestationReasons)) : ?>
-                                                <span class="ms-1">(<?= h(implode(', ', $attestationReasons)) ?>)</span>
-                                            <?php endif; ?>
-                                        </small>
+                                    <?php if ($hasAttestation) : ?>
+                                        <span class="ms-1">
+                                            <?=
+                                                __(
+                                                    'Attested: {0}',
+                                                    h(implode(', ', $summary['attestation_reasons'])),
+                                                )
+                                            ?>
+                                        </span>
                                     <?php endif; ?>
-                                </label>
+                                </small>
                             </div>
+                            <span class="badge <?= $statusClass ?> align-self-center"><?= $statusLabel ?></span>
                         </div>
-                    <?php endforeach; ?>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
+
+    <?php if (!empty($waiverTypesData)) : ?>
+        <div class="list-group" data-waiver-upload-wizard-target="waiverTypeSelect">
+            <?php foreach ($waiverTypesData as $waiverType) : ?>
+                <?php
+                $isAttested = isset($attestedWaiverTypes[$waiverType['id']]);
+                $attestationReasons = $attestedWaiverTypes[$waiverType['id']] ?? [];
+                ?>
+                <div class="list-group-item" style="border-radius: 10px; margin-bottom: 8px;"
+                    data-waiver-upload-wizard-target="waiverTypeOption"
+                    data-waiver-type-id="<?= $waiverType['id'] ?>">
+                    <div class="form-check">
+                        <input class="form-check-input form-check-input-lg"
+                            type="radio"
+                            name="waiver_type"
+                            value="<?= $waiverType['id'] ?>"
+                            id="waiver-type-<?= $waiverType['id'] ?>"
+                            data-name="<?= h($waiverType['name']) ?>"
+                            data-exemption-reasons="<?=
+                                h(json_encode($waiverType['exemption_reasons'] ?? []))
+                            ?>"
+                            data-attested="<?= $isAttested ? '1' : '0' ?>"
+                            <?= $isAttested ? 'disabled' : '' ?>
+                            data-action="change->waiver-upload-wizard#selectWaiverType">
+                        <label class="form-check-label w-100" for="waiver-type-<?= $waiverType['id'] ?>">
+                            <strong><?= h($waiverType['name']) ?></strong>
+                            <?php if (!empty($waiverType['description'])) : ?>
+                                <br>
+                                <small class="text-muted"><?= h($waiverType['description']) ?></small>
+                            <?php endif; ?>
+                            <?php if ($isAttested) : ?>
+                                <br>
+                                <small class="text-muted">
+                                    <kmp-icon name="shield-check"  aria-hidden="true"></kmp-icon>
+                                    <?= __('Attested not needed') ?>
+                                    <?php if (!empty($attestationReasons)) : ?>
+                                        <span class="ms-1">(<?= h(implode(', ', $attestationReasons)) ?>)</span>
+                                    <?php endif; ?>
+                                </small>
+                            <?php endif; ?>
+                        </label>
+                    </div>
                 </div>
-            <?php else : ?>
-                <div class="alert alert-info">
-                    <kmp-icon name="info-circle" class="me-2" aria-hidden="true"></kmp-icon>
-                    <?= __('No waiver types have been configured for this gathering.') ?>
-                </div>
-            <?php endif; ?>
+            <?php endforeach; ?>
+        </div>
+    <?php else : ?>
+        <div class="alert alert-info">
+            <kmp-icon name="info-circle" class="me-2" aria-hidden="true"></kmp-icon>
+            <?= __('No waiver types have been configured for this gathering.') ?>
+        </div>
+    <?php endif; ?>
+</section>
+
+<section class="border rounded p-3 mb-3" id="mobile-waiver-upload-step-2"
+    aria-labelledby="mobile-waiver-upload-step-2-heading" data-waiver-upload-wizard-target="panel" hidden>
+    <h2 id="mobile-waiver-upload-step-2-heading" class="h5" tabindex="-1"><?= __('Add waiver details') ?></h2>
+
+    <p class="mb-3" data-waiver-upload-wizard-target="step3Lead">
+        <?= __('Take photos or select images of the waiver pages, or attest that a waiver is not needed') ?>
+    </p>
+
+    <!-- Mode Toggle (Upload vs Attest) -->
+    <div class="btn-group d-grid mb-3 d-none"
+        role="group"
+        aria-label="Upload or Attest mode"
+        aria-hidden="true"
+        data-waiver-upload-wizard-target="modeToggle">
+        <input type="radio" class="btn-check" name="upload-mode" id="mode-upload-mobile" value="upload" checked
+            data-action="change->waiver-upload-wizard#setModeUpload">
+        <label class="btn btn-outline-primary" for="mode-upload-mobile">
+            <kmp-icon name="camera" class="me-1" aria-hidden="true"></kmp-icon><?= __('Upload Waiver') ?>
+        </label>
+
+        <span class="d-flex" data-waiver-upload-wizard-target="attestOption">
+            <input type="radio" class="btn-check" name="upload-mode" id="mode-attest-mobile" value="attest"
+                data-action="change->waiver-upload-wizard#setModeAttest">
+            <label class="btn btn-outline-warning w-100" for="mode-attest-mobile">
+                <kmp-icon name="file-x" class="me-1" aria-hidden="true"></kmp-icon><?= __('Attest Not Needed') ?>
+            </label>
+        </span>
+    </div>
+
+    <!-- Upload Section -->
+    <div data-waiver-upload-wizard-target="uploadSection" aria-hidden="false">
+        <!-- File size validation wrapper -->
+        <div data-controller="file-size-validator"
+            data-file-size-validator-max-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
+            data-file-size-validator-max-size-formatted-value="<?= h($uploadLimits['formatted']) ?>"
+            data-file-size-validator-total-max-size-value="<?= h($uploadLimits['postMaxSize']) ?>">
+
+            <!-- Warning message container -->
+            <div data-file-size-validator-target="warning" class="d-none mb-3"></div>
+
+            <!-- Camera/Upload Button -->
+            <div class="d-grid gap-2 mb-3">
+                <button type="button"
+                    class="btn btn-lg btn-primary"
+                    aria-describedby="mobile-waiver-upload-file-tips"
+                    data-action="click->waiver-upload-wizard#triggerFileInput">
+                    <kmp-icon name="camera" class="me-2" aria-hidden="true"></kmp-icon>
+                    <?= __('Take Photo / Choose from Library') ?>
+                </button>
+            </div>
+
+            <!-- Hidden file input - accepts images and PDFs -->
+            <input type="file"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/bmp,image/webp,application/pdf"
+                multiple
+                class="d-none"
+                data-waiver-upload-wizard-target="fileInput"
+                data-file-size-validator-target="fileInput"
+                aria-label="<?= __('Waiver photo or PDF files') ?>"
+                aria-describedby="mobile-waiver-upload-file-tips"
+                data-action="change->waiver-upload-wizard#handleFileSelect
+                    change->file-size-validator#validateFiles">
+
+            <div id="mobile-waiver-upload-file-tips" class="alert alert-info small">
+                <kmp-icon name="info-circle" class="me-2" aria-hidden="true"></kmp-icon>
+                <strong><?= __('Tips:') ?></strong>
+                <ul class="mb-0 mt-2 small">
+                    <li><?= __('Take photos, select from gallery, or upload a PDF') ?></li>
+                    <li><?= __('Max size per file: {0}', h($uploadLimits['formatted'])) ?></li>
+                    <li><?= __('Images are resized and converted to B&W before upload when supported') ?></li>
+                    <li><?= __('The server creates the final PDF; uploaded PDFs are kept as-is') ?></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Pages Preview -->
+        <div class="row g-2" data-waiver-upload-wizard-target="pagesPreview">
+            <!-- Dynamically populated by controller -->
         </div>
     </div>
-</div>
 
-<!-- Step 2: Capture/Upload Photos or Attest -->
-<div id="mobile-waiver-upload-step-2"
-    data-waiver-upload-wizard-target="step"
-    data-step-number="2"
-    class="d-none"
-    role="region"
-    aria-labelledby="mobile-waiver-upload-step-2-heading"
-    aria-hidden="true">
-    <div class="card">
-        <div class="card-header"
-            style="background: var(--mobile-header-bg, #1e293b); color: var(--mobile-header-text, #f4efe4);">
-            <h5 id="mobile-waiver-upload-step-2-heading" class="mb-0">
-                <kmp-icon name="circle-number-2" class="me-2" aria-hidden="true"></kmp-icon>
-                <span class="visually-hidden"><?= __('Step 2 of 3: Add Waiver Photos') ?></span>
-                <span aria-hidden="true" data-waiver-upload-wizard-target="step3Lead">
-                    <?= __('Add Waiver Photos') ?>
-                </span>
-            </h5>
+    <!-- Attest Section -->
+    <div class="d-none" data-waiver-upload-wizard-target="attestSection" aria-hidden="true">
+        <div class="alert alert-warning">
+            <kmp-icon name="alert-triangle" class="me-2" aria-hidden="true"></kmp-icon>
+            <?=
+                __(
+                    'You are attesting that a waiver is not needed for this gathering. '
+                        . 'Please provide a reason.',
+                )
+                ?>
         </div>
-        <div class="card-body">
-            <p class="mb-3">
-                <?= __('Take photos or select images of the waiver pages, or attest that a waiver is not needed') ?>
-            </p>
 
-            <!-- Mode Toggle (Upload vs Attest) -->
-            <div class="btn-group d-grid mb-3 d-none"
-                role="group"
-                aria-label="Upload or Attest mode"
-                aria-hidden="true"
-                data-waiver-upload-wizard-target="modeToggle">
-                <input type="radio" class="btn-check" name="upload-mode" id="mode-upload-mobile" value="upload" checked
-                    data-action="change->waiver-upload-wizard#setModeUpload">
-                <label class="btn btn-outline-primary" for="mode-upload-mobile">
-                    <kmp-icon name="camera" class="me-1" aria-hidden="true"></kmp-icon><?= __('Upload Waiver') ?>
-                </label>
-
-                <span class="d-flex" data-waiver-upload-wizard-target="attestOption">
-                    <input type="radio" class="btn-check" name="upload-mode" id="mode-attest-mobile" value="attest"
-                        data-action="change->waiver-upload-wizard#setModeAttest">
-                    <label class="btn btn-outline-warning w-100" for="mode-attest-mobile">
-                        <kmp-icon name="file-x" class="me-1" aria-hidden="true"></kmp-icon><?= __('Attest Not Needed') ?>
-                    </label>
-                </span>
+        <fieldset class="mb-3">
+            <legend class="form-label fs-6"><?= __('Why is this waiver not needed?') ?></legend>
+            <div class="list-group" data-waiver-upload-wizard-target="attestReasonList">
+                <!-- Populated dynamically by controller based on selected waiver type -->
             </div>
+        </fieldset>
 
-            <!-- Upload Section -->
-            <div data-waiver-upload-wizard-target="uploadSection" aria-hidden="false">
-                <!-- File size validation wrapper -->
-                <div data-controller="file-size-validator"
-                    data-file-size-validator-max-size-value="<?= h($uploadLimits['maxFileSize']) ?>"
-                    data-file-size-validator-max-size-formatted-value="<?= h($uploadLimits['formatted']) ?>"
-                    data-file-size-validator-total-max-size-value="<?= h($uploadLimits['postMaxSize']) ?>">
-
-                    <!-- Warning message container -->
-                    <div data-file-size-validator-target="warning" class="d-none mb-3"></div>
-
-                    <!-- Camera/Upload Button -->
-                    <div class="d-grid gap-2 mb-3">
-                        <button type="button"
-                            class="btn btn-lg btn-primary"
-                            aria-describedby="mobile-waiver-upload-file-tips"
-                            data-action="click->waiver-upload-wizard#triggerFileInput">
-                            <kmp-icon name="camera" class="me-2" aria-hidden="true"></kmp-icon>
-                            <?= __('Take Photo / Choose from Library') ?>
-                        </button>
-                    </div>
-
-                    <!-- Hidden file input - accepts images and PDFs -->
-                    <input type="file"
-                        accept="image/jpeg,image/jpg,image/png,image/gif,image/bmp,image/webp,application/pdf"
-                        multiple
-                        class="d-none"
-                        data-waiver-upload-wizard-target="fileInput"
-                        data-file-size-validator-target="fileInput"
-                        aria-label="<?= __('Waiver photo or PDF files') ?>"
-                        aria-describedby="mobile-waiver-upload-file-tips"
-                        data-action="change->waiver-upload-wizard#handleFileSelect
-                            change->file-size-validator#validateFiles">
-
-                    <div id="mobile-waiver-upload-file-tips" class="alert alert-info small">
-                        <kmp-icon name="info-circle" class="me-2" aria-hidden="true"></kmp-icon>
-                        <strong><?= __('Tips:') ?></strong>
-                        <ul class="mb-0 mt-2 small">
-                            <li><?= __('Take photos, select from gallery, or upload a PDF') ?></li>
-                            <li><?= __('Max size per file: {0}', h($uploadLimits['formatted'])) ?></li>
-                            <li><?= __('Images are resized and converted to B&W before upload when supported') ?></li>
-                            <li><?= __('The server creates the final PDF; uploaded PDFs are kept as-is') ?></li>
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- Pages Preview -->
-                <div class="row g-2" data-waiver-upload-wizard-target="pagesPreview">
-                    <!-- Dynamically populated by controller -->
-                </div>
-            </div>
-
-            <!-- Attest Section -->
-            <div class="d-none" data-waiver-upload-wizard-target="attestSection" aria-hidden="true">
-                <div class="alert alert-warning">
-                    <kmp-icon name="alert-triangle" class="me-2" aria-hidden="true"></kmp-icon>
-                    <?=
-                        __(
-                            'You are attesting that a waiver is not needed for this gathering. '
-                                . 'Please provide a reason.',
-                        )
-                        ?>
-                </div>
-
-                <fieldset class="mb-3">
-                    <legend class="form-label fs-6"><?= __('Why is this waiver not needed?') ?></legend>
-                    <div class="list-group" data-waiver-upload-wizard-target="attestReasonList">
-                        <!-- Populated dynamically by controller based on selected waiver type -->
-                    </div>
-                </fieldset>
-
-                <div class="mb-3">
-                    <label class="form-label"><?= __('Additional Notes (Optional)') ?></label>
-                    <textarea class="form-control"
-                        rows="3"
-                        placeholder="<?= __('Any additional context or explanation...') ?>"
-                        data-waiver-upload-wizard-target="attestNotes"></textarea>
-                </div>
-            </div>
-
+        <div class="mb-3">
+            <label class="form-label"><?= __('Additional Notes (Optional)') ?></label>
+            <textarea class="form-control"
+                rows="3"
+                placeholder="<?= __('Any additional context or explanation...') ?>"
+                data-waiver-upload-wizard-target="attestNotes"></textarea>
         </div>
     </div>
-</div>
+</section>
 
-<!-- Step 3: Review & Submit -->
-<div id="mobile-waiver-upload-step-3"
-    data-waiver-upload-wizard-target="step"
-    data-step-number="3"
-    class="d-none"
-    role="region"
-    aria-labelledby="mobile-waiver-upload-step-3-heading"
-    aria-hidden="true">
-    <div class="card">
-        <div class="card-header"
-            style="
-                background: linear-gradient(135deg, var(--mobile-success, #1e6f50), #0f5132);
-                color: var(--medieval-parchment, #f4efe4);
-            ">
-            <h5 id="mobile-waiver-upload-step-3-heading" class="mb-0">
-                <kmp-icon name="circle-number-3" class="me-2" aria-hidden="true"></kmp-icon>
-                <span class="visually-hidden"><?= __('Step 3 of 3: Review & Submit') ?></span>
-                <span aria-hidden="true"><?= __('Review & Submit') ?></span>
-            </h5>
+<section class="border rounded p-3 mb-3" id="mobile-waiver-upload-step-3"
+    aria-labelledby="mobile-waiver-upload-step-3-heading" data-waiver-upload-wizard-target="panel" hidden>
+    <h2 id="mobile-waiver-upload-step-3-heading" class="h5" tabindex="-1"><?= __('Review and submit') ?></h2>
+
+    <p class="mb-3"><?= __('Please review before submitting') ?></p>
+
+    <!-- Waiver Type -->
+    <div class="mb-3">
+        <h3 class="h6 text-muted mb-2">
+            <kmp-icon name="file-text" class="me-2" aria-hidden="true"></kmp-icon><?= __('Waiver Type') ?>
+        </h3>
+        <p class="ps-3 mb-0">
+            <strong data-waiver-upload-wizard-target="reviewWaiverType"></strong>
+        </p>
+    </div>
+
+    <!-- Upload Section - Pages and Notes -->
+    <div data-waiver-upload-wizard-target="reviewUploadSection" aria-hidden="false">
+        <!-- Pages -->
+        <div class="mb-3">
+            <h3 class="h6 text-muted mb-2">
+                <kmp-icon name="library-photo" class="me-2" aria-hidden="true"></kmp-icon>
+                <?= __('Pages') ?>
+                <span class="badge ms-2"
+                    style="background: var(--mobile-accent, #c9a227); color: var(--medieval-ink, #212529);"
+                    data-waiver-upload-wizard-target="reviewPageCount"></span>
+            </h3>
+            <div class="row g-2 ps-3" data-waiver-upload-wizard-target="reviewPagesList">
+                <!-- Populated by controller -->
+            </div>
         </div>
-        <div class="card-body">
-            <p class="mb-3"><?= __('Please review before submitting') ?></p>
 
-            <!-- Waiver Type -->
-            <div class="mb-3">
-                <h6 class="text-muted mb-2">
-                    <kmp-icon name="file-text" class="me-2" aria-hidden="true"></kmp-icon><?= __('Waiver Type') ?>
-                </h6>
-                <p class="ps-3 mb-0">
-                    <strong data-waiver-upload-wizard-target="reviewWaiverType"></strong>
-                </p>
-            </div>
-
-            <!-- Upload Section - Pages and Notes -->
-            <div data-waiver-upload-wizard-target="reviewUploadSection" aria-hidden="false">
-                <!-- Pages -->
-                <div class="mb-3">
-                    <h6 class="text-muted mb-2">
-                        <kmp-icon name="library-photo" class="me-2" aria-hidden="true"></kmp-icon>
-                        <?= __('Pages') ?>
-                        <span class="badge ms-2"
-                            style="background: var(--mobile-accent, #c9a227); color: var(--medieval-ink, #212529);"
-                            data-waiver-upload-wizard-target="reviewPageCount"></span>
-                    </h6>
-                    <div class="row g-2 ps-3" data-waiver-upload-wizard-target="reviewPagesList">
-                        <!-- Populated by controller -->
-                    </div>
-                </div>
-
-                <!-- Notes -->
-                <div class="mb-3">
-                    <h6 class="text-muted mb-2">
-                        <kmp-icon name="note" class="me-2" aria-hidden="true"></kmp-icon><?= __('Notes (Optional)') ?>
-                    </h6>
-                    <textarea class="form-control"
-                        rows="3"
-                        placeholder="<?= __('Add any notes about this waiver...') ?>"
-                        data-waiver-upload-wizard-target="notesField"></textarea>
-                </div>
-            </div>
-
-            <!-- Attest Section - Reason and Notes -->
-            <div class="d-none" data-waiver-upload-wizard-target="reviewAttestSection" aria-hidden="true">
-                <div class="mb-3">
-                    <h6 class="text-muted mb-2">
-                        <kmp-icon name="file-x" class="me-2" aria-hidden="true"></kmp-icon><?= __('Attestation: Waiver Not Needed') ?>
-                    </h6>
-                    <div class="ps-3">
-                        <strong><?= __('Reason:') ?></strong>
-                        <p data-waiver-upload-wizard-target="reviewAttestReason"></p>
-                    </div>
-                </div>
-
-                <!-- Notes (if provided) -->
-                <div class="mb-3 d-none" data-waiver-upload-wizard-target="reviewAttestNotesSection" aria-hidden="true">
-                    <h6 class="text-muted mb-2">
-                        <kmp-icon name="note" class="me-2" aria-hidden="true"></kmp-icon><?= __('Additional Notes') ?>
-                    </h6>
-                    <p class="ps-3" data-waiver-upload-wizard-target="reviewAttestNotes"></p>
-                </div>
-            </div>
+        <!-- Notes -->
+        <div class="mb-3">
+            <h3 class="h6 text-muted mb-2" id="mobile-waiver-review-notes-label">
+                <kmp-icon name="note" class="me-2" aria-hidden="true"></kmp-icon><?= __('Notes (Optional)') ?>
+            </h3>
+            <textarea class="form-control"
+                rows="3"
+                aria-labelledby="mobile-waiver-review-notes-label"
+                placeholder="<?= __('Add any notes about this waiver...') ?>"
+                data-waiver-upload-wizard-target="notesField"></textarea>
         </div>
     </div>
-</div>
+
+    <!-- Attest Section - Reason and Notes -->
+    <div class="d-none" data-waiver-upload-wizard-target="reviewAttestSection" aria-hidden="true">
+        <div class="mb-3">
+            <h3 class="h6 text-muted mb-2">
+                <kmp-icon name="file-x" class="me-2" aria-hidden="true"></kmp-icon>
+                <?= __('Attestation: Waiver Not Needed') ?>
+            </h3>
+            <div class="ps-3">
+                <strong><?= __('Reason:') ?></strong>
+                <p data-waiver-upload-wizard-target="reviewAttestReason"></p>
+            </div>
+        </div>
+
+        <!-- Notes (if provided) -->
+        <div class="mb-3 d-none" data-waiver-upload-wizard-target="reviewAttestNotesSection" aria-hidden="true">
+            <h3 class="h6 text-muted mb-2">
+                <kmp-icon name="note" class="me-2" aria-hidden="true"></kmp-icon><?= __('Additional Notes') ?>
+            </h3>
+            <p class="ps-3" data-waiver-upload-wizard-target="reviewAttestNotes"></p>
+        </div>
+    </div>
+</section>

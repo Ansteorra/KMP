@@ -1,4 +1,4 @@
-import { Controller } from "@hotwired/stimulus"
+import WizardControllerBase from "../../../../../assets/js/wizard-controller-base.js"
 
 let _pdfjsLib = null;
 
@@ -17,18 +17,12 @@ async function loadPdfjsLib() {
  * Step 2: Upload pages or attest not needed
  * Step 3: Review & submit
  */
-class WaiverUploadWizardController extends Controller {
+class WaiverUploadWizardController extends WizardControllerBase {
     static MAX_OPTIMIZED_IMAGE_DIMENSION = 2000
     static OPTIMIZED_IMAGE_QUALITY = 0.75
     static UPLOAD_TIMEOUT_MS = 5 * 60 * 1000
 
     static targets = [
-        "step",
-        "stepIndicator",
-        "prevButton",
-        "nextButton",
-        "submitButton",
-        "submitButtonText",
         "waiverTypeOption",
         "waiverTypeSelect",
         "pagesPreview",
@@ -37,7 +31,6 @@ class WaiverUploadWizardController extends Controller {
         "reviewPageCount",
         "reviewPagesList",
         "notesField",
-        "progressBar",
         "uploadSection",
         "attestSection",
         "attestReasonList",
@@ -52,8 +45,8 @@ class WaiverUploadWizardController extends Controller {
     ]
 
     static values = {
-        currentStep: { type: Number, default: 1 },
-        totalSteps: { type: Number, default: 3 },
+        submitWaiversLabel: String,
+        submitAttestationLabel: String,
         gatheringId: Number,
         gatheringPublicId: String,
         returnUrl: String,
@@ -97,7 +90,7 @@ class WaiverUploadWizardController extends Controller {
             }, 50)
         }
 
-        this.showStep(1)
+        this.showStep(1, false)
     }
 
     disconnect() {
@@ -108,133 +101,15 @@ class WaiverUploadWizardController extends Controller {
         this.uploadRequest = null
     }
 
-    // Step Navigation
-    nextStep() {
-        if (this.validateCurrentStep()) {
-            if (this.currentStepValue < this.totalStepsValue) {
-                this.currentStepValue++
-                this.showStep(this.currentStepValue)
-            }
-        }
-    }
-
-    prevStep() {
-        if (this.currentStepValue > 1) {
-            this.currentStepValue--
-            this.showStep(this.currentStepValue)
-        }
-    }
-
-    goToStep(event) {
-        const step = parseInt(event.currentTarget.dataset.step)
-        if (step < this.currentStepValue) {
-            this.currentStepValue = step
-            this.showStep(this.currentStepValue)
-        }
-    }
-
-    showStep(stepNumber) {
-        this.stepTargets.forEach(step => {
-            const isCurrentStep = parseInt(step.dataset.stepNumber) === stepNumber
-            step.classList.toggle('d-none', !isCurrentStep)
-            step.setAttribute('aria-hidden', isCurrentStep ? 'false' : 'true')
-
-            if (isCurrentStep) {
-                step.setAttribute('aria-current', 'step')
-            } else {
-                step.removeAttribute('aria-current')
-            }
-        })
-
-        // Update step indicators
-        this.updateStepIndicators(stepNumber)
-
-        // Update navigation buttons
-        this.updateNavigationButtons(stepNumber)
-
-        // Update progress bar
-        this.updateProgressBar(stepNumber)
-
-        // Perform step-specific actions
-        this.onStepChange(stepNumber)
-    }
-
-    updateStepIndicators(currentStep) {
-        this.stepIndicatorTargets.forEach(indicator => {
-            const step = parseInt(indicator.dataset.step)
-            indicator.classList.remove('active', 'completed')
-            indicator.removeAttribute('aria-current')
-
-            if (step === currentStep) {
-                indicator.classList.add('active')
-                indicator.setAttribute('aria-current', 'step')
-            } else if (step < currentStep) {
-                indicator.classList.add('completed')
-            }
-        })
-    }
-
-    updateNavigationButtons(stepNumber) {
-        // Previous button
-        if (this.hasPrevButtonTarget) {
-            if (stepNumber === 1) {
-                this.prevButtonTarget.classList.add('d-none')
-                this.prevButtonTarget.setAttribute('aria-hidden', 'true')
-            } else {
-                this.prevButtonTarget.classList.remove('d-none')
-                this.prevButtonTarget.setAttribute('aria-hidden', 'false')
-            }
-        }
-
-        // Next button
-        if (this.hasNextButtonTarget) {
-            if (stepNumber === this.totalStepsValue) {
-                this.nextButtonTarget.classList.add('d-none')
-                this.nextButtonTarget.setAttribute('aria-hidden', 'true')
-            } else {
-                this.nextButtonTarget.classList.remove('d-none')
-                this.nextButtonTarget.setAttribute('aria-hidden', 'false')
-
-                // Update button text based on step
-                if (stepNumber === 3) {
-                    this.nextButtonTarget.innerHTML = '<kmp-icon name="arrow-right"  aria-hidden="true"></kmp-icon> Review'
-                } else {
-                    this.nextButtonTarget.innerHTML = '<kmp-icon name="arrow-right"  aria-hidden="true"></kmp-icon> Next'
-                }
-            }
-        }
-
-        // Submit button
-        if (this.hasSubmitButtonTarget) {
-            if (stepNumber === this.totalStepsValue) {
-                this.submitButtonTarget.classList.remove('d-none')
-                this.submitButtonTarget.setAttribute('aria-hidden', 'false')
-                // Update submit button text based on mode
-                if (this.hasSubmitButtonTextTarget) {
-                    this.submitButtonTextTarget.textContent = this.isAttestMode ? 'Submit Attestation' : 'Submit Waivers'
-                }
-            } else {
-                this.submitButtonTarget.classList.add('d-none')
-                this.submitButtonTarget.setAttribute('aria-hidden', 'true')
-            }
-        }
-    }
-
-    updateProgressBar(stepNumber) {
-        if (this.hasProgressBarTarget) {
-            const progress = (stepNumber / this.totalStepsValue) * 100
-            this.progressBarTarget.style.width = `${progress}%`
-            this.progressBarTarget.setAttribute('aria-valuenow', progress)
-            this.progressBarTarget.setAttribute('aria-valuetext', `Step ${stepNumber} of ${this.totalStepsValue}`)
-        }
-    }
-
     onStepChange(stepNumber) {
         switch (stepNumber) {
             case 2:
                 this.checkAttestationAvailability()
                 break
             case 3:
+                this.submitButtonTarget.textContent = this.isAttestMode
+                    ? this.submitAttestationLabelValue
+                    : this.submitWaiversLabelValue
                 this.updateReviewSection()
                 break
         }
@@ -1041,9 +916,6 @@ class WaiverUploadWizardController extends Controller {
             if (this.hasSubmitButtonTarget) {
                 this.submitButtonTarget.disabled = false
             }
-            if (this.hasSubmitButtonTextTarget) {
-                this.submitButtonTextTarget.textContent = this.isAttestMode ? 'Submit Attestation' : 'Submit Waivers'
-            }
             this.restoreWizardAfterProcessing()
             this.showError(error.message || 'An error occurred during submission. Please try again.')
         }
@@ -1094,18 +966,12 @@ class WaiverUploadWizardController extends Controller {
                 if (this.hasSubmitButtonTarget) {
                     this.submitButtonTarget.disabled = false
                 }
-                if (this.hasSubmitButtonTextTarget) {
-                    this.submitButtonTextTarget.textContent = 'Submit Attestation'
-                }
                 this.restoreWizardAfterProcessing()
                 this.showError(data.message || 'Attestation failed. Please try again.')
             }
         } catch (error) {
             if (this.hasSubmitButtonTarget) {
                 this.submitButtonTarget.disabled = false
-            }
-            if (this.hasSubmitButtonTextTarget) {
-                this.submitButtonTextTarget.textContent = 'Submit Attestation'
             }
             this.restoreWizardAfterProcessing()
             this.showError('Network error. Please try again.')
@@ -1181,9 +1047,6 @@ class WaiverUploadWizardController extends Controller {
             const data = response.data
             if (this.hasSubmitButtonTarget) {
                 this.submitButtonTarget.disabled = false
-            }
-            if (this.hasSubmitButtonTextTarget) {
-                this.submitButtonTextTarget.textContent = 'Submit Waivers'
             }
             this.restoreWizardAfterProcessing()
             this.showError(data.message || 'Upload failed. Please try again.')
@@ -1322,8 +1185,7 @@ class WaiverUploadWizardController extends Controller {
             `
         }
 
-        const container = this.element.querySelector('.wizard-container') || this.element
-        this.processingContainer = container
+        const container = this.element
         this.processingElementStates = Array.from(container.children).map(element => ({
             element,
             hidden: element.classList.contains('d-none'),
@@ -1351,7 +1213,6 @@ class WaiverUploadWizardController extends Controller {
         })
         this.processingRegion = null
         this.processingElementStates = null
-        this.processingContainer = null
         this.element.setAttribute('aria-busy', 'false')
         if (this.hasSubmitButtonTarget) {
             this.submitButtonTarget.focus()
@@ -1389,13 +1250,12 @@ class WaiverUploadWizardController extends Controller {
     }
 
     // Validation
-    validateCurrentStep() {
-        switch (this.currentStepValue) {
-            case 1: return this.validateWaiverType()
-            case 2: return this.validateUploadOrAttest()
-            case 3: return this.validateReview()
-            default: return true
+    validateStep(step) {
+        if ((step === 1 && !this.validateWaiverType()) || (step === 2 && !this.validateUploadOrAttest())) {
+            if (step !== this.stepValue) this.showStep(step)
+            return false
         }
+        return true
     }
 
     // Error Handling
@@ -1405,11 +1265,7 @@ class WaiverUploadWizardController extends Controller {
         }
 
         const escapedMessage = this.escapeHtml(message)
-        // Check if we're showing the processing screen (wizard container innerHTML was replaced)
-        const container = this.element.querySelector('.wizard-container') || this.element
-        const isProcessing = container.querySelector('[data-waiver-processing]') !== null
-            || (container.querySelector('h2')
-                && container.querySelector('h2').textContent.includes('Processing Your Attestation'))
+        const isProcessing = this.element.querySelector('[data-waiver-processing]') !== null
 
         if (isProcessing) {
             this.element.setAttribute('aria-busy', 'false')
@@ -1441,7 +1297,8 @@ class WaiverUploadWizardController extends Controller {
                     <div class="toast-body">
                         <kmp-icon name="alert-triangle" class="me-2" aria-hidden="true"></kmp-icon>${escapedMessage}
                     </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                        data-bs-dismiss="toast" aria-label="Close"></button>
                 </div>
             </div>
         `

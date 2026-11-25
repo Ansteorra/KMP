@@ -1,174 +1,177 @@
-import { Controller } from "@hotwired/stimulus"
+import { Controller } from '@hotwired/stimulus'
 
-/**
- * GatheringLocationAutocompleteController
- * 
- * Provides Google Places Autocomplete for gathering location input fields
- * using the classic google.maps.places.Autocomplete API.
- * 
- * Note: We use the classic API instead of PlaceAutocompleteElement because
- * the new web component API doesn't expose selected place data programmatically.
- * The classic API provides reliable place_changed events and getPlace() method.
- * 
- * @example
- * <input type="text" 
- *        data-controller="gathering-location-autocomplete"
- *        data-gathering-location-autocomplete-api-key-value="YOUR-KEY">
- */
+const mapsAuthFailureEvent = 'kmp:maps-auth-failure'
+const placesLoadTimeout = 10_000
+let placesRequest
+let watchingAuthentication = false
+let authenticationFailed = false
+
+function watchMapsAuthentication() {
+    if (watchingAuthentication) return
+
+    const previous = window.gm_authFailure
+    window.gm_authFailure = () => {
+        authenticationFailed = true
+        window.dispatchEvent(new Event(mapsAuthFailureEvent))
+        previous?.call(window)
+    }
+    watchingAuthentication = true
+}
+
+function loadPlaces(apiKey) {
+    if (authenticationFailed) return Promise.resolve(null)
+
+    const maps = window.google?.maps
+    if (maps?.places?.Autocomplete) return Promise.resolve(maps.places.Autocomplete)
+
+    placesRequest ??= new Promise(resolve => {
+        const callback = 'initGatheringLocationAutocomplete'
+        let script
+        let finished = false
+        const timer = window.setTimeout(() => finish(), placesLoadTimeout)
+
+        function finish(Autocomplete) {
+            if (finished) return
+
+            finished = true
+            window.clearTimeout(timer)
+            if (script) {
+                script.onerror = null
+                delete window[callback]
+                if (!Autocomplete) script.remove()
+            }
+            resolve(Autocomplete)
+        }
+
+        if (maps?.importLibrary) {
+            maps.importLibrary('places').then(library => finish(library.Autocomplete), () => finish())
+            return
+        }
+
+        script = document.createElement('script')
+        const params = new URLSearchParams({ key: apiKey, libraries: 'places', loading: 'async', callback })
+        script.src = 'https://maps.googleapis.com/maps/api/js?' + params.toString()
+        script.async = true
+        script.onerror = () => finish()
+        window[callback] = () => finish(window.google?.maps?.places?.Autocomplete)
+        document.head.appendChild(script)
+    })
+    return placesRequest
+}
+
+/** Enhance the native address input with optional Google Places suggestions. */
 class GatheringLocationAutocompleteController extends Controller {
-    static values = {
-        apiKey: String  // Google Maps API key
-    }
-    
-    static targets = ["input", "latitude", "longitude"]  // Input field and hidden form fields for lat/lng
-    
-    /**
-     * Initialize the controller
-     */
-    initialize() {
-        this.autocompleteElement = null
-        this.isGoogleMapsLoaded = false
-        this.isInitialized = false  // Prevent re-initialization loop
-        this.lastSelectedAddress = null  // Store the selected address
-        this.lastSelectedPlace = null  // Store the full place object with geometry
-    }
-    
-    /**
-     * Connect function - runs when controller connects to DOM
-     */
+    static targets = ['input', 'latitude', 'longitude', 'help']
+    static values = { apiKey: String, fallbackMessage: String }
+
+    connection = 0
+
     async connect() {
-        console.log("GatheringLocationAutocompleteController connected")
-        
-        // Prevent re-initialization if already set up
-        if (this.isInitialized) {
-            console.log("Autocomplete already initialized, skipping")
-            return
-        }
-        
+        const connection = ++this.connection
+        this.address = this.inputTarget.value
+        this.usingFallback = false
+
+        const apiKey = this.apiKeyValue.trim()
+        if (!apiKey) return
+
+        watchMapsAuthentication()
+        window.addEventListener(mapsAuthFailureEvent, this.usePlainAddress)
         try {
-            // Load Google Maps Places library if not already loaded
-            await this.loadGoogleMapsPlaces()
-            
-            // Initialize autocomplete on the input field
-            this.initAutocomplete()
-            
-            // Only mark as initialized after both succeed
-            this.isInitialized = true
-            console.log("Autocomplete initialization complete")
-        } catch (error) {
-            // Reset flag on failure to allow future reconnects to retry
-            this.isInitialized = false
-            console.error("Failed to initialize autocomplete:", error)
-            // Optionally rethrow or handle gracefully
-            // throw error;
+            const Autocomplete = await loadPlaces(apiKey)
+            if (connection !== this.connection || this.usingFallback || !this.element.isConnected) return
+            if (!Autocomplete || authenticationFailed) {
+                this.usePlainAddress()
+                return
+            }
+            this.enableAutocomplete(Autocomplete)
+        } catch {
+            if (connection === this.connection && this.element.isConnected) this.usePlainAddress()
         }
     }
-    
-    /**
-     * Load Google Maps Places library
-     */
-    async loadGoogleMapsPlaces() {
-        // Check if already loaded
-        if (typeof google !== 'undefined' && google.maps && google.maps.places) {
-            this.isGoogleMapsLoaded = true
-            return Promise.resolve()
+
+    enableAutocomplete(Autocomplete) {
+        const input = this.inputTarget
+        this.nativeInput = input.cloneNode(false)
+        this.enhancedInput = input
+        const checkInput = () => {
+            if (input.disabled || input.readOnly || input.classList.contains('gm-err-autocomplete')) {
+                this.usePlainAddress()
+            }
         }
-        
-        return new Promise((resolve, reject) => {
-            // Create script tag to load Google Maps with Places library
-            const script = document.createElement('script')
-            const apiKey = this.apiKeyValue || ''
-            const keyParam = apiKey ? `key=${apiKey}&` : ''
-            
-            script.src = `https://maps.googleapis.com/maps/api/js?${keyParam}libraries=places&loading=async&callback=initGatheringLocationAutocomplete`
-            script.async = true
-            script.defer = true
-            
-            // Set up callback
-            window.initGatheringLocationAutocomplete = () => {
-                this.isGoogleMapsLoaded = true
-                delete window.initGatheringLocationAutocomplete
-                resolve()
-            }
-            
-            script.onerror = () => {
-                console.error('Failed to load Google Maps Places library')
-                reject(new Error('Failed to load Google Maps Places library'))
-            }
-            
-            document.head.appendChild(script)
-        })
-    }
-    
-    /**
-     * Initialize Google Places Autocomplete using the classic Autocomplete class
-     * (PlaceAutocompleteElement doesn't expose data programmatically, so we use the old API)
-     */
-    initAutocomplete() {
-        if (!this.isGoogleMapsLoaded) {
-            console.error('Google Maps not loaded')
-            return
+        this.inputObserver = new MutationObserver(checkInput)
+        this.inputObserver.observe(input, { attributes: true, attributeFilter: ['disabled', 'readonly', 'class'] })
+
+        const autocomplete = new Autocomplete(input, { types: ['geocode'] })
+        if (!this.usingFallback) {
+            this.placeListener = autocomplete.addListener('place_changed', () => this.selectPlace(autocomplete))
+            checkInput()
         }
-        
-        // Use the old Autocomplete API which actually works
-        // Use 'geocode' type for addresses, or omit types to get all place types
-        this.autocomplete = new google.maps.places.Autocomplete(this.inputTarget, {
-            types: ['geocode']
-        })
-        
-        // Listen for place selection
-        this.autocomplete.addListener('place_changed', () => {
-            const place = this.autocomplete.getPlace()
-            
-            if (place && place.formatted_address) {
-                console.log('✓ Place selected:', place.formatted_address)
-                this.lastSelectedAddress = place.formatted_address
-                this.lastSelectedPlace = place
-                this.inputTarget.value = place.formatted_address
-                
-                // Extract and store latitude/longitude if available
-                if (place.geometry && place.geometry.location) {
-                    const lat = place.geometry.location.lat()
-                    const lng = place.geometry.location.lng()
-                    
-                    console.log('✓ Coordinates:', lat, lng)
-                    
-                    // Update hidden form fields if they exist
-                    if (this.hasLatitudeTarget) {
-                        this.latitudeTarget.value = lat
-                        console.log('✓ Set latitude field:', lat)
-                    }
-                    if (this.hasLongitudeTarget) {
-                        this.longitudeTarget.value = lng
-                        console.log('✓ Set longitude field:', lng)
-                    }
-                } else {
-                    console.log('⚠ No geometry data available for selected place')
-                }
-            }
-        })
-        
-        console.log('Google Places Autocomplete initialized (classic API)')
     }
-    
-    /**
-     * Cleanup when controller disconnects
-     */
+
+    selectPlace(autocomplete) {
+        try {
+            const place = autocomplete.getPlace()
+            if (!place?.formatted_address) return
+
+            const location = place.geometry?.location
+            this.address = place.formatted_address
+            this.inputTarget.value = this.address
+            this.setCoordinates(location?.lat() ?? '', location?.lng() ?? '')
+        } catch {
+            this.usePlainAddress()
+        }
+    }
+
+    addressChanged() {
+        const address = this.inputTarget.value
+        if (address === this.address) return
+
+        this.address = address
+        this.setCoordinates('', '')
+    }
+
+    setCoordinates(latitude, longitude) {
+        this.latitudeTarget.value = latitude
+        this.longitudeTarget.value = longitude
+    }
+
+    usePlainAddress = () => {
+        if (this.usingFallback || !this.element.isConnected) return
+
+        this.usingFallback = true
+        this.restorePlainInput(true)
+        this.helpTarget.textContent = this.fallbackMessageValue
+    }
+
+    restorePlainInput(preserveFocus = false) {
+        this.inputObserver?.disconnect()
+        this.placeListener?.remove()
+        this.inputObserver = null
+        this.placeListener = null
+
+        const input = this.enhancedInput
+        const nativeInput = this.nativeInput
+        if (!input || !nativeInput) return
+
+        // The widget can disable the input and replace its placeholder after an authentication error.
+        const wasFocused = preserveFocus && document.activeElement === input
+        const selection = [input.selectionStart, input.selectionEnd]
+        nativeInput.value = this.address
+        input.replaceWith(nativeInput)
+        this.enhancedInput = null
+        this.nativeInput = null
+        if (wasFocused) {
+            nativeInput.focus({ preventScroll: true })
+            nativeInput.setSelectionRange(...selection)
+        }
+    }
+
     disconnect() {
-        // Clean up the autocomplete
-        if (this.autocomplete) {
-            google.maps.event.clearInstanceListeners(this.autocomplete)
-        }
-        
-        this.autocomplete = null
-        this.isInitialized = false
+        this.connection++
+        window.removeEventListener(mapsAuthFailureEvent, this.usePlainAddress)
+        this.restorePlainInput()
     }
 }
 
-// Add to global controllers registry
-if (!window.Controllers) {
-    window.Controllers = {};
-}
-window.Controllers["gathering-location-autocomplete"] = GatheringLocationAutocompleteController;
-
-console.log("GatheringLocationAutocompleteController registered in window.Controllers");
+window.Controllers = window.Controllers || {}
+window.Controllers['gathering-location-autocomplete'] = GatheringLocationAutocompleteController

@@ -13,7 +13,9 @@ use App\Services\GatheringActivityService;
 use App\Services\GatheringCloneService;
 use App\Services\GatheringScheduleService;
 use App\Services\ICalendarService;
+use App\Services\IconCatalog;
 use App\Services\PublicCalendarService;
+use App\Services\PublicCalendarSettings;
 use App\Services\ReferenceCatalogue;
 use App\Services\Security\OfflineIdentity;
 use Cake\Cache\Cache;
@@ -971,7 +973,7 @@ class GatheringsController extends AppController
      */
     public function add()
     {
-        $gathering = $this->Gatherings->newEmptyEntity();
+        $gathering = $this->Gatherings->newEmptyEntity()->set('public_page_enabled', true);
         $this->Authorization->authorize($gathering);
 
         // Pre-fill start_date from query param (used by calendar quick-add)
@@ -987,6 +989,12 @@ class GatheringsController extends AppController
 
         if ($this->request->is('post')) {
             $data = $this->request->getData();
+            $destination = $data['website_destination'] ?? null;
+            unset($data['website_destination']);
+            if ($destination === 'kmp' || $destination === 'none') {
+                $data['website_url'] = null;
+                $data['public_page_enabled'] = $destination === 'kmp';
+            }
 
             // Set the creator automatically
             $data['created_by'] = $this->Authentication->getIdentity()->id;
@@ -1010,6 +1018,15 @@ class GatheringsController extends AppController
             }
 
             $gathering = $this->Gatherings->patchEntity($gathering, $data);
+            if ($destination !== null && !in_array($destination, ['kmp', 'external', 'none'], true)) {
+                $gathering->setError('website_destination', __('Choose where visitors should go.'));
+            }
+            if (
+                $destination === 'external' && trim((string)$gathering->website_url) === ''
+                && !$gathering->getError('website_url')
+            ) {
+                $gathering->setError('website_url', __('Enter the website visitors should open.'));
+            }
             if (!$gathering->hasErrors()) {
                 $this->Authorization->authorize($gathering, 'add');
                 try {
@@ -1021,7 +1038,6 @@ class GatheringsController extends AppController
                             . 'activities you are not authorized to assign. Choose another type.',
                         ),
                     ]);
-                    $this->setResponse($this->getResponse()->withStatus(422));
                 }
             }
 
@@ -1034,6 +1050,7 @@ class GatheringsController extends AppController
                 return $this->redirect(['action' => 'view', $gathering->public_id]);
             }
 
+            $this->setResponse($this->getResponse()->withStatus(422));
             $errors = $gathering->getErrors();
             if (!empty($errors)) {
                 $errorMessages = [];
@@ -1061,13 +1078,13 @@ class GatheringsController extends AppController
         }
         $branchCount = count($branches);
 
-        // Single branch: lock the field and pre-populate
-        $lockBranch = false;
-        if ($branchCount === 1) {
-            $lockBranch = true;
-            $singleBranchId = array_key_first($branches);
-            if (!$this->request->is('post') && empty($gathering->branch_id)) {
-                $gathering->branch_id = $singleBranchId;
+        $lockBranch = $branchCount === 1;
+        if (!$this->request->is('post')) {
+            $homeBranchId = $currentUser->branch_id;
+            if ($lockBranch) {
+                $gathering->branch_id = array_key_first($branches);
+            } elseif (isset($branches[$homeBranchId])) {
+                $gathering->branch_id = $homeBranchId;
             }
         }
 
@@ -1094,6 +1111,16 @@ class GatheringsController extends AppController
             }
         }
         $gatheringTypes = $gatheringTypesByBranch[(int)$gathering->branch_id] ?? [];
+        if ($branchCount > 1) {
+            // Include choices for the native form. The wizard filters by branch and save rechecks permissions.
+            $availableTypes = [];
+            foreach ($gatheringTypesByBranch as $branchTypes) {
+                foreach ($branchTypes as $type) {
+                    $availableTypes[$type['value']] = $type;
+                }
+            }
+            $gatheringTypes = array_values($availableTypes);
+        }
 
         $this->set(compact(
             'gathering',
@@ -1980,6 +2007,26 @@ class GatheringsController extends AppController
         $this->Authorization->skipAuthorization();
         $this->viewBuilder()->setLayout('public_event');
 
+        $calendarSettings = (new PublicCalendarSettings($this->fetchTable('AppSettings')))->load();
+        $calendarEmbed = $this->request->getQuery('embed') === '1';
+        $calendarStyle = PublicCalendarSettings::style($calendarSettings);
+        $calendarLogo = $calendarSettings['artwork'] === 'logo'
+            ? PublicCalendarSettings::logoUrl($calendarSettings) : null;
+        $calendarIcon = $calendarSettings['artwork'] === 'none'
+            ? null : IconCatalog::canonical($calendarSettings['header_icon']);
+        if ($calendarEmbed) {
+            $response = $this->response->withHeader('Cache-Control', 'private, no-store');
+            $origins = PublicCalendarSettings::frameOrigins($calendarSettings['embed_origins']);
+            $calendarPath = $this->request->getAttribute('base', '') . '/events';
+            if (
+                $origins && $this->request->is(['get', 'head'])
+                && $this->request->getUri()->getPath() === $calendarPath
+            ) {
+                $response = $response->withHeader(PublicCalendarSettings::FRAME_ORIGINS_HEADER, implode(' ', $origins));
+            }
+            $this->setResponse($response);
+        }
+
         $today = CakeDateTime::now(TimezoneHelper::getUserTimezone())->startOfDay();
         $horizon = $today->addYears(2)->endOfDay();
         $publishedConditions = ['Gatherings.published' => true];
@@ -2153,7 +2200,7 @@ class GatheringsController extends AppController
         $user = null;
         $calendarAttendances = [];
         $rsvpGatherings = [];
-        $identity = $this->Authentication->getIdentity();
+        $identity = $calendarEmbed ? null : $this->Authentication->getIdentity();
         if ($identity) {
             $user = $this->fetchTable('Members')->get($identity->id);
             if ($visibleIds !== []) {
@@ -2172,6 +2219,11 @@ class GatheringsController extends AppController
         }
 
         $this->set(compact(
+            'calendarSettings',
+            'calendarEmbed',
+            'calendarStyle',
+            'calendarLogo',
+            'calendarIcon',
             'calendarMonths',
             'eventCount',
             'activityGroups',
@@ -2372,7 +2424,7 @@ class GatheringsController extends AppController
         // Build public URL
         $baseUrl = $this->request->getAttribute('base');
         $fullBaseUrl = $this->request->scheme() . '://' . $this->request->host() . $baseUrl;
-        $eventUrl = $fullBaseUrl . '/gatherings/public-landing/' . $gathering->public_id;
+        $eventUrl = $gathering->publicEventUrl($fullBaseUrl . '/gatherings/public-landing/' . $gathering->public_id);
 
         // Calendar downloads are public for gatherings with a public landing
         // page or published to the kingdom calendar; otherwise require login.

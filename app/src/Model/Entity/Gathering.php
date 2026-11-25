@@ -5,6 +5,7 @@ namespace App\Model\Entity;
 
 use App\KMP\TimezoneHelper;
 use Cake\I18n\Date;
+use Cake\Validation\Validation;
 
 /**
  * Gathering Entity
@@ -84,6 +85,25 @@ class Gathering extends BaseEntity
         'published_by' => false,
         'published_on' => false,
     ];
+
+    /** Prefer the organizer’s website, with the enabled KMP page as a fallback. */
+    public function publicEventUrl(?string $landingUrl = null): ?string
+    {
+        $website = trim($this->website_url ?? '');
+        if (self::isEventWebsite($website)) {
+            return $website;
+        }
+
+        return $this->public_page_enabled ? $landingUrl : null;
+    }
+
+    /** Validate external web links before including them in public URLs or calendar files. */
+    public static function isEventWebsite(string $url): bool
+    {
+        return (bool)preg_match('~^https?://~i', $url)
+            && !preg_match('/[\x00-\x20\x7f]/', $url)
+            && Validation::url($url, true);
+    }
 
     /**
      * Virtual field for date range display

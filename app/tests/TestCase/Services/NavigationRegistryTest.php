@@ -216,7 +216,7 @@ class NavigationRegistryTest extends BaseTestCase
                 'label' => 'Core Only',
                 'url' => ['controller' => 'Members', 'action' => 'index'],
             ]],
-            'nav_version' => 5,
+            'nav_version' => 6,
             'registered_sources' => ['core'],
             'generated_at' => (new DateTimeImmutable('now'))->format(DateTimeInterface::ATOM),
         ];
@@ -284,7 +284,7 @@ class NavigationRegistryTest extends BaseTestCase
                 'label' => $label,
                 'url' => ['controller' => 'Members', 'action' => 'index'],
             ]],
-            'nav_version' => 5,
+            'nav_version' => 6,
             'registered_sources' => [],
             'generated_at' => (new DateTimeImmutable('now'))->format(DateTimeInterface::ATOM),
         ];
