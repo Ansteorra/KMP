@@ -159,6 +159,11 @@ const FIXTURE_SETS = {
     'workflow single crown': [
         { name: 'wf-crown', processName: APPROVAL_PROCESS_NAMES.singleCrown },
     ],
+    'similar recommendations': ['lead', 'first', 'second', 'late', 'another-bestowal'].map(name => ({
+        name,
+        awardName: 'Award of the Sable Falcon',
+        processName: APPROVAL_PROCESS_NAMES.singleCrown,
+    })),
     'workflow single local': [
         { name: 'wf-local', processName: APPROVAL_PROCESS_NAMES.singleLocal },
     ],
@@ -352,15 +357,18 @@ foreach ($input['fixtures'] as $fixture) {
         }
         $ensureOfficeApproversCurrent($process);
 
-        $candidates = $awards->find()
+        $candidateQuery = $awards->find()
             ->select(['id', 'name', 'approval_process_id', 'branch_id'])
             ->where([
                 'Awards.approval_process_id' => (int)$process->id,
                 'Awards.deleted IS' => null,
                 'Awards.is_active' => true,
             ])
-            ->orderByAsc('Awards.id')
-            ->all();
+            ->orderByAsc('Awards.id');
+        if (isset($fixture['awardName'])) {
+            $candidateQuery->where(['Awards.name' => $fixture['awardName']]);
+        }
+        $candidates = $candidateQuery->all();
 
         $usedForProcess = $usedAwardIdsByProcess[$processName] ?? [];
         $orderedCandidates = [];
@@ -514,6 +522,7 @@ require 'config/bootstrap.php';
 ))));
 $input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
 $locator = \\Cake\\ORM\\TableRegistry::getTableLocator();
+$bestowals = $locator->get('Awards.Bestowals');
 $recommendations = $locator->get('Awards.Recommendations');
 $members = $locator->get('Members');
 $runs = $locator->get('Awards.RecommendationApprovalRuns');
@@ -528,6 +537,34 @@ $activeStatuses = [
     \\Awards\\Model\\Entity\\RecommendationApprovalRun::STATUS_IN_PROGRESS,
     \\Awards\\Model\\Entity\\RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
 ];
+
+$bestowalIds = array_values(array_unique(array_map('intval', $input['bestowalIds'] ?? [])));
+$bestowalConditions = $bestowalIds === [] ? [] : [['Bestowals.id IN' => $bestowalIds]];
+if ($ids !== []) {
+    $sourceRuns = $runs->find('withTrashed')->select(['id'])->where(['recommendation_id IN' => $ids]);
+    $bestowalConditions[] = [
+        'Bestowals.source' => \\Awards\\Model\\Entity\\Bestowal::SOURCE_RECOMMENDATION,
+        'OR' => [
+            'Bestowals.source_approval_run_id IN' => $sourceRuns,
+            [
+                'Bestowals.source_approval_run_id IS' => null,
+                'Bestowals.primary_recommendation_id IN' => $ids,
+            ],
+        ],
+    ];
+}
+if ($bestowalConditions !== []) {
+    $items = $locator->get('ActionItems');
+    $bestowals->getConnection()->transactional(function () use ($bestowals, $bestowalConditions, $items): void {
+        foreach ($bestowals->find()->where(['OR' => $bestowalConditions])->all() as $bestowal) {
+            $items->deleteAll([
+                'entity_type' => \\Awards\\Model\\Entity\\Bestowal::ACTION_ITEM_ENTITY_TYPE,
+                'entity_id' => (int)$bestowal->id,
+            ]);
+            $bestowals->deleteOrFail($bestowal);
+        }
+    });
+}
 
 foreach ($ids as $id) {
     if (!$recommendations->exists(['id' => $id])) {
@@ -670,7 +707,7 @@ $recommendation = $recommendations->get((int)$input['recommendationId'], contain
 echo json_encode([
     'recommendationId' => (int)$recommendation->id,
     'bestowalId' => $recommendation->bestowal_id === null ? null : (int)$recommendation->bestowal_id,
-    'bestowalState' => $recommendation->bestowal?->state,
+    'bestowalStatus' => $recommendation->bestowal?->lifecycle_status,
 ], JSON_THROW_ON_ERROR);
 `;
 
@@ -1442,6 +1479,20 @@ When('I open the {string} recommendation detail view', async ({ page }, name) =>
     await page.goto(`/awards/recommendations/view/${fixture.id}`, { waitUntil: 'networkidle' });
 });
 
+When('I toggle the {string} recommendation in Recs. Like This', async ({ page }, name) => {
+    const tab = page.getByRole('tab', { name: 'Recs. Like This', exact: true });
+    if (await tab.getAttribute('aria-selected') !== 'true') {
+        await tab.click();
+    }
+    const panel = page.getByRole('tabpanel', { name: 'Recs. Like This' });
+    await panel.locator(`tr[data-id="${getFixture(page, name).id}"]`).getByRole('checkbox').click();
+});
+
+Then('the Recs. Like This group action should be disabled', async ({ page }) => {
+    const panel = page.getByRole('tabpanel', { name: 'Recs. Like This' });
+    await expect(panel.locator('button[data-bulk-action-key="group-recs"]')).toBeDisabled();
+});
+
 When('I open the group head recommendation detail view', async ({ page }) => {
     const fixtures = ensureFixtureSet(page);
     await page.goto(`/awards/recommendations/view/${fixtures.headId}`, { waitUntil: 'networkidle' });
@@ -1530,7 +1581,7 @@ Then('the {string} recommendation should have an active bestowal link', async ({
     });
 
     expect(data.bestowalId).toBeGreaterThan(0);
-    expect(data.bestowalState).toBeTruthy();
+    expect(data.bestowalStatus).toBe('open');
 });
 
 Then('the {string} recommendation should have a workflow run with status {string}', async ({ page }, name, expectedStatus) => {
@@ -1562,6 +1613,13 @@ Then('the {string} recommendation should not be linked to a bestowal', async ({ 
     const fixture = getFixture(page, name);
     const data = runPhpJson(GET_RECOMMENDATION_WORKFLOW_STATE_PHP, { recommendationId: fixture.id });
     expect(data.bestowalId).toBeNull();
+});
+
+Then('recommendations {string} and {string} should link to the same bestowal', async ({ page }, firstName, secondName) => {
+    const first = runPhpJson(GET_RECOMMENDATION_WORKFLOW_STATE_PHP, { recommendationId: getFixture(page, firstName).id });
+    const second = runPhpJson(GET_RECOMMENDATION_WORKFLOW_STATE_PHP, { recommendationId: getFixture(page, secondName).id });
+    expect(first.bestowalId).toBeGreaterThan(0);
+    expect(second.bestowalId).toBe(first.bestowalId);
 });
 
 Then('recommendations {string} and {string} should link to different bestowals', async ({ page }, firstName, secondName) => {
@@ -1736,7 +1794,7 @@ When('I open the group recommendations modal', async ({ page }) => {
 
 Then('the group recommendations modal should describe grouping the selected recommendations', async ({ page }) => {
     await expect(page.locator('#groupRecommendationsModal')).toContainText(
-        'will be grouped together. The first selected recommendation will become the group head.',
+        'recommendations will be grouped.',
     );
 });
 
@@ -2317,83 +2375,6 @@ echo json_encode([
     'alternateAwardName' => (string)$alternateAward->name,
     'alternateDomainName' => (string)$alternateAward->domain->name,
 ], JSON_THROW_ON_ERROR);
-`;
-
-const CLEANUP_BESTOWAL_FIXTURE_PHP = `
-require 'vendor/autoload.php';
-require 'config/bootstrap.php';
-
-\\Cake\\Core\\Configure::write('Queue.plugins', array_values(array_unique(array_merge(
-    (array)\\Cake\\Core\\Configure::read('Queue.plugins'),
-    ['Queue'],
-))));
-$input = json_decode(stream_get_contents(STDIN), true, 512, JSON_THROW_ON_ERROR);
-$locator = \\Cake\\ORM\\TableRegistry::getTableLocator();
-$bestowals = $locator->get('Awards.Bestowals');
-$recommendations = $locator->get('Awards.Recommendations');
-$members = $locator->get('Members');
-$runs = $locator->get('Awards.RecommendationApprovalRuns');
-$recommendationIds = array_values(array_unique(array_map('intval', $input['recommendationIds'] ?? [])));
-$actor = $members->find()
-    ->select(['id'])
-    ->where(['email_address' => (string)$input['actorEmail']])
-    ->firstOrFail();
-$deletionService = new \\Awards\\Services\\RecommendationDeletionService();
-$activeStatuses = [
-    \\Awards\\Model\\Entity\\RecommendationApprovalRun::STATUS_IN_PROGRESS,
-    \\Awards\\Model\\Entity\\RecommendationApprovalRun::STATUS_CHANGES_REQUESTED,
-];
-
-foreach (array_values(array_unique(array_map('intval', $input['bestowalIds'] ?? []))) as $id) {
-    if ($bestowals->exists(['id' => $id])) {
-        $bestowals->deleteOrFail($bestowals->get($id));
-    }
-}
-
-foreach ($recommendationIds as $id) {
-    if ($recommendations->exists(['id' => $id])) {
-        $recommendation = $recommendations->get($id);
-        if (!$runs->exists([
-            'recommendation_id' => $id,
-            'status IN' => $activeStatuses,
-        ])) {
-            $recommendations->deleteOrFail($recommendation, ['systemSync' => true]);
-
-            continue;
-        }
-        $result = $deletionService->delete(
-            $recommendations,
-            $recommendation,
-            (int)$actor->id,
-        );
-        if (!($result['success'] ?? false)) {
-            throw new \\RuntimeException(sprintf(
-                'Could not clean up bestowal recommendation %d: %s',
-                $id,
-                (string)($result['message'] ?? 'unknown deletion failure'),
-            ));
-        }
-    }
-}
-
-$activeRunIds = $recommendationIds === [] ? [] : $runs->find()
-    ->select(['id'])
-    ->where([
-        'recommendation_id IN' => $recommendationIds,
-        'status IN' => $activeStatuses,
-    ])
-    ->all()
-    ->extract('id')
-    ->map(static fn($id): int => (int)$id)
-    ->toList();
-if ($activeRunIds !== []) {
-    throw new \\RuntimeException(sprintf(
-        'Bestowal cleanup left active recommendation approval run(s): %s.',
-        implode(', ', $activeRunIds),
-    ));
-}
-
-echo json_encode(['deleted' => true], JSON_THROW_ON_ERROR);
 `;
 
 const LOOKUP_BESTOWAL_AWARD_IDS_PHP = `
@@ -3338,9 +3319,9 @@ After(async ({ page }) => {
     }
 
     const fixture = page.__bestowalFixture;
-    runPhpJson(CLEANUP_BESTOWAL_FIXTURE_PHP, {
+    runPhpJson(CLEANUP_FIXTURES_PHP, {
         bestowalIds: fixture.bestowalId ? [fixture.bestowalId] : [],
-        recommendationIds: fixture.recommendationId ? [fixture.recommendationId] : [],
+        ids: fixture.recommendationId ? [fixture.recommendationId] : [],
         actorEmail: FIXTURE_REQUESTER_EMAIL,
     });
 });

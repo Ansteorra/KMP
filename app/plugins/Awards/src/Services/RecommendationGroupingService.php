@@ -63,27 +63,102 @@ class RecommendationGroupingService
      */
     public function groupRecommendations(array $recommendationIds, ?int $actorId = null): Recommendation
     {
+        return $this->group($recommendationIds, $actorId);
+    }
+
+    /**
+     * Group matching recommendations from a detail page, preserving any active bestowal.
+     *
+     * @param int $contextId Recommendation displayed on the detail page.
+     * @param array<int, int|string> $recommendationIds Selected group heads or standalone recommendations.
+     * @param int $actorId Current user.
+     * @param callable(array<\Awards\Model\Entity\Recommendation>):bool $authorize Authorization for affected records.
+     * @return \Awards\Model\Entity\Recommendation
+     */
+    public function groupSimilarRecommendations(
+        int $contextId,
+        array $recommendationIds,
+        int $actorId,
+        callable $authorize,
+    ): Recommendation {
+        $connection = $this->recommendationsTable->getConnection();
+        $savePointsWereEnabled = $connection->isSavePointsEnabled();
+        if (!$savePointsWereEnabled) {
+            $connection->enableSavePoints();
+        }
+
+        try {
+            return $connection->transactional(fn(): Recommendation => $this->group(
+                $recommendationIds,
+                $actorId,
+                ['id' => $contextId, 'authorize' => $authorize],
+            ));
+        } finally {
+            if (!$savePointsWereEnabled) {
+                $connection->disableSavePoints();
+            }
+        }
+    }
+
+    /**
+     * @param array<int, int|string> $recommendationIds Selected recommendation IDs.
+     * @param int|null $actorId Current user ID.
+     * @param array{id: int, authorize: callable}|null $similar Detail grouping context.
+     * @return \Awards\Model\Entity\Recommendation
+     */
+    private function group(
+        array $recommendationIds,
+        ?int $actorId,
+        ?array $similar = null,
+    ): Recommendation {
         $ids = array_values(array_unique(array_map('intval', $recommendationIds)));
         if (count($ids) < 2) {
             throw new InvalidArgumentException('At least 2 recommendations are required to group.');
         }
 
-        $this->assertGroupingPermitted($ids);
+        return $this->withTransaction(function () use ($ids, $actorId, $similar): Recommendation {
+            $bestowalIds = $similar === null ? [] : $this->lockSelectedBestowals($ids);
+            $lockedIds = $similar === null ? $ids : array_unique([...$ids, $similar['id']]);
+            $this->recommendationsTable->find()
+                ->select(['id'])
+                ->where([
+                    'OR' => [
+                        'Recommendations.id IN' => $lockedIds,
+                        'Recommendations.recommendation_group_id IN' => $ids,
+                    ],
+                ])
+                ->orderByAsc('Recommendations.id')
+                ->epilog('FOR UPDATE')
+                ->all()->toList();
 
-        return $this->withTransaction(function () use ($ids, $actorId): Recommendation {
             $recommendations = $this->recommendationsTable->find()
                 ->where(['Recommendations.id IN' => $ids])
-                ->contain(['GroupChildren'])
+                ->contain($similar === null
+                    ? ['GroupChildren']
+                    : ['Awards', 'Bestowals', 'GroupChildren.Awards', 'GroupChildren.Bestowals'])
                 ->toArray();
 
             if (count($recommendations) !== count($ids)) {
                 throw new InvalidArgumentException('One or more recommendations could not be found.');
             }
 
-            $this->assertCompatibleMembers($recommendations);
+            if ($similar === null) {
+                $this->assertGroupingPermitted($ids);
+                $this->assertCompatibleMembers($recommendations);
+                $head = $this->chooseHead($recommendations);
+            } else {
+                $context = $this->recommendationsTable->get($similar['id']);
+                $this->assertSimilarRowsPermitted($context, $recommendations, $similar['authorize']);
+                $head = $this->chooseSimilarHead($recommendations, $bestowalIds);
+                $movedChildren = $this->movedGroupChildren($recommendations, $head);
+                if ($movedChildren !== []) {
+                    $this->assertSimilarRowsPermitted($context, $movedChildren, $similar['authorize']);
+                }
+            }
 
-            $head = $this->chooseHead($recommendations);
-            $targetLinkedState = $this->determineLinkedStateForHead($head);
+            $targetLinkedState = $similar !== null && $head->bestowal_id !== null
+                ? 'Linked'
+                : $this->determineLinkedStateForHead($head);
             $childIds = $this->collectChildIdsForGrouping($recommendations, (int)$head->id);
             $this->approvalLifecycleService->supersedeActiveRunsForGrouping(
                 $childIds,
@@ -125,8 +200,114 @@ class RecommendationGroupingService
                 );
             }
 
+            if ($similar !== null && $head->bestowal_id !== null) {
+                (new BestowalRecommendationLinkService())->linkRecommendations(
+                    (int)$head->bestowal_id,
+                    $childIds,
+                    (int)$actorId,
+                    (int)$head->id,
+                );
+            }
+
             return $this->recommendationsTable->get((int)$head->id, contain: ['GroupChildren']);
         });
+    }
+
+    /**
+     * Lock bestowals before their recommendations, following cancellation/finalization lock order.
+     *
+     * @param array<int> $ids Selected recommendation IDs.
+     * @return array<int>
+     */
+    private function lockSelectedBestowals(array $ids): array
+    {
+        $referenced = $this->recommendationsTable->find()
+            ->select(['bestowal_id'])
+            ->where(['id IN' => $ids, 'bestowal_id IS NOT' => null]);
+
+        return $this->fetchTable('Awards.Bestowals')->find()
+            ->select(['id'])
+            ->where(['Bestowals.id IN' => $referenced])
+            ->orderByAsc('Bestowals.id')
+            ->epilog('FOR UPDATE')
+            ->all()
+            ->extract('id')
+            ->toList();
+    }
+
+    /**
+     * @param array<\Awards\Model\Entity\Recommendation> $recommendations Selected recommendations.
+     * @param array<int> $bestowalIds Bestowals locked by this transaction.
+     * @return \Awards\Model\Entity\Recommendation
+     */
+    private function chooseSimilarHead(array $recommendations, array $bestowalIds): Recommendation
+    {
+        $activeHeads = [];
+        foreach ($recommendations as $recommendation) {
+            if ($recommendation->recommendation_group_id !== null || !$recommendation->canJoinSimilarGroup()) {
+                throw new InvalidArgumentException(
+                    __('Select open recommendations or group heads that can accept matches.'),
+                );
+            }
+            if ($recommendation->bestowal_id !== null) {
+                if (!in_array($recommendation->bestowal_id, $bestowalIds, true)) {
+                    throw new InvalidArgumentException(
+                        __('The bestowal link changed. Review the selection and try again.'),
+                    );
+                }
+                $activeHeads[] = $recommendation;
+            }
+        }
+        if (count($activeHeads) > 1) {
+            throw new InvalidArgumentException(__('Select only one recommendation leading an in-flight bestowal.'));
+        }
+
+        usort($recommendations, static fn(Recommendation $a, Recommendation $b): int => $a->id <=> $b->id);
+
+        return $activeHeads[0] ?? $this->chooseHead($recommendations);
+    }
+
+    /**
+     * @param array<\Awards\Model\Entity\Recommendation> $recommendations Selected recommendations.
+     * @param \Awards\Model\Entity\Recommendation $head Destination head.
+     * @return array<\Awards\Model\Entity\Recommendation>
+     */
+    private function movedGroupChildren(array $recommendations, Recommendation $head): array
+    {
+        $children = [];
+        foreach ($recommendations as $recommendation) {
+            if ($recommendation->id !== $head->id) {
+                foreach ($recommendation->group_children ?? [] as $child) {
+                    if ($child->bestowal_id !== null || !$child->canJoinSimilarGroup()) {
+                        throw new InvalidArgumentException(
+                            __('This group contains recommendations that cannot be moved.'),
+                        );
+                    }
+                    $children[] = $child;
+                }
+            }
+        }
+
+        return $children;
+    }
+
+    /**
+     * @param \Awards\Model\Entity\Recommendation $context Detail recommendation.
+     * @param array<\Awards\Model\Entity\Recommendation> $rows Selected or moved rows.
+     * @param callable $authorize Authorization for affected records.
+     * @return void
+     */
+    private function assertSimilarRowsPermitted(Recommendation $context, array $rows, callable $authorize): void
+    {
+        $ids = array_map(static fn(Recommendation $rec): int => $rec->id, $rows);
+        $matches = $this->recommendationsTable->find()
+            ->where(['Recommendations.id IN' => $ids] + $context->similarRecipientConditions())
+            ->count();
+        if ($matches !== count($ids) || !$authorize($rows)) {
+            throw new InvalidArgumentException(
+                __('Select recommendations you may group for this recipient and award.'),
+            );
+        }
     }
 
     /**

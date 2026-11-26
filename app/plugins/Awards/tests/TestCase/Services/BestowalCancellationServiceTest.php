@@ -9,6 +9,7 @@ use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\Recommendation;
 use Awards\Model\Entity\RecommendationApprovalRun;
 use Awards\Services\BestowalCancellationService;
+use Awards\Services\RecommendationGroupingService;
 use Cake\Event\EventInterface;
 use Cake\Event\EventManager;
 use Cake\I18n\DateTime;
@@ -126,6 +127,46 @@ class BestowalCancellationServiceTest extends BaseTestCase
             $restartEvents[0]['eventData']['rehydrationReason'],
         );
         $this->assertArrayNotHasKey('rehydratedFromRunId', $restartEvents[0]['eventData']);
+    }
+
+    public function testCancelGroupedBestowalRestartsOnlyTheHeadApproval(): void
+    {
+        $head = $this->makeRecommendation();
+        $first = $this->makeRecommendation();
+        $second = $this->makeRecommendation();
+        $bestowal = $this->makeBestowal($head);
+        (new RecommendationGroupingService())->groupSimilarRecommendations(
+            (int)$head->id,
+            [$first->id, $second->id, $head->id],
+            self::ADMIN_MEMBER_ID,
+            static fn(array $rows): bool => true,
+        );
+
+        $result = (new BestowalCancellationService())->cancel(
+            (int)$bestowal->id,
+            self::ADMIN_MEMBER_ID,
+            'Return the group to consideration.',
+        );
+
+        $this->assertTrue($result['success'], $result['error'] ?? '');
+        $this->assertEqualsCanonicalizing(
+            [$head->id, $first->id, $second->id],
+            $result['data']['recommendationIds'],
+        );
+        $this->assertSame([$head->id], $result['data']['approvalScopeRecommendationIds']);
+        $this->assertSame([$head->id], array_keys($result['data']['restartedApprovals']));
+        $this->assertSame('Submitted', $this->recommendations->get($head->id)->state);
+        foreach ([$head, $first, $second] as $recommendation) {
+            $saved = $this->recommendations->get($recommendation->id);
+            $this->assertNull($saved->bestowal_id);
+            $this->assertNull($saved->given);
+            $this->assertNull($saved->gathering_id);
+            if ($saved->id !== $head->id) {
+                $this->assertSame($head->id, $saved->recommendation_group_id);
+                $this->assertSame('Linked', $saved->state);
+            }
+        }
+        $this->assertCount(0, $this->bestowals->get($bestowal->id, contain: ['Recommendations'])->recommendations);
     }
 
     /**

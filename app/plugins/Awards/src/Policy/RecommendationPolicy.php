@@ -417,6 +417,19 @@ class RecommendationPolicy extends BasePolicy
         return $this->canEdit($user, $entity, ...$optionalArgs);
     }
 
+    /** Permit adding matches to a viewable open bestowal through its recommendation. */
+    public function canGroupSimilar(KmpIdentityInterface $user, Recommendation $entity): bool
+    {
+        if (!$entity->canJoinSimilarGroup()) {
+            return false;
+        }
+        if (!$entity->isLockedByBestowal()) {
+            return $this->canGroup($user, $entity);
+        }
+
+        return parent::canEdit($user, $entity) && $user->checkCan('view', $entity->bestowal);
+    }
+
     /**
      * Handle dynamic approval authority methods (canApproveLevel*).
      *

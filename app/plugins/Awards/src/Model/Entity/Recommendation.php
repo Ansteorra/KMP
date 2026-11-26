@@ -326,6 +326,33 @@ class Recommendation extends BaseEntity
         return $this->bestowal_id !== null && (int)$this->bestowal_id > 0;
     }
 
+    /** Match unregistered recipients by their recorded name. */
+    public function similarRecipientConditions(): array
+    {
+        $conditions = ['Recommendations.award_id' => $this->award_id];
+        if ($this->member_id !== null) {
+            return $conditions + ['Recommendations.member_id' => $this->member_id];
+        }
+        if (trim((string)$this->member_sca_name) === '') {
+            return $conditions + ['Recommendations.id' => $this->id];
+        }
+
+        return $conditions + [
+            'Recommendations.member_id IS' => null,
+            'Recommendations.member_sca_name' => $this->member_sca_name,
+        ];
+    }
+
+    /** A bestowal-owned head can receive matches while the bestowal is open. */
+    public function canJoinSimilarGroup(): bool
+    {
+        if ($this->isLockedByBestowal()) {
+            return $this->bestowal?->isActiveBestowal() === true;
+        }
+
+        return $this->status !== 'Closed' && !in_array($this->state, self::getStatuses()['Closed'] ?? [], true);
+    }
+
     /**
      * Whether this recommendation is a group head (has children grouped under it).
      *

@@ -21,6 +21,7 @@ use App\Services\WorkflowEngine\DefaultWorkflowApprovalManager;
 use App\Services\WorkflowEngine\TriggerDispatcher;
 use Awards\KMP\GridColumns\MemberSubmittedRecommendationsGridColumns;
 use Awards\KMP\GridColumns\RecommendationsGridColumns;
+use Awards\KMP\GridColumns\SimilarRecommendationsGridColumns;
 use Awards\Model\Entity\Recommendation;
 use Awards\Services\BestowalGatheringLookupService;
 use Awards\Services\RecommendationApprovalDecisionService;
@@ -44,6 +45,7 @@ use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\TableRegistry;
 use Cake\Routing\Router;
 use Exception;
+use InvalidArgumentException;
 use Throwable;
 use Traversable;
 
@@ -881,6 +883,71 @@ class RecommendationsController extends AppController
         }
     }
 
+    /** Render the matching recommendations grid for one detail page. */
+    public function similarRecsGridData(RecommendationQueryService $queryService, int $id): void
+    {
+        $this->request->allowMethod(['get']);
+        $emptyRecommendation = $this->Recommendations->newEmptyEntity();
+        $this->Authorization->authorize($emptyRecommendation, 'index');
+        $context = $this->Recommendations->get($id);
+        $this->Authorization->authorize($context, 'view');
+        $identity = $this->request->getAttribute('identity');
+        $canViewHidden = $identity->checkCan('viewHidden', $emptyRecommendation);
+        $canGroup = $identity->checkCan('group', $emptyRecommendation);
+        $queryContext = $this->resolveDataverseGridQueryContext([
+            'gridKey' => SimilarRecommendationsGridColumns::GRID_KEY,
+            'gridColumnsClass' => SimilarRecommendationsGridColumns::class,
+            'systemViews' => SimilarRecommendationsGridColumns::getSystemViews(),
+            'defaultSystemView' => SimilarRecommendationsGridColumns::VIEW,
+            'defaultSort' => ['Recommendations.created' => 'desc'],
+        ]);
+        $built = $queryService->buildMainGridQuery(
+            $this->Recommendations,
+            $canGroup,
+            $queryContext->loadsColumn('notes'),
+            $queryContext->queryVisibleColumns(),
+            similarTo: $context,
+        );
+        $built['gridOptions']['baseQuery'] = $this->Authorization->applyScope(
+            $queryService->applyHiddenStateVisibility($built['query'], $canViewHidden),
+            'index',
+        );
+        $result = $this->applyStateFilterOptionsToGridResult(
+            $this->processDataverseGrid($built['gridOptions']),
+            $canViewHidden,
+        );
+
+        $recommendations = $result['data'];
+        $visibleColumns = (array)$result['visibleColumns'];
+        $this->enrichRecommendationsForGrid($recommendations, [...$visibleColumns, 'group_children_count']);
+        foreach ($recommendations as $recommendation) {
+            $recommendation->similar_group_disabled = $recommendation->recommendation_group_id !== null
+                || !$recommendation->canJoinSimilarGroup()
+                || !$identity->checkCan('groupSimilar', $recommendation);
+            $recommendation->active_group_bestowal = $recommendation->bestowal_viewable
+                && $recommendation->bestowal?->isActiveBestowal();
+            $recommendation->grouping_status = match (true) {
+                $recommendation->active_group_bestowal && $recommendation->recommendation_group_id === null
+                    => __('In-flight bestowal'),
+                $recommendation->recommendation_group_id !== null => __('Grouped'),
+                $recommendation->group_children_count > 0 => __('Group head'),
+                default => '',
+            };
+        }
+
+        $this->renderDataverseGridResponse(
+            result: $result,
+            frameId: 'similar-recs-grid-' . $id,
+            extraViewVars: [
+                'rowActions' => array_intersect_key(
+                    RecommendationsGridColumns::getRowActions(),
+                    ['view' => true, 'bestowal' => true],
+                ),
+                'searchableColumns' => SimilarRecommendationsGridColumns::getSearchableColumns(),
+            ],
+        );
+    }
+
     /**
      * Request feedback on selected recommendations or recommendation groups.
      */
@@ -1051,12 +1118,85 @@ class RecommendationsController extends AppController
                 }
             }
 
-            $this->set(compact('recommendation', 'memberAttendanceGatherings', 'workflowContext'));
+            $identity = $this->request->getAttribute('identity');
+            $emptyRecommendation = $this->Recommendations->newEmptyEntity();
+            $canViewSimilarRecs = $identity->checkCan('index', $emptyRecommendation);
+            $canGroupSimilarRecs = $canViewSimilarRecs && $identity->checkCan('group', $emptyRecommendation);
+            $includeCurrentInSimilarGroup = $canGroupSimilarRecs
+                && $recommendation->recommendation_group_id === null
+                && $recommendation->canJoinSimilarGroup()
+                && $this->canGroupSimilarRows([$recommendation], new RecommendationQueryService());
+            $this->set(compact(
+                'recommendation',
+                'memberAttendanceGatherings',
+                'workflowContext',
+                'canViewSimilarRecs',
+                'canGroupSimilarRecs',
+                'includeCurrentInSimilarGroup',
+            ));
 
             return null;
         } catch (RecordNotFoundException $e) {
             throw new NotFoundException(__('Recommendation not found'));
         }
+    }
+
+    /** Group matching recommendations and return to the detail tab. */
+    public function groupSimilarRecommendations(
+        RecommendationGroupingService $groupingService,
+        RecommendationQueryService $queryService,
+        int $id,
+    ): Response {
+        $this->request->allowMethod(['post']);
+        $emptyRecommendation = $this->Recommendations->newEmptyEntity();
+        $this->Authorization->authorize($emptyRecommendation, 'index');
+        $this->Authorization->authorize($emptyRecommendation, 'group');
+        $recommendation = $this->Recommendations->get($id);
+        $this->Authorization->authorize($recommendation, 'view');
+        $ids = $this->request->getData('recommendation_ids');
+
+        try {
+            if (!is_array($ids) || array_filter($ids, fn($value) => !is_scalar($value) || !ctype_digit((string)$value))) {
+                throw new InvalidArgumentException(__('Select at least two recommendations to group.'));
+            }
+            $groupingService->groupSimilarRecommendations(
+                $id,
+                $ids,
+                (int)$this->request->getAttribute('identity')->id,
+                fn(array $rows): bool => $this->canGroupSimilarRows($rows, $queryService),
+            );
+            $this->Flash->success(__('Recommendations have been grouped.'));
+        } catch (InvalidArgumentException $exception) {
+            $this->Flash->error($exception->getMessage());
+        } catch (Throwable $exception) {
+            Log::error('Unable to group similar recommendations: ' . $exception->getMessage());
+            $this->Flash->error(__('The recommendations could not be grouped. Reload the tab and try again.'));
+        }
+
+        return $this->redirect(['action' => 'view', $id, '?' => ['tab' => 'similar-recs']]);
+    }
+
+    /**
+     * @param array<\Awards\Model\Entity\Recommendation> $rows Selected or moved rows.
+     * @param \Awards\Services\RecommendationQueryService $queryService Recommendation visibility service.
+     * @return bool
+     */
+    private function canGroupSimilarRows(array $rows, RecommendationQueryService $queryService): bool
+    {
+        $identity = $this->request->getAttribute('identity');
+        foreach ($rows as $row) {
+            if (!$identity->checkCan('groupSimilar', $row)) {
+                return false;
+            }
+        }
+        $query = $this->Recommendations->find()
+            ->where(['Recommendations.id IN' => array_map(fn(Recommendation $row): int => $row->id, $rows)]);
+        $canViewHidden = $identity->checkCan('viewHidden', $this->Recommendations->newEmptyEntity());
+
+        return $this->Authorization->applyScope(
+            $queryService->applyHiddenStateVisibility($query, $canViewHidden),
+            'index',
+        )->count() === count($rows);
     }
 
     /**

@@ -27,6 +27,7 @@ Own browser-driven Playwright and playwright-bdd coverage for authentication, te
 - UAT also runs real native waiver image-to-PDF upload/download and public RSVP browser checks. Their synthetic fixtures and uploaded files must be cleaned after failures. Wait for Bootstrap's focused, shown dialog before keyboard submission; do not replace that lifecycle assertion with sleeps.
 - Wait for reopened editors too: existing field values can be present before the dialog finishes taking focus. Assert the submitted value when verifying dependent content so input races are distinguishable from stale rendering.
 - Before deleting fixture owners, remove their queued jobs and progress rows by exact fixture IDs/references. Cleanup must also work after a failed assertion so later scenarios do not inherit orphaned work.
+- Awards recommendation cleanup includes bestowals created from those fixtures and their To-Dos. Identify the bestowal by its originating approval run or primary recommendation when there is no run.
 - Do not hard-code credentials or IDs when a support helper or seeded fixture can provide them.
 - Exercise autocomplete suggestions through the visible control and submit the server-issued identifier (public IDs for core member pickers). Do not inject numeric IDs into hidden fields: input handlers can clear that fabricated selection. Officer hiring tests must assert the submitted assignee as well as the dates.
 - Plain HTTP browser test environments explicitly disable secure session cookies; HTTPS deployment defaults stay secure.

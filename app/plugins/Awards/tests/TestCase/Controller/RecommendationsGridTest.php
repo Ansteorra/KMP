@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Awards\Test\TestCase\Controller;
 
+use App\Model\Entity\ActionItem;
 use App\Model\Entity\GridView;
 use App\Model\Entity\WorkflowApproval;
 use App\Model\Entity\WorkflowApprovalResponse;
@@ -13,6 +14,9 @@ use Awards\KMP\GridColumns\RecommendationsGridColumns;
 use Awards\Model\Entity\Bestowal;
 use Awards\Model\Entity\Recommendation;
 use Awards\Model\Entity\RecommendationApprovalRun;
+use Awards\Services\BestowalCreationService;
+use Awards\Services\BestowalFinalizationService;
+use Awards\Services\RecommendationGroupingService;
 use DateTimeImmutable;
 
 class RecommendationsGridTest extends HttpIntegrationTestCase
@@ -23,6 +27,299 @@ class RecommendationsGridTest extends HttpIntegrationTestCase
         $this->enableCsrfToken();
         $this->enableSecurityToken();
         $this->authenticateAsSuperUser();
+    }
+
+    public function testSimilarGridShowsOnlyOtherRecommendationsForTheSameMemberAndAward(): void
+    {
+        [$award, $otherAward] = $this->getAwardsWithDifferentLevels();
+        $context = $this->createRecommendation($award->id, 'Viewed recommendation', ['state' => 'Submitted']);
+        $open = $this->createRecommendation($award->id, 'Matching recommendation', ['state' => 'Submitted']);
+        $closed = $this->createRecommendation($award->id, 'Previous reign recommendation', [
+            'state' => RecommendationsGridColumns::getArchivedStates()[0],
+            'close_reason' => 'No action in previous reign',
+        ]);
+        $this->createRecommendation($otherAward->id, 'Unrelated award');
+        $this->createRecommendation($award->id, 'Unrelated recipient', ['member_id' => self::TEST_MEMBER_AGATHA_ID]);
+
+        $this->get('/awards/recommendations/view/' . $context->id . '?tab=similar-recs');
+        $this->assertResponseOk();
+        $this->assertResponseContains('Recs. Like This');
+        $this->assertResponseContains('/awards/recommendations/similar-recs-grid-data/' . $context->id);
+        $this->assertResponseContains('group-similar-recommendations/' . $context->id);
+
+        $this->get('/awards/recommendations/similar-recs-grid-data/' . $context->id);
+        $this->assertResponseOk();
+        $this->assertResponseNotContains('data-saved-views-region');
+        $this->assertResponseContains('data-filter-button');
+        $this->assertResponseContains('No action in previous reign');
+        $this->assertResponseContains('data-bulk-action-key="group-recs"');
+        $this->assertResponseNotContains('data-bulk-action-key="workflow-decision"');
+        $rows = collection($this->viewVariable('data'))->indexBy('id')->toArray();
+        $this->assertEqualsCanonicalizing([$open->id, $closed->id], array_keys($rows));
+        $this->assertFalse($rows[$open->id]->similar_group_disabled);
+        $this->assertTrue($rows[$closed->id]->similar_group_disabled);
+    }
+
+    public function testSimilarGroupingPrefersExistingGroup(): void
+    {
+        [$award] = $this->getAwardsWithDifferentLevels();
+        $current = $this->createRecommendation($award->id, 'Newly received', ['state' => 'Submitted']);
+        $head = $this->createRecommendation($award->id, 'Existing head', ['state' => 'Submitted']);
+        $child = $this->createRecommendation($award->id, 'Existing child', ['state' => 'Submitted']);
+        (new RecommendationGroupingService())->groupRecommendations([$head->id, $child->id], self::ADMIN_MEMBER_ID);
+
+        $this->post('/awards/recommendations/group-similar-recommendations/' . $current->id, [
+            'recommendation_ids' => [$current->id, $head->id],
+        ]);
+        $this->assertRedirect('/awards/recommendations/view/' . $current->id . '?tab=similar-recs');
+        $recommendations = $this->getTableLocator()->get('Awards.Recommendations');
+        $this->assertSame($head->id, $recommendations->get($current->id)->recommendation_group_id);
+        $this->assertSame($head->id, $recommendations->get($child->id)->recommendation_group_id);
+
+        $logs = $this->getTableLocator()->get('Awards.RecommendationsStatesLogs');
+        $conditions = ['recommendation_id' => $current->id, 'to_state' => 'Linked'];
+        $this->assertSame(1, $logs->find()->where($conditions)->count());
+        $this->post('/awards/recommendations/group-similar-recommendations/' . $current->id, [
+            'recommendation_ids' => [$current->id, $head->id],
+        ]);
+        $this->assertSame(1, $logs->find()->where($conditions)->count());
+    }
+
+    public function testSimilarGroupingCreatesGroupFromOpenMatchesOnClosedDetail(): void
+    {
+        [$award] = $this->getAwardsWithDifferentLevels();
+        $historical = $this->createRecommendation($award->id, 'Historical recommendation', [
+            'state' => RecommendationsGridColumns::getArchivedStates()[0],
+        ]);
+        $first = $this->createRecommendation($award->id, 'First open match', ['state' => 'Submitted']);
+        $second = $this->createRecommendation($award->id, 'Second open match', ['state' => 'Submitted']);
+
+        $this->post('/awards/recommendations/group-similar-recommendations/' . $historical->id, [
+            'recommendation_ids' => [$second->id, $first->id],
+        ]);
+        $this->assertRedirect('/awards/recommendations/view/' . $historical->id . '?tab=similar-recs');
+        $recommendations = $this->getTableLocator()->get('Awards.Recommendations');
+        $this->assertNull($recommendations->get($historical->id)->recommendation_group_id);
+        $this->assertSame($historical->state, $recommendations->get($historical->id)->state);
+        $this->assertSame($first->id, $recommendations->get($second->id)->recommendation_group_id);
+    }
+
+    public function testSimilarGridMatchesUnregisteredRecipientsByRecordedName(): void
+    {
+        [$award] = $this->getAwardsWithDifferentLevels();
+        $recipient = ['member_id' => null, 'member_sca_name' => 'Unregistered Recipient'];
+        $current = $this->createRecommendation($award->id, 'First unregistered recommendation', $recipient + [
+            'state' => 'Need to Schedule',
+        ]);
+        $other = $this->createRecommendation($award->id, 'Matching unregistered recommendation', [
+            'member_id' => null,
+            'member_sca_name' => 'unregistered recipient',
+            'state' => 'Submitted',
+        ]);
+        $this->createRecommendation($award->id, 'Different unregistered name', [
+            'member_id' => null,
+            'member_sca_name' => 'Another Unregistered Recipient',
+        ]);
+        $this->createRecommendation($award->id, 'Registered with same recorded name', [
+            'member_sca_name' => $recipient['member_sca_name'],
+        ]);
+
+        $this->get('/awards/recommendations/similar-recs-grid-data/' . $current->id);
+        $this->assertResponseOk();
+        $this->assertSame([$other->id], collection($this->viewVariable('data'))->extract('id')->toList());
+
+        $created = (new BestowalCreationService())->createFromRecommendation($current->id, self::ADMIN_MEMBER_ID);
+        $this->assertTrue($created['success'], $created['error'] ?? '');
+        $this->post('/awards/recommendations/group-similar-recommendations/' . $current->id, [
+            'recommendation_ids' => [$current->id, $other->id],
+        ]);
+        $this->assertRedirect('/awards/recommendations/view/' . $current->id . '?tab=similar-recs');
+        $saved = $this->getTableLocator()->get('Awards.Recommendations')->get($other->id);
+        $this->assertSame($current->id, $saved->recommendation_group_id);
+        $this->assertSame($created['data']['bestowalIds'][0], $saved->bestowal_id);
+    }
+
+    public function testSimilarGroupingAddsToInFlightBestowalWithoutChangingItsLead(): void
+    {
+        [$award] = $this->getAwardsWithDifferentLevels();
+        $current = $this->createRecommendation($award->id, 'Latest recommendation', ['state' => 'Submitted']);
+        $currentChild = $this->createRecommendation($award->id, 'Grouped with latest', ['state' => 'Submitted']);
+        $head = $this->createRecommendation($award->id, 'Bestowal head', ['state' => 'Need to Schedule']);
+        $existingChild = $this->createRecommendation($award->id, 'Bestowal child', ['state' => 'Submitted']);
+        $groupingService = new RecommendationGroupingService();
+        $groupingService->groupRecommendations([$current->id, $currentChild->id], self::ADMIN_MEMBER_ID);
+        $groupingService->groupRecommendations([$head->id, $existingChild->id], self::ADMIN_MEMBER_ID);
+        $created = (new BestowalCreationService())->createFromRecommendation($head->id, self::ADMIN_MEMBER_ID);
+        $this->assertTrue($created['success'], $created['error'] ?? '');
+        $bestowalId = $created['data']['bestowalIds'][0];
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $bestowalBefore = $bestowals->get($bestowalId);
+
+        $this->get('/awards/recommendations/similar-recs-grid-data/' . $current->id);
+        $this->assertResponseOk();
+        $this->assertResponseContains('In-flight bestowal');
+        $rows = collection($this->viewVariable('data'))->indexBy('id')->toArray();
+        $this->assertFalse($rows[$head->id]->similar_group_disabled);
+        $this->assertTrue($rows[$existingChild->id]->similar_group_disabled);
+
+        $this->post('/awards/recommendations/group-similar-recommendations/' . $current->id, [
+            'recommendation_ids' => [$current->id, $head->id],
+        ]);
+        $this->assertRedirect('/awards/recommendations/view/' . $current->id . '?tab=similar-recs');
+
+        $recommendations = $this->getTableLocator()->get('Awards.Recommendations');
+        $saved = $recommendations->get($current->id);
+        $this->assertSame($head->id, $saved->recommendation_group_id);
+        $this->assertSame($bestowalId, $saved->bestowal_id);
+        $this->assertSame('Linked', $saved->state);
+        $this->assertSame($head->id, $recommendations->get($currentChild->id)->recommendation_group_id);
+        $this->assertSame($bestowalId, $recommendations->get($currentChild->id)->bestowal_id);
+        $this->assertSame($head->id, $recommendations->get($existingChild->id)->recommendation_group_id);
+        $bestowal = $bestowals->get($bestowalId, contain: ['Recommendations']);
+        $this->assertSame($head->id, $bestowal->primary_recommendation_id);
+        $this->assertSame($bestowalBefore->reason_summary, $bestowal->reason_summary);
+        $this->assertSame(Bestowal::LIFECYCLE_OPEN, $bestowal->lifecycle_status);
+        $this->assertEqualsCanonicalizing(
+            [$head->id, $existingChild->id, $current->id, $currentChild->id],
+            array_column($bestowal->recommendations, 'id'),
+        );
+
+        $this->get('/awards/recommendations/view/' . $head->id . '?tab=grouped');
+        $this->assertResponseOk();
+        $this->assertResponseContains('Grouped Recommendations');
+        $this->assertResponseNotContains('Ungroup All');
+        $this->assertResponseNotContains('Remove from group');
+    }
+
+    public function testSimilarGroupingRollsBackWhenBestowalLinkIsRejected(): void
+    {
+        [$award] = $this->getAwardsWithDifferentLevels();
+        $current = $this->createRecommendation($award->id, 'Open recommendation', ['state' => 'Submitted']);
+        $head = $this->createRecommendation($award->id, 'Bestowal recommendation', ['state' => 'Need to Schedule']);
+        $bestowal = $this->createBestowalForRecommendation($head);
+        $bestowals = $this->getTableLocator()->get('Awards.Bestowals');
+        $bestowal->member_id = self::TEST_MEMBER_AGATHA_ID;
+        $bestowals->saveOrFail($bestowal);
+        $savePointsWereEnabled = $bestowals->getConnection()->isSavePointsEnabled();
+
+        $this->post('/awards/recommendations/group-similar-recommendations/' . $current->id, [
+            'recommendation_ids' => [$current->id, $head->id],
+        ]);
+        $this->assertRedirect('/awards/recommendations/view/' . $current->id . '?tab=similar-recs');
+        $saved = $this->getTableLocator()->get('Awards.Recommendations')->get($current->id);
+        $this->assertNull($saved->recommendation_group_id);
+        $this->assertNull($saved->bestowal_id);
+        $this->assertSame('Submitted', $saved->state);
+        $this->assertSame($savePointsWereEnabled, $bestowals->getConnection()->isSavePointsEnabled());
+    }
+
+    public function testSimilarGridAndGroupingAreDeniedWithoutRecommendationAccess(): void
+    {
+        [$award] = $this->getAwardsWithDifferentLevels();
+        $current = $this->createRecommendation($award->id, 'Viewed recommendation', ['state' => 'Submitted']);
+        $other = $this->createRecommendation($award->id, 'Restricted match', ['state' => 'Submitted']);
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+
+        $this->get('/awards/recommendations/similar-recs-grid-data/' . $current->id);
+        $this->assertResponseCode(302);
+        $this->assertRedirectContains('/pages/unauthorized');
+        $this->assertResponseNotContains('Restricted match');
+
+        $this->post('/awards/recommendations/group-similar-recommendations/' . $current->id, [
+            'recommendation_ids' => [$current->id, $other->id],
+        ]);
+        $this->assertResponseCode(302);
+        $this->assertRedirectContains('/pages/unauthorized');
+        $this->assertNull($this->getTableLocator()->get('Awards.Recommendations')->get($other->id)->recommendation_group_id);
+    }
+
+    public function testFinalizingBestowalClosesNewlyGroupedRecommendations(): void
+    {
+        [$award] = $this->getAwardsWithDifferentLevels();
+        $head = $this->createRecommendation($award->id, 'Standalone bestowal lead', ['state' => 'Need to Schedule']);
+        $first = $this->createRecommendation($award->id, 'First open match', ['state' => 'Submitted']);
+        $second = $this->createRecommendation($award->id, 'Second open match', ['state' => 'Submitted']);
+        $links = $this->getTableLocator()->get('Awards.BestowalRecommendations');
+        $bestowal = $this->createBestowalForRecommendation($head);
+        $links->saveOrFail($links->newEntity(['bestowal_id' => $bestowal->id, 'recommendation_id' => $head->id]));
+
+        $this->post('/awards/recommendations/group-similar-recommendations/' . $head->id, [
+            'recommendation_ids' => [$head->id, $first->id, $second->id],
+        ]);
+        $this->assertRedirect('/awards/recommendations/view/' . $head->id . '?tab=similar-recs');
+        $this->assertSame(3, $links->find()->where(['bestowal_id' => $bestowal->id])->count());
+
+        $items = $this->getTableLocator()->get('ActionItems');
+        $items->saveOrFail($items->newEntity([
+            'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+            'entity_id' => $bestowal->id,
+            'title' => 'Award given',
+            'assignee_type' => ActionItem::ASSIGNEE_TYPE_MEMBER,
+            'assignee_config' => ['member_id' => self::ADMIN_MEMBER_ID],
+            'branch_id' => self::KINGDOM_BRANCH_ID,
+            'status' => ActionItem::STATUS_COMPLETED,
+            'is_gating' => true,
+        ]));
+        $result = (new BestowalFinalizationService())->markGiven($bestowal->id, self::ADMIN_MEMBER_ID);
+        $this->assertTrue($result->success, $result->reason ?? '');
+
+        $recommendations = $this->getTableLocator()->get('Awards.Recommendations');
+        foreach ([$head, $first, $second] as $recommendation) {
+            $saved = $recommendations->get($recommendation->id);
+            $this->assertSame('Given', $saved->state);
+            $this->assertSame('Closed', $saved->status);
+            $this->assertNotNull($saved->given);
+            $this->assertSame($bestowal->id, $saved->bestowal_id);
+        }
+        $this->get('/awards/recommendations/similar-recs-grid-data/' . $head->id);
+        $this->assertResponseOk();
+        $this->assertResponseNotContains('data-grid-view-target="rowCheckbox"');
+    }
+
+    public function testSimilarGroupingRejectsMovingAGroupThatContainsAnotherAward(): void
+    {
+        [$award, $otherAward] = $this->getAwardsWithDifferentLevels();
+        $group = $this->createRecommendation($award->id, 'Existing group lead', ['state' => 'Submitted']);
+        $child = $this->createRecommendation($otherAward->id, 'Other award in group', ['state' => 'Submitted']);
+        $head = $this->createRecommendation($award->id, 'Bestowal recommendation', ['state' => 'Need to Schedule']);
+        (new RecommendationGroupingService())->groupRecommendations([$group->id, $child->id], self::ADMIN_MEMBER_ID);
+        $bestowal = $this->createBestowalForRecommendation($head);
+
+        $this->post('/awards/recommendations/group-similar-recommendations/' . $head->id, [
+            'recommendation_ids' => [$group->id, $head->id],
+        ]);
+        $this->assertRedirect('/awards/recommendations/view/' . $head->id . '?tab=similar-recs');
+        $recommendations = $this->getTableLocator()->get('Awards.Recommendations');
+        $this->assertSame($bestowal->id, $recommendations->get($head->id)->bestowal_id);
+        $this->assertNull($recommendations->get($group->id)->recommendation_group_id);
+        $this->assertSame($group->id, $recommendations->get($child->id)->recommendation_group_id);
+    }
+
+    public function testSimilarGroupingRejectsClosedUnrelatedAndConflictingBestowalSelections(): void
+    {
+        [$award, $otherAward] = $this->getAwardsWithDifferentLevels();
+        $current = $this->createRecommendation($award->id, 'Viewed recommendation', ['state' => 'Submitted']);
+        $closed = $this->createRecommendation($award->id, 'Historical recommendation', [
+            'state' => RecommendationsGridColumns::getArchivedStates()[0],
+        ]);
+        $unrelated = $this->createRecommendation($otherAward->id, 'Unrelated award', ['state' => 'Submitted']);
+        $terminal = $this->createRecommendation($award->id, 'Completed bestowal', ['state' => 'Need to Schedule']);
+        $first = $this->createRecommendation($award->id, 'First bestowal', ['state' => 'Need to Schedule']);
+        $second = $this->createRecommendation($award->id, 'Second bestowal', ['state' => 'Need to Schedule']);
+        $this->createBestowalForRecommendation($terminal, Bestowal::LIFECYCLE_GIVEN);
+        $this->createBestowalForRecommendation($first);
+        $this->createBestowalForRecommendation($second);
+        $url = '/awards/recommendations/group-similar-recommendations/' . $current->id;
+
+        $selections = [[$closed, $current], [$unrelated, $current], [$terminal, $current], [$first, $second, $current]];
+        foreach ($selections as $rows) {
+            $this->post($url, ['recommendation_ids' => array_column($rows, 'id')]);
+            $this->assertRedirect('/awards/recommendations/view/' . $current->id . '?tab=similar-recs');
+            $recommendations = $this->getTableLocator()->get('Awards.Recommendations');
+            foreach ($rows as $row) {
+                $this->assertNull($recommendations->get($row->id)->recommendation_group_id);
+            }
+        }
     }
 
     public function testGridDataIncludesAwardLevelFilterAndAppliesIt(): void

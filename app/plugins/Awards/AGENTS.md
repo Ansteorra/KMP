@@ -94,6 +94,12 @@ Own award domains, levels, recommendations, recommendation feedback approvals, b
   `Recommendation::getRecipientName()`. Keep submitted snapshots and identity/OP links unchanged;
   eager-load members for current-name display, searching, and sorting. Bestowal grids and CSV
   report the actual award and specialty rather than substituting recommendation values.
+- Recs. Like This is scoped to the viewed recommendation's award and recipient. Closed history is
+  read-only. Detail grouping can add to one active bestowal's recommendation group. Keep that
+  recommendation as head, preserve existing bestowal fields, and link new children to the same
+  bestowal for lifecycle updates. Lock the bestowal before affected recommendations and recheck
+  eligibility and authorization before changing any group. Group changes and bestowal links
+  roll back together, including when grouping runs inside an existing transaction.
 - Bestowal grid Award labels omit the level. The Gathering filter lists only gatherings with
   at least one assigned, non-deleted bestowal visible through the current actor's branch/delegation
   and hidden-state scope, including completed bestowals and past gatherings. Resolve these choices

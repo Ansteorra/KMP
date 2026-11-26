@@ -83,6 +83,43 @@ Feature: Award Bestowals
         When the workflow engine processes pending work
         Then the "wf-crown" recommendation should have a workflow run with status "in_progress"
 
+    Scenario: Similar recommendations join a standalone bestowal and return to review together
+        Given I am logged in as "admin@amp.ansteorra.org"
+        And I create recommendation fixtures for "similar recommendations"
+        When I open the "first" recommendation detail view
+        And I toggle the "second" recommendation in Recs. Like This
+        And I open the group recommendations modal
+        And I submit the group recommendations modal
+        Then the "second" recommendation record should have state "Linked"
+        When the workflow engine processes pending work
+        And I approve the pending workflow step 1 for "lead" through the approvals UI
+        And I approve the pending workflow step 1 for "another-bestowal" through the approvals UI
+        And the workflow engine processes pending work
+        Then recommendations "lead" and "another-bestowal" should link to different bestowals
+        Given I am logged in as "admin@amp.ansteorra.org"
+        When I open the "lead" recommendation detail view
+        And I toggle the "another-bestowal" recommendation in Recs. Like This
+        Then the Recs. Like This group action should be disabled
+        When I toggle the "another-bestowal" recommendation in Recs. Like This
+        And I toggle the "first" recommendation in Recs. Like This
+        And I toggle the "late" recommendation in Recs. Like This
+        And I open the group recommendations modal
+        And I submit the group recommendations modal
+        Then recommendations "lead" and "first" should link to the same bestowal
+        And recommendations "lead" and "second" should link to the same bestowal
+        And recommendations "lead" and "late" should link to the same bestowal
+        When I open the bestowal detail linked to recommendation "lead"
+        And I cancel the open bestowal from the detail page
+        Then I should see the flash message "The bestowal has been cancelled."
+        And the "lead" recommendation record should have state "Submitted"
+        And the "first" recommendation record should have state "Linked"
+        And the "second" recommendation record should have state "Linked"
+        And the "late" recommendation should not be linked to a bestowal
+        And the "another-bestowal" recommendation should have an active bestowal link
+        When the workflow engine processes pending work
+        Then the "lead" recommendation should have 1 pending approvals
+        And the "first" recommendation should have 0 pending approvals
+
     Scenario: Different awards for the same member generate separate bestowals
         Given I am logged in as "admin@amp.ansteorra.org"
         And I create recommendation fixtures for "workflow multi-award local"
