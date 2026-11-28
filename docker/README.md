@@ -88,8 +88,8 @@ The local-development image also checks the actual interpreter before installing
 dependencies. The devcontainer package build requires PHP 8.4.27 or later in 8.4.
 CI and production builds check prebuilt base overrides as well as the default base.
 
-The production/base pins select the official PHP 8.5.12 Apache/Trixie manifest
-`sha256:4d1f268dd3b670bd003861c5385cb2f8ba7196dbc88ee84dcae47270c116f242`,
+The production/base pins select the official PHP 8.5.13 Apache/Trixie manifest
+`sha256:256c25149bca6639f538ece3c5dda90684409227dec546b87ca174950569b8f1`,
 verified to include Linux AMD64 and ARM64 images. Replace both pins together
 when refreshing this runtime; never substitute an unverified digest or bypass
 the version check. The local Bookworm tag may remain affected until its publisher
