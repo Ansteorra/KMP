@@ -1,5 +1,5 @@
 # Reviewed, reproducible PHP/native runtime. Dependency pins are updated through PRs.
-FROM php:8.5.12-apache-trixie@sha256:08af36df144462d84c7f16190557eec06cb9f656882685610b712a15eec54d46 AS runtime-base
+FROM php:8.5.13-apache-trixie@sha256:256c25149bca6639f538ece3c5dda90684409227dec546b87ca174950569b8f1 AS runtime-base
 COPY docker/verify-php-version.php /usr/local/bin/verify-kmp-php-version.php
 RUN php /usr/local/bin/verify-kmp-php-version.php
 COPY --from=mlocati/php-extension-installer:latest@sha256:b6d3fa381b9ba5cf051117c1c601d6a523b590e534bf3d56eb4fbe352949c138 /usr/bin/install-php-extensions /usr/local/bin/

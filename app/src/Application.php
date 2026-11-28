@@ -95,6 +95,7 @@ use App\Services\Platform\PlatformScheduleRunner;
 use App\Services\Platform\PlatformWorkerService;
 use App\Services\Platform\QueueDrainService;
 use App\Services\Platform\TenantMigrationCatalog;
+use App\Services\PublicCalendarSettings;
 use App\Services\QuickLoginDeviceService;
 use App\Services\Secrets\SecretStoreFactory;
 use App\Services\Secrets\SecretStoreInterface;
@@ -530,17 +531,23 @@ class Application extends BaseApplication implements
             ->add(function ($request, $handler) {
                 $response = $handler->handle($request);
                 $isDevelopment = Configure::read('debug');
+                // This response-only marker is set by the embedded public calendar action.
+                $calendarOriginsHeader = PublicCalendarSettings::FRAME_ORIGINS_HEADER;
+                $calendarOrigins = $response->getStatusCode() === 200
+                    ? $response->getHeaderLine($calendarOriginsHeader) : '';
+                $response = $response->withoutHeader($calendarOriginsHeader);
 
                 // Base security headers (always applied)
                 $response = $response
                     // Prevent MIME type sniffing attacks
                     ->withHeader('X-Content-Type-Options', 'nosniff')
-                    // Prevent clickjacking by restricting frame embedding
-                    ->withHeader('X-Frame-Options', 'SAMEORIGIN')
                     // Enable XSS protection in older browsers
                     ->withHeader('X-XSS-Protection', '1; mode=block')
                     // Control referrer information leakage
                     ->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+                if ($calendarOrigins === '') {
+                    $response = $response->withHeader('X-Frame-Options', 'SAMEORIGIN');
+                }
 
                 // HTTPS enforcement headers (only in production/UAT)
                 if (!$isDevelopment) {
@@ -580,7 +587,8 @@ class Application extends BaseApplication implements
                     . "object-src 'none'; "
                     . "base-uri 'self'; "
                     . "form-action 'self'; "
-                    . "frame-ancestors 'self'";
+                    . "frame-ancestors 'self'"
+                    . ($calendarOrigins === '' ? '' : ' ' . $calendarOrigins);
 
                 // Add upgrade-insecure-requests only in production/UAT
                 if (!$isDevelopment) {

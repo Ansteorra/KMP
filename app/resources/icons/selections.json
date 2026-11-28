@@ -27541,6 +27541,11 @@
     "preferred": "hugeicons:ArchiveOff04Icon",
     "reason": "Distinct outline concept retained"
   },
+  "hugeicons:ArchiveOffIcon": {
+    "id": "archive-off",
+    "preferred": "tabler:archive-off",
+    "reason": "Tabler preferred for interchangeable application concept"
+  },
   "hugeicons:ArchiveRestoreIcon": {
     "id": "archive-restore",
     "preferred": "tabler:archive-restore",
@@ -28199,6 +28204,11 @@
   "hugeicons:AttachmentIcon": {
     "id": "attachment",
     "preferred": "hugeicons:AttachmentIcon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:AttachmentOffIcon": {
+    "id": "attachment-off",
+    "preferred": "hugeicons:AttachmentOffIcon",
     "reason": "Distinct outline concept retained"
   },
   "hugeicons:AttachmentSquareIcon": {
@@ -31319,6 +31329,11 @@
     "preferred": "hugeicons:CarTimeIcon",
     "reason": "Distinct outline concept retained"
   },
+  "hugeicons:CarTransmissionIcon": {
+    "id": "car-transmission",
+    "preferred": "hugeicons:CarTransmissionIcon",
+    "reason": "Distinct outline concept retained"
+  },
   "hugeicons:CaravanIcon": {
     "id": "caravan",
     "preferred": "tabler:caravan",
@@ -31707,6 +31722,11 @@
   "hugeicons:ChartColumnDecreasingIcon": {
     "id": "chart-column-decreasing",
     "preferred": "hugeicons:ChartColumnDecreasingIcon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:ChartColumnDotsIcon": {
+    "id": "chart-column-dots",
+    "preferred": "hugeicons:ChartColumnDotsIcon",
     "reason": "Distinct outline concept retained"
   },
   "hugeicons:ChartColumnIcon": {
@@ -34242,6 +34262,11 @@
     "preferred": "tabler:credit-card",
     "reason": "Tabler preferred for interchangeable application concept"
   },
+  "hugeicons:CreditCardLinkIcon": {
+    "id": "credit-card-link",
+    "preferred": "hugeicons:CreditCardLinkIcon",
+    "reason": "Distinct outline concept retained"
+  },
   "hugeicons:CreditCardNotAcceptIcon": {
     "id": "credit-card-not-accept",
     "preferred": "hugeicons:CreditCardNotAcceptIcon",
@@ -36033,6 +36058,16 @@
       "edit-04"
     ]
   },
+  "hugeicons:EditMultiple01Icon": {
+    "id": "edit-multiple-01",
+    "preferred": "hugeicons:EditMultiple01Icon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:EditMultipleIcon": {
+    "id": "edit-multiple",
+    "preferred": "hugeicons:EditMultipleIcon",
+    "reason": "Distinct outline concept retained"
+  },
   "hugeicons:EditOff03Icon": {
     "id": "pencil-off",
     "preferred": "tabler:pencil-off",
@@ -37747,6 +37782,16 @@
     "preferred": "tabler:folder-minus",
     "reason": "Tabler preferred for interchangeable application concept"
   },
+  "hugeicons:FolderMoveInIcon": {
+    "id": "folder-move-in",
+    "preferred": "hugeicons:FolderMoveInIcon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:FolderMoveToIcon": {
+    "id": "folder-move-to",
+    "preferred": "hugeicons:FolderMoveToIcon",
+    "reason": "Distinct outline concept retained"
+  },
   "hugeicons:FolderMusicIcon": {
     "id": "folder-music",
     "preferred": "hugeicons:FolderMusicIcon",
@@ -37802,6 +37847,11 @@
     "id": "folder-root",
     "preferred": "tabler:folder-root",
     "reason": "Tabler preferred for interchangeable application concept"
+  },
+  "hugeicons:FolderSearch01Icon": {
+    "id": "folder-search-01",
+    "preferred": "hugeicons:FolderSearch01Icon",
+    "reason": "Distinct outline concept retained"
   },
   "hugeicons:FolderSearch2Icon": {
     "id": "folder-search",
@@ -38925,6 +38975,11 @@
   "hugeicons:Hamburger02Icon": {
     "id": "hamburger-02",
     "preferred": "hugeicons:Hamburger02Icon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:Hammer01Icon": {
+    "id": "hammer-01",
+    "preferred": "hugeicons:Hammer01Icon",
     "reason": "Distinct outline concept retained"
   },
   "hugeicons:HammerIcon": {
@@ -41665,6 +41720,11 @@
     "preferred": "hugeicons:ListMusicIcon",
     "reason": "Distinct outline concept retained"
   },
+  "hugeicons:ListOrderedAzIcon": {
+    "id": "list-ordered-az",
+    "preferred": "hugeicons:ListOrderedAzIcon",
+    "reason": "Distinct outline concept retained"
+  },
   "hugeicons:ListOrderedIcon": {
     "id": "list-ordered",
     "preferred": "hugeicons:ListOrderedIcon",
@@ -43507,6 +43567,11 @@
     "preferred": "hugeicons:MicrosoftIcon",
     "reason": "Distinct outline concept retained"
   },
+  "hugeicons:MicrosoftTeamsIcon": {
+    "id": "microsoft-teams",
+    "preferred": "hugeicons:MicrosoftTeamsIcon",
+    "reason": "Distinct outline concept retained"
+  },
   "hugeicons:MicrowaveIcon": {
     "id": "microwave",
     "preferred": "tabler:microwave",
@@ -43775,6 +43840,11 @@
   "hugeicons:MoneyBag02Icon": {
     "id": "money-bag-02",
     "preferred": "hugeicons:MoneyBag02Icon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:MoneyBagTimeIcon": {
+    "id": "money-bag-time",
+    "preferred": "hugeicons:MoneyBagTimeIcon",
     "reason": "Distinct outline concept retained"
   },
   "hugeicons:MoneyExchange01Icon": {
@@ -52202,6 +52272,81 @@
     "preferred": "tabler:sunset",
     "reason": "Tabler preferred for interchangeable application concept"
   },
+  "hugeicons:SuperIntelligence01Icon": {
+    "id": "super-intelligence-01",
+    "preferred": "hugeicons:SuperIntelligence01Icon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:SuperIntelligence02Icon": {
+    "id": "super-intelligence-02",
+    "preferred": "hugeicons:SuperIntelligence02Icon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:SuperIntelligence03Icon": {
+    "id": "super-intelligence-03",
+    "preferred": "hugeicons:SuperIntelligence03Icon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:SuperIntelligenceChatIcon": {
+    "id": "super-intelligence-chat",
+    "preferred": "hugeicons:SuperIntelligenceChatIcon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:SuperIntelligenceCloudIcon": {
+    "id": "super-intelligence-cloud",
+    "preferred": "hugeicons:SuperIntelligenceCloudIcon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:SuperIntelligenceFileIcon": {
+    "id": "super-intelligence-file",
+    "preferred": "hugeicons:SuperIntelligenceFileIcon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:SuperIntelligenceFolderIcon": {
+    "id": "super-intelligence-folder",
+    "preferred": "hugeicons:SuperIntelligenceFolderIcon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:SuperIntelligenceIcon": {
+    "id": "super-intelligence",
+    "preferred": "hugeicons:SuperIntelligenceIcon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:SuperIntelligenceRobotIcon": {
+    "id": "super-intelligence-robot",
+    "preferred": "hugeicons:SuperIntelligenceRobotIcon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:SuperIntelligenceSearchIcon": {
+    "id": "super-intelligence-search",
+    "preferred": "hugeicons:SuperIntelligenceSearchIcon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:SuperIntelligenceSettingIcon": {
+    "id": "super-intelligence-setting",
+    "preferred": "hugeicons:SuperIntelligenceSettingIcon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:SuperIntelligenceShieldIcon": {
+    "id": "super-intelligence-shield",
+    "preferred": "hugeicons:SuperIntelligenceShieldIcon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:SuperIntelligenceSpeechIcon": {
+    "id": "super-intelligence-speech",
+    "preferred": "hugeicons:SuperIntelligenceSpeechIcon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:SuperIntelligenceVideoIcon": {
+    "id": "super-intelligence-video",
+    "preferred": "hugeicons:SuperIntelligenceVideoIcon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:SuperIntelligenceVoiceIcon": {
+    "id": "super-intelligence-voice",
+    "preferred": "hugeicons:SuperIntelligenceVoiceIcon",
+    "reason": "Distinct outline concept retained"
+  },
   "hugeicons:SuperMarioIcon": {
     "id": "super-mario",
     "preferred": "hugeicons:SuperMarioIcon",
@@ -53678,6 +53823,16 @@
     "preferred": "hugeicons:TimerResetIcon",
     "reason": "Distinct outline concept retained"
   },
+  "hugeicons:TinderIcon": {
+    "id": "tinder",
+    "preferred": "hugeicons:TinderIcon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:TinderSquareIcon": {
+    "id": "tinder-square",
+    "preferred": "hugeicons:TinderSquareIcon",
+    "reason": "Distinct outline concept retained"
+  },
   "hugeicons:TipsIcon": {
     "id": "tips",
     "preferred": "hugeicons:TipsIcon",
@@ -54592,6 +54747,16 @@
     "id": "suspicious",
     "preferred": "hugeicons:SuspiciousIcon",
     "reason": "Identical normalized drawing"
+  },
+  "hugeicons:UnionCircleIcon": {
+    "id": "union-circle",
+    "preferred": "hugeicons:UnionCircleIcon",
+    "reason": "Distinct outline concept retained"
+  },
+  "hugeicons:UnionHorizontalCircleIcon": {
+    "id": "union-horizontal-circle",
+    "preferred": "hugeicons:UnionHorizontalCircleIcon",
+    "reason": "Distinct outline concept retained"
   },
   "hugeicons:UniversalAccessCircleIcon": {
     "id": "universal-access-circle",
@@ -56835,85 +57000,10 @@
     "preferred": "tabler:zzz",
     "reason": "Tabler preferred for interchangeable application concept"
   },
-  "kmp:court-crown": {
-    "id": "court-crown",
-    "preferred": "kmp:court-crown",
-    "reason": "Original KMP activity imagery retained"
-  },
-  "kmp:court-coronet": {
-    "id": "court-coronet",
-    "preferred": "kmp:court-coronet",
-    "reason": "Original KMP activity imagery retained"
-  },
-  "kmp:court-pearls": {
-    "id": "court-pearls",
-    "preferred": "kmp:court-pearls",
-    "reason": "Original KMP activity imagery retained"
-  },
-  "kmp:round-table": {
-    "id": "round-table",
-    "preferred": "kmp:round-table",
-    "reason": "Original KMP activity imagery retained"
-  },
-  "kmp:group-class": {
-    "id": "group-class",
-    "preferred": "kmp:group-class",
-    "reason": "Original KMP activity imagery retained"
-  },
-  "kmp:shared-feast": {
-    "id": "shared-feast",
-    "preferred": "kmp:shared-feast",
-    "reason": "Original KMP activity imagery retained"
-  },
-  "kmp:dance-circle": {
-    "id": "dance-circle",
-    "preferred": "kmp:dance-circle",
-    "reason": "Original KMP activity imagery retained"
-  },
-  "kmp:encampment": {
-    "id": "encampment",
-    "preferred": "kmp:encampment",
-    "reason": "Original KMP activity imagery retained"
-  },
-  "kmp:trumpet-straight": {
-    "id": "trumpet-straight",
-    "preferred": "kmp:trumpet-straight",
-    "reason": "Original herald and ceremonial announcement imagery retained"
-  },
-  "kmp:trumpet-banner": {
-    "id": "trumpet-banner",
-    "preferred": "kmp:trumpet-banner",
-    "reason": "Original herald and ceremonial announcement imagery retained"
-  },
-  "kmp:curved-horn": {
-    "id": "curved-horn",
-    "preferred": "kmp:curved-horn",
-    "reason": "Original herald and ceremonial announcement imagery retained"
-  },
-  "kmp:herald-trumpeter": {
-    "id": "herald-trumpeter",
-    "preferred": "kmp:herald-trumpeter",
-    "reason": "Original herald and ceremonial announcement imagery retained"
-  },
-  "kmp:herald-proclamation": {
-    "id": "herald-proclamation",
-    "preferred": "kmp:herald-proclamation",
-    "reason": "Original herald and ceremonial announcement imagery retained"
-  },
-  "kmp:lute": {
-    "id": "lute",
-    "preferred": "kmp:lute",
-    "reason": "Original bardic performance and instrument imagery retained"
-  },
-  "kmp:harp": {
-    "id": "harp",
-    "preferred": "kmp:harp",
-    "reason": "Original bardic performance and instrument imagery retained"
-  },
-  "kmp:singing": {
-    "id": "singing",
-    "preferred": "kmp:singing",
-    "reason": "Original bardic performance and instrument imagery retained"
+  "kmp:ansteorran-star": {
+    "id": "ansteorran-star",
+    "preferred": "kmp:ansteorran-star",
+    "reason": "Original KMP ansteorran star motif adds distinct SCA imagery"
   },
   "kmp:bardic-circle": {
     "id": "bardic-circle",
@@ -56925,39 +57015,114 @@
     "preferred": "kmp:chain-necklace",
     "reason": "Original KMP chain necklace motif adds distinct SCA imagery"
   },
-  "kmp:master-of-defense": {
-    "id": "master-of-defense",
-    "preferred": "kmp:master-of-defense",
-    "reason": "Original KMP master of defense motif adds distinct SCA imagery"
+  "kmp:court-coronet": {
+    "id": "court-coronet",
+    "preferred": "kmp:court-coronet",
+    "reason": "Original KMP activity imagery retained"
   },
-  "kmp:pelican-vulning": {
-    "id": "pelican-vulning",
-    "preferred": "kmp:pelican-vulning",
-    "reason": "Original KMP pelican vulning itself motif adds distinct SCA imagery"
+  "kmp:court-crown": {
+    "id": "court-crown",
+    "preferred": "kmp:court-crown",
+    "reason": "Original KMP activity imagery retained"
   },
-  "kmp:ansteorran-star": {
-    "id": "ansteorran-star",
-    "preferred": "kmp:ansteorran-star",
-    "reason": "Original KMP ansteorran star motif adds distinct SCA imagery"
+  "kmp:court-pearls": {
+    "id": "court-pearls",
+    "preferred": "kmp:court-pearls",
+    "reason": "Original KMP activity imagery retained"
+  },
+  "kmp:curved-horn": {
+    "id": "curved-horn",
+    "preferred": "kmp:curved-horn",
+    "reason": "Original herald and ceremonial announcement imagery retained"
+  },
+  "kmp:dance-circle": {
+    "id": "dance-circle",
+    "preferred": "kmp:dance-circle",
+    "reason": "Original KMP activity imagery retained"
+  },
+  "kmp:encampment": {
+    "id": "encampment",
+    "preferred": "kmp:encampment",
+    "reason": "Original KMP activity imagery retained"
+  },
+  "kmp:group-class": {
+    "id": "group-class",
+    "preferred": "kmp:group-class",
+    "reason": "Original KMP activity imagery retained"
+  },
+  "kmp:harp": {
+    "id": "harp",
+    "preferred": "kmp:harp",
+    "reason": "Original bardic performance and instrument imagery retained"
+  },
+  "kmp:herald-proclamation": {
+    "id": "herald-proclamation",
+    "preferred": "kmp:herald-proclamation",
+    "reason": "Original herald and ceremonial announcement imagery retained"
+  },
+  "kmp:herald-trumpeter": {
+    "id": "herald-trumpeter",
+    "preferred": "kmp:herald-trumpeter",
+    "reason": "Original herald and ceremonial announcement imagery retained"
   },
   "kmp:lance": {
     "id": "lance",
     "preferred": "kmp:lance",
     "reason": "Original KMP lance motif adds distinct SCA imagery"
   },
+  "kmp:lute": {
+    "id": "lute",
+    "preferred": "kmp:lute",
+    "reason": "Original bardic performance and instrument imagery retained"
+  },
+  "kmp:master-of-defense": {
+    "id": "master-of-defense",
+    "preferred": "kmp:master-of-defense",
+    "reason": "Original KMP master of defense motif adds distinct SCA imagery"
+  },
   "kmp:order-of-the-mark": {
     "id": "order-of-the-mark",
     "preferred": "kmp:order-of-the-mark",
     "reason": "Original KMP order of the mark motif adds distinct SCA imagery"
+  },
+  "kmp:pelican-vulning": {
+    "id": "pelican-vulning",
+    "preferred": "kmp:pelican-vulning",
+    "reason": "Original KMP pelican vulning itself motif adds distinct SCA imagery"
+  },
+  "kmp:phoenix": {
+    "id": "phoenix",
+    "preferred": "kmp:phoenix",
+    "reason": "Original outline subject for normal Order Circle activities"
+  },
+  "kmp:round-table": {
+    "id": "round-table",
+    "preferred": "kmp:round-table",
+    "reason": "Original KMP activity imagery retained"
+  },
+  "kmp:shared-feast": {
+    "id": "shared-feast",
+    "preferred": "kmp:shared-feast",
+    "reason": "Original KMP activity imagery retained"
+  },
+  "kmp:singing": {
+    "id": "singing",
+    "preferred": "kmp:singing",
+    "reason": "Original bardic performance and instrument imagery retained"
   },
   "kmp:single-rapier": {
     "id": "single-rapier",
     "preferred": "kmp:single-rapier",
     "reason": "Original outline subject for normal Order Circle activities"
   },
-  "kmp:phoenix": {
-    "id": "phoenix",
-    "preferred": "kmp:phoenix",
-    "reason": "Original outline subject for normal Order Circle activities"
+  "kmp:trumpet-banner": {
+    "id": "trumpet-banner",
+    "preferred": "kmp:trumpet-banner",
+    "reason": "Original herald and ceremonial announcement imagery retained"
+  },
+  "kmp:trumpet-straight": {
+    "id": "trumpet-straight",
+    "preferred": "kmp:trumpet-straight",
+    "reason": "Original herald and ceremonial announcement imagery retained"
   }
 }

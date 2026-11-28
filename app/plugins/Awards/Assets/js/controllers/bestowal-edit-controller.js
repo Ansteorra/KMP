@@ -42,6 +42,10 @@ class AwardsBestowalEditForm extends Controller {
         "member",
         "currentAwardId",
         "submitButton",
+        "recordGiven",
+        "adHocLabel",
+        "fullAdHocOnly",
+        "fullAdHocFieldset",
     ];
     static values = {
         formUrl: String,
@@ -206,10 +210,43 @@ class AwardsBestowalEditForm extends Controller {
 
     /** Load the edit form when the modal opens from a grid or detail trigger. */
     handleModalShow(event) {
+        if (this.hasRecordGivenTarget) {
+            this.setAdHocEntryMode(event.relatedTarget?.hasAttribute("data-record-given") ?? false);
+            return;
+        }
+
         const bestowalId = this.extractBestowalIdFromTrigger(event.relatedTarget);
         if (bestowalId) {
             this.loadBestowalForm(bestowalId);
         }
+    }
+
+    /** Switch between recording a presented award and full ad-hoc entry. */
+    setAdHocEntryMode(quick) {
+        if (quick === this.isQuickAdHocEntry()) {
+            return;
+        }
+
+        this.recordGivenTarget.value = quick ? "1" : "0";
+        this.givenDateTarget.disabled = quick;
+        this.givenBlockTarget.hidden = quick;
+        this.setGatheringRequired(quick);
+
+        for (const element of this.fullAdHocOnlyTargets) {
+            element.hidden = quick;
+        }
+        for (const fieldset of this.fullAdHocFieldsetTargets) {
+            fieldset.hidden = quick;
+            fieldset.disabled = quick;
+        }
+        for (const label of this.adHocLabelTargets) {
+            label.textContent = quick ? label.dataset.quickLabel : label.dataset.fullLabel;
+        }
+        this.updateGatherings();
+        if (!quick) {
+            this.updateCourtSlots();
+        }
+        this.updateSubmitState();
     }
 
     /** Refresh field state after the Bootstrap modal becomes visible. */
@@ -592,6 +629,10 @@ class AwardsBestowalEditForm extends Controller {
     /** @return {boolean} */
     isGivenState() {
         return this.hasStateTarget && this.stateTarget.value === "Given";
+    }
+
+    isQuickAdHocEntry() {
+        return this.hasRecordGivenTarget && this.recordGivenTarget.value === "1";
     }
 
     /** Load server-provided gathering / court session date hints from the turbo frame. */
@@ -1275,7 +1316,8 @@ class AwardsBestowalEditForm extends Controller {
     isFormSubmittable() {
         return this.hasValidAwardSelection()
             && this.hasValidMemberSelection()
-            && this.hasValidSpecialtySelection();
+            && this.hasValidSpecialtySelection()
+            && (!this.isQuickAdHocEntry() || this.getGatheringId() !== "");
     }
 
     /** @return {boolean} */
@@ -1359,7 +1401,9 @@ class AwardsBestowalEditForm extends Controller {
             params.append("selected_id", currentSelection);
             this.planToGiveGatheringTarget.dataset.initialValue = currentSelection;
         }
-        if (this.hasIncludePastGatheringsTarget && this.includePastGatheringsTarget.checked) {
+        if (this.isQuickAdHocEntry()) {
+            params.set("started_only", "1");
+        } else if (this.hasIncludePastGatheringsTarget && this.includePastGatheringsTarget.checked) {
             params.append("include_past", "1");
         }
 
@@ -1562,7 +1606,7 @@ class AwardsBestowalEditForm extends Controller {
 
     /** Load court session options when gathering changes. */
     updateCourtSlots() {
-        if (!this.hasPlanToGiveGatheringTarget) {
+        if (!this.hasPlanToGiveGatheringTarget || this.isQuickAdHocEntry()) {
             return;
         }
 
@@ -1598,6 +1642,10 @@ class AwardsBestowalEditForm extends Controller {
         })
             .then((response) => response.json())
             .then((data) => {
+                if (this.getGatheringId() !== gatheringId) {
+                    return;
+                }
+
                 const enabled = data?.enabled === true;
                 const options = data?.options ?? {};
                 // Numeric object keys enumerate by ID; the server supplies schedule order separately.

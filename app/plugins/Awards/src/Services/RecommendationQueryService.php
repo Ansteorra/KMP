@@ -5,6 +5,8 @@ namespace Awards\Services;
 
 use Awards\KMP\GridColumns\MemberSubmittedRecommendationsGridColumns;
 use Awards\KMP\GridColumns\RecommendationsGridColumns;
+use Awards\KMP\GridColumns\SimilarRecommendationsGridColumns;
+use Awards\Model\Entity\Recommendation;
 use Cake\ORM\Query\SelectQuery;
 use Cake\ORM\Table;
 
@@ -28,6 +30,7 @@ class RecommendationQueryService
      * @param bool $canEdit Whether the current user can edit recommendations (enables bulk actions).
      * @param bool $includeNotes Whether notes relations should be loaded for list rendering.
      * @param array<int,string>|null $visibleColumns Resolved visible columns, or null when all display data is required.
+     * @param \Awards\Model\Entity\Recommendation|null $similarTo Scope to matches from this recommendation.
      * @return array{query: \Cake\ORM\Query\SelectQuery, gridOptions: array} Base query and processDataverseGrid options.
      */
     public function buildMainGridQuery(
@@ -35,6 +38,7 @@ class RecommendationQueryService
         bool $canEdit,
         bool $includeNotes = true,
         ?array $visibleColumns = null,
+        ?Recommendation $similarTo = null,
     ): array {
         $includeGatherings = $this->shouldLoadDisplayColumn('gatherings', $visibleColumns);
         $includeAssignedGathering = $this->shouldLoadDisplayColumn('assigned_gathering', $visibleColumns);
@@ -62,10 +66,15 @@ class RecommendationQueryService
             'Awards.AwardBranch' => function ($q) {
                 return $q->select(['id', 'name', 'type']);
             },
-            'Bestowals' => function ($q) {
-                return $q->select(['id', 'lifecycle_status']);
+            'Bestowals' => function ($q) use ($similarTo) {
+                $fields = $similarTo === null ? ['id', 'lifecycle_status'] : ['id', 'lifecycle_status', 'award_id'];
+
+                return $q->select($fields);
             },
         ];
+        if ($similarTo !== null) {
+            $contain['Bestowals.Awards'] = fn($q) => $q->select(['id', 'branch_id']);
+        }
         if ($includeGatherings) {
             $contain['Gatherings'] = function ($q) {
                 return $q->select(['id', 'name', 'start_date', 'end_date']);
@@ -97,11 +106,15 @@ class RecommendationQueryService
 
         $baseQuery = $recommendationsTable->find()
             ->innerJoinWith('Awards.AwardBranch')
-            ->where(['Recommendations.recommendation_group_id IS' => null])
             ->leftJoinWith('Awards.Domains')
             ->leftJoinWith('Bestowals')
             ->leftJoinWith('CurrentApprovalRun')
             ->innerJoinWith('Awards.Levels');
+        if ($similarTo === null) {
+            $baseQuery->where(['Recommendations.recommendation_group_id IS' => null]);
+        } else {
+            $baseQuery->where(['Recommendations.id !=' => $similarTo->id] + $similarTo->similarRecipientConditions());
+        }
         if ($selectFields !== null) {
             $baseQuery->select($selectFields);
         }
@@ -160,6 +173,34 @@ class RecommendationQueryService
             'bulkSelection' => $this->recommendationBulkSelectionConfig(),
             'bulkActions' => $bulkActions,
         ];
+
+        if ($similarTo !== null) {
+            $gridOptions = array_replace($gridOptions, [
+                'gridKey' => SimilarRecommendationsGridColumns::GRID_KEY,
+                'gridColumnsClass' => SimilarRecommendationsGridColumns::class,
+                'systemViews' => SimilarRecommendationsGridColumns::getSystemViews(),
+                'defaultSystemView' => SimilarRecommendationsGridColumns::VIEW,
+                'showViewTabs' => false,
+                'canAddViews' => false,
+                'canExportCsv' => false,
+                'enableBulkSelection' => $canEdit,
+                'bulkSelectionDataFields' => [
+                    'member-id' => 'member_id',
+                    'active-bestowal' => 'active_group_bestowal',
+                ],
+                'bulkSelectionDisabledField' => 'similar_group_disabled',
+                'bulkSelectionHideDisabledControl' => true,
+                'bulkSelection' => [
+                    'selectAllLabel' => __('Select all eligible recommendations on this page'),
+                    'rowLabelTemplate' => __('Select recommendation {id} submitted by {requester_sca_name}'),
+                    'disabledLabel' => __('Unavailable for grouping'),
+                ],
+                'bulkActions' => array_values(array_filter(
+                    $bulkActions,
+                    static fn(array $action): bool => $action['key'] === 'group-recs',
+                )),
+            ]);
+        }
 
         return ['query' => $baseQuery, 'gridOptions' => $gridOptions];
     }

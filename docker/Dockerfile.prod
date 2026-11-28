@@ -9,7 +9,7 @@ ARG BASE_IMAGE=runtime-base
 ARG APP_VERSION=dev
 
 
-FROM php:8.5.12-apache-trixie@sha256:08af36df144462d84c7f16190557eec06cb9f656882685610b712a15eec54d46 AS runtime-base
+FROM php:8.5.13-apache-trixie@sha256:256c25149bca6639f538ece3c5dda90684409227dec546b87ca174950569b8f1 AS runtime-base
 COPY docker/verify-php-version.php /usr/local/bin/verify-kmp-php-version.php
 RUN php /usr/local/bin/verify-kmp-php-version.php
 COPY --from=mlocati/php-extension-installer:latest@sha256:b6d3fa381b9ba5cf051117c1c601d6a523b590e534bf3d56eb4fbe352949c138 /usr/bin/install-php-extensions /usr/local/bin/
@@ -22,7 +22,7 @@ RUN IPE_PROCESSOR_COUNT="${PHP_BUILD_JOBS}" sh /usr/local/bin/install-kmp-runtim
 # --platform=$BUILDPLATFORM: always runs on the CI runner's native arch (amd64)
 # No QEMU penalty for Node.js/Vite even in multi-platform builds.
 # =============================================================================
-FROM --platform=$BUILDPLATFORM node:26-alpine@sha256:c6ad9e9c1d80f6eb607c26b4b0a132ff7a2344fad1c78ea3baa2a7d4c8de6d94 AS node-builder
+FROM --platform=$BUILDPLATFORM node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS node-builder
 
 ARG NPM_VERSION=11.21.1
 RUN npm install --global "npm@${NPM_VERSION}" --ignore-scripts --no-audit --no-fund \

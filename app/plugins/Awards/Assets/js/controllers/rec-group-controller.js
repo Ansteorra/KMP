@@ -1,88 +1,79 @@
 import { Controller } from "@hotwired/stimulus";
 
-/**
- * Awards Recommendation Group Controller
- *
- * Handles the grouping modal and validates member compatibility.
- * Recommendations can be grouped when selected rows share one member or have no member.
- */
+/** Shared recommendation grouping confirmation for the index and detail grids. */
 class AwardsRecommendationGroupController extends Controller {
-    static targets = ["selectedIds", "validationMessage"];
+    static targets = ["selectedIds", "validationMessage", "submit"];
+    static values = { frameId: String, current: Object, similar: Boolean };
 
     connect() {
-        this.boundHandleGridBulkAction = this.handleGridBulkAction.bind(this);
+        this.boundHandleBulkAction = this.handleBulkAction.bind(this);
         this.boundHandleSelectionChanged = this.handleSelectionChanged.bind(this);
-        document.addEventListener('grid-view:bulk-action', this.boundHandleGridBulkAction);
-        document.addEventListener('grid-view:selection-changed', this.boundHandleSelectionChanged);
+        document.addEventListener("outlet-btn:notice", this.boundHandleBulkAction);
+        document.addEventListener("grid-view:selection-changed", this.boundHandleSelectionChanged);
     }
 
     disconnect() {
-        document.removeEventListener('grid-view:bulk-action', this.boundHandleGridBulkAction);
-        document.removeEventListener('grid-view:selection-changed', this.boundHandleSelectionChanged);
+        document.removeEventListener("outlet-btn:notice", this.boundHandleBulkAction);
+        document.removeEventListener("grid-view:selection-changed", this.boundHandleSelectionChanged);
     }
 
-    /**
-     * Check if selected recommendations can be grouped (same or null member_id).
-     */
-    canGroup(checkboxes) {
-        if (!checkboxes || checkboxes.length < 2) return false;
-        const memberIds = checkboxes
-            .map(cb => cb.memberId || '')
-            .filter(id => id !== '');
-        const unique = new Set(memberIds);
-        return unique.size <= 1;
+    selection({ ids = [], checkboxes = [] } = {}) {
+        const current = this.currentValue;
+        const selectedIds = current.id ? [...new Set([current.id, ...ids])] : ids;
+        const selectedRows = current.id ? [current, ...checkboxes] : checkboxes;
+        const memberIds = new Set(checkboxes.map(row => row.memberId).filter(Boolean));
+        const activeBestowals = selectedRows.filter(row => [true, "true", "1"].includes(row.activeBestowal));
+
+        let error = "";
+        if (selectedIds.length < 2) {
+            error = current.id ? "Select a recommendation to group." : "Select at least two recommendations to group.";
+        } else if (memberIds.size > 1) {
+            error = "Select recommendations for the same member.";
+        } else if (this.similarValue && checkboxes.length !== ids.length) {
+            error = "Select recommendations on this page.";
+        } else if (activeBestowals.length > 1) {
+            error = "Select only one recommendation leading an in-flight bestowal.";
+        }
+
+        return { ids: selectedIds, error, hasActiveBestowal: activeBestowals.length > 0 };
     }
 
-    /**
-     * On selection change, enable/disable the Group bulk action button.
-     */
     handleSelectionChanged(event) {
-        const { ids, checkboxes } = event.detail || {};
-        const groupBtn = document.querySelector('[data-bulk-action-key="group-recs"]');
-        if (!groupBtn) return;
+        const grid = document.getElementById(this.frameIdValue);
+        if (!grid || !event.target.contains(grid)) return;
 
-        if (!ids || ids.length < 2) {
-            groupBtn.disabled = true;
-            groupBtn.title = 'Select at least 2 recommendations to group';
-            return;
-        }
+        const button = grid.querySelector('[data-bulk-action-key="group-recs"]');
+        if (!button) return;
 
-        if (!this.canGroup(checkboxes)) {
-            groupBtn.disabled = true;
-            groupBtn.title = 'Cannot group recommendations for different members';
-        } else {
-            groupBtn.disabled = false;
-            groupBtn.title = 'Group selected recommendations';
-        }
+        const { error } = this.selection(event.detail);
+        button.disabled = Boolean(error);
+        button.title = error || "Group selected recommendations";
     }
 
-    handleGridBulkAction(event) {
-        const ids = event.detail?.ids;
-        if (!ids || !ids.length) return;
+    handleBulkAction(event) {
+        const button = event.target;
+        const grid = document.getElementById(this.frameIdValue);
+        if (!grid?.contains(button) || !button.matches('[data-bulk-action-key="group-recs"]')) return;
 
-        const container = this.selectedIdsTarget;
-        container.innerHTML = '';
-
-        ids.forEach(id => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'recommendation_ids[]';
-            input.value = id;
-            container.appendChild(input);
-        });
-
-        // Update modal validation message
-        if (this.hasValidationMessageTarget) {
-            const checkboxes = event.detail?.checkboxes || [];
-            if (!this.canGroup(checkboxes)) {
-                this.validationMessageTarget.className = 'alert alert-danger';
-                this.validationMessageTarget.textContent = 'These recommendations cannot be grouped — they are for different members.';
-            } else {
-                this.validationMessageTarget.className = 'alert alert-info';
-                this.validationMessageTarget.textContent =
-                    `${ids.length} recommendations will be grouped together. The first selected recommendation will become the group head.`;
+        const { ids, error, hasActiveBestowal } = this.selection(event.detail);
+        this.selectedIdsTarget.replaceChildren();
+        if (!error) {
+            for (const id of ids) {
+                const input = document.createElement("input");
+                input.type = "hidden";
+                input.name = "recommendation_ids[]";
+                input.value = id;
+                this.selectedIdsTarget.append(input);
             }
         }
+
+        this.submitTarget.disabled = Boolean(error);
+        this.validationMessageTarget.classList.toggle("alert-danger", Boolean(error));
+        this.validationMessageTarget.classList.toggle("alert-info", !error);
+        const destination = hasActiveBestowal
+            ? " The recommendation with the in-flight bestowal will lead the group."
+            : " An existing group will keep its lead. New groups use the earliest recommendation.";
+        this.validationMessageTarget.textContent = error || `${ids.length} recommendations will be grouped.${destination}`;
     }
 }
 

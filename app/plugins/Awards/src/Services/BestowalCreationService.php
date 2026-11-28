@@ -106,6 +106,13 @@ class BestowalCreationService
      */
     private function loadRecommendationForCreation(int $recommendationId): Recommendation
     {
+        // Serialize with grouping before reading the recommendation's current group.
+        $this->recommendationsTable->find()
+            ->select(['id'])
+            ->where(['Recommendations.id' => $recommendationId])
+            ->epilog('FOR UPDATE')
+            ->firstOrFail();
+
         $recommendation = $this->recommendationsTable->get(
             $recommendationId,
             contain: [

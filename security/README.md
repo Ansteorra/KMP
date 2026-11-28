@@ -35,20 +35,12 @@ branch-specific minimum versions and image refresh workflow.
 `reason` and ISO `expires` date. Expired/incomplete exceptions fail. Do not use blanket package
 or kernel suppressions; distinguish userland headers from the provider's running kernel.
 
-The accepted [picomatch reachability review](reviews/picomatch-2026-11-17.md)
-is separate from image exceptions. `npm-picomatch-review.json` records the user’s
-November 17 acceptance as both Platform Owner and Security Lead. It covers only GHSA-fc5q-39xc-vjpf and npm's transitive reports of that
-same advisory, for the exact reviewed app lock and build boundaries, through
-December 1, 2026 (inclusive, UTC). Changed evidence, expiration, missing approvals, new advisories,
-critical severity, and malformed advisory graphs still block. Raw audit reports
-retain the finding. Picomatch must remain dev-only; Vite rejects it from browser
-modules. This does not patch the vulnerable build/test dependency or approve a
-production release. Remove the exception after upgrading to an upstream fix.
-
-Run the review contracts with `python3 -m unittest discover -s security -p
-'test_npm_review.py'`. After installing app dependencies, run the actual bundle
-boundary test with `node --test security/test-picomatch-boundary.mjs` and the
-production build with `cd app && npm run build`.
+npm audits have no exception mechanism: every High or Critical finding blocks.
+The closed [picomatch reachability review](reviews/picomatch-2026-11-17.md) is
+kept as evidence only. Picomatch remains a build/test-only dependency and Vite
+rejects it from browser modules. After installing app dependencies, run the
+bundle boundary test with `node --test security/test-picomatch-boundary.mjs`
+and the production build with `cd app && npm run build`.
 
 The dependency inventory also includes `app/plugins/Queue` (copied source), first-party
 plugins, emitted frontend bundles, face-api/OpenCV model assets, the Ruby documentation

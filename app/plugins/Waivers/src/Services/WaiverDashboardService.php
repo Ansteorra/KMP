@@ -802,10 +802,16 @@ class WaiverDashboardService
      * @param int $month Calendar month (1-12)
      * @param array $branchIds Branches the user can access
      * @param mixed $currentUser Current user identity for timezone
+     * @param (callable(\Cake\ORM\Query\SelectQuery): \Cake\Datasource\ResultSetInterface)|null $filterGatherings
      * @return array Calendar data with events
      */
-    public function getCalendarData(int $year, int $month, array $branchIds, $currentUser): array
-    {
+    public function getCalendarData(
+        int $year,
+        int $month,
+        array $branchIds,
+        $currentUser,
+        ?callable $filterGatherings = null,
+    ): array {
         $GatheringWaivers = TableRegistry::getTableLocator()->get('Waivers.GatheringWaivers');
         $Gatherings = TableRegistry::getTableLocator()->get('Gatherings');
         $GatheringWaiverClosures = TableRegistry::getTableLocator()->get('Waivers.GatheringWaiverClosures');
@@ -823,12 +829,9 @@ class WaiverDashboardService
         $startUtcString = $startOfMonthUtc->format('Y-m-d H:i:s');
         $endUtcString = $endOfMonthUtc->format('Y-m-d H:i:s');
 
-        $closedGatheringIds = $GatheringWaiverClosures->getClosedGatheringIds();
-        $readyToCloseGatheringIds = $GatheringWaiverClosures->getReadyToCloseGatheringIds();
-
-        $gatherings = $Gatherings->find()
+        $query = $Gatherings->find()
+            ->whereInList('Gatherings.branch_id', $branchIds, ['allowEmpty' => true])
             ->where([
-                'Gatherings.branch_id IN' => $branchIds,
                 'Gatherings.deleted IS' => null,
                 'Gatherings.cancelled_at IS' => null,
                 'Gatherings.start_date <=' => $endUtcString,
@@ -848,12 +851,13 @@ class WaiverDashboardService
                     return $q->select(['id', 'name', 'activity_type', 'display_order']);
                 },
             ])
-            ->orderBy(['Gatherings.start_date' => 'ASC'])
-            ->all();
+            ->orderBy(['Gatherings.start_date' => 'ASC']);
+        $gatherings = $filterGatherings ? $filterGatherings($query) : $query->all();
+        $gatheringIds = $gatherings->extract('id')->toList();
 
-        $lostTypeIdsByGathering = (new GatheringWaiverSummaryService())->getLostTypeIdsByGathering(
-            $gatherings->extract('id')->toList(),
-        );
+        $closedGatheringIds = $GatheringWaiverClosures->getClosedGatheringIds($gatheringIds);
+        $readyToCloseGatheringIds = $GatheringWaiverClosures->getReadyToCloseGatheringIds($gatheringIds);
+        $lostTypeIdsByGathering = (new GatheringWaiverSummaryService())->getLostTypeIdsByGathering($gatheringIds);
         $events = [];
         foreach ($gatherings as $gathering) {
             $isClosed = in_array($gathering->id, $closedGatheringIds);

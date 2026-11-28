@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Awards\Services;
 
+use App\KMP\TimezoneHelper;
 use Awards\Model\Entity\Bestowal;
 use Awards\Policy\BestowalPolicy;
 use Cake\I18n\DateTime;
@@ -51,6 +52,7 @@ class AdHocBestowalService
      *
      * Expected keys in $data: member_sca_name plus optional member_id/member_public_id, award_id, state.
      * Optional keys: gathering_id, gathering_scheduled_activity_id, bestowed_at, note, and court fields.
+     * Quick entry sets record_given and uses the selected gathering's start for the presentation date.
      *
      * @param array<string, mixed> $data Ad-hoc input payload.
      * @param int $actorId Current user ID.
@@ -71,7 +73,20 @@ class AdHocBestowalService
         $courtSessionId = $data['gatheringScheduledActivityId']
             ?? $data['gathering_scheduled_activity_id']
             ?? null;
-        $bestowedAt = $this->normalizeDateTime($data['bestowedAt'] ?? $data['bestowed_at'] ?? null);
+        $recordGiven = ($data['record_given'] ?? null) === '1';
+        if ($recordGiven && ($gatheringId === null || $gatheringId < 1)) {
+            return $this->failureResult(__('Select the gathering where the award was given.'));
+        }
+        $rawBestowedDate = $recordGiven ? null : ($data['bestowedAt'] ?? $data['bestowed_at'] ?? null);
+        $dateOnly = is_string($rawBestowedDate) && preg_match('/^(?!0000)\d{4}-\d{2}-\d{2}$/D', $rawBestowedDate);
+        try {
+            $bestowedAt = $this->normalizeDateTime($rawBestowedDate);
+        } catch (Throwable) {
+            return $this->failureResult(__('Enter a valid bestowed date.'));
+        }
+        if ($dateOnly && $bestowedAt?->format('Y-m-d') !== $rawBestowedDate) {
+            return $this->failureResult(__('Enter a valid bestowed date.'));
+        }
         $note = $this->normalizeOptionalString($data['note'] ?? null);
 
         if ($awardId === null || $awardId <= 0) {
@@ -112,6 +127,8 @@ class AdHocBestowalService
                     $courtSessionId,
                     $bestowedAt,
                     $data,
+                    $dateOnly,
+                    $recordGiven,
                     $specialty,
                     $actorId,
                     $note,
@@ -126,6 +143,22 @@ class AdHocBestowalService
                         throw new RuntimeException(
                             'You cannot create a bestowal outside your current event authority.',
                         );
+                    }
+                    if ($recordGiven) {
+                        $gathering = $this->fetchTable('Gatherings')->find()
+                            ->select(['start_date'])
+                            ->where([
+                                'id' => $gatheringId,
+                                'start_date <=' => DateTime::now(),
+                                'cancelled_at IS' => null,
+                            ])
+                            ->first();
+                        if ($gathering === null) {
+                            return $this->failureResult(__('Select a gathering that has already started.'));
+                        }
+                        $bestowedAt = $gathering->start_date;
+                    } elseif ($dateOnly && $bestowedAt !== null) {
+                        $bestowedAt = TimezoneHelper::toUtc($bestowedAt, member: $actor);
                     }
                     $bestowal->source = Bestowal::SOURCE_AD_HOC;
                     $bestowal->stack_rank = (int)($data['stackRank'] ?? $data['stack_rank'] ?? 0);
@@ -169,7 +202,7 @@ class AdHocBestowalService
                         $this->bestowalsTable->Notes->saveOrFail($createdNote);
                     }
 
-                    if ($savedBestowal instanceof Bestowal) {
+                    if ($savedBestowal instanceof Bestowal && $savedBestowal->isActiveBestowal()) {
                         $this->materializeTodos($savedBestowal);
                     }
 

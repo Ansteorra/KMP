@@ -111,7 +111,11 @@ archive keyrings, and signature checks stay intact. APT index failures block
 installation instead of silently reusing stale indexes. The lockfile-installed
 Playwright CLI installs the full browser/OS dependency set, and any failure still
 fails the job. Local invocations and unexpected runner mirror layouts are rejected.
-Installer failure-path tests run in the existing security gate.
+Every workflow step that runs the installer sets `timeout-minutes` (10; healthy
+installs take under a minute), because a stalled mirror transfer can outlast the
+APT network timeouts and hold the Quality Gates past the dev image build's
+30-minute wait. Installer failure-path and timeout tests run in the existing
+security gate.
 
 The navigation lifecycle scenario enters To-Do, approval and recommendation
 dialogs through links and checks initialization, Escape and returned focus.

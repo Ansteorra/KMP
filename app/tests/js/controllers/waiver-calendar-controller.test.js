@@ -7,9 +7,12 @@ describe('WaiverCalendarController', () => {
 
     beforeEach(() => {
         document.body.innerHTML = `
-            <div data-controller="waiver-calendar"
-                 data-waiver-calendar-url-value="/api/calendar">
-                <div data-waiver-calendar-target="calendar"></div>
+            <div data-controller="waiver-calendar">
+                <turbo-frame data-waiver-calendar-target="frame">
+                    <div data-waiver-calendar-target="calendar"></div>
+                </turbo-frame>
+                <div data-waiver-calendar-target="status" role="status"></div>
+                <fieldset data-waiver-calendar-target="filterControls" disabled></fieldset>
                 <span data-waiver-calendar-target="monthLabel"></span>
                 <button data-waiver-calendar-target="prevBtn">Prev</button>
                 <button data-waiver-calendar-target="nextBtn">Next</button>
@@ -19,172 +22,66 @@ describe('WaiverCalendarController', () => {
         controller = new WaiverCalendarController();
         controller.element = document.querySelector('[data-controller="waiver-calendar"]');
 
-        // Wire up targets
-        controller.calendarTarget = document.querySelector('[data-waiver-calendar-target="calendar"]');
-        controller.monthLabelTarget = document.querySelector('[data-waiver-calendar-target="monthLabel"]');
-        controller.prevBtnTarget = document.querySelector('[data-waiver-calendar-target="prevBtn"]');
-        controller.nextBtnTarget = document.querySelector('[data-waiver-calendar-target="nextBtn"]');
-
-        // Wire up values
-        controller.urlValue = '/api/calendar';
+        for (const target of WaiverCalendarController.targets) {
+            controller[`${target}Target`] = controller.element.querySelector(
+                `[data-waiver-calendar-target="${target}"]`,
+            );
+        }
+        controller.emptyMessageValue = 'No gatherings match this view.';
+        controller.errorMessageValue = 'The calendar could not be loaded.';
+        controller.hasGridViewOutlet = true;
+        controller.gridViewOutlet = {
+            buildUrl: jest.fn(() => '/dashboard?year=2025&month=1&filter%5Bstatus%5D%5B%5D=complete'),
+            navigate: jest.fn(),
+        };
     });
 
     afterEach(() => {
         document.body.innerHTML = '';
         jest.restoreAllMocks();
-        delete global.fetch;
     });
 
-    // --- Static properties ---
+    function loadMonth(overrides = {}) {
+        const month = { year: 2025, month: 1, monthName: 'January 2025', events: [], ...overrides };
+        controller.monthDataTargetConnected({ textContent: JSON.stringify(month) });
+    }
 
-    test('has correct static targets', () => {
-        expect(WaiverCalendarController.targets).toEqual(
-            expect.arrayContaining(['calendar', 'monthLabel', 'prevBtn', 'nextBtn'])
-        );
+    test('loads filtered month data and enables the calendar filter and navigation controls', () => {
+        loadMonth();
+
+        expect(controller.monthLabelTarget).toHaveTextContent('January 2025');
+        expect(controller.calendarTarget.querySelector('.waiver-calendar-grid')).toBeInTheDocument();
+        expect(controller.filterControlsTarget).toBeEnabled();
+        expect(controller.prevBtnTarget).toBeEnabled();
+        expect(controller.nextBtnTarget).toBeEnabled();
+        expect(controller.statusTarget).toHaveTextContent(controller.emptyMessageValue);
     });
 
-    test('has correct static values', () => {
-        expect(WaiverCalendarController.values).toHaveProperty('url', String);
-    });
-
-    test('registers on window.Controllers', () => {
-        expect(window.Controllers['waiver-calendar']).toBe(WaiverCalendarController);
-    });
-
-    // --- connect ---
-
-    test('connect sets current month and year and calls loadMonth', () => {
-        global.fetch = jest.fn(() => Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ monthName: 'January', year: 2025, month: 1, events: [] })
-        }));
-
-        const now = new Date();
-        controller.connect();
-
-        expect(controller.year).toBe(now.getFullYear());
-        expect(controller.month).toBe(now.getMonth() + 1);
-        expect(global.fetch).toHaveBeenCalled();
-    });
-
-    // --- prevMonth / nextMonth ---
-
-    test('prevMonth decrements month', () => {
-        global.fetch = jest.fn(() => Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ monthName: 'March', year: 2025, month: 3, events: [] })
-        }));
-
-        controller.year = 2025;
-        controller.month = 3;
-        controller.prevMonth();
-        expect(controller.month).toBe(2);
-        expect(controller.year).toBe(2025);
-    });
-
-    test('prevMonth wraps to December of previous year', () => {
-        global.fetch = jest.fn(() => Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ monthName: 'Dec', year: 2024, month: 12, events: [] })
-        }));
-
-        controller.year = 2025;
-        controller.month = 1;
-        controller.prevMonth();
-        expect(controller.month).toBe(12);
-        expect(controller.year).toBe(2024);
-    });
-
-    test('nextMonth increments month', () => {
-        global.fetch = jest.fn(() => Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ monthName: 'April', year: 2025, month: 4, events: [] })
-        }));
-
-        controller.year = 2025;
-        controller.month = 3;
+    test('uses Dataverse navigation to move across a year boundary with active filters', () => {
+        loadMonth({ year: 2024, month: 12, monthName: 'December 2024' });
         controller.nextMonth();
-        expect(controller.month).toBe(4);
-        expect(controller.year).toBe(2025);
-    });
 
-    test('nextMonth wraps to January of next year', () => {
-        global.fetch = jest.fn(() => Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ monthName: 'Jan', year: 2026, month: 1, events: [] })
-        }));
-
-        controller.year = 2025;
-        controller.month = 12;
-        controller.nextMonth();
-        expect(controller.month).toBe(1);
-        expect(controller.year).toBe(2026);
-    });
-
-    // --- loadMonth ---
-
-    test('loadMonth fetches data and renders calendar', async () => {
-        global.fetch = jest.fn(() => Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({
-                monthName: 'January 2025',
-                year: 2025,
-                month: 1,
-                events: []
-            })
-        }));
-
-        controller.year = 2025;
-        controller.month = 1;
-        await controller.loadMonth();
-
-        expect(global.fetch).toHaveBeenCalledWith(
-            '/api/calendar?year=2025&month=1',
-            expect.objectContaining({ headers: { 'Accept': 'application/json' } })
+        expect(controller.gridViewOutlet.buildUrl).toHaveBeenCalledWith({ year: 2025, month: 1 });
+        expect(controller.gridViewOutlet.navigate).toHaveBeenCalledWith(
+            '/dashboard?year=2025&month=1&filter%5Bstatus%5D%5B%5D=complete',
         );
-        expect(controller.monthLabelTarget.textContent).toBe('January 2025');
-        expect(controller.calendarTarget.innerHTML).toContain('waiver-calendar-grid');
+        expect(controller.monthLabelTarget).toHaveTextContent('December 2024');
     });
 
-    test('loadMonth appends with & when url already has query params', async () => {
-        controller.urlValue = '/api/calendar?branch=5';
-        global.fetch = jest.fn(() => Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ monthName: 'Jan', year: 2025, month: 1, events: [] })
-        }));
+    test('disables navigation beyond supported years', () => {
+        loadMonth({ year: 2000, month: 1 });
+        expect(controller.prevBtnTarget).toBeDisabled();
 
-        controller.year = 2025;
-        controller.month = 1;
-        await controller.loadMonth();
-
-        expect(global.fetch).toHaveBeenCalledWith(
-            '/api/calendar?branch=5&year=2025&month=1',
-            expect.any(Object)
-        );
+        loadMonth({ year: 2100, month: 12 });
+        expect(controller.nextBtnTarget).toBeDisabled();
     });
 
-    test('loadMonth shows error on fetch failure', async () => {
-        global.fetch = jest.fn(() => Promise.reject(new Error('Network error')));
+    test('announces a fetch failure while preserving the displayed calendar', () => {
+        loadMonth();
+        controller.loadFailed();
 
-        controller.year = 2025;
-        controller.month = 1;
-        await controller.loadMonth();
-
-        expect(controller.calendarTarget.innerHTML).toContain('alert-danger');
-        expect(controller.calendarTarget.innerHTML).toContain('Failed to load calendar data');
-    });
-
-    test('loadMonth shows error on non-ok response', async () => {
-        global.fetch = jest.fn(() => Promise.resolve({
-            ok: false,
-            status: 500
-        }));
-
-        controller.year = 2025;
-        controller.month = 1;
-        await controller.loadMonth();
-
-        expect(controller.calendarTarget.innerHTML).toContain('alert-danger');
+        expect(controller.statusTarget).toHaveTextContent(controller.errorMessageValue);
+        expect(controller.calendarTarget.querySelector('.waiver-calendar-grid')).toBeInTheDocument();
     });
 
     // --- renderCalendar ---

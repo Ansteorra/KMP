@@ -3,8 +3,24 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: 972ddd8eec5a9a14050adc6116c718c435aca016 -->
-<!-- LAST_SYNCED_DATE: 2026-11-17 -->
+<!-- LAST_SYNCED_COMMIT: 30453d2c60975f7cb598bd613b9af36775355893 -->
+<!-- LAST_SYNCED_DATE: 2026-11-27 -->
+
+## KMP 1.5.16 — November 25, 2026
+
+KMP 1.5.16 gives kingdoms more control over their public calendar, makes gathering and waiver workflows easier to navigate, and helps awards staff organize repeat recommendations.
+
+- Customize the public events calendar in **Config → Public Events Calendar**. Set the title, icon or logo, theme, fonts, colors, introduction, footer, and calendar subscription link.
+- Embed the public calendar on approved kingdom websites. Show or hide the header, introduction, and footer independently in the iframe. Visitors can filter events in place and open RSVP in KMP.
+- Create gatherings through a guided form. The hosting-group autocomplete defaults to your home group when permitted, and address entry works when map suggestions are unavailable.
+- Choose what visitors will see and review the gathering before saving. The hosted KMP event page is the default. Organizers can link to an external website or show the gathering without a website link.
+- Gathering creation and waiver uploads share numbered steps and the same navigation controls on desktop and mobile. Return to an earlier step without losing your entries.
+- Use Dataverse search and filters in the **Waiver Clerk Calendar** to narrow the month by hosting group, gathering type, activity, or waiver status. Filters stay applied while you move between months.
+- Open **Recs. Like This** on a recommendation to see other submissions for the same recipient and award, including closed history. Group open matches from the detail page or add them to an in-flight bestowal while keeping its recommendation as the group lead.
+- Use **Record Award Given** on Award Bestowals to select a recipient, award, and past or ongoing gathering. KMP saves the bestowal as **Given**, links it to the gathering, and uses the gathering's start date without creating a preparation checklist.
+- In the full **Record Ad-Hoc Bestowal** form, turn on **Include past gatherings** to find earlier events. Award Type search preserves ampersands in labels such as **Arts & Sciences**.
+
+---
 
 ## KMP 1.5.15 — November 17, 2026
 

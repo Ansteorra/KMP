@@ -654,16 +654,22 @@
 </head>
 
 <body>
-    <a class="visually-hidden-focusable position-absolute top-0 start-0 z-3 m-2 p-2 bg-white border rounded"
-        href="#main-content">
+    <a class="visually-hidden-focusable position-absolute top-0 start-0 m-2 p-2 bg-white border rounded"
+        style="z-index: 21;" href="<?= isset($calendarSettings) ? '#calendar-events' : '#main-content' ?>">
         <?= __('Skip to main content') ?>
     </a>
-    <div id="flash-messages">
-        <?= $this->Flash->render() ?>
-    </div>
-    <main id="main-content" tabindex="-1">
+    <?php if (empty($calendarEmbed)) : ?>
+        <div id="flash-messages">
+            <?= $this->Flash->render() ?>
+        </div>
+    <?php endif; ?>
+    <?php if (isset($calendarSettings)) : ?>
         <?= $this->fetch('content') ?>
-    </main>
+    <?php else : ?>
+        <main id="main-content" tabindex="-1">
+            <?= $this->fetch('content') ?>
+        </main>
+    <?php endif; ?>
 
     <?= $this->Vite->script('public-event') ?>
 

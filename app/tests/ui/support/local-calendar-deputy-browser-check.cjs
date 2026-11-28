@@ -107,9 +107,12 @@ echo json_encode($manager->withTenant($tenant, function () use ($input) {
         await expect(page.locator('input[name="branch_id"]')).toHaveValue(String(fixture.branchId));
         await page.locator('[name="name"]').fill(fixture.name);
         await page.locator('[name="gathering_type_id"]').selectOption(String(fixture.typeId));
+        await page.getByRole('button', { name: 'Continue', exact: true }).click();
         await page.locator('[name="start_date"]').fill(fixture.date + 'T10:00');
         await page.locator('[name="end_date"]').fill(fixture.date + 'T18:00');
         await page.locator('[name="location"]').fill('Synthetic local deputy check');
+        await page.getByRole('button', { name: 'Continue', exact: true }).click();
+        await page.getByRole('button', { name: 'Continue', exact: true }).click();
         await page.getByRole('button', { name: 'Create Gathering', exact: true }).click();
         await expect(page).toHaveURL(/\/gatherings\/view\//);
         await page.waitForLoadState('load');

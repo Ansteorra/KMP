@@ -1,10 +1,15 @@
 <?php
 
+use Awards\KMP\GridColumns\SimilarRecommendationsGridColumns;
+
 /**
  * @var \App\View\AppView $this
  * @var \Awards\Model\Entity\Recommendation $recommendation
  * @var array $memberAttendanceGatherings
  * @var array $workflowContext
+ * @var bool $canViewSimilarRecs
+ * @var bool $canGroupSimilarRecs
+ * @var bool $includeCurrentInSimilarGroup
  */
 ?>
 <?php
@@ -254,6 +259,13 @@ $runStatusClass = static function (?string $status): string {
     aria-controls="nav-notes" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="10"
     style="order: 10;"><?= __("Notes") ?>
 </button>
+<?php if ($canViewSimilarRecs) : ?>
+<button class="nav-link" id="nav-similar-recs-tab" data-bs-toggle="tab" data-bs-target="#nav-similar-recs"
+    type="button" role="tab" aria-controls="nav-similar-recs" aria-selected="false"
+    data-detail-tabs-target="tabBtn" data-tab-order="11" style="order: 11;">
+    <?= __('Recs. Like This') ?>
+</button>
+<?php endif; ?>
 <button class="nav-link" id="nav-approval-tab" data-bs-toggle="tab" data-bs-target="#nav-approval" type="button"
     role="tab" aria-controls="nav-approval" aria-selected="false" data-detail-tabs-target='tabBtn' data-tab-order="12"
     style="order: 12;">
@@ -271,12 +283,15 @@ $runStatusClass = static function (?string $status): string {
 <?php endif; ?>
 <?php $this->KMP->endBlock() ?>
 <?php $this->KMP->startBlock("tabContent") ?>
-<?php if (!empty($recommendation->group_children)) : ?>
+<?php if (!empty($recommendation->group_children)) :
+    $canUngroup = !$recommendation->isLockedByBestowal() && $user->checkCan('group', $recommendation);
+    $hasLockedChildren = array_any($recommendation->group_children, fn($child) => $child->isLockedByBestowal());
+    ?>
 <div class="related tab-pane fade m-3" id="nav-grouped" role="tabpanel" aria-labelledby="nav-grouped-tab"
     data-detail-tabs-target="tabContent" data-tab-order="5" style="order: 5;">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="mb-0"><kmp-icon name="layers-linked"  aria-hidden="true"></kmp-icon> <?= __('Grouped Recommendations') ?></h5>
-        <?php if ($user->checkCan('edit', $recommendation)) : ?>
+        <?php if ($canUngroup && !$hasLockedChildren) : ?>
         <?= $this->Form->postLink(
                     '<kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> ' . __('Ungroup All'),
                     ['action' => 'ungroupRecommendations'],
@@ -298,9 +313,7 @@ $runStatusClass = static function (?string $status): string {
                     <th><?= __('Reason') ?></th>
                     <th><?= __('Requester') ?></th>
                     <th><?= __('Submitted') ?></th>
-                    <?php if ($user->checkCan('edit', $recommendation)) : ?>
                     <th class="text-end"><?= __('Actions') ?></th>
-                    <?php endif; ?>
                 </tr>
             </thead>
             <tbody>
@@ -311,26 +324,34 @@ $runStatusClass = static function (?string $status): string {
                     <td><?= $this->Text->autoParagraph(h($child->reason ?? '')) ?></td>
                     <td><?= h($child->requester->sca_name ?? $child->requester_sca_name) ?></td>
                     <td><?= $child->created ? $child->created->format('Y-m-d') : '—' ?></td>
-                    <?php if ($user->checkCan('edit', $recommendation)) : ?>
                     <td class="text-end text-nowrap">
-                        <?= $this->Html->link(
-                                        '<kmp-icon name="eye"  aria-hidden="true"></kmp-icon>',
-                                        ['action' => 'view', $child->id],
-                                        ['class' => 'btn btn-sm btn-outline-secondary', 'escape' => false, 'title' => __('View')]
-                                    ) ?>
-                        <?= $this->Form->postLink(
-                                        '<kmp-icon name="x"  aria-hidden="true"></kmp-icon>',
-                                        ['action' => 'removeFromGroup'],
-                                        [
-                                            'data' => ['recommendation_id' => $child->id],
-                                            'confirm' => __('Remove this recommendation from the group?'),
-                                            'class' => 'btn btn-sm btn-outline-danger',
-                                            'escape' => false,
-                                            'title' => __('Remove from group'),
-                                        ]
-                                    ) ?>
+                        <?php if ($user->checkCan('view', $child)) : ?>
+                            <?= $this->Html->link(
+                                '<kmp-icon name="eye"  aria-hidden="true"></kmp-icon>',
+                                ['action' => 'view', $child->id],
+                                [
+                                    'class' => 'btn btn-sm btn-outline-secondary',
+                                    'escape' => false,
+                                    'aria-label' => __('View recommendation'),
+                                    'title' => __('View recommendation'),
+                                ],
+                            ) ?>
+                        <?php endif; ?>
+                        <?php if ($canUngroup && !$child->isLockedByBestowal() && $user->checkCan('group', $child)) : ?>
+                            <?= $this->Form->postLink(
+                                '<kmp-icon name="x"  aria-hidden="true"></kmp-icon>',
+                                ['action' => 'removeFromGroup'],
+                                [
+                                    'data' => ['recommendation_id' => $child->id],
+                                    'confirm' => __('Remove this recommendation from the group?'),
+                                    'class' => 'btn btn-sm btn-outline-danger',
+                                    'escape' => false,
+                                    'aria-label' => __('Remove from group'),
+                                    'title' => __('Remove from group'),
+                                ],
+                            ) ?>
+                        <?php endif; ?>
                     </td>
-                    <?php endif; ?>
                 </tr>
                 <?php endforeach; ?>
             </tbody>
@@ -347,6 +368,24 @@ $runStatusClass = static function (?string $status): string {
         'canCreate' => $user->checkCan('edit', $recommendation),
     ]) ?>
 </div>
+<?php if ($canViewSimilarRecs) : ?>
+<div class="related tab-pane fade m-3" id="nav-similar-recs" role="tabpanel"
+    aria-labelledby="nav-similar-recs-tab" data-detail-tabs-target="tabContent" data-tab-order="11" style="order: 11;">
+    <?php if ($canGroupSimilarRecs) : ?>
+        <p>
+            <?= $includeCurrentInSimilarGroup
+                ? __('Select recommendations and choose Group to group them with the recommendation you are viewing.')
+                : __('Select two or more recommendations and choose Group to group them together.') ?>
+            <?= __('Include at most one in-flight bestowal. Its recommendation will lead the group.') ?>
+        </p>
+    <?php endif; ?>
+    <?= $this->element('dv_grid', [
+        'gridKey' => SimilarRecommendationsGridColumns::GRID_KEY,
+        'frameId' => 'similar-recs-grid-' . $recommendation->id,
+        'dataUrl' => $this->Url->build(['action' => 'similarRecsGridData', $recommendation->id]),
+    ]) ?>
+</div>
+<?php endif; ?>
 <div class="related tab-pane fade m-3" id="nav-approval" role="tabpanel" aria-labelledby="nav-approval-tab"
     data-detail-tabs-target="tabContent" data-tab-order="12" style="order: 12;">
     <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
@@ -832,6 +871,12 @@ $runStatusClass = static function (?string $status): string {
 echo $this->KMP->startBlock("modals"); ?>
 
 <?= $this->element('recommendationEditModal') ?>
+<?php if ($canGroupSimilarRecs) : ?>
+    <?= $this->element('recommendationGroupModal', [
+        'similarRecommendation' => $recommendation,
+        'includeCurrent' => $includeCurrentInSimilarGroup,
+    ]) ?>
+<?php endif; ?>
 <?php if ($user->checkCan("requestFeedback", $recommendation)) : ?>
 <?= $this->element('recommendationFeedbackModal', [
     'modalId' => 'requestRecommendationFeedbackModal',

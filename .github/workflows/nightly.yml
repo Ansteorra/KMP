@@ -129,8 +129,8 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile.prod
-          # Native OS updates must run for each publishable candidate.
-          no-cache-filters: runtime-base
+          # Rebuild the final runtime as well so cache imports cannot restore superseded OS packages.
+          no-cache-filters: runtime-base,runtime
           # Azure deployments use AMD64; local development builds its own image.
           platforms: linux/amd64
           push: true

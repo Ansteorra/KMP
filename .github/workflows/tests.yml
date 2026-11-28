@@ -278,6 +278,7 @@ jobs:
         run: cd app && npm ci --no-audit --no-fund
 
       - name: Install Playwright browser
+        timeout-minutes: 10
         run: bash .github/scripts/install-playwright-browser.sh chromium
 
       - name: Build frontend assets
@@ -394,6 +395,7 @@ jobs:
         run: cd app && npm ci --no-audit --no-fund
 
       - name: Install Playwright browser
+        timeout-minutes: 10
         run: bash .github/scripts/install-playwright-browser.sh chromium
 
       - name: Build frontend assets

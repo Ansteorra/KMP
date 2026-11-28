@@ -12,6 +12,8 @@ jest.mock('easymde', () => ({
         toTextArea: jest.fn(),
         _value: '',
         codemirror: {
+            inputField: globalThis.document.createElement("textarea"),
+            getInputField() { return this.inputField; },
             getCursor: jest.fn(() => ({ line: 0, ch: 0 })),
             replaceSelection: jest.fn(),
             focus: jest.fn(),
@@ -33,7 +35,9 @@ describe('MarkdownEditorController', () => {
 
     beforeEach(() => {
         document.body.innerHTML = `
-            <textarea data-controller="markdown-editor"
+            <label for="body">Body</label>
+            <p id="body-help">Markdown help</p>
+            <textarea id="body" aria-describedby="body-help" aria-invalid="true" data-controller="markdown-editor"
                       data-markdown-editor-placeholder-value="Enter text..."
                       data-markdown-editor-min-height-value="200px">
             </textarea>
@@ -81,6 +85,25 @@ describe('MarkdownEditorController', () => {
                 forceSync: true
             })
         );
+    });
+
+    test('preserves the label and help on the active editor input', async () => {
+        await controller.connect();
+        const input = controller.editor.codemirror.getInputField();
+        expect(input.getAttribute('aria-labelledby')).toBe('body-label');
+        expect(input.getAttribute('aria-describedby')).toBe('body-help');
+        expect(input.getAttribute('aria-invalid')).toBe('true');
+        controller.element.labels[0].click();
+        expect(controller.editor.codemirror.focus).toHaveBeenCalled();
+    });
+
+    test('uses Bootstrap sanitization for Markdown previews', async () => {
+        const EasyMDE = require('easymde').default;
+        await controller.connect();
+        const { sanitizerFunction } = EasyMDE.mock.lastCall[0].renderingConfig;
+        const html = sanitizerFunction('<strong>Welcome</strong><img src="/logo.png" onerror="bad()">');
+        expect(html).toContain('<strong>Welcome</strong>');
+        expect(html).not.toContain('onerror');
     });
 
     test('disconnect cleans up editor', async () => {

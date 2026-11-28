@@ -40,7 +40,7 @@ function iconCatalogPlugin() {
     };
 }
 
-/** Keep the accepted build/test dependency out of page and worker graphs. */
+/** Keep build/test-only picomatch out of page and worker graphs. */
 function noRuntimePicomatchPlugin() {
     return {
         name: 'kmp-no-runtime-picomatch',

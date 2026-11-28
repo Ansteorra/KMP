@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * @var \App\View\AppView $this
@@ -14,29 +15,20 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
     }
 }
 ?>
-<!-- Step 1: Select Waiver Type -->
-<div id="waiver-upload-step-1"
-    data-waiver-upload-wizard-target="step"
-    data-step-number="1"
-    role="region"
-    aria-labelledby="waiver-upload-step-1-heading"
-    aria-current="step"
-    aria-hidden="false">
-    <h3 id="waiver-upload-step-1-heading" class="mb-4">
-        <kmp-icon name="file-text" class="text-primary" aria-hidden="true"></kmp-icon>
-        <span class="visually-hidden"><?= __('Step 1 of 3: Select Waiver Type') ?></span>
-        <span aria-hidden="true"><?= __('Step 1: Select Waiver Type') ?></span>
-    </h3>
 
-    <p class="lead"><?= __('What type of waiver are you uploading for this gathering?') ?></p>
+<section class="border rounded p-3 mb-3" id="waiver-upload-step-1"
+    aria-labelledby="waiver-upload-step-1-heading" data-waiver-upload-wizard-target="panel">
+    <h2 id="waiver-upload-step-1-heading" class="h5" tabindex="-1"><?= __('Select waiver type') ?></h2>
+
+    <p class="mb-3"><?= __('What type of waiver are you uploading for this gathering?') ?></p>
 
     <?php if (!empty($waiverStatusSummary)) : ?>
         <div class="card mb-4 border-0 shadow-sm">
             <div class="card-header bg-light">
-                <h5 class="mb-0">
+                <h3 class="h5 mb-0">
                     <kmp-icon name="clipboard-check" class="text-success" aria-hidden="true"></kmp-icon>
                     <?= __('Waiver Status for This Gathering') ?>
-                </h5>
+                </h3>
             </div>
             <ul class="list-group list-group-flush">
                 <?php foreach ($waiverStatusSummary as $summary) : ?>
@@ -124,23 +116,13 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
             <?= __('No waiver types have been configured for this gathering.') ?>
         </div>
     <?php endif; ?>
-</div>
+</section>
 
-<!-- Step 2: Add Pages or Attest -->
-<div id="waiver-upload-step-2"
-    data-waiver-upload-wizard-target="step"
-    data-step-number="2"
-    class="d-none"
-    role="region"
-    aria-labelledby="waiver-upload-step-2-heading"
-    aria-hidden="true">
-    <h3 id="waiver-upload-step-2-heading" class="mb-4">
-        <kmp-icon name="file-image" class="text-primary" aria-hidden="true"></kmp-icon>
-        <span class="visually-hidden"><?= __('Step 2 of 3: Add Waiver Pages') ?></span>
-        <span aria-hidden="true"><?= __('Step 2: Add Waiver Pages') ?></span>
-    </h3>
+<section class="border rounded p-3 mb-3" id="waiver-upload-step-2"
+    aria-labelledby="waiver-upload-step-2-heading" data-waiver-upload-wizard-target="panel" hidden>
+    <h2 id="waiver-upload-step-2-heading" class="h5" tabindex="-1"><?= __('Add waiver details') ?></h2>
 
-    <p class="lead" data-waiver-upload-wizard-target="step3Lead">
+    <p class="mb-3" data-waiver-upload-wizard-target="step3Lead">
         <?= __('Add one or more pages to your waiver document') ?></p>
 
     <!-- Mode Toggle (hidden by default, shown by JS if exemption reasons available) -->
@@ -234,27 +216,17 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
         </div>
     </div>
 
-</div>
+</section>
 
-<!-- Step 3: Review -->
-<div id="waiver-upload-step-3"
-    data-waiver-upload-wizard-target="step"
-    data-step-number="3"
-    class="d-none"
-    role="region"
-    aria-labelledby="waiver-upload-step-3-heading"
-    aria-hidden="true">
-    <h3 id="waiver-upload-step-3-heading" class="mb-4">
-        <kmp-icon name="circle-check" class="text-success" aria-hidden="true"></kmp-icon>
-        <span class="visually-hidden"><?= __('Step 3 of 3: Review & Submit') ?></span>
-        <span aria-hidden="true"><?= __('Step 3: Review & Submit') ?></span>
-    </h3>
+<section class="border rounded p-3 mb-3" id="waiver-upload-step-3"
+    aria-labelledby="waiver-upload-step-3-heading" data-waiver-upload-wizard-target="panel" hidden>
+    <h2 id="waiver-upload-step-3-heading" class="h5" tabindex="-1"><?= __('Review and submit') ?></h2>
 
-    <p class="lead"><?= __('Please review your details before submitting') ?></p>
+    <p class="mb-3"><?= __('Please review your details before submitting') ?></p>
 
     <div class="card mb-3">
         <div class="card-header">
-            <h5 class="mb-0"><?= __('Waiver Type') ?></h5>
+            <h3 class="h5 mb-0"><?= __('Waiver Type') ?></h3>
         </div>
         <div class="card-body">
             <strong data-waiver-upload-wizard-target="reviewWaiverType"></strong>
@@ -265,10 +237,10 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
     <div data-waiver-upload-wizard-target="reviewUploadSection" aria-hidden="false">
         <div class="card mb-3">
             <div class="card-header">
-                <h5 class="mb-0">
+                <h3 class="h5 mb-0">
                     <?= __('Pages') ?>
                     <span class="badge bg-primary ms-2" data-waiver-upload-wizard-target="reviewPageCount"></span>
-                </h5>
+                </h3>
             </div>
             <div class="card-body">
                 <div class="row" data-waiver-upload-wizard-target="reviewPagesList">
@@ -279,11 +251,12 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
 
         <div class="card mb-3">
             <div class="card-header">
-                <h5 class="mb-0"><?= __('Additional Notes (Optional)') ?></h5>
+                <h3 class="h5 mb-0" id="waiver-review-notes-label"><?= __('Additional Notes (Optional)') ?></h3>
             </div>
             <div class="card-body">
                 <textarea class="form-control"
                     rows="3"
+                    aria-labelledby="waiver-review-notes-label"
                     placeholder="<?= __('Add any notes about this waiver...') ?>"
                     data-waiver-upload-wizard-target="notesField"></textarea>
             </div>
@@ -293,10 +266,11 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
     <!-- Attestation Mode Review -->
     <div data-waiver-upload-wizard-target="reviewAttestSection" class="d-none" aria-hidden="true">
         <div class="card mb-3">
-            <div class="card-header bg-info text-white">
-                <h5 class="mb-0">
-                    <kmp-icon name="shield-check"  aria-hidden="true"></kmp-icon> <?= __('Attestation: Waiver Not Needed') ?>
-                </h5>
+            <div class="card-header">
+                <h3 class="h5 mb-0">
+                    <kmp-icon name="shield-check" aria-hidden="true"></kmp-icon>
+                    <?= __('Attestation: Waiver Not Needed') ?>
+                </h3>
             </div>
             <div class="card-body">
                 <div class="mb-3">
@@ -310,35 +284,4 @@ foreach (($waiverStatusSummary ?? []) as $summary) {
             </div>
         </div>
     </div>
-</div>
-
-<!-- Navigation Buttons -->
-<div class="wizard-navigation mt-4 d-flex justify-content-between">
-    <div>
-        <button type="button" class="btn btn-outline-secondary" data-waiver-upload-wizard-target="prevButton"
-            data-action="click->waiver-upload-wizard#prevStep">
-            <kmp-icon name="arrow-left"  aria-hidden="true"></kmp-icon> <?= __('Previous') ?>
-        </button>
-    </div>
-    <div>
-        <?= $this->Html->link(
-            __('Cancel'),
-            ['plugin' => false, 'controller' => 'Gatherings', 'action' => 'view', $gathering->public_id],
-            ['class' => 'btn btn-outline-danger me-2'],
-        ) ?>
-        <button type="button" class="btn btn-primary" data-waiver-upload-wizard-target="nextButton"
-            data-action="click->waiver-upload-wizard#nextStep">
-            <?= __('Next') ?> <kmp-icon name="arrow-right"  aria-hidden="true"></kmp-icon>
-        </button>
-        <button type="button" class="btn btn-success d-none"
-            data-waiver-upload-wizard-target="submitButton"
-            data-action="click->waiver-upload-wizard#submitForm">
-            <kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon>
-            <span data-waiver-upload-wizard-target="submitButtonText"><?= __('Submit Waivers') ?></span>
-        </button>
-    </div>
-</div>
-</div>
-</div>
-</div>
-</div>
+</section>

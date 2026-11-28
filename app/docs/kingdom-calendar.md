@@ -68,10 +68,23 @@ Publishing requires `GatheringPolicy::canPublish` and the “Can Publish Gatheri
 Calendar” permission; ordinary branch event management does not imply that ability. The
 endpoint is `POST /gatherings/publish/<id>?publish=true|false`.
 
-For a public event link, prefer an enabled KMP landing page, then `website_url`, then plain
-text. `preregister_url` is an external link shown only while
-`Gathering::is_preregistration_open` is true. Keep these decisions server-side rather than
-reimplementing them in JavaScript.
+The calendar and iCalendar entries use a valid HTTP or HTTPS `website_url` when present.
+With a blank website field, the calendar links to the enabled KMP public event page.
+A published event without either option has a plain-text title. This rule also applies
+to existing gatherings that have both destinations configured.
+The calendar shows `preregister_url` while `Gathering::is_preregistration_open` is true.
+
+**Add Gathering** guides organizers through basics, time and place, the public event page,
+and review. The hosting-group autocomplete starts with the organizer’s home group when
+they can create gatherings there. You can enter a venue name or address manually
+whenever Google Maps suggestions are unavailable. The public-page step defaults to the KMP page.
+Organizers can choose another website or a calendar listing without a website link.
+The review shows the destination before saving. To change these details later, use
+**Public event details** in **Edit Gathering**.
+
+Use **View Public Page** after saving to see what attendees can see. Add admission, parking,
+accessibility, and other visitor information to the description. Add activities, schedule
+entries, and public staff details from the gathering record.
 
 ## `/events`
 
@@ -88,7 +101,7 @@ reimplementing them in JavaScript.
   archive searches, including completed events without the default future horizon;
 - allows month-only searches across years, year-only searches across months, and blank dates
   across all history; old `month=YYYY-MM` URLs still work;
-- keeps **Upcoming Events** as a link back to the default current-month-onward view;
+- uses **This month onward** to return to the default view;
 - derives year choices from published event bounds and omits empty months in archive pages;
 - pages archive searches in stable start-date/ID order with 50 events per page, preserving all
   filters in Previous/Next links and login return URLs; each page loads event details only after
@@ -103,9 +116,9 @@ reimplementing them in JavaScript.
   `assets/css/gatherings_public.css`.
 
 Rows show date, event name and stored location/address, hosting group, and compact activity
-icons. Clicking noninteractive row content expands details; event names keep the existing public-page
-then external-website link precedence. The native disclosure remains keyboard operable. Expanded rows
-contain all public activities, event information and calendar downloads. Without
+icons. The row and its keyboard-operable disclosure expand details. Event names link to the
+configured website or the enabled KMP page. Expanded rows contain all public activities,
+event information, and calendar downloads. Without
 JavaScript, expanded content remains available through the no-script fallback.
 
 Activities show Royal Progress first, Order Circle second, then all remaining activities. Within
@@ -239,17 +252,34 @@ ordinary attendance records and sharing preferences. Retired filters are removed
 gathering views while their remaining filters and layout are retained. Applied historical migrations remain
 unchanged so existing tenants and legacy backups can migrate forward.
 
-## Theme and embedding constraints
+## Calendar appearance and embedding
 
-`Plugin.PublicGatherings.CustomCSS` is the supported tenant theme override. It is appended
-after the base `.kc-*` styles by the controller/template path; keep style-end breakout
-protection in place.
+Open **Config → Public Events Calendar** to set the masthead text, calendar heading,
+catalog icon or logo, subscription link, intro, and footer. The page uses the existing
+App Settings edit permission. The heading appears above the filters when it is filled in.
+Use Markdown for the intro and footer, and clear a text body to hide it. Preview the saved
+calendar and embed from the links on the settings form.
 
-Linking from an external site is supported. Cross-origin iframe embedding is not: every
-response currently sends `X-Frame-Options: SAMEORIGIN` and CSP
-`frame-ancestors 'self'`. The public layout and back-stack exclusion do not override those
-headers. Do not document or depend on WordPress iframe embedding unless the application gains
-a narrowly reviewed frame policy and corresponding clickjacking tests.
+The form offers theme presets, heading and body fonts, and hexadecimal color overrides.
+Custom text and accent colors must have 4.5:1 contrast against the calendar surfaces.
+`Plugin.PublicGatherings.CustomCSS` continues to load after the generated theme rules and
+can override them. Review contrast, focus visibility, and reflow if using custom CSS.
+
+Use the generated iframe code for a kingdom website. The embed URL is `/events?embed=1`,
+and the settings contain independent controls for embedded header, intro, and footer
+visibility. The default compact layout hides all three. Filters and archive pagination
+stay inside the iframe. Event and registration links and **RSVP in KMP** open a new tab.
+The RSVP link opens the standalone calendar with the filters and event selection preserved.
+
+Enter each allowed HTTPS origin on its own line. Include the port if the website uses a
+non-default port. The application adds these origins to `frame-ancestors` only on successful
+responses for the canonical embed URL. Standalone, public event, and authenticated pages
+keep their same-origin framing policy. The embed renders the public calendar regardless
+of session state and is sent with `Cache-Control: private, no-store`.
+
+Settings are one JSON record in each tenant's App Settings. Calendar logos use
+`PublicAssetService` with tenant-scoped immutable keys and the existing public asset adapter.
+Replacing the selected logo leaves the immutable previous asset available to cached documents.
 
 ## Source and verification map
 

@@ -101,12 +101,6 @@ class AutoComplete extends Controller {
     }
     static uniqOptionId = 0
 
-    static escapeHtml(text) {
-        const div = document.createElement("div")
-        div.textContent = text == null ? "" : String(text)
-        return div.innerHTML
-    }
-
     static escapeRegExp(text) {
         return String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
     }
@@ -740,9 +734,10 @@ class AutoComplete extends Controller {
                 throw new Error("You must provide a URL or a DataList target")
             } else {
                 this.resultsTarget.innerHTML = null;
-                let allItems = this._selectOptions;
-                for (let item of allItems) {
-                    if (item.text.toLowerCase().includes(query.toLowerCase()) && (item.enabled != false || query == "")) {
+                const search = query.toLowerCase();
+                const pattern = search ? new RegExp(AutoComplete.escapeRegExp(query), "gi") : null;
+                for (const item of this._selectOptions) {
+                    if (item.text.toLowerCase().includes(search) && (item.enabled != false || !search)) {
                         let itemHtml = document.createElement("li");
                         itemHtml.setAttribute("data-ac-value", item.value);
                         itemHtml.classList.add("list-group-item");
@@ -755,16 +750,19 @@ class AutoComplete extends Controller {
                         itemHtml.setAttribute("role", "option")
                         itemHtml.setAttribute("aria-selected", "false")
 
-                        //add a span around matching string to highlight it
-                        if (query != "") {
-                            const escapedText = AutoComplete.escapeHtml(item.text);
-                            const escapedQuery = AutoComplete.escapeRegExp(AutoComplete.escapeHtml(query));
-                            itemHtml.innerHTML = escapedText.replace(
-                                new RegExp(escapedQuery, 'gi'),
-                                match => `<span class="text-primary">${match}</span>`
-                            );
-                        } else {
+                        if (pattern === null) {
                             itemHtml.textContent = item.text;
+                        } else {
+                            let offset = 0;
+                            for (const match of item.text.matchAll(pattern)) {
+                                itemHtml.append(item.text.slice(offset, match.index));
+                                const highlight = document.createElement("span");
+                                highlight.className = "text-primary";
+                                highlight.textContent = match[0];
+                                itemHtml.append(highlight);
+                                offset = match.index + match[0].length;
+                            }
+                            itemHtml.append(item.text.slice(offset));
                         }
                         this.resultsTarget.appendChild(itemHtml);
                     }
@@ -857,7 +855,6 @@ class AutoComplete extends Controller {
         this.enableFloatingResults()
         this.resultsShown = true
         this.updateFloatingResultsPosition()
-        this.element.setAttribute("aria-expanded", "true")
         this.inputTarget.setAttribute("aria-expanded", "true")
         this.hiddenTextTarget.value = this.inputTarget.value;
         this.element.dispatchEvent(
@@ -875,7 +872,6 @@ class AutoComplete extends Controller {
         this.state = "finished";
         this.resultsShown = false
         this.inputTarget.removeAttribute("aria-activedescendant")
-        this.element.setAttribute("aria-expanded", "false")
         this.inputTarget.setAttribute("aria-expanded", "false")
         this.hiddenTextTarget.value = this.inputTarget.value;
         this.disableFloatingResults()

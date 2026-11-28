@@ -13,6 +13,7 @@ use Cake\I18n\Date;
 $this->extend('reader');
 
 $publicLandingUrl = $this->Url->build(['action' => 'publicLanding', $gathering->public_id], ['fullBase' => true]);
+$eventWebsite = $gathering->publicEventUrl();
 $hasManagementActions = $user->checkCan('edit', $gathering)
     || $user->checkCan('publish', $gathering)
     || $user->checkCan('delete', $gathering)
@@ -21,6 +22,13 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
 <?= $this->KMP->startBlock('recordActions') ?>
 <?php if ($user->checkCan('edit', $gathering)) : ?>
     <?= $this->Html->link(__('Edit'), ['action' => 'edit', $gathering->id], ['class' => 'btn btn-primary btn-sm']) ?>
+<?php endif; ?>
+<?php if ($gathering->public_page_enabled) : ?>
+    <?= $this->Html->link(
+        __('View Public Page (opens in new tab)'),
+        $publicLandingUrl,
+        ['class' => 'btn btn-outline-secondary btn-sm', 'target' => '_blank', 'rel' => 'noopener'],
+    ) ?>
 <?php endif; ?>
 
 <?php if ($hasManagementActions) : ?>
@@ -182,19 +190,18 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
     <td class="col-10"><?= h($gathering->location) ?></td>
 </tr>
     <?php endif; ?>
-    <?php if (!empty($gathering->website_url)) : ?>
 <tr scope="row">
-    <th class="col"><?= __('Website') ?></th>
+    <th class="col"><?= __('Calendar event link') ?></th>
     <td class="col-10">
-        <a href="<?= h($gathering->website_url) ?>" target="_blank" rel="noopener"><?= h($gathering->website_url) ?></a>
-            <?php if ($gathering->public_page_enabled) : ?>
-        <small class="text-muted ms-2">
-                <?= __('(not shown publicly - the public landing page is used as the event link)') ?>
-        </small>
-            <?php endif; ?>
+        <?php if ($eventWebsite !== null) : ?>
+            <?= $this->Html->link($eventWebsite, $eventWebsite) ?>
+        <?php elseif ($gathering->public_page_enabled) : ?>
+            <?= __('KMP public event page') ?>
+        <?php else : ?>
+            <?= __('No event website link') ?>
+        <?php endif; ?>
     </td>
 </tr>
-    <?php endif; ?>
     <?php if (!empty($gathering->preregister_url)) : ?>
 <tr scope="row">
     <th class="col"><?= __('Pre-Registration') ?></th>
@@ -219,9 +226,6 @@ $hasManagementActions = $user->checkCan('edit', $gathering)
     <td class="col-10">
         <?php if ($gathering->public_page_enabled) : ?>
         <span class="badge bg-success"><kmp-icon name="circle-check"  aria-hidden="true"></kmp-icon> Enabled</span>
-        <a href="<?= $publicLandingUrl ?>" target="_blank" class="ms-2">
-            <kmp-icon name="external-link"  aria-hidden="true"></kmp-icon> View Public Page
-        </a>
         <?php else : ?>
         <span class="badge bg-secondary"><kmp-icon name="circle-x"  aria-hidden="true"></kmp-icon> Disabled</span>
         <small class="text-muted ms-2">Public cannot access this event page</small>

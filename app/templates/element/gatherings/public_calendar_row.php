@@ -7,9 +7,10 @@ use Cake\I18n\DateTime;
 $event = $row['event'];
 $gathering = $event['gathering'];
 $isCancelled = $gathering->is_cancelled;
-$eventUrl = $gathering->public_page_enabled
-    ? $this->Url->build(['controller' => 'Gatherings', 'action' => 'public-landing', $gathering->public_id])
-    : $gathering->website_url;
+$eventUrl = $gathering->publicEventUrl(
+    $this->Url->build(['controller' => 'Gatherings', 'action' => 'publicLanding', $gathering->public_id]),
+);
+$newTab = $calendarEmbed ? ' target="_blank" rel="noopener"' : '';
 $panelId = 'event-details-' . $row['key'];
 ?>
 <tr class="kc-event<?= $isCancelled ? ' kc-event-cancelled' : '' ?>" role="row"
@@ -30,7 +31,11 @@ $panelId = 'event-details-' . $row['key'];
     <th scope="row" role="rowheader">
         <div class="kc-event-title-row">
             <?php if ($eventUrl) : ?>
-                <a class="kc-event-name" href="<?= h($eventUrl) ?>"><?= h($gathering->name) ?></a>
+                <a class="kc-event-name" href="<?= h($eventUrl) ?>"<?= $newTab ?>><?= h($gathering->name) ?><?php
+                if ($calendarEmbed) :
+                    ?><span class="visually-hidden"> <?= __('(opens in new tab)') ?></span><?php
+                endif;
+                ?></a>
             <?php else : ?>
                 <span class="kc-event-name"><?= h($gathering->name) ?></span>
             <?php endif; ?>
@@ -95,7 +100,12 @@ $panelId = 'event-details-' . $row['key'];
             <p><strong><?= __('Event type:') ?></strong> <?= h($gathering->gathering_type->name) ?></p>
             <div class="kc-detail-actions">
                 <?php if (!$isCancelled && $gathering->is_preregistration_open) : ?>
-                    <a href="<?= h($gathering->preregister_url) ?>" class="kc-button"><?= __('Pre-Register') ?></a>
+                    <a href="<?= h($gathering->preregister_url) ?>" class="kc-button"<?= $newTab ?>>
+                        <?= __('Pre-Register') ?>
+                        <?php if ($calendarEmbed) : ?>
+                            <span class="visually-hidden"><?= __('(opens in new tab)') ?></span>
+                        <?php endif; ?>
+                    </a>
                 <?php endif; ?>
                 <a href="<?= $this->Url->build([
                     'controller' => 'Gatherings', 'action' => 'downloadCalendar', $gathering->public_id,
@@ -112,16 +122,25 @@ $panelId = 'event-details-' . $row['key'];
                         <?= isset($calendarAttendances[$gathering->id]) ? __('Update RSVP') : __('RSVP') ?>
                     </button>
                 <?php elseif (!$user && !$isCancelled && $gathering->end_date >= DateTime::now()) : ?>
-                    <?php $rsvpUrl = $this->Url->build([
+                    <?php
+                    $returnQuery = $this->getRequest()->getQueryParams();
+                    unset($returnQuery['embed']);
+                    $rsvpUrl = $this->Url->build([
                         'controller' => 'Gatherings',
                         'action' => 'publicCalendar',
-                        '?' => $this->getRequest()->getQueryParams(),
+                        '?' => $returnQuery,
                         '#' => $panelId,
-                    ], ['escape' => false]); ?>
-                    <a class="kc-button" href="<?= h($this->Url->build([
+                    ], ['escape' => false]);
+                    $rsvpLink = $calendarEmbed ? $rsvpUrl : $this->Url->build([
                         'controller' => 'Members', 'action' => 'login', '?' => ['redirect' => $rsvpUrl],
-                    ], ['escape' => false])) ?>">
-                        <?= $this->Icon->render('login') ?> <?= __('Log in to RSVP') ?>
+                    ], ['escape' => false]);
+                    ?>
+                    <a class="kc-button" href="<?= h($rsvpLink) ?>"<?= $newTab ?>>
+                        <?= $this->Icon->render('login') ?>
+                        <?= $calendarEmbed ? __('RSVP in KMP') : __('Log in to RSVP') ?>
+                        <?php if ($calendarEmbed) : ?>
+                            <span class="visually-hidden"><?= __('(opens in new tab)') ?></span>
+                        <?php endif; ?>
                     </a>
                 <?php endif; ?>
             </div>

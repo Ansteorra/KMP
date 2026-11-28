@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace App\Test\TestCase\Controller;
 
+use App\Services\PublicCalendarSettings;
 use App\Test\TestCase\Support\HttpIntegrationTestCase;
+use Cake\Core\Configure;
 use Laminas\Diactoros\UploadedFile;
 
 /**
@@ -32,6 +34,144 @@ class AppSettingsControllerTest extends HttpIntegrationTestCase
         $this->get('/app-settings');
         $this->assertResponseOk();
         $this->assertResponseContains('App Settings');
+        $this->assertResponseContains('href="/app-settings/public-calendar"');
+        $this->assertResponseContains('Public Events Calendar');
+    }
+
+    public function testPublicCalendarSettingsSaveAndRender(): void
+    {
+        $this->get('/app-settings/public-calendar');
+        $this->assertResponseOk();
+        $this->assertResponseContains('Public Events Calendar');
+        $this->assertResponseContains('/events?embed=1');
+        $this->assertResponseContains('Tourneys, courts, classes, and gatherings.');
+
+        $this->post('/app-settings/public-calendar', [
+            'show_header' => '1',
+            'show_footer' => '1',
+            'header_title' => 'Kingdom & Friends',
+            'header_subtitle' => '',
+            'calendar_heading' => 'Gatherings <north>',
+            'header_icon' => 'castle',
+            'intro' => "**Welcome**\n\n- See [event help](https://example.test/help).\n<script>blocked()</script>",
+            'footer_title' => 'Calendar contacts',
+            'footer_body' => 'Contact **calendar staff**.',
+            'theme' => 'dark',
+            'body_font' => 'verdana',
+            'heading_font' => 'playfair',
+            'background' => '#101820',
+        ]);
+        $this->assertResponseCode(303);
+        $this->assertRedirectContains('/app-settings/public-calendar');
+
+        $this->session(['Auth' => null]);
+        $this->get('/events');
+        $this->assertResponseOk();
+        $this->assertResponseContains('<title>Kingdom &amp; Friends</title>');
+        $this->assertResponseContains('<h1>Gatherings &lt;north&gt;</h1>');
+        $this->assertResponseContains('name="castle"');
+        $this->assertResponseContains('<strong>Welcome</strong>');
+        $this->assertResponseContains('href="https://example.test/help"');
+        $this->assertResponseNotContains('<script>blocked()');
+        $this->assertResponseContains('<summary>Calendar contacts</summary>');
+        $this->assertResponseContains('Contact <strong>calendar staff</strong>.');
+        $this->assertResponseContains('--kc-bg:#101820;');
+        $this->assertResponseContains('--kc-font-body:Verdana, sans-serif;');
+        $this->assertResponseContains('--kc-font-display:"Playfair Display", Georgia, serif;');
+
+        $this->get('/events?q=forest');
+        $this->assertResponseOk();
+        $this->assertResponseContains('<h1>Gatherings &lt;north&gt;</h1>');
+        $this->assertResponseNotContains('Event archive');
+    }
+
+    public function testPublicCalendarSettingsRejectInvalidColorsAndOrigins(): void
+    {
+        $table = $this->getTableLocator()->get('AppSettings');
+        $saved = ['header_title' => 'Saved title'];
+        $this->assertTrue($table->updateSetting(PublicCalendarSettings::KEY, 'json', json_encode($saved)));
+
+        $this->post('/app-settings/public-calendar', [
+            'header_title' => 'Invalid changes',
+            'text' => '#ffffff',
+            'embed_origins' => "https://kingdom.example\nhttps://*.example.test",
+        ]);
+        $this->assertResponseCode(422);
+        $this->assertResponseContains('4.5:1 contrast');
+        $this->assertResponseContains('Enter exact HTTPS origins');
+        $this->assertSame($saved, $table->getSetting(PublicCalendarSettings::KEY));
+    }
+
+    public function testPublicCalendarSettingsRequireEditPermission(): void
+    {
+        $table = $this->getTableLocator()->get('AppSettings');
+        $savedSetting = $table->find()->where(['name' => PublicCalendarSettings::KEY]);
+        $before = $savedSetting->first()?->value;
+        $this->authenticateAsMember(self::TEST_MEMBER_AGATHA_ID);
+        $this->get('/app-settings/public-calendar');
+        $this->assertRedirectContains('/pages/unauthorized');
+
+        $this->post('/app-settings/public-calendar', ['header_title' => 'Unauthorized change']);
+        $this->assertRedirectContains('/pages/unauthorized');
+        $this->assertSame($before, $savedSetting->first()?->value);
+    }
+
+    public function testPublicCalendarLogoPublishes(): void
+    {
+        $directory = sys_get_temp_dir() . '/kmp-calendar-logo-' . bin2hex(random_bytes(6));
+        $priorPath = Configure::read('PublicAssets.localPath');
+        $priorAdapter = Configure::read('PublicAssets.adapter');
+        Configure::write('PublicAssets.localPath', $directory);
+        Configure::write('PublicAssets.adapter', 'local');
+
+        try {
+            $this->post('/app-settings/public-calendar', [
+                'show_header' => '1',
+                'artwork' => 'logo',
+                'logo' => $this->uploadedPngFile('calendar-logo.png'),
+            ]);
+            $this->assertResponseCode(303);
+            $table = $this->getTableLocator()->get('AppSettings');
+            $saved = $table->getSetting(PublicCalendarSettings::KEY);
+            $key = $saved['logo_key'];
+            $this->assertFileExists($directory . '/' . $key);
+
+            $this->session(['Auth' => null]);
+            $this->get('/events');
+            $this->assertResponseOk();
+            $this->assertResponseContains('/public-assets/' . $key);
+            $this->assertResponseContains('alt="" class="kc-logo"');
+        } finally {
+            Configure::write('PublicAssets.localPath', $priorPath);
+            Configure::write('PublicAssets.adapter', $priorAdapter);
+            foreach (glob($directory . '/images/*/*.png') ?: [] as $file) {
+                unlink($file);
+                rmdir(dirname($file));
+            }
+            if (is_dir($directory)) {
+                rmdir($directory . '/images');
+                rmdir($directory);
+            }
+        }
+    }
+
+    public function testInvalidPublicCalendarLogoPreservesSavedSettings(): void
+    {
+        $table = $this->getTableLocator()->get('AppSettings');
+        $saved = ['artwork' => 'logo', 'header_title' => 'Saved calendar'];
+        $this->assertTrue($table->updateSetting(PublicCalendarSettings::KEY, 'json', json_encode($saved)));
+        $path = tempnam(sys_get_temp_dir(), 'kmp-invalid-logo-');
+        $this->assertIsString($path);
+        try {
+            $length = file_put_contents($path, 'Invalid PNG');
+            $invalid = new UploadedFile($path, $length, UPLOAD_ERR_OK, 'invalid.png', 'image/png');
+            $this->post('/app-settings/public-calendar', ['artwork' => 'logo', 'logo' => $invalid]);
+            $this->assertResponseCode(422);
+            $this->assertResponseContains('Upload a PNG or WebP up to 2 MB');
+            $this->assertSame($saved, $table->getSetting(PublicCalendarSettings::KEY));
+        } finally {
+            unlink($path);
+        }
     }
 
     /**

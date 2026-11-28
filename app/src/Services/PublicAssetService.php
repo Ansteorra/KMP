@@ -13,6 +13,7 @@ use League\Flysystem\FilesystemOperator;
 use League\Flysystem\Local\LocalFilesystemAdapter;
 use League\Flysystem\UnixVisibility\PortableVisibilityConverter;
 use League\Flysystem\Visibility;
+use Psr\Http\Message\UploadedFileInterface;
 use RuntimeException;
 
 /** Publishes explicitly public artwork at immutable URLs, served without application requests. */
@@ -40,8 +41,7 @@ class PublicAssetService
         if ($tenant === null && filter_var(env('KMP_TENANCY_ENABLED', false), FILTER_VALIDATE_BOOLEAN)) {
             throw new RuntimeException('Publishing public assets requires tenant context.');
         }
-        $namespace = substr(hash('sha256', $tenant?->id ?? 'standalone'), 0, 32);
-        $key = 'images/' . $namespace . '/' . hash('sha256', $contents) . '.png';
+        $key = self::tenantAssetPrefix() . hash('sha256', $contents) . '.png';
         $filesystem = $this->filesystem ??= $this->createFilesystem();
         if (!$filesystem->fileExists($key)) {
             $options = [
@@ -55,6 +55,67 @@ class PublicAssetService
         }
 
         return $key;
+    }
+
+    /** Check an immutable asset reference against the active tenant namespace. */
+    public static function isTenantAssetKey(string $key): bool
+    {
+        $prefix = self::tenantAssetPrefix();
+
+        return str_starts_with($key, $prefix)
+            && (bool)preg_match('/^[a-f0-9]{64}\.png$/D', substr($key, strlen($prefix)));
+    }
+
+    /** Prefix for files published under the active tenant identity. */
+    private static function tenantAssetPrefix(): string
+    {
+        $namespace = substr(hash('sha256', TenantContext::tryCurrent()?->id ?? 'standalone'), 0, 32);
+
+        return 'images/' . $namespace . '/';
+    }
+
+    /** Decode a bounded PNG or WebP upload and strip metadata before publication. */
+    public static function normalizePngUpload(
+        UploadedFileInterface $upload,
+        int $maxBytes,
+        int $maxDimension,
+    ): ?string {
+        if ($upload->getError() !== UPLOAD_ERR_OK || ($upload->getSize() ?? 0) > $maxBytes) {
+            return null;
+        }
+        $stream = $upload->getStream();
+        $stream->rewind();
+        $bytes = $stream->read($maxBytes + 1);
+        if ($bytes === '' || strlen($bytes) > $maxBytes) {
+            return null;
+        }
+
+        // Invalid raster data should produce a field error instead of decoder warnings.
+        // phpcs:disable Generic.PHP.NoSilencedErrors.Discouraged
+        $size = @getimagesizefromstring($bytes);
+        if (
+            !$size || !in_array($size['mime'], ['image/png', 'image/webp'], true)
+            || $size[0] > $maxDimension || $size[1] > $maxDimension
+        ) {
+            return null;
+        }
+        $image = @imagecreatefromstring($bytes);
+        // phpcs:enable Generic.PHP.NoSilencedErrors.Discouraged
+        if ($image === false) {
+            return null;
+        }
+
+        imagesavealpha($image, true);
+        $output = fopen('php://temp', 'w+b');
+        try {
+            if (!imagepng($image, $output) || !rewind($output)) {
+                return null;
+            }
+
+            return stream_get_contents($output) ?: null;
+        } finally {
+            fclose($output);
+        }
     }
 
     /**

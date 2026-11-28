@@ -32,9 +32,7 @@ $gatheringScheduleUrl = $formData['gatheringScheduleUrl'] ?? null;
 $gatheringStartDateYmd = $formData['gatheringStartDateYmd'] ?? null;
 $courtSessionDates = $formData['courtSessionDates'] ?? [];
 $suggestedBestowedDate = $formData['suggestedBestowedDate'] ?? null;
-$adHocHelpText = __(
-    'Use this when the Crown gives an award on the spot without an existing recommendation.',
-);
+$fullEntryHelp = __('Leave Bestowed On blank to open a bestowal for court preparation.');
 $courtSlotHelpClass = $courtSlotsAvailable ? '' : 'd-none';
 $courtSlotNoScheduleClass = $courtSlotsAvailable && !$courtSlotHasScheduledSessions ? '' : 'd-none';
 $awardsDomainOptions = is_object($awardsDomains) && method_exists($awardsDomains, 'toArray')
@@ -101,7 +99,11 @@ $submitAction = implode(' ', [
                         <span class="badge rounded-pill text-bg-warning text-dark" aria-hidden="true">
                             <kmp-icon name="award"  aria-hidden="true"></kmp-icon>
                         </span>
-                        <?= __('Record Ad-Hoc Bestowal') ?>
+                        <span data-awards-bestowal-edit-target="adHocLabel"
+                            data-quick-label="<?= h(__('Record Award Given')) ?>"
+                            data-full-label="<?= h(__('Record Ad-Hoc Bestowal')) ?>">
+                            <?= __('Record Ad-Hoc Bestowal') ?>
+                        </span>
                     </h5>
                     <button type="button"
                         class="btn-close"
@@ -109,14 +111,11 @@ $submitAction = implode(' ', [
                         aria-label="<?= __('Close') ?>"></button>
                 </div>
                 <div class="modal-body bg-light-subtle">
-                    <div class="alert alert-warning border-start border-warning border-4 py-2 mb-3" role="note">
-                        <div class="d-flex gap-2">
-                            <kmp-icon name="bolt" class="flex-shrink-0" aria-hidden="true"></kmp-icon>
-                            <p class="mb-0">
-                                <?= h($adHocHelpText) ?>
-                            </p>
-                        </div>
-                    </div>
+                    <p data-awards-bestowal-edit-target="adHocLabel"
+                        data-quick-label="<?= h(__('Select the gathering where the award was given.')) ?>"
+                        data-full-label="<?= h($fullEntryHelp) ?>">
+                        <?= h($fullEntryHelp) ?>
+                    </p>
                     <script type="application/json" data-awards-bestowal-edit-target="bestowedDateHints" class="d-none">
                         <?= json_encode([
                             'gatheringStartDate' => $gatheringStartDateYmd,
@@ -130,6 +129,11 @@ $submitAction = implode(' ', [
                         'secure' => false,
                     ]) ?>
                     <?= $this->Form->hidden('source', ['value' => Bestowal::SOURCE_AD_HOC]) ?>
+                    <?= $this->Form->hidden('record_given', [
+                        'value' => '0',
+                        'secure' => false,
+                        'data-awards-bestowal-edit-target' => 'recordGiven',
+                    ]) ?>
                     <?= $this->Form->hidden('stack_rank', ['value' => $bestowal->stack_rank ?? 0]) ?>
 
                     <?= $this->Form->control('current_award_id', [
@@ -262,10 +266,20 @@ $submitAction = implode(' ', [
                                                 ]),
                                             ],
                                         ) ?>
+                                        <div class="form-check" data-awards-bestowal-edit-target="fullAdHocOnly">
+                                            <input type="checkbox" class="form-check-input"
+                                                id="<?= h($modalId) ?>IncludePastGatherings"
+                                                data-awards-bestowal-edit-target="includePastGatherings"
+                                                data-action="change->awards-bestowal-edit#updateGatherings">
+                                            <label class="form-check-label"
+                                                for="<?= h($modalId) ?>IncludePastGatherings">
+                                                <?= __('Include past gatherings') ?>
+                                            </label>
+                                        </div>
                                     </div>
 
-                                    <div class="col-12"
-                                        data-awards-bestowal-edit-target="courtSlotBlock"
+                                    <fieldset class="col-12"
+                                        data-awards-bestowal-edit-target="courtSlotBlock fullAdHocFieldset"
                                         data-awards-bestowal-edit-initial-court-slots-available="<?=
                                             $courtSlotsAvailable ? 'true' : 'false'
                                         ?>">
@@ -299,7 +313,7 @@ $submitAction = implode(' ', [
                                                 'data-action' => 'change->awards-bestowal-edit#onCourtSlotChange',
                                             ]) ?>
                                         </div>
-                                    </div>
+                                    </fieldset>
 
                                     <?= $this->Form->control('bestowed_at', [
                                         'type' => 'date',
@@ -311,29 +325,31 @@ $submitAction = implode(' ', [
                                         ],
                                     ]) ?>
 
-                                    <div class="col-12 col-md-6">
-                                        <?= $this->Form->control('call_into_court', [
-                                            'label' => __('Call Into Court'),
-                                        ]) ?>
-                                    </div>
-
-                                    <div class="col-12 col-md-6">
-                                        <?= $this->Form->control('person_to_notify', [
-                                            'label' => __('Person to Notify'),
-                                        ]) ?>
-                                    </div>
-
-                                    <div class="col-12 col-md-6">
-                                        <?= $this->Form->control('court_availability', [
-                                            'label' => __('Court Availability'),
-                                        ]) ?>
-                                    </div>
+                                    <fieldset class="col-12" data-awards-bestowal-edit-target="fullAdHocFieldset">
+                                        <div class="row g-3">
+                                            <div class="col-12 col-md-6">
+                                                <?= $this->Form->control('call_into_court', [
+                                                    'label' => __('Call Into Court'),
+                                                ]) ?>
+                                            </div>
+                                            <div class="col-12 col-md-6">
+                                                <?= $this->Form->control('person_to_notify', [
+                                                    'label' => __('Person to Notify'),
+                                                ]) ?>
+                                            </div>
+                                            <div class="col-12 col-md-6">
+                                                <?= $this->Form->control('court_availability', [
+                                                    'label' => __('Court Availability'),
+                                                ]) ?>
+                                            </div>
+                                        </div>
+                                    </fieldset>
 
                                 </div>
                             </fieldset>
                         </div>
 
-                        <div class="col-12">
+                        <fieldset class="col-12" data-awards-bestowal-edit-target="fullAdHocFieldset">
                             <fieldset class="border rounded-3 bg-white shadow-sm p-3">
                                 <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-3">
                                     <kmp-icon name="notebook" class="text-secondary me-1" aria-hidden="true"></kmp-icon>
@@ -372,7 +388,7 @@ $submitAction = implode(' ', [
                                     <?php endif; ?>
                                 </div>
                             </fieldset>
-                        </div>
+                        </fieldset>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -381,7 +397,11 @@ $submitAction = implode(' ', [
                         class="btn btn-primary"
                         data-awards-bestowal-edit-target="submitButton"
                         disabled>
-                        <?= __('Save Bestowal') ?>
+                        <span data-awards-bestowal-edit-target="adHocLabel"
+                            data-quick-label="<?= h(__('Record Award Given')) ?>"
+                            data-full-label="<?= h(__('Save Bestowal')) ?>">
+                            <?= __('Save Bestowal') ?>
+                        </span>
                     </button>
                 </div>
                 <?= $this->Form->end() ?>

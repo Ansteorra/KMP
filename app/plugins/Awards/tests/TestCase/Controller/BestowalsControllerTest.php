@@ -15,6 +15,7 @@ use Awards\Services\BestowalCancellationService;
 use Awards\Services\BestowalCourtSlotService;
 use Awards\Services\BestowalCreationService;
 use Cake\Core\ContainerInterface as CakeContainerInterface;
+use Cake\I18n\DateTime;
 use Cake\ORM\TableRegistry;
 use Closure;
 use DOMDocument;
@@ -481,6 +482,47 @@ class BestowalsControllerTest extends HttpIntegrationTestCase
         $this->assertResponseOk();
         $this->assertResponseContains('name="note"');
         $this->assertResponseContains('General Note');
+    }
+
+    public function testQuickEntryRecordsGivenAwardAtPastGatheringWithoutTodos(): void
+    {
+        $this->ensureActiveWorkflow('awards-bestowal-ad-hoc');
+        $gathering = $this->getTableLocator()->get('Gatherings')->find()
+            ->where(['start_date <' => DateTime::now()->subDays(2), 'cancelled_at IS' => null])
+            ->firstOrFail();
+        $lookup = '/awards/bestowals/gatherings-for-bestowal-auto-complete?q=' . rawurlencode($gathering->name);
+        $this->get($lookup);
+        $this->assertResponseOk();
+        $this->assertResponseNotContains($gathering->name);
+
+        $this->get($lookup . '&started_only=1');
+        $this->assertResponseOk();
+        $this->assertResponseContains($gathering->name);
+
+        $award = $this->getTableLocator()->get('Awards.Awards')->find()->firstOrFail();
+        $this->post('/awards/bestowals/ad-hoc', [
+            'record_given' => '1',
+            'member_sca_name' => 'Quick entry visitor',
+            'award_id' => $award->id,
+            'gathering_id' => $gathering->id,
+            'page_context_url' => '/awards/bestowals',
+        ]);
+
+        $bestowal = $this->getTableLocator()->get('Awards.Bestowals')->find()
+            ->where(['member_sca_name' => 'Quick entry visitor'])
+            ->firstOrFail();
+        $this->assertRedirectContains('/awards/bestowals/view/' . $bestowal->id);
+        $this->assertSame(Bestowal::LIFECYCLE_GIVEN, $bestowal->lifecycle_status);
+        $this->assertSame($gathering->id, $bestowal->gathering_id);
+        $this->assertSame(
+            $gathering->start_date->getTimestamp(),
+            $bestowal->bestowed_at->getTimestamp(),
+        );
+        $this->assertNull($bestowal->primary_recommendation_id);
+        $this->assertFalse($this->getTableLocator()->get('ActionItems')->exists([
+            'entity_type' => Bestowal::ACTION_ITEM_ENTITY_TYPE,
+            'entity_id' => $bestowal->id,
+        ]));
     }
 
     public function testEditUsesEphemeralWorkflowWithoutNestedTransactionFailure(): void

@@ -1,5 +1,17 @@
 # Picomatch reachability review — November 17, 2026
 
+## Status: closed November 28, 2026
+
+GitHub withdrew GHSA-fc5q-39xc-vjpf on November 18, 2026 as not a security
+issue (see the maintainers' discussion linked from the advisory). No patched
+release was published; picomatch 4.0.7 remains current and `npm audit` no
+longer reports it. The Platform Owner and Security Lead approved retiring the
+exception in chat on November 28, 2026, ahead of its December 1 expiry.
+`security/npm-picomatch-review.json`, the waiver code in `security/check.py`
+and its contract tests were removed, so every npm High or Critical finding
+blocks again. The Vite bundle guard and `security/test-picomatch-boundary.mjs`
+remain. The rest of this document is the original record.
+
 ## Decision and scope
 
 **No application exploit path was found in the reviewed KMP candidate. The
@@ -110,3 +122,14 @@ The acceptance requirement comes from
 “High findings must be fixed and retested or explicitly accepted by the Platform
 Owner and Security Lead.” Acceptance is recorded from the user’s explicit
 November 17 approval, not inferred from this technical assessment.
+
+## Renewal — November 28, 2026
+
+The Dependabot updates applied on `dev` (babel group, playwright 1.65.1,
+undici 8.12.4, `@hugeicons/core-free-icons` 4.4.0) changed `app/package.json`
+and `app/package-lock.json`, so the pinned digests were renewed. Verified
+before renewal: picomatch still resolves to exactly 2.3.2 (under `anymatch`)
+and 4.0.7, both `dev: true`; `security/test-picomatch-boundary.mjs` still
+passes against the real Vite guard. The scope, mitigation, and December 1
+expiry of the original acceptance are unchanged. The Platform Owner and
+Security Lead explicitly approved this renewal in chat on November 28, 2026.

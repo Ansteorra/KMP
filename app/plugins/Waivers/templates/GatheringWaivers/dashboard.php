@@ -15,6 +15,7 @@ declare(strict_types=1);
  * @var array|null $searchResults
  * @var string|null $searchTerm
  * @var array $gatheringsDueWaivers
+ * @var \Cake\I18n\DateTime $calendarMonth
  */
 
 $gatheringsReadyToClose = $gatheringsReadyToClose ?? [];
@@ -168,11 +169,9 @@ $this->KMP->endBlock();
         display: flex;
         align-items: center;
         justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.5rem;
         margin-bottom: 0.75rem;
-    }
-
-    .waiver-calendar-nav .btn {
-        min-width: 100px;
     }
 
     .waiver-calendar-legend {
@@ -265,25 +264,48 @@ $this->KMP->endBlock();
                     </button>
                 </h5>
                 <div id="collapse-calendar" class="collapse">
-                    <div class="card-body"
-                        data-controller="waiver-calendar"
-                        data-waiver-calendar-url-value="<?= $this->Url->build(['action' => 'calendarData', 'plugin' => 'Waivers']) ?>">
+                    <div class="card-body" id="waiver-clerk-calendar"
+                        data-controller="grid-view waiver-calendar"
+                        data-grid-view-sync-url-value="false"
+                        data-grid-view-sticky-query-value="year,month"
+                        data-waiver-calendar-grid-view-outlet="#waiver-clerk-calendar"
+                        data-waiver-calendar-empty-message-value="<?= h(__('No gatherings match this view.')) ?>"
+                        data-waiver-calendar-error-message-value="<?= h(__('The calendar could not be loaded.')) ?>">
                         <div class="waiver-calendar-nav">
-                            <button class="btn btn-outline-primary btn-sm" data-action="waiver-calendar#prevMonth" data-waiver-calendar-target="prevBtn">
-                                <kmp-icon name="chevron-left"  aria-hidden="true"></kmp-icon> <?= __('Prev') ?>
+                            <button type="button" class="btn btn-outline-primary btn-sm"
+                                data-action="waiver-calendar#prevMonth" data-waiver-calendar-target="prevBtn"
+                                aria-label="<?= h(__('Previous month')) ?>" disabled>
+                                <kmp-icon name="chevron-left" aria-hidden="true"></kmp-icon> <?= __('Prev') ?>
                             </button>
-                            <h5 class="mb-0" data-waiver-calendar-target="monthLabel"></h5>
-                            <button class="btn btn-outline-primary btn-sm" data-action="waiver-calendar#nextMonth" data-waiver-calendar-target="nextBtn">
-                                <?= __('Next') ?> <kmp-icon name="chevron-right"  aria-hidden="true"></kmp-icon>
+                            <h6 class="flex-grow-1 text-center mb-0" data-waiver-calendar-target="monthLabel"></h6>
+                            <button type="button" class="btn btn-outline-primary btn-sm"
+                                data-action="waiver-calendar#nextMonth" data-waiver-calendar-target="nextBtn"
+                                aria-label="<?= h(__('Next month')) ?>" disabled>
+                                <?= __('Next') ?> <kmp-icon name="chevron-right" aria-hidden="true"></kmp-icon>
                             </button>
+                            <fieldset class="mt-0 mb-0 ms-auto" data-waiver-calendar-target="filterControls" disabled>
+                                <legend class="visually-hidden"><?= __('Calendar filters') ?></legend>
+                                <?= $this->element('dv_custom_filter_controls', [
+                                    'dropdownId' => 'waiver-calendar-filter',
+                                    'searchLabel' => __('Search calendar gatherings'),
+                                ]) ?>
+                            </fieldset>
                         </div>
-                        <div data-waiver-calendar-target="calendar">
+                        <div class="d-flex flex-wrap gap-2 mb-3 grid-view-badges" data-filter-pills-container></div>
+                        <div class="form-text" role="status" data-waiver-calendar-target="status"></div>
+                        <turbo-frame id="waiver-clerk-calendar-table" loading="lazy" target="_top"
+                            data-action="turbo:fetch-request-error->waiver-calendar#loadFailed"
+                            data-waiver-calendar-target="frame"
+                            src="<?= h($this->Url->build([
+                                'action' => 'calendarData',
+                                '?' => ['year' => $calendarMonth->format('Y'), 'month' => $calendarMonth->format('n')],
+                            ])) ?>">
                             <div class="text-center py-4">
                                 <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden"><?= __('Loading...') ?></span>
                                 </div>
                             </div>
-                        </div>
+                        </turbo-frame>
                         <div class="waiver-calendar-legend">
                             <div class="waiver-calendar-legend-item">
                                 <span class="badge bg-success"><?= __('Uploaded') ?></span>

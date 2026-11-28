@@ -10,15 +10,13 @@ import { BaseGatheringFormController } from "./base-gathering-form-controller";
  * - Automatically defaults end date to start date when start date changes
  * - Validates that end date is not before start date
  * - Provides real-time feedback to users
- * - Disables the Event Website field while the public landing page is
- *   enabled (the public page becomes the event's website)
  */
 class GatheringFormController extends BaseGatheringFormController {
     static targets = [
         ...BaseGatheringFormController.targets,
-        "publicPageToggle",
-        "websiteUrl",
         "branch",
+        "branchSelect",
+        "branchAutocomplete",
         "typeAvailability",
     ]
 
@@ -26,7 +24,14 @@ class GatheringFormController extends BaseGatheringFormController {
 
     connect() {
         super.connect();
-        this.syncWebsiteUrlState();
+        this.syncGatheringTypes();
+    }
+
+    activateBranchAutocomplete() {
+        this.branchSelectTarget.querySelector('select').disabled = true;
+        this.branchSelectTarget.hidden = true;
+        this.branchAutocompleteTarget.disabled = false;
+        this.branchAutocompleteTarget.hidden = false;
         this.syncGatheringTypes();
     }
 
@@ -40,7 +45,7 @@ class GatheringFormController extends BaseGatheringFormController {
     /** Use server-authorized choices; submission rechecks current permissions. */
     syncGatheringTypes() {
         if (!this.hasTypesByBranchValue || !this.hasBranchTarget || !this.hasGatheringTypeSelectTarget) return;
-        const branchId = this.branchTarget.querySelector('[name="branch_id"]')?.value;
+        const branchId = this.branchTarget.querySelector('[name="branch_id"]:enabled')?.value;
         const select = this.gatheringTypeSelectTarget;
         const selectedId = select.value;
         const choices = this.typesByBranchValue[branchId] || [];
@@ -62,26 +67,6 @@ class GatheringFormController extends BaseGatheringFormController {
                         ? 'The previous type is unavailable in this branch. Choose another type.'
                         : 'Only types whose default activities you can assign are available.';
         }
-    }
-
-    /**
-     * Handle public-page checkbox changes
-     */
-    publicPageToggled() {
-        this.syncWebsiteUrlState();
-    }
-
-    /**
-     * Disable the Event Website input while the public landing page is
-     * enabled - the public page takes precedence as the event's web link.
-     */
-    syncWebsiteUrlState() {
-        if (!this.hasPublicPageToggleTarget || !this.hasWebsiteUrlTarget) {
-            return;
-        }
-        const publicPageEnabled = this.publicPageToggleTarget.checked;
-        this.websiteUrlTarget.disabled = publicPageEnabled;
-        this.websiteUrlTarget.classList.toggle("text-muted", publicPageEnabled);
     }
 }
 

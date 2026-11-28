@@ -882,6 +882,7 @@ class BestowalsController extends AppController
         $q = trim((string)$this->request->getQuery('q', ''));
         $status = (string)$this->request->getQuery('status', '');
         $includePast = filter_var($this->request->getQuery('include_past', false), FILTER_VALIDATE_BOOLEAN);
+        $startedOnly = $this->request->getQuery('started_only') === '1';
         $futureOnly = ($status !== 'Given') && !$includePast;
         $selectedId = $this->request->getQuery('selected_id');
         $selectedId = is_numeric((string)$selectedId) ? (int)$selectedId : null;
@@ -975,6 +976,7 @@ class BestowalsController extends AppController
                     $futureOnly,
                     $selectedId,
                     $awardIdOverride,
+                    $startedOnly,
                 );
                 $gatherings = $gatheringData['gatherings'] ?? [];
                 $rankedGatherings = $gatheringData['rankedGatherings'] ?? [];
@@ -1723,6 +1725,7 @@ class BestowalsController extends AppController
             ],
         );
 
+        $bestowalId = $result['data']['bestowalId'] ?? null;
         if ($result['success']) {
             $eventPayload = $result['data']['eventPayload']
                 ?? $result['data']
@@ -1734,6 +1737,9 @@ class BestowalsController extends AppController
                 $eventPayload,
             );
             $this->Flash->success(__('The ad-hoc bestowal has been recorded.'));
+            if (($data['record_given'] ?? null) === '1' && $bestowalId) {
+                return $this->redirect(['action' => 'view', $bestowalId]);
+            }
         } else {
             $this->Flash->error($result['error'] ?? __('The ad-hoc bestowal could not be recorded.'));
         }
@@ -1742,7 +1748,6 @@ class BestowalsController extends AppController
             return $this->redirect($pageContext);
         }
 
-        $bestowalId = $result['data']['bestowalId'] ?? null;
         if ($bestowalId) {
             return $this->redirect(['action' => 'view', $bestowalId]);
         }

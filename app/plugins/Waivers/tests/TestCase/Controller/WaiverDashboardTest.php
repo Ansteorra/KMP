@@ -100,6 +100,46 @@ class WaiverDashboardTest extends HttpIntegrationTestCase
         return array_map(static fn($gathering) => (int)$gathering->id, $gatherings);
     }
 
+    public function testClerkCalendarCombinesDataverseFiltersInHtmlAndJson(): void
+    {
+        $match = $this->gathering('Calendar result with partial waivers', '2026-10-16 12:00:00');
+        $complete = $this->gathering('Calendar result with complete waivers', '2026-10-17 12:00:00');
+        $otherBranch = $this->gathering(
+            'Calendar result in another branch',
+            '2026-10-18 12:00:00',
+            self::KINGDOM_BRANCH_ID,
+        );
+        $otherMonth = $this->gathering('Calendar result next month', '2026-11-15 12:00:00');
+        $otherName = $this->gathering('Different name', '2026-10-20 12:00:00');
+        foreach ([$match, $complete, $otherBranch, $otherMonth, $otherName] as $gathering) {
+            $this->waiver($gathering, $this->waiverTypeIds[0]);
+        }
+        $this->waiver($complete, $this->waiverTypeIds[1]);
+        $branch = $this->getTableLocator()->get('Branches')->get($match->branch_id);
+        $filters = [
+            'branch_id' => [$branch->public_id],
+            'gathering_type_id' => [(string)$this->gatheringTypeId],
+            'activity_filter' => [(string)$this->activityId],
+            'status' => ['partial'],
+        ];
+        $url = '/waivers/gathering-waivers/calendar-data?' . http_build_query([
+            'year' => 2026, 'month' => 10, 'search' => 'Calendar result', 'filter' => $filters,
+        ]);
+
+        $this->get($url);
+        $this->assertResponseOk();
+        $this->assertContentType('application/json');
+        $calendar = json_decode((string)$this->_response->getBody(), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame([$match->id], array_column($calendar['events'], 'id'));
+
+        $this->configRequest(['headers' => ['Turbo-Frame' => 'waiver-clerk-calendar-table']]);
+        $this->get($url);
+        $this->assertResponseOk();
+        $this->assertResponseContains('<turbo-frame id="waiver-clerk-calendar-table"');
+        $this->assertSame($filters, $this->viewVariable('gridState')['filters']['active']);
+        $this->assertSame([$match->id], array_column($this->viewVariable('calendar')['events'], 'id'));
+    }
+
     public function testLostRequirementsAreCompleteAcrossClosureViewsAndCanBeClosed(): void
     {
         $gathering = $this->gathering('Lost requirements', '2026-09-01 10:00:00');

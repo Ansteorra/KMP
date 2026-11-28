@@ -202,10 +202,8 @@ class ICalendarService
         // Event title — calendar apps display cancellation status from STATUS:CANCELLED
         $lines[] = 'SUMMARY:' . $this->escapeText($gathering->name);
 
-        $eventUrl = null;
-        if ($baseUrl && $gathering->public_page_enabled) {
-            $eventUrl = $baseUrl . '/gatherings/public-landing/' . $gathering->public_id;
-        }
+        $landingUrl = $baseUrl ? $baseUrl . '/gatherings/public-landing/' . $gathering->public_id : null;
+        $eventUrl = $gathering->publicEventUrl($landingUrl);
 
         $description = $this->buildDescription($gathering, $eventUrl);
         $lines[] = 'DESCRIPTION:' . $this->escapeText($description);

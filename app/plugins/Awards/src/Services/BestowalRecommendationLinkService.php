@@ -124,21 +124,47 @@ class BestowalRecommendationLinkService
      * @param int $bestowalId Bestowal ID.
      * @param array<int> $recommendationIds Recommendation IDs to link.
      * @param int $actorId Actor performing the change.
+     * @param int|null $groupHeadId Bestowal-owned head receiving new group members.
      * @return array<int> Linked recommendation IDs.
      */
-    public function linkRecommendations(int $bestowalId, array $recommendationIds, int $actorId): array
-    {
+    public function linkRecommendations(
+        int $bestowalId,
+        array $recommendationIds,
+        int $actorId,
+        ?int $groupHeadId = null,
+    ): array {
         $recommendationIds = array_values(array_unique(array_filter(array_map('intval', $recommendationIds))));
         if ($recommendationIds === []) {
             return [];
         }
 
         return $this->bestowalsTable->getConnection()->transactional(
-            function () use ($bestowalId, $recommendationIds, $actorId): array {
+            function () use ($bestowalId, $recommendationIds, $actorId, $groupHeadId): array {
+                $this->bestowalsTable->find()
+                    ->select(['id'])
+                    ->where(['Bestowals.id' => $bestowalId])
+                    ->epilog('FOR UPDATE')
+                    ->firstOrFail();
+                $this->recommendationsTable->find()
+                    ->select(['id'])
+                    ->where(['Recommendations.id IN' => $recommendationIds])
+                    ->orderByAsc('Recommendations.id')
+                    ->epilog('FOR UPDATE')
+                    ->all()->toList();
                 $bestowal = $this->bestowalsTable->get($bestowalId, contain: [
                     'Members',
                     'Recommendations' => ['Awards', 'Awards.Levels', 'Requesters'],
                 ]);
+                if ($groupHeadId !== null) {
+                    $groupHead = $this->recommendationsTable->get($groupHeadId);
+                    if (
+                        $groupHead->bestowal_id !== $bestowalId
+                        || $groupHead->recommendation_group_id !== null
+                        || !$bestowal->isActiveBestowal()
+                    ) {
+                        throw new RuntimeException('The selected bestowal group is no longer available.');
+                    }
+                }
                 $linked = [];
 
                 foreach ($recommendationIds as $recommendationId) {
@@ -153,7 +179,7 @@ class BestowalRecommendationLinkService
                             $recommendationId,
                             contain: ['Awards', 'Awards.Levels'],
                         );
-                        $this->assertLinkable($bestowal, $recommendation);
+                        $this->assertLinkable($bestowal, $recommendation, $groupHeadId);
                         if ($this->syncLinkedRecommendation($bestowal, $recommendation, $actorId)) {
                             $linked[] = $recommendationId;
                         }
@@ -165,7 +191,7 @@ class BestowalRecommendationLinkService
                         $recommendationId,
                         contain: ['Awards', 'Awards.Levels'],
                     );
-                    $this->assertLinkable($bestowal, $recommendation);
+                    $this->assertLinkable($bestowal, $recommendation, $groupHeadId);
 
                     $join = $this->bestowalRecommendationsTable->newEmptyEntity();
                     $join->bestowal_id = $bestowalId;
@@ -181,7 +207,8 @@ class BestowalRecommendationLinkService
                     $linked[] = $recommendationId;
                 }
 
-                if ($linked !== []) {
+                // Adding supporting recommendations keeps the open bestowal's prepared fields.
+                if ($linked !== [] && $groupHeadId === null) {
                     $this->refreshBestowalAfterLinkChange($bestowal, $actorId);
                 }
 
@@ -271,11 +298,19 @@ class BestowalRecommendationLinkService
     /**
      * @param \Awards\Model\Entity\Bestowal $bestowal Bestowal entity.
      * @param \Awards\Model\Entity\Recommendation $recommendation Recommendation to link.
+     * @param int|null $groupHeadId Bestowal-owned head receiving new group members.
      * @return void
      */
-    private function assertLinkable(Bestowal $bestowal, Recommendation $recommendation): void
-    {
-        if ($recommendation->recommendation_group_id !== null) {
+    private function assertLinkable(
+        Bestowal $bestowal,
+        Recommendation $recommendation,
+        ?int $groupHeadId,
+    ): void {
+        if ($groupHeadId !== null) {
+            if ($recommendation->recommendation_group_id !== $groupHeadId) {
+                throw new RuntimeException('The selected bestowal group is no longer available.');
+            }
+        } elseif ($recommendation->recommendation_group_id !== null) {
             throw new RuntimeException('Grouped child recommendations cannot be linked directly.');
         }
 
@@ -288,7 +323,14 @@ class BestowalRecommendationLinkService
             $recommendationMemberId === null
             && (string)$recommendation->member_sca_name !== (string)$bestowal->member_sca_name
         ) {
-            throw new RuntimeException('Recommendation recipient name must match the bestowal recipient name.');
+            // Use the same recorded-name comparison as the similar recommendations grid.
+            $sameRecordedName = $groupHeadId !== null && $this->recommendationsTable->exists([
+                'Recommendations.id' => $recommendation->id,
+                'Recommendations.member_sca_name' => $bestowal->member_sca_name,
+            ]);
+            if (!$sameRecordedName) {
+                throw new RuntimeException('Recommendation recipient name must match the bestowal recipient name.');
+            }
         }
 
         if (
