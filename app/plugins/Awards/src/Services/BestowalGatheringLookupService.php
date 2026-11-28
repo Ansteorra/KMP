@@ -22,6 +22,8 @@ class BestowalGatheringLookupService
      * @param \Awards\Model\Entity\Bestowal $bestowal Loaded bestowal with recommendations contain.
      * @param bool $futureOnly When true, only include future gatherings.
      * @param int|null $selectedGatheringId Currently selected gathering to always include.
+     * @param int|null $awardIdOverride Award selected in the form.
+     * @param bool $startedOnly Limit choices to gatherings that have started and were not cancelled.
      * @return array{gatherings: array<int, string>, cancelledGatheringIds: array<int, int>, rankedGatherings: array<int, array<string, mixed>>}
      */
     public function getFilteredGatheringsForBestowal(
@@ -29,6 +31,7 @@ class BestowalGatheringLookupService
         bool $futureOnly = true,
         ?int $selectedGatheringId = null,
         ?int $awardIdOverride = null,
+        bool $startedOnly = false,
     ): array {
         $awardIds = $awardIdOverride !== null
             ? [$awardIdOverride]
@@ -43,10 +46,11 @@ class BestowalGatheringLookupService
         return $this->buildGatheringOptions(
             $awardIds,
             $memberId !== null ? [$memberId] : [],
-            $futureOnly,
+            $futureOnly && !$startedOnly,
             $includeGatheringIds,
             false,
             $recommendationIds,
+            $startedOnly,
         );
     }
 
@@ -223,6 +227,7 @@ class BestowalGatheringLookupService
      * @param array<int> $includeGatheringIds Gatherings that must appear even if filtered out.
      * @param bool $bulkMode When true, attendance counts use *(N) suffix for multiple members.
      * @param array<int> $recommendationIds Recommendation IDs with suggested gatherings.
+     * @param bool $startedOnly Limit choices to gatherings that have started and were not cancelled.
      * @return array{gatherings: array<int, string>, cancelledGatheringIds: array<int, int>, rankedGatherings: array<int, array<string, mixed>>}
      */
     private function buildGatheringOptions(
@@ -232,6 +237,7 @@ class BestowalGatheringLookupService
         array $includeGatheringIds,
         bool $bulkMode,
         array $recommendationIds = [],
+        bool $startedOnly = false,
     ): array {
         $includeGatheringIds = array_values(array_unique(array_filter(array_map('intval', $includeGatheringIds))));
 
@@ -261,6 +267,15 @@ class BestowalGatheringLookupService
                     ->all()
                     ->toList();
             }
+        }
+
+        if ($startedOnly) {
+            $now = DateTime::now();
+            $gatheringsData = array_filter(
+                $gatheringsData,
+                static fn($gathering): bool => $gathering->start_date <= $now && $gathering->cancelled_at === null,
+            );
+            $includeGatheringIds = [];
         }
 
         $attendanceMap = $this->buildAttendanceMap($memberIds, $bulkMode);

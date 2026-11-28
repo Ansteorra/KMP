@@ -28,10 +28,17 @@ $this->KMP->endBlock();
             ?>
         </p>
     </div>
-    <div class="col text-end">
+    <div class="col-auto d-flex flex-wrap justify-content-end gap-2">
         <?php if ($canEditBestowalRecords) : ?>
             <button type="button"
                 class="btn btn-primary"
+                data-bs-toggle="modal"
+                data-bs-target="#adHocBestowalModal"
+                data-record-given><kmp-icon name="circle-plus" aria-hidden="true"></kmp-icon>
+                <?= __('Record Award Given') ?>
+            </button>
+            <button type="button"
+                class="btn btn-outline-primary"
                 data-bs-toggle="modal"
                 data-bs-target="#adHocBestowalModal"><kmp-icon name="circle-plus" aria-hidden="true"></kmp-icon>
                 <?= __('Record Ad-Hoc Bestowal') ?>

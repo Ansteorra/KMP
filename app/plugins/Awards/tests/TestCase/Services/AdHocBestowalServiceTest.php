@@ -102,6 +102,21 @@ class AdHocBestowalServiceTest extends BaseTestCase
         $this->assertSame('Visitor of the Lists', $result['data']['eventPayload']['memberScaName']);
     }
 
+    public function testQuickEntryRequiresAGatheringEvenWhenADateIsPosted(): void
+    {
+        $awardId = $this->getAwardIdWithSpecialties([]);
+        $before = $this->bestowalsTable->find()->count();
+        $result = $this->service->record([
+            'record_given' => '1',
+            'member_sca_name' => 'Visitor of the Lists',
+            'award_id' => $awardId,
+            'bestowed_at' => '2026-01-01',
+        ], self::ADMIN_MEMBER_ID);
+
+        $this->assertFalse($result['success']);
+        $this->assertSame($before, $this->bestowalsTable->find()->count());
+    }
+
     public function testRecordRequiresRecipientNameWhenNoMemberSelected(): void
     {
         $awardId = $this->getAwardIdWithSpecialties([]);

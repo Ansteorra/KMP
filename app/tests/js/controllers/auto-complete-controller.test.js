@@ -20,8 +20,7 @@ describe('AutoCompleteController', () => {
                  data-auto-complete-allow-other-value="${allowOther}"
                  data-auto-complete-delay-value="${delay}"
                  data-auto-complete-query-param-value="${queryParam}"
-                 data-auto-complete-show-on-focus-value="${showOnFocus}"
-                 aria-expanded="false">
+                 data-auto-complete-show-on-focus-value="${showOnFocus}">
                 <input type="text" data-auto-complete-target="input" class="form-control">
                 <input type="hidden" data-auto-complete-target="hidden" name="member_id" value="">
                 <input type="hidden" data-auto-complete-target="hiddenText" name="member_name" value="">
@@ -362,7 +361,8 @@ describe('AutoCompleteController', () => {
         controller.resultsShown = false;
         controller.open();
 
-        expect(controller.element.getAttribute('aria-expanded')).toBe('true');
+        expect(controller.inputTarget.getAttribute('aria-expanded')).toBe('true');
+        expect(controller.element.hasAttribute('aria-expanded')).toBe(false);
         expect(controller.resultsTarget.hidden).toBe(false);
     });
 
@@ -425,7 +425,7 @@ describe('AutoCompleteController', () => {
         controller.resultsShown = true;
         controller.close();
 
-        expect(controller.element.getAttribute('aria-expanded')).toBe('false');
+        expect(controller.inputTarget.getAttribute('aria-expanded')).toBe('false');
         expect(controller.resultsTarget.hidden).toBe(true);
     });
 
@@ -833,6 +833,19 @@ describe('AutoCompleteController', () => {
 
         const items = controller.resultsTarget.querySelectorAll('[role="option"]');
         expect(items.length).toBe(2);
+    });
+
+    test.each(['a', '&'])('highlights %s in a label while preserving its ampersand', async (query) => {
+        setupController({ dataListContent: '[]' });
+        controller._selectOptions = [{ value: '1', text: 'Arts & Sciences' }];
+
+        await controller.fetchResults(query);
+
+        const option = controller.resultsTarget.querySelector('[role="option"]');
+        expect(option.textContent).toBe('Arts & Sciences');
+        expect(option.querySelector('.text-primary').textContent.toLowerCase()).toBe(query);
+        controller.commit(option);
+        expect(controller.inputTarget.value).toBe('Arts & Sciences');
     });
 
     test('fetchResults with URL calls doFetch and replaces results', async () => {
