@@ -39,7 +39,7 @@
         "setasign/fpdi": "^2.6.4",
         "smalot/pdfparser": "^2.12.3",
         "symfony/process": "^7.4.22",
-        "symfony/yaml": "^7.4"
+        "symfony/yaml": "^8.1"
     },
     "require-dev": {
         "cakephp/bake": "^3.8",
