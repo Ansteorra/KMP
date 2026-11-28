@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 import unittest
@@ -86,6 +87,19 @@ sys.exit(int(os.environ.get('INSTALL_EXIT', '0')))
         result = self.run_installer('chromium', CONFIG_WRITE_FAILURE='1')
         self.assertEqual(17, result.returncode)
         self.assertFalse((self.path / 'cli.json').exists())
+
+    def test_every_workflow_install_step_is_time_bounded(self):
+        steps = []
+        for workflow in sorted((ROOT / '.github/workflows').glob('*.yml')):
+            for step in re.split(r'\n(?=\s*- (?:name|uses|run):)', workflow.read_text()):
+                if 'install-playwright-browser.sh' in step:
+                    steps.append((workflow.name, step))
+        self.assertGreaterEqual(len(steps), 3)
+        for name, step in steps:
+            with self.subTest(workflow=name):
+                limit = re.search(r'^\s*timeout-minutes:\s*(\d+)\s*$', step, re.M)
+                self.assertIsNotNone(limit, 'browser install step has no timeout')
+                self.assertLessEqual(int(limit.group(1)), 15)
 
     def test_local_invocation_and_invalid_browser_are_rejected_before_mutations(self):
         for browsers, environment in [
