@@ -3,8 +3,8 @@
 Stay up to date with the latest features, improvements, and announcements for the Kingdom Management Portal.
 
 <!-- CHANGELOG_SYNC_MARKER: This line is used by the sync-changelog prompt to track the last synced commit -->
-<!-- LAST_SYNCED_COMMIT: a3e3af6b92f6b1e204a525b209fd309787ab7fbb -->
-<!-- LAST_SYNCED_DATE: 2026-11-26 -->
+<!-- LAST_SYNCED_COMMIT: 30453d2c60975f7cb598bd613b9af36775355893 -->
+<!-- LAST_SYNCED_DATE: 2026-11-27 -->
 
 ## KMP 1.5.16 — November 25, 2026
 
@@ -17,6 +17,8 @@ KMP 1.5.16 gives kingdoms more control over their public calendar, makes gatheri
 - Gathering creation and waiver uploads share numbered steps and the same navigation controls on desktop and mobile. Return to an earlier step without losing your entries.
 - Use Dataverse search and filters in the **Waiver Clerk Calendar** to narrow the month by hosting group, gathering type, activity, or waiver status. Filters stay applied while you move between months.
 - Open **Recs. Like This** on a recommendation to see other submissions for the same recipient and award, including closed history. Group open matches from the detail page or add them to an in-flight bestowal while keeping its recommendation as the group lead.
+- Use **Record Award Given** on Award Bestowals to select a recipient, award, and past or ongoing gathering. KMP saves the bestowal as **Given**, links it to the gathering, and uses the gathering's start date without creating a preparation checklist.
+- In the full **Record Ad-Hoc Bestowal** form, turn on **Include past gatherings** to find earlier events. Award Type search preserves ampersands in labels such as **Arts & Sciences**.
 
 ---
 
