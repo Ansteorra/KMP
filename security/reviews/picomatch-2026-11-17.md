@@ -110,3 +110,14 @@ The acceptance requirement comes from
 “High findings must be fixed and retested or explicitly accepted by the Platform
 Owner and Security Lead.” Acceptance is recorded from the user’s explicit
 November 17 approval, not inferred from this technical assessment.
+
+## Renewal — November 28, 2026
+
+The Dependabot updates applied on `dev` (babel group, playwright 1.65.1,
+undici 8.12.4, `@hugeicons/core-free-icons` 4.4.0) changed `app/package.json`
+and `app/package-lock.json`, so the pinned digests were renewed. Verified
+before renewal: picomatch still resolves to exactly 2.3.2 (under `anymatch`)
+and 4.0.7, both `dev: true`; `security/test-picomatch-boundary.mjs` still
+passes against the real Vite guard. The scope, mitigation, and December 1
+expiry of the original acceptance are unchanged. The Platform Owner and
+Security Lead explicitly approved this renewal in chat on November 28, 2026.

@@ -8,8 +8,8 @@
     "security_lead": "User approval in this chat, 2026-11-17, explicitly acting as Security Lead"
   },
   "reviewed_files": {
-    "app/package.json": "878a26bcd9aa532c03d627fe7d34ff4c1adaa49dffbe7ce9f08b764437247931",
-    "app/package-lock.json": "8aa1f5cb206206730b90a198d274eaec227912fa7e60759092edd661b111cdfa",
+    "app/package.json": "9a5a625fcc3cd225d54b3f1739df0df8a911a6d57d55a7a11899d9c75a6d5004",
+    "app/package-lock.json": "02c6af011dfc1b8b87a113a86e8af9e31fc321846bb4bfbbad0eb01b2622affd",
     "app/vite.config.js": "bf86d84bdc9c287222562769c574413dfbc78b806d281e953a6f8a541c97ef2e",
     "app/assets/js/controllers-entry.js": "9b5359ab50e2f589909b2178d03e3f6faf9e5dda6fdb18136ad41fe7f530e656",
     "app/jest.config.cjs": "ca54b6fcd2d09c904e834286f00c2fbd7287840d347cef0698cecd7f887e9977",
