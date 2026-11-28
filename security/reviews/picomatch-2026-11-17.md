@@ -1,5 +1,17 @@
 # Picomatch reachability review — November 17, 2026
 
+## Status: closed November 28, 2026
+
+GitHub withdrew GHSA-fc5q-39xc-vjpf on November 18, 2026 as not a security
+issue (see the maintainers' discussion linked from the advisory). No patched
+release was published; picomatch 4.0.7 remains current and `npm audit` no
+longer reports it. The Platform Owner and Security Lead approved retiring the
+exception in chat on November 28, 2026, ahead of its December 1 expiry.
+`security/npm-picomatch-review.json`, the waiver code in `security/check.py`
+and its contract tests were removed, so every npm High or Critical finding
+blocks again. The Vite bundle guard and `security/test-picomatch-boundary.mjs`
+remain. The rest of this document is the original record.
+
 ## Decision and scope
 
 **No application exploit path was found in the reviewed KMP candidate. The
